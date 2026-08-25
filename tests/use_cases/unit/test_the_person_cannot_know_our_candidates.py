@@ -130,3 +130,20 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
     # ⚠️ Y la segunda vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
     # exactamente lo que este detector existe para impedir.
     assert marcadas <= 2, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
+
+
+def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():
+    """V2-313 — el barrido nombraba las líneas y no cambiaba nada: `search-buy-camera__es` (2026-08-25 04:41)
+    salió overall 4 = PASS con el tester recitando nuestros candidatos, y subió el tablero con una medida
+    contaminada por su propio arnés. Es la MISMA avería que `role_flips > 1`, vista por el barrido en vez de
+    por el guard vivo, así que se trata igual: INFRA, no nota."""
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as R
+    src = "\n".join(ln for ln in inspect.getsource(R._run_scenario).splitlines()
+                    if not ln.strip().startswith("#"))
+    i_flip = src.find('mech["role_flip_lines"] = flipped')
+    assert i_flip > 0
+    cola = src[i_flip:i_flip + 900]
+    assert "crashed" in cola, "el barrido marca las líneas y la ronda se puntúa igual"
+    assert "if not crashed:" in cola, "no puede pisar una avería ya declarada (role_flips > 1)"

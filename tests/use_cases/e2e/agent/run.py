@@ -430,6 +430,17 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         flipped = []
     if flipped:
         mech["role_flip_lines"] = flipped
+        # V2-313 — y una ronda con el conductor fuera de papel NO PUEDE contarse como aprobada. El barrido ya
+        # nombraba las líneas y no cambiaba nada: medido en `search-buy-camera__es` (2026-08-25 04:41), donde
+        # el tester recitó NUESTROS candidatos con datos («de las que tengo, la más clara es la Canon EOS
+        # 4000D: 2.019 disparos y 205€») y la ronda salió overall 4 = PASS, subiendo el tablero con una medida
+        # contaminada por su propio arnés. Es la MISMA avería que `role_flips > 1` (el conductor dejó de ser
+        # la persona), solo que vista por el barrido en vez de por el guard vivo, así que se trata igual:
+        # INFRA, no nota. El coste va en la dirección segura — un PASS falso ensucia el tablero para siempre;
+        # una ronda declarada INFRA se vuelve a correr.
+        if not crashed:
+            crashed = (f"el conductor se salió de su papel en {len(flipped)} línea(s) del transcript "
+                       f"(turno(s) {', '.join(str(f['turn']) for f in flipped)}): la ronda no mide al producto")
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
