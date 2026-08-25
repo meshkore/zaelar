@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import datetime
 
+import pytest
+
 from tests.use_cases.e2e.agent import driver as D, judge as J
 
 
@@ -80,3 +82,39 @@ def test_the_judge_is_told_the_absurd_turn_was_OURS():
 
 def test_and_says_nothing_when_the_driver_behaved():
     assert "AVERÍA DEL ARNÉS" not in J.mechanism_facts({"families_observed": ["flash"]})
+
+
+# ── V2-312: dos caras más del flip, medidas en la MISMA ronda (find-direct-flight-budget__es, 10:42) ─────────
+#
+# El juez puntuó adaptación 1/5 sobre un diálogo donde el TESTER hablaba como agente en dos turnos seguidos, y
+# `role_flips` salió vacío: ninguna de las seis caras las vio. Sin esa marca la ronda se puntúa como si el
+# producto hubiera hecho lo que hizo el arnés — la familia del instrumento acusando al producto.
+
+def test_rehacer_el_trabajo_tambien_es_prometer_entrega():
+    """«Lo rehago ya… te aviso en cuanto lo tenga»: la mitad de la ENTREGA sí casaba; la del TRABAJO no,
+    porque solo conocía «sigo en ello»."""
+    linea = ("Ay, perdona, tienes toda la razón, me hice un lío con las fechas. Lo rehago ya para el finde "
+             "del 15 de septiembre, con equipaje de mano incluido. Te aviso en cuanto lo tenga.")
+    assert D.looks_like_the_assistant(linea, "Marc") is True
+
+
+def test_narrar_NUESTRA_maquinaria_en_primera_persona_es_un_flip():
+    """Una persona no sortea la verificación anti-robot del navegador del agente ni filtra sus resultados.
+    Lo que delata no es el VERBO (uno filtra su propio correo) sino el OBJETO."""
+    linea = ("Te cuento: la búsqueda va un poco lenta por la verificación que pedía Skyscanner, pero ya la he "
+             "sorteado y estoy filtrando solo salidas alrededor del 15 de septiembre.")
+    assert D.looks_like_the_assistant(linea, "Marc") is True
+
+
+@pytest.mark.parametrize("linea", [
+    "vale, yo también miro por mi cuenta en Wallapop mientras tanto",
+    "la búsqueda va lenta, ¿no? ¿sigue viva?",
+    "he mirado mi calendario y me va bien el 15",
+    "estoy mirando mi correo, dame un segundo",
+    "¿has sorteado ya la verificación esa?",
+    "ok, avísame cuando lo tengas",
+])
+def test_y_la_persona_SIGUE_pudiendo_hablar_normal(linea):
+    """La mitad cara del detector: un falso positivo marca la ronda como avería del arnés y tira una medida
+    buena. Estas seis son cosas que una persona real dice — cuatro de ellas nombran nuestra maquinaria."""
+    assert D.looks_like_the_assistant(linea, "Marc") is False

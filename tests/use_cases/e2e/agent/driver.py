@@ -153,7 +153,12 @@ _FLIP_OWN = re.compile(r"\b(mi|mis)\s+(calendario|agenda|fechas|correo|email|cue
 # and people do promise to get back to you («te digo algo»). Together, and aimed at the assistant, they are
 # the assistant's turn.
 _FLIP_DOING_THE_WORK = re.compile(
+    # V2-312 — «lo rehago» es la misma promesa con otro verbo: medido el 2026-08-25 10:42 en
+    # `find-direct-flight-budget__es`, en el hueco del USUARIO: «Ay, perdona, tienes toda la razón, me hice un
+    # lío con las fechas. Lo rehago ya para el finde del 15 de septiembre… Te aviso en cuanto lo tenga.» La
+    # mitad de la entrega («te aviso») sí casaba; la del trabajo no, porque solo conocía «sigo en ello».
     r"\b(sigo|estoy|seguimos)\s+(en\s+ello|con\s+ello|mir[aá]ndolo|buscando|revis[aá]ndolo)\b|"
+    r"\b(lo|la)\s+(rehago|relanzo|repito|reharé|relanzaré)\b|"
     r"\b(i'?m\s+(on\s+it|looking\s+into\s+it|still\s+(on\s+it|looking)))\b", re.I)
 _FLIP_PROMISES_DELIVERY = re.compile(
     r"\b(te\s+(aviso|lo\s+paso|lo\s+traigo|lo\s+pongo|digo\s+algo)|"
@@ -162,6 +167,22 @@ _FLIP_PROMISES_DELIVERY = re.compile(
 # reading under which both halves belong to the person.
 _FLIP_ALSO_ME = re.compile(
     r"(por\s+mi\s+(cuenta|lado)|yo\s+tambi[eé]n|mientras\s+tanto\s+yo|on\s+my\s+(own|side)|i'?ll\s+also)", re.I)
+
+
+# Face 7 — the person narrating OUR MACHINERY in the first person (V2-312). Measured in the same round, one
+# turn later, in the user's slot: «Te cuento: la búsqueda va un poco lenta por la verificación que pedía
+# Skyscanner, pero ya la he sorteado y estoy filtrando solo salidas alrededor del 15 de septiembre.» No name,
+# no promise, no shape — and it is unmistakable all the same: a person does not clear the anti-bot check of
+# the agent's browser, nor filter its results. The signal is not the verb (a person filters their own inbox)
+# but the OBJECT: a closed vocabulary of things only we operate.
+_FLIP_OUR_MACHINERY = re.compile(
+    r"\b(la\s+b[uú]squeda|el\s+navegador|el\s+worker|la\s+verificaci[oó]n|el\s+captcha|"
+    r"la\s+pesta[nñ]a|la\s+hoja\s+de\s+resultados|el\s+filtro\s+de|the\s+(search|browser|worker))\b", re.I)
+_FLIP_OPERATES_IT = re.compile(
+    r"\b(ya\s+)?(la|lo)\s+he\s+(sorteado|saltado|superado|lanzad[oa]|relanzad[oa]|filtrad[oa])\b|"
+    r"\bestoy\s+(filtrando|extrayendo|comparando|rasp[aá]ndo|navegando)\b|"
+    r"\bhe\s+(sorteado|superado)\s+(la|el)\b|"
+    r"\bi'?ve\s+(cleared|bypassed|filtered)\b", re.I)
 
 
 def _vocative_re(name: str) -> "re.Pattern | None":
@@ -222,6 +243,10 @@ def looks_like_the_assistant(txt: str, persona_name: str = "") -> bool:
     if _FLIP_OFFERS.search(txt) and _FLIP_FOUND.search(txt):
         return True
     if _FLIP_TAKES_OVER.search(txt) and _FLIP_STANDBY.search(txt) and not _FLIP_OWN.search(txt):
+        return True
+    # OUR MACHINERY, operated in the first person: the object is what gives it away, not the verb.
+    if (_FLIP_OUR_MACHINERY.search(txt) and _FLIP_OPERATES_IT.search(txt)
+            and not _FLIP_ALSO_ME.search(txt) and not _FLIP_OWN.search(txt)):
         return True
     if len(txt) < 200:      # a real chat message does not arrive with links AND bullets AND bold
         return False
