@@ -80,6 +80,27 @@ def _publish(reason: str, detail: str, query: str) -> None:
         pass
 
 
+def _reinforce_delivered(propias: dict) -> None:
+    """El refuerzo sigue a la ENTREGA, nunca al cálculo (V2-311, 2026-08-25).
+
+    `memory.query` reforzaba al componer, y componer no es usar: de los 27 recalls vivos medidos, 21 se
+    abandonaban al vencer el presupuesto **y el hilo terminaba igualmente**, así que subían el peso y reseteaban
+    la caducidad (`access_count++`, `last_access=now`, `weight+step` — escritura durable) de píldoras por
+    preguntas que nunca se contestaron con ellas. La señal de «esto se usa» la alimentaba el trabajo tirado.
+
+    Los ids vienen de `memory.api.reinforce_ids_for`, calculados dentro de `memory/`: aquí viaja el MOMENTO, no
+    la política. Reforzar `ids` a pelo sería reforzar el paquete entero (40 píldoras en vez de 1) y el refuerzo
+    selectivo desaparecería sin que fallara nada — que es la forma en que estas cosas se pierden."""
+    ids = propias.pop("recall_reinforce_ids", None) or []
+    if not ids:
+        return
+    try:
+        from memory import api as _memory
+        _memory.reinforce(list(ids))
+    except Exception:  # noqa: BLE001
+        pass                                  # el refuerzo es una señal, no una garantía: nunca rompe un turno
+
+
 async def compose(query: str, timings: dict | None = None) -> tuple[str, list[int]]:
     """`(recall_block, ids)` for `build_flash_system(recall_block=...)`, or `("", [])` when there is nothing to
     ask, the budget ran out, or the retriever failed. Never raises and never blocks the loop."""
@@ -105,6 +126,7 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
         # wraps; a cancelled task drops the thread's result on the floor — measured while building this.)
         fut = asyncio.get_running_loop().run_in_executor(None, _prompt.compose_recall, q, propias)
         got = await asyncio.wait_for(asyncio.shield(fut), timeout=budget_s())
+        _reinforce_delivered(propias)     # entregado al turno → ESO es usar la memoria
         if timings is not None:
             timings.update(propias)       # llegó a tiempo → su coste ES el coste del turno
         return got
@@ -114,7 +136,7 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
         detalle = f"el recall no cerró en {budget_s():.1f}s — el turno sigue SIN memoria durable"
         _publish("timeout", detalle, q)
         _LOG.info(f"recall over budget ({budget_s():.1f}s) — el turno sigue sin recall durable")
-        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen))
+        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen, propias))
     except Exception as e:  # noqa: BLE001
         detalle = f"el recall falló: {str(e)[:120]} — el turno sigue SIN memoria durable"
         _publish("error", detalle, q)
@@ -122,7 +144,7 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     return "", []
 
 
-def _salvage(fut, query: str, asked_gen: int) -> None:
+def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> None:
     """A recall that finished late is the NEXT turn's memory — or nobody's. Never raises.
 
     V2-311: 21 of 27 live recalls were abandoned at the 800 ms budget, and every one of them FINISHED anyway —
@@ -133,9 +155,13 @@ def _salvage(fut, query: str, asked_gen: int) -> None:
     memory» needs a cut, and the cut is «no turn has asked since» — not a clock. If the generation moved, the
     conversation moved, and V2-254 is what stale memory does to a moved conversation.
 
-    TEXT ONLY, no ids: the ids feed reinforcement on use, and a turn that never saw the block must not
-    reinforce what it did not use. And the note JUDGES nothing — findings.py doctrine: it says what arrived
-    and explicitly allows ignoring it; whether it still serves the conversation is the brain's call.
+    TEXT ONLY in the note, and the note JUDGES nothing — findings.py doctrine: it says what arrived and
+    explicitly allows ignoring it; whether it still serves the conversation is the brain's call.
+
+    The REINFORCEMENT, on the other hand, does fire here (V2-311 step 3) and only on the branch that actually
+    pushes: a late block the next turn carries IS a use. The three exits divide cleanly — delivered in budget,
+    delivered late, discarded as stale — and only the two deliveries reinforce. That is the whole point of
+    moving the trigger out of `memory.query`: it used to fire on the branch that delivers nothing.
     """
     try:
         if fut.cancelled() or fut.exception():
@@ -154,6 +180,7 @@ def _salvage(fut, query: str, asked_gen: int) -> None:
             f"[SISTEMA] La memoria durable llegó tarde para la pregunta «{(query or '')[:80]}» del turno "
             f"anterior. Esto es lo que tenía: {block[:600]} — úsalo solo si aún viene al caso; si la "
             f"conversación ya va por otro sitio, ignóralo.")
+        _reinforce_delivered(propias or {})   # una entrega tardía que el turno siguiente SÍ lleva es un uso
         _LOG.info("recall tardío entregado como nota para el turno siguiente")
     except Exception:  # noqa: BLE001
         pass                                  # el salvamento es best-effort; nunca rompe nada

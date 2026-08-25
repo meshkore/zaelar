@@ -44,7 +44,10 @@ DOMAINS: list[dict] = [
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
-            "tests/memory/unit/test_model_cache.py"]},
+            "tests/memory/unit/test_model_cache.py",
+            # 2026-08-25: `query()` decide QUÉ píldoras cuentan como usadas; el CUÁNDO se lo lleva quien
+            # entrega (V2-311). 21 de 27 recalls vivos se abandonaban y reforzaban igual.
+            "tests/memory/unit/test_reinforce_follows_delivery.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
             "tests/memory/unit/test_embed_pending_marker.py",

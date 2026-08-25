@@ -313,3 +313,122 @@ def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
     asyncio.run(recall_budget.compose("algo"))
     _t.sleep(0.4)
     assert notas.drain() == []
+
+
+# ── El refuerzo sigue a la ENTREGA, no al cálculo (V2-311 paso 3, 2026-08-25) ──────────────────────────────────
+#
+# `memory.query` reforzaba al COMPONER el bloque, y componer no es usar: de los 27 recalls vivos medidos, 21 se
+# abandonaban al vencer el presupuesto y el hilo terminaba igualmente, así que subían el peso y reseteaban la
+# caducidad (escritura durable) de píldoras por preguntas que nunca se contestaron con ellas. La señal de «esto
+# se usa» la alimentaba justo el trabajo que se tiraba.
+#
+# Las tres salidas del módulo se reparten limpias — entregado en presupuesto, entregado tarde, descartado por
+# rancio — y solo las DOS entregas refuerzan.
+
+def _con_refuerzo(monkeypatch, ids_seleccionados=(7,)):
+    """Sustituye el escritor y devuelve la lista de lo que se reforzó de verdad."""
+    from memory import api as memory_api
+    reforzado: list = []
+    monkeypatch.setattr(memory_api, "reinforce", lambda ids: reforzado.extend(ids))
+
+    def _compose(q, t=None):
+        if t is not None:
+            t["recall_reinforce_ids"] = list(ids_seleccionados)
+        return "RECUERDO", [1, 2, 3, 4, 5]        # `ids` del paquete entero: NUNCA es lo que se refuerza
+    return reforzado, _compose
+
+
+def test_a_delivered_recall_reinforces_and_only_the_selected_pills(monkeypatch):
+    from nucleo.flash import prompt as prompt_mod
+    _capture(monkeypatch)
+    reforzado, _compose = _con_refuerzo(monkeypatch)
+    monkeypatch.setattr(prompt_mod, "compose_recall", _compose)
+
+    asyncio.run(recall_budget.compose("qué sabes de mí", {}))
+
+    assert reforzado == [7], (
+        f"o no reforzó lo entregado, o reforzó el paquete entero en vez de la selección de memory/: {reforzado}")
+
+
+def test_an_ABANDONED_recall_reinforces_NOTHING(monkeypatch):
+    """El defecto medido: el hilo termina igual, y hasta hoy su refuerzo se aplicaba a un turno que no lo vio."""
+    import time as _t
+    from nucleo.flash import prompt as prompt_mod
+    _capture(monkeypatch)
+    reforzado, _compose = _con_refuerzo(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+
+    def _tarde(q, t=None):
+        _t.sleep(0.3)
+        return _compose(q, t)
+    monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
+    monkeypatch.setattr(recall_budget, "_salvage", lambda *a, **k: None)   # aislar: aquí NO se rescata
+
+    asyncio.run(recall_budget.compose("qué sabes de mí", {}))
+    _t.sleep(0.5)                                     # el hilo abandonado termina AHORA
+
+    assert reforzado == [], f"un recall que nadie recibió subió el peso y reseteó la caducidad: {reforzado}"
+
+
+def test_a_STALE_late_recall_reinforces_NOTHING(monkeypatch):
+    """Si la conversación ya avanzó, el bloque se descarta — y descartar no es entregar."""
+    _capture(monkeypatch)
+    reforzado, _ = _con_refuerzo(monkeypatch)
+
+    class _Fut:
+        def cancelled(self): return False
+        def exception(self): return None
+        def result(self): return ("RECUERDO", [1, 2, 3])
+
+    recall_budget._salvage(_Fut(), "una pregunta vieja", asked_gen=-1,   # generación que ya no es la actual
+                           propias={"recall_reinforce_ids": [7]})
+
+    assert reforzado == [], "un bloque descartado por rancio reforzó igualmente"
+
+
+def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
+    """El matiz que puso `motor-dev-2`: si el turno siguiente SÍ se lleva el bloque, eso es un uso.
+
+    Es la contrapartida sin la cual «no reforzar lo que no se entregó» se satisface no reforzando nunca — y el
+    decay acabaría enterrando justo las píldoras que el agente usa a través del rescate."""
+    from voice import brain_notes
+    _capture(monkeypatch)
+    reforzado, _ = _con_refuerzo(monkeypatch)
+    notas: list = []
+    monkeypatch.setattr(brain_notes, "push", lambda t: notas.append(t))
+
+    class _Fut:
+        def cancelled(self): return False
+        def exception(self): return None
+        def result(self): return ("RECUERDO", [1, 2, 3])
+
+    with recall_budget._GEN_LOCK:
+        gen_actual = recall_budget._GEN                # nadie ha preguntado desde entonces → fresco
+
+    recall_budget._salvage(_Fut(), "la pregunta del turno anterior", asked_gen=gen_actual,
+                           propias={"recall_reinforce_ids": [7]})
+
+    assert notas, "el bloque rescatado no llegó al cerebro"
+    assert reforzado == [7], f"se entregó y no se reforzó: {reforzado}"
+
+
+def test_composing_the_recall_does_NOT_count_as_using_the_memory():
+    """Guarda de cableado, por AST y no por texto: el defecto vuelve con UN literal.
+
+    Los casos de arriba prueban el trigger nuevo, no impiden que alguien devuelva `reinforce_used=True` a su
+    sitio — y si vuelve, todo sigue verde: la memoria se refuerza dos veces cuando llega y una vez cuando no
+    llega, sin que falle nada. Se mira el CÓDIGO porque un comentario que explica el cambio contiene la cadena
+    prohibida (ya derribó dos guardas por cadena en esta casa)."""
+    import ast
+    import inspect
+    from nucleo.flash import prompt as prompt_mod
+
+    arbol = ast.parse(inspect.getsource(prompt_mod.compose_recall))
+    llamadas = [n for n in ast.walk(arbol) if isinstance(n, ast.Call)
+                and getattr(n.func, "attr", None) == "query"]
+    assert llamadas, "compose_recall ya no llama a memory.query: este guarda mira al vacío"
+    for c in llamadas:
+        kw = {k.arg: k.value for k in c.keywords}
+        assert "reinforce_used" in kw, "sin decirlo explícito se hereda el default, que refuerza al COMPONER"
+        assert isinstance(kw["reinforce_used"], ast.Constant) and kw["reinforce_used"].value is False, \
+            "componer el bloque volvió a contar como usar la memoria: refuerza aunque el turno lo abandone"

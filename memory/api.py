@@ -33,7 +33,8 @@ DEFAULT_BUDGET_TOKENS = 1200
 # debe importar internals (memory.db/writer/queue/slots/…) fuera de tests.
 __all__ = [
     "start", "stop",
-    "write", "write_now", "ingest_message", "reinforce", "pin", "unpin", "link", "forget", "unforget",
+    "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "forget", "unforget",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
@@ -558,6 +559,23 @@ def _pack(memories: list[dict], budget_tokens: int) -> list[dict]:
     return out
 
 
+def reinforce_ids_for(mems: list[dict]) -> list[int]:
+    """Qué píldoras de un paquete cuentan como USADAS. Una sola casa para la política.
+
+    Refuerzo SELECTIVO: el paquete puede incluir conceptos, vecinos de grafo y resultados laterales para dar
+    contexto al cerebro. Reforzar todos ellos convierte una consulta sobre vivienda en "uso" de la alergia, la
+    infancia o cualquier otro resultado empaquetado. Sin un feedback explícito del LLM sobre qué leyó, la señal
+    honesta es el primer recuerdo de contenido (los nodos conceptuales son índices, no recuerdos vividos). Esto
+    evita crecimiento neuronal artificial.
+
+    Sale de dentro de `query()` (V2-311, 2026-08-25) porque el refuerzo dejó de dispararse al CALCULAR el recall
+    y pasó a dispararse al ENTREGARLO — y quien entrega no es esta función. Lo que NO se mueve es la política:
+    si el disparador se llevara consigo la selección, el llamante reforzaría los `ids` enteros (40 píldoras en
+    vez de 1) y el refuerzo selectivo desaparecería sin que fallara nada. La decisión se queda aquí; fuera solo
+    viaja el momento."""
+    return [m["id"] for m in mems if m.get("kind") != "concept"][:1]
+
+
 def query(prompt: str, budget_tokens: int = DEFAULT_BUDGET_TOKENS, limit: int = 12,
           expand: bool = True, reinforce_used: bool = True) -> dict:
     """Ruta caliente: compone el contexto mínimo = estado (SIEMPRE) + recuerdos relevantes al presupuesto.
@@ -576,18 +594,10 @@ def query(prompt: str, budget_tokens: int = DEFAULT_BUDGET_TOKENS, limit: int = 
     mems = [m for m in mems if not background_slot_off_topic(m.get("slot"), prompt)]
     mems = _pack(mems, budget_tokens)
     ids = [m["id"] for m in mems]
-    if reinforce_used and ids:
-        # Refuerzo SELECTIVO: el paquete puede incluir conceptos, vecinos de
-        # grafo y resultados laterales para dar contexto al cerebro. Reforzar
-        # todos ellos convierte una consulta sobre vivienda en "uso" de la
-        # alergia, la infancia o cualquier otro resultado empaquetado. Sin un
-        # feedback explícito del LLM sobre qué leyó, la señal honesta es el
-        # primer recuerdo de contenido (los nodos conceptuales son índices, no
-        # recuerdos vividos). Esto evita crecimiento neuronal artificial.
-        used = [m["id"] for m in mems if m.get("kind") != "concept"][:1]
-        if used:
-            reinforce(used)  # escritura async (el acceso resetea el decay)
-    return {"state": st, "memories": mems, "ids": ids}
+    a_reforzar = reinforce_ids_for(mems)
+    if reinforce_used and a_reforzar:
+        reinforce(a_reforzar)  # escritura async (el acceso resetea el decay)
+    return {"state": st, "memories": mems, "ids": ids, "reinforce_ids": a_reforzar}
 
 
 def _concept_graph(pills: list[dict], resolver) -> dict:

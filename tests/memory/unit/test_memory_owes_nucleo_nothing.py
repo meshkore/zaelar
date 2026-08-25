@@ -96,7 +96,8 @@ def test_the_debt_list_matches_reality_so_it_only_shrinks():
 #: (editing both the code and this snapshot in the same commit); it must never change as a side effect.
 DECLARED_SURFACE = {
     "start", "stop",
-    "write", "write_now", "ingest_message", "reinforce", "pin", "unpin", "link", "forget", "unforget",
+    "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "forget", "unforget",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",

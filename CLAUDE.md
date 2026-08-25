@@ -4835,6 +4835,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     cifra mía**: los «556-797 ms» eran solo los seis que cerraron DENTRO del presupuesto, **no contenían la
     cola** — que llega a 21 s. Importa porque quien razone sobre mi número para entregar el recall tarde como
     nota al turno siguiente necesita saber que puede llegar cinco turnos tarde.
+  - **Paso 3 — el refuerzo sigue a la ENTREGA, no al cálculo.** El tercer defecto de la misma raíz, y el que
+    tocaba memoria: `compose_recall` pedía `reinforce_used=True`, y `reinforce()` es escritura durable
+    (`access_count++`, `last_access=now`, `weight+step`). Como el hilo abandonado termina igual, **los 21
+    recalls que nadie vio ya venían subiendo el peso y rejuveneciendo píldoras por preguntas que jamás se
+    contestaron con ellas**. Ahora refuerza quien ENTREGA: dentro de presupuesto (al turno) y en el rescate
+    tardío FRESCO (al turno siguiente, matiz de `motor-dev-2` y es correcto — sin él, «no reforzar lo no
+    entregado» se satisface no reforzando nunca); un bloque descartado por rancio no refuerza. **Lo que se
+    mueve es el MOMENTO, no la política**: `query()` no reforzaba los `ids` del paquete sino UNA píldora de
+    contenido, y llevarse la selección con el disparador habría reforzado 40 en vez de 1 **sin que fallara
+    nada** — por eso `reinforce_ids_for` se queda dentro de `memory/`. Trinquetes: guarda por AST sobre el
+    literal + el reporte en la fachada (1 y 2 en rojo). Y mordió el de frontera de V2-273: la superficie de
+    `memory.api` está congelada y un nombre nuevo no entra sin declararse en `__all__` y en el inventario.
 
 
 ## Testing y rueda de mejora (INI-013)

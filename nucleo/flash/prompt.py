@@ -72,7 +72,15 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
         # y ENTIERRA la tarea/hecho durable que el operador pregunta ("¿qué te pedí que escribieras?"). Con limit
         # bajo esas filas durables ni se recuperan; por eso pedimos hondo y filtramos a mid/long → 8 huecos para
         # el archivo durable.
-        res = memory.query(recall_query, limit=40, reinforce_used=True)
+        # `reinforce_used=False` a propósito (V2-311, 2026-08-25): el refuerzo dispara al ENTREGAR, no al
+        # CALCULAR. Componer este bloque ya NO cuenta como usar la memoria — 21 de cada 27 recalls vivos se
+        # abandonaban al vencer el presupuesto y el hilo terminaba igualmente, así que subían el peso y
+        # reseteaban la caducidad de píldoras por preguntas que nunca se contestaron con ellas. Quien entrega
+        # (`nucleo/turn/recall_budget`) es quien refuerza, y lo hace con `reinforce_ids` — la selección sigue
+        # siendo de `memory/`, aquí solo viaja.
+        res = memory.query(recall_query, limit=40, reinforce_used=False)
+        if timings is not None:
+            timings["recall_reinforce_ids"] = list(res.get("reinforce_ids") or [])
         mems = res.get("memories") or []
         used_ids = res.get("ids") or []
         durable = [m for m in mems if m.get("level") in ("mid", "long")]
