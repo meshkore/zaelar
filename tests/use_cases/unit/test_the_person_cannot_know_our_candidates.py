@@ -123,4 +123,10 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
                 if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
                                                                         heard=heard):
                     marcadas += 1
-    assert marcadas <= 1, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
+    # DOS, y las dos son flips REALES — el umbral sube porque apareció otro flip en el corpus, no porque el
+    # detector se haya ensanchado (V2-312, 2026-08-25). Las líneas, para que una tercera se vea:
+    #   · guitarra 03:48 — «tengo un par de opciones … la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €»
+    #   · cámara  04:41 — «de las que tengo, la más clara es la Canon EOS 4000D: 2.019 disparos y 205€»
+    # ⚠️ Y la segunda vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
+    # exactamente lo que este detector existe para impedir.
+    assert marcadas <= 2, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
