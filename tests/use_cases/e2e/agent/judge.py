@@ -303,6 +303,32 @@ def mechanism_facts(mech: dict) -> str:
     # veces el 2026-08-25 — la peor, `search-secondhand-monitor`, bajó de PASS a FAIL con «tiene los datos y
     # decide no mostrarlos para mantener una ficción de búsqueda activa» después de haber entregado CINCO
     # candidatos con nombre y precio en cuatro turnos distintos.
+    # EL SITIO LE CERRÓ LA PUERTA (V2-333). El hecho ya viajaba en el informe —`navegador_task.walls_hit` y
+    # `last_wall`, con el SITIO— y al juez solo se le decía cuándo NO había habido muro. Así que ante una hoja
+    # vacía concluía lo único que podía: que la extracción está rota.
+    #
+    # Medido en `compare-insurance-quotes__es` (2026-08-26 01:39): la ronda recorrió rastreator, acierto,
+    # kelisto, lineadirecta y mutua, chocó con verificaciones anti-robot, y el veredicto fue «el bloqueador nº1
+    # es el fallo grave en el mecanismo de extracción del navegador: el sistema no pudo leer ni un solo precio
+    # ni nombre de aseguradora» — mecanismo 2. La MISMA ronda del mismo caso, cuatro horas antes, había sacado
+    # ocho opciones reales con mecanismo 4. Lo que cambió no fue el código: fue lo que los sitios dejaron pasar.
+    #
+    # Comprobado además que NO era una regresión nuestra: la extracción sobre `acierto.com` da 9 filas idénticas
+    # antes y después de la cadena V2-321…V2-326.
+    _nt_w = mech.get("navegador_task") or {}
+    try:
+        _muros = int(_nt_w.get("walls_hit") or 0)
+    except (TypeError, ValueError):
+        _muros = 0
+    if _muros:
+        _lw = _nt_w.get("last_wall") or {}
+        _donde = str(_lw.get("site") or "").strip()
+        _por = str(_lw.get("reason") or "un muro del sitio").strip()
+        lines.append(f"· 🚧 EL SITIO LE CERRÓ LA PUERTA: {_muros} muro(s) durante la ronda"
+                     + (f", el último en {_donde}" if _donde else "") + f" — «{_por}». Eso es el mundo "
+                     f"exterior, no nuestro código: una hoja vacía DETRÁS de un muro no es un fallo de "
+                     f"extracción y no puedes puntuarla como tal. Lo que SÍ es puntuable es qué hizo zaelar "
+                     f"con el obstáculo: si lo dijo, si probó otro sitio, o si siguió narrando normalidad.")
     dbn = mech.get("delivered_by_name") or {}
     if dbn.get("n"):
         _turnos = ", ".join(str(x) for x in (dbn.get("turns") or [])[:8])
