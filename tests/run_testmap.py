@@ -97,7 +97,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_probe_recall_notes.py",
             # un turno de charla pura que vuelve MUDO (sin tool, sin texto) dice algo con sentido en vez de
             # callar — sin esto el turno siguiente acababa ecoando la propia pregunta del operador (2026-08-17)
-            "tests/agent_headless/unit/flash/test_probe_never_mute.py"]},
+            "tests/agent_headless/unit/flash/test_probe_never_mute.py",
+            # V2-305: una respuesta de pura espera con la hoja llena sale CON las filas — el imperativo del
+            # prompt pierde contra el reflejo de espera una ronda de cada tres (delivery_lag 98,9 s, ronda 34).
+            "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py",
             # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory

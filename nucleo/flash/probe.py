@@ -1106,6 +1106,29 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
+    # V2-305 — EL BACKSTOP DE ENTREGA: una respuesta de pura espera con la hoja YA llena de filas con nombre
+    # sale CON las filas. Medido en la ronda 34: nota+cara delante y «te aviso en cuanto tenga novedades»
+    # cinco turnos seguidos (delivery_lag_s 98,9 s) — el imperativo pierde contra el reflejo de espera una
+    # ronda de cada tres, y la conducta correcta aquí es determinista. La decisión vive en `router_guards`
+    # (compartible); la VOZ queda FUERA a propósito, como en V2-210: su stream ya se ha dicho cuando esto
+    # podría corregirlo, y añadir detrás es hablar dos veces — su arreglo es pre-generación, con su medición.
+    try:
+        from . import live_blocks as _lb_del
+        from . import router_guards as _rg_del
+        _said_del = " ".join(str((m or {}).get("content") or "") for m in sess.window
+                             if (m or {}).get("role") == "assistant")
+        _goal_del, _rows_del = _lb_del.any_live_task_rows()
+        _extra_del = _rg_del.sheet_delivery_backstop(spoken or "", _rows_del, _said_del, errand=_goal_del)
+        if _extra_del:
+            spoken = ((spoken.rstrip() + " ") if spoken else "") + _extra_del
+            try:
+                from voice.observer import emit as _emit_del
+                _emit_del("brain", "📬 backstop de entrega: la espera sale con las filas", role="system")
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     # CAPTURA FORENSE del turno (V2-040, espejo del provider de voz — cablear en AMBOS): prompt+ventana+tools+
     # decisión al fichero (categoría system). Así un test headless deja la misma traza diagnosticable.
     try:

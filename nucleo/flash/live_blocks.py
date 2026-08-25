@@ -443,3 +443,20 @@ def navegador_lines() -> list[str]:
     except Exception:
         pass
     return lines
+
+
+def any_live_task_rows(n: int = 3) -> tuple[str, list[str]]:
+    """`(goal, rows)` — the top NAMED rows of the FIRST live browser task whose sheet already has them, plus
+    that task's goal. The reader the delivery backstop (V2-305, `router_guards.sheet_delivery_backstop`)
+    needs: same source as the face (`_sheet_top_rows`), so the backstop can never announce rows the prompt
+    itself would not carry; the GOAL travels with them because the backstop's freshness test excludes the
+    errand's own words (the category noun is in every turn by definition)."""
+    try:
+        from widgets.navegador import tasks as _nt
+        for _tid, _g in _nt.active_summaries():
+            rows = _sheet_top_rows(_tid, n)
+            if rows:
+                return str(_g or ""), [r.strip("«»") for r in rows]
+    except Exception:  # noqa: BLE001
+        pass
+    return "", []

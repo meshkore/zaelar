@@ -1279,3 +1279,62 @@ def safe_reminder_prompt(prompt: str) -> str:
     if not p or _AGENT_IMPERATIVE_RE.search(p) or not _FIRST_PERSON_DUTY_RE.search(p):
         return p
     return _reminder_prompt(p, p)
+
+
+# ── EL BACKSTOP DE ENTREGA (V2-305) ──────────────────────────────────────────────────────────────────────────
+# Medido en la ronda 34 de `search-buy-guitar__es` (2026-08-25 01:56): la nota del navegador llegó como texto
+# del turno, la cara del estado llevaba las filas, y el modelo contestó «Vale, te aviso en cuanto tenga
+# novedades» — y así CINCO turnos, con delivery_lag_s = 98,9 s. El imperativo del prompt pierde contra el
+# reflejo de espera una ronda de cada tres, y esa varianza es la diferencia entre pasar y fallar el caso.
+# Misma familia que el nunca-mudo (V2-132) y el holding_line de arriba: cuando la conducta correcta es
+# DETERMINISTA —hay filas con nombre delante y el turno solo dice «espera»— la garantiza el código, no la
+# temperatura del modelo.
+_WAITING_REPLY_RE = _re.compile(
+    r"(te aviso|te lo digo|te lo cuento|te aviso en cuanto|en cuanto (tenga|salga|encuentre|aparezca|lo tenga)|"
+    r"sigo con ello|sigo dandole|sigo en ello|sigo pendiente|sigo buscando|sigo trabajando|dame un momento|"
+    r"sin novedades|sigue en marcha|todavia no|aun no|quedamos así|me quedo a la espera)")
+
+
+def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "") -> str:
+    """La frase que se AÑADE a una respuesta de pura espera cuando la hoja ya tiene filas con nombre que la
+    conversación no ha dicho. "" si no toca.
+
+    Estrecho a propósito, por los dos lados: solo dispara sobre una respuesta CORTA que es una frase de espera
+    (una respuesta larga ya está contando algo, y pisarla sería peor); y solo con filas cuyo contenido no haya
+    aparecido en lo que zaelar YA dijo — re-anunciar lo entregado es el disco rayado de V2-189. La frase afirma
+    solo HECHOS: las filas vienen de la hoja (escritas por `intake.push`), así que «en la hoja» es verdad — la
+    frontera de V2-278 (nunca afirmar la pantalla EN VUELO) no aplica a una escritura que ya ocurrió.
+    """
+    r = _norm_txt(str(reply or ""))
+    if not r or len(str(reply or "")) > 300:
+        return ""
+    if not _WAITING_REPLY_RE.search(r):
+        return ""
+    said = _norm_txt(str(said_before or "")) + " " + r
+    fresh: list[str] = []
+    for row in rows or []:
+        row = str(row or "").strip()
+        if not row:
+            continue
+        # «Ya dicha» por TOKEN SIGNIFICATIVO, no por prefijo literal: zaelar dice «la Fender CD-60», nunca el
+        # título entero del anuncio («Guitarra Acústica Fender CD-60»), y exigir el prefijo re-anunciaba lo
+        # entregado (la misma identidad que el reloj de entrega pagó en la ronda 33). Significativo = trae
+        # dígito (un código de modelo) o es una palabra distintiva de ≥5 letras — y NUNCA una palabra que ya
+        # esté en el ENCARGO: la categoría («guitarra», «hotel», «monitor») está en la petición por
+        # definición, así que suena en cada turno y marcaría TODAS las filas como dichas. Excluir los tokens
+        # del encargo es agnóstico del dominio — una lista de genéricos por sector sería adaptarse al caso de
+        # uso, que es justo lo que la doctrina prohíbe. Con UN token distintivo ya sonado, la fila cuenta
+        # como dicha: el backstop dispara de menos, nunca de más.
+        _errand_toks = set(_norm_txt(str(errand or "")).split())
+        title = _norm_txt(row.split(" — ")[0])
+        toks = [w for w in title.split()
+                if (any(c.isdigit() for c in w) or len(w) >= 5) and w not in _errand_toks]
+        if toks and not any(t in said for t in toks):
+            fresh.append(row)
+        if len(fresh) >= 3:
+            break
+    if not fresh:
+        return ""
+    return ("Bueno, de hecho ya hay candidatos en la hoja de resultados: "
+            + "; ".join(f"«{f}»" for f in fresh)
+            + ". Dime si alguno te encaja o sigo afinando.")
