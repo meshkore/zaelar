@@ -10,7 +10,10 @@ model's temperature.
 """
 from nucleo.flash import router_guards as RG
 
-ROWS = ["Guitarra Acústica Fender CD-60 — 120 €", "Yamaha F370BL Negra — 100 €"]
+# La segunda LLEVA la categoría a propósito: la puerta de pertenencia (ronda 35) exige compartir un token
+# con el encargo, y un título sin la palabra categoría («Yamaha F370BL Negra» a secas) NO se anuncia — es el
+# lado conservador asumido: mejor callar una fila legítima que anunciar Beyblades como guitarras.
+ROWS = ["Guitarra Acústica Fender CD-60 — 120 €", "Guitarra Yamaha F370BL Negra — 100 €"]
 
 
 def test_a_waiting_reply_with_fresh_rows_gets_them_appended():
@@ -68,3 +71,27 @@ def test_the_probe_actually_wires_it():
     assert "sheet_delivery_backstop(spoken" in src
     assert "any_live_task_rows()" in src
     assert "errand=_goal_del" in src, "sin el encargo, la categoría del dominio mata la frescura de todas las filas"
+
+
+def test_junk_rows_from_an_unfiltered_feed_are_never_announced():
+    """Ronda 35 (2026-08-25): el worker falló el tecleo, Wallapop devolvió su feed sin filtrar y la hoja se
+    llenó de Beyblades y cosmética. El modelo hizo BIEN en no entregarla — y este backstop la habría anunciado.
+    Una fila solo se anuncia si comparte un token sustantivo con el encargo."""
+    junk = ["Juguetes Beyblade Die-Cast (COLOR AL AZAR) — 15 €",
+            "Pack 2x Paula's Choice BHA 2% Exfoliante 118ml — 30 €"]
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", junk, "",
+                                     errand="busca una guitarra acústica por menos de 150€")
+    assert out == "", "anunciar basura deterministamente es peor que la espera que corrige"
+
+
+def test_matching_rows_still_fire_with_the_membership_gate():
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", ROWS, "",
+                                     errand="busca una guitarra acústica por menos de 150€")
+    assert "Fender CD-60" in out
+
+
+def test_a_title_without_the_category_noun_is_skipped_conservatively():
+    """El coste asumido de la puerta de pertenencia, escrito para que nadie lo lea como un bug suelto."""
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", ["Yamaha F370BL Negra — 100 €"], "",
+                                     errand="busca una guitarra acústica")
+    assert out == ""

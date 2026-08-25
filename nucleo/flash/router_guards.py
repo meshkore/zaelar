@@ -1327,6 +1327,15 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         # como dicha: el backstop dispara de menos, nunca de más.
         _errand_toks = set(_norm_txt(str(errand or "")).split())
         title = _norm_txt(row.split(" — ")[0])
+        # PERTENENCIA antes que frescura (medido en la ronda 35, 2026-08-25 02:20): el worker falló el tecleo,
+        # Wallapop devolvió su feed sin filtrar y la hoja se llenó de Beyblades y cosmética — el modelo hizo
+        # BIEN en no entregarla, y este backstop la habría anunciado como candidatos. Una fila solo se anuncia
+        # si comparte al menos un token sustantivo con el ENCARGO (la de guitarra dice «guitarra»; la de
+        # Beyblade no). Es el mismo juego de tokens en las dos pruebas, con papeles opuestos: para PERTENECER
+        # el token del encargo tiene que estar; para ser NUEVA, la identidad se mide fuera de esos tokens.
+        _title_toks = set(title.split())
+        if _errand_toks and not any(t in _title_toks for t in _errand_toks if len(t) >= 4):
+            continue
         toks = [w for w in title.split()
                 if (any(c.isdigit() for c in w) or len(w) >= 5) and w not in _errand_toks]
         if toks and not any(t in said for t in toks):
