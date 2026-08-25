@@ -91,3 +91,92 @@ def test_no_channel_composes_the_recall_inside_the_loop():
         usados = [k.arg for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call) for k in n.keywords]
         assert "recall_query" not in usados, \
             f"{name} volvió a la ruta de compatibilidad (compone el recall dentro del loop)"
+
+
+# ── A recall the turn gave up on has to be VISIBLE (2026-08-25) ───────────────────────────────────────────────
+#
+# The flag above (`recall_timeout`) existed and this very node asserted it — and NOTHING read it. Measured over
+# the 223 live session timelines in `.meshkore/logs/sessions/`: of the 27 turns that asked for durable recall,
+# 21 came back with `mem_ms: null` and «→ 0 tarjetas del largo plazo», which is exactly what a turn whose memory
+# genuinely held nothing looks like. The six that finished took 556-797 ms against an 800 ms budget.
+#
+# That is the failure class this file already names, one layer up: a protection that fires without telling
+# anybody is indistinguishable from a system that had nothing to say. Cheap to write, and its answer is the
+# reassuring one — which is what makes it expensive.
+
+def _capture(monkeypatch):
+    """Intercept both outward channels. They are imported lazily inside `_publish`, so patching the modules is
+    what a real turn would go through — no seam invented for the test."""
+    from voice import health_state, observer
+    filas: list = []
+    monkeypatch.setattr(observer, "emit",
+                        lambda kind, label, text="", role="", extra=None:
+                        filas.append({"kind": kind, "label": label, "text": text, "extra": extra or {}}))
+    health_state.clear("memory")
+    return filas
+
+
+def _slow(seconds=0.4):
+    import time as _t
+    return lambda q, t=None: (_t.sleep(seconds), ("bloque", [1]))[1]
+
+
+def test_a_recall_over_budget_leaves_a_row_in_the_timeline(monkeypatch):
+    """Without this the loss is only a dict key the turn throws away and a `logging.info` with no timestamp."""
+    from nucleo.flash import prompt as prompt_mod
+    filas = _capture(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+    monkeypatch.setattr(prompt_mod, "compose_recall", _slow())
+
+    asyncio.run(recall_budget.compose("qué sabes de mi guitarra", {}))
+
+    memoria = [f for f in filas if f["kind"] == "memory"]
+    assert memoria, "el turno perdió su memoria durable y la línea de tiempo no lo cuenta"
+    fila = memoria[0]
+    assert fila["extra"].get("reason") == "timeout"
+    assert fila["extra"].get("budget_ms") == 50, "sin el presupuesto en la fila no se sabe si sobró poco o mucho"
+    assert "guitarra" in fila["extra"].get("query", ""), "sin la pregunta la fila no se puede atar a su turno"
+
+
+def test_a_recall_over_budget_turns_the_status_light_amber(monkeypatch):
+    """La fila cuenta lo que pasó DESPUÉS; la luz es lo único que se ve MIENTRAS pasa."""
+    from nucleo.flash import prompt as prompt_mod
+    from voice import health_state
+    _capture(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+    monkeypatch.setattr(prompt_mod, "compose_recall", _slow())
+
+    asyncio.run(recall_budget.compose("qué sabes de mí", {}))
+
+    rec = health_state.get("memory")
+    assert rec is not None and rec["kind"] == "degraded", "la memoria degradada no enciende el ámbar"
+
+
+def test_a_recall_INSIDE_budget_says_nothing(monkeypatch):
+    """La contrapartida. Un aviso que sale siempre no es un aviso: es ruido, y se aprende a ignorarlo."""
+    from nucleo.flash import prompt as prompt_mod
+    from voice import health_state
+    filas = _capture(monkeypatch)
+    monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: ("RECUERDO", [7]))
+
+    asyncio.run(recall_budget.compose("los hijos", {}))
+
+    assert not filas, f"un recall que llegó bien ensució la línea de tiempo: {filas}"
+    assert health_state.get("memory") is None, "un recall que llegó bien encendió el ámbar"
+
+
+def test_it_does_NOT_wipe_an_unrelated_memory_warning(monkeypatch):
+    """La clave `memory` es COMPARTIDA con `memory/` (espacio vectorial descuadrado, embeddings degradados).
+
+    Limpiarla al salir —el gesto reflejo de «servicio sano otra vez»— borraría un aviso que este módulo no
+    puso y no puede juzgar. Se deja envejecer con su TTL, igual que hace el resto de `memory/`."""
+    from nucleo.flash import prompt as prompt_mod
+    from voice import health_state
+    _capture(monkeypatch)
+    health_state.record("memory", "degraded", "espacio vectorial descuadrado")
+    monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: ("RECUERDO", [7]))
+
+    asyncio.run(recall_budget.compose("los hijos", {}))
+
+    rec = health_state.get("memory")
+    assert rec is not None and "vectorial" in rec["text"], "se llevó por delante un aviso ajeno"

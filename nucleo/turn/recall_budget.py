@@ -38,6 +38,38 @@ def budget_s() -> float:
         return _BUDGET_DEFAULT_MS / 1000.0
 
 
+def _publish(reason: str, detail: str, query: str) -> None:
+    """A recall the turn gave up on has to be VISIBLE — otherwise it reads as «memory had nothing».
+
+    MEASURED 2026-08-25 over the 223 live session timelines under `.meshkore/logs/sessions/`: of the 27 turns
+    that asked for durable recall, **21 came back with `mem_ms: null` and «→ 0 tarjetas del largo plazo»** —
+    byte for byte what a turn whose memory genuinely held nothing looks like. The six that did finish took
+    556-797 ms against an 800 ms budget, so the distribution sits ON the cutoff instead of comfortably under it.
+
+    `timings['recall_timeout']` was already being set, and node 2.28 asserts it — but NOTHING ever read it. A
+    flag with no reader is not a trace: the loss was recorded inside a dict the turn then threw away, and its
+    only other witness was a stdlib `logging` line with no timestamp in the middle of the boot noise. So the
+    turn lost its durable memory and every surface said «0 cards», which is the reassuring answer.
+
+    Both halves of the observability rule are covered on purpose: the timeline row (what the operator reads
+    afterwards) and the amber light (what they see while it is happening). `health_state` is NOT cleared on the
+    way out — the key is shared with `memory/` (vector-space mismatch, degraded embeddings) and clearing it here
+    would wipe an unrelated warning; it ages out on its own TTL, which is how the rest of `memory/` uses it too.
+    """
+    try:
+        from voice.observer import emit
+        emit("memory", "recall sin entregar", role="system", text=detail,
+             extra={"module": "nucleo.turn.recall_budget", "reason": reason,
+                    "budget_ms": round(budget_s() * 1000), "query": (query or "")[:80]})
+    except Exception:  # noqa: BLE001
+        pass                                  # observability NEVER breaks a turn
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded", detail)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 async def compose(query: str, timings: dict | None = None) -> tuple[str, list[int]]:
     """`(recall_block, ids)` for `build_flash_system(recall_block=...)`, or `("", [])` when there is nothing to
     ask, the budget ran out, or the retriever failed. Never raises and never blocks the loop."""
@@ -51,7 +83,11 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     except asyncio.TimeoutError:
         if timings is not None:
             timings["recall_timeout"] = True
+        detalle = f"el recall no cerró en {budget_s():.1f}s — el turno sigue SIN memoria durable"
+        _publish("timeout", detalle, q)
         _LOG.info(f"recall over budget ({budget_s():.1f}s) — el turno sigue sin recall durable")
     except Exception as e:  # noqa: BLE001
+        detalle = f"el recall falló: {str(e)[:120]} — el turno sigue SIN memoria durable"
+        _publish("error", detalle, q)
         _LOG.warning(f"recall omitido (el turno sigue): {e}")
     return "", []

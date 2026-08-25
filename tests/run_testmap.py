@@ -420,8 +420,12 @@ DOMAINS: list[dict] = [
         # tenía la guarda. Y el defecto lo decía el docstring de `build_flash_system`: `recall_query=` es la
         # ruta de COMPATIBILIDAD PARA TESTS y compone en línea. Una PROTECCIÓN que existe en un canal y no en
         # el otro no se distingue de no tenerla.
+        # 2026-08-25: el trinquete se quedaba a un paso. `recall_timeout` se ponía —y este nodo lo afirmaba— y
+        # NADIE lo leía: 21 de 27 recalls de sesiones vivas volvieron con `mem_ms: null` y «0 tarjetas», que es
+        # idéntico a una memoria que de verdad no tenía nada. Un aviso sin lector no es un rastro.
         {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales: el turno "
-                                "queda libre en su presupuesto y nadie vuelve a la ruta de compatibilidad",
+                                "queda libre en su presupuesto, nadie vuelve a la ruta de compatibilidad, y "
+                                "un recall que NO llega se VE (fila en la línea de tiempo + ámbar)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_recall_budget_is_shared.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},

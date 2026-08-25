@@ -4804,6 +4804,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     quitó el daño confinando el cwd del worker, pero el fichero sigue creciendo ~40 KB/día y es el contexto que
     lee cualquier agente que trabaje aquí.
 
+- **Un recall que NO llega se veía igual que una memoria vacía** (V2-311, 2026-08-25). Buscando el p50 real de
+  `query()` en el turno vivo —el número que V2-273 dejó pendiente y que gateaba tocar el retriever— salió otra
+  cosa. Sobre **223 líneas de tiempo de sesiones vivas**: de 27 turnos que PIDIERON memoria durable, **21 (77 %)
+  volvieron con `mem_ms: null` y «→ 0 tarjetas del largo plazo»**, y los 6 que cerraron midieron **p50 689 ms ·
+  p90 797 ms** contra un presupuesto de **800 ms**. La separación es perfecta (`mem_ms: null` ⟺ cero tarjetas) y
+  la distribución no cae holgada bajo el corte: **está pegada al corte**.
+  - **El aviso existía y no tenía lector.** `recall_budget.compose()` pone `timings["recall_timeout"]` al agotar
+    el presupuesto —y el nodo 2.28 lo afirmaba desde F1, con el comentario «y encima no dejó rastro»— pero
+    `grep` daba **un escritor y cero lectores**: el `timings` se lo queda el turno y se tira, y el único otro
+    testigo era un `logging.info` sin marca de tiempo en medio del ruido del arranque. Un turno que responde sin
+    su memoria durable se leía, en TODAS las superficies, como un turno que no tenía nada que recordar.
+    **La respuesta equivocada era la tranquilizadora** — gemelo exacto del `embed_pending=1` de dos días antes.
+  - **Se publica por los DOS canales que ya usa `memory/`**: fila en la línea de tiempo (motivo + presupuesto +
+    pregunta recortada, lo que se lee DESPUÉS) y ámbar de estado (lo único que se ve MIENTRAS). Y **no se
+    `clear()` al salir bien**: la clave `memory` la comparten el descuadre de espacio vectorial y los embeddings
+    degradados, así que limpiarla aquí borraría un aviso ajeno; envejece con su TTL. Un recall que sí llega no
+    dice nada — un aviso que sale siempre no es un aviso.
+  - **El presupuesto NO se toca**: subirlo es un canje latencia↔memoria del operador, y con n=6 no hay base. Lo
+    que este cambio deja es la instrumentación para decidirlo con una cuenta real en unos días.
+  - **Y reordena lo aparcado**: el `concept_discount` de V2-031 puede esperar, porque **afinar el ORDEN de un
+    recall que el 77 % de las veces no llega no mueve nada de lo que el operador percibe.** Primero que llegue.
+  Sensibilidad: desarmado el publicador, 2 de 10 casos en rojo. Sin verificar en vivo.
+
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
