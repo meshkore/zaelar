@@ -1327,15 +1327,6 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         # como dicha: el backstop dispara de menos, nunca de más.
         _errand_toks = set(_norm_txt(str(errand or "")).split())
         title = _norm_txt(row.split(" — ")[0])
-        # PERTENENCIA antes que frescura (medido en la ronda 35, 2026-08-25 02:20): el worker falló el tecleo,
-        # Wallapop devolvió su feed sin filtrar y la hoja se llenó de Beyblades y cosmética — el modelo hizo
-        # BIEN en no entregarla, y este backstop la habría anunciado como candidatos. Una fila solo se anuncia
-        # si comparte al menos un token sustantivo con el ENCARGO (la de guitarra dice «guitarra»; la de
-        # Beyblade no). Es el mismo juego de tokens en las dos pruebas, con papeles opuestos: para PERTENECER
-        # el token del encargo tiene que estar; para ser NUEVA, la identidad se mide fuera de esos tokens.
-        _title_toks = set(title.split())
-        if _errand_toks and not any(t in _title_toks for t in _errand_toks if len(t) >= 4):
-            continue
         toks = [w for w in title.split()
                 if (any(c.isdigit() for c in w) or len(w) >= 5) and w not in _errand_toks]
         if toks and not any(t in said for t in toks):
@@ -1344,6 +1335,39 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
             break
     if not fresh:
         return ""
+    if _looks_like_an_unfiltered_feed(rows):
+        return ""
     return ("Bueno, de hecho ya hay candidatos en la hoja de resultados: "
             + "; ".join(f"«{f}»" for f in fresh)
             + ". Dime si alguno te encaja o sigo afinando.")
+
+
+def _looks_like_an_unfiltered_feed(rows) -> bool:
+    """¿Estas filas son el FEED de la página en vez de los resultados de la búsqueda? (V2-305, corregido)
+
+    La ronda 35 (2026-08-25 02:20) llenó la hoja de Beyblades, cosmética, velas y un Ford Fiesta: el worker
+    falló el tecleo, la página devolvió su portada sin filtrar, y anunciar eso como candidatos habría sido
+    peor que la espera que corrige. La primera puerta que puse contra eso exigía compartir palabra con el
+    ENCARGO — y eso está adaptado a UN dominio: en un marketplace el título repite la categoría («Guitarra
+    Acústica Fender»), pero un hotel se llama «La Banda Living Hostel» y un vuelo «Ryanair directo». Medido en
+    la tanda de las 10:04: con 36 filas legítimas de hoteles en la hoja, el backstop no disparó NI UNA vez y
+    el juez volvió a fichar «retención de 202 s».
+
+    La señal que sí separa los dos casos sin mirar el sector: la COHERENCIA ENTRE LAS FILAS. Unos resultados
+    de búsqueda comparten algo entre sí («Guitarra» en todas, «Hostel» en tres de tres); un feed sin filtrar
+    no comparte nada (Beyblade · Paula's Choice · Velas · Carta Nico Williams · Ford Fiesta). Con menos de
+    tres filas no se juzga: dos cosas distintas no son un feed, y callar por ahí sería el error de ayer.
+
+    Lado conservador asumido: un encargo legítimamente heterogéneo («cosas para el piso nuevo») se lee como
+    feed y el backstop calla — se pierde una ayuda, no se dice una falsedad.
+    """
+    titles = [_norm_txt(str(r or "").split(" — ")[0]) for r in (rows or [])]
+    titles = [t for t in titles if t]
+    if len(titles) < 3:
+        return False
+    counts: dict[str, int] = {}
+    for t in titles:
+        for w in set(t.split()):
+            if len(w) >= 4:
+                counts[w] = counts.get(w, 0) + 1
+    return not any(n >= 2 for n in counts.values())

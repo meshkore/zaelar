@@ -74,14 +74,38 @@ def test_the_probe_actually_wires_it():
 
 
 def test_junk_rows_from_an_unfiltered_feed_are_never_announced():
-    """Ronda 35 (2026-08-25): el worker falló el tecleo, Wallapop devolvió su feed sin filtrar y la hoja se
-    llenó de Beyblades y cosmética. El modelo hizo BIEN en no entregarla — y este backstop la habría anunciado.
-    Una fila solo se anuncia si comparte un token sustantivo con el encargo."""
+    """Ronda 35 (2026-08-25 02:20): el worker falló el tecleo, la página devolvió su portada sin filtrar y la
+    hoja se llenó de Beyblades, cosmética, velas y un Ford Fiesta. El modelo hizo BIEN en no entregarla — y
+    este backstop la habría anunciado. Lo que las delata NO es el encargo (ver el test de abajo) sino que no
+    comparten NADA entre sí: unos resultados de búsqueda son coherentes, un feed no."""
     junk = ["Juguetes Beyblade Die-Cast (COLOR AL AZAR) — 15 €",
-            "Pack 2x Paula's Choice BHA 2% Exfoliante 118ml — 30 €"]
+            "Pack 2x Paula's Choice BHA 2% Exfoliante 118ml — 30 €",
+            "Velas de Gruta y Gel artesanales — 12 €",
+            "Ford Fiesta 1.0 EcoBoost ST-Line — 8.900 €"]
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", junk, "",
                                      errand="busca una guitarra acústica por menos de 150€")
     assert out == "", "anunciar basura deterministamente es peor que la espera que corrige"
+
+
+def test_entities_that_never_repeat_the_category_STILL_fire():
+    """El defecto de la primera puerta, medido en la tanda de las 10:04: exigir compartir palabra con el
+    ENCARGO está adaptado a un dominio — en un marketplace el título repite la categoría, pero un hotel se
+    llama «La Banda Living Hostel» y un vuelo «Ryanair directo». Con 36 filas legítimas de hoteles en la
+    hoja, el backstop no disparó ni una vez y el juez fichó «retención de 202 s»."""
+    hoteles = ["La Banda Living Hostel — € 98", "New Samay Hostel — € 88",
+               "La Banda Rooftop Hostel — € 118"]
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", hoteles, "",
+                                     errand="Busca el mejor hotel en Sevilla, menos de 120€ la noche")
+    assert "La Banda Living Hostel" in out
+
+
+def test_two_rows_are_never_called_a_feed():
+    """Dos cosas distintas no son un feed: por debajo de tres filas no se juzga coherencia, porque callar ahí
+    reintroduce justo el silencio que este backstop existe para quitar."""
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.",
+                                     ["Hotel Alfonso XIII — 210 €", "Corral del Rey — 180 €"], "",
+                                     errand="busca hotel en Sevilla")
+    assert "Alfonso XIII" in out
 
 
 def test_matching_rows_still_fire_with_the_membership_gate():
@@ -90,8 +114,12 @@ def test_matching_rows_still_fire_with_the_membership_gate():
     assert "Fender CD-60" in out
 
 
-def test_a_title_without_the_category_noun_is_skipped_conservatively():
-    """El coste asumido de la puerta de pertenencia, escrito para que nadie lo lea como un bug suelto."""
-    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", ["Yamaha F370BL Negra — 100 €"], "",
-                                     errand="busca una guitarra acústica")
+def test_a_heterogeneous_errand_is_the_assumed_cost():
+    """El coste asumido de la puerta nueva, escrito para que nadie lo lea como un bug suelto: un encargo
+    legítimamente heterogéneo («cosas para el piso nuevo») se lee como feed y el backstop calla — se pierde
+    una ayuda, no se dice una falsedad."""
+    out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.",
+                                     ["Sofá cama gris — 180 €", "Lámpara de pie — 25 €",
+                                      "Microondas Balay — 60 €"], "",
+                                     errand="busca cosas para el piso nuevo")
     assert out == ""

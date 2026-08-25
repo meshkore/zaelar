@@ -624,6 +624,9 @@ DOMAINS: list[dict] = [
             # V2-308: «SIN MOVERSE de esa página» exige que HAYA página — sin url ni pasos, `stalled_s` mide
             # desde el nacimiento y declaraba BLOQUEADA una tarea que solo arrancaba (ofreció relanzar ×4).
             "tests/browser/unit/navegador/test_a_task_without_a_page_is_not_stuck.py",
+            # V2-310: una pestaña de ENCARGO cuyo worker murió seguía contándose «YA EN CURSO» — zaelar decía
+            # la verdad («se cortó por el límite de sesión») contra un bloque que afirmaba lo contrario.
+            "tests/browser/unit/navegador/test_a_tab_without_a_driver_says_so.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.

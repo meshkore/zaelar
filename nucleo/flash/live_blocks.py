@@ -92,6 +92,34 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
         return False
 
 
+def _driver_is_gone(nav_task_id: str, prog: dict) -> bool:
+    """¿Esta pestaña se quedó SIN CONDUCTOR? (V2-310)
+
+    Medido el 2026-08-25 04:36: el plan de los Brain Workers agotó su límite de sesión, el worker murió al
+    instante — y su pestaña siguió `working` en el registro, así que el estado decía «NAVEGADOR — YA EN CURSO»
+    sobre un encargo que no conducía nadie. zaelar dijo la VERDAD («se cortó por el límite de sesión») contra
+    un bloque que afirmaba lo contrario, el juez lo fichó como alucinación y la ronda salió 2/1/1/2/1. Un
+    prompt que se contradice hace imposible acertar (V2-222).
+
+    El hecho se lee de los DOS registros: la pestaña tiene SELLO DE ENCARGO (`sheet`, que solo pone
+    `dispatch._prepare_web`) y no queda ninguna sesión viva conduciéndola (`record_by_nav_task`, que también
+    encuentra una REANUDACIÓN automática — mientras alguien vaya a retomarla, no está huérfana).
+
+    Conservador por diseño: una pestaña sin sello (el operador conduciendo a mano, un login) nunca es
+    huérfana, un encargo sin hoja tampoco (se calla en vez de afirmar), y no poder leerlo es «no» — decir que
+    un encargo murió cuando sigue vivo es peor que callarlo.
+    """
+    try:
+        if not str((prog or {}).get("sheet") or "").strip():
+            from widgets.navegador import tasks as _t
+            if not str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip():
+                return False
+        from nucleo import dispatch as _d
+        return _d.record_by_nav_task(str(nav_task_id)) is None
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
     """The first few NAMED rows already delivered for this errand, as «title — price» strings.
 
@@ -174,6 +202,7 @@ def navegador_lines() -> list[str]:
                 _prog = {}
             _bits = []
             _blocked = _login = _has_results = ""       # el GOAL de la tarea que disparó cada cara, o ""
+            _orphan = ""                                # …y la que se quedó SIN CONDUCTOR (V2-310)
             _rows: list[str] = []                       # …y las FILAS ya entregadas de esa misma tarea
             _asked: tuple | None = None                 # (goal, pregunta) de la tarea parada en el confirm-gate
             _hit_walls = ""                             # y la que YA se comió un bloqueo, aunque siga en otra página
@@ -260,6 +289,13 @@ def navegador_lines() -> list[str]:
                         if not _has_results:
                             _has_results = _who
                             _rows = _sheet_top_rows(_tid)
+                    # V2-310 — SIN CONDUCTOR gana a login/muro/atasco: si el worker murió, que el operador
+                    # entre en la web o que la página desbloquee no sirve de nada; nadie va a seguir. Pierde
+                    # contra `question` y `has_results`, que siguen siendo lo más útil que decir (y el hecho
+                    # se anota igual abajo, fuera del elif, para que la frase no mienta).
+                    elif _driver_is_gone(_tid, _p):
+                        _b += " · SU WORKER MURIÓ: la pestaña sigue abierta pero NO la conduce nadie"
+                        _orphan = _orphan or _who
                     elif _p.get("awaiting_login"):
                         _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
                         _blocked = True
@@ -285,6 +321,12 @@ def navegador_lines() -> list[str]:
                     # arriba. Medido en `find-theatre-tickets__es` (12:39): el detector de muro disparó de
                     # verdad, el worker se re-enrutó —correcto— y el hecho se borró con el siguiente `update_view`,
                     # así que zaelar pasó diez turnos diciendo «sigue sin dar señal de dónde está».
+                    if not _orphan and _driver_is_gone(_tid, _p):
+                        # El hecho compone con CUALQUIER cara (V2-176 con los muros): con resultados delante
+                        # la cara correcta sigue siendo entregarlos, pero decir «no está bloqueada ni
+                        # esperando» sobre una pestaña sin conductor sería la contradicción de nuevo.
+                        _b += " (su worker murió: nadie la conduce)"
+                        _orphan = _who
                     if int(_p.get("walls_hit") or 0) and not _p.get("wall"):
                         _lw = _p.get("last_wall") or {}
                         _n = int(_p["walls_hit"])
@@ -360,6 +402,18 @@ def navegador_lines() -> list[str]:
                     "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
                     "que es lo que sabes. Decirle que está parada teniendo datos delante es la "
                     "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
+            elif _orphan:
+                # V2-310 — y aquí SÍ se ofrece relanzar, justo al revés que en V2-308: allí la tarea estaba
+                # ARRANCANDO y ofrecer abandonarla la mataba; aquí no queda nadie conduciendo, así que
+                # relanzar es lo ÚNICO que puede traer el resultado. La frase nombra el hecho y no lo
+                # disfraza: el operador estaba esperando a un encargo sin dueño.
+                lines.append(
+                    _head + f" {_orphan} SE QUEDÓ SIN CONDUCTOR: el proceso que la llevaba ha muerto (se le "
+                    "acabó el plan del proveedor, o falló) y la pestaña sigue abierta sin que nadie avance. "
+                    "NO va a terminar sola y esperar no sirve de nada. DILO en este turno —aunque el operador "
+                    "acabe de decir que espera tranquilo— y ofrécele RELANZARLA; si él dice que no la "
+                    "relances, respétalo y no vuelvas a proponerlo, pero tampoco digas que sigue en marcha."
+                    + _shared + _walls_note)
             elif _login:
                 lines.append(
                     _head + f" {_login} ESTÁ PARADA Y SOLO LA DESBLOQUEA ÉL: no va a avanzar ni un paso "
