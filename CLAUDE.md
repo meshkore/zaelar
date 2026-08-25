@@ -426,6 +426,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Una FECHA no es un teléfono, y la diferencia costaba la hoja entera (V2-321, 2026-08-25)**: `dom.telText`
+  aceptaba `2026-08-25 12` como número al que llamar — diez dígitos con guiones y espacio, los tres separadores
+  que admite. Su comentario decía descartar fechas «porque la barra no es separador aquí», lo cual cubre
+  `25/08/2026` y no el formato ISO, que es el que las páginas escriben. **El daño no era la fila de más**:
+  `by_amount` reparte la hoja por lo accionable —importe **o teléfono**— así que un teléfono falso ascendía el
+  mobiliario del pie («Inicio», FAQ, «Envíanos un comentario») a la cabecera, el top-5 que ve el cerebro pasaba a
+  ser eso, el cerebro se negaba a ofrecerlo con razón, y el juez lo puntuaba como ocultar resultados. Seis saltos
+  desde una línea, y en el sexto la culpa parecía del modelo. El corte es de **forma** (como «un cero no es un
+  precio»), sin lista negra de textos; el mobiliario desaparece solo porque `if(!price && !tel) continue` ya
+  existía. **Invariante: un criterio estructural nuevo en este extractor se prueba RENDERIZANDO un DOM, y se
+  desarma en las dos direcciones — que deje pasar lo que debe cazar, y que mate lo que debe respetar.**
+
 - **Las tools, de menos a más (2026-08-02, norma del operador)**: el catálogo de `router.TOOLS` había llegado a
   **31.647 chars, el 70% prosa**, y viaja ENTERO en cada turno — también en el que solo dice «hola». La norma que
   fija el operador: *«un modelo de lenguaje ya sabe lo que es un player de música; dile que tienes un widget de

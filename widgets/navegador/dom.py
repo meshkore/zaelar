@@ -89,13 +89,30 @@ _JS_EXTRACT = r"""
     return best ? best.slice(0,90) : '';
   });
   // UN NÚMERO AL QUE LLAMAR. Un `tel:` es inequívoco; en texto se exige que sean 9-14 dígitos CON separadores,
-  // que es lo que descarta un precio («1.234,56» son 6 dígitos), un código de barras (sin separadores) y una
-  // fecha (la barra no es separador aquí).
+  // que es lo que descarta un precio («1.234,56» son 6 dígitos) y un código de barras (sin separadores).
+  //
+  // Y UNA FECHA NO ES UN TELÉFONO (V2-321). Esto decía descartarlas «porque la barra no es separador aquí», lo
+  // cual cubre `25/08/2026` y NO cubre `2026-08-25`, que es el formato ISO y el que las páginas escriben de
+  // verdad: diez dígitos, guiones y espacio — los tres separadores admitidos. Medido en vivo el 2026-08-25
+  // sobre kayak.es: las tres filas de mobiliario del pie («Inicio», «Echa un vistazo a nuestras preguntas
+  // frecuentes», «Envíanos un comentario») salieron con `tel: "2026-08-25 12"`.
+  //
+  // El daño no es la fila de más. `by_amount` reparte la hoja por lo ACCIONABLE —un importe **o un número al
+  // que llamar»**— así que un teléfono falso ASCIENDE el mobiliario a la cabecera; el top-5 que
+  // `live_blocks._sheet_top_rows` le pasa al cerebro pasó a ser portada, FAQ y feedback; el cerebro se negó a
+  // ofrecer eso, con razón; y el juez lo puntuó como ocultar resultados que tenía. Una línea, seis saltos.
+  //
+  // El corte es de FORMA, como el resto de este fichero («un cero no es un precio»): lo que tiene forma de
+  // fecha se descarta antes de mirar nada más. Un teléfono real no se escribe `AAAA-MM-DD` ni `D-M-AA`, y los
+  // formatos que sí usa —`600 123 456`, `+34 91 123 45 67`, `600-123-456`— no casan con estas dos formas
+  // porque sus grupos son de tres o más dígitos.
+  const looksLikeADate=(raw)=>/^\s*(?:\d{4}[-.]\d{1,2}[-.]\d{1,2}|\d{1,2}[-.]\d{1,2}[-.]\d{2,4})/.test(raw);
   const telText=(s)=>{
     const m=(s||'').match(/(?:\+\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,14}/g);
     if(!m) return '';
     for(const t of m){
       const raw=t.trim(), d=raw.replace(/\D/g,'');
+      if(looksLikeADate(raw)) continue;
       if(d.length>=9 && d.length<=14 && /[\s.\-]/.test(raw)) return raw.slice(0,24);
     }
     return '';

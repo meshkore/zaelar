@@ -655,6 +655,10 @@ DOMAINS: list[dict] = [
             # V2-310: una pestaña de ENCARGO cuyo worker murió seguía contándose «YA EN CURSO» — zaelar decía
             # la verdad («se cortó por el límite de sesión») contra un bloque que afirmaba lo contrario.
             "tests/browser/unit/navegador/test_a_tab_without_a_driver_says_so.py",
+            # V2-321: `telText` leía `2026-08-25 12` como teléfono (ISO: 10 dígitos, guiones y espacio, los
+            # tres separadores admitidos). Y un teléfono falso ASCIENDE la fila por `by_amount`, así que el
+            # mobiliario del pie se llevaba el top-5 que ve el cerebro.
+            "tests/browser/unit/navegador/test_a_date_is_not_a_phone_number.py",
             # V2-318: la cabeza mandaba «cuenta QUÉ ha encontrado» y el bloque de filas «di solo lo que
             # RESPONDE»; ganaba la primera. Con tres filas y ninguna válida, ofreció un COLGADOR de guitarra.
             "tests/browser/unit/navegador/test_when_nothing_in_the_sheet_fits.py",
