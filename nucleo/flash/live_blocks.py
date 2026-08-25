@@ -267,7 +267,17 @@ def navegador_lines() -> list[str]:
                     elif _p.get("wall"):
                         _b += f" · MURO: {_p['wall']}"
                         _blocked = _blocked or _who
-                    elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
+                    # V2-308 — «SIN MOVERSE de esa página» exige que HAYA una página. `stalled_s` se mide
+                    # desde `last_progress or created`, así que una tarea que aún no ha dado su PRIMER paso
+                    # acumula atasco desde que nació y a los dos minutos se declaraba BLOQUEADA. Medido en la
+                    # ronda de las 04:35 (2026-08-25), y el bloque se contradecía a sí mismo en la MISMA
+                    # línea: «AÚN NO HA REPORTADO NINGÚN PASO (no sabes si está pensando o atascada)» seguido
+                    # de «ESTÁ BLOQUEADA … es un HECHO medido». El modelo creyó a la mitad fuerte, dijo que la
+                    # búsqueda estaba muerta y ofreció relanzarla CUATRO veces con el operador prohibiéndoselo
+                    # — es V2-152 por el otro lado (allí se afirmaba que no había abierto nada; aquí que se
+                    # había quedado parada en una página que no existe). Sin url y sin pasos no hay atasco que
+                    # medir: hay una tarea sin señal, que ya tiene su redacción propia en la rama sana.
+                    elif int(_p.get("stalled_s") or 0) >= _STALLED_S and (_p.get("url") or _p.get("steps")):
                         _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
                         _blocked = _blocked or _who
                     # LOS MUROS QUE YA SE COMIÓ, aunque ahora esté en otra página. Va FUERA del elif: no es
