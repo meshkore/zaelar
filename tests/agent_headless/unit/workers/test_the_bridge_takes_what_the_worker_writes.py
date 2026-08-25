@@ -99,3 +99,19 @@ def test_the_hint_lands_BETWEEN_the_complaint_and_the_usage():
                          capture_output=True, text=True, timeout=60)
     err = out.stderr
     assert err.index("required") < err.index("use_tool") < err.index("usage:")
+
+
+# ── V2-306: `open`/`goto` son ALIAS de navigate — y el equivocado era el CLI, no el worker (la regla de
+# V2-219). Medido en `find-best-hotel-city__es` (2026-08-25 02:22): DOS workers seguidos escribieron
+# `nav_cli open <url>` — el verbo natural, y el que nuestra propia receta enseña en prosa («para ABRIR una
+# página usa…»)— y quemaron sus turnos en «invalid choice: 'open'» mientras la ronda acababa con la hoja
+# vacía. Un alias conserva la semántica idéntica; una pista sobre el error seguiría costando la llamada.
+
+@pytest.mark.parametrize("alias", ["open", "goto"])
+def test_open_and_goto_navigate_exactly_like_navigate(alias, monkeypatch):
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    nav_cli.main([alias, "https://es.wallapop.com"])
+    assert calls == [("navigate", {"url": "https://es.wallapop.com"})], \
+        "el alias tiene que llegar al MISMO handler — un alias que parsea y no despacha es el peor de los dos"

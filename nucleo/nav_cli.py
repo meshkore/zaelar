@@ -235,7 +235,12 @@ def main(argv: list[str] | None = None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=_GuidedParser)
     sub.add_parser("snapshot", help="estado + elementos interactivos de la página actual")
     sub.add_parser("look", help="VISIÓN: captura la página → ruta PNG para Read + coordenadas para click_at/type_at")
-    n = sub.add_parser("navigate", help="ir a una URL"); n.add_argument("url")
+    # V2-306 — `open`/`goto` are ALIASES of navigate, and it is the CLI that was wrong, not the worker (the
+    # V2-219 rule). Measured on `find-best-hotel-city__es` (2026-08-25 02:22): TWO workers in a row wrote
+    # `nav_cli open <url>` — the natural verb, and the one our own recipe teaches in prose («para ABRIR una
+    # página usa…») — and burned their turns on «invalid choice: 'open'» while the round ended with an empty
+    # sheet. An alias keeps the semantics identical; a hint on the error would still cost the failed call.
+    n = sub.add_parser("navigate", aliases=["open", "goto"], help="ir a una URL"); n.add_argument("url")
     c = sub.add_parser("click", help="click en un [ref] del último snapshot"); c.add_argument("ref", type=int)
     t = sub.add_parser("type", help="escribir en un [ref]"); t.add_argument("ref", type=int)
     t.add_argument("text"); t.add_argument("--submit", action="store_true")
@@ -254,6 +259,8 @@ def main(argv: list[str] | None = None) -> int:
     v = sub.add_parser("visit", help="abrir UNA ficha en otra pestaña, leerla y cerrarla (NO pierdes el listado)")
     v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
     a = ap.parse_args(argv)
+    if a.cmd in ("open", "goto"):     # V2-306: argparse keeps the alias the caller typed; the dispatch is one
+        a.cmd = "navigate"
     if a.cmd == "snapshot":
         res = _act("snapshot", {})
     elif a.cmd == "look":
