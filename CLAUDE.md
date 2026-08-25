@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Pedir ayuda no es equivocarse (V2-325, 2026-08-25)**: `widget_cli --help` contestaba «comando desconocido»
+  con **exit 2**. Medido en los logs de sesión del plató: de 332 sesiones de worker, 81 usan `nav_cli` y solo 5
+  llegan a `widget_cli` — y **tres de esas cinco mueren en el primer gesto**, pidiendo ayuda. Importa más de lo
+  que parece porque ese puente es la ÚNICA forma que tiene un worker de poner en la hoja lo que aprende ABRIENDO
+  fichas: sin él, la hoja solo se llena con lo que el extractor automático saca de un listado, y todo lo que se
+  investiga página a página muere en el contexto del worker (ronda del seguro: 8 opciones reunidas, 2 en la
+  hoja, y el prompt repitió esas dos nueve turnos). **Invariante: la puerta de entrada de un puente del worker
+  se mide en sus LOGS DE SESIÓN, no en la observabilidad — ésta solo capta una fracción de los comandos (control
+  medido: `nav_cli` 9 apariciones para decenas de invocaciones reales).**
+
 - **Cuando dos anclas apuntan al mismo anuncio, gana la que lo NOMBRA (V2-324, 2026-08-25)**: los 19 coches de
   un listado salían sin nombre **sin que nada estuviera roto**. El dedup se quedaba con la primera del DOM —la
   de accesibilidad, «Abrir detalles del anuncio»— y tiraba la que decía «Skoda Octavia 2.0TDI»; después, el

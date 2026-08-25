@@ -214,6 +214,10 @@ DOMAINS: list[dict] = [
             # licencia local, el fail-open prometido) y cadena entera en cooldown— así que el cooldown de la
             # licencia no podía morder y se relanzaba contra el proveedor que acababa de decir que no.
             "tests/agent_headless/unit/test_an_asleep_chain_does_not_spawn.py",
+            # V2-325: el worker escribía `widget_cli --help` —lo primero que hace cualquiera— y recibía
+            # «comando desconocido» con exit 2. Medido: 3 de las 5 sesiones que llegan a ese puente mueren ahí,
+            # y es la ÚNICA forma que tiene de poner en la hoja lo que aprende abriendo fichas.
+            "tests/agent_headless/unit/workers/test_asking_for_help_is_not_a_failure.py",
             # V2-320: `code_agent.providers` es una COPIA del catálogo, y una copia hecha antes de medir tira
             # la medida. El escalón DeepSeek a mano perdía su `vision: False` → el navegador mandaba una PNG
             # de 300-530 KB en cada acción a un modelo que no puede abrirla.

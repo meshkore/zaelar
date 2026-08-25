@@ -78,11 +78,29 @@ def _report(res: dict) -> int:
     return 0
 
 
+#: Lo que teclea cualquiera —persona o modelo— al encontrarse una herramienta nueva. `nav_cli` lo contesta con
+#: `exit 0` porque usa argparse; este puente lo contestaba con «comando desconocido» y `exit 2` (V2-325).
+_AYUDA = ("--help", "-h", "help", "ayuda", "--ayuda", "-?", "/?")
+
+
 def main(argv: list[str]) -> int:
     if len(argv) < 2:
         print(__doc__)
         return 2
     cmd = argv[1]
+    # PEDIR AYUDA NO ES UN FALLO (V2-325). Medido en los logs de sesión del plató (2026-08-25): de 332 sesiones
+    # de worker, 81 usan `nav_cli` y solo 5 llegan a `widget_cli` — y TRES de esas cinco mueren en `Exit code 2`.
+    # El paso que las mata es el PRIMERO: el worker escribe `widget_cli --help`, que es lo que hace cualquiera
+    # con una herramienta nueva, y recibía «comando desconocido: --help» con código 2. Dos errores seguidos y
+    # abandona; el resultado es una hoja que solo se llena con lo que el extractor automático saca de un
+    # listado, mientras todo lo que el worker aprende ABRIENDO fichas muere en su contexto.
+    #
+    # Su hermano `nav_cli` contesta `--help` con exit 0 porque usa argparse, y es el puente que sí se usa. Aquí
+    # se arregla sin migrar a argparse —eso cambiaría el contrato de los verbos que ya funcionan— sino
+    # reconociendo la pregunta y devolviendo ÉXITO: preguntar cómo se usa algo no es equivocarse.
+    if cmd in _AYUDA:
+        print(__doc__)
+        return 0
     if cmd == "read":
         if len(argv) < 3:
             print("uso: hbwidget read <widget_id>")
@@ -140,7 +158,11 @@ def main(argv: list[str]) -> int:
                 print("el payload debe ser un objeto JSON")
                 return 2
         return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
-    print(f"comando desconocido: {cmd}")
+    # …y un verbo que no existe DICE cuáles existen, en vez de dejar al que pregunta adivinando. Es la misma
+    # cortesía que `nav_cli._hint_for`: el error que no enseña el camino cuesta otra vuelta entera.
+    print(f"comando desconocido: {cmd}\n"
+          f"verbos: read <widget> · data <widget> <accion> [payload|@fichero|-] · show <widget> · close <widget>\n"
+          f"ayuda:  python -m nucleo.widget_cli --help")
     return 2
 
 
