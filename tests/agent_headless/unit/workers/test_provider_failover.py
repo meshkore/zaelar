@@ -402,3 +402,45 @@ def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypat
     rows = {r["key"]: r for r in balances.worker_providers()}
     assert "EN USO" in rows["worker:licencia-claude"]["detail"], "el que trabaja de verdad es el que va marcado"
     assert "EN USO" not in rows["worker:z.ai"]["detail"]
+
+
+# ── V2-309: «session limit» es una VENTANA agotada, y su hora viene como el proveedor quiera escribirla ──────
+#
+# Medido el 2026-08-25 04:36: el worker murió al instante con «You've hit your session limit · resets 6:10am
+# (Europe/Madrid)», `classify_failure` devolvió "" (no es fallo de proveedor) → sin cooldown y sin relevo, así
+# que CADA worker nuevo iba al mismo escalón muerto y moría igual. La ronda acabó con la hoja vacía y zaelar
+# diciendo la verdad («se cortó por el límite de sesión») contra un estado que decía EN CURSO.
+
+@pytest.mark.parametrize("text", [
+    "You've hit your session limit · resets 6:10am (Europe/Madrid)",
+    "You have reached your session limit, resets at 06:10",
+    "Session limit exceeded — will reset at 2026-08-25 06:10",
+])
+def test_a_session_limit_is_an_exhausted_window(text):
+    assert prov.classify_failure(text) == "exhausted", \
+        "sin clasificarlo no hay cooldown ni relevo: cada worker nuevo muere contra el mismo escalón"
+
+
+def test_a_sentence_that_merely_mentions_a_session_limit_is_not_a_failure():
+    """Sensibilidad: el patrón exige el verbo de haberlo alcanzado o su reset — una frase que habla del
+    límite («session limit is configurable in settings») no puede tumbar un escalón sano."""
+    assert prov.classify_failure("session limit is configurable in settings") == ""
+
+
+def test_the_reset_hour_is_read_even_written_as_6_10am():
+    """Sin leer la hora, el cooldown caía al suelo por defecto (30 min) y otro worker moría contra el mismo
+    límite antes de que se repusiera. `6:10am` es como lo escribe el CLI: un dígito y el sufijo pegado."""
+    import time as _t
+    got = prov._reset_epoch("You've hit your session limit · resets 6:10am (Europe/Madrid)")
+    assert got, "la hora no se leyó"
+    assert _t.localtime(got).tm_hour == 6 and _t.localtime(got).tm_min == 10
+    assert got > _t.time(), "un cooldown que nace vencido no protege de nada"
+
+
+def test_the_iso_and_24h_forms_still_work():
+    """La forma que ya funcionaba no se toca al ensanchar el patrón."""
+    import time as _t
+    iso = prov._reset_epoch("limit will reset at 2026-08-25 06:10")
+    assert _t.localtime(iso).tm_hour == 6
+    h24 = prov._reset_epoch("Usage limit reached, resets 23:45")
+    assert _t.localtime(h24).tm_hour == 23 and _t.localtime(h24).tm_min == 45

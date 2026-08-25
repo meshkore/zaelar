@@ -216,13 +216,22 @@ def vision_env(tier: dict | None) -> dict:
 # Leer solo la fecha convertía el tercer caso en «medianoche pasada» → epoch en el pasado → caía al suelo de media
 # hora, y a partir de ahí cada worker volvía a elegir ese proveedor y a comerse un 429. Con el reset a las 23:15,
 # eso son SIETE HORAS de reintentos quemados de uno en uno (hallazgo de un e2e real, 2026-08-10).
+# V2-309 — la hora viene como el proveedor quiera escribirla, y `6:10am` (un dígito + sufijo) no casaba: el
+# cooldown caía al suelo por defecto (30 min) en vez de a las 6:10, así que a los 30 minutos otro worker iba
+# a morir contra el mismo límite. Se acepta 1-2 dígitos y el am/pm opcional, que es como lo escribe el CLI.
 _RESET_RE = re.compile(
     r"reset(?:s|ting)?(?:\s+(?:at|on|in))?\s*[:\s]\s*"
-    r"(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\d{2}:\d{2}(?::\d{2})?)", re.I)
+    r"(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\d{1,2}:\d{2}(?::\d{2})?\s*(?:am|pm)?)", re.I)
 # Un límite de VENTANA (5 h, diario) no es un rate-limit pasajero: no se arregla reintentando en dos segundos, se
 # arregla esperando a la hora que el propio proveedor dice. Tratarlo como `rate` era no ponerle cooldown NI relevar.
+# V2-309 — «session limit» es la MISMA clase y no casaba con ninguna: medido el 2026-08-25 04:36, el worker
+# murió al instante con «You've hit your session limit · resets 6:10am (Europe/Madrid)», `classify_failure`
+# devolvió "" (no es fallo de proveedor) → sin cooldown y sin relevo, así que CADA worker nuevo iba al mismo
+# escalón muerto y moría igual. Es literalmente lo que este patrón existe para cerrar, con otra redacción del
+# proveedor. Y el «resets 6:10am» es su hora: se respeta como en cualquier ventana.
 _WINDOW_RE = re.compile(
     r"usage limit reached|limit reached for\s+\d+\s*(?:hour|hr|minute|min|day)|"
+    r"(?:hit|reached|exceeded)\s+(?:your|the)\s+session limit|session limit\b[^.]{0,40}\breset|"
     r"limit will reset|quota (?:will )?reset", re.I)
 # Señales de CUOTA/PLAN agotado, más específicas que el `credit` genérico de `llm_health` (que también pilla un
 # rate-limit pasajero). Aquí importa distinguir «espera 20s» de «hasta el jueves».
@@ -377,12 +386,16 @@ def _reset_epoch(text: str) -> float:
     if not m:
         return 0.0
     raw = m.group(1).strip().replace("T", " ")
+    # `6:10am` → `6:10 AM`: strptime con %p exige el separador y no admite minúsculas pegadas.
+    _mp = re.match(r"^(\d{1,2}:\d{2}(?::\d{2})?)\s*(am|pm)$", raw, re.I)
+    if _mp:
+        raw = f"{_mp.group(1)} {_mp.group(2).upper()}"
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
         try:
             return time.mktime(time.strptime(raw, fmt))
         except Exception:
             pass
-    for fmt in ("%H:%M:%S", "%H:%M"):                     # solo la hora → sobre el día de hoy
+    for fmt in ("%I:%M:%S %p", "%I:%M %p", "%H:%M:%S", "%H:%M"):   # solo la hora → sobre el día de hoy
         try:
             hm = time.strptime(raw, fmt)
         except Exception:
