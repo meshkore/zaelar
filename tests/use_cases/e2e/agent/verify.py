@@ -1286,6 +1286,61 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def delivered_by_name(transcript, known_titles) -> dict:
+    """QUÉ CANDIDATOS NOMBRÓ ZAELAR CON SUS PROPIAS PALABRAS, y en qué turno. El hecho que contradice «retiene».
+
+    El informe ya dice lo que el SISTEMA le puso delante al cerebro (`offered`), y eso responde a «¿se lo
+    inventó?». No responde a la otra pregunta, que es la que más veredictos ha decidido mal hoy: **¿lo dijo?**
+
+    Medido el 2026-08-25, tres veces con la misma forma — el juez confundió «sigue trabajando en los detalles»
+    con «oculta lo que tiene»:
+
+      · `search-secondhand-monitor` (21:35) bajó de PASS a FAIL con «tiene los datos y decide no mostrarlos
+        para mantener una ficción de búsqueda activa». Turno a turno había entregado CINCO candidatos con
+        nombre y precio: «la HP 27 HDMI por 35 €», «el Samsung Curvo 27" por 50 €», «MSI Curvo 27 por 120 €»,
+        «AOC 27 Curvo 144Hz por 60 €», «ViewSonic 27 IPS por 80 €».
+      · `search-buy-used-car` (20:08): «interpretando datos reales como errores del sistema» — cuando lo que
+        hizo fue detectar que «Buen precio» y «Contado» no eran coches, decirlo, y mandar abrir las fichas.
+      · `search-buy-bicycle` (21:25): dos bloqueadores que eran contaminación nuestra (V2-328).
+
+    NO se reutiliza `recites_our_candidates`, y la razón es la ASIMETRÍA DE COSTE. Aquel existe para cazar al
+    conductor fuera de papel, donde un falso positivo TIRA una ronda buena — por eso exige código de modelo o
+    mucha materia, y por eso descarta «Pantalla HP 27 HDMI» (cabecera genérica fuera, quedan cinco caracteres).
+    Medido: sobre los turnos del monitor cazaba 1 de 3.
+
+    Aquí la pregunta es «¿lo dijo?», y quien habla TIENE la lista delante: no hay que protegerse de «no podía
+    saberlo». El casador puede ser más ancho, y lo es — pide los tokens distintivos del título (sin la cabecera
+    genérica) presentes en la frase, sin exigir código de modelo.
+
+    Lo que devuelve NO es un veredicto: es un hecho con su turno, para que un «retuvo» tenga que explicarlo.
+    """
+    out: dict = {"n": 0, "names": [], "turns": []}
+    conocidos = [str(t) for t in (known_titles or []) if str(t).strip()]
+    if not conocidos:
+        return out
+    vistos: set = set()
+    for i, t in enumerate(transcript or []):
+        if (t or {}).get("who") != "zaelar":
+            continue
+        linea = str((t or {}).get("text") or "")
+        if not linea:
+            continue
+        txt = _norm_title(linea)
+        for titulo in conocidos:
+            toks = [w for w in _norm_title(titulo).split() if w not in _GENERIC_HEADS and len(w) > 1]
+            if len(toks) < 2 or not all(w in txt for w in toks[:3]):
+                continue
+            hit = titulo
+            clave = " ".join(toks[:3])
+            if clave in vistos:
+                continue
+            vistos.add(clave)
+            out["names"].append(str(hit)[:70])
+            out["turns"].append(i + 1)
+    out["n"] = len(out["names"])
+    return out
+
+
 def browser_still_driving(db_path, *, quiet_s: float = 6.0) -> dict:
     """¿Sigue conduciendo el navegador AHORA MISMO? Se mide por ACTIVIDAD RECIENTE, no por un registro.
 

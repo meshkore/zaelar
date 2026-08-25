@@ -298,6 +298,20 @@ def mechanism_facts(mech: dict) -> str:
         elif wo.get("delivered"):
             lines.append(f"· El navegador encontró y zaelar lo ENTREGÓ: {listed}. Eso cuenta como resultado "
                          f"conseguido, aunque la conversación siguiera después.")
+    # LO QUE ZAELAR NOMBRÓ CON SUS PROPIAS PALABRAS (V2-329). Va ANTES del bloque de `offered` a propósito: sin
+    # esto, el juez confunde «sigue trabajando en los detalles» con «oculta lo que tiene», y lo ha hecho tres
+    # veces el 2026-08-25 — la peor, `search-secondhand-monitor`, bajó de PASS a FAIL con «tiene los datos y
+    # decide no mostrarlos para mantener una ficción de búsqueda activa» después de haber entregado CINCO
+    # candidatos con nombre y precio en cuatro turnos distintos.
+    dbn = mech.get("delivered_by_name") or {}
+    if dbn.get("n"):
+        _turnos = ", ".join(str(x) for x in (dbn.get("turns") or [])[:8])
+        lines.append(f"· ✅ ZAELAR NOMBRÓ ESTO ÉL MISMO, en sus propias frases (turno(s) {_turnos}): "
+                     f"{'; '.join(str(x) for x in (dbn.get('names') or [])[:8])}. Es un HECHO medido sobre el "
+                     f"transcript, no una impresión. **Si vas a escribir que RETUVO resultados, que los OCULTÓ "
+                     f"o que mantuvo una «ficción de búsqueda», tienes que explicar estas frases** — y si no "
+                     f"puedes, ese bloqueador no existe. Seguir trabajando en un detalle DESPUÉS de entregar "
+                     f"(confirmar un envío, abrir una ficha) no es ocultar: como mucho es eficiencia.")
     if offered.get("titles"):
         # V2-300 — la ronda 24 midió el coste de callarse esta lista: zaelar recitó «Harley Benton — 50 €»
         # LEYÉNDOLO de su prompt (la hoja viaja en el estado desde bb1ab45), la hoja del final ya no tenía esa

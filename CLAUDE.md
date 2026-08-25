@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **El informe dice qué nombró ZAELAR él mismo (V2-329, 2026-08-25)**: decía lo que el sistema le puso delante
+  (`offered` → «¿se lo inventó?») y no lo que él dijo (→ «¿lo entregó?»). Sin ese hecho, el juez confunde «sigue
+  trabajando en los detalles» con «oculta lo que tiene», y lo hizo TRES veces el mismo día — la peor,
+  `search-secondhand-monitor`, bajó de PASS a FAIL con «decide no mostrarlos para mantener una ficción de
+  búsqueda activa» tras haber entregado cinco candidatos con nombre y precio en cuatro turnos. **No se reutilizó
+  `recites_our_candidates` a propósito: misma pregunta, asimetría de coste OPUESTA** — allí un falso positivo
+  tira una ronda buena (por eso es estricto y cazaba 1 de 3 aquí), y aquí quien habla tiene la lista delante, así
+  que no hay que protegerse de «no podía saberlo». **Invariante: un hecho sin instrucción no cambia nada — el
+  transcript ya estaba delante del juez las tres veces.**
+
 - **Un SUPERÍNDICE no es parte del número (V2-326, 2026-08-25)**: las fichas cuelgan del precio una llamada a
   nota al pie en `<sup>`, y `textContent` la pega — medido en autoscout24: `<span>€ 399</span>` + `<sup>1</sup>`
   salía como **`€ 3991`**, un error de MAGNITUD (×10) justo en el dato sobre el que se compara. **No se arregla
