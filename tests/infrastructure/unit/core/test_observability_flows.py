@@ -200,9 +200,14 @@ def test_a_worker_tool_result_is_recorded(wired):
     emit("task", "web ↩", text="Tour 2026: ganó Vingegaard", extra={"id": "7", "evidence": True,
                                                                     "span": "worker:7"})
     _settle()
+    # Se busca EL EVENTO PROPIO, no «el último de la tabla». `rows[-1]` ataba esta prueba a que nadie más
+    # emitiera un `task` después, y el almacén es COMPARTIDO: el 2026-08-25 falló una vez en la corrida
+    # completa y pasó sola y al repetir la suite. Un test que depende del orden en que corren los demás no
+    # mide lo que dice medir, y su rojo no distingue una regresión de una coincidencia.
     rows = [e for e in flows.events(limit=50) if e["kind"] == "task"]
     assert rows, "el resultado de una tool tiene que quedar registrado"
-    assert rows[-1]["span"] == "worker:7", "…y atribuido a SU actor, o no se puede agrupar por quién lo hizo"
+    mio = [e for e in rows if e.get("span") == "worker:7"]
+    assert mio, "…y atribuido a SU actor, o no se puede agrupar por quién lo hizo"
 
 
 # ── LEER UNA SESIÓN: resumen, cursor y por qué NO una ventana de tiempo ───────────────────────────────────────
