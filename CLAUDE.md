@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **«Cero filas» no es «sin resultados» (V2-323, 2026-08-25)**: un listado VIRTUALIZADO no crea sus fichas hasta
+  que te acercas. Medido en `autoscout24.es`: 0 anclas de anuncio sin desplazarse, **40** tras hacerlo — 1 fila
+  contra 19, con la página declarando «16.752 coches». V2-294 había decidido a propósito no reintentar con cero
+  filas por coste, y el argumento era bueno; lo que faltaba era el discriminador que lo respeta en vez de
+  pisarlo: **el ALTO de la página** (11,5× la pantalla aquí, 0,2× en una búsqueda vacía de verdad), porque una
+  página de resultados sin nada no llega ni a una pantalla. El mecanismo vive en `widgets/navegador/lazy.py` —
+  módulo propio porque el trinquete de arquitectura rechazó engordar `owner.py`, y tenía razón por debajo del
+  recuento: es mecánica de página, no estado de la pestaña. **La vista VUELVE a su sitio, y no por limpieza: el
+  `click_at` siguiente del worker lleva coordenadas de una foto tomada antes.**
+
 - **Verificar el ARREGLO no es verificar el CASO (V2-322, 2026-08-25)**: V2-321 cerró «una fecha no es un
   teléfono», con 11/11 renderizando, desarme en dos direcciones, 816 verdes y comprobación en vivo. Todo cierto,
   y el caso que lo destapó **volvió a fallar**: «la hoja se llenó con elementos de interfaz de autoscout24».

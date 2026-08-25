@@ -41,6 +41,12 @@ class _Tab:
         self.n += 1
         return out
 
+    #: V2-323 añadió una SEGUNDA mirada, la de las páginas que pintan al acercarse, y necesita la página real.
+    #: Aquí se declara APAGADA a propósito: estos tests miden la mirada de V2-294 (la hidratación) y sólo esa.
+    #: Dejar el atributo fuera no habría sido «no participar» — habría sido un `AttributeError` convertido en
+    #: respuesta de error, que es como se descubrió que el contrato de la pestaña había crecido.
+    page = None
+
 
 @pytest.fixture(autouse=True)
 def _quiet(monkeypatch):
@@ -49,6 +55,11 @@ def _quiet(monkeypatch):
     monkeypatch.setattr(act_api, "_emit_nav", lambda *a, **k: None)
     monkeypatch.setattr(act_api, "_say_phase", lambda *a, **k: None)
     monkeypatch.setattr(act_api, "_hand_over", lambda *a, **k: None)
+    # El empujón de V2-323 se apaga aquí: con una página falsa no hay nada que recorrer, y estos tests miden
+    # la mirada de la HIDRATACIÓN. Apagarlo explícitamente es lo que mantiene a cada test midiendo UNA cosa.
+    async def _sin_empujon(_page):
+        return False
+    monkeypatch.setattr(act_api._lazy, "materialise_below_the_fold", _sin_empujon)
     yield
 
 

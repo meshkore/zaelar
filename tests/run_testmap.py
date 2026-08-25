@@ -659,6 +659,10 @@ DOMAINS: list[dict] = [
             # tres separadores admitidos). Y un teléfono falso ASCIENDE la fila por `by_amount`, así que el
             # mobiliario del pie se llevaba el top-5 que ve el cerebro.
             "tests/browser/unit/navegador/test_a_date_is_not_a_phone_number.py",
+            # V2-323: un listado VIRTUALIZADO no tiene sus fichas hasta que te acercas. Medido en autoscout24:
+            # 0 anclas sin desplazarse, 40 tras hacerlo. «Cero filas» no es «sin resultados», y el
+            # discriminador es el ALTO de la página (11,5× frente a 0,2× de una búsqueda vacía de verdad).
+            "tests/browser/unit/navegador/test_a_page_that_paints_on_approach.py",
             # V2-318: la cabeza mandaba «cuenta QUÉ ha encontrado» y el bloque de filas «di solo lo que
             # RESPONDE»; ganaba la primera. Con tres filas y ninguna válida, ofreció un COLGADOR de guitarra.
             "tests/browser/unit/navegador/test_when_nothing_in_the_sheet_fits.py",

@@ -8,6 +8,8 @@ the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the r
 """
 import asyncio
 
+from widgets.navegador import lazy as _lazy
+
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 from nucleo.errors import brief as _brief
@@ -500,6 +502,24 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
                 if by_identity(_retry)[0]:
                     _emit_nav(task_id, "🧭 resultados", "la página estaba a medio cargar; mirada otra vez")
                     items = _retry
+            # V2-323 — Y SI AUN ASÍ NO HAY NI UNA FILA CON NOMBRE, puede que la página no las haya PINTADO.
+            # V2-294 (arriba) decidió a propósito no reintentar con cero filas, porque «esa sí puede ser una
+            # página sin resultados». Cierto, y con un punto ciego: un listado VIRTUALIZADO no crea sus fichas
+            # hasta que te acercas a ellas. Medido contra la URL exacta que condujo un worker
+            # (`autoscout24.es/lst/cit_madrid/ft_diesel?…`, 2026-08-25): 0 anclas de anuncio sin desplazarse y
+            # 40 tras hacerlo — 1 fila contra 19. La ronda reportó hoja vacía tras cuatro minutos de navegación
+            # real, que es indistinguible de «la página no tenía nada».
+            #
+            # `materialise_below_the_fold` NO invalida el argumento de coste de V2-294, lo respeta: solo se mueve
+            # si la página es más alta que la pantalla, y una búsqueda de verdad vacía no llega ni a una (0,2×
+            # medido en wallapop, frente a 11,5× aquí). La vista vuelve a su sitio, y las fichas materializadas
+            # sobreviven a la vuelta — comprobado.
+            if not by_identity(items)[0] and await _lazy.materialise_below_the_fold(tb.page):
+                _tarde = await tb.extract_listings(_limit)
+                if by_identity(_tarde)[0]:
+                    _emit_nav(task_id, "🧭 resultados",
+                              "la página pintaba sus fichas al acercarse; recorrida y mirada otra vez")
+                    items = _tarde
             # Se CUENTAN los que tienen nombre. Decir «12 resultados» cuando nueve son enlaces de categoría es
             # una cifra que el operador lee y se cree; y `found(0)` no calla —dice «sin resultados en esta
             # página»—, que es justo lo que hace falta para que el worker cambie de sitio en vez de insistir.
