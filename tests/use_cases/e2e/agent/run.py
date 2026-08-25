@@ -376,6 +376,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # sin relevo». Reading the empty sheet and not the reason is the harness accusing the product for
             # something that happened outside it.
             mech["provider_exhausted"] = verifymod.provider_exhausted(config.SANDBOX_DB, since=started_at)
+            # …Y CON QUÉ PUENTES TRABAJÓ, leído de sus LOGS DE SESIÓN y no del bus (que solo ve una fracción:
+            # `nav_cli` sale 9 veces en los eventos para decenas de invocaciones reales). Es lo que distingue
+            # «el worker no supo» de «el worker lo intentó y el puente lo echó» — la diferencia que decidió
+            # tres rondas seguidas con mecanismo 4-5 y resultado 1-2 (V2-325).
+            mech["worker_bridges"] = verifymod.worker_bridges(since=started_at)
             # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
             # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».

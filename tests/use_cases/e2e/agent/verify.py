@@ -1286,6 +1286,58 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def worker_bridges(*, since: float = 0.0, logs_dir: str = "") -> dict:
+    """QUÉ PUENTES USÓ EL WORKER, y con cuántos se estrelló — leído de sus LOGS DE SESIÓN, no del bus.
+
+    La observabilidad NO sirve para esto y hay que decirlo, porque parece que sí. Control medido el 2026-08-25
+    sobre la misma ventana: `nav_cli` aparece **9** veces en los eventos mientras el worker conduce el navegador
+    decenas de veces. Un recuento sobre el bus da un número pequeño y creíble, y con él estuve a punto de
+    reportar «`widget_cli`: 0 usos en 1350 eventos» como prueba de que ese puente no se usa NUNCA. La fuente
+    autoritativa dijo lo contrario y algo mucho más útil:
+
+        332 sesiones · 81 mencionan nav_cli · 5 mencionan widget_cli · de esas 5, TRES mueren en Exit code 2
+
+    O sea que los workers SÍ lo intentaban y el puente los echaba (V2-325: `--help` contestaba «comando
+    desconocido» con código 2).
+
+    POR QUÉ ESTO ES PARTE DEL INFORME. `widget_cli` es la única forma que tiene un worker de poner en la hoja lo
+    que aprende ABRIENDO fichas; sin él la hoja solo recoge lo que el extractor automático saca de un listado.
+    Esa diferencia decidió tres rondas seguidas (mecanismo 4-5, resultado 1-2) y NADA en el informe la mostraba.
+
+    Y es la mitad que faltaba de V2-325: allí se quitó una fricción medida, dejando escrito que eso **no prueba**
+    que los workers vayan a usar la hoja. Esto es lo que lo mide.
+    """
+    import glob
+    import os
+    out: dict = {"sessions": 0, "by_bridge": {}, "errors": {}, "read": False}
+    base = logs_dir or os.path.join(os.path.dirname(str(config.SANDBOX_DB)), "..", "..", "logs", "sessions")
+    try:
+        ficheros = sorted(glob.glob(os.path.join(base, "*.jsonl")))
+    except Exception:
+        return out
+    if not ficheros:
+        return out
+    out["read"] = True
+    cutoff = float(since or 0.0)
+    for f in ficheros:
+        try:
+            if cutoff and os.path.getmtime(f) < cutoff:
+                continue          # sesión de una ronda anterior: no es de ésta
+            texto = open(f, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        out["sessions"] += 1
+        for puente in ("nav_cli", "widget_cli", "mem_cli", "agent_report", "worker_bridge", "mesh_cli"):
+            if puente in texto:
+                out["by_bridge"][puente] = out["by_bridge"].get(puente, 0) + 1
+                # `Exit code 2` en la misma sesión que el puente: no prueba que sea SUYO, pero es la señal que
+                # encontró V2-325 y por eso se cuenta aparte, nombrada como lo que es — una coincidencia en la
+                # sesión, no una atribución.
+                if "Exit code 2" in texto:
+                    out["errors"][puente] = out["errors"].get(puente, 0) + 1
+    return out
+
+
 def worker_health(db_path, *, since: float = 0.0) -> dict:
     """HOW MANY WORKERS ACTUALLY SURVIVED. Read on 2026-08-21 for the first time, and it was overdue.
 
