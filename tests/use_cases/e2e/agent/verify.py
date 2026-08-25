@@ -1365,6 +1365,52 @@ def provider_exhausted(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def resets_during_round(db_path, *, since: float = 0.0) -> dict:
+    """DID SOMEBODY RESET THE ENGINE WHILE THIS ROUND WAS BEING MEASURED? An attribution fact, not a verdict.
+
+    `started_at` is stamped INSIDE `_run_scenario`, after the batch's own `hard_reset()`, so any `session/RESET`
+    after it came from somewhere else — a second batch, or the operator touching the lab. That matters because
+    a reset closes every card (`emit("widget", "close")` → `owner._close_task`), and closing a card whose task
+    is alive leaves the browser tab in `cancelled` WITHOUT touching the worker.
+
+    Which is exactly the signature of the family filed as «cancellation mid-flight with the browser on the right
+    page» (3 of 28 rounds, 2026-08-25): `navegador_task.status == 'cancelled'` with `worker_health.cancelled ==
+    0`. Two places in the engine cancel a tab and only one of them fits that pair. So the question was never
+    «what cancels browser tasks» — it was «who reset the engine», and nothing in the report could answer it.
+
+    Recorded rather than acted upon on purpose: a round measured through somebody else's reset is not a product
+    verdict, but neither is it something to declare INFRA blind — the reset may have landed after the delivery
+    that mattered. The judge and the reader get the fact and its timing.
+    """
+    import sqlite3
+    out: dict = {"n": 0, "at_s": []}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        for (ts,) in con.execute("SELECT ts_ms FROM events WHERE cat = 'sistema' AND kind = 'session' "
+                                 "AND label = 'RESET' AND ts_ms >= ?", (int(since * 1000),)).fetchall():
+            out["n"] += 1
+            out["at_s"].append(round(float(ts) / 1000.0 - since, 1))
+        # The family is emitted as `sistema` today; read the topic too rather than trust one field to keep
+        # meaning the same thing. A signal looked up under the wrong name comes back zero, and zero reads as
+        # «this never happened» — the quietest way for an instrument to lie.
+        if not out["n"]:
+            for (ts,) in con.execute("SELECT ts_ms FROM events WHERE label = 'RESET' AND ts_ms >= ?",
+                                     (int(since * 1000),)).fetchall():
+                out["n"] += 1
+                out["at_s"].append(round(float(ts) / 1000.0 - since, 1))
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return out
+
+
 def no_quota_infra(exhausted: dict | None, health: dict | None) -> str:
     """The round's INFRA sentence when there was no quota to run a worker with — `""` when it did measure.
 

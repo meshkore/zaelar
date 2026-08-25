@@ -376,6 +376,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # sin relevo». Reading the empty sheet and not the reason is the harness accusing the product for
             # something that happened outside it.
             mech["provider_exhausted"] = verifymod.provider_exhausted(config.SANDBOX_DB, since=started_at)
+            # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
+            # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
+            # de la familia archivada como «cancelación a mitad con el navegador en la página buena».
+            mech["resets_during_round"] = verifymod.resets_during_round(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)

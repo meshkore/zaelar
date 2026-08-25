@@ -1476,6 +1476,9 @@ DOMAINS: list[dict] = [
         # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
         # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
         # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.77", "title": "Un reset AJENO a mitad de ronda se ve y se fecha (la pestaña cancelada "
+                                 "tenía dueño)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_who_reset_the_engine_mid_round.py"]},
         {"id": "10.76", "title": "Un número de iniciativa que ya reclamó un COMMIT no se reparte otra vez",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_number_a_commit_already_owns.py"]},
         {"id": "10.75", "title": "Una ronda sin CUOTA para lanzar workers no ha medido al producto: INFRA",
