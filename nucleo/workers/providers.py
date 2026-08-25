@@ -111,7 +111,7 @@ def chain() -> list[dict]:
     if isinstance(explicit, list) and explicit:
         for t in explicit:
             if isinstance(t, dict) and t.get("name"):
-                tiers.append(dict(t))
+                tiers.append(_with_measured_traits(dict(t)))
     else:
         head = (cfg.get("base_url") or "").strip()
         known = [dict(k) for k in KNOWN]
@@ -142,6 +142,46 @@ def chain() -> list[dict]:
             t["model"] = model if (t.get("base_url") and t["base_url"] == head) else ""
         out.append(t)
     return out
+
+
+def _with_measured_traits(tier: dict) -> dict:
+    """A hand-ordered tier inherits what the CATALOGUE has MEASURED about the same provider (V2-320).
+
+    `code_agent.providers` lets the operator order the chain by hand, and that list is a COPY of catalogue
+    entries made at some past moment. Ordering is a preference — his to set. Capability is not: whether a model
+    can read an image is a fact about the model, measured once and true afterwards, and a copy made before the
+    measurement silently drops it.
+
+    Which is exactly what happened. `KNOWN`'s DeepSeek rung carries `vision: False` — V4 does not read images,
+    measured on `search-buy-guitar__es` (2026-08-24 11:23), where the worker did a `Read` of the screenshot and
+    answered «La captura no se pudo leer (formato no soportado). Sigo por DOM», twice, and narrated it to the
+    operator. The hand-ordered copy in `config/v2.json` has no such key, so `vision_env()` saw nothing to
+    declare, `ZAELAR_NAV_VISION` stayed unset, and the browser path kept sending a 300-530 KB PNG on EVERY
+    action to a model that cannot open it.
+
+    The rung was inert while DeepSeek had no balance, so nothing showed. The moment the account was topped up
+    (2026-08-25) it became the first healthy tier again — and a top-up is the last event anybody would connect
+    to a blind browser.
+
+    What the operator WROTE always wins: only keys absent from his entry are filled in. Matching is by
+    `base_url` first — the endpoint IS the identity, a renamed copy is still the same provider — and by name
+    as a fallback.
+    """
+    known = next((k for k in KNOWN if k.get("base_url") and k["base_url"] == (tier.get("base_url") or "")), None)
+    if known is None:
+        known = next((k for k in KNOWN if k.get("name") == tier.get("name")), None)
+    if known is None:
+        return tier
+    for key in _MEASURED_TRAITS:
+        if key not in tier and key in known:
+            tier[key] = known[key]
+    return tier
+
+
+#: Facts about what a provider CAN DO, as opposed to which one we prefer. These travel with the endpoint; the
+#: order does not. Kept as a list rather than "copy everything missing" so that adding a catalogue key is a
+#: deliberate act: silently inheriting `plan` or `model` would override what the operator chose on purpose.
+_MEASURED_TRAITS = ("vision",)
 
 
 def pick() -> dict | None:

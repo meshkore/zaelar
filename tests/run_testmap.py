@@ -214,6 +214,10 @@ DOMAINS: list[dict] = [
             # licencia local, el fail-open prometido) y cadena entera en cooldown— así que el cooldown de la
             # licencia no podía morder y se relanzaba contra el proveedor que acababa de decir que no.
             "tests/agent_headless/unit/test_an_asleep_chain_does_not_spawn.py",
+            # V2-320: `code_agent.providers` es una COPIA del catálogo, y una copia hecha antes de medir tira
+            # la medida. El escalón DeepSeek a mano perdía su `vision: False` → el navegador mandaba una PNG
+            # de 300-530 KB en cada acción a un modelo que no puede abrirla.
+            "tests/agent_headless/unit/workers/test_a_hand_ordered_tier_keeps_what_we_measured.py",
             # V2-290: el navegador extraía filas reales y caían en la caja PELADA, que no es de nadie desde
             # V2-259. Solo `kind="web"` reserva pestaña, así que el resto la nombra como su TAREA — y esa
             # vuelta no existía en la resolución de la hoja.
