@@ -150,9 +150,30 @@ _JS_EXTRACT = r"""
   // sobre «Monitor Samsung 24⏎50 €» el patrón devuelve «24 50 €» — un precio inventado a partir del final del
   // nombre. Medido. Por eso el texto del nodo tiene que ser casi solo el importe: un nodo que dice «150 €» es un
   // precio, uno que dice el nombre y el precio es una tarjeta.
+  // UN SUPERÍNDICE NO ES PARTE DEL NÚMERO (V2-326). `textContent` pega TODOS los descendientes, y las fichas
+  // cuelgan del precio una llamada a nota al pie en `<sup>`: medido en autoscout24 (2026-08-25), las hojas del
+  // DOM eran `<span>€ 399</span>` y `<sup>1</sup>`, y salía `€ 3991` — un error de MAGNITUD (×10) en el dato
+  // sobre el que se compara.
+  //
+  // Y NO se arregla saltando los nodos con hijos, que es lo primero que parece: la lectura por ancestros existe
+  // a propósito, porque hay precios que solo viven en el PADRE (`<div>€ <span>399</span></div>`). Lo que sobra
+  // es el superíndice, así que es el superíndice lo que se quita.
+  //
+  // COSTE ACEPTADO, escrito para que sea decisión y no descuido: hay sitios que ponen los CÉNTIMOS en
+  // superíndice (`€ 399⁹⁹`) y ahí perderíamos los céntimos. Se asume porque los dos errores no son comparables
+  // —magnitud (×10) frente a redondeo (0,25 %)— y porque va en la dirección que este fichero ya eligió: «no se
+  // reconstruye el separador decimal… adivinar mal ahí cambia un precio por cien».
+  const textoSinSup=(el)=>{
+    let s='';
+    for(const n of el.childNodes){
+      if(n.nodeType===3) s+=n.nodeValue;
+      else if(n.nodeType===1 && n.tagName!=='SUP') s+=textoSinSup(n);
+    }
+    return s;
+  };
   const cardPrice=(a)=>cardWalk(a, (n)=>{
     for(const el of n.querySelectorAll('*')){
-      const t=(el.textContent||'').replace(/\s+/g,' ').trim();
+      const t=textoSinSup(el).replace(/\s+/g,' ').trim();
       if(!t || t.length>40) continue;
       const m=t.match(priceRe);
       if(m && t.length<=m[0].length+12) return m[0].replace(/\s+/g,' ').trim();

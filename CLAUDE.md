@@ -426,6 +426,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Un SUPERÍNDICE no es parte del número (V2-326, 2026-08-25)**: las fichas cuelgan del precio una llamada a
+  nota al pie en `<sup>`, y `textContent` la pega — medido en autoscout24: `<span>€ 399</span>` + `<sup>1</sup>`
+  salía como **`€ 3991`**, un error de MAGNITUD (×10) justo en el dato sobre el que se compara. **No se arregla
+  saltando los nodos con hijos**, que es lo primero que parece: la lectura por ancestros existe a propósito
+  porque hay precios que solo viven en el padre (`<div>€ <span>399</span></div>`). Lo que sobra es el
+  superíndice, así que se quita el superíndice. Coste asumido y escrito en su test: un sitio que ponga los
+  céntimos en `<sup>` los pierde — redondeo (0,25 %) frente a magnitud (×10), y en la dirección que este fichero
+  ya eligió («no se reconstruye el separador decimal… adivinar mal ahí cambia un precio por cien»).
+
 - **Pedir ayuda no es equivocarse (V2-325, 2026-08-25)**: `widget_cli --help` contestaba «comando desconocido»
   con **exit 2**. Medido en los logs de sesión del plató: de 332 sesiones de worker, 81 usan `nav_cli` y solo 5
   llegan a `widget_cli` — y **tres de esas cinco mueren en el primer gesto**, pidiendo ayuda. Importa más de lo

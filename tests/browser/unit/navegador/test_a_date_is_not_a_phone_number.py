@@ -170,3 +170,49 @@ def test_el_COSTE_de_esta_regla_esta_ASUMIDO_no_olvidado(page):
 def test_el_mismo_numero_en_UNA_linea_sigue_saliendo(page):
     """La sensibilidad de la de arriba: lo que se pierde es el salto, no el número."""
     assert _tel(page, "600 123 456") == "600 123 456"
+
+
+# ── V2-326 · un SUPERÍNDICE no es parte del número ────────────────────────────────────────────────────────
+# `cardPrice` lee `textContent`, que pega TODOS los descendientes. Las fichas cuelgan del precio una llamada a
+# nota al pie en `<sup>`, así que el importe salía con un dígito de más.
+#
+# MEDIDO en autoscout24 (2026-08-25). Las hojas del DOM de la primera ficha:
+#     [13] <SPAN> '€ 399'
+#     [14] <SUP class="CurrentPrice_superscript__…"> '1'
+# → extraído `€ 3991`. Un error de MAGNITUD (×10) justo en el dato sobre el que se compara.
+#
+# ⚠️ NO se arregla saltando los nodos con hijos, que es lo primero que parece: la lectura por ancestros existe a
+# propósito, porque hay precios que solo viven en el PADRE (`<div>€ <span>399</span></div>`). Lo que sobra es el
+# superíndice, así que es el superíndice lo que se quita.
+
+def _precio(page, html: str) -> str:
+    page.set_content(f"<html><body>{html}</body></html>")
+    filas = page.evaluate(dom._JS_EXTRACT, 5)
+    return str((filas[0].get("price") if filas else "") or "")
+
+
+def test_la_nota_al_pie_no_se_pega_al_importe(page):
+    """El caso MEDIDO, con la forma real de la ficha."""
+    assert _precio(page, '<article><a href="/anuncios/x-1">Skoda Octavia</a>'
+                         '<div><span>€ 399</span><sup>1</sup></div></article>') == "€ 399"
+
+
+def test_un_precio_que_solo_vive_en_el_PADRE_sigue_saliendo(page):
+    """La razón por la que NO se saltan los nodos con hijos. Si esto se rompe, el arreglo eligió el atajo."""
+    assert _precio(page, '<article><a href="/anuncios/x-2">Audi A3</a>'
+                         '<div>€ <span>453</span></div></article>') == "€ 453"
+
+
+def test_un_precio_normal_no_se_toca(page):
+    assert _precio(page, '<article><a href="/anuncios/x-3">Citroen C3</a>'
+                         '<span>2.900 €</span></article>') == "2.900 €"
+
+
+def test_el_COSTE_de_esta_regla_esta_ASUMIDO_no_olvidado_tambien_aqui(page):
+    """Hay sitios que ponen los CÉNTIMOS en superíndice y ahí se pierden. Se asume porque los dos errores no son
+    comparables: magnitud (×10) frente a redondeo (0,25 %). Y va en la dirección que este fichero ya eligió —
+    «no se reconstruye el separador decimal… adivinar mal ahí cambia un precio por cien».
+
+    Si algún día un catálogo pierde céntimos por esto, ESTE es el test que hay que venir a discutir."""
+    assert _precio(page, '<article><a href="/anuncios/x-4">Dacia Sandero</a>'
+                         '<div><span>€ 399</span><sup>99</sup></div></article>') == "€ 399"
