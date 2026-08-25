@@ -643,6 +643,9 @@ DOMAINS: list[dict] = [
             # V2-310: una pestaña de ENCARGO cuyo worker murió seguía contándose «YA EN CURSO» — zaelar decía
             # la verdad («se cortó por el límite de sesión») contra un bloque que afirmaba lo contrario.
             "tests/browser/unit/navegador/test_a_tab_without_a_driver_says_so.py",
+            # V2-318: la cabeza mandaba «cuenta QUÉ ha encontrado» y el bloque de filas «di solo lo que
+            # RESPONDE»; ganaba la primera. Con tres filas y ninguna válida, ofreció un COLGADOR de guitarra.
+            "tests/browser/unit/navegador/test_when_nothing_in_the_sheet_fits.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.

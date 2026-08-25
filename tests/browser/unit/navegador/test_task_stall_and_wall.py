@@ -538,7 +538,7 @@ def test_a_task_that_already_found_something_is_not_blocked():
     state = _live()
     assert "YA HA ENCONTRADO ALGO" in state
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
-    assert "CUÉNTASELO en este turno" in state
+    assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
 
 
 def test_and_results_win_over_a_WALL_too():
@@ -611,7 +611,7 @@ def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
     _three_live()
     state = _live()
     assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state          # el hecho del Netflix, listado
-    assert state.count("CUÉNTASELO en este turno") == 1
+    assert state.count("CUÉNTALE en este turno LO QUE ENCAJE") == 1
     assert "SOLO LA DESBLOQUEA ÉL" not in state                 # …pero sin su propio imperativo
 
 

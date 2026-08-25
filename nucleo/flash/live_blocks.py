@@ -395,9 +395,22 @@ def navegador_lines() -> list[str]:
                                  "no ha llegado y ofrece el que sí tienes — nunca contestes «déjame mirar» "
                                  "teniendo esto delante.")
                 lines.append(
-                    _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTASELO "
-                    "en este turno —QUÉ ha encontrado, con nombre y precio, no que «ya casi está»— y pregunta "
-                    "si le vale o quiere que siga afinando." + _rows_bit +
+                    _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE "
+                    "en este turno LO QUE ENCAJE con lo que pidió —con nombre y precio, no que «ya casi "
+                    # V2-318 — LA BIFURCACIÓN VA DENTRO DEL IMPERATIVO. La cabeza decía «CUÉNTASELO: QUÉ ha
+                    # encontrado» y el bloque de filas decía «di solo lo que RESPONDE a lo que pidió»: dos
+                    # órdenes en tensión, y gana la primera por ser imperativa y venir antes. Medido en la
+                    # ronda 37 de la guitarra (2026-08-25 15:51), turno 10: con TRES filas en la hoja y
+                    # ninguna válida, recitó las tres en orden crudo contra un encargo de «acústica por
+                    # debajo de 150» — una clásica de 200 €, un COLGADOR de guitarra de 5 € y una Taylor de
+                    # 700 €. Seis turnos después, ya con muchas filas, filtró perfectamente («las que no son
+                    # guitarras —estuche, CD, luthier— y la de 350 € las descarto»). O sea que sabe filtrar:
+                    # lo que no sabía es qué decir cuando el filtro se lo lleva TODO, y ahí el reflejo es
+                    # entregar lo que hay. La rama que faltaba es esa, y es la única forma de que el
+                    # imperativo no se contradiga a sí mismo (norma del operador: una instrucción por bloque).
+                    "está»— y pregunta si le vale o quiere que sigas afinando; y si de estas líneas NINGUNA "
+                    "encaja, dile eso mismo —que van saliendo cosas y de momento ninguna cumple lo que pidió, "
+                    "y que sigues— en vez de ofrecerle la que menos desencaja." + _rows_bit +
                     " NO digas que «lo tiene en pantalla» ni «en la "
                     "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
                     "que es lo que sabes. Decirle que está parada teniendo datos delante es la "

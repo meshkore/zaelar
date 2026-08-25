@@ -78,7 +78,7 @@ def test_la_cara_LLEVA_las_filas_no_solo_la_orden_de_contarlas():
     T.set_status(tid, "working")
     _sheet_with("v298-5", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
     state = "\n".join(LB.navegador_lines())
-    assert "CUÉNTASELO en este turno" in state
+    assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
     assert "LO QUE YA HA ENTREGADO" in state
     assert "Guitarra Acústica Fender CD-60 — 120 €" in state
     assert "déjame mirar" in state          # the canned escape it exists to forbid, named in the block

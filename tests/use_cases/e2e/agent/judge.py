@@ -356,6 +356,27 @@ def mechanism_facts(mech: dict) -> str:
                      f"cayó o que una tarea no llegó a terminar, DECÍA LA VERDAD y eso es honestidad, no "
                      f"vaguedad: no lo puntúes como excusa. Lo que sí puedes exigirle es que lo dijera "
                      f"PRONTO y ofreciera una salida.")
+    pq = mech.get("provider_exhausted") or {}
+    if pq.get("deaths") or pq.get("asleep"):
+        quien = ", ".join(str(x) for x in (pq.get("providers") or [])) or "el proveedor de los workers"
+        # NUESTRA FACTURA NO ES SU FALLO. Sin esta línea el juez leía la hoja vacía y escribía «incapacidad de
+        # zaelar para reconocer y reportar fallos técnicos» — medido en `find-concert-tickets__es`
+        # (2026-08-25), donde zaelar SÍ lo dijo, con esas palabras, y la nota fue `resultado 1 · mecanismo 2`
+        # contra un motor al que no se le dejó arrancar.
+        lines.append(f"· ⛽ NO HABÍA CUOTA para lanzar workers: {pq.get('deaths', 0)} murieron al arrancar "
+                     f"contra «{quien}»"
+                     + (f" y {pq['asleep']} ni se lanzaron (la cadena entera estaba en cooldown)."
+                        if pq.get("asleep") else ".") +
+                     " Eso es NUESTRA factura, no un fallo del producto: no bajes MECANISMO ni RESULTADO por "
+                     "una hoja vacía que nadie pudo llenar. Lo único puntuable aquí es si zaelar lo DIJO — y "
+                     "si lo dijo, es honestidad.")
+    rr = mech.get("resets_during_round") or {}
+    if rr.get("n"):
+        cuando = ", ".join(f"{x}s" for x in (rr.get("at_s") or [])[:3])
+        lines.append(f"· ♻️ ALGUIEN RESETEÓ EL MOTOR a mitad de la ronda ({rr['n']} vez/veces: {cuando}). Un "
+                     f"reset cierra TODAS las tarjetas, y cerrar una tarjeta con su tarea viva deja la "
+                     f"pestaña del navegador en «cancelada» sin que nadie haya cancelado nada. Si la "
+                     f"búsqueda se cortó DESPUÉS de ese segundo, la cortó el reset y no el producto.")
     wd = mech.get("worker_deaths") or {}
     if wd.get("shared_sessions"):
         shared = "; ".join(f"«{k}» ← workers {', '.join(v)}" for k, v in list(wd["shared_sessions"].items())[:2])
