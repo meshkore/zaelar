@@ -1523,6 +1523,8 @@ DOMAINS: list[dict] = [
         # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
         # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
         # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.82", "title": "De lo que le dieron, cuánto NOMBRÓ — «¿entregó lo que tenía?»",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_did_it_deliver_what_it_had.py"]},
         {"id": "10.81", "title": "El informe dice qué nombró ZAELAR él mismo — el hecho que contradice «retuvo»",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_what_zaelar_named_itself.py"]},
         {"id": "10.80", "title": "«Motor limpio» miraba dos señales de tres: una pestaña del navegador puede "

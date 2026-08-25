@@ -391,6 +391,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                               [str(p) for p in (_rs_v.get("prices") or [])] or [""] * len(_rs_v.get("titles") or [])))
             mech["delivered_by_name"] = verifymod.delivered_by_name(
                 transcript, _pares + [str(t) for t in ((mech.get("offered") or {}).get("named") or [])])
+            # …y EL CRUCE: de lo que le dieron, cuánto nombró. «¿Entregó algo?» ya se sabía; esto responde a
+            # «¿entregó lo que TENÍA?», que es la pregunta del operador (V2-332).
+            mech["delivery_completeness"] = verifymod.delivery_completeness(
+                mech.get("delivered_by_name"), mech.get("results_sheet"))
             # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
             # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».

@@ -1368,6 +1368,41 @@ def delivered_by_name(transcript, known_titles) -> dict:
     return out
 
 
+def delivery_completeness(delivered: dict | None, sheet: dict | None) -> dict:
+    """De las filas VÁLIDAS que el sistema le puso delante, ¿cuántas llegó a nombrar? (V2-332)
+
+    El informe ya sabe qué le dieron (`results_sheet`) y qué dijo (`delivered_by_name`, V2-329/331). Lo que no
+    existía es el CRUCE, que es la pregunta del operador: no «¿entregó algo?» sino «¿entregó lo que tenía?».
+
+    Medido en `search-buy-used-car__es` (2026-08-26 01:14) — la primera ronda del caso con la cadena de
+    extracción ya arreglada, y por eso la primera en la que esta pregunta tiene sentido. La hoja llevaba cinco
+    coches reales, todos por debajo del tope de 12.000 € que pidió el operador:
+
+        MINI Cooper F55 2016 — 11.700 €   ·   Audi Q5 2015 2.0TDI — 11.990 €
+        FIAT Panda 4x4 diesel — 6.900 €   ·   Peugeot 5008 2.0HDI — 6.990 €
+        Peugeot 3008 2010 — 3.490 €
+
+    y zaelar nombró TRES: se dejó el Audi Q5 y el Peugeot 5008. El juez lo vio («ignorar opciones válidas
+    mejores (Audi Q5) ya capturadas en el sistema») y el informe no tenía con qué respaldarlo ni contradecirlo.
+
+    ⚠️ NO ES UN VEREDICTO, y la diferencia importa: nombrar tres de cinco en una frase puede ser conversación
+    sensata, y listar cinco coches de golpe puede ser peor. Esto da el NÚMERO para que el patrón se vea a lo
+    largo de muchas rondas en vez de discutirse en una. Una ronda no es un patrón — es la lección que costó dos
+    equivocaciones el 2026-08-25.
+    """
+    d, sh = dict(delivered or {}), dict(sheet or {})
+    total = int(sh.get("n_named") or 0) or len(sh.get("titles") or [])
+    dichas = int(d.get("n") or 0)
+    out: dict = {"named": dichas, "available": total, "pct": None, "missed": []}
+    if not total:
+        return out
+    out["pct"] = round(100.0 * min(dichas, total) / total)
+    ya = {str(x).lower()[:18] for x in (d.get("names") or [])}
+    out["missed"] = [str(t)[:60] for t in (sh.get("titles") or [])
+                     if str(t).lower()[:18] not in ya][:6]
+    return out
+
+
 def browser_still_driving(db_path, *, quiet_s: float = 6.0) -> dict:
     """¿Sigue conduciendo el navegador AHORA MISMO? Se mide por ACTIVIDAD RECIENTE, no por un registro.
 
