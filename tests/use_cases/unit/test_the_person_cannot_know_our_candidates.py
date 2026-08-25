@@ -123,13 +123,19 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
                 if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
                                                                         heard=heard):
                     marcadas += 1
-    # DOS, y las dos son flips REALES — el umbral sube porque apareció otro flip en el corpus, no porque el
-    # detector se haya ensanchado (V2-312, 2026-08-25). Las líneas, para que una tercera se vea:
-    #   · guitarra 03:48 — «tengo un par de opciones … la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €»
-    #   · cámara  04:41 — «de las que tengo, la más clara es la Canon EOS 4000D: 2.019 disparos y 205€»
-    # ⚠️ Y la segunda vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
-    # exactamente lo que este detector existe para impedir.
-    assert marcadas <= 2, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
+    # TRES, y las tres son flips REALES — el umbral sube porque el corpus creció con otro flip, nunca porque el
+    # detector se haya ensanchado. Las líneas, para que una cuarta se vea:
+    #   · guitarra    03:48 (24-08) — «tengo un par de opciones … la Yamaha F370BL por 100 € y la Fender CD-60»
+    #   · cámara      04:41 (25-08) — «de las que tengo, la más clara es la Canon EOS 4000D: 2.019 disparos y 205€»
+    #   · things-todo 12:25 (25-08) — «te saco tres planes concretos … 1. Concierto de jazz en Café Central … 15€»
+    # ⚠️ La de la cámara vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
+    # exactamente lo que este detector existe para impedir. La tercera SÍ salió declarada INFRA por V2-313, que
+    # es la conducta que se quería — o sea que el detector y su consecuencia ya funcionan de punta a punta.
+    #
+    # Lo que dice el patrón, y por eso se anota aquí: los tres flips llegan en casos de CATÁLOGO (elige entre
+    # opciones con precio). El conductor tiene delante una lista y la reflex de un modelo con una lista delante
+    # es presentarla. Ensanchar la regex no arregla eso; el sitio donde se arregla es el prompt del conductor.
+    assert marcadas <= 3, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
 
 
 def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():

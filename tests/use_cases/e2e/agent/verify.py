@@ -1310,6 +1310,90 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def provider_exhausted(db_path, *, since: float = 0.0) -> dict:
+    """DID THE ROUND DIE BECAUSE THERE WAS NO QUOTA LEFT TO RUN A WORKER? A fact about our bill, not the product.
+
+    Measured in `find-concert-tickets__es` (2026-08-25 10:53-10:56): three workers, 1.8 s / 3.9 s / 1.9 s of
+    life, every one of them killed by `licencia-claude · sin relevo` — the Claude plan had hit its session limit
+    and the chain had no successor (DeepSeek direct was answering 402 on its own account). The sheet came back
+    empty, the judge read the empty sheet, and the round scored `resultado 1 · mecanismo 2` against a product
+    that was never given a chance to run. That is the harness accusing the world outside it.
+
+    The signal is the worker's own chip (`proveedor sin cuota`) and — since V2-314 — the dispatcher's
+    `provider_asleep`, which fires when we decline to spawn at all because every tier is in cooldown. Both are
+    read, because they are the two halves of the same fact: the first is the death, the second is us having
+    learned from it.
+    """
+    import sqlite3
+    out: dict = {"deaths": 0, "asleep": 0, "providers": [], "reset_at": 0.0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT label, payload FROM events WHERE cat = 'worker' AND ts_ms >= ? "
+                           "AND label IN ('proveedor sin cuota', 'provider_asleep')",
+                           (int(since * 1000),)).fetchall()
+        for label, raw in rows:
+            try:
+                d = json.loads(raw) or {}
+            except Exception:
+                d = {}
+            if label == "proveedor sin cuota":
+                out["deaths"] += 1
+                who = str(d.get("text") or "").split("·")[0].strip()
+                if who and who not in out["providers"]:
+                    out["providers"].append(who)
+            else:
+                out["asleep"] += 1
+                try:
+                    out["reset_at"] = max(out["reset_at"], float(d.get("until") or 0))
+                except (TypeError, ValueError):
+                    pass
+        # V2-314's `provider_asleep` is emitted with `kind`, not `label`, on some paths — read both rather than
+        # depend on which field the emitter chose. A signal that exists and is looked up under the wrong name
+        # does not fail loudly; it comes back zero, which reads as «this never happened».
+        out["asleep"] += con.execute("SELECT COUNT(*) FROM events WHERE kind = 'provider_asleep' AND ts_ms >= ?",
+                                     (int(since * 1000),)).fetchone()[0]
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return out
+
+
+def no_quota_infra(exhausted: dict | None, health: dict | None) -> str:
+    """The round's INFRA sentence when there was no quota to run a worker with — `""` when it did measure.
+
+    A FUNCTION and not three lines inside `_run_scenario` because the first version of this rule lived there and
+    its test could only grep the source: mutating the condition to `if False and ...` left every substring in
+    place and the test stayed green. A guard that counts the presence of a call measures the fix, not the
+    property (2026-08-24, twice in one day). Here the property is the sentence, so the sentence is what gets
+    asserted.
+
+    BOTH halves are required on purpose. «A worker died of no quota» alone would declare INFRA a round that
+    relayed afterwards and delivered — the relay exists for exactly that (V2-238) — and would hide real defects
+    behind an exhausted tier.
+    """
+    ex, he = dict(exhausted or {}), dict(health or {})
+    if not (ex.get("deaths") or ex.get("asleep")):
+        return ""
+    if he.get("ok"):
+        return ""                                   # somebody finished: the round measured something real
+    hasta = ""
+    if ex.get("reset_at"):
+        try:
+            hasta = " (vuelve a las " + time.strftime("%H:%M", time.localtime(float(ex["reset_at"]))) + ")"
+        except (TypeError, ValueError, OSError):
+            hasta = ""
+    quien = ", ".join(str(p) for p in (ex.get("providers") or [])) or "el proveedor de los workers"
+    return (f"sin cuota en {quien}{hasta}: {int(ex.get('deaths') or 0)} worker(s) muertos al arrancar y "
+            f"ninguno llegó a terminar — la ronda no mide al producto")
+
+
 def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dict:
     """HOW MANY WORKERS RAN THE SAME ERRAND, and how alike their goals were.
 

@@ -370,6 +370,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # WHY the dead ones died. A worker that errors emits nothing saying why, so this crosses the
             # store with the engine's own log — the cross-reference that found the cause of a whole family.
             mech["worker_deaths"] = verifymod.worker_deaths(config.SANDBOX_DB, since=started_at)
+            # …AND WHETHER WE HAD ANY QUOTA TO RUN THEM WITH. Not a column about the product: a column about
+            # our bill. Without it, `find-concert-tickets__es` (2026-08-25) scored `resultado 1 · mecanismo 2`
+            # for an empty sheet whose three workers had each lived under four seconds on «licencia-claude ·
+            # sin relevo». Reading the empty sheet and not the reason is the harness accusing the product for
+            # something that happened outside it.
+            mech["provider_exhausted"] = verifymod.provider_exhausted(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
@@ -441,6 +447,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         if not crashed:
             crashed = (f"el conductor se salió de su papel en {len(flipped)} línea(s) del transcript "
                        f"(turno(s) {', '.join(str(f['turn']) for f in flipped)}): la ronda no mide al producto")
+    # SIN CUOTA NO HAY RONDA (V2-314). Ni un worker llegó a `ok` y los que murieron lo hicieron por falta de
+    # cuota del proveedor → esta ronda no ha medido al producto, igual que un conductor fuera de papel. Medido en
+    # `find-concert-tickets__es` (2026-08-25 10:53): tres workers de 1,8 s, 3,9 s y 1,9 s, todos contra
+    # «licencia-claude · sin relevo», hoja vacía, y una nota de `resultado 1 · mecanismo 2` contra un motor al
+    # que no se le dejó arrancar. Once de las veintiocho rondas de «hoja vacía» tienen esta forma.
+    # La decisión vive en `verify.no_quota_infra` y no aquí porque un guarda que solo comprueba que la llamada
+    # existe mide el arreglo, no la propiedad: la primera versión de esta regla sobrevivió a `if False and ...`.
+    if not crashed:
+        crashed = verifymod.no_quota_infra(mech.get("provider_exhausted"), mech.get("worker_health"))
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
