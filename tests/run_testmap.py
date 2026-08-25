@@ -207,6 +207,10 @@ DOMAINS: list[dict] = [
             # en serie antes del worker, que luego gastaba sus propios ~20 s de preámbulo; solapados, la
             # búsqueda entra en los 2-3 min del operador. El brief tardío llega por inyección (V2-038).
             "tests/agent_headless/unit/test_parallel_brief.py",
+            # V2-314: `pick()` devolvía None por DOS motivos —cadena vacía (self-host sin claves: usa la
+            # licencia local, el fail-open prometido) y cadena entera en cooldown— así que el cooldown de la
+            # licencia no podía morder y se relanzaba contra el proveedor que acababa de decir que no.
+            "tests/agent_headless/unit/test_an_asleep_chain_does_not_spawn.py",
             # V2-290: el navegador extraía filas reales y caían en la caja PELADA, que no es de nadie desde
             # V2-259. Solo `kind="web"` reserva pestaña, así que el resto la nombra como su TAREA — y esa
             # vuelta no existía en la resolución de la hoja.
@@ -1472,6 +1476,8 @@ DOMAINS: list[dict] = [
         # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
         # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
         # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.75", "title": "Una ronda sin CUOTA para lanzar workers no ha medido al producto: INFRA",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_round_without_quota_did_not_measure.py"]},
         {"id": "10.74", "title": "El reloj de la entrega mide la HOJA del encargo, no la narración",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_clock_is_the_sheet.py"]},
         {"id": "10.73", "title": "El motor queda limpio entre casos y se COMPRUEBA (un caso cada vez)",

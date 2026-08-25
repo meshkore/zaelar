@@ -1411,6 +1411,39 @@ async def _run_session(task: "Task") -> None:
     rec.label = _default_label(kind, req)
     sync_state()
 
+    # LA CADENA ENTERA DORMIDA: no se lanza nada (V2-314). Spawning here is a GUARANTEED death — every tier of
+    # the worker chain is in cooldown, and the CLI would burn ~30 s in the pool to die in two. What made this
+    # invisible is that `providers.pick()` returns None both when the chain is EMPTY (self-host, no keys: run
+    # the local license, the promised fail-open) and when every tier is asleep — so the cooldown we record for
+    # the LICENSE tier could never bite, and we spawned straight back into the provider that had just said no.
+    # Measured in `find-concert-tickets__es` (2026-08-25 10:53-10:56): license marked out-of-quota until 14:20,
+    # then spawned into twice more inside three minutes — 1.8 s, 3.9 s, 1.9 s of life, and a person told three
+    # times that a search was starting. `exhausted_until()` is the seam that tells the two Nones apart.
+    try:
+        from nucleo.workers import providers as _prov
+        _sleep_reason = _prov.exhausted_reason()
+    except Exception:  # noqa: BLE001
+        _sleep_reason = ""
+    if _sleep_reason:
+        logger.warning(f"dispatch: tarea {key} NO se lanza — cadena de proveedores agotada")
+        try:
+            from voice.observer import emit
+            # `provider_asleep` and not a plain `end`: the round did not fail, it never started. The Master and
+            # the harness both need to tell «we tried and it broke» from «we knew it was pointless», or an
+            # exhausted quota keeps being scored as a broken product.
+            emit("task", "provider_asleep", role="system", text=req[:120],
+                 extra={"id": key, "ok": False, "until": _prov.exhausted_until(),
+                        "reason": "todos los escalones del worker en cooldown: lanzar es morir"})
+        except Exception:
+            pass
+        rec.status = "done"
+        rec.ok = False
+        rec.result_summary = _sleep_reason
+        await _deliver_confirm(rec)          # same one-liner path the confirm-gate uses: speak it and be done
+        _SESSIONS.pop(key, None)
+        sync_state()
+        return
+
     async with _pool():
         if rec.status == "cancelled":         # cancelada mientras esperaba el pool
             _SESSIONS.pop(key, None)

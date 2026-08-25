@@ -512,3 +512,45 @@ def status() -> list[dict]:
 def clear(name: str = "") -> None:
     """Levanta el cooldown (el operador recargó el plan y no quiere esperar al reset)."""
     _store.clear(name)
+
+
+def exhausted_until() -> float:
+    """Epoch at which the chain gets its first healthy tier back — `0.0` when one is available RIGHT NOW.
+
+    `pick() is None` means TWO different worlds and no caller can tell them apart:
+
+      · an EMPTY chain — self-host with no keys — where `env_for_worker()` returning `{}` is the fail-open this
+        module promises: run the local Claude license exactly as before;
+      · a chain whose every tier is in COOLDOWN, where `{}` means «run the local license» too — except the
+        license is itself one of those tiers, and we put it there ourselves because it just answered
+        «You've hit your session limit».
+
+    So the cooldown we record for the LICENSE tier could never bite: measured in `find-concert-tickets__es`
+    (2026-08-25 10:53-10:56), the license was marked out-of-quota until 14:20 and then spawned into TWICE more
+    inside three minutes — 1.8 s, 3.9 s, 1.9 s of life, three dead workers, four minutes of the round, and a
+    person told three times that a search was starting. Eleven of the twenty-eight empty-sheet rounds have this
+    shape.
+
+    The distinction lives here, next to `chain()`, because that is the only place that knows whether the chain is
+    empty or merely asleep. Reading it anywhere else means recomputing the chain, and two readings derive.
+    """
+    ch = chain()
+    if not ch:
+        return 0.0                                  # nothing configured: the license path, as always
+    now = time.time()
+    untils = [_store.until(t["name"]) for t in ch]
+    if any(u <= now for u in untils):
+        return 0.0                                  # at least one tier is healthy → spawn away
+    return min(untils)                              # the earliest one back is when work becomes possible again
+
+
+def exhausted_reason() -> str:
+    """One operator-facing sentence for `exhausted_until()`, or `""` when work is possible.
+
+    Carries the HOUR because that is the only actionable part: «no quota» invites a retry in ten seconds,
+    «back at 14:20» does not."""
+    until = exhausted_until()
+    if not until:
+        return ""
+    return ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo; vuelve a las "
+            f"{time.strftime('%H:%M', time.localtime(until))}. Hasta entonces no puedo lanzar una búsqueda.")
