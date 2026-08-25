@@ -1286,6 +1286,60 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def browser_still_driving(db_path, *, quiet_s: float = 6.0) -> dict:
+    """¿Sigue conduciendo el navegador AHORA MISMO? Se mide por ACTIVIDAD RECIENTE, no por un registro.
+
+    `probe_client.settle_after_reset()` mira dos cosas —las sesiones de worker (`/api/tasks`) y las tarjetas del
+    canvas— y con las dos a cero AFIRMA «sin trabajo vivo ni tarjetas». Le falta la tercera: una pestaña del
+    NAVEGADOR es un registro distinto, y puede estar conduciendo sin sesión de worker viva y sin tarjeta abierta.
+
+    Medido el 2026-08-25. Maté una tanda con `hotel-under-15-days` a medias; la siguiente arrancó en
+    `search-buy-motorcycle__es` y su log dice, literal, «▸ motor limpio en 0.0s: sin trabajo vivo ni tarjetas».
+    A la vez, entre las 21:06 y las 21:09, el navegador abría:
+
+        booking.com/hotel/es/eurostars-regina · booking.com/searchresults?ss=Sevilla · google.com/travel/search
+
+    y el prompt de esa ronda llevaba «ibis Budget Sevilla Aeropuerto — 48 €»; «Eurostars Al-Andalus Palace».
+
+    Los veredictos culparon al producto: «incapacidad para filtrar ruido estructural (hoteles/recambios)»
+    (moto, mecanismo 2) y «distracción con resultados de otros contextos (hoteles)» (bici, adaptación 2). No
+    era el producto perdiendo el foco: era trabajo MÍO de la tanda anterior contaminando la medida, con el
+    arnés afirmando lo contrario en la línea que el operador lee para fiarse.
+
+    Se mide por actividad y no por estado porque el estado ya falló una vez de esta forma exacta (ver el
+    comentario de `_still_working` sobre `active_sessions()` antes de V2-115): un registro con un hueco dice
+    «nada vivo» con la misma cara que un registro correcto. Un hito emitido hace tres segundos no admite
+    interpretación.
+    """
+    import sqlite3
+    out: dict = {"driving": False, "last_s": None, "url": ""}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        row = con.execute("SELECT ts_ms, payload FROM events WHERE cat = 'worker' AND label IN "
+                          "('🏁 hito', 'navigate', 'screenshot', '🧭 navegador') "
+                          "ORDER BY ts_ms DESC LIMIT 1").fetchone()
+        if not row:
+            return out
+        edad = time.time() - float(row[0]) / 1000.0
+        out["last_s"] = round(edad, 1)
+        out["driving"] = edad < float(quiet_s)
+        try:
+            out["url"] = str((json.loads(row[1]) or {}).get("text") or "")[:110]
+        except Exception:
+            pass
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return out
+
+
 def worker_bridges(*, since: float = 0.0, logs_dir: str = "") -> dict:
     """QUÉ PUENTES USÓ EL WORKER, y con cuántos se estrelló — leído de sus LOGS DE SESIÓN, no del bus.
 

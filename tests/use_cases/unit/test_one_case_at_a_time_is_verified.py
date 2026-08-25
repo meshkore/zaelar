@@ -64,9 +64,21 @@ def test_si_no_se_limpia_DICE_QUE_QUEDO_VIVO(monkeypatch):
     assert st["tasks"] and "hotel" in st["tasks"][0]
 
 
+def _codigo_del_lote() -> str:
+    """El código de `_run_batch` SIN comentarios.
+
+    Los tests de abajo buscan marcadores en la fuente, y un comentario puede TAPAR un marcador: el 2026-08-25,
+    V2-328 citó la línea «motor limpio en 0.0s…» dentro de un comentario para dejar constancia del defecto, y
+    los dos guardas de este fichero se pusieron rojos porque su `index()` encontró la CITA antes que el `print`.
+    Ninguna conducta había cambiado. Quitar los comentarios ancla los marcadores donde importan: en el código.
+    """
+    return "\n".join(l for l in inspect.getsource(runmod._run_batch).splitlines()
+                      if not l.strip().startswith("#"))
+
+
 def test_NO_para_la_tanda_cuando_no_se_limpia():
     """Decisión explícita: se advierte y se sigue. Parar por un worker lento cuesta más que la advertencia."""
-    src = inspect.getsource(runmod._run_batch)
+    src = _codigo_del_lote()
     i = src.index("settle_after_reset")
     tramo = src[i:i + 1200]
     assert "el motor NO quedó limpio" in tramo
@@ -76,10 +88,8 @@ def test_NO_para_la_tanda_cuando_no_se_limpia():
 
 def test_la_linea_tranquilizadora_YA_NO_se_imprime_a_ciegas():
     """El defecto exacto: la afirmación estaba fuera de toda condición."""
-    src = inspect.getsource(runmod._run_batch)
-    assert "time.sleep(2.0)" not in src.split('"""')[0] + "".join(
-        l for l in src.splitlines() if not l.strip().startswith("#")), (
-        "un número inventado no es una comprobación")
+    src = _codigo_del_lote()
+    assert "time.sleep(2.0)" not in src, "un número inventado no es una comprobación"
     i = src.index("motor limpio en")
     # la línea buena vive DENTRO de la rama que comprobó que lo está
     assert 'if st["clean"]:' in src[:i]

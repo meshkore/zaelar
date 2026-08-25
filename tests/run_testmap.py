@@ -1519,6 +1519,9 @@ DOMAINS: list[dict] = [
         # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
         # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
         # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.80", "title": "«Motor limpio» miraba dos señales de tres: una pestaña del navegador puede "
+                                 "seguir conduciendo sin worker ni tarjeta",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_clean_engine_line_does_not_lie.py"]},
         {"id": "10.79", "title": "El informe ve con qué PUENTES trabajó el worker (logs de sesión, no el bus)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_report_sees_which_bridges_the_worker_used.py"]},
         {"id": "10.78", "title": "La persona que RECHAZA por nombre lo que acaba de oír no es el asistente; "

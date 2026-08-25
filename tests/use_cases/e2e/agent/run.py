@@ -634,6 +634,19 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         try:
             probe_client.hard_reset()
             st = probe_client.settle_after_reset()
+            # …Y LA TERCERA SEÑAL, que faltaba (V2-328). `settle_after_reset` mira las sesiones de worker y las
+            # tarjetas del canvas; una pestaña del NAVEGADOR es un registro distinto y puede seguir conduciendo
+            # sin ninguna de las dos. Medido el 2026-08-25: tras matar una tanda con `hotel-under-15-days` a
+            # medias, la siguiente arrancó imprimiendo «motor limpio en 0.0s: sin trabajo vivo ni tarjetas»
+            # mientras el navegador abría booking.com de Sevilla, y las filas de hoteles se colaron en el prompt
+            # de `search-buy-motorcycle__es`. Los veredictos culparon al producto de «no filtrar ruido
+            # estructural» y de «distracción con resultados de otros contextos». Era trabajo nuestro.
+            _nav = verifymod.browser_still_driving(config.SANDBOX_DB)
+            if _nav.get("driving"):
+                st = dict(st)
+                st["clean"] = False
+                st["items"] = list(st.get("items") or []) + [f"navegador ACTIVO hace {_nav['last_s']}s: "
+                                                             f"{_nav.get('url', '')[:70]}"]
             if st["clean"]:
                 print(f"  ▸ motor limpio en {st['waited_s']}s: sin trabajo vivo ni tarjetas "
                       f"(memoria y estado intactos)")
