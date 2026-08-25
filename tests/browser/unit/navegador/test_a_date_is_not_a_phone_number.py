@@ -1,4 +1,9 @@
-"""V2-321 — una FECHA no es un número al que llamar, y confundirlas ascendía el mobiliario a la cabecera.
+"""Lo que NO es un número al que llamar — y confundirlo ascendía el mobiliario a la cabecera de la hoja.
+
+Dos formas medidas el mismo día, y la segunda salió de verificar el ARREGLO de la primera contra el caso real
+en vez de contra su propio test: V2-321 era correcto y quedaba corto.
+
+## V2-321 — una FECHA no es un teléfono
 
 `telText` decía descartar las fechas «porque la barra no es separador aquí». Eso cubre `25/08/2026` y NO cubre
 `2026-08-25`, que es el formato ISO y el que las páginas escriben de verdad: diez dígitos con guiones y un
@@ -105,3 +110,63 @@ def test_y_una_ficha_REAL_junto_a_una_fecha_no_se_pierde(page):
     assert rows and rows[0]["title"].startswith("Alquiler Coche")
     assert rows[0]["price"]
     assert not rows[0]["tel"]
+
+
+# ── V2-322 · un teléfono no cruza un SALTO DE LÍNEA ───────────────────────────────────────────────────────
+# El separador era `[\s.\-]`, y `\s` incluye `\n`: dos números de DOS NODOS DISTINTOS, que `innerText` pega en
+# la frontera de bloque, se leían como uno solo.
+#
+# MEDIDO EN VIVO contra `autoscout24.es/lst/cit_madrid/ft_diesel?…` (2026-08-25 18:53, `search-buy-used-car__es`,
+# reproducido con la URL exacta que usó el worker): de una página llena de coches reales salieron TRES filas, y
+# dos eran «Página de inicio» y «Buscar» con `tel: "2020\n360.000"` — el AÑO de un anuncio y su KILOMETRAJE.
+#
+# Ninguna regla de FORMA lo cazaba, y esa es la lección: tomada como una sola cadena, `2020\n360.000` no se
+# parece a nada sospechoso —diez dígitos, separadores válidos—. Solo es absurda cuando se sabe que son dos datos
+# distintos, y lo único que lo dice es el salto de línea.
+#
+# El veredicto del juez fue «la hoja se llenó con elementos de interfaz de autoscout24», con V2-321 ya dentro.
+# O sea que la verificación que encontró esto no fue el test unitario del arreglo —que pasaba— sino volver a
+# medir EL CASO.
+
+def _tel_en_dos_bloques(page, izq: str, der: str) -> str:
+    """El salto NO se escribe: lo produce `innerText` en la frontera de dos BLOQUES, que es exactamente como
+    aparece en la página real. Un `\n` dentro de un `<span>` lo colapsa el HTML a un espacio y no reproduce
+    nada — el primer intento de este test cayó justo ahí, y el fixture que no reproduce da un rojo que no es."""
+    page.set_content(
+        f'<html><body><div class="c"><a href="/f/1">Ficha</a>'
+        f'<div>{izq}</div><div>{der}</div></div></body></html>')
+    rows = page.evaluate(dom._JS_EXTRACT, 5)
+    return str((rows[0].get("tel") if rows else "") or "")
+
+
+@pytest.mark.parametrize("izq,der", [
+    ("2020", "360.000"),        # el caso MEDIDO: año y kilometraje de un anuncio de autoscout24
+    ("2018", "120.500 km"),
+    ("45.000", "90.000"),       # dos precios de dos fichas contiguas
+])
+def test_dos_numeros_de_dos_nodos_no_son_un_telefono(page, izq, der):
+    assert _tel_en_dos_bloques(page, izq, der) == ""
+
+
+def test_y_ANTES_del_arreglo_ese_fixture_SI_producia_un_telefono():
+    """La sensibilidad del de arriba, sobre el predicado viejo: sin esto, un fixture que no reproduce dejaría
+    el test en verde para siempre sin haber medido nada."""
+    import re
+    viejo = re.compile(r"(?:\+\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,14}")
+    m = viejo.search("2020\n360.000")
+    assert m and len(re.sub(r"\D", "", m.group(0))) >= 9
+
+
+def test_el_COSTE_de_esta_regla_esta_ASUMIDO_no_olvidado(page):
+    """Un teléfono REAL partido por un salto deja de reconocerse. Se asume, y se escribe aquí para que sea una
+    DECISIÓN y no un descuido: el camino primario es `a[href^="tel:"]` —inequívoco, sin tocar— y el texto es el
+    respaldo; el coste medido del falso positivo es una ronda entera envenenada, y un número que se rompe entre
+    dos bloques es raro (los teléfonos viven dentro de un mismo elemento en línea).
+
+    Si algún día un directorio real pierde teléfonos por esto, ESTE es el test que hay que venir a discutir."""
+    assert _tel_en_dos_bloques(page, "600 123", "456") == ""
+
+
+def test_el_mismo_numero_en_UNA_linea_sigue_saliendo(page):
+    """La sensibilidad de la de arriba: lo que se pierde es el salto, no el número."""
+    assert _tel(page, "600 123 456") == "600 123 456"

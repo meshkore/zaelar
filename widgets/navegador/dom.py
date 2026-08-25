@@ -107,13 +107,26 @@ _JS_EXTRACT = r"""
   // formatos que sí usa —`600 123 456`, `+34 91 123 45 67`, `600-123-456`— no casan con estas dos formas
   // porque sus grupos son de tres o más dígitos.
   const looksLikeADate=(raw)=>/^\s*(?:\d{4}[-.]\d{1,2}[-.]\d{1,2}|\d{1,2}[-.]\d{1,2}[-.]\d{2,4})/.test(raw);
+  // Y UN TELÉFONO NO CRUZA UN SALTO DE LÍNEA (V2-322). El separador era `[\s.\-]`, y `\s` incluye `\n` — o sea
+  // que dos números de DOS NODOS DISTINTOS, que `innerText` pega con un salto en la frontera de bloque, se
+  // leían como uno solo. Medido en vivo contra autoscout24.es: de una página llena de coches reales, las filas
+  // «Página de inicio» y «Buscar» salieron con `tel: "2020\n360.000"` — el AÑO de un anuncio y su KILOMETRAJE.
+  // Diez dígitos y separadores válidos; ninguna regla de forma lo cazaba porque, tomado como una sola cadena,
+  // no se parece a nada sospechoso. Solo es absurdo cuando se sabe que son dos datos distintos, y lo que dice
+  // que lo son es el salto de línea.
+  //
+  // COSTE ACEPTADO, escrito para que sea una decisión y no un descuido: un teléfono REAL partido por un salto
+  // (`600 123\n456`) deja de reconocerse. Se asume porque el camino primario es `a[href^="tel:"]` —inequívoco y
+  // sin tocar— y el texto es solo el respaldo; y porque el coste medido del falso positivo es una ronda entera
+  // envenenada, mientras que un número que se rompe entre dos bloques es raro (los teléfonos van dentro de un
+  // mismo elemento en línea).
   const telText=(s)=>{
-    const m=(s||'').match(/(?:\+\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,14}/g);
+    const m=(s||'').match(/(?:\+\d{1,3}[ .\-]?)?(?:\d[ .\-]?){8,14}/g);
     if(!m) return '';
     for(const t of m){
       const raw=t.trim(), d=raw.replace(/\D/g,'');
       if(looksLikeADate(raw)) continue;
-      if(d.length>=9 && d.length<=14 && /[\s.\-]/.test(raw)) return raw.slice(0,24);
+      if(d.length>=9 && d.length<=14 && /[ .\-]/.test(raw)) return raw.slice(0,24);
     }
     return '';
   };

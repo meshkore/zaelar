@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Verificar el ARREGLO no es verificar el CASO (V2-322, 2026-08-25)**: V2-321 cerró «una fecha no es un
+  teléfono», con 11/11 renderizando, desarme en dos direcciones, 816 verdes y comprobación en vivo. Todo cierto,
+  y el caso que lo destapó **volvió a fallar**: «la hoja se llenó con elementos de interfaz de autoscout24».
+  Había una SEGUNDA forma del mismo defecto que ninguna regla de forma podía cazar — `2020\n360.000`, el año de
+  un anuncio y su kilometraje, dos nodos distintos que `innerText` pega en la frontera de bloque. Tomada como una
+  cadena no se parece a nada sospechoso: diez dígitos, separadores válidos. Solo es absurda cuando se sabe que son
+  DOS datos, y lo único que lo dice es el salto de línea (`\s` incluía `\n`). **Invariante: un arreglo no está
+  cerrado cuando pasa su test, sino cuando el caso que lo destapó cambia de cara. El test unitario mide lo que ya
+  entendiste; volver a medir el caso es lo único que encuentra lo que no.**
+
 - **Una FECHA no es un teléfono, y la diferencia costaba la hoja entera (V2-321, 2026-08-25)**: `dom.telText`
   aceptaba `2026-08-25 12` como número al que llamar — diez dígitos con guiones y espacio, los tres separadores
   que admite. Su comentario decía descartar fechas «porque la barra no es separador aquí», lo cual cubre
