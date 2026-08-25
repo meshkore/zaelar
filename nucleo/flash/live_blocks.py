@@ -394,27 +394,56 @@ def navegador_lines() -> list[str]:
                                  "estas líneas no traen (zona, estado, año), di honestamente que ese dato aún "
                                  "no ha llegado y ofrece el que sí tienes — nunca contestes «déjame mirar» "
                                  "teniendo esto delante.")
-                lines.append(
-                    _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE "
-                    "en este turno LO QUE ENCAJE con lo que pidió —con nombre y precio, no que «ya casi "
-                    # V2-318 — LA BIFURCACIÓN VA DENTRO DEL IMPERATIVO. La cabeza decía «CUÉNTASELO: QUÉ ha
-                    # encontrado» y el bloque de filas decía «di solo lo que RESPONDE a lo que pidió»: dos
-                    # órdenes en tensión, y gana la primera por ser imperativa y venir antes. Medido en la
-                    # ronda 37 de la guitarra (2026-08-25 15:51), turno 10: con TRES filas en la hoja y
-                    # ninguna válida, recitó las tres en orden crudo contra un encargo de «acústica por
-                    # debajo de 150» — una clásica de 200 €, un COLGADOR de guitarra de 5 € y una Taylor de
-                    # 700 €. Seis turnos después, ya con muchas filas, filtró perfectamente («las que no son
-                    # guitarras —estuche, CD, luthier— y la de 350 € las descarto»). O sea que sabe filtrar:
-                    # lo que no sabía es qué decir cuando el filtro se lo lleva TODO, y ahí el reflejo es
-                    # entregar lo que hay. La rama que faltaba es esa, y es la única forma de que el
-                    # imperativo no se contradiga a sí mismo (norma del operador: una instrucción por bloque).
-                    "está»— y pregunta si le vale o quiere que sigas afinando; y si de estas líneas NINGUNA "
-                    "encaja, dile eso mismo —que van saliendo cosas y de momento ninguna cumple lo que pidió, "
-                    "y que sigues— en vez de ofrecerle la que menos desencaja." + _rows_bit +
-                    " NO digas que «lo tiene en pantalla» ni «en la "
-                    "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
-                    "que es lo que sabes. Decirle que está parada teniendo datos delante es la "
-                    "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
+                # V2-330 — SI NO HAY FILAS, NO SE PUEDE PEDIR QUE LAS CUENTE. La orden de abajo dice
+                # «CUÉNTALE lo que encaje, con nombre y precio», y `_rows_bit` solo existe cuando la hoja ya
+                # tiene filas con nombre. Sin ellas el turno recibe un imperativo IMPOSIBLE, y el modelo
+                # contesta lo único honesto que puede: «te aviso en cuanto tenga algo».
+                #
+                # Medido sobre los turnos del plató (2026-08-25, 21:00 en adelante), contando solo los turnos
+                # en los que esta cara dispara:
+                #     SIN filas en el prompt : 14 turnos · 79 % responden con espera
+                #     CON filas en el prompt : 45 turnos · 42 % responden con espera
+                # El 79 % no es desobediencia — es la única salida que le dejamos. Y así se leía desde fuera:
+                # cinco de los diez casos con mecanismo ≥4 y resultado ≤3 traen este veredicto, y el de
+                # `search-buy-camera__es` cita la instrucción por su nombre: «el modelo ignora que la tarea ya
+                # tiene resultados (instrucción 'CUÉNTALE') y miente diciendo que sigue buscando».
+                #
+                # Es la trampa que el propio docstring de `_sheet_top_rows` nombra desde V2-298: «una
+                # instrucción que el prompt hace imposible de cumplir no es una instrucción — es una trampa
+                # para el modelo Y para quien lea el transcript». La escribimos nosotros.
+                #
+                # La rama va DENTRO del imperativo (norma del operador), y lo que pide es lo que SÍ se puede
+                # hacer con lo que hay: el HECHO de que está produciendo, sin prometer detalles que no tiene.
+                if not _rows_bit:
+                    lines.append(
+                        _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando, pero "
+                        "sus nombres AÚN NO están escritos, así que no los tienes. Dile eso tal cual —que ya "
+                        "está sacando cosas y que en cuanto tenga los nombres se los pasas—, sin inventarte "
+                        "ninguno y sin prometer un detalle concreto. NO digas que sigue «sin resultados» ni "
+                        "que «no ha encontrado nada»: eso es falso y es lo contrario de lo que pasa." +
+                        _shared + _walls_note)
+                elif True:
+                    lines.append(
+                            _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE "
+                        "en este turno LO QUE ENCAJE con lo que pidió —con nombre y precio, no que «ya casi "
+                        # V2-318 — LA BIFURCACIÓN VA DENTRO DEL IMPERATIVO. La cabeza decía «CUÉNTASELO: QUÉ ha
+                        # encontrado» y el bloque de filas decía «di solo lo que RESPONDE a lo que pidió»: dos
+                        # órdenes en tensión, y gana la primera por ser imperativa y venir antes. Medido en la
+                        # ronda 37 de la guitarra (2026-08-25 15:51), turno 10: con TRES filas en la hoja y
+                        # ninguna válida, recitó las tres en orden crudo contra un encargo de «acústica por
+                        # debajo de 150» — una clásica de 200 €, un COLGADOR de guitarra de 5 € y una Taylor de
+                        # 700 €. Seis turnos después, ya con muchas filas, filtró perfectamente («las que no son
+                        # guitarras —estuche, CD, luthier— y la de 350 € las descarto»). O sea que sabe filtrar:
+                        # lo que no sabía es qué decir cuando el filtro se lo lleva TODO, y ahí el reflejo es
+                        # entregar lo que hay. La rama que faltaba es esa, y es la única forma de que el
+                        # imperativo no se contradiga a sí mismo (norma del operador: una instrucción por bloque).
+                        "está»— y pregunta si le vale o quiere que sigas afinando; y si de estas líneas NINGUNA "
+                        "encaja, dile eso mismo —que van saliendo cosas y de momento ninguna cumple lo que pidió, "
+                        "y que sigues— en vez de ofrecerle la que menos desencaja." + _rows_bit +
+                        " NO digas que «lo tiene en pantalla» ni «en la "
+                        "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
+                        "que es lo que sabes. Decirle que está parada teniendo datos delante es la "
+                        "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
             elif _orphan:
                 # V2-310 — y aquí SÍ se ofrece relanzar, justo al revés que en V2-308: allí la tarea estaba
                 # ARRANCANDO y ofrecer abandonarla la mataba; aquí no queda nadie conduciendo, así que

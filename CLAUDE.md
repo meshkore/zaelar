@@ -426,6 +426,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Sin filas no se puede pedir que las cuente (V2-330, 2026-08-25)**: la cara «YA HA ENCONTRADO algo» ordenaba
+  «CUÉNTALE lo que encaje, con nombre y precio» — y las filas solo viajan cuando la hoja ya tiene alguna con
+  nombre. Sin ellas el turno recibía un imperativo IMPOSIBLE y el modelo contestaba lo único honesto que le
+  quedaba. Medido: **sin filas, 79 % de esos turnos responden con espera; con filas, 42 %**. No era
+  desobediencia — era la única salida que le dejábamos, y desde fuera se leía como mentira: cinco de los diez
+  casos con mecanismo ≥4 y resultado ≤3 traían ese veredicto, y el de la cámara citaba la instrucción por su
+  nombre. Es la trampa que el docstring de `_sheet_top_rows` nombra desde V2-298, escrita por nosotros. **El 42 %
+  restante —con filas delante y aun así esperando— es OTRO defecto y sigue abierto.**
+
 - **El informe dice qué nombró ZAELAR él mismo (V2-329, 2026-08-25)**: decía lo que el sistema le puso delante
   (`offered` → «¿se lo inventó?») y no lo que él dijo (→ «¿lo entregó?»). Sin ese hecho, el juez confunde «sigue
   trabajando en los detalles» con «oculta lo que tiene», y lo hizo TRES veces el mismo día — la peor,

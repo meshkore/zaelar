@@ -103,4 +103,6 @@ def test_y_la_cara_LLEGA_al_estado_cuando_la_hoja_tiene_filas():
     _sheet_with("v284-4", ["Monitor Dell 27 P2714H LED"])
     state = "\n".join(LB.navegador_lines())
     assert "YA HA ENCONTRADO ALGO" in state
-    assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
+    # V2-330: sin filas escritas, la orden es decir la verdad de lo que hay, no recitar lo que no tiene.
+    assert ("CUÉNTALE en este turno LO QUE ENCAJE" in state
+            or "sus nombres AÚN NO están escritos" in state)

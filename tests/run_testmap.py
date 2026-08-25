@@ -674,6 +674,10 @@ DOMAINS: list[dict] = [
             # V2-318: la cabeza mandaba «cuenta QUÉ ha encontrado» y el bloque de filas «di solo lo que
             # RESPONDE»; ganaba la primera. Con tres filas y ninguna válida, ofreció un COLGADOR de guitarra.
             "tests/browser/unit/navegador/test_when_nothing_in_the_sheet_fits.py",
+            # V2-330: sin filas escritas, la cara ordenaba «CUÉNTALE con nombre y precio» — un imperativo
+            # IMPOSIBLE. Medido: 14 turnos sin filas, 79 % contestan «te aviso». Cinco de los diez casos con
+            # mecanismo ≥4 y resultado ≤3 traían ese veredicto.
+            "tests/browser/unit/navegador/test_no_rows_no_order_to_recite.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.

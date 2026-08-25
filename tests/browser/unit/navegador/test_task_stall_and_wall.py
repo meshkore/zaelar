@@ -538,7 +538,12 @@ def test_a_task_that_already_found_something_is_not_blocked():
     state = _live()
     assert "YA HA ENCONTRADO ALGO" in state
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
-    assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
+    # V2-330 — SIN filas en la hoja, la cara ya no ordena contarlas: pedirlo era un imperativo imposible y
+    # el modelo contestaba «te aviso» (79 % de esos turnos, medido). Lo que esta prueba fija sigue siendo lo
+    # suyo —que una tarea con resultados NO se reporta como bloqueada— y ahora también que se diga la verdad
+    # de lo que hay: está produciendo, los nombres aún no están escritos.
+    assert "sus nombres AÚN NO están escritos" in state
+    assert "no ha encontrado nada" in state          # …y la frase falsa queda PROHIBIDA por su nombre
 
 
 def test_and_results_win_over_a_WALL_too():
@@ -611,7 +616,7 @@ def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
     _three_live()
     state = _live()
     assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state          # el hecho del Netflix, listado
-    assert state.count("CUÉNTALE en este turno LO QUE ENCAJE") == 1
+    assert state.count("YA HA ENCONTRADO algo") == 1
     assert "SOLO LA DESBLOQUEA ÉL" not in state                 # …pero sin su propio imperativo
 
 
