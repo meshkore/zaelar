@@ -288,6 +288,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     buf = ""
     raw = ""
     spec = spec_from_config()
+    # V2-307 — si el titular fijado por config está en COOLDOWN (acaba de fallar de verdad: un cooldown solo
+    # existe porque `note_failure`/`note_stall` anotaron un fallo real), el turno ARRANCA ya en el escalón sano
+    # que elegiría la cadena. Sin esto, cada turno quemaba un 402 en el titular seco antes de poder relevar —
+    # medido a las 03:13-03:15 (2026-08-25): cuatro turnos mudos con el broker con fondos esperando al lado.
+    # Con el titular sano (lo normal), esto no toca nada: el pin de config sigue mandando.
+    try:
+        from nucleo.flash import provider_chain as _pc0
+        from nucleo.flash import provider_failure as _pf0
+        _t0 = _pf0.tier_for(spec, _pc0.ROLE_VOICE)
+        if _t0 is not None and not _pc0.tier_available(_t0):
+            _n0 = _pc0.pick(_pc0.ROLE_VOICE)
+            if _n0 and _n0.get("name") != _t0.get("name"):
+                spec = _pc0.spec_for(_n0)
+    except Exception:
+        pass
     if model:
         import dataclasses
         spec = dataclasses.replace(spec, model=model)   # A/B de modelos: mismo proveedor/base/key, otro modelo

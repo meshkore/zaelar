@@ -299,6 +299,16 @@ def pick(role: str = ROLE_CLUSTER) -> dict | None:
     return None
 
 
+def tier_available(tier) -> bool:
+    """¿Este escalón está elegible AHORA (sin cooldown)? Costura pública para quien fija su spec por config
+    pero no debe ARRANCAR un turno en un escalón que acaba de fallar (V2-307) — un cooldown solo existe porque
+    un fallo real se anotó. Fail-open a disponible: no poder leerlo no puede dejar al titular fuera."""
+    try:
+        return _store.available(str((tier or {}).get("name") or ""))
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def spec_for(tier: dict):
     """`ModelSpec` de FastClient listo para usar a partir de un escalón de la cadena."""
     from nucleo.flash.fast_client import ModelSpec

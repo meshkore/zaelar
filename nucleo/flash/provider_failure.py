@@ -42,9 +42,26 @@ def tier_for(spec, role: str):
         return None
     try:
         from nucleo.flash import provider_chain as pc
+        # V2-307 — el base_url solo no basta cuando DOS escalones comparten endpoint: `deepseek-directo` y
+        # `deepseek-directo-pro` viven los dos en api.deepseek.com, y devolver «el primero que casa» marcaba
+        # SIEMPRE al flash. Medido a las 03:13-03:15 (2026-08-25): el titular cayó por SALDO (402), el relevo
+        # fue al pro —misma cuenta seca—, su 402 del reintento volvió a marcar al FLASH ya en cooldown, y el
+        # pro nunca entró en cooldown → la cadena no avanzó JAMÁS al broker: cuatro turnos mudos con un
+        # escalón con fondos esperando al lado. Con el MODELO delante, el par (endpoint, modelo) es único; el
+        # fallback a solo-endpoint se conserva para un spec cuyo modelo no esté en la cadena (un pin manual).
+        _model = ""
+        try:
+            _model = str(getattr(spec, "model", "") or "").strip()
+        except Exception:  # noqa: BLE001
+            pass
+        _by_url = None
         for t in pc.chain(role):
             if (t.get("base_url") or "").strip().rstrip("/") == url:
-                return t
+                if _by_url is None:
+                    _by_url = t
+                if _model and str(t.get("model") or "").strip() == _model:
+                    return t
+        return _by_url
     except Exception:  # noqa: BLE001
         pass
     return None

@@ -172,3 +172,52 @@ def test_los_dos_canales_PASAN_el_spec():
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     assert "spec=spec)" in voz.read_text(encoding="utf-8")
     assert "role=_pchain_err.ROLE_VOICE, spec=spec)" in _probe_src()
+
+
+# ── V2-307: DOS escalones en el MISMO endpoint — el culpable se resuelve por (endpoint, MODELO) ──────────────
+#
+# Medido a las 03:13-03:15 (2026-08-25): `deepseek-directo` (flash) cayó por SALDO, el relevo fue a
+# `deepseek-directo-pro` —misma cuenta, mismo base_url—, su 402 del reintento volvió a marcar al FLASH (ya en
+# cooldown) porque `tier_for` devolvía «el primero que casa por base_url», y el pro nunca entró en cooldown:
+# la cadena no avanzó JAMÁS al broker. Cuatro turnos mudos con un escalón con fondos esperando al lado.
+
+GEMELO_A = {"name": "ds-flash", "base_url": "https://api.deepseek.com", "model": "deepseek-v4-flash",
+            "env": ["DEEPSEEK_API_KEY"]}
+GEMELO_B = {"name": "ds-pro", "base_url": "https://api.deepseek.com", "model": "deepseek-v4-pro",
+            "env": ["DEEPSEEK_API_KEY"]}
+
+
+class _SpecMM:
+    def __init__(self, model, url="https://api.deepseek.com"):
+        self.model = model
+        self._url = url
+
+    def resolved_base_url(self):
+        return self._url
+
+
+def test_twin_tiers_on_one_endpoint_are_told_apart_by_model(monkeypatch):
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(GEMELO_A), dict(GEMELO_B)])
+    assert pf.tier_for(_SpecMM("deepseek-v4-pro"), pc.ROLE_VOICE)["name"] == "ds-pro", \
+        "el 402 del reintento tiene que marcar al PRO, o la cadena nunca avanza al broker"
+    assert pf.tier_for(_SpecMM("deepseek-v4-flash"), pc.ROLE_VOICE)["name"] == "ds-flash"
+
+
+def test_a_pinned_model_outside_the_chain_still_matches_by_endpoint(monkeypatch):
+    """El fallback se conserva: un pin manual del operador (modelo que no está en la cadena) sigue
+    resolviéndose por endpoint — quedarse sin culpable dejaría el fallo sin anotar en absoluto."""
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(GEMELO_A), dict(GEMELO_B)])
+    assert pf.tier_for(_SpecMM("deepseek-v5-experimental"), pc.ROLE_VOICE)["name"] == "ds-flash"
+
+
+def test_the_turn_STARTS_on_a_healthy_tier_when_the_pinned_titular_is_cooling(cadena, monkeypatch):
+    """La otra mitad de V2-307: con el titular en cooldown, cada turno quemaba un 402 antes de relevar. La
+    guarda vive en el probe (fuente sin comentarios) y la costura es pública (`tier_available`), no `_store`."""
+    src = "\n".join(ln for ln in pathlib.Path("nucleo/flash/probe.py").read_text().splitlines()
+                    if not ln.strip().startswith("#"))
+    assert "tier_available(_t0)" in src, "el arranque del turno no consulta el cooldown del titular"
+    assert "_pc0._store" not in src, "la costura tiene que ser pública, no el _store privado (V2-112)"
+    # y la costura dice la verdad:
+    pc._store.set("z.ai", __import__("time").time() + 600, "health")
+    assert pc.tier_available(UNO) is False
+    assert pc.tier_available(DOS) is True
