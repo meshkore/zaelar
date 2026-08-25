@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-24 21:57**
+Last updated: **2026-08-25 04:04**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -31,15 +31,15 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ⚠️ | `cheapest-monitor` | 2 | 3 | 2026-08-23 22:48 | yes | El caso se completó con 4 candidatos reales en la hoja de resultados, pero el anuncio prematuro en el turno 10 (antes de que el worker escribiera) y la falta… |
 | ⚠️ | `compare-broadband-plans__es` | 2 | — | 2026-08-21 02:28 | yes | INFRA: la cadena de proveedores estaba agotada (DeepSeek HTTP 402 Insufficient Balance x4, z.ai sin cuota hasta el 25 Aug). Los CUATRO turnos de zaelar salie… |
 | ❌ | `compare-insurance-quotes__es` | 2 | 3 | 2026-08-21 02:03 | yes | No está listo para producción: el bloqueador nº1 es que se entregó un precio (250-350 €/año para Línea Directa) sin respaldo del mecanismo —ninguna extracció… |
-| ❌ | `find-best-hotel-city__es` | 2 | 2 | 2026-08-24 20:22 | yes | El caso no está listo para producción: el agente ocultó resultados válidos que ya tenía extraídos (ofertas Agoda y 3 estrellas bajo 120€) para reiniciar una … |
+| ❌ | `find-best-hotel-city__es` | 2 | 2 | 2026-08-25 03:50 | yes | No está listo para producción: el bloqueador nº1 es que zaelar negó tener resultados cuando el sistema se los había entregado (turno 4) y no corrigió el filt… |
 | ❌ | `find-concert-tickets__es` | 2 | 3 | 2026-08-21 14:34 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo resultados reales en la hoja desde el turno 5 y los negó tres veces seguidas (turnos 5, 7… |
-| ❌ | `find-direct-flight-budget__es` | 2 | 2 | 2026-08-24 20:30 | yes | El caso no está listo para producción porque el sistema falló en ejecutar la tarea correcta (buscó hoteles en lugar de vuelos) y no entregó ningún resultado … |
+| ❌ | `find-direct-flight-budget__es` | 2 | 2 | 2026-08-25 04:01 | yes | No está listo para producción: el bloqueador número uno es la entrega — la hoja de resultados quedó vacía y el usuario nunca recibió la comparación de vuelos… |
 | ❌ | `hotel-under-15-days` | 2 | 3 | 2026-08-21 13:59 | yes | El caso se resolvió parcialmente: hay dos hoteles reales de 4 estrellas con precio y enlace en la hoja, pero la entrega se ensucia con una experiencia duplic… |
 | ❌ | `kid-friendly-activity-nearby__es` | 2 | 2 | 2026-08-21 14:57 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró un éxito falso prometiendo u… |
-| ❌ | `rental-car-automatic-airport__es` | 2 | 1 | 2026-08-24 20:37 | yes | No está listo para producción: el caso falla por completo porque el mecanismo de búsqueda (worker/navegador) se rompe al intentar ejecutar la navegación ('Ex… |
+| ❌ | `rental-car-automatic-airport__es` | 2 | 2 | 2026-08-25 04:04 | yes | No está listo para producción: el bloqueador nº1 es que la búsqueda no entregó ningún resultado — la hoja quedó vacía y el proceso seguía en marcha al termin… |
 | ❌ | `search-buy-bicycle__es` | 2 | 2 | 2026-08-24 15:29 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía y el worker no extrajo nada), y el agente se… |
 | ❌ | `search-buy-camera__es` | 2 | 2 | 2026-08-24 15:51 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entregó ningún resultado real (la hoja quedó vacía) y además confundió la petición de cámar… |
-| ✅ | `search-buy-guitar__es` | 2 | 4 | 2026-08-24 21:57 | yes | El caso está funcionalmente resuelto (se encontraron guitarras reales y se mostraron en pantalla), pero sufre de ineficiencia narrativa: tardó 200s en admiti… |
+| ✅ | `search-buy-guitar__es` | 2 | 5 | 2026-08-25 02:20 | yes | Sí, está listo para producción, porque la parte crítica del caso (encontrar y validar las guitarras con éxito y datos reales) funcionó a la perfección y se e… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | 2026-08-21 15:42 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró normalidad sobre una tarea c… |
 | ❌ | `search-buy-used-car` | 2 | 2 | 2026-08-20 21:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar encontró 6 anuncios reales y no entregó ninguno, dejando al usuario sin resultado pese a tener… |
 | ❌ | `search-secondhand-monitor__es` | 2 | 2 | 2026-08-24 15:46 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (0 candidatos en la hoja, 0 extracciones) y zaelar no comunicó el… |

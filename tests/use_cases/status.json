@@ -1353,31 +1353,20 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "find-best-hotel-city__es": {
-      "last_run": "2026-08-24 20:22",
+      "last_run": "2026-08-25 03:50",
       "overall": 2,
-      "judge": "glm-4.6",
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 3,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 2,
-        "mecanismo": 5,
+        "mecanismo": 4,
         "eficiencia": 2
       },
-      "verdict": "El caso no está listo para producción: el agente ocultó resultados válidos que ya tenía extraídos (ofertas Agoda y 3 estrellas bajo 120€) para reiniciar una búsqueda infinita por perfeccionismo, dejando al usuario finalmente sin entrega y rompiendo la confianza básica de 'separar lo que hay de lo que me gustaría encontrar'.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar negó tener resultados cuando el sistema se los había entregado (turno 4) y no corrigió el filtro de precio invertido, dejando al usuario sin el mejor hotel que la hoja ya contenía.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «🧭 navegador ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -1390,9 +1379,9 @@
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "a1cb398",
+        "sha": "7e72765",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1596,24 +1585,35 @@
       }
     },
     "find-direct-flight-budget__es": {
-      "last_run": "2026-08-24 20:30",
+      "last_run": "2026-08-25 04:01",
       "overall": 2,
-      "judge": "glm-4.6",
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 5,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "mecanismo": 4,
+        "eficiencia": 2
       },
-      "verdict": "El caso no está listo para producción porque el sistema falló en ejecutar la tarea correcta (buscó hoteles en lugar de vuelos) y no entregó ningún resultado utilizable tras 4 minutos de espera.",
+      "verdict": "No está listo para producción: el bloqueador número uno es la entrega — la hoja de resultados quedó vacía y el usuario nunca recibió la comparación de vuelos directos con el más barato, que era el encargo completo.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 (eval):1: unmatched \""
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «data»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 11,
       "families": [
         "flash",
         "main",
@@ -1622,9 +1622,9 @@
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "a1cb398",
+        "sha": "7e72765",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1769,45 +1769,30 @@
       }
     },
     "rental-car-automatic-airport__es": {
-      "last_run": "2026-08-24 20:37",
-      "overall": 1,
-      "judge": "glm-4.6",
+      "last_run": "2026-08-25 04:04",
+      "overall": 2,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
         "naturalidad": 5,
         "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el caso falla por completo porque el mecanismo de búsqueda (worker/navegador) se rompe al intentar ejecutar la navegación ('Exit code 2') y el agente no es capaz de recuperarse ni de aportar un resultado alternativo, dejando al usuario esperando sin respuesta.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda no entregó ningún resultado — la hoja quedó vacía y el proceso seguía en marcha al terminar la ronda, así que el usuario se quedó sin opciones y sin un cierre que lo explicara.",
       "missing_signals": [],
       "audit_anomalies": [
         {
-          "clase": "error_interno",
+          "clase": "sin_evidencia_externa",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argument cmd: "
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: alquiler coche automático pequeño aeropuerto Málaga A"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: coche de alquiler automatico Record Go aeropuerto mal"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 3 error(es), último paso «↩ zaelar ↩»"
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
         }
       ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 2,
       "families": [
         "flash",
         "main",
@@ -1816,9 +1801,9 @@
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "a1cb398",
+        "sha": "7e72765",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1887,24 +1872,35 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-24 21:57",
-      "overall": 4,
+      "last_run": "2026-08-25 02:20",
+      "overall": 5,
       "judge": "glm-4.6",
       "state": "PASS",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 4,
-        "resultado": 4,
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 5,
         "mecanismo": 5,
-        "eficiencia": 3
+        "eficiencia": 4
       },
-      "verdict": "El caso está funcionalmente resuelto (se encontraron guitarras reales y se mostraron en pantalla), pero sufre de ineficiencia narrativa: tardó 200s en admitir el éxito que ya tenía y alucinó detalles temporales antes de recibirlos, lo que reduce la confianza pese a que el mecanismo funcionó bien.",
+      "verdict": "Sí, está listo para producción, porque la parte crítica del caso (encontrar y validar las guitarras con éxito y datos reales) funcionó a la perfección y se entregaron en pantalla; únicamente requiere afinar la paciencia narrativa para no hacer esperar innecesariamente al usuario mientras los datos ya están listos.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argument cmd: "
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:4: 1 error(es), último paso «🧭 navegador»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 13,
+      "turns_used": 10,
       "families": [
         "flash",
         "main",
@@ -1915,7 +1911,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3fbc3f1",
+        "sha": "94ac32d",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2171,5 +2167,5 @@
       }
     }
   },
-  "updated": "2026-08-24 21:57"
+  "updated": "2026-08-25 04:04"
 }
