@@ -345,7 +345,7 @@ DOMAINS: list[dict] = [
         # `dispatch._finalize_web`, que hace su propia extracción final cuando el worker termina o muere. La otra
         # mitad pesa igual: si la extracción de esa pestaña YA salió por `_hand_over`, la barrida final es casi la
         # misma página, y una segunda nota se lee como «ha encontrado más» cuando ha encontrado lo mismo.
-        # V2-315-C (2026-08-25, el ejemplar más limpio de la familia: kid-friendly, worker vivo 709 s, 8 búsquedas,
+        # V2-320-C (2026-08-25, el ejemplar más limpio de la familia: kid-friendly, worker vivo 709 s, 8 búsquedas,
         # 7 returns, 0 navegaciones — hoja vacía SIEMPRE). El return de búsqueda tenía un solo camino: la nota que
         # el turno lee una vez. La hoja no los rechazaba (`_to_item` acepta título+url sin precio): no tenían
         # puerta. Ahora entran por la única de V2-257 (intake.push, snippet→subtitle), con el dedup de la hoja
@@ -663,6 +663,10 @@ DOMAINS: list[dict] = [
             # 0 anclas sin desplazarse, 40 tras hacerlo. «Cero filas» no es «sin resultados», y el
             # discriminador es el ALTO de la página (11,5× frente a 0,2× de una búsqueda vacía de verdad).
             "tests/browser/unit/navegador/test_a_page_that_paints_on_approach.py",
+            # V2-324: dos anclas al mismo anuncio y ganaba la PRIMERA del DOM, que era la muda («Abrir detalles
+            # del anuncio»); la que nombraba se tiraba por duplicada y el borrado de genéricos —correcto— dejaba
+            # las 19 filas sin nombre. El dato estaba en la página y lo tirábamos.
+            "tests/browser/unit/navegador/test_the_anchor_that_names_wins.py",
             # V2-318: la cabeza mandaba «cuenta QUÉ ha encontrado» y el bloque de filas «di solo lo que
             # RESPONDE»; ganaba la primera. Con tres filas y ninguna válida, ofreció un COLGADOR de guitarra.
             "tests/browser/unit/navegador/test_when_nothing_in_the_sheet_fits.py",
@@ -912,7 +916,7 @@ DOMAINS: list[dict] = [
         # Del arnés (`arnes-use-cases`), no se toca desde el motor: es la especificación EJECUTABLE de lo que ve
         # una persona esperando. RENDERIZA a propósito — un test de fuente puede dar por buena una pestaña que no
         # pinta nada o un loader que está en el DOM y no anima (la lección del orbe del móvil, nodo 4.19).
-        # V2-315-A (2026-08-25, familia «hoja vacía» del arnés, 9/28 rondas). Medido en vivo en kayak.es/cars:
+        # V2-320-A (2026-08-25, familia «hoja vacía» del arnés, 9/28 rondas). Medido en vivo en kayak.es/cars:
         # «381 resultados» en pantalla, 27 nodos con precio, y el extractor a CERO por construcción — cada oferta
         # es un div con botón «Ver oferta», y el bucle de candidatos solo recorre a[href]. El recolector nuevo
         # parte de las HOJAS con precio, sube hasta el límite de la tarjeta (un solo precio) y coge el nombre del

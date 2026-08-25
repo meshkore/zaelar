@@ -148,7 +148,7 @@ def hand_sheet_finding(task_id, items, goal: str = "") -> bool:
 def hand_search_rows(rec, res: dict) -> int:
     """A search return → the errand's SHEET. Returns how many rows were handed over.
 
-    V2-315, measured on `kid-friendly-activity-nearby` (2026-08-25 12:37): a worker resolved the errand by
+    V2-320, measured on `kid-friendly-activity-nearby` (2026-08-25 12:37): a worker resolved the errand by
     SEARCH alone — 709 s alive, 8 web searches, 7 returns — and the sheet stayed empty the whole time, because
     a search return had exactly one path out: `hand_web_finding` → a note the brain reads once. The rows were
     never rejected by the sheet (`intake._to_item` keeps a title+url row without a price); they simply had no

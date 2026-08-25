@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Cuando dos anclas apuntan al mismo anuncio, gana la que lo NOMBRA (V2-324, 2026-08-25)**: los 19 coches de
+  un listado salían sin nombre **sin que nada estuviera roto**. El dedup se quedaba con la primera del DOM —la
+  de accesibilidad, «Abrir detalles del anuncio»— y tiraba la que decía «Skoda Octavia 2.0TDI»; después, el
+  borrado de genéricos de V2-234 erasaba las 19 repetidas, **con razón**. El borrado era correcto y llegaba
+  TARDE. Por eso el arreglo NO es una regla nueva sobre qué textos parecen nombres —esa es la cinta de correr,
+  y era el camino que se iba a tomar—: es **dejar de descartar el dato que ya teníamos**. Las alternativas se
+  guardan y elige el bloque que ya sabe cuál es genérica, porque eso solo se puede saber al final, cuando se ha
+  contado qué texto se repite entre fichas. **Invariante: antes de añadir una heurística que reconozca lo malo,
+  comprobar si lo bueno ya estaba y lo estamos tirando.**
+
 - **«Cero filas» no es «sin resultados» (V2-323, 2026-08-25)**: un listado VIRTUALIZADO no crea sus fichas hasta
   que te acercas. Medido en `autoscout24.es`: 0 anclas de anuncio sin desplazarse, **40** tras hacerlo — 1 fila
   contra 19, con la página declarando «16.752 coches». V2-294 había decidido a propósito no reintentar con cero

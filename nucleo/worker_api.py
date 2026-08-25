@@ -99,7 +99,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                 from nucleo.workers import findings
                 findings.hand_web_finding(getattr(rec, "task_id", ""), findings.render_search(res),
                                           getattr(rec, "goal", ""))
-                # V2-315 — …y a la HOJA, que es donde el operador mira. Un worker que resuelve buscando (sin
+                # V2-320 — …y a la HOJA, que es donde el operador mira. Un worker que resuelve buscando (sin
                 # navegador) dejaba la hoja vacía SIEMPRE: el return solo tenía camino a la nota. Misma puerta
                 # que el navegador (V2-257) y las mismas filas que lleva la nota.
                 findings.hand_search_rows(rec, res)

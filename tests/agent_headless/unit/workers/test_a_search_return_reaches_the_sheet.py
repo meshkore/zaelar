@@ -1,4 +1,4 @@
-"""V2-315 — un worker que resuelve BUSCANDO dejaba la hoja vacía siempre, por construcción.
+"""V2-320 — un worker que resuelve BUSCANDO dejaba la hoja vacía siempre, por construcción.
 
 Medido en `kid-friendly-activity-nearby` (2026-08-25 12:37): worker vivo 709 s, 8 búsquedas web, 7 returns,
 0 navegaciones — y la hoja vacía de punta a punta. El return de búsqueda tenía UN solo camino: la nota al

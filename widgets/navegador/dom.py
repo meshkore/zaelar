@@ -32,7 +32,7 @@ _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link],
 # The FINE relevance filtering (this is an enduro bike, not a "Moto G" phone) is done by the model in summarize.
 _JS_EXTRACT = r"""
 (limit) => {
-  const out=[], seen=new Set();
+  const out=[], seen=new Map();   // key de ficha → SU FILA (V2-324: la segunda ancla completa, no se tira)
   // La COMA es el separador decimal en media Europa, y faltaba de la clase de caracteres: sobre «169,00 €» el
   // patrón viejo empezaba a casar en «00» y devolvía «00 €», o sea un monitor de 169 € anunciado como de 0 €.
   // Medido el 2026-08-21 sobre una tarjeta con la forma de Amazon (precio partido en spans, con el importe
@@ -204,13 +204,39 @@ _JS_EXTRACT = r"""
     let title=((img&&(img.alt||''))
                ||text.split('\n').map(s=>s.trim()).find(s=>s.length>2 && hasLetter(s) && !priceRe.test(s))
                ||cardName(a, path)||'').slice(0,90);
-    if(seen.has(key)) continue;
     let image=''; if(img){ try{ image=img.currentSrc||img.src||''; }catch(_){} }
-    cands.push({title, price, tel, url:href, image,
-                _item: ITEM.test(href)});
-    seen.add(key);
+    // V2-324 — DOS ANCLAS AL MISMO ANUNCIO: gana la que TIENE NOMBRE, no la primera del DOM.
+    //
+    // El dedup existe para que «30 enlaces al mismo anuncio = 1 fila», y eso NO CAMBIA: `seen` pasa de tirar
+    // el duplicado a dejar que COMPLETE lo que falte. Sigue saliendo UNA fila por ficha.
+    //
+    // Medido en autoscout24 (2026-08-25). Cada coche tiene dos anclas a la misma ruta, en este orden:
+    //     [0] «Abrir detalles del anuncio»               ← enlace de accesibilidad, MUDO
+    //     [1] «Skoda Octavia / 2.0TDI Selection 85kW»     ← el nombre REAL
+    // Ganaba la primera y la segunda se tiraba. Después, el bloque «una etiqueta no es un nombre» borraba los
+    // 19 «Abrir detalles» repetidos por `times[t]>1` — y hacía BIEN: «un dato que nombra a todas no nombra a
+    // ninguna». O sea que ningún mecanismo estaba roto, el borrado llegaba TARDE, y el fallo era elegir la
+    // peor de las dos anclas. El nombre estaba en la página y lo tirábamos nosotros.
+    //
+    // Por eso el arreglo NO es una regla nueva sobre qué textos parecen nombres —esa es la cinta de correr—:
+    // es dejar de descartar el dato que ya teníamos. Y explica por qué Wallapop, que también parte cada
+    // anuncio en dos anclas (foto y título), nunca sufrió esto: allí la de la foto trae `img.alt`.
+    const ya = seen.get(key);
+    if(ya){
+      // No se PISA el título del primero: no sabemos aún cuál de los dos es el bueno — eso solo se sabe al
+      // final, cuando se puede ver qué texto se repite entre fichas. Se GUARDA como alternativa y decide allí.
+      if(title && title !== ya.title && !ya._alts.includes(title)) ya._alts.push(title);
+      if(!ya.title && title) ya.title = title;
+      if(!ya.image && image) ya.image = image;
+      if(!ya.price && price) ya.price = price;
+      if(!ya.tel && tel) ya.tel = tel;
+      continue;
+    }
+    const fila = {title, price, tel, url:href, image, _item: ITEM.test(href), _alts: []};
+    cands.push(fila);
+    seen.set(key, fila);
   }
-  // CARDS WITHOUT AN ANCHOR (V2-315). Measured live on kayak.es/cars (2026-08-25): the page showed
+  // CARDS WITHOUT AN ANCHOR (V2-320). Measured live on kayak.es/cars (2026-08-25): the page showed
   // «381 resultados» — Fiat 500 at 105 €, Peugeot 408 at 167 € — 27 leaf nodes carrying a price, and this
   // extractor returned ZERO, by construction: every offer card is a <div> whose only control is a «Ver
   // oferta» <button>, and the candidate loop above only ever walks a[href]. A listing with no per-card
@@ -272,7 +298,7 @@ _JS_EXTRACT = r"""
   }
   // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).
   const items = cands.filter(c=>c._item);
-  const list = (items.length ? items : cands).map(({_item, ...c})=>c);
+  const list = (items.length ? items : cands).map(({_item, ...c})=>c);   // `_alts` se retira abajo
   // A LABEL IS NOT A NAME, and the page will hand you one whenever the price has a caption. Measured
   // 2026-08-23 on `cheapest-monitor`: eight of thirteen rows on the sheet were called «Recomendado:»,
   // «Mediano:» (four times) or «Más bajo:» — the captions of a carousel, sitting where a monitor's name
@@ -285,10 +311,18 @@ _JS_EXTRACT = r"""
   // is a row the brain has to describe by its link; a wrong one is a row it will describe confidently.
   const times = {};
   for(const c of list){ const t=(c.title||'').trim(); if(t) times[t]=(times[t]||0)+1; }
+  const generico = (t)=>!t || /:\s*$/.test(t) || times[t]>1;
   for(const c of list){
-    const t=(c.title||'').trim();
-    if(!t) continue;
-    if(/:\s*$/.test(t) || times[t]>1) c.title='';
+    if(!generico((c.title||'').trim())){ delete c._alts; continue; }
+    // V2-324 — ANTES DE BORRAR, MIRAR SI TENÍAMOS OTRO NOMBRE PARA ESTA MISMA FICHA. Varias anclas apuntan al
+    // mismo anuncio y solo una lo nombra; cuál es la buena no se puede saber arriba —depende de qué texto se
+    // repite entre fichas, que es justo lo que se acaba de contar aquí—, así que se guardaron todas y se elige
+    // ahora. Medido en autoscout24: las 19 filas salían SIN nombre porque ganaba «Abrir detalles del anuncio»
+    // (repetido 19 veces, y por eso borrado con razón) mientras «Skoda Octavia 2.0TDI Selection 85kW» se había
+    // descartado arriba por duplicado.
+    const otro = (c._alts||[]).find(t=>!generico((t||'').trim()));
+    c.title = otro ? otro.slice(0,90) : '';
+    delete c._alts;
   }
   return list.slice(0, limit);
 }

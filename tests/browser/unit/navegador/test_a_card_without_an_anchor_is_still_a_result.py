@@ -1,4 +1,4 @@
-"""V2-315 — un listado cuyas fichas no llevan ancla era INVISIBLE entero para el extractor.
+"""V2-320 — un listado cuyas fichas no llevan ancla era INVISIBLE entero para el extractor.
 
 Medido en vivo (2026-08-25, kayak.es/cars): la página mostraba «381 resultados» —Fiat 500 a 105 €, Peugeot
 408 a 167 €— con 27 nodos hoja llevando precio, y `_JS_EXTRACT` devolvía CERO. Por construcción: el bucle de
