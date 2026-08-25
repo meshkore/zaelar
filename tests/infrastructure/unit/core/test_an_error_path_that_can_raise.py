@@ -80,10 +80,15 @@ def test_no_production_handler_slices_splitlines_without_a_guard():
 
 def test_the_handler_that_decides_the_relay_uses_it():
     """El sitio concreto que tumbó la ronda: si vuelve a construir su mensaje a mano, el relevo se vuelve a
-    romper cuando un proveedor cae en silencio."""
+    romper cuando un proveedor cae en silencio.
+
+    La primera versión anclaba en «la PRIMERA aparición de `provider_failure`» y era una ventana de texto, no
+    una propiedad: V2-309 añadió una mención más arriba, la ventana se movió y el guarda acusó a código
+    correcto (2026-08-25). Lo que importa es que el MENSAJE del manejador salga del helper — así que se ancla
+    en la asignación concreta, que es lo que decide el relevo."""
     src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text()
-    bloque = src[src.index("provider_failure"):][:1200] if "provider_failure" in src else ""
-    assert bloque, "desapareció el manejador de fallo de proveedor del probe"
-    fuente = src[:src.index("provider_failure")]
-    assert "_brief(" in fuente or "_brief(" in bloque, "el manejador del relevo dejó de usar el helper"
+    assert "provider_failure" in src, "desapareció el manejador de fallo de proveedor del probe"
+    assert "_err = _brief(" in src, (
+        "el manejador del relevo dejó de usar el helper: si su mensaje se construye a mano, un proveedor "
+        "cayendo en silencio vuelve a llevarse por delante al manejador del fallo")
     assert not re.search(r"str\(\w+\)\.splitlines\(\)\[0\]", src), "volvió la forma que revienta"

@@ -423,9 +423,14 @@ DOMAINS: list[dict] = [
         # 2026-08-25: el trinquete se quedaba a un paso. `recall_timeout` se ponía —y este nodo lo afirmaba— y
         # NADIE lo leía: 21 de 27 recalls de sesiones vivas volvieron con `mem_ms: null` y «0 tarjetas», que es
         # idéntico a una memoria que de verdad no tenía nada. Un aviso sin lector no es un rastro.
-        {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales: el turno "
-                                "queda libre en su presupuesto, nadie vuelve a la ruta de compatibilidad, y "
-                                "un recall que NO llega se VE (fila en la línea de tiempo + ámbar)",
+        # V2-311 paso 2 (2026-08-25): el 77% de los recalls vivos se abandonaba al vencer el presupuesto y TODOS
+        # terminaban igualmente — el hilo corre hasta el final y el bloque moría en un futuro sin lector. Ahora un
+        # recall tardío se entrega como nota al turno SIGUIENTE, con el corte de frescura en TURNOS y no en reloj
+        # («ningún turno ha preguntado desde entonces»): la cola de producción llegaba a 21 s, y V2-254 midió lo
+        # que la memoria rancia hace a una conversación que ya se movió. Solo texto (sin ids: no se refuerza lo
+        # que no se usó) y la nota no ordena anunciar — el juicio es del cerebro (doctrina de findings.py).
+        {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales; el que NO "
+                                "llega se VE, y el que llega TARDE es la nota del turno siguiente — o de nadie",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_recall_budget_is_shared.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},

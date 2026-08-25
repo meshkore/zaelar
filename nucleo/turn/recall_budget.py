@@ -22,8 +22,18 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import threading
 
 _LOG = logging.getLogger("zaelar.turn.recall")
+
+# The freshness yardstick for a SALVAGED recall, and deliberately not a clock: «no turn has asked since».
+# Every `compose()` call is a turn asking, so if the generation moved while the abandoned thread was still
+# grinding, the conversation moved — and V2-254 measured what stale memory does to a moved conversation
+# (`background_slot_off_topic`: a weather question in Soria hijacked into a plumber in Soria). Seconds would
+# be a proxy for that; turns ARE it. Process-global on purpose: one operator, one live conversation per
+# process — a turn on any channel means the brain moved on. Stated, not hidden.
+_GEN_LOCK = threading.Lock()
+_GEN = 0
 
 #: Same env var the voice path already reads, so one knob moves both channels — two budgets that drift is how
 #: «it works in voice» and «it hangs in text» become two different bug reports for one cause.
@@ -83,11 +93,18 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     # **21 s** with a budget of 800 ms. Those are ghosts: the cost of a recall no turn ever used, reported as
     # if it were the turn's memory latency. Anyone asking «how slow is memory in a live turn» — which is
     # exactly the question that opened V2-311 — was reading the abandoned thread's number.
+    global _GEN
+    with _GEN_LOCK:
+        _GEN += 1
+        mi_gen = _GEN
     propias: dict = {}
     try:
         from nucleo.flash import prompt as _prompt
-        got = await asyncio.wait_for(
-            asyncio.to_thread(_prompt.compose_recall, q, propias), timeout=budget_s())
+        # `run_in_executor` + `shield`, not `to_thread` + bare `wait_for`: the timeout must abandon the WAIT
+        # without cancelling the FUTURE, or the salvage below never sees a result. (`wait_for` cancels what it
+        # wraps; a cancelled task drops the thread's result on the floor — measured while building this.)
+        fut = asyncio.get_running_loop().run_in_executor(None, _prompt.compose_recall, q, propias)
+        got = await asyncio.wait_for(asyncio.shield(fut), timeout=budget_s())
         if timings is not None:
             timings.update(propias)       # llegó a tiempo → su coste ES el coste del turno
         return got
@@ -97,8 +114,46 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
         detalle = f"el recall no cerró en {budget_s():.1f}s — el turno sigue SIN memoria durable"
         _publish("timeout", detalle, q)
         _LOG.info(f"recall over budget ({budget_s():.1f}s) — el turno sigue sin recall durable")
+        fut.add_done_callback(lambda f: _salvage(f, q, mi_gen))
     except Exception as e:  # noqa: BLE001
         detalle = f"el recall falló: {str(e)[:120]} — el turno sigue SIN memoria durable"
         _publish("error", detalle, q)
         _LOG.warning(f"recall omitido (el turno sigue): {e}")
     return "", []
+
+
+def _salvage(fut, query: str, asked_gen: int) -> None:
+    """A recall that finished late is the NEXT turn's memory — or nobody's. Never raises.
+
+    V2-311: 21 of 27 live recalls were abandoned at the 800 ms budget, and every one of them FINISHED anyway —
+    the thread runs to completion and the composed block used to die in a future nobody watched. The turn paid
+    the full cost of the recall 100% of the time and received the result 22% of the time.
+
+    The production tail (measured by memoria-dev on the reply events): 2.1 s, 3.5 s, 21 s. So «the next turn's
+    memory» needs a cut, and the cut is «no turn has asked since» — not a clock. If the generation moved, the
+    conversation moved, and V2-254 is what stale memory does to a moved conversation.
+
+    TEXT ONLY, no ids: the ids feed reinforcement on use, and a turn that never saw the block must not
+    reinforce what it did not use. And the note JUDGES nothing — findings.py doctrine: it says what arrived
+    and explicitly allows ignoring it; whether it still serves the conversation is the brain's call.
+    """
+    try:
+        if fut.cancelled() or fut.exception():
+            return
+        block, _ids = fut.result() or ("", [])
+        block = (block or "").strip()
+        if not block:
+            return
+        with _GEN_LOCK:
+            fresh = (_GEN == asked_gen)
+        if not fresh:
+            _LOG.info("recall tardío descartado: la conversación ya avanzó (otro turno preguntó)")
+            return
+        from voice import brain_notes
+        brain_notes.push(
+            f"[SISTEMA] La memoria durable llegó tarde para la pregunta «{(query or '')[:80]}» del turno "
+            f"anterior. Esto es lo que tenía: {block[:600]} — úsalo solo si aún viene al caso; si la "
+            f"conversación ya va por otro sitio, ignóralo.")
+        _LOG.info("recall tardío entregado como nota para el turno siguiente")
+    except Exception:  # noqa: BLE001
+        pass                                  # el salvamento es best-effort; nunca rompe nada

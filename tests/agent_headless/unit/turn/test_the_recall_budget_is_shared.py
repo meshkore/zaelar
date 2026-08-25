@@ -227,3 +227,89 @@ def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
     timings: dict = {}
     assert asyncio.run(recall_budget.compose("los hijos", timings)) == ("RECUERDO", [7])
     assert timings.get("mem_query_ms") == 42.0, "se perdió el coste de un recall que SÍ llegó"
+
+
+# ── V2-311 paso 2: un recall que llega TARDE es la memoria del turno siguiente — o de nadie ─────────────────
+#
+# El 77% de los recalls vivos (21/27, medido por memoria-dev sobre 223 sesiones) se abandonaban al vencer el
+# presupuesto — y TODOS terminaban igualmente: el hilo corre hasta el final y el bloque compuesto moría en un
+# futuro que nadie miraba. El turno pagaba el coste completo el 100% de las veces y recibía el resultado el 22%.
+#
+# La cola de producción (2,1 s / 3,5 s / 21 s) es la razón del corte de frescura, y el corte NO es un reloj:
+# es «ningún turno ha preguntado desde entonces». Si la generación avanzó, la conversación avanzó — y V2-254
+# midió lo que la memoria rancia le hace a una conversación que ya se movió (meteo en Soria → fontanero en
+# Soria). Los segundos serían un proxy de eso; los turnos SON eso.
+
+def _con_notas(monkeypatch):
+    """El buzón real, aislado: lo que se mide es que la nota LLEGUE al buzón que drena el turno siguiente."""
+    from voice import brain_notes
+    monkeypatch.setattr(brain_notes, "_pending", [])
+    return brain_notes
+
+
+def test_a_late_recall_becomes_the_next_turns_note(monkeypatch):
+    import time as _t
+
+    from nucleo.flash import prompt as prompt_mod
+    notas = _con_notas(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+
+    def _tarde(q, t=None):
+        _t.sleep(0.25)
+        return "Marc vive en Soria y busca guitarra", [7, 9]
+    monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
+
+    out = asyncio.run(recall_budget.compose("qué sabes de mí"))
+    assert out == ("", [])                       # ESTE turno sigue sin memoria: el contrato no cambia
+    _t.sleep(0.45)                               # el hilo termina y el callback corre
+
+    got = notas.drain()
+    assert len(got) == 1, "el bloque compuesto murió en un futuro que nadie miraba — otra vez"
+    nota = got[0]
+    assert "Marc vive en Soria" in nota and "qué sabes de mí" in nota
+    # findings.py: la nota no ORDENA anunciar — dice lo que llegó y permite ignorarlo; el juicio es del cerebro
+    assert "ignóralo" in nota
+    # solo TEXTO: los ids alimentan el refuerzo al usarse, y un turno que no vio el bloque no refuerza nada
+    assert "7" not in nota.split("«")[0] and "[7, 9]" not in nota
+
+
+def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
+    """El corte de frescura. Sin esto, el recall de 21 s aterriza cinco turnos tarde en una conversación que
+    ya va por otro sitio — el secuestro de V2-254 con uniforme de mejora."""
+    import time as _t
+
+    from nucleo.flash import prompt as prompt_mod
+    notas = _con_notas(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+
+    lentitud = {"s": 0.3}
+
+    def _variable(q, t=None):
+        _t.sleep(lentitud["s"])
+        return "memoria del encargo viejo", [1]
+    monkeypatch.setattr(prompt_mod, "compose_recall", _variable)
+
+    async def _dos_turnos():
+        await recall_budget.compose("el encargo viejo")      # turno N: se abandona a los 50 ms
+        lentitud["s"] = 0.0
+        await recall_budget.compose("otro tema distinto")     # turno N+1 pregunta ANTES de que N termine
+    asyncio.run(_dos_turnos())
+    _t.sleep(0.5)                                             # ahora sí termina el hilo del turno N
+
+    for nota in notas.drain():
+        assert "memoria del encargo viejo" not in nota, \
+            "un recall rancio aterrizó después de que la conversación avanzara"
+
+
+def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
+    """Un bloque vacío que llega tarde no es una nota: sería avisar de que no había nada, dos veces."""
+    import time as _t
+
+    from nucleo.flash import prompt as prompt_mod
+    notas = _con_notas(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+    monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (_t.sleep(0.2), ("", []))[1])
+
+    asyncio.run(recall_budget.compose("algo"))
+    _t.sleep(0.4)
+    assert notas.drain() == []

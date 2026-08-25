@@ -95,15 +95,18 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
     # All behaviour fixes measured on live rounds; none extractable alone. The DEBT stands: dispatch is F3's
     # remaining seam list and these lines are candidates when its `_SESSIONS` design question is answered.
-    "nucleo/dispatch.py": (1851, 57),
+    # …and again on 25-08 (the walk's fix sprint): 1851→1927 (e8b0de8 parallel brief, 73daeac dead-worker
+    # face, 25d7ebd session-window relay). The treadmill IS the finding: F3's split is the fix, not the table.
+    "nucleo/dispatch.py": (1927, 57),
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
     "widgets/navegador/owner.py": (1706, 44),
-    "nucleo/flash/router_guards.py": (1282, 15),
+    "nucleo/flash/router_guards.py": (1374, 15),   # 25-08: V2-306..310 walk guards (arnés)
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
-    # 2026-08-24). Still F2's split target (`run_turn` into named phases).
-    "nucleo/flash/probe.py": (1176, 84),
+    # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
+    # files they measure). Still F2's split target (`run_turn` into named phases).
+    "nucleo/flash/probe.py": (1214, 89),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (843, 30),
