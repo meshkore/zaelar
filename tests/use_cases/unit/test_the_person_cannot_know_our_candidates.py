@@ -153,3 +153,29 @@ def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():
     cola = src[i_flip:i_flip + 900]
     assert "crashed" in cola, "el barrido marca las líneas y la ronda se puntúa igual"
     assert "if not crashed:" in cola, "no puede pisar una avería ya declarada (role_flips > 1)"
+
+
+def test_y_el_ANCLA_del_conductor_se_lo_dice_EN_SUS_DOS_IDIOMAS():
+    """La otra mitad: detectarlo después de la ronda solo sirve para tirar la medida. Los TRES flips del corpus
+    son casos de CATÁLOGO —el conductor tiene una lista delante y la presenta—, así que el ancla ahora nombra el
+    HECHO («no tienes ninguna lista delante») en vez de prohibir otra forma más.
+
+    En los DOS idiomas, y esa es la trampa que ya costó una vez: hasta el 2026-08-23 un ancla en castellano
+    servía a los 60 escenarios US, cuyas personas están escritas en inglés.
+    """
+    from tests.use_cases.e2e.agent import driver as D
+    for ancla in (D._ANCHOR, D._ANCHOR_EN):
+        low = ancla.lower()
+        assert "lista" in low or "list" in low
+        assert "zaelar" in low
+    assert "NO TIENES NINGUNA LISTA DELANTE" in D._ANCHOR
+    assert "YOU HAVE NO LIST IN FRONT OF YOU" in D._ANCHOR_EN
+
+
+def test_el_ancla_VIAJA_al_prompt_de_la_ronda():
+    """Un ancla correcta que no llega al system prompt es una regla que nadie lee (V2-199)."""
+    import inspect
+
+    from tests.use_cases.e2e.agent import driver as D
+    src = inspect.getsource(D.Driver.__init__)
+    assert "_ANCHOR_EN" in src and "_ANCHOR" in src

@@ -271,7 +271,15 @@ _ANCHOR = (
     "comillas, frases con la longitud que tendría un mensaje real (no un ensayo). Y con la IMPERFECCIÓN de "
     "una persona real: coloquial, a veces sin todos los datos (ya te los pedirán), con muletillas de vez en "
     "cuando («oye», «a ver», «porfa»), algún detalle que se te ocurre un turno tarde. Nunca listas ni "
-    "redacción de robot."
+    "redacción de robot. "
+    # LO QUE NO PUEDES SABER, que es más fuerte que otra prohibición de forma. Los TRES flips medidos en el
+    # corpus (guitarra 24-08 03:48, cámara 25-08 04:41, planes-de-finde 25-08 12:25) son el mismo movimiento:
+    # el conductor tiene una lista de candidatos delante y la reflex de un modelo con una lista delante es
+    # presentarla. Prohibir «listas» y «ofrecerte a hacer cosas» ya estaba escrito arriba y no lo paró, porque
+    # el modelo no lo lee como una lista sino como contestar bien. El hecho SÍ lo para: esos nombres los
+    # produjo nuestro worker leyendo una página y viven en NUESTRA hoja — la persona no los ha visto nunca.
+    "NO TIENES NINGUNA LISTA DELANTE: los nombres de productos, los locales y los precios concretos solo "
+    "existen del lado de zaelar. Nombra uno SOLO si zaelar te lo ha dicho antes en este mismo historial."
 )
 
 # The SAME anchor in the persona's own language. Until 2026-08-23 the one Spanish anchor served all 133
@@ -285,7 +293,9 @@ _ANCHOR_EN = (
     "zaelar or as an assistant, offering to do things for the user, or speaking as if you were the system. "
     "Write like people actually text: no stage directions, no quotes, message-length sentences (not an essay). "
     "And with a real person's IMPERFECTION: casual, sometimes missing a detail (they'll ask), the occasional "
-    "filler («hey», «hmm», «btw»), a detail you only remember a turn later. Never lists, never robot prose."
+    "filler («hey», «hmm», «btw»), a detail you only remember a turn later. Never lists, never robot prose. "
+    "YOU HAVE NO LIST IN FRONT OF YOU: product names, venues and concrete prices only exist on zaelar's side. "
+    "Name one ONLY if zaelar told it to you earlier in this same history."
 )
 
 
