@@ -180,3 +180,50 @@ def test_it_does_NOT_wipe_an_unrelated_memory_warning(monkeypatch):
 
     rec = health_state.get("memory")
     assert rec is not None and "vectorial" in rec["text"], "se llevó por delante un aviso ajeno"
+
+
+def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
+    """`wait_for` cancels the WAIT, not the thread — and the thread was writing into the turn's `timings`.
+
+    Measured 2026-08-25 on the live timelines: reply events carried `mem_query_ms` of 2.1 s, 3.5 s and 21 s
+    against an 800 ms budget. Ghosts: the cost of a recall no turn ever used, published as that turn's memory
+    latency — which is the very question V2-311 set out to answer. The number was not merely late, it was
+    ATTRIBUTED to a turn that had already given up.
+
+    Se espera al hilo a propósito: el fallo solo existe DESPUÉS de que termine, así que un caso que no le da
+    tiempo a terminar pasa siempre, con arreglo y sin él."""
+    import time as _t
+    from nucleo.flash import prompt as prompt_mod
+    _capture(monkeypatch)
+    monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
+
+    def _tarde(q, t=None):
+        _t.sleep(0.3)
+        if t is not None:
+            t["mem_query_ms"] = 300.0
+        return "bloque", [1]
+    monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
+
+    timings: dict = {}
+    asyncio.run(recall_budget.compose("qué sabes de mí", timings))
+    _t.sleep(0.5)                                     # el hilo abandonado termina AHORA y escribe lo suyo
+
+    assert timings.get("recall_timeout") is True
+    assert "mem_query_ms" not in timings, (
+        f"un recall que el turno abandonó le metió su coste en la contabilidad: {timings}")
+
+
+def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
+    """La contrapartida: aislar al hilo abandonado no puede costarnos la métrica buena."""
+    from nucleo.flash import prompt as prompt_mod
+    _capture(monkeypatch)
+
+    def _a_tiempo(q, t=None):
+        if t is not None:
+            t["mem_query_ms"] = 42.0
+        return "RECUERDO", [7]
+    monkeypatch.setattr(prompt_mod, "compose_recall", _a_tiempo)
+
+    timings: dict = {}
+    assert asyncio.run(recall_budget.compose("los hijos", timings)) == ("RECUERDO", [7])
+    assert timings.get("mem_query_ms") == 42.0, "se perdió el coste de un recall que SÍ llegó"

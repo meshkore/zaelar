@@ -4826,6 +4826,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Y reordena lo aparcado**: el `concept_discount` de V2-031 puede esperar, porque **afinar el ORDEN de un
     recall que el 77 % de las veces no llega no mueve nada de lo que el operador percibe.** Primero que llegue.
   Sensibilidad: desarmado el publicador, 2 de 10 casos en rojo. Sin verificar en vivo.
+  - **Addenda, mismo día — la métrica FANTASMA.** Lo señaló `motor-dev-2`: `wait_for` cancela la ESPERA, no el
+    HILO. `to_thread(compose_recall)` sigue hasta el final y escribe su `mem_query_ms` **en el `timings` del
+    turno que ya lo abandonó**. Contra producción: los eventos de respuesta llevan **2,1 s · 3,5 s · 21 s** con
+    presupuesto de 800 ms (9 de 20 por encima del corte). El coste de un recall que nadie usó, publicado como la
+    latencia de memoria de ese turno — y es justo el campo que se consulta para responder la pregunta que abrió
+    la iniciativa. Arreglo: el hilo recibe **dict propio** y se fusiona solo si llegó a tiempo. Y **corrige una
+    cifra mía**: los «556-797 ms» eran solo los seis que cerraron DENTRO del presupuesto, **no contenían la
+    cola** — que llega a 21 s. Importa porque quien razone sobre mi número para entregar el recall tarde como
+    nota al turno siguiente necesita saber que puede llegar cinco turnos tarde.
 
 
 ## Testing y rueda de mejora (INI-013)

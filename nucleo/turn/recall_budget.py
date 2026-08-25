@@ -76,10 +76,21 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     q = (query or "").strip()
     if not q:
         return "", []
+    # The abandoned thread gets its OWN dict, and it is merged only if the recall ARRIVED. `wait_for` cancels
+    # the WAIT, not the thread: `to_thread` keeps running to completion in the executor and then writes its
+    # `mem_query_ms` into whatever dict it was handed — after the turn already gave up on it. Measured
+    # 2026-08-25 over the live session timelines: the reply event carried `mem_query_ms` of 2.1 s, 3.5 s and
+    # **21 s** with a budget of 800 ms. Those are ghosts: the cost of a recall no turn ever used, reported as
+    # if it were the turn's memory latency. Anyone asking «how slow is memory in a live turn» — which is
+    # exactly the question that opened V2-311 — was reading the abandoned thread's number.
+    propias: dict = {}
     try:
         from nucleo.flash import prompt as _prompt
-        return await asyncio.wait_for(
-            asyncio.to_thread(_prompt.compose_recall, q, timings), timeout=budget_s())
+        got = await asyncio.wait_for(
+            asyncio.to_thread(_prompt.compose_recall, q, propias), timeout=budget_s())
+        if timings is not None:
+            timings.update(propias)       # llegó a tiempo → su coste ES el coste del turno
+        return got
     except asyncio.TimeoutError:
         if timings is not None:
             timings["recall_timeout"] = True
