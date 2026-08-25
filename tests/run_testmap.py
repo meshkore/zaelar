@@ -1499,6 +1499,13 @@ DOMAINS: list[dict] = [
         # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
         # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
         # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.78", "title": "La persona que RECHAZA por nombre lo que acaba de oír no es el asistente; "
+                                 "y el juez sabe cuándo la culpa fue NUESTRA factura",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_person_choosing_is_not_the_assistant.py",
+                                  # V2-318: sin estos hechos el juez leía la hoja vacía y escribía «incapacidad
+                                  # de zaelar para reconocer fallos técnicos» sobre un turno donde zaelar lo
+                                  # había dicho con esas palabras.
+                                  "tests/use_cases/unit/test_the_judge_is_told_it_was_our_bill.py"]},
         {"id": "10.77", "title": "Un reset AJENO a mitad de ronda se ve y se fecha (la pestaña cancelada "
                                  "tenía dueño)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_who_reset_the_engine_mid_round.py"]},

@@ -555,9 +555,52 @@ def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int 
             # "recited list" — exactly the false positive the echo rule exists to remove.
             (echoed if heard_txt and head in heard_txt else fresh).setdefault(head, str(t))
     hits = list(fresh.values()) + list(echoed.values())
-    if len(fresh) >= max(1, min_hits) or len(echoed) >= 2:
+    if len(fresh) >= max(1, min_hits):
+        return hits                                 # un título que zaelar NUNCA dijo delata con uno
+    # …y los YA OÍDOS solo a partir de dos, SALVO que la línea hable desde el lado del que pide. Esa salvedad
+    # no es una excepción cómoda: es la propiedad que este detector persigue, escrita entera. El docstring ya
+    # decía «la distinción no es el nombre sino la POSTURA», y el umbral de dos era un proxy suyo que se
+    # rompió en cuanto una persona discriminó entre las opciones que le acababan de dar — que es exactamente
+    # lo que estos casos de uso EXISTEN para medir.
+    if len(echoed) >= 2 and not _speaks_as_the_customer(line):
         return hits
     return []
+
+
+#: Lo que dice quien PIDE y nunca dice quien entrega: la primera persona exigiendo y la segunda haciendo. Un
+#: asistente informa de lo que tiene y se ofrece; una persona dice lo que quiere y pregunta.
+# ⚠️ SOLO lo que la oferta NO puede decir. `quiero`/`prefiero`/`necesito` parecen del mismo bloque y no lo son:
+# medido en `search-buy-camera__es` (2026-08-25 04:41), el conductor cerró un recital de asistente con «¿Te
+# encaja alguna de esas dos o QUIERO que siga buscando?» —un garble de «quieres»— y ese `quiero` eximía una
+# línea que empieza «de las que tengo, la más clara es…». Un marcador que un desliz de conjugación puede
+# fabricar no es un marcador de postura: es ruido con forma de señal, y aquí el coste de un falso eximente es
+# dejar pasar el flip que este detector existe para cazar.
+_CUSTOMER_POSTURE = re.compile(
+    r"\bno me (?:vale|valen|sirve|sirven|convence|convencen)\b|"
+    r"\bcomo te (?:dije|decia|comente)\b|\bte (?:dije|pedi)\b|"
+    r"\b(?:me confirmas|confirmame|me miras|miralo|me pasas|pasame|me lo miras)\b|\bporfa\b", re.I)
+
+
+def _speaks_as_the_customer(line: str) -> bool:
+    """¿Habla esta línea desde el lado del que PIDE? Entonces no está haciendo de asistente.
+
+    Medido en la ronda 37 de la guitarra (2026-08-25 15:51), turno 17:
+
+        «la CG-150 y la Yamaha C70 son clásicas, de nylon, ¿no? Esas NO ME VALEN. QUIERO acústica de cuerda de
+         metal, COMO TE DIJE. La Harley Benton y la acústica de 100 esas pinta mejor, a ver si ME CONFIRMAS
+         zona y estado.»
+
+    Dos nombres de nuestra hoja en una línea → el umbral de eco los daba por recital de asistente y la ronda
+    salió INFRA. Pero esa línea es lo contrario de un recital: es la persona rechazando por nombre lo que
+    acababa de oír y pidiendo un dato más. Marcarla no fue un empate desafortunado — tiró una medida BUENA, la
+    que traía el defecto del colgador de guitarra (V2-318), y el coste de una ronda descartada no es cero.
+
+    Las dos líneas REALES del corpus no llevan nada de esto: ofrecen («si quieres puedo centrarme en una de
+    las dos y buscarte el anuncio completo») o reportan sobre el conjunto («de las que tengo, la más clara
+    es…»). Que es la asimetría entera: quien pide dice lo que quiere y pregunta; quien entrega dice lo que
+    tiene y se ofrece.
+    """
+    return bool(_CUSTOMER_POSTURE.search(_norm_title(line)))
 
 
 def _norm_title(s: str) -> str:
