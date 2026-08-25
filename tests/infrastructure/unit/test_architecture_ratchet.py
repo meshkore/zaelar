@@ -97,7 +97,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # remaining seam list and these lines are candidates when its `_SESSIONS` design question is answered.
     # …and again on 25-08 (the walk's fix sprint): 1851→1927 (e8b0de8 parallel brief, 73daeac dead-worker
     # face, 25d7ebd session-window relay). The treadmill IS the finding: F3's split is the fix, not the table.
-    "nucleo/dispatch.py": (1927, 57),
+    # …and 1927→1960 within the same day (e315b89 V2-314 exhausted-window guard + walk fixes). Same audit.
+    "nucleo/dispatch.py": (1960, 57),
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
@@ -109,7 +110,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "nucleo/flash/probe.py": (1214, 89),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
-    "nucleo/flash/prompt.py": (843, 30),
+    "nucleo/flash/prompt.py": (851, 30),   # 25-08: 41be5cb V2-311 paso 3 (refuerzo al entregar, memoria-dev)
     "nucleo/workers/session.py": (825, 19),
     "nucleo/flash/router.py": (930, 1),   # +2 (V2-300 wiring)
 }

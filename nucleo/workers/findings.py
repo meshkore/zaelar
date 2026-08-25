@@ -143,3 +143,32 @@ def hand_sheet_finding(task_id, items, goal: str = "") -> bool:
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def hand_search_rows(rec, res: dict) -> int:
+    """A search return → the errand's SHEET. Returns how many rows were handed over.
+
+    V2-315, measured on `kid-friendly-activity-nearby` (2026-08-25 12:37): a worker resolved the errand by
+    SEARCH alone — 709 s alive, 8 web searches, 7 returns — and the sheet stayed empty the whole time, because
+    a search return had exactly one path out: `hand_web_finding` → a note the brain reads once. The rows were
+    never rejected by the sheet (`intake._to_item` keeps a title+url row without a price); they simply had no
+    door. Searching is a legitimate way to resolve «activities near X», so its findings are findings.
+
+    Same door as everything else (V2-257: `results.intake.push`), same rows the NOTE carries (`render_search`'s
+    top-k — one yardstick for «what the conversation saw» and «what the sheet holds»). Untitled rows (bare
+    Perplexity citations) drop at the door, which is the door's own honesty rule. The sheet dedups by
+    title+url, so eight overlapping searches converge instead of piling.
+    """
+    try:
+        rows = [{"title": str(r.get("title") or "").strip(),
+                 "subtitle": str(r.get("snippet") or "").strip()[:160],
+                 "url": str(r.get("url") or "").strip()}
+                for r in (res.get("results") or [])[:4] if isinstance(r, dict)]
+        rows = [r for r in rows if r["title"]]
+        if not rows:
+            return 0
+        from widgets.results import intake
+        return intake.push(rows, sheet=str(getattr(rec, "sheet", "") or ""),
+                           source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
+    except Exception:  # noqa: BLE001
+        return 0                              # best-effort: perder una fila es malo, tumbar el turno es peor

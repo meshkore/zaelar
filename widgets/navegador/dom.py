@@ -180,6 +180,66 @@ _JS_EXTRACT = r"""
                 _item: ITEM.test(href)});
     seen.add(key);
   }
+  // CARDS WITHOUT AN ANCHOR (V2-315). Measured live on kayak.es/cars (2026-08-25): the page showed
+  // «381 resultados» — Fiat 500 at 105 €, Peugeot 408 at 167 € — 27 leaf nodes carrying a price, and this
+  // extractor returned ZERO, by construction: every offer card is a <div> whose only control is a «Ver
+  // oferta» <button>, and the candidate loop above only ever walks a[href]. A listing with no per-card
+  // anchor was invisible whole, however loaded with prices. Aggregators love button CTAs (cars, insurance,
+  // activities), which is exactly the shape of the empty-sheet family the harness measured (9/28 rounds).
+  //
+  // GATED on the anchor collector coming up EMPTY — Wallapop/Amazon/anchor-per-card sites never reach this,
+  // so their measured behaviour cannot regress. Candidates come from the price LEAVES upward: the price is
+  // the one thing a card cannot fake, and the walk stops at the first ancestor that holds letters (a name)
+  // without swallowing a second price — the same «un dato que nombra a todas no nombra a ninguna» rule that
+  // governs cardWalk. Rows come out with title+price and NO url: the contract already allows it (tel rows
+  // carry no price either) — a name and a price the operator can read beat a row that never existed. The
+  // dedup key is the pair itself.
+  if(!cands.length){
+    const leafSeen = new Set();
+    for(const el of document.querySelectorAll('*')){
+      if(el.children.length) continue;
+      const t=(el.textContent||'').replace(/\s+/g,' ').trim();
+      if(!t || t.length>30) continue;
+      const m=t.match(priceRe);
+      if(!m || t.length>m[0].length+12) continue;
+      // Climb to the CARD boundary (the last ancestor holding a single price leaf) collecting the best name
+      // along the WHOLE way — stopping at the first level that has any label picks the price's own caption
+      // («24 € en total», the wrapper's aria) over the card's real name one level up. Measured on kayak.
+      // The name, in this order, each measured on the card that drove this:
+      //   1. the longest aria-label with letters — «Ver oferta para Seat Ibiza de bsp-auto desde 22 €» is the
+      //      page's OWN accessible name for the card (what a screen reader says), unique per card, and the
+      //      only place kayak writes the car model at all (no headings, no img alt, no strong);
+      //   2. the first letter-line of the card («bsp-auto») — poorer (the supplier), but a real word from it.
+      let n=el, title='', fallback='';
+      for(let i=0;i<5&&n&&n.parentElement;i++){
+        n=n.parentElement;
+        let prices=0;
+        for(const x of n.querySelectorAll('*')){
+          if(x.children.length) continue;
+          const xt=(x.textContent||'').replace(/\s+/g,' ').trim();
+          if(xt && xt.length<=30 && priceRe.test(xt) && xt.length<=(xt.match(priceRe)[0].length+12)) prices++;
+          if(prices>1) break;
+        }
+        if(prices>1) break;                      // ya es la rejilla: lo que hay aquí nombra a varias
+        for(const e2 of n.querySelectorAll('[aria-label]')){
+          const al=(e2.getAttribute('aria-label')||'').trim();
+          if(hasLetter(al) && al.length>title.length) title=al;
+        }
+        if(!fallback){
+          fallback=(n.innerText||'').split('\n').map(s=>s.trim())
+                    .find(s=>s.length>2 && hasLetter(s) && !priceRe.test(s)) || '';
+        }
+      }
+      title=(title || fallback).slice(0,90);
+      if(!title) continue;
+      const price=m[0].replace(/\s+/g,' ').trim();
+      const key=title+'|'+price;
+      if(leafSeen.has(key)) continue;
+      leafSeen.add(key);
+      cands.push({title, price, tel:'', url:'', image:'', _item:false});
+      if(cands.length>=limit) break;
+    }
+  }
   // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).
   const items = cands.filter(c=>c._item);
   const list = (items.length ? items : cands).map(({_item, ...c})=>c);

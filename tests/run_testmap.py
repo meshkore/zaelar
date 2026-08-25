@@ -341,6 +341,14 @@ DOMAINS: list[dict] = [
         # `dispatch._finalize_web`, que hace su propia extracción final cuando el worker termina o muere. La otra
         # mitad pesa igual: si la extracción de esa pestaña YA salió por `_hand_over`, la barrida final es casi la
         # misma página, y una segunda nota se lee como «ha encontrado más» cuando ha encontrado lo mismo.
+        # V2-315-C (2026-08-25, el ejemplar más limpio de la familia: kid-friendly, worker vivo 709 s, 8 búsquedas,
+        # 7 returns, 0 navegaciones — hoja vacía SIEMPRE). El return de búsqueda tenía un solo camino: la nota que
+        # el turno lee una vez. La hoja no los rechazaba (`_to_item` acepta título+url sin precio): no tenían
+        # puerta. Ahora entran por la única de V2-257 (intake.push, snippet→subtitle), con el dedup de la hoja
+        # haciendo converger las búsquedas solapadas.
+        {"id": "2.31", "title": "Un return de BÚSQUEDA llega a la hoja del encargo — buscar también es "
+                                "encontrar",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_search_return_reaches_the_sheet.py"]},
         {"id": "2.30", "title": "Lo que la última barrida deja en la hoja llega a la conversación — y NO se "
                                 "cuenta dos veces",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_last_sweep_tells_someone.py"]},
@@ -892,6 +900,15 @@ DOMAINS: list[dict] = [
         # Del arnés (`arnes-use-cases`), no se toca desde el motor: es la especificación EJECUTABLE de lo que ve
         # una persona esperando. RENDERIZA a propósito — un test de fuente puede dar por buena una pestaña que no
         # pinta nada o un loader que está en el DOM y no anima (la lección del orbe del móvil, nodo 4.19).
+        # V2-315-A (2026-08-25, familia «hoja vacía» del arnés, 9/28 rondas). Medido en vivo en kayak.es/cars:
+        # «381 resultados» en pantalla, 27 nodos con precio, y el extractor a CERO por construcción — cada oferta
+        # es un div con botón «Ver oferta», y el bucle de candidatos solo recorre a[href]. El recolector nuevo
+        # parte de las HOJAS con precio, sube hasta el límite de la tarjeta (un solo precio) y coge el nombre del
+        # aria-label más largo (el único sitio donde kayak escribe el modelo). GATED en que el de anclas salga
+        # VACÍO: Wallapop/Amazon no pueden ni enterarse. Se prueba RENDERIZANDO un fixture con la forma medida.
+        {"id": "4.47", "title": "Una tarjeta SIN ancla también es un resultado (y el camino de anclas no se "
+                                "mueve ni un pelo)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_card_without_an_anchor_is_still_a_result.py"]},
         {"id": "4.29", "title": "Contrato de PANTALLA de la hoja de proceso RENDERIZADO (pestaña activa, fases en "
                                 "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
             "ch": UNIT, "live": True,
