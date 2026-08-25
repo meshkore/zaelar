@@ -384,9 +384,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # …Y QUÉ NOMBRÓ ZAELAR CON SUS PROPIAS PALABRAS. El informe ya decía lo que el SISTEMA le puso
             # delante (`offered`), que responde a «¿se lo inventó?». Esto responde a la otra —«¿lo dijo?»—, que
             # es la que ha decidido mal tres veredictos hoy.
+            # Los títulos van CON su precio (V2-331): es lo que confirma de qué fila habla una frase que solo
+            # dice la marca —«la Brixton a 1.200 €»— y sin él el hecho infra-detectaba entregas reales.
+            _rs_v = mech.get("results_sheet") or {}
+            _pares = list(zip([str(t) for t in (_rs_v.get("titles") or [])],
+                              [str(p) for p in (_rs_v.get("prices") or [])] or [""] * len(_rs_v.get("titles") or [])))
             mech["delivered_by_name"] = verifymod.delivered_by_name(
-                transcript, [str(t) for t in ((mech.get("results_sheet") or {}).get("titles") or [])]
-                + [str(t) for t in ((mech.get("offered") or {}).get("named") or [])])
+                transcript, _pares + [str(t) for t in ((mech.get("offered") or {}).get("named") or [])])
             # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
             # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».

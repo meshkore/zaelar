@@ -101,3 +101,47 @@ def test_y_le_dice_al_juez_que_ese_bloqueador_TIENE_QUE_EXPLICARSE():
     low = txt.lower()
     assert "retuvo" in low and "ficción" in low
     assert "eficiencia" in low, "seguir trabajando tras entregar tiene que quedar nombrado como lo que es"
+
+
+# ── V2-331 · el PRECIO confirma de qué fila habla ─────────────────────────────────────────────────────────
+# Exigir los tres primeros tokens del título fallaba contra cómo se nombra una cosa AL HABLAR: la hoja dice
+# «Brixton Crossfire 125 XS» y zaelar dice «la Brixton a 1.200 €».
+#
+# MEDIDO en el turno de las 21:12 del 2026-08-25 —«me centro solo en las tres motos: la Yamaha R125 a 500 €, la
+# Brixton a 1.200 € y la Honda Varadero a 2.400 €»— donde el casador de V2-329 devolvía CERO. O sea que el
+# hecho construido para contradecir un «retuvo» estaba infra-detectando entregas: hacía justo lo contrario de
+# para lo que existe. Lo encontré midiendo mal el defecto hermano y revisando turno a turno lo que mi propia
+# regex había contado como «espera».
+
+_MOTOS = [("Moto Yamaha R125 2020 pocos km", "500 €"), ("Brixton Crossfire 125 XS", "1.200 €"),
+          ("Honda Varadero 125 revisada", "2.400 €"), ("Casco integral MT sin usar", "40 €"),
+          ("Yamaha XSR 700 impecable", "5.900 €")]
+_TURNO = ("Entendido, me centro solo en las tres motos: la Yamaha R125 a 500 €, la Brixton a 1.200 € y la "
+          "Honda Varadero a 2.400 €")
+
+
+def test_nombrar_por_la_MARCA_con_su_precio_cuenta_como_entrega():
+    r = V.delivered_by_name([{"who": "zaelar", "text": _TURNO}], _MOTOS)
+    assert r["n"] == 3, r["names"]
+    assert any("Brixton" in n for n in r["names"]), "la que solo se nombró por la marca"
+
+
+def test_y_NO_arrastra_a_la_que_comparte_marca():
+    """La sensibilidad del precio: «Yamaha XSR 700» está en la hoja y NO se mencionó. Sin el precio como
+    confirmación, cualquier «Yamaha» las contaría las dos."""
+    r = V.delivered_by_name([{"who": "zaelar", "text": _TURNO}], _MOTOS)
+    assert not any("XSR" in n for n in r["names"])
+    assert not any("Casco" in n for n in r["names"])
+
+
+def test_la_marca_SOLA_sin_precio_no_basta():
+    """Decir «he mirado varias Yamaha» no es entregar una fila concreta."""
+    r = V.delivered_by_name([{"who": "zaelar", "text": "he mirado varias Yamaha por ahí"}], _MOTOS)
+    assert r["n"] == 0
+
+
+def test_el_formato_VIEJO_sigue_funcionando():
+    """Compatibilidad: quien pase títulos sueltos sin precio sigue midiendo por los dos primeros tokens."""
+    r = V.delivered_by_name([{"who": "zaelar", "text": "la pantalla HP 27 HDMI por 35 €"}],
+                            ["Pantalla HP 27 HDMI"])
+    assert r["n"] == 1

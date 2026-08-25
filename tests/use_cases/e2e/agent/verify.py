@@ -681,7 +681,7 @@ def results_sheet(ids: list[str] | None = None) -> dict:
         if got is not None:
             reads.append((box, got))
     if not reads:
-        return {"read": False, "n_items": 0, "titles": [], "n_backed": 0, "n_sites_reported": 0,
+        return {"read": False, "n_items": 0, "titles": [], "prices": [], "n_backed": 0, "n_sites_reported": 0,
                 "boxes": boxes, "bare_box": None}
     items: list[dict] = []
     n_sites = 0
@@ -708,6 +708,9 @@ def results_sheet(ids: list[str] | None = None) -> dict:
         # (V2-234): a row without a name is not a result, it is a link that happened to be on the page.
         "n_named": sum(1 for it in items if str(it.get("title") or "").strip()),
         "titles": [str(it.get("title") or "")[:90] for it in items[:8]],
+        # …y su PRECIO en paralelo (V2-331): es lo que confirma de qué fila habla una frase que solo dice la
+        # marca. Misma longitud y mismo orden que `titles` a propósito — dos listas que se leen emparejadas.
+        "prices": [str(it.get("price") or "")[:24] for it in items[:8]],
         # RESPALDO POR FILA — «¿de dónde salió ESTE candidato?». Medido en `search-secondhand-monitor__es`
         # (2026-08-24 01:35): la hoja acabó con SEIS anuncios reales, cada uno con su enlace vivo a
         # milanuncios.com o es.wallapop.com, su precio y su ubicación… y este informe dijo «6 candidatos de
@@ -1315,7 +1318,16 @@ def delivered_by_name(transcript, known_titles) -> dict:
     Lo que devuelve NO es un veredicto: es un hecho con su turno, para que un «retuvo» tenga que explicarlo.
     """
     out: dict = {"n": 0, "names": [], "turns": []}
-    conocidos = [str(t) for t in (known_titles or []) if str(t).strip()]
+    # Cada entrada puede venir como título suelto o como (título, precio) — el precio es lo que confirma de qué
+    # fila habla una frase que solo dice la marca (ver abajo).
+    conocidos = []
+    for t in (known_titles or []):
+        if isinstance(t, (tuple, list)) and t:
+            titulo, precio = str(t[0]), (str(t[1]) if len(t) > 1 else "")
+        else:
+            titulo, precio = str(t), ""
+        if titulo.strip():
+            conocidos.append((titulo, precio))
     if not conocidos:
         return out
     vistos: set = set()
@@ -1326,12 +1338,27 @@ def delivered_by_name(transcript, known_titles) -> dict:
         if not linea:
             continue
         txt = _norm_title(linea)
-        for titulo in conocidos:
+        for titulo, precio in conocidos:
             toks = [w for w in _norm_title(titulo).split() if w not in _GENERIC_HEADS and len(w) > 1]
-            if len(toks) < 2 or not all(w in txt for w in toks[:3]):
+            if not toks or toks[0] not in txt:
                 continue
+            # V2-331 — EL PRECIO CONFIRMA DE CUÁL HABLA. Exigir los tres primeros tokens del título fallaba
+            # contra cómo se nombra una cosa al hablar: la hoja dice «Brixton Crossfire 125 XS» y zaelar dice
+            # «la Brixton a 1.200 €». Medido sobre el turno de las 21:12 del 2026-08-25 —«me centro solo en las
+            # tres motos: la Yamaha R125 a 500 €, la Brixton a 1.200 € y la Honda Varadero a 2.400 €»— el
+            # casador de V2-329 devolvía CERO, o sea que el hecho construido para contradecir un «retuvo»
+            # estaba infra-detectando entregas: hacía lo contrario de para lo que existe.
+            #
+            # La señal robusta no es contar tokens, es el NOMBRE + una confirmación: o la segunda palabra
+            # distintiva del título, o el PRECIO de esa misma fila en la frase. Con eso, 3 de 3 en la línea
+            # medida, y quedan fuera las filas no mencionadas incluso compartiendo marca («Yamaha XSR 700»
+            # frente a «Yamaha R125», ambas en la hoja: solo se cuenta la que lleva su precio al lado).
+            if not (len(toks) > 1 and toks[1] in txt):
+                _d = re.sub(r"\D", "", str(precio or ""))
+                if not (_d and _d in re.sub(r"\D", "", linea)):
+                    continue
             hit = titulo
-            clave = " ".join(toks[:3])
+            clave = toks[0] + " " + (toks[1] if len(toks) > 1 else "")
             if clave in vistos:
                 continue
             vistos.add(clave)
