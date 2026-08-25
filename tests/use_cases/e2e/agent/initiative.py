@@ -123,10 +123,39 @@ def _next_initiative_number() -> int:
     """
     taken = {int(m.group(1)) for p in INITIATIVES.rglob("V2-*.md")
              if (m := re.match(r"V2-(\d{3})\b", p.name))}
+    taken |= _numbers_claimed_by_commits()
     num = (max(taken) + 1) if taken else 1
     while num in taken or any(INITIATIVES.rglob(f"V2-{num:03d}-*.md")):
         num += 1
     return num
+
+
+def _numbers_claimed_by_commits() -> set[int]:
+    """Numbers a COMMIT already owns, even when no file was written for them (V2-316).
+
+    The scan above reads one registry — the files — and there are two. A fixing agent working this same board
+    lands its decision in `engine/CLAUDE.md` and the commit subject and writes the initiative file later, or
+    (during a long fixing run) not at all until the closing pass. Between those two moments the number looks
+    free to this function, and it hands it out.
+
+    Measured on 2026-08-25: `V2-312` was minted here for `things-to-do-nearby-weekend__es` while V2-312 was
+    already the role-flip work, committed an hour earlier. Nothing errored — that is the whole problem. Two
+    unrelated pieces of history answer to the same name, and every cross-reference written before the reuse
+    silently points at the wrong one, which is exactly what the archive-is-recursive note above exists to
+    prevent by the other door.
+
+    Fail-open: no git, no answer, and numbering behaves exactly as before. Missing a claim costs a collision
+    that a human renumbers; refusing to file costs a measured defect that nobody records.
+    """
+    try:
+        import subprocess
+        out = subprocess.run(["git", "log", "--format=%B"], cwd=str(INITIATIVES.parents[2]),
+                             capture_output=True, text=True, timeout=20)
+        if out.returncode != 0:
+            return set()
+        return {int(n) for n in re.findall(r"\bV2-(\d{3})\b", out.stdout or "")}
+    except Exception:  # noqa: BLE001
+        return set()
 
 
 def claim_initiative(slug: str) -> tuple[int, Path]:
