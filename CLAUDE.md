@@ -451,6 +451,35 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     declarada, ahora con coste), y **el worker avanzó al paso 1/6 y el turno no lo dijo**. Nodo 2.5, desarme
     en las tres mitades. Sin verificar en vivo.
 
+- **Un contratiempo también se cuenta: solo las buenas noticias llevaban un «cuéntalo» (V2-348, 2026-08-26)**:
+  cuarta cara de V2-222 y la simétrica de la segunda. Medido en `search-buy-used-car` ronda 8: el paso decía
+  «coches.net caído tras portada (página de error)» y el turno contestó «está entrando en el marketplace y ya va
+  dando pasos». **No era desobediencia**: el bloque de TAREAS DE FONDO tenía rama para SIN paso reportado
+  (V2-133), para ENCALLADA (V2-131) y para YA ENTREGADO / YA HA ENCONTRADO (V2-222) — y **ninguna** para un paso
+  que trae una mala noticia, así que el modelo relató la mitad que el bloque nombraba. La rama va DENTRO del
+  mismo imperativo que la que refleja (dos órdenes en un párrafo salen a cara o cruz) y pide **nombrar** lo que
+  falló y el plan B. El trinquete cobró de paso: el bloque entero se mudó a `live_blocks.py` con el precedente
+  exacto de V2-276, `_short_note` viajó con su único llamante y `prompt.py` bajó a 725. ⚠️ Al mudarlo sin
+  llevarse `_short_note`, el `except Exception: pass` que lo envuelve **se tragó el NameError y el bloque salió
+  VACÍO, sin un solo error**: un fail-open protege de que un fallo de datos tumbe el turno y del mismo golpe
+  esconde un cableado roto. ⚠️ Y el primer desarme **no mordió** —quité solo el primer fragmento de la cadena y
+  la palabra clave vivía en el siguiente—: un desarme que sale verde es una mutación mal hecha hasta que se
+  demuestre lo contrario.
+
+- **Un nombre que comparten todas las filas no nombra a ninguna (V2-346, 2026-08-26)**: la MISMA regla de
+  `dom.py` —la de V2-334, aquí abajo— pero una capa más arriba, entre FILAS en vez de entre nodos. Medido en la
+  sesión `faadd628` del plató ES: AutoScout24 devolvió doce filas de las que nueve llevaban por título el enlace
+  «+ Vehículos del profesional (FLEXICAR SAN SEBASTIAN…)» que cada tarjeta arrastra dentro, todas sin `url`.
+  `by_identity` las contó como nueve resultados con nombre —tienen letras—, entraron en la hoja, y el turno
+  anunció «en OcasionPlus Arganda hay uno por 11.565 euros». El juez lo puso de **bloqueador nº1** del caso, que
+  llevaba tres rondas en 0/1. La plantilla se reconoce por prefijo compartido por **al menos la mitad** de las
+  nombradas (así viene: los nueve difieren solo en el paréntesis final) y exigiendo que cada fila **añada algo
+  detrás** — cuatro títulos IDÉNTICOS son lo contrario, el mismo producto en cuatro tiendas de un comparador.
+  No es una lista negra de textos: mañana es otra tienda y otro idioma. Nodo 4.50. **Es el CINTURÓN, no el
+  arreglo**: la causa raíz es V2-347. Y de paso el trinquete de arquitectura cobró un fallo mío — V2-345 había
+  engordado `session.py` a 845 líneas y yo lo di por ajeno sin comprobarlo; la emisión de la narración se
+  extrajo entera a `progress.narration_out` y el fichero quedó en 820.
+
 - **Una ruta que comparten decenas de anclas no es la ficha de nada (V2-334, 2026-08-26)**: es la regla que
   `dom.py` ya aplica al ANCESTRO —«un dato que nombra a todas no nombra a ninguna»— llevada a la URL. Medido:
   ficha real **2** anclas por ruta · `/redirigir` **26** · `/privacy-policy` **297** · enlace a la propia página
