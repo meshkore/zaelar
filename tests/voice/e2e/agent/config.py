@@ -61,7 +61,11 @@ def _engine_key(name: str) -> str:
 
 DEEPSEEK_KEY = _env("TESTER_DEEPSEEK_KEY") or _env("DEEPSEEK_API_KEY") or _engine_key("DEEPSEEK_API_KEY")
 DEEPSEEK_BASE = _env("TESTER_DEEPSEEK_BASE", "https://api.deepseek.com")
-DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-flash")
+# V2-338b — el relevo del juez usa el PRO, no el flash. Medido el 2026-08-26 juzgando en diferido la ronda del
+# coche: el flash rompió el JSON del veredicto tres veces seguidas («Expecting ',' delimiter: line 8») y la
+# ronda quedó INFRA con el relevo FUNCIONANDO. Un juez es salida estructurada larga — exactamente lo que
+# distingue al pro del flash — y se le llama poco (una vez por ronda), así que el coste extra no pesa.
+DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-pro")
 # Prefer GLM for judging when a Z.AI key is present; the client falls back to DeepSeek on any Z.AI error (no balance).
 JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "aimlapi")
 
