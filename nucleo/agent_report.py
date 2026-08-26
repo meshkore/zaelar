@@ -29,7 +29,10 @@ def _post(payload: dict) -> int:
     if not tid:
         print("ZAELAR_TASK_ID no definido (no soy un worker gestionado) — ignoro", file=sys.stderr)
         return 0
-    payload = {"tid": tid, **payload}
+    # V2-350 — el token viaja TAMBIÉN por esta puerta. Ya estaba en el entorno (lo usa `mem_cli`) y esta era la
+    # única de las dos que no lo miraba: un worker HUÉRFANO —vivo, con el registro de su task_id ya sustituido
+    # por el de su relevo— se comía un 403 al publicar y en cambio escribía sus notas en el estado del NUEVO.
+    payload = {"tid": tid, "token": os.getenv("ZAELAR_TASK_TOKEN", ""), **payload}
     try:
         req = urllib.request.Request(
             _BASE + "/api/agent/report", data=json.dumps(payload).encode("utf-8"),

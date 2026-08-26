@@ -497,6 +497,14 @@ DOMAINS: list[dict] = [
         # 2026-08-20: «Sí, adelante» → «Hecho.» → «¿Ya está cancelada del todo?». El ack de TERMINADO puesto
         # sobre una tarea que acababa de ARRANCAR, con el daño en las palabras del propio operador dos líneas
         # después. No lo dijo el modelo: `confirm_task` compartía rama con `widget_data`.
+        # V2-350 — las DOS puertas del motor le contestaban cosas opuestas al mismo worker relevado, y en el
+        # peor orden: `/api/worker/act` le devolvía 403 (no podía ENTREGAR sus 7 coches verificados) y
+        # `/api/agent/report` no miraba el token (sí podía CONTAMINAR el estado de su relevo). El juez leyó las
+        # notas del fantasma como hechos de la ronda.
+        {"id": "2.33", "title": "Un worker RELEVADO deja de escribir en el estado de su relevo · y se le dice "
+                                "que lo es, en vez de dejarle reintentar a ciegas",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_relieved_worker_stops_writing_the_state.py"]},
         {"id": "2.17", "title": "Un «sí» a la confirmación arranca la tarea; no la termina", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_confirm_ack_is_a_start.py"]},
         # 2026-08-20: el turno que llevaba «Resérvame mesa en Casa Lucio» falló en el proveedor y devolvió
