@@ -230,6 +230,18 @@ def _hint_for(prog: str) -> str:
 _GuidedParser = bridge_usage.guided(_hint_for)
 
 
+def _ref(v: str) -> int:
+    """Un `ref` con los corchetes que NOSOTROS pintamos es un ref, no un error de sintaxis (V2-341).
+
+    `dom.py` renderiza cada elemento como `[2] button "Buscar"` y el propio encabezado de `_print_state` dice
+    «usa el numero [ref] con click/type» — o sea que la forma con corchetes es la que el worker tiene DELANTE
+    cuando escribe el comando. Medido en los logs de sesion del plato: `nav_cli type: error: argument ref:
+    invalid int value: '[2]'`. Misma regla que V2-306/V2-219: copiar literalmente lo que le enseñamos no puede
+    costarle un turno.
+    """
+    return int(str(v).strip().strip("[]"))
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="nav_cli", description="Conduce el navegador de zaelar (worker Claude Code)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=_GuidedParser)
@@ -241,11 +253,11 @@ def main(argv: list[str] | None = None) -> int:
     # página usa…») — and burned their turns on «invalid choice: 'open'» while the round ended with an empty
     # sheet. An alias keeps the semantics identical; a hint on the error would still cost the failed call.
     n = sub.add_parser("navigate", aliases=["open", "goto"], help="ir a una URL"); n.add_argument("url")
-    c = sub.add_parser("click", help="click en un [ref] del último snapshot"); c.add_argument("ref", type=int)
-    t = sub.add_parser("type", help="escribir en un [ref]"); t.add_argument("ref", type=int)
+    c = sub.add_parser("click", help="click en un [ref] del último snapshot"); c.add_argument("ref", type=_ref)
+    t = sub.add_parser("type", help="escribir en un [ref]"); t.add_argument("ref", type=_ref)
     t.add_argument("text"); t.add_argument("--submit", action="store_true")
     so = sub.add_parser("select_option", help="elegir opción de un <select> [ref] por texto/valor o --index")
-    so.add_argument("ref", type=int); so.add_argument("value", nargs="?", default="")
+    so.add_argument("ref", type=_ref); so.add_argument("value", nargs="?", default="")
     so.add_argument("--index", type=int, default=None)
     ca = sub.add_parser("click_at", help="VISIÓN: click en coordenadas (x y) de la captura")
     ca.add_argument("x", type=int); ca.add_argument("y", type=int)
@@ -258,6 +270,31 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("extract", help="raspar anuncios/resultados"); e.add_argument("--limit", type=int, default=14)
     v = sub.add_parser("visit", help="abrir UNA ficha en otra pestaña, leerla y cerrarla (NO pierdes el listado)")
     v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
+    # V2-341 — DOS FORMAS MÁS QUE EL CLI RECHAZABA Y EL WORKER ESCRIBE SOLO. Misma regla que V2-306: cuando
+    # el uso natural es inequívoco, el equivocado es el CLI. Medido sobre TODOS los logs de sesión del plató
+    # (41 errores de contrato con `nav_cli`):
+    #
+    #     18x  `open <url>`                    <- ya cerrado por V2-306; los 18 son anteriores
+    #      5x  `nav_cli <url>` sin verbo       <- una URL suelta solo puede ser `navigate`
+    #      5x  `type_at <ref> "texto"`         <- confundir `type` (ref) con `type_at` (coordenadas)
+    #
+    # Los dos que se cierran aqui NO son adivinar la intencion: una cadena que empieza por http(s) no es ningun
+    # otro verbo, y `type_at` con DOS argumentos donde el segundo no es un numero solo puede ser el `type` de
+    # toda la vida. Cada uno cuesta un turno del worker y, medido en la ronda del coche, cinco errores
+    # encadenados dejaron la hoja a cero.
+    #
+    # OJO con el indice: `main(argv=None)` deja que argparse lea `sys.argv[1:]`, asi que aqui el VERBO esta en
+    # la posicion 0 -- no en la 1. Escribirlo como `argv[1]` reventaba en cada invocacion real y pasaba los
+    # tests, que si pasan una lista.
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv:
+        if argv[0].startswith(("http://", "https://")):
+            argv.insert(0, "navigate")
+        elif argv[0] == "type_at" and len(argv) == 3:
+            try:
+                int(argv[2])          # `type_at x y` a medias: eso NO se toca, que lo diga argparse
+            except ValueError:
+                argv[0] = "type"      # `type_at <ref> "texto"` -> el `type` de siempre
     a = ap.parse_args(argv)
     if a.cmd in ("open", "goto"):     # V2-306: argparse keeps the alias the caller typed; the dispatch is one
         a.cmd = "navigate"

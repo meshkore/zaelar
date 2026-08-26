@@ -115,3 +115,83 @@ def test_open_and_goto_navigate_exactly_like_navigate(alias, monkeypatch):
     nav_cli.main([alias, "https://es.wallapop.com"])
     assert calls == [("navigate", {"url": "https://es.wallapop.com"})], \
         "el alias tiene que llegar al MISMO handler — un alias que parsea y no despacha es el peor de los dos"
+
+
+# ── V2-341: dos formas MÁS que el CLI rechazaba y el worker escribe solo. Medido sobre TODOS los logs de
+# sesión del plató — 41 errores de contrato con `nav_cli`, de los que 18 son el `open` que V2-306 ya cerró,
+# 5 una URL suelta sin verbo y 5 un `type_at` con la aridad de `type`. En la ronda del coche
+# (`search-buy-used-car`, 2026-08-26) cinco errores encadenados dejaron la hoja a CERO mientras el turno
+# contaba que seguía navegando. Misma regla que V2-306 y V2-219: cuando el uso natural es inequívoco, el
+# equivocado es el CLI.
+
+@pytest.mark.parametrize("url", ["https://es.wallapop.com/coches", "http://coches.net"])
+def test_a_bare_url_can_only_mean_navigate(url, monkeypatch):
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    nav_cli.main([url])
+    assert calls == [("navigate", {"url": url})], \
+        "una cadena que empieza por http(s) no es ningún otro verbo del catálogo"
+
+
+def test_type_at_with_a_ref_and_a_text_is_the_plain_type(monkeypatch):
+    """`type` va con [ref] del snapshot y `type_at` con COORDENADAS de la captura: el fallo natural entre dos
+    comandos hermanos. Medido cinco veces, una de ellas con el texto de búsqueda entero metido donde va la `y`
+    («invalid int value: 'diésel menos 100000km madrid'»)."""
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    nav_cli.main(["type_at", "26", "diésel menos 100000km madrid"])
+    assert calls == [("type", {"ref": 26, "text": "diésel menos 100000km madrid", "submit": False})]
+
+
+def test_a_real_type_at_with_coordinates_is_left_alone(monkeypatch):
+    """SENSIBILIDAD: el camino de VISIÓN no se toca. Sin esto, «acepta la aridad de type» y «rompe type_at»
+    pasarían el mismo test."""
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    nav_cli.main(["type_at", "410", "260", "hola"])
+    assert calls == [("type_at", {"x": 410, "y": 260, "text": "hola", "submit": False})]
+
+
+def test_a_half_written_type_at_still_fails_instead_of_being_guessed(monkeypatch):
+    """SENSIBILIDAD la otra dirección: `type_at 410 260` (falta el texto) son coordenadas legítimas a medias.
+    Convertirlo en un `type` escribiría «260» en el elemento 410 — actuar sobre una página real con un
+    argumento inventado, que es justo lo que V2-253 cerró en el otro extremo. Que lo diga argparse."""
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: pytest.fail("no debería despachar nada"))
+    with pytest.raises(SystemExit):
+        nav_cli.main(["type_at", "410", "260"])
+
+
+def test_the_verb_is_read_from_the_right_position_when_argv_is_none(monkeypatch):
+    """GUARDA DEL ÍNDICE, y no es hipotética: la primera versión de este arreglo leía `argv[1]`.
+    `main(argv=None)` deja que argparse lea `sys.argv[1:]`, así que el VERBO está en la posición 0 — pero
+    todos los tests de arriba pasan una lista, donde `argv[1]` es el primer ARGUMENTO. O sea que el fallo
+    salía verde en la suite entera y reventaba con TypeError en cada invocación real del worker."""
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    monkeypatch.setattr(sys, "argv", ["nav_cli", "https://coches.net"])
+    nav_cli.main()
+    assert calls == [("navigate", {"url": "https://coches.net"})]
+
+
+@pytest.mark.parametrize("verb,extra", [("click", []), ("type", ["hola"])])
+def test_a_ref_with_the_brackets_we_print_is_still_a_ref(verb, extra, monkeypatch):
+    """La más nuestra de las tres formas: `dom.py` pinta cada elemento como `[2] button "Buscar"` y el
+    encabezado de `_print_state` dice «usa el número [ref] con click/type». Copiar LITERALMENTE lo que le
+    enseñamos devolvía «invalid int value: '[2]'» y le costaba el turno."""
+    calls = []
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
+    monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
+    nav_cli.main([verb, "[2]", *extra])
+    assert calls and calls[0][1]["ref"] == 2
+
+
+def test_a_ref_that_is_not_a_number_still_fails(monkeypatch):
+    """SENSIBILIDAD: quitar corchetes no puede volverse «acepta cualquier cosa como ref». Un ref inventado
+    haría clic en el elemento equivocado de una página real — el fallo que V2-248 y V2-253 ya pagaron."""
+    monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: pytest.fail("no debería despachar nada"))
+    with pytest.raises(SystemExit):
+        nav_cli.main(["click", "[el botón de buscar]"])
