@@ -501,6 +501,13 @@ DOMAINS: list[dict] = [
         # peor orden: `/api/worker/act` le devolvía 403 (no podía ENTREGAR sus 7 coches verificados) y
         # `/api/agent/report` no miraba el token (sí podía CONTAMINAR el estado de su relevo). El juez leyó las
         # notas del fantasma como hechos de la ronda.
+        # V2-352 — el escritor resolvía la hoja por DOS caminos (sello de la pestaña, y si está vacío el
+        # registro de sesiones vivas) y los lectores por UNO. Ronda 12 del coche, 1/5: el backstop de entrega
+        # emitió su silencio NUEVE veces con rows=0 mientras la hoja tenía DOCE coches con enlace.
+        {"id": "2.34", "title": "El lector resuelve la hoja como el escritor (sello, y el registro de respaldo) "
+                                "· sin los dos caminos el backstop de entrega no ve una hoja llena",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_reader_resolves_the_sheet_like_the_writer.py"]},
         {"id": "2.33", "title": "Un worker RELEVADO deja de escribir en el estado de su relevo · y se le dice "
                                 "que lo es, en vez de dejarle reintentar a ciegas",
             "ch": UNIT,

@@ -57,6 +57,39 @@ def _found_candidates(nav_task_id: str) -> bool:
     return _sheet_has_rows(nav_task_id)
 
 
+def _sheet_of_tab(nav_task_id: str) -> str:
+    """La hoja de este encargo, resuelta como la resuelve QUIEN ESCRIBE (V2-352).
+
+    Hay dos caminos y el escritor (`navegador.act_api._sheet_for`, que alimenta `_hand_over`) usa los dos:
+
+      1. el SELLO de la pestaña — durable, sobrevive a que al worker le releven o se muera, que es justo cuando
+         más falta hace (V2-281). Pero **se escribe una sola vez, en `tasks.create()`**: si el registro aún no
+         tenía hoja sellada en ese instante, queda vacío PARA SIEMPRE, y el propio comentario de `create` lo
+         avisa. Ese cero es también la «tarjeta fantasma» que el arnés reporta: sin hoja resuelta, los hallazgos
+         caen en la caja `results` desnuda, la que no es de nadie.
+      2. el REGISTRO de sesiones vivas — sabe contestar mientras el worker viva.
+
+    Los LECTORES se paraban en el primero, y eso les dejaba ciegos justo en la ronda que lo destapó: medido en
+    `search-buy-used-car` ronda 12 (1/5), el backstop de entrega emitió su silencio NUEVE veces con `rows=0`
+    mientras la hoja tenía DOCE coches con nombre, precio y enlace — escritos por el camino 2, ilegibles por el
+    1. El operador preguntó cinco veces «¿ya tienes algo?» y oyó cinco negativas.
+
+    El ORDEN no cambia y es deliberado: sello primero, registro de RESPALDO. Ni más ni menos que el escritor.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        sello = str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip()
+        if sello:
+            return sello
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from nucleo import dispatch as _disp
+        return str(_disp.sheet_for_nav_task(str(nav_task_id)) or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _sheet_has_rows(nav_task_id: str) -> bool:
     """¿Hay ya filas CON NOMBRE en la hoja de este encargo?
 
@@ -81,9 +114,8 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
     Best-effort: no poder leerlo significa «no», que deja las caras de atasco y muro exactamente como estaban.
     """
     try:
-        from widgets.navegador import tasks as _t
         from widgets.results import data as _sheet
-        sheet = str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip()
+        sheet = _sheet_of_tab(nav_task_id)      # V2-352: los dos caminos, como el escritor
         if not sheet:
             return False
         items = (_sheet.view_data(sheet) or {}).get("items") or []
@@ -135,9 +167,8 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
     are, never WHERE they live — V2-278's boundary (never claim the screen) stays exactly where it was.
     """
     try:
-        from widgets.navegador import tasks as _t
         from widgets.results import data as _sheet
-        sheet = str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip()
+        sheet = _sheet_of_tab(nav_task_id)      # V2-352: los dos caminos, como el escritor
         if not sheet:
             return []
         out: list[str] = []
