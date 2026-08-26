@@ -591,6 +591,26 @@ class WorkerSession:
             emit("task", "💬 worker", text=t[:600], extra=ex)
         except Exception:
             pass
+        # V2-345 — y que el OPERADOR lo lea, no solo el visor. Medido en la sesión `7575e81a` (21,6 min del
+        # encargo del coche): 82 de estas narraciones, una cada 16 s, y ninguna llegaba a pantalla. Son la señal
+        # MÁS rica que tenemos —«Wallapop devuelve candidatos pero mayormente coches viejos (pre-2016), necesito
+        # filtros de año», «tengo más opciones dentro del presupuesto, voy a revisar el Renault Laguna Coupé
+        # (11.650 €)»— porque llevan el sitio, el precio, el modelo y el PORQUÉ del siguiente paso, que es
+        # justo lo que ninguna frase generada por nosotros puede saber.
+        #
+        # Va MARCADA con «💬», y el marcador no es decoración: el worker AFIRMA cosas, y esta casa ya pagó que
+        # una afirmación suya se tomara por un hecho comprobado (V2-249 — escribió «Recordatorio PROGRAMADO»
+        # sin poder programar nada). En este anillo conviven con lo que SÍ hemos verificado («14 resultados en
+        # la página»), así que tienen que distinguirse a simple vista. Mismo patrón que el muro de chat, que
+        # prefija en vez de inventar un canal.
+        #
+        # Se RECORTA a una línea legible: el evento del visor conserva los 600 caracteres enteros; la pestaña
+        # es para mirar de reojo mientras trabaja, no para leer el razonamiento completo.
+        try:
+            from nucleo import dispatch as _d
+            _d.record_phase(self._rec.task_id, "💬 " + (t[:150] + "…" if len(t) > 150 else t))
+        except Exception:  # noqa: BLE001
+            pass
 
     def _maybe_warn_context(self, ctx: int) -> None:
         """Nearing the context ceiling → ask the worker, ONCE, to deliver what it already has (incident 2026-08-18).

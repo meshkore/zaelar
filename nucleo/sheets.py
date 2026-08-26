@@ -25,7 +25,13 @@ from nucleo.runtime_ids import boot_id as _boot_id
 
 #: El anillo de fases: lo que cabe en una pestaña sin convertirse en un log. Vive aquí porque es la longitud
 #: de lo que la HOJA pinta; `dispatch.record_phase` lo re-importa para recortar el registro con la misma cifra.
-PHASES_KEPT = 40
+#: Cuántas líneas de PROCESO se conservan. Subido de 40 a 150 en V2-345, y el número sale de una medida, no
+#: del gusto: el encargo real de `search-buy-used-car` (sesión `7575e81a`, 21,6 min) produce **127 líneas** con
+#: la narración del worker dentro. Con 40 la pestaña enseñaba los últimos ~7 minutos y su propia frase de
+#: cierre —«Esto es lo que hizo para llegar aquí»— dejaba de ser cierta justo cuando más se lee, al acabar.
+#: Sigue siendo un ANILLO y sigue siendo lo que el operador MIRA, no la auditoría: esa vive entera en
+#: observabilidad, con su evidencia. Lo que cambia es que ahora cabe un encargo entero.
+PHASES_KEPT = 150
 
 # ── la HOJA de resultados como superficie del progreso (V2-227 ámbito C) ──────────────────────────────────────
 # El registro vivo es el ÚNICO dueño de «qué está pasando». La hoja no lo guarda: lo LEE en cada `view_data`,

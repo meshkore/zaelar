@@ -214,6 +214,11 @@ DOMAINS: list[dict] = [
             # en el escalón caro, y self-host SIN relevo de fábrica.
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
+            # V2-345: lo que el worker NARRA (82 eventos en 21,6 min, uno cada 16 s) llega a la pestaña de
+            # Proceso MARCADO con «💬». Es la señal más rica que tenemos —lleva sitio, precio, modelo y el
+            # porqué del paso— y no salía en ninguna pantalla. El marcador la separa de lo que verificamos
+            # nosotros: el worker AFIRMA cosas (V2-249).
+            "tests/agent_headless/unit/workers/test_what_the_worker_says_reaches_the_screen.py",
             "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
             # V2-301: el brief se compone EN PARALELO con el spawn — el compositor razonador (15-30 s) corría
