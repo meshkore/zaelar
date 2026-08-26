@@ -77,114 +77,20 @@ _SESSIONS: dict[str, SessionRecord] = {}
 # propio dispatch— CONTINÚA desde ahí, en vez de abrir la pestaña 2ª/3ª/5ª y re-teclear todo (bug ITV 17-jul: 5
 # workers, cero continuidad). Los datos reunidos ya viven en memoria (slots task.*), así que el worker reanudado
 # no los vuelve a pedir. TTL 30 min; cap de auto-reanudaciones para no respawnear algo roto en bucle.
-_WEB_RESUME: dict[str, dict] = {}
-_RESUME_TTL = 1800.0
-_RESUME_CAP = 3
-# …y como el registro de sesiones, esto vivía SOLO en RAM: un reinicio en mitad de una gestión web se llevaba por
-# delante la única forma de CONTINUARLA (el `native_sid` que hace que el worker retome su razonamiento en vez de
-# empezar de cero). Espejo en `sys_kv` — estado de proceso, no del operador, igual que el ledger de workers. El TTL
-# se aplica igual al cargar, así que una entrada rancia no revive nada.
-_RESUME_KEY = "web_resume"
+# ── CONTINUIDAD WEB (V2-049) — extraída a `nucleo/workers/resume.py` (trinquete, 2026-08-26). Los nombres
+# históricos quedan como ALIAS al MISMO objeto/función: quien mutaba `dispatch._WEB_RESUME` en sitio sigue
+# mutando el dict real, y los guardas de fuente miden las funciones reales estén donde estén.
+from nucleo.workers import resume as _wres
 
-
-def _resume_persist() -> None:
-    """Espeja `_WEB_RESUME` a `sys_kv`. Best-effort y fuera del hot-path (solo al cerrar una sesión web)."""
-    try:
-        from memory import api as _mem
-        if _WEB_RESUME:
-            _mem.kv_set(_RESUME_KEY, _WEB_RESUME)
-        else:
-            _mem.kv_del(_RESUME_KEY)
-    except Exception:
-        pass
-
-
-def _resume_restore() -> int:
-    """Recarga las entradas de continuidad web que no han caducado. Devuelve cuántas. La llama `start()`."""
-    try:
-        from memory import api as _mem
-        raw = _mem.kv_get(_RESUME_KEY)
-        if not isinstance(raw, dict):
-            return 0
-        now = time.time()
-        n = 0
-        for k, ent in raw.items():
-            if isinstance(ent, dict) and (now - float(ent.get("ts") or 0)) <= _RESUME_TTL:
-                _WEB_RESUME[str(k)] = ent
-                n += 1
-        if n:
-            logger.info(f"dispatch: {n} gestión(es) web reanudables recuperadas del proceso anterior")
-        return n
-    except Exception:
-        return 0
-
-
-def _goal_key(req: str) -> str:
-    """Firma estable de una gestión para casar reanudaciones (palabras de contenido, ordenadas)."""
-    return " ".join(sorted(_content_words(req)))
-
-
-def _resume_entry(rec, *, nav_tid: str, resume: dict | None, req: str, key: str,
-                  brief: bool, prev_count: int) -> dict:
-    """La entrada de reanudación que deja una gestión web INCOMPLETA. Fuera de `_run_session` para poder probarla.
-
-    V2-239 — UN `native_sid` QUE MATÓ A UN WORKER NO SE VUELVE A ARMAR. Aquí había un
-    `rec.native_sid or (resume or {}).get("native_sid")` que RECICLABA el id heredado cuando el worker no llegaba
-    a tener el suyo. Y no llegar a tenerlo significa exactamente una cosa: el CLI nunca anunció su sesión
-    (`rec.native_sid` lo pone el evento `spawned`, que nace del `system/init` de Claude Code — y ese init llega
-    igual en un arranque limpio que en un `--resume`, así que una reanudación que PRENDE sí deja su id). O sea que
-    el id volvía a la entrada, el siguiente worker se lo llevaba, y volvía a morir en el arranque.
-
-    Medido por el arnés SOBRE el arreglo de V2-237 (05dd79f, worktree limpio, `n_dirty=0`): el `take=True`
-    consumía bien y aun así la sesión `0364d544-505` se llevó por delante a los workers 3 y 4, muertos 2/2 a los
-    380 y 420 ms. **Consumir la entrada no basta si el camino de la muerte la vuelve a armar con el mismo id.**
-
-    `nav_task` SÍ conserva su respaldo: la pestaña del navegador es otro recurso, sobrevive al worker que la
-    abrió y no es lo que estaba matando a nadie.
-    """
-    return {"nav_task": nav_tid or str((resume or {}).get("nav_task") or ""),
-            "native_sid": rec.native_sid,
-            "ts": time.time(), "count": int(prev_count) + 1, "goal": req[:200],
-            # los criterios ya acordados viajan a la reanudación: recomponerlos a mitad de una búsqueda la
-            # convertiría en otra búsqueda distinta sin avisar
-            "brief_task": key if brief else str((resume or {}).get("brief_task") or "")}
-
-
-def _find_resume(req: str, *, take: bool = False) -> dict | None:
-    """Entrada de reanudación reciente que casa esta petición ('' → None): solape de palabras ≥0.5 con una gestión
-    web INCOMPLETA dentro del TTL. Poda de paso las caducadas.
-
-    `take=True` la CONSUME, y eso es lo que impide que varios workers reanuden la misma sesión del CLI.
-
-    Medido por el arnés el 2026-08-21 en `best-plumber-same-day` (1/5, cero filas extraídas), con la correlación
-    perfecta: tres workers distintos arrancaron con «REANUDA sesión nativa c5ad1d9e-ad0…» —**la misma**— y los
-    tres murieron a los 371, 401 y 374 ms; los dos que abrieron sesión propia sobrevivieron. **3 de 3 contra 0 de
-    3.** Una sesión del CLI no se puede reanudar dos veces a la vez: el segundo `--resume` del mismo id muere en
-    el arranque, antes de hacer nada. Y como esto se leía sin consumirse, cada escalada de la misma petición
-    —incluidas las que dispara el auto-resume— se llevaba el MISMO `native_sid`.
-
-    Consumirla es seguro porque el ciclo de vida ya la devuelve: al cerrar una gestión web incompleta,
-    `_run_session` reescribe la entrada con el `native_sid` ACTUAL. Y si el worker muere antes de llegar ahí, la
-    reanudación se pierde y el siguiente encargo empieza de cero — que es estrictamente mejor que morir en 400 ms.
-    """
-    now = time.time()
-    req_w = _content_words(req)
-    if not req_w:
-        return None
-    best, best_key, best_score = None, "", 0.0
-    for key, ent in list(_WEB_RESUME.items()):
-        if now - ent.get("ts", 0) > _RESUME_TTL:
-            _WEB_RESUME.pop(key, None)
-            continue
-        o = set(key.split())
-        union = len(req_w | o)
-        score = (len(req_w & o) / union) if union else 0.0
-        if score >= 0.5 and score > best_score:
-            best, best_key, best_score = ent, key, score
-    if best is not None and take:
-        _WEB_RESUME.pop(best_key, None)
-        _resume_persist()          # …y que el rastro durable no se la sirva otra vez tras un reinicio
-    return best
+_WEB_RESUME = _wres._WEB_RESUME
+_RESUME_TTL = _wres._RESUME_TTL
+_RESUME_CAP = _wres._RESUME_CAP
+_resume_persist = _wres._resume_persist
+_resume_restore = _wres._resume_restore
+_goal_key = _wres._goal_key
+_resume_entry = _wres._resume_entry
+_leave_resume = _wres._leave_resume
+_find_resume = _wres._find_resume
 
 
 def _schedule_auto_resume(req: str) -> None:
@@ -1623,14 +1529,8 @@ async def _run_session(task: "Task") -> None:
                     except Exception:
                         pass
             if kind == "web" and trusted:
-                gk = _goal_key(req)
-                if rec.ok or rec.status == "cancelled":
-                    _WEB_RESUME.pop(gk, None)                       # completada o parada → nada que reanudar
-                    _resume_persist()                               # …y que no quede rastro durable de algo cerrado
-                elif nav_tid or rec.native_sid:
-                    _WEB_RESUME[gk] = _resume_entry(rec, nav_tid=nav_tid, resume=resume, req=req, key=key,
-                                                    brief=bool(brief), prev_count=_prev_count)
-                _resume_persist()       # sobrevive al reinicio → la reanudación CONTINÚA en vez de empezar de cero
+                _leave_resume(rec, nav_tid=nav_tid, resume=resume, req=req, key=key,
+                              brief=bool(brief), prev_count=_prev_count)
             try:
                 if key.isdigit():
                     escalate.finish(int(key), rec.result_summary if rec.ok else "")

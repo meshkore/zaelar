@@ -25,6 +25,7 @@ import time
 import pytest
 
 from nucleo import dispatch
+from nucleo.workers import resume as _wres
 
 PETICION = "busca un fontanero que pueda venir hoy a arreglar una fuga en Madrid"
 OTRA = "reserva mesa para dos esta noche en un restaurante de Sevilla"
@@ -32,13 +33,16 @@ OTRA = "reserva mesa para dos esta noche en un restaurante de Sevilla"
 
 @pytest.fixture(autouse=True)
 def _registro_aislado(monkeypatch):
-    monkeypatch.setattr(dispatch, "_WEB_RESUME", {}, raising=False)
-    monkeypatch.setattr(dispatch, "_resume_persist", lambda: None, raising=False)
+    # V2-342: el subsistema vive en `nucleo/workers/resume.py`; se parchea AHÍ, que es donde las funciones
+    # leen sus globals — parchear el alias de dispatch dejaría el dict real intacto y el test mediría aire.
+    from nucleo.workers import resume as _wres
+    monkeypatch.setattr(_wres, "_WEB_RESUME", {}, raising=False)
+    monkeypatch.setattr(_wres, "_resume_persist", lambda: None, raising=False)
     yield
 
 
 def _sembrar(req=PETICION, sid="c5ad1d9e-ad0"):
-    dispatch._WEB_RESUME[dispatch._goal_key(req)] = {
+    _wres._WEB_RESUME[dispatch._goal_key(req)] = {
         "nav_task": "t9", "native_sid": sid, "ts": time.time(), "count": 1, "goal": req[:200]}
 
 
@@ -65,11 +69,13 @@ def test_sin_reanudacion_el_encargo_ARRANCA_de_cero():
 # ── la otra dirección: consumir no puede romper la continuidad de V2-049 ─────────────────────────────────────
 
 def test_la_entrada_VUELVE_al_cerrar_una_gestion_incompleta():
-    """GUARDA DE CABLEADO: sin la reescritura de `_run_session`, consumir la entrada convertiría el auto-resume en
-    un solo intento y la continuidad web de V2-049 moriría en silencio."""
+    """GUARDA DE CABLEADO: sin la reescritura al cerrar, consumir la entrada convertiría el auto-resume en un solo
+    intento y la continuidad web de V2-049 moriría en silencio. La propiedad cruza una costura desde V2-342: la
+    reescritura vive en `_leave_resume` y `_run_session` tiene que LLAMARLA — las dos mitades se afirman, porque
+    cada una sola es un cable suelto."""
     import inspect
-    src = inspect.getsource(dispatch._run_session)
-    assert "_WEB_RESUME[gk] = _resume_entry(" in src
+    assert "_leave_resume(" in inspect.getsource(dispatch._run_session)
+    assert "_WEB_RESUME[gk] = _resume_entry(" in inspect.getsource(dispatch._leave_resume)
 
 
 def test_leerla_SIN_tomarla_sigue_siendo_posible():
@@ -86,7 +92,7 @@ def test_una_peticion_DISTINTA_no_se_lleva_la_reanudacion_de_otra():
 
 
 def test_una_entrada_caducada_no_se_entrega():
-    dispatch._WEB_RESUME[dispatch._goal_key(PETICION)] = {
+    _wres._WEB_RESUME[dispatch._goal_key(PETICION)] = {
         "nav_task": "t9", "native_sid": "viejo", "ts": time.time() - dispatch._RESUME_TTL - 10, "count": 1}
     assert dispatch._find_resume(PETICION, take=True) is None
 

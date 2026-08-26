@@ -275,8 +275,11 @@ def _workers_directive() -> str:
         return ""
     return ("\nDIRIGES los PROCESOS DE FONDO de tu ESTADO: asocia cada orden del operador a SU proceso por el "
             "objetivo. Si REFINA/amplía uno en curso ('además, que sea verde'), INYÉCTALE la instrucción "
-            "(send_to_worker) — NO abras otro. Si pide PARARLO, mátalo (stop_worker). Si uno ESPERA una "
-            "respuesta, lo que diga el operador es esa respuesta (answer_worker). NO relances uno que ya corre.\n")
+            "(send_to_worker) — NO abras otro. Si se QUEJA de que uno tarda o no trae nada, INYÉCTALE "
+            "(send_to_worker) que ENTREGUE YA lo mejor que lleve y siga afinando — matarlo tira lo andado, y se "
+            "reserva para cuando te lo ORDENE o su estado lo marque atascado. Si pide PARARLO, mátalo "
+            "(stop_worker). Si uno ESPERA una respuesta, lo que diga el operador es esa respuesta "
+            "(answer_worker). NO relances uno que ya corre.\n")
 
 
 def _rails_directive() -> str:
