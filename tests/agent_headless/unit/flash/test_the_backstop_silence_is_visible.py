@@ -1,4 +1,4 @@
-"""V2-335 — un backstop que CALLA es indistinguible de uno que decidió callar, y eso costó una ronda entera.
+"""V2-336 — un backstop que CALLA es indistinguible de uno que decidió callar, y eso costó una ronda entera.
 
 En la ronda limpia del coche (`search-buy-used-car__es`, 2026-08-26 01:06-01:14) hubo tres respuestas de pura
 espera —una de ellas «Vale, dame un momento que lo miro» ante una nota con TRES coches válidos y la orden

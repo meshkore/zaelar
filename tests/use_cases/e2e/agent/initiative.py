@@ -149,7 +149,10 @@ def _numbers_claimed_by_commits() -> set[int]:
     """
     try:
         import subprocess
-        out = subprocess.run(["git", "log", "--format=%B"], cwd=str(INITIATIVES.parents[2]),
+        # `--all` y no solo HEAD (2026-08-26): motor-dev-2 pushó V2-335 y este guarda, leyendo el log LOCAL,
+        # me dejó reclamar el mismo número minutos después. El fetch es de quien llama (aquí no hay red);
+        # con él, las ramas remotas ya cuentan.
+        out = subprocess.run(["git", "log", "--all", "--format=%B"], cwd=str(INITIATIVES.parents[2]),
                              capture_output=True, text=True, timeout=20)
         if out.returncode != 0:
             return set()

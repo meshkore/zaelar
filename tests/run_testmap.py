@@ -33,7 +33,7 @@ DOMAINS: list[dict] = [
     {"id": "1", "name": "MEMORIA", "nodes": [
         # 2026-08-26: el bloque de estado presentaba un ENCARGO igual que un hecho permanente de la persona,
         # bajo la misma orden («dalo por sabido sin buscar»). Medido: el agente arrancó hablando de coches al
-        # preguntarle por un monitor, y en la memoria VIVA del operador 3 de 5 plazas eran encargos (V2-317).
+        # preguntarle por un monitor, y en la memoria VIVA del operador 3 de 5 plazas eran encargos (V2-337).
         {"id": "1.1", "title": "BD y primitivas de estado, y un ENCARGO no se presenta como hecho de la persona",
             "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
@@ -108,7 +108,7 @@ DOMAINS: list[dict] = [
             # V2-305: una respuesta de pura espera con la hoja llena sale CON las filas — el imperativo del
             # prompt pierde contra el reflejo de espera una ronda de cada tres (delivery_lag 98,9 s, ronda 34).
             "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py",
-            # V2-335: el backstop calló en toda una ronda con las entradas correctas y sus tests verdes — el
+            # V2-336: el backstop calló en toda una ronda con las entradas correctas y sus tests verdes — el
             # try/except pass se tragaba la avería. Ahora el silencio emite las ENTRADAS de la decisión.
             "tests/agent_headless/unit/flash/test_the_backstop_silence_is_visible.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [

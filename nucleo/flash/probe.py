@@ -1142,7 +1142,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             except Exception:
                 pass
         elif _rg_del._WAITING_REPLY_RE.search(_rg_del._norm_txt(spoken or "")):
-            # V2-335 — EL SILENCIO DEL BACKSTOP SE VE. En la ronda limpia del coche (2026-08-26 01:06-01:14)
+            # V2-336 — EL SILENCIO DEL BACKSTOP SE VE. En la ronda limpia del coche (2026-08-26 01:06-01:14)
             # hubo tres respuestas de pura espera con la hoja llevando CINCO coches válidos, y el backstop no
             # disparó NI UNA VEZ en toda la corrida — mientras pasa sus tests unitarios con esas mismas
             # entradas. Todo este bloque vive en un try/except pass, así que cualquier avería interna

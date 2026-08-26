@@ -116,7 +116,7 @@ def test_user_rules_remove_fuzzy_and_no_false_removal(fresh_db):
     assert gone2 == "" and len(memapi.state()["rules"]) == 1
 
 
-# ── Un ENCARGO no es un hecho sobre la persona (V2-317, 2026-08-26) ───────────────────────────────────────────
+# ── Un ENCARGO no es un hecho sobre la persona (V2-337, 2026-08-26) ───────────────────────────────────────────
 #
 # Los dos iban en la MISMA lista y bajo la MISMA orden — «dalo por sabido sin buscar» — así que «Vive en Madrid»
 # y «Tarea pendiente para el asistente: buscarle un coche de segunda mano» se leían como la misma clase de dato.

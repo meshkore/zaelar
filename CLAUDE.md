@@ -4939,7 +4939,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `memory.api` está congelada y un nombre nuevo no entra sin declararse en `__all__` y en el inventario.
 
 
-- **Un encargo viejo viajaba en CADA prompt como un hecho permanente de la persona** (V2-317, 2026-08-26,
+- **Un encargo viejo viajaba en CADA prompt como un hecho permanente de la persona** (V2-337, 2026-08-26,
   encargo del arnés). Midieron que zaelar arrancó hablando de COCHES al pedirle un monitor, arrastrando el caso
   anterior del lote. No era recall por similitud ni la ventana: era el **bloque de ESTADO**, que va siempre y no
   depende de la pregunta. `salient_long` ordena por importancia·peso, y ahí entraba «Tarea pendiente para el

@@ -143,7 +143,7 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
 
     # Perfil durable SALIENTE ("lo que sabes de él", SOTA in-context availability): cap TERSO (V2-027).
     #
-    # AN ERRAND IS NOT A FACT ABOUT THE PERSON (V2-317, 2026-08-26). Both used to go in the same list, under the
+    # AN ERRAND IS NOT A FACT ABOUT THE PERSON (V2-337, 2026-08-26). Both used to go in the same list, under the
     # same instruction — «dalo por sabido sin buscar» — so «Vive en Madrid» and «Tarea pendiente para el
     # asistente: buscarle un coche de segunda mano» read as the same class of thing. Measured on the harness:
     # in `cheapest-monitor` the agent opened by talking about CARS, carrying over the previous case's errand.
