@@ -678,6 +678,9 @@ DOMAINS: list[dict] = [
             # IMPOSIBLE. Medido: 14 turnos sin filas, 79 % contestan «te aviso». Cinco de los diez casos con
             # mecanismo ≥4 y resultado ≤3 traían ese veredicto.
             "tests/browser/unit/navegador/test_no_rows_no_order_to_recite.py",
+            # V2-334: una ruta que comparten decenas de anclas no es la ficha de nada. Medido: ficha real 2
+            # anclas · /redirigir 26 · /privacy-policy 297 · enlace a la propia página 2083.
+            "tests/browser/unit/navegador/test_a_shared_destination_is_not_a_listing.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.

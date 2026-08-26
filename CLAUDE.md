@@ -426,6 +426,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Una ruta que comparten decenas de anclas no es la ficha de nada (V2-334, 2026-08-26)**: es la regla que
+  `dom.py` ya aplica al ANCESTRO —«un dato que nombra a todas no nombra a ninguna»— llevada a la URL. Medido:
+  ficha real **2** anclas por ruta · `/redirigir` **26** · `/privacy-policy` **297** · enlace a la propia página
+  **2083**. Ese hueco es lo que hace legítimo el corte en 8. **No es una lista de textos** —el texto del botón lo
+  inventa cada sitio— sino un hecho de la página. Y tiene un efecto que no esperaba: al cortar los botones,
+  `cands` queda vacío y entra el recolector sin anclas (V2-320-A), que saca los nombres reales; sin el corte, una
+  página de diez ofertas colapsaba en UNA fila llamada «IR A LA OFERTA». **Invariante del desarme: un umbral
+  demasiado agresivo NO se detecta mirando el título —el recolector de respaldo lo rescata— sino el ENLACE, que
+  ese camino no tiene.**
+
 - **Sin filas no se puede pedir que las cuente (V2-330, 2026-08-25)**: la cara «YA HA ENCONTRADO algo» ordenaba
   «CUÉNTALE lo que encaje, con nombre y precio» — y las filas solo viajan cuando la hoja ya tiene alguna con
   nombre. Sin ellas el turno recibía un imperativo IMPOSIBLE y el modelo contestaba lo único honesto que le

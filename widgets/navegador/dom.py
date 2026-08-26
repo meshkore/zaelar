@@ -195,6 +195,26 @@ _JS_EXTRACT = r"""
   // never engaged. `\/product` already covers `/gp/product/`; `/gp/offer-listing/` stays OUT on purpose — an
   // offers page is a price for a product, not the product.
   const ITEM=/(\/item\/|\/p\/|\/producto|\/anuncio|\/product|\/listing|\/dp\/|\/ad\/)/i;
+  // UNA RUTA QUE COMPARTEN DECENAS DE ANCLAS NO ES LA FICHA DE NADA (V2-334). Es la regla que este fichero ya
+  // aplica al ANCESTRO —«un dato que nombra a todas no nombra a ninguna», ver `cardWalk`— llevada a la URL.
+  //
+  // Medido el 2026-08-26 sobre las páginas que condujeron las rondas:
+  //     ficha real (autoscout24)      : 2 anclas por ruta — min 2, max 2, mediana 2
+  //     «IR A LA OFERTA» (kelisto)    : /redirigir      ×26
+  //     política de privacidad        : /privacy-policy ×297
+  //     enlace a la propia página     : /internet-movil ×2083
+  //
+  // Ese hueco es lo que hace legítimo el corte: 8 está cuatro veces por encima de una ficha real y tres por
+  // debajo de la basura observada. Sin él entraban en la hoja «IR A LA OFERTA — 27,90 €», «Mostrar detalles»
+  // (que apunta a `#`) y avisos legales sin título — los «datos basura (disclaimers)» que el juez nombró en
+  // `best-rated-rental-car__es` y la fila-botón que ya se había visto en coches.net y en kayak.
+  //
+  // NO es una lista de textos, que es lo que se rechazó en V2-324: el texto del botón lo inventa cada sitio,
+  // pero «esta URL la comparten veintiséis anclas» es un hecho de la página.
+  const _porRuta = {};
+  for(const a of document.querySelectorAll('a[href]')){
+    try{ const _p = new URL(a.href).pathname; _porRuta[_p] = (_porRuta[_p] || 0) + 1; }catch(_){}
+  }
   const cands=[];
   for(const a of document.querySelectorAll('a[href]')){
     let href; try{ href=a.href; }catch(_){ continue; }
@@ -209,6 +229,7 @@ _JS_EXTRACT = r"""
     const pm=text.match(priceRe);
     // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
     let key, path=''; try{ const u=new URL(href); key=u.origin+u.pathname; path=u.pathname; }catch(_){ key=href; }
+    if(path && _porRuta[path] > 8) continue;      // V2-334: destino COMPARTIDO (redirección, política, la propia página)
     // V2-240 — UN RESULTADO ES UN NOMBRE Y UNA FORMA DE ACTUAR SOBRE ÉL, no un precio. El filtro pedía precio
     // porque «un anuncio tiene precio», y eso es verdad de UNA clase de encargo: la compra. Un fontanero, un
     // barbero, un cerrajero o un dentista no publican precio, así que la página devolvía CERO filas y el turno
