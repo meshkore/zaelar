@@ -50,11 +50,40 @@ def test_the_browser_card_is_no_longer_excluded_from_the_desktop():
     assert 'id==="navegador"' not in src.replace(" ", "")
 
 
-def test_per_task_browser_tabs_stay_ephemeral():
-    """`navegador::t1` es UNA pestaña de UNA tarea: restaurarla pintaría algo que ya no existe."""
+def test_instance_cards_persist_and_a_dead_tab_is_filtered_at_restore():
+    """DECISIÓN SUPERADA (V2-351, orden del operador 2026-08-26): las tarjetas-INSTANCIA también se guardan.
+
+    La regla vieja («navegador::t1 es UNA pestaña de UNA tarea: restaurarla pintaría algo que ya no existe»)
+    excluía TODO id con `::` — y con él la hoja del encargo (`results::ece70b-1`), cuyos datos SÍ persisten en
+    disco: el operador refrescó en mitad del trabajo y leyó «Sin resultados todavía» encima de una hoja con 12
+    candidatos reales (medido: /api/canvas/layout solo guardaba [{id:"results"}]). El espíritu de la regla vieja
+    se conserva DONDE era verdad: una instancia de navegador SIN tarea viva detrás se filtra en el restore
+    (contra la lista `live` del servidor), porque su tarjeta es estado de proceso, no una hoja persistida."""
     src = _desktop()
     layout = src[src.index("_layout()"):src.index("_persist()")]
-    assert 'id.includes("::")' in layout and "return" in layout
+    assert 'id.includes("::")' not in layout.split("//",1)[0] or True
+    # la EXCLUSIÓN ya no existe en _layout (el comentario puede nombrarla; el código no puede ejecutarla):
+    code_lines = [l for l in layout.splitlines() if not l.strip().startswith("//")]
+    assert not any('includes("::")' in l and "return" in l for l in code_lines), layout
+    restore = src[src.index("async restore()"):src.index("\n  has(id){")]
+    assert 'startsWith("navegador::")' in restore and "liveSet" in restore
+
+
+def test_a_fossil_base_card_next_to_its_instance_is_swept_at_restore():
+    """El FANTASMA del informe de ronda («la pieza BASE encima de su propia instancia, vacía»): una base pelada
+    junto a una instancia de su misma base es el fósil del eco pre-V2-261, y el restore lo barre. Una base SOLA
+    sigue siendo legítima (el operador abrió la pieza sin encargo detrás)."""
+    src = _desktop()
+    restore = src[src.index("async restore()"):src.index("\n  has(id){")]
+    assert "bases" in restore and 'split("::",1)[0]' in restore
+    assert "!bases.has(id)" in restore.replace(" ", "")
+
+
+def test_live_errands_come_back_even_if_this_desktop_never_saved_them():
+    """`live` del servidor se FUSIONA: la tarjeta que se abrió con la página cerrada también vuelve."""
+    src = _desktop()
+    restore = src[src.index("async restore()"):src.index("\n  has(id){")]
+    assert "srv.live" in restore
 
 
 def test_the_geometry_travels_to_the_server_too():
@@ -89,18 +118,40 @@ def _body(resp) -> dict:
 def test_the_server_remembers_the_desktop_across_a_restart(fresh_db):
     from server.voice_api import canvas_layout, canvas_state
 
-    layout = [{"id": "results", "q": "", "left": "120px", "top": "80px", "z": "22"},
+    layout = [{"id": "results::ab12cd-1", "q": "ab12cd-1", "left": "120px", "top": "80px", "z": "22"},
               {"id": "navegador", "q": "", "left": "540px", "top": "90px", "z": "23"}]
-    asyncio.run(canvas_state({"open": ["results", "navegador::t1", "navegador"], "layout": layout}))
+    asyncio.run(canvas_state({"open": ["results::ab12cd-1", "navegador"], "layout": layout}))
 
     got = _body(asyncio.run(canvas_layout()))
-    assert [it["id"] for it in got["items"]] == ["results", "navegador"]
+    # V2-351: la INSTANCIA viaja entera — es la tarjeta que el operador estaba mirando de verdad
+    assert [it["id"] for it in got["items"]] == ["results::ab12cd-1", "navegador"]
     assert got["items"][0]["left"] == "120px"
 
 
 def test_asking_for_a_desktop_that_was_never_saved_is_not_an_error(fresh_db):
     from server.voice_api import canvas_layout
-    assert _body(asyncio.run(canvas_layout())) == {"items": [], "at": 0}
+    got = _body(asyncio.run(canvas_layout()))
+    assert got["items"] == [] and got["at"] == 0
+    assert isinstance(got.get("live"), list)          # V2-351: lista vacía = «no sé», nunca ausente
+
+
+def test_the_layout_reports_the_errands_running_right_now(fresh_db, monkeypatch):
+    """V2-351 — `live`: la hoja de cada encargo vivo con superficie de hoja + cada pestaña de navegador."""
+    import server.voice_api as V
+
+    class _Rec:
+        status = "working"
+        surface = "lista"
+        sheet = "ec70b-1"
+    from nucleo import dispatch as _d
+    monkeypatch.setattr(_d, "_sheet_sessions", lambda: [_Rec()], raising=False)
+    from widgets.navegador import tasks as _t
+    monkeypatch.setattr(_t, "all_ids", lambda: ["t1"], raising=False)
+    # Por el ENDPOINT, no por el helper: la guarda tiene que enrojecer también si el cableado se desconecta
+    # (medido construyéndola: gutting `live = _live_canvas_instances()` dejaba verde una cara que llamaba al
+    # helper a pelo).
+    got = _body(asyncio.run(V.canvas_layout()))
+    assert "results::ec70b-1" in got["live"] and "navegador::t1" in got["live"], got
 
 
 def test_the_desktop_geometry_never_reaches_the_prompt(fresh_db):

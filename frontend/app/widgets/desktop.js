@@ -173,8 +173,14 @@ export class Desktop {
   // agrandar la hoja de resultados para leerla a gusto y recargar la devolvía a su tamaño de fábrica — el
   // esfuerzo del operador se perdía en cada refresco, que es la forma más rápida de que una función no se use.
   _layout(){
+    // V2-351 — INSTANCE cards persist too. This used to skip every `base::instance` id, so the desktop the
+    // operator actually works on (the errand sheet `results::ece70b-1` with 12 real candidates, the browser
+    // tab card) was NEVER saved: a refresh mid-errand restored only the fossil BASE cards and the operator
+    // read «Sin resultados todavía» on top of a sheet that was full. Measured live 2026-08-26 on the test
+    // rig: /api/canvas/layout held exactly [{id:"results", q:""}] while the live canvas held two instances.
+    // The sheet data itself persists on disk (view_data(q) reloads it), so restoring the card is honest.
     const items=[];
-    this.wins.forEach((w,id)=>{ if(id.includes("::")) return;
+    this.wins.forEach((w,id)=>{
       const c=w.card;
       items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||"",
                   w:c.style.width||"", h:c.style.height||""}); });
@@ -217,15 +223,32 @@ export class Desktop {
     // conserva la geometría (`/api/canvas/layout`) y la devuelve para reconstruirlo. Solo como FALLBACK: si este
     // navegador tiene su propio estado, MANDA él (el frontend sigue siendo autoritativo del canvas), y la época de
     // wipe de arriba sigue teniendo la última palabra — un reset deja el escritorio en blanco y aquí no se resucita.
-    if(!items.length){
-      try{
-        const r=await fetch("/api/canvas/layout").then(r=>r.json());
-        if(Array.isArray(r.items) && r.items.length){
-          items=r.items;
-          console.info("desktop: restaurado del servidor (este navegador no tenía escritorio guardado)");
-        }
-      }catch(_){}
+    // V2-351: the layout endpoint is fetched ALWAYS now — besides the fallback geometry it reports `live`, the
+    // instance cards of errands running RIGHT NOW (their sheet, their browser tab), which is the truth the
+    // operator asked the refresh to reflect.
+    let srv={items:[], live:[]};
+    try{ srv = await fetch("/api/canvas/layout").then(r=>r.json()) || srv; }catch(_){}
+    if(!items.length && Array.isArray(srv.items) && srv.items.length){
+      items=srv.items;
+      console.info("desktop: restaurado del servidor (este navegador no tenía escritorio guardado)");
     }
+    // V2-351 — THE FOSSIL SWEEP. A bare BASE card next to an instance of the same base is the ghost the round
+    // report names («se abrió la pieza BASE encima de su propia instancia, vacía»): the pre-V2-261 echo used to
+    // open base cards and _persist saved them forever, so every restore resurrected an empty «Resultados» ON TOP
+    // of the real sheet. A base card is legitimate alone; next to its own instances it is the fossil.
+    const bases = new Set(items.filter(it=>String(it.id||"").includes("::")).map(it=>String(it.id).split("::",1)[0]));
+    items = items.filter(it=>{ const id=String(it.id||""); return id.includes("::") || !bases.has(id); });
+    // …and the errands running right now come back even if this desktop never saved them (the page was closed
+    // when their card opened, or another browser did the work). Geometry-less: they auto-place.
+    const have = new Set(items.map(it=>String(it.id||"")));
+    for(const id of (Array.isArray(srv.live)?srv.live:[])){
+      if(id && !have.has(String(id))){ items.push({id:String(id), q:""}); have.add(String(id)); }
+    }
+    // A browser-tab card with no LIVE task behind it has nothing to reload: navegador data is process state,
+    // not a persisted sheet. Sheets and every other widget restore always.
+    const liveSet = new Set((Array.isArray(srv.live)?srv.live:[]).map(String));
+    items = items.filter(it=>{ const id=String(it.id||"");
+      return !(id.startsWith("navegador::") && !liveSet.has(id)); });
     if(!items.length) return;
     this._restoring=true;
     try{ for(const it of items){ await this.show(it.id, {q:it.q, pos:it}); } }

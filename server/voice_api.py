@@ -474,19 +474,51 @@ def open_instances() -> list[str]:
     return list(getattr(canvas_state, "_last_inst", None) or [])
 
 
+def _live_canvas_instances() -> list:
+    """The instance cards of work running RIGHT NOW (V2-351): the sheet of every live errand whose surface is
+    the results sheet, plus every browser-tab card the server holds. This is what a refresh must put back even
+    when the saved desktop never knew them — the card opened while the page was closed, or another browser did
+    the work. Best-effort by construction: an empty list means «no sé», and the restore falls back to the saved
+    desktop alone."""
+    out: list = []
+    try:
+        from nucleo import dispatch as _d
+        from nucleo import sheets as _sh
+        from widgets.results import data as _rd
+        for r in _d._sheet_sessions():
+            sid = _sh.sheet_of(r)
+            if sid:
+                out.append(_rd.instance_id(sid))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from widgets.navegador import tasks as _t
+        for tid in _t.all_ids():
+            out.append(_t.inst_id(tid))
+    except Exception:  # noqa: BLE001
+        pass
+    seen: list = []
+    for i in out:
+        if i and i not in seen:
+            seen.append(i)
+    return seen
+
+
 @router.get("/api/canvas/layout")
 async def canvas_layout():
-    """The desktop AS the operator left it (cards + positions). Restoration fallback when browser `localStorage`
-    does not have it — another browser, another profile, or the same zaelar through another origin
-    (localhost:43917 vs local.zaelar.com:44317, two distinct stores for the same desktop). Read-only."""
+    """The desktop AS the operator left it (cards + positions) PLUS `live`, the instance cards of errands
+    running right now (V2-351). Restoration fallback when browser `localStorage` does not have it — another
+    browser, another profile, or the same zaelar through another origin (localhost:43917 vs
+    local.zaelar.com:44317, two distinct stores for the same desktop). Read-only."""
+    live = _live_canvas_instances()
     try:
         from memory import api as memory
         snap = memory.kv_get("canvas_layout")
         if isinstance(snap, dict) and isinstance(snap.get("items"), list):
-            return JSONResponse({"items": snap["items"], "at": snap.get("at") or 0})
+            return JSONResponse({"items": snap["items"], "at": snap.get("at") or 0, "live": live})
     except Exception:  # noqa: BLE001
         pass
-    return JSONResponse({"items": [], "at": 0})
+    return JSONResponse({"items": [], "at": 0, "live": live})
 
 
 @router.get("/api/energy")
