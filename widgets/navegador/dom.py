@@ -60,13 +60,28 @@ _JS_EXTRACT = r"""
   // este mismo listado. Medido 2026-08-23 con dos tarjetas: con el margen de 4, una ficha SIN precio se subía a
   // la rejilla y se traía el de la vecina. Un nombre de la vecina se ve; un precio de la vecina se lee como un
   // hallazgo.
-  const cardWalk=(a, read, maxPaths)=>{
+  const cardWalk=(a, read, maxPaths, itemBound)=>{
     const cap=(maxPaths===undefined?4:maxPaths);
+    // V2-347 — RUTAS no es FICHAS. Measured on the saved autoscout24.es listing (2026-08-26): the card is an
+    // <article> holding exactly TWO paths — the listing («/anuncios/…», twice: accessibility anchor + naming
+    // anchor) and the DEALER («/profesionales/…») — with the price node «€ 11.900» right there at level 1.
+    // maxPaths=1 read «2 paths» as «this spans two cards» and broke the walk at the FIRST level, so no listing
+    // ever got a price, every anchored candidate died, and the price-leaf fallback shipped 12 rows titled with
+    // the dealer link and NO url — the worker could not open a single detail page and degraded to reading
+    // screenshots (~14 s per cycle). The boundary the 2026-08-23 measurement actually needed is «a level that
+    // spans several LISTINGS», so when the anchor ITSELF is listing-class (ITEM), only listing-class paths
+    // count toward the cap: the dealer/chrome link no longer closes the card, and the grid (19+ listing paths
+    // one level up) still breaks the walk exactly as before. Non-ITEM anchors keep the raw count — on pages
+    // like kelisto the price already lives INSIDE the anchor (`priceIn`) and the walk stays conservative.
+    let mine=''; try{ mine=new URL(a.href).pathname; }catch(_){}
+    const scoped = !!itemBound && ITEM.test(mine);
     let n=a;
     for(let i=0;i<5&&n&&n.parentElement;i++){
       n=n.parentElement;
       const paths=new Set();
-      for(const l of n.querySelectorAll('a[href]')){ try{ paths.add(new URL(l.href).pathname); }catch(_){} }
+      for(const l of n.querySelectorAll('a[href]')){
+        try{ const p=new URL(l.href).pathname; if(!scoped || ITEM.test(p)) paths.add(p); }catch(_){}
+      }
       if(paths.size>cap) break;
       const got=read(n);
       if(got) return got;
@@ -187,7 +202,7 @@ _JS_EXTRACT = r"""
     }
     return '';
   };
-  const cardPrice=(a)=>cardWalk(a, priceIn, 1);
+  const cardPrice=(a)=>cardWalk(a, priceIn, 1, true);   // V2-347: the price cap counts LISTINGS, not links
   const cardTel=(a)=>{
     return cardWalk(a, (n)=>{
       const t=n.querySelector('a[href^="tel:"]');

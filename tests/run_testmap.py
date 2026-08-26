@@ -1007,6 +1007,17 @@ DOMAINS: list[dict] = [
                                 "concesionario no es un coche) · y el mismo producto en cuatro tiendas sí",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_name_shared_by_every_row_names_none.py"]},
+        # V2-347 — la causa RAÍZ de las filas de arriba: RUTAS no es FICHAS. El <article> real de autoscout24
+        # lleva 2 rutas (la ficha ×2 + el CONCESIONARIO) y el paseo del precio con maxPaths=1 rompía en el
+        # nivel 1 → cero candidatos con ancla → el respaldo por hojas fabricaba filas sin url (el worker
+        # degradado a leer capturas, ~14 s por ciclo). Cuando el ancla ES de clase ficha, el tope cuenta solo
+        # rutas de esa clase; la rejilla (19+ fichas) sigue rompiendo — la protección anti-vecina, re-afirmada.
+        # Fixture: EXTRACTO VERBATIM de la página real guardada — un lookalike a mano es como este defecto
+        # se quedó invisible.
+        {"id": "4.51", "title": "El enlace del concesionario no cierra la tarjeta: autoscout sale con "
+                                "título=coche y url=ficha (y la rejilla sigue frenando el paseo)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_a_dealer_link_does_not_close_the_card.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
