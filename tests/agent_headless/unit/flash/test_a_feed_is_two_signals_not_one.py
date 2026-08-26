@@ -21,7 +21,7 @@ Ahora se exigen las DOS señales para callar, así que la guarda es **estrictame
 sigue cubriendo el incidente que la creó —que tenía ambas— y devuelve el backstop a los dominios donde su
 silencio costaba la entrega.
 """
-from nucleo.flash import router_guards as RG
+from nucleo.flash import delivery as RG
 
 _COCHES = ["Fiat Panda 4x4 — 6900 €", "Mercedes Clase A — 9500 €", "Peugeot 3008 — 8490 €"]
 _HOTELES = ["La Banda Living Hostel — 48 €", "Eurostars Sevilla — 55 €", "Hotel Don Paco — 60 €"]

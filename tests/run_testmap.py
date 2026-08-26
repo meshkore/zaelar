@@ -107,7 +107,7 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_probe_never_mute.py",
             # V2-305: una respuesta de pura espera con la hoja llena sale CON las filas — el imperativo del
             # prompt pierde contra el reflejo de espera una ronda de cada tres (delivery_lag 98,9 s, ronda 34).
-            "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py",
+            "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py",  # familia del backstop → nucleo/flash/delivery.py (V2-340)
             # V2-336: el backstop calló en toda una ronda con las entradas correctas y sus tests verdes — el
             # try/except pass se tragaba la avería. Ahora el silencio emite las ENTRADAS de la decisión.
             "tests/agent_headless/unit/flash/test_the_backstop_silence_is_visible.py",

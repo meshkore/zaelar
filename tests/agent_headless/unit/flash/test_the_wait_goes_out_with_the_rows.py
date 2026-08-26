@@ -8,7 +8,7 @@ and failing. Same family as the never-mute backstop (V2-132) and `holding_line` 
 behaviour is deterministic — named rows in front, reply says only «wait» — the code guarantees it, not the
 model's temperature.
 """
-from nucleo.flash import router_guards as RG
+from nucleo.flash import delivery as RG
 
 # La segunda LLEVA la categoría a propósito: la puerta de pertenencia (ronda 35) exige compartir un token
 # con el encargo, y un título sin la palabra categoría («Yamaha F370BL Negra» a secas) NO se anuncia — es el
@@ -66,11 +66,17 @@ def test_the_probe_actually_wires_it():
     """Guarda de cableado (fuente SIN comentarios): la decisión sin llamante es el arreglo que no existe —
     dos guardas de esta suite ya pasaron en verde con la llamada borrada porque el comentario la nombraba."""
     from pathlib import Path
-    src = "\n".join(ln for ln in Path("nucleo/flash/probe.py").read_text().splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "sheet_delivery_backstop(spoken" in src
-    assert "any_live_task_rows()" in src
-    assert "errand=_goal_del" in src, "sin el encargo, la categoría del dominio mata la frescura de todas las filas"
+    # V2-340: el cableado se mudó a `delivery.apply_to_reply`, así que el guarda mira los DOS sitios — que
+    # el probe llame, y que la llamada siga llevando el encargo. Comprobar solo el probe daría verde con la
+    # función vacía; comprobar solo la función, con el probe sin llamarla.
+    probe = "\n".join(ln for ln in Path("nucleo/flash/probe.py").read_text().splitlines()
+                      if not ln.strip().startswith("#"))
+    assert "delivery.apply_to_reply(spoken" in probe or "_delivery.apply_to_reply(spoken" in probe
+    deliv = "\n".join(ln for ln in Path("nucleo/flash/delivery.py").read_text().splitlines()
+                       if not ln.strip().startswith("#"))
+    assert "sheet_delivery_backstop(spoken" in deliv
+    assert "any_live_task_rows()" in deliv
+    assert "errand=encargo" in deliv, "sin el encargo, la categoría del dominio mata la frescura de todas las filas"
 
 
 def test_junk_rows_from_an_unfiltered_feed_are_never_announced():

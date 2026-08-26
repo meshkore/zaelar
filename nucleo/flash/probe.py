@@ -1121,43 +1121,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
-    # V2-305 — EL BACKSTOP DE ENTREGA: una respuesta de pura espera con la hoja YA llena de filas con nombre
-    # sale CON las filas. Medido en la ronda 34: nota+cara delante y «te aviso en cuanto tenga novedades»
-    # cinco turnos seguidos (delivery_lag_s 98,9 s) — el imperativo pierde contra el reflejo de espera una
-    # ronda de cada tres, y la conducta correcta aquí es determinista. La decisión vive en `router_guards`
-    # (compartible); la VOZ queda FUERA a propósito, como en V2-210: su stream ya se ha dicho cuando esto
-    # podría corregirlo, y añadir detrás es hablar dos veces — su arreglo es pre-generación, con su medición.
-    try:
-        from . import live_blocks as _lb_del
-        from . import router_guards as _rg_del
-        _said_del = " ".join(str((m or {}).get("content") or "") for m in sess.window
-                             if (m or {}).get("role") == "assistant")
-        _goal_del, _rows_del = _lb_del.any_live_task_rows()
-        _extra_del = _rg_del.sheet_delivery_backstop(spoken or "", _rows_del, _said_del, errand=_goal_del)
-        if _extra_del:
-            spoken = ((spoken.rstrip() + " ") if spoken else "") + _extra_del
-            try:
-                from voice.observer import emit as _emit_del
-                _emit_del("brain", "📬 backstop de entrega: la espera sale con las filas", role="system")
-            except Exception:
-                pass
-        elif _rg_del._WAITING_REPLY_RE.search(_rg_del._norm_txt(spoken or "")):
-            # V2-336 — EL SILENCIO DEL BACKSTOP SE VE. En la ronda limpia del coche (2026-08-26 01:06-01:14)
-            # hubo tres respuestas de pura espera con la hoja llevando CINCO coches válidos, y el backstop no
-            # disparó NI UNA VEZ en toda la corrida — mientras pasa sus tests unitarios con esas mismas
-            # entradas. Todo este bloque vive en un try/except pass, así que cualquier avería interna
-            # desaparece sin ruido; y un backstop que calla es indistinguible de uno que decidió callar.
-            # Este emit deja las ENTRADAS de la decisión donde el arnés las lee: cuántas filas le dio
-            # `any_live_task_rows`, de qué encargo, y cuánto había dicho ya la ventana.
-            try:
-                from voice.observer import emit as _emit_del2
-                _emit_del2("brain", "🤐 backstop de entrega CALLÓ ante una espera", role="system",
-                           extra={"rows": len(_rows_del or []), "goal": (_goal_del or "")[:80],
-                                  "said_chars": len(_said_del or ""), "reply": (spoken or "")[:90]})
-            except Exception:
-                pass
-    except Exception:
-        pass
+    # EL BACKSTOP DE ENTREGA (V2-305/336/339, extraído a `delivery` en V2-340): una respuesta de pura espera
+    # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de
+    # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
+    from . import delivery as _delivery
+    spoken = _delivery.apply_to_reply(spoken, sess.window)
 
     # CAPTURA FORENSE del turno (V2-040, espejo del provider de voz — cablear en AMBOS): prompt+ventana+tools+
     # decisión al fichero (categoría system). Así un test headless deja la misma traza diagnosticable.
