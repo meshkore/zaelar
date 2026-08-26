@@ -102,6 +102,37 @@ CASES: list[UseCase] = [
             "with nothing scheduled is the exact failure this case is for.",
             status="promoted"),
 
+    # Añadidos 2026-08-26 a petición del operador, y por el MISMO hueco de representación que los tres de
+    # arriba, segunda instancia: los 13 escenarios promovidos eran TODOS «entra en una web de terceros,
+    # busca, elige» — así que dos superficies enteras del producto (reproducir música y ver un vídeo) no se
+    # medían en absoluto. Ni una sola mención de música/vídeo en los 119 casos del catálogo.
+    #
+    # Son buenos casos por lo mismo que `quick-fact-opening-hours`: se resuelven EN EL TURNO, sin worker, sin
+    # login y sin pagar — y ejercitan la frontera tool-vs-tool que ya se rompió una vez (V2-045: el modelo
+    # no-razonador agarraba `play_music` para «pon el vídeo de…», y la prosa dentro de play_music no lo movió
+    # en tres intentos; hizo falta una tool dedicada). Una frontera que costó tres intentos arreglar merece
+    # una medida permanente.
+    UseCase("play-music-and-build-playlist", "es", 1, "Put music on and curate a playlist",
+            "Ponme algo de música tranquila para trabajar.",
+            "Sound ACTUALLY starts and then the operator's list is built: the mechanism report must show the "
+            "`musica` widget live (its `active_when` is satisfied — either a Spotify device or the hidden "
+            "YouTube audio block) and the playlist data-ops (`create_playlist` + `add_to_playlist`) applied "
+            "to the widget's own store. Two things are FAILURES even if the transcript sounds right: "
+            "escalating this to a Brain Worker (it is a rail, resolved in-turn — V2-042), and claiming a "
+            "song is playing with nothing live behind it. **Spotify is deliberately NOT connected** in the "
+            "lab, so this measures the fallback path the docs describe (`mode = spotify if connected else "
+            "youtube`): saying honestly that there is no music account and using YouTube audio is a PASS; "
+            "narrating a Spotify session that does not exist is the failure this case exists for."),
+    UseCase("watch-a-video-not-listen-to-it", "es", 1, "Watch a video, and control it",
+            "Pon el vídeo del tráiler de la última de Dune.",
+            "The VIDEO path runs, not the music one: `play_video` (never `play_music`) opens the `youtube` "
+            "widget with a real `videoId` loaded, and the follow-up transport request (lower the volume, "
+            "pause) lands as a data-op on THAT widget. Picking `play_music` here is the exact regression "
+            "V2-045 was built to stop, so it is scored as a mechanism failure however natural the reply "
+            "reads. Note the asymmetry, and do not invent around it: the video widget has NO playlist "
+            "actions (load/play/pause/mute/volume/restart/close) — lists exist only in `musica`, so a "
+            "request to queue several videos has no mechanism today and belongs in a finding, not here."),
+
     # --- ES / tier 2: search + compare + choose -------------------------------------------
     UseCase("best-pediatric-dentists", "es", 2, "Find and book the best pediatric dentist",
             "Encuéntrame los 3 mejores dentistas infantiles cerca de mi casa en Madrid y resérvame "

@@ -612,6 +612,73 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=12,
         channel="probe",
     ),
+    # ── Música y vídeo (2026-08-26, petición del operador). Segunda instancia del hueco de REPRESENTACIÓN que
+    # ya arreglaron los tres casos del 2026-08-18: los 13 escenarios promovidos eran TODOS «entra en una web
+    # de terceros, busca, elige», así que dos superficies enteras del producto no se medían. El plató NO tiene
+    # `connectors.json`, o sea que Spotify está sin conectar y el widget `musica` nunca se ha usado ahí — lo
+    # que se mide es el camino de fallback real (`mode = spotify si conectado, si no youtube`), verificado
+    # antes de escribir esto y no supuesto.
+    UseCaseScenario(
+        id="play-music-and-build-playlist",
+        locale="es",
+        tier=1,
+        opening_line="Ponme algo de música tranquila para trabajar.",
+        persona_brief=(
+            "Eres una persona real que se pone a trabajar y quiere música de fondo. No tienes en la cabeza "
+            "ningún artista concreto: si zaelar pregunta qué quieres, di 'algo instrumental, sin letra, que "
+            "no distraiga'. Si te pregunta por un servicio de música o dice que no tienes cuenta conectada, "
+            "contesta 'no tengo Spotify conectado, pon lo que puedas' — y eso te vale, NO te enfadas por "
+            "ello. Cuando ya esté sonando algo, pídele que te lo guarde en una lista llamada 'Curro' para "
+            "poder repetirla otro día, y más adelante pídele que añada también lo que esté sonando en ese "
+            "momento. Si dice que ya está sonando pero tú no tienes forma de saberlo, pregúntale QUÉ ha "
+            "puesto. Solo te despides cuando haya música puesta y la lista creada, o cuando quede claro que "
+            "no puede. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "DOS mitades, y hacen falta las dos. (1) SUENA ALGO DE VERDAD: el informe de mecanismo tiene que "
+            "enseñar el widget `musica` vivo — su `active_when` satisfecho, que sin cuenta de Spotify "
+            "significa el bloque de audio oculto de YouTube (`yt.videoId` con `yt.paused` falso). (2) LA "
+            "LISTA EXISTE: las data-ops `create_playlist` y `add_to_playlist` aplicadas sobre el store del "
+            "propio widget, no una promesa en el transcript. "
+            "Son FALLO, por muy bien que suene la conversación: escalar esto a un Brain Worker (es un RAIL, "
+            "se resuelve en el turno — V2-042), y afirmar que suena una canción sin nada vivo detrás. "
+            "Spotify está SIN CONECTAR a propósito: decirlo con naturalidad y tirar de YouTube es un PASE; "
+            "narrar una sesión de Spotify que no existe es justo el fallo que este caso busca. Preguntar qué "
+            "tipo de música antes de poner nada es BUENA conducta, no un defecto."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
+    UseCaseScenario(
+        id="watch-a-video-not-listen-to-it",
+        locale="es",
+        tier=1,
+        opening_line="Pon el vídeo del tráiler de la última de Dune.",
+        persona_brief=(
+            "Eres una persona real que quiere VER un vídeo en pantalla, no escuchar música. Si zaelar "
+            "pregunta cuál en concreto, di 'el tráiler oficial, el que salga primero'. Si te pone música en "
+            "vez de un vídeo, dilo con naturalidad: 'no, quiero VERLO, el vídeo'. Cuando esté puesto, pídele "
+            "que le baje el volumen, y un par de turnos después que lo pare. Solo te despides cuando el "
+            "vídeo esté en pantalla y hayas podido controlarlo, o cuando quede claro que no puede. No "
+            "reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "Tiene que correr el camino de VÍDEO y no el de música: `play_video` (nunca `play_music`) abre "
+            "el widget `youtube` con un `videoId` real cargado, y las peticiones de transporte que vienen "
+            "después (bajar volumen, parar) llegan como data-ops sobre ESE widget. "
+            "Agarrar `play_music` aquí es exactamente la regresión que V2-045 se construyó para impedir — la "
+            "prosa de la frontera dentro de `play_music` no bastó en tres intentos y hizo falta una tool "
+            "dedicada — así que se puntúa como fallo de MECANISMO por muy natural que suene la respuesta. "
+            "OJO con la asimetría, y no la rellenes por tu cuenta: el widget de vídeo NO tiene acciones de "
+            "lista (load/play/pause/mute/volume/restart/close). Las listas viven solo en `musica`, así que "
+            "si el operador pidiera encolar varios vídeos eso NO tiene mecanismo hoy y es un hallazgo, no un "
+            "fallo del turno."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}

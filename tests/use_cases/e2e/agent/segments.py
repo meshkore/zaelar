@@ -109,6 +109,14 @@ SEGMENTS: dict[str, Segment] = {
     "remember-and-remind-deadline": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
+    # Música y vídeo (2026-08-26). `completable` según la ÚNICA pregunta de este módulo, hecha a la frase
+    # de apertura: «ponme música» y «pon el vídeo de X» NO piden credencial, tarjeta, llamada ni un objeto
+    # real que no exista. Que el plató no tenga Spotify conectado no los mueve a `credentials`, y ésa es la
+    # distinción que este fichero existe para no perder: el camino sin cuenta (audio oculto de YouTube) es
+    # un camino de PRODUCTO, no una versión degradada esperando a que el operador desbloquee algo. Si
+    # alguien conecta Spotify mañana, el caso mide la otra rama; no cambia de segmento.
+    "play-music-and-build-playlist": _done(),
+    "watch-a-video-not-listen-to-it": _done(),
     # ── CASOS DE FUTURO: escritos antes que su mecanismo, y GATEADOS por él ────────────────────────────
     # No es «capability» en el sentido viejo (una capacidad que nadie ha planificado): es una capacidad con
     # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
@@ -262,11 +270,17 @@ def blocked_by(scenario_id: str) -> tuple[str, ...]:
 #   · remember-and-remind-deadline → lands in memory + the scheduler, verified through `scheduled_jobs`.
 #   · build-workout-tracker-widget → the deliverable IS a new widget; here creating one is the point, not a bug.
 #   · three-tasks-at-once          → judged on COORDINATION, not on any one task finishing.
+#   · play-music-and-build-playlist → lo que se entrega es SONIDO y una lista en el store del widget; pedirle
+#                                     una hoja de resultados premiaría enseñar candidatos en vez de poner música.
+#   · watch-a-video-not-listen-to-it → lo que se entrega es un vídeo EN PANTALLA; el widget `youtube` ES la
+#                                     superficie, así que una hoja aparte sería una segunda pantalla de más.
 FINDINGS_EXEMPT = {
     "quick-fact-opening-hours",
     "remember-and-remind-deadline",
     "build-workout-tracker-widget",
     "three-tasks-at-once",
+    "play-music-and-build-playlist",
+    "watch-a-video-not-listen-to-it",
 }
 
 

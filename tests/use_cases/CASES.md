@@ -394,6 +394,32 @@ also why full transcripts are safe there and never in the committed scoreboard.
     write AND a reminder for the day before). "Te lo recuerdo" with nothing scheduled behind it is
     exactly the failure it exists to catch.
 
+- `play-music-and-build-playlist`, `watch-a-video-not-listen-to-it` (ES, tier 1) — **added
+  2026-08-26 on the operator's request**, and for the SAME representation gap as the three above,
+  second instance: every promoted scenario was "go to a third-party site, search, pick", so two whole
+  product surfaces — playing music and watching a video — were not measured at all. Checked before
+  writing them: **not one mention of music or video in the 119-case catalog** (the only hits for
+  "musical" are the Lion King theatre-ticket case).
+  - `play-music-and-build-playlist` — music on, then a real playlist. Both halves must show in the
+    mechanism report: the `musica` widget LIVE (its `active_when` satisfied) and the
+    `create_playlist`/`add_to_playlist` data-ops applied to the widget's own store. **Spotify is
+    deliberately not connected in the lab** (verified: neither lab workspace has a
+    `connectors.json`), so what this measures is the fallback the code describes —
+    `mode = spotify if connected else youtube` — with the hidden YouTube-audio block carrying the
+    sound. Saying so plainly is a PASS; narrating a Spotify session that does not exist is the
+    failure it exists for. Escalating to a Brain Worker is also a failure: this is a RAIL (V2-042),
+    resolved in the turn.
+  - `watch-a-video-not-listen-to-it` — the tool-vs-tool boundary that already broke once.
+    `play_video` must open the `youtube` widget with a real `videoId`; grabbing `play_music` is
+    precisely the regression V2-045 was built to stop (prose inside `play_music` failed to move the
+    model three times; a dedicated tool was needed). A boundary that cost three attempts to fix earns
+    a permanent measurement.
+  - **Known asymmetry, written down instead of designed around**: the video widget has NO playlist
+    actions (`load/play/pause/mute/volume/restart/close`). Lists live only in `musica` — and because
+    that widget shares one store between its `yt` block and its playlists, a "playlist" works in
+    YouTube mode as AUDIO. So "a playlist of videos" has no mechanism today; a case asking for one
+    would be measuring invented capability, which is why neither of these does.
+
 - `three-tasks-at-once` (ES, tier 4) — **promoted 2026-08-18, the MULTI-FLOW case**, on the
   operator's explicit request: a report + a marketplace search + a Super-Mario-style platform-game
   widget all commissioned at once, then talked about **out of order and by allusion** ("ese ponle que
