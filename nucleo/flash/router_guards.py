@@ -1370,4 +1370,29 @@ def _looks_like_an_unfiltered_feed(rows) -> bool:
         for w in set(t.split()):
             if len(w) >= 4:
                 counts[w] = counts.get(w, 0) + 1
-    return not any(n >= 2 for n in counts.values())
+    if any(n >= 2 for n in counts.values()):
+        return False                      # comparten algo: son resultados de una búsqueda
+    # V2-339 — Y ADEMÁS, ESCALAS DE PRECIO ABSURDAS. «No comparten vocabulario» a secas silenciaba justo los
+    # dominios donde los resultados buenos NO se parecen entre sí: «Fiat Panda · Mercedes Clase A · Peugeot
+    # 3008» son tres coches perfectos y esta guarda los llamaba feed. Medido con la instrumentación de V2-336
+    # (2026-08-26 12:08 y 12:09): `rows=3` y el backstop CALLÓ las dos veces, en la ronda enfocada del coche.
+    # Lo mismo explica los hoteles («La Banda Living Hostel» vs «Eurostars») y los vuelos («Ryanair directo»).
+    #
+    # Lo que de verdad delataba el feed de la ronda 35 no era el vocabulario, era la MEZCLA DE ESCALAS: una
+    # vela y un Ford Fiesta no comparten ni precio ni orden de magnitud. Unos resultados de una misma búsqueda
+    # sí — los tres coches iban de 6.900 a 9.500 (×1,4), las tres guitarras de 90 a 120 (×1,3).
+    #
+    # Se exigen las DOS señales para callar, así que la guarda es estrictamente más estrecha que antes: sigue
+    # cubriendo el incidente que la creó (que tenía ambas) y devuelve el backstop a los dominios donde su
+    # silencio costaba la entrega. Sin precios legibles no se juzga por aquí.
+    precios = []
+    for r in (rows or []):
+        parte = str(r or "").split(" — ")
+        if len(parte) < 2:
+            continue
+        d = _re.sub(r"[^\d]", "", parte[1].split(",")[0])
+        if d and len(d) <= 7 and int(d) > 0:
+            precios.append(int(d))
+    if len(precios) < 3:
+        return False
+    return (max(precios) / max(1, min(precios))) >= 20

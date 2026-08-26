@@ -114,12 +114,20 @@ def test_matching_rows_still_fire_with_the_membership_gate():
     assert "Fender CD-60" in out
 
 
-def test_a_heterogeneous_errand_is_the_assumed_cost():
-    """El coste asumido de la puerta nueva, escrito para que nadie lo lea como un bug suelto: un encargo
-    legítimamente heterogéneo («cosas para el piso nuevo») se lee como feed y el backstop calla — se pierde
-    una ayuda, no se dice una falsedad."""
+def test_a_heterogeneous_errand_YA_NO_es_un_coste_asumido():
+    """Este test fijaba un coste que V2-339 ha dejado de pagar, y se conserva invertido para que la mejora
+    quede registrada en el mismo sitio donde estaba la renuncia.
+
+    Decía: «un encargo legítimamente heterogéneo ("cosas para el piso nuevo") se lee como feed y el backstop
+    calla — se pierde una ayuda, no se dice una falsedad». Era cierto mientras la guarda miraba UNA señal (que
+    las filas compartieran vocabulario). Un sofá, una lámpara y un microondas no comparten ninguna… **y son
+    exactamente la respuesta a ese encargo**.
+
+    Con las dos señales de V2-339, sus precios (180 · 25 · 60 → ×7,2) no son escalas absurdas, así que ya no
+    se leen como feed y el backstop ENTREGA. La renuncia sobraba."""
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.",
                                      ["Sofá cama gris — 180 €", "Lámpara de pie — 25 €",
                                       "Microondas Balay — 60 €"], "",
                                      errand="busca cosas para el piso nuevo")
-    assert out == ""
+    assert out, "el encargo heterogéneo vuelve a silenciarse: V2-339 revertido"
+    assert "Sofá cama gris" in out
