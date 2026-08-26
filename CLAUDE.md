@@ -5015,6 +5015,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     del operador), un nodo-concepto también ocupa plaza, y las píldoras de encargo siguen sin slot y sin nadie
     que las cierre — esto reduce el daño, no cierra el encargo. Sin verificar en vivo.
 
+- **La SONDA de backend esperaba como una llamada real: 20,3 s en el PRIMER acceso a memoria** (V2-349,
+  2026-08-26, encargo de medición). Se reportó como «la memoria tarda ~10 s en no encontrar nada». **La consulta
+  tarda 25 ms.** Lo que tardaba era el primer acceso de un proceso fresco: crear la tabla vectorial necesita
+  `dim()` (`memory/db.py:112-114`), eso resuelve el backend, y la sonda usaba `ZAELAR_EMBED_TIMEOUT` (20 s)
+  contra un Ollama VIVO pero con la GPU ocupada por el CORAZÓN. Con el backend forzado, ese mismo `get_db()`
+  baja a 104 ms: el esquema es inocente.
+  - **Dos presupuestos, no uno más pequeño.** `ZAELAR_EMBED_PROBE_TIMEOUT` (1,5 s) para la sonda; los 20 s
+    intactos para las llamadas REALES, donde esperar es mejor que degradar el espacio. Son dos preguntas
+    distintas y bajar el global habría sido más fácil y habría sido otro fallo.
+  - **UN TIMEOUT NO ES UNA AUSENCIA, y es lo que hace SEGURO acortar la sonda.** Con 20 s una petición encolada
+    podía llegar; con 1,5 s no, y el camino anterior lo habría leído como «Ollama no está» → fastembed → 384
+    rellenados a 768 contra un índice sellado embeddinggemma. Abaratar la sonda **a secas** compraba 19 s a
+    cambio de **cambiar el espacio vectorial más a menudo**: el fallo que a V2-103 le costó una auditoría. Ahora
+    un reloj agotado se comporta como la saturación (conserva el espacio, difiere el vector, re-sondea en la
+    llamada siguiente); lo que degrada sigue siendo un fallo definitivo y RÁPIDO, que llega en milisegundos.
+  - **Y su reverso**: conservar el espacio hacía que cada embed real esperase 20 s — la latencia de V2-311 por
+    otra puerta. Mientras Ollama esté mudo, las llamadas reales usan también el reloj corto; la primera
+    respuesta buena restaura el presupuesto entero.
+  - **A/B** (mismo código, mismo Ollama, solo la variable): primer acceso **20.251 → 1.673 ms**, primera query
+    **20.161 → 1.553 ms**, y el espacio **intacto en los dos** (ollama, 768). Desarme: sonda de vuelta a 20 s →
+    1 rojo; timeout que vuelve a degradar → 1 rojo.
+  - **Dos cosas las cazó el método, no la lectura**: un `UnboundLocalError` MÍO que el `except Exception` de
+    `_ollama_embed` reportó como «Ollama ausente» —la respuesta tranquilizadora otra vez, y sigue ABIERTO: en
+    producción un bug nuestro degradaría el espacio vectorial— y una fuga de bandera que cazó la suite existente
+    (`reset()` no limpiaba `_ollama_timeout`, y una heredada dejaría las llamadas reales con el reloj corto para
+    siempre). Cuatro dobles de test rompieron por FIRMA: se actualiza la firma, nunca lo que afirman.
+  - ⚠️ **Y una corrección mía en el sitio donde la dije**: afirmé al cluster que se sondeaba DOS veces y que el
+    2× lo confirmaba. Instrumentado, la sonda es **una**; el 2× salió de comparar dos medidas y **asumir
+    linealidad**. Lo medido estaba bien, lo deducido alrededor lo escribí igual de seguro y sin prueba — y una
+    de las tres partes del plan ya autorizado sobraba. Sin verificar en vivo.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
