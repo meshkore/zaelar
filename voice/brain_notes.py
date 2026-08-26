@@ -16,20 +16,52 @@ import threading
 from loguru import logger
 
 _lock = threading.Lock()
-_pending: list[str] = []
+_pending: list[tuple[str, str]] = []   # (llave, texto) — la llave es "" para la inmensa mayoría
 _MAX = 20                              # bound the mailbox; drop the oldest if a burst piles up (never grow unbounded)
 
 
-def push(text: str) -> None:
-    """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort."""
+def push(text: str, key: str = "") -> None:
+    """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort.
+
+    `key` (V2-353) marca una nota RETRACTABLE: una que afirma algo sobre estado VIVO y que puede dejar de ser
+    verdad antes de entregarse. Estas notas no se entregan al vuelo — esperan al siguiente turno del operador—,
+    y ese hueco es real: medido en `search-buy-used-car` ronda 13, «El proceso lleva ya 18 minutos, ¿quieres que
+    lo pare?» y «He parado el proceso: agotó su tiempo» llegaron al MISMO prompt, sobre la MISMA tarea. Una
+    preguntaba si pararla y la otra decía que ya estaba parada. Un prompt que se contradice no tiene respuesta
+    obediente. Con llave, quien mata la tarea retracta la pregunta.
+
+    Una llave repetida SUSTITUYE a la anterior: dos avisos de «lleva N minutos» sobre la misma tarea son el
+    mismo aviso con el número actualizado, no dos cosas que contar.
+    """
     text = (text or "").strip()
     if not text:
         return
+    key = (key or "").strip()
     with _lock:
-        _pending.append(text)
+        if key:
+            _pending[:] = [(k, t) for k, t in _pending if k != key]
+        _pending.append((key, text))
         if len(_pending) > _MAX:
             del _pending[: len(_pending) - _MAX]
     logger.info(f"brain-note queued: {text[:120]}")
+
+
+def retract(key: str) -> int:
+    """Quita las notas con esta LLAVE que aún no se han entregado. Devuelve cuántas. Best-effort (V2-353).
+
+    Retractar NO es censurar: quien retracta es quien acaba de hacer FALSA la nota, y casi siempre empuja la
+    suya justo después («la he parado»). Lo que se evita es que las dos lleguen juntas.
+    """
+    key = (key or "").strip()
+    if not key:
+        return 0
+    with _lock:
+        antes = len(_pending)
+        _pending[:] = [(k, t) for k, t in _pending if k != key]
+        fuera = antes - len(_pending)
+    if fuera:
+        logger.info(f"brain-note retractada ({fuera}): {key}")
+    return fuera
 
 
 def drain() -> list[str]:
@@ -37,6 +69,6 @@ def drain() -> list[str]:
     with _lock:
         if not _pending:
             return []
-        out = _pending[:]
+        out = [t for _k, t in _pending]
         _pending.clear()
     return out

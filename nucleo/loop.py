@@ -43,11 +43,19 @@ def _emit(topic: str, payload: dict | None = None) -> None:
         pass
 
 
-async def _default_deliver(title: str, text: str) -> None:
-    """Entrega por los raíles proactivos existentes (voz + UI). Best-effort."""
+#: Llave del aviso RETRACTABLE «lleva ya N minutos, ¿la paro?» — una por tarea (V2-353).
+_TIMEOUT_KEY = "worker-timeout:"
+
+
+async def _default_deliver(title: str, text: str, key: str = "") -> None:
+    """Entrega por los raíles proactivos existentes (voz + UI). Best-effort.
+
+    `key` (V2-353) viaja hasta el buzón del cerebro para que una nota que afirma algo sobre estado VIVO se
+    pueda RETRACTAR si deja de ser verdad antes de entregarse — ver `voice.brain_notes.push`.
+    """
     try:
         from voice import proactive
-        await proactive.notify(title or "zaelar", text)
+        await proactive.notify(title or "zaelar", text, key=key)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"loop deliver failed: {e}")
 
@@ -221,6 +229,11 @@ class OrchestratorLoop:
                 except Exception:
                     continue
                 _emit("worker.budget_kill", {"id": tid, "age_s": age})
+                try:    # V2-353: la pregunta «¿la paro o sigue?» acaba de dejar de tener sentido
+                    from voice import brain_notes as _bn
+                    _bn.retract(_TIMEOUT_KEY + str(tid))
+                except Exception:  # noqa: BLE001
+                    pass
                 goal = (s.get("goal") or self._lang().generic_task)[:60]
                 await self._deliver("zaelar", self._say("worker_budget_killed", goal=goal))
                 continue
@@ -249,7 +262,12 @@ class OrchestratorLoop:
             if age >= self._max_secs and tid not in self._timeout_informed:
                 self._timeout_informed.add(tid)
                 goal = (s.get("goal") or self._lang().generic_task)[:40]
-                await self._deliver("zaelar", self._say("worker_timeout_running", goal=goal, minutes=age // 60))
+                # V2-353: RETRACTABLE. Esta pregunta espera al siguiente turno del operador, y en ese hueco
+                # el presupuesto puede matar la tarea (medido: pregunta a los 15 min, muerte a los 20). Sin
+                # llave, las dos notas llegaban al MISMO prompt: una preguntando si pararla y otra diciendo
+                # que ya estaba parada.
+                await self._deliver_keyed("zaelar", self._say("worker_timeout_running", goal=goal,
+                                                              minutes=age // 60), _TIMEOUT_KEY + str(tid))
             elif int(s.get("silent_s", age)) >= self._stuck_secs and tid not in self._stuck_informed:
                 # ENCALLADO = CALLADO, no «lleva rato». Hasta el 2026-08-02 esto miraba `age` (la edad de la tarea),
                 # con la propia nota «aproximado por edad» — así que CUALQUIER worker que pasara de 3 min se
@@ -340,6 +358,17 @@ class OrchestratorLoop:
                                    "que lo haga.")
                 generic_task = "la tarea"
             return _Fallback()
+
+    async def _deliver_keyed(self, title: str, text: str, key: str) -> None:
+        """Entrega con LLAVE retractable (V2-353), tolerando un `deliver` inyectado de dos argumentos.
+
+        El compañero de test se inyecta como `async def deliver(title, text)`, y esta llave solo la necesitan
+        dos avisos de todo el bucle: se degrada a la firma vieja en vez de obligar a cambiar cada llamante.
+        """
+        try:
+            await self._deliver(title, text, key=key)
+        except TypeError:
+            await self._deliver(title, text)
 
     def _say(self, template: str, **kw) -> str:
         """Frase HABLADA por iniciativa propia (preguntas de worker, timeouts…) en el idioma ACTIVO — nunca un

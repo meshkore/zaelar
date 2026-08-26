@@ -124,7 +124,8 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
-async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify") -> None:
+async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
+                 key: str = "") -> None:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises."""
     text = (text or "").strip()
     if not text:
@@ -148,7 +149,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         try:
             from voice import brain_notes
             brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
-                             f"Díselo en ESTE turno con tus palabras — todavía no lo sabe.")
+                             f"Díselo en ESTE turno con tus palabras — todavía no lo sabe.", key=key)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
         return

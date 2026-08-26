@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-26 22:31**
+Last updated: **2026-08-26 23:16**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -41,7 +41,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `search-buy-camera__es` | 2 | 3 | 2026-08-25 21:42 | yes | El caso NO está listo para producción. El bloqueador nº1 es la desobediencia a las señales internas de estado: el modelo ignora que la tarea ya tiene resulta… |
 | ❌ | `search-buy-guitar__es` | 2 | 3 | 2026-08-25 21:52 | yes | El caso funciona y encuentra opciones reales, pero no está listo para producción porque la lógica de filtrado incluyó accesorios no deseados como si fueran e… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | 2026-08-25 21:15 | yes | El caso no está listo para producción. El bloqueador principal es la incapacidad del sistema para filtrar ruido estructural (hoteles/recambios) dentro de un … |
-| ❌ | `search-buy-used-car` | 2 | 1 | 2026-08-26 22:31 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo resultados reales delante durante más de 4 minutos y dijo repetidamente que no había nada… |
+| ❌ | `search-buy-used-car` | 2 | 1 | 2026-08-26 23:16 | yes | No está listo para producción: el caso de uso no se completó (cero candidatos reales entregados) y el bloqueador nº1 es que zaelar no detectó ni comunicó el … |
 | ❌ | `search-secondhand-monitor__es` | 2 | 3 | 2026-08-25 21:35 | yes | No está listo. El bloqueador nº1 es la conducta de retención de resultados (zaelar tiene los datos y decide no mostrarlos para mantener una ficción de búsque… |
 | ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | 2026-08-26 12:02 | yes | No está listo para producción: el bloqueador nº1 es que el worker arrastró el objetivo erróneo ('niños', fechas inventadas) incluso después de la corrección … |
 | ❌ | `weekend-barber-availability__es` | 2 | 2 | 2026-08-25 20:51 | yes | El caso falla: el agente prometió reiteradamente una cita con confirmación inminente que nunca existió (agenda vacía, trabajos sin finalizar), ocultando fall… |

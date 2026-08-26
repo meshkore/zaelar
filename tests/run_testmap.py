@@ -504,6 +504,14 @@ DOMAINS: list[dict] = [
         # V2-352 — el escritor resolvía la hoja por DOS caminos (sello de la pestaña, y si está vacío el
         # registro de sesiones vivas) y los lectores por UNO. Ronda 12 del coche, 1/5: el backstop de entrega
         # emitió su silencio NUEVE veces con rows=0 mientras la hoja tenía DOCE coches con enlace.
+        # V2-353 — la pregunta y su respuesta en el MISMO prompt. «lleva ya 18 minutos, ¿la paro?» sale a los
+        # 15 min y la muerte por presupuesto a los 21,5; sin voz viva ninguna se entrega al vuelo, así que si
+        # el operador tarda en hablar se drenan juntas. Cuarta vez que un prompt que se contradice se lee como
+        # desobediencia del modelo.
+        {"id": "2.35", "title": "Una nota que afirma estado VIVO se puede RETRACTAR: quien mata la tarea retira "
+                                "la pregunta de si pararla · y una llave repetida sustituye, no acumula",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_question_the_system_already_answered.py"]},
         {"id": "2.34", "title": "El lector resuelve la hoja como el escritor (sello, y el registro de respaldo) "
                                 "· sin los dos caminos el backstop de entrega no ve una hoja llena",
             "ch": UNIT,
