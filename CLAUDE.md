@@ -451,6 +451,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     declarada, ahora con coste), y **el worker avanzó al paso 1/6 y el turno no lo dijo**. Nodo 2.5, desarme
     en las tres mitades. Sin verificar en vivo.
 
+- **Las dos puertas del motor le decían cosas opuestas al mismo worker (V2-350, 2026-08-26)**: y en el peor
+  orden — un worker **relevado** (registro nuevo con su mismo `task_id`, token nuevo) **no podía ENTREGAR y sí
+  podía CONTAMINAR**. `/api/worker/act` le devolvía 403 y `/api/agent/report` no miraba el token, así que sus
+  siete coches con año y kilómetros verificados nunca llegaron a pantalla mientras sus notas se escribían en el
+  registro del worker que acababa de nacer. De ahí la línea imposible de la traza: «arrancando — lleva 18 s» a
+  los 36,8 s y «selección final lista» a los 51,5 s — no es un worker rápido, son dos escribiendo encima. **Y
+  contamina la MEDICIÓN**: el juez leyó «el motor devuelve 403 al widget» como un hecho de la ronda y lo puso de
+  bloqueador nº1; un instrumento que se cree las notas de un fantasma no mide. El corte es **una sola
+  comprobación de identidad en las dos puertas**, con la fontanería que ya existía (`ZAELAR_TASK_TOKEN` viajaba
+  en el entorno desde `mem_cli`). **Un token ausente no es un token equivocado**: sin token se sigue como
+  siempre —un worker viejo no puede quedarse mudo por una cabecera que nadie le enseñó a mandar— y se corta solo
+  el que NO CASA. Y se le **dice**, con qué hacer: el 403 mudo le costó 45 s de reintentos creyendo que el motor
+  fallaba. Nodo 2.33. **Sin decidir**: si a un relevado hay que matarlo o dejarle entregar por voz — es del
+  operador.
+
 - **Un contratiempo también se cuenta: solo las buenas noticias llevaban un «cuéntalo» (V2-348, 2026-08-26)**:
   cuarta cara de V2-222 y la simétrica de la segunda. Medido en `search-buy-used-car` ronda 8: el paso decía
   «coches.net caído tras portada (página de error)» y el turno contestó «está entrando en el marketplace y ya va
