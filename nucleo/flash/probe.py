@@ -1141,6 +1141,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _emit_del("brain", "📬 backstop de entrega: la espera sale con las filas", role="system")
             except Exception:
                 pass
+        elif _rg_del._WAITING_REPLY_RE.search(_rg_del._norm_txt(spoken or "")):
+            # V2-335 — EL SILENCIO DEL BACKSTOP SE VE. En la ronda limpia del coche (2026-08-26 01:06-01:14)
+            # hubo tres respuestas de pura espera con la hoja llevando CINCO coches válidos, y el backstop no
+            # disparó NI UNA VEZ en toda la corrida — mientras pasa sus tests unitarios con esas mismas
+            # entradas. Todo este bloque vive en un try/except pass, así que cualquier avería interna
+            # desaparece sin ruido; y un backstop que calla es indistinguible de uno que decidió callar.
+            # Este emit deja las ENTRADAS de la decisión donde el arnés las lee: cuántas filas le dio
+            # `any_live_task_rows`, de qué encargo, y cuánto había dicho ya la ventana.
+            try:
+                from voice.observer import emit as _emit_del2
+                _emit_del2("brain", "🤐 backstop de entrega CALLÓ ante una espera", role="system",
+                           extra={"rows": len(_rows_del or []), "goal": (_goal_del or "")[:80],
+                                  "said_chars": len(_said_del or ""), "reply": (spoken or "")[:90]})
+            except Exception:
+                pass
     except Exception:
         pass
 
