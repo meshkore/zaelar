@@ -367,6 +367,17 @@ DOMAINS: list[dict] = [
         {"id": "2.31", "title": "Un return de BÚSQUEDA llega a la hoja del encargo — buscar también es "
                                 "encontrar",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_search_return_reaches_the_sheet.py"]},
+        # V2-342 (2026-08-26, sesión 7575e81a): ante la QUEJA por un worker vivo, el circuito mataba y
+        # relanzaba de cero — 3 workers en 21,6 min, 2/3 del tiempo en trabajo descartado, con el bucle
+        # retroalimentándose (lento → queja → relanzar → más lento). Tres cortes de un mismo defecto: la
+        # directiva enseña la bifurcación de la queja (INYECTA «entrega YA», matar se reserva a orden o
+        # atasco), una gestión CANCELADA conserva su rastro reanudable (parar borra el PROCESO, no lo andado
+        # — el auto-resume sigue excluido: parar es parar), y el matcher puntúa contra el conjunto MENOR
+        # (la orden real de relanzar traía 47 palabras y Jaccard puntuaba 0,208 la gestión CONTENIDA en ella).
+        {"id": "2.32", "title": "Una QUEJA no tira el trabajo: la directiva inyecta, la cancelada deja rastro "
+                                "reanudable y el relanzamiento real CASA",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_complaint_does_not_throw_the_work_away.py"]},
         {"id": "2.30", "title": "Lo que la última barrida deja en la hoja llega a la conversación — y NO se "
                                 "cuenta dos veces",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_last_sweep_tells_someone.py"]},
@@ -968,6 +979,15 @@ DOMAINS: list[dict] = [
         # en orden de DOM, y los enlaces de categoría salen antes que las fichas de producto en cualquier listado,
         # así que el corte se comía el resultado por construcción: el turno describió «categorías de portátiles,
         # móviles y tablets» con tres monitores reales a 99 € dos líneas más abajo, fuera de la nota.
+        # V2-343 — la FRECUENCIA de lo que se enseña. Medido en la sesión `7575e81a` (2026-08-26, 21,6 min):
+        # el motor capturó 292 eventos de navegador —uno cada 4 s— y a la pestaña de Proceso llegaron 8 líneas,
+        # una cada 162 s. El dedup no se comía nada (las 8 eran distintas y buenas): es que nadie mandaba las
+        # demás. `_say_phase` tenía UN llamante —`found()`, tras extraer— y la otra vía llega por Bash, o sea
+        # como «ejecutando un paso», constante que el dedup colapsa con razón a una línea.
+        {"id": "4.49", "title": "Cada paso del navegador llega a la pestaña de Proceso · con el host que lo "
+                                "distingue, y sin romper el dedup que protege del ruido",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_every_browser_step_reaches_the_screen.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,

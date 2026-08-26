@@ -206,6 +206,47 @@ def _say_phase(nav_tid: str, phrase: str) -> None:
         pass
 
 
+_PHASE_TARGET = {           # de qué argumento sale el «target» que la frase enseña al operador
+    "navigate": "url", "open": "url", "goto": "url", "visit": "url",
+    "type": "text", "type_at": "text",
+    "click": "ref", "select_option": "value",
+}
+
+
+def _phase_for_action(action: str, args: dict) -> str:
+    """La frase de PROCESO de UNA acción del navegador (V2-343). Vacía = no decir nada.
+
+    Existe porque el operador no veía lo que ya medíamos. En la sesión `7575e81a` (2026-08-26, 21,6 min de
+    encargo) el motor capturó **292 eventos de navegador, uno cada 4 segundos**, y a la pestaña de Proceso
+    llegaron **8 líneas, una cada 162 s** — un factor 20 entre lo que sabemos y lo que enseñamos. Y no era el
+    dedup comiéndose nada: las 8 que pasaban eran DISTINTAS y buenas. Era que nadie las mandaba.
+
+    Las dos vías estaban tapadas por separado, y hay que arreglar la de aquí porque la otra no se puede:
+      · `_say_phase` tenía UN solo llamante — `found()`, después de extraer. Las 36 navegaciones, los 27 clics
+        y los 13 scrolls no lo llamaban nunca.
+      · el stream del worker sí ve cada paso, pero el worker conduce el navegador por Bash, así que el paso
+        llega como `where=sistema, action=ejecuta` → «ejecutando un paso», una CONSTANTE que el dedup de
+        `sheets.record_phase` colapsa a una línea. Correctamente: tres líneas idénticas no son progreso.
+
+    El vocabulario ya estaba escrito y es bueno (`nucleo/workers/progress.phrase`): lleva el HOST en
+    `navigate`, así que «entrando en coches.net» y «entrando en milanuncios.com» son distintas y las dos pasan.
+    Aquí no se inventa ninguna frase nueva — se le da al generador que ya existe el paso que ya conocíamos.
+
+    El dedup NO se toca y es el contrapeso: sube la frecuencia de lo que INFORMA sin subir la del ruido.
+    """
+    act = (action or "").strip().lower()
+    if not act:
+        return ""
+    tgt = ""
+    key = _PHASE_TARGET.get(act)
+    if key:
+        tgt = str((args or {}).get(key) or "")
+    try:
+        return _progress.phrase({"where": "navegador", "action": act, "target": tgt}) or ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def by_identity(items) -> tuple:
     """Parte lo extraído en (CON nombre, SIN nombre), conservando el orden relativo dentro de cada mitad.
 
@@ -444,6 +485,10 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
     confirmation gate for irreversible actions still applies. Best-effort: never raises."""
     action = (action or "").strip()
     args = args or {}
+    # V2-343: cada acción del navegador dice lo que es en la pestaña de Proceso. Va ANTES de ejecutarla a
+    # propósito: lo que el operador necesita es «entrando en coches.net» MIENTRAS entra, no después. Si la
+    # acción falla, el fallo ya tiene su propia fila (`🧭 navegador ⚠️ error`) y su línea de espera.
+    _say_phase(task_id, _phase_for_action(action, args))
     try:
         from widgets.navegador import owner
     except Exception as e:  # noqa: BLE001
