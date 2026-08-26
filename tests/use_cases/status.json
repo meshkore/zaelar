@@ -405,20 +405,46 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-23 22:48",
-      "overall": 3,
-      "judge": "deepseek-v4-flash",
-      "state": "INFRA",
+      "last_run": "2026-08-26 01:21",
+      "overall": 4,
+      "judge": "glm-4.6",
+      "state": "PASS",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 4,
+        "naturalidad": 5,
+        "adaptacion": 5,
         "resultado": 4,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "El caso se completó con 4 candidatos reales en la hoja de resultados, pero el anuncio prematuro en el turno 10 (antes de que el worker escribiera) y la falta de verificación de especificaciones son los bloqueadores principales para producción.",
+      "verdict": "El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es la limpieza de memoria compartida, que provocó una búsqueda de coches errónea al inicio, y la invención de especificaciones técnicas no leídas.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argu"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/v"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de progress.json: [Errno 2] No such file or directory: 'progress.json' · ruta RELATIVA a tu directorio de trabajo: /private"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 4 error(es), último paso «alive»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -433,13 +459,22 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "195a77a",
+        "sha": "3772127",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
-        "gpu_models": [],
-        "n": 0
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "21 GB"
+          }
+        ],
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
@@ -496,24 +531,24 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-25 04:27",
-      "overall": 4,
-      "judge": "deepseek-v4-flash",
-      "state": "PASS",
+      "last_run": "2026-08-25 21:42",
+      "overall": 3,
+      "judge": "glm-4.6",
+      "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 3,
-        "resultado": 5,
-        "mecanismo": 3,
-        "eficiencia": 3
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 5,
+        "eficiencia": 2
       },
-      "verdict": "El caso de uso está listo para producción: se entregaron opciones reales con precios y contadores verificados y el usuario eligió la mejor con datos confirmados; el bloqueador número 1 es la fragmentación del encargo en tres hojas de resultados —una de ellas, con 45 opciones, nunca abierta en pantalla—, que hace depender la entrega de que zaelar lo cuente de palabra.",
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la desobediencia a las señales internas de estado: el modelo ignora que la tarea ya tiene resultados (instrucción 'CUÉNTALE') y miente al usuario diciendo que sigue buscando, lo que resulta en una conversación circular y una percepción de fallo técnico cuando el sistema había funcionado correctamente.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
         "main",
@@ -522,9 +557,9 @@
         "widget",
         "worker"
       ],
-      "drive_model": "aimlapi",
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "89a562a",
+        "sha": "2e7a6f4",
         "n_dirty": 0,
         "dirty": []
       },
@@ -533,9 +568,13 @@
           {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
           }
         ],
-        "n": 1
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-206-uc-search-buy-camera-es.md",
@@ -748,36 +787,20 @@
       }
     },
     "hotel-under-15-days": {
-      "last_run": "2026-08-21 13:59",
-      "overall": 3,
-      "judge": "deepseek-v4-flash",
-      "state": "FAIL",
+      "last_run": "2026-08-26 01:06",
+      "overall": 4,
+      "judge": "glm-4.6",
+      "state": "PASS",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 5,
-        "resultado": 3,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "resultado": 4,
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "El caso se resolvió parcialmente: hay dos hoteles reales de 4 estrellas con precio y enlace en la hoja, pero la entrega se ensucia con una experiencia duplicada fuera de criterio, promesas de hoteles sin respaldo y 30 búsquedas redundantes; el bloqueador nº1 es que la hoja de resultados no refleja fielmente lo que el usuario pidió (hoteles, no experiencias) y mezcla hallazgos de dos encargos.",
+      "verdict": "El caso es FUNCIONAL y está listo para producción porque zaelar encontró, filtró y desplegó opciones reales de forma correcta; el bloqueador principal no es de capacidad, sino de interacción con fallos puntuales de la interfaz (glitch de widget).",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: the following argume"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: unrecognized argumen"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 2 error(es), último paso «🌐 web ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -792,19 +815,19 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "4a5027f",
+        "sha": "3772127",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
-          },
-          {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "21 GB"
           }
         ],
         "n": 2
@@ -815,45 +838,43 @@
       }
     },
     "search-buy-used-car": {
-      "last_run": "2026-08-20 21:38",
+      "last_run": "2026-08-26 20:21",
       "overall": 2,
-      "state": "FAIL",
+      "judge": "deepseek-v4-pro",
+      "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 3,
+        "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró 6 anuncios reales y no entregó ninguno, dejando al usuario sin resultado pese a tener los datos en el sistema.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar presentó concesionarios con precio como si fueran coches candidatos, cuando el navegador no extrajo ni un solo coche con marca, modelo, año y kilómetros — la entrega tiene forma de resultado pero no lo es.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: Exit code 1 remember error: timed out"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: Exit code 1 remember error: HTTP Error 422: Unprocessable Entity"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 3 error(es), último paso «📄 archivo ↩»"
+          "que": "worker:1: 2 error(es), último paso «🧭 navegador ↩»"
         }
       ],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
-      "turns_used": 6,
+      "turns_used": 13,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -861,7 +882,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
+        "sha": "c18f1cc",
         "n_dirty": 0,
         "dirty": []
       },
@@ -869,79 +890,179 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
+            "size": "42 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-227-uc-search-buy-used-car.md",
-        "task": ".meshkore/modules/nucleo/tasks/T464-uc-search-buy-used-car-fix.md"
+        "task": ""
       }
     },
     "best-plumber-same-day__es": {
-      "last_run": "2026-08-21 11:56",
+      "last_run": "2026-08-26 01:29",
       "overall": 3,
-      "judge": "deepseek-v4-flash",
+      "judge": "glm-4.6",
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
         "resultado": 2,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 2,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que se entregó un resultado parcial (2 de 13 candidatos) con una valoración inventada (4,7 sobre 5) sin respaldo del mecanismo, y sin verificar el criterio central de disponibilidad para hoy.",
+      "verdict": "El caso funcional pero con lentitud y criterios de selección endiablados; el bloqueador nº1 es que zaelar ignora los 'avisos empujados' del sistema (la mejor opción) y se aferra a una búsqueda propia más floja.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 el payload (argumento) no es JSON válido: Expecting value: line 1 column 1 (char 0)"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:2: 2 error(es), último paso «🧭 navegador»"
+          "que": "worker:1: 1 error(es), último paso «data»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "3772127",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "21 GB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-228-uc-best-plumber-same-day-es.md",
+        "task": ""
+      }
+    },
+    "compare-insurance-quotes__es": {
+      "last_run": "2026-08-26 01:39",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción. El bloqueador nº1 es el fallo grave en el mecanismo de extracción del navegador: el sistema no pudo leer ni un solo precio ni nombre de aseguradora, lo que resulta en una entrega totalmente vacía (0 resultados) a pesar de que el agente afirmara lo contrario al usuario.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:3: 3 error(es), último paso «🧭 navegador»"
+          "que": "worker:1: 4 error(es), último paso «🧭 navegador ⚠️ error»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "3772127",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "21 GB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-004-uc-compare-insurance-quotes-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T312-uc-compare-insurance-quotes-es-fix.md"
+      }
+    },
+    "best-rated-rental-car__es": {
+      "last_run": "2026-08-26 01:47",
+      "overall": 1,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 2
+      },
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es el fallo crítico en el mecanismo de extracción del navegador, que devolvió datos basura ('disclaimers') en lugar de fichas de producto, impidiendo resolver la petición de 'mejor valorado' y obligando al agente a improvisar sobre datos inválidos.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: no pude seleccionar «18:00» en el desplegable: ElementHandle.select_option: Error: Element is not a <select> element"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:4: 1 error(es), último paso «🧭 navegador»"
+          "que": "worker:1: 1 error(es), último paso «🧭 navegador»"
         }
       ],
       "sandboxed": true,
@@ -958,255 +1079,19 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "99d7f19",
+        "sha": "3772127",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
-          },
-          {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
-          }
-        ],
-        "n": 2
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-228-uc-best-plumber-same-day-es.md",
-        "task": ""
-      }
-    },
-    "compare-insurance-quotes__es": {
-      "last_run": "2026-08-21 02:03",
-      "overall": 3,
-      "judge": "deepseek-v4-flash",
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 2,
-        "mecanismo": 2,
-        "eficiencia": 2
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que se entregó un precio (250-350 €/año para Línea Directa) sin respaldo del mecanismo —ninguna extracción ni resultado real del worker—, lo que constituye un dato inventado con forma de resultado, el fallo más grave de este caso; además, la comparativa quedó incompleta (solo una cifra de tres) y se narró normalidad sobre 21 errores internos de a",
-      "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «📄 archivo ⚠️ error»: EISDIR: illegal operation on a directory, read '/private/tmp/claude-501/-Users-ricartjuncadella-Documents-Prj-asimovia-zaelar/5ce88b85-1017-4c74-86ac-bef007ef7e"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: echo \"grep-exit:$?\""
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 7 error(es), último paso «data»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 10 error(es), último paso «end»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:4: 4 error(es), último paso «🧠 memoria ⚠️ error»"
-        }
-      ],
-      "sandboxed": true,
-      "provisional": null,
-      "tier": 2,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "1416bbf",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
           },
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 2
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-004-uc-compare-insurance-quotes-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T312-uc-compare-insurance-quotes-es-fix.md"
-      },
-      "measured_in": "worktree fijado"
-    },
-    "best-rated-rental-car__es": {
-      "last_run": "2026-08-20 22:01",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda falló por errores internos del worker y zaelar nunca informó del fallo, dejando al usuario esperando 5 minutos sin resultado ni explicación.",
-      "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'help' (choose from ask, wait, act, say)"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «🧭 navegador ↩»"
-        }
-      ],
-      "sandboxed": true,
-      "tier": 2,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "60280c5",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
+            "size": "21 GB"
           }
         ],
         "n": 2
@@ -1217,50 +1102,47 @@
       }
     },
     "compare-broadband-plans__es": {
-      "last_run": "2026-08-21 02:28",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: la cadena de proveedores estaba agotada (DeepSeek HTTP 402 Insufficient Balance x4, z.ai sin cuota hasta el 25 Aug). Los CUATRO turnos de zaelar salieron VACIOS. La ronda no midio el caso.",
-      "missing_signals": [
-        "widget"
-      ],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: tarifas fibra movil combinadas 2026 comparativa movis"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «end»"
-        }
-      ],
+      "last_run": "2026-08-26 01:53",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo. El bloqueador nº1 es la incapacidad de cerrar la transacción: zaelar acumula datos válidos en el sistema y en el prompt (precios reales de Digi, Kelisto, etc.) pero falla en sintetizarlos y presentarlos como una respuesta concluyente a 'cuál me ahorra más', dejando al usuario en un bucle de espera infinito ('todavía procesando') a pesar de tener la solución delante.",
+      "missing_signals": [],
+      "audit_anomalies": [],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
+        "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
+        "sha": "3772127",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
-          },
-          {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "21 GB"
           }
         ],
         "n": 2
@@ -1268,32 +1150,32 @@
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md",
         "task": ".meshkore/modules/nucleo/tasks/T468-uc-compare-broadband-plans-es-fix.md"
-      },
-      "measured_in": "worktree fijado en 39e68a7"
+      }
     },
     "weekend-barber-availability__es": {
-      "last_run": "2026-08-20 22:15",
+      "last_run": "2026-08-25 20:51",
       "overall": 2,
+      "judge": "glm-4.6",
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 4,
+        "adaptacion": 5,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar inventó la ubicación del usuario ('centro de Madrid') en lugar de preguntarla, y encima el worker no entregó ni un solo resultado real — la conversación fue una promesa vacía de 'te aviso' repetida cinco veces sin nada detrás.",
+      "verdict": "El caso falla: el agente prometió reiteradamente una cita con confirmación inminente que nunca existió (agenda vacía, trabajos sin finalizar), ocultando fallos técnicos del navegador y sin entregar el dato básico pedido (día y hora libre). No es apto para producción en este flujo de reservas.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argu"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: no pude seleccionar «Barbería» en el desplegable: ElementHandle.select_option: Error: Element is not a <select> element"
         },
         {
           "clase": "span_con_error",
@@ -1302,10 +1184,12 @@
         }
       ],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -1313,19 +1197,19 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
+        "sha": "e454e84",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
-          },
-          {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "41 GB"
           }
         ],
         "n": 2
@@ -1333,8 +1217,7 @@
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md",
         "task": ".meshkore/modules/nucleo/tasks/T469-uc-weekend-barber-availability-es-fix.md"
-      },
-      "measured_in": "worktree fijado en 05dd79f"
+      }
     },
     "find-best-hotel-city__es": {
       "last_run": "2026-08-25 10:22",
@@ -1716,24 +1599,24 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-24 15:29",
-      "overall": 2,
-      "judge": "deepseek-v4-flash",
+      "last_run": "2026-08-25 21:25",
+      "overall": 3,
+      "judge": "glm-4.6",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 4,
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía y el worker no extrajo nada), y el agente se limitó a prometer avisos que nunca llegaron.",
+      "verdict": "El caso está funcional (el mecanismo trajo resultados reales y se mostraron), pero NO está listo para producción como experiencia premium debido a las 'fugas' de pensamiento interno en inglés, la distracción con resultados de otros contextos (hoteles) y la incapacidad de cerrar la venta con una opinión clara sobre el estado de la bici elegida.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
         "main",
@@ -1744,21 +1627,22 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3efdb74",
-        "n_dirty": 2,
-        "dirty": [
-          "nucleo/turn/confirm_gates.py",
-          "voice/engine/llm/providers/nucleo.py"
-        ]
+        "sha": "2e7a6f4",
+        "n_dirty": 0,
+        "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
             "name": "embeddinggemma:latest",
             "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
           }
         ],
-        "n": 1
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-268-uc-search-buy-bicycle-es.md",
@@ -1766,95 +1650,40 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-25 15:51",
+      "last_run": "2026-08-25 21:52",
       "overall": 3,
       "judge": "glm-4.6",
-      "state": "INFRA",
+      "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
+        "naturalidad": 5,
+        "adaptacion": 4,
         "resultado": 2,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 4,
+        "eficiencia": 4
       },
-      "verdict": "El caso no está listo para producción porque el asistente es incapaz de filtrar correctamente los resultados según los criterios dados (presupuesto y tipo de producto), presentando repetidamente opciones inválidas e inventadas a partir de ruido de la página, lo que deriva en una experiencia de usuario frustrante y poco fiable.",
+      "verdict": "El caso funciona y encuentra opciones reales, pero no está listo para producción porque la lógica de filtrado incluyó accesorios no deseados como si fueran el producto principal y fragmentó la visualización de resultados en hojas separadas.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
+          "que": "worker/task «· paso ⚠️ error»: Exit code 1 (eval):printf:1: %C: invalid directive"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 nav_cli type_at: error: argument y: invalid int value: 'guitarra acústica' · `type_at` es de VISIÓN y va con COORDENADAS: `type_at <x> <y> \"texto\"`,"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argu"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: unre"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: unre"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 nav_cli type_at: error: argument y: invalid int value: 'guitarra acústica' · `type_at` es de VISIÓN y va con COORDENADAS: `type_at <x> <y> \"texto\"`,"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argu"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: ref 6 es de otra página: miraste «https://www.ebay.es/sch/i.html?_nkw=guitarra+acustica+segunda+mano&_sacat=0&_udl» y ahora estás en «chrome-"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 nav_cli click_at: error: the following arguments are required: y · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura d"
+          "que": "worker/task «✏️ código ⚠️ error»: <tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 2 error(es), último paso «data»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 5 error(es), último paso «🌐 web»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «🧭 navegador ↩»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:4: 1 error(es), último paso «🧭 navegador ↩»"
+          "que": "worker:1: 2 error(es), último paso «· paso ↩»"
         }
       ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
         "main",
@@ -1863,14 +1692,11 @@
         "widget",
         "worker"
       ],
-      "drive_model": "aimlapi",
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "2003582",
-        "n_dirty": 2,
-        "dirty": [
-          "memory/api.py",
-          "nucleo/flash/prompt.py"
-        ]
+        "sha": "2e7a6f4",
+        "n_dirty": 0,
+        "dirty": []
       },
       "machine": {
         "gpu_models": [
@@ -1891,35 +1717,137 @@
       }
     },
     "search-buy-motorcycle__es": {
-      "last_run": "2026-08-21 15:42",
+      "last_run": "2026-08-25 21:15",
       "overall": 2,
-      "judge": "deepseek-v4-flash",
+      "judge": "glm-4.6",
       "state": "FAIL",
       "scores": {
         "naturalidad": 3,
         "adaptacion": 3,
-        "resultado": 1,
+        "resultado": 2,
         "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró normalidad sobre una tarea cancelada sin decirlo al usuario.",
+      "verdict": "El caso no está listo para producción. El bloqueador principal es la incapacidad del sistema para filtrar ruido estructural (hoteles/recambios) dentro de un marketplace, haciendo que el agente pierda el foco y entregue resultados irrelevantes.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: cd /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «data»"
+          "que": "worker:1: 1 error(es), último paso «🧭 navegador ↩»"
         }
       ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "2e7a6f4",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-270-uc-search-buy-motorcycle-es.md",
+        "task": ""
+      }
+    },
+    "search-secondhand-monitor__es": {
+      "last_run": "2026-08-25 21:35",
+      "overall": 3,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 2,
+        "mecanismo": 5,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo. El bloqueador nº1 es la conducta de retención de resultados (zaelar tiene los datos y decide no mostrarlos para mantener una ficción de búsqueda activa) seguido de la invención de funcionalidades de sistema (programación de avisos) que no existen.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "2e7a6f4",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-271-uc-search-secondhand-monitor-es.md",
+        "task": ""
+      }
+    },
+    "things-to-do-nearby-weekend__es": {
+      "last_run": "2026-08-26 12:02",
+      "overall": 2,
+      "judge": "deepseek-v4-flash",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el worker arrastró el objetivo erróneo ('niños', fechas inventadas) incluso después de la corrección del usuario, y la hoja de resultados quedó vacía sin que zaelar lo reconociera.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 5,
       "families": [
         "flash",
         "memory",
@@ -1929,142 +1857,11 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "c6b429a",
+        "sha": "0ae0240",
         "n_dirty": 0,
         "dirty": []
       },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 2
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-270-uc-search-buy-motorcycle-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T478-uc-search-buy-motorcycle-es-fix.md"
-      }
-    },
-    "search-secondhand-monitor__es": {
-      "last_run": "2026-08-25 04:16",
-      "overall": 4,
-      "judge": "deepseek-v4-flash",
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 4
-      },
-      "verdict": "El caso está resuelto de inicio a fin con candidatos reales verificados, hoja de resultados llena y entrega del enlace pedido en cuanto hubo datos (29 s); está listo para producción, con el ghost widget del sistema y el aviso de «nuevo» en el Acer como únicos flecos, ninguno de ellos obra de zaelar.",
-      "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: the "
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: unre"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Exit code 2 el payload debe ser un objeto JSON"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 3 error(es), último paso «end»"
-        }
-      ],
-      "sandboxed": true,
-      "provisional": null,
-      "tier": 2,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "aimlapi",
-      "code": {
-        "sha": "89a562a",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 1
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-271-uc-search-secondhand-monitor-es.md",
-        "task": ""
-      }
-    },
-    "things-to-do-nearby-weekend__es": {
-      "last_run": "2026-08-25 12:04",
-      "overall": 2,
-      "judge": "glm-4.6",
-      "state": "INFRA",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 3
-      },
-      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para recuperar un resultado válido tras un fallo técnico del worker, lo que lleva al asistente a aceptar pasivamente datos dictados por el usuario ('role flip') y a presentarlos como verificados, incumpliendo el requisito fundamental de 'opciones reales leídas de la página real'.",
-      "missing_signals": [],
-      "audit_anomalies": [],
-      "sandboxed": true,
-      "provisional": null,
-      "tier": 2,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "aimlapi",
-      "code": {
-        "sha": "802733d",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
-          }
-        ],
-        "n": 2
-      },
+      "machine": {},
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-312-uc-things-to-do-nearby-weekend-es.md",
         "task": ".meshkore/modules/nucleo/tasks/T481-uc-things-to-do-nearby-weekend-es-fix.md"
@@ -2155,5 +1952,5 @@
       }
     }
   },
-  "updated": "2026-08-25 15:51"
+  "updated": "2026-08-26 20:21"
 }

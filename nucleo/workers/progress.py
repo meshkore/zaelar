@@ -161,3 +161,39 @@ def still_alive(phase: str, seconds: int) -> str:
         m = seconds // 60
         return f"{p} — lleva {m} min"
     return f"{p} — lleva {max(1, seconds)}s"
+
+
+def narration_out(task_id: str, model: str, text: str, first_output_ms=None) -> None:
+    """La narración del worker sale al visor Y a la pestaña de Proceso (V2-345).
+
+    Medido en la sesión `7575e81a` (21,6 min del encargo del coche): 82 de estas narraciones, una cada 16 s, y
+    ninguna llegaba a pantalla. Son la señal MÁS rica que tenemos —«Wallapop devuelve candidatos pero mayormente
+    coches viejos (pre-2016), necesito filtros de año», «tengo más opciones dentro del presupuesto, voy a revisar
+    el Renault Laguna Coupé (11.650 €)»— porque llevan el sitio, el precio, el modelo y el PORQUÉ del siguiente
+    paso, que es justo lo que ninguna frase generada por nosotros puede saber.
+
+    Va MARCADA con «💬», y el marcador no es decoración: el worker AFIRMA cosas, y esta casa ya pagó que una
+    afirmación suya se tomara por un hecho comprobado (V2-249 — escribió «Recordatorio PROGRAMADO» sin poder
+    programar nada). En este anillo conviven con lo que SÍ hemos verificado («14 resultados en la página»), así
+    que tienen que distinguirse a simple vista. Mismo patrón que el muro de chat, que prefija en vez de inventar
+    un canal.
+
+    Se RECORTA a una línea legible: el evento del visor conserva los 600 caracteres enteros; la pestaña es para
+    mirar de reojo mientras trabaja, no para leer el razonamiento completo.
+    """
+    t = str(text or "")
+    if not t:
+        return
+    try:
+        from voice.observer import emit
+        ex = {"id": task_id, "src": f"worker:{task_id}", "model": model or ""}
+        if first_output_ms is not None:
+            ex["first_output_ms"] = first_output_ms
+        emit("task", "💬 worker", text=t[:600], extra=ex)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from nucleo import dispatch as _d
+        _d.record_phase(task_id, "💬 " + (t[:150] + "…" if len(t) > 150 else t))
+    except Exception:  # noqa: BLE001
+        pass

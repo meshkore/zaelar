@@ -271,7 +271,52 @@ def by_identity(items) -> tuple:
         if not isinstance(it, dict):
             continue
         (named if str(it.get("title") or "").strip() else unnamed).append(it)
+    # V2-346 — Y UN NOMBRE QUE VARIAS FILAS COMPARTEN COMO PLANTILLA NO ES LA IDENTIDAD DE NINGUNA.
+    # La regla de `cardWalk` («un dato que nombra a todas no nombra a ninguna») subida de los nodos a las filas.
+    # Ver `_boilerplate_prefix`. Lo degradado va al montón de las que no tienen nombre: se cuenta y se dice.
+    if named:
+        _tpl = _boilerplate_prefix([str(it.get("title") or "").strip() for it in named])
+        if _tpl:
+            _keep, _cromo = [], []
+            for it in named:
+                t = str(it.get("title") or "").strip()
+                (_cromo if t.startswith(_tpl) and len(t) > len(_tpl) else _keep).append(it)
+            named, unnamed = _keep, unnamed + _cromo
     return named, unnamed
+
+
+# Una plantilla tiene que ser LARGA (una frase de navegación entera, no una palabra de categoría: «Bici » la
+# comparten tres bicis legítimas) y de la PÁGINA, no de tres filas sueltas — de ahí el mínimo de la mitad. Tres
+# «Ford Focus 1.5 TDCi» entre siete coches son tres coches, no cromo.
+_TPL_MIN_CHARS = 12
+_TPL_MIN_ROWS = 3
+
+
+def _boilerplate_prefix(titles: list) -> str:
+    """El prefijo que comparte al menos la MITAD de los títulos (y nunca menos de tres), o «» si no lo hay.
+
+    Se busca por prefijo y no por igualdad porque así es como viene la plantilla: los nueve enlaces de
+    concesionario de AutoScout24 difieren solo en el paréntesis final. Y se EXIGE que cada fila añada algo detrás
+    —el llamante filtra con `len(t) > len(_tpl)`—, porque cuatro títulos IDÉNTICOS son otra cosa: el mismo
+    producto en cuatro tiendas de un comparador, donde el nombre sí identifica la cosa.
+
+    Sobre una lista ordenada, las filas que comparten prefijo quedan juntas, así que el prefijo común de un
+    bloque es el de sus dos extremos: basta mirar cada ventana del tamaño del mínimo.
+    """
+    ts = sorted(t for t in titles if t)
+    n = len(ts)
+    k = max(_TPL_MIN_ROWS, (n + 1) // 2)
+    if n < k:
+        return ""
+    best = ""
+    for i in range(0, n - k + 1):
+        a, b = ts[i], ts[i + k - 1]
+        j = 0
+        while j < min(len(a), len(b)) and a[j] == b[j]:
+            j += 1
+        if j > len(best):
+            best = a[:j]
+    return best if len(best) >= _TPL_MIN_CHARS else ""
 
 
 def by_amount(items) -> tuple:

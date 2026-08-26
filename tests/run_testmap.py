@@ -998,6 +998,15 @@ DOMAINS: list[dict] = [
                                 "distingue, y sin romper el dedup que protege del ruido",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_every_browser_step_reaches_the_screen.py"]},
+        # V2-346 — y el mismo corte UNA CAPA MÁS ARRIBA, entre filas. Las nueve de cabeza llevaban nombre y
+        # precio, así que pasaban las dos guardas de abajo; el nombre era el enlace «ver todos los vehículos de
+        # este concesionario» que cada tarjeta lleva dentro. El turno anunció «en OcasionPlus Arganda hay uno
+        # por 11.565 euros» y el juez lo puso de bloqueador nº1. Un nombre que comparten todas no nombra a
+        # ninguna: es la regla de `cardWalk`, subida de los nodos a las filas.
+        {"id": "4.50", "title": "Un nombre de plantilla compartido por las filas no identifica a ninguna (el "
+                                "concesionario no es un coche) · y el mismo producto en cuatro tiendas sí",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_a_name_shared_by_every_row_names_none.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,

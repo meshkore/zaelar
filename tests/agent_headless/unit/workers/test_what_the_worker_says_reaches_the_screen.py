@@ -76,11 +76,22 @@ def test_the_ring_is_still_a_ring():
 def test_the_session_actually_pushes_it():
     """Guarda de CABLEADO sobre la fuente SIN comentarios: la decisión sin llamante es el arreglo que no existe
     (V2-199), y este fichero encontró el código exactamente en ese estado — `_emit_note` llevaba el texto bueno
-    a observabilidad y a nadie más."""
+    a observabilidad y a nadie más.
+
+    V2-346: la emisión se mudó ENTERA a `progress.narration_out` (el trinquete de arquitectura pedía extraer,
+    no subir el techo de `session.py`), así que la guarda mira los DOS sitios — que la sesión llame, y que lo
+    llamado siga empujando al anillo. Comprobar solo uno da verde con el otro vacío."""
     from pathlib import Path
-    src = "\n".join(ln for ln in Path("nucleo/workers/session.py").read_text().splitlines()
-                    if not ln.strip().startswith("#"))
-    i = src.index("def _emit_note")
-    cuerpo = src[i:i + 2600]
-    assert "record_phase" in cuerpo, "la narración no sale del visor"
+
+    def _limpio(ruta):
+        return "\n".join(ln for ln in Path(ruta).read_text().splitlines()
+                          if not ln.strip().startswith("#"))
+    ses = _limpio("nucleo/workers/session.py")
+    i = ses.index("def _emit_note")
+    assert "_progress.narration_out(" in ses[i:i + 2600], "la sesión ya no llama: la narración se queda dentro"
+    prog = _limpio("nucleo/workers/progress.py")
+    j = prog.index("def narration_out")
+    cuerpo = prog[j:j + 2600]
+    assert "record_phase" in cuerpo, "la narración no sale a la pantalla"
+    assert 'emit("task", "💬 worker"' in cuerpo, "la narración ya no llega al visor"
     assert '"💬 "' in cuerpo, "sin el marcador, su afirmación se lee como hecho verificado"
