@@ -290,6 +290,11 @@ DOMAINS: list[dict] = [
             # las dábamos al worker GENÉRICO, o sea a todos menos al que más shell compone. El guarda es de la
             # FORMA: todo prompt que ofrezca un puente lleva las reglas, y ninguno afirma dónde no está.
             "tests/agent_headless/unit/workers/test_the_drawer_rules_reach_every_bridge_prompt.py",
+            # V2-344: tercera vez la misma forma (V2-257, V2-277). La orden de GUARDAR lo averiguado existía y
+            # decía literalmente «aunque el flujo se reinicie», pero vivía en la rama de GESTIÓN; una BÚSQUEDA
+            # nunca la leía como suya. Medido: 21 min de dos workers muertos, cero filas en memoria. El guarda
+            # mira el prompt RENDERIZADO, porque que la orden exista en el fichero es lo que ya pasaba.
+            "tests/agent_headless/unit/workers/test_what_the_worker_learns_outlives_it.py",
             # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
             # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
             # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.

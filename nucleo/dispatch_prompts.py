@@ -371,7 +371,10 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"• Fase legible puntual (tarjeta): {py} -m nucleo.agent_report phase \"<qué haces>\"\n"
         f"• Preguntar al operador y ESPERAR su respuesta: {py} -m nucleo.worker_bridge ask \"<pregunta>\"\n"
         f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.mem_cli recall \"<consulta>\"\n"
-        f"• GUARDAR un dato que reúnas (para no volver a pedirlo): {py} -m nucleo.mem_cli remember \"<dato>\" --slot task.<algo>\n\n"
+        # Entrada de CATÁLOGO, no una orden: el QUÉ y el PORQUÉ viven una sola vez, en «LO QUE AVERIGUAS SE
+        # GUARDA» (V2-344). Dejar aquí también un motivo («para no volver a pedirlo») era media instrucción
+        # suelta, y dos mitades en dos sitios es como una decisión se separa de sí misma sin avisar.
+        f"• GUARDAR un dato que reúnas: {py} -m nucleo.mem_cli remember \"<dato>\" --slot task.<algo>\n\n"
         "⚠️ ESOS son TODOS los subcomandos de `nav_cli` que existen — snapshot, look, navigate, click, type, "
         "select_option, click_at, type_at, scroll, press, extract, visit. NO existen `automate`, `act` ni otro; "
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
@@ -419,9 +422,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "zaelar ya sepa.\n"
         "   b. PIDE DE GOLPE lo que falte: una SOLA `worker_bridge ask` con TODOS los datos que te faltan a la vez "
         "(no de uno en uno, no vayas y vengas). Espera la respuesta. NUNCA inventes valores.\n"
-        "   c. GUARDA cada dato que reúnas con `mem_cli remember \"...\" --slot task.<campo>` EN CUANTO lo tengas — así "
-        "no se pierde y no lo vuelves a pedir aunque el flujo se reinicie.\n"
-        "   d. EJECUTA hasta el FINAL: rellena TODOS los campos con visión, elige opciones, avanza el calendario, "
+        "   c. EJECUTA hasta el FINAL: rellena TODOS los campos con visión, elige opciones, avanza el calendario, "
         "acepta condiciones y ENVÍA/CONFIRMA. Es una acción a TERMINAR, no algo que se le explique al operador.\n"
         + ("   (Si el objetivo es BUSCAR/COMPARAR: llega a la página de RESULTADOS con los filtros exactos "
            "—categoría excluyente, ubicación/orden— y `extract`. NO cierres con los primeros que salgan: esta tarea "
@@ -461,6 +462,33 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "EXACTAMENTE lo pedido, no algo parecido. Si no cumple, ITERA (ordena por fecha, afina el filtro, otra "
         "fuente) hasta que cumpla; si no se puede certificar, dilo con honestidad. No des por bueno un resultado sin "
         "confirmarlo.\n"
+        # V2-344 — LO QUE AVERIGUA SOBREVIVE A QUE LO MATEN. Medido en `search-buy-used-car` (sesión 7575e81a,
+        # 2026-08-26): worker 1 llegó a milanuncios y capturó, muerto a los 2 min; worker 2 muerto a los 8; el 3
+        # entregó. En la BD del plató, la ÚNICA fila con `source=worker:*` en toda la ventana 13:33-13:54 es la
+        # del que entregó — los 21 minutos de los dos primeros no dejaron rastro, y cada relanzamiento renavegó,
+        # rebuscó y refiltró desde cero.
+        #
+        # La capacidad estaba ENTERA: `mem_cli` viaja en los puentes, la ruta exige token por tarea y el gate de
+        # precisión PASA hallazgos (probado: «Milanuncios: VW Golf VII 1.6 TDI 2018, 11.400 €» pasa; solo rechaza
+        # preguntas reificadas). Lo que faltaba era PEDIRLO: la única orden fuerte de guardar —y decía literalmente
+        # «aunque el flujo se reinicie», o sea la protección anti-relanzamiento— vivía dentro del punto 3, acotado
+        # en su encabezado a «para una GESTIÓN: reservar, pedir cita, rellenar un formulario, tramitar». Una
+        # búsqueda cae en la rama BUSCAR/COMPARAR, que no menciona guardar nada. Misma forma que V2-257: la
+        # instrucción correcta existía, en la rama equivocada.
+        #
+        # UNA instrucción con su bifurcación DENTRO (V2-226), no una por rama — por eso el 3.c de arriba se
+        # RETIRA en vez de duplicarse aquí. Y con su límite de volumen dentro del mismo imperativo: guardar las
+        # 40 filas de un listado convierte la memoria en ruido, así que la frontera es lo que AVERIGUASTE, nunca
+        # lo que HICISTE.
+        f"LO QUE AVERIGUAS SE GUARDA, porque a ti pueden matarte y a la memoria no: si te relanzan con este mismo "
+        f"encargo, lo que dejaste guardado es TODO lo que el siguiente encuentra — sin ello renavega, rebusca y "
+        f"refiltra desde cero. Así que cada vez que confirmes un dato que te ha costado conseguir, guárdalo EN EL "
+        f"ACTO con {py} -m nucleo.mem_cli remember \"<el dato>\" --slot task.<algo>, y lo que guardas depende de "
+        f"lo que estés haciendo: en una GESTIÓN, cada dato del formulario según lo reúnes (matrícula, DNI, fecha…) "
+        f"para no volver a pedírselo al operador; en una BÚSQUEDA, cada candidato que pase tu criterio con su "
+        f"nombre y su precio, y el filtro exacto que ya te funcionó. Lo que NO se guarda es lo que HICISTE: «he "
+        f"abierto coches.net» o «he aceptado las cookies» no es un hallazgo, es ruido, y llenar la memoria de eso "
+        f"la estropea para todos.\n\n"
         # V2-257 — DÓNDE se ve lo que encuentra. Este prompt no nombraba la hoja ni una sola vez (medido:
         # 0 ocurrencias de `widget_cli` y 0 de `results`), así que el worker no tenía forma de saber que existe —
         # mientras `dispatch._sheet_open` se la abría al operador delante, vacía, en cuanto encargaba. Nombrarla
