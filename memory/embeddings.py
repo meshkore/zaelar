@@ -23,6 +23,7 @@ import logging
 import math
 import os
 import re
+import socket
 import urllib.request
 
 from .schema import EMBED_DIM
@@ -119,7 +120,10 @@ def _ollama_model() -> str:
             or os.getenv("ZAELAR_EMBED_MODEL") or "embeddinggemma")
 
 
-def _ollama_embed(texts: list[str]) -> list[list[float]] | None:
+def _ollama_embed(texts: list[str], *, timeout: float | None = None) -> list[list[float]] | None:
+    """`timeout=None` → el presupuesto de una llamada REAL (`ZAELAR_EMBED_TIMEOUT`, 20 s). La SONDA de
+    resolución pasa el suyo, mucho más corto: son dos preguntas distintas (V2-349)."""
+    global _ollama_timeout
     try:
         # keep_alive: mantén el modelo de embedding RESIDENTE en Ollama. El CORAZÓN de memoria
         # (`qwen2.5:14b`, off-hot-path tras cada turno) puede DESALOJAR embeddinggemma de la VRAM Metal → el
@@ -142,7 +146,16 @@ def _ollama_embed(texts: list[str]) -> list[list[float]] | None:
         if _mb:
             _mb("embed", True)
         try:
-            with urllib.request.urlopen(req, timeout=float(os.getenv("ZAELAR_EMBED_TIMEOUT", "20"))) as r:
+            # Una llamada REAL merece los 20 s: esperar es mejor que degradar el espacio. PERO si la última
+            # vez Ollama no contestó a tiempo, ya sabemos que no está respondiendo, y volver a esperar 20 s
+            # por llamada convierte el acierto de conservar el espacio en un turno muerto — justo la latencia
+            # que V2-311 midió. Mientras dure ese estado, las llamadas reales usan también el reloj corto:
+            # el espacio se conserva igual, el vector de ESA llamada se difiere (que es lo que ya hace la
+            # rama de saturación), y el primer sondeo que responda restaura el presupuesto entero.
+            _presupuesto = (timeout if timeout is not None
+                            else (probe_budget_s() if _ollama_timeout
+                                  else float(os.getenv("ZAELAR_EMBED_TIMEOUT", "20"))))
+            with urllib.request.urlopen(req, timeout=_presupuesto) as r:
                 data = json.load(r)
         finally:
             if _mb:
@@ -157,12 +170,18 @@ def _ollama_embed(texts: list[str]) -> list[list[float]] | None:
             pass
         embs = data.get("embeddings")
         if embs and len(embs) == len(texts):
+            _ollama_timeout = False          # contestó: se acabó el reloj corto, vuelve el presupuesto entero
             _note_ollama_outcome(busy=False)
             return embs
         _note_ollama_outcome(busy=_looks_busy(data.get("error")))
     except Exception as ex:  # noqa: BLE001
         # A 4xx/5xx arrives here as an HTTPError whose BODY carries Ollama's reason, and the reason is the whole
         # question: "server busy" is a queue that will drain, "connection refused" is a server that is not there.
+        # And a TIMEOUT is a THIRD answer, not a flavour of the second (V2-349): it means «I don't know yet» —
+        # Ollama may be perfectly alive with the GPU held by the CORAZÓN. Treating it as absence is what makes
+        # a short probe dangerous, because absence DEMOTES the whole process and demoting CHANGES THE VECTOR
+        # SPACE (see the busy branch in `_resolve_backend`). So it gets its own flag.
+        _ollama_timeout = isinstance(ex, (TimeoutError, socket.timeout)) or "timed out" in str(ex).lower()
         _note_ollama_outcome(busy=_looks_busy(_error_body(ex)))
         return None
     return None
@@ -170,6 +189,21 @@ def _ollama_embed(texts: list[str]) -> list[list[float]] | None:
 
 _BUSY_MARKERS = ("server busy", "maximum pending requests", "overloaded", "too many requests")
 _ollama_busy = False            # last outcome was "alive but saturated", not "absent"
+_ollama_timeout = False         # last outcome was "did not answer in time" — which is not "absent" either
+
+#: El reloj de la SONDA de resolución, separado del de una llamada real (V2-349). Preguntar «¿estás ahí?» y
+#: pedir un embedding de verdad no son la misma pregunta y no merecen el mismo presupuesto: la primera bloquea
+#: el PRIMER acceso a memoria de un proceso nuevo (la crea el DDL de la tabla vectorial, que necesita la
+#: dimensión), y la segunda está en la ruta caliente de un turno donde esperar es mejor que degradar.
+_PROBE_ENV = "ZAELAR_EMBED_PROBE_TIMEOUT"
+_PROBE_DEFAULT_S = 1.5
+
+
+def probe_budget_s() -> float:
+    try:
+        return max(0.1, float(os.getenv(_PROBE_ENV, str(_PROBE_DEFAULT_S))))
+    except Exception:
+        return _PROBE_DEFAULT_S
 
 
 def _looks_busy(detail) -> bool:
@@ -271,10 +305,30 @@ def _resolve_backend():
     # stale information — and it showed up as an order-dependent test failure, which is the shape of bug that
     # passes locally and fails in CI: a probe that never reaches `_ollama_embed` (or a mocked one) would inherit
     # someone else's verdict. Cleared here so the only way it becomes true is this probe saying so.
-    global _ollama_busy
+    global _ollama_busy, _ollama_timeout
     _ollama_busy = False
-    if _ollama_embed(["ping"]) is not None:
+    _ollama_timeout = False
+    # La SONDA lleva su propio reloj (V2-349). Medido el 2026-08-26: el PRIMER acceso a memoria de un proceso
+    # fresco costaba **20,8 s** —lo paga el DDL de la tabla vectorial, que necesita `dim()`— porque esta sonda
+    # usaba el presupuesto de una llamada REAL (20 s) contra un Ollama vivo pero con la GPU ocupada. La consulta
+    # en sí tarda 25 ms; el arnés lo estaba midiendo como «la memoria tarda 10 s en no encontrar nada».
+    if _ollama_embed(["ping"], timeout=probe_budget_s()) is not None:
         _backend = "ollama"
+    elif _ollama_timeout:
+        # UN TIMEOUT NO ES UNA AUSENCIA, y esto es lo que hace SEGURO acortar la sonda. Con 20 s, una petición
+        # encolada detrás del CORAZÓN podía llegar a tiempo; con 1,5 s no llegaría, y el camino de antes la
+        # habría leído como «Ollama no está» → fastembed → 384 dims rellenados a 768 contra un índice sellado
+        # embeddinggemma:768. O sea que abaratar la sonda, tal cual, habría comprado 19 s a cambio de
+        # CAMBIAR EL ESPACIO VECTORIAL más a menudo: el fallo que V2-103 tardó una auditoría en encontrar.
+        # Así que un reloj agotado se comporta como la saturación: se conserva el espacio, se difiere el vector
+        # y se re-sondea en la llamada siguiente. Lo que SÍ degrada sigue siendo un fallo definitivo y rápido
+        # (conexión rechazada, 404), que es información de verdad y llega en milisegundos.
+        _backend = "ollama"
+        logger.info("memoria: Ollama no respondió a la sonda en %.1fs (no ausente) — se conserva el espacio "
+                    "vectorial y se re-sondea en la próxima llamada", probe_budget_s())
+        _resolved_at = 0.0
+        _warn_if_degraded(_backend, forced=False)
+        return
     elif _ollama_busy:
         # BUSY IS NOT ABSENT (2026-08-19). Reproduced live: `/api/embed` answering
         # `{"error":"server busy, please try again.  maximum pending requests exceeded"}` while `/api/tags` served
@@ -315,12 +369,18 @@ def active_backend() -> str:
 
 def reset():
     """Olvida el backend resuelto (tests que cambian env)."""
-    global _backend, _fastembed_model, _active_dim, _resolved_at, _forced
+    global _backend, _fastembed_model, _active_dim, _resolved_at, _forced, _ollama_busy, _ollama_timeout
     _backend = None
     _fastembed_model = None
     _active_dim = None
     _resolved_at = 0.0
     _forced = False
+    # Las dos banderas de VEREDICTO se van con el backend (V2-349). Una `_ollama_timeout` heredada no es un
+    # detalle de tests: dejaría las llamadas REALES con el reloj corto para siempre, decidiendo con el
+    # veredicto de otro. Es la misma trampa que ya documenta `_ollama_busy` en `_resolve_backend`, y la cazó
+    # la suite existente en cuanto nació la bandera.
+    _ollama_busy = False
+    _ollama_timeout = False
 
 
 def _active_model_name() -> str:

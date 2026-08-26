@@ -93,7 +93,7 @@ def test_transient_ollama_hiccup_then_recovery_still_deduplicates(fresh_db, monk
     monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})
     calls = {"ollama": 0}
 
-    def flaky_ollama(texts):
+    def flaky_ollama(texts, *, timeout=None):   # `timeout` lo pasa la sonda (V2-349)
         calls["ollama"] += 1
         return None if calls["ollama"] == 1 else [[0.1] * 768 for _ in texts]
 

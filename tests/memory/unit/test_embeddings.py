@@ -70,7 +70,7 @@ def test_auto_degraded_backend_rechecks_after_ttl(monkeypatch):
 
     calls = {"ollama": 0}
 
-    def flaky_ollama(texts):
+    def flaky_ollama(texts, *, timeout=None):   # `timeout` lo pasa la sonda (V2-349)
         calls["ollama"] += 1
         return None if calls["ollama"] == 1 else [[0.1] * 768 for _ in texts]
 
@@ -122,7 +122,7 @@ def test_healthy_ollama_backend_does_not_repoll(monkeypatch):
     emb.reset()
     calls = {"n": 0}
 
-    def ok_ollama(texts):
+    def ok_ollama(texts, *, timeout=None):     # `timeout` lo pasa la sonda (V2-349)
         calls["n"] += 1
         return [[0.1] * 768 for _ in texts]
 
@@ -187,7 +187,7 @@ def test_a_saturated_ollama_re_probes_on_the_very_next_call(monkeypatch):
 
     calls = {"n": 0}
 
-    def _ok(texts):
+    def _ok(texts, *, timeout=None):            # `timeout` lo pasa la sonda (V2-349)
         calls["n"] += 1
         return [[0.2] * 768 for _ in texts]
 
@@ -225,7 +225,7 @@ def test_the_busy_flag_never_leaks_from_a_previous_probe(monkeypatch):
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
     emb._ollama_busy = True                                   # stale verdict from an earlier call
-    monkeypatch.setattr(emb, "_ollama_embed", lambda texts: None)   # never reports an outcome
+    monkeypatch.setattr(emb, "_ollama_embed", lambda texts, *, timeout=None: None)  # never reports an outcome
     monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
     emb.reset()
     assert emb.active_backend() == "fastembed", "decidió con el veredicto de otra llamada"
@@ -252,3 +252,131 @@ def test_y_un_fallo_de_observabilidad_JAMAS_rompe_la_memoria():
     que se quería hacer visible."""
     with mock.patch("voice.health_state.record", side_effect=RuntimeError("bus caído")):
         emb._warn_if_degraded("hash", False)   # no debe lanzar
+
+
+# ── El reloj de la SONDA no es el reloj de una llamada REAL (V2-349, 2026-08-26) ──────────────────────────────
+#
+# Medido sobre el plató: el PRIMER acceso a memoria de un proceso fresco costaba **20,8 s**. No es el retriever
+# —la consulta tarda 25 ms sobre una BD vacía— sino que el DDL de la tabla vectorial necesita `dim()`, eso
+# resuelve el backend, y la sonda usaba el presupuesto de una llamada real (`ZAELAR_EMBED_TIMEOUT`, 20 s) contra
+# un Ollama vivo pero con la GPU ocupada por el CORAZÓN. El arnés lo estaba midiendo como «la memoria tarda 10 s
+# en no encontrar nada».
+#
+# Lo que hace SEGURO acortarlo es la otra mitad: con 20 s una petición encolada podía llegar a tiempo; con 1,5 s
+# no llegaría, y el camino de antes lo habría leído como AUSENCIA → fastembed → 384 rellenados a 768 contra un
+# índice sellado embeddinggemma:768. Abaratar la sonda a secas habría comprado 19 s a cambio de cambiar el
+# espacio vectorial más a menudo, que es el fallo que a V2-103 le costó una auditoría encontrar.
+
+def _timeout_error():
+    import socket
+    return socket.timeout("timed out")
+
+
+def _presupuesto_visto(monkeypatch) -> list:
+    """Anota el `timeout` con el que se llama de verdad a la red, que es lo único que importa aquí."""
+    vistos: list = []
+
+    def _urlopen(req, timeout=None):
+        vistos.append(timeout)
+        raise _timeout_error()
+
+    monkeypatch.setattr(emb.urllib.request, "urlopen", _urlopen)
+    return vistos
+
+
+def test_la_SONDA_usa_su_presupuesto_corto_y_no_el_de_una_llamada_real(monkeypatch):
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.delenv("ZAELAR_EMBED_PROBE_TIMEOUT", raising=False)
+    monkeypatch.setenv("ZAELAR_EMBED_TIMEOUT", "20")
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    vistos = _presupuesto_visto(monkeypatch)
+    emb.reset()
+
+    emb.active_backend()
+
+    assert vistos, "la sonda no llegó a salir a la red"
+    assert vistos[0] == emb.probe_budget_s() < 20.0, (
+        f"la sonda volvió a esperar como una llamada real ({vistos[0]}s): son 20 s en el primer acceso a memoria")
+
+
+def test_una_llamada_REAL_conserva_su_presupuesto_entero(monkeypatch):
+    """La contrapartida. Acortarlo TODO sería más fácil y sería otro fallo: en un embed de verdad esperar es
+    mejor que degradar el espacio, y esa es una decisión distinta de «¿estás ahí?»."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setenv("ZAELAR_EMBED_TIMEOUT", "20")
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    emb.reset()
+    emb._backend, emb._forced = "ollama", True          # backend ya resuelto: esto no es una sonda
+    emb._ollama_timeout = False
+
+    vistos: list = []
+
+    def _urlopen(req, timeout=None):
+        vistos.append(timeout)
+        raise ConnectionRefusedError("refused")
+
+    monkeypatch.setattr(emb.urllib.request, "urlopen", _urlopen)
+    emb._ollama_embed(["texto de verdad"])
+
+    assert vistos == [20.0], f"una llamada real dejó de esperar lo que le toca: {vistos}"
+
+
+def test_un_TIMEOUT_de_la_sonda_NO_degrada_el_espacio_vectorial(monkeypatch):
+    """El corazón del cambio. Un reloj agotado significa «no lo sé todavía», no «Ollama no está»."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    _presupuesto_visto(monkeypatch)
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+    emb.reset()
+
+    assert emb.active_backend() == "ollama", (
+        "una sonda que se quedó sin tiempo degradó el proceso entero: 384 rellenados a 768 contra un índice "
+        "sellado embeddinggemma — exactamente lo que abaratar la sonda a secas habría comprado")
+    assert emb.dim() == 768
+    assert emb._resolved_at == 0.0, "y tiene que re-sondear en la próxima llamada, no dentro de 5 minutos"
+
+
+def test_un_Ollama_AUSENTE_sigue_degradando(monkeypatch):
+    """El contrapeso, y la razón de que esto no sea «no degradar nunca»: un servidor que no está no va a
+    contestar, y esperarle dejaría la memoria sin recall semántico. La diferencia es que la ausencia se sabe en
+    MILISEGUNDOS (conexión rechazada) y el «no lo sé» tarda lo que dure el reloj."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(emb.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(ConnectionRefusedError("refused")))
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+    emb.reset()
+    assert emb.active_backend() == "fastembed"
+
+
+def test_mientras_Ollama_no_conteste_tambien_las_llamadas_reales_usan_el_reloj_corto(monkeypatch):
+    """Sin esto, conservar el espacio se paga con un turno muerto: cada embed real esperaría 20 s contra un
+    Ollama que ya sabemos que no responde — justo la latencia que midió V2-311. El espacio se conserva igual;
+    lo que se difiere es el vector de ESA llamada, como en la rama de saturación."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setenv("ZAELAR_EMBED_TIMEOUT", "20")
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    vistos = _presupuesto_visto(monkeypatch)
+    emb.reset()
+    emb.active_backend()                                  # la sonda se queda sin tiempo → _ollama_timeout
+    vistos.clear()
+
+    emb._ollama_embed(["un embed de verdad"])
+    assert vistos == [emb.probe_budget_s()], (
+        f"con Ollama mudo, una llamada real volvió a esperar 20 s: {vistos}")
+
+    # …y en cuanto conteste, vuelve el presupuesto entero.
+    def _urlopen_ok(req, timeout=None):
+        vistos.append(timeout)
+        import io
+        return io.BytesIO(b'{"embeddings": [[0.5]]}')
+
+    monkeypatch.setattr(emb.urllib.request, "urlopen",
+                        lambda req, timeout=None: __import__("contextlib").closing(_urlopen_ok(req, timeout)))
+    vistos.clear()
+    emb._ollama_embed(["ya contesta"])
+    monkeypatch.setattr(emb.urllib.request, "urlopen", lambda req, timeout=None: (_ for _ in ()).throw(
+        ConnectionRefusedError("refused")) if vistos.append(timeout) is None else None)
+    vistos.clear()
+    emb._ollama_embed(["otra más"])
+    assert vistos == [20.0], f"tras una respuesta buena el presupuesto entero no volvió: {vistos}"
