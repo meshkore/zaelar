@@ -115,8 +115,16 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     import time as _t
     if config.JUDGE_PROVIDER == "zai" and config.ZAI_KEY:
         try:
-            return glm_call(messages, max_tokens=max_tokens), config.ZAI_JUDGE_MODEL
-        except Exception as e:  # no balance / quota / transport → DeepSeek fallback (never lose the judgement)
+            _txt = glm_call(messages, max_tokens=max_tokens)
+            # AN EMPTY BODY IS NOT AN ANSWER — the rule the DeepSeek leg below has carried since 2026-08-20,
+            # and this leg lacked. Measured 2026-08-26 (focused round on `search-buy-used-car`): GLM answered
+            # 200 with empty content, the function RETURNED it as an answer, so the fallback never ran — it
+            # only triggers on exception — and the judge parsed '' three times and crashed the round. An
+            # eight-minute conversation, already measured, thrown away by the leg that «worked».
+            if not (_txt or "").strip():
+                raise RuntimeError("respuesta VACÍA (200 sin contenido)")
+            return _txt, config.ZAI_JUDGE_MODEL
+        except Exception as e:  # no balance / quota / transport / EMPTY → DeepSeek (never lose the judgement)
             print(f"[judge] GLM unavailable ({str(e)[:80]}) → DeepSeek fallback", file=sys.stderr)
     # DIRECT before the broker: the vendor's endpoint stayed up through the same runs in which the broker
     # returned 429/503/504 and cost three measured rounds.

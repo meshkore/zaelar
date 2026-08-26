@@ -514,7 +514,10 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "3", "name": "VOZ", "nodes": [
         {"id": "3.1", "title": "Atención / VAD / endpointing", "ch": VOICE, "paths": [
-            "tests/voice/unit/test_attention.py", "tests/voice/unit/test_endpointing.py",
+            "tests/voice/unit/test_attention.py",
+            # V2-338: un 200 con cuerpo vacío no es una respuesta del juez — la regla existía solo en la pata
+            # de DeepSeek; GLM vacío se devolvía como respuesta y el relevo (que salta por excepción) no corría.
+            "tests/voice/unit/test_an_empty_judge_body_is_not_an_answer.py", "tests/voice/unit/test_endpointing.py",
             "tests/voice/unit/test_turn_boundaries.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
