@@ -4939,6 +4939,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `memory.api` está congelada y un nombre nuevo no entra sin declararse en `__all__` y en el inventario.
 
 
+- **Un encargo viejo viajaba en CADA prompt como un hecho permanente de la persona** (V2-317, 2026-08-26,
+  encargo del arnés). Midieron que zaelar arrancó hablando de COCHES al pedirle un monitor, arrastrando el caso
+  anterior del lote. No era recall por similitud ni la ventana: era el **bloque de ESTADO**, que va siempre y no
+  depende de la pregunta. `salient_long` ordena por importancia·peso, y ahí entraba «Tarea pendiente para el
+  asistente: buscarle un coche de segunda mano» **junto a «Vive en Madrid» y bajo la misma orden**: «dalo por
+  sabido sin buscar».
+  - **No es cosa del plató**: en la memoria VIVA del operador, **3 de las 5 plazas eran encargos** (un vuelo a
+    Londres, un fontanero sin cuota, una prueba de worker), desplazando a la persona. Plató ES 2/5, US 0/3.
+  - **Ninguna regla lo tapaba**: `background_slot_off_topic` (V2-254) es de RECUPERACIÓN y esta superficie no
+    pasa por `query()` — la **cuarta** superficie fuera de la regla, tras las tres de su docstring. Y va por
+    SLOT: las píldoras de encargo tienen **`slot` NULL**, así que nada puede superseder-las.
+  - **La clase ya estaba en el dato y se tiraba.** `mem_processor` manda una tarea delegada a `kind="result"`
+    («jamás a goal.current») y `salient_long` DEVUELVE `kind`; `compose_state` no lo miraba. Sin lista de
+    palabras y sin campo nuevo: se renderiza la distinción que ya existe. Sección propia que dice lo que SON y
+    nada sobre qué hacer — **no se suprimen** (sería el fallo contrario, un agente que olvida lo que le
+    pidieron) y **no se ordena** en ninguna dirección, que es doctrina de `workers/findings.py`.
+  - **Sensibilidad en las DOS direcciones**: mezclarlo todo otra vez → 3 rojos; mandarlo TODO a encargos → 2.
+    La segunda importa igual: si no, la regla se cumple dejando al agente sin saber dónde vive su operador.
+  - **Abierto**: los encargos siguen COMPARTIENDO el top-5 con la persona (2 plazas reales de 5 en la memoria
+    del operador), un nodo-concepto también ocupa plaza, y las píldoras de encargo siguen sin slot y sin nadie
+    que las cierre — esto reduce el daño, no cierra el encargo. Sin verificar en vivo.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

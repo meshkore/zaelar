@@ -114,3 +114,79 @@ def test_user_rules_remove_fuzzy_and_no_false_removal(fresh_db):
     assert gone == "Trátame de usted"
     _, gone2 = memapi.remove_user_rule("olvida esa regla del parchís")   # no existe → no toca nada
     assert gone2 == "" and len(memapi.state()["rules"]) == 1
+
+
+# ── Un ENCARGO no es un hecho sobre la persona (V2-317, 2026-08-26) ───────────────────────────────────────────
+#
+# Los dos iban en la MISMA lista y bajo la MISMA orden — «dalo por sabido sin buscar» — así que «Vive en Madrid»
+# y «Tarea pendiente para el asistente: buscarle un coche de segunda mano» se leían como la misma clase de dato.
+# Medido por el arnés en `cheapest-monitor`: el agente arrancó hablando de COCHES, arrastrando el encargo del
+# caso anterior. Y no es cosa del plató: en la memoria VIVA del operador, **3 de las 5 plazas eran encargos**
+# (un vuelo a Londres, un fontanero que se quedó sin cuota, una prueba de worker), desplazando a la persona.
+#
+# La clase ya estaba en el dato y se tiraba: `mem_processor` es explícito en que una tarea delegada es
+# `kind="result"`, y `salient_long` devuelve `kind`. Aquí se comprueban las DOS direcciones, porque cada una
+# sola se satisface trivialmente: bajar todo a encargos deja al agente sin saber quién es su operador, y no
+# bajar nada es el fallo medido.
+
+def _pon(texto, kind, importancia=0.9):
+    from memory import writer as memwriter
+    return memwriter.insert_memory(texto, kind=kind, level="long", weight=0.9, importance=importancia)
+
+
+def test_un_encargo_NO_se_presenta_bajo_dalo_por_sabido(fresh_db):
+    _pon("Vive en Madrid, España.", "fact")
+    _pon("Tarea pendiente para el asistente: buscarle un coche de segunda mano.", "result")
+
+    bloque, _op, stats = memapi.compose_state()
+
+    sabido = bloque.split("[Lo que sabes de él")[1].split("[Encargos")[0]
+    assert "Vive en Madrid" in sabido
+    assert "coche de segunda mano" not in sabido, (
+        "un encargo sigue viajando como hecho permanente de la persona: es lo que hizo que el agente "
+        "arrancara hablando de coches cuando le preguntaron por un monitor")
+    assert stats["errand_count"] == 1 and stats["salient_count"] == 1
+
+
+def test_un_HECHO_de_la_persona_NO_baja_a_la_lista_de_encargos(fresh_db):
+    """La otra dirección. Sin esto, «los encargos no van con los hechos» se cumple mandándolo TODO a encargos —
+    y el agente deja de saber dónde vive su operador, que es un fallo peor y más silencioso."""
+    for texto, kind in (("Vive en Madrid, España.", "fact"),
+                        ("Prefiere trato directo.", "pref"),
+                        ("Quiere comprar un monitor de 27 pulgadas.", "intent"),
+                        ("El mes pasado viajó a Oporto.", "event")):
+        _pon(texto, kind)
+
+    bloque, _op, stats = memapi.compose_state()
+
+    assert "[Encargos" not in bloque, f"sin un solo encargo no puede aparecer la sección: {bloque}"
+    # `salient_count` no se fija a 4: el escritor crea NODOS-CONCEPTO («viajes») que también entran en el
+    # perfil saliente, y clavar el número mediría el andamio en vez del contrato. Lo que se afirma es que
+    # ninguno de los cuatro se fue a encargos y que todos siguen visibles.
+    assert stats["errand_count"] == 0
+    assert stats["salient_count"] >= 4
+    for esperado in ("Vive en Madrid", "trato directo", "monitor de 27", "Oporto"):
+        assert esperado in bloque
+
+
+def test_el_encargo_sigue_VISIBLE_y_legible_como_pendiente(fresh_db):
+    """La condición de seguridad que puso el propio arnés: un encargo sin respuesta tiene que seguir leyéndose
+    como pendiente. Taparlo cambiaría este fallo por el contrario — un agente que olvida lo que le pidieron."""
+    _pon("Tarea pendiente para el asistente: buscarle un coche de segunda mano.", "result")
+
+    bloque, _op, _stats = memapi.compose_state()
+
+    assert "coche de segunda mano" in bloque, "el encargo desapareció del prompt: eso es olvidarlo, no ordenarlo"
+    cabecera = bloque.split("[Encargos")[1].split("]")[0]
+    assert "NO son hechos sobre él" in cabecera, "la sección no dice de qué clase es lo que lleva"
+
+
+def test_la_linea_de_encargos_no_ORDENA_ejecutarlos(fresh_db):
+    """Doctrina de `workers/findings.py`: se entrega el dato y se nombra su clase; el juicio se queda en el
+    cerebro. Una orden de «ocúpate de esto» es exactamente lo que produjo el defecto medido."""
+    _pon("Tarea pendiente para el asistente: buscarle un coche.", "result")
+
+    cabecera = memapi.compose_state()[0].split("[Encargos")[1].split("]")[0].lower()
+
+    assert "no empieces a trabajar" in cabecera
+    assert "salvo que él lo saque" in cabecera, "sin la excepción, un encargo que SÍ trae el operador se ignora"

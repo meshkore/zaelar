@@ -142,15 +142,32 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     stats["has_state"] = bool(sit)
 
     # Perfil durable SALIENTE ("lo que sabes de él", SOTA in-context availability): cap TERSO (V2-027).
+    #
+    # AN ERRAND IS NOT A FACT ABOUT THE PERSON (V2-317, 2026-08-26). Both used to go in the same list, under the
+    # same instruction — «dalo por sabido sin buscar» — so «Vive en Madrid» and «Tarea pendiente para el
+    # asistente: buscarle un coche de segunda mano» read as the same class of thing. Measured on the harness:
+    # in `cheapest-monitor` the agent opened by talking about CARS, carrying over the previous case's errand.
+    # And this is not a lab artefact — on the operator's own live memory **3 of the 5 slots were errands**
+    # (a flight to London, a plumber that ran out of quota, a worker test), crowding out the actual person.
+    #
+    # The class is ALREADY in the data and was being thrown away: `mem_processor` is explicit that a task the
+    # operator delegates is `kind="result"` («jamás a goal.current ni al state.objetivo»), and `salient_long`
+    # returns `kind` — `compose_state` just never looked at it. So no word list and no new field: the
+    # distinction that exists gets rendered instead of flattened. Errands stay VISIBLE and stay readable as
+    # pending — suppressing them would trade this failure for the opposite one, an agent that forgets what it
+    # was asked — but they are no longer presented as things to take for granted about the person.
     salient: list[str] = []
+    errands: list[str] = []
     try:
         for m in salient_long(limit=5, max_chars=440):
             t = (m.get("text") or "").strip().replace("\n", " ")
-            if t:
-                salient.append(f"· {t[:140]}")
+            if not t:
+                continue
+            (errands if m.get("kind") == "result" else salient).append(f"· {t[:140]}")
     except Exception:
         pass
     stats["salient_count"] = len(salient)
+    stats["errand_count"] = len(errands)
 
     # ── C · DE QUÉ ÍBAIS HABLANDO (síntesis TENSA del corto plazo) ────────────────────────────────────────
     # V2-027: sustituye el volcado CRUDO de 30 líneas / 1800 chars por las ÚLTIMAS pocas líneas (cap agresivo).
@@ -169,18 +186,26 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     stats["short_count"] = len(convo)
     stats["short_chars"] = short_chars
 
-    if not (mission or sit or salient or convo):
+    if not (mission or sit or salient or errands or convo):
         return "", op, stats
 
     parts: list[str] = []
     if mission:
         parts.append("── QUIÉN ERES ──\n" + mission)
-    if sit or salient:
+    if sit or salient or errands:
         b = "── QUIÉN TIENES DELANTE (trátalo como sabido de siempre; salúdalo por su nombre sin volver a preguntar) ──"
         if sit:
             b += "\n" + "\n".join(sit)
         if salient:
             b += "\n[Lo que sabes de él, dalo por sabido sin buscar]\n" + "\n".join(salient)
+        if errands:
+            # Says what they ARE, and nothing about what to do with them. The line is deliberately not an order
+            # in either direction: «ignore these» would be the opposite failure (an agent that forgets what it
+            # was asked), and «handle these» is what produced the measured defect. Judgement stays with the
+            # brain — same doctrine as `workers/findings.py`.
+            b += ("\n[Encargos que te hizo en algún momento — NO son hechos sobre él, y pueden estar ya "
+                  "hechos o caducados. No empieces a trabajar en uno salvo que él lo saque en este turno]\n"
+                  + "\n".join(errands))
         parts.append(b)
     if convo:
         parts.append("── DE QUÉ ÍBAIS HABLANDO (lo más reciente primero; el último MANDA si hay contradicción) ──\n"

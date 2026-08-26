@@ -31,7 +31,11 @@ UNIT = "unit"; HTTP = "http"; VOICE = "voice"; CHAT = "chat"; PEER = "peer"
 
 DOMAINS: list[dict] = [
     {"id": "1", "name": "MEMORIA", "nodes": [
-        {"id": "1.1", "title": "BD y primitivas de estado", "ch": UNIT, "paths": [
+        # 2026-08-26: el bloque de estado presentaba un ENCARGO igual que un hecho permanente de la persona,
+        # bajo la misma orden («dalo por sabido sin buscar»). Medido: el agente arrancó hablando de coches al
+        # preguntarle por un monitor, y en la memoria VIVA del operador 3 de 5 plazas eran encargos (V2-317).
+        {"id": "1.1", "title": "BD y primitivas de estado, y un ENCARGO no se presenta como hecho de la persona",
+            "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
             "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
