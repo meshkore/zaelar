@@ -426,6 +426,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **El worker escribe lo natural y el CLI le cobraba el turno — tres formas más (V2-341, 2026-08-26)**:
+  barridos TODOS los logs de sesión del plató salen **41 errores de contrato con `nav_cli`**. Quitando los 18
+  `open` que V2-306 ya cerró, quedan tres vivas: **una URL suelta sin verbo (5)**, **`type_at <ref> "texto"`
+  con la aridad de `type` (5)** y **un `ref` con los corchetes que NOSOTROS imprimimos (1)**. La tercera es la
+  más nuestra: `dom.py` pinta `[2] button "Buscar"` y el encabezado de `_print_state` dice «usa el número
+  **[ref]** con click/type» — copiar literalmente lo que le enseñamos devolvía `invalid int value: '[2]'`. En
+  la ronda 3 de `search-buy-used-car` cinco errores encadenados dejaron la hoja a CERO mientras el turno
+  contaba que seguía navegando. **Ninguna adivina la intención**: `http(s)://` no es ningún otro verbo del
+  catálogo, y un segundo argumento no numérico en `type_at` solo puede ser texto.
+  - **Lo que NO se acepta, y es la mitad que sostiene la regla**: `submit`/`back`/`state` inventados (no son
+    la aridad equivocada de un comando que existe, son comandos que no existen), `type_at 410 260` a medias
+    (son coordenadas legítimas incompletas; convertirlo escribiría «260» en el elemento 410 — actuar con un
+    argumento inventado, lo que cerró V2-253) y un `ref` no numérico (haría clic en el elemento equivocado,
+    V2-248). Los tres con test.
+  - ⚠️ **La trampa, y salía VERDE**: la primera versión leía `argv[1]`, pero `main(argv=None)` deja que
+    argparse lea `sys.argv[1:]`, así que **el verbo está en la posición 0**. Todos los tests pasan una LISTA,
+    donde `argv[1]` es el primer argumento — así que el fallo pasaba la suite entera y habría reventado con
+    `TypeError` en **cada invocación real del worker**, o sea el puente del navegador muerto para todos. Hay
+    un caso que fija `sys.argv` y llama a `main()` sin argumentos exactamente para eso.
+  - **Quita UNA de las tres causas de esa ronda, no la ronda.** El backstop midió **8 silencios, todos con
+    `rows=0`**: silencio correcto, la hoja nunca se llenó. Y siguen abiertos, medidos en la ronda 4: **tres
+    workers con el mismo objetivo** (similitud 0,5–0,615 contra el umbral 0,60 — la paráfrasis que V2-123 dejó
+    declarada, ahora con coste), y **el worker avanzó al paso 1/6 y el turno no lo dijo**. Nodo 2.5, desarme
+    en las tres mitades. Sin verificar en vivo.
+
 - **Una ruta que comparten decenas de anclas no es la ficha de nada (V2-334, 2026-08-26)**: es la regla que
   `dom.py` ya aplica al ANCESTRO —«un dato que nombra a todas no nombra a ninguna»— llevada a la URL. Medido:
   ficha real **2** anclas por ruta · `/redirigir` **26** · `/privacy-policy` **297** · enlace a la propia página
