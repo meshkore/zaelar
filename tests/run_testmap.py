@@ -940,6 +940,17 @@ DOMAINS: list[dict] = [
         {"id": "4.47", "title": "Una tarjeta SIN ancla también es un resultado (y el camino de anclas no se "
                                 "mueve ni un pelo)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_card_without_an_anchor_is_still_a_result.py"]},
+        # V2-335 (2026-08-26, medido en vivo en tres comparadores con el extractor real): un importe dentro de
+        # la PROSA del enlace se convertía en el precio de la fila — acierto.com entregaba 8/8 basura (los
+        # enlaces de prestamos del footer, «Préstamos 2.000 euros», con el patrón casando el PREFIJO de la
+        # palabra «euros»), kompara.es servía teasers de artículo con el importe a mitad de frase («…cobrar
+        # hasta 314 € de penalización…»), kelisto.es colaba «Los mejores préstamos de 1.000 euros» entre las
+        # 25 tarifas reales. La propiedad: un precio se escribe «€» o «EUR» y vive casi solo en su nodo
+        # (priceIn, UNA disciplina para el propio ancla y para el paseo de tarjeta). El superviviente se
+        # afirma por su ENLACE: el rescate sin anclas fabrica títulos pero jamás una URL.
+        {"id": "4.48", "title": "Un importe dentro de la PROSA del enlace no es un precio (y la tarjeta real no "
+                                "pierde el suyo)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_an_amount_in_the_prose_is_not_a_price.py"]},
         {"id": "4.29", "title": "Contrato de PANTALLA de la hoja de proceso RENDERIZADO (pestaña activa, fases en "
                                 "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
             "ch": UNIT, "live": True,

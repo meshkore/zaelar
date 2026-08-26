@@ -42,7 +42,7 @@ _JS_EXTRACT = r"""
   // NO se reconstruye el separador decimal: se colapsa el espacio y se entrega «169 00 €» tal cual. Meter una
   // coma sería adivinar —hay sitios que separan los MILES con espacio («1 234 €»)— y adivinar mal ahí cambia
   // un precio por cien. Lo que se ve es lo que la página puso; el nombre y el enlace acompañan al importe.
-  const priceRe=/(\d[\d.,]{0,12}(?:\s\d{1,2})?\s*€)|(€\s*\d[\d.,]{0,12})|(\d[\d.,]{0,12}\s?(EUR|eur))/;
+  const priceRe=/(\d[\d.,]{0,12}(?:\s\d{1,2})?\s*€)|(€\s*\d[\d.,]{0,12})|(\d[\d.,]{0,12}\s?(EUR|eur)\b)/;
   const hasLetter=s=>/[a-zA-ZÀ-ÿ\u0100-\u024f\u0370-\u1fff\u3040-\u9fff]/.test(s||'');
   // El NOMBRE de lo que se anuncia cuando el propio enlace no lo lleva dentro. Un listado es una rejilla de
   // TARJETAS y el nombre de cada cosa es el encabezado de su tarjeta: vale para un producto, un piso, un hotel
@@ -171,15 +171,23 @@ _JS_EXTRACT = r"""
     }
     return s;
   };
-  const cardPrice=(a)=>cardWalk(a, (n)=>{
-    for(const el of n.querySelectorAll('*')){
+  // WHAT COUNTS AS A PRICE, defined ONCE and read by both takers (the anchor's own subtree and the card
+  // walk): an element whose text is almost only the amount. An amount inside flowing prose is the page
+  // TALKING about money, not charging it — see the V2-335 note at the candidate loop for the measure.
+  // The node ITSELF is read only when it has no element children: reading a container whole concatenates
+  // name and price («Citroen C3»+«2.900 €» → «C32.900 €») and FABRICATES an amount off the name's tail —
+  // the exact trap the cardPrice notes above document. A composite anchor still gets its price one level
+  // up, where the walk reads it as a clean descendant element.
+  const priceIn=(n)=>{
+    for(const el of (n.children.length ? n.querySelectorAll('*') : [n])){
       const t=textoSinSup(el).replace(/\s+/g,' ').trim();
       if(!t || t.length>40) continue;
       const m=t.match(priceRe);
       if(m && t.length<=m[0].length+12) return m[0].replace(/\s+/g,' ').trim();
     }
     return '';
-  }, 1);
+  };
+  const cardPrice=(a)=>cardWalk(a, priceIn, 1);
   const cardTel=(a)=>{
     return cardWalk(a, (n)=>{
       const t=n.querySelector('a[href^="tel:"]');
@@ -226,7 +234,6 @@ _JS_EXTRACT = r"""
     if(a.closest('ins, iframe, [class*="ad-" i], [id*="google_ads" i], [aria-label*="anuncio" i]')) continue;
     const img=a.querySelector('img');
     const text=(a.innerText||'').trim();
-    const pm=text.match(priceRe);
     // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
     let key, path=''; try{ const u=new URL(href); key=u.origin+u.pathname; path=u.pathname; }catch(_){ key=href; }
     if(path && _porRuta[path] > 8) continue;      // V2-334: destino COMPARTIDO (redirección, política, la propia página)
@@ -237,7 +244,19 @@ _JS_EXTRACT = r"""
     // y `weekend-barber`, los dos 1/5 con «0 filas extraídas».
     // The price may live in the CARD rather than in the link (see `cardPrice`), so the link's own text is only
     // the first place to look, never the only one.
-    let price = pm ? pm[0].replace(/\s+/g,' ').trim() : '';
+    //
+    // V2-335 — AN AMOUNT INSIDE THE LINK'S PROSE IS NOT A PRICE. This used to be `text.match(priceRe)` over
+    // the anchor's WHOLE innerText, and that one undisciplined read let article headlines and nav links ship
+    // as priced candidates on comparator pages. Measured live 2026-08-26 on three of them: acierto.com
+    // delivered 8/8 garbage rows — its footer loan links («Préstamos 2.000 euros») became candidates priced
+    // «2.000 eur», the amount being the SUBJECT of the headline, not a price (killed by the \b above: the
+    // word «euros» is prose, a price is written «€» or «EUR»); kompara.es shipped article teasers priced from
+    // mid-sentence amounts («Vodafone puede cobrar hasta 314 € de penalización…», a 137-char text node);
+    // kelisto.es shipped «Los mejores préstamos de 1.000 euros». The real tariff cards on that same kelisto
+    // page keep their price through `priceIn`: their amount is split across spans («35,99» + «€») but a short
+    // wrapper element holds it whole, which is exactly the read `cardPrice` already trusted. One discipline,
+    // both takers.
+    let price = priceIn(a);
     if(!price) price = cardPrice(a);
     const tel = price ? '' : cardTel(a);
     if(!price && !tel) continue;                        // ni importe que pagar ni número al que llamar → no es una ficha
