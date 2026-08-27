@@ -186,6 +186,22 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": False, "error": f"read_widget falló: {e}"}
     if action in ("show_widget", "close_widget"):
         wid = payload.get("id") or payload.get("widget_id") or ""
+        # V2-359 — «show results» from a worker means MY results. The worker knows the widget's NAME, never its
+        # errand instance, and passing the bare id through opened the BASE card ON TOP of the errand's own sheet
+        # — the intermittent «TARJETA FANTASMA» the round reports keep naming (bilbao 08:38 and coche 08:03:
+        # base `results` beside its instances, empty; V2-351 swept the RESTORE-time fossils but this opener is
+        # live, mid-round). Same decision the voice channel took in 246007a («enséñamelo» resolves to the
+        # ERRAND's sheet): when this worker's errand has a sheet, the bare `results` resolves to it. A worker
+        # with no sheet keeps the base — the default sheet IS its sheet.
+        try:
+            if str(wid).strip().lower() == "results":
+                from nucleo import sheets as _sh
+                _sid = _sh.sheet_of(rec)
+                if _sid:
+                    from widgets.results import data as _rd
+                    wid = _rd.instance_id(_sid)
+        except Exception:
+            pass
         try:
             from voice.observer import emit
             _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: procedencia — orden de un Brain Worker

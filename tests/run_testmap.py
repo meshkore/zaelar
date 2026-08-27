@@ -519,6 +519,16 @@ DOMAINS: list[dict] = [
                                 "uno mecánico, o con la hoja llena, no se toca",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_worker_phase_that_claims_the_screen.py"]},
+        # V2-359 — el opener VIVO de la tarjeta fantasma que el barrido de V2-351 no alcanza: el verbo del
+        # worker show_widget pasaba «results» TAL CUAL (el worker conoce el NOMBRE, nunca su instancia) y el
+        # frontend abría la BASE vacía encima de la hoja del encargo. Intermitente: solo los workers que lo
+        # invocan (bilbao 08:38 — 85 escrituras, 22 presentaciones — y coche 08:03). La decisión de 246007a
+        # aplicada al canal worker: con hoja, «results» resuelve a results::<hoja>; sin hoja, la base se
+        # conserva (la hoja de siempre ES su hoja).
+        {"id": "2.38", "title": "«show results» de un worker es SU hoja — la base no se abre encima de su "
+                                "propia instancia",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_show_results_means_my_results.py"]},
         {"id": "2.36", "title": "Una tarea que HABLA y no avanza un paso de su plan se dice (SIN AVANZAR) · y "
                                 "avanzar rearma el reloj, repetir el mismo done no",
             "ch": UNIT,
