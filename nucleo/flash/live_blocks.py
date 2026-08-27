@@ -625,6 +625,31 @@ def navegador_lines() -> list[str]:
     return lines
 
 
+def any_stalled_task() -> tuple[str, int, str]:
+    """`(encargo, minutos, motivo)` de la primera tarea viva ATASCADA, o `("", 0, "")` si ninguna lo está.
+
+    MISMA fuente y MISMOS umbrales que la cara de `pending_task_lines` — a propósito, y la razón está escrita
+    en `dispatch_thresholds`: dos copias de estos números es cómo el operador acaba oyendo una cosa del aviso
+    y otra del agente al que acaba de preguntar. Aquí se lee el mismo `pending_summaries()`.
+
+    Existe para el backstop de V2-359: la cara ya ponía el hecho delante del modelo y el modelo lo contaba una
+    vez de cada dos.
+    """
+    try:
+        from nucleo import dispatch as _disp
+        for t in _disp.pending_summaries():
+            if str(t.get("waiting_on") or "") == "user":
+                continue
+            _silent = int(t.get("silent_s", 0) or 0)
+            if _silent >= _disp.STUCK_SECS:
+                return str(t.get("request") or ""), _silent // 60, "callada"
+            if int(t.get("total", 0) or 0) and int(t.get("no_step_s", 0) or 0) >= _disp.NO_STEP_SECS:
+                return str(t.get("request") or ""), int(t["no_step_s"]) // 60, "sin avanzar"
+    except Exception:  # noqa: BLE001
+        pass
+    return "", 0, ""
+
+
 def any_live_task_rows(n: int = 3) -> tuple[str, list[str]]:
     """`(goal, rows)` — the top NAMED rows of the FIRST live browser task whose sheet already has them, plus
     that task's goal. The reader the delivery backstop (V2-305, `delivery.sheet_delivery_backstop`)

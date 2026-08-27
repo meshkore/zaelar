@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 08:47**
+Last updated: **2026-08-27 08:54**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -26,7 +26,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-27 08:06 | yes | No está listo para producción: el aviso quedó programado para hoy en lugar del miércoles 2, así que el recordatorio no cumplirá su función; el bloqueador nº1… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-27 07:20 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no cierra la tarea ni entrega resultados concretos en tiempo útil — el worker se atascó 3+ min… |
-| ❌ | `best-plumber-same-day__es` | 2 | 3 | 2026-08-26 01:29 | yes | El caso funcional pero con lentitud y criterios de selección endiablados; el bloqueador nº1 es que zaelar ignora los 'avisos empujados' del sistema (la mejor… |
+| ❌ | `best-plumber-same-day__es` | 2 | 3 | 2026-08-27 08:54 | yes | No está listo para producción: el resultado final es válido (lista real con teléfonos y una recomendación con valoración confirmada), pero el bloqueador nº1 … |
 | ❌ | `best-rated-rental-car__es` | 2 | 1 | 2026-08-26 01:47 | yes | El caso NO está listo para producción. El bloqueador nº1 es el fallo crítico en el mecanismo de extracción del navegador, que devolvió datos basura ('disclai… |
 | ✅ | `cheapest-monitor` | 2 | 4 | 2026-08-26 01:21 | yes | El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es… |
 | ❌ | `compare-broadband-plans__es` | 2 | 2 | 2026-08-26 01:53 | yes | No está listo. El bloqueador nº1 es la incapacidad de cerrar la transacción: zaelar acumula datos válidos en el sistema y en el prompt (precios reales de Dig… |

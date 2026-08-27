@@ -140,6 +140,41 @@ def _looks_like_an_unfiltered_feed(rows) -> bool:
     return (max(precios) / max(1, min(precios))) >= 20
 
 
+#: Lo que ya cuenta como haberlo dicho. Si la respuesta nombra el atasco con SUS palabras, el backstop calla:
+#: añadir detrás sería el disco rayado que V2-189 existe para evitar.
+_YA_LO_DICE_RE = _re.compile(r"(atasc|encallad|sin avanzar|no avanza|clavad|parad[ao]|bloquead|"
+                             r"lleva \d+ min|se ha quedado)")
+
+
+def stalled_task_backstop(reply: str, encargo: str, minutos: int, motivo: str) -> str:
+    """Una espera que CALLA un atasco que el sistema ya conoce → la frase que lo dice, o "" (V2-359).
+
+    Hermano de `sheet_delivery_backstop`, y por el mismo motivo. V2-354 puso el HECHO delante del modelo —«SIN
+    AVANZAR: 5 min sin completar un paso»— y el imperativo le manda decirlo. Medido dos veces el mismo día,
+    con el mismo código:
+
+      · `weekend-adventure-sports-bilbao__es` — lo dijo, y bien: «La tarea lleva 5 minutos atascada sin
+        completar ni un paso, así que te lo digo claro: va encallada, no te la estoy escondiendo».
+      · `search-buy-used-car` — NO lo dijo: «la búsqueda sigue en marcha», con el aviso delante y el operador
+        preguntando por el estado TRES veces.
+
+    Una de cada dos. Es exactamente la variancia que V2-305 dejó escrita: cuando la conducta correcta es
+    DETERMINISTA —hay un atasco medido, la respuesta es una espera— la garantiza el código, no la temperatura.
+
+    Solo dispara sobre una ESPERA (`_WAITING_REPLY_RE`): una respuesta que ya está contando algo no se pisa. Y
+    calla si la respuesta ya nombra el atasco con sus palabras, porque repetirlo detrás es el disco rayado.
+    """
+    r = (reply or "").strip()
+    if not r or not encargo or minutos <= 0:
+        return ""
+    n = _norm_txt(r)
+    if not _WAITING_REPLY_RE.search(n) or _YA_LO_DICE_RE.search(n):
+        return ""
+    _q = "sin dar señal" if motivo == "callada" else "sin completar un paso"
+    return (f"Aunque te lo digo claro: lleva {minutos} min {_q}, así que puede estar atascada. "
+            "¿La paro y probamos por otro lado, o le doy un poco más de margen?")
+
+
 def apply_to_reply(spoken: str, window) -> str:
     """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
 
@@ -159,6 +194,13 @@ def apply_to_reply(spoken: str, window) -> str:
         if extra:
             _emit("📬 backstop de entrega: la espera sale con las filas")
             return ((spoken.rstrip() + " ") if spoken else "") + extra
+        # V2-359 — y si no hay filas que entregar, puede haber un ATASCO que callar. Va DESPUÉS y no antes:
+        # con resultados delante la cara correcta es entregarlos, no hablar del atasco.
+        _enc, _min, _mot = _lb.any_stalled_task()
+        _stall = stalled_task_backstop(spoken or "", _enc, _min, _mot)
+        if _stall:
+            _emit("📬 backstop de atasco: la espera sale con el hecho", mins=_min, motivo=_mot)
+            return ((spoken.rstrip() + " ") if spoken else "") + _stall
         # EL SILENCIO SE VE (V2-336). Todo esto vive bajo un `except` general, así que una avería interna
         # desaparece sin ruido — y un backstop que calla es indistinguible de uno que decidió callar. Fue
         # exactamente lo que pasó en la ronda limpia del coche (2026-08-26): tres esperas con la hoja llena y

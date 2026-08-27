@@ -515,6 +515,13 @@ DOMAINS: list[dict] = [
         # V2-358 — «Preparando entrega: 10 propuestas en la hoja de resultados» con la hoja en CERO filas, y
         # pintado sin marca junto a líneas verificadas. Misma enfermedad que V2-357 una capa más abajo, misma
         # respuesta que V2-345: no se tira, se MARCA.
+        # V2-359 — V2-354 puso el hecho delante y el modelo lo contó UNA DE CADA DOS: en bilbao sí («va
+        # encallada, no te la estoy escondiendo»), en el coche no, con el operador preguntando tres veces. Esa
+        # variancia es la que V2-305 dejó escrita: la conducta determinista la garantiza el código.
+        {"id": "2.39", "title": "Una espera nunca calla un atasco que el sistema YA sabe · y si el turno ya lo "
+                                "dice, o ya está entregando, el backstop no lo pisa",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py"]},
         {"id": "2.37", "title": "Un paso del worker que afirma la PANTALLA sin respaldo sale marcado «💬» · y "
                                 "uno mecánico, o con la hoja llena, no se toca",
             "ch": UNIT,
