@@ -92,3 +92,50 @@ def test_el_turno_lo_CABLEA_y_DESPUES_de_las_filas():
                     if not ln.strip().startswith("#"))
     assert "stalled_task_backstop(spoken" in src, "la decisión sin llamante es el arreglo que no existe"
     assert src.index("sheet_delivery_backstop(spoken") < src.index("stalled_task_backstop(spoken")
+
+
+# ── V2-361: el vocabulario de ESPERA salió de una tanda, y le faltaban formas reales ────────────────────
+#
+# Medido en `best-rated-rental-car__es` (2026-08-27, ronda del supervisor, 2/5). La cara marcó la tarea SIN
+# AVANZAR desde el segundo **188,2**, y la última respuesta que el vocabulario reconoció como espera fue la de
+# los **145,3**. Entre medias el turno dijo cosas como «Te informo en cuanto SEPA algo» y «Voy a reunir todo lo
+# que llevo» — esperas de manual que la lista no casaba, porque tenía `en cuanto (tenga|salga|encuentre|
+# aparezca)` y «sepa» no estaba.
+#
+# Resultado: el atasco estaba DETECTADO, la cara lo decía, y ningún backstop llegó siquiera a mirarlo. La
+# calibración de este vocabulario tiene el mismo defecto que tuvo el umbral de V2-354 — salir de un solo caso.
+#
+# Y cuesta DOBLE: `_WAITING_REPLY_RE` alimenta a los dos backstops (entrega y atasco), así que cada forma que
+# falta son dos silencios sobre el mismo turno.
+
+@pytest.mark.parametrize("reply", [
+    "Te informo en cuanto sepa algo.",
+    "Voy a reunir todo lo que llevo para cerrar el aviso.",
+    "Dame un segundo y te digo.",
+    "En cuanto la tenga te la paso.",
+    # Aísla «te informo»: sin esta frase, quitar esa entrada del vocabulario no rompía NADA — las demás casaban
+    # por «en cuanto…». Un desarme que aplica y no muerde señala una entrada sin probar, no una entrada de más.
+    "Te informo luego.",
+])
+def test_las_formas_de_espera_que_faltaban(reply):
+    assert RG.stalled_task_backstop(reply, "alquila un coche", 4, "sin avanzar") != "", reply
+
+
+@pytest.mark.parametrize("reply", [
+    "¡Ya tengo tres coches! Un Audi Q3 por 11.900 € y un Peugeot por 10.500 €.",
+    "¿Prefieres automático o manual?",
+    "Perfecto, lo dejo así entonces.",
+])
+def test_ensanchar_no_convierte_en_espera_lo_que_no_lo_es(reply):
+    """El lado que un vocabulario más ancho pone en riesgo, y el que importa: una entrega, una pregunta o un
+    cierre no pueden llevar un atasco colgado detrás."""
+    assert RG.stalled_task_backstop(reply, "alquila un coche", 4, "sin avanzar") == "", reply
+
+
+def test_el_vocabulario_ancho_tambien_sirve_a_la_ENTREGA():
+    """`_WAITING_REPLY_RE` lo comparten los dos backstops: una forma que faltaba costaba dos silencios, y
+    arreglarla vale por dos. Aquí se comprueba en el hermano."""
+    filas = ["Audi Q3 2.0 TDI — 11.900 €", "Peugeot 3008 BlueHDi — 10.500 €", "SEAT Ateca 1.6 TDI — 11.200 €"]
+    out = RG.sheet_delivery_backstop("Te informo en cuanto sepa algo.", filas, "",
+                                     errand="alquila un coche para el finde")
+    assert "Audi Q3" in out

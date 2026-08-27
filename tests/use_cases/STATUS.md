@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 09:11**
+Last updated: **2026-08-27 09:17**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -29,7 +29,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `best-plumber-same-day__es` | 2 | 3 | 2026-08-27 08:54 | yes | No está listo para producción: el resultado final es válido (lista real con teléfonos y una recomendación con valoración confirmada), pero el bloqueador nº1 … |
 | ❌ | `best-rated-rental-car__es` | 2 | 2 | 2026-08-27 09:11 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía resultados reales delante (60 € y 64 €, 13 filas en la hoja) y no los entregó, dejando a… |
 | ✅ | `cheapest-monitor` | 2 | 4 | 2026-08-26 01:21 | yes | El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es… |
-| ❌ | `compare-broadband-plans__es` | 2 | 2 | 2026-08-26 01:53 | yes | No está listo. El bloqueador nº1 es la incapacidad de cerrar la transacción: zaelar acumula datos válidos en el sistema y en el prompt (precios reales de Dig… |
+| ❌ | `compare-broadband-plans__es` | 2 | 2 | 2026-08-27 09:17 | yes | No está listo para producción: el caso pedía una comparativa real con el operador más barato y la hoja de resultados quedó vacía, con un candidato narrado de… |
 | ❌ | `compare-insurance-quotes__es` | 2 | 2 | 2026-08-27 09:04 | yes | No está listo para producción: el bloqueador nº1 es que presentó como comparativa lo que no lo era (un enlace de redirección, nombres sin precio y un teléfon… |
 | ✅ | `find-best-hotel-city__es` | 2 | 4 | 2026-08-25 10:22 | yes | Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usua… |
 | ❌ | `find-concert-tickets__es` | 2 | 2 | 2026-08-25 11:48 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad de zaelar para reconocer y reportar fallos técnicos explícitos (cuota agotada), lo que le … |
@@ -104,7 +104,7 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `best-rated-rental-car__es` | `.meshkore/roadmap/initiatives/V2-230-uc-best-rated-rental-car-es.md` | `` |
 | `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
-| `compare-broadband-plans__es` | `.meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md` | `.meshkore/modules/nucleo/tasks/T468-uc-compare-broadband-plans-es-fix.md` |
+| `compare-broadband-plans__es` | `.meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md` | `` |
 | `compare-insurance-quotes__es` | `.meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md` | `` |
 | `find-concert-tickets__es` | `.meshkore/roadmap/initiatives/V2-263-uc-find-concert-tickets-es.md` | `` |
 | `find-direct-flight-budget__es` | `.meshkore/roadmap/initiatives/V2-265-uc-find-direct-flight-budget-es.md` | `` |

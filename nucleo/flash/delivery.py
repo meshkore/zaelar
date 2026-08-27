@@ -31,9 +31,17 @@ from .router_guards import _norm_txt
 # Misma familia que el nunca-mudo (V2-132) y el holding_line de arriba: cuando la conducta correcta es
 # DETERMINISTA —hay filas con nombre delante y el turno solo dice «espera»— la garantiza el código, no la
 # temperatura del modelo.
+# V2-361 — el vocabulario salió de UNA tanda y por eso le faltaban formas reales. Medido en
+# `best-rated-rental-car__es` (2026-08-27): con la tarea marcada SIN AVANZAR desde el segundo 188, los turnos
+# siguientes dijeron «Te informo en cuanto SEPA algo» y «voy a reunir lo que llevo» — esperas de manual que
+# esta lista no reconocía («sepa» no estaba entre los verbos), así que NINGÚN backstop llegó a mirarlas y el
+# atasco se quedó sin contar pese a estar detectado. Lo alimenta a los DOS (entrega y atasco), así que cada
+# forma que falta cuesta dos silencios.
 _WAITING_REPLY_RE = _re.compile(
-    r"(te aviso|te lo digo|te lo cuento|te aviso en cuanto|en cuanto (tenga|salga|encuentre|aparezca|lo tenga)|"
+    r"(te aviso|te informo|te lo digo|te lo cuento|te aviso en cuanto|"
+    r"en cuanto (tenga|salga|encuentre|aparezca|sepa|lo tenga|este|la tenga)|"
     r"sigo con ello|sigo dandole|sigo en ello|sigo pendiente|sigo buscando|sigo trabajando|dame un momento|"
+    r"dame un segundo|voy a reunir|lo miro y te digo|"
     r"sin novedades|sigue en marcha|todavia no|aun no|quedamos así|me quedo a la espera)")
 
 
