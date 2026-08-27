@@ -508,6 +508,14 @@ DOMAINS: list[dict] = [
         # 15 min y la muerte por presupuesto a los 21,5; sin voz viva ninguna se entrega al vuelo, así que si
         # el operador tarda en hablar se drenan juntas. Cuarta vez que un prompt que se contradice se lee como
         # desobediencia del modelo.
+        # V2-354 — la TERCERA cara de la familia. `restaurant-tonight-madrid` (primera ronda del supervisor):
+        # plan de 4 pasos a los 49 s, primer paso reportado a los 380 — 331 s en «0/4, 0%» navegando y leyendo
+        # capturas, y ninguna cara salió: ENCALLADA mira el silencio (y no callaba) y «sin paso reportado» no
+        # aplica con plan declarado. El plan lo empeoraba: «0/4, 0%» se lee como «acaba de empezar».
+        {"id": "2.36", "title": "Una tarea que HABLA y no avanza un paso de su plan se dice (SIN AVANZAR) · y "
+                                "avanzar rearma el reloj, repetir el mismo done no",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_task_that_talks_but_never_advances.py"]},
         {"id": "2.35", "title": "Una nota que afirma estado VIVO se puede RETRACTAR: quien mata la tarea retira "
                                 "la pregunta de si pararla · y una llave repetida sustituye, no acumula",
             "ch": UNIT,

@@ -684,6 +684,17 @@ def pending_task_lines() -> list[str]:
                 _silent = int(t.get("silent_s", 0) or 0)
                 if _silent >= _disp.STUCK_SECS:
                     bit += f" — ENCALLADA: {_silent // 60} min SIN DAR NINGUNA SEÑAL"
+                # V2-354, TERCERA cara de la misma familia: viva, hablando, y sin avanzar UN paso de su plan.
+                # Medido en `restaurant-tonight-madrid` (2026-08-27): plan de 4 pasos declarado a los 49 s y el
+                # primero reportado a los 380 — **331 segundos en «0/4, 0%»** mientras navegaba y leía capturas.
+                # Ninguna cara salió: ENCALLADA mira el SILENCIO y ésta no callaba; «SIN paso reportado» no
+                # aplica porque plan SÍ había. Y el plan lo empeora en vez de ayudar — «0/4, 0%» se lee como
+                # «no ha empezado», que es una cifra tranquilizadora, y el operador tuvo que insistir tres
+                # veces. Va en un `elif`: una tarea CALLADA ya está dicha, y decir las dos es ruido.
+                elif int(t.get("total", 0) or 0) and int(t.get("no_step_s", 0) or 0) >= _disp.NO_STEP_SECS:
+                    _ns = int(t["no_step_s"])
+                    bit += (f" — SIN AVANZAR: {_ns // 60} min sin completar un paso "
+                            f"(sigue en {min(int(t.get('done', 0) or 0), int(t['total']))}/{int(t['total'])})")
                 # V2-222, third face — measured on `search-secondhand-monitor__es` (2026-08-23 23:24). The
                 # browser block said, in the same prompt, «YA TIENE RESULTADOS … DÁSELOS en este turno», and
                 # this one said «en cola (llevas 23s)». Two registries describing ONE errand, disagreeing:
@@ -708,9 +719,10 @@ def pending_task_lines() -> list[str]:
                          "operador no puede comprobar por su cuenta, y se nota tarde y mal. "
                          # V2-131 — lo que hay que hacer con el hecho, no solo el hecho.
                          "Los SEGUNDOS que ves son la verdad: no digas que algo «se está demorando» ni «lleva "
-                         "un rato» si acaba de arrancar. Y si una tarea sale ENCALLADA, dilo con esas letras la "
-                         "primera vez que salga a colación y ofrece pararla — NO respondas «sigue en marcha» "
-                         "otra vez. Si el operador te pide un resultado CONCRETO (¿hay o no hay?, ¿cuánto "
+                         "un rato» si acaba de arrancar. Y si una tarea sale ENCALLADA o SIN AVANZAR, dilo con "
+                         "esas letras la primera vez que salga a colación y ofrece pararla — NO respondas "
+                         "«sigue en marcha» otra vez; «sin avanzar» NO es «no ha empezado»: está trabajando y "
+                         "no llega, y el operador merece decidir si espera. Si el operador te pide un resultado CONCRETO (¿hay o no hay?, ¿cuánto "
                          "cuesta?, ¿está reservado?) y la tarea no lo ha traído, la respuesta es que TODAVÍA NO "
                          "LO SABES y desde cuándo lleva sin dar señal — nunca una vuelta más de proceso. "
                          # V2-222 again, and the same lesson as `recently_ended_sessions`: the block had a

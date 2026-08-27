@@ -246,11 +246,8 @@ def has_active() -> bool:
     return any(r.status in LIVE_SESSION_STATES for r in _SESSIONS.values())
 
 
-# How long a live worker may go WITHOUT emitting anything before we call it stalled. One definition, read by
-# both consumers: `nucleo/loop.py`'s supervisor (which speaks up on its own) and `pending_summaries()` below
-# (which puts it in front of the brain). Two copies of this number is how the operator gets told one thing by
-# the proactive notice and another by the agent he just asked.
-STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
+# V2-354 — los RELOJES viven en `dispatch_thresholds` (trinquete); se re-exportan: `dispatch` es el contrato.
+from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 
 
 # V2-198 — los estados de una SESIÓN de worker, enumerados UNA vez. Había CUATRO filtros escribiendo
@@ -398,6 +395,8 @@ def pending_summaries() -> list[dict]:
              "silent_s": int(now - (r.last_event_at or r.started)),
              # V2-059: el FlashBrain puede decir el PASO real + progreso si el operador pregunta "¿cómo va?".
              "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
+             # V2-354 — segundos sin COMPLETAR un paso del plan (≠ `silent_s`); el porqué, en `NO_STEP_SECS`.
+             "no_step_s": int(now - (getattr(r, "last_step_at", 0) or r.started)),
              # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.
              "considered": r.considered, "kept": r.kept}
             for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
@@ -515,6 +514,7 @@ def session_plan(tid, steps) -> None:
     r.plan = [str(s)[:80] for s in (steps or [])][:12]
     r.done = 0
     r.last_event_at = time.time()
+    r.last_step_at = r.last_event_at      # V2-354: el reloj del avance arranca AL DECLARAR el plan
     try:
         from voice.observer import emit
         extra = {"id": str(tid), "plan": r.plan}
@@ -535,7 +535,10 @@ def session_progress(tid, note: str = "", done: int | None = None, pct: int | No
         r.note = note.strip()[:200]
     if done is not None:
         try:
-            r.done = max(0, int(done))
+            _nuevo = max(0, int(done))
+            if _nuevo != r.done:
+                r.last_step_at = time.time()    # V2-354: el reloj del AVANCE, no el de la señal
+            r.done = _nuevo
         except (TypeError, ValueError):
             pass
     if pct is not None:
