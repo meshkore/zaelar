@@ -22,5 +22,12 @@ STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
 #: Cuánto puede pasar una tarea CON PLAN sin completar un solo paso antes de que se diga. Es más largo que
 #: `STUCK_SECS` a propósito: aquí la tarea NO está callada —trabaja, navega, emite— y un paso de una gestión
 #: web puede costar minutos. Lo que no es normal es que un plan de cuatro pasos siga en cero pasado este rato.
-#: Medido en `restaurant-tonight-madrid` (2026-08-27): 331 s en «0/4, 0%» sin que ninguna cara lo dijera.
-NO_STEP_SECS = float(os.getenv("WORKER_NO_STEP_SECS", "240"))
+#:
+#: CALIBRADO CON DOS MEDIDAS, no elegido a ojo — y el segundo caso es el que bajó el número:
+#:   · `restaurant-tonight-madrid` (2026-08-27): plan a los 49 s, primer paso a los 380 → **331 s** parado.
+#:   · `weekend-plan-barcelona__es` (2026-08-27): plan a los 237 s, primer paso a los 473,8 → **236,8 s**,
+#:     que con el umbral en 240 no disparó **por 3,2 segundos**. Ocho minutos de encargo sin un paso hecho y
+#:     el operador sin enterarse: el mecanismo funcionaba y el número estaba mal.
+#: El listón lo puso el operador el 2026-08-27: «una búsqueda se hace en un minuto, dos o tres máximo». Si
+#: eso es el ENCARGO entero, 150 s para UN paso de un plan de seis sigue siendo generoso.
+NO_STEP_SECS = float(os.getenv("WORKER_NO_STEP_SECS", "150"))

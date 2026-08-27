@@ -84,6 +84,21 @@ def test_recien_arrancada_tampoco():
     assert "SIN AVANZAR" not in _cara()
 
 
+def test_los_236_segundos_de_barcelona_AHORA_disparan():
+    """La calibración, con su medida: `weekend-plan-barcelona__es` (2026-08-27) declaró plan a los 237 s y
+    completó su primer paso a los 473,8 — 236,8 s parado, que con el umbral en 240 no disparaba **por 3,2
+    segundos**. Ocho minutos de encargo sin un paso hecho y el operador sin enterarse. El listón que lo bajó
+    es suyo: «una búsqueda se hace en un minuto, dos o tres máximo»."""
+    _tarea(total=6, done=0, sin_avanzar_s=237)
+    assert "SIN AVANZAR" in _cara()
+
+
+def test_un_paso_que_tarda_dos_minutos_sigue_siendo_normal():
+    """El lado contrario: bajar el umbral no puede convertir un paso lento legítimo en una alarma."""
+    _tarea(total=6, done=1, sin_avanzar_s=120)
+    assert "SIN AVANZAR" not in _cara()
+
+
 def test_sin_plan_no_hay_pasos_que_no_avanzar():
     """`SIN paso reportado aún` (V2-133) ya cubre ese caso y dice otra cosa; solaparlos sería contradecirse."""
     r = _tarea(total=0, done=0, sin_avanzar_s=600)
