@@ -1073,6 +1073,8 @@ DOMAINS: list[dict] = [
                                 "título=coche y url=ficha (y la rejilla sigue frenando el paseo)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_dealer_link_does_not_close_the_card.py"]},
+        {"id": "4.52", "title": "El widget de YouTube tiene LISTA: los vídeos suenan uno detrás de otro (add nunca autoreproduce, ended avanza solo, next/previous/play_item, close conserva la lista)",
+         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
@@ -1571,6 +1573,12 @@ DOMAINS: list[dict] = [
         # sesión cruzando dos epochs de 13 cifras («first_result_ms 1787816928677 vs turno a 1787816914617»)
         # y leyéndolos al revés — las filas llegaron 14 s DESPUÉS del turno que acusaba. La prohibición en
         # prosa existía desde V2-300 y no ganó al número puesto delante.
+        # V2-367 — el bucle de mejora sacaba su rotación del MARCADOR, que solo lista lo que YA corrió: 135
+        # escenarios con runner, 32 medidos, **103 invisibles para siempre** (nadie los corre → nunca entran
+        # en el marcador → nadie los corre), incluidos los dos de multimedia.
+        {"id": "10.86", "title": "Un escenario que nunca ha corrido no puede correr nunca",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_scenario_that_never_ran_is_invisible_forever.py"]},
         {"id": "10.85", "title": "El juez no compara epochs: el arnés le da los relojes ya relativizados",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_judge_never_does_epoch_arithmetic.py"]},

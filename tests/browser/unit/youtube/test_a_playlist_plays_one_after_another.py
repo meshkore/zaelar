@@ -1,0 +1,140 @@
+#
+# V2-366 — the youtube widget gains a PLAYLIST (operator: bring it to `musica`'s level).
+# The queue model lives entirely in data.py (pure server code): `list` holds the videos, `pos` points at the
+# item playing (or last played; -1 = the current video is not from the list), and `ended` — fired by the
+# widget when the player reaches the end — advances by itself, one after another.
+#
+# The load-bearing decisions, each with its own test:
+#   · `add` NEVER starts playback (YouTube's own "Add to queue"); that is also what keeps it usable with the
+#     agent stopped — it is not a `produce` op in the manifest.
+#   · `play` on an empty player with a non-empty list STARTS the list (the voice path that launches a queue).
+#   · removing/closing never loses the list; `close` closes the VIDEO only.
+#
+import io
+import json
+import urllib.request
+
+import pytest
+
+from widgets import store
+from widgets.youtube import data as yt
+
+_VID1, _VID2, _VID3 = "AAAAAAAAAAA", "BBBBBBBBBBB", "CCCCCCCCCCC"
+
+_SEARCH_HTML = (
+    '{"videoRenderer":{"videoId":"%s",'
+    '"title":{"runs":[{"text":"Video buscado"}]},'
+    '"longBylineText":{"runs":[{"text":"Canal X"}]},'
+    '"publishedTimeText":{"simpleText":"hace 3 d\\u00edas"}}}' % _VID3
+)
+
+
+@pytest.fixture(autouse=True)
+def _isolate(monkeypatch, tmp_path):
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+
+    def _fake_urlopen(req, timeout=6):
+        url = req.full_url if hasattr(req, "full_url") else str(req)
+        if "oembed" in url:
+            return io.BytesIO(json.dumps({"title": "Oembed Title", "author_name": "Oembed Channel"}).encode())
+        return io.BytesIO(_SEARCH_HTML.encode())
+
+    monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen)
+    yield
+
+
+def _add_two():
+    yt.apply_action("add", {"url": "https://youtu.be/" + _VID1})
+    yt.apply_action("add", {"url": "https://www.youtube.com/watch?v=" + _VID2})
+
+
+def test_add_by_link_lands_in_the_list_and_never_autoplays():
+    out = yt.apply_action("add", {"url": "https://youtu.be/" + _VID1})
+    assert out["ok"] is True and out["position"] == 1
+    db = yt._load()
+    assert [it["videoId"] for it in db["list"]] == [_VID1]
+    assert db["list"][0]["title"] == "Oembed Title"      # a pasted bare link still gets a readable row
+    assert db["videoId"] == "" and db["paused"] is True  # nothing started playing
+
+
+def test_add_with_the_network_down_still_lands_with_the_short_url(monkeypatch):
+    def _dead(req, timeout=6):
+        raise OSError("network down")
+    monkeypatch.setattr(urllib.request, "urlopen", _dead)
+    out = yt.apply_action("add", {"url": "https://youtu.be/" + _VID1})
+    assert out["ok"] is True
+    assert yt._load()["list"][0]["title"] == "youtu.be/" + _VID1
+
+
+def test_add_by_name_searches_and_a_repeated_add_does_not_duplicate():
+    out = yt.apply_action("add", {"query": "video buscado"})
+    assert out["ok"] is True and yt._load()["list"][0]["videoId"] == _VID3
+    again = yt.apply_action("add", {"url": "https://youtu.be/" + _VID3})
+    assert again["ok"] is True and again.get("already_in_list") is True
+    assert len(yt._load()["list"]) == 1
+
+
+def test_play_on_an_empty_player_starts_the_list():
+    _add_two()
+    out = yt.apply_action("play", {})
+    assert out["ok"] is True
+    db = yt._load()
+    assert db["videoId"] == _VID1 and db["pos"] == 0 and db["paused"] is False
+
+
+def test_ended_advances_and_at_the_end_stops_honestly():
+    _add_two()
+    yt.apply_action("play_item", {"item": "1"})
+    out = yt.apply_action("ended", {})
+    assert out["ok"] is True
+    db = yt._load()
+    assert db["videoId"] == _VID2 and db["pos"] == 1 and db["paused"] is False
+    out = yt.apply_action("ended", {})                    # end of the list: stop, do not loop
+    db = yt._load()
+    assert db["paused"] is True and db["videoId"] == _VID2
+
+
+def test_a_video_loaded_outside_the_list_chains_into_it():
+    _add_two()
+    yt.apply_action("load", {"videoId": _VID3})           # direct load, not in the list → pos -1
+    assert yt._load()["pos"] == -1
+    yt.apply_action("ended", {})                          # after it ends, the queue starts
+    assert yt._load()["videoId"] == _VID1
+
+
+def test_next_and_previous_walk_the_list_and_the_edges_are_honest():
+    _add_two()
+    yt.apply_action("play_item", {"item": "1"})
+    assert yt.apply_action("next", {})["ok"] is True
+    assert yt._load()["videoId"] == _VID2
+    out = yt.apply_action("next", {})                     # past the end
+    assert out["ok"] is False and out["error"] == "end_of_list"
+    assert yt.apply_action("previous", {})["ok"] is True
+    assert yt._load()["videoId"] == _VID1
+    out = yt.apply_action("previous", {})                 # at the start: back = restart, like YouTube
+    assert out["ok"] is True and yt._load()["last_cmd"] == "restart"
+
+
+def test_play_item_resolves_by_number_and_by_title_and_never_invents():
+    _add_two()
+    out = yt.apply_action("play_item", {"item": "2"})
+    assert out["ok"] is True and yt._load()["videoId"] == _VID2
+    out = yt.apply_action("play_item", {"item": "oembed title"})
+    assert out["ok"] is True and yt._load()["videoId"] == _VID1
+    out = yt.apply_action("play_item", {"item": "no existe"})
+    assert out["ok"] is False and out["error"] == "item_not_found"
+
+
+def test_load_of_a_video_already_in_the_list_syncs_pos():
+    _add_two()
+    yt.apply_action("load", {"videoId": _VID2})
+    assert yt._load()["pos"] == 1                         # `next` would say end_of_list, not repeat B
+
+
+def test_close_closes_the_video_and_the_list_survives():
+    _add_two()
+    yt.apply_action("play_item", {"item": "1"})
+    yt.apply_action("close", {})
+    db = yt._load()
+    assert db["videoId"] == "" and db["pos"] == -1
+    assert len(db["list"]) == 2                           # close closes the VIDEO; the list is the user's

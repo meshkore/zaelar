@@ -1,11 +1,14 @@
 {
   "view_data_shape": {
+    "adding": "str",
     "channel": "str",
     "cmd_seq": "int",
     "last_cmd": "str",
     "latest": "bool",
+    "list": "list",
     "muted": "bool",
     "paused": "bool",
+    "pos": "int",
     "published": "str",
     "title": "str",
     "url": "str",

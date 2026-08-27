@@ -5,6 +5,8 @@
 # NO library). data.py is pure server code (stdlib) — it never touches the player.
 #
 import re
+import time
+import unicodedata
 import urllib.parse
 import urllib.request
 
@@ -27,6 +29,10 @@ _SEED = {
     "cmd_seq": 0,
     "loading": False,     # V2-062 fix: "load" search takes a few seconds (network); without this, the card looked
     "loading_query": "",  # COMPLETELY empty with no signal that something was happening (real bug 2026-07-23).
+    # V2-366 — the PLAYLIST: linear queue of videos played one after another (operator asked for musica-level lists).
+    "list": [],           # [{videoId, title, channel, published, url, added_at}]
+    "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
+    "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
 }
 
 _YT_RE = re.compile(
@@ -44,6 +50,49 @@ def _extract_id(s: str) -> str:
     if re.fullmatch(r"[0-9A-Za-z_-]{11}", s):          # already a bare id
         return s
     return ""
+
+
+def _norm(s: str) -> str:
+    s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
+    return s.lower().strip()
+
+
+def _resolve_item(lst: list, item) -> "int | None":
+    """item = 1-based index ("2") or text matched against title/channel of a list entry. Never invents."""
+    if item is None:
+        return None
+    s = str(item).strip()
+    if not s:
+        return None
+    if s.isdigit():
+        i = int(s) - 1
+        return i if 0 <= i < len(lst) else None
+    n = _norm(s)
+    for i, it in enumerate(lst):                       # exact title
+        if n == _norm(it.get("title")):
+            return i
+    for i, it in enumerate(lst):                       # contained in title+channel
+        hay = _norm(" ".join([it.get("title") or "", it.get("channel") or ""]))
+        if n in hay:
+            return i
+    return None
+
+
+def _oembed_title(vid: str) -> dict:
+    """Title/channel of a video added by bare LINK, via the public oembed endpoint. Best-effort, fail-open:
+    a pasted link must land in the list even with the network down — the short URL is the honest fallback."""
+    out = {"title": "", "channel": ""}
+    try:
+        url = ("https://www.youtube.com/oembed?format=json&url="
+               + urllib.parse.quote_plus("https://www.youtube.com/watch?v=" + vid))
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        import json
+        d = json.loads(urllib.request.urlopen(req, timeout=4).read().decode("utf-8", "ignore"))
+        out["title"] = str(d.get("title") or "").strip()[:140]
+        out["channel"] = str(d.get("author_name") or "").strip()[:80]
+    except Exception:
+        pass
+    return out
 
 
 # Requests the MOST RECENT video (e.g. "the latest video by Jose Luis Carpatos") → sort by upload date.
@@ -95,10 +144,19 @@ def _search_id(q: str) -> dict:
         return out
 
 
+def _seed() -> dict:
+    """Fresh copy of the seed. `dict(_SEED)` is SHALLOW: since the seed carries a mutable `list`, handing out
+    the same list object meant an `append` on a "fresh" db mutated the module seed itself — every later fresh
+    load inherited it (caught by the V2-366 tests before shipping)."""
+    d = dict(_SEED)
+    d["list"] = []
+    return d
+
+
 def _load() -> dict:
-    db = store.load(WID, dict(_SEED))
+    db = store.load(WID, _seed())
     for k, v in _SEED.items():                          # normalize missing fields (old store)
-        db.setdefault(k, v)
+        db.setdefault(k, [] if isinstance(v, list) else v)
     return db
 
 
@@ -106,7 +164,7 @@ def view_data(q: str = "") -> dict:
     try:
         return _load()
     except Exception as e:
-        return {**_SEED, "error": str(e)[:120]}
+        return {**_seed(), "error": str(e)[:120]}
 
 
 def _bump(db: dict, cmd: str) -> dict:
@@ -115,6 +173,23 @@ def _bump(db: dict, cmd: str) -> dict:
     store.save(WID, db)
     return {"ok": True, "cmd": cmd, "videoId": db.get("videoId"), "title": db.get("title"),
             "volume": db.get("volume"), "muted": db.get("muted"), "paused": db.get("paused")}
+
+
+def _play_pos(db: dict, i: int, cmd: str) -> dict:
+    """Make list item i the CURRENT video and play it. The card fields (title/channel/published) become the
+    item's own, so the on-screen verification (V2-057) keeps working when the list drives playback."""
+    it = db["list"][i]
+    db["videoId"] = it.get("videoId") or ""
+    db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
+    db["title"] = it.get("title") or db["url"]
+    db["channel"] = it.get("channel") or ""
+    db["published"] = it.get("published") or ""
+    db["latest"] = False
+    db["pos"] = i
+    db["paused"] = False
+    r = _bump(db, cmd)
+    r["position"] = i + 1
+    return r
 
 
 def apply_action(action: str, payload: dict = None) -> dict:
@@ -150,10 +225,95 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["channel"] = channel                          # V2-057: VERIFIABLE metadata in the card
         db["published"] = published                      # e.g. "2 days ago" — confirms it is the correct one
         db["latest"] = latest                            # most recent requested (date order)
+        # If the loaded video happens to BE in the list, `next` continues from there; otherwise the list is a
+        # queue that will start after this video ends (pos=-1 → ended plays list[0]).
+        db["pos"] = next((i for i, it in enumerate(db.get("list") or []) if it.get("videoId") == vid), -1)
         db["paused"] = False
         return _bump(db, "load")
 
+    if action == "add":
+        # V2-366 — into the LIST, never into the player: like YouTube's own "Add to queue", adding NEVER starts
+        # playback (this is also what keeps `add` usable with the agent stopped — it is not a `produce` op).
+        raw = str(p.get("url") or p.get("videoId") or "").strip()
+        vid = _extract_id(raw)
+        title = str(p.get("title") or "").strip()
+        channel, published = "", ""
+        if vid and not title:
+            meta = _oembed_title(vid)                   # a pasted bare link still deserves a readable row
+            title, channel = meta["title"], meta["channel"]
+        if not vid:                                     # not URL/id → search by name
+            q = str(p.get("query") or p.get("q") or raw or "").strip()
+            if not q:
+                return {"ok": False, "error": "no_video", "message": "Dime qué vídeo añado (enlace o nombre)."}
+            db["adding"] = q                            # visible state while the network search runs
+            store.save(WID, db)
+            r = _search_id(q)
+            db["adding"] = ""
+            vid = r["videoId"]
+            if vid and not title:
+                title = r["title"]
+            channel, published = r["channel"], r["published"]
+        if not vid:
+            store.save(WID, db)                          # turn the "adding" state off even on failure
+            return {"ok": False, "error": "no_video", "message": "No encontré ese vídeo."}
+        lst = db.setdefault("list", [])
+        for i, it in enumerate(lst):                    # dedup by videoId: a repeated add is almost always a retry
+            if it.get("videoId") == vid:
+                store.save(WID, db)
+                return {"ok": True, "already_in_list": True, "position": i + 1,
+                        "title": it.get("title"), "count": len(lst)}
+        url = "https://www.youtube.com/watch?v=" + vid
+        lst.append({"videoId": vid, "title": title or ("youtu.be/" + vid), "channel": channel,
+                    "published": published, "url": url, "added_at": int(time.time())})
+        if db.get("videoId") and db.get("pos", -1) < 0:
+            # current video was loaded outside the list; keep it that way (ended → list[0] still correct)
+            pass
+        store.save(WID, db)
+        return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst)}
+
+    if action == "play_item":
+        lst = db.get("list") or []
+        idx = _resolve_item(lst, p.get("item") if p.get("item") is not None else p.get("query"))
+        if idx is None:
+            return {"ok": False, "error": "item_not_found", "item": p.get("item"),
+                    "message": "No encuentro ese vídeo en la lista."}
+        return _play_pos(db, idx, "play_item")
+
+    if action == "next":
+        lst = db.get("list") or []
+        nxt = int(db.get("pos", -1)) + 1
+        if not lst or nxt >= len(lst):
+            return {"ok": False, "error": "end_of_list", "message": "No hay más vídeos en la lista."}
+        return _play_pos(db, nxt, "next")
+
+    if action == "previous":
+        lst = db.get("list") or []
+        pos = int(db.get("pos", -1))
+        if lst and 0 < pos <= len(lst):
+            return _play_pos(db, pos - 1, "previous")
+        if db.get("videoId"):                           # at the start (or off-list): back = restart, like YouTube
+            db["paused"] = False
+            return _bump(db, "restart")
+        return {"ok": False, "error": "no_video", "message": "No hay nada sonando."}
+
+    if action == "ended":
+        # Fired by the widget when the video reaches the end (onStateChange=0): one after another, by itself.
+        lst = db.get("list") or []
+        nxt = int(db.get("pos", -1)) + 1
+        if 0 <= nxt < len(lst):
+            return _play_pos(db, nxt, "next")
+        db["paused"] = True                             # end of the list: stop honestly, do not loop
+        return _bump(db, "ended")
+
     if action == "play":
+        if not db.get("videoId"):
+            # Empty player + a list waiting: "play" means start the list (add never autoplays, so this is the
+            # voice path that actually launches a freshly built queue).
+            lst = db.get("list") or []
+            if lst:
+                nxt = int(db.get("pos", -1)) + 1
+                return _play_pos(db, nxt if 0 <= nxt < len(lst) else 0, "play_item")
+            return {"ok": False, "error": "no_video", "message": "No hay ningún vídeo cargado ni lista."}
         db["paused"] = False
         return _bump(db, "play")
     if action == "pause":
@@ -194,6 +354,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["latest"] = False
         db["paused"] = True
         db["muted"] = True
+        db["pos"] = -1                                  # V2-366: close closes the VIDEO; the list survives
         return _bump(db, "close")
 
     return {"ok": False, "error": "unknown_action", "action": action}
