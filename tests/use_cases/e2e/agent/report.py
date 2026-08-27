@@ -134,6 +134,26 @@ def _mechanism_numbers(mech: dict) -> list[str]:
     demasiado pronto convierte «no ha terminado» en «ha fallado».
     """
     out: list[str] = []
+    # V2-362 — EL RELOJ, EN EL INFORME. `sheet_timing` se calcula desde V2-300 y se afinó en V2-355, y no
+    # se imprimía en ninguna parte: el juez lo recibe en el JSON, pero quien lee el informe —un humano o el
+    # agente que va a arreglar el caso— no podía ver el número. Una medida sin lector es una decisión sin
+    # llamante: existe y no cambia nada.
+    #
+    # Y es EL número de la queja del operador («una búsqueda se hace en un minuto, dos o tres máximo»):
+    # cuánto tarda el encargo en poner su primera fila delante. Se dice CON el reloj que se usó, porque el
+    # flojo («primera escritura» del worker, que puede ser su plan) y el estricto (el intake del navegador,
+    # que son candidatos de verdad) no miden lo mismo — y confundirlos es lo que produjo los 130,8 s de
+    # «retención» inventados que V2-355 cortó.
+    _st = mech.get("sheet_timing") or {}
+    _t0, _named, _lag = _st.get("sheet_ms"), _st.get("sheet_named_ms"), _st.get("delivery_lag_s")
+    if _t0 and _named:
+        out.append(f"⏱ primera fila de candidatos: {round((_named - _t0) / 1000.0, 1)}s desde que se "
+                     f"abrió la hoja"
+                     + (f" · el turno los nombró {_lag}s después de que existieran"
+                        if _lag is not None else "")
+                     + (f" · reloj: {_st['delivery_clock']}" if _st.get("delivery_clock") else ""))
+    elif _t0:
+        out.append("⏱ primera fila de candidatos: NUNCA llegó (la hoja se abrió y el intake no escribió)")
     wh = mech.get("worker_health") or {}
     if wh.get("spawned"):
         bits = [f"{wh['spawned']} lanzado(s)", f"{wh.get('ok', 0)} ok"]

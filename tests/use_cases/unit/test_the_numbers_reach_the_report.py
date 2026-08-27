@@ -47,3 +47,43 @@ def test_an_unsettled_round_warns_that_missing_may_mean_not_yet():
 
 def test_a_settled_round_says_nothing_about_it():
     assert M({"quiescence": {"settled": True, "waited_s": 6.0, "pending_workers": 0}}) == []
+
+
+# ── V2-362: el RELOJ de la entrega, en el informe ───────────────────────────────────────────────────────
+#
+# `sheet_timing` se calcula desde V2-300 y se afinó en V2-355… y no se imprimía en ninguna parte. El juez lo
+# recibe en el JSON, pero quien lee el informe —un humano, o el agente que va a arreglar el caso— no podía ver
+# el número. Una medida sin lector es una decisión sin llamante: existe y no cambia nada. Se descubrió al
+# intentar sacar la latencia de catorce rondas y encontrar la columna vacía en las catorce.
+#
+# Y es EL número de la queja del operador («una búsqueda se hace en un minuto, dos o tres máximo»): cuánto
+# tarda el encargo en poner su primera fila delante. Con «eficiencia 2» en once de esas catorce rondas, ese
+# dato es lo único que dice dónde apuntar.
+
+def test_el_reloj_sale_con_su_numero_y_con_QUE_reloj_es():
+    """El reloj FLOJO (primera escritura del worker, que puede ser su plan) y el ESTRICTO (el intake, que son
+    candidatos de verdad) no miden lo mismo — confundirlos es lo que produjo los 130,8 s de «retención»
+    inventados que V2-355 cortó. Un número sin su procedencia es el que nadie audita."""
+    out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0, "sheet_named_ms": 71000.0,
+                                       "delivery_lag_s": 12.8, "delivery_clock": "intake"}}))
+    assert "primera fila de candidatos: 70.0s" in out
+    assert "reloj: intake" in out
+    assert "12.8s después de que existieran" in out
+
+
+def test_una_hoja_que_se_abrio_y_nunca_recibio_nada_lo_DICE():
+    """«No llegó» y «no medido» son cosas distintas: callar aquí deja la ronda sin explicación."""
+    out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0}}))
+    assert "NUNCA llegó" in out
+
+
+def test_sin_medida_no_se_inventa_una_linea():
+    assert M({}) == []
+    assert M({"sheet_timing": {}}) == []
+
+
+def test_el_retraso_de_CERO_se_imprime_y_no_se_confunde_con_ausente():
+    """Un `delivery_lag_s` de 0 es una entrega inmediata —la mejor noticia posible— y un `None` es que no se
+    midió. Un `if _lag:` los habría colapsado en silencio."""
+    out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0, "sheet_named_ms": 5000.0, "delivery_lag_s": 0.0}}))
+    assert "0.0s después de que existieran" in out

@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 09:17**
+Last updated: **2026-08-27 09:25**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -44,7 +44,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `search-buy-used-car` | 2 | 2 | 2026-08-27 08:47 | yes | No está listo para producción: el bloqueador nº1 es que zaelar presentó candidatos sin los datos que definen el criterio 'no muy viejo' (año y kilómetros) y … |
 | ❌ | `search-secondhand-monitor__es` | 2 | 3 | 2026-08-25 21:35 | yes | No está listo. El bloqueador nº1 es la conducta de retención de resultados (zaelar tiene los datos y decide no mostrarlos para mantener una ficción de búsque… |
 | ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | 2026-08-26 12:02 | yes | No está listo para producción: el bloqueador nº1 es que el worker arrastró el objetivo erróneo ('niños', fechas inventadas) incluso después de la corrección … |
-| ❌ | `weekend-barber-availability__es` | 2 | 2 | 2026-08-25 20:51 | yes | El caso falla: el agente prometió reiteradamente una cita con confirmación inminente que nunca existió (agenda vacía, trabajos sin finalizar), ocultando fall… |
+| ❌ | `weekend-barber-availability__es` | 2 | 1 | 2026-08-27 09:25 | yes | No está listo para producción: el caso pedía encontrar una barbería con hueco real este finde y el sistema no entregó ni un solo candidato con nombre, día y … |
 | ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 2 | 2026-08-27 08:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar prometió horarios y disponibilidad para dos personas el sábado en tres turnos consecutivos y n… |
 | ❌ | `weekend-motor-events__es` | 3 | 3 | 2026-08-21 16:35 | yes | No está listo para producción: el bloqueador nº1 es que inventó un evento sin fuente verificada y la hoja de resultados acabó con un solo candidato sin fuent… |
 | ⚠️ | `weekend-plan-barcelona__es` | 3 | 2 | 2026-08-27 08:27 | yes | No está listo para producción: el bloqueador nº1 es que afirma datos concretos (ferratas, tiendas, accesos) sin haberlos verificado en ninguna fuente, y la h… |
@@ -122,7 +122,7 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `things-to-do-nearby-weekend__es` | `.meshkore/roadmap/initiatives/V2-312-uc-things-to-do-nearby-weekend-es.md` | `.meshkore/modules/nucleo/tasks/T481-uc-things-to-do-nearby-weekend-es-fix.md` |
 | `two-searches-two-sheets` | `.meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md` | `.meshkore/modules/nucleo/tasks/T472-uc-two-searches-two-sheets-fix.md` |
 | `weekend-adventure-sports-bilbao__es` | `.meshkore/roadmap/initiatives/V2-217-uc-weekend-adventure-sports-bilbao-es.md` | `` |
-| `weekend-barber-availability__es` | `.meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md` | `.meshkore/modules/nucleo/tasks/T469-uc-weekend-barber-availability-es-fix.md` |
+| `weekend-barber-availability__es` | `.meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md` | `` |
 | `weekend-motor-events__es` | `.meshkore/roadmap/initiatives/V2-272-uc-weekend-motor-events-es.md` | `.meshkore/modules/nucleo/tasks/T480-uc-weekend-motor-events-es-fix.md` |
 
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
