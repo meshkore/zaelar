@@ -294,6 +294,7 @@ class FastClient:
         max_tokens: int | None = None,
         tools: list[dict] | None = None,
         on_tool_call=None,
+        no_thinking: bool = False,
     ) -> str:
         """Llamada NO-streaming (devuelve el texto entero). Mismo cliente/keys/spec que `stream()` — es el MISMO
         motor, solo sin trocear la salida. La usa el canal de cluster (V2-069): off-voz no necesita streaming, y un
@@ -307,11 +308,17 @@ class FastClient:
         comportamiento es byte-idéntico a antes (cero regresión)."""
         spec = spec or spec_from_config()
         if spec._is_zai():
-            return await self._complete_zai(messages, spec, max_tokens, tools=tools, on_tool_call=on_tool_call)
+            return await self._complete_zai(messages, spec, max_tokens, tools=tools, on_tool_call=on_tool_call,
+                                            no_thinking=no_thinking)
         extra_body: dict[str, Any] = {}
         r = spec.reasoning_effort()
         if r:
             extra_body["reasoning_effort"] = r
+        if no_thinking:
+            # The caller wants the ANSWER, not the deliberation — see `no_thinking` in the docstring. Same field
+            # and same caveat as the voice path below: the broker accepts it and reasons anyway, the direct
+            # endpoint obeys it.
+            extra_body.setdefault("thinking", {"type": "disabled"})
         if spec.is_local():
             extra_body["keep_alive"] = "30m"
         call_kwargs: dict[str, Any] = dict(
@@ -354,7 +361,8 @@ class FastClient:
         return (getattr(msg, "content", None) or "").strip()
 
     async def _complete_zai(self, messages: list[dict], spec: ModelSpec, max_tokens: int | None, *,
-                            tools: list[dict] | None = None, on_tool_call=None) -> str:
+                            tools: list[dict] | None = None, on_tool_call=None,
+                            no_thinking: bool = False) -> str:
         """Z.AI directo (V2-069 cost-fix, 2026-07-26): su endpoint Anthropic-compatible (`/v1/messages`, la cuenta
         'coding plan') habla un wire format DISTINTO del resto de `FastClient` (OpenAI chat/completions) — de ahí
         un método aparte en vez de forzarlo por `AsyncOpenAI`. Antes el canal de cluster pagaba GLM-5.2 vía AIMLAPI
@@ -370,6 +378,13 @@ class FastClient:
             turns = [{"role": "user", "content": system}]
             system = ""
         payload: dict[str, Any] = {"model": spec.model, "max_tokens": max_tokens or _DEFAULT_MAX_TOKENS, "messages": turns}
+        if no_thinking:
+            # GLM thinks by default here, and the thinking block is charged against `max_tokens` — so a caller
+            # with a normal budget gets a TRUNCATED answer, or an empty one, with a 200 and no error anywhere.
+            # Measured 2026-08-27 on the research composer's real prompt: thinking ON needed 8.000 tokens and
+            # 67,7 s to emit a parseable brief; thinking OFF answered the same brief in 22,3 s inside the
+            # ordinary 1.600 budget. Whoever only wants the answer must be able to say so.
+            payload["thinking"] = {"type": "disabled"}
         if system:
             payload["system"] = system
         if tools:

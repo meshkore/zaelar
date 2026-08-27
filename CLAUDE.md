@@ -5090,6 +5090,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   audio-browse puro no tiene superficie en `musica`, y un worker legítimo (curar una playlist) sigue entregando
   a la hoja — `surfaces` no conoce un destino «widget multimedia».
 
+- **El Brain Worker corre con lo que la NUBE puede contratar, y un escalón que no ve se declara ciego
+  (V2-403, 2026-08-27)**: decisión del operador — Z.AI pasa a titular del worker (`config/v2.json §code_agent`, orden
+  del operador que `providers.pick()` respeta). Antes el local caía a la **licencia local de Claude Code** y
+  medíamos un worker que la nube no puede ejecutar jamás: dentro de un contenedor no hay login de navegador
+  (`cloud/provisioner` ya lleva `CODE_AGENT_BASE_URL=api.z.ai/api/anthropic` desde 2026-08-14). La licencia
+  queda de salvavidas SOLO local. Dos fallos MUDOS salieron al hacerlo, los dos del mismo tronco —un modelo
+  que RAZONA:
+  · **`vision: False` para z.ai** (`nucleo/workers/providers.py::KNOWN`, que declara CAPACIDAD, nunca
+    preferencia — el modelo lo elige el operador en su config). Ese gateway no le pasa la imagen al modelo: la
+    sube y le da una URL que no alcanza. `glm-5.3` lo DICE; `glm-4.6`, `glm-4.5v` y `glm-4.6v` no — contestan
+    con seguridad sobre una imagen que no vieron (rojo→«Orange», azul→«Teal», un PNG con texto descrito como un
+    CAPTCHA de pasos de cebra). Un dato inventado con FORMA de observación es peor que un hueco, y el camino de
+    visión del navegador manda una captura en CADA acción: la bandera es lo que hace llegar `ZAELAR_NAV_VISION=0`.
+  · **El compositor del brief pide la RESPUESTA, no la deliberación** (`FastClient.complete(no_thinking=…)`,
+    nuevo y apagado por defecto — cero regresión para el resto). El bloque de razonamiento se cobra contra
+    `max_tokens`, así que el brief volvía truncado con un **200 y sin error**, y el log decía «respuesta
+    ilegible» — que se lee como modelo roto y era un presupuesto que nunca cupo. Medido: ON = 67,7 s y 2.517
+    tokens (con techo de 8.000); OFF = 22,3 s y 681, el mismo brief. El worker no arranca hasta que esto
+    contesta, así que esos segundos son del cliente. Verificado en vivo: brief en ~13 s donde antes no había
+    ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
+    (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

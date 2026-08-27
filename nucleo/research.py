@@ -299,8 +299,14 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
         _msgs = build_messages(req, context, _today_block())
         try:
+            # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 against the
+            # reasoning tier (Z.AI GLM): with thinking on, the block is charged against `max_tokens`, so 1.600
+            # came back truncated and unparseable — logged as «respuesta ilegible», which reads like a broken
+            # model and was really a budget that never fit. Raising the budget works but costs 67,7 s and 2.517
+            # output tokens; switching thinking off produces the same parseable brief in 22,3 s and 681 tokens.
+            # The worker cannot start until this returns, so the seconds are the person's, not ours.
             out = await asyncio.wait_for(
-                FastClient().complete(_msgs, spec=spec, max_tokens=1600), timeout=timeout)
+                FastClient().complete(_msgs, spec=spec, max_tokens=1600, no_thinking=True), timeout=timeout)
         except asyncio.TimeoutError:
             raise
         except Exception as e:  # noqa: BLE001
@@ -311,7 +317,8 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             logger.warning(f"research: el compositor releva a {_relay.get('name')} tras «{str(e)[:80]}»")
             from nucleo.flash import provider_chain as _pc_retry
             out = await asyncio.wait_for(
-                FastClient().complete(_msgs, spec=_pc_retry.spec_for(_relay), max_tokens=1600), timeout=timeout)
+                FastClient().complete(_msgs, spec=_pc_retry.spec_for(_relay), max_tokens=1600, no_thinking=True),
+                timeout=timeout)
     except asyncio.TimeoutError:
         logger.warning(f"research: el compositor no contestó en {timeout:.0f}s — el worker arranca SIN brief "
                        "(búsqueda sin dirigir); mejor eso que dejar la tarea sin salir")

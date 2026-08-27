@@ -35,8 +35,22 @@ from loguru import logger
 # escalón solo entra en la cadena si su variable de entorno tiene valor, así que tener esto aquí no activa nada:
 # el operador contrata el plan, pone la key en el store, y el escalón aparece solo. Añadir uno nuevo = una línea.
 KNOWN: list[dict] = [
+    # ⚠️ `vision: False` — MEASURED 2026-08-27, and it contradicts what the provider advertises. The image
+    # never reaches the model: this gateway uploads it and passes a URL the model cannot fetch. `glm-5.3`
+    # says so plainly ("I can't access the image from that URL"); `glm-4.6`, `glm-4.5v` and `glm-4.6v` do NOT
+    # — they answer confidently about an image they never saw. Probed with flat solid colours, which leave no
+    # room for interpretation: a pure red 400×400 came back "Orange", a pure blue one "Teal", and a white PNG
+    # with "ZAELAR 4271" written on it was described as a nine-tile CAPTCHA grid asking to pick crosswalks.
+    # Z.ai's own vision path is the native `paas/v4` endpoint, which this plan does not serve at all: it
+    # answers `1113 Insufficient balance` — a different wallet from the coding plan.
+    #
+    # So the honest half of the chain is only as safe as the model that happens to be serving. The browser's
+    # vision path (V2-049) feeds a screenshot on EVERY action, and a confabulated screenshot has the SHAPE of
+    # an observation — worse than DeepSeek's honest "I cannot read the screenshot" (measured 2026-08-24).
+    # Declaring the trait here is what makes `vision_env()` set `ZAELAR_NAV_VISION=0` and send the worker
+    # down the DOM route instead, whichever GLM is on the other end.
     {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic",
-     "env": ["Z_AI_API_KEY"], "plan": "GLM coding plan"},
+     "env": ["Z_AI_API_KEY"], "plan": "GLM coding plan", "vision": False},
     {"name": "moonshot", "base_url": "https://api.moonshot.ai/anthropic",
      "env": ["MOONSHOT_API_KEY", "KIMI_API_KEY"], "plan": "Kimi Code"},
     # DeepSeek expone un endpoint Anthropic-compatible propio (2026-08-13), y este escalón estuvo escrito y SIN

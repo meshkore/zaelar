@@ -547,6 +547,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
                       "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+        # 2026-08-27 — al poner Z.AI de titular del Brain Worker (decisión del operador) salieron DOS fallos
+        # mudos del mismo tronco: un modelo que RAZONA carga su deliberación contra `max_tokens`, así que el
+        # brief del compositor volvía truncado con un 200 y sin error («respuesta ilegible» en el log, worker
+        # sin dirección); y ese mismo escalón, preguntado por una imagen, no dice que no ve — se la INVENTA
+        # (rojo→«Orange», azul→«Teal», un PNG con texto descrito como un CAPTCHA de pasos de cebra).
+        {"id": "4.59", "title": "El compositor pide el BRIEF, no la deliberación · y un escalón que no ve se "
+                                "declara ciego (no lo que anuncia el proveedor)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/"
+                      "test_the_composer_asks_for_the_brief_not_the_deliberation.py"]},
         {"id": "4.54", "title": "El vídeo se PONE, no se rotula · y la boca NOMBRA el que cargó",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_video_is_played_not_labelled.py"]},
