@@ -374,7 +374,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # …Y CUÁNTOS DE ELLOS HACÍAN LO MISMO. «4 lanzados» se lee como concurrencia sana; cuatro
             # workers sobre el MISMO encargo es una factura por cuatro y una pantalla llena de tarjetas.
             mech["duplicate_errands"] = verifymod.duplicate_errands(config.SANDBOX_DB, since=started_at)
-            mech["search_returns"] = verifymod.search_returns(config.SANDBOX_DB, since=started_at)
+            # V2-378 — con el instante del ÚLTIMO turno delante, para no acusar de un fallo de entrega a una
+            # vuelta que llegó con la conversación ya cerrada. `sheet_timing` se compone antes, arriba.
+            mech["search_returns"] = verifymod.search_returns(
+                config.SANDBOX_DB, since=started_at,
+                last_turn_ms=(mech.get("sheet_timing") or {}).get("last_turn_ms"))
             # WHY the dead ones died. A worker that errors emits nothing saying why, so this crosses the
             # store with the engine's own log — the cross-reference that found the cause of a whole family.
             mech["worker_deaths"] = verifymod.worker_deaths(config.SANDBOX_DB, since=started_at)

@@ -512,11 +512,20 @@ def mechanism_facts(mech: dict) -> str:
                      f" Si el encargo se quedó sin resultados, la causa es ÉSTA y no que zaelar no supiera "
                      f"buscar: puntúa MECANISMO bajo y no le cuentes el fallo como falta de criterio.")
     sr = mech.get("search_returns") or {}
-    if sr.get("returns") and not sr.get("notes_from_search"):
-        lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {sr['returns']} vez/veces y NADA de eso se le empujó al "
-                     f"cerebro (0 notas desde ese canal). Ejemplo de lo que volvió: "
-                     f"«{(sr.get('sample') or [''])[0][:140]}». Si zaelar no dio esos datos, no es que se "
-                     f"los callara: no los tuvo. Es un fallo de ENTREGA del mecanismo.")
+    # V2-378 — una vuelta que llega con la conversación YA CERRADA no se le pudo empujar a nadie, así que no
+    # prueba un fallo de entrega. Medido en `compare-insurance-quotes__es` (2026-08-27): las ocho llegaron
+    # entre los 473 y los 521 s, con el último turno a los 298. El juez lo archivó como fallo de mecanismo.
+    _sr_tarde = int(sr.get("returns_after_last_turn") or 0)
+    _sr_a_tiempo = max(0, int(sr.get("returns") or 0) - _sr_tarde)
+    if _sr_a_tiempo and not sr.get("notes_from_search"):
+        lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {_sr_a_tiempo} vez/veces CON LA CONVERSACIÓN ABIERTA y "
+                     f"NADA de eso se le empujó al cerebro (0 notas desde ese canal). Ejemplo de lo que "
+                     f"volvió: «{(sr.get('sample') or [''])[0][:140]}». Si zaelar no dio esos datos, no es que "
+                     f"se los callara: no los tuvo. Es un fallo de ENTREGA del mecanismo.")
+    elif _sr_tarde and not sr.get("notes_from_search"):
+        lines.append(f"· La búsqueda web contestó {_sr_tarde} vez/veces DESPUÉS del último turno, o sea con la "
+                     f"conversación ya cerrada. NO había a quién empujárselo: eso NO es un fallo de entrega "
+                     f"ni de zaelar, y no se puntúa. Como mucho dice que la búsqueda llegó tarde.")
     clash = mech.get("prompt_contradictions") or []
     if clash:
         # DOS familias, y decirlas mezcladas manda al equipo del motor a mirar el sitio equivocado: una es

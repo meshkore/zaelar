@@ -195,7 +195,18 @@ def _mechanism_numbers(mech: dict) -> list[str]:
             out.append(f"murieron en menos de 2 s: {quick} (ms) — una búsqueda no dura eso")
     sr = mech.get("search_returns") or {}
     if sr.get("queries"):
-        tail = "" if sr.get("notes_from_search") else "  ⚠️ y NINGUNA se le empujó al cerebro"
+        # V2-378 — el aviso solo vale si ALGUNA vuelta llegó con la conversación abierta. Si todas llegaron
+        # después del último turno no hubo a quién empujar, y decir «ninguna se le empujó» acusa al mecanismo
+        # de un fallo de entrega imposible — el mismo cuidado que la línea del motor que sigue trabajando.
+        _tarde = int(sr.get("returns_after_last_turn") or 0)
+        _a_tiempo = max(0, int(sr.get("returns") or 0) - _tarde)
+        if sr.get("notes_from_search"):
+            tail = ""
+        elif _a_tiempo:
+            tail = "  ⚠️ y NINGUNA se le empujó al cerebro"
+        else:
+            tail = (f"  · las {_tarde} llegaron DESPUÉS del último turno: no había a quién empujárselas, "
+                    f"así que esto NO es un fallo de entrega")
         out.append(f"búsqueda web: {sr['queries']} consulta(s), {sr.get('returns', 0)} respuesta(s), "
                    f"{sr.get('notes_from_search', 0)} nota(s) al cerebro{tail}")
     off = mech.get("offered") or {}

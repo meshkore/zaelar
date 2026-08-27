@@ -1618,6 +1618,12 @@ DOMAINS: list[dict] = [
         # V2-373 — `two-searches-two-sheets` perdió su veredicto CUATRO veces: los tres intentos volvían
         # CORTADOS (6558/6368/6487 chars con max_tokens=2000) y el veredicto completo ocupa 7238. Ese caso no
         # podía juzgarse nunca, y el reintento le pedía «el mismo veredicto» — o sea, lo que no cabe.
+        # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
+        # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
+        # con el último turno a los 298: no había a quién empujárselas.
+        {"id": "10.89", "title": "Una búsqueda que llega con la conversación cerrada no es un fallo de entrega",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_search_that_lands_after_the_talk_is_not_a_delivery_defect.py"]},
         {"id": "10.88", "title": "Un veredicto que no CABE no es un JSON mal formado",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_verdict_that_does_not_fit_is_not_bad_json.py"]},

@@ -2045,7 +2045,7 @@ def worker_deaths(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
-def search_returns(db_path, *, since: float = 0.0) -> dict:
+def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = None) -> dict:
     """WHAT THE WEB SEARCH BROUGHT BACK, and whether one word of it ever reached the brain.
 
     This channel was invisible to the harness until an audit of the whole event store on 2026-08-21 — which
@@ -2060,13 +2060,21 @@ def search_returns(db_path, *, since: float = 0.0) -> dict:
     opposite fixes.
     """
     import sqlite3
-    out: dict = {"queries": 0, "returns": 0, "model_tokens_seen": 0, "notes_from_search": 0, "sample": []}
+    out: dict = {"queries": 0, "returns": 0, "model_tokens_seen": 0, "notes_from_search": 0, "sample": [],
+                 # V2-378 — cuántas vueltas llegaron cuando YA NO HABÍA NADIE ESCUCHANDO. Sin esto, el aviso de
+                 # «ninguna se le empujó al cerebro» acusa al mecanismo de un fallo de entrega en rondas donde
+                 # la entrega era imposible. Medido en `compare-insurance-quotes__es` (2026-08-27): las OCHO
+                 # vueltas de búsqueda llegaron entre los 473 y los 521 s, y el último turno del operador fue a
+                 # los 298 — la conversación llevaba tres minutos cerrada. La nota se empuja a un buzón que ya
+                 # nadie iba a vaciar, así que el contador —que lee el DRENAJE, no el empujón— marcaba cero y
+                 # el juez lo archivó como «fallo de ENTREGA del mecanismo».
+                 "returns_after_last_turn": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
         return out
     try:
-        rows = con.execute("SELECT label, payload FROM events WHERE kind = 'search' AND ts_ms >= ? "
+        rows = con.execute("SELECT label, payload, ts_ms FROM events WHERE kind = 'search' AND ts_ms >= ? "
                            "ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
         # Is there ANY push path from this channel? A note built from a search answer would say so; today
         # every note in the store announces the BROWSER («ha SACADO esto de la página»). Zero here means the
@@ -2074,7 +2082,7 @@ def search_returns(db_path, *, since: float = 0.0) -> dict:
         out["notes_from_search"] = con.execute(
             "SELECT COUNT(*) FROM events WHERE kind = 'brain' AND ts_ms >= ? AND payload LIKE ?",
             (int(since * 1000), "%búsqueda web%")).fetchone()[0]
-        for label, raw in rows:
+        for label, raw, ts_ms in rows:
             try:
                 txt = str((json.loads(raw) or {}).get("text") or "")
             except Exception:
@@ -2083,6 +2091,8 @@ def search_returns(db_path, *, since: float = 0.0) -> dict:
                 out["queries"] += 1
                 continue
             out["returns"] += 1
+            if last_turn_ms and ts_ms and float(ts_ms) > float(last_turn_ms):
+                out["returns_after_last_turn"] += 1
             # The distinctive head of the answer: enough to look for verbatim downstream, short enough that
             # a turn paraphrasing it would still match on the product name.
             head = " ".join(txt.split()[:60])
