@@ -1667,6 +1667,13 @@ DOMAINS: list[dict] = [
         # guardar la canción» deduciéndolo del texto: `audit.tools_run` venía {} y `widget_ops` solo trae el
         # agregado de la ronda. «Pidió A en vez de B» y «pidió A y B, y B lo rechazó el widget» tienen dueños
         # distintos (V2-394) y en el transcript se leen igual.
+        # V2-399 — la CLASE de V2-395/398, cerrada con trinquete: auditados los 48 campos del informe,
+        # OCHO eran invisibles para el juez (solo JSON crudo, que el juez ignora — medido). El peor:
+        # `delivery_completeness` decía «tenía 24 resultados y nombró 1 (4 %)» en la ronda de Bilbao y
+        # estaba mudo. Ahora: o se renderiza en palabras, o vive en `judge.RAW_ONLY` con motivo.
+        {"id": "10.99", "title": "Todo lo MEDIDO se le dice al juez · trinquete de completitud del informe",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_todo_lo_medido_se_le_dice_al_juez.py"]},
         {"id": "10.98", "title": "Lo que el cerebro PIDIÓ en cada turno se guarda · pedir no es hacer",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_what_the_brain_ASKED_FOR_is_kept.py"]},

@@ -553,6 +553,46 @@ def mechanism_facts(mech: dict) -> str:
                      f"falló(fallaron) — {_rutas}. Lo que falte por eso sale VACÍO en este informe sin que "
                      f"eso signifique que no ocurrió: es el instrumento, NO el producto, y NO se puntúa. Un "
                      f"contador a cero cuya lectura falló no prueba absolutamente nada.")
+    # V2-399 — un lector de sección que se avería APARTE del bloque grande deja el mismo agujero que
+    # V2-381: su ausencia se lee como un hecho. Misma doctrina, dicho por campo.
+    for _err_campo, _seccion in (("prompt_context_error", "prompt_context"),
+                                 ("proactive_notes_error", "proactive_notes / note_coverage")):
+        if mech.get(_err_campo):
+            lines.append(f"· ⚠️ EL ARNÉS no pudo componer la sección «{_seccion}» "
+                         f"({str(mech.get(_err_campo))[:80]}). Es el instrumento, no el producto: la "
+                         f"ausencia de esa sección no prueba nada y NO se puntúa.")
+    # V2-399 — lo que TENÍA frente a lo que DIJO. En la ronda de Bilbao este campo decía «24 resultados,
+    # nombró 1 (4 %)» y solo existía en el JSON crudo: el hecho central del veredicto, mudo.
+    _dc = mech.get("delivery_completeness") or {}
+    if (_dc.get("available") or 0) > 0 and (_dc.get("named") or 0) < (_dc.get("available") or 0):
+        _perdidos = "; ".join(f"«{str(x)[:70]}»" for x in (_dc.get("missed") or [])[:6])
+        lines.append(f"· ⚠️ ZAELAR TENÍA {_dc.get('available')} RESULTADOS REALES Y SOLO ENTREGÓ "
+                     f"{_dc.get('named')} POR SU NOMBRE ({_dc.get('pct')} %). Ejemplos de lo que se quedó "
+                     f"sin decir: {_perdidos}. Los datos EXISTÍAN en su hoja — esto es un fallo de ENTREGA, "
+                     f"no de búsqueda: no escribas «no encontró», escribe «no lo dijo».")
+    # V2-399 — el mismo encargo lanzado varias veces quema turnos y presupuesto, y solo viajaba en crudo.
+    _de = mech.get("duplicate_errands") or {}
+    if (_de.get("worst") or 0) >= 2 or (_de.get("identical_repeats") or 0) > 0:
+        _g0 = ((_de.get("groups") or [{}])[0]) or {}
+        lines.append(f"· ⚠️ ENCARGOS DUPLICADOS: el mismo encargo se lanzó {max(_de.get('worst') or 0, 2)} "
+                     f"veces («{str(_g0.get('goal') or '?')[:110]}»). Es un hecho medido sobre los encargos "
+                     f"que NACIERON (los relevos de proveedor ya están descontados): puntúa EFICIENCIA "
+                     f"abajo por esto.")
+    # V2-399 — un worker cuyos PUENTES fallan no es un worker sin criterio. La forma catastrófica la ataja
+    # el preflight (`bridge_allowlist_refusal`); ésta es la parcial, que hasta hoy solo viajaba en crudo.
+    _wb = mech.get("worker_bridges") or {}
+    if _wb.get("errors"):
+        _we = ", ".join(f"{k} ×{v}" for k, v in list(_wb["errors"].items())[:5])
+        lines.append(f"· ⚠️ PUENTES DEL WORKER CON ERRORES: {_we}. El worker pide el navegador, la memoria "
+                     f"y la red por esos puentes: si volvió con menos de lo esperado, mira esto antes de "
+                     f"culpar a su criterio. Un puente roto es MECANISMO, no conducta.")
+    # V2-399 — la memoria semántica del plató puede estar degradada sin que lo esté la de producción.
+    _em = mech.get("embeddings") or {}
+    if _em.get("degraded") or _em.get("skipped"):
+        lines.append(f"· ⚠️ EMBEDDINGS DEGRADADOS en el plató (backend «{_em.get('backend')}», "
+                     f"skipped={bool(_em.get('skipped'))}): la memoria semántica de esta ronda no es la de "
+                     f"producción. Un recall pobre puede ser del MONTAJE — no lo puntúes como mala memoria "
+                     f"del producto sin otra señal.")
     sr = mech.get("search_returns") or {}
     # V2-378 — una vuelta que llega con la conversación YA CERRADA no se le pudo empujar a nadie, así que no
     # prueba un fallo de entrega. Medido en `compare-insurance-quotes__es` (2026-08-27): las ocho llegaron
@@ -852,6 +892,19 @@ def _judge_with_retry(msgs: list[dict]) -> dict:
     raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — {len(raw)} chars, "
                        f"techo {techo}, el proveedor dijo finish_reason={_dijo!r}, "
                        f"alrededor del fallo: {_ventana!r}")
+
+
+# ── V2-399 — EL TRINQUETE DE COMPLETITUD ───────────────────────────────────────────────────────────────────
+# Todo campo que el informe de mecanismo produce, o se renderiza en `mechanism_facts` EN PALABRAS, o vive
+# aquí con su motivo. La clase que esto cierra está medida dos veces (V2-395, V2-398): lo que viaja solo en
+# el JSON crudo del prompt, el juez lo ignora y deduce del transcript — y deduce mal. El test
+# `test_todo_lo_medido_se_le_dice_al_juez.py` rompe si un campo nuevo aparece sin decisión.
+RAW_ONLY = {
+    "proactive_notes": "las notas crudas son largas y su hecho juzgable —cuáles llegaron al cerebro y "
+                       "cuáles no— ya lo renderiza note_coverage; duplicarlas en palabras solo diluye",
+    "surfaces": "qué superficie declaró cada turno es contexto de depuración; lo juzgable —si la hoja "
+                "existió, cuándo se llenó y si se enseñó— ya lo renderizan sheet_instances y sheet_timing",
+}
 
 
 def judge(scenario, run: dict, model: str | None = None) -> dict:
