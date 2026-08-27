@@ -58,3 +58,32 @@ def test_the_shell_rules_still_forbid_the_expansions_themselves():
     """Sensitivity: naming the error must not replace forbidding the cause."""
     text = _worker_prompt()
     assert "$(…)" in text and "${…}" in text
+
+
+def test_the_single_ampersand_is_forbidden_TOO_and_by_its_own_name():
+    """Measured 2026-08-28 on `find-best-hotel-city__us` (24/7 lab): the worker ended a command with `&` and
+    our own gate killed it — *«This command uses the `&` background operator, which defers execution past
+    approval-time safety checks»*. The round died at 4 turns with six navigations and zero results.
+
+    The rule listed `&&` and never a single `&`. They are different operators, and the rejection the worker
+    reads for `&` is a THIRD message, unlike either of the two the prompt teaches — so a model that obeyed
+    «nada de `&&`» to the letter had nothing to connect its error to. Same defect as the one this file was
+    written for, one operator over.
+    """
+    text = _worker_prompt()
+    assert "background operator" in text, "the worker is never told what the `&` rejection means"
+    assert "`&` " in text or "un solo `&`" in text.lower() or "NI UN SOLO `&`" in text
+
+
+def test_and_it_says_what_to_do_INSTEAD_of_backgrounding():
+    """Forbidding without an alternative is how a worker ends up silent: the slow work IS asynchronous
+    already, through the bridges, so there is nothing `&` was needed for."""
+    text = _worker_prompt()
+    i = text.find("background operator")
+    assert i > 0 and "wait" in text[i:i + 400], "no alternative offered next to the ban"
+
+
+def test_the_double_ampersand_rule_survives():
+    """Sensitivity: the new rule must not have replaced the old one — they are different operators and both
+    are blocked."""
+    assert "`&&`" in _worker_prompt()

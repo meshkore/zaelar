@@ -5112,6 +5112,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El `&` solo también lo bloquea nuestro guarda, y no estaba en la regla (V2-424, 2026-08-28)**: medido en
+  `find-best-hotel-city__us` (plató 24/7): el worker terminó un comando con `&` y nuestra propia puerta lo
+  mató — «This command uses the `&` background operator, which defers execution past approval-time safety
+  checks». La ronda murió a los 4 turnos, con seis navegaciones y cero resultados. La regla listaba `&&` y
+  **nunca un `&` solo**: son operadores distintos, y el rechazo que lee el worker es un TERCER mensaje,
+  distinto de los dos que el prompt sí enseña — o sea que un modelo que obedeciera «nada de `&&`» al pie de la
+  letra no tenía con qué atar su error a ninguna regla. Mismo defecto que V2-412, un operador más allá. Va
+  aparte y con el mensaje del guarda dentro, y con la alternativa al lado (lo lento YA es asíncrono por los
+  puentes: se lanza y se recoge con `wait`) — prohibir sin alternativa es como acaban callados. Nodo 4.61
+  ampliado, tres desarmes.
+
 - **Una fila INFRA dice CUÁL (V2-423, 2026-08-28)**: las cuatro puertas que llevan a INFRA piden acciones
   OPUESTAS —arnés caído (bug del instrumento), turnos vacíos (recargar un proveedor), recall degradado
   (levantar el prewarm), juez sin nota (mirar su cadena)— y desde el tablero se veían las cuatro igual.
