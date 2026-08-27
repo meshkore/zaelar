@@ -43,7 +43,16 @@ from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
-_DEPLETED_COOLDOWN_S = 6 * 3600        # V2-243: un SALDO no se repone solo — se reintenta poco y se avisa mucho
+_DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 lo puso en 6 h («un saldo no se repone solo»). Cierto salvo en
+                                       # el ÚNICO caso que importa: que el operador RECARGUE — que es justo lo que
+                                       # la alerta existe para provocar. Medido el 2026-08-27: el 402 de las 18:55
+                                       # castigó al titular hasta pasada la medianoche, el operador recargó a las
+                                       # 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se
+                                       # cayó a su vez, el cerebro se quedó MUDO con el titular sano al lado, y no
+                                       # había forma de decirle que ya había saldo. Una recarga es invisible desde
+                                       # aquí: la única manera de enterarse es volver a probar. El coste de la
+                                       # libertad condicional son ~3 llamadas fallidas por hora mientras de verdad
+                                       # no hay saldo; el coste de no tenerla fueron seis horas de silencio.
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "cluster_provider_cooldown"      # nombre histórico: el cooldown es COMPARTIDO (ver `role` abajo)
 

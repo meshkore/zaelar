@@ -132,13 +132,22 @@ def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
 # «espera»; un saldo le dice «recarga», y de eso depende lo que HAGA.
 
 def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
+    """Reescrito el 2026-08-27, NO volteado. Lo que protegía sigue en pie: un saldo agotado se castiga MÁS que
+    un fallo cualquiera, porque reintentar cada poco contra una cuenta vacía quema un turno por ronda. Lo que
+    cambia es el techo, y lo cambia una medida: con seis horas, el 402 de las 18:55 dejó al titular fuera hasta
+    pasada la medianoche; el operador recargó a las 19:40 y el motor no tenía forma de enterarse, así que
+    siguió mandándolo todo al relevo — y cuando ese relevo se cayó, el cerebro se quedó MUDO con el titular
+    sano al lado. Una recarga es invisible desde aquí: la única manera de verla es volver a probar. Ahora el
+    castigo sigue siendo mayor que el de una cuota sin fecha, pero cabe en una libertad condicional.
+    """
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     prov.note_failure("API Error 402 Insufficient Balance", {"name": "z.ai", "base_url": "x"})
     until = prov._store._cooldown["z.ai"]
-    assert until > time.time() + prov._DEFAULT_COOLDOWN_S, \
-        "reintentar cada media hora contra una cuenta vacía quema un turno por ronda"
+    assert until > time.time(), "un saldo agotado tiene que castigar algo"
     assert until <= time.time() + prov._DEPLETED_COOLDOWN_S + 1
+    assert prov._DEPLETED_COOLDOWN_S <= 30 * 60, \
+        "el castigo por saldo volvió a ser tan largo que una recarga no se nota"
 
 
 def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):

@@ -547,6 +547,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
                       "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+        # 2026-08-27, medido en el plató: el 402 de las 18:55 castigó al titular SEIS HORAS, el operador recargó
+        # a las 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se cayó a su vez, el cerebro
+        # se quedó MUDO con el titular sano una fila más arriba — y no había forma de decirle que ya había saldo.
+        {"id": "4.62", "title": "Una recarga es INVISIBLE desde aquí, así que se vuelve a probar — libertad "
+                                "condicional al saldo agotado, en las DOS cadenas",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_top_up_is_invisible_so_we_try_again.py"]},
         # 2026-08-27, las cuatro rondas de la primera tanda US: los mismos errores internos en todas
         # («Contains simple_expansion», «Contains brace with quote character»), y en cheapest-monitor se
         # llevaron la ronda entera — 3 navegaciones, 10 búsquedas, CERO productos. La causa era nuestra: el
