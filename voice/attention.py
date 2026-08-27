@@ -231,9 +231,16 @@ _FULLSCREEN_RE = re.compile(r"\bpantalla\s+completa\b|\bfull\s*screen\b", re.I)
 # STOP inequívoco (dispara aunque el turno sea largo).
 _STOP_HARD_RE = re.compile(
     r"\b(silencio|calla(?:te|os|d)?|basta|stop|shh+|quiet[oa]|detente|para\s+ya|para\s+de|parate|shut\s*up)\b"
-    # «páralo / párala / páralos / detenlo» — con pronombre pegado ya NO es la preposición «para», así que es
-    # inequívoco y entra en la regla DURA (la blanda de abajo solo existe por la ambigüedad de «para» a secas).
-    r"|\b(?:para|pare|deten|detenga)(?:me|te|se|nos|os|lo|la|le|los|las|les){1,2}\b")
+    # Pronombre pegado ya NO es la preposición «para», así que es inequívoco COMO VERBO — pero eso no es lo
+    # mismo que ser inequívoco SOBRE QUÉ. V2-393: solo el REFLEXIVO/DATIVO («párate», «detente», «páreme») habla
+    # de zaelar; el ACUSATIVO de 3ª («páralo», «párala») lleva OBJETO DIRECTO, o sea que va sobre una COSA — y un
+    # barge-in no tiene objeto: es callar. Medido en `watch-a-video-not-listen-to-it` (2026-08-27 14:04), que
+    # había pasado 5/5 dos horas antes: «Ahora páralo, porfa» sobre un vídeo cargado se comió el turno ENTERO
+    # —el stop duro no genera respuesta— y salió el backstop «¿me lo repites?». El tester lo repitió con otras
+    # palabras («Que pares el vídeo») y funcionó a la primera: la orden era clara, el guarda era nuestro.
+    r"|\b(?:para|pare|deten|detenga)(?:me|te|se|nos|os|le|les){1,2}\b"
+    # …salvo que el objeto sea TODO: «páralo todo» sí es global, y ahí el objeto no es una cosa concreta.
+    r"|\b(?:para|pare|deten|detenga)(?:lo|la|los|las)\s+(?:todo|toda|todos|todas)\b")
 # STOP ambiguo ("para"/"pare"/"espera" — también preposición): solo como imperativo CORTO (evita "para la cena").
 _STOP_SOFT_RE = re.compile(r"\b(para|pare|espera)\b")
 

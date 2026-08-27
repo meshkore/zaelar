@@ -239,11 +239,19 @@ def test_close_all_with_the_pronoun_stuck_to_the_verb():
 
 
 def test_stop_with_the_pronoun_stuck_to_the_verb():
-    """«páralo» lleva pronombre pegado → ya no puede ser la preposición «para», así que es STOP inequívoco
-    (la regla BLANDA con su tope de palabras solo existe por la ambigüedad de «para» a secas)."""
-    assert attention.hard_interrupt("páralo todo ahora mismo y espera") == "stop"
-    assert attention.hard_interrupt("párala") == "stop"
-    assert attention.hard_interrupt("detenlo") == "stop"
+    """El pronombre pegado desambigua la PREPOSICIÓN, así que un stop con clítico no necesita el tope de
+    palabras de la regla blanda — eso sigue siendo cierto y es lo que este caso protege.
+
+    Lo que V2-393 corrigió es la otra mitad: «inequívoco como VERBO» no es «inequívoco sobre QUÉ». El
+    reflexivo/dativo habla de zaelar y sigue siendo un stop duro; el acusativo de tercera («párala»,
+    «detenlo») lleva OBJETO DIRECTO — va sobre una cosa — y un barge-in no tiene objeto. Medido en
+    `watch-a-video-not-listen-to-it`: «Ahora páralo, porfa» sobre un vídeo cargado se comió el turno entero.
+    El detalle vive en `tests/voice/unit/test_paralo_lleva_objeto.py` (nodo 3.14).
+    """
+    assert attention.hard_interrupt("páralo todo ahora mismo y espera") == "stop"   # «todo» → global
+    assert attention.hard_interrupt("párate ahora mismo y espera") == "stop"        # reflexivo → es él
+    assert attention.hard_interrupt("párala") is None                               # acusativo → una cosa
+    assert attention.hard_interrupt("detenlo") is None
 
 
 def test_the_enclitic_forms_do_not_swallow_normal_speech():

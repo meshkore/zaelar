@@ -662,6 +662,10 @@ DOMAINS: list[dict] = [
         # → un relleno suelto (sin punto y de menos de 20 chars) se quedaba en el buffer y salía PEGADO a la
         # respuesta. 48 generados, 0 oídos a tiempo, y el operador diciéndole «parece que te has quedado tonto» a un
         # agente que estaba trabajando. Aquí se reproduce el pegado y se fija la costura fuera de banda.
+        # V2-393 — un barge-in no tiene OBJETO: «páralo» va sobre una cosa y se comía el turno entero.
+        {"id": "3.14", "title": "«páralo» lleva objeto: no es un barge-in · y «párate» lo sigue siendo",
+            "ch": UNIT,
+            "paths": ["tests/voice/unit/test_paralo_lleva_objeto.py"]},
         {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
             "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py",
                                     # V2-122 (2026-08-17): el pool de rellenos ya no es solo un literal hardcodeado
@@ -1641,6 +1645,11 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-392 — `widget_ops` dice qué se TOCÓ, no si algo acabó pasando. Con la música SONANDO y la lista
+        # «Curro» con esa misma canción dentro, el veredicto fue 3/5 «evidencia cero».
+        {"id": "10.94", "title": "El informe dice QUÉ está sonando · se PREGUNTA al motor, no se reimplementa",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_el_informe_dice_QUE_esta_sonando.py"]},
         # V2-390 — la ruta de la UI ya nombraba la data-op; la del CEREBRO no, así que `add_to_playlist` y
         # `set_volume` eran el mismo evento. Con la música SONANDO y la lista «Curro» EXISTIENDO, el veredicto
         # fue 1/5 «alucinación de éxito» citando «solo operaciones genéricas de datos».
