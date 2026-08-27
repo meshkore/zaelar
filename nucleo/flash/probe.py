@@ -30,6 +30,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
+from nucleo.flash import music_turn as _music_turn
 
 _WINDOW_MAX = 10
 
@@ -388,6 +389,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # (e) acción derivada (qué HARÍA el turno real)
     names = [t["name"] for t in tool_calls]
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
+    music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo
     # hard-interrupt DETERMINISTA (V2-015) — ESPEJO del provider (nucleo.py:122): 'cierra todo'/'quita todo' →
     # [[close]] TODO; 'para'/'silencio'/'basta' → corta sin acción. En voz/chat se resuelve ANTES que el LLM; sin
     # este espejo el probe daba veredictos FALSOS ('cierra todo' caía en widget_data ~60% de las veces, 2026-07-21).
@@ -419,7 +421,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         from nucleo.turn import vault_gate as _vault_gate
         reveal_out = (await _vault_gate.reveal(str(_rl))).as_probe_payload()
     elif "play_music" in names:
-        action = "music"                     # V2-041: ruta ligera; el turno real lo resuelve por el conector activo
+        action = "music"                     # V2-041: ruta ligera; la EJECUTA el bloque `execute` de abajo (V2-380)
+        music_req = _music_turn.request_from(tool_calls)
     elif "play_video" in names:
         action = "canvas:show:youtube"       # V2-045: VER → widget youtube (show + data-op load); espejo del provider
     elif "show_panel" in names:
@@ -1040,6 +1043,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     return_extra_exec = {"executed": "login_done", "resumed": _resumed}
                 except Exception as e:  # noqa: BLE001
                     return_extra_exec = {"execute_error": str(e)[:200]}
+            elif action == "music" and music_req:
+                # V2-380 — LA MÚSICA SE PONE, NO SE ROTULA. La decisión y su ejecución viven en
+                # `music_turn`, igual que `web_auth` para el traspaso de login: este canal es la
+                # implementación PARALELA del provider de voz y lo que se comparte es el MECANISMO.
+                return_extra_exec = await _music_turn.execute(music_req["action"], music_req["query"])
             elif action == "widget_data":
                 # EJECUCIÓN REAL de una data-op (2026-07-25): sin esto el probe validaba el ROUTING pero nunca
                 # ENVIABA — imposible reproducir e2e "manda a zalo …". Ahora, si la acción es FAST, se despacha por
@@ -1111,7 +1119,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 from . import router_guards as _rg_hold
                 spoken = _rg_hold.holding_line(sess.window, _lg)
             elif action == "music":
-                spoken = _lg.data_ack        # ack corto en el probe; el turno real dice lo que puso el conector
+                # V2-380 — la BOCA dice lo que PASÓ, no «Hecho.» pase lo que pase. Misma casa que la ejecución.
+                spoken = _music_turn.spoken_for(
+                    return_extra_exec if isinstance(return_extra_exec, dict) else {}, _lg.data_ack)
             elif action == "style":
                 spoken = _lg.data_ack        # V2-046 A1: fijar/retirar una regla nunca deja el turno mudo
             else:

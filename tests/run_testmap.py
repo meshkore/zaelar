@@ -521,7 +521,11 @@ DOMAINS: list[dict] = [
         {"id": "2.39", "title": "Una espera nunca calla un atasco que el sistema YA sabe · y si el turno ya lo "
                                 "dice, o ya está entregando, el backstop no lo pisa",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py",
+            "paths": ["tests/agent_headless/unit/flash/test_the_music_is_played_not_labelled.py",
+                      # V2-380 — el canal de TEXTO resolvía `play_music` a una etiqueta y contestaba «Hecho.»
+                      # sobre una reproducción que no existía. La primera ronda que ese caso ha tenido nunca
+                      # salió 1/5 con `familias faltantes: ['widget']`: medía un mecanismo INALCANZABLE.
+                      "tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py",
                       # V2-371 — y una PREGUNTA tampoco calla una entrega. La puerta de V2-364 silenciaba el
                       # backstop, el flujo caía al de atasco, y las dos «¿la paro o le doy margen?» que el
                       # juez le reprochó a zaelar en `search-buy-motorcycle__es` las escribimos nosotros —
