@@ -282,7 +282,33 @@ def by_identity(items) -> tuple:
                 t = str(it.get("title") or "").strip()
                 (_cromo if t.startswith(_tpl) and len(t) > len(_tpl) else _keep).append(it)
             named, unnamed = _keep, unnamed + _cromo
+    # V2-375 — y la MISMA regla por el otro extremo: una COLETILLA que llevan todas. Medido en
+    # `weekend-plan-barcelona__es` (2026-08-27): los DIECISÉIS candidatos de la hoja acababan en
+    # «- Actividad relacionada», así que el operador leía dieciséis veces la etiqueta del módulo de la página
+    # en vez de dieciséis planes. Tratamiento DISTINTO al del prefijo, y la diferencia es lo que decide: con
+    # el prefijo compartido la fila se queda SIN identidad y se degrada (V2-346); aquí la identidad está
+    # entera delante —«Vía Ferrata la Cala del Molí (Sant Feliu de Guíxols)»— y lo que sobra es el rabo. Así
+    # que se RECORTA y la fila se queda: degradarla tiraría dieciséis hallazgos buenos.
+    if named:
+        _cola = _boilerplate_suffix([str(it.get("title") or "").strip() for it in named])
+        if _cola:
+            for it in named:
+                t = str(it.get("title") or "").strip()
+                if t.endswith(_cola) and len(t) > len(_cola):
+                    it["title"] = t[: -len(_cola)].rstrip(" -–—·|,;:")
     return named, unnamed
+
+
+def _boilerplate_suffix(titles: list) -> str:
+    """La coletilla que comparte al menos la MITAD de los títulos (y nunca menos de tres), o «» si no la hay.
+
+    Gemela de `_boilerplate_prefix` y con sus mismos dos frenos —longitud mínima y mitad de las filas— por las
+    mismas razones: «Kit » lo comparten tres cámaras legítimas, y tres filas sueltas no hacen una plantilla.
+
+    Se implementa dándole la vuelta a las cadenas y reutilizando el mismo buscador: un segundo algoritmo que
+    haga lo mismo por el otro lado es un segundo sitio donde los umbrales se separan.
+    """
+    return _boilerplate_prefix([t[::-1] for t in titles if t])[::-1]
 
 
 # Una plantilla tiene que ser LARGA (una frase de navegación entera, no una palabra de categoría: «Bici » la

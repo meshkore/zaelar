@@ -1071,7 +1071,12 @@ DOMAINS: list[dict] = [
         {"id": "4.50", "title": "Un nombre de plantilla compartido por las filas no identifica a ninguna (el "
                                 "concesionario no es un coche) · y el mismo producto en cuatro tiendas sí",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/navegador/test_a_name_shared_by_every_row_names_none.py"]},
+            "paths": ["tests/browser/unit/navegador/test_a_name_shared_by_every_row_names_none.py",
+                      # V2-375 — la MISMA regla por el otro extremo: los 16 candidatos de
+                      # `weekend-plan-barcelona__es` acababan en «- Actividad relacionada». Trato distinto:
+                      # el prefijo DEGRADA (sin él no hay identidad), la coletilla se RECORTA (la identidad
+                      # está entera delante).
+                      "tests/browser/unit/navegador/test_a_tail_shared_by_every_row_is_not_a_name.py"]},
         # V2-347 — la causa RAÍZ de las filas de arriba: RUTAS no es FICHAS. El <article> real de autoscout24
         # lleva 2 rutas (la ficha ×2 + el CONCESIONARIO) y el paseo del precio con maxPaths=1 rompía en el
         # nivel 1 → cero candidatos con ancla → el respaldo por hojas fabricaba filas sin url (el worker
