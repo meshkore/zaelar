@@ -100,10 +100,21 @@ def _cmd_act(action: str, payload_json: str) -> int:
     if not tid:
         print("ZAELAR_TASK_ID no definido", file=sys.stderr)
         return 1
+    # V2-379 — el payload puede venir en línea, por `@fichero` o por `-`. En línea NO SIEMPRE CABE: nuestra
+    # propia puerta de permisos rechaza un argumento con llaves y comillas dentro, y sin salida el worker se
+    # queda sin poder pedir una búsqueda. Ver `bridge_usage.read_payload` para el rastro medido.
+    from nucleo import bridge_usage as _bu
+    _raw, _src, _err = _bu.read_payload(payload_json)
+    if _err:
+        print(f"no puedo leer el payload de {payload_json[1:]}: {_err}", file=sys.stderr)
+        print(f"   · ruta RELATIVA a tu directorio de trabajo: {os.getcwd()}", file=sys.stderr)
+        print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write a esa ruta "
+              "(relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.", file=sys.stderr)
+        return 1
     try:
-        payload = json.loads(payload_json) if payload_json else {}
+        payload = json.loads(_raw) if _raw else {}
     except Exception:
-        print("payload JSON inválido", file=sys.stderr)
+        print(f"payload JSON inválido ({_src})", file=sys.stderr)
         return 1
     res = _post("/api/worker/act", {"task_id": tid, "token": tok, "action": action, "payload": payload})
     _emit_injections(res)
@@ -143,7 +154,13 @@ def _hint_for(prog: str) -> str:
                 '   · Para BUSCAR en la web (lo más habitual):\n'
                 '       act use_tool \'{"tool":"web_search","args":{"query":"<qué buscas>"}}\'\n'
                 '   · El JSON va en UNA sola línea y con comillas simples por fuera: sin ellas el shell lo parte '
-                'y llega a medias.')
+                'y llega a medias.\n'
+                # V2-379 — la salida cuando el JSON en línea NO PASA. Nuestra propia puerta rechaza un
+                # argumento con llaves y comillas dentro, y sin decir esto el worker se queda dando vueltas:
+                # medido, dio con el rodeo por fichero él solo y el puente no sabía leerlo.
+                '   · Si te lo rechazan por las llaves («brace with quote»), escribe el JSON a un fichero con '
+                'Write y pásalo con arroba: `act use_tool @busqueda.json` (ruta RELATIVA a tu directorio). '
+                'También vale `-` para leerlo de la entrada estándar.')
     if prog.endswith("ask"):
         return ('   · `ask` lleva la pregunta ENTERA entre comillas: `ask "¿la prefieres de enduro o de cross?"`.\n'
                 '   · Sin comillas se parte por los espacios y solo llega la primera palabra.\n'
