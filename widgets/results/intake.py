@@ -48,8 +48,11 @@ def _to_item(row: dict) -> dict | None:
         if v:
             item[dst] = v
     tel = str(row.get("tel") or "").strip()
+    _facts = [f for f in (row.get("facts") or []) if isinstance(f, dict)]
     if tel:
-        item["facts"] = [{"label": "Teléfono", "value": tel}]
+        _facts = [{"label": "Teléfono", "value": tel}] + _facts
+    if _facts:
+        item["facts"] = _facts
     return item
 
 

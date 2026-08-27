@@ -160,9 +160,22 @@ def hand_search_rows(rec, res: dict) -> int:
     title+url, so eight overlapping searches converge instead of piling.
     """
     try:
+        # V2-376 — LO QUE VUELVE DE UNA BÚSQUEDA ES UNA PISTA, NO UN CANDIDATO, y hasta ahora entraba en la
+        # hoja sin distinguirse de una ficha extraída de un listado. Medido en
+        # `weekend-adventure-sports-bilbao__es` (2026-08-27): **52 «candidatos con nombre»** de UNA sola
+        # fuente, y sus títulos eran páginas —«Descensos de Barranquismo en Vizcaya: 9 precios y ofertas
+        # 2026», «Bilbao despliega ocho escenarios de música gratis», «Top actividad en Bilbao - Reserva con
+        # cancelación gratis»—. La misma forma que los ocho títulos de Google que se contaron como coches de
+        # alquiler el mismo día.
+        #
+        # V2-320 NO se deshace y esto es lo que hay que conservar: buscar es una forma legítima de resolver
+        # «actividades cerca de X», así que sus hallazgos son hallazgos y la hoja no puede quedarse vacía. Lo
+        # que faltaba es que la fila DIGA lo que es. Viaja por `facts`, que es vocabulario que la hoja ya
+        # conserva —es por donde va el teléfono— así que no hace falta tocar el contrato del widget.
         rows = [{"title": str(r.get("title") or "").strip(),
                  "subtitle": str(r.get("snippet") or "").strip()[:160],
-                 "url": str(r.get("url") or "").strip()}
+                 "url": str(r.get("url") or "").strip(),
+                 "facts": [{"label": "Origen", "value": "búsqueda web"}]}
                 for r in (res.get("results") or [])[:4] if isinstance(r, dict)]
         rows = [r for r in rows if r["title"]]
         if not rows:

@@ -1104,7 +1104,12 @@ DOMAINS: list[dict] = [
                       # V2-374 — y la SEGUNDA mitad de V2-234, que la CARA nunca tuvo: cortaba en cinco y se
                       # callaba, así que para el turno esas cinco eran la hoja entera. Con catorce candidatos
                       # dentro, las cinco visibles fueron una cámara y cuatro accesorios.
-                      "tests/browser/unit/navegador/test_five_rows_of_fourteen_are_not_the_sheet.py"]},
+                      "tests/browser/unit/navegador/test_five_rows_of_fourteen_are_not_the_sheet.py",
+                      # V2-376 — y lo que vuelve de una BÚSQUEDA es una pista, no un candidato: 52
+                      # «candidatos» en `weekend-adventure-sports-bilbao__es` que eran una comparativa, una
+                      # noticia y dos portadas. V2-320 sigue en pie (la hoja no puede quedarse vacía cuando
+                      # el encargo se resuelve buscando); lo que faltaba es que la fila diga lo que es.
+                      "tests/browser/unit/navegador/test_a_search_return_is_a_lead_not_a_candidate.py"]},
         # V2-295 — el mismo corte una capa más adentro. Las cuatro filas de cabeza llevaban NOMBRE, así que
         # `by_identity` las dejaba pasar, pero ninguna llevaba precio: lo que se le ofreció a quien pidió «un
         # monitor de 27 pulgadas por menos de 150 €» fueron «Monitores», «Monitor SAMSUNG» y «Monitor de Hípica»

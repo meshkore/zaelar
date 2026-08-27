@@ -233,7 +233,23 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
             # sustitución. Un teléfono cuenta como importe a estos efectos — misma regla que `by_amount`: un
             # resultado es un nombre y una forma de actuar sobre él, nunca un precio (V2-240).
             _tel = str((i or {}).get("tel") or "").strip()
-            _dato = price[:20] if price else (_tel[:20] if _tel else "SIN PRECIO")
+            _facts = [f for f in ((i or {}).get("facts") or []) if isinstance(f, dict)]
+            if not _tel:
+                _tel = next((str(f.get("value") or "").strip() for f in _facts
+                             if str(f.get("label") or "").strip().lower().startswith("tel")), "")
+            # V2-376 — una PISTA de búsqueda web no es un candidato sin precio: es una página que quizá lleve
+            # al candidato. Llamarla «SIN PRECIO» la presenta como una ficha a la que le falta un dato, y así
+            # es como acaban ofreciéndose «9 precios y ofertas 2026» y «Top actividad en Bilbao» como planes.
+            _pista = any(str(f.get("value") or "").strip().lower() == "búsqueda web"
+                         and str(f.get("label") or "").strip().lower() == "origen" for f in _facts)
+            if price:
+                _dato = price[:20]
+            elif _tel:
+                _dato = _tel[:20]
+            elif _pista:
+                _dato = "PÁGINA WEB por mirar, aún no es un candidato"
+            else:
+                _dato = "SIN PRECIO"
             out.append("«" + title[:70] + " — " + _dato + "»")
             _con_nombre += 1
         _tope = max(1, int(n))
