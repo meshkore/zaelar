@@ -29,3 +29,10 @@
   título+artista). Botón ♥ en la barra de reproducción (`playbackBar`, solo si hay `now_playing`). El nombre de la
   lista queda hardcodeado — zaelar es single-operator, no hay concepto de "usuarios" múltiples; si se pide
   generalizar a "el operador" en vez de un nombre fijo, hay que revisar esto.
+- 2026-08-27 (V2-384, medido por el arnés): «guárdamelo en una lista que se llame Curro» → «Hecho.» y nada
+  detrás. El modelo emite UNA data-op y el caso exigía dos (create + add) — y add_to_playlist además fallaba
+  con lista inexistente y exigía canción explícita. Ahora: `_find_or_create_playlist` compartido,
+  `add_to_playlist {playlist}` crea la lista si falta y sin canción guarda LA QUE SUENA (resuelta antes de
+  crear nada — un guardado fallido no deja lista vacía); `favorite_current {playlist}` acepta destino nombrado.
+  Dedup por título+artista. En el mismo V2-366/384: el listener de `ended` filtrado por id `hb-musica`
+  (cross-talk con el widget de youtube) y los favoritos dejan de llamarse «Favoritos de Manolo».
