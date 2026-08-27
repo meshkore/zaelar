@@ -5112,6 +5112,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Una recarga es INVISIBLE desde el motor, así que se vuelve a probar (V2-413, 2026-08-27)**: seis horas
+  mudo con un proveedor sano una fila más arriba. Medido: el `402 Insufficient Balance` de las 18:55 castigó
+  los dos escalones directos **6 h**, el operador recargó a las 19:40, y el motor no tenía forma de aprender
+  que había entrado dinero — siguió mandándolo todo al relevo; a las 22:07 el relevo empezó a dar timeout y el
+  cerebro se quedó sin voz. `_DEPLETED_COOLDOWN_S` pasa a **20 min** en las DOS cadenas (cerebros y escalones
+  del CLI, copias separadas a propósito). El techo viejo acertaba sobre el mundo —un saldo no se repone solo—
+  y se equivocaba sobre nosotros: la alerta existe para que alguien recargue, así que el momento interesante
+  es el de DESPUÉS. **La distinción de V2-243 no se toca**: una CUOTA dice «espera hasta X» y se le cree, un
+  SALDO no tiene fecha; hay test para que acortar el segundo no acorte el primero. Nodo 4.62; dos tests de las
+  6 h reescritos con su motivo. Abierto: no hay señal de «ya he recargado» (botón en el master, o apagar la
+  alerta al primer éxito).
+- **La búsqueda mira desde donde vive la persona (V2-411, 2026-08-27)**: doce hoteles REALES de Nueva Orleans
+  entregados en EUROS a un cliente de San Francisco con presupuesto en dólares. Se lee como fallo de filtrado
+  y es de GEOGRAFÍA: un sitio decide moneda y mercado por el locale del navegador y por `Accept-Language`, no
+  por las palabras de la consulta, y las dos estaban clavadas a España. Lo peor era que estaba A MEDIAS — el
+  catálogo de sitios ya resolvía por locale, así que mandábamos al worker a los sitios americanos correctos y
+  se los preguntábamos en español. Ahora siguen al idioma del motor, **por llamada** (el operador cambia de
+  idioma con el motor vivo), con las env vars como escotilla y el español como fail-open. Nodo 4.60.
+- **El prompt del worker no enseña lo que nuestro guarda bloquea (V2-412, 2026-08-27)**: las cuatro rondas de
+  la primera tanda en inglés traen los mismos errores internos («Contains simple_expansion», «brace with
+  quote») y en una se llevaron la ronda entera — 3 navegaciones, 10 búsquedas, CERO productos. La causa era
+  nuestra: `worker_bridge act` es por donde el worker PIDE una búsqueda y se le enseñaba con el JSON pegado en
+  la línea, justo lo que la puerta rechaza; el rodeo por `@fichero` se había añadido ese mismo día y nadie
+  tocó la frase que enseñaba lo contrario. Ahora `act` se enseña en dos pasos como la hoja, y las reglas del
+  cajón nombran los dos rechazos **con las palabras del propio guarda** — una regla que no se puede conectar
+  con el error recibido no se aplica. Se sigue prohibiendo la causa, no solo nombrando el síntoma. Nodo 4.61.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
