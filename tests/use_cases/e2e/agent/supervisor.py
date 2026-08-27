@@ -57,6 +57,13 @@ VERIFICA_EXTRA_S = int(os.getenv("UC_VERIFICA_EXTRA_S", "300"))
 #: Las señales que el runner imprime al pasar a la fase de veredicto. Si aparecen, la parte cara ya se hizo.
 _EN_VEREDICTO = ("verifying mechanism", "judging")
 
+#: Lo que imprime `run.stale_engine_refusal` cuando el plató lleva código viejo. El guarda hace lo correcto
+#: —se NIEGA a medir— pero después nadie reinicia nada, y ese es el defecto: cada ronda siguiente vuelve a
+#: negarse en ~45 s, así que el bucle parece vivo (el diario se llena, los escenarios rotan) y no mide NADA.
+#: Medido el 2026-08-27: `search-buy-camera__es` INFRA en 45 s y solo siguió porque yo estaba mirando y
+#: reinicié a mano. Con dos agentes empujando motor cada ~20 min, eso es un bucle parado disfrazado de bucle.
+_PLATO_RANCIO = "no es el mismo codigo"
+
 
 def _apunta(**fila) -> None:
     _SALIDA.mkdir(parents=True, exist_ok=True)
@@ -146,7 +153,28 @@ def una_ronda(escenario: str, lab: str = "es") -> dict:
     parte = {"escenario": escenario, "resultado": resultado, "segundos": segundos, "sha": sha,
              "motivo": motivo, "log": str(log)}
     _apunta(**parte)
-    return parte
+    # Fuera del parte que va al diario a propósito: es una señal para el bucle, no un hecho del escenario, y
+    # el diario es lo que lee el operador para decidir dónde trabajar.
+    return dict(parte, _rancio=(_PLATO_RANCIO in cola))
+
+
+def _reinicia_plato(lab: str = "es") -> bool:
+    """Baja y sube el plató para que corra el árbol de ahora. `True` si volvió a levantarse.
+
+    Conserva puerto, memoria y perfil — es el mismo par de comandos que imprime el propio guarda del runner,
+    no una segunda forma de reiniciarlo.
+    """
+    for cual in ("down", "up"):
+        try:
+            r = subprocess.run([sys.executable, "-m", "tests.use_cases.lab", cual, lab],
+                               cwd=_RAIZ, capture_output=True, text=True, timeout=180)
+        except Exception as e:  # noqa: BLE001
+            print(f"[supervisor] no pude {cual} el plató: {e}", flush=True)
+            return False
+        if cual == "up" and r.returncode != 0:
+            print(f"[supervisor] el plató no volvió a levantarse: {(r.stderr or r.stdout)[-200:]}", flush=True)
+            return False
+    return True
 
 
 def rotacion() -> list[str]:
@@ -264,7 +292,15 @@ def main() -> int:
         esc = orden[i % len(orden)]
         i += 1
         try:
-            una_ronda(esc)
+            parte = una_ronda(esc)
+            if parte.get("_rancio"):
+                # UNA sola vez, y sin bucle: si tras reiniciar sigue rancio, la ronda entra como INFRA y se
+                # pasa al siguiente. Reintentar hasta que cuadre convertiría un plató que no arranca en un
+                # bucle infinito que no mide — el mismo fallo con otra cara.
+                _apunta(escenario=esc, resultado="RECARGA-PLATO", segundos=0, sha=_sha(),
+                        motivo="el plató corría código viejo; lo reinicio y repito la ronda", log="")
+                if _reinicia_plato():
+                    una_ronda(esc)
         except Exception as e:  # noqa: BLE001 — el supervisor NUNCA muere por una ronda
             _apunta(escenario=esc, resultado="ERROR", segundos=0, sha=_sha(), motivo=str(e)[:200], log="")
         time.sleep(PAUSA_S)

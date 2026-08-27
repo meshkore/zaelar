@@ -1636,6 +1636,11 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-389 — el guarda de plató rancio se niega a medir (bien) y después nadie reinicia nada: cada
+        # ronda siguiente vuelve a negarse en ~45 s. El bucle parece vivo y no mide NADA.
+        {"id": "10.92", "title": "Un plató rancio no se come la ronda: se reinicia y se repite, UNA vez",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_un_plato_rancio_no_se_come_la_ronda.py"]},
         # V2-382 — las tres patas del juez parseaban el campo que dice cómo terminó la respuesta
         # (`finish_reason` / `stop_reason`) y lo tiraban, así que «esto se cortó» se DEDUCÍA de dónde reventó
         # el parseo, y al deducirlo se pedía «lo mismo más breve» con el MISMO techo: tres intentos cortados en
