@@ -5179,7 +5179,13 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   produciendo basura», y la segunda es peor que estar parado porque parado se nota. Ahora el motivo lleva el
   dato dentro (cuántos turnos de cuántos, qué backend) y va DELANTE del veredicto en una fila INFRA: el
   veredicto habla de un producto que esa ronda no llegó a medir, y leerlo como si sí invita justo al
-  diagnóstico equivocado. Nodo 10.106, tres desarmes.
+  diagnóstico equivocado. **Corregido una hora después y por el propio bucle**: dos filas nuevas salieron con
+  «el arnés se cayó» y no había traceback ninguno — `crashed` NO significa «se cayó», es un campo con TRES
+  inquilinos (conductor fuera de papel, fuente de verdad ilegible, excepción real) y **cada uno trae ya
+  escrita su frase**; la de aquella ronda decía «el conductor se salió de su papel en el turno 13». Adivinar
+  un motivo teniendo el bueno delante es el mismo error que este nodo arregla, un piso más arriba. Ahora se
+  imprime el que viene en el campo y el veredicto-INFRA del juez tiene su propia puerta. Nodo 10.106, cinco
+  desarmes.
 
 - **La misma búsqueda dos veces no son dos búsquedas (V2-422, 2026-08-28)**: `weekend-plan-barcelona__es`
   en el plató 24/7 hizo **56 búsquedas web, 31 consultas, 0 candidatos verificados** y dejó la hoja vacía,

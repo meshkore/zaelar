@@ -178,8 +178,17 @@ def _state(overall, r: dict) -> str:
     completable case; closing and paying is the capped one. `derived.data_scope` is what says which is which.
     """
     run = r.get("run") or {}
-    if run.get("crashed") or (r.get("verdict") or {}).get("veredicto", "").startswith("INFRA"):
-        return _infra(r, "el arnés se cayó o el veredicto llegó marcado INFRA")
+    # `crashed` NO es «se cayó»: es un campo con TRES inquilinos, y cada uno trae ya escrita su propia
+    # frase — el conductor fuera de papel (V2-313), una fuente de verdad ilegible (V2-396), o una excepción
+    # de verdad con su autopsia. Escribí aquí un motivo genérico («el arnés se cayó») y era falso para los
+    # tres: medido a la hora, sobre `best-plumber-same-day__us`, cuya frase real decía «el conductor se salió
+    # de su papel en 1 línea(s) del transcript (turno 13): la ronda no mide al producto». Adivinar un motivo
+    # teniendo el bueno delante es el mismo error que este nodo existe para arreglar, un piso más arriba.
+    _dicho = str(run.get("crashed") or "").strip()
+    if _dicho:
+        return _infra(r, _dicho[:200])
+    if (r.get("verdict") or {}).get("veredicto", "").startswith("INFRA"):
+        return _infra(r, "el juez devolvió un veredicto marcado INFRA")
     # AN AGENT THAT SAID NOTHING WAS NOT MEASURED, whatever the cause. Measured 2026-08-21 on
     # `compare-broadband-plans__es`: DeepSeek answered HTTP 402 «Insufficient Balance» and z.ai had been out
     # of quota since the previous day, so every single zaelar turn came back EMPTY — and the round was filed
