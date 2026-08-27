@@ -5061,6 +5061,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     linealidad**. Lo medido estaba bien, lo deducido alrededor lo escribí igual de seguro y sin prueba — y una
     de las tres partes del plan ya autorizado sobraba. Sin verificar en vivo.
 
+- **El widget de YouTube tiene LISTA, y `add` NUNCA arranca la reproducción (V2-366, 2026-08-27)**: encargo
+  del operador — subir `youtube` al nivel de `musica`. `data.py` gana `list`/`pos` + data-ops
+  `add`/`play_item`/`next`/`previous`/`ended`/`remove`/`move`/`sort_list`/`filter_list`/`clear_list`; el widget
+  dispara `ended` (handshake `listening` del IFrame API) y el servidor encadena — uno detrás de otro solos. Las
+  decisiones que sostienen el diseño: **`add` no autoreproduce** (como el «Añadir a la cola» de YouTube) y por
+  eso queda FUERA de `runtime.produce` — la lista se puede llenar con el agente parado (V2-092) sin abrir un
+  agujero en el gate; `pos` significa «último reproducido», que es lo que hace que quitar el que suena conserve
+  el hilo (`ended` sigue con el que le seguía); `close` cierra el VÍDEO y la lista sobrevive; `filter_list` es
+  SOLO vista. UI = lista LINEAL de texto sin miniaturas (diseño explícito del operador). ⚠️ Dos trampas pagadas:
+  los handlers de `message` de youtube y musica escuchan el MISMO window — **sin filtrar por el id del handshake,
+  el final del player de uno avanza la cola del OTRO** (el de musica era latente hasta que youtube empezó a
+  emitir; arreglados los dos); y `dict(_SEED)` con una lista dentro es copia SUPERFICIAL — un `append` sobre una
+  db «fresca» mutaba el seed del módulo. Nodos 4.52/4.53 (el 4.53 RENDERIZA, con desarme verificado) y 4.3.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
