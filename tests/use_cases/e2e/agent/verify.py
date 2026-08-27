@@ -922,6 +922,19 @@ _DONE_MARK = "TAREAS DE FONDO — YA ACABADAS"
 _ALERT = ("⛔", "❓", "bloque", "captcha", "no puedo seguir", "confirm")
 
 
+def _rows_in(live_line: str) -> list[str]:
+    """Los títulos que el bloque de la hoja puso en ESTE turno, sacados de la línea COMPLETA."""
+    if _ROWS_HEAD not in (live_line or ""):
+        return []
+    trozo = live_line.split(_ROWS_HEAD, 1)[1].split(". OJO:", 1)[0]
+    fuera = []
+    for t in trozo.split(";"):
+        titulo = t.strip().split(" — ")[0].strip()
+        if titulo and titulo not in fuera:
+            fuera.append(titulo)
+    return fuera
+
+
 def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict]:
     """Per turn, what the model was shown: window size, prompt size, and the browser-task line verbatim.
 
@@ -959,6 +972,13 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     # cortaban justo donde empiezan. Sin ellas no se puede responder «¿se le mostró?», que es
                     # la pregunta que separa una conducta de una fontanería (ver `shown_candidates`).
                     "live_line": live[:1200],
+                    # LAS FILAS, EN SU PROPIO CAMPO. Vivían dentro de `live_line` y el recorte se las comía:
+                    # medido el 2026-08-28, la línea llega a 1200 caracteres SOLO con la lista de tareas y el
+                    # bloque de filas empieza más allá, así que `shown_candidates` devolvía vacío en todas las
+                    # rondas — o sea «no se le mostró nada», que es lo contrario de la verdad, y con la pinta
+                    # exacta de un arreglo aplicado. Subir el tope solo mueve el problema al siguiente prompt
+                    # largo; un campo no se puede recortar por accidente.
+                    "sheet_rows": _rows_in(live),
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out
@@ -1497,14 +1517,11 @@ def shown_candidates(prompt_rows: list[dict] | None) -> list[str]:
     """
     vistos: list[str] = []
     for r in (prompt_rows or []):
-        linea = str((r or {}).get("live_line") or "")
-        if _ROWS_HEAD not in linea:
-            continue
-        trozo = linea.split(_ROWS_HEAD, 1)[1]
-        # El bloque termina en el aviso que va detrás; si vino recortado, se toma lo que haya.
-        trozo = trozo.split(". OJO:", 1)[0]
-        for t in trozo.split(";"):
-            titulo = t.strip().split(" — ")[0].strip()
+        # EL CAMPO PRIMERO. `sheet_rows` lo escribe `prompt_context` desde la línea COMPLETA; `live_line` va
+        # recortada y el bloque de filas cae fuera del recorte en cuanto la lista de tareas es larga — que es
+        # siempre. Leer de ahí devolvía vacío en TODAS las rondas del 2026-08-28 con la pinta exacta de un
+        # arreglo funcionando. La rama de la prosa se conserva para informes anteriores al campo.
+        for titulo in ((r or {}).get("sheet_rows") or _rows_in(str((r or {}).get("live_line") or ""))):
             if titulo and titulo not in vistos:
                 vistos.append(titulo)
     return vistos

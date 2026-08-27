@@ -127,9 +127,13 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
                 if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
                                                                         heard=heard, opening=(i == 0)):
                     marcadas += 1
-    # TRES, y las tres son flips REALES — el umbral sube cuando el corpus crece con otro flip, nunca porque el
+    # CUATRO, y las cuatro son flips REALES — el umbral sube cuando el corpus crece con otro flip, nunca porque el
     # detector se haya ensanchado. Las líneas, para que una cuarta se vea:
     #   · guitarra    03:48 (24-08) — «tengo un par de opciones … la Yamaha F370BL por 100 € y la Fender CD-60»
+    #   · plumber US  01:42 (28-08) — «if Fast Response can't do today maybe check Magic Plumbing too». La
+    #     CUARTA, y sube el umbral por la razón buena: zaelar nunca dijo «Magic Plumbing» —lo introduce el
+    #     tester en el turno 12—, así que el conductor conocía un nombre que solo puede salir de nuestra hoja.
+    #     «Fast Response» sí es eco (turno 1), y por eso no es lo que dispara.
     #   · cámara      04:41 (25-08) — «de las que tengo, la más clara es la Canon EOS 4000D: 2.019 disparos y 205€»
     #   · things-todo 12:25 (25-08) — «te saco tres planes concretos … 1. Concierto de jazz en Café Central … 15€»
     # ⚠️ La de la cámara vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
@@ -144,7 +148,7 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
     # Lo que dice el patrón de las tres reales: todas llegan en casos de CATÁLOGO (elige entre opciones con
     # precio). El conductor tiene una lista delante y la reflex de un modelo con una lista delante es
     # presentarla. Ensanchar la regex no arregla eso; el sitio donde se arregla es su ancla (V2-315).
-    assert marcadas <= 3, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
+    assert marcadas <= 4, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
 
 
 def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():

@@ -5222,7 +5222,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   1200 caracteres: las filas viajan ahí dentro y a 400 se cortaban justo donde empiezan, con lo que la lectura
   habría salido vacía SIEMPRE, que se lee como «no se le mostró nada». Deja abierta una pregunta del operador:
   con 28 en la hoja le enseñamos el 18 % — ¿cinco filas son pocas? El número lo darán las rondas del 24/7.
-  Nodo 10.105, seis desarmes. NO tapa lo del producto: en esa ronda el modelo se inventó dos coches teniendo
+  **Y estuvo INERTE cuatro horas**: con el plató ya midiendo, `shown_to_model` salía `False`
+  en las seis rondas, porque las filas viajaban dentro de `live_line` y la lista de TAREAS llega sola al tope
+  — el bloque empieza más allá del corte, y subir el tope solo mueve el problema al siguiente prompt largo
+  (todos lo son). Devolvía vacío siempre, que se lee como «no se le mostró nada»: una ausencia en el sitio
+  plausible no es una ausencia. Arreglado con un CAMPO propio (`sheet_rows`) escrito desde la línea completa
+  antes de recortar; un campo no se recorta por accidente. El desarme también falló a la primera —mi fixture
+  dejaba la cabecera dentro de `live_line`, así que pasaba sobre el defecto restaurado—. Nodo 10.105, ocho
+  desarmes. NO tapa lo del producto: en esa ronda el modelo se inventó dos coches teniendo
   cinco reales delante, y eso es conducta.
 
 - **Un worker MIRANDO EL MENÚ no es un worker estrellado (V2-418, 2026-08-28)**: primera ronda del plató

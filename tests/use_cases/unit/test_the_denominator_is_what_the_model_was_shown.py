@@ -100,3 +100,37 @@ def test_y_no_se_le_avisa_cuando_lo_vio_todo():
                                                           "pct": 60, "missed": ["coche 3"]}})
     txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
     assert "NUNCA llegaron a su prompt" not in txt
+
+
+# ── Y que el recorte no se lo coma, que es como el arreglo estuvo INERTE ────────────────────────────────────
+def test_las_filas_se_leen_de_su_CAMPO_y_no_de_la_prosa_recortada():
+    """Medido el 2026-08-28, con V2-420 ya desplegado y midiendo: `shown_to_model` salía **False en las seis
+    rondas**. La causa no era el denominador — era que las filas vivían dentro de `live_line`, que va
+    recortada a 1200 caracteres, y la lista de TAREAS ya llega sola a ese tope: el bloque de filas empieza más
+    allá del corte. `shown_candidates` devolvía vacío siempre, o sea «no se le mostró nada», que es lo
+    contrario de la verdad y tiene la pinta exacta de un arreglo funcionando.
+
+    Subir el tope solo mueve el problema al siguiente prompt largo. Un campo no se recorta por accidente.
+    """
+    # La forma REAL del dato recortado: la cabecera de filas NO está en `live_line`, porque el corte cayó
+    # antes. Un fixture que la deje dentro no reproduce nada — medido al desarmarlo: con la cabecera presente
+    # el test seguía verde leyendo solo la prosa, o sea sobre el defecto restaurado.
+    turno = {"live_line": "TAREAS DE FONDO EN CURSO: " + ("x" * 1174),      # 1200 justos, sin llegar a filas
+             "sheet_rows": ["MINI Cooper"]}
+    assert _HEAD not in turno["live_line"]
+    assert V.shown_candidates([turno]) == ["MINI Cooper"]
+
+
+def test_un_informe_ANTERIOR_al_campo_se_sigue_leyendo():
+    """La rama de la prosa no se tira: los informes ya guardados no tienen `sheet_rows` y siguen siendo la
+    única evidencia de sus rondas."""
+    viejo = {"live_line": "TAREAS DE FONDO EN CURSO. " + _HEAD + "FIAT Panda 4x4 — 6.900 €. OJO: la hoja"}
+    assert V.shown_candidates([viejo]) == ["FIAT Panda 4x4"]
+
+
+def test_el_campo_lo_escribe_prompt_context_desde_la_linea_ENTERA():
+    """La fontanería: si `prompt_context` no lo rellena, el campo existe y siempre está vacío."""
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
+    assert '"sheet_rows": _rows_in(live),' in src, "el campo no se escribe desde la línea completa"
+    assert src.index('"sheet_rows": _rows_in(live),') > src.index("def _rows_in(")
