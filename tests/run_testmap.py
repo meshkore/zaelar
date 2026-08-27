@@ -547,6 +547,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
                       "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+        # 2026-08-27, las cuatro rondas de la primera tanda US: los mismos errores internos en todas
+        # («Contains simple_expansion», «Contains brace with quote character»), y en cheapest-monitor se
+        # llevaron la ronda entera — 3 navegaciones, 10 búsquedas, CERO productos. La causa era nuestra: el
+        # prompt enseñaba `worker_bridge act <accion> {json en línea}`, justo lo que la puerta de permisos
+        # rechaza. El rodeo por `@fichero` existía desde V2-379, ese mismo día, y nadie tocó la frase que
+        # enseñaba lo contrario.
+        {"id": "4.61", "title": "El prompt no enseña lo que el guarda bloquea — payload por `@fichero` y los "
+                                "dos rechazos nombrados con las palabras del propio guarda",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_prompt_does_not_teach_what_the_guard_blocks.py"]},
         # 2026-08-27, primera tanda US: doce hoteles REALES de Nueva Orleans, en EUROS, contra un presupuesto
         # de $150. Los candidatos eran correctos e inservibles — un sitio decide moneda y mercado por el locale
         # del navegador y la cabecera Accept-Language, no por las palabras de la consulta, y las dos estaban
