@@ -220,7 +220,17 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
             if not title:
                 continue
             price = str((i or {}).get("price") or "").strip()
-            out.append("«" + title[:70] + (" — " + price[:20] if price else "") + "»")
+            # V2-360 — LA AUSENCIA, DICHA. Sin esto una fila sin importe se renderiza como un título a secas y
+            # el modelo tiene que deducir del SILENCIO que no hay precio; medido en `compare-insurance-quotes__es`
+            # (2026-08-27): de cuatro filas solo una traía importe, y el turno anunció «Direct, Allianz Direct,
+            # Génesis, MAPFRE y Pelayo… estas tres primeras ya te sirven» — nombres sin dato presentados como
+            # presupuestos comparables. Es el mismo remedio que V2-127 («AUSENCIA de ubicación, dicha con todas
+            # las letras») y V2-133 («SIN paso reportado aún»): nombrar el hueco cuesta una palabra y cierra la
+            # sustitución. Un teléfono cuenta como importe a estos efectos — misma regla que `by_amount`: un
+            # resultado es un nombre y una forma de actuar sobre él, nunca un precio (V2-240).
+            _tel = str((i or {}).get("tel") or "").strip()
+            _dato = price[:20] if price else (_tel[:20] if _tel else "SIN PRECIO")
+            out.append("«" + title[:70] + " — " + _dato + "»")
             if len(out) >= max(1, int(n)):
                 break
         return out
@@ -467,7 +477,10 @@ def navegador_lines() -> list[str]:
                                  "lo que no encaje no lo ofrezcas como resultado. Si pregunta por un dato que "
                                  "estas líneas no traen (zona, estado, año), di honestamente que ese dato aún "
                                  "no ha llegado y ofrece el que sí tienes — nunca contestes «déjame mirar» "
-                                 "teniendo esto delante.")
+                                 "teniendo esto delante. Y una línea marcada SIN PRECIO no es una opción "
+                                 "comparable: puedes nombrarla como pista de por dónde va la cosa, pero NO la "
+                                 "ofrezcas como candidata al lado de las que sí traen importe, ni digas que "
+                                 "«ya te sirve» para elegir.")
                 # V2-330 — SI NO HAY FILAS, NO SE PUEDE PEDIR QUE LAS CUENTE. La orden de abajo dice
                 # «CUÉNTALE lo que encaje, con nombre y precio», y `_rows_bit` solo existe cuando la hoja ya
                 # tiene filas con nombre. Sin ellas el turno recibe un imperativo IMPOSIBLE, y el modelo

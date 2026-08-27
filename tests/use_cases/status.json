@@ -921,46 +921,20 @@
       }
     },
     "compare-insurance-quotes__es": {
-      "last_run": "2026-08-26 01:39",
+      "last_run": "2026-08-27 09:04",
       "overall": 2,
-      "judge": "glm-4.6",
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 2,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es el fallo grave en el mecanismo de extracción del navegador: el sistema no pudo leer ni un solo precio ni nombre de aseguradora, lo que resulta en una entrega totalmente vacía (0 resultados) a pesar de que el agente afirmara lo contrario al usuario.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que presentó como comparativa lo que no lo era (un enlace de redirección, nombres sin precio y un teléfono de atención) y nunca entregó los tres presupuestos con recomendación que pidió el usuario.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pes"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 4 error(es), último paso «🧭 navegador ⚠️ error»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -975,52 +949,48 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3772127",
+        "sha": "078e49a",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "21 GB"
+            "size": "40 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-004-uc-compare-insurance-quotes-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T312-uc-compare-insurance-quotes-es-fix.md"
+        "initiative": ".meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md",
+        "task": ""
       }
     },
     "best-rated-rental-car__es": {
-      "last_run": "2026-08-26 01:47",
-      "overall": 1,
-      "judge": "glm-4.6",
+      "last_run": "2026-08-27 09:11",
+      "overall": 2,
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 1,
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 2,
+        "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es el fallo crítico en el mecanismo de extracción del navegador, que devolvió datos basura ('disclaimers') en lugar de fichas de producto, impidiendo resolver la petición de 'mejor valorado' y obligando al agente a improvisar sobre datos inválidos.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar tenía resultados reales delante (60 € y 64 €, 13 filas en la hoja) y no los entregó, dejando al usuario sin el coche mejor valorado que pidió.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: no pude seleccionar «18:00» en el desplegable: ElementHandle.select_option: Error: Element is not a <select> element"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: no pude seleccionar «rating» en el desplegable: ElementHandle.select_option: Error: Element is not a <select> element"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «🧭 navegador»"
+          "que": "worker:1: 1 error(es), último paso «🧭 navegador ↩»"
         }
       ],
       "sandboxed": true,
@@ -1037,26 +1007,22 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3772127",
+        "sha": "715a27b",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "21 GB"
+            "size": "41 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-230-uc-best-rated-rental-car-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T467-uc-best-rated-rental-car-es-fix.md"
+        "task": ""
       }
     },
     "compare-broadband-plans__es": {
@@ -1910,5 +1876,5 @@
       }
     }
   },
-  "updated": "2026-08-27 08:54"
+  "updated": "2026-08-27 09:11"
 }

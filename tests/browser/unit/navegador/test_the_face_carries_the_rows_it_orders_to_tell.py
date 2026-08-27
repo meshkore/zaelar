@@ -43,12 +43,21 @@ def test_las_filas_salen_con_nombre_y_precio():
     assert rows == ["«Guitarra Acústica Fender CD-60 — 120 €»", "«Gibson Hummingbird Faded — 150 €»"]
 
 
-def test_una_fila_sin_precio_sale_solo_con_su_nombre():
-    """A row without a price is still a candidate — the guitar sheet had several. Dropping it would hide
-    real findings; inventing « — » punctuation around nothing would read as a missing datum said badly."""
+def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
+    """INVERTIDO por V2-360, y se conserva aquí para que el cambio de decisión quede donde estaba la anterior.
+
+    Decía: «una fila sin precio sale solo con su nombre — inventar una puntuación « — » alrededor de nada se
+    leería como un dato ausente mal dicho». La primera mitad sigue siendo cierta (la fila NO se descarta: sin
+    precio también es un hallazgo); la segunda resultó ser justo al revés.
+
+    Medido en `compare-insurance-quotes__es` (2026-08-27): de cuatro filas solo una traía importe, y el turno
+    ofreció las otras tres como presupuestos comparables —«estas tres primeras ya te sirven»—. Con el título a
+    secas, la falta de precio solo se puede deducir del SILENCIO, y un modelo pequeño no la deduce: la rellena.
+    Decirlo cuesta una palabra, que es el remedio de V2-127 y V2-133."""
     tid = T.create("Busca una guitarra", sheet="v298-2")
     _sheet_with("v298-2", [{"title": "Guitarra Acústica Crafter FX 550 EQ"}])
-    assert LB._sheet_top_rows(tid) == ["«Guitarra Acústica Crafter FX 550 EQ»"]
+    assert LB._sheet_top_rows(tid) == ["«Guitarra Acústica Crafter FX 550 EQ — SIN PRECIO»"]
+    # …y lo que NO cambió: la fila sigue estando. Descartarla escondería un hallazgo real.
 
 
 def test_acotado_a_cinco_esto_va_a_un_prompt_no_a_una_pantalla():
@@ -115,3 +124,68 @@ def test_la_frontera_de_V278_sigue_la_cara_no_afirma_la_pantalla():
     _sheet_with("v298-7", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
     state = "\n".join(LB.navegador_lines())
     assert "NO digas que «lo tiene en pantalla»" in state
+
+
+# ── V2-360: y la AUSENCIA de importe también se dice ────────────────────────────────────────────────────
+#
+# Medido en `compare-insurance-quotes__es` (2026-08-27, ronda del supervisor, 2/5). De las cuatro filas de la
+# hoja **solo una traía importe**, y el turno anunció:
+#
+#     «Direct Seguros, Allianz Direct, Génesis, MAPFRE y Pelayo… estas tres primeras ya te sirven»
+#
+# El juez, [alta]: «solo Direct tenía precio y las demás no tenían ni precio ni cobertura. Presentó como
+# candidatos comparables lo que eran nombres sin datos».
+#
+# La cara YA ordenaba lo correcto —«si pregunta por un dato que estas líneas no traen, di que aún no ha
+# llegado»— pero eso cubre la rama en que el operador PREGUNTA, y aquí el modelo lo ofreció sin que nadie
+# preguntara. Y sobre todo: una fila sin importe se renderizaba como un título A SECAS, así que el modelo
+# tenía que deducir la falta del SILENCIO.
+#
+# Nombrar el hueco cuesta una palabra y cierra la sustitución — es el mismo remedio que V2-127 («AUSENCIA de
+# ubicación, dicha con todas las letras») y V2-133 («SIN paso reportado aún»). Un teléfono cuenta como dato
+# accionable, misma regla que `by_amount`: un resultado es un nombre y una forma de actuar sobre él, nunca un
+# precio (V2-240).
+
+def _rows(monkeypatch, items):
+    from nucleo.flash import live_blocks as LB
+    from widgets.navegador import tasks as _t
+    from widgets.results import data as _sd
+    monkeypatch.setattr(_t, "get", lambda tid: {"sheet": "results::c4202d-1"})
+    monkeypatch.setattr(_sd, "view_data", lambda sheet, *a, **k: {"items": items})
+    return LB._sheet_top_rows("t1", 5)
+
+
+def test_una_fila_sin_importe_lo_DICE(monkeypatch):
+    out = _rows(monkeypatch, [{"title": "Allianz Direct", "price": ""}])
+    assert out == ["«Allianz Direct — SIN PRECIO»"], "el silencio obliga al modelo a deducir la falta"
+
+
+def test_una_fila_CON_importe_no_cambia(monkeypatch):
+    out = _rows(monkeypatch, [{"title": "Direct Seguros", "price": "152 €"}])
+    assert out == ["«Direct Seguros — 152 €»"]
+
+
+def test_un_TELEFONO_cuenta_como_dato_accionable(monkeypatch):
+    """V2-240: un resultado es un nombre y una forma de actuar sobre él, nunca un precio. Marcar «SIN PRECIO»
+    un fontanero con teléfono sería llamar hueco a lo que sí se puede usar."""
+    out = _rows(monkeypatch, [{"title": "Fontaneros 24H Madrid", "price": "", "tel": "612345678"}])
+    assert out == ["«Fontaneros 24H Madrid — 612345678»"]
+
+
+def test_la_mezcla_de_la_ronda_medida(monkeypatch):
+    """Una con precio y tres sin él: exactamente lo que el turno presentó como comparable."""
+    out = _rows(monkeypatch, [{"title": "Direct Seguros", "price": "152 €"},
+                              {"title": "Allianz Direct", "price": ""},
+                              {"title": "Génesis", "price": ""},
+                              {"title": "MAPFRE", "price": ""}])
+    assert out[0].endswith("152 €»")
+    assert sum(1 for r in out if "SIN PRECIO" in r) == 3
+
+
+def test_la_cara_dice_QUE_HACER_con_una_linea_sin_precio(monkeypatch):
+    """El dato solo, sin la lectura, se vuelve a leer como candidato. La regla va DENTRO del mismo bloque de
+    filas que ya ordena «di solo lo que RESPONDE a lo que pidió» (V2-348: la bifurcación va dentro)."""
+    from pathlib import Path
+    src = Path("nucleo/flash/live_blocks.py").read_text()
+    assert "marcada SIN PRECIO no es una opción" in src
+    assert "ofrezcas como candidata" in " ".join(src.split())
