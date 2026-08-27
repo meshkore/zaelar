@@ -169,11 +169,39 @@ def rotacion() -> list[str]:
         filas = (d.get("scenarios") or {}).items()
         rotos = [k for k, v in filas if str(v.get("state")) in ("FAIL", "INFRA")]
         buenos = [k for k, v in filas if str(v.get("state")) == "PASS"]
-        if rotos or buenos:
-            return rotos + buenos
+        # V2-367 — los que TIENEN runner y NUNCA se han medido. El marcador solo lista lo que ya corrió
+        # alguna vez, así que sin esto un escenario nuevo es INVISIBLE para el bucle PARA SIEMPRE: nadie lo
+        # corre, así que nunca entra en el marcador, así que nadie lo corre. Medido el 2026-08-27: 135
+        # escenarios con runner, 32 en el marcador — **103 fuera del bucle**, y entre ellos los DOS de
+        # multimedia (`play-music-and-build-playlist`, `watch-a-video-not-listen-to-it`), o sea dos
+        # superficies enteras del producto sin una sola medida. Desde fuera esto no se ve como un hueco:
+        # el escenario EXISTE, el catálogo lo lista, y el marcador —que es donde se mira— no dice que
+        # falte. Es la familia de «un test fuera del mapa AFIRMA que corrió».
+        try:
+            nunca = [x.id for x in _con_runner() if x.id not in dict(filas)]
+        except Exception:  # noqa: BLE001 — un catálogo ilegible NO puede costar la rotación entera
+            nunca = []
+        if rotos or buenos or nunca:
+            # Rotos primero (donde hay algo que ganar y ya sabemos qué mirar), NUNCA MEDIDOS después
+            # (información nueva, pero cada uno cuesta una ronda entera de plató), y los que pasan al final
+            # para que una regresión se vea sin comerse el turno de nadie.
+            return rotos + nunca + buenos
     except Exception:  # noqa: BLE001
         pass
     return ["search-buy-used-car"]
+
+
+def _con_runner() -> list:
+    """Los escenarios que TIENEN runner, o lista vacía si el catálogo no se puede leer.
+
+    Aparte para que `rotacion()` siga dando la vuelta conocida si esto falla: quedarse sin rotación es peor
+    que quedarse sin los nunca-medidos.
+    """
+    try:
+        from tests.use_cases.e2e.agent.scenarios import all_scenarios
+        return list(all_scenarios())
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def main() -> int:
