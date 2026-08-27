@@ -36,7 +36,7 @@
     "busca en la lista"
   ],
   "entry": "widget.js",
-  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista.",
+  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista. Varios enlaces pegados = UNA sola llamada con todos dentro de 'url' (se añaden todos, en orden y sin duplicar).",
   "actions": {
     "load": {
       "desc": "carga y reproduce un vídeo de YouTube (por URL, id o nombre)",
@@ -48,11 +48,12 @@
       }
     },
     "add": {
-      "desc": "añade un vídeo a la LISTA de reproducción (por URL/link pegado, id o nombre) — nunca lo reproduce solo",
+      "desc": "añade UNO O VARIOS vídeos a la LISTA (pega el texto con todos los enlaces en 'url', o 'urls' como lista, o un nombre a buscar) — nunca reproduce solo",
       "payload": {
-        "url": "URL de youtube.com/youtu.be o id (opcional)",
+        "url": "URL(s) de youtube.com/youtu.be — puede llevar VARIOS enlaces en el mismo texto (opcional)",
         "query": "nombre del vídeo a buscar (opcional)",
-        "title": "título a mostrar (opcional)"
+        "title": "título a mostrar (opcional)",
+        "urls": "lista de URLs (opcional)"
       }
     },
     "play_item": {

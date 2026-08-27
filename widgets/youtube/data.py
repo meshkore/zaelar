@@ -236,6 +236,27 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # V2-366 — into the LIST, never into the player: like YouTube's own "Add to queue", adding NEVER starts
         # playback (this is also what keeps `add` usable with the agent stopped — it is not a `produce` op).
         raw = str(p.get("url") or p.get("videoId") or "").strip()
+        if isinstance(p.get("urls"), list):              # explicit list payload also accepted
+            raw = " ".join(str(u) for u in p["urls"]) + " " + raw
+        # SEVERAL links in one payload (V2-384 bis, measured 2026-08-27 14:38): the operator pastes two urls in
+        # one sentence and the model emits ONE `add` with the pasted text — taking only the first id silently
+        # dropped the rest. Every id in the text lands; the single-id path below stays byte-identical.
+        vids = _YT_RE.findall(raw)
+        if len(vids) > 1:
+            added, positions = [], []
+            lst = db.setdefault("list", [])
+            for v in vids:
+                if any(it.get("videoId") == v for it in lst):
+                    continue
+                meta = _oembed_title(v)
+                seq = max((int(it.get("added_seq") or 0) for it in lst), default=0) + 1
+                lst.append({"videoId": v, "title": meta["title"] or ("youtu.be/" + v),
+                            "channel": meta["channel"], "published": "",
+                            "url": "https://www.youtube.com/watch?v=" + v,
+                            "added_at": int(time.time()), "added_seq": seq})
+                added.append(lst[-1]["title"]); positions.append(len(lst))
+            store.save(WID, db)
+            return {"ok": True, "added": added, "positions": positions, "count": len(lst)}
         vid = _extract_id(raw)
         title = str(p.get("title") or "").strip()
         channel, published = "", ""

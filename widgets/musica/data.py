@@ -314,7 +314,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["playlists"].append({"id": pid, "name": name, "art": "", "tracks": []})
         db["view"] = {"kind": "playlist", "id": pid}          # screen adapts to the new playlist
         _persist(db)
-        return {"ok": True, "playlist": pid, "name": name}
+        out = {"ok": True, "playlist": pid, "name": name, "empty": True}
+        # Teach through the seam (measured 2026-08-27: «guárdame LO QUE SUENA en una lista Curro» ended as an
+        # EMPTY list — the model picks create_playlist by lexical match and stops). The model reads this
+        # result and the channel runs several data-ops per turn, so the hint lets it finish the job; with
+        # nothing playing, an empty list is the whole request and no hint is added.
+        if _current_track(db):
+            out["hint"] = ("la lista está VACÍA y ahora mismo suena algo: si el operador quería guardarlo, "
+                           "llama a add_to_playlist {playlist: '" + name + "'} sin canción y se añade la que suena")
+        return out
 
     if action == "add_to_playlist":
         db = _load_db()

@@ -154,3 +154,16 @@ def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja
     db = md._load_db()
     curro2 = next(pl for pl in db["playlists"] if pl["name"] == "Curro2")
     assert [t["title"] for t in curro2["tracks"]] == ["La que suena"]
+
+
+def test_create_playlist_con_algo_sonando_ENSEÑA_el_siguiente_paso(monkeypatch):
+    """Medido: «guárdame lo que suena en una lista Curro» acaba en create_playlist a secas → lista VACÍA.
+    El modelo lee el resultado de la tool y el canal encadena data-ops (V2-391): la respuesta lleva el
+    siguiente paso cuando suena algo — y NO lo lleva con silencio, donde la lista vacía es todo el encargo."""
+    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "", "album": "",
+                                                          "art": "", "query": "Song"})
+    r = md.apply_action("create_playlist", {"name": "Curro"})
+    assert r["ok"] is True and r["empty"] is True and "add_to_playlist" in r.get("hint", "")
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    r = md.apply_action("create_playlist", {"name": "Vacia"})
+    assert r["ok"] is True and "hint" not in r

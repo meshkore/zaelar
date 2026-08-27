@@ -210,3 +210,16 @@ def test_clear_list_empties_the_list_but_never_cuts_the_video():
     db = yt._load()
     assert db["list"] == [] and db["pos"] == -1
     assert db["videoId"] == _VID1 and db["paused"] is False   # what plays keeps playing
+
+
+def test_two_pasted_links_in_one_add_both_land_in_order():
+    """Measured 2026-08-27 14:38 (`build-a-video-playlist-from-links`): the operator pasted TWO urls in one
+    sentence, the model emitted ONE `add` — and only the first id landed. Every id in the text lands now."""
+    out = yt.apply_action("add", {"url": "Te paso https://www.youtube.com/watch?v=" + _VID1
+                                          + " y https://youtu.be/" + _VID2 + " — móntame una lista"})
+    assert out["ok"] is True and out["count"] == 2 and out["positions"] == [1, 2]
+    db = yt._load()
+    assert [it["videoId"] for it in db["list"]] == [_VID1, _VID2]
+    assert db["videoId"] == "" and db["paused"] is True   # still: add NEVER starts playback
+    again = yt.apply_action("add", {"urls": ["https://youtu.be/" + _VID2, "https://youtu.be/" + _VID3]})
+    assert again["ok"] is True and again["count"] == 3    # dedup inside the batch path too
