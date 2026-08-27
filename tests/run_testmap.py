@@ -1593,6 +1593,12 @@ DOMAINS: list[dict] = [
         # V2-367 — el bucle de mejora sacaba su rotación del MARCADOR, que solo lista lo que YA corrió: 135
         # escenarios con runner, 32 medidos, **103 invisibles para siempre** (nadie los corre → nunca entran
         # en el marcador → nadie los corre), incluidos los dos de multimedia.
+        # V2-372 — el supervisor llevaba 3 h corriendo el código de las 07:59, así que sus DOS arreglos de esa
+        # mañana (V2-363 y V2-367) estaban inertes. Mudo porque la ronda va en SUBPROCESO: todo lo demás se
+        # recarga y solo se queda atrás quien clasifica el resultado y elige el orden.
+        {"id": "10.87", "title": "El supervisor se recarga a sí mismo: un proceso no relee su propio fichero",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_supervisor_reloads_its_own_source.py"]},
         {"id": "10.86", "title": "Un escenario que nunca ha corrido no puede correr nunca",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_scenario_that_never_ran_is_invisible_forever.py"]},

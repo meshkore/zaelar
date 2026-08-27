@@ -27,6 +27,7 @@ leyendo `diario.jsonl`. Un supervisor que además tocara el motor se estaría mi
 """
 from __future__ import annotations
 
+import hashlib as _hashlib
 import json
 import os
 import signal
@@ -204,9 +205,60 @@ def _con_runner() -> list:
         return []
 
 
+# ── V2-372: EL SUPERVISOR SE RECARGA A SÍ MISMO ─────────────────────────────────────────────────────────────
+# Un proceso de Python no vuelve a leer su propio fichero. Éste llevaba desde las 08:03 corriendo el código de
+# las 07:59, así que DOS arreglos suyos de esa misma mañana estuvieron inertes sin que nada lo dijera:
+# V2-363 (una avería del arnés no es un caso que falla — 09:42) y V2-367 (los 103 escenarios que nunca habían
+# corrido — 10:12). Medido: la ronda de `things-to-do-nearby-weekend__es` es INFRA en su informe —el juez no
+# devolvió JSON tras tres intentos— y el diario la apuntó FAIL, exactamente lo que V2-363 arregló tres horas
+# antes. Y la rotación seguía siendo la de 32.
+#
+# Lo que hace esto MUDO es la asimetría: `una_ronda` lanza la ronda como SUBPROCESO, así que el runner, el
+# juez, los escenarios y el motor entero SÍ se recargan cada vez. Solo se queda atrás este fichero — el que
+# clasifica el resultado y elige el orden. Desde fuera todo parece al día, y el parte hasta lleva el `sha` de
+# HEAD leído al empezar la ronda: el diario AFIRMA haber medido un commit cuyo clasificador no estaba cargado.
+#
+# Es la cuarta vez de la misma familia («árbol limpio no es proceso al día») y la primera en la que quien lo
+# paga es el instrumento con el que se decide dónde trabajar.
+_FUENTE = Path(__file__).resolve()
+
+
+def _huella() -> str:
+    try:
+        return _hashlib.sha256(_FUENTE.read_bytes()).hexdigest()[:12]
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _fuente_utilizable() -> bool:
+    """¿El fichero nuevo al menos COMPILA? Re-ejecutar sobre un fichero a medio escribir mataría el bucle, y
+    el bucle no puede pararse — es el único requisito que el operador ha repetido. Ante la duda, se sigue con
+    el código viejo: medir con algo desfasado es un defecto, quedarse sin medir es peor."""
+    try:
+        compile(_FUENTE.read_text(encoding="utf-8"), str(_FUENTE), "exec")
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _recargar_si_cambie(huella_inicial: str) -> None:
+    """Entre rondas —nunca a mitad de una— vuelve a arrancarse con el código nuevo. No-op si nada cambió."""
+    if not huella_inicial or _huella() in ("", huella_inicial):
+        return
+    if not _fuente_utilizable():
+        print("[supervisor] la fuente cambió pero NO compila — sigo con la cargada", flush=True)
+        return
+    _apunta(escenario="—", resultado="RECARGA", segundos=0, sha=_sha(),
+            motivo=f"supervisor.py cambió ({huella_inicial} → {_huella()}); me reinicio con el código nuevo",
+            log="")
+    os.execv(sys.executable, [sys.executable, "-m", "tests.use_cases.e2e.agent.supervisor"])
+
+
 def main() -> int:
     orden = rotacion()
-    print(f"[supervisor] {len(orden)} escenarios · hang={HANG_S}s cap={CAP_S}s · diario={_DIARIO}", flush=True)
+    _mia = _huella()
+    print(f"[supervisor] {len(orden)} escenarios · hang={HANG_S}s cap={CAP_S}s · diario={_DIARIO} "
+          f"· fuente {_mia} · HEAD {_sha()}", flush=True)
     i = 0
     while True:
         esc = orden[i % len(orden)]
@@ -216,6 +268,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001 — el supervisor NUNCA muere por una ronda
             _apunta(escenario=esc, resultado="ERROR", segundos=0, sha=_sha(), motivo=str(e)[:200], log="")
         time.sleep(PAUSA_S)
+        _recargar_si_cambie(_mia)
 
 
 if __name__ == "__main__":
