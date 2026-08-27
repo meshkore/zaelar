@@ -289,12 +289,27 @@ _SNIPPET_RE = _re.compile(r'result__snippet[^>]*>(.*?)</a>', _re.S)
 _LINK_RE = _re.compile(r'result__a[^>]*href="(.*?)"[^>]*>(.*?)</a>', _re.S)
 
 
+
+def _accept_language() -> str:
+    """The header that tells a site which country it is serving. It was pinned to `es-ES` for everybody, and a
+    header outranks the words of the query: measured 2026-08-27, a US search for hotels under $150 came back
+    priced in euros. Follows the engine's own language, with Spanish as the fallback when it cannot be read —
+    the behaviour of always, for the deployment that had it right."""
+    try:
+        from voice.engine.core import langs as _langs
+        code = (_langs.current_code() or "es").lower()
+    except Exception:  # noqa: BLE001 — a web search must never die because the language is unreadable
+        code = "es"
+    if code == "es":
+        return "es-ES,es;q=0.9,en;q=0.8"
+    return f"{code}-US,{code};q=0.9" if code == "en" else f"{code},{code};q=0.9,en;q=0.8"
+
 def _ddg(q: str, k: int) -> dict:
     import httpx
     answer = _ddg_instant(q)
     with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as c:
         resp = c.post("https://html.duckduckgo.com/html/", data={"q": q},
-                      headers={"User-Agent": _UA, "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"})
+                      headers={"User-Agent": _UA, "Accept-Language": _accept_language()})
         resp.raise_for_status()
         body = resp.text
     links = _LINK_RE.findall(body)

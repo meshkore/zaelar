@@ -547,6 +547,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
                       "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+        # 2026-08-27, primera tanda US: doce hoteles REALES de Nueva Orleans, en EUROS, contra un presupuesto
+        # de $150. Los candidatos eran correctos e inservibles — un sitio decide moneda y mercado por el locale
+        # del navegador y la cabecera Accept-Language, no por las palabras de la consulta, y las dos estaban
+        # clavadas a España para todo el mundo. El catálogo de sitios YA era locale-aware, así que al worker se
+        # le mandaba a los sitios americanos correctos y se les preguntaba en español: media localización.
+        {"id": "4.60", "title": "La búsqueda mira desde donde vive la persona — locale del navegador y "
+                                "Accept-Language siguen al idioma del motor (con escotilla de env)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_search_looks_from_where_the_person_lives.py"]},
         # 2026-08-27 — al poner Z.AI de titular del Brain Worker (decisión del operador) salieron DOS fallos
         # mudos del mismo tronco: un modelo que RAZONA carga su deliberación contra `max_tokens`, así que el
         # brief del compositor volvía truncado con un 200 y sin error («respuesta ilegible» en el log, worker

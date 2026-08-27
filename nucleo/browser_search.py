@@ -29,8 +29,33 @@ from . import workspace as _workspace
 # `_HERE/../memory/_data/search_browser` (workspace.root() falls back to the engine repo root).
 _PROFILE = os.path.join(str(_workspace.root()), "memory", "_data", "search_browser")
 _TIMEOUT_MS = int(float(os.getenv("BROWSER_SEARCH_TIMEOUT", "12")) * 1000)
-_HL = os.getenv("BROWSER_SEARCH_HL", "es")
-_GL = os.getenv("BROWSER_SEARCH_GL", "es")
+# WHERE THE SEARCH THINKS IT IS. These were pinned to "es" and only an env var could move them, so every
+# search — from any account, in any language — asked Google as if it were being made from Spain. Measured
+# 2026-08-27 on the first US round of `find-best-hotel-city__us`: twelve real New Orleans hotels came back
+# priced in EUROS (€271) against a $150 budget, because the site reads the browser's locale, not the words in
+# the query. The candidates were right and unusable, which reads as a filtering bug and is a geography one.
+#
+# So they FOLLOW THE ENGINE'S LANGUAGE, resolved through the same map the site catalogue already uses
+# (`site_catalog.resolve_locale`: es→es, anything else→us) so a Spanish engine keeps searching from Spain and
+# an English one searches from the US. Read per call rather than frozen at import: the operator can change
+# language while the engine runs, and a browser stuck in the old country would be the same bug again.
+# The env vars still win — they are the escape hatch for an engine whose language and country differ.
+_HL_ENV = os.getenv("BROWSER_SEARCH_HL", "")
+_GL_ENV = os.getenv("BROWSER_SEARCH_GL", "")
+
+
+def _where() -> tuple[str, str]:
+    """`(hl, gl)` — interface language and country for the search, from the engine's own language."""
+    if _HL_ENV and _GL_ENV:
+        return _HL_ENV, _GL_ENV
+    try:
+        from voice.engine.core import langs as _langs
+        code = (_langs.current_code() or "es").lower()
+    except Exception:  # noqa: BLE001 — a search must never die because the language is unreadable
+        code = "es"
+    hl = _HL_ENV or code
+    gl = _GL_ENV or ("es" if code == "es" else "us")
+    return hl, gl
 
 # estado del singleton (vive en el loop del server)
 _pw = None            # el objeto async_playwright
@@ -69,11 +94,12 @@ async def ensure_started() -> bool:
             from playwright.async_api import async_playwright
             os.makedirs(_PROFILE, exist_ok=True)
             _pw = await async_playwright().start()
+            _hl, _gl = _where()
             _ctx = await _pw.chromium.launch_persistent_context(
                 _PROFILE,
                 headless=os.getenv("BROWSER_SEARCH_HEADLESS", "1") == "1",
                 user_agent=_UA,
-                locale=f"{_HL}-{_GL.upper()}",
+                locale=f"{_hl}-{_gl.upper()}",
                 viewport={"width": 1280, "height": 900},
                 args=["--no-sandbox", "--disable-blink-features=AutomationControlled",
                       "--disable-dev-shm-usage"],
@@ -82,7 +108,7 @@ async def ensure_started() -> bool:
             # warm: abrir google una vez (monta red + acepta consentimiento y queda en el perfil)
             try:
                 page = await _ctx.new_page()
-                await page.goto(f"https://www.google.com/?hl={_HL}", wait_until="domcontentloaded",
+                await page.goto(f"https://www.google.com/?hl={_hl}", wait_until="domcontentloaded",
                                 timeout=_TIMEOUT_MS)
                 await _dismiss_consent(page)
                 await page.close()
@@ -177,7 +203,7 @@ async def search_google(query: str, k: int = 5) -> dict:
     page = await _ctx.new_page()
     try:
         url = (f"https://www.google.com/search?q={quote_plus(query)}"
-               f"&hl={_HL}&gl={_GL}&num=10&pws=0")
+               f"&hl={_where()[0]}&gl={_where()[1]}&num=10&pws=0")
         await page.goto(url, wait_until="domcontentloaded", timeout=_TIMEOUT_MS)
         await _dismiss_consent(page)
         if await _looks_blocked(page):
