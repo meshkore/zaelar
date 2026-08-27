@@ -31,6 +31,8 @@ import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
 from nucleo.flash import music_turn as _music_turn
+from nucleo.flash import video_turn as _video_turn
+from nucleo.flash import widget_data_turn as _widget_data_turn
 
 _WINDOW_MAX = 10
 
@@ -390,6 +392,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     names = [t["name"] for t in tool_calls]
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
     music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo
+    video_req = None                        # V2-383: lo que pidió `play_video`, para EJECUTARLO abajo
     # hard-interrupt DETERMINISTA (V2-015) — ESPEJO del provider (nucleo.py:122): 'cierra todo'/'quita todo' →
     # [[close]] TODO; 'para'/'silencio'/'basta' → corta sin acción. En voz/chat se resuelve ANTES que el LLM; sin
     # este espejo el probe daba veredictos FALSOS ('cierra todo' caía en widget_data ~60% de las veces, 2026-07-21).
@@ -425,6 +428,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         music_req = _music_turn.request_from(tool_calls)
     elif "play_video" in names:
         action = "canvas:show:youtube"       # V2-045: VER → widget youtube (show + data-op load); espejo del provider
+        video_req = _video_turn.request_from(tool_calls)   # V2-383: y se EJECUTA abajo, como la música
     elif "show_panel" in names:
         # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) por voz — espejo del provider (emite `panel`).
         _sp = next(t for t in tool_calls if t["name"] == "show_panel")
@@ -1043,30 +1047,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     return_extra_exec = {"executed": "login_done", "resumed": _resumed}
                 except Exception as e:  # noqa: BLE001
                     return_extra_exec = {"execute_error": str(e)[:200]}
+            elif action == "canvas:show:youtube" and video_req:
+                # V2-383 — EL VÍDEO SE PONE, NO SE ROTULA. Hermano de la música: mismo rail que la voz
+                # (`brain_action` → `load` del widget `youtube`), que es quien de verdad busca y carga.
+                return_extra_exec = await _video_turn.execute(video_req["query"])
             elif action == "music" and music_req:
                 # V2-380 — LA MÚSICA SE PONE, NO SE ROTULA. La decisión y su ejecución viven en
                 # `music_turn`, igual que `web_auth` para el traspaso de login: este canal es la
                 # implementación PARALELA del provider de voz y lo que se comparte es el MECANISMO.
                 return_extra_exec = await _music_turn.execute(music_req["action"], music_req["query"])
             elif action == "widget_data":
-                # EJECUCIÓN REAL de una data-op (2026-07-25): sin esto el probe validaba el ROUTING pero nunca
-                # ENVIABA — imposible reproducir e2e "manda a zalo …". Ahora, si la acción es FAST, se despacha por
-                # el MISMO camino que la voz (widgets.dispatch_tag → apply_action del widget). CONFIRM no se
-                # auto-confirma (requiere el sí del operador); se reporta como pendiente. (V2-086: enviar al
-                # cluster ya NO pasa por aquí — es la tool `cluster_send`, no una data-op de widget.)
-                _wd = next((t["args"] for t in tool_calls if t["name"] == "widget_data"), {}) or {}
-                _wid = (str(_wd.get("widget_id") or "")).strip().lower()
-                _act = (str(_wd.get("action") or "")).strip()
-                _pl = _wd.get("payload") if isinstance(_wd.get("payload"), dict) else {}
-                from nucleo.flash import frontend as _fe
-                from widgets import actions as _wa
-                _mode = _fe.action_mode(_wid, _act)
-                if _mode == _wa.FAST:
-                    import widgets as _w
-                    await _w.dispatch_tag("widget.data", {"id": _wid, "data": {"action": _act, "payload": _pl}})
-                    return_extra_exec = {"executed": "widget_data", "widget": _wid, "act": _act}
-                else:
-                    return_extra_exec = {"executed": "widget_data_skipped", "mode": str(_mode), "widget": _wid, "act": _act}
+                return_extra_exec = await _widget_data_turn.execute(tool_calls)
             else:
                 return_extra_exec = {}
         except Exception as e:  # noqa: BLE001
@@ -1102,6 +1093,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # cierto. El turno que resuelve un sí/no tampoco puede caer al backstop genérico y contestar
                 # «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
+            elif action == "canvas:show:youtube" and video_req:
+                # V2-383 — se NOMBRA el vídeo que cargó. Va ANTES del ack genérico de `canvas:` a propósito:
+                # ahí abajo un turno de vídeo solo puede decir «aquí lo tienes» o —si no cargó— «está vacío»,
+                # que es literalmente la frase que el tester leyó cuatro veces seguidas.
+                spoken = _video_turn.spoken_for(
+                    return_extra_exec if isinstance(return_extra_exec, dict) else {}, _lg.data_ack)
             elif action.startswith("canvas:"):
                 # V2-209 — abrir una tarjeta NO es entregar un resultado, y este ack lo afirmaba. Medido en
                 # `book-hotel-night-known__es` (13:49): «Aquí lo tienes» sobre la tarjeta del navegador con la

@@ -515,6 +515,13 @@ DOMAINS: list[dict] = [
         # V2-358 — «Preparando entrega: 10 propuestas en la hoja de resultados» con la hoja en CERO filas, y
         # pintado sin marca junto a líneas verificadas. Misma enfermedad que V2-357 una capa más abajo, misma
         # respuesta que V2-345: no se tira, se MARCA.
+        # V2-383 — hermano exacto de V2-380, una rama más abajo en el mismo `elif`: `play_video` se resolvía a
+        # la etiqueta «canvas:show:youtube» y ahí acababa, sin `load`. Ocho turnos pidiendo el tráiler de Dune
+        # y cuatro veces «Te lo abro, aunque de momento está vacío» — con seis tráileres reales encontrados y
+        # mandados a la HOJA en vez de al reproductor. Cuarta vez de la familia en `probe.py`.
+        {"id": "4.54", "title": "El vídeo se PONE, no se rotula · y la boca NOMBRA el que cargó",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_video_is_played_not_labelled.py"]},
         # V2-359 — V2-354 puso el hecho delante y el modelo lo contó UNA DE CADA DOS: en bilbao sí («va
         # encallada, no te la estoy escondiendo»), en el coche no, con el operador preguntando tres veces. Esa
         # variancia es la que V2-305 dejó escrita: la conducta determinista la garantiza el código.
