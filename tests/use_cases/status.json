@@ -2174,40 +2174,24 @@
       }
     },
     "cheapest-monitor__us": {
-      "last_run": "2026-08-27 20:41",
-      "overall": 2,
-      "judge": "glm-4.6",
+      "last_run": "2026-08-27 22:30",
+      "overall": 1,
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "El caso NO está listo para producción. El bloqueador principal es la falta de fiabilidad del motor de extracción ('worker'), que falló en sacar cualquier dato de precio o producto concreto (0 resultados encontrados) y presentó errores internos, dejando al usuario esperando una respuesta que nunca llegó.",
+      "verdict": "No está listo para producción en este caso de uso: el bloqueador nº1 es que zaelar dejó morir la conversación esperando un worker atascado sin entregar ni un solo candidato, ignorando avisos empujados del sistema y prometiendo un plan B que nunca ejecutó.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 2 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
         "memory",
@@ -2217,7 +2201,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "fa7f544",
+        "sha": "f924662",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2225,7 +2209,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "36 GB"
+            "size": "39 GB"
           }
         ],
         "n": 1
@@ -2419,7 +2403,228 @@
         ],
         "n": 1
       }
+    },
+    "best-plumber-same-day__us": {
+      "last_run": "2026-08-27 22:36",
+      "overall": 2,
+      "judge": "deepseek-v4-pro",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 2,
+        "mecanismo": 3,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar narró una búsqueda en curso cuando el mecanismo ya la había cancelado y bloqueado, y nunca entregó como resultado final los 4 candidatos que tenía en la hoja desde el segundo 57.6.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "f924662",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "40 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-407-uc-best-plumber-same-day-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T488-uc-best-plumber-same-day-us-fix.md"
+      }
+    },
+    "best-rated-rental-car__us": {
+      "last_run": "2026-08-27 22:42",
+      "overall": 1,
+      "judge": "deepseek-v4-pro",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar tenía 53 resultados reales en su hoja y entregó 0 por su nombre, terminando la conversación con un 'frontrunner' (Dollar) que no consta en ninguna evidencia del sistema.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: the "
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: the following arguments are required: cmd"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 3 error(es), último paso «🧭 navegador»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "f924662",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "39 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-408-uc-best-rated-rental-car-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T489-uc-best-rated-rental-car-us-fix.md"
+      }
+    },
+    "search-buy-used-car__us": {
+      "last_run": "2026-08-27 22:48",
+      "overall": 1,
+      "judge": "deepseek-v4-pro",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 2
+      },
+      "verdict": "NO está listo para producción: el bloqueador nº1 es que zaelar tuvo 21 candidatos reales en su hoja desde el segundo 35 y no nombró ni uno solo en 10 turnos, dejando al usuario 4 minutos esperando sin recibir nada.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "f924662",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "39 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-409-uc-search-buy-used-car-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T490-uc-search-buy-used-car-us-fix.md"
+      }
+    },
+    "search-buy-bicycle__us": {
+      "last_run": "2026-08-27 22:56",
+      "overall": 2,
+      "judge": "deepseek-v4-pro",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el caso pedía opciones reales de bicicletas y se entregaron cero candidatos con nombre, precio o enlace, con zaelar narrando progreso sobre un worker que estaba fallando y bloqueado por un 403.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 usage: hbmesh [-h] {find,serve} ... hbmesh: error: unrecognized arguments: mountain bike San Francisco size M under 350"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 2 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "f924662",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "36 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-410-uc-search-buy-bicycle-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T491-uc-search-buy-bicycle-us-fix.md"
+      }
     }
   },
-  "updated": "2026-08-27 21:01"
+  "updated": "2026-08-27 22:56"
 }
