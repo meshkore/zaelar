@@ -261,6 +261,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # false "worker"/"widget" signal to a scenario that never actually triggered one itself.
     if concurrency is not None:
         concurrency.sample(at_turn=-1)      # final read: what was still in flight when the talking stopped
+    # ESPERAR AL SILENCIO ANTES DE LEER, NO DESPUÉS (V2-397). `wait_for_quiescence` existe exactamente para
+    # esto y su docstring lo dice —«so the mechanism is read after the round, not during it»— pero se llamaba
+    # DESPUÉS de componer el informe, así que protegía las columnas del final y dejaba a la intemperie el
+    # TRONCO: el flujo de eventos del que salen las familias, `widget_ops`, `sheet_instances`,
+    # `dropped_actions` y la auditoría entera. En 131 de las 215 rondas archivadas la espera acaba en el tope
+    # con trabajo vivo, así que la foto se sacaba a media faena y nadie lo decía.
+    quiescence = verifymod.wait_for_quiescence(config.SANDBOX_DB) if config.SANDBOX_DB else None
     live_session_id = probe_client.current_session_id()
     # `or []` and NOT a default inside the reader: both now answer `None` for "nobody answered", and that
     # difference is what `verify.unreadable_infra` reads below to refuse to score the round.
@@ -273,6 +280,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     scheduled = verifymod.scheduled_report(jobs_before, jobs_after) if jobs_after is not None else None
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled,
                                       forbidden_signals=getattr(scenario, 'forbidden_signals', []))
+    if quiescence is not None:
+        mech["quiescence"] = quiescence
     # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
     # nothing about appointments: it costs one request and it avoids the class of error that cost two rounds
     # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had
@@ -286,7 +295,6 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # the engine is still writing has already misreported three different findings (see
         # `verify.wait_for_quiescence`). This costs seconds and buys the difference between «it failed» and
         # «it had not finished».
-        mech["quiescence"] = verifymod.wait_for_quiescence(config.SANDBOX_DB)
         try:
             mech["prompt_context"] = verifymod.prompt_context(config.SANDBOX_DB, since=started_at)
         except Exception as e:

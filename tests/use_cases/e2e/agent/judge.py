@@ -9,7 +9,7 @@ from __future__ import annotations
 import re as _re
 import json
 
-from . import config, llm
+from . import config, llm, verify as _V
 
 RUBRIC = """Score each dimension 1-5 (5=excellent):
 - naturalidad: ¿zaelar suena a una persona real ayudando, no robótico ni repetitivo?
@@ -527,6 +527,14 @@ def mechanism_facts(mech: dict) -> str:
     # V2-396 — la otra mitad de lo anterior: allí el arnés se AVERIÓ componiendo el informe, aquí no se
     # averió nada, simplemente NADIE CONTESTÓ y cada lector devolvió su colección vacía. El informe sale con
     # la forma exacta de un producto que no hizo nada.
+    # V2-397 — la foto sacada a media faena. `quiescence` no aparecía NI UNA VEZ en este fichero, y 131 de
+    # las 215 rondas archivadas se compusieron con un worker todavía trabajando.
+    _mf = _V.measured_in_flight(mech)
+    if _mf:
+        lines.append(f"· ⚠️ MEDIDO A MEDIA FAENA: {_mf}. Lo que estuviera a punto de escribirse —la hoja, "
+                     f"un widget, los hallazgos del worker— NO está en este informe. Un contador a cero de algo "
+                     f"que todavía se estaba haciendo no prueba que no se hiciera: no puntúes «no lo hizo» "
+                     f"por un hueco de esta lista, puntúa solo lo que SÍ se ve.")
     _nl = mech.get("ground_truth_unreadable") or []
     if _nl:
         _rutas = "; ".join(f"{f.get('path')} ({f.get('reason')})" for f in _nl[:3])

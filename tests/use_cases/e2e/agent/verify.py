@@ -1737,6 +1737,27 @@ def no_quota_infra(exhausted: dict | None, health: dict | None) -> str:
 _TRUNK_READS = ("/api/observability/identity", "/api/observability/events")
 
 
+def measured_in_flight(mech: dict | None) -> str:
+    """The warning to hand the judge when the report was composed with work still in flight — `""` when the
+    engine had gone quiet.
+
+    Deliberately NOT an INFRA sentence like the two rules above it. 131 of the 215 archived rounds have this
+    shape; voiding them would leave the board unmeasured and let real defects hide behind the warning. What
+    it buys is that "the sheet is empty" stops being read as a fact about the product when a worker was
+    still on its way to filling it.
+    """
+    q = (mech or {}).get("quiescence") or {}
+    if q.get("settled") is not False:            # True = calló · None = no se pudo mirar (no es este defecto)
+        return ""
+    pend = int(q.get("pending_workers") or 0)
+    esperado = q.get("waited_s")
+    if pend:
+        que = f"{pend} worker(s) seguía(n) trabajando"
+    else:
+        que = "el motor seguía escribiendo"
+    return (f"{que} al agotarse la espera ({esperado} s): este informe es una foto sacada A MEDIA FAENA")
+
+
 def unreadable_infra(mech: dict | None) -> str:
     """The round's INFRA sentence when the ground truth could not be READ — `""` when it could.
 

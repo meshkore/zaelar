@@ -1657,6 +1657,14 @@ DOMAINS: list[dict] = [
         # revienta nada: nadie contesta y cada lector devuelve su colección vacía. Apuntado el cliente a un
         # puerto cerrado, el informe salía `n_events: 0`, todas las señales «missing» y `widgets_producing:
         # []` — la forma exacta de un producto que corrió y no hizo nada, y la rama de 10.95 que acusa.
+        # V2-397 — `wait_for_quiescence` existía para leer el mecanismo DESPUÉS de la ronda y se llamaba
+        # DESPUÉS de componerlo, así que el TRONCO (el flujo de eventos: familias, widget_ops,
+        # sheet_instances, auditoría) se sacaba a media faena. Y `quiescence` no aparecía NI UNA VEZ en
+        # `judge.py`: 131 de 215 rondas archivadas se compusieron con un worker todavía trabajando y quien
+        # puntúa no lo sabía.
+        {"id": "10.97", "title": "Una foto sacada a media faena lo DICE · y se espera al silencio antes de leer",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_snapshot_taken_mid_flight_says_so.py"]},
         {"id": "10.96", "title": "Un motor que no se pudo LEER no es un motor que no hizo nada",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_an_unread_engine_is_not_an_idle_engine.py"]},
