@@ -145,3 +145,93 @@ def test_se_CONSERVA_el_reloj_de_la_narracion_aparte():
     assert "sheet_rows_ms" in src
     assert src.index("_rows - _lt") < src.index("_fr - _lt"), (
         "el que manda en `after_last_turn_s` tiene que ser el reloj de la HOJA")
+
+
+# ── V2-355: y el reloj que cronometra una ENTREGA es más estricto todavía ──────────────────────────────
+#
+# V2-300 (arriba) sacó del reloj el repintado de fase. Quedaba media capa: `sheet_rows_ms` sigue arrancando
+# con la primera escritura de un PRODUCTOR, y el comentario del propio `verify` ya lo admitía — «un `data` de
+# un productor no PRUEBA que la fila tenga nombre». El worker escribe en su hoja mucho antes de tener
+# candidatos: los criterios, el título, su plan. Medido en `restaurant-tonight-madrid` (2026-08-27), la hoja
+# acabó con «Mensaje de WhatsApp preparado», «Por teléfono (lo más rápido)» y «Qué me paró» — prosa suya
+# contada como tres candidatos.
+#
+# Y ese reloj es el que alimenta `delivery_lag_s`, o sea el que produce los [alta] de RETENCIÓN, que son el
+# bloqueador nº1 de media docena de casos. En `search-buy-camera__es` (2026-08-27) cronometró **130,8 s de
+# retención** con la primera página abierta a los **62,3 s**: a los 17 s no podía existir un candidato. Misma
+# forma que V2-300, una capa más adentro, y con el mismo coste — el instrumento acusando al producto.
+#
+# El intake del navegador (`src == "navegador"`) es, por construcción, candidatos sacados de una página. Se
+# guarda APARTE en vez de endurecer el de arriba porque los dos dicen cosas distintas y las dos hacen falta:
+# «cuándo empezó a escribir» separa «llegó tarde» de «no llegó»; «cuándo hubo candidatos» es el único que
+# puede cronometrar una entrega.
+
+def _db_op(tmp_path, events):
+    """Como `_db`, pero las filas llevan `op` — el campo que distingue una data-op del puente del repintado."""
+    p = tmp_path / "op.db"
+    con = sqlite3.connect(str(p))
+    con.execute("CREATE TABLE events (ts_ms REAL, topic TEXT, kind TEXT, label TEXT, payload TEXT)")
+    for ts, kind, label, ident, src, op in events:
+        d = {"id": ident, "label": label, "src": src}
+        if op:
+            d["op"] = op
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?)", (ts, "observer", kind, label, json.dumps(d)))
+    con.commit(); con.close()
+    return str(p)
+
+
+# La forma de `search-buy-camera__es`: el worker abre y escribe lo suyo temprano, la página no se abre hasta
+# el segundo 62 y el intake cae después. Un candidato ANTES de abrir la primera página es imposible.
+CAMARA = [
+    (1_000.0, "widget", "show", "results::afd21d-1", "worker:1", None),
+    (17_500.0, "widget", "data", "results::afd21d-1", "worker", "present"),   # sus criterios, NO candidatos
+    (62_300.0, "navegador", "hito", "", "", None),
+    (70_000.0, "widget", "data", "results::afd21d-1", "navegador", None),     # el intake: AQUÍ hay candidatos
+]
+
+
+def test_el_reloj_flojo_sigue_diciendo_cuando_empezo_a_escribir(tmp_path):
+    """No se endurece el de arriba: separa «llegó tarde» de «no llegó» y esa mitad hace falta."""
+    out = verify.sheet_timing(_db_op(tmp_path, CAMARA), since=0)
+    assert out["sheet_rows_ms"] == 17_500.0
+
+
+def test_el_reloj_ESTRICTO_espera_al_intake(tmp_path):
+    """El que cronometra una entrega. 17,5 s contra 70 s son 52 segundos de «retención» inventada."""
+    out = verify.sheet_timing(_db_op(tmp_path, CAMARA), since=0)
+    assert out["sheet_named_ms"] == 70_000.0
+
+
+def test_una_hoja_que_SOLO_tiene_prosa_del_worker_no_arranca_el_reloj_estricto(tmp_path):
+    """`restaurant-tonight-madrid`: tres data-ops del worker y ni una extracción. No hubo candidatos, así que
+    no hay nada que cronometrar — y `None` es la respuesta honesta, no un cero."""
+    solo_prosa = [
+        (1_000.0, "widget", "show", "results::1e8200-1", "worker:1", None),
+        (10_000.0, "widget", "data", "results::1e8200-1", "worker", "present"),
+        (20_000.0, "widget", "data", "results::1e8200-1", "worker", "append"),
+        (30_000.0, "widget", "data", "results::1e8200-1", "worker", "append"),
+    ]
+    out = verify.sheet_timing(_db_op(tmp_path, solo_prosa), since=0)
+    assert out["sheet_named_ms"] is None, "sin intake no hubo candidatos que retener"
+    assert out["sheet_rows_ms"] == 10_000.0
+
+
+def test_el_repintado_de_fase_sigue_fuera_de_los_DOS(tmp_path):
+    """V2-300 no se revierte por el camino: un `data src=worker` SIN `op` es el repintado de fase."""
+    solo_repintado = [
+        (1_000.0, "widget", "show", "results::x-1", "worker:1", None),
+        (20_000.0, "widget", "data", "results::x-1", "worker", None),
+    ]
+    out = verify.sheet_timing(_db_op(tmp_path, solo_repintado), since=0)
+    assert out["sheet_rows_ms"] is None and out["sheet_named_ms"] is None
+
+
+def test_el_intake_solo_ya_arranca_los_dos(tmp_path):
+    """Una ronda donde el navegador entrega sin que el worker haya escrito antes: los dos relojes coinciden,
+    que es lo correcto — ahí no hay nada que separar."""
+    directo = [
+        (1_000.0, "widget", "show", "results::y-1", "worker:1", None),
+        (45_000.0, "widget", "data", "results::y-1", "navegador", None),
+    ]
+    out = verify.sheet_timing(_db_op(tmp_path, directo), since=0)
+    assert out["sheet_rows_ms"] == 45_000.0 == out["sheet_named_ms"]

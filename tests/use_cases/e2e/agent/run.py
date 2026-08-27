@@ -340,7 +340,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # epoch it cannot cross with turn numbers, wrote «lo tuvo 123 segundos y calló» [alta]. A number
             # the harness can compute exactly must never be estimated by the model reading the report.
             try:
-                _rows_at = (mech.get("sheet_timing") or {}).get("sheet_rows_ms")
+                # V2-355 — el reloj ESTRICTO manda: `sheet_rows_ms` arranca con la primera escritura de un
+                # productor (criterios, título, el plan del worker) y con eso cronometró 130,8 s de
+                # «retención» en `search-buy-camera__es` con la primera página abierta a los 62,3 s. El
+                # intake del navegador es el único instante en que hay candidatos de verdad. El flojo queda
+                # de RESPALDO —una ronda sin intake pero con entrega por el puente sigue midiéndose— y se
+                # dice cuál se usó, porque un número sin su procedencia es el que nadie audita.
+                _st = mech.get("sheet_timing") or {}
+                _rows_at = _st.get("sheet_named_ms") or _st.get("sheet_rows_ms")
+                _st["delivery_clock"] = "intake" if _st.get("sheet_named_ms") else "primera escritura"
                 _said_at = None
                 # The SAME identity `recites_our_candidates` uses (normalized head), not a raw 24-char prefix:
                 # round 33 measured the difference — zaelar said «Harley Benton CLGS 10S» against a sheet title

@@ -2222,7 +2222,9 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
     """
     import sqlite3
     out: dict = {"sheet_ms": None, "sheet_any_ms": None, "first_result_ms": None,
-                 "opened_before": None, "lead_s": None, "sheet_rows_ms": None, "sheet_box": ""}
+                 "opened_before": None, "lead_s": None, "sheet_rows_ms": None, "sheet_box": "",
+                 # V2-355 — el reloj ESTRICTO: cuándo el intake del navegador escribió candidatos de verdad.
+                 "sheet_named_ms": None}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -2294,6 +2296,25 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
                 out["sheet_rows_ms"] = ts_ms
                 if not out["sheet_box"]:
                     out["sheet_box"] = _sfx
+            # V2-355 — EL RELOJ ESTRICTO, y el que debe cronometrar una entrega.
+            #
+            # `sheet_rows_ms` (arriba) arranca con la PRIMERA escritura de un productor, y el comentario de
+            # justo encima ya lo admite: «un `data` de un productor no PRUEBA que la fila tenga nombre». El
+            # worker escribe en su hoja mucho antes de tener candidatos — los criterios, el título, su plan;
+            # medido en `restaurant-tonight-madrid` (2026-08-27), la hoja acabó con «Mensaje de WhatsApp
+            # preparado», «Por teléfono» y «Qué me paró», que son prosa suya, no resultados.
+            #
+            # Y ese reloj es el que alimenta `delivery_lag_s`, o sea el que produce los [alta] de RETENCIÓN.
+            # En `search-buy-camera__es` cronometró 130,8 s de retención con la primera página abierta a los
+            # 62,3 s: a los 17 s no podía existir un candidato. Es la MISMA forma que V2-300 arregló para el
+            # repintado de fase — el instrumento acusando al producto— una capa más adentro.
+            #
+            # El intake del NAVEGADOR (`src == "navegador"`) sí es, por construcción, una escritura de
+            # candidatos extraídos de una página. Se guarda aparte en vez de endurecer el de arriba porque
+            # los dos dicen cosas distintas y las dos hacen falta: «cuándo empezó a escribir» separa «llegó
+            # tarde» de «no llegó», y «cuándo hubo candidatos» es el único que puede cronometrar una entrega.
+            if (label == "data" and out.get("sheet_named_ms") is None and src == "navegador"):
+                out["sheet_named_ms"] = ts_ms
             continue
         if kind == "widget" and str(d.get("id") or "") == "results":
             # La caja pelada es RESERVA, no medida: un motor anterior a V2-259 no instancia y entonces es la

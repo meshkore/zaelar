@@ -1,36 +1,35 @@
 {
   "scenarios": {
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-21 03:27",
-      "overall": 1,
-      "judge": "deepseek-v4-flash",
-      "state": "INFRA",
+      "last_run": "2026-08-27 07:20",
+      "overall": 2,
+      "judge": "deepseek-v4-pro",
+      "state": "CAPPED",
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el caso no se resolvió y el bloqueador número 1 es la falta de respuesta del canal (7 turnos mudos), agravada por la ausencia del worker esperado que tendría que haber dejado un intento real de reserva.",
-      "missing_signals": [
-        "worker"
-      ],
-      "audit_anomalies": [
-        {
-          "clase": "sin_evidencia_externa",
-          "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
-        }
-      ],
-      "sandboxed": false,
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no cierra la tarea ni entrega resultados concretos en tiempo útil — el worker se atascó 3+ minutos sin que zaelar lo diagnosticara ni ofreciera pararlo, y tras el «sí» del usuario no hay ninguna acción real de cierre registrada.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
       "provisional": null,
       "tier": 1,
-      "turns_used": 7,
-      "families": [],
-      "drive_model": "aimlapi",
+      "turns_used": 11,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d7c66d0",
+        "sha": "199acfd",
         "n_dirty": 0,
         "dirty": []
       },
@@ -38,14 +37,10 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
+            "size": "43 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "data_limit": {
         "kind": "no_booking",
@@ -86,46 +81,47 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-20 15:49",
-      "overall": 3,
+      "last_run": "2026-08-27 07:25",
+      "overall": 2,
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 3,
-        "mecanismo": 3,
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 2,
+        "mecanismo": 2,
         "eficiencia": 4
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que el `prompt` del cron lleva la frase cruda del usuario, así que el recordatorio hará que el agente vuelva a programar en vez de avisar — el aviso existe pero su contenido está roto.",
+      "verdict": "NO está listo para producción: el aviso se programó para HOY en lugar del miércoles 2, con el prompt en crudo y duplicado, así que el recordatorio disparará en la fecha equivocada y sin contenido útil — el bloqueador nº1 es el cálculo del `next_run` del cron, que ignora la fecha que el usuario confirmó.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 2 error(es), último paso «🧠 memoria ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
+      "provisional": null,
       "tier": 1,
-      "turns_used": 4,
+      "turns_used": 5,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "7b4dc79",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
+          }
+        ],
+        "n": 1
+      },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
@@ -531,24 +527,24 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-25 21:42",
+      "last_run": "2026-08-27 07:34",
       "overall": 3,
-      "judge": "glm-4.6",
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
+        "naturalidad": 3,
         "adaptacion": 4,
-        "resultado": 2,
-        "mecanismo": 5,
+        "resultado": 3,
+        "mecanismo": 4,
         "eficiencia": 2
       },
-      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la desobediencia a las señales internas de estado: el modelo ignora que la tarea ya tiene resultados (instrucción 'CUÉNTALE') y miente al usuario diciendo que sigue buscando, lo que resulta en una conversación circular y una percepción de fallo técnico cuando el sistema había funcionado correctamente.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es la retención de resultados ya disponibles (130 s con el usuario preguntando tres veces), seguido de la entrega en goteo de un solo candidato cuando el encargo pedía una selección comparativa.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 13,
+      "turns_used": 12,
       "families": [
         "flash",
         "main",
@@ -559,22 +555,21 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "2e7a6f4",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "7b4dc79",
+        "n_dirty": 2,
+        "dirty": [
+          "nucleo/dispatch.py",
+          "nucleo/flash/live_blocks.py"
+        ]
       },
       "machine": {
         "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
           {
             "name": "qwen3.6:27b-mlx",
             "size": "42 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-206-uc-search-buy-camera-es.md",
@@ -838,31 +833,20 @@
       }
     },
     "search-buy-used-car": {
-      "last_run": "2026-08-26 23:16",
+      "last_run": "2026-08-26 23:29",
       "overall": 1,
       "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 4,
+        "naturalidad": 2,
+        "adaptacion": 2,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el caso de uso no se completó (cero candidatos reales entregados) y el bloqueador nº1 es que zaelar no detectó ni comunicó el fallo del mecanismo de extracción del navegador, dejando al usuario 30 minutos esperando resultados que nunca llegaron.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar ocultó el bloqueo real de coches.net que tenía delante en su prompt y mantuvo al usuario 159 segundos esperando con promesas vacías en lugar de decir «el sitio bloquea, no he podido sacar nada».",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 nav_cli click_at: error: the following arguments are required: y · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura d"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 1 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -877,7 +861,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "6725d90",
+        "sha": "f80b2a9",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1947,5 +1931,5 @@
       }
     }
   },
-  "updated": "2026-08-26 23:16"
+  "updated": "2026-08-27 07:34"
 }
