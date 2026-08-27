@@ -1567,6 +1567,13 @@ DOMAINS: list[dict] = [
         {"id": "10.84", "title": "El arnés no llama FAIL a su propia avería · y su error deja ver la causa",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_harness_never_blames_the_product_for_its_own_breakage.py"]},
+        # V2-365 — `find-direct-flight-budget__es` (ronda 15): el juez archivó [alta] el fallo más grave de la
+        # sesión cruzando dos epochs de 13 cifras («first_result_ms 1787816928677 vs turno a 1787816914617»)
+        # y leyéndolos al revés — las filas llegaron 14 s DESPUÉS del turno que acusaba. La prohibición en
+        # prosa existía desde V2-300 y no ganó al número puesto delante.
+        {"id": "10.85", "title": "El juez no compara epochs: el arnés le da los relojes ya relativizados",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_judge_never_does_epoch_arithmetic.py"]},
         {"id": "10.50", "title": "The mechanism numbers reach the report the fixing agent opens",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_numbers_reach_the_report.py"]},
         # V2-252 — declarado por el ARNÉS (título suyo), y es la PRIMERA caza del trinquete del testmap: su

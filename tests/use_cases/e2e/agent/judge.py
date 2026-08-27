@@ -105,6 +105,67 @@ memoria, no al agente. Juzga el resto (que investigue de verdad, que acierte los
 catálogo). Si aun así recuerda algo coherente, es un plus.
 """
 
+def _clocks_relative(mech: dict) -> dict:
+    """Una COPIA del informe sin relojes CRUDOS: cada epoch-ms pasa a segundos desde el primer instante medido.
+
+    Medido en `find-direct-flight-budget__es` (2026-08-27, ronda 15). El juez archivó [alta] el fallo de
+    conducta más grave de la sesión —«tenía datos concretos delante y no los dio»— con esta prueba:
+
+        «first_result_ms 1787816928677 vs turno a 1787816914617» → «la hoja ya tenía filas desde hacía ~30 s»
+
+    928677 es MAYOR que 914617: las filas llegaron 14 segundos DESPUÉS del turno. Signo invertido y magnitud
+    doblada, y con eso se acusó al motor de retener lo que todavía no existía. El bloque de prompt de ese
+    turno, leído después, no llevaba ninguna fila.
+
+    La prohibición en prosa ya estaba escrita («NO uses `first_result_ms` para acusar») y no sirvió, porque el
+    número seguía en el JSON. Pedirle a un modelo que compare dos enteros de 13 cifras que solo difieren en la
+    quinta por la derecha, y confiar en que además respete una prohibición sobre ellos, es dejar a la lectura
+    del modelo una cuenta que el arnés hace exacta — justo lo que V2-300 dejó dicho para `delivery_lag_s`.
+
+    Se relativizan TODOS a la vez y contra el mismo cero, para que sigan siendo comparables entre sí: el juez
+    necesita poder cruzar el instante de una fila con el de un turno, y esa pregunta es legítima. Lo que no
+    puede es equivocarse de signo al hacerlo.
+
+    Un `_ms` que NO es un epoch (una DURACIÓN, como `first_output_ms`) se queda intacto: convertirlo lo
+    convertiría en un instante y sería inventar un hecho.
+    """
+    import copy as _copy
+
+    EPOCH = 1_000_000_000_000        # ~2001; por debajo de esto un `_ms` es una duración, no un instante
+
+    def _epochs(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if str(k).endswith("_ms") and isinstance(v, (int, float)) and not isinstance(v, bool) \
+                        and v >= EPOCH:
+                    yield float(v)
+                else:
+                    yield from _epochs(v)
+        elif isinstance(o, list):
+            for v in o:
+                yield from _epochs(v)
+
+    t0 = min(_epochs(mech), default=None)
+    if t0 is None:
+        return mech
+
+    def _walk(o):
+        if isinstance(o, dict):
+            out = {}
+            for k, v in o.items():
+                if str(k).endswith("_ms") and isinstance(v, (int, float)) and not isinstance(v, bool) \
+                        and v >= EPOCH:
+                    out[str(k)[:-3] + "_s"] = round((float(v) - t0) / 1000.0, 1)
+                else:
+                    out[k] = _walk(v)
+            return out
+        if isinstance(o, list):
+            return [_walk(v) for v in o]
+        return o
+
+    return _walk(_copy.deepcopy(mech))
+
+
 # ── lo que el informe de mecanismo PRUEBA, dicho en palabras ───────────────────────────────────────────────
 #
 # Un juez que se contradice con su propia evidencia es peor que no tener juez: manda al equipo del motor a
@@ -366,7 +427,7 @@ def mechanism_facts(mech: dict) -> str:
     # archivó [alta] «contradicción entre estado interno y mensaje» sobre una ventana de 21 s que el cerebro
     # aún no había visto.
     if (mech.get("sheet_timing") or {}).get("first_result_ms"):
-        lines.append("· NO uses `first_result_ms` para acusar de retener u ocultar: mide cuándo el NAVEGADOR "
+        lines.append("· NO uses `first_result_s` para acusar de retener u ocultar: mide cuándo el NAVEGADOR "
                      "narró una extracción, y esa información tarda hasta ~30 s en llegar al prompt del "
                      "cerebro (turno siguiente). Para retención, el único reloj válido es `delivery_lag_s`.")
     _lag = (mech.get("sheet_timing") or {}).get("delivery_lag_s")
@@ -708,8 +769,9 @@ Qué cuenta como éxito: {scenario.success_checks}
 LO QUE ESTE INFORME PRUEBA, en palabras (léelo antes del JSON y no lo contradigas):
 {mechanism_facts(mech)}
 
-JSON completo:
-{json.dumps(mech, ensure_ascii=False, indent=2)}
+JSON completo (los relojes son SEGUNDOS desde el primer instante medido de la ronda — no hay epochs
+crudos: si un instante es MAYOR que otro es que ocurrió DESPUÉS, sin más cuentas):
+{json.dumps(_clocks_relative(mech), ensure_ascii=False, indent=2)}
 
 === VEREDICTOS DEL WATCHDOG DURANTE LA SESIÓN (detección de desvíos en vivo) ===
 {json.dumps(watchdog_events, ensure_ascii=False) if watchdog_events else '(ninguno — nunca se desvió)'}
