@@ -1927,6 +1927,14 @@ DOMAINS: list[dict] = [
         # ESPAÑOLA (una persona de San Francisco diciendo «Madrid centro», kilómetros bajo una apertura en
         # millas) y los 60 leían sus instrucciones en castellano dentro de un brief inglés. Un tester que se
         # contradice a sí mismo no mide el producto: mide el arnés.
+        # 2026-08-27 — la tanda US corrió con z.ai sin cuota, así que sus Brain Workers los sirvió el escalón
+        # de RELEVO y no el titular que la nube contrata. Cinco filas de 1-2 iban al tablero al lado de filas
+        # medidas con el titular, indistinguibles. La fila ya sellaba qué JUEZ la calificó; no sellaba sobre
+        # QUÉ producto era la nota.
+        {"id": "10.103", "title": "El marcador dice con qué CEREBRO se midió cada fila — leído del flujo, no "
+                                 "de la config",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_board_says_which_brain_it_measured.py"]},
         {"id": "10.102", "title": "Una persona de San Francisco no vive en Madrid — realidad y andamiaje por "
                                  "locale, con la deuda declarada y a la baja",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_us_cases_speak_us.py"]},

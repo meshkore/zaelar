@@ -747,6 +747,59 @@ def results_sheet(ids: list[str] | None = None) -> dict:
     }
 
 
+def brains_that_ran(all_events: list[dict]) -> dict:
+    """WHICH BRAIN did the work — the SUBJECT the score on the board is about.
+
+    Every row already stamps which RULER graded it (`status.record`'s `judge`), for a reason measured on
+    2026-08-20: the judge chain falls back when a vendor is rate-limited, and a case that "went from 3 to 2"
+    between rounds may only have changed ruler. The same is true one floor down, and it matters more, because
+    the brain is not the instrument — it IS the product being graded.
+
+    Measured on 2026-08-27: a US batch ran while z.ai was out of 5-hour quota, so every Brain Worker in it was
+    served by the RELAY rung (`deepseek-v4-flash`) instead of the titular the cloud actually contracts
+    (`glm-5.3`). Five rows scoring 1-2 were about to land next to rows measured on the titular, visually
+    identical and about a different product. It was caught by reading the run log by hand; the board could not
+    have shown it, and nothing in the ledger recorded it.
+
+    Ground truth is `worker_start` (`nucleo/workers/session.py::_emit_meta_row`): the label carries the
+    BACKEND (`worker · claude_code`), the extra carries the MODEL. Two shapes of this stream are easy to get
+    wrong in a way that never raises:
+
+    * `worker_start` is ALSO the voice engine's boot row (`motor de voz arriba`), which has no worker behind
+      it and names its model `llm_model`. Rows with no `model` field are dropped, or every round would be
+      stamped with a brain that never ran.
+    * a relay row does NOT have `kind == "perf"`. `observer.emit` does `ev.update(extra)` last, so the
+      chain's `extra={"kind": "exhausted"|"slow"|"stall"}` OVERWRITES the event kind in the stored payload.
+      Filtering by kind finds zero relays on a round full of them; the `🔌` label is the stable marker.
+    """
+    seen: dict[str, int] = {}
+    for e in all_events:
+        f = _fields(e)
+        if str(f.get("kind") or e.get("kind") or "") != "worker_start":
+            continue
+        model = str(f.get("model") or e.get("model") or "").strip()
+        if not model:
+            continue                      # the voice-engine boot row: same kind, no worker
+        label = str(f.get("label") or e.get("label") or "")
+        backend = label.split("\u00b7", 1)[1].strip() if "\u00b7" in label else str(f.get("backend") or "")
+        key = f"{backend}/{model}" if backend else model
+        seen[key] = seen.get(key, 0) + 1
+    relays = []
+    for e in all_events:
+        f = _fields(e)
+        label = str(f.get("label") or e.get("label") or "")
+        if not label.startswith("\U0001f50c"):
+            continue
+        relays.append({"role": str(f.get("role") or e.get("role") or ""),
+                       "from": str(f.get("provider") or e.get("provider") or ""),
+                       "to": str(f.get("next") or e.get("next") or ""),
+                       "why": str(f.get("kind") or e.get("kind") or "")})
+    return {"workers": sorted(seen), "n_by_worker": seen, "relays": relays,
+            # MIXED is the loud one: within a single round the chain moved, so the transcript is half one
+            # product and half another and no single stamp is honest about it.
+            "mixed": len(seen) > 1}
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None,
                      scheduled: dict | None = None, forbidden_signals: list[str] | None = None) -> dict:
@@ -799,6 +852,8 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         # the same report. Measured against a closed port: `n_events: 0`, all signals missing, nothing
         # anywhere saying nobody had answered.
         "ground_truth_unreadable": probe_client.read_failures(),
+        # WHICH BRAIN ran this round. A score with no subject is not a measurement — see `brains_that_ran`.
+        "brains": brains_that_ran(all_events),
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),

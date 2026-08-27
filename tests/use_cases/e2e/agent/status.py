@@ -66,6 +66,14 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
             # day's gradings differ by 0.44 of a point. A case that "went from 3 to 2" between two rounds may
             # simply have changed ruler, and the board would show that as a regression.
             "judge": (verdict.get("_judge_model") or "").replace("deepseek/", ""),
+            # WHICH BRAIN it was graded ON — the same argument as `judge`, one floor down and heavier: the
+            # judge is the instrument, the brain IS the product. Measured 2026-08-27: a US batch ran with
+            # z.ai out of 5-hour quota, so its Brain Workers were served by the relay rung
+            # (`deepseek-v4-flash`) instead of the titular the cloud contracts (`glm-5.3`). Five rows of 1-2
+            # were about to sit next to titular-measured rows, indistinguishable. Caught by reading the log
+            # by hand; nothing on the board or in this ledger recorded it. `+` between two names means the
+            # chain MOVED mid-round: half that row is about one product and half about another.
+            "brain": _brain_stamp(mech),
             "state": _state(overall, r),
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
@@ -118,6 +126,21 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
     LEDGER_PATH.write_text(json.dumps(led, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     _render(led)
     return led
+
+
+def _brain_stamp(mech: dict) -> str:
+    """The models that actually ran the Brain Worker this round, busiest first, `+`-joined when the chain
+    moved mid-round. The BACKEND is dropped on purpose (it is `claude_code` for every rung today, so it adds
+    width and no information); `verify.brains_that_ran` keeps the full breakdown for the report.
+
+    Empty string = no worker ran at all, which is a legitimate answer for a conversational case and must not
+    read as "we forgot to stamp it".
+    """
+    by = ((mech.get("brains") or {}).get("n_by_worker") or {})
+    if not by:
+        return ""
+    names = sorted(by, key=lambda k: (-by[k], k))
+    return "+".join(n.split("/", 1)[-1] for n in names)
 
 
 def _state(overall, r: dict) -> str:
@@ -182,6 +205,15 @@ def _state(overall, r: dict) -> str:
 _ICON = {"PASS": "✅", "FAIL": "❌", "INFRA": "⚠️", "CAPPED": "🔒"}
 
 
+def _brain_cell(e: dict) -> str:
+    """A row from BEFORE this field existed has no brain, and it must not be shown as if it had none: `—` is
+    a measured absence (no worker ran), `?` is an unknown one. Conflating them would let every old row read
+    as a conversational case."""
+    if "brain" not in e:
+        return "?"
+    return f"`{e['brain']}`" if e["brain"] else "—"
+
+
 def _render(led: dict) -> None:
     scen: dict = led.get("scenarios") or {}
     lines = [
@@ -204,8 +236,13 @@ def _render(led: dict) -> None:
         "HONESTY only, keep their grade, and are **excluded from the pass/fail count** so they stop feeding",
         "the improvement loop work it can never close. Operator's rule, 2026-08-20.",
         "",
-        "| | scenario | tier | overall | last run | sandbox | verdict |",
-        "|---|---|---|---|---|---|---|",
+        "`brain` = which model actually ran the Brain Worker in that round, read from the event stream and "
+        "not from config. It is part of the row because the score is ABOUT it: the same case measured on the "
+        "titular the cloud contracts and on a relay rung is two different products. `a+b` means the chain "
+        "moved mid-round. Blank = no worker ran (fine for a purely conversational case).",
+        "",
+        "| | scenario | tier | overall | brain | last run | sandbox | verdict |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for sid in sorted(scen, key=lambda s: (scen[s].get("tier") or 0, s)):
         e = scen[sid]
@@ -216,7 +253,7 @@ def _render(led: dict) -> None:
             verdict = verdict[:157] + "…"
         lines.append(
             f"| {_ICON.get(st, '⚠️')} | `{sid}` | {e.get('tier', '—')} | "
-            f"{overall if overall is not None else '—'} | {e.get('last_run', '—')} | "
+            f"{overall if overall is not None else '—'} | {_brain_cell(e)} | {e.get('last_run', '—')} | "
             f"{'yes' if e.get('sandboxed') else 'no'} | {verdict} |")
 
     passed = sum(1 for e in scen.values() if e.get("state") == "PASS")

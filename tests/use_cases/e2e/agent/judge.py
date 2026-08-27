@@ -937,6 +937,12 @@ RAW_ONLY = {
                        "cuáles no— ya lo renderiza note_coverage; duplicarlas en palabras solo diluye",
     "surfaces": "qué superficie declaró cada turno es contexto de depuración; lo juzgable —si la hoja "
                 "existió, cuándo se llenó y si se enseñó— ya lo renderizan sheet_instances y sheet_timing",
+    "brains": "qué modelo sirvió la ronda es una pregunta de COMPARABILIDAD para quien lee el tablero, no "
+              "de indulgencia para quien la califica: `search_health` sí se le cuenta al juez porque con la "
+              "búsqueda muerta «no buscó» deja de ser un defecto, pero un escalón de relevo no cambia si "
+              "narrar progreso inexistente está mal — solo cambia sobre QUÉ producto es la nota. Dicho al "
+              "juez, ablandaría la calificación, y el tablero acabaría con una nota indulgente sobre un "
+              "producto que no vendemos. El sello va a la fila (status._brain_stamp), no al prompt",
 }
 
 
