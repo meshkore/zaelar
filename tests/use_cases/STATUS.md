@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 09:36**
+Last updated: **2026-08-27 09:44**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -32,7 +32,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `compare-broadband-plans__es` | 2 | 2 | 2026-08-27 09:17 | yes | No está listo para producción: el caso pedía una comparativa real con el operador más barato y la hoja de resultados quedó vacía, con un candidato narrado de… |
 | ❌ | `compare-insurance-quotes__es` | 2 | 2 | 2026-08-27 09:04 | yes | No está listo para producción: el bloqueador nº1 es que presentó como comparativa lo que no lo era (un enlace de redirección, nombres sin precio y un teléfon… |
 | ✅ | `find-best-hotel-city__es` | 2 | 4 | 2026-08-25 10:22 | yes | Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usua… |
-| ❌ | `find-concert-tickets__es` | 2 | 2 | 2026-08-25 11:48 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad de zaelar para reconocer y reportar fallos técnicos explícitos (cuota agotada), lo que le … |
+| ❌ | `find-concert-tickets__es` | 2 | 2 | 2026-08-27 09:44 | yes | No está listo para producción: el bloqueador nº1 es que zaelar negó entregas que tenía delante (turno 7), ofreció eventos que no cumplían el criterio y concl… |
 | ❌ | `find-direct-flight-budget__es` | 2 | 2 | 2026-08-25 10:42 | yes | El caso no está listo para producción. El sistema es capaz de realizar la navegación y mostrar resultados visualmente, pero falla en adaptarse a las correcci… |
 | ✅ | `hotel-under-15-days` | 2 | 4 | 2026-08-26 01:06 | yes | El caso es FUNCIONAL y está listo para producción porque zaelar encontró, filtró y desplegó opciones reales de forma correcta; el bloqueador principal no es … |
 | ❌ | `kid-friendly-activity-nearby__es` | 2 | 3 | 2026-08-25 12:25 | yes | El caso está funcional (la hoja se llenó y la respuesta final fue útil), pero la eficiencia es inaceptable para producción debido a la reiteración de búsqued… |

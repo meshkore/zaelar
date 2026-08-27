@@ -142,3 +142,61 @@ def test_a_heterogeneous_errand_YA_NO_es_un_coste_asumido():
     # los títulos de palabras cortas no se anuncian nunca— que esta prueba deja anotada en vez de tapar
     # ajustando la aserción a lo que salga.
     assert "Sofá" not in out
+
+
+# ── V2-364: la puerta ya no es el vocabulario de espera, es la PREGUNTA ─────────────────────────────────
+#
+# Hasta aquí este backstop exigía que la respuesta SONARA a espera (`_WAITING_REPLY_RE`), y esa lista se
+# ensanchó DOS VECES en un solo día persiguiendo formas nuevas —«te informo», «en cuanto sepa», «voy a
+# reunir»— sin dejar de perder turnos.
+#
+# Medido en `find-concert-tickets__es` (2026-08-27, ronda del supervisor, 2/5), con el reloj estricto que
+# V2-355 arregló y V2-362 sacó al informe:
+#
+#     ⏱ primera fila de candidatos: 72,2 s desde que se abrió la hoja
+#        · el turno los nombró 62,7 s DESPUÉS de que existieran
+#
+# Sesenta y cinco segundos de silencio con VEINTIDÓS candidatos escritos y con enlace. El backstop acabó
+# disparando —a los 137,3 s, que es justo cuando el turno los nombró— pero llegó tarde porque los turnos de en
+# medio no decían ninguna de las frases de la lista.
+#
+# Perseguir el idioma es una carrera que no se gana. Lo que esto existe para evitar no es «que la respuesta
+# suene a espera»: es que el operador se quede sin lo que YA está en su hoja. Las otras dos guardas siguen
+# haciendo el trabajo fino —una respuesta larga ya está contando algo (>300 caracteres), y las filas ya dichas
+# no se re-anuncian (V2-189)—, así que lo único que había que proteger de verdad es la PREGUNTA: si el turno le
+# está preguntando algo, colgarle las filas detrás le cambia el tema y se queda sin contestar.
+
+CONCIERTOS = ["La Bella y La Bestia — 45 €", "Concierto indie Sala But — 22 €", "Vetusta Morla — 38 €"]
+
+
+def test_una_respuesta_que_no_suena_a_espera_TAMBIEN_entrega():
+    """El caso medido: turnos que no callaban a propósito, simplemente no estaban en la lista."""
+    for r in ("Perfecto, lo dejo así entonces.", "Ahora mismo lo reviso.", "Vale."):
+        out = RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas de concierto")
+        assert "Vetusta Morla" in out, r
+
+
+def test_una_PREGUNTA_se_respeta():
+    """La única cosa que de verdad había que proteger: colgarle las filas detrás le cambia el tema y se queda
+    sin contestar lo que le acaban de preguntar."""
+    for r in ("¿Prefieres sala pequeña o grande?", "Claro. ¿Te va bien el sábado?", "¿Lo reservo?"):
+        assert RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas") == "", r
+
+
+def test_lo_que_ya_protegian_las_otras_guardas_sigue_protegido():
+    """Ensanchar la puerta no puede aflojar el resto: una respuesta larga que ya cuenta algo, y las filas ya
+    dichas, se quedan exactamente como estaban."""
+    larga = ("¡Ya tengo entradas! Vetusta Morla el sábado por 38 € en la Sala But, y hay una de indie por 22 €. "
+             "La Bella y La Bestia está a 45 € pero es teatro, no concierto, así que la dejo fuera. ¿Te abro "
+             "alguna o sigo mirando otras salas?")
+    assert RG.sheet_delivery_backstop(larga, CONCIERTOS, "") == ""
+    dicho = "Ya te pasé Vetusta Morla a 38 €, el indie de la Sala But a 22 € y La Bella y La Bestia a 45 €."
+    assert RG.sheet_delivery_backstop("Vale, lo dejo así.", CONCIERTOS, dicho) == ""
+
+
+def test_el_backstop_de_ATASCO_conserva_la_puerta_vieja():
+    """A propósito y no por olvido: contar un atasco es más intrusivo que entregar lo que ya existe, así que
+    ahí sí conviene que la respuesta esté en modo espera. Ensanchar los dos a la vez habría metido la frase del
+    atasco en turnos donde no venía a cuento."""
+    assert RG.stalled_task_backstop("Perfecto, lo dejo así entonces.", "busca entradas", 5, "sin avanzar") == ""
+    assert RG.stalled_task_backstop("Sigo con ello, te aviso.", "busca entradas", 5, "sin avanzar") != ""

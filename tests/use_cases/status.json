@@ -1219,52 +1219,45 @@
       }
     },
     "find-concert-tickets__es": {
-      "last_run": "2026-08-25 11:48",
+      "last_run": "2026-08-27 09:44",
       "overall": 2,
-      "judge": "glm-4.6",
+      "judge": "deepseek-v4-pro",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad de zaelar para reconocer y reportar fallos técnicos explícitos (cuota agotada), lo que le lleva a inventar resultados parciales falsos en lugar de admitir que no pudo completar la búsqueda.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar negó entregas que tenía delante (turno 7), ofreció eventos que no cumplían el criterio y concluyó que no había fechas contradiciendo los datos que el sistema le dio.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "sin_evidencia_externa",
-          "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 12,
       "families": [
+        "flash",
+        "memory",
+        "system",
         "widget",
         "worker"
       ],
-      "drive_model": "último recurso · zai/glm",
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "802733d",
+        "sha": "60bb3bb",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
+            "size": "46 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-263-uc-find-concert-tickets-es.md",
@@ -1791,5 +1784,5 @@
       }
     }
   },
-  "updated": "2026-08-27 09:36"
+  "updated": "2026-08-27 09:44"
 }

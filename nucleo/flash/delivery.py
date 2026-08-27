@@ -37,6 +37,10 @@ from .router_guards import _norm_txt
 # esta lista no reconocía («sepa» no estaba entre los verbos), así que NINGÚN backstop llegó a mirarlas y el
 # atasco se quedó sin contar pese a estar detectado. Lo alimenta a los DOS (entrega y atasco), así que cada
 # forma que falta cuesta dos silencios.
+#: ¿El turno le está PREGUNTANDO algo? Entonces no se le cuelga nada detrás: perdería la pregunta. Se mira el
+#: cierre y las aperturas de interrogación del castellano, que es donde vive el signo cuando la frase sigue.
+_PREGUNTA_RE = _re.compile(r"[¿?]\s*$|\?\s*[^.!?]{0,40}$|¿")
+
 _WAITING_REPLY_RE = _re.compile(
     r"(te aviso|te informo|te lo digo|te lo cuento|te aviso en cuanto|"
     r"en cuanto (tenga|salga|encuentre|aparezca|sepa|lo tenga|este|la tenga)|"
@@ -58,7 +62,23 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     r = _norm_txt(str(reply or ""))
     if not r or len(str(reply or "")) > 300:
         return ""
-    if not _WAITING_REPLY_RE.search(r):
+    # V2-364 — LA PUERTA YA NO ES EL VOCABULARIO DE ESPERA, ES LA PREGUNTA.
+    #
+    # Hasta aquí esto exigía que la respuesta SONARA a espera (`_WAITING_REPLY_RE`), y esa lista se ha
+    # ensanchado dos veces en un día persiguiendo formas nuevas — «te informo», «en cuanto sepa», «voy a
+    # reunir»— sin dejar de perder turnos. Medido en `find-concert-tickets__es` (2026-08-27): las filas
+    # existían en el segundo **72,2** y el turno no las nombró hasta el **137,3**, cuando por fin dijo algo que
+    # la lista reconoció. Sesenta y cinco segundos de silencio con VEINTIDÓS candidatos escritos.
+    #
+    # Perseguir el idioma es una carrera que no se gana. Lo que este backstop existe para evitar no es «que la
+    # respuesta suene a espera»: es que el operador se quede sin lo que ya está en su hoja. Las otras dos
+    # guardas siguen haciendo el trabajo fino —una respuesta larga ya está contando algo (>300), y las filas ya
+    # dichas no se re-anuncian—, así que lo único que hacía falta proteger de verdad es la PREGUNTA: si el
+    # turno le está preguntando algo, colgarle las filas detrás le cambia el tema y se queda sin contestar.
+    #
+    # El backstop de ATASCO conserva la puerta vieja a propósito: contar un atasco es más intrusivo que
+    # entregar lo que ya existe, y ahí sí conviene que la respuesta esté en modo espera.
+    if r.rstrip().endswith("?") or _PREGUNTA_RE.search(r):
         return ""
     said = _norm_txt(str(said_before or "")) + " " + r
     fresh: list[str] = []
