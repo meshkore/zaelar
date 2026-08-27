@@ -1193,98 +1193,26 @@
       }
     },
     "two-searches-two-sheets": {
-      "last_run": "2026-08-21 14:43",
-      "overall": 3,
-      "judge": "deepseek-v4-flash",
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
-        "resultado": 2,
-        "mecanismo": 4,
-        "eficiencia": 2,
-        "atribucion": 3,
-        "fluidez": 3
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no gestiona la ambigüedad entre dos tareas vivas (no preguntó cuál cerrar y negó su existencia), y además afirmó haber encontrado fontaneros sin respaldo en el mecanismo — ambos son fallos graves de coordinación y de resultado.",
+      "last_run": "2026-08-27 09:36",
+      "overall": null,
+      "judge": "",
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: el juez no devolvió JSON válido tras 3 intentos (Expecting ',' delimiter: line 22 column 6 (char 1159)) — raw: '{\\n  \"scores\": {\\n    \"naturalidad\": 2,\\n    \"adaptacion\": 2,\\n    \"resultado\": 2,\\n    \"mecanismo\": 4,\\n    \"eficiencia\": 1,\\n    \"atribucion\": 1,\\n    \"fluidez\": 1\\n  },\\n  \"overall\": 2,\\n  \"findings\": [\\n    {' · motor: VIVO (/api/status responde) — el fallo fue del turno o del",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: sips -s format jpeg -s formatOptions 80 shot-t2.png --out shot-t2.jpg"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 worker_bridge act: error: the following arguments are required: action · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES. "
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 2 error(es), último paso «🌐 web ↩»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 1 error(es), último paso «↩ zaelar ↩»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «🧭 navegador ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 4,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "code": {
-        "sha": "21de6af",
+        "sha": "badaa86",
         "n_dirty": 0,
         "dirty": []
       },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
-          }
-        ],
-        "n": 2
-      },
-      "max_concurrent": 4,
-      "distinct_kinds": [
-        "generic",
-        "web"
-      ],
+      "machine": {},
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md",
         "task": ".meshkore/modules/nucleo/tasks/T472-uc-two-searches-two-sheets-fix.md"
@@ -1863,5 +1791,5 @@
       }
     }
   },
-  "updated": "2026-08-27 09:25"
+  "updated": "2026-08-27 09:36"
 }

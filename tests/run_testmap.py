@@ -1560,6 +1560,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_mute_agent_was_not_measured.py"]},
         {"id": "10.49", "title": "Ask whether the brain can speak BEFORE driving a round",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_brain_can_speak_before_measuring.py"]},
+        # V2-363 — `two-searches-two-sheets` corrió 641 s de navegador real y el juez no devolvió JSON: el
+        # diario lo apuntó como FAIL (el runner imprime «PASSED 0/1» también sin veredicto) y el error solo
+        # guardaba `raw[:200]`, mil caracteres antes del fallo. El instrumento acusando al producto, en el
+        # cuaderno con el que se decide dónde trabajar.
+        {"id": "10.84", "title": "El arnés no llama FAIL a su propia avería · y su error deja ver la causa",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_harness_never_blames_the_product_for_its_own_breakage.py"]},
         {"id": "10.50", "title": "The mechanism numbers reach the report the fixing agent opens",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_numbers_reach_the_report.py"]},
         # V2-252 — declarado por el ARNÉS (título suyo), y es la PRIMERA caza del trinquete del testmap: su

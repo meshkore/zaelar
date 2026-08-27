@@ -132,6 +132,12 @@ def una_ronda(escenario: str, lab: str = "es") -> dict:
         resultado = motivo.split(":")[0]
     elif "PASSED 1/1" in cola:
         resultado = "PASS"
+    # V2-363 — UNA AVERÍA DEL ARNÉS NO ES UN CASO QUE FALLA. El runner imprime «PASSED 0/1» también cuando la
+    # ronda se corrió entera y el JUEZ no devolvió JSON válido: 10,7 min de navegador real en
+    # `two-searches-two-sheets` (2026-08-27) quedaron apuntados como FAIL en el diario, que es la lista con la
+    # que se decide dónde trabajar. El instrumento acusando al producto, otra vez, y esta vez en MI diario.
+    elif "INFRA" in cola or "el juez no devolvió JSON" in cola:
+        resultado = "INFRA"
     elif "PASSED 0/1" in cola:
         resultado = "FAIL"
     else:

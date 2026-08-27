@@ -6,6 +6,7 @@ only as good as the subsystems that actually fired to back it up.
 """
 from __future__ import annotations
 
+import re as _re
 import json
 
 from . import config, llm
@@ -744,4 +745,18 @@ JSON completo:
     # RAISE, do not return a hollow verdict. Returning one made the round look judged-and-empty, so the runner
     # never parked the conversation and eight minutes of driving went in the bin — the fourth time that happened
     # to the same case on 2026-08-20. The caller parks the run and records INFRA, which is the honest state.
-    raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — raw: {raw[:200]!r}")
+    # V2-363 — la VENTANA ALREDEDOR DEL FALLO, no los primeros 200 caracteres. Medido en
+    # `two-searches-two-sheets` (2026-08-27): «Expecting ',' delimiter: line 22 column 6 (char 1159)» y un
+    # `raw[:200]` que enseñaba un JSON impecable — el log no podía mostrar el sitio del error ni con las tres
+    # tentativas delante, así que la avería solo se podía diagnosticar volviendo a correr diez minutos de
+    # navegador. Un fallo del instrumento que no deja ver su causa se repite entero cada vez.
+    _pos = 0
+    try:
+        _m = _re.search(r"char (\d+)", last_err or "")
+        _pos = int(_m.group(1)) if _m else 0
+    except Exception:  # noqa: BLE001
+        pass
+    _ini = max(0, _pos - 120)
+    _ventana = raw[_ini:_pos + 120] if _pos else raw[:240]
+    raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — {len(raw)} chars, "
+                       f"alrededor del fallo: {_ventana!r}")

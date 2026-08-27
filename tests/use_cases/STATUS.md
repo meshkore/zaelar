@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 09:25**
+Last updated: **2026-08-27 09:36**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -49,9 +49,9 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `weekend-motor-events__es` | 3 | 3 | 2026-08-21 16:35 | yes | No está listo para producción: el bloqueador nº1 es que inventó un evento sin fuente verificada y la hoja de resultados acabó con un solo candidato sin fuent… |
 | ⚠️ | `weekend-plan-barcelona__es` | 3 | 2 | 2026-08-27 08:27 | yes | No está listo para producción: el bloqueador nº1 es que afirma datos concretos (ferratas, tiendas, accesos) sin haberlos verificado en ninguna fuente, y la h… |
 | ✅ | `three-tasks-at-once` | 4 | 4 | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
-| ❌ | `two-searches-two-sheets` | 4 | 3 | 2026-08-21 14:43 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no gestiona la ambigüedad entre dos tareas vivas (no preguntó cuál cerrar y negó su existencia… |
+| ⚠️ | `two-searches-two-sheets` | 4 | — | 2026-08-27 09:36 | yes | INFRA: el juez no devolvió JSON válido tras 3 intentos (Expecting ',' delimiter: line 22 column 6 (char 1159)) — raw: '{\n  "scores": {\n    "naturalidad": 2… |
 
-**6 passing · 20 failing · 1 infra** of 27 scenarios we can actually finish.
+**6 passing · 19 failing · 2 infra** of 27 scenarios we can actually finish.
 
 Plus **5 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `book-hotel-night-known__es`, `cancel-subscription-before-charge__es`, `find-theatre-tickets__es`, `renew-gym-membership__es`, `restaurant-tonight-madrid`.
 
@@ -120,7 +120,6 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `search-buy-used-car` | `.meshkore/roadmap/initiatives/V2-227-uc-search-buy-used-car.md` | `` |
 | `search-secondhand-monitor__es` | `.meshkore/roadmap/initiatives/V2-271-uc-search-secondhand-monitor-es.md` | `` |
 | `things-to-do-nearby-weekend__es` | `.meshkore/roadmap/initiatives/V2-312-uc-things-to-do-nearby-weekend-es.md` | `.meshkore/modules/nucleo/tasks/T481-uc-things-to-do-nearby-weekend-es-fix.md` |
-| `two-searches-two-sheets` | `.meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md` | `.meshkore/modules/nucleo/tasks/T472-uc-two-searches-two-sheets-fix.md` |
 | `weekend-adventure-sports-bilbao__es` | `.meshkore/roadmap/initiatives/V2-217-uc-weekend-adventure-sports-bilbao-es.md` | `` |
 | `weekend-barber-availability__es` | `.meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md` | `` |
 | `weekend-motor-events__es` | `.meshkore/roadmap/initiatives/V2-272-uc-weekend-motor-events-es.md` | `.meshkore/modules/nucleo/tasks/T480-uc-weekend-motor-events-es-fix.md` |
@@ -130,4 +129,3 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | scenario | max concurrent tasks | distinct worker kinds |
 |---|---|---|
 | `three-tasks-at-once` | 3 | code, generic, web |
-| `two-searches-two-sheets` | 4 | generic, web |
