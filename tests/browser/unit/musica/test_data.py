@@ -128,3 +128,29 @@ def test_favorite_current_acepta_lista_con_nombre(monkeypatch):
     assert r["ok"] is True
     db = md._load_db()
     assert [pl["name"] for pl in db["playlists"]] == ["Curro"]
+
+
+def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja_la_lista_vacia():
+    """Evidencia del arnés (2026-08-27 13:40): yt={videoId 0iLF_rtUbq0, paused:false} sonando y
+    playlists=[{id:curro, tracks:[]}] — con la atribución «favorite_current crea la lista ANTES de resolver
+    la pista». Contra el código NO es así: _current_track se resuelve y gatea (nothing_playing) antes de
+    _find_or_create_playlist, en las DOS ramas. Este test recorre el camino REAL (la pista sale del bloque
+    yt persistido, sin monkeypatch): si alguna rama volviera a crear antes de resolver, la lista saldría
+    vacía y esto se pone rojo. La lista vacía medida la produce `create_playlist` a secas — legítimo — con
+    el add de después perdido por el una-data-op-por-turno del canal (V2-391, ya arreglado por el arnés)."""
+    import widgets.store as store
+    store.save("musica", {"yt": {"videoId": "0iLF_rtUbq0", "title": "La que suena", "paused": False,
+                                 "muted": False, "volume": 70, "cmd_seq": 3}})
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
+    assert r["ok"] is True and r["created"] is True
+    db = md._load_db()
+    curro = next(pl for pl in db["playlists"] if pl["name"] == "Curro")
+    assert [t["title"] for t in curro["tracks"]] == ["La que suena"]      # NUNCA vacía
+
+    store.save("musica", {"yt": {"videoId": "0iLF_rtUbq0", "title": "La que suena", "paused": False,
+                                 "muted": False, "volume": 70, "cmd_seq": 3}})
+    r = md.apply_action("favorite_current", {"playlist": "Curro2"})
+    assert r["ok"] is True
+    db = md._load_db()
+    curro2 = next(pl for pl in db["playlists"] if pl["name"] == "Curro2")
+    assert [t["title"] for t in curro2["tracks"]] == ["La que suena"]
