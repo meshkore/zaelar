@@ -540,7 +540,7 @@ _TITLE_MIN_CHARS = 12
 
 
 def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int = 1,
-                           heard: str = "") -> list[str]:
+                           heard: str = "", opening: bool = False) -> list[str]:
     """Los títulos de NUESTRA hoja que aparecen en una línea del tester. Vacío = ninguno.
 
     La persona no puede saber cómo se llama un anuncio: ese texto lo sacó nuestro worker de una página y vive
@@ -565,6 +565,20 @@ def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int 
     (recitar una lista con precios es conducta de asistente aunque los nombres se hayan oído — el caso
     original del 03:48 llevaba dos, y sigue cazado).
     """
+    # LA APERTURA NO RECITA NADA NUESTRO. `known_titles` es la hoja del FINAL de la ronda y esto se evalúa
+    # turno a turno: contra la PRIMERA línea del tester se compara con títulos que en ese momento no existían.
+    # Medido el 2026-08-28 en `search-buy-camera__us`, y el falso positivo fue el encargo mismo — «Find me a
+    # used DSLR camera with a low shutter count for under $400»— contra un anuncio titulado en inglés con esas
+    # mismas palabras. En castellano no salía: el encargo y el anuncio se parecen mucho más cuando los dos
+    # están en el idioma del sitio, así que lo destapó el plató US.
+    #
+    # Es `opening` y NO «`heard` vacío», y la diferencia la enseñó el test de al lado: una línea a media
+    # conversación que nombra un título que zaelar nunca dijo también llega con `heard` sin ese título, y ÉSA
+    # sí es un flip — el caso fuerte de la regla. Lo que hace inocente a la apertura no es que no se haya oído
+    # nada, es que todavía no hay nada NUESTRO que se pueda haber leído.
+    if opening:
+        return []
+
     txt = _norm_title(line)
     if not txt:
         return []

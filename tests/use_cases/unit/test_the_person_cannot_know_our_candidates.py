@@ -76,6 +76,10 @@ def test_el_barrido_de_la_ronda_LO_USA():
     i_known = src.find("_known = [str(t) for t in")
     i_use = src.find("verifymod.recites_our_candidates")
     assert 0 <= i_known < i_use, "los títulos se componen después de usarlos"
+    # Y QUE EL BARRIDO REAL MARQUE LA APERTURA (V2-427). El test de al lado reimplementa el bucle, así que
+    # puede seguir verde con `run.py` roto: medido al desarmarlo el 2026-08-28 — puse `opening=False` en el
+    # barrido de verdad y las 25 comprobaciones siguieron pasando sobre el defecto restaurado.
+    assert "opening=(i == 0)" in src, "el barrido real ya no distingue la primera línea del tester"
 
 
 def test_un_CODIGO_DE_MODELO_identifica_aunque_sea_corto():
@@ -121,7 +125,7 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
                 # que recita DOS títulos con precios— sigue cazada, como exige el test de al lado.
                 heard = " ".join((x.get("text") or "") for x in tr[:i] if x.get("who") == "zaelar")
                 if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
-                                                                        heard=heard):
+                                                                        heard=heard, opening=(i == 0)):
                     marcadas += 1
     # TRES, y las tres son flips REALES — el umbral sube cuando el corpus crece con otro flip, nunca porque el
     # detector se haya ensanchado. Las líneas, para que una cuarta se vea:
@@ -184,3 +188,35 @@ def test_el_ancla_VIAJA_al_prompt_de_la_ronda():
     from tests.use_cases.e2e.agent import driver as D
     src = inspect.getsource(D.Driver.__init__)
     assert "_ANCHOR_EN" in src and "_ANCHOR" in src
+
+
+def test_la_APERTURA_del_tester_no_puede_recitar_nada_nuestro():
+    """`known_titles` es la hoja del FINAL de la ronda y esto se evalúa turno a turno: contra la primera línea
+    se estaba comparando con títulos que en ese momento no existían.
+
+    Medido el 2026-08-28 en `search-buy-camera__us`, y el falso positivo fue **el encargo mismo** — «Find me a
+    used DSLR camera with a low shutter count for under $400»— contra un anuncio titulado en inglés con esas
+    mismas palabras. En castellano no salía: el encargo y el anuncio se parecen mucho más cuando los dos están
+    en el idioma del sitio, así que fue el plató US lo que lo destapó.
+    """
+    titulos = ["Used DSLR Camera Canon EOS 4000D low shutter count 2019 shots"]
+    linea = "Find me a used DSLR camera with a low shutter count for under $400."
+    assert V.recites_our_candidates(linea, titulos, opening=True) == [], "la apertura no recita la hoja"
+
+
+def test_y_con_zaelar_habiendo_hablado_se_sigue_cazando():
+    """La mitad de sensibilidad: la frontera temporal no puede apagar el detector, solo acotarlo."""
+    titulos = ["Yamaha F370BL guitarra acústica negra"]
+    linea = "tengo un par de opciones: la Yamaha F370BL por 100 €"
+    assert V.recites_our_candidates(linea, titulos, heard="dame un momento que lo miro")
+
+
+def test_es_la_APERTURA_y_no_el_silencio_lo_que_hace_inocente():
+    """Primer intento fallido, y lo cazó el test de al lado: puse la frontera en «`heard` vacío», y una línea
+    a media conversación que nombra un título que zaelar NUNCA dijo también llega con `heard` sin ese título —
+    y ésa sí es un flip, el caso fuerte de la regla entera. Lo que hace inocente a la apertura no es que no se
+    haya oído nada: es que todavía no hay nada NUESTRO que se pueda haber leído."""
+    titulos = ["Epiphone DR-100 Nat"]
+    linea = "no me vale la Epiphone DR-100, porfa busca otra"
+    assert V.recites_our_candidates(linea, titulos, heard="") != [], "a media conversación SÍ delata"
+    assert V.recites_our_candidates(linea, titulos, opening=True) == [], "en la apertura, no"

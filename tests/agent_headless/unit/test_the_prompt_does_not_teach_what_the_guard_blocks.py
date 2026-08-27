@@ -87,3 +87,32 @@ def test_the_double_ampersand_rule_survives():
     """Sensitivity: the new rule must not have replaced the old one — they are different operators and both
     are blocked."""
     assert "`&&`" in _worker_prompt()
+
+
+def test_the_cd_rejection_is_named_too_and_the_false_premise_is_answered():
+    """`cd` blocked is the THIRD most common measured anomaly on the board (9 across two variants,
+    2026-08-28) — and the worker is not being careless. `python -m nucleo.nav_cli` LOOKS like it needs the
+    repo root, so changing into it is a correct inference from what we showed it; the environment already
+    carries the path, and nothing said so.
+
+    The rule («no salgas de tu directorio») was there and still is. What was missing is the same thing that
+    was missing for `&`: the words the worker actually reads when it gets stopped, so it can connect its
+    error to the rule instead of trying another spelling of the same command.
+    """
+    text = _worker_prompt()
+    assert "was blocked" in text and "allowed working directories" in text
+    assert "PARECE pedir que te muevas" in text, "the false premise behind the `cd` is never answered"
+    # And it must answer that premise WITHOUT naming the place, because naming it is what caused the bug in
+    # the first place: `test_y_NINGUNO_afirma_que_el_worker_corre_en_la_raiz_del_repo` forbids the phrase
+    # outright, and a substring scan cannot tell an assertion from its denial. That guard fired on this very
+    # sentence while it was being written, which is exactly what it is for.
+    assert "raíz del repo" not in text
+
+
+def test_and_it_says_there_is_no_way_around_it():
+    """Some rejections are a wrong spelling and some are a closed door. Telling them apart is what stops the
+    worker burning turns on a rewrite that cannot work — the same failure as «si un comando te pide
+    aprobación, lo escribiste mal», applied to the case where it did NOT."""
+    text = _worker_prompt()
+    i = text.find("allowed working directories")
+    assert i > 0 and "no hay rodeo" in text[i:i + 260]

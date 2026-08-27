@@ -534,7 +534,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                             # what zaelar already said BEFORE this line: repeating one heard name back is
                             # choosing, not playing the assistant (V2-300 — 3 of 4 flagged lines were echoes)
                             heard=" ".join((x.get("text") or "") for x in transcript[:i]
-                                           if x.get("who") == "zaelar")))]
+                                           if x.get("who") == "zaelar"),
+                            # …y la APERTURA no recita nada nuestro: `_known` es la hoja del FINAL y esto va
+                            # turno a turno, así que contra la primera línea se comparaba con títulos que
+                            # todavía no existían (V2-427).
+                            opening=(i == 0)))]
     except Exception:  # noqa: BLE001
         flipped = []
     if flipped:

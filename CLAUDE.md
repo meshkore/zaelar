@@ -5112,6 +5112,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La apertura del tester no puede recitar nuestra hoja (V2-427, 2026-08-28)**: lo encontró un TRINQUETE
+  alimentado por el plató 24/7 — `test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos` barre
+  las líneas del tester de todos los informes y exige como mucho tres marcadas, «el umbral sube cuando el
+  corpus crece con otro flip, nunca porque el detector se haya ensanchado». La ronda de `search-buy-camera__us`
+  metió una cuarta y obligó a mirarla: era un FALSO POSITIVO, la línea de apertura del tester («Find me a used
+  DSLR camera with a low shutter count for under $400»). `known_titles` es la hoja del FINAL de la ronda y el
+  barrido va turno a turno, así que contra la primera línea se comparaba con títulos que aún no existían. **En
+  castellano no salía**: el encargo y el anuncio se parecen mucho más cuando los dos están en el idioma del
+  sitio, así que lo destapó el plató US — razón concreta para tener los dos midiendo. Mi primer arreglo puso la
+  frontera en «`heard` vacío» y **el test de al lado lo tumbó**: una línea a media conversación que nombra un
+  título que zaelar NUNCA dijo también llega con `heard` sin él, y ésa sí es un flip — el caso fuerte de la
+  regla. Lo que hace inocente a la apertura no es el silencio, es que todavía no hay nada NUESTRO que se pueda
+  haber leído: parámetro explícito `opening`. Y al desarmarlo falló la otra mitad: el test que barre los
+  informes REIMPLEMENTA el bucle, así que seguía verde con `run.py` roto (25 comprobaciones sobre el defecto
+  restaurado); lo cubre ahora la guarda de cableado. Tres desarmes.
+
+- **El `cd` bloqueado, y la premisa falsa que lo provoca (V2-426, 2026-08-28)**: tercera firma más repetida
+  del recuento de anomalías (9 entre `worker/task` y `memory/memory`): «cd in '…/engine' was blocked. For
+  security, Claude Code may only change directories to the allowed working directories». La regla ya decía
+  «no salgas de tu directorio», y faltaban tres cosas. (1) **El worker no está siendo descuidado**: `python -m
+  nucleo.nav_cli` PARECE necesitar la raíz del repo para que `nucleo` sea importable, así que meterse ahí es
+  una inferencia correcta a partir de lo que le enseñamos — el entorno ya lleva lo que el import necesita y
+  nada se lo decía, y una regla que contradice lo que el propio comando sugiere pierde contra el comando.
+  **Contestar esa premisa no puede hacerse nombrando el sitio**: escribí la frase con el nombre dentro para
+  negarlo y saltó `test_y_NINGUNO_afirma_que_el_worker_corre_en_la_raiz_del_repo`, un guarda que prohíbe esa
+  frase porque es exactamente la que produjo los `cd blocked` medidos en su día — un escaneo de subcadena no
+  distingue afirmar de negar, y hace bien, porque el modelo tampoco a la tercera lectura. (2) El mensaje del
+  rechazo no estaba en la regla, tercera vez esta noche. (3) El prompt cierra con «si un comando te pide
+  aprobación, lo escribiste mal: REESCRÍBELO», y para el `cd` eso es FALSO —no es una forma mal escrita, es un
+  sitio al que no se va— así que seguir ese consejo quema turnos en reescrituras imposibles: ahora se dice que
+  **no hay rodeo**. NO arregla por qué la MEMORIA lanza un `cd` (5 de las 9). Nodo 4.61 ampliado, tres
+  desarmes.
+
 - **El error de payload dice QUÉ falló (V2-425, 2026-08-28)**: contando las ANOMALÍAS MEDIDAS de las 44
   filas del marcador —hechos, no prosa del juez—, `payload JSON inválido` sale **18 veces, más del doble que
   la siguiente firma**, y el mensaje era literalmente eso: ni qué tenía de inválido ni qué se leyó. Un worker
