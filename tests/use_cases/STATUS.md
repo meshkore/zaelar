@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 07:45**
+Last updated: **2026-08-27 08:16**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -23,7 +23,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `cancel-subscription-before-charge__es` | 1 | 3 | 2026-08-21 13:53 | yes | No está listo para producción: el bloqueador nº1 es el éxito falso del turno 2 («Hecho» sin cancelación real), que rompe la confianza en una acción irreversi… |
 | 🔒 | `find-theatre-tickets__es` | 1 | 3 | 2026-08-20 18:28 | yes | El caso no está listo para producción: el bloqueador nº1 es que zaelar ocultó un muro conocido durante un turno y prometió acciones sin respaldo observable, … |
 | ✅ | `quick-fact-opening-hours` | 1 | 4 | 2026-08-21 01:38 | yes | El caso de uso está listo para producción en cuanto a resultado y naturalidad, pero el bloqueador nº1 es el mecanismo: se escaló a un flujo con navegador cua… |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-27 07:25 | yes | NO está listo para producción: el aviso se programó para HOY en lugar del miércoles 2, con el prompt en crudo y duplicado, así que el recordatorio disparará … |
+| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-27 08:06 | yes | No está listo para producción: el aviso quedó programado para hoy en lugar del miércoles 2, así que el recordatorio no cumplirá su función; el bloqueador nº1… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-27 07:20 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no cierra la tarea ni entrega resultados concretos en tiempo útil — el worker se atascó 3+ min… |
 | ❌ | `best-plumber-same-day__es` | 2 | 3 | 2026-08-26 01:29 | yes | El caso funcional pero con lentitud y criterios de selección endiablados; el bloqueador nº1 es que zaelar ignora los 'avisos empujados' del sistema (la mejor… |
@@ -38,10 +38,10 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `kid-friendly-activity-nearby__es` | 2 | 3 | 2026-08-25 12:25 | yes | El caso está funcional (la hoja se llenó y la respuesta final fue útil), pero la eficiencia es inaceptable para producción debido a la reiteración de búsqued… |
 | ❌ | `rental-car-automatic-airport__es` | 2 | 2 | 2026-08-25 10:04 | yes | El caso NO está listo para producción: el flujo de navegación se atasca en interacciones de UI sin extraer datos a la hoja de resultados, resultando en esper… |
 | ❌ | `search-buy-bicycle__es` | 2 | 3 | 2026-08-25 21:25 | yes | El caso está funcional (el mecanismo trajo resultados reales y se mostraron), pero NO está listo para producción como experiencia premium debido a las 'fugas… |
-| ❌ | `search-buy-camera__es` | 2 | 3 | 2026-08-27 07:34 | yes | No está listo para producción: el bloqueador nº1 es la retención de resultados ya disponibles (130 s con el usuario preguntando tres veces), seguido de la en… |
+| ❌ | `search-buy-camera__es` | 2 | 3 | 2026-08-27 08:16 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó un dato decisivo (18.400 disparos) sin respaldo del mecanismo y presentó coches como re… |
 | ❌ | `search-buy-guitar__es` | 2 | 3 | 2026-08-25 21:52 | yes | El caso funciona y encuentra opciones reales, pero no está listo para producción porque la lógica de filtrado incluyó accesorios no deseados como si fueran e… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | 2026-08-25 21:15 | yes | El caso no está listo para producción. El bloqueador principal es la incapacidad del sistema para filtrar ruido estructural (hoteles/recambios) dentro de un … |
-| ❌ | `search-buy-used-car` | 2 | 1 | 2026-08-26 23:29 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ocultó el bloqueo real de coches.net que tenía delante en su prompt y mantuvo al usuario 159 s… |
+| ❌ | `search-buy-used-car` | 2 | 1 | 2026-08-27 08:03 | yes | No está listo para producción: el bloqueador nº1 es que el worker no extrajo ni un solo candidato real del navegador (0 extracciones de 1 navegación), dejand… |
 | ❌ | `search-secondhand-monitor__es` | 2 | 3 | 2026-08-25 21:35 | yes | No está listo. El bloqueador nº1 es la conducta de retención de resultados (zaelar tiene los datos y decide no mostrarlos para mantener una ficción de búsque… |
 | ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | 2026-08-26 12:02 | yes | No está listo para producción: el bloqueador nº1 es que el worker arrastró el objetivo erróneo ('niños', fechas inventadas) incluso después de la corrección … |
 | ❌ | `weekend-barber-availability__es` | 2 | 2 | 2026-08-25 20:51 | yes | El caso falla: el agente prometió reiteradamente una cita con confirmación inminente que nunca existió (agenda vacía, trabajos sin finalizar), ocultando fall… |

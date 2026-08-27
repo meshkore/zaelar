@@ -15,6 +15,13 @@ model mistakes, never a keyword table standing in for understanding)."""
 # (agnósticos del LLM): un login PURO ("conéctame a Wallapop", "inicia sesión en Gmail") no lleva ninguno; "entra
 # en mi Gmail y BÓRRAME los correos" sí → es una TAREA. Sin acentos (se normaliza antes de comparar).
 import re as _re
+import time as _time
+
+# V2-356 — al NIVEL DEL MÓDULO, no dentro de la función: el trinquete de acoplamiento oculto es explícito
+# («más imports dentro de funciones = más ciclos tapados; se arregla EXTRAYENDO, no importando más tarde») y
+# aquí no hay ciclo que tapar — `nucleo.scheduler` no importa nada de `flash`. Los otros seis lazy de este
+# fichero son anteriores y se quedan como estaban: bajar la deuda es del que la toca, no de quien pasa cerca.
+from nucleo import scheduler as _sched
 
 _TASK_VERB_RE = _re.compile(
     r"\b("
@@ -1266,6 +1273,70 @@ _FIRST_PERSON_DUTY_RE = _re.compile(
 _AGENT_IMPERATIVE_RE = _re.compile(
     r"^\s*(avisa|av[ií]same|recu[eé]rda|recuerdame|dime|d[ií]|notif[ií]|remind|tell|notify|let\s+me\s+know)",
     _re.I)
+
+
+def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -> str:
+    """CUÁNDO dispara el aviso que pide la tag del modelo — corregido si dice HOY y la conversación pedía otro día.
+
+    Hermano de `safe_reminder_prompt`, para el otro campo de la misma tag y por el mismo motivo: V2-214 blindó
+    el `prompt` porque «el backstop ya componía la forma segura y la tag del modelo entraba cruda por la otra
+    puerta», y dejó el `schedule` entrando igual de crudo.
+
+    Medido en `remember-and-remind-deadline` (2026-08-27): el operador dijo «el jueves tengo que renovar el
+    seguro… recuérdamelo el miércoles», el prompt del turno llevaba delante la lista fechada de los próximos
+    días —«wednesday 2026-09-02»— y el trabajo salió con `schedule "2026-08-27 08:08"`: **HOY, cinco minutos
+    después de la conversación**, seis días antes del evento. Un aviso que dispara en el turno siguiente no es
+    un recordatorio, es ruido; y un aviso mal fechado no se nota hasta el día que no suena (V2-121).
+
+    Ni el parser ni el backstop fallaron — los dos resuelven «el miércoles» a `2026-09-02 09:00`, comprobado. La
+    fecha la escribió el modelo teniendo la buena delante, y ésta es la casa donde eso se responde con código y
+    no con más prompt: cuando la conducta correcta es determinista, la garantiza el código (V2-305).
+
+    EL CORTE ES ESTRECHO A PROPÓSITO, porque la evidencia es un caso: solo se corrige cuando **las dos** cosas
+    son ciertas — la tag dispara HOY, y el resolvedor determinista tiene una respuesta INEQUÍVOCA que cae otro
+    día. No se toca una fecha futura aunque no coincida con lo que el resolvedor cree: el modelo puede estar
+    entendiendo el encargo mejor que una regla, y `parse_when` ya calla ante lo ambiguo. Lo que no puede ser es
+    «ahora mismo» cuando la persona nombró un día.
+    """
+    spec = (schedule or "").strip()
+    if not spec:
+        return spec
+    try:
+        # Con la RESPUESTA delante manda la posición («lo que va después de "te avisaré"»). Sin ella —la puerta
+        # del proveedor ejecuta la tag mientras aún se está generando— queda el turno del OPERADOR, que es de
+        # todos modos la autoridad: «recuérdamelo el miércoles» lo dijo él.
+        pedido = (promises_a_dated_reminder(reply or "", operator_text or "")
+                  if (reply or "").strip() else _asked_reminder_moment(operator_text or ""))
+        if not pedido:
+            return spec                       # sin una respuesta inequívoca no se corrige nada
+        # NORMALIZAR primero: `scheduler.create` solo entiende las formas de MÁQUINA, así que una expresión
+        # hablada que sí resuelve («el próximo miércoles por la tarde») se traduce aquí — es lo que ya hace la
+        # puerta del worker (`worker_api`, los dos parsers encadenados) y no hacerlo dejaba el aviso sin crear.
+        mio = _sched.parse_schedule(spec)
+        if not mio:
+            _hablado = _sched.parse_when(spec) or ""
+            if _hablado and _sched.parse_schedule(_hablado):
+                spec, mio = _hablado, _sched.parse_schedule(_hablado)
+        suyo = _sched.parse_schedule(pedido)
+        if not suyo:
+            return spec
+        if not mio:
+            # La fecha del modelo NO parsea, o ya pasó (`parse_schedule` rechaza el pasado). Sin corregir no se
+            # crea ningún trabajo y el aviso no existe, así que aquí el resolvedor no compite con nada.
+            return pedido
+        if str(mio.get("type") or "") != "once":
+            # Un RECURRENTE («every 30m», «0 9 * * 3») dispara hoy por naturaleza y eso no es el defecto: aquí
+            # el modelo no ha puesto una fecha, ha puesto una cadencia. Corregirla sería convertir un aviso
+            # semanal en uno solo.
+            return spec
+        hoy = _time.strftime("%Y-%m-%d", _time.localtime())
+        if _time.strftime("%Y-%m-%d", _time.localtime(mio.get("next_run") or 0)) != hoy:
+            return spec                       # no dispara hoy: no es el defecto medido
+        if _time.strftime("%Y-%m-%d", _time.localtime(suyo.get("next_run") or 0)) == hoy:
+            return spec                       # la conversación TAMBIÉN pedía hoy: el modelo tenía razón
+        return pedido
+    except Exception:  # noqa: BLE001
+        return spec
 
 
 def safe_reminder_prompt(prompt: str) -> str:

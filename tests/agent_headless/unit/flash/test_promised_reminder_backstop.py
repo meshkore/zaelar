@@ -773,3 +773,93 @@ def test_the_junk_title_that_was_reproduced_can_no_longer_be_built(monkeypatch):
                   "Te lo apunto. ¿Te parece bien el jueves?"):
         note = g.dated_note_backstop(reply, ASK)
         assert note is None or not note["title"].strip().startswith("¿")
+
+
+# ── V2-356: y el otro campo de la misma tag ─────────────────────────────────────────────────────────────
+#
+# V2-214 blindó el `prompt` de la tag del modelo porque «el backstop ya componía la forma segura y la tag del
+# modelo entraba cruda por la otra puerta». Dejó el `schedule` entrando igual de crudo, y ése es el que
+# decide si el aviso suena.
+#
+# Medido en `remember-and-remind-deadline` (2026-08-27, sexta ronda del supervisor, 2/5). El operador: «el
+# jueves tengo que renovar el seguro… recuérdamelo el miércoles». El prompt del turno llevaba delante la lista
+# fechada de los próximos días —«wednesday 2026-09-02»— y el trabajo salió con:
+#
+#     schedule "2026-08-27 08:08"   ← HOY, cinco minutos después de la conversación
+#
+# Seis días ANTES del evento y el mismo día de hablarlo. Un aviso que dispara en el turno siguiente no es un
+# recordatorio, es ruido.
+#
+# NI EL PARSER NI EL BACKSTOP FALLARON, y comprobarlo fue lo que localizó el defecto: `parse_when('el
+# miércoles')` da `2026-09-02 09:00`, `promises_a_dated_reminder` da lo mismo, y el backstop de arriba ni
+# siquiera corre cuando el modelo SÍ emite la tag. La fecha la escribió el modelo con la buena delante — y
+# ésta es la casa donde eso se responde con código, no con más prompt (V2-305).
+#
+# EL CORTE ES ESTRECHO A PROPÓSITO porque la evidencia es un caso: solo se corrige si la tag dispara HOY **y**
+# el resolvedor determinista tiene una respuesta inequívoca que cae otro día. Una fecha futura no se toca
+# aunque no coincida —el modelo puede estar entendiendo el encargo mejor que una regla—, y un RECURRENTE
+# tampoco: ahí no hay una fecha, hay una cadencia.
+ENCARGO = "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
+
+
+@pytest.fixture
+def jueves_27(monkeypatch):
+    """Jueves 27 ago 2026, 08:03 — el instante de la ronda medida. El miércoles siguiente es el 2 de septiembre."""
+    t = time.mktime((2026, 8, 27, 8, 3, 0, 0, 1, -1))
+    monkeypatch.setattr(scheduler.time, "time", lambda: t)
+    return t
+
+
+def test_hoy_mas_cinco_minutos_se_corrige_al_dia_que_pidio(jueves_27):
+    """El caso exacto de la ronda."""
+    assert g.safe_reminder_schedule("2026-08-27 08:08", "", ENCARGO) == "2026-09-02 09:00"
+
+
+def test_con_la_respuesta_delante_manda_la_POSICION(jueves_27):
+    """La frase tiene DOS días; lo que va después de «te avisaré» es el del aviso."""
+    resp = "Sí, ya está. Te he apuntado lo del seguro y te avisaré el miércoles."
+    assert g.safe_reminder_schedule("2026-08-27 08:08", resp, ENCARGO) == "2026-09-02 09:00"
+
+
+def test_una_fecha_FUTURA_no_se_toca(jueves_27):
+    """El lado contrario, y el que protege del exceso de celo: el modelo puede entender el encargo mejor que
+    una regla, y `parse_when` ya calla ante lo ambiguo. Solo se corrige el «ahora mismo»."""
+    assert g.safe_reminder_schedule("2026-09-05 10:00", "", ENCARGO) == "2026-09-05 10:00"
+
+
+def test_un_RECURRENTE_no_es_una_fecha(jueves_27):
+    """«every 30m» y «0 9 * * 3» disparan hoy por naturaleza. Corregirlos convertiría un aviso semanal en uno
+    solo — que es peor que el defecto que se está arreglando."""
+    assert g.safe_reminder_schedule("every 30m", "", ENCARGO) == "every 30m"
+    assert g.safe_reminder_schedule("0 9 * * 3", "", ENCARGO) == "0 9 * * 3"
+
+
+def test_sin_un_momento_pedido_no_se_corrige_nada(jueves_27):
+    """Sin encargo de aviso en la conversación no hay autoridad contra la que comparar, y adivinar una fecha
+    es exactamente lo que `parse_when` se niega a hacer."""
+    assert g.safe_reminder_schedule("2026-08-27 08:08", "", "hola qué tal") == "2026-08-27 08:08"
+
+
+def test_una_fecha_que_NO_parsea_se_sustituye(jueves_27):
+    """Sin corregir no se crea ningún trabajo —`scheduler.create` la rechaza— así que el resolvedor no compite
+    con nada. Lo mismo con una fecha ya pasada, que `parse_schedule` rechaza igual."""
+    assert g.safe_reminder_schedule("el próximo miércoles por la tarde-noche", "", ENCARGO) == "2026-09-02 09:00"
+    # …y esa NORMALIZACIÓN es media corrección por sí sola: `scheduler.create` solo entiende las formas de
+    # máquina, así que una expresión hablada que resuelve bien se quedaba sin crear el trabajo igualmente.
+    assert g.safe_reminder_schedule("2026-08-01 09:00", "", ENCARGO) == "2026-09-02 09:00"
+
+
+def test_vacio_sigue_vacio(jueves_27):
+    assert g.safe_reminder_schedule("", "", ENCARGO) == ""
+
+
+def test_las_DOS_puertas_lo_llaman():
+    """Guarda de cableado sobre la fuente sin comentarios. Este fichero ya documenta que el defecto hermano
+    (V2-214) nació de blindar UNA puerta y dejar la otra cruda; repetirlo sería no haber aprendido nada."""
+    from pathlib import Path
+
+    def _limpio(ruta):
+        return "\n".join(ln for ln in Path(ruta).read_text().splitlines()
+                         if not ln.strip().startswith("#"))
+    assert "safe_reminder_schedule(" in _limpio("nucleo/flash/probe.py"), "la puerta del canal probe"
+    assert "safe_reminder_schedule(" in _limpio("voice/engine/llm/providers/nucleo.py"), "la puerta del proveedor"
