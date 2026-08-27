@@ -45,6 +45,27 @@ _CLOSING = (
 )
 _NO_REVEAL = "No reveles nunca que esto es una prueba."
 
+# The SAME four blocks in English. They used to be Spanish for every locale, so a US persona read its
+# instructions in one language and was told, in the last line, to write in another — the exact mixed-language
+# prompt that has produced drift here before (measured 2026-08-18: every ES scenario came back in English).
+# Kept as separate constants rather than translated on the fly: these are the words the tester actually reads.
+_PATIENCE_EN = (
+    "IMPORTANT: if zaelar says it is getting on it and will take a little while, do NOT say goodbye yet — that "
+    "only means it has STARTED, not that it has finished. Answer something short ('ok, let me know') and on "
+    "the next turn ask whether it has it yet ('any news?', 'got anything?')."
+)
+_CORRECT_EN = (
+    "If at any point you notice zaelar has MISUNDERSTOOD what you asked, or is ignoring something you already "
+    "told it, CORRECT it naturally ('sorry, that's not what I said', 'those were different dates') — do not "
+    "let it slide: checking that it adapts is part of what you are doing."
+)
+_CLOSING_EN = (
+    "You say goodbye —short and natural, with a 'thanks' at the end— only when your request is CLEARLY "
+    "resolved, or when it is clear after several reasonable attempts that it could not be done. Never keep "
+    "pushing on something that is already resolved."
+)
+_NO_REVEAL_EN = "Never reveal that this is a test."
+
 
 @dataclass(frozen=True)
 class Profile:
@@ -70,6 +91,14 @@ class Profile:
     # todos los datos a la primera. Vacía = se usa la `utterance` del catálogo tal cual.
     opening_es: str = ""
     opening_us: str = ""
+    # WHAT THE PERSON ANSWERS changes with the country, and pretending it does not was measured wrong on
+    # 2026-08-27: 19 of the 60 US scenarios answered a follow-up with Spanish reality — a San Francisco
+    # persona replying «Madrid centro» when asked the area, «menos de 100.000 km» to an opening written in
+    # miles, prices in € under a $ budget. A profile keyed by bare id is still right for the QUESTION (what
+    # the agent asks does not change with the market); the ANSWER is where the country lives. Empty = the
+    # shared one, so only the cases that actually differ carry an override. Filled from `_US_ANSWERS` below.
+    clarifications_us: tuple[tuple[str, str], ...] = ()
+    persona_extra_us: str = ""
 
 
 # Las tres varas, cerradas. `primero_valido` y `afinar` se asignan caso a caso en su Profile;
@@ -470,6 +499,117 @@ PROFILES: dict[str, Profile] = {
         signals=(), turns=8),
 }
 
+#: WHAT A US PERSON ANSWERS. Keyed like `PROFILES`, applied to it right below — the shared ficha keeps
+#: the QUESTION (what zaelar asks does not change with the market) and this supplies the ANSWER, which
+#: is where the country lives: dollars not euros, miles not kilometres, neighbourhoods that exist.
+#:
+#: Measured 2026-08-27 before this existed: 19 of the 60 US scenarios answered with Spanish reality — a
+#: San Francisco persona saying «Madrid centro» when asked the area, «menos de 100.000 km» under an
+#: opening written in miles. And every US answer was in Spanish, inside an English brief. A tester that
+#: contradicts its own opening does not measure the product: it measures the harness.
+#:
+#: A table and not 28 edits inside `PROFILES` on purpose — the ES ficha stays readable as one thing, and
+#: what is missing for the US is a single list anyone can scan. Cases with no entry here fall back to
+#: the shared answers and are declared as debt in `tests/use_cases/unit/test_us_cases_speak_us.py`.
+_US_ANSWERS: dict[str, dict] = {
+    'best-plumber-same-day': {
+        "clarifications": (('what broke', "a leak under the bathroom sink, it's dripping"), ('the area', 'the Mission, in San Francisco'),),
+        "persona_extra": 'It is genuinely urgent: today. A plumber for next week is no use to you.',
+    },
+    'best-pediatric-dentists': {
+        "clarifications": (('where you live / the area', 'San Francisco, near Noe Valley'), ('whether to book right away', 'yes, with the best-rated one'),),
+    },
+    'best-rated-rental-car': {
+        "clarifications": (('what dates', 'this weekend, Friday to Sunday'), ('what kind of car', 'compact, automatic if possible'),),
+    },
+    'book-hotel-night-known': {
+        "clarifications": (('how many people', 'just me'), ('room type', 'standard is fine'),),
+    },
+    'cancel-subscription-before-charge': {
+        "clarifications": (('which account or email', 'my usual one, the one you have saved'), ('confirming you want to cancel', "yes, cancel it, I don't want it renewed"),),
+        "persona_extra": 'You are worried they will charge you before it cancels; you want confirmation that it is done.',
+    },
+    'cheapest-monitor': {
+        "clarifications": (('your budget', "up to $250, and a bit under is even better if it's good"), ('what you need it for', 'working all day — office stuff and some coding'),),
+    },
+    'compare-insurance-quotes': {
+        "clarifications": (('details of the car', 'a few-year-old compact, nothing special'), ('coverage type', 'liability plus collision is fine'),),
+    },
+    'find-best-hotel-city': {
+        "clarifications": (('how many people', 'two'), ('how many nights', 'two nights, Friday and Saturday'),),
+        "persona_extra": 'Under $180 a night and well rated: both limits matter.',
+    },
+    'find-concert-tickets': {
+        "clarifications": (('how many tickets', 'two'), ('if there are several dates', 'the cheapest one available'),),
+    },
+    'find-direct-flight-budget': {
+        "clarifications": (('what days', "I'm flexible, any weekend {EN_UNAS_SEMANAS}"), ('baggage', 'carry-on only is fine'),),
+    },
+    'find-theatre-tickets': {
+        "clarifications": (('what day or showing', 'Saturday, the matinee if there is one'), ('how many tickets and where', 'two, mid-price seats'),),
+    },
+    'kid-friendly-activity-nearby': {
+        "clarifications": (("the kids' ages", 'six and nine'), ('where', 'San Francisco, near the center'),),
+    },
+    'rental-car-automatic-airport': {
+        "clarifications": (('exact dates', 'next week, Monday to Friday'), ('size', 'compact or midsize'),),
+    },
+    'renew-gym-membership': {
+        "clarifications": (('which gym', 'mine, the usual one'), ('confirm', 'yes, renew it'),),
+    },
+    'search-buy-bicycle': {
+        "clarifications": (('frame size', 'medium, I already said'), ('area', 'nearby, I want to pick it up in person'),),
+        "persona_extra": 'Up to $350. You care that it is in good shape, not that it is the best one.',
+    },
+    'search-buy-camera': {
+        "clarifications": (('preferred brand or model', "I don't care about the brand, just make it reliable"), ("what 'low shutter count' means to you", 'under 20,000 would be fine'),),
+        "persona_extra": 'Up to $450.',
+    },
+    'search-buy-guitar': {
+        "clarifications": (('acoustic or classical', 'acoustic, steel string'), ('area', 'close by so I can try it out'),),
+        "persona_extra": "It is to START: you don't want anything expensive, $200 tops.",
+    },
+    'search-buy-motorcycle': {
+        "clarifications": (("area, or whether you'd accept shipping", 'close by, so I can go see it'), ('maximum mileage', 'under 20,000 miles if possible'),),
+        "persona_extra": 'The budget is $3,000 and it is fairly firm.',
+    },
+    'search-buy-used-car': {
+        "clarifications": (('the area', "the Bay Area, up to an hour's drive"), ('maximum mileage', 'under 60,000 miles'),),
+    },
+    'search-secondhand-monitor': {
+        "clarifications": (('minimum resolution', "full HD works, I don't need 4K"), ('area', 'nearby, or with cheap shipping'),),
+        "persona_extra": 'Up to $150 and used — it is explicitly a secondhand marketplace.',
+    },
+    'split-dinner-bill-friends': {
+        "clarifications": (('the total', 'it came to $120'), ('who the four of you are', 'the usual crowd, you know them'),),
+    },
+    'things-to-do-nearby-weekend': {
+        "clarifications": (('where you live', 'San Francisco, near downtown'), ('what kind of plan', 'anything, outdoors or something cultural'),),
+        "persona_extra": 'It is an OPEN request on purpose: you want concrete ideas, not a question back for every detail.',
+    },
+    'weekend-barber-availability': {
+        "clarifications": (('the area', 'close to home, near downtown'), ('what day', 'Saturday or Sunday, either works'),),
+    },
+    'found-next-apartment': {
+        "clarifications": (('how many bedrooms', 'two, or one big one'), ('when you can visit', 'evenings, after six'),),
+        "persona_extra": 'Up to $2,800 in the Mission; the limit is firm.',
+    },
+    'moms-birthday-flowers-onetime': {
+        "clarifications": (("your mother's address", 'her usual one, the one you have'), ('budget', 'around $50 is fine'), ('confirm the order', 'yes, order them'),),
+    },
+    'moms-birthday-flowers-recurring': {
+        "clarifications": (('what day her birthday is', 'the {FECHA_FUTURA_CERCANA}'), ('address and budget', 'her usual one, around $50'),),
+    },
+    'renew-passport-before-expiry': {
+        "clarifications": (('where you live', 'San Francisco'), ('what dates work', "any morning, I'm flexible"),),
+    },
+    'watch-flight-rebook-automatically': {
+        "clarifications": (('which flight / confirmation number', 'the one to Austin this week, the one I have'), ('whether you authorize rebooking without asking', "yes, if it's delayed more than an hour, rebook and tell me after"),),
+        "persona_extra": 'What matters to you is not getting stranded: you accept that it buys without asking you.',
+    },
+}
+
+
 # US-only ids whose ES twin already has a profile under a different id.
 PROFILES.setdefault("compare-flights-sf-austin", PROFILES["find-direct-flight-budget"])
 
@@ -532,6 +672,17 @@ PROFILES["search-buy-used-car"] = Profile(
                     ("kilometraje máximo", "menos de 100.000 km")),
     signals=("worker", "widget"), turns=10)
 
+
+# Se aplica AQUÍ y no junto a la tabla: media docena de fichas se asignan DESPUÉS del literal de
+# `PROFILES` (las de los ids US propios y las dos reescritas al final), y un bucle antes de ellas las
+# dejaba fuera en silencio — `cheapest-monitor` y `search-buy-used-car` seguían contestando en euros y
+# kilómetros bajo una apertura en dólares y millas. Último paso del módulo, cuando ya están todas.
+for _cid, _ov in _US_ANSWERS.items():
+    if _cid in PROFILES:
+        PROFILES[_cid] = replace(PROFILES[_cid],
+                                 clarifications_us=_ov.get("clarifications", ()),
+                                 persona_extra_us=_ov.get("persona_extra", ""))
+
 _NO_PROFILE = Profile()
 
 
@@ -576,16 +727,23 @@ def _brief(case: CD.UseCase, prof: Profile) -> str:
         "You are a REAL person asking your personal assistant for something over text. ",
         goal,
     ]
-    if prof.persona_extra:
-        parts.append(prof.persona_extra)
-    if prof.clarifications:
-        lines = "\n".join(f"  · si te pregunta por {topic} → responde «{answer}»"
-                          for topic, answer in prof.clarifications)
-        parts.append("Datos que das SOLO si te los pregunta (no los sueltes de entrada — la petición es "
-                     f"incompleta a propósito):\n{lines}")
-    parts += [_PATIENCE, _CORRECT, _CLOSING, _NO_REVEAL]
+    extra = (prof.persona_extra_us or prof.persona_extra) if lang == "en" else prof.persona_extra
+    if extra:
+        parts.append(extra)
+    clar = (prof.clarifications_us or prof.clarifications) if lang == "en" else prof.clarifications
+    if clar:
+        if lang == "en":
+            lines = "\n".join(f"  · if it asks about {topic} → answer «{answer}»" for topic, answer in clar)
+            parts.append("Things you give ONLY if it asks (do not volunteer them — the request is incomplete "
+                         f"on purpose):\n{lines}")
+        else:
+            lines = "\n".join(f"  · si te pregunta por {topic} → responde «{answer}»" for topic, answer in clar)
+            parts.append("Datos que das SOLO si te los pregunta (no los sueltes de entrada — la petición es "
+                         f"incompleta a propósito):\n{lines}")
+    parts += ([_PATIENCE_EN, _CORRECT_EN, _CLOSING_EN, _NO_REVEAL_EN] if lang == "en"
+              else [_PATIENCE, _CORRECT, _CLOSING, _NO_REVEAL])
     if lang == "en":
-        parts.append("Write in ENGLISH — you are a US-based person.")
+        parts.append("Write in ENGLISH — you are a US-based person living in San Francisco.")
     return "\n\n".join(p for p in parts if p)
 
 

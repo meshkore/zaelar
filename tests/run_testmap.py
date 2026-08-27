@@ -1897,6 +1897,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
         # 2026-08-27 — visto en el log del propio plató: `ClaudeCodeSession start (model=default)` mientras el
         # operador y cada Machine de la nube corren un modelo con nombre. La siembra copiaba `fast` y nada más.
+        # 2026-08-27 — antes de medir nada en inglés: 19 de los 60 escenarios US contestaban con realidad
+        # ESPAÑOLA (una persona de San Francisco diciendo «Madrid centro», kilómetros bajo una apertura en
+        # millas) y los 60 leían sus instrucciones en castellano dentro de un brief inglés. Un tester que se
+        # contradice a sí mismo no mide el producto: mide el arnés.
+        {"id": "10.102", "title": "Una persona de San Francisco no vive en Madrid — realidad y andamiaje por "
+                                 "locale, con la deuda declarada y a la baja",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_us_cases_speak_us.py"]},
         {"id": "10.101", "title": "El plató mide el Brain Worker que corre la NUBE — la siembra lleva también "
                                  "`code_agent` (sin la clave)",
             "ch": UNIT,
