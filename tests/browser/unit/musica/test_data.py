@@ -65,3 +65,25 @@ def test_control_routes_to_music_facade(monkeypatch):
 
 def test_unknown_action():
     assert md.apply_action("frobnicate", {})["ok"] is False
+
+
+def test_favorite_current_no_lleva_nombre_de_demo_y_no_abre_un_segundo_linaje(monkeypatch):
+    """V2-366 repaso: la lista de favoritos era «Favoritos de Manolo» HARDCODEADO para cualquier operador
+    (resto de demo). Ahora es «Favoritos» a secas — y en una instalación que YA tiene la lista vieja, el
+    favorito cae AHÍ (match por contención de _find_playlist): renombrar el destino sin migrar dejaría DOS
+    linajes vivos, la trampa medida en V2-242."""
+    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "A", "album": "",
+                                                          "art": "", "query": "Song"})
+    r = md.apply_action("favorite_current", {})
+    assert r["ok"] is True
+    db = md._load_db()
+    assert [pl["name"] for pl in db["playlists"]] == ["Favoritos"]
+
+    # installation that already carries the old demo-named list: NO second favorites list appears
+    import widgets.store as store
+    store.save("musica", {"playlists": [{"id": "favoritos-de-manolo", "name": "Favoritos de Manolo",
+                                         "art": "", "tracks": []}]})
+    r = md.apply_action("favorite_current", {})
+    assert r["ok"] is True and r["playlist"] == "favoritos-de-manolo"
+    names = [pl["name"] for pl in md._load_db()["playlists"]]
+    assert names == ["Favoritos de Manolo"]

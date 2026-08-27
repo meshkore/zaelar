@@ -330,7 +330,10 @@ def apply_action(action: str, payload: dict = None) -> dict:
         cur = _current_track(db)
         if not cur:
             return {"ok": False, "error": "nothing_playing"}
-        fav_name = "Favoritos de Manolo"
+        # Plain "Favoritos": the old hardcoded "Favoritos de Manolo" was a demo leftover shipped to every
+        # operator. No dual lineage on upgrade: _find_playlist matches by containment, so an existing
+        # "Favoritos de Manolo" list keeps receiving the favorites under its old name.
+        fav_name = "Favoritos"
         pl = _find_playlist(db, fav_name)
         if pl is None:
             pid = _slug(fav_name)
