@@ -312,9 +312,42 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     """SAME mutation path as POST /widgets/{id}/action (off-loop, bounded pool, hard timeout) — the in-process
     call used by the brain-side [[widget.data:ID]] tag (widgets/__init__.py:dispatch_tag), so Hermes can change
     a widget's OWN stored data with the exact contract its UI buttons already use. No HTTP round-trip: same
-    process, same isolation guarantees. Never raises — degrades to {"error": …}."""
-    res = await _dispatch(_safe(wid), action, payload or {})
-    return {"error": "no data module"} if res is _MISSING else res
+    process, same isolation guarantees. Never raises — degrades to {"error": …}.
+
+    V2-390 — NAMES THE ACTION, like the UI route above already did. The operator's own clicks emitted
+    `widget/action` with the action in it; the BRAIN's ops emitted only the anonymous `widget/data` that
+    `store.save` fires, so from outside every brain-driven op looked the same. Measured on
+    `play-music-and-build-playlist` (2026-08-27 13:29): the music was really playing (`yt.videoId` set,
+    `paused: false`) and the list «Curro» really existed, and the round scored **1/5 for "alucinación de
+    éxito"** — the judge wrote that the mechanism proves neither happened, citing "solo operaciones genéricas
+    de datos". It could not tell `add_to_playlist` from `set_volume`, so it read the ops as nothing.
+
+    An op that FAILED gets its own event instead of being folded into the same line: a refusal the widget
+    reported (`nothing_playing`) and a change that went through are opposite facts, and collapsing them is how
+    «Hecho.» keeps surviving. Same reading as V2-346 — a datum that names them all names none of them.
+    """
+    wid = _safe(wid)
+    try:
+        from voice.observer import emit as _emit
+        from widgets import provenance as _prov
+        _emit("widget", "action", extra={"id": wid, "action": str(action), "src": _prov.who(wid)})
+    except Exception:
+        pass
+    res = await _dispatch(wid, action, payload or {})
+    res = {"error": "no data module"} if res is _MISSING else res
+    try:
+        if isinstance(res, dict) and (res.get("error") or res.get("ok") is False):
+            from voice.observer import emit as _emit2
+            # `is_error` va DENTRO de `extra`: `emit` no lo acepta como kwarg y los extras se aplanan al
+            # evento. Con el kwarg suelto salta un TypeError que este mismo `except` se traga, así que el
+            # evento de fallo no se emitiría NUNCA y nadie se enteraría — el defecto que estoy cerrando,
+            # cometido al cerrarlo.
+            _emit2("widget", "action_failed", text=str(res.get("message") or res.get("error") or "")[:160],
+                   extra={"id": wid, "action": str(action), "error": str(res.get("error") or ""),
+                          "is_error": True})
+    except Exception:
+        pass
+    return res
 
 
 @router.delete("/widgets/{wid}")

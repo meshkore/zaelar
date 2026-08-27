@@ -279,6 +279,16 @@ def widget_ops(all_events: list[dict]) -> dict:
         raw = str((f.get("id") if f.get("id") is not None else e.get("id")) or "")
         name = raw.split("::", 1)[0] or "(sin id)"
         label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "?")
+        # V2-390 — una data-op del CEREBRO ya viene con NOMBRE (`widget/action`), así que se cuenta por su
+        # nombre y no por la etiqueta. Contarla como «action» deja el informe diciendo `musica: {action: 2}`,
+        # que es tanto como no decir nada: el juez de las 13:29 leyó exactamente eso —«solo operaciones
+        # genéricas de datos»— y puntuó 1/5 «alucinación de éxito» sobre una ronda donde la música SONABA y la
+        # lista EXISTÍA. Un fallo se cuenta aparte (`…✗`): que el widget se negara y que el cambio entrara son
+        # hechos opuestos, y juntarlos es como sobrevive un «Hecho.» que no es verdad.
+        if label in ("action", "action_failed"):
+            acto = str((f.get("action") if f.get("action") is not None else e.get("action")) or "")
+            # Sin nombre se DICE que no lo hay, en vez de dejarlo pasar como una op cualquiera (V2-127/133).
+            label = (acto or "(op sin nombre)") + ("✗" if label == "action_failed" else "")
         ops.setdefault(name, {})
         ops[name][label] = ops[name].get(label, 0) + 1
     return ops

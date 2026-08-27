@@ -1636,6 +1636,12 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-390 — la ruta de la UI ya nombraba la data-op; la del CEREBRO no, así que `add_to_playlist` y
+        # `set_volume` eran el mismo evento. Con la música SONANDO y la lista «Curro» EXISTIENDO, el veredicto
+        # fue 1/5 «alucinación de éxito» citando «solo operaciones genéricas de datos».
+        {"id": "10.93", "title": "Una data-op del CEREBRO tiene nombre · y la que el widget rechaza se ve aparte",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_una_dataop_del_cerebro_tiene_NOMBRE.py"]},
         # V2-389 — el guarda de plató rancio se niega a medir (bien) y después nadie reinicia nada: cada
         # ronda siguiente vuelve a negarse en ~45 s. El bucle parece vivo y no mide NADA.
         {"id": "10.92", "title": "Un plató rancio no se come la ronda: se reinicia y se repite, UNA vez",
