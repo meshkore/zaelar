@@ -15,7 +15,7 @@ import unicodedata
 import re
 import time
 
-from . import probe_client
+from . import config, probe_client
 
 
 def families_in(events: list[dict]) -> set[str]:

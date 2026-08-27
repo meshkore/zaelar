@@ -1629,6 +1629,12 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-381 — `verify.py` usaba `config` sin importarlo, así que `worker_bridges()` no ha corrido JAMÁS y
+        # todo lo que venía detrás se saltaba en silencio. 49 informes lo llevaban dentro, bajo un campo
+        # llamado `worker_outcome_error` que el juez citó como prueba de que el producto había fallado.
+        {"id": "10.90", "title": "Una avería del ARNÉS no es un fallo del producto (ni se llama como si lo fuera)",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_broken_instrument_is_not_a_broken_product.py"]},
         {"id": "10.89", "title": "Una búsqueda que llega con la conversación cerrada no es un fallo de entrega",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_search_that_lands_after_the_talk_is_not_a_delivery_defect.py"]},

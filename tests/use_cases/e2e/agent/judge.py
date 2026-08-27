@@ -511,6 +511,15 @@ def mechanism_facts(mech: dict) -> str:
                      + (f"; {len(quick)} duraron menos de 2 s." if quick else ".") +
                      f" Si el encargo se quedó sin resultados, la causa es ÉSTA y no que zaelar no supiera "
                      f"buscar: puntúa MECANISMO bajo y no le cuentes el fallo como falta de criterio.")
+    # V2-381 — una avería del ARNÉS no es un hecho del producto. Este campo se llamaba `worker_outcome_error`
+    # y el juez lo citaba como prueba: «el error interno bloqueó toda ejecución». 49 informes lo llevaban.
+    _hz = mech.get("harness_report_error") or {}
+    if _hz:
+        _perd = ", ".join(_hz.get("secciones_perdidas") or []) or "(ninguna)"
+        lines.append(f"· ⚠️ EL ARNÉS se averió componiendo este informe ({str(_hz.get('error'))[:100]}). NO es "
+                     f"un fallo del producto ni de zaelar y NO se puntúa: el producto corrió, se rompió el "
+                     f"instrumento midiéndolo. Secciones que faltan por eso: {_perd} — su ausencia no prueba "
+                     f"nada.")
     sr = mech.get("search_returns") or {}
     # V2-378 — una vuelta que llega con la conversación YA CERRADA no se le pudo empujar a nadie, así que no
     # prueba un fallo de entrega. Medido en `compare-insurance-quotes__es` (2026-08-27): las ocho llegaron

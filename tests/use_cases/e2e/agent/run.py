@@ -412,7 +412,24 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».
             mech["resets_during_round"] = verifymod.resets_during_round(config.SANDBOX_DB, since=started_at)
         except Exception as e:
-            mech["worker_outcome_error"] = str(e)[:200]
+            # V2-381 — EL NOMBRE DEL CAMPO ERA LA MITAD DEL DAÑO. Se llamaba `worker_outcome_error`, que se
+            # lee como «el worker falló», y lo que guarda es una avería de ESTE bloque componiendo el informe.
+            # Medido: 49 informes lo llevaban con «name 'config' is not defined» —`verify.py` usaba `config`
+            # sin importarlo— y el juez lo citó como prueba del producto: «el error interno bloqueó toda
+            # ejecución», «el código falló antes de poder actuar». Ninguna de las dos era cierta: el producto
+            # corrió; se rompió el INSTRUMENTO mientras lo medía.
+            #
+            # Y se dice QUÉ se perdió, porque este `except` se come todo lo que venga detrás: un informe al
+            # que le faltan secciones es indistinguible de uno que las midió y salieron vacías.
+            _hechas = [k for k in ("worker_bridges", "delivered_by_name", "delivery_completeness",
+                                   "resets_during_round") if k in mech]
+            mech["harness_report_error"] = {
+                "error": str(e)[:200],
+                "es_del_arnes": True,
+                "secciones_perdidas": [k for k in ("worker_bridges", "delivered_by_name",
+                                                   "delivery_completeness", "resets_during_round")
+                                       if k not in _hechas],
+            }
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
         # WHICH backend served the recalls. `hash`/`fastembed` means semantic recall was off for the
         # whole round — a confound on every memory-dependent case, and one that fails QUIET: it looks
