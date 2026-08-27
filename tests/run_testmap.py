@@ -1109,7 +1109,12 @@ DOMAINS: list[dict] = [
                       # «candidatos» en `weekend-adventure-sports-bilbao__es` que eran una comparativa, una
                       # noticia y dos portadas. V2-320 sigue en pie (la hoja no puede quedarse vacía cuando
                       # el encargo se resuelve buscando); lo que faltaba es que la fila diga lo que es.
-                      "tests/browser/unit/navegador/test_a_search_return_is_a_lead_not_a_candidate.py"]},
+                      "tests/browser/unit/navegador/test_a_search_return_is_a_lead_not_a_candidate.py",
+                      # V2-377 — y un hallazgo SIN encargo no es del encargo de ahora. En
+                      # `best-plumber-same-day__es` llegaron un Audi y un SEAT etiquetados «trabajando en la
+                      # tarea del navegador» mientras el operador pedía un fontanero: eran de la búsqueda de
+                      # coches anterior, con su pestaña aún viva sobre autoscout24.
+                      "tests/browser/unit/navegador/test_a_finding_without_an_errand_is_not_yours.py"]},
         # V2-295 — el mismo corte una capa más adentro. Las cuatro filas de cabeza llevaban NOMBRE, así que
         # `by_identity` las dejaba pasar, pero ninguna llevaba precio: lo que se le ofreció a quien pidió «un
         # monitor de 27 pulgadas por menos de 150 €» fueron «Monitores», «Monitor SAMSUNG» y «Monitor de Hípica»

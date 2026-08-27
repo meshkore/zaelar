@@ -496,7 +496,19 @@ def _hand_over(task_id: str, items: list) -> None:
                          source_url=str((_t.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass
-        goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]
+        # V2-377 — un hallazgo SIN ENCARGO no puede presentarse como si fuera del que se está atendiendo.
+        # Medido en `best-plumber-same-day__es` (2026-08-27, 2/5): mientras el operador pedía un fontanero de
+        # urgencias, llegaron por esta puerta notas que decían «El navegador ha SACADO esto de la página,
+        # trabajando en «la tarea del navegador»: Audi A3 2004 — 1500 €» y, más tarde, un SEAT León. Eran de
+        # la búsqueda de coches ANTERIOR, cuya pestaña seguía viva sobre autoscout24. El turno los ofreció
+        # como fontaneros DOS veces —«Perdona, yo no he pedido coches ni de coña jajaja»— y el juez lo archivó
+        # como que zaelar ignoraba el prompt. No lo ignoraba: le dimos coches etiquetados como hallazgos.
+        #
+        # «La tarea del navegador» se lee como LA tarea, o sea la de ahora, y ahí está el daño: un relleno
+        # nuestro afirmando una pertenencia que nadie comprobó. Es la tercera vez en la tanda que una frase
+        # enlatada nuestra es la que miente (V2-176 «Hecho.», V2-209 «Aquí lo tienes»).
+        goal = str((_t.get(task_id) or {}).get("goal") or "").strip()[:70]
+        _sin_encargo = not goal
 
         def _one(i: dict) -> str:
             # V2-240 — el TELÉFONO viaja con la fila. Extraerlo y dejarlo caer aquí sería el defecto de V2-236 otra
@@ -527,7 +539,16 @@ def _hand_over(task_id: str, items: list) -> None:
                      hollow=len(hollow), kept=len(priced), offered=len(head))
         except Exception:  # noqa: BLE001
             pass
-        if named:
+        if _sin_encargo:
+            # Se dice el HECHO y se nombra el hueco (V2-127/V2-133), en vez de rellenarlo con una etiqueta que
+            # suena a «lo tuyo». No se calla: el hallazgo puede ser justo lo que el operador pidió hace un rato,
+            # y tirarlo sería V2-223 otra vez.
+            body = (f"Una pestaña del navegador ha sacado esto: {listing}{tail}. OJO: esa pestaña NO dice a qué "
+                    f"encargo pertenece, así que puede ser de una búsqueda ANTERIOR y no de lo que el operador "
+                    f"te está pidiendo ahora. NO se lo ofrezcas como resultado de lo que ha pedido. Si encaja "
+                    f"con algo que pidió antes, nómbralo diciendo de dónde sale; si no encaja con nada, "
+                    f"cállatelo y sigue con lo suyo.")
+        elif named:
             body = (f"El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}{tail}. Nadie "
                     f"más lo sabe: no está en la conversación hasta que tú lo digas, así que NO puedes decir "
                     f"que no hay resultados ni que sigues buscando sin más. NÓMBRALO EN ESTE TURNO y, en la "
