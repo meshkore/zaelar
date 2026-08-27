@@ -587,6 +587,10 @@ _US_ANSWERS: dict[str, dict] = {
         "clarifications": (('where you live', 'San Francisco, near downtown'), ('what kind of plan', 'anything, outdoors or something cultural'),),
         "persona_extra": 'It is an OPEN request on purpose: you want concrete ideas, not a question back for every detail.',
     },
+    'compare-phone-plans': {
+        "clarifications": (('what you pay now', 'about $70 a month, two lines'),
+                           ('what you need', 'unlimited data would be nice, and two lines')),
+    },
     'weekend-barber-availability': {
         "clarifications": (('the area', 'close to home, near downtown'), ('what day', 'Saturday or Sunday, either works'),),
     },

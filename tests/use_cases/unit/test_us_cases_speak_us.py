@@ -50,7 +50,7 @@ def test_and_reads_its_instructions_in_its_own_language():
 #: This list may only SHRINK — write the case's answers into `_US_ANSWERS` and delete its line here.
 _SHARED_ANSWERS_DEBT = {
     "archive-newsletters", "book-barber-slot", "buy-known-product", "cancel-trial-before-it-charges",
-    "clean-and-reply-inbox", "compare-flights-sf-austin", "compare-phone-plans", "confirm-restaurant-together",
+    "clean-and-reply-inbox", "compare-flights-sf-austin", "confirm-restaurant-together",
     "coordinate-dinner-with-alex", "file-expense-report", "grocery-restock-reactive",
     "gym-membership-no-silent-renew", "house-search-los-angeles", "negotiate-lower-phone-bill", "pay-known-bill",
     "plan-joint-trip-with-friend", "rebook-delayed-flight-now", "reorder-prescription", "resolve-meetup-conflict",
