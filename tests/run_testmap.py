@@ -550,6 +550,15 @@ DOMAINS: list[dict] = [
         # 2026-08-27, medido en el plató: el 402 de las 18:55 castigó al titular SEIS HORAS, el operador recargó
         # a las 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se cayó a su vez, el cerebro
         # se quedó MUDO con el titular sano una fila más arriba — y no había forma de decirle que ya había saldo.
+        # 2026-08-27, medido en vivo con las consultas de los casos US: 4 de 6 volvieron vacías porque DDG
+        # servía un desafío anti-bot como HTTP 202 (un estado de ÉXITO). Ni el clasificador —que buscaba las
+        # palabras que usaríamos nosotros, no las de la página— ni la fila del buscador —que llevaba `n: 0` y
+        # nada más— lo decían, así que el arnés declaraba sana una capa de búsqueda muerta y el juez calificaba
+        # al agente por no encontrar lo que nadie nos dejó mirar.
+        {"id": "4.63", "title": "Que nos BLOQUEEN no es que el mundo esté vacío — el motor lo dice y el arnés "
+                                "lee el campo, no la prosa",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_blocked_search_is_not_an_empty_world.py"]},
         {"id": "4.62", "title": "Una recarga es INVISIBLE desde aquí, así que se vuelve a probar — libertad "
                                 "condicional al saldo agotado, en las DOS cadenas",
             "ch": UNIT,

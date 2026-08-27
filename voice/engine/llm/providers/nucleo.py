@@ -2662,8 +2662,8 @@ class NucleoLLMStream(llm.LLMStream):
             # se podía auditar que el sistema BUSCÓ, nunca si respondió con lo que traía: la fila decía «7
             # resultados» y el contenido que el modelo leyó se perdía para siempre. Presupuestada en
             # `observability.evidence` (se recorta, no se resume) y best-effort: si falla, el evento sale igual.
-            _ev = {"source": res.get("source"), "ai": bool(res.get("ai")),
-                   "n": len(res.get("results", [])), "ms": round((time.time() - _t_s) * 1000)}
+            _ev = {"source": res.get("source"), "ai": bool(res.get("ai")), "ms": round((time.time() - _t_s) * 1000),
+                   "n": len(res.get("results", [])), **({"failure": res["failure"]} if res.get("failure") else {})}
             try:
                 from observability import evidence as _evd
                 _ev["evidence"] = _evd.web_results(res.get("results"))

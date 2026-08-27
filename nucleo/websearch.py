@@ -105,7 +105,12 @@ _last_failure: dict = {}
 
 _FAIL_KINDS = (
     ("quota", ("limit exhausted", "quota", "rate limit", "429", "too many requests", "insufficient")),
-    ("captcha", ("captcha", "unusual traffic", "/sorry/", "are you a robot", "recaptcha", "access denied")),
+    # The needles have to be the words the CHALLENGE PAGE actually uses, not the words we would use to
+    # describe it. Measured 2026-08-27 against a live DuckDuckGo block: the page says «Unfortunately, bots use
+    # DuckDuckGo too… Select all squares containing a duck» and the string "captcha" appears NOWHERE in it, so
+    # a list built out of plausible names classified a hard block as a generic "error".
+    ("captcha", ("captcha", "unusual traffic", "/sorry/", "are you a robot", "recaptcha", "access denied",
+                 "made by a human", "squares containing", "bots use duckduckgo")),
     ("credential", ("api key", "unauthorized", "401", "403", "forbidden", "invalid key")),
     ("network", ("timeout", "timed out", "connection", "dns", "unreachable", "ssl")),
 )
@@ -179,8 +184,14 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
             _why.append(f"{src}: {_brief(e, 120)}")
     # THE CHAIN COLLAPSED. Recorded, not just logged — see `note_failure`. An empty result on its own cannot tell
     # the brain whether the world has nothing or our searching is broken, and those two deserve opposite replies.
-    note_failure(" · ".join(_why))
-    return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
+    detail = " · ".join(_why)
+    note_failure(detail)
+    # THE REASON TRAVELS WITH THE RESULT. `note_failure` lights the operator's semaphore, but the observability
+    # row for this search carried only `n: 0` — no word anywhere about why — so anything reading the stream
+    # afterwards (the use-case harness's `search_health`, the operator auditing a round) could not tell a hard
+    # block from an empty world, and graded the agent for not finding what nobody let us look for.
+    return {"query": q, "answer": "", "results": [], "source": "none", "ai": False,
+            "failure": {"kind": _classify_failure(detail), "detail": detail[:200]}}
 
 
 # Los de PAGO, por nombre de backend. `google` (nuestro Chromium) y `ddg` NO están y por eso no se
@@ -304,14 +315,36 @@ def _accept_language() -> str:
         return "es-ES,es;q=0.9,en;q=0.8"
     return f"{code}-US,{code};q=0.9" if code == "en" else f"{code},{code};q=0.9,en;q=0.8"
 
+_CHALLENGE = ("made by a human", "squares containing", "bots use duckduckgo", "captcha",
+              "unusual traffic", "are you a robot")
+
+
+def _challenge_reason(body: str) -> str:
+    """Non-empty when the page we were served is a bot CHALLENGE rather than a result list.
+
+    It exists because the block does not arrive as an error. Measured 2026-08-27: a blocked DuckDuckGo answers
+    **HTTP 202** with a challenge page, and 202 is a success status — `raise_for_status()` waves it through,
+    the link regex finds nothing, and the caller gets `results: []`. "We were blocked" and "the world has
+    nothing" then look identical, which are opposite facts deserving opposite replies (the same reason
+    `note_failure` exists at all). `browser_search._looks_blocked` already does this for Google; DDG, the last
+    rung of the chain and the one that runs when everything else is missing, had nothing.
+    """
+    low = (body or "")[:4000].lower()
+    hit = next((n for n in _CHALLENGE if n in low), "")
+    return f"captcha: DuckDuckGo sirvió un desafío anti-bot («{hit}»)" if hit else ""
+
+
 def _ddg(q: str, k: int) -> dict:
     import httpx
     answer = _ddg_instant(q)
     with httpx.Client(timeout=_TIMEOUT, follow_redirects=True) as c:
         resp = c.post("https://html.duckduckgo.com/html/", data={"q": q},
                       headers={"User-Agent": _UA, "Accept-Language": _accept_language()})
-        resp.raise_for_status()
+        resp.raise_for_status()      # NOT enough on its own: a block comes back as 202, a success status
         body = resp.text
+    blocked = _challenge_reason(body)
+    if blocked:
+        raise RuntimeError(blocked)      # so the chain's reason string SAYS it instead of "sin resultados"
     links = _LINK_RE.findall(body)
     snippets = _SNIPPET_RE.findall(body)
     results = []

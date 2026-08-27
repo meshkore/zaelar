@@ -5112,6 +5112,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Que nos BLOQUEEN no es que el mundo esté vacío (V2-414, 2026-08-27)**: los dos hechos llegaban idénticos
+  —`results: []`— y merecen respuestas opuestas. Medido en vivo con las consultas de los propios casos US: **4
+  de 6 volvieron vacías porque DuckDuckGo servía un desafío anti-bot**, y nada lo decía. Tres capas mudas a la
+  vez: (1) el bloqueo llega como **HTTP 202**, un estado de ÉXITO, así que `raise_for_status()` lo deja pasar;
+  (2) el clasificador buscaba las palabras que usaríamos NOSOTROS (`captcha`, `unusual traffic`) y la página
+  real dice «bots use DuckDuckGo too… Select all squares containing a duck», sin la palabra «captcha» en
+  ningún sitio, así que un bloqueo duro salía como `error`; (3) la fila `search` llevaba `n: 0` y la consulta y
+  **ni una palabra del porqué**, así que `search_health` —que existe justo para cazar este confundido— rascaba
+  una prosa inexistente y declaraba sana una capa muerta. `browser_search._looks_blocked` ya hacía esto para
+  Google; el escalón de DDG, el único que hay en un self-host sin navegador, no tenía nada. Ahora el motivo
+  viaja **encima del resultado** (`failure: {kind, detail}`) y el arnés lee **el campo primero**, la prosa
+  después (la vía vieja se conserva: el `WebSearch` del worker sí escribe su motivo en palabras). Comprobado contra la
+  evidencia antes de atribuirle nada: las rojas de la tanda US de anoche **NO** son esto — en el plató Google
+  va primero y funcionó (el juez de `search-buy-used-car__us` anota «la búsqueda web, que funcionaba, 2
+  consultas», con 21 candidatos en la hoja); aquel fallo era de ENTREGA. El 4-de-6 se midió en un proceso sin
+  navegador, que es la forma de un self-host sin Chromium — para quien esto importa de verdad. Nodo 4.63, cinco desarmes —uno de ellos NO mordía hasta añadir dos tests de la fontanería real:
+  todos los demás inyectaban el fallo por arriba y se podía borrar el reconocimiento entero con 8 verdes.
+  **No arregla que nos bloqueen**: lo hace visible, no lo evita.
+
 - **Una recarga es INVISIBLE desde el motor, así que se vuelve a probar (V2-413, 2026-08-27)**: seis horas
   mudo con un proveedor sano una fila más arriba. Medido: el `402 Insufficient Balance` de las 18:55 castigó
   los dos escalones directos **6 h**, el operador recargó a las 19:40, y el motor no tenía forma de aprender

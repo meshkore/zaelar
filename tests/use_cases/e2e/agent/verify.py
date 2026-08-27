@@ -199,6 +199,20 @@ def search_health(all_events: list[dict]) -> dict:
     searches = [e for e in all_events if (e.get("kind") or "") == "search"]
     reasons: dict[str, int] = {}
     for ev in searches:
+        f = _fields(ev)
+        # THE FIELD FIRST, the prose second. The needles below can only find a dead search layer when some
+        # component happens to have written the reason into a SENTENCE — which the engine's own `search` row
+        # never did: it carried `n: 0` and the query, and nothing else. Measured 2026-08-27: DuckDuckGo was
+        # answering a bot challenge as HTTP 202 for every query, and this function reported a perfectly
+        # healthy search layer, so a round where nobody let us look anything up was graded as a product that
+        # would not look anything up. `websearch.search` now returns the reason and the engine puts it on the
+        # row; reading it beats guessing at wording (see MEMORY: medir contra la forma REAL del dato).
+        fail = f.get("failure") if isinstance(f.get("failure"), dict) else None
+        if fail:
+            kind = {"captcha": "blocked", "quota": "quota_exhausted"}.get(str(fail.get("kind") or ""),
+                                                                          "unavailable")
+            reasons[kind] = reasons.get(kind, 0) + 1
+            continue
         low = ((ev.get("text") or "") + " " + (ev.get("label") or "")).lower()
         for reason, needles in _SEARCH_DEAD:
             if any(n in low for n in needles):
