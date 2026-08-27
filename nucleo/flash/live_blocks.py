@@ -57,6 +57,49 @@ def _found_candidates(nav_task_id: str) -> bool:
     return _sheet_has_rows(nav_task_id)
 
 
+# V2-358 — un paso que el WORKER escribe sobre la PANTALLA es una afirmación suya, no un hecho nuestro.
+#
+# Medido en `search-buy-used-car` (2026-08-27 08:03, 1/5). A los 60,9 s el anillo de Proceso pintó, sin marca
+# ninguna y junto a líneas verificadas como «9 resultados en la página»:
+#
+#     Preparando entrega: 10 propuestas en la hoja de resultados
+#
+# La hoja terminó la ronda con **0 filas**. El operador lee esa línea, mira su hoja vacía y las dos cosas no
+# pueden ser verdad — y la que se cree es la que está escrita con letra de sistema.
+#
+# Es la misma enfermedad que V2-357 (inventar candidatos) una capa más abajo, y la misma respuesta que dio
+# V2-345: **no se tira, se MARCA**. El worker AFIRMA cosas —esta casa ya pagó que una afirmación suya se
+# tomara por hecho comprobado (V2-249)— y en este anillo su prosa convive con lo que sí hemos verificado, así
+# que tiene que distinguirse a simple vista. Prefijar en vez de inventar un canal es el patrón del muro de
+# chat.
+#
+# Solo se marca cuando el paso NOMBRA LA PANTALLA y la hoja está vacía: un paso mecánico («entrando en
+# coches.net») no se toca, y si la hoja SÍ tiene filas la afirmación es cierta y tampoco. La lista de formas
+# es corta y es de NUESTRO vocabulario —lo que el producto llama a su propia hoja—, no de un sitio de fuera:
+# aquí sí sabemos exactamente cómo se nombra, que es justo lo contrario del caso de `dom.py`.
+_DICE_PANTALLA = ("hoja de resultados", "en la hoja", "en pantalla", "results sheet", "on screen")
+
+
+def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
+    """¿Este paso del worker afirma algo sobre la hoja del operador que la hoja no respalda?
+
+    `sheet` es la hoja del ENCARGO (`sheets.sheet_of(rec)`), no la de una pestaña: el paso lo escribe el
+    worker sobre lo SUYO. Sin hoja resuelta se responde que NO — marcar por no saber leer sería acusar a
+    ciegas, y el silencio de este detector deja el anillo exactamente como estaba.
+    """
+    p = (phase or "").strip().lower()
+    if not p or not any(x in p for x in _DICE_PANTALLA):
+        return False
+    if not (sheet or "").strip():
+        return False
+    try:
+        from widgets.results import data as _sheet
+        items = (_sheet.view_data(sheet) or {}).get("items") or []
+        return not any(str((i or {}).get("title") or "").strip() for i in items)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _sheet_of_tab(nav_task_id: str) -> str:
     """La hoja de este encargo, resuelta como la resuelve QUIEN ESCRIBE (V2-352).
 

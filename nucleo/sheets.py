@@ -292,6 +292,17 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
     r, _p = rec, (phase or "").strip()
     if r is None or not _p:
         return False
+    # V2-358 — un paso que AFIRMA algo sobre la hoja del operador y que la hoja no respalda sale MARCADO como
+    # lo que es: palabra del worker. Aquí y no en `dispatch.session_phase` porque este es el sitio donde se
+    # escribe el anillo y ya tiene el registro delante — y porque el trinquete de arquitectura pidió sacarlo.
+    # El porqué de la marca, en `live_blocks.worker_phase_is_a_claim`. Va ANTES del dedup a propósito: la línea
+    # marcada y la sin marcar son la misma frase y colapsarlas escondería justo la distinción.
+    try:
+        from nucleo.flash import live_blocks as _lb
+        if _lb.worker_phase_is_a_claim(_p, sheet_of(r)):
+            _p = "💬 " + _p
+    except Exception:  # noqa: BLE001
+        pass
     if r.phases and r.phases[-1].get("s") == _p:
         return False
     r.phases.append({"t": time.time(), "s": _p})

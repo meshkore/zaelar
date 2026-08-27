@@ -459,7 +459,7 @@ def session_phase(tid, phase: str) -> None:
         _p = (phase or "").strip()
         r.phase = _p or r.phase
         r.last_event_at = time.time()
-        record_phase(tid, _p)
+        record_phase(tid, _p)   # V2-358: `sheets.record_phase` marca la afirmación sin respaldo
     try:
         from voice.observer import emit
         extra = {"id": str(tid)}

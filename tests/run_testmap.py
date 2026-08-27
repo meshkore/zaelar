@@ -512,6 +512,13 @@ DOMAINS: list[dict] = [
         # plan de 4 pasos a los 49 s, primer paso reportado a los 380 — 331 s en «0/4, 0%» navegando y leyendo
         # capturas, y ninguna cara salió: ENCALLADA mira el silencio (y no callaba) y «sin paso reportado» no
         # aplica con plan declarado. El plan lo empeoraba: «0/4, 0%» se lee como «acaba de empezar».
+        # V2-358 — «Preparando entrega: 10 propuestas en la hoja de resultados» con la hoja en CERO filas, y
+        # pintado sin marca junto a líneas verificadas. Misma enfermedad que V2-357 una capa más abajo, misma
+        # respuesta que V2-345: no se tira, se MARCA.
+        {"id": "2.37", "title": "Un paso del worker que afirma la PANTALLA sin respaldo sale marcado «💬» · y "
+                                "uno mecánico, o con la hoja llena, no se toca",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_worker_phase_that_claims_the_screen.py"]},
         {"id": "2.36", "title": "Una tarea que HABLA y no avanza un paso de su plan se dice (SIN AVANZAR) · y "
                                 "avanzar rearma el reloj, repetir el mismo done no",
             "ch": UNIT,
