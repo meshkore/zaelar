@@ -134,3 +134,22 @@ def test_el_campo_lo_escribe_prompt_context_desde_la_linea_ENTERA():
     src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
     assert '"sheet_rows": _rows_in(live),' in src, "el campo no se escribe desde la línea completa"
     assert src.index('"sheet_rows": _rows_in(live),') > src.index("def _rows_in(")
+
+
+def test_la_cabecera_que_buscamos_es_la_que_el_MOTOR_escribe():
+    """Acoplamiento por TEXTO entre dos ficheros, y del que se rompe callado.
+
+    `shown_candidates` localiza las filas empujadas buscando una frase literal del prompt. Si alguien
+    reescribe esa frase en `live_blocks` —una coma, un «de la hoja» que se va—, la lectura devuelve vacío
+    **para siempre**, y vacío aquí se lee como «no se le mostró nada», que es lo contrario de la verdad y
+    tiene la pinta exacta de un arreglo funcionando. Ya pasó una vez esta misma noche por otro motivo (el
+    recorte de `live_line`), y costó cuatro horas de rondas medidas con el denominador viejo.
+
+    Esto no es elegante y es lo correcto disponible: mientras el dato viaje dentro de una frase, alguien
+    tiene que vigilar la frase.
+    """
+    from pathlib import Path
+    motor = Path("nucleo/flash/live_blocks.py").read_text(encoding="utf-8")
+    assert V._ROWS_HEAD in motor, (
+        "la cabecera de filas del prompt cambió y el arnés sigue buscando la vieja: `shown_candidates` "
+        "devolverá vacío en todas las rondas, que se lee como «no se le mostró nada»")
