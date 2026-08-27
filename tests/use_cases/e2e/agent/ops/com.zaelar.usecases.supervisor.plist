@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.zaelar.usecases.supervisor</string>
+
+  <!-- El envoltorio levanta los platós y luego ENTRA al bucle con exec, para que launchd vigile
+       al supervisor de verdad y no a un shell padre que ya terminó. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/use_cases/e2e/agent/supervisor_24x7.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine</string>
+
+  <!-- ESTO es «el cron que no para»: launchd lo arranca al iniciar sesión y lo vuelve a arrancar
+       cada vez que muera, por lo que sea. Un `crontab` cada N minutos dejaría huecos de N minutos
+       y podría solapar dos supervisores sobre UN solo navegador por plató. -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Respiro ante un fallo de arranque en bucle (venv roto, repo movido): sin esto launchd
+       reintentaría en caliente y llenaría el disco de logs en minutos. -->
+
+  <!-- Respiro ante un fallo de arranque en bucle (venv roto, repo movido): sin esto launchd
+       reintentaría en caliente y llenaría el disco de logs en minutos. -->
+  <key>ThrottleInterval</key>
+  <integer>60</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/supervisor/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/supervisor/launchd.err.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>

@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El plató no para: 24/7 con guardián (V2-417, 2026-08-28)**: el supervisor YA era el motor —bucle
+  infinito, de uno en uno porque hay un navegador por plató, corte por silencio (180 s) y por techo (720 s),
+  no muere por una ronda, se recarga solo al cambiar su código—; lo único que no sabía es **volver a
+  existir**. `supervisor_24x7.sh` levanta los platós y entra al bucle con `exec` (sin `exec`, quien vigila
+  vigila a un padre muerto; y un supervisor contra puertos muertos no falla, escribe una fila INFRA por
+  escenario a toda velocidad, que es peor que estar parado), y `ops/keepalive.sh` lo relevanta con candado por
+  PID comprobado contra el proceso —un fichero suelto lo dejaría bloqueado para siempre tras un `kill`, y dos
+  guardianes son dos rondas peleándose por la misma pestaña—. **NO es launchd y que nadie lo reintente a
+  ciegas**: el repo vive bajo `~/Documents` y TCC le niega la lectura a un agente de launchd sin Acceso Total
+  al Disco concedido a mano (medido: `127 · can't open input file` sobre un fichero que existe y es
+  ejecutable); `crontab` topa con lo mismo. El plist queda escrito y validado en `ops/` para cuando el
+  operador dé el permiso: es lo único que añade sobrevivir a un REINICIO. Seis tests sobre el shell y el
+  plist, cuatro desarmes — uno no mordía porque comentar la línea dejaba el texto dentro del comentario.
+
 - **El marcador dice con qué CEREBRO se midió cada fila (V2-415, 2026-08-27)**: una nota es una nota SOBRE
   algo. La fila ya sellaba qué JUEZ la calificó (la cadena del juez cae de proveedor y sus medias difieren en
   0,44 puntos: un «bajó de 3 a 2» puede ser solo otro medidor); un piso más abajo pesa más, porque el juez es

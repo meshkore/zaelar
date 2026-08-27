@@ -114,3 +114,67 @@ def test_el_arranque_DICE_con_qué_fuente_corre():
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
     assert "fuente {_mia}" in src and "HEAD {_sha()}" in src
+
+
+# ── El 24/7: lo que arranca al supervisor y lo vuelve a arrancar (V2-417) ────────────────────────────────
+# Es shell y un plist, o sea lo que se rompe SIN HACER RUIDO: un `exec` que se cae deja a launchd vigilando
+# un padre muerto, un candado sin comprobación real deja dos supervisores peleándose por UN navegador, y un
+# `cd` con un nivel de más deja el envoltorio arrancando desde la carpeta equivocada. Nada de eso lanza.
+
+_OPS = "tests/use_cases/e2e/agent/ops"
+_ENV = "tests/use_cases/e2e/agent/supervisor_24x7.sh"
+
+
+def _lee(ruta: str) -> str:
+    from pathlib import Path
+    return Path(ruta).read_text(encoding="utf-8")
+
+
+def test_los_tres_ficheros_del_247_existen_y_son_ejecutables():
+    import os
+    from pathlib import Path
+    for ruta in (_ENV, f"{_OPS}/keepalive.sh"):
+        assert Path(ruta).exists(), f"falta {ruta}"
+        assert os.access(ruta, os.X_OK), f"{ruta} no es ejecutable — launchd/el guardián fallan con 127"
+    assert Path(f"{_OPS}/com.zaelar.usecases.supervisor.plist").exists()
+
+
+def test_el_envoltorio_entra_al_bucle_con_exec():
+    """Sin `exec`, quien vigila (launchd o el guardián) vigila a un shell padre que ya terminó, y el
+    supervisor queda huérfano y sin nadie que lo levante cuando muera — que es justo para lo que existe."""
+    src = _lee(_ENV)
+    assert "exec caffeinate" in src and "exec ./.venv/bin/python" in src
+
+
+def test_el_envoltorio_levanta_los_platos_antes_del_bucle():
+    """Tras un reinicio no hay ningún plató vivo. Un supervisor contra puertos muertos no falla: escribe una
+    fila INFRA por cada escenario de la rotación a toda velocidad, que es peor que estar parado."""
+    src = _lee(_ENV)
+    # La línea tiene que EJECUTARSE, no solo aparecer. Medido al desarmarlo el 2026-08-28: comentarla dejaba
+    # el test verde sobre el defecto, porque el texto seguía ahí dentro del comentario.
+    viva = [l for l in src.splitlines() if "tests.use_cases.lab up all" in l and not l.lstrip().startswith("#")]
+    assert viva, "el envoltorio tiene que levantar los platós, no mencionarlos"
+    assert src.index(viva[0]) < src.index("exec caffeinate")
+
+
+def test_el_candado_del_guardian_se_comprueba_contra_el_proceso():
+    """Un fichero de PID suelto NO basta: un guardián matado deja el suyo detrás y bloquea para siempre.
+    Y dos guardianes son dos supervisores peleándose por el único navegador de cada plató."""
+    src = _lee(f"{_OPS}/keepalive.sh")
+    assert "kill -0" in src, "el candado tiene que preguntarle al SO si ese pid sigue vivo"
+    assert "trap" in src and "rm -f" in src, "y soltarse al salir"
+
+
+def test_el_plist_vigila_de_verdad():
+    src = _lee(f"{_OPS}/com.zaelar.usecases.supervisor.plist")
+    assert "<key>KeepAlive</key>" in src and "<key>RunAtLoad</key>" in src
+    assert "<key>ThrottleInterval</key>" in src, ("sin respiro, un arranque que falla en bucle llena el "
+                                                 "disco de logs en minutos")
+
+
+def test_esta_escrito_por_que_launchd_no_basta_hoy():
+    """El siguiente que lea esto va a intentar el plist. Que se entere aquí y no tras media hora: el repo
+    vive bajo ~/Documents y TCC le niega la lectura a un agente de launchd (medido: `127 · can't open input
+    file` sobre un fichero que existe y es ejecutable)."""
+    src = _lee(f"{_OPS}/keepalive.sh")
+    assert "TCC" in src and "Documents" in src and "127" in src
