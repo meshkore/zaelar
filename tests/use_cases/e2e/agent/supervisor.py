@@ -47,6 +47,14 @@ HANG_S = int(os.getenv("UC_HANG_S", "180"))
 CAP_S = int(os.getenv("UC_CAP_S", "720"))
 #: Respiro entre rondas: deja al motor cerrar pestañas y soltar el navegador antes de la siguiente.
 PAUSA_S = int(os.getenv("UC_PAUSA_S", "20"))
+#: Prórroga cuando la ronda YA ha llegado al veredicto. Medido a la primera: `weekend-adventure-sports-bilbao`
+#: (2026-08-27) se comió el techo **dentro de `verifying mechanism`** — la conversación había terminado, el
+#: navegador ya no gastaba, y lo único que faltaba era el informe. Matarla ahí tira los doce minutos enteros y
+#: no deja ni una medición, que es exactamente lo contrario de para lo que existe el techo. El techo protege
+#: del trabajo que no llega a nada; el veredicto SÍ llega, y encima es lo que veníamos a buscar.
+VERIFICA_EXTRA_S = int(os.getenv("UC_VERIFICA_EXTRA_S", "300"))
+#: Las señales que el runner imprime al pasar a la fase de veredicto. Si aparecen, la parte cara ya se hizo.
+_EN_VEREDICTO = ("verifying mechanism", "judging")
 
 
 def _apunta(**fila) -> None:
@@ -84,10 +92,20 @@ def una_ronda(escenario: str, lab: str = "es") -> dict:
         if tam != ultimo_tam:
             ultimo_tam, ultimo_cambio = tam, time.time()
         ahora = time.time()
+        # ¿Ya está en el veredicto? Se mira solo la COLA del log: leerlo entero cada tres segundos es I/O
+        # gratis multiplicado por horas, y estas dos señales salen al final por construcción.
+        _cerca = ""
+        try:
+            with log.open("rb") as fh:
+                fh.seek(max(0, tam - 4096))
+                _cerca = fh.read().decode("utf-8", "replace")
+        except Exception:  # noqa: BLE001
+            pass
+        _techo = CAP_S + (VERIFICA_EXTRA_S if any(x in _cerca for x in _EN_VEREDICTO) else 0)
         if ahora - ultimo_cambio > HANG_S:
             motivo = f"hung: {HANG_S}s sin una línea nueva en el log"
-        elif ahora - t0 > CAP_S:
-            motivo = f"capped: la ronda pasó de {CAP_S}s"
+        elif ahora - t0 > _techo:
+            motivo = f"capped: la ronda pasó de {_techo}s"
         if motivo:
             # El grupo entero: el runner tiene hijos (el motor de plató, el navegador).
             try:
