@@ -508,6 +508,22 @@ def _hand_over(task_id: str, items: list) -> None:
                     f"misma frase, di si sirve: si responde a lo que pidió el operador, dáselo como resultado "
                     f"con nombre, precio y enlace; si es otra cosa —un anuncio, un producto distinto—, nómbralo "
                     f"igual y di por qué no sirve y qué haces ahora.")
+        elif _sheet_already_named(task_id):
+            # V2-370 — la MISMA página vacía, pero con el encargo YA entregado detrás. La rama de abajo se
+            # escribió para una búsqueda EN CURSO y dice «esa página no está dando lo que pidió»; disparada
+            # al final, después de haber entregado, convierte esa frase en el veredicto del encargo entero.
+            # Medido en `search-buy-bicycle__es` (2026-08-27, la mejor ronda en días: resultado 4, mecanismo
+            # 4, dos bicis reales entregadas): el último turno cerró con «La página esa no está trayendo lo
+            # que pediste, así que la dejo» — casi palabra por palabra la nota. El juez lo marcó [alta] como
+            # afirmación falsa, y lo era; pero no la dijo el modelo, la dijimos nosotros. El prompt de ese
+            # turno llevaba las cinco filas con nombre y precio: no fue desobediencia, fue elegir entre dos
+            # hechos ciertos, y el que traía imperativo era éste.
+            body = (f"El navegador ha leído OTRA página trabajando en «{goal}» y de ÉSTA no ha salido ningún "
+                    f"resultado con nombre: solo enlaces de navegación de la propia web ({listing}{tail}). Es "
+                    f"una página que no aporta, NO el final de la búsqueda: este encargo YA tiene resultados "
+                    f"con nombre entregados antes. Si lo cuentas, dilo así —que esta página no ha añadido "
+                    f"nada nuevo— y NUNCA que «la página no está trayendo lo que pediste» ni que lo dejas: "
+                    f"eso contradice lo que ya le has dado y borra un resultado que sí existe.")
         else:
             # Ni una fila con nombre: lo que la página dio son enlaces de navegación, no resultados. Se dice
             # tal cual, con la salida delante, en vez de servirlos como si fueran hallazgos.
@@ -519,6 +535,32 @@ def _hand_over(task_id: str, items: list) -> None:
         brain_notes.push("[SISTEMA] " + body)
     except Exception:  # noqa: BLE001
         pass
+
+
+def _sheet_already_named(task_id: str) -> bool:
+    """¿La hoja de ESTE encargo tiene ya algún resultado con nombre? (V2-370)
+
+    Se pregunta a la HOJA y no al registro de la tarea a propósito: `has_results` solo existe si alguien llamó
+    a `set_results`, y la hoja es la que el operador tiene delante — es la misma elección que hizo V2-299 en la
+    cara de tarea terminada, y por el mismo motivo (allí la línea decía «SIN traer nada» con 21 filas dentro).
+
+    Fail-soft a False, o sea a la redacción de siempre. Es la dirección conservadora: sin nada entregado esa
+    redacción es CORRECTA, y lo que se está evitando aquí es un caso que solo existe cuando ya hay entrega. Al
+    revés —callarse la página vacía por si acaso— dejaría al turno sin poder explicar por qué no llega nada.
+    """
+    try:
+        _sheet = _sheet_of(task_id)
+        if not _sheet:
+            # Sin hoja PROPIA no hay encargo del que hablar. `_sheet_of` cae a "" y esa es la hoja PELADA, que
+            # es compartida (V2-259): leerla aquí dejaría que la entrega de OTRO encargo callara el aviso de
+            # éste. Lo cazó un test que ya existía —la hoja pelada acumulaba filas de casos anteriores dentro
+            # de la misma suite— y es el mismo defecto en producción, solo que ahí no se ve.
+            return False
+        from widgets.results import data as _rd
+        items = (_rd.view_data(_sheet) or {}).get("items") or []
+        return any(str((it or {}).get("title") or "").strip() for it in items)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 @router.post("/api/navegador/act")

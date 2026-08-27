@@ -1085,7 +1085,12 @@ DOMAINS: list[dict] = [
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/navegador/test_the_junk_row_does_not_win_the_turn.py"]},
+            "paths": ["tests/browser/unit/navegador/test_the_junk_row_does_not_win_the_turn.py",
+                      # V2-370 — la misma nota, con el encargo YA entregado detrás. «Esa página no está dando
+                      # lo que pidió» es correcto en mitad de la búsqueda y es un veredicto falso al final:
+                      # el turno cerró `search-buy-bicycle__es` con esa frase casi literal tras haber
+                      # entregado dos bicis reales. Lo que cambia es el ALCANCE, no el hecho.
+                      "tests/browser/unit/navegador/test_an_empty_page_is_not_the_end_of_the_errand.py"]},
         # V2-295 — el mismo corte una capa más adentro. Las cuatro filas de cabeza llevaban NOMBRE, así que
         # `by_identity` las dejaba pasar, pero ninguna llevaba precio: lo que se le ofreció a quien pidió «un
         # monitor de 27 pulgadas por menos de 150 €» fueron «Monitores», «Monitor SAMSUNG» y «Monitor de Hípica»
