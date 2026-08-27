@@ -565,6 +565,14 @@ DOMAINS: list[dict] = [
         # distintas. Medido en `best-plumber-same-day__es`: el paso murió ahí y la ronda se fue en ocho
         # minutos sin entregar lo que el operador pidió tres veces. `widget_cli` YA listaba los .json
         # presentes y `worker_bridge` no — la misma divergencia entre puentes de la que salió V2-379.
+        # 2026-08-28, plató 24/7 — `weekend-plan-barcelona__es`: 56 búsquedas web, 31 consultas, 0 candidatos
+        # verificados, repitiendo la misma sin cambiar un criterio. «Eso no es diligencia, es dar vueltas»
+        # (juez). No se BLOQUEA la repetición —rompería un reintento legítimo—: se contesta al instante con lo
+        # ya traído y se MARCA, que es lo que convierte «dio vueltas» de impresión en dato.
+        {"id": "4.66", "title": "La misma búsqueda dos veces no son dos búsquedas — TTL corto, marcada, y sin "
+                                "cobrar dos veces",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_same_search_twice_is_not_two_searches.py"]},
         {"id": "4.65", "title": "Un payload que falta dice lo que SÍ hay — y los dos puentes miran el mismo "
                                 "sitio",
             "ch": UNIT,

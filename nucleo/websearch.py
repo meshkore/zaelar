@@ -158,6 +158,53 @@ def recent_failure(now: float | None = None) -> dict:
     return dict(f)
 
 
+#: Cuánto vale una respuesta ya traída. CORTO a propósito — ver `_recent_answer`.
+_REPEAT_TTL_S = 120
+#: Acotado: esto vive en el proceso del motor, no es un almacén.
+_REPEAT_MAX = 64
+_recent: dict[str, tuple[float, dict, int]] = {}
+
+
+def _norm_q(q: str) -> str:
+    return " ".join((q or "").lower().split())
+
+
+def _recent_answer(q: str, now: float | None = None) -> tuple[dict, int] | None:
+    """La respuesta que YA trajimos para esta misma consulta, si sigue fresca.
+
+    Medido en `weekend-plan-barcelona__es` (2026-08-28): **56 búsquedas web, 31 consultas, 0 candidatos
+    verificados**, repitiendo la misma consulta sin cambiar un solo criterio. El juez: «eso no es diligencia,
+    es dar vueltas». Cada vuelta cuesta segundos del cliente, cuota del proveedor y un turno de conversación
+    en el que zaelar dice que sigue buscando.
+
+    NO se bloquea la repetición, se CONTESTA — y se marca. Bloquear rompería un reintento legítimo; devolver
+    lo mismo al instante corta el bucle igual y además deja el hecho escrito (`repeated`) para quien lea la
+    ronda, que es lo que convierte «dio vueltas» de impresión en dato.
+
+    El TTL es corto (120 s) a propósito, y es todo el diseño: largo para matar un bucle apretado —56 búsquedas
+    en nueve minutos—, corto para que un «mira otra vez» a ritmo humano traiga mundo fresco. Una caché de
+    búsqueda que dure más que la paciencia de una persona sirve datos rancios justo a quien pidió lo contrario.
+    """
+    now = _time.time() if now is None else now
+    hit = _recent.get(_norm_q(q))
+    if not hit:
+        return None
+    ts, res, n = hit
+    if now - ts > _REPEAT_TTL_S:
+        _recent.pop(_norm_q(q), None)
+        return None
+    return res, n
+
+
+def _remember_answer(q: str, res: dict, now: float | None = None) -> None:
+    now = _time.time() if now is None else now
+    key = _norm_q(q)
+    n = (_recent.get(key) or (0.0, {}, 0))[2]
+    if len(_recent) >= _REPEAT_MAX and key not in _recent:
+        _recent.pop(min(_recent, key=lambda k: _recent[k][0]), None)   # la más vieja
+    _recent[key] = (now, res, n + 1)
+
+
 def search(query: str, k: int = _MAX_RESULTS) -> dict:
     """Busca y devuelve `{query, answer, results:[{title,snippet,url}], source, ai}`.
 
@@ -167,6 +214,14 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
     q = (query or "").strip()
     if not q:
         return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
+    # ¿YA CONTESTAMOS A ESTO? Antes de gastar red, cuota y segundos del cliente otra vez (ver `_recent_answer`).
+    _ya = _recent_answer(q)
+    if _ya is not None:
+        _res, _veces = _ya
+        _out = dict(_res)
+        _out["repeated"] = {"n": _veces, "ttl_s": _REPEAT_TTL_S}
+        _remember_answer(q, _res)
+        return _out
     _why: list[str] = []
     for src in _order():
         try:
@@ -177,6 +232,7 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
                 r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily")
                 _meter_search(src)
                 note_success()
+                _remember_answer(q, r)
                 return r
             _why.append(f"{src}: sin resultados")
         except Exception as e:  # noqa: BLE001

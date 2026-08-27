@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La misma búsqueda dos veces no son dos búsquedas (V2-422, 2026-08-28)**: `weekend-plan-barcelona__es`
+  en el plató 24/7 hizo **56 búsquedas web, 31 consultas, 0 candidatos verificados** y dejó la hoja vacía,
+  repitiendo la misma consulta sin cambiar un criterio — «eso no es diligencia, es dar vueltas» (juez). No
+  había ni caché ni detección de repetidos en ningún punto del camino. **No se bloquea la repetición, se
+  CONTESTA y se marca**: bloquear rompería un reintento legítimo, y devolver lo ya traído al instante corta el
+  bucle igual y deja el hecho escrito (`repeated`), que es lo que convierte «dio vueltas» de impresión en
+  dato. El TTL de **120 s** es la decisión entera: largo para matar un bucle apretado (56 búsquedas en nueve
+  minutos), corto para que un «mira otra vez» a ritmo humano traiga mundo fresco — una caché de búsqueda que
+  dure más que la paciencia de una persona sirve datos rancios justo a quien pidió lo contrario. No se cobra
+  dos veces (`_meter_search` factura lo que RESPONDIÓ un proveedor), normaliza espaciado y mayúsculas, y está
+  acotada a 64 entradas porque vive en el proceso del motor y no es un almacén. NO arregla POR QUÉ repite: le
+  quita el coste al síntoma y lo deja medido. Nodo 4.66, cinco desarmes.
+
 - **Un payload que falta dice lo que SÍ hay (V2-421, 2026-08-28)**: «No such file or directory:
   progreso.json» es verdad y no sirve para nada — no distingue entre escribirlo en otro directorio, con otro
   nombre, o no escribirlo, que piden acciones distintas y desde ahí se ven iguales. Medido en
