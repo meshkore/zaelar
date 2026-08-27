@@ -138,3 +138,75 @@ def test_close_closes_the_video_and_the_list_survives():
     db = yt._load()
     assert db["videoId"] == "" and db["pos"] == -1
     assert len(db["list"]) == 2                           # close closes the VIDEO; the list is the user's
+
+
+# --- list management (V2-366, second wave): remove / move / sort / filter / clear ---
+
+def _add_three():
+    _add_two()
+    yt.apply_action("add", {"url": "https://youtu.be/" + _VID3})
+
+
+def test_removing_the_playing_item_keeps_the_thread_of_the_queue():
+    _add_three()
+    yt.apply_action("play_item", {"item": "2"})           # playing B
+    out = yt.apply_action("remove", {"item": "2"})        # remove B while it plays
+    assert out["ok"] is True
+    db = yt._load()
+    assert db["videoId"] == _VID2                         # playback untouched (like YouTube)
+    yt.apply_action("ended", {})
+    assert yt._load()["videoId"] == _VID3                 # `ended` plays what FOLLOWED the removed one
+
+
+def test_removing_an_earlier_item_shifts_pos_with_the_list():
+    _add_three()
+    yt.apply_action("play_item", {"item": "2"})
+    yt.apply_action("remove", {"item": "1"})
+    db = yt._load()
+    assert db["pos"] == 0 and db["list"][0]["videoId"] == _VID2
+    out = yt.apply_action("next", {})
+    assert out["ok"] is True and yt._load()["videoId"] == _VID3
+
+
+def test_move_reorders_and_pos_follows_the_playing_item():
+    _add_three()
+    yt.apply_action("play_item", {"item": "1"})           # playing A
+    out = yt.apply_action("move", {"item": "3", "to": 1})  # C to the front
+    assert out["ok"] is True and out["position"] == 1
+    db = yt._load()
+    assert [it["videoId"] for it in db["list"]] == [_VID3, _VID1, _VID2]
+    assert db["pos"] == 1                                  # still pointing at A
+    yt.apply_action("ended", {})
+    assert yt._load()["videoId"] == _VID2                  # next after A is B, wherever they moved
+
+
+def test_sort_by_title_and_back_by_added():
+    _add_three()                                           # titles: Oembed Title ×3 differ? no — same oembed
+    db = yt._load()
+    db["list"][0]["title"], db["list"][1]["title"], db["list"][2]["title"] = "zeta", "alfa", "media"
+    store.save(yt.WID, db)
+    assert yt.apply_action("sort_list", {"by": "title"})["ok"] is True
+    assert [it["title"] for it in yt._load()["list"]] == ["alfa", "media", "zeta"]
+    assert yt.apply_action("sort_list", {"by": "added"})["ok"] is True
+    assert [it["videoId"] for it in yt._load()["list"]] == [_VID1, _VID2, _VID3]
+    out = yt.apply_action("sort_list", {"by": "magic"})
+    assert out["ok"] is False and out["error"] == "bad_sort"
+
+
+def test_filter_is_display_only_and_clears_with_empty_q():
+    _add_two()
+    assert yt.apply_action("filter_list", {"q": "oembed"})["ok"] is True
+    db = yt._load()
+    assert db["list_filter"] == "oembed" and len(db["list"]) == 2   # the list itself never shrinks
+    yt.apply_action("filter_list", {"q": ""})
+    assert yt._load()["list_filter"] == ""
+
+
+def test_clear_list_empties_the_list_but_never_cuts_the_video():
+    _add_two()
+    yt.apply_action("play_item", {"item": "1"})
+    out = yt.apply_action("clear_list", {})
+    assert out["ok"] is True
+    db = yt._load()
+    assert db["list"] == [] and db["pos"] == -1
+    assert db["videoId"] == _VID1 and db["paused"] is False   # what plays keeps playing

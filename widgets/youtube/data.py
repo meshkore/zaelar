@@ -33,6 +33,7 @@ _SEED = {
     "list": [],           # [{videoId, title, channel, published, url, added_at}]
     "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
     "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
+    "list_filter": "",    # display-only filter over the list (filter_list); never touches the list itself
 }
 
 _YT_RE = re.compile(
@@ -263,13 +264,79 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 return {"ok": True, "already_in_list": True, "position": i + 1,
                         "title": it.get("title"), "count": len(lst)}
         url = "https://www.youtube.com/watch?v=" + vid
+        # `added_seq` is the insertion order: several adds can land in the same SECOND, so `added_at` alone
+        # cannot restore it (measured: sort_list by=added left a same-second batch in its current order).
+        seq = max((int(it.get("added_seq") or 0) for it in lst), default=0) + 1
         lst.append({"videoId": vid, "title": title or ("youtu.be/" + vid), "channel": channel,
-                    "published": published, "url": url, "added_at": int(time.time())})
+                    "published": published, "url": url, "added_at": int(time.time()), "added_seq": seq})
         if db.get("videoId") and db.get("pos", -1) < 0:
             # current video was loaded outside the list; keep it that way (ended → list[0] still correct)
             pass
         store.save(WID, db)
         return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst)}
+
+    if action == "remove":
+        lst = db.get("list") or []
+        idx = _resolve_item(lst, p.get("item"))
+        if idx is None:
+            return {"ok": False, "error": "item_not_found", "item": p.get("item"),
+                    "message": "No encuentro ese vídeo en la lista."}
+        removed = lst.pop(idx)
+        pos = int(db.get("pos", -1))
+        # Keep `pos` meaning "last played": removing an earlier item shifts everything one left, and removing
+        # the CURRENT one leaves pos pointing at the slot BEFORE the next item — so `ended`/`next` (pos+1)
+        # play exactly the item that followed the removed one. Playback itself is untouched (like YouTube).
+        if idx <= pos:
+            db["pos"] = pos - 1
+        store.save(WID, db)
+        return {"ok": True, "removed": removed.get("title"), "count": len(lst)}
+
+    if action == "move":
+        lst = db.get("list") or []
+        idx = _resolve_item(lst, p.get("item"))
+        if idx is None:
+            return {"ok": False, "error": "item_not_found", "item": p.get("item"),
+                    "message": "No encuentro ese vídeo en la lista."}
+        try:
+            to = max(0, min(len(lst) - 1, int(p.get("to")) - 1))     # 1-based target position
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bad_position", "message": "Dime a qué posición (1-N) lo muevo."}
+        cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
+        it = lst.pop(idx)
+        lst.insert(to, it)
+        if cur is not None:                              # pos follows the ITEM that was playing, not the slot
+            db["pos"] = lst.index(cur)
+        store.save(WID, db)
+        return {"ok": True, "moved": it.get("title"), "position": to + 1}
+
+    if action == "sort_list":
+        by = str(p.get("by") or "title").strip().lower()
+        if by not in ("title", "added"):
+            return {"ok": False, "error": "bad_sort", "message": "Puedo ordenar por 'title' o por 'added'."}
+        lst = db.get("list") or []
+        cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
+        if by == "title":
+            lst.sort(key=lambda it: _norm(it.get("title")))
+        else:
+            lst.sort(key=lambda it: (int(it.get("added_at") or 0), int(it.get("added_seq") or 0)))
+        if cur is not None:
+            db["pos"] = lst.index(cur)
+        store.save(WID, db)
+        return {"ok": True, "by": by, "count": len(lst)}
+
+    if action == "filter_list":
+        # Display-only: the widget shows the rows matching the text; the list itself never changes.
+        db["list_filter"] = str(p.get("q") or p.get("query") or "").strip()
+        store.save(WID, db)
+        return {"ok": True, "filter": db["list_filter"]}
+
+    if action == "clear_list":
+        # Empties the LIST only: whatever is playing keeps playing (voice «vacía la lista» must not cut the
+        # video — close is the action that stops playback).
+        db["list"] = []
+        db["pos"] = -1
+        store.save(WID, db)
+        return {"ok": True, "count": 0}
 
     if action == "play_item":
         lst = db.get("list") or []

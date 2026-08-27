@@ -6,6 +6,7 @@
     "last_cmd": "str",
     "latest": "bool",
     "list": "list",
+    "list_filter": "str",
     "muted": "bool",
     "paused": "bool",
     "pos": "int",
