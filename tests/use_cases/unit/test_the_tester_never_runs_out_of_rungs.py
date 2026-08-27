@@ -166,8 +166,14 @@ def test_the_judge_falls_back_to_the_licence(monkeypatch):
 
 
 def test_the_judge_prefers_the_paid_chain(monkeypatch):
-    """Sensibilidad: el juez vive fuera del proveedor del conductor a propósito, para ser independiente."""
-    monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000: ("ok", "glm-4.6"))
+    """Sensibilidad: el juez vive fuera del proveedor del conductor a propósito, para ser independiente.
+
+    El doble acepta `out` porque la cadena se lo pasa (V2-382). Y conviene saber por qué importa: si una pata
+    NO acepta el kwarg, el `TypeError` cae en el mismo `except Exception` que las caídas de proveedor y la
+    cadena baja a la licencia local — un error de programación disfrazado de proveedor caído. Se ve en el log
+    («cadena de pago sin escalón (… unexpected keyword argument …)»), pero no falla: degrada.
+    """
+    monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000, out=None: ("ok", "glm-4.6"))
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: pytest.fail("la licencia no debía correr"))
     assert llm.judge_call([{"role": "user", "content": "x"}]) == ("ok", "glm-4.6")
 

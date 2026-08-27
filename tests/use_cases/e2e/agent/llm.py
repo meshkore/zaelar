@@ -214,7 +214,7 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
     raise RuntimeError("DRIVE sin escalón disponible")
 
 
-def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
+def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = None) -> tuple[str, str]:
     """El JUEZ, con la licencia local debajo de todo.
 
     Perder al juez es perder la RONDA ENTERA: la conversación ya se pagó y ya ocurrió, y sin veredicto no
@@ -227,11 +227,15 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     """
     import sys
     try:
-        return _voice_judge_call(messages, max_tokens=max_tokens)
+        return _voice_judge_call(messages, max_tokens=max_tokens, out=out)
     except Exception as e:
         print(f"[judge] cadena de pago sin escalón ({str(e)[:100]}) → licencia local de Claude Code",
               file=sys.stderr)
     txt = _claude_licence(messages, max_tokens=max_tokens)
+    # La licencia local NO dice si cortó: se apunta «no lo sé» en vez de dejar la lectura de la pata que
+    # acaba de fallar. Quien mire esto tiene que poder distinguir «cabía» de «no me consta».
+    if out is not None:
+        out["finish_reason"], out["cortada"] = "", False
     if not (txt or "").strip():
         raise RuntimeError("licencia-claude devolvió una respuesta VACÍA al JUEZ")
     return (txt, "licencia-claude")

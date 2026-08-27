@@ -16,8 +16,28 @@ from . import config
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 _NO_TEMP = ("opus", "claude", "sonnet", "(retirado)")   # these reject a temperature param on AIMLAPI
 
+# THE PROVIDER SAYS SO. A body cut for length is not a body that came back malformed, and until V2-382 every
+# leg here parsed the field that says which one it was and dropped it on the floor: OpenAI-compatible legs
+# answer `finish_reason="length"`, Z.AI's Anthropic-compatible one `stop_reason="max_tokens"`. Downstream the
+# judge was left INFERRING the cut from where the JSON parser tripped, and acting on the guess.
+_MOTIVOS_DE_CORTE = ("length", "max_tokens")
 
-def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000) -> str:
+
+def _anota_corte(out: dict | None, motivo: str | None) -> None:
+    """Deja en `out` lo que el proveedor dijo del final de su respuesta. No-op si nadie preguntó.
+
+    Parámetro de SALIDA en vez de un tercer elemento en la tupla: `judge_call` devuelve `(texto, modelo)` a
+    dos arneses y a media docena de tests, y cambiar su aridad para llevar un dato que casi nadie mira habría
+    tocado todos ellos para nada.
+    """
+    if out is None:
+        return
+    out["finish_reason"] = motivo or ""
+    out["cortada"] = (motivo or "") in _MOTIVOS_DE_CORTE
+
+
+def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000,
+         out: dict | None = None) -> str:
     """DeepSeek (AIMLAPI, OpenAI-compatible). Used for DRIVING and as the judge fallback."""
     model = model or config.DRIVE_MODEL
     payload = {"model": model, "messages": messages, "max_tokens": max_tokens}
@@ -29,10 +49,13 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
         headers={"Authorization": f"Bearer {config.TESTER_KEY}", "Content-Type": "application/json", "User-Agent": _UA},
     )
     with urllib.request.urlopen(req, timeout=180) as r:
-        return json.loads(r.read())["choices"][0]["message"]["content"]
+        ch = json.loads(r.read())["choices"][0]
+    _anota_corte(out, ch.get("finish_reason"))
+    return ch["message"]["content"]
 
 
-def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2000) -> str:
+def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2000,
+             out: dict | None = None) -> str:
     """GLM via Z.AI's coding-plan endpoint (Anthropic Messages API). Raises on any error so the caller can
     fall back. Converts OpenAI-style messages → Anthropic (system string + user/assistant turns)."""
     if not config.ZAI_KEY:
@@ -54,6 +77,9 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
     with urllib.request.urlopen(req, timeout=180) as r:
         data = json.loads(r.read())
     parts = data.get("content") or []
+    # `stop_reason`, no `finish_reason`: esta pata habla Anthropic. Que el nombre del campo cambie con el
+    # proveedor es justo por lo que se normaliza aquí y no en quien llama.
+    _anota_corte(out, data.get("stop_reason"))
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
 
@@ -64,7 +90,7 @@ _TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Tempor
 
 
 def deepseek_direct_call(messages: list[dict], model: str | None = None, temperature: float = 0.0,
-                         max_tokens: int = 2000) -> str:
+                         max_tokens: int = 2000, out: dict | None = None) -> str:
     """DeepSeek from its OWN endpoint (OpenAI-compatible), not through the AIMLAPI broker.
 
     First leg of the judge fallback, per the operator's provider order (direct → broker → last resort). Raises
@@ -99,10 +125,12 @@ def deepseek_direct_call(messages: list[dict], model: str | None = None, tempera
                  "User-Agent": _UA},
     )
     with urllib.request.urlopen(req, timeout=180) as r:
-        return json.loads(r.read())["choices"][0]["message"]["content"]
+        ch = json.loads(r.read())["choices"][0]
+    _anota_corte(out, ch.get("finish_reason"))
+    return ch["message"]["content"]
 
 
-def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
+def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = None) -> tuple[str, str]:
     """The JUDGE call: GLM (Z.AI) when configured, else/on-error DeepSeek. Returns (text, model_used).
 
     The fallback leg RETRIES on transient provider errors, and that is not a nicety: on 2026-08-20 the
@@ -113,9 +141,13 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     """
     import sys
     import time as _t
+    # Se limpia ANTES DE CADA PATA, no una vez al entrar. Es la diferencia que destapó el desarme: limpiar al
+    # entrar deja intacta la palabra de la pata que se cayó cuando la que contesta después no dice nada, y
+    # entonces se lee «cortada» de una respuesta que ni se miró.
     if config.JUDGE_PROVIDER == "zai" and config.ZAI_KEY:
         try:
-            _txt = glm_call(messages, max_tokens=max_tokens)
+            _anota_corte(out, "")
+            _txt = glm_call(messages, max_tokens=max_tokens, out=out)
             # AN EMPTY BODY IS NOT AN ANSWER — the rule the DeepSeek leg below has carried since 2026-08-20,
             # and this leg lacked. Measured 2026-08-26 (focused round on `search-buy-used-car`): GLM answered
             # 200 with empty content, the function RETURNED it as an answer, so the fallback never ran — it
@@ -130,7 +162,8 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     # returned 429/503/504 and cost three measured rounds.
     if config.DEEPSEEK_KEY:
         try:
-            txt = deepseek_direct_call(messages, max_tokens=max_tokens)
+            _anota_corte(out, "")
+            txt = deepseek_direct_call(messages, max_tokens=max_tokens, out=out)
             if not (txt or "").strip():
                 # AN EMPTY BODY IS NOT AN ANSWER, and treating it as one is how a leg that "worked" loses a
                 # round. Measured 2026-08-20, fourth INFRA on the same case: the direct leg returned 200 with
@@ -144,7 +177,8 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     last = None
     for attempt in range(3):
         try:
-            txt = call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens)
+            _anota_corte(out, "")
+            txt = call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens, out=out)
             if not (txt or "").strip():
                 raise RuntimeError("respuesta VACÍA (200 sin contenido)")
             return (txt, config.JUDGE_MODEL)

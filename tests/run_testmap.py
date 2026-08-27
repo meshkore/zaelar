@@ -1629,6 +1629,13 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-382 — las tres patas del juez parseaban el campo que dice cómo terminó la respuesta
+        # (`finish_reason` / `stop_reason`) y lo tiraban, así que «esto se cortó» se DEDUCÍA de dónde reventó
+        # el parseo, y al deducirlo se pedía «lo mismo más breve» con el MISMO techo: tres intentos cortados en
+        # el mismo sitio y 519 s de conversación real aparcados sin juzgar.
+        {"id": "10.91", "title": "El proveedor DICE que no cupo, y el juez lo adivinaba",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_el_proveedor_dice_que_no_cupo.py"]},
         # V2-381 — `verify.py` usaba `config` sin importarlo, así que `worker_bridges()` no ha corrido JAMÁS y
         # todo lo que venía detrás se saltaba en silencio. 49 informes lo llevaban dentro, bajo un campo
         # llamado `worker_outcome_error` que el juez citó como prueba de que el producto había fallado.

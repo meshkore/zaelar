@@ -169,6 +169,10 @@ def _clocks_relative(mech: dict) -> dict:
 #: Techo de salida del juez. Medido, no elegido: el veredicto completo del caso multiflow ocupa 7238 chars.
 JUDGE_MAX_TOKENS = 4000
 
+#: Techo al que se SUBE cuando el veredicto no cupo (V2-382). 8000 y no más porque es el máximo de salida que
+#: acepta la pata de DeepSeek, que es justo la que corta: pedir 12000 ahí es un 400, no un veredicto más largo.
+JUDGE_MAX_TOKENS_AMPLIADO = 8000
+
 
 def _parecia_cortada(raw: str, err: str | None) -> bool:
     """¿La respuesta se CORTÓ por longitud, en vez de venir mal formada? (V2-373)
@@ -740,21 +744,40 @@ def _judge_with_retry(msgs: list[dict]) -> dict:
     Es la lección de V2-199: un test que no recorre el camino real prueba que el código compila.
     """
     last_err, raw, used = None, "", ""
+    corte: dict = {}
+    techo = JUDGE_MAX_TOKENS
     for attempt in range(3):
         if attempt:
             # Se le DICE qué salió mal: repetir la misma petición esperando otro resultado es apostar al azar.
             # Y CORTADO no es INVÁLIDO: pedirle «el mismo veredicto, ahora válido» a quien escribió un JSON
             # perfecto que nosotros truncamos es pedirle que repita lo que no cabe — tres intentos idénticos.
+            # ¿CORTADA? Lo que DIJO EL PROVEEDOR manda, y la heurística de V2-373 solo rellena el hueco
+            # cuando no dijo nada (la licencia local). Un `or` entre las dos NO vale, y eso lo destapó el
+            # propio guarda de esta tanda: `_parecia_cortada` mide «¿reventó a menos de 200 chars del final?»,
+            # o sea que en cualquier respuesta MÁS CORTA que 200 caracteres dice «cortada» siempre. Con el
+            # `or`, un `{"a": 1,, }` —que cupo de sobra y vino mal— subía el techo. La medida gana a la
+            # deducción; la deducción solo habla cuando no hay medida.
+            if corte.get("finish_reason"):
+                _cortada = bool(corte.get("cortada"))
+            else:
+                _cortada = _parecia_cortada(raw, last_err)
+            if _cortada:
+                # Y SE LE DA SITIO, no solo prisa. Pedir «lo mismo más breve» con el MISMO techo fue lo que
+                # perdió `things-to-do-nearby-weekend__es` el 2026-08-27: 519 s de conversación real, tres
+                # intentos, los tres cortados en el mismo sitio (char 6688 de 6750, a mitad de una clave), y
+                # la ronda aparcada sin juzgar. El modelo no estaba siendo prolijo: no cabía.
+                techo = JUDGE_MAX_TOKENS_AMPLIADO
             _pedir = ((f"Tu respuesta anterior se CORTÓ por longitud ({last_err}): el JSON venía bien pero no "
-                       f"cupo. Devuelve el MISMO veredicto MÁS BREVE —recorta la prosa, nunca las notas ni las "
-                       f"dimensiones— en JSON válido y NADA más, sin ``` y sin texto alrededor.")
-                      if _parecia_cortada(raw, last_err) else
+                       f"cupo. Tienes MÁS SITIO ahora. Devuelve el MISMO veredicto —recorta la prosa si hace "
+                       f"falta, nunca las notas ni las dimensiones— en JSON válido y NADA más, sin ``` y sin "
+                       f"texto alrededor.")
+                      if _cortada else
                       (f"Tu respuesta anterior no era JSON válido ({last_err}). Devuelve EXACTAMENTE el mismo "
                        f"veredicto pero como JSON válido y NADA más — sin ```, sin texto antes ni después."))
             msgs = msgs + [
                 {"role": "assistant", "content": raw[:1500]},
                 {"role": "user", "content": _pedir}]
-        raw, used = llm.judge_call(msgs, max_tokens=JUDGE_MAX_TOKENS)
+        raw, used = llm.judge_call(msgs, max_tokens=techo, out=corte)
         try:
             v = llm.parse_json(raw)
             v["_judge_model"] = used
@@ -779,7 +802,9 @@ def _judge_with_retry(msgs: list[dict]) -> dict:
         pass
     _ini = max(0, _pos - 120)
     _ventana = raw[_ini:_pos + 120] if _pos else raw[:240]
+    _dijo = corte.get("finish_reason") or "no lo dijo"
     raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — {len(raw)} chars, "
+                       f"techo {techo}, el proveedor dijo finish_reason={_dijo!r}, "
                        f"alrededor del fallo: {_ventana!r}")
 
 

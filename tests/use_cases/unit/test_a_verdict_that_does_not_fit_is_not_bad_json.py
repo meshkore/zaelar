@@ -72,7 +72,11 @@ def test_el_juez_USA_ese_techo_y_no_un_literal():
     """El cableado: subir la constante y dejar el `2000` en la llamada es el fallo clásico."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
-    assert "llm.judge_call(msgs, max_tokens=JUDGE_MAX_TOKENS)" in src
+    # V2-382 — el techo ya no es UNO: la primera petición va con `JUDGE_MAX_TOKENS` y el reintento de una
+    # respuesta que no cupo sube a `JUDGE_MAX_TOKENS_AMPLIADO`. Lo que este guarda sostiene sigue siendo lo
+    # mismo: que el número salga de las constantes y no de un literal escrito a mano en la llamada.
+    assert "llm.judge_call(msgs, max_tokens=techo, out=corte)" in src
+    assert "techo = JUDGE_MAX_TOKENS" in src
     assert "llm.judge_call(msgs, max_tokens=2000)" not in src
 
 
@@ -104,7 +108,10 @@ def test_una_respuesta_CORTADA_pide_brevedad(monkeypatch):
         J._judge_with_retry([{"role": "system", "content": "s"}, {"role": "user", "content": "u"}])
     assert pedidos, "el bucle no llegó a reintentar"
     assert "se CORTÓ por longitud" in pedidos[0]
-    assert "MÁS BREVE" in pedidos[0]
+    assert "recorta la prosa" in pedidos[0]
+    # V2-382 — y no solo se le pide: se le DA sitio. Pedir lo mismo más corto con el mismo techo fue lo que
+    # perdió la ronda de las 11:00 del 2026-08-27 con los tres intentos cortados en el mismo carácter.
+    assert "MÁS SITIO" in pedidos[0]
 
 
 def test_una_respuesta_MAL_FORMADA_pide_el_mismo_veredicto(monkeypatch):
