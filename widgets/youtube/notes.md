@@ -89,3 +89,17 @@
   entregó el clip correcto y verificable (canal+fecha en pantalla, V2-057). No hizo falta ningún cambio de código:
   `data.py`/`widget.js`/`manifest.json` sin tocar — no había una variante de spelling concreta en el ticket que
   exigiera lógica nueva de normalización más allá de la búsqueda existente.
+- 2026-08-27 (V2-366, encargo del operador vía arnés): el widget sube al nivel de `musica` — LISTA de
+  reproducción real. `data.py` gana `list`/`pos` + data-ops `add` (link pegado youtu.be/youtube.com con título
+  vía oembed, id o nombre; NUNCA autoreproduce — como el «Añadir a la cola» de YouTube, y por eso queda fuera
+  del gate `produce`: se puede llenar la lista con el agente parado), `play_item`/`next`/`previous`/`ended`
+  (la dispara el widget al acabar el vídeo → uno detrás de otro solos), `remove`/`move`/`sort_list`/
+  `filter_list` (solo vista)/`clear_list`. `play` con reproductor vacío arranca la lista; `close` cierra el
+  VÍDEO y la lista sobrevive. UI: lista LINEAL de texto (n · título · canal, click=play_item, ✕, ▶ en el que
+  suena — sin miniaturas, diseño explícito del operador) + input de pegar enlaces + chip de filtro. El
+  cableado `ended` = handshake `listening` del IFrame API con id `hb-youtube`, FILTRADO por id en los dos
+  widgets (sin filtro, el final del player de uno avanzaría la cola del otro — el fix simétrico en
+  `musica/widget.js` va en el mismo V2-366). Dos bugs cazados por los tests antes de entrar: `dict(_SEED)` es
+  copia superficial y la lista del seed se mutaba (→ `_seed()`), y varios `add` en el mismo segundo empataban
+  en `added_at` perdiendo el orden de inserción (→ `added_seq`). Nodos 4.52 (modelo) y 4.53 (RENDERIZA, con
+  desarme verificado en las dos caras).
