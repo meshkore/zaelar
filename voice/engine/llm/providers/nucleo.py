@@ -23,6 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
+from nucleo.flash import data_ops as _data_ops   # V2-391: hoja sin imports del motor → no cierra ciclos
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -1497,6 +1498,7 @@ class NucleoLLMStream(llm.LLMStream):
             _apply_widget_data(wid, action_name, res.payload)
 
         _tool_fired: set = set()
+        _data_ops_hechas: list = []      # V2-391: las data-ops YA ejecutadas de este turno, en orden
 
         def _word_overlap(a: str, b: str) -> int:
             wa = {w for w in (a or "").lower().split() if len(w) > 3}
@@ -1557,12 +1559,10 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
             if name == "widget_data":
-                # UNA data-op por turno: el modelo pequeño a veces emite VARIAS widget_data en un mismo turno
-                # (enumera acciones ante "muéstrame la agenda" → done/drop/snooze…, o DUPLICA un add_meeting → cita
-                # doble). Solo la PRIMERA se ejecuta (mismo criterio "1 acción/turno" que escalate/search).
-                if "widget_data" in _tool_fired:
+                # V2-391 — VARIAS, no una: lo decide `data_ops` (ahí está el porqué y qué sigue bloqueado).
+                if not _data_ops.admite_data_op(args, _data_ops_hechas):
                     return
-                _tool_fired.add("widget_data")
+                _data_ops_hechas.append(args)     # y `_tool_fired` ya no lo lee nadie: la cuenta es esta
                 _handle_widget_data_tool(args)
             elif name == "escalate_to_slowbrain":
                 req = (args.get("request") or "").strip() or text

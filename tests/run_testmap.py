@@ -515,6 +515,11 @@ DOMAINS: list[dict] = [
         # V2-358 — «Preparando entrega: 10 propuestas en la hoja de resultados» con la hoja en CERO filas, y
         # pintado sin marca junto a líneas verificadas. Misma enfermedad que V2-357 una capa más abajo, misma
         # respuesta que V2-345: no se tira, se MARCA.
+        # V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación: solo entró el
+        # primer `add`, el `next` no encontró segundo vídeo y el turno anunció que sonaba igualmente.
+        {"id": "4.55", "title": "Dos enlaces pegados son dos `add` · sin reabrir la cita doble ni la enumeración",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_dos_enlaces_pegados_son_dos_adds.py"]},
         # V2-383 — hermano exacto de V2-380, una rama más abajo en el mismo `elif`: `play_video` se resolvía a
         # la etiqueta «canvas:show:youtube» y ahí acababa, sin `load`. Ocho turnos pidiendo el tráiler de Dune
         # y cuatro veces «Te lo abro, aunque de momento está vacío» — con seis tráileres reales encontrados y

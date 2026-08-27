@@ -15,16 +15,46 @@ from __future__ import annotations
 
 
 async def execute(tool_calls: list) -> dict:
-    """Despacha la data-op del turno y devuelve el parte, o dice que la saltó y POR QUÉ."""
-    wd = next((t["args"] for t in (tool_calls or []) if t.get("name") == "widget_data"), {}) or {}
-    wid = str(wd.get("widget_id") or "").strip().lower()
-    act = str(wd.get("action") or "").strip()
-    pl = wd.get("payload") if isinstance(wd.get("payload"), dict) else {}
+    """Despacha las data-ops del turno y devuelve el parte, o dice cuál saltó y POR QUÉ.
+
+    V2-391 — VARIAS, no una. Cuáles entran lo decide `data_ops.admite_data_op`, compartido con la voz
+    para que no pueda divergir: mismo widget y misma acción con payloads DISTINTOS sí (dos enlaces pegados),
+    duplicado exacto no (la cita doble), acción distinta sobre el mismo widget tampoco (la enumeración).
+    """
     from nucleo.flash import frontend as _fe
+    from nucleo.flash import data_ops as _rg
     from widgets import actions as _wa
-    mode = _fe.action_mode(wid, act)
-    if mode != _wa.FAST:
-        return {"executed": "widget_data_skipped", "mode": str(mode), "widget": wid, "act": act}
+
+    todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
+    admitidas: list[dict] = []
+    for a in todas:
+        if _rg.admite_data_op(a, admitidas):
+            admitidas.append(a)
+    if not admitidas:
+        return {"executed": "widget_data_skipped", "mode": "sin data-op utilizable", "widget": "", "act": ""}
+
     import widgets as _w
-    await _w.dispatch_tag("widget.data", {"id": wid, "data": {"action": act, "payload": pl}})
-    return {"executed": "widget_data", "widget": wid, "act": act}
+    hechas, saltadas = [], []
+    for a in admitidas:
+        wid = str(a.get("widget_id") or "").strip().lower()
+        act = str(a.get("action") or "").strip()
+        pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
+        mode = _fe.action_mode(wid, act)
+        if mode != _wa.FAST:
+            saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
+            continue
+        await _w.dispatch_tag("widget.data", {"id": wid, "data": {"action": act, "payload": pl}})
+        hechas.append({"widget": wid, "act": act})
+    if not hechas:
+        s0 = saltadas[0]
+        return {"executed": "widget_data_skipped", "mode": s0["mode"], "widget": s0["widget"], "act": s0["act"]}
+    # `widget`/`act` singulares se conservan: son la forma que ya leen el informe y los guardas de antes, y
+    # cambiarla por una lista rompería la lectura sin avisar. Lo nuevo va al lado.
+    parte = {"executed": "widget_data", "widget": hechas[0]["widget"], "act": hechas[0]["act"],
+             "ops": hechas}
+    # Lo que NO se hizo se DICE, en vez de dejar el parte contando solo lo que salió bien.
+    if len(todas) > len(hechas):
+        parte["descartadas"] = len(todas) - len(hechas)
+    if saltadas:
+        parte["sin_permiso"] = saltadas
+    return parte
