@@ -117,6 +117,13 @@ SEGMENTS: dict[str, Segment] = {
     # alguien conecta Spotify mañana, el caso mide la otra rama; no cambia de segmento.
     "play-music-and-build-playlist": _done(),
     "watch-a-video-not-listen-to-it": _done(),
+    # Segunda tanda (2026-08-27). Misma pregunta a la frase de apertura y misma respuesta: pegar dos enlaces
+    # y pedir vídeos sobre un tema no exigen credencial, tarjeta, llamada ni un objeto real que no exista.
+    # `build-a-video-playlist-from-links` NO es «caso de futuro» — su mecanismo llegó con V2-366 (add /
+    # play_item / next / previous), así que se conduce ya; escribir un caso ANTES que su mecanismo es la
+    # norma de la casa, pero gatearlo cuando el mecanismo YA está sería medir de menos.
+    "build-a-video-playlist-from-links": _done(),
+    "find-videos-on-a-topic-no-ai-slop": _done(),
     # ── CASOS DE FUTURO: escritos antes que su mecanismo, y GATEADOS por él ────────────────────────────
     # No es «capability» en el sentido viejo (una capacidad que nadie ha planificado): es una capacidad con
     # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
@@ -281,7 +288,14 @@ FINDINGS_EXEMPT = {
     "three-tasks-at-once",
     "play-music-and-build-playlist",
     "watch-a-video-not-listen-to-it",
+    # · build-a-video-playlist-from-links → lo entregado es una LISTA DENTRO del widget de vídeo, que ya es
+    #   la superficie; una hoja de resultados al lado sería una segunda pantalla contando lo mismo.
+    "build-a-video-playlist-from-links",
 }
+# Y el que SÍ entrega hallazgos, dicho para que no se arrastre por parecido temático: en
+# `find-videos-on-a-topic-no-ai-slop` el operador pidió ELEGIR ÉL entre 3 o 4 opciones con nombre. Eso es
+# exactamente una lista corta que mirar, así que le toca el contrato de hallazgos como a cualquier búsqueda
+# — que sea multimedia no lo exime. Poner un vídeo a reproducir ahí sería contestar otra pregunta.
 
 
 def delivers_findings(scenario_id: str) -> bool:
