@@ -125,6 +125,22 @@ def body_wall_reason(text: str) -> str:
     return ""
 
 
+def status_wall_reason(status: int) -> str:
+    """Short, operator-facing reason why this HTTP STATUS is a WALL, or '' for an ordinary page.
+
+    Third sibling (V2-358), and the one no needle can miss: the block travels in the response code even when
+    the site changes the words. Measured on coches.net (2026-08-27): the same 403 arrives with two different
+    bodies — «…nos hizo pensar que eres un bot» (caught by V2-352's needle) and a bare «Ups! Parece que algo
+    no va bien…» (caught by nothing) — and in round 08:03 the worker re-tried the identical URL four times
+    with no wall and no alternatives, ending the round with 0 candidates. Only the two anti-bot codes count:
+    a 404 is the error-path segments' business, and a 500 is the site failing, not the site refusing us."""
+    if status == 403:
+        return "el sitio nos ha bloqueado el acceso (respuesta 403)"
+    if status == 429:
+        return "el sitio cortó por exceso de peticiones (respuesta 429)"
+    return ""
+
+
 _MAX_WALLS = 6          # enough to say «esto pasa en todas partes», bounded so a loop cannot grow the task
 
 
@@ -738,7 +754,7 @@ def _announce_wall(task_id: str, reason: str) -> None:
 
 
 def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None,
-                page_text: str = "") -> None:
+                page_text: str = "", status: int = 0) -> None:
     """This task's browser changed view (new capture) → refresh its card.
 
     `page_text` is what the tab is SHOWING (bounded, best-effort). It is the only input that can catch a wall served
@@ -757,7 +773,8 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
             if url != t.get("url"):
                 t["last_progress"] = time.time()
             t["url"] = url
-            was, t["wall"] = (t.get("wall") or ""), (wall_reason(url) or body_wall_reason(page_text))
+            was, t["wall"] = (t.get("wall") or ""), (wall_reason(url) or status_wall_reason(int(status or 0))
+                                                     or body_wall_reason(page_text))
             if t["wall"] and t["wall"] != was:
                 struck = t["wall"]
                 # A WALL THAT WAS STRUCK LEAVES A TRACE. `wall` above is recomputed on every capture, so it

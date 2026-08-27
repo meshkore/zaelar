@@ -1322,6 +1322,22 @@ class TaskBrowser:
             return self.page
         await _ensure_page()                 # ensure the window (persistent context) + main tab
         self.page = await _context.new_page()   # new TAB in the SAME window
+        # V2-358 — the HTTP STATUS of the page the tab is standing on, kept fresh by the response stream (goto
+        # AND click-driven navigations). It is the wall signal no needle can miss: coches.net serves its block
+        # with TWO different bodies («…eres un bot» and a bare «Ups! Parece que algo no va bien…») but the SAME
+        # 403 — measured live 2026-08-27 (round 08:03: the worker hammered the identical URL four times, no
+        # wall, no alts, sheet 0). Subresources never touch this: main-frame document responses only.
+        self.last_status = 0
+        def _on_response(r):
+            try:
+                if r.request.resource_type == "document" and r.frame == self.page.main_frame:
+                    self.last_status = r.status
+            except Exception:
+                pass
+        try:
+            self.page.on("response", _on_response)
+        except Exception:
+            pass
         self._emit("tab_open", f"pestaña de la tarea {self.task_id}")
         return self.page
 
@@ -1367,7 +1383,7 @@ class TaskBrowser:
         except Exception:
             pass
         tasks.update_view(self.task_id, url=page.url, page_title=title or page.url, shot_rev=self.rev,
-                          page_text=body)
+                          page_text=body, status=int(getattr(self, "last_status", 0) or 0))
         self._emit("screenshot", page.url)
 
     async def _goto(self, url: str) -> None:

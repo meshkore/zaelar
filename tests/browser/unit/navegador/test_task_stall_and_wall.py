@@ -1001,3 +1001,46 @@ def test_an_article_discussing_bots_is_still_not_a_wall():
     article = ("Los sistemas anti-bot modernos analizan tu navegador y a veces deciden que eres un bot "
                "aunque seas humano. " * 30)
     assert len(article) > 1200 and tasks.body_wall_reason(article) == ""
+
+
+# ── V2-358: the wall signal no needle can miss — the HTTP status ────────────────────────────────────────────
+# Measured on coches.net (2026-08-27): the SAME 403 arrives with two different bodies — «…eres un bot»
+# (V2-352's needle) and a bare «Ups! Parece que algo no va bien…» (caught by nothing). Round 08:03: the worker
+# re-tried the identical URL four times, no wall, no alternatives, sheet 0.
+
+
+def test_a_403_is_a_wall_whatever_the_page_says():
+    assert tasks.status_wall_reason(403) == "el sitio nos ha bloqueado el acceso (respuesta 403)"
+    assert tasks.status_wall_reason(429) == "el sitio cortó por exceso de peticiones (respuesta 429)"
+
+
+def test_an_ordinary_or_merely_broken_status_is_not_a_block():
+    # 404 is the error-path segments' business; 500 is the site failing, not refusing us
+    assert tasks.status_wall_reason(200) == "" and tasks.status_wall_reason(0) == ""
+    assert tasks.status_wall_reason(404) == "" and tasks.status_wall_reason(500) == ""
+
+
+def test_the_status_reaches_the_wall_through_update_view():
+    tid = tasks.create("probar el muro por status")
+    tasks.set_status(tid, "working")
+    # the «Ups!» variant: ordinary URL, harmless words, 403 underneath
+    tasks.update_view(tid, url="https://www.coches.net/segunda-mano/?priceMax=12000",
+                      page_title="Ups! Parece que algo no va bien...",
+                      page_text="Ups! Parece que algo no va bien... Comprueba tu conexión.", status=403)
+    t = tasks.get(tid) or {}
+    assert t.get("wall") == "el sitio nos ha bloqueado el acceso (respuesta 403)", t.get("wall")
+    assert (t.get("walls") or []), "el muro golpeado tiene que dejar rastro"
+    # …and a healthy page afterwards clears the live wall (history stays)
+    tasks.update_view(tid, url="https://www.autoscout24.es/lst", page_title="AutoScout24",
+                      page_text="Coches de segunda mano", status=200)
+    assert (tasks.get(tid) or {}).get("wall") == ""
+
+
+def test_the_tab_feeds_its_status_and_listens_for_it():
+    """WIRING GUARD for the owner half: the classification above is dead code unless the tab (1) keeps
+    `last_status` fresh from main-frame document responses and (2) hands it to update_view at capture."""
+    import pathlib
+    src = pathlib.Path("widgets/navegador/owner.py").read_text(encoding="utf-8")
+    assert 'page.on("response"' in src and "resource_type" in src and "main_frame" in src
+    cap = src[src.index("async def _capture"):]
+    assert 'status=int(getattr(self, "last_status", 0) or 0)' in cap
