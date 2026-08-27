@@ -77,3 +77,37 @@ def test_una_tanda_mixta_se_niega_entera_y_los_nombra():
 def test_un_sandbox_no_tiene_persona_y_no_es_asunto_de_esto():
     """Sin `--lab` no hay agente persistente ni perfil que contradecir: la negativa no aplica."""
     assert wrong_lab_refusal("", [_Caso("cheapest-monitor__us", "us")]) == ""
+
+
+# ── Y que los dos platós avancen, no solo uno (2026-08-28) ──────────────────────────────────────────────────
+def test_los_dos_platos_se_alternan_dentro_de_cada_grupo():
+    """El operador pidió medir US **y** ES. La prioridad de la rotación («rotos primero») es lo valioso y no
+    se toca; lo que fallaba es que dentro de cada grupo el orden salía del diccionario del marcador y los
+    `__us` quedaban en bloque — medido: el primer caso US estaba en la **posición 21** de 132, a unas dos
+    horas y tres cuartos de plató. Un bucle que corre toda la noche sin tocar media lista no está midiendo
+    esa mitad, aunque la tenga escrita."""
+    got = S.intercala(["a__es", "b__es", "c__es", "x__us", "y__us"])
+    assert got == ["a__es", "x__us", "b__es", "y__us", "c__es"]
+
+
+def test_el_mas_largo_termina_de_tirar_solo():
+    assert S.intercala(["a__es", "b__es", "c__es"]) == ["a__es", "b__es", "c__es"]
+    assert S.intercala(["x__us", "y__us"]) == ["x__us", "y__us"]
+    assert S.intercala([]) == []
+
+
+def test_se_alterna_pero_NO_se_baraja():
+    """Barajar haría que dos vueltas seguidas no se puedan comparar, y la rotación es justo lo que las hace
+    comparables. El orden relativo dentro de cada plató tiene que sobrevivir intacto."""
+    ids = [f"{c}__es" for c in "abcde"] + [f"{c}__us" for c in "vwxyz"]
+    got = S.intercala(ids)
+    assert [x for x in got if x.endswith("__es")] == [f"{c}__es" for c in "abcde"]
+    assert [x for x in got if x.endswith("__us")] == [f"{c}__us" for c in "vwxyz"]
+    assert sorted(got) == sorted(ids), "no se pierde ni se duplica ningún caso"
+
+
+def test_la_prioridad_manda_sobre_el_intercalado():
+    """Un `__us` roto va antes que un `__es` que pasa: primero el grupo, y dentro del grupo se alterna."""
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
+    assert "intercala(rotos) + intercala(nunca) + intercala(buenos)" in src

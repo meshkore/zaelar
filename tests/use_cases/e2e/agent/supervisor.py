@@ -188,6 +188,27 @@ def _reinicia_plato(lab: str = "es") -> bool:
     return True
 
 
+def intercala(ids: list[str]) -> list[str]:
+    """Alterna los dos platós DENTRO de un grupo de prioridad, conservando el orden de cada uno.
+
+    La prioridad («rotos primero, nunca-medidos después, los que pasan al final») es lo valioso de la
+    rotación y no se toca. Lo que se arregla es que dentro de cada grupo el orden salía del diccionario del
+    marcador, y ahí los `__us` quedaban en bloque: medido el 2026-08-28, el primer caso US estaba en la
+    **posición 21** de 132 — a unas dos horas y tres cuartos de plató. Un bucle que corre toda la noche y no
+    llega a tocar la mitad del catálogo no está midiendo esa mitad, aunque la tenga en la lista.
+
+    Alternar y no barajar: barajar haría que dos vueltas seguidas no se puedan comparar, y la rotación es
+    justamente lo que hace comparables las vueltas.
+    """
+    es = [x for x in ids if not x.endswith("__us")]
+    us = [x for x in ids if x.endswith("__us")]
+    fuera: list[str] = []
+    for a, b in zip(es, us):
+        fuera += [a, b]
+    fuera += es[len(us):] + us[len(es):]      # el más largo termina de tirar solo
+    return fuera
+
+
 def rotacion() -> list[str]:
     """El orden en que se recorren, y el orden IMPORTA porque el tiempo de plató es el recurso escaso.
 
@@ -225,7 +246,9 @@ def rotacion() -> list[str]:
             # Rotos primero (donde hay algo que ganar y ya sabemos qué mirar), NUNCA MEDIDOS después
             # (información nueva, pero cada uno cuesta una ronda entera de plató), y los que pasan al final
             # para que una regresión se vea sin comerse el turno de nadie.
-            return rotos + nunca + buenos
+            # Intercalado DENTRO de cada grupo: la prioridad manda, pero un grupo entero de un solo plató
+            # deja al otro sin medir durante horas (ver `intercala`).
+            return intercala(rotos) + intercala(nunca) + intercala(buenos)
     except Exception:  # noqa: BLE001
         pass
     return ["search-buy-used-car"]
