@@ -61,9 +61,14 @@ def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
 
 
 def test_acotado_a_cinco_esto_va_a_un_prompt_no_a_una_pantalla():
+    """El tope sigue siendo CINCO filas. Lo que V2-374 añade detrás es una línea que CUENTA las escondidas —
+    no una sexta fila: sin ella el turno leía esas cinco como la hoja entera y cerró una conversación
+    ofreciendo accesorios con nueve cámaras guardadas."""
     tid = T.create("Busca monitores", sheet="v298-3")
     _sheet_with("v298-3", [{"title": f"Monitor candidato {i}", "price": "60 €"} for i in range(12)])
-    assert len(LB._sheet_top_rows(tid)) == 5
+    filas = LB._sheet_top_rows(tid)
+    assert sum(1 for f in filas if f.startswith("«")) == 5
+    assert "7 candidato(s) más" in filas[-1]
 
 
 def test_sin_hoja_no_hay_filas_y_no_hay_error():

@@ -1095,7 +1095,11 @@ DOMAINS: list[dict] = [
                       # lo que pidió» es correcto en mitad de la búsqueda y es un veredicto falso al final:
                       # el turno cerró `search-buy-bicycle__es` con esa frase casi literal tras haber
                       # entregado dos bicis reales. Lo que cambia es el ALCANCE, no el hecho.
-                      "tests/browser/unit/navegador/test_an_empty_page_is_not_the_end_of_the_errand.py"]},
+                      "tests/browser/unit/navegador/test_an_empty_page_is_not_the_end_of_the_errand.py",
+                      # V2-374 — y la SEGUNDA mitad de V2-234, que la CARA nunca tuvo: cortaba en cinco y se
+                      # callaba, así que para el turno esas cinco eran la hoja entera. Con catorce candidatos
+                      # dentro, las cinco visibles fueron una cámara y cuatro accesorios.
+                      "tests/browser/unit/navegador/test_five_rows_of_fourteen_are_not_the_sheet.py"]},
         # V2-295 — el mismo corte una capa más adentro. Las cuatro filas de cabeza llevaban NOMBRE, así que
         # `by_identity` las dejaba pasar, pero ninguna llevaba precio: lo que se le ofreció a quien pidió «un
         # monitor de 27 pulgadas por menos de 150 €» fueron «Monitores», «Monitor SAMSUNG» y «Monitor de Hípica»

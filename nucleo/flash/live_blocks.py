@@ -215,9 +215,13 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
         if not sheet:
             return []
         out: list[str] = []
+        _con_nombre = 0
         for i in (_sheet.view_data(sheet) or {}).get("items") or []:
             title = str((i or {}).get("title") or "").strip()
             if not title:
+                continue
+            if len(out) >= max(1, int(n)):      # se sigue CONTANDO aunque ya no se liste
+                _con_nombre += 1
                 continue
             price = str((i or {}).get("price") or "").strip()
             # V2-360 — LA AUSENCIA, DICHA. Sin esto una fila sin importe se renderiza como un título a secas y
@@ -231,8 +235,24 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
             _tel = str((i or {}).get("tel") or "").strip()
             _dato = price[:20] if price else (_tel[:20] if _tel else "SIN PRECIO")
             out.append("«" + title[:70] + " — " + _dato + "»")
-            if len(out) >= max(1, int(n)):
-                break
+            _con_nombre += 1
+        _tope = max(1, int(n))
+        # V2-374 — LO QUE QUEDA FUERA SE CUENTA. Es la segunda mitad de V2-234, que la nota del navegador ya
+        # aplica desde entonces («y N filas más de la misma página») y esta cara nunca tuvo: cortaba en cinco y
+        # se callaba, así que para el turno esas cinco ERAN la hoja entera.
+        #
+        # Medido en `search-buy-camera__es` (2026-08-27, 2/5). La hoja tenía CATORCE candidatos con nombre —
+        # Canon EOS 4000D, Nikon D3500, D5300, Canon 7D, EOS 1200D, D50, D800— y las cinco que llegaron al
+        # último turno fueron «Canon EOS 550D», «Funda Hama», «Mochila», «Arnés» y «Funda Kata». Cuatro de
+        # cinco eran accesorios, y zaelar cerró la conversación ofreciendo la funda de 9 € y la mochila de 25 €
+        # a quien pedía una réflex por menos de 400.
+        #
+        # No hay nada que reordenar y conviene decirlo: se comprobó contra el pipeline real y el orden que
+        # llega es el del DOM, fielmente — fue Wallapop quien puso una funda la segunda. Con nueve filas
+        # escondidas y sin saberlo, «di solo lo que RESPONDE a lo que pidió» es una instrucción que el prompt
+        # hace difícil de cumplir: el modelo no puede elegir entre lo que no ve (V2-330).
+        if _con_nombre > _tope:
+            out.append(f"(y {_con_nombre - _tope} candidato(s) más con nombre en la hoja, no listados aquí)")
         return out
     except Exception:
         return []
