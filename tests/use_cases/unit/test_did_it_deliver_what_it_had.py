@@ -27,9 +27,15 @@ _DICHO = {"n": 3, "names": ["MINI Cooper F55 5p 2016", "FIAT Panda 4x4 diesel", 
 
 
 def test_el_caso_MEDIDO_sale_con_su_numero():
+    """Reescrito 2026-08-28, NO volteado: el número medido (3 de 5 = 60 %) y las dos que se dejó son los
+    mismos: en aquella ronda la hoja tenía cinco filas y el prompt las llevaba las cinco, así que las dos
+    denominaciones coinciden y la medida no se mueve. Lo que cambió es que el dict trae ahora `in_sheet` y
+    `shown_to_model` (nodo 10.105), y una igualdad EXACTA de diccionario tumba el test cada vez que se añade
+    un campo — sin decir nada sobre lo que este test protege. Se comprueba lo medido, campo a campo."""
     r = V.delivery_completeness(_DICHO, _HOJA)
-    assert r == {"named": 3, "available": 5, "pct": 60,
-                 "missed": ["Audi Q5 2015 ETIQUETA C 2.0TDI MANUAL", "Peugeot 5008 2.0HDI"]}
+    assert r["named"] == 3 and r["available"] == 5 and r["pct"] == 60
+    assert r["missed"] == ["Audi Q5 2015 ETIQUETA C 2.0TDI MANUAL", "Peugeot 5008 2.0HDI"]
+    assert r["in_sheet"] == 5, "la hoja de aquella ronda: las dos denominaciones eran la misma"
 
 
 def test_NOMBRA_las_que_se_dejó():

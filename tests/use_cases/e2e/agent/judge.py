@@ -594,10 +594,20 @@ def mechanism_facts(mech: dict) -> str:
     _dc = mech.get("delivery_completeness") or {}
     if (_dc.get("available") or 0) > 0 and (_dc.get("named") or 0) < (_dc.get("available") or 0):
         _perdidos = "; ".join(f"«{str(x)[:70]}»" for x in (_dc.get("missed") or [])[:6])
-        lines.append(f"· ⚠️ ZAELAR TENÍA {_dc.get('available')} RESULTADOS REALES Y SOLO ENTREGÓ "
-                     f"{_dc.get('named')} POR SU NOMBRE ({_dc.get('pct')} %). Ejemplos de lo que se quedó "
-                     f"sin decir: {_perdidos}. Los datos EXISTÍAN en su hoja — esto es un fallo de ENTREGA, "
-                     f"no de búsqueda: no escribas «no encontró», escribe «no lo dijo».")
+        # 10.105 — el denominador es lo que TUVO DELANTE, no lo que hay en la hoja: el motor empuja como
+        # mucho cinco filas al prompt y la hoja puede tener treinta. Decírselo al juez es la mitad que
+        # faltaba: sin esta frase escribía «retención masiva del 11 %» sobre un modelo que había nombrado 3
+        # de las 5 que le enseñamos, y la lista de «lo que se dejó» eran coches que nunca vio.
+        _oculto = int(_dc.get("in_sheet") or 0) - int(_dc.get("available") or 0)
+        lines.append(f"· ⚠️ ZAELAR TUVO DELANTE {_dc.get('available')} RESULTADOS REALES —en su propio "
+                     f"prompt— Y SOLO ENTREGÓ {_dc.get('named')} POR SU NOMBRE ({_dc.get('pct')} %). "
+                     f"Ejemplos de lo que se quedó sin decir: {_perdidos}. Los datos ESTABAN en su prompt — "
+                     f"esto es un fallo de ENTREGA, no de búsqueda: no escribas «no encontró», escribe «no "
+                     f"lo dijo».")
+        if _oculto > 0:
+            lines.append(f"· ℹ️ Y OJO CON ESTE: la hoja tenía {_dc.get('in_sheet')} filas en total, o sea "
+                         f"que {_oculto} NUNCA llegaron a su prompt. Eso es un límite NUESTRO, no una "
+                         f"retención suya: no puedes bajarle la nota por no nombrar lo que no le enseñamos.")
     # V2-399 — el mismo encargo lanzado varias veces quema turnos y presupuesto, y solo viajaba en crudo.
     _de = mech.get("duplicate_errands") or {}
     if (_de.get("worst") or 0) >= 2 or (_de.get("identical_repeats") or 0) > 0:

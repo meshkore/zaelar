@@ -940,7 +940,11 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
         live = next((l.strip() for l in sp.splitlines() if _LIVE_MARK in l), "")
         failed = "FALLÓ" in done
         out.append({"turn": i, "at_ms": ts_ms, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
-                    "task_line": nav[:300], "shown_state": shown[:200], "live_line": live[:400],
+                    "task_line": nav[:300], "shown_state": shown[:200],
+                    # 1200 y no 400: las FILAS empujadas viajan dentro de esta línea, y a 400 caracteres se
+                    # cortaban justo donde empiezan. Sin ellas no se puede responder «¿se le mostró?», que es
+                    # la pregunta que separa una conducta de una fontanería (ver `shown_candidates`).
+                    "live_line": live[:1200],
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out
@@ -1460,7 +1464,40 @@ def delivered_by_name(transcript, known_titles) -> dict:
     return out
 
 
-def delivery_completeness(delivered: dict | None, sheet: dict | None) -> dict:
+#: El encabezado exacto con el que `live_blocks` empuja las filas de la hoja al prompt del turno.
+_ROWS_HEAD = "LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): "
+
+
+def shown_candidates(prompt_rows: list[dict] | None) -> list[str]:
+    """Los títulos que el modelo TUVO DELANTE, sacados de sus propios prompts — no los que hay en la hoja.
+
+    Las dos cosas se confundían, y dejaron de ser la misma en cuanto las hojas crecieron.
+    `live_blocks._sheet_top_rows` empuja **como mucho 5** filas («bounded hard, because this lands in a
+    prompt, not on a screen»); la hoja puede tener treinta. Medido el 2026-08-28 en `search-buy-used-car`:
+    hoja de 28, prompt con 5, el modelo nombró 3 — y el informe lo publicó como «retención masiva, 11 %»,
+    con una lista de `missed` llena de coches que nunca estuvieron en ningún prompt. La obediencia PERFECTA
+    habría dado 18 %. Un fixing agent leyendo eso persigue una retención que no existe.
+
+    Se lee del prompt y no del límite del motor a propósito: el límite es una constante que alguien puede
+    cambiar, y entonces la medición mentiría otra vez sin que nadie tocara el arnés.
+    """
+    vistos: list[str] = []
+    for r in (prompt_rows or []):
+        linea = str((r or {}).get("live_line") or "")
+        if _ROWS_HEAD not in linea:
+            continue
+        trozo = linea.split(_ROWS_HEAD, 1)[1]
+        # El bloque termina en el aviso que va detrás; si vino recortado, se toma lo que haya.
+        trozo = trozo.split(". OJO:", 1)[0]
+        for t in trozo.split(";"):
+            titulo = t.strip().split(" — ")[0].strip()
+            if titulo and titulo not in vistos:
+                vistos.append(titulo)
+    return vistos
+
+
+def delivery_completeness(delivered: dict | None, sheet: dict | None,
+                          shown: list[str] | None = None) -> dict:
     """De las filas VÁLIDAS que el sistema le puso delante, ¿cuántas llegó a nombrar? (V2-332)
 
     El informe ya sabe qué le dieron (`results_sheet`) y qué dijo (`delivered_by_name`, V2-329/331). Lo que no
@@ -1483,15 +1520,23 @@ def delivery_completeness(delivered: dict | None, sheet: dict | None) -> dict:
     equivocaciones el 2026-08-25.
     """
     d, sh = dict(delivered or {}), dict(sheet or {})
-    total = int(sh.get("n_named") or 0) or len(sh.get("titles") or [])
+    en_hoja = int(sh.get("n_named") or 0) or len(sh.get("titles") or [])
+    # EL DENOMINADOR ES LO QUE SE LE MOSTRÓ, que es lo que el docstring de arriba prometió desde el primer
+    # día y lo que el código dejó de hacer en cuanto las hojas crecieron por encima del tope del empuje.
+    # `titles` sigue publicándose aparte (`in_sheet`): la diferencia entre las dos cifras es un hallazgo
+    # sobre NOSOTROS —cuánto de lo que tenemos no le enseñamos— y no sobre el modelo.
+    candidatos = [str(t) for t in (shown or [])] or [str(t) for t in (sh.get("titles") or [])]
+    total = len(candidatos)
     dichas = int(d.get("n") or 0)
-    out: dict = {"named": dichas, "available": total, "pct": None, "missed": []}
+    out: dict = {"named": dichas, "available": total, "in_sheet": en_hoja,
+                 "shown_to_model": bool(shown), "pct": None, "missed": []}
     if not total:
         return out
     out["pct"] = round(100.0 * min(dichas, total) / total)
     ya = {str(x).lower()[:18] for x in (d.get("names") or [])}
-    out["missed"] = [str(t)[:60] for t in (sh.get("titles") or [])
-                     if str(t).lower()[:18] not in ya][:6]
+    # `missed` solo de lo que TUVO DELANTE: acusar de saltarse una fila que nunca estuvo en ningún prompt
+    # manda al que lo lee a arreglar algo que no ocurrió.
+    out["missed"] = [str(t)[:60] for t in candidatos if str(t).lower()[:18] not in ya][:6]
     return out
 
 

@@ -5112,6 +5112,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El denominador es lo que se le MOSTRÓ, no lo que hay en la hoja (V2-420, 2026-08-28)**:
+  `delivery_completeness` prometía medir «de las filas que el sistema LE PUSO DELANTE» y dividía por toda la
+  hoja. Cuando se escribió, la hoja tenía cinco filas y el prompt las llevaba las cinco — las dos
+  denominaciones eran la misma y no se podía notar. `_sheet_top_rows` empuja **como mucho 5** («bounded hard,
+  because this lands in a prompt, not on a screen») y una hoja puede tener treinta. Medido en
+  `search-buy-used-car` (cerebro glm-5.3): hoja de 28, prompt con 5, nombró 3 → el informe publicó «retención
+  masiva, 11 %» con un `missed` lleno de coches que NUNCA estuvieron en ningún prompt. La obediencia perfecta
+  habría dado 18 %. Tercera vez en la misma noche que el instrumento acusa al producto. Ahora los títulos se
+  leen de SUS PROPIOS PROMPTS (no del límite del motor: una constante que alguien cambia y la medición vuelve
+  a mentir sola), `in_sheet` se publica aparte —«cuánto de lo que tenemos no le enseñamos» es un hallazgo
+  sobre nosotros— y **al juez se le dice**, que es quien pone la nota. La captura de `live_line` sube de 400 a
+  1200 caracteres: las filas viajan ahí dentro y a 400 se cortaban justo donde empiezan, con lo que la lectura
+  habría salido vacía SIEMPRE, que se lee como «no se le mostró nada». Deja abierta una pregunta del operador:
+  con 28 en la hoja le enseñamos el 18 % — ¿cinco filas son pocas? El número lo darán las rondas del 24/7.
+  Nodo 10.105, seis desarmes. NO tapa lo del producto: en esa ronda el modelo se inventó dos coches teniendo
+  cinco reales delante, y eso es conducta.
+
 - **Un worker MIRANDO EL MENÚ no es un worker estrellado (V2-418, 2026-08-28)**: primera ronda del plató
   24/7 (`weekend-plan-barcelona__es`, cerebro glm-5.3) archivada con dos `error_interno` de certeza «hecho» y
   un juez escribiendo «el worker falló técnicamente al extraer el precio». Lo que el worker hizo fue lanzar

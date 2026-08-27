@@ -1954,6 +1954,15 @@ DOMAINS: list[dict] = [
         # inglés. No falla — mide, sale verde de infraestructura y entra al marcador como veredicto sobre el
         # producto. Y `run.py` tampoco lo impedía, así que arreglar solo el supervisor dejaba el mismo error a
         # un `--lab` a mano.
+        # 2026-08-28 — `delivery_completeness` prometía medir «de las filas que el sistema LE PUSO DELANTE» y
+        # dividía por toda la hoja. Cuando se escribió, la hoja tenía 5 filas y era lo mismo; dejó de serlo al
+        # crecer. Medido en `search-buy-used-car`: hoja de 28, prompt con 5 (tope de `_sheet_top_rows`), nombró
+        # 3 → el informe publicó «retención masiva, 11 %» con `missed` lleno de coches que nunca estuvieron en
+        # ningún prompt. La obediencia perfecta habría dado 18 %.
+        {"id": "10.105", "title": "El denominador es lo que se le MOSTRÓ, no lo que hay en la hoja — y lo que "
+                                 "no le enseñamos se publica aparte",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_denominator_is_what_the_model_was_shown.py"]},
         {"id": "10.104", "title": "Cada caso se mide en SU plató — el supervisor lo elige por el caso y el "
                                  "runner se niega si no cuadra",
             "ch": UNIT,
