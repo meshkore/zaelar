@@ -1976,6 +1976,13 @@ DOMAINS: list[dict] = [
         # crecer. Medido en `search-buy-used-car`: hoja de 28, prompt con 5 (tope de `_sheet_top_rows`), nombró
         # 3 → el informe publicó «retención masiva, 11 %» con `missed` lleno de coches que nunca estuvieron en
         # ningún prompt. La obediencia perfecta habría dado 18 %.
+        # 2026-08-28, con el plató 24/7 ya corriendo: dos filas pasaron de FAIL a INFRA en una hora y
+        # reconstruir cuál de las CUATRO ramas las movió fue imposible — el dict de la ronda ya no existe
+        # cuando alguien lee el tablero. Y las cuatro piden acciones opuestas: bug del instrumento, recargar
+        # un proveedor, levantar el prewarm, o mirar la cadena del juez.
+        {"id": "10.106", "title": "Una fila INFRA dice CUÁL — las cuatro puertas piden acciones opuestas",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_infra_says_which_infra.py"]},
         {"id": "10.105", "title": "El denominador es lo que se le MOSTRÓ, no lo que hay en la hoja — y lo que "
                                  "no le enseñamos se publica aparte",
             "ch": UNIT,

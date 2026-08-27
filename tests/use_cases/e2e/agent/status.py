@@ -75,6 +75,8 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
             # chain MOVED mid-round: half that row is about one product and half about another.
             "brain": _brain_stamp(mech),
             "state": _state(overall, r),
+            # Por qué, si fue INFRA. Ver `_infra`: las cuatro puertas piden acciones opuestas.
+            "infra_reason": r.get("_infra_reason") or None,
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
             "missing_signals": mech.get("missing_signals") or [],
@@ -143,6 +145,24 @@ def _brain_stamp(mech: dict) -> str:
     return "+".join(n.split("/", 1)[-1] for n in names)
 
 
+def _infra(r: dict, motivo: str) -> str:
+    """Marca la fila INFRA **y deja escrito por qué**, en el propio resultado de la ronda.
+
+    `INFRA` sin motivo es un agujero de operación, no de estilo. Las cuatro puertas que llevan a él —arnés
+    caído, turnos vacíos, recall degradado, juez sin nota— piden acciones OPUESTAS: una es un bug del
+    instrumento, otra es recargar un proveedor, otra es levantar el prewarm y la cuarta es mirar la cadena del
+    juez. Desde el tablero se ven las cuatro igual.
+
+    Medido el 2026-08-28, con el plató 24/7 ya corriendo: dos filas pasaron de FAIL a INFRA en una hora y
+    reconstruir cuál de las cuatro ramas las movió fue imposible sin el dict de la ronda, que para entonces ya
+    no existe. En un bucle que nadie mira durante ocho horas, ésa es exactamente la diferencia entre «está
+    midiendo» y «lleva toda la noche produciendo basura a toda velocidad» — y la segunda es peor que estar
+    parado, porque parado se nota.
+    """
+    r["_infra_reason"] = motivo
+    return "INFRA"
+
+
 def _state(overall, r: dict) -> str:
     """INFRA is deliberately its own state, never a FAIL: a network timeout or a crashed harness says nothing
     about whether the use case works, and folding the two together is how a scoreboard starts lying.
@@ -159,7 +179,7 @@ def _state(overall, r: dict) -> str:
     """
     run = r.get("run") or {}
     if run.get("crashed") or (r.get("verdict") or {}).get("veredicto", "").startswith("INFRA"):
-        return "INFRA"
+        return _infra(r, "el arnés se cayó o el veredicto llegó marcado INFRA")
     # AN AGENT THAT SAID NOTHING WAS NOT MEASURED, whatever the cause. Measured 2026-08-21 on
     # `compare-broadband-plans__es`: DeepSeek answered HTTP 402 «Insufficient Balance» and z.ai had been out
     # of quota since the previous day, so every single zaelar turn came back EMPTY — and the round was filed
@@ -169,16 +189,17 @@ def _state(overall, r: dict) -> str:
     mute = (mech_.get("mute_turns") or {}).get("n") or 0
     turns = max(1, len((run.get("transcript") or [])) // 2)
     if mute and mute >= max(2, turns // 2):
-        return "INFRA"
+        return _infra(r, f"{mute} de {turns} turnos de zaelar volvieron VACÍOS (proveedor caído o sin saldo)")
     # SEMANTIC RECALL OFF IS NOT A PRODUCT VERDICT. If the round's own process resolved its embeddings to
     # `hash` (lexical only) or `fastembed` (collapses at scale, T176), every memory-dependent check was
     # graded against a memory that could not answer by meaning — and it fails QUIET, looking exactly like an
     # agent that forgot. The memory agent established (2026-08-21) that a process reporting `ollama` at
     # prewarm cannot degrade later, so this line is a reliable statement about the round that ran.
     if ((mech_.get("embeddings") or {}).get("degraded")):
-        return "INFRA"
+        _b = (mech_.get("embeddings") or {}).get("backend") or "sin prewarm"
+        return _infra(r, f"recall semántico DEGRADADO en esta ronda (backend: {_b})")
     if overall is None:
-        return "INFRA"
+        return _infra(r, "el juez no devolvió nota")
     # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4
     # (conducta impecable: 5 en naturalidad, adaptación y resultado) con **mecanismo 1**, y el propio juez
     # escribió «desincronización crítica: el sistema reporta estado 'working' con cero actividad de fondo». El
@@ -249,6 +270,10 @@ def _render(led: dict) -> None:
         st = e.get("state", "INFRA")
         overall = e.get("overall")
         verdict = (e.get("verdict") or "").replace("|", "·").replace("\n", " ")
+        if e.get("state") == "INFRA" and e.get("infra_reason"):
+            # El motivo MANDA sobre el veredicto en una fila INFRA: el veredicto habla de un producto que en
+            # esa ronda no llegó a medirse, y leerlo como si sí invita justo al diagnóstico equivocado.
+            verdict = f"**INFRA — {e['infra_reason']}** · (veredicto no medible: {verdict})"
         if len(verdict) > 160:
             verdict = verdict[:157] + "…"
         lines.append(

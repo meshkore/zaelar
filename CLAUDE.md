@@ -5112,6 +5112,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Una fila INFRA dice CUÁL (V2-423, 2026-08-28)**: las cuatro puertas que llevan a INFRA piden acciones
+  OPUESTAS —arnés caído (bug del instrumento), turnos vacíos (recargar un proveedor), recall degradado
+  (levantar el prewarm), juez sin nota (mirar su cadena)— y desde el tablero se veían las cuatro igual.
+  Medido con el 24/7 ya corriendo: dos filas pasaron de FAIL a INFRA en una hora y reconstruir cuál de las
+  cuatro ramas las movió fue **imposible** (descarté embeddings, turnos vacíos y caída del arnés una a una y
+  me quedé sin respuesta): el dict de la ronda ya no existe cuando alguien lee el tablero. En un bucle que
+  corre ocho horas sin que nadie lo mire, ésa es la diferencia entre «está midiendo» y «lleva toda la noche
+  produciendo basura», y la segunda es peor que estar parado porque parado se nota. Ahora el motivo lleva el
+  dato dentro (cuántos turnos de cuántos, qué backend) y va DELANTE del veredicto en una fila INFRA: el
+  veredicto habla de un producto que esa ronda no llegó a medir, y leerlo como si sí invita justo al
+  diagnóstico equivocado. Nodo 10.106, tres desarmes.
+
 - **La misma búsqueda dos veces no son dos búsquedas (V2-422, 2026-08-28)**: `weekend-plan-barcelona__es`
   en el plató 24/7 hizo **56 búsquedas web, 31 consultas, 0 candidatos verificados** y dejó la hoja vacía,
   repitiendo la misma consulta sin cambiar un criterio — «eso no es diligencia, es dar vueltas» (juez). No
