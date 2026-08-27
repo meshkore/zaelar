@@ -1671,6 +1671,13 @@ DOMAINS: list[dict] = [
         # OCHO eran invisibles para el juez (solo JSON crudo, que el juez ignora — medido). El peor:
         # `delivery_completeness` decía «tenía 24 resultados y nombró 1 (4 %)» en la ronda de Bilbao y
         # estaba mudo. Ahora: o se renderiza en palabras, o vive en `judge.RAW_ONLY` con motivo.
+        # V2-400 — tres lectores que aún respondían AUSENCIAS sin haber mirado, cazados leyendo el código
+        # (no una ronda): el techo de session_events (recorte invisible del tronco), recall caído = «no
+        # aterrizó» en el parte de siembra, y la agenda ilegible «confirmada vacía» (widget_rows traga el
+        # error dentro y el try/except de run.py no saltaba jamás).
+        {"id": "10.100", "title": "Un lector al TOPE, un recall caído y una agenda ilegible dicen la verdad",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_un_lector_al_tope_y_un_recall_caido.py"]},
         {"id": "10.99", "title": "Todo lo MEDIDO se le dice al juez · trinquete de completitud del informe",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_todo_lo_medido_se_le_dice_al_juez.py"]},

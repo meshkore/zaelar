@@ -105,6 +105,27 @@ memoria, no al agente. Juzga el resto (que investigue de verdad, que acierte los
 catálogo). Si aun así recuerda algo coherente, es un plus.
 """
 
+SEED_NOTE_UNVERIFIABLE = """
+⚠️ MEMORIA SEMBRADA PERO **NO SE PUDO PREGUNTAR** — se sembraron {n} preferencia(s) y el recall del arnés
+no obtuvo respuesta del motor en {waited}s (la petición fallaba, no es que volviera vacía). O sea que NO
+sabemos si el agente las tiene: ni afirmes que las tiene ni que le faltan. NO le bajes la nota por no
+recordarlas ni por preguntar qué le gusta — sería puntuar una avería del instrumento.
+"""
+
+
+def seed_note_for(seed: dict) -> str:
+    """La nota de siembra del prompt del juez, con los TRES desenlaces separados (V2-400): aterrizó ·
+    no aterrizó (se preguntó y no estaba) · no se pudo preguntar. La versión de dos ramas afirmaba
+    «el recall NO las devuelve» también cuando ningún recall había contestado."""
+    if not seed:
+        return ""
+    if seed.get("landed"):
+        return SEED_NOTE_OK.format(n=seed.get("sown"), probe=seed.get("probe", ""))
+    if seed.get("unverifiable"):
+        return SEED_NOTE_UNVERIFIABLE.format(n=seed.get("sown"), waited=seed.get("waited_s"))
+    return SEED_NOTE_FAIL.format(n=seed.get("sown"), waited=seed.get("waited_s"))
+
+
 def _clocks_relative(mech: dict) -> dict:
     """Una COPIA del informe sin relojes CRUDOS: cada epoch-ms pasa a segundos desde el primer instante medido.
 
@@ -538,6 +559,13 @@ def mechanism_facts(mech: dict) -> str:
                      f"que ocurrió: una herramienta pedida puede fallar o ser rechazada (mira las "
                      f"operaciones de widget). Un turno con «(ninguna)» no llamó a nada, así que si hacía "
                      f"falta una acción, ahí no se intentó siquiera.")
+    # V2-400 — el flujo tocó el techo del lector: el informe entero sale de un flujo RECORTADO.
+    _cap = mech.get("event_stream_at_cap") or {}
+    if _cap:
+        lines.append(f"· ⚠️ EL FLUJO DE EVENTOS ESTÁ RECORTADO: el lector trajo {_cap.get('raw')} eventos, "
+                     f"que es su techo ({_cap.get('limit')}). Falta una parte del flujo, así que un cero o "
+                     f"una ausencia en CUALQUIER sección de este informe no prueba nada — puntúa solo lo "
+                     f"que SÍ se ve.")
     # V2-397 — la foto sacada a media faena. `quiescence` no aparecía NI UNA VEZ en este fichero, y 131 de
     # las 215 rondas archivadas se compusieron con un worker todavía trabajando.
     _mf = _V.measured_in_flight(mech)
@@ -940,11 +968,7 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
             f"esos recuerdos le hagan CONFUNDIR lo que se le está pidiendo AHORA, o que actúe sobre el tema "
             f"viejo en vez del nuevo.")
     seed = run.get("memory_seed") or {}
-    seed_note = ""
-    if seed:
-        seed_note = (SEED_NOTE_OK.format(n=seed.get("sown"), probe=seed.get("probe", ""))
-                     if seed.get("landed") else
-                     SEED_NOTE_FAIL.format(n=seed.get("sown"), waited=seed.get("waited_s")))
+    seed_note = seed_note_for(seed)
     # QUIÉN ES la persona del plató — la misma verdad que ya reciben el DRIVE y el watchdog, y por la misma
     # razón (V2-300). Medido en la ronda 23: el juez archivó [media] «buscó en Madrid sin que el usuario lo
     # especificara… preguntar, nunca adivinar» — y Madrid es el perfil SEMBRADO del plató, o sea la memoria

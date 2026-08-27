@@ -62,9 +62,13 @@ def test_the_runner_actually_READS_it(monkeypatch):
     monkeypatch.setattr(R.probe_client, "current_session_id", lambda: "s")
     monkeypatch.setattr(R.probe_client, "session_events", lambda sid: [])
     monkeypatch.setattr(R.probe_client, "scheduled_jobs", lambda: [])
-    monkeypatch.setattr(R.probe_client, "widget_rows",
-                        lambda wid, key: seen.setdefault("asked", (wid, key)) and None
-                        or [{"title": "X", "date": "2026-08-27"}])
+    # Reescrito por V2-400, no volteado: la lectura pasó de `widget_rows` (que traga el error DENTRO y
+    # devuelve [], con lo que una agenda ilegible llegaba al juez como «vacía y confirmada») a `widget_data`,
+    # que devuelve None cuando no se pudo mirar. Lo que este test protege —que el runner LEA la agenda y que
+    # lo leído llegue al informe del juez— sigue intacto, sobre el lector honesto.
+    monkeypatch.setattr(R.probe_client, "widget_data",
+                        lambda wid, q="": seen.setdefault("asked", wid) and None
+                        or {"meetings": [{"title": "X", "date": "2026-08-27"}]})
     monkeypatch.setattr(R.verifymod, "mechanism_report", lambda *a, **k: {})
     monkeypatch.setattr(R.judgemod, "judge", lambda scn, run: seen.setdefault("mech", run["mechanism_report"]) or {})
     monkeypatch.setattr(R.llmmod, "drive_model", lambda: "m")
@@ -77,6 +81,6 @@ def test_the_runner_actually_READS_it(monkeypatch):
 
     R._run_scenario(SC.UseCaseScenario(id="x", locale="es", tier=1, persona_brief="p",
                                        opening_line="o", success_checks="s", turns=1))
-    assert seen.get("asked") == ("agenda", "meetings"), "the runner does not read the engine's agenda"
+    assert seen.get("asked") == "agenda", "the runner does not read the engine's agenda"
     assert seen["mech"]["agenda_meetings"] == [{"title": "X", "date": "2026-08-27"}], \
         "what was read never reaches the report the judge sees"

@@ -88,6 +88,33 @@ def engine_autopsy(err: str) -> dict:
     return out
 
 
+def _await_seed_landing(probe: str, *, budget_s: float = 45.0, poll_s: float = 3.0) -> tuple:
+    """Sondea el recall hasta ver la siembra, y distingue al volver si ALGUIEN llegó a contestar (V2-400):
+    `recall` devuelve None cuando la petición cae, y sin `asked_ok` un motor caído 15 veces seguidas se
+    reportaba como «se preguntó y no estaba». Extraída del cuerpo de `_run_scenario` para poder conducirla
+    con un recall suplantado — la propiedad no se puede asertar sobre un bucle enterrado en 600 líneas."""
+    landed, asked_ok, waited = False, False, 0.0
+    while probe and waited < budget_s:
+        hits = probe_client.recall(probe, k=8)
+        if hits is not None:
+            asked_ok = True
+        if hits:
+            landed = True
+            break
+        time.sleep(poll_s)
+        waited += poll_s
+    return landed, asked_ok, waited
+
+
+def seed_outcome(*, sown: int, landed: bool, asked_ok: bool, waited: float, probe: str) -> dict:
+    """El parte de la siembra, como FUNCIÓN para poder asertar la propiedad y no la presencia (V2-400,
+    misma doctrina que `no_quota_infra`): tres desenlaces — aterrizó · se preguntó y no estaba ·
+    NO SE PUDO PREGUNTAR (todos los recall fallaron). El segundo y el tercero son afirmaciones opuestas
+    sobre el motor, y la versión inline los fundía en `landed=False`."""
+    return {"sown": sown, "landed": landed, "waited_s": round(waited, 1), "probe": probe,
+            "unverifiable": bool(probe) and not asked_ok and not landed}
+
+
 def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False,
                   provisional: str = "") -> dict:
     """`sandboxed` says whether the engine under test is a throwaway one. It decides whether the
@@ -145,17 +172,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 print(f"    ✗ siembra falló: {e}")
         # El CORAZÓN de escritura es asíncrono a propósito (invariante: escribir puede ser lento). Se espera a
         # verlo en el recall en vez de dormir un número inventado — y si no llega, se dice.
-        landed, waited = False, 0.0
         probe = scenario.seed_probe_query or (scenario.memory_seed[0][:40] if scenario.memory_seed else "")
-        while probe and waited < 45.0:
-            hits = probe_client.recall(probe, k=8)
-            if hits:
-                landed = True
-                break
-            time.sleep(3.0)
-            waited += 3.0
-        seed_report = {"sown": len(scenario.memory_seed), "landed": landed, "waited_s": round(waited, 1),
-                       "probe": probe}
+        landed, asked_ok, waited = _await_seed_landing(probe)
+        seed_report = seed_outcome(sown=len(scenario.memory_seed), landed=landed, asked_ok=asked_ok,
+                                   waited=waited, probe=probe)
         print(f"    {'✓' if landed else '⚠️'} siembra {'verificada' if landed else 'NO verificada'} "
               f"en recall tras {waited:.0f}s")
         probe_client.reset(session)      # la petición real arranca con la ventana LIMPIA
@@ -282,8 +302,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     live_session_id = probe_client.current_session_id()
     # `or []` and NOT a default inside the reader: both now answer `None` for "nobody answered", and that
     # difference is what `verify.unreadable_infra` reads below to refuse to score the round.
-    all_events = [e for e in (probe_client.session_events(live_session_id) or [])
-                  if (e.get("ts_ms") or 0) >= scenario_started_ms]
+    _raw_events = probe_client.session_events(live_session_id) or []
+    all_events = [e for e in _raw_events if (e.get("ts_ms") or 0) >= scenario_started_ms]
     try:
         jobs_after = probe_client.scheduled_jobs()
     except Exception:
@@ -294,6 +314,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     if quiescence is not None:
         mech["quiescence"] = quiescence
     mech["turn_actions"] = turn_actions
+    # V2-400 — el flujo CRUDO contra el techo del lector, ANTES del filtro por tiempo (el filtro esconde el
+    # recorte). Nunca ha mordido (máx histórico 1.128 sobre 4.000), pero el día que muerda sería invisible:
+    # familias, widget_ops y la auditoría entera saldrían de un flujo recortado sin que nada lo dijera.
+    if len(_raw_events) >= 4000:
+        mech["event_stream_at_cap"] = {"raw": len(_raw_events), "limit": 4000}
     # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
     # nothing about appointments: it costs one request and it avoids the class of error that cost two rounds
     # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had
@@ -540,11 +565,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         crashed = verifymod.unreadable_infra(mech)
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
-    try:
-        mech["agenda_meetings"] = probe_client.widget_rows("agenda", "meetings")
-    except Exception as e:
-        mech["agenda_meetings"] = None
-        mech["agenda_error"] = str(e)
+    # V2-400 — por `widget_data`, no por `widget_rows`: el segundo traga el error DENTRO y devuelve [],
+    # así que este try/except no saltaba nunca y una agenda ILEGIBLE llegaba al juez como «VACÍA — mirada
+    # y confirmada». `widget_data` devuelve None cuando no se pudo mirar, que es la verdad.
+    _ag = probe_client.widget_data("agenda")
+    mech["agenda_meetings"] = None if _ag is None else (_ag.get("meetings") or [])
+    if _ag is None:
+        mech["agenda_error"] = "no se pudo leer el widget agenda (ver ground_truth_unreadable)"
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
     if crashed:

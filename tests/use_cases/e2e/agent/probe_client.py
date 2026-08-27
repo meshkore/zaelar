@@ -85,7 +85,7 @@ def reset(session: str) -> dict:
     return _post("/api/flash/reset", {"session": session}, timeout=15.0)
 
 
-def recall(query: str, k: int = 8) -> list[dict]:
+def recall(query: str, k: int = 8) -> list[dict] | None:
     """Qué recuerda el motor sobre algo. `POST /api/memory/recall` NO pide token de tarea (a diferencia de
     `/api/memory/remember`, que es solo para los puentes de los workers), así que el arnés puede LEER la
     memoria del sandbox sin inventarse credenciales.
@@ -97,7 +97,7 @@ def recall(query: str, k: int = 8) -> list[dict]:
     try:
         r = _post("/api/memory/recall", {"query": query, "k": k}, timeout=30.0)
     except Exception:
-        return []
+        return None       # V2-400: una petición caída no es una memoria vacía — «no pude preguntar»
     if isinstance(r, dict):
         return r.get("results") or r.get("items") or r.get("memories") or []
     return r if isinstance(r, list) else []
@@ -181,7 +181,7 @@ def current_session_id() -> str | None:
     return data.get("session_id", "")
 
 
-def session_events(session_id: str, *, limit: int = 2000) -> list[dict] | None:
+def session_events(session_id: str, *, limit: int = 4000) -> list[dict] | None:
     """Every durable event tied to the engine's live observability session, across however many corr_ids it
     spans. Deliberately not scoped to any one turn's trace id: a dispatched worker's own steps (browser
     navigate/screenshot/etc.) mint FRESH corr_ids as they run (every stimulus is born with its own trace,
