@@ -71,6 +71,7 @@ function el(tag, cls, text){
 // both this widget and musica's hidden audio player listen on the same window, and without the filter one
 // player's ending would advance the OTHER's queue.
 let _ytEnded = null;
+let _ytError = null;   // V2-401: the player refusing to play (onError) is reported back, never swallowed
 if(typeof window !== "undefined" && !window.__hbYtWidgetBound){
   window.__hbYtWidgetBound = true;
   window.addEventListener("message", (ev) => {
@@ -78,6 +79,10 @@ if(typeof window !== "undefined" && !window.__hbYtWidgetBound){
     let d; try{ d = JSON.parse(ev.data); }catch(_){ return; }
     if(d.id !== "hb-youtube") return;
     if(d.event === "onStateChange" && Number(d.info) === 0 && _ytEnded) _ytEnded();   // 0 = ENDED
+    // onError codes: 2 bad id · 5 HTML5 error · 100 removed · 101/150 embedding disabled by the owner.
+    // Without this, "This video is unavailable" on screen coexisted with a declared state that said
+    // playing — and /widgets/producing, the brain and the judge all believed the declared state (V2-401).
+    if(d.event === "onError" && _ytError) _ytError(d.info);
   });
 }
 function startListening(iframe){
@@ -270,6 +275,7 @@ export function render(root, data, ctx){
   // The queue advances because the player told us the video ended — refreshed every render so the callback
   // always carries the CURRENT ctx. Gated on halted: a stopped agent starts no playback (V2-092).
   _ytEnded = () => { if(ctx && ctx.action && !halted(ctx)) ctx.action("ended"); };
+  _ytError = (code) => { if(ctx && ctx.action) ctx.action("player_error", {code: String(code == null ? "unknown" : code)}); };
 
   // The list rows, re-rendered on every render (text only; the iframe is never touched by this).
   if(E.listBox){

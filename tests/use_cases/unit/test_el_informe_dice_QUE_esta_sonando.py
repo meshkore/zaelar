@@ -85,6 +85,19 @@ def test_una_respuesta_SIN_el_campo_no_inventa_nada(monkeypatch):
     assert PC.widgets_producing() is None
 
 
+# ── la dirección del dato se DICE (V2-401) ──────────────────────────────────────────────────────────────────
+
+def test_el_juez_sabe_que_producing_es_el_estado_DECLARADO():
+    """La captura del operador (2026-08-27): «This video is unavailable» en pantalla con el estado declarado
+    diciendo `paused: false`. El dato es asimétrico — «nada sonando» declarado es fiable, «sonando» declarado
+    puede fallar en el navegador — y el juez tiene que conocer la dirección para no puntuar con él al revés."""
+    from tests.use_cases.e2e.agent import judge as J
+    txt = J.mechanism_facts({"widgets_producing": []})
+    txt = txt if isinstance(txt, str) else "\n".join(txt)
+    assert "DECLARADO" in txt
+    assert "sí es fiable" in txt
+
+
 # ── y llega al informe ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_informe_de_mecanismo_LLEVA_lo_que_suena(monkeypatch):

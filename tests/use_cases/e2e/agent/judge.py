@@ -778,8 +778,13 @@ def mechanism_facts(mech: dict) -> str:
                      f"propio motor evaluando el `active_when` del widget contra sus datos reales, así que "
                      f"es un HECHO: si aquí sale `musica`, la música sonaba, diga lo que diga el resto.")
     elif prod is not None:
-        lines.append("· NADA estaba sonando ni reproduciéndose al terminar la ronda (se preguntó al motor y "
-                     "contestó que ninguno de sus widgets estaba produciendo).")
+        lines.append("· NADA estaba sonando ni reproduciéndose al terminar la ronda, según el estado "
+                     "DECLARADO del motor (se le preguntó y contestó que ninguno de sus widgets estaba "
+                     "produciendo). Ojo con la dirección de este dato (V2-401): es lo que el motor CREE — su "
+                     "reproductor corre en un navegador que el motor no ve, así que un «sonando» declarado "
+                     "puede fallar allí (un vídeo que el sitio no deja incrustar se reporta de vuelta y deja "
+                     "de contar, pero un audio silenciado por el navegador no). Un «nada sonando» declarado "
+                     "sí es fiable: sin intención de reproducir no hay nada que pueda estar sonando.")
     else:
         lines.append("· NO se pudo preguntar qué estaba sonando: la ausencia de reproducción no está probada.")
     lines.append("·   ⚠️ La EVIDENCIA cuenta lo que trajo el MUNDO EXTERIOR. Un reproductor local no trae "

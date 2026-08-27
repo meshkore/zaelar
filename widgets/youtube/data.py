@@ -31,6 +31,10 @@ _SEED = {
     "loading_query": "",  # COMPLETELY empty with no signal that something was happening (real bug 2026-07-23).
     # V2-366 — the PLAYLIST: linear queue of videos played one after another (operator asked for musica-level lists).
     "list": [],           # [{videoId, title, channel, published, url, added_at}]
+    # V2-401 — the player's own last error (IFrame API onError: 101/150 = embedding disabled). "" = healthy.
+    # Written back by widget.js so "is it producing?" answers the player's reported reality, not our intent:
+    # the operator's screenshot showed "This video is unavailable" while the declared state said playing.
+    "player_error": "",
     "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
     "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
     "list_filter": "",    # display-only filter over the list (filter_list); never touches the list itself
@@ -180,6 +184,7 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
     """Make list item i the CURRENT video and play it. The card fields (title/channel/published) become the
     item's own, so the on-screen verification (V2-057) keeps working when the list drives playback."""
     it = db["list"][i]
+    db["player_error"] = ""   # a DIFFERENT video: the old player error says nothing about it (V2-401)
     db["videoId"] = it.get("videoId") or ""
     db["url"] = it.get("url") or ("https://www.youtube.com/watch?v=" + db["videoId"])
     db["title"] = it.get("title") or db["url"]
@@ -220,6 +225,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if not vid:
             store.save(WID, db)                          # turn off loader even if nothing was found
             return {"ok": False, "error": "no_video", "message": "No encontré ese vídeo."}
+        db["player_error"] = ""   # fresh video, clean slate (V2-401)
         db["videoId"] = vid
         db["url"] = "https://www.youtube.com/watch?v=" + vid
         db["title"] = title or db["url"]
@@ -404,6 +410,13 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "no_video", "message": "No hay ningún vídeo cargado ni lista."}
         db["paused"] = False
         return _bump(db, "play")
+    if action == "player_error":
+        # V2-401 — reported by widget.js when the embedded player refuses to play (onError). Recorded so the
+        # producing predicate stops counting a broken player as playing. Never raises on a garbage code: the
+        # value crosses a postMessage boundary and is data, not trusted input.
+        db["player_error"] = str(p.get("code") or "unknown")[:40]
+        return _bump(db, "player_error")
+
     if action == "pause":
         db["paused"] = True
         return _bump(db, "pause")

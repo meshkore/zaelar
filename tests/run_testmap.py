@@ -529,6 +529,13 @@ DOMAINS: list[dict] = [
         # la etiqueta «canvas:show:youtube» y ahí acababa, sin `load`. Ocho turnos pidiendo el tráiler de Dune
         # y cuatro veces «Te lo abro, aunque de momento está vacío» — con seis tráileres reales encontrados y
         # mandados a la HOJA en vez de al reproductor. Cuarta vez de la familia en `probe.py`.
+        # V2-401 — la captura del OPERADOR: «This video is unavailable» con el estado declarado diciendo
+        # `paused: false`. El widget solo escuchaba onStateChange; onError no lo leía nadie, así que
+        # /widgets/producing —en el que confían el cerebro, el juez y el master (V2-392/395)— contaba como
+        # SONANDO un reproductor roto. Ahora el error se reporta de vuelta y active_when lo excluye.
+        {"id": "4.57", "title": "Un vídeo que el sitio no deja reproducir NO está sonando",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/youtube/test_an_unplayable_video_is_not_playing.py"]},
         {"id": "4.54", "title": "El vídeo se PONE, no se rotula · y la boca NOMBRA el que cargó",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_video_is_played_not_labelled.py"]},

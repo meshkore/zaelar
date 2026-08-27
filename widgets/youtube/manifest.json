@@ -140,6 +140,12 @@
     "close": {
       "desc": "cierra el vídeo: lo detiene de verdad y lo quita del reproductor (vuelve al estado sin vídeo)",
       "payload": {}
+    },
+    "player_error": {
+      "desc": "Internal: the embedded player reports it cannot play the current video (onError). Fired by the widget itself, not by voice.",
+      "payload": {
+        "code": "error code from the IFrame API (e.g. 150 = embedding disabled)"
+      }
     }
   },
   "name": "YouTube",
@@ -169,7 +175,8 @@
     "suspend": "pause",
     "active_when": {
       "videoId": true,
-      "paused": false
+      "paused": false,
+      "player_error": false
     }
   }
 }
