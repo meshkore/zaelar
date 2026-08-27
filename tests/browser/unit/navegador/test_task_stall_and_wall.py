@@ -980,3 +980,24 @@ def test_but_a_task_standing_ON_a_wall_keeps_the_more_specific_face():
     st = prompt.live_state()
     assert "MURO:" in st
     assert "BLOQUEADO por el camino" not in st
+
+
+# ── V2-352: the DataDome-style Spanish block, measured live on coches.net (2026-08-27) ──────────────────────
+# HTTP 403, SAME url, body «…nos hizo pensar que eres un bot» — no needle covered that phrasing, so the wall
+# was eaten in silence: round 14 burned 7 navigations and 189 s before the worker deduced the block from
+# screenshots, and the sheet ended with 0 items.
+COCHESNET_BOT = ("Coches.net Ups! Parece que algo no va bien... Algo en tu navegador nos hizo pensar que "
+                 "eres un bot. Hay algunas razones por las que esto podría suceder: Estás utilizando una VPN o "
+                 "un proxy. Comprueba tu conexión y vuelve a intentarlo.")
+
+
+def test_the_coches_net_bot_block_is_a_wall():
+    got = tasks.body_wall_reason(COCHESNET_BOT)
+    assert got == "el sitio bloqueó el acceso (te tomó por un robot)", got
+
+
+def test_an_article_discussing_bots_is_still_not_a_wall():
+    # the length gate keeps protecting: prose ABOUT bot detection is content, not a block
+    article = ("Los sistemas anti-bot modernos analizan tu navegador y a veces deciden que eres un bot "
+               "aunque seas humano. " * 30)
+    assert len(article) > 1200 and tasks.body_wall_reason(article) == ""

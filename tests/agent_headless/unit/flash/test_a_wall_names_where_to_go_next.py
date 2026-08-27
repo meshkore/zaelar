@@ -103,3 +103,24 @@ def test_a_wall_with_no_alternative_still_prints_the_wall():
                               "wall": "el sitio bloqueó el acceso (te tomó por un robot)"})
     out = buf.getvalue()
     assert "⛔ MURO" in out and "→ prueba en" not in out
+
+
+# ── V2-352: a walled CAR errand now has somewhere to go (measured escape route) ─────────────────────────────
+# coches.net serves a 403 bot-block to this browser (live probe 2026-08-27) and `car_classifieds` had no alts:
+# the walled worker got «prueba otro sitio» without a name — round 14, 7 navigations, 0 rows. Both
+# alternatives are MEASURED delivering rows with listing urls (AutoScout24 in round 11 / V2-347; Wallapop
+# since V2-324).
+
+
+def test_a_walled_car_errand_is_sent_to_a_measured_alternative():
+    from nucleo.flash import site_catalog as sc
+    alts = sc.alternatives_for("busca un coche de segunda mano diésel por menos de 12.000", "coches.net", "es")
+    names = [n for n, _ in alts]
+    assert "AutoScout24" in names and "Wallapop" in names, alts
+    assert not any("coches.net" in u for _, u in alts), alts
+
+
+def test_and_the_trusted_site_is_offered_back_when_the_wall_came_from_elsewhere():
+    from nucleo.flash import site_catalog as sc
+    alts = sc.alternatives_for("busca un coche de segunda mano diésel", "autoscout24.es", "es")
+    assert any("coches.net" in u for _, u in alts), alts

@@ -88,7 +88,13 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "cuenta: trae las opciones y di qué hace falta para cerrarla, no te la inventes."),
         "car_classifieds": SiteEntry(
             "coches.net", "https://www.coches.net",
-            "coches de segunda mano — usa la URL de resultados con filtros (combustible, km, precio máx)."),
+            "coches de segunda mano — usa la URL de resultados con filtros (combustible, km, precio máx).",
+            # V2-352 — measured escape route: coches.net serves a 403 bot-block to this browser (live probe
+            # 2026-08-27), and with no alts a walled car errand got «prueba otro sitio» without a name. Both
+            # alternatives are MEASURED working in rounds: AutoScout24 delivered 12/12 rows with listing urls
+            # (round 11, V2-347), Wallapop delivers cars with urls since V2-324.
+            alts=(("AutoScout24", "https://www.autoscout24.es"),
+                  ("Wallapop", "https://es.wallapop.com"))),
         "general_classifieds": SiteEntry(
             "Wallapop", "https://es.wallapop.com",
             "motos/bicis/cámaras/guitarras/objetos varios de segunda mano — filtra por categoría y precio."),
@@ -129,7 +135,11 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "account: bring the options and say what closing it would take, never invent it."),
         "car_classifieds": SiteEntry(
             "Cars.com", "https://www.cars.com",
-            "used cars — use the filtered results URL (fuel type, mileage, max price)."),
+            "used cars — use the filtered results URL (fuel type, mileage, max price).",
+            # V2-352 — locale symmetry with the es entry (the catalog's own parity guard demands it). These two
+            # are catalog knowledge like the trusted entry itself, not measured escapes like the es pair.
+            alts=(("AutoTrader", "https://www.autotrader.com"),
+                  ("CarGurus", "https://www.cargurus.com"))),
         "general_classifieds": SiteEntry(
             "Facebook Marketplace", "https://www.facebook.com/marketplace",
             "used motorcycles/bikes/cameras/guitars/misc items — filter by category and price."),

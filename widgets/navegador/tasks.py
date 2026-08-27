@@ -84,6 +84,11 @@ _WALL_BODY_MAX_CHARS = 1200
 WALL_BODY_PEEK_CHARS = _WALL_BODY_MAX_CHARS + 400
 _WALL_BODY_NEEDLES = (
     ("access denied", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    # V2-352 — the DataDome-style Spanish block, measured live on coches.net (2026-08-27): HTTP 403, SAME url,
+    # body «Algo en tu navegador nos hizo pensar que eres un bot». None of the needles below covered that
+    # phrasing, so the wall was eaten in silence: round 14 burned 7 navigations and 189 s before the worker
+    # DEDUCED the block from screenshots (~14 s per look), and the sheet ended with 0 items.
+    ("eres un bot", "el sitio bloqueó el acceso (te tomó por un robot)"),
     ("acceso denegado", "el sitio bloqueó el acceso (te tomó por un robot)"),
     ("permission to access", "el sitio bloqueó el acceso (te tomó por un robot)"),
     ("you have been blocked", "el sitio bloqueó el acceso (te tomó por un robot)"),
