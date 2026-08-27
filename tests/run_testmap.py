@@ -515,6 +515,11 @@ DOMAINS: list[dict] = [
         # V2-358 — «Preparando entrega: 10 propuestas en la hoja de resultados» con la hoja en CERO filas, y
         # pintado sin marca junto a líneas verificadas. Misma enfermedad que V2-357 una capa más abajo, misma
         # respuesta que V2-345: no se tira, se MARCA.
+        # V2-394 — `dispatch_tag` se traga el resultado, así que el turno no podía saber si la op ocurrió y la
+        # boca decía «Hecho.» pase lo que pase. Dos ops fallidas anunciadas como hechas (resultado 2/5).
+        {"id": "4.56", "title": "«Hecho.» solo si la data-op OCURRIÓ · y lo que el widget rechaza se DICE",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_hecho_sobre_una_op_que_fallo.py"]},
         # V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación: solo entró el
         # primer `add`, el `next` no encontró segundo vídeo y el turno anunció que sonaba igualmente.
         {"id": "4.55", "title": "Dos enlaces pegados son dos `add` · sin reabrir la cita doble ni la enumeración",

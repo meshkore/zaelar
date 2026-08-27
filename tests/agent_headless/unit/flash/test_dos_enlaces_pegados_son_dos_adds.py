@@ -80,12 +80,16 @@ def test_una_op_SIN_widget_o_SIN_accion_no_entra():
 
 @pytest.fixture
 def rail(monkeypatch):
+    """El testigo apunta a `brain_action` desde V2-394: `dispatch_tag` se traga el resultado, así que dejó de
+    usarse para poder saber si la op ocurrió. Lo que este fichero mide —cuántas entran y cuáles— no cambia."""
     despachadas = []
 
-    async def _dispatch_tag(tag, extra):
-        despachadas.append(extra)
-    import widgets as _w
-    monkeypatch.setattr(_w, "dispatch_tag", _dispatch_tag)
+    async def _brain_action(wid, act, payload):
+        despachadas.append({"id": wid, "data": {"action": act, "payload": payload}})
+        return {"ok": True}
+
+    import widgets.server_api as _sa
+    monkeypatch.setattr(_sa, "brain_action", _brain_action)
     from widgets import actions as _wa
     monkeypatch.setattr("nucleo.flash.frontend.action_mode", lambda wid, act: _wa.FAST)
     return despachadas

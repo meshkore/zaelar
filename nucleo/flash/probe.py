@@ -1088,6 +1088,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # nuestras propias frases de relleno.
                 from . import router_guards as _rg_ack
                 spoken = _rg_ack.holding_line(sess.window, _lg)
+            elif action == "widget_data" and isinstance(return_extra_exec, dict) and (
+                    return_extra_exec.get("fallidas") or
+                    return_extra_exec.get("executed") == "widget_data_failed"):
+                # V2-394 — lo que el widget RECHAZÓ no sale como «Hecho.»; va ANTES de la rama de abajo.
+                spoken = _widget_data_turn.spoken_for(return_extra_exec, _lg.data_ack)
             elif action in ("widget_data", "confirm_task_no"):
                 # Una data-op SÍ terminó, y un «no, déjalo» también resuelve algo de verdad: ahí «Hecho.» es
                 # cierto. El turno que resuelve un sí/no tampoco puede caer al backstop genérico y contestar
