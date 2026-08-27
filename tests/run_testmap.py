@@ -1596,6 +1596,12 @@ DOMAINS: list[dict] = [
         # V2-372 — el supervisor llevaba 3 h corriendo el código de las 07:59, así que sus DOS arreglos de esa
         # mañana (V2-363 y V2-367) estaban inertes. Mudo porque la ronda va en SUBPROCESO: todo lo demás se
         # recarga y solo se queda atrás quien clasifica el resultado y elige el orden.
+        # V2-373 — `two-searches-two-sheets` perdió su veredicto CUATRO veces: los tres intentos volvían
+        # CORTADOS (6558/6368/6487 chars con max_tokens=2000) y el veredicto completo ocupa 7238. Ese caso no
+        # podía juzgarse nunca, y el reintento le pedía «el mismo veredicto» — o sea, lo que no cabe.
+        {"id": "10.88", "title": "Un veredicto que no CABE no es un JSON mal formado",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_verdict_that_does_not_fit_is_not_bad_json.py"]},
         {"id": "10.87", "title": "El supervisor se recarga a sí mismo: un proceso no relee su propio fichero",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_supervisor_reloads_its_own_source.py"]},

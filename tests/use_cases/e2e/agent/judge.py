@@ -166,6 +166,28 @@ def _clocks_relative(mech: dict) -> dict:
     return _walk(_copy.deepcopy(mech))
 
 
+#: Techo de salida del juez. Medido, no elegido: el veredicto completo del caso multiflow ocupa 7238 chars.
+JUDGE_MAX_TOKENS = 4000
+
+
+def _parecia_cortada(raw: str, err: str | None) -> bool:
+    """¿La respuesta se CORTÓ por longitud, en vez de venir mal formada? (V2-373)
+
+    Se mira DÓNDE falló el parseo: un JSON truncado revienta a un pelo del final (medido: char 6451 de 6487,
+    y char 6688 de 6750), mientras que un fallo de forma —una coma de más, una comilla suelta— cae en cualquier
+    sitio (el de la ronda de las 09:36 cayó en el 1159 de un texto mucho más largo).
+
+    NO se usa «¿termina en llave?», que fue el primer intento y es un falso negativo: una respuesta que SÍ se
+    parseaba bien daba False ahí. Un guarda que se equivoca sobre el caso bueno no sirve para decidir sobre el
+    malo.
+    """
+    import re as _r
+    m = _r.search(r"char (\d+)", str(err or ""))
+    if not m or not raw:
+        return False
+    return (len(raw) - int(m.group(1))) <= 200
+
+
 # ── lo que el informe de mecanismo PRUEBA, dicho en palabras ───────────────────────────────────────────────
 #
 # Un juez que se contradice con su propia evidencia es peor que no tener juez: manda al equipo del motor a
@@ -691,6 +713,58 @@ def _time_note() -> str:
             f"antes, funciona, y da igual cuál de los dos jueves eligiera.\n")
 
 
+
+def _judge_with_retry(msgs: list[dict]) -> dict:
+    """El bucle de reintento del juez, aparte para que se pueda MEDIR (V2-373).
+
+    Vivía dentro de `judge()`, que necesita un escenario, una corrida entera y una llamada real para
+    ejecutarse — o sea que la decisión «¿esto se cortó o vino mal?» solo se podía comprobar leyéndola.
+    Es la lección de V2-199: un test que no recorre el camino real prueba que el código compila.
+    """
+    last_err, raw, used = None, "", ""
+    for attempt in range(3):
+        if attempt:
+            # Se le DICE qué salió mal: repetir la misma petición esperando otro resultado es apostar al azar.
+            # Y CORTADO no es INVÁLIDO: pedirle «el mismo veredicto, ahora válido» a quien escribió un JSON
+            # perfecto que nosotros truncamos es pedirle que repita lo que no cabe — tres intentos idénticos.
+            _pedir = ((f"Tu respuesta anterior se CORTÓ por longitud ({last_err}): el JSON venía bien pero no "
+                       f"cupo. Devuelve el MISMO veredicto MÁS BREVE —recorta la prosa, nunca las notas ni las "
+                       f"dimensiones— en JSON válido y NADA más, sin ``` y sin texto alrededor.")
+                      if _parecia_cortada(raw, last_err) else
+                      (f"Tu respuesta anterior no era JSON válido ({last_err}). Devuelve EXACTAMENTE el mismo "
+                       f"veredicto pero como JSON válido y NADA más — sin ```, sin texto antes ni después."))
+            msgs = msgs + [
+                {"role": "assistant", "content": raw[:1500]},
+                {"role": "user", "content": _pedir}]
+        raw, used = llm.judge_call(msgs, max_tokens=JUDGE_MAX_TOKENS)
+        try:
+            v = llm.parse_json(raw)
+            v["_judge_model"] = used
+            if attempt:
+                v["_judge_retries"] = attempt      # queda en el informe: un juez que necesita reintentos importa
+            return v
+        except Exception as e:
+            last_err = str(e)
+    # RAISE, do not return a hollow verdict. Returning one made the round look judged-and-empty, so the runner
+    # never parked the conversation and eight minutes of driving went in the bin — the fourth time that happened
+    # to the same case on 2026-08-20. The caller parks the run and records INFRA, which is the honest state.
+    # V2-363 — la VENTANA ALREDEDOR DEL FALLO, no los primeros 200 caracteres. Medido en
+    # `two-searches-two-sheets` (2026-08-27): «Expecting ',' delimiter: line 22 column 6 (char 1159)» y un
+    # `raw[:200]` que enseñaba un JSON impecable — el log no podía mostrar el sitio del error ni con las tres
+    # tentativas delante, así que la avería solo se podía diagnosticar volviendo a correr diez minutos de
+    # navegador. Un fallo del instrumento que no deja ver su causa se repite entero cada vez.
+    _pos = 0
+    try:
+        _m = _re.search(r"char (\d+)", last_err or "")
+        _pos = int(_m.group(1)) if _m else 0
+    except Exception:  # noqa: BLE001
+        pass
+    _ini = max(0, _pos - 120)
+    _ventana = raw[_ini:_pos + 120] if _pos else raw[:240]
+    raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — {len(raw)} chars, "
+                       f"alrededor del fallo: {_ventana!r}")
+
+
 def judge(scenario, run: dict, model: str | None = None) -> dict:
     convo = "\n".join(
         f"[{t.get('at', '')}] {t['who'].upper():7} {t.get('text') or '(sin respuesta)'}"
@@ -786,39 +860,14 @@ crudos: si un instante es MAYOR que otro es que ocurrió DESPUÉS, sin más cuen
     # corrida entera: los datos ya están en la mano, así que re-juzgar cuesta UNA llamada frente a rehacer la
     # conversación. Es el caso multiflow el que más lo sufre, porque su esquema tiene 7 dimensiones en vez de 5
     # y hay más JSON donde equivocarse.
-    last_err, raw, used = None, "", ""
-    for attempt in range(3):
-        if attempt:
-            # Se le DICE qué salió mal: repetir la misma petición esperando otro resultado es apostar al azar.
-            msgs = msgs + [
-                {"role": "assistant", "content": raw[:1500]},
-                {"role": "user", "content": (f"Tu respuesta anterior no era JSON válido ({last_err}). Devuelve "
-                                             f"EXACTAMENTE el mismo veredicto pero como JSON válido y NADA más "
-                                             f"— sin ```, sin texto antes ni después.")}]
-        raw, used = llm.judge_call(msgs, max_tokens=2000)
-        try:
-            v = llm.parse_json(raw)
-            v["_judge_model"] = used
-            if attempt:
-                v["_judge_retries"] = attempt      # queda en el informe: un juez que necesita reintentos importa
-            return v
-        except Exception as e:
-            last_err = str(e)
-    # RAISE, do not return a hollow verdict. Returning one made the round look judged-and-empty, so the runner
-    # never parked the conversation and eight minutes of driving went in the bin — the fourth time that happened
-    # to the same case on 2026-08-20. The caller parks the run and records INFRA, which is the honest state.
-    # V2-363 — la VENTANA ALREDEDOR DEL FALLO, no los primeros 200 caracteres. Medido en
-    # `two-searches-two-sheets` (2026-08-27): «Expecting ',' delimiter: line 22 column 6 (char 1159)» y un
-    # `raw[:200]` que enseñaba un JSON impecable — el log no podía mostrar el sitio del error ni con las tres
-    # tentativas delante, así que la avería solo se podía diagnosticar volviendo a correr diez minutos de
-    # navegador. Un fallo del instrumento que no deja ver su causa se repite entero cada vez.
-    _pos = 0
-    try:
-        _m = _re.search(r"char (\d+)", last_err or "")
-        _pos = int(_m.group(1)) if _m else 0
-    except Exception:  # noqa: BLE001
-        pass
-    _ini = max(0, _pos - 120)
-    _ventana = raw[_ini:_pos + 120] if _pos else raw[:240]
-    raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — {len(raw)} chars, "
-                       f"alrededor del fallo: {_ventana!r}")
+    # V2-373 — EL TECHO ERA LA CAUSA, y el reintento decía lo que no era. Medido en `two-searches-two-sheets`
+    # (2026-08-27, cuarto veredicto perdido del MISMO caso): con `max_tokens=2000` los tres intentos volvieron
+    # CORTADOS a mitad de palabra —6558, 6368 y 6487 caracteres— y el veredicto completo de ese caso ocupa
+    # **7238**. O sea que no era mala suerte ni un JSON descuidado: ese caso no cabía, así que no podía
+    # juzgarse NUNCA, y cada intento gastaba una llamada para volver a no caber.
+    #
+    # El comentario de arriba ya apuntaba a multiflow y le atribuía la causa equivocada —«más JSON donde
+    # equivocarse»—: no son más oportunidades de error, es más TAMAÑO. Siete dimensiones en vez de cinco, cada
+    # una con su prosa. 4000 deja margen real sobre los 7238 medidos (~3,3 chars por token en castellano, el
+    # mismo número que el motor tiene medido para su propia facturación).
+    return _judge_with_retry(msgs)
