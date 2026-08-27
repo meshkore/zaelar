@@ -95,7 +95,7 @@ def live_navegador_snapshot(scenario_started_ms: float) -> str:
     cut short on background work that's actually progressing normally."""
     try:
         session_id = probe_client.current_session_id()
-        events = [e for e in probe_client.session_events(session_id)
+        events = [e for e in (probe_client.session_events(session_id) or [])
                   if (e.get("ts_ms") or 0) >= scenario_started_ms]
         task_id = find_navegador_task_id(events)
         if not task_id:
@@ -794,10 +794,17 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         # `play-music-and-build-playlist` (2026-08-27 14:02) con la música sonando y la lista «Curro» con esa
         # misma canción dentro — 3/5 por mentir «sin la confirmación técnica necesaria (evidencia cero)».
         "widgets_producing": probe_client.widgets_producing(),
+        # V2-396 — WHAT COULD NOT BE READ, next to what was read. Every field above collapses a failed
+        # request into an empty collection, so without this line an unreachable engine and an idle one are
+        # the same report. Measured against a closed port: `n_events: 0`, all signals missing, nothing
+        # anywhere saying nobody had answered.
+        "ground_truth_unreadable": probe_client.read_failures(),
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),
     }
+    if not out["ground_truth_unreadable"]:
+        del out["ground_truth_unreadable"]      # a warning that shows up always stops being a warning
     if scheduled is not None:
         out["scheduled_jobs"] = scheduled
     if concurrency is not None:
@@ -1720,6 +1727,30 @@ def no_quota_infra(exhausted: dict | None, health: dict | None) -> str:
     quien = ", ".join(str(p) for p in (ex.get("providers") or [])) or "el proveedor de los workers"
     return (f"sin cuota en {quien}{hasta}: {int(ex.get('deaths') or 0)} worker(s) muertos al arrancar y "
             f"ninguno llegó a terminar — la ronda no mide al producto")
+
+
+# The TRUNK of the mechanism report: every family, widget op and audit line is derived from the event
+# stream, and the stream is derived from these two reads. When one of them fails the report is empty BY
+# CONSTRUCTION, whatever the product did. Any other failed read (a widget box, the crons) leaves a hole in
+# one field and the rest of the round still measures something real — voiding those too would turn INFRA
+# into noise and let real defects hide behind it.
+_TRUNK_READS = ("/api/observability/identity", "/api/observability/events")
+
+
+def unreadable_infra(mech: dict | None) -> str:
+    """The round's INFRA sentence when the ground truth could not be READ — `""` when it could.
+
+    A function and not a condition inside `_run_scenario`, for the reason `no_quota_infra` documents above:
+    a guard that only checks the call exists measures the fix and not the property, and that exact guard
+    survived being mutated to `if False and ...`.
+    """
+    fallos = [f for f in ((mech or {}).get("ground_truth_unreadable") or [])
+              if any(t in str(f.get("path") or "") for t in _TRUNK_READS)]
+    if not fallos:
+        return ""
+    detalle = "; ".join(f"{f.get('path')} ← {f.get('reason')}" for f in fallos[:3])
+    return (f"no se pudo LEER la verdad de campo ({len(fallos)} lectura(s) fallida(s)): {detalle} — el "
+            f"informe sale vacío por construcción, así que esta ronda no mide al producto")
 
 
 def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dict:

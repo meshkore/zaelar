@@ -1653,6 +1653,13 @@ DOMAINS: list[dict] = [
         # V2-395 — el dato de V2-392 viajaba en el JSON crudo y la sección que traduce el mecanismo A PALABRAS
         # no lo nombraba. Con la música SONANDO, veredicto 2/5 «ni sonó la música», citando `n_evidence: 0` —
         # un contador que para un reproductor local es CERO por construcción.
+        # V2-396 — la mitad de LECTURA de 10.90. Allí el arnés reventaba componiendo el informe; aquí no
+        # revienta nada: nadie contesta y cada lector devuelve su colección vacía. Apuntado el cliente a un
+        # puerto cerrado, el informe salía `n_events: 0`, todas las señales «missing» y `widgets_producing:
+        # []` — la forma exacta de un producto que corrió y no hizo nada, y la rama de 10.95 que acusa.
+        {"id": "10.96", "title": "Un motor que no se pudo LEER no es un motor que no hizo nada",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_an_unread_engine_is_not_an_idle_engine.py"]},
         {"id": "10.95", "title": "Lo que está SONANDO se le dice al juez en palabras · y la evidencia no mide eso",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_lo_que_suena_se_dice_en_palabras.py"]},

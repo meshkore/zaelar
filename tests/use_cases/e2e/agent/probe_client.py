@@ -28,15 +28,38 @@ def _post(path: str, body: dict, timeout: float = 60.0) -> dict:
         return json.loads(r.read())
 
 
+# ── THE LEDGER OF READS THAT DID NOT HAPPEN (V2-396) ───────────────────────────────────────────────────────
+# Every reader below is fail-soft on purpose: ground truth is best-effort and a transient 504 must not throw
+# away an eight-minute round. What that posture cost is that a failure and an honest emptiness became the
+# same value. Pointed at a closed port the whole report came back `families_observed: []`, `n_events: 0`,
+# `widgets_producing: []` — the exact shape of a product that ran and did nothing, with nothing anywhere
+# saying the engine was never asked. So the fail-soft stays and the failure is WRITTEN DOWN instead.
+_READ_FAILURES: list[dict] = []
+
+
+def read_failures() -> list[dict]:
+    """Which reads failed since the last `clear_read_failures()`, with the reason for each."""
+    return list(_READ_FAILURES)
+
+
+def clear_read_failures() -> None:
+    _READ_FAILURES.clear()
+
+
 def _get(path: str, timeout: float = 15.0) -> dict:
     """`path` must already be percent-encoded — corr_ids and other ids can contain non-ASCII characters
-    (e.g. the trace id's "·" separator) that `http.client` cannot put on the request line as-is."""
+    (e.g. the trace id's "·" separator) that `http.client` cannot put on the request line as-is.
+
+    A failed read returns `{"error": ...}` AND is recorded in `_READ_FAILURES`. Callers are free to keep
+    collapsing that into an empty collection — the ledger is what makes the collapse recoverable.
+    """
     req = urllib.request.Request(config.ZAELAR_URL.rstrip("/") + path,
                                  headers={"User-Agent": _UA, "X-Observability-Token": config.OBS_TOKEN})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
     except Exception as e:  # observability is best-effort ground truth, never worth crashing the run over
+        _READ_FAILURES.append({"path": path, "reason": f"{type(e).__name__}: {str(e)[:160]}"})
         return {"error": str(e)}
 
 
@@ -147,16 +170,18 @@ def flow(corr_id: str) -> list[dict]:
     return data.get("events", []) if isinstance(data, dict) else []
 
 
-def current_session_id() -> str:
+def current_session_id() -> str | None:
     """The engine's LIVE observability session_id (`/api/observability/identity`) — a server-wide concept, one
     at a time, that rotates only on explicit triggers (reset, session start/end), NOT per conversation. The
     `session` string this suite passes to `say()`/`reset()` is just the probe channel's dialogue-window key; it
     is never written to the `events.session_id` column, so it cannot be used to scope an observability query."""
     data = _get("/api/observability/identity")
-    return data.get("session_id", "") if isinstance(data, dict) else ""
+    if not isinstance(data, dict) or "error" in data:
+        return None                     # NOBODY ANSWERED — which is not the same as "no live session" ("")
+    return data.get("session_id", "")
 
 
-def session_events(session_id: str, *, limit: int = 2000) -> list[dict]:
+def session_events(session_id: str, *, limit: int = 2000) -> list[dict] | None:
     """Every durable event tied to the engine's live observability session, across however many corr_ids it
     spans. Deliberately not scoped to any one turn's trace id: a dispatched worker's own steps (browser
     navigate/screenshot/etc.) mint FRESH corr_ids as they run (every stimulus is born with its own trace,
@@ -168,7 +193,9 @@ def session_events(session_id: str, *, limit: int = 2000) -> list[dict]:
     if not session_id:
         return []
     data = _get(f"/api/observability/events?session_id={urllib.parse.quote(session_id, safe='')}&limit={limit}")
-    return data.get("events", []) if isinstance(data, dict) else []
+    if not isinstance(data, dict) or "error" in data:
+        return None                     # see `current_session_id`: an empty stream is a fact, silence is not
+    return data.get("events", [])
 
 
 def live_tasks() -> list[dict]:
@@ -197,18 +224,22 @@ def navegador_task(task_id: str) -> dict:
     return _get(f"/widgets/navegador/data?q={urllib.parse.quote(task_id, safe='')}")
 
 
-def widgets_producing() -> list[str]:
+def widgets_producing() -> list[str] | None:
     """Qué widgets están PRODUCIENDO ahora mismo (audio, vídeo, un proceso vivo), según el propio motor.
 
     Se pregunta, no se deduce: `active_when` lo evalúa `widgets/producers.py` contra el `view_data()` del
     widget, y reimplementarlo aquí sería una segunda verdad que puede divergir de la que usa el producto.
-    Lista vacía si el motor no sabe responder — nunca lanza: es un dato del informe, no un paso del turno.
+    `None` cuando NO SE PUDO PREGUNTAR, lista (quizá vacía) cuando el motor contestó. La distinción es la
+    que V2-395 le enseñó al juez, y devolver `[]` ante un motor inalcanzable la resolvía justo por la rama
+    que acusa al producto. Nunca lanza: es un dato del informe, no un paso del turno.
     """
     try:
         d = _get("/widgets/producing")
-        return [str(x) for x in (d or {}).get("producing") or []]
     except Exception:  # noqa: BLE001
-        return []
+        return None
+    if not isinstance(d, dict) or "error" in d:
+        return None
+    return [str(x) for x in d.get("producing") or []]
 
 
 def _widget_path(wid: str, q: str = "") -> str:

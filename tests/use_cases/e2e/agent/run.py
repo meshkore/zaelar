@@ -97,6 +97,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     conversation has no business in the operator's real long-term memory."""
     scenario_started_ms = time.time() * 1000
     session = f"use-cases-{scenario.id}-{uuid.uuid4().hex[:6]}"
+    # V2-396 — the ledger of failed ground-truth reads starts EMPTY for each case. A batch shares one client,
+    # and a 504 while reading the previous case's widgets would otherwise void this one.
+    probe_client.clear_read_failures()
     probe_client.reset(session)
     driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
     transcript: list[dict] = []
@@ -259,7 +262,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     if concurrency is not None:
         concurrency.sample(at_turn=-1)      # final read: what was still in flight when the talking stopped
     live_session_id = probe_client.current_session_id()
-    all_events = [e for e in probe_client.session_events(live_session_id)
+    # `or []` and NOT a default inside the reader: both now answer `None` for "nobody answered", and that
+    # difference is what `verify.unreadable_infra` reads below to refuse to score the round.
+    all_events = [e for e in (probe_client.session_events(live_session_id) or [])
                   if (e.get("ts_ms") or 0) >= scenario_started_ms]
     try:
         jobs_after = probe_client.scheduled_jobs()
@@ -508,6 +513,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # existe mide el arreglo, no la propiedad: la primera versión de esta regla sobrevivió a `if False and ...`.
     if not crashed:
         crashed = verifymod.no_quota_infra(mech.get("provider_exhausted"), mech.get("worker_health"))
+    # SI NO SE PUDO LEER, NO SE PUNTÚA (V2-396). Va DESPUÉS de las otras dos y antes de juzgar: un informe
+    # cuyo tronco no se pudo leer sale vacío por construcción, y vacío es exactamente la forma que el juez
+    # puntúa 1/5 contra el producto.
+    if not crashed:
+        crashed = verifymod.unreadable_infra(mech)
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:

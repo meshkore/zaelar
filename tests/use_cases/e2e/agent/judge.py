@@ -524,6 +524,16 @@ def mechanism_facts(mech: dict) -> str:
                      f"un fallo del producto ni de zaelar y NO se puntúa: el producto corrió, se rompió el "
                      f"instrumento midiéndolo. Secciones que faltan por eso: {_perd} — su ausencia no prueba "
                      f"nada.")
+    # V2-396 — la otra mitad de lo anterior: allí el arnés se AVERIÓ componiendo el informe, aquí no se
+    # averió nada, simplemente NADIE CONTESTÓ y cada lector devolvió su colección vacía. El informe sale con
+    # la forma exacta de un producto que no hizo nada.
+    _nl = mech.get("ground_truth_unreadable") or []
+    if _nl:
+        _rutas = "; ".join(f"{f.get('path')} ({f.get('reason')})" for f in _nl[:3])
+        lines.append(f"· ⚠️ HAY DATOS DEL MECANISMO QUE **NO se pudo LEER**: {len(_nl)} petición(es) al motor "
+                     f"falló(fallaron) — {_rutas}. Lo que falte por eso sale VACÍO en este informe sin que "
+                     f"eso signifique que no ocurrió: es el instrumento, NO el producto, y NO se puntúa. Un "
+                     f"contador a cero cuya lectura falló no prueba absolutamente nada.")
     sr = mech.get("search_returns") or {}
     # V2-378 — una vuelta que llega con la conversación YA CERRADA no se le pudo empujar a nadie, así que no
     # prueba un fallo de entrega. Medido en `compare-insurance-quotes__es` (2026-08-27): las ocho llegaron

@@ -69,16 +69,20 @@ def test_el_cliente_pregunta_a_la_RUTA_correcta(monkeypatch):
     assert visto["path"] == "/widgets/producing"
 
 
-def test_un_motor_mudo_da_lista_VACIA_y_no_lanza(monkeypatch):
+def test_un_motor_mudo_dice_NO_PUDE_PREGUNTAR_y_no_lanza(monkeypatch):
+    """Reescrito por V2-396, no volteado. Lo que protegía —que un motor mudo NO reviente la ronda— sigue
+    intacto; lo que devolvía era el defecto: `[]` es la rama que este mismo fichero le enseñó al juez a leer
+    como «no sonaba nada», así que un motor inalcanzable acusaba al producto de no reproducir."""
     def _boom(path, timeout=15.0):
         raise OSError("conexión rechazada")
     monkeypatch.setattr(PC, "_get", _boom)
-    assert PC.widgets_producing() == []
+    assert PC.widgets_producing() is None       # y sobre todo: no lanza
 
 
 def test_una_respuesta_SIN_el_campo_no_inventa_nada(monkeypatch):
+    """Igual: `{"error": "404"}` es una lectura FALLIDA, no un motor en silencio."""
     monkeypatch.setattr(PC, "_get", lambda path, timeout=15.0: {"error": "404"})
-    assert PC.widgets_producing() == []
+    assert PC.widgets_producing() is None
 
 
 # ── y llega al informe ──────────────────────────────────────────────────────────────────────────────────────
