@@ -1156,10 +1156,20 @@ def seed_provider_chain(ws) -> str:
         if moved and chain:
             head = {**head, "model": chain[0].get("model"), "base_url": chain[0].get("base_url"),
                     "provider": chain[0].get("provider") or head.get("provider")}
+        # EL WORKER TAMBIÉN ES INFRAESTRUCTURA (2026-08-27). Sembrar solo `fast` dejaba `code_agent` vacío, y
+        # entonces `providers.pick()` cae al primer escalón SANO del catálogo sin modelo declarado: el plató
+        # arrancaba workers con `model=default` mientras el operador y la nube corren uno concreto. El mismo
+        # argumento que la cadena rápida — medir el producto con un cerebro que el producto no usa mide otra
+        # cosa —, y aquí pesa el doble: en la nube el worker SOLO puede ser Z.AI o DeepSeek (dentro de un
+        # contenedor no existe la licencia local de Claude Code), así que un plató que midiera con la licencia
+        # estaría midiendo un worker que ningún cliente puede tener.
+        cfg = _json.loads(src.read_text(encoding="utf-8")) or {}
+        agent = {k: v for k, v in (cfg.get("code_agent") or {}).items() if k != "api_key"}
         dst = _P(ws) / "config"
         dst.mkdir(parents=True, exist_ok=True)
         (dst / "v2.json").write_text(
-            _json.dumps({"fast": {**head, "providers": chain}}, ensure_ascii=False, indent=2),
+            _json.dumps({"fast": {**head, "providers": chain}, **({"code_agent": agent} if agent else {})},
+                        ensure_ascii=False, indent=2),
             encoding="utf-8")
         return " → ".join(str(x.get("name") or "?") for x in chain) + (f"  [{moved}]" if moved else "")
     except Exception:

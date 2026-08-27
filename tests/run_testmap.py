@@ -1895,6 +1895,12 @@ DOMAINS: list[dict] = [
                                   "tests/use_cases/unit/test_grace_sees_the_web_worker.py"]},
         {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
+        # 2026-08-27 — visto en el log del propio plató: `ClaudeCodeSession start (model=default)` mientras el
+        # operador y cada Machine de la nube corren un modelo con nombre. La siembra copiaba `fast` y nada más.
+        {"id": "10.101", "title": "El plató mide el Brain Worker que corre la NUBE — la siembra lleva también "
+                                 "`code_agent` (sin la clave)",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_sandbox_measures_the_worker_the_cloud_runs.py"]},
         {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
                                  "mecanismo (no a las respuestas)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},
