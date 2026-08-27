@@ -863,3 +863,37 @@ def test_las_DOS_puertas_lo_llaman():
                          if not ln.strip().startswith("#"))
     assert "safe_reminder_schedule(" in _limpio("nucleo/flash/probe.py"), "la puerta del canal probe"
     assert "safe_reminder_schedule(" in _limpio("voice/engine/llm/providers/nucleo.py"), "la puerta del proveedor"
+
+
+# ── Que el reloj esté CONGELADO de verdad (2026-08-28) ──────────────────────────────────────────────────────
+def test_la_correccion_no_depende_del_dia_en_que_se_corra_el_test():
+    """Los dos tests de arriba cayeron al pasar la medianoche del 27 al 28 de agosto de 2026, y hasta entonces
+    habían pasado **por coincidencia del calendario**: el fixture congelaba `time.time()`, pero la guarda
+    resolvía «hoy» con `localtime()` SIN argumento, que va al reloj del sistema por debajo y no pasa por ahí.
+    Dos relojes en una función que decide fechas.
+
+    Esto lo fija por conducta y no por inspección: se congela un instante MUY lejos de cualquier día real en
+    que alguien vaya a correr la suite, y la corrección tiene que salir igual. Si vuelve a colarse una lectura
+    del reloj del sistema, este test cae el mismo día que se escriba, no un año después.
+    """
+    # MARTES a propósito: si «hoy» fuera miércoles, el encargo pediría HOY y la guarda no corrige (con razón),
+    # así que el test pasaría sin medir nada. Primer intento fallido: el 10 de marzo de 2027 es miércoles.
+    lejos = time.mktime((2027, 3, 9, 8, 3, 0, 0, 1, -1))         # martes 9 mar 2027
+    real = scheduler.time.time
+    try:
+        scheduler.time.time = lambda: lejos
+        # La tag dispara HOY (cinco minutos después) y el encargo nombraba el miércoles: mañana, día 10.
+        assert g.safe_reminder_schedule("2027-03-09 08:08", "", ENCARGO) == "2027-03-10 09:00"
+    finally:
+        scheduler.time.time = real
+
+
+def test_y_una_fecha_futura_sigue_sin_tocarse_con_el_reloj_lejos():
+    """La mitad de sensibilidad del anterior: congelar lejos no puede volver corrector a la guarda."""
+    lejos = time.mktime((2027, 3, 9, 8, 3, 0, 0, 1, -1))
+    real = scheduler.time.time
+    try:
+        scheduler.time.time = lambda: lejos
+        assert g.safe_reminder_schedule("2027-04-02 10:00", "", ENCARGO) == "2027-04-02 10:00"
+    finally:
+        scheduler.time.time = real

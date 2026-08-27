@@ -5112,6 +5112,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un worker MIRANDO EL MENÚ no es un worker estrellado (V2-418, 2026-08-28)**: primera ronda del plató
+  24/7 (`weekend-plan-barcelona__es`, cerebro glm-5.3) archivada con dos `error_interno` de certeza «hecho» y
+  un juez escribiendo «el worker falló técnicamente al extraer el precio». Lo que el worker hizo fue lanzar
+  `nav_cli` y `worker_bridge` SIN subcomando: argparse contesta `usage:` y sale con **2**, así que una sonda de
+  descubrimiento llega vestida de caída (las dos siguientes, con `-h`, salieron con 0 y se registraron bien).
+  El instrumento acusando al producto — el único error que una herramienta de medida no puede permitirse,
+  porque un fallo falso manda a alguien a arreglar algo que nunca pasó. La regla es estrecha: **el argumento
+  que falta es `cmd` mismo** → nadie eligió subcomando → está leyendo la carta; un argumento mal en un
+  subcomando REAL (`nav_cli click` sin ref) dice lo mismo y sale con 2 y ése SÍ es una llamada rota. Y el
+  puente tiene que ser nuestro. Vive en `nucleo/workers/probes.py` (módulo propio: `session.py` está a 5
+  líneas de su techo) y se aplica en UN punto, `_emit_step_result`, de donde salen `is_error`, las anomalías
+  del auditor, el contador del span y lo que el juez lee. NO dice que sondear sea gratis: cuatro idas y
+  venidas para leer un menú que el prompt detalla entero es conducta, y la conducta se mide — pero no como una
+  caída. Nodo 4.64, tres desarmes.
+
+- **Una función que decide fechas leía DOS relojes (V2-419, 2026-08-28)**: dos tests de
+  `safe_reminder_schedule` se pusieron rojos **al pasar la medianoche**, sin que nadie tocara nada. El fixture
+  congelaba `time.time()` y la guarda resolvía «hoy» con `localtime()` **sin argumento**, que va al reloj del
+  sistema por debajo y no pasa por ahí. En producción los dos coinciden, así que no había defecto de producto
+  — había algo peor de otra manera: **esos dos tests nunca habían medido nada**, pasaban porque el día real
+  coincidía con el clavado en el test, y el día que deja de coincidir parece una regresión de la guarda.
+  Arreglado con `localtime(time())`, un solo reloj y por tanto medible desde un solo sitio, más un test que
+  congela MUY lejos (martes 9 mar 2027) para que una lectura del reloj del sistema caiga el día que se
+  escriba y no un año después. El primer instante que elegí era miércoles —el día que nombra el encargo—, así
+  que la guarda no corregía y el test habría pasado sin medir nada. Nodo 2.3.
+
 - **El plató no para: 24/7 con guardián (V2-417, 2026-08-28)**: el supervisor YA era el motor —bucle
   infinito, de uno en uno porque hay un navegador por plató, corte por silencio (180 s) y por techo (720 s),
   no muere por una ronda, se recarga solo al cambiar su código—; lo único que no sabía es **volver a

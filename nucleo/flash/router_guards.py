@@ -1329,7 +1329,12 @@ def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -
             # el modelo no ha puesto una fecha, ha puesto una cadencia. Corregirla sería convertir un aviso
             # semanal en uno solo.
             return spec
-        hoy = _time.strftime("%Y-%m-%d", _time.localtime())
+        # UN SOLO RELOJ. `localtime()` sin argumento va al reloj del sistema por debajo y NO pasa por
+        # `time.time()`, así que esta función leía dos: uno para parsear la fecha y otro para decidir cuál es
+        # hoy. En producción coinciden y no cambia nada; lo que rompe es la MEDICIÓN — el 2026-08-28 sus dos
+        # tests cayeron al pasar la medianoche, y hasta entonces habían pasado por coincidencia del calendario
+        # y no porque nadie los hubiera congelado. Pasarle el instante lo deja medible desde un solo sitio.
+        hoy = _time.strftime("%Y-%m-%d", _time.localtime(_time.time()))
         if _time.strftime("%Y-%m-%d", _time.localtime(mio.get("next_run") or 0)) != hoy:
             return spec                       # no dispara hoy: no es el defecto medido
         if _time.strftime("%Y-%m-%d", _time.localtime(suyo.get("next_run") or 0)) == hoy:

@@ -741,7 +741,8 @@ class WorkerSession:
                 return
             where = (d.get("where") or "sistema")
             place, kind = _PLACE.get(where, _PLACE["sistema"])
-            bad = bool(d.get("is_error"))
+            from nucleo.workers.probes import is_menu_probe   # ver su docstring: leer el menú NO es estrellarse
+            bad = bool(d.get("is_error")) and not is_menu_probe(body)
             emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body,
                  extra={"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
                         "is_error": bad, "span": f"worker:{self._rec.task_id}"})

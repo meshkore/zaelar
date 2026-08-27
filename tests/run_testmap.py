@@ -555,6 +555,15 @@ DOMAINS: list[dict] = [
         # palabras que usaríamos nosotros, no las de la página— ni la fila del buscador —que llevaba `n: 0` y
         # nada más— lo decían, así que el arnés declaraba sana una capa de búsqueda muerta y el juez calificaba
         # al agente por no encontrar lo que nadie nos dejó mirar.
+        # 2026-08-28, primera ronda del plató 24/7: `weekend-plan-barcelona__es` se archivó con dos anomalías
+        # `error_interno` y el juez escribió «el worker falló técnicamente al extraer el precio». Lo que el
+        # worker hizo fue lanzar `nav_cli` y `worker_bridge` SIN subcomando — argparse contesta `usage:` y sale
+        # con 2, así que una sonda de descubrimiento llega vestida de caída. El instrumento acusando al
+        # producto: dos de los cuatro fallos marcados no existieron, y la nota de mecanismo los pagó.
+        {"id": "4.64", "title": "Un worker MIRANDO EL MENÚ no es un worker estrellado — falta `cmd` = sonda, "
+                                "falta otro argumento = llamada rota",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_reading_the_menu_is_not_crashing.py"]},
         {"id": "4.63", "title": "Que nos BLOQUEEN no es que el mundo esté vacío — el motor lo dice y el arnés "
                                 "lee el campo, no la prosa",
             "ch": UNIT,
