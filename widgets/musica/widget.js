@@ -136,6 +136,9 @@ if (typeof window !== "undefined" && !window.__hbMusicaYtBound){
   window.addEventListener("message", (ev) => {
     if (typeof ev.data !== "string" || ev.data.indexOf("\"event\"") < 0) return;
     let d; try{ d = JSON.parse(ev.data); }catch(_){ return; }
+    // Only OUR hidden player (the handshake id): the youtube WIDGET's player also emits onStateChange on this
+    // same window since V2-366, and without this filter a video ending would advance the MUSIC queue.
+    if (d.id !== "hb-musica") return;
     if (d.event === "onReady" && _ytReady) _ytReady();
     else if (d.event === "onStateChange" && Number(d.info) === 0 && _ytEnded) _ytEnded();   // 0 = ENDED
   });

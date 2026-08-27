@@ -807,7 +807,8 @@ DOMAINS: list[dict] = [
             # `phase_active=True` y la fase de vuelo intacta, así que el turno vuelve a leer un estado que miente,
             # solo del revés. Los xfail son la deuda DECLARADA: cuando el arreglo entre, saldrán XPASS.
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
-        {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py"]},
+        {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
+                                                                 "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
