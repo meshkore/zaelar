@@ -1075,6 +1075,8 @@ DOMAINS: list[dict] = [
             "paths": ["tests/browser/unit/navegador/test_a_dealer_link_does_not_close_the_card.py"]},
         {"id": "4.52", "title": "El widget de YouTube tiene LISTA: los vídeos suenan uno detrás de otro (add nunca autoreproduce, ended avanza solo, next/previous/play_item, close conserva la lista)",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
+        {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
+         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
