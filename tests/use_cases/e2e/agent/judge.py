@@ -527,6 +527,17 @@ def mechanism_facts(mech: dict) -> str:
     # V2-396 — la otra mitad de lo anterior: allí el arnés se AVERIÓ componiendo el informe, aquí no se
     # averió nada, simplemente NADIE CONTESTÓ y cada lector devolvió su colección vacía. El informe sale con
     # la forma exacta de un producto que no hizo nada.
+    # V2-398 — QUÉ PIDIÓ el cerebro en cada turno. Sin esta línea, «hizo A en vez de B» solo se podía
+    # deducir del texto de la respuesta, y esa deducción confunde dos hechos con dueños distintos.
+    _ta = mech.get("turn_actions") or []
+    if _ta:
+        _tr = " · ".join(f"t{a.get('turn')}→" + (", ".join(a.get("pedido") or []) or "(ninguna)")
+                         + (f" [ejecutó {a['ejecutado']}]" if a.get("ejecutado") else "")
+                         for a in _ta[:14])
+        lines.append(f"· LO QUE PIDIÓ EL CEREBRO, turno a turno: {_tr}. Es lo que el modelo PIDIÓ, no lo "
+                     f"que ocurrió: una herramienta pedida puede fallar o ser rechazada (mira las "
+                     f"operaciones de widget). Un turno con «(ninguna)» no llamó a nada, así que si hacía "
+                     f"falta una acción, ahí no se intentó siquiera.")
     # V2-397 — la foto sacada a media faena. `quiescence` no aparecía NI UNA VEZ en este fichero, y 131 de
     # las 215 rondas archivadas se compusieron con un worker todavía trabajando.
     _mf = _V.measured_in_flight(mech)

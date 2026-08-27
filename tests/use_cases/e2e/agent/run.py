@@ -104,6 +104,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
     transcript: list[dict] = []
     mute_turns: list[int] = []
+    # LO QUE EL CEREBRO PIDIÓ EN CADA TURNO (V2-398). Llegaba en la respuesta del probe —`tool_calls`,
+    # `action`, `executed`— y se descartaba en la misma línea en que se leía el texto. Sin esto, «pidió A en
+    # vez de B» y «pidió A y B, y B lo rechazó el widget en silencio» se leen igual en el transcript, y son
+    # dos dueños distintos (V2-394). Medido en `play-music-and-build-playlist`: el juez escribió «subió el
+    # volumen en vez de guardar la canción» DEDUCIÉNDOLO del texto, porque `audit.tools_run` venía vacío.
+    turn_actions: list[dict] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
     # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
@@ -183,6 +189,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # product inattention — the same mistake `search_health` exists to prevent.
         if not reply_text:
             mute_turns.append(turn)
+        _pedido = [str(t.get("name") or "?") for t in (res.get("tool_calls") or []) if isinstance(t, dict)]
+        _act = {"turn": turn, "pedido": _pedido, "action": str(res.get("action") or "")}
+        if res.get("executed"):
+            _act["ejecutado"] = res.get("executed")
+        turn_actions.append(_act)
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
@@ -282,6 +293,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                                       forbidden_signals=getattr(scenario, 'forbidden_signals', []))
     if quiescence is not None:
         mech["quiescence"] = quiescence
+    mech["turn_actions"] = turn_actions
     # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
     # nothing about appointments: it costs one request and it avoids the class of error that cost two rounds
     # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had

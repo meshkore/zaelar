@@ -1662,6 +1662,14 @@ DOMAINS: list[dict] = [
         # sheet_instances, auditoría) se sacaba a media faena. Y `quiescence` no aparecía NI UNA VEZ en
         # `judge.py`: 131 de 215 rondas archivadas se compusieron con un worker todavía trabajando y quien
         # puntúa no lo sabía.
+        # V2-398 — la respuesta del probe trae `tool_calls`/`action`/`executed` y `run.py` se quedaba solo
+        # con `reply`. En `play-music-and-build-playlist` el juez escribió «subió el volumen EN VEZ DE
+        # guardar la canción» deduciéndolo del texto: `audit.tools_run` venía {} y `widget_ops` solo trae el
+        # agregado de la ronda. «Pidió A en vez de B» y «pidió A y B, y B lo rechazó el widget» tienen dueños
+        # distintos (V2-394) y en el transcript se leen igual.
+        {"id": "10.98", "title": "Lo que el cerebro PIDIÓ en cada turno se guarda · pedir no es hacer",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_what_the_brain_ASKED_FOR_is_kept.py"]},
         {"id": "10.97", "title": "Una foto sacada a media faena lo DICE · y se espera al silencio antes de leer",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_snapshot_taken_mid_flight_says_so.py"]},
