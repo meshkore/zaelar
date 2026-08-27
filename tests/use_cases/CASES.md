@@ -402,7 +402,7 @@ also why full transcripts are safe there and never in the committed scoreboard.
   "musical" are the Lion King theatre-ticket case).
   - `play-music-and-build-playlist` — music on, then a real playlist. Both halves must show in the
     mechanism report: the `musica` widget LIVE (its `active_when` satisfied) and the
-    `create_playlist`/`add_to_playlist` data-ops applied to the widget's own store. **Spotify is
+    the named list holding the track that was playing, in the widget's own store — judged by the RESULT, not by which call produced it (V2-384 merged the two calls into one on purpose). A list created EMPTY does not count. **Spotify is
     deliberately not connected in the lab** (verified: neither lab workspace has a
     `connectors.json`), so what this measures is the fallback the code describes —
     `mode = spotify if connected else youtube` — with the hidden YouTube-audio block carrying the

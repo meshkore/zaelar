@@ -116,8 +116,11 @@ CASES: list[UseCase] = [
             "Ponme algo de música tranquila para trabajar.",
             "Sound ACTUALLY starts and then the operator's list is built: the mechanism report must show the "
             "`musica` widget live (its `active_when` is satisfied — either a Spotify device or the hidden "
-            "YouTube audio block) and the playlist data-ops (`create_playlist` + `add_to_playlist`) applied "
-            "to the widget's own store. Two things are FAILURES even if the transcript sounds right: "
+            "YouTube audio block) and the named list holding the track that was playing (judged by the "
+            "RESULT in the widget's store, not by which call produced it — V2-384 merged the two calls into "
+            "one on purpose, so demanding `create_playlist` demands a mechanism that no longer exists). "
+            "A list created EMPTY does not count: what was asked for was to save WHAT IS PLAYING. "
+            "Two things are FAILURES even if the transcript sounds right: "
             "escalating this to a Brain Worker (it is a rail, resolved in-turn — V2-042), and claiming a "
             "song is playing with nothing live behind it. **Spotify is deliberately NOT connected** in the "
             "lab, so this measures the fallback path the docs describe (`mode = spotify if connected else "
