@@ -106,7 +106,11 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
-    "widgets/navegador/owner.py": (1706, 44),
+    # 2026-08-27 — owner 1706→1725: 0bee0d8 V2-358 (the tab listens to main-frame document responses and
+    # hands last_status to every capture — the wall signal no needle can miss, measured on coches.net's two
+    # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
+    # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
+    "widgets/navegador/owner.py": (1725, 44),
     "nucleo/flash/router_guards.py": (1374, 15),   # 25-08: V2-306..310 walk guards (arnés)
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
