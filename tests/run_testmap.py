@@ -1650,6 +1650,12 @@ DOMAINS: list[dict] = [
         # V2-378 — el informe avisaba «NINGUNA se le empujó al cerebro» y el juez lo archivaba como fallo de
         # entrega, cuando las OCHO vueltas de `compare-insurance-quotes__es` llegaron entre los 473 y los 521 s
         # con el último turno a los 298: no había a quién empujárselas.
+        # V2-395 — el dato de V2-392 viajaba en el JSON crudo y la sección que traduce el mecanismo A PALABRAS
+        # no lo nombraba. Con la música SONANDO, veredicto 2/5 «ni sonó la música», citando `n_evidence: 0` —
+        # un contador que para un reproductor local es CERO por construcción.
+        {"id": "10.95", "title": "Lo que está SONANDO se le dice al juez en palabras · y la evidencia no mide eso",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_lo_que_suena_se_dice_en_palabras.py"]},
         # V2-392 — `widget_ops` dice qué se TOCÓ, no si algo acabó pasando. Con la música SONANDO y la lista
         # «Curro» con esa misma canción dentro, el veredicto fue 3/5 «evidencia cero».
         {"id": "10.94", "title": "El informe dice QUÉ está sonando · se PREGUNTA al motor, no se reimplementa",

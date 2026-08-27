@@ -671,6 +671,23 @@ def mechanism_facts(mech: dict) -> str:
                      f"disparadores.")
     else:
         lines.append("· No se observó ninguna operación de widget en esta corrida.")
+    # V2-395 — QUÉ ESTÁ PRODUCIENDO al terminar. `widget_ops` dice qué se TOCÓ, y eso no contesta «¿suena
+    # algo de verdad?», que es el criterio literal de todos los casos de medios. El dato entró en el informe
+    # con V2-392 y se quedó ahí: esta sección —la que traduce el mecanismo a PALABRAS— no lo nombraba, y un
+    # campo que el juez no ve enunciado es invisible (V2-346, «una lista vacía no dice nada en voz alta»).
+    prod = mech.get("widgets_producing")
+    if prod:
+        lines.append(f"· SONANDO/REPRODUCIENDO al terminar la ronda: {', '.join(sorted(prod))}. Lo dice el "
+                     f"propio motor evaluando el `active_when` del widget contra sus datos reales, así que "
+                     f"es un HECHO: si aquí sale `musica`, la música sonaba, diga lo que diga el resto.")
+    elif prod is not None:
+        lines.append("· NADA estaba sonando ni reproduciéndose al terminar la ronda (se preguntó al motor y "
+                     "contestó que ninguno de sus widgets estaba produciendo).")
+    else:
+        lines.append("· NO se pudo preguntar qué estaba sonando: la ausencia de reproducción no está probada.")
+    lines.append("·   ⚠️ La EVIDENCIA cuenta lo que trajo el MUNDO EXTERIOR. Un reproductor local no trae "
+                 "nada de fuera, así que en un caso de música o vídeo `n_evidence: 0` es lo NORMAL y no "
+                 "prueba que no sonara: para eso está la línea de arriba.")
     lines.append("·   ⚠️ El bloque de disparadores durables habla de CRONS, no de agendas. NO concluyas que "
                  "falta una cita porque no haya un cron: son dos subsistemas distintos y la cita se ve arriba, "
                  "en las operaciones de widget.")
