@@ -521,7 +521,12 @@ DOMAINS: list[dict] = [
         {"id": "2.39", "title": "Una espera nunca calla un atasco que el sistema YA sabe · y si el turno ya lo "
                                 "dice, o ya está entregando, el backstop no lo pisa",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py"]},
+            "paths": ["tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py",
+                      # V2-371 — y una PREGUNTA tampoco calla una entrega. La puerta de V2-364 silenciaba el
+                      # backstop, el flujo caía al de atasco, y las dos «¿la paro o le doy margen?» que el
+                      # juez le reprochó a zaelar en `search-buy-motorcycle__es` las escribimos nosotros —
+                      # con once candidatos sin entregar y la segunda ya contestada por el operador.
+                      "tests/agent_headless/unit/flash/test_a_question_is_no_reason_to_withhold.py"]},
         {"id": "2.37", "title": "Un paso del worker que afirma la PANTALLA sin respaldo sale marcado «💬» · y "
                                 "uno mecánico, o con la hoja llena, no se toca",
             "ch": UNIT,

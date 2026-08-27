@@ -40,8 +40,20 @@ def test_no_rows_no_backstop():
     assert RG.sheet_delivery_backstop("Sigo con ello, te aviso.", [], "") == ""
 
 
-def test_a_non_waiting_short_reply_is_untouched():
-    assert RG.sheet_delivery_backstop("¿Prefieres cuerdas de metal o nylon?", ROWS, "") == ""
+def test_una_pregunta_corta_ENTREGA_los_hechos_y_no_añade_la_nuestra():
+    """INVERTIDO por V2-371, y se conserva aquí porque el ejemplo es el mismo. Decía
+    `test_a_non_waiting_short_reply_is_untouched` y exigía silencio ante una pregunta.
+
+    Lo que ese silencio costó, medido en `search-buy-motorcycle__es` (2026-08-27): once candidatos con nombre
+    y enlace en la hoja, 87,4 s de retención, y los turnos que preguntaban caían al backstop de ATASCO, que
+    le colgaba detrás NUESTRA pregunta de gestión — el operador recibió dos veces la misma pregunta, una ya
+    contestada, y ni uno de los once candidatos.
+
+    Lo que protegía sigue protegido y es la mitad que importa: no se le roba la palabra. Se entregan los
+    HECHOS y no se añade pregunta, así que la única que cierra el turno es la suya."""
+    out = RG.sheet_delivery_backstop("¿Prefieres cuerdas de metal o nylon?", ROWS, "")
+    assert "Fender CD-60" in out
+    assert "?" not in out
 
 
 def test_partial_freshness_only_appends_the_unsaid_rows():
@@ -176,11 +188,16 @@ def test_una_respuesta_que_no_suena_a_espera_TAMBIEN_entrega():
         assert "Vetusta Morla" in out, r
 
 
-def test_una_PREGUNTA_se_respeta():
-    """La única cosa que de verdad había que proteger: colgarle las filas detrás le cambia el tema y se queda
-    sin contestar lo que le acaban de preguntar."""
+def test_una_PREGUNTA_se_respeta_SIN_retener_la_entrega():
+    """INVERTIDO por V2-371. La versión de V2-364 exigía silencio absoluto ante una pregunta, y ese era el
+    error de grado: lo que hay que proteger no es la entrega, es el TURNO DE PALABRA.
+
+    Callar retiene; añadir nuestra pregunta le roba la suya. La salida es entregar los hechos y callarnos —
+    con lo que sus tres formas siguen siendo la última pregunta del turno, que es lo que este caso vigilaba."""
     for r in ("¿Prefieres sala pequeña o grande?", "Claro. ¿Te va bien el sábado?", "¿Lo reservo?"):
-        assert RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas") == "", r
+        out = RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas")
+        assert "Vetusta Morla" in out, r
+        assert "?" not in out, r
 
 
 def test_lo_que_ya_protegian_las_otras_guardas_sigue_protegido():

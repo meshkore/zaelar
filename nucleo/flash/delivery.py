@@ -78,8 +78,17 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     #
     # El backstop de ATASCO conserva la puerta vieja a propósito: contar un atasco es más intrusivo que
     # entregar lo que ya existe, y ahí sí conviene que la respuesta esté en modo espera.
-    if r.rstrip().endswith("?") or _PREGUNTA_RE.search(r):
-        return ""
+    # V2-371 — la puerta de la PREGUNTA callaba, y callar era demasiado. Medido en `search-buy-motorcycle__es`
+    # (2026-08-27) con ONCE candidatos con nombre y enlace en la hoja: la entrega se retuvo 87,4 s y, encima,
+    # los turnos en que el modelo preguntaba «¿la paro o le doy margen?» pasaban de largo por aquí y caían en
+    # el backstop de ATASCO, que le colgaba detrás NUESTRA propia pregunta de gestión. El operador acabó
+    # recibiendo dos veces la misma pregunta —una ya contestada— y ni uno de los once candidatos.
+    #
+    # Lo que la puerta protege es real y sigue en pie: colgarle filas detrás a una pregunta puede dejarla sin
+    # contestar. Pero eso NO es motivo para retener la entrega — es motivo para no ROBARLE el turno de palabra.
+    # Con una pregunta abierta se entregan los HECHOS y se calla la nuestra, así que la única pregunta que
+    # queda en el turno sigue siendo la suya.
+    _preguntando = bool(r.rstrip().endswith("?") or _PREGUNTA_RE.search(r))
     said = _norm_txt(str(said_before or "")) + " " + r
     fresh: list[str] = []
     for row in rows or []:
@@ -107,8 +116,13 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         return ""
     if _looks_like_an_unfiltered_feed(rows):
         return ""
+    _filas = "; ".join(f"«{f}»" for f in fresh)
+    if _preguntando:
+        # Los hechos y punto: la pregunta que cierra el turno tiene que seguir siendo la suya. Y la frase se
+        # lee DETRÁS de esa pregunta, así que no puede empezar como si viniera delante.
+        return "Y mientras lo piensas, ya hay candidatos en la hoja de resultados: " + _filas + "."
     return ("Bueno, de hecho ya hay candidatos en la hoja de resultados: "
-            + "; ".join(f"«{f}»" for f in fresh)
+            + _filas
             + ". Dime si alguno te encaja o sigo afinando.")
 
 
@@ -235,7 +249,18 @@ def apply_to_reply(spoken: str, window) -> str:
         # cero disparos, mientras sus tests pasaban con esas mismas entradas. El evento deja las ENTRADAS de
         # la decisión donde el arnés las lee, y con ellas se cerró el misterio en la ronda siguiente: `rows=3`
         # y las filas YA dichas, o sea silencio correcto.
-        if _WAITING_REPLY_RE.search(_norm_txt(spoken or "")):
+        # V2-371 — y el silencio se ve TAMBIÉN cuando el turno pregunta. Esta guarda seguía siendo el
+        # vocabulario de espera, que V2-364 ya había dejado de usar para DECIDIR: desde entonces un turno
+        # silenciado por ser una pregunta no dejaba ni una fila donde mirarlo. Reconstruir la ronda de la moto
+        # costó cruzar el reloj de entrega con los eventos del atasco porque los turnos que importaban —los que
+        # preguntaban— no habían emitido nada. Un guarda de observabilidad que no sigue a la decisión que
+        # observa deja ciego justo el caso nuevo.
+        _limpio = _norm_txt(spoken or "")
+        _pregunta = bool(_limpio.rstrip().endswith("?") or _PREGUNTA_RE.search(_limpio))
+        # Una pregunta SIN filas detrás es un turno normal, no una entrega retenida: emitir ahí convertiría el
+        # evento en ruido de cada turno y lo dejaría inservible como señal. Con filas SÍ interesa, porque
+        # entonces sí hubo algo que no se entregó y hace falta saber por qué.
+        if _WAITING_REPLY_RE.search(_limpio) or (_pregunta and filas):
             _emit("🤐 backstop de entrega CALLÓ ante una espera",
                   rows=len(filas or []), goal=(encargo or "")[:80],
                   said_chars=len(dicho or ""), reply=(spoken or "")[:90])
