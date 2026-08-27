@@ -237,6 +237,24 @@ def _play_track(track: dict) -> "dict":
             "reason": getattr(r, "reason", "")}
 
 
+def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
+    """Resolve a spoken list name to the real playlist, CREATING it when it does not exist (V2-384).
+    Measured live: «guárdamelo en una lista que se llame Curro» answered «Hecho.» with nothing behind —
+    the model gets ONE call, and demanding create_playlist + add_to_playlist as two is how that call
+    resolves to nothing. Returns (playlist, created)."""
+    pl = _find_playlist(db, name)
+    if pl is not None:
+        return pl, False
+    name = (str(name or "").strip() or "Nueva lista")
+    used = {x.get("id") for x in db["playlists"]}
+    pid = _slug(name); base, i = pid, 2
+    while pid in used:
+        pid = f"{base}-{i}"; i += 1
+    pl = {"id": pid, "name": name, "art": "", "tracks": []}
+    db["playlists"].append(pl)
+    return pl, True
+
+
 # ref_index (V2-026): playlists are voice-referenceable by name.
 def ref_index() -> list:
     try:
@@ -300,16 +318,27 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "add_to_playlist":
         db = _load_db()
-        pl = _find_playlist(db, p.get("playlist") or p.get("id"))
-        if pl is None:
-            return {"ok": False, "error": "playlist_not_found", "playlist": p.get("playlist")}
+        ref = p.get("playlist") or p.get("id") or p.get("name")
+        if not str(ref or "").strip():
+            return {"ok": False, "error": "playlist_not_found", "playlist": ref}
         tr = _track_from_payload(p)
         if not tr:
-            return {"ok": False, "error": "no_track"}
-        pl.setdefault("tracks", []).append(tr)
+            # No explicit track → the one PLAYING NOW («guárdame esta en…»), which is what the spoken form
+            # almost always means. Resolved BEFORE creating anything: with nothing playing and no track,
+            # creating an empty list here would turn a failed save into silent clutter.
+            tr = _current_track(db)
+            if not tr:
+                return {"ok": False, "error": "nothing_playing",
+                        "message": "No suena nada ahora y no me has dicho qué canción añadir."}
+        pl, created = _find_or_create_playlist(db, ref)      # V2-384: one call is all the model gets
+        dupe_key = _norm((tr.get("title") or "") + "|" + (tr.get("artist") or ""))
+        tracks = pl.setdefault("tracks", [])
+        if not any(_norm((t.get("title") or "") + "|" + (t.get("artist") or "")) == dupe_key for t in tracks):
+            tracks.append(tr)
         db["view"] = {"kind": "playlist", "id": pl["id"]}
         _persist(db)
-        return {"ok": True, "playlist": pl["id"], "track": tr.get("title")}
+        return {"ok": True, "playlist": pl["id"], "name": pl.get("name"), "created": created,
+                "track": tr.get("title"), "count": len(tracks)}
 
     if action == "remove_from_playlist":
         db = _load_db()
@@ -332,13 +361,10 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "nothing_playing"}
         # Plain "Favoritos": the old hardcoded "Favoritos de Manolo" was a demo leftover shipped to every
         # operator. No dual lineage on upgrade: _find_playlist matches by containment, so an existing
-        # "Favoritos de Manolo" list keeps receiving the favorites under its old name.
-        fav_name = "Favoritos"
-        pl = _find_playlist(db, fav_name)
-        if pl is None:
-            pid = _slug(fav_name)
-            pl = {"id": pid, "name": fav_name, "art": "", "tracks": []}
-            db["playlists"].append(pl)
+        # "Favoritos de Manolo" list keeps receiving the favorites under its old name. And since V2-384 the
+        # target can be a NAMED list («guárdamela en Curro») — found or created, same seam as add_to_playlist.
+        fav_name = (p.get("playlist") or p.get("name") or "").strip() or "Favoritos"
+        pl, _created = _find_or_create_playlist(db, fav_name)
         tracks = pl.setdefault("tracks", [])
         key = _norm((cur.get("title") or "") + "|" + (cur.get("artist") or ""))
         if not any(_norm((t.get("title") or "") + "|" + (t.get("artist") or "")) == key for t in tracks):

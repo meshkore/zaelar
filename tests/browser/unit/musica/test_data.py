@@ -87,3 +87,44 @@ def test_favorite_current_no_lleva_nombre_de_demo_y_no_abre_un_segundo_linaje(mo
     assert r["ok"] is True and r["playlist"] == "favoritos-de-manolo"
     names = [pl["name"] for pl in md._load_db()["playlists"]]
     assert names == ["Favoritos de Manolo"]
+
+
+# --- V2-384: «guárdamelo en una lista que se llame Curro» tiene mecanismo detrás, en UNA llamada ---
+
+def test_guardar_lo_que_suena_en_una_lista_nueva_con_nombre_en_una_sola_llamada(monkeypatch):
+    """El caso medido en vivo: «Hecho.» y nada detrás. El modelo emite UNA data-op; exigir
+    create_playlist + add_to_playlist era cómo esa llamada resolvía a nada."""
+    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "La Song", "artist": "A", "album": "",
+                                                          "art": "", "query": "La Song"})
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
+    assert r["ok"] is True and r["created"] is True and r["track"] == "La Song"
+    db = md._load_db()
+    assert [pl["name"] for pl in db["playlists"]] == ["Curro"]
+    assert [t["title"] for t in db["playlists"][0]["tracks"]] == ["La Song"]
+    # repeated save of the same playing track does not pile up
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
+    assert r["ok"] is True and r["created"] is False and r["count"] == 1
+
+
+def test_una_lista_existente_se_reutiliza_y_un_track_explicito_gana(monkeypatch):
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    md.apply_action("create_playlist", {"name": "Viaje"})
+    r = md.apply_action("add_to_playlist", {"playlist": "viaje", "query": "Volare"})
+    assert r["ok"] is True and r["created"] is False
+    assert [t["title"] for t in md._load_db()["playlists"][0]["tracks"]] == ["Volare"]
+
+
+def test_sin_cancion_y_sin_nada_sonando_no_se_crea_basura(monkeypatch):
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
+    assert r["ok"] is False and r["error"] == "nothing_playing"
+    assert md._load_db()["playlists"] == []              # a failed save must not leave an empty list behind
+
+
+def test_favorite_current_acepta_lista_con_nombre(monkeypatch):
+    monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "A", "album": "",
+                                                          "art": "", "query": "Song"})
+    r = md.apply_action("favorite_current", {"playlist": "Curro"})
+    assert r["ok"] is True
+    db = md._load_db()
+    assert [pl["name"] for pl in db["playlists"]] == ["Curro"]
