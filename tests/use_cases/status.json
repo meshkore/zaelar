@@ -2172,7 +2172,254 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-388-uc-find-videos-on-a-topic-no-ai-slop.md",
         "task": ""
       }
+    },
+    "cheapest-monitor__us": {
+      "last_run": "2026-08-27 20:41",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 1
+      },
+      "verdict": "El caso NO está listo para producción. El bloqueador principal es la falta de fiabilidad del motor de extracción ('worker'), que falló en sacar cualquier dato de precio o producto concreto (0 resultados encontrados) y presentó errores internos, dejando al usuario esperando una respuesta que nunca llegó.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 2 error(es), último paso «alive»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "fa7f544",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "36 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
+        "task": ""
+      }
+    },
+    "find-best-hotel-city__us": {
+      "last_run": "2026-08-27 20:47",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No listo. Bloqueador nº1: fallo de entrega. Aunque el worker halló hoteles, los escribió tarde (2.5s tras el último turno) y filtraron mal (€ vs $), incumpliendo el objetivo.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 2 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "fa7f544",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "40 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-405-uc-find-best-hotel-city-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T486-uc-find-best-hotel-city-us-fix.md"
+      }
+    },
+    "search-buy-camera__us": {
+      "last_run": "2026-08-27 20:53",
+      "overall": 3,
+      "judge": "glm-4.6",
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 3,
+        "mecanismo": 2,
+        "eficiencia": 3
+      },
+      "verdict": "No es production-ready. Aunque zaelar navegó bien y adaptó el criterio, el worker terminó con errores internos (`criterio.json`) y falló en el objetivo principal: el extractor no devolvió el contador de disparos prometido, por lo que se entregó una lista de precios que no cumple la condición de 'low shutter count' verificada.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de criterio.json: [Errno 2] No such file or directory: 'criterio.json' · ruta RELATIVA a tu directorio de trabajo: /private"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: Contains simple_expansion"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 3 error(es), último paso «data»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 11,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "fa7f544",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "39 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-406-uc-search-buy-camera-us.md",
+        "task": ".meshkore/modules/nucleo/tasks/T487-uc-search-buy-camera-us-fix.md"
+      }
+    },
+    "search-secondhand-monitor__us": {
+      "last_run": "2026-08-27 21:01",
+      "overall": 4,
+      "judge": "glm-4.6",
+      "state": "PASS",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 4,
+        "mecanismo": 3,
+        "eficiencia": 4
+      },
+      "verdict": "El caso está listo para producción en términos funcionales (el usuario obtiene sus monitores), pero el código del worker requiere revisión para corregir errores de lectura de archivos ('fuentes.json') y estabilidad de puentes ('mesh_cli') que, aunque no abortaron la tarea, indican fragilidad técnica subyacente.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/v"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «alive»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "fa7f544",
+        "n_dirty": 2,
+        "dirty": [
+          "nucleo/browser_search.py",
+          "nucleo/websearch.py"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "38 GB"
+          }
+        ],
+        "n": 1
+      }
     }
   },
-  "updated": "2026-08-27 15:33"
+  "updated": "2026-08-27 21:01"
 }
