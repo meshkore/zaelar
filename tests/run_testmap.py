@@ -573,6 +573,15 @@ DOMAINS: list[dict] = [
                                 "cobrar dos veces",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_same_search_twice_is_not_two_searches.py"]},
+        # 2026-08-28 — contadas las anomalías de las 44 filas del marcador: `payload JSON inválido` sale **18
+        # veces**, más del DOBLE que la siguiente firma, y el mensaje era literalmente eso: ni qué tenía de
+        # inválido ni qué se leyó. El worker reintenta lo mismo tres y cuatro veces. Y la causa más probable
+        # —la valla de markdown que a un modelo le sale sola al escribir JSON— no es ambigua, así que
+        # rechazarla no protegía de nada: solo gastaba la vuelta.
+        {"id": "4.67", "title": "El error de payload dice QUÉ falló — y la valla de markdown se tolera, el "
+                                "casi-JSON no",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_payload_error_says_what_is_wrong.py"]},
         {"id": "4.65", "title": "Un payload que falta dice lo que SÍ hay — y los dos puentes miran el mismo "
                                 "sitio",
             "ch": UNIT,

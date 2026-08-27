@@ -117,10 +117,11 @@ def _cmd_act(action: str, payload_json: str) -> int:
         print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write a esa ruta "
               "(relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.", file=sys.stderr)
         return 1
-    try:
-        payload = json.loads(_raw) if _raw else {}
-    except Exception:
-        print(f"payload JSON inválido ({_src})", file=sys.stderr)
+    # QUÉ tenía de inválido, no solo que lo era — y tolerando la valla de markdown. Ver `parse_payload`:
+    # ésta es la anomalía nº 1 del tablero entero, y su mensaje no daba nada con lo que corregirla.
+    payload, _perr = _bu.parse_payload(_raw)
+    if _perr:
+        print(f"payload JSON inválido ({_src}): {_perr}", file=sys.stderr)
         return 1
     res = _post("/api/worker/act", {"task_id": tid, "token": tok, "action": action, "payload": payload})
     _emit_injections(res)

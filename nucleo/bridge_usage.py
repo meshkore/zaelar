@@ -11,6 +11,8 @@ to do about a bad `ask`.
 """
 from __future__ import annotations
 
+import json
+
 import argparse
 import sys
 from collections.abc import Callable
@@ -33,6 +35,41 @@ def guided(hint_for: Callable[[str], str]) -> type[argparse.ArgumentParser]:
             raise SystemExit(2)
 
     return _GuidedParser
+
+
+def parse_payload(texto: str) -> tuple[dict, str]:
+    """`(payload, error)` — el JSON del worker, tolerando el envoltorio que un modelo escribe sin pensar.
+
+    **`payload JSON inválido` es la anomalía nº 1 de todo el tablero**: 18 apariciones el 2026-08-28, más del
+    doble que la siguiente. Y el mensaje decía exactamente eso y nada más — ni qué tenía de inválido, ni qué
+    se leyó. El worker no puede arreglar lo que no sabe que escribió mal, así que reintenta igual (el rastro
+    de esas rondas son tres y cuatro intentos idénticos seguidos).
+
+    Dos cosas distintas, y las dos hacían falta:
+
+    * **Tolerar la valla de markdown.** Un modelo al que le pides «escribe un JSON» escribe ```json … ``` sin
+      pensarlo, porque es como escribe JSON en todas partes. No es ambiguo —una valla tiene una sola lectura—
+      así que rechazarlo no protege de nada: solo gasta una vuelta. Se quita y se sigue.
+    * **Decir QUÉ falló.** El parser da la línea, la columna y el motivo, y lo tiramos. Con eso y los primeros
+      caracteres de lo que se leyó, el error pasa de «inválido» a algo que se puede corregir sin adivinar.
+
+    Lo que NO se tolera: comillas simples, comas de más, ni ningún otro «casi JSON». Eso sí es ambiguo, y un
+    parser indulgente acabaría interpretando lo que el worker no dijo — que es peor que rechazarlo.
+    """
+    t = (texto or "").strip()
+    if not t:
+        return {}, ""
+    if t.startswith("```"):
+        # Una valla de markdown, con o sin el idioma detrás: se tira la primera línea y la de cierre.
+        cuerpo = t.split("\n", 1)[1] if "\n" in t else ""
+        t = cuerpo.rsplit("```", 1)[0].strip() if cuerpo.rstrip().endswith("```") else cuerpo.strip()
+    try:
+        d = json.loads(t) if t else {}
+    except Exception as e:  # noqa: BLE001 — el motivo del parser ES el dato que faltaba
+        muestra = " ".join((texto or "").split())[:120]
+        return {}, f"{e} · empieza por: «{muestra}»"
+    return (d if isinstance(d, dict) else {}), ("" if isinstance(d, dict) else
+                                                f"el JSON es un {type(d).__name__}, no un objeto")
 
 
 def what_is_here(limit: int = 8) -> str:

@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El error de payload dice QUÉ falló (V2-425, 2026-08-28)**: contando las ANOMALÍAS MEDIDAS de las 44
+  filas del marcador —hechos, no prosa del juez—, `payload JSON inválido` sale **18 veces, más del doble que
+  la siguiente firma**, y el mensaje era literalmente eso: ni qué tenía de inválido ni qué se leyó. Un worker
+  no puede arreglar lo que no sabe que escribió mal, así que reintenta igual (tres y cuatro intentos
+  idénticos seguidos en el rastro). Dos cosas: **tolerar la valla de markdown** —a un modelo al que le pides
+  un JSON le sale ```json solo, y no es ambiguo: una valla tiene una sola lectura, así que rechazarla no
+  protegía de nada y gastaba una vuelta— y **decir qué falló** (línea, columna, motivo del parser y los
+  primeros caracteres de lo leído). Lo que NO se tolera es el «casi JSON» —comillas simples, comas de más,
+  claves sin comillas—: eso SÍ es ambiguo y un parser indulgente ejecutaría una acción que el worker no dijo,
+  peor que rechazarla; igual que una lista, porque `act` espera un objeto y un `{}` silencioso mandaría una
+  acción vacía como si fuera buena. Cuántas de las 18 eran la valla no se sabe: el mensaje no lo guardaba, que
+  era el defecto. Nodo 4.67, cuatro desarmes.
+
 - **El `&` solo también lo bloquea nuestro guarda, y no estaba en la regla (V2-424, 2026-08-28)**: medido en
   `find-best-hotel-city__us` (plató 24/7): el worker terminó un comando con `&` y nuestra propia puerta lo
   mató — «This command uses the `&` background operator, which defers execution past approval-time safety
