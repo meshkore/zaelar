@@ -18,13 +18,32 @@ esta familia en `probe.py`: tags de cron (V2-121), traspaso de login (V2-176), m
 from __future__ import annotations
 
 
+def normalize_action(raw) -> str:
+    """`play_video.action` → "play" | "list". ONE definition shared by BOTH channels (voice and probe): the
+    V2-380/383 lesson is that anything decided per-channel ends up diverging per-channel. "list" is the V2-402
+    half: a content search meant for CHOOSING ("find me videos about…") fills the player's list with several
+    candidates without playing — a media search's destination is its dedicated widget, not the results sheet."""
+    a = str(raw or "").strip().lower()
+    return "list" if a in ("list", "lista", "search", "browse", "buscar", "varios") else "play"
+
+
+def voice_dispatch(raw_action) -> "tuple[str, str]":
+    """(data-op, observability label) for a play_video call — the voice provider's whole branch body, kept
+    here so the search-vs-load decision cannot diverge from the probe channel's (V2-402)."""
+    if normalize_action(raw_action) == "list":
+        return "search", "🔎 vídeos → lista youtube"
+    return "load", "▶️ vídeo → widget youtube"
+
+
 def request_from(tool_calls: list) -> dict:
-    """Lo que pidió `play_video`, normalizado: `{query}`."""
+    """What `play_video` asked for, normalized: `{query, action}`."""
     pv = next((t for t in (tool_calls or []) if t.get("name") == "play_video"), None) or {}
-    return {"query": str((pv.get("args") or {}).get("query") or "").strip()}
+    args = pv.get("args") or {}
+    return {"query": str(args.get("query") or "").strip(),
+            "action": normalize_action(args.get("action"))}
 
 
-async def execute(query: str) -> dict:
+async def execute(query: str, action: str = "play") -> dict:
     """Carga el vídeo y devuelve el parte de lo que PASÓ, para que la boca no tenga que adivinar.
 
     Mismo rail que la voz (`brain_action` → `apply_action` del widget), no una segunda forma de poner vídeos.
@@ -37,6 +56,14 @@ async def execute(query: str) -> dict:
     q = str(query or "").strip()
     try:
         from widgets.server_api import brain_action
+        if normalize_action(action) == "list":
+            # V2-402 — a media search goes to the PLAYER: several candidates into the list, nothing autoplays.
+            res = await brain_action("youtube", "search", {"query": q} if q else {})
+            res = res if isinstance(res, dict) else {}
+            return {"executed": "play_video", "accion": "list", "ok": bool(res.get("ok")),
+                    "query": q[:80], "added": [str(t)[:120] for t in (res.get("added") or [])],
+                    "count": int(res.get("count") or 0),
+                    "message": str(res.get("message") or res.get("error") or "")[:160]}
         res = await brain_action("youtube", "load", {"query": q} if q else {})
         res = res if isinstance(res, dict) else {}
         return {"executed": "play_video", "ok": bool(res.get("ok", res.get("videoId"))),
@@ -58,6 +85,17 @@ def spoken_for(parte: dict, ack: str) -> str:
     parte = parte if isinstance(parte, dict) else {}
     if parte.get("executed") != "play_video":
         return ack
+    if parte.get("accion") == "list":
+        # A search is NAMED like the single video is: how many and which, verifiable at a glance (V2-057) —
+        # and it invites a choice, because choosing is exactly what asking to SEARCH (vs to PLAY) means.
+        if parte.get("ok"):
+            added = [str(t) for t in (parte.get("added") or []) if str(t).strip()]
+            if added:
+                nombres = " · ".join(f"«{t}»" for t in added[:3])
+                return f"Te he puesto {len(added)} vídeos en la lista: {nombres}… dime cuál pongo."
+            return "Ya estaban todos en la lista — dime cuál pongo."
+        msg = str(parte.get("message") or "").strip()
+        return "No he podido buscarlos: " + (msg or "no encontré vídeos de eso.")
     if parte.get("ok"):
         t = str(parte.get("title") or "").strip()
         return f"Ya lo tienes en pantalla: «{t}»." if t else ack

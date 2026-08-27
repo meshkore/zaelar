@@ -56,6 +56,13 @@
         "urls": "lista de URLs (opcional)"
       }
     },
+    "search": {
+      "desc": "busca en YouTube y añade VARIOS candidatos a la LISTA para elegir — nunca reproduce solo",
+      "payload": {
+        "query": "qué buscar, en lenguaje natural",
+        "n": "cuántos candidatos (1-8, def 5) (opcional)"
+      }
+    },
     "play_item": {
       "desc": "reproduce un vídeo de la lista (por número 1-N o por su título)",
       "payload": {

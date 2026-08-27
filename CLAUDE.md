@@ -5075,6 +5075,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   emitir; arreglados los dos); y `dict(_SEED)` con una lista dentro es copia SUPERFICIAL — un `append` sobre una
   db «fresca» mutaba el seed del módulo. Nodos 4.52/4.53 (el 4.53 RENDERIZA, con desarme verificado) y 4.3.
 
+- **Buscar vídeos va al REPRODUCTOR, no a la hoja de resultados (V2-402, 2026-08-27)**: visto en vivo por el
+  operador — «buscando vídeos estás utilizando el widget de resultados». La causa era arquitectónica: una
+  búsqueda de contenido multimedia NO TENÍA DUEÑO — `play_video` cargaba UNO («pon el tráiler de…»),
+  `play_music` reproducía, y el plural («búscame vídeos de…») caía a `escalate_to_slowbrain`, cuya superficie
+  `lista` ES la hoja (`nucleo/surfaces.py`: vocabulario cerrado, sin destino multimedia). Regla del operador,
+  ahora escrita en el catálogo: **contenido que se VE u OYE (vídeo, música, podcast) se canaliza por su widget
+  dedicado — buscarlo incluido; la hoja es para INFORMACIÓN**, aunque un resultado informativo (un hotel)
+  contenga vídeos. Piezas: data-op `search` del widget `youtube` (varios candidatos a la LISTA, filas de `add`,
+  **sin tocar el player** — la ley de V2-366 vale para buscar); `play_video` gana `action: play|list` y su
+  descripción reclama la búsqueda; el NO-list de escalate la devuelve; `play_music` nombra PODCAST. La
+  normalización play/list vive **UNA vez** (`video_turn.normalize_action`) y la consumen voz y probe — la
+  lección V2-380/383. Nodo 4.58, desarmes en las cinco direcciones. **Sin verificar en vivo.** Abierto: el
+  audio-browse puro no tiene superficie en `musica`, y un worker legítimo (curar una playlist) sigue entregando
+  a la hoja — `surfaces` no conoce un destino «widget multimedia».
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

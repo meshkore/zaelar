@@ -109,20 +109,21 @@ def _unesc(s: str) -> str:
     return re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), s or "")
 
 
-def _search_id(q: str) -> dict:
-    """Best-effort: resolve a phrase ("Messi goal") to the first YouTube video. Stdlib, 6s, fail-open.
-    If the phrase asks for someone's MOST RECENT video ("the latest from ..."), sort by upload date.
-    Returns {videoId,title,channel,published,latest} — publication date lets the operator VERIFY it is the correct
-    video (V2-057: do not execute blindly; deliver a checkable result at a glance)."""
+def _search_many(q: str, n: int = 5) -> list:
+    """Best-effort: top-N DISTINCT videos for a phrase, in the results-page order. Stdlib, 6s, fail-open ([]).
+
+    One fetch: the results page already carries every candidate; only the parse changes with `n`. Kept separate
+    from `_search_id` so the single-video contract (V2-057 verifiable metadata) stays byte-identical while a
+    media SEARCH — "find me videos about X", where the operator wants to CHOOSE — can land several candidates
+    in the player's list instead of a generic results sheet (V2-402: content you watch/listen lives in its
+    dedicated widget; the sheet is for information).
+    """
     q = (q or "").strip()
-    out = {"videoId": "", "title": "", "channel": "", "published": "", "latest": False}
-    if not q:
-        return out
-    latest = bool(_LATEST_RE.search(q))
-    out["latest"] = latest
+    if not q or n <= 0:
+        return []
     try:
         url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(q)
-        if latest:                                       # sort by upload date (sp=CAI%3D)
+        if _LATEST_RE.search(q):                         # sort by upload date (sp=CAI%3D)
             url += "&sp=CAI%3D"
         req = urllib.request.Request(url, headers={
             "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -130,23 +131,40 @@ def _search_id(q: str) -> dict:
             "Accept-Language": "es-ES,es;q=0.9",
         })
         html = urllib.request.urlopen(req, timeout=6).read().decode("utf-8", "ignore")
-        m = re.search(r'"videoId":"([0-9A-Za-z_-]{11})"', html)
-        if not m:
-            return out
-        vid = m.group(1)
-        out["videoId"] = vid
-        # videoRenderer block for THIS video: title, channel, and publication date are extracted from it.
-        blk = html[m.start(): m.start() + 2500]
-        t = re.search(r'"title":\{"runs":\[\{"text":"([^"]{2,140})"', blk) \
-            or re.search(r'"videoId":"' + re.escape(vid) + r'".*?"text":"([^"]{3,120})"', html)
-        out["title"] = _unesc(t.group(1)) if t else q
-        ch = re.search(r'"(?:ownerText|longBylineText)":\{"runs":\[\{"text":"([^"]{1,80})"', blk)
-        out["channel"] = _unesc(ch.group(1)) if ch else ""
-        pub = re.search(r'"publishedTimeText":\{"simpleText":"([^"]{2,40})"', blk)
-        out["published"] = _unesc(pub.group(1)) if pub else ""
-        return out
     except Exception:
-        return out
+        return []
+    out, seen = [], set()
+    for m in re.finditer(r'"videoId":"([0-9A-Za-z_-]{11})"', html):
+        vid = m.group(1)
+        if vid in seen:                                  # the page repeats each id many times (thumbs, params)
+            continue
+        seen.add(vid)
+        # videoRenderer block for THIS video: title, channel and publication date are extracted from it.
+        blk = html[m.start(): m.start() + 2500]
+        t = re.search(r'"title":\{"runs":\[\{"text":"([^"]{2,140})"', blk)
+        ch = re.search(r'"(?:ownerText|longBylineText)":\{"runs":\[\{"text":"([^"]{1,80})"', blk)
+        pub = re.search(r'"publishedTimeText":\{"simpleText":"([^"]{2,40})"', blk)
+        out.append({"videoId": vid, "title": _unesc(t.group(1)) if t else "",
+                    "channel": _unesc(ch.group(1)) if ch else "",
+                    "published": _unesc(pub.group(1)) if pub else ""})
+        if len(out) >= n:
+            break
+    return out
+
+
+def _search_id(q: str) -> dict:
+    """Best-effort: resolve a phrase ("Messi goal") to the first YouTube video. Stdlib, 6s, fail-open.
+    If the phrase asks for someone's MOST RECENT video ("the latest from ..."), sort by upload date.
+    Returns {videoId,title,channel,published,latest} — publication date lets the operator VERIFY it is the correct
+    video (V2-057: do not execute blindly; deliver a checkable result at a glance)."""
+    q = (q or "").strip()
+    out = {"videoId": "", "title": "", "channel": "", "published": "", "latest": bool(_LATEST_RE.search(q))}
+    hits = _search_many(q, 1)
+    if hits:
+        h = hits[0]
+        out.update({"videoId": h["videoId"], "title": h["title"] or q,
+                    "channel": h["channel"], "published": h["published"]})
+    return out
 
 
 def _seed() -> dict:
@@ -301,6 +319,41 @@ def apply_action(action: str, payload: dict = None) -> dict:
             pass
         store.save(WID, db)
         return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst)}
+
+    if action == "search":
+        # V2-402 — a MEDIA search lands in the PLAYER, not in the results sheet. "Find me videos about X" means
+        # the operator wants to CHOOSE: several candidates go into the list (same rows as `add`, so play_item /
+        # next / remove all work on them), and NOTHING starts playing — V2-366's rule (adding never autoplays)
+        # holds for searching too. Player state is untouched on purpose: a search must not interrupt playback.
+        q = str(p.get("query") or p.get("q") or "").strip()
+        if not q:
+            return {"ok": False, "error": "no_query", "message": "Dime qué vídeos busco."}
+        try:
+            n = int(p.get("n") or 5)
+        except Exception:
+            n = 5
+        n = max(1, min(n, 8))
+        db["adding"] = q                                # visible state while the network search runs (as `add`)
+        store.save(WID, db)
+        hits = _search_many(q, n)
+        db["adding"] = ""
+        if not hits:
+            store.save(WID, db)                          # turn the state off even when nothing was found
+            return {"ok": False, "error": "no_video", "message": "No encontré vídeos de eso."}
+        lst = db.setdefault("list", [])
+        added, positions = [], []
+        for h in hits:
+            if any(it.get("videoId") == h["videoId"] for it in lst):
+                continue
+            seq = max((int(it.get("added_seq") or 0) for it in lst), default=0) + 1
+            lst.append({"videoId": h["videoId"], "title": h["title"] or ("youtu.be/" + h["videoId"]),
+                        "channel": h["channel"], "published": h["published"],
+                        "url": "https://www.youtube.com/watch?v=" + h["videoId"],
+                        "added_at": int(time.time()), "added_seq": seq})
+            added.append(lst[-1]["title"])
+            positions.append(len(lst))
+        store.save(WID, db)
+        return {"ok": True, "added": added, "positions": positions, "count": len(lst), "query": q}
 
     if action == "remove":
         lst = db.get("list") or []

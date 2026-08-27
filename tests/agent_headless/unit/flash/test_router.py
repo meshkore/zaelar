@@ -174,9 +174,12 @@ def test_decide_play_music():
 
 def test_decide_play_video():
     # V2-045: play_video → VIDEO con query (VER en el widget youtube, ≠ play_music audio).
+    # Reescrito por V2-402, no volteado: la decisión ganó `action` (play|list) porque BUSCAR vídeos también es
+    # de esta tool (a la LISTA del reproductor, no a la hoja). Lo protegido —kind y query— sigue intacto.
     d = router.decide("play_video", {"query": "el gol de la mano de Dios"})
-    assert d.kind == VIDEO and d.payload == {"query": "el gol de la mano de Dios"}
+    assert d.kind == VIDEO and d.payload == {"query": "el gol de la mano de Dios", "action": "play"}
     assert router.decide("play_video", {}).kind == VIDEO
+    assert router.decide("play_video", {"query": "x", "action": "search"}).payload["action"] == "list"
 
 
 def test_music_priority_below_worker_ops():

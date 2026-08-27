@@ -26,6 +26,8 @@ model-agnóstico y multilenguaje. Ver la decisión clave del cerebro «Colmena»
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
 
 # ── vocabulario de kinds ────────────────────────────────────────────────────────────────────────────────
@@ -66,24 +68,18 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "escalate_to_slowbrain",
-            # NOTA: reglas condensadas (V2-035, 2026-07-14) — se conservan las que vinieron de bugs reales:
-            # "no duplicar tarea en curso" (V2-029), "llámala YA en el turno, no basta con decirlo". Se quitaron
-            # ejemplos y las descripciones de OTRAS tools (redundantes).
-            #
-            # TRES cambios medidos por los casos de uso del 2026-08-18 (`tests/use_cases/`), todos por SUSTITUCIÓN
-            # para no engordar el turno (techo del catálogo, `test_router.py::test_tool_catalog_stays_compact`):
-            #  · V2-121 — fuera «un recordatorio simple (reconócelo sin tool, tu memoria lo guarda)». Esa frase
-            #    ENSEÑABA la alucinación de cumplimiento que el caso `remember-and-remind-deadline` midió: el
-            #    cerebro contestó «Done» a «apúntamelo y recuérdamelo el miércoles» sin disparar nada. El destino
-            #    correcto no era «ninguna tool», era `[[cron.create]]` (+ la agenda), así que ahora se nombra.
-            #  · V2-119 — HACER un compromiso del mundo real estaba implícito («ejecutar»), y solo se nombraban
-            #    los de DESHACER (cancelar, dar de baja). Una reserva de mesa es el caso más común de todos y
-            #    ahora aparece con su nombre: `restaurant-tonight-madrid` acabó sin ningún intento real.
-            #  · V2-118 — «VARIAS tareas = una llamada por cada una»: el operador encargó tres trabajos en un
-            #    turno y el sistema arrancó uno. La otra mitad de ese fallo era del provider (solo ejecutaba la
-            #    PRIMERA escalada del turno), arreglada en `voice/engine/llm/providers/nucleo.py`; sin decírselo
-            #    también al modelo, la capacidad nueva no se usa. Y el «no está en el catálogo» con el que se
-            #    negó a montar el juego: un widget que no existe es justo el que se construye.
+            # NOTA: reglas condensadas (V2-035) — se conservan las nacidas de bugs reales ("no duplicar tarea en
+            # curso" V2-029, "llámala YA en el turno"); fuera ejemplos y descripciones de OTRAS tools.
+            # TRES cambios medidos por los casos de uso del 2026-08-18, todos por SUSTITUCIÓN (techo del catálogo,
+            # `test_router.py::test_tool_catalog_stays_compact`):
+            #  · V2-121 — fuera «un recordatorio simple (reconócelo sin tool)»: ENSEÑABA la alucinación de
+            #    cumplimiento («Done» sin disparar nada); el destino correcto era `[[cron.create]]` y se nombra.
+            #  · V2-119 — HACER un compromiso real estaba implícito y solo se nombraban los de DESHACER; la
+            #    reserva de mesa es el caso más común (`restaurant-tonight-madrid` acabó sin intento real).
+            #  · V2-118 — «VARIAS tareas = una llamada por cada una»: de tres encargos arrancó uno (la otra mitad
+            #    era del provider, que solo ejecutaba la PRIMERA escalada); y «no está en el catálogo» no es
+            #    motivo: un widget que no existe es justo el que se construye.
+            # V2-402 — el NO-list manda poner/BUSCAR vídeo/música/podcast a play_video/play_music, no a la hoja.
             "description": (
                 "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
                 "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace; "
@@ -93,9 +89,9 @@ TOOLS: list[dict] = [
                 "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
                 "NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
                 "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
-                "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); cambiar el vídeo de un widget "
-                "`youtube` (play_video). VARIAS tareas distintas en un turno = una llamada por CADA UNA (corren a "
-                "la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
+                "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); poner/BUSCAR "
+                "vídeo/música/podcast (play_video/play_music, no la hoja). VARIAS tareas distintas en un "
+                "turno = una llamada por CADA UNA (corren a la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
                 "Ante la duda, escala. "
                 "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
                 "con ello; y PREGUNTAR POR ELLA («¿alguna novedad?») NO es encargarla: eso se lee de tu "
@@ -356,7 +352,7 @@ TOOLS: list[dict] = [
             # V2-041: capacidad de PRIMER NIVEL (como web_search) — reproducir música por un conector de streaming
             # (hoy Spotify). Frontera clara: es ESCUCHAR música, NO un dato del mundo (web_search) NI un vídeo.
             "description": (
-                "Reproduce o controla MÚSICA (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
+                "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
                 "qué poner en lenguaje natural (artista/canción/género), vacío = reanudar; acepta pistas vagas, no "
                 "pidas el nombre exacto. `action`: play (def) | queue | pause | resume | next | previous | volume_up "
                 "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (el sistema "
@@ -382,11 +378,9 @@ TOOLS: list[dict] = [
         },
     },
     {
-        # V2-045: VÍDEO como tool de 1ª CLASE, hermana de play_music. Diagnóstico del chain-suite (3 ciclos): el
-        # modelo no-razonador confundía "pon el vídeo de…" con MÚSICA y agarraba play_music; la prosa de la FRONTERA
-        # VÍDEO en play_music NO lo movía (3 intentos). Con una tool DEDICADA la decisión es tool-vs-tool (como
-        # web_search vs play_music) y el modelo discrimina — SIN tablas de verbos (feedback operador: enseñar, no
-        # hardcodear). El "cuándo" vive en la descripción; el provider la ejecuta → [[show:youtube]] + data-op load.
+        # V2-045: VÍDEO como tool de 1ª CLASE, hermana de play_music — el no-razonador confundía vídeo con música
+        # y la prosa de frontera en play_music NO lo movía (3 intentos); tool-vs-tool sí discrimina, SIN tablas de
+        # verbos. El "cuándo" vive en la descripción; el provider ejecuta → [[show:youtube]] + data-op load/search.
         "type": "function",
         "function": {
             "name": "play_video",
@@ -396,13 +390,18 @@ TOOLS: list[dict] = [
                 "ordena por fecha). `query` = qué vídeo, en lenguaje natural; acepta descripciones vagas. No es "
                 "play_music (eso es OÍR) ni web_search (eso es un dato que se cuenta). La búsqueda tarda unos "
                 "segundos en segundo plano: habla en presente o futuro ('lo busco', 'te lo cargo'), NUNCA en pasado "
-                "— decir 'hecho' antes de que esté cargado es mentir, aunque ya hubiera otro vídeo en pantalla."
+                "— decir 'hecho' antes de que esté cargado es mentir, aunque ya hubiera otro vídeo en pantalla. "
+                "BUSCAR contenido para ver/oír y ELEGIR ('búscame vídeos de X', 'qué documentales hay', un podcast) "
+                "también es ESTA tool, con action=list: varios candidatos a la LISTA, sin reproducir. No lo escales "
+                "ni lo mandes a la hoja de resultados: la hoja es para INFORMACIÓN, no para lo que se ve u oye."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {"type": "string",
                               "description": "qué vídeo VER, en lenguaje natural (se busca/carga en YouTube)"},
+                    "action": {"type": "string", "description": (
+                        "play (def: carga y reproduce el mejor resultado) | list (varios candidatos a la LISTA)")},
                 },
                 "required": ["query"],
             },
@@ -877,7 +876,8 @@ def decide(name: str, args: dict | None = None) -> Decision:
         return Decision(MUSIC, {"query": (args.get("query") or "").strip(),
                                 "action": (args.get("action") or "play").strip().lower()})
     if name == "play_video":
-        return Decision(VIDEO, {"query": (args.get("query") or "").strip()})
+        return Decision(VIDEO, {"query": (args.get("query") or "").strip(),
+                                "action": _video_action(args.get("action"))})
     if name == "show_widget":
         return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
     if name == "show_panel":

@@ -1050,7 +1050,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             elif action == "canvas:show:youtube" and video_req:
                 # V2-383 — EL VÍDEO SE PONE, NO SE ROTULA. Hermano de la música: mismo rail que la voz
                 # (`brain_action` → `load` del widget `youtube`), que es quien de verdad busca y carga.
-                return_extra_exec = await _video_turn.execute(video_req["query"])
+                return_extra_exec = await _video_turn.execute(video_req["query"], video_req.get("action") or "play")
             elif action == "music" and music_req:
                 # V2-380 — LA MÚSICA SE PONE, NO SE ROTULA. La decisión y su ejecución viven en
                 # `music_turn`, igual que `web_auth` para el traspaso de login: este canal es la

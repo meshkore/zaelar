@@ -177,13 +177,16 @@ def test_una_query_VACIA_no_manda_una_busqueda_vacia(rail):
     assert rail["payload"] == {}
 
 
+# Reescritos por V2-402, no volteados: `request_from` ganó el campo `action` (play|list) porque una búsqueda
+# de vídeos («búscame vídeos de…») ahora también es de esta tool y va a la LISTA del reproductor, no a la hoja
+# de resultados. Lo que estos dos tests protegen —no inventar una petición y recortar la query— sigue intacto.
 def test_sin_llamada_a_play_video_no_se_inventa_una():
-    assert VT.request_from([{"name": "web_search", "args": {}}]) == {"query": ""}
+    assert VT.request_from([{"name": "web_search", "args": {}}]) == {"query": "", "action": "play"}
 
 
 def test_la_query_se_recorta_al_extraerla():
     assert VT.request_from([{"name": "play_video", "args": {"query": " tráiler de Dune "}}]) == \
-        {"query": "tráiler de Dune"}
+        {"query": "tráiler de Dune", "action": "play"}
 
 
 def test_una_averia_del_reproductor_devuelve_parte_y_no_lanza(monkeypatch):

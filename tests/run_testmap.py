@@ -536,6 +536,17 @@ DOMAINS: list[dict] = [
         {"id": "4.57", "title": "Un vídeo que el sitio no deja reproducir NO está sonando",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_an_unplayable_video_is_not_playing.py"]},
+        # V2-402 — la captura del OPERADOR (2026-08-27): «buscando vídeos estás utilizando el widget de
+        # resultados». Una búsqueda de contenido multimedia no tenía dueño: play_video cargaba UNO, play_music
+        # reproducía, y el plural caía a escalate → worker → hoja. Regla del operador: lo que se VE u OYE se
+        # canaliza por su widget dedicado (buscarlo incluido); la hoja es para INFORMACIÓN, aunque un hotel
+        # tenga vídeos en su web. `search` llena la LISTA sin reproducir (la ley de V2-366 vale para buscar);
+        # la normalización play/list vive UNA vez en video_turn y la consumen voz y probe.
+        {"id": "4.58", "title": "Buscar vídeos va al REPRODUCTOR, no a la hoja: `search` llena la lista sin "
+                                "reproducir · play/list normalizado UNA vez para voz y probe",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
+                      "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
         {"id": "4.54", "title": "El vídeo se PONE, no se rotula · y la boca NOMBRA el que cargó",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_video_is_played_not_labelled.py"]},

@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import data_ops as _data_ops   # V2-391: hoja sin imports del motor → no cierra ciclos
+from nucleo.flash import data_ops as _data_ops, video_turn as _video_turn  # V2-391 / V2-402: sin ciclos
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -1627,16 +1627,16 @@ class NucleoLLMStream(llm.LLMStream):
                           ("volume_up", "volume_down", "pause", "resume", "stop", "next", "previous")):
                         music_req["followup"] = _mq
             elif name == "play_video":
-                # V2-045: VÍDEO = widget youtube (VER), hermano de play_music (OÍR). Tool de 1ª clase para que el
-                # modelo discrimine tool-vs-tool (la prosa no bastaba con el titular anterior: el vídeo caía en play_music). La
-                # EJECUTA el provider: muestra el widget youtube + data-op `load` con la query (el widget busca y
-                # reproduce el vídeo real). Una por turno. El ack "nunca mudo" lo cubre data_done/acted (abajo).
+                # V2-045: VÍDEO = widget youtube (VER), hermano de play_music (OÍR); tool de 1ª clase (la prosa no
+                # bastaba). El provider la EJECUTA; una por turno; el ack "nunca mudo" lo cubre data_done (abajo).
                 if "play_video" not in _tool_fired:
                     _tool_fired.add("play_video")
                     _vq = (args.get("query") or "").strip()
                     emit("widget", "show", extra={"id": "youtube", "src": "flash"})
-                    _apply_widget_data("youtube", "load", {"query": _vq} if _vq else {})
-                    emit("brain", "▶️ vídeo → widget youtube", text=_vq[:80], role="system")
+                    # V2-402 — a media SEARCH (action=list) fills the player's LIST, never the results sheet.
+                    _vop, _vlbl = _video_turn.voice_dispatch(args.get("action"))
+                    _apply_widget_data("youtube", _vop, {"query": _vq} if _vq else {})
+                    emit("brain", _vlbl, text=_vq[:80], role="system")
             elif name == "show_widget":
                 # MOSTRAR un widget (incl. JUEGOS) como TOOL de 1ª clase — más fiable que el tag [[show]] cuando la
                 # palabra colisiona con play_music/play_video ('juega al snake'). Converge en la MISMA ruta de canvas
