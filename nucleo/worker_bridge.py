@@ -108,6 +108,12 @@ def _cmd_act(action: str, payload_json: str) -> int:
     if _err:
         print(f"no puedo leer el payload de {payload_json[1:]}: {_err}", file=sys.stderr)
         print(f"   · ruta RELATIVA a tu directorio de trabajo: {os.getcwd()}", file=sys.stderr)
+        # LO QUE SÍ HAY, no solo lo que falta: «no existe» a secas no distingue entre escribirlo en otro
+        # sitio, escribirlo con otro nombre y no escribirlo — tres salidas distintas que desde ahí se ven
+        # iguales. Ver `bridge_usage.what_is_here`.
+        _hay = _bu.what_is_here()
+        if _hay:
+            print(f"   · {_hay}", file=sys.stderr)
         print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write a esa ruta "
               "(relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.", file=sys.stderr)
         return 1

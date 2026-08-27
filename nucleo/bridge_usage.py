@@ -35,6 +35,35 @@ def guided(hint_for: Callable[[str], str]) -> type[argparse.ArgumentParser]:
     return _GuidedParser
 
 
+def what_is_here(limit: int = 8) -> str:
+    """Los ficheros que SÍ están en el directorio de trabajo, para acompañar a un «no existe».
+
+    «No such file or directory: progreso.json» es verdad y no sirve para nada: deja al worker sin saber si
+    escribió el fichero en otro sitio, si lo escribió con otro nombre, o si no llegó a escribirlo. Las tres
+    salidas son distintas y desde ese mensaje se ven igual, así que el modelo elige a ciegas — medido en
+    `best-plumber-same-day__es` (2026-08-28), donde el paso murió ahí y la ronda entera se fue en ocho minutos
+    sin entregar lo que el operador pidió tres veces.
+
+    Es la norma de «si tienes la respuesta, imprímela»: el puente está PARADO en ese directorio y sabe lo que
+    hay dentro. Costó ocho horas la vez que un preflight sostuvo un 402 diciendo «mira el log».
+
+    Acotado y best-effort: esto va a stderr de un puente, no es un explorador de ficheros, y un directorio
+    ilegible no puede convertir un error claro en una excepción.
+    """
+    import os
+    try:
+        nombres = sorted(n for n in os.listdir(".") if not n.startswith("."))
+    except OSError:
+        return ""
+    if not nombres:
+        return "el directorio está VACÍO: el fichero no llegó a escribirse"
+    jsons = [n for n in nombres if n.endswith(".json")]
+    muestra = (jsons or nombres)[:limit]
+    cola = f" (+{len(jsons or nombres) - len(muestra)} más)" if len(jsons or nombres) > len(muestra) else ""
+    que = "json que SÍ hay aquí" if jsons else "lo que SÍ hay aquí (ningún .json)"
+    return f"{que}: {', '.join(muestra)}{cola}"
+
+
 def read_payload(raw: str) -> tuple[str, str, str]:
     """`(texto, de_dónde, error)` para un payload que puede venir en línea, por `@fichero` o por `-` (stdin).
 

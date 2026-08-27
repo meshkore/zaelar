@@ -560,6 +560,15 @@ DOMAINS: list[dict] = [
         # worker hizo fue lanzar `nav_cli` y `worker_bridge` SIN subcomando — argparse contesta `usage:` y sale
         # con 2, así que una sonda de descubrimiento llega vestida de caída. El instrumento acusando al
         # producto: dos de los cuatro fallos marcados no existieron, y la nota de mecanismo los pagó.
+        # 2026-08-28 — «No such file or directory: progreso.json» es verdad y no sirve para nada: no distingue
+        # entre escribirlo en otro sitio, escribirlo con otro nombre y no escribirlo, que piden acciones
+        # distintas. Medido en `best-plumber-same-day__es`: el paso murió ahí y la ronda se fue en ocho
+        # minutos sin entregar lo que el operador pidió tres veces. `widget_cli` YA listaba los .json
+        # presentes y `worker_bridge` no — la misma divergencia entre puentes de la que salió V2-379.
+        {"id": "4.65", "title": "Un payload que falta dice lo que SÍ hay — y los dos puentes miran el mismo "
+                                "sitio",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_missing_payload_says_what_is_there.py"]},
         {"id": "4.64", "title": "Un worker MIRANDO EL MENÚ no es un worker estrellado — falta `cmd` = sonda, "
                                 "falta otro argumento = llamada rota",
             "ch": UNIT,

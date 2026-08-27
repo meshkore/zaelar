@@ -140,12 +140,14 @@ def main(argv: list[str]) -> int:
                     print(f"no puedo leer el payload de {path}: {e}")
                     if not os.path.isabs(path):
                         here = os.getcwd()
-                        try:
-                            found = sorted(f for f in os.listdir(here) if f.endswith(".json"))
-                        except OSError:
-                            found = []
                         print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
-                        print("   · ficheros .json ahí: " + (", ".join(found) if found else "NINGUNO"))
+                        # MECANISMO COMPARTIDO con `worker_bridge` (misma razón que `read_payload`): dos
+                        # puentes que contestan distinto a la misma pregunta vuelven a divergir, y esa
+                        # divergencia es exactamente de lo que salió V2-379.
+                        from nucleo import bridge_usage as _bu
+                        _hay = _bu.what_is_here()
+                        if _hay:
+                            print(f"   · {_hay}")
                         print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write "
                               f"a `{path}` (ruta relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.")
                     return 2

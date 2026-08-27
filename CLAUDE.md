@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un payload que falta dice lo que SÍ hay (V2-421, 2026-08-28)**: «No such file or directory:
+  progreso.json» es verdad y no sirve para nada — no distingue entre escribirlo en otro directorio, con otro
+  nombre, o no escribirlo, que piden acciones distintas y desde ahí se ven iguales. Medido en
+  `best-plumber-same-day__es` (cerebro deepseek-v4-flash+glm-5.3): el paso murió ahí y la ronda se fue en ocho
+  minutos sin entregar lo que el operador pidió TRES veces. Y lo que lo hacía peor: `widget_cli` YA listaba
+  los `.json` presentes en ese mismo error y `worker_bridge` no — los dos puentes contestando distinto a la
+  misma pregunta, que es exactamente la divergencia que dejó a un worker ciego ocho errores seguidos cuando un
+  puente aceptaba `@fichero` y el otro no. `bridge_usage.what_is_here()`, al
+  lado de `read_payload` y por su mismo motivo: **el mecanismo se comparte, el mensaje lo pone cada puente**.
+  Acotado (es el stderr de un puente, no un explorador) y best-effort (un directorio ilegible no puede
+  convertir un error claro en una excepción). Norma de «si tienes la respuesta, imprímela»: el puente está
+  PARADO ahí dentro. NO arregla por qué el fichero no estaba — convierte un callejón en un paso recuperable y
+  deja el rastro. Nodo 4.65, cuatro desarmes.
+
 - **El denominador es lo que se le MOSTRÓ, no lo que hay en la hoja (V2-420, 2026-08-28)**:
   `delivery_completeness` prometía medir «de las filas que el sistema LE PUSO DELANTE» y dividía por toda la
   hoja. Cuando se escribió, la hoja tenía cinco filas y el prompt las llevaba las cinco — las dos

@@ -47,11 +47,19 @@ def test_it_lists_what_IS_there_so_a_wrong_name_becomes_visible(capsys, tmp_path
     assert "resultados.json" in out
 
 
-def test_an_empty_directory_says_NINGUNO_rather_than_nothing(capsys, tmp_path):
-    """«ficheros .json ahí:» followed by blank reads like a truncated message. Saying NINGUNO is the fact that
-    tells the worker its write never happened, which is a different diagnosis from a wrong name."""
+def test_an_empty_directory_says_so_POSITIVELY_rather_than_going_blank(capsys, tmp_path):
+    """A trailing blank reads like a truncated message. Stating the emptiness is the fact that tells the
+    worker its write never happened, which is a different diagnosis from a wrong name.
+
+    Rewritten 2026-08-28, NOT flipped: the property is unchanged — an empty directory must produce a POSITIVE
+    statement. What changed is that both bridges now compose it in one shared place
+    (`bridge_usage.what_is_here`, node 4.65) after they were found answering the same question differently,
+    and its wording is «el directorio está VACÍO: el fichero no llegó a escribirse» instead of «NINGUNO». The
+    old assertion pinned the word, not the fact.
+    """
     assert _present(tmp_path) == 2
-    assert "NINGUNO" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "VAC" in out and "no llegó a escribirse" in out
 
 
 def test_it_restates_the_TWO_STEP_order(capsys, tmp_path):
@@ -77,4 +85,10 @@ def test_an_unreadable_directory_still_reports_instead_of_raising(capsys, tmp_pa
     monkeypatch.setattr(os, "listdir", lambda *_a, **_k: (_ for _ in ()).throw(OSError("nope")))
     assert _present(tmp_path) == 2
     out = capsys.readouterr().out
-    assert "no puedo leer el payload" in out and "NINGUNO" in out
+    assert "no puedo leer el payload" in out
+    # Rewritten 2026-08-28, NOT flipped. It used to also demand the word «NINGUNO» here, and that was wrong on
+    # its own terms: with `listdir` failing we did not look, so claiming the directory holds no json asserts a
+    # fact we do not have — the exact shape of «una ausencia en el sitio plausible no es una ausencia». The
+    # property that matters, and the one this test is named after, is that the bridge REPORTS instead of
+    # raising; the line about what is there is simply omitted when it could not be read.
+    assert "VAC" not in out and "SÍ hay aquí" not in out
