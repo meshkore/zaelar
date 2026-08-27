@@ -153,6 +153,30 @@ async def registry_endpoint():
     return JSONResponse({"registry": rows})
 
 
+@router.get("/widgets/producing")
+async def producing_endpoint():
+    """Which widgets are PRODUCING right now — audio, video, a live process (V2-392).
+
+    The engine already knows: `producers.producing()` evaluates each manifest's `active_when` against the
+    widget's own `view_data()`, which is the widget's truth and not a copy of it. What was missing is a way
+    to ASK from outside the process, and that gap had a cost: the use-case harness could see which widget
+    data-ops fired but never whether anything ended up actually playing, so «suena algo de verdad» — the
+    literal success criterion of every media case — was unanswerable from the mechanism report.
+
+    Measured on `play-music-and-build-playlist` (2026-08-27 14:02): `yt.videoId` set and `yt.paused` false,
+    the «Curro» list holding the very track that was sounding, and the verdict 3/5 for lying about playing
+    music «sin la confirmación técnica necesaria (evidencia cero)». The product had done it; nothing could
+    say so.
+
+    Read-only and cheap: no mutation, no side effect on what is playing.
+    """
+    from . import producers
+    try:
+        return JSONResponse({"producing": await producers.producing()})
+    except Exception as e:  # noqa: BLE001 — nunca tumbar una lectura de diagnóstico
+        return JSONResponse({"producing": [], "error": str(e)[:200]})
+
+
 @router.get("/widgets/{wid}/manifest")
 async def manifest(wid: str):
     w = runtime.get(_safe(wid))

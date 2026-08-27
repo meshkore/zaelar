@@ -788,6 +788,12 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         # Qué widget se tocó y cómo. Sin esto, «la cita no está en la agenda» solo se podía inferir del
         # bloque de CRONS, que no habla de agendas.
         "widget_ops": widget_ops(all_events),
+        # V2-392 — y qué widget está PRODUCIENDO al terminar: sonando, reproduciendo, corriendo. `widget_ops`
+        # dice qué se TOCÓ, que no es lo mismo que si algo acabó pasando. «Suena algo de verdad» es el
+        # criterio literal de todos los casos de medios y el informe no podía responderlo: medido en
+        # `play-music-and-build-playlist` (2026-08-27 14:02) con la música sonando y la lista «Curro» con esa
+        # misma canción dentro — 3/5 por mentir «sin la confirmación técnica necesaria (evidencia cero)».
+        "widgets_producing": probe_client.widgets_producing(),
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),

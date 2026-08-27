@@ -197,6 +197,20 @@ def navegador_task(task_id: str) -> dict:
     return _get(f"/widgets/navegador/data?q={urllib.parse.quote(task_id, safe='')}")
 
 
+def widgets_producing() -> list[str]:
+    """Qué widgets están PRODUCIENDO ahora mismo (audio, vídeo, un proceso vivo), según el propio motor.
+
+    Se pregunta, no se deduce: `active_when` lo evalúa `widgets/producers.py` contra el `view_data()` del
+    widget, y reimplementarlo aquí sería una segunda verdad que puede divergir de la que usa el producto.
+    Lista vacía si el motor no sabe responder — nunca lanza: es un dato del informe, no un paso del turno.
+    """
+    try:
+        d = _get("/widgets/producing")
+        return [str(x) for x in (d or {}).get("producing") or []]
+    except Exception:  # noqa: BLE001
+        return []
+
+
 def _widget_path(wid: str, q: str = "") -> str:
     """The read route of ONE widget box. `q` is how an INSTANCE is asked for: since V2-259 a results sheet is
     keyed per errand and the route takes the suffix as a query argument (`results` + `q=2` is the box of task
