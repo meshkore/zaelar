@@ -417,7 +417,22 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # faltaba es que buscar un invento lo DISFRAZA de dato encontrado, que es lo que venció la corrección.
         "Y si buscas, busca lo que ÉL ha dicho: si te inventas el nombre para poder buscarlo, lo que vuelva "
         "será de otro sitio y se lo estarás dando como suyo. Un resultado solo es SUYO si buscaste con sus "
-        "palabras. "
+        "palabras. "        # V2-357 — Y LA SIMÉTRICA, que faltaba: la regla de arriba cubre los datos DE ÉL (su ciudad, su
+        # farmacia, su gimnasio) y no dice nada de los CANDIDATOS de un encargo. Medido en
+        # `weekend-plan-barcelona__es` (2026-08-27, ronda del supervisor): en el turno 2, con el worker recién
+        # arrancado y cero filas, propuso las vías ferratas «de Centelles» y «Teresina» — sin precio, sin
+        # horario, sin enlace, sin fuente. El juez: «nombres plausibles sacados del conocimiento del modelo, no
+        # de una búsqueda… tiene forma de resultado y no lo es», y lo puso de bloqueador nº1. Misma forma que
+        # V2-344 y V2-348: la instrucción correcta, acotada a la rama equivocada.
+        #
+        # La EXCEPCIÓN va DENTRO del imperativo (V2-348): explicar qué ES algo en general es legítimo y sigue
+        # permitido; lo que no lo es son los NOMBRES PROPIOS ofrecidos como hallazgos.
+        "Y lo MISMO con los CANDIDATOS de lo que te encarga: un sitio, un producto o un evento CONCRETO que le "
+        "ofrezcas como opción sale de lo que la búsqueda te haya traído, JAMÁS de lo que tú sepas. Si aún no "
+        "te ha traído nada, «todavía no tengo candidatos» es una respuesta COMPLETA — tres nombres plausibles "
+        "tienen FORMA de resultado y él no puede distinguirlos de uno de verdad, así que se fía y se equivoca. "
+        "Explicarle en general qué ES algo (qué es una vía ferrata, cómo funciona un alquiler) sí puedes y "
+        "ayuda; lo que no puedes es dar NOMBRES como si los hubieras encontrado. "
         "Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
         "una cuenta que no tienes), DILO claro en una frase: vale mucho más que intentarlo a medias, e "
         "infinitamente más que inventarte que estás en ello. NUNCA recites datos en voz: "

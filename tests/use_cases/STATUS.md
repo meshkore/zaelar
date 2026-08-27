@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 08:16**
+Last updated: **2026-08-27 08:27**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -47,11 +47,11 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `weekend-barber-availability__es` | 2 | 2 | 2026-08-25 20:51 | yes | El caso falla: el agente prometió reiteradamente una cita con confirmación inminente que nunca existió (agenda vacía, trabajos sin finalizar), ocultando fall… |
 | ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 1 | 2026-08-20 18:13 | yes | No está listo para producción: ignoró la memoria sembrada al proponer actividades con altura a una persona con vértigo, confundió la fecha del fin de semana … |
 | ❌ | `weekend-motor-events__es` | 3 | 3 | 2026-08-21 16:35 | yes | No está listo para producción: el bloqueador nº1 es que inventó un evento sin fuente verificada y la hoja de resultados acabó con un solo candidato sin fuent… |
-| ❌ | `weekend-plan-barcelona__es` | 3 | 1 | 2026-08-27 07:45 | yes | No está listo para producción: el bloqueador nº1 es que el worker de búsqueda no extrae resultados (0 extracciones en 4 navegaciones, error interno incluido)… |
+| ⚠️ | `weekend-plan-barcelona__es` | 3 | 2 | 2026-08-27 08:27 | yes | No está listo para producción: el bloqueador nº1 es que afirma datos concretos (ferratas, tiendas, accesos) sin haberlos verificado en ninguna fuente, y la h… |
 | ✅ | `three-tasks-at-once` | 4 | 4 | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 3 | 2026-08-21 14:43 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no gestiona la ambigüedad entre dos tareas vivas (no preguntó cuál cerrar y negó su existencia… |
 
-**6 passing · 21 failing · 0 infra** of 27 scenarios we can actually finish.
+**6 passing · 20 failing · 1 infra** of 27 scenarios we can actually finish.
 
 Plus **5 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `book-hotel-night-known__es`, `cancel-subscription-before-charge__es`, `find-theatre-tickets__es`, `renew-gym-membership__es`, `restaurant-tonight-madrid`.
 
@@ -124,7 +124,6 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `weekend-adventure-sports-bilbao__es` | `.meshkore/roadmap/initiatives/V2-217-uc-weekend-adventure-sports-bilbao-es.md` | `.meshkore/modules/nucleo/tasks/T461-uc-weekend-adventure-sports-bilbao-es-fix.md` |
 | `weekend-barber-availability__es` | `.meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md` | `.meshkore/modules/nucleo/tasks/T469-uc-weekend-barber-availability-es-fix.md` |
 | `weekend-motor-events__es` | `.meshkore/roadmap/initiatives/V2-272-uc-weekend-motor-events-es.md` | `.meshkore/modules/nucleo/tasks/T480-uc-weekend-motor-events-es-fix.md` |
-| `weekend-plan-barcelona__es` | `.meshkore/roadmap/initiatives/V2-216-uc-weekend-plan-barcelona-es.md` | `` |
 
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
 

@@ -163,3 +163,45 @@ def test_the_older_two_forms_are_still_covered(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "El trabajo es TUYO" in system
     assert "BUSCAR un dato es TU trabajo" in system
+
+
+# ── V2-357: y los CANDIDATOS tampoco se inventan ────────────────────────────────────────────────────────
+#
+# La regla de arriba (V2-142) cubre los datos DEL OPERADOR —su ciudad, su farmacia, su gimnasio— y no dice
+# nada de los candidatos de un encargo. Medido en `weekend-plan-barcelona__es` (2026-08-27, ronda del
+# supervisor): en el TURNO 2, con el worker recién arrancado y cero filas en la hoja, zaelar propuso las vías
+# ferratas «de Centelles» y «Teresina» — sin precio, sin horario, sin enlace, sin fuente. El juez lo puso de
+# bloqueador nº1: «nombres plausibles sacados del conocimiento del modelo, no de una búsqueda… tiene forma de
+# resultado y no lo es».
+#
+# Es la tercera vez en la misma tanda con la misma forma —V2-344 y V2-348 fueron las otras dos—: la
+# instrucción correcta, acotada a la rama equivocada. Y aquí el daño es peor que callar, porque el operador NO
+# PUEDE distinguir un nombre inventado de uno encontrado: se fía y se equivoca.
+
+def test_los_candidatos_salen_de_la_busqueda_no_del_modelo():
+    system, _ = prompt.build_flash_system()
+    assert "CANDIDATOS de lo que te encarga" in system
+    assert "JAMÁS de lo que tú sepas" in system
+
+
+def test_y_dice_que_NO_TENER_es_una_respuesta_completa():
+    """Sin esta mitad el bloque solo prohíbe, y el modelo se queda sin salida legítima — que es justo cómo se
+    llega a inventar. Misma lección que V2-187."""
+    system, _ = prompt.build_flash_system()
+    assert "«todavía no tengo candidatos» es una respuesta COMPLETA" in system
+
+
+def test_la_EXCEPCION_va_dentro_del_imperativo():
+    """Explicar qué ES algo en general sigue permitido y ayuda. Va en la misma frase, no en otra: dos órdenes
+    en un párrafo salen a cara o cruz (V2-348)."""
+    system, _ = prompt.build_flash_system()
+    assert "qué ES algo" in system and "sí puedes" in system
+    i, j = system.index("CANDIDATOS de lo que te encarga"), system.index("qué ES algo")
+    assert 0 < j - i < 700, "la excepción se ha separado del imperativo que la acota"
+
+
+def test_la_regla_HERMANA_sigue_en_pie():
+    """El lado contrario: la de V2-142 no puede desaparecer al añadir la suya."""
+    system, _ = prompt.build_flash_system()
+    assert "busca lo que ÉL ha dicho" in system
+    assert "Un resultado solo es SUYO" in system
