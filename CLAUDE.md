@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El marcador dice con qué CEREBRO se midió cada fila (V2-415, 2026-08-27)**: una nota es una nota SOBRE
+  algo. La fila ya sellaba qué JUEZ la calificó (la cadena del juez cae de proveedor y sus medias difieren en
+  0,44 puntos: un «bajó de 3 a 2» puede ser solo otro medidor); un piso más abajo pesa más, porque el juez es
+  el instrumento y el cerebro ES el producto. Medido: la tanda US corrió con Z.ai sin cuota, así que sus Brain
+  Workers los sirvió el escalón de RELEVO (`deepseek-v4-flash`) y no el titular que la nube contrata
+  (`glm-5.3`) — cinco filas de 1-2 iban al tablero indistinguibles de las medidas con el titular. Se lee del
+  FLUJO, no de la config, con las dos trampas que lo rompen sin ruido: `worker_start` lo reusa el arranque del
+  motor de voz (sin `model`), y una fila de relevo NO tiene `kind == "perf"` porque el `extra={"kind": …}` de
+  la cadena pisa el kind al guardarse — filtrar por kind da cero relevos en una ronda llena. En el tablero `?`
+  (fila anterior a esto) y `—` (ningún worker, legítimo en un caso conversacional) son distintas a propósito.
+  Al juez NO se le cuenta (`judge.RAW_ONLY`, con el motivo): `search_health` sí, porque con la búsqueda muerta
+  «no buscó» deja de ser un defecto, pero un relevo no cambia si narrar progreso inexistente está mal — solo
+  cambia sobre QUÉ producto es la nota, y contárselo ablandaría la calificación. Nodo 10.103, cinco desarmes.
+
 - **Que nos BLOQUEEN no es que el mundo esté vacío (V2-414, 2026-08-27)**: los dos hechos llegaban idénticos
   —`results: []`— y merecen respuestas opuestas. Medido en vivo con las consultas de los propios casos US: **4
   de 6 volvieron vacías porque DuckDuckGo servía un desafío anti-bot**, y nada lo decía. Tres capas mudas a la
