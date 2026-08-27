@@ -221,6 +221,19 @@ def _hint_for(prog: str) -> str:
     if prog.endswith("click_at"):
         return ("   · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura de `look`).\n"
                 "   · Con un [ref] del snapshot el comando es `click <ref>`.")
+    # V2-369 — los verbos que van a una URL. Medido en `rental-car-automatic-airport__es` (2026-08-27): el
+    # worker escribió `nav_cli navigate` PELADO a los 32 s, recibió el `usage:` a secas, y **volvió a
+    # escribirlo pelado 42 s después**; `visit` igual. En la MISMA sesión, `worker_bridge act` pelado —que sí
+    # tiene pista— falló UNA vez y no se repitió. Esa es la medida: el que lleva pista se corrige, el que solo
+    # recibe la forma reincide. Los tres primeros minutos se fueron ahí y el encargo no llegó a ningún sitio de
+    # alquiler; lo que acabó en la hoja eran los títulos de la página de resultados del buscador.
+    if prog.endswith(("navigate", "open", "goto", "visit")):
+        _verbo = prog.rsplit(" ", 1)[-1] or "navigate"
+        return (f"   · A `{_verbo}` le falta LA DIRECCIÓN, y va pegada detrás en el MISMO comando: "
+                f"`{_verbo} https://www.ejemplo.es/...`.\n"
+                "   · La dirección va ENTERA, con `https://` — un dominio a secas no es una dirección.\n"
+                "   · Si no sabes a dónde ir todavía, no adivines la dirección: busca primero.\n"
+                "   · NO lo repitas igual: sin dirección va a fallar las veces que haga falta.")
     return ""
 
 

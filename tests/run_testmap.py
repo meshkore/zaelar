@@ -926,7 +926,11 @@ DOMAINS: list[dict] = [
                       # V2-207: y los MUROS salen por la vista de la tarjeta. Desde fuera del proceso «no se
                       # anotó» y «se anotó y el turno lo ignoró» se veían idénticos, y son diagnósticos
                       # opuestos.
-                      "tests/browser/unit/navegador/test_the_card_view_carries_the_walls.py"]},
+                      "tests/browser/unit/navegador/test_the_card_view_carries_the_walls.py",
+                      # V2-369: y un verbo que va a una URL, sin la URL, decía solo la FORMA. Medido en
+                      # `rental-car-automatic-airport__es`: `navigate` pelado DOS veces con 42 s de por
+                      # medio, mientras el `act` pelado —que sí lleva pista— falló una vez y no se repitió.
+                      "tests/agent_headless/unit/test_a_url_verb_without_its_url_says_how_to_get_out.py"]},
         # 2026-08-20: el confirm-gate paraba un clic irreversible y no preguntaba a NADIE — la pregunta se
         # escribía en la tarea y nada la sacaba de ahí, y `waiting_id()` no tenía ni un llamador en producción,
         # así que el «sí» del operador tampoco tenía dónde aterrizar. Este nodo cubre las dos mitades: que la
