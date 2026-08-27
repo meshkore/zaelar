@@ -1940,6 +1940,15 @@ DOMAINS: list[dict] = [
         # de RELEVO y no el titular que la nube contrata. Cinco filas de 1-2 iban al tablero al lado de filas
         # medidas con el titular, indistinguibles. La fila ya sellaba qué JUEZ la calificó; no sellaba sobre
         # QUÉ producto era la nota.
+        # 2026-08-28, antes de dejar el supervisor corriendo 24 h: `main()` llamaba a `una_ronda(esc)` sin
+        # plató, así que TODOS los `__us` los iba a conducir Marc, de Madrid, en castellano dentro de un brief
+        # inglés. No falla — mide, sale verde de infraestructura y entra al marcador como veredicto sobre el
+        # producto. Y `run.py` tampoco lo impedía, así que arreglar solo el supervisor dejaba el mismo error a
+        # un `--lab` a mano.
+        {"id": "10.104", "title": "Cada caso se mide en SU plató — el supervisor lo elige por el caso y el "
+                                 "runner se niega si no cuadra",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_each_case_is_measured_in_its_own_lab.py"]},
         {"id": "10.103", "title": "El marcador dice con qué CEREBRO se midió cada fila — leído del flujo, no "
                                  "de la config",
             "ch": UNIT,

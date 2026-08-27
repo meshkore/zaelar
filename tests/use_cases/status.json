@@ -2174,24 +2174,56 @@
       }
     },
     "cheapest-monitor__us": {
-      "last_run": "2026-08-27 22:30",
+      "last_run": "2026-08-28 00:06",
       "overall": 1,
-      "judge": "deepseek-v4-pro",
+      "judge": "glm-4.6",
+      "brain": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 3,
+        "naturalidad": 5,
+        "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 2,
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción en este caso de uso: el bloqueador nº1 es que zaelar dejó morir la conversación esperando un worker atascado sin entregar ni un solo candidato, ignorando avisos empujados del sistema y prometiendo un plan B que nunca ejecutó.",
+      "verdict": "El caso NO está listo para producción: el sistema es frágil (el worker colapsó con errores de archivo y timeouts) e ineficiente (278 búsquedas), lo que derivó en una promesa incumplida; el usuario nunca recibió la recomendación prometida.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de progreso.json: [Errno 2] No such file or directory: 'progreso.json' · ruta RELATIVA a tu directorio de trabajo: /private"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: Claude Code is unable to fetch from www.pcmag.com"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: Claude Code is unable to fetch from au.pcmag.com"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: timeout of 60000ms exceeded"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: ETIMEDOUT: connection timed out, read"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 5 error(es), último paso «🌐 web ↩»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 13,
+      "turns_used": 10,
       "families": [
         "flash",
         "memory",
@@ -2201,15 +2233,19 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f924662",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "d577421",
+        "n_dirty": 3,
+        "dirty": [
+          "CLAUDE.md",
+          "nucleo/websearch.py",
+          "voice/engine/llm/providers/nucleo.py"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "39 GB"
+            "size": "40 GB"
           }
         ],
         "n": 1
@@ -2626,5 +2662,5 @@
       }
     }
   },
-  "updated": "2026-08-27 22:56"
+  "updated": "2026-08-28 00:06"
 }

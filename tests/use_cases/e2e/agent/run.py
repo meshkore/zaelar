@@ -948,6 +948,10 @@ def run(args: argparse.Namespace) -> int:
             return 2
         chosen = [registry[args.scenario]]
 
+    _no = wrong_lab_refusal(getattr(args, "lab", ""), chosen)
+    if _no:
+        print(_no, file=sys.stderr)
+        return 2
     if args.tier:
         chosen = [s for s in chosen if s.tier in args.tier]
     if args.locale:
@@ -1373,6 +1377,29 @@ def _provisional(args) -> str:
     if getattr(args, "allow_dirty", False):
         return "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion"
     return ""
+
+
+def wrong_lab_refusal(lab: str, chosen: list) -> str:
+    """The message that stops a case from being measured in the WRONG lab, or "" to go ahead.
+
+    `--lab es` on a `__us` case does not fail: it measures, and what it measures is Marc from Madrid driving
+    a San Francisco errand in Spanish inside an English brief. A tester that contradicts itself does not
+    measure the product, it measures the harness — and the round comes back green on infrastructure, so the
+    result lands on the scoreboard as a verdict about the product. Same family as the 19 US scenarios found
+    answering with Spanish reality on 2026-08-27, and invisible from outside for the same reason.
+
+    Fail-closed on purpose: a measurement taken with the wrong person is worse than no measurement, because
+    the one that does not exist deceives nobody. Empty `lab` means a sandbox round, which has no persona of
+    its own and is therefore not this function's business.
+    """
+    if not lab:
+        return ""
+    want = "us" if lab == "us" else "es"
+    wrong = [x.id for x in chosen if getattr(x, "locale", want) != want]
+    if not wrong:
+        return ""
+    return (f"\u2717 --lab {lab} no puede conducir {len(wrong)} caso(s) de otro locale: "
+            f"{', '.join(wrong[:5])}{'\u2026' if len(wrong) > 5 else ''}. Cada caso se mide en SU plat\u00f3.")
 
 
 def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:

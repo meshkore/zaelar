@@ -81,6 +81,17 @@ def _sha() -> str:
         return "?"
 
 
+def plato_de(escenario: str) -> str:
+    """QUÉ PLATÓ le toca a este caso. El sufijo del id es la única fuente: `__us` corre en el plató US.
+
+    `main()` no pasaba plató, así que se quedaba el `es` por defecto para TODO — y un caso de San Francisco
+    lo conducía Marc, de Madrid, contestando en castellano dentro de un brief inglés. No falla: mide, y mide
+    un tester que se contradice a sí mismo. Es la misma familia que el 2026-08-27 dejó 19 escenarios US
+    respondiendo con realidad española, y no se ve desde fuera porque la ronda sale verde de infraestructura.
+    """
+    return "us" if escenario.endswith("__us") else "es"
+
+
 def una_ronda(escenario: str, lab: str = "es") -> dict:
     """Lanza UNA ronda y la vigila. Devuelve el parte, con el motivo si hubo que cortarla."""
     _SALIDA.mkdir(parents=True, exist_ok=True)
@@ -292,15 +303,15 @@ def main() -> int:
         esc = orden[i % len(orden)]
         i += 1
         try:
-            parte = una_ronda(esc)
+            parte = una_ronda(esc, plato_de(esc))
             if parte.get("_rancio"):
                 # UNA sola vez, y sin bucle: si tras reiniciar sigue rancio, la ronda entra como INFRA y se
                 # pasa al siguiente. Reintentar hasta que cuadre convertiría un plató que no arranca en un
                 # bucle infinito que no mide — el mismo fallo con otra cara.
                 _apunta(escenario=esc, resultado="RECARGA-PLATO", segundos=0, sha=_sha(),
                         motivo="el plató corría código viejo; lo reinicio y repito la ronda", log="")
-                if _reinicia_plato():
-                    una_ronda(esc)
+                if _reinicia_plato(plato_de(esc)):
+                    una_ronda(esc, plato_de(esc))
         except Exception as e:  # noqa: BLE001 — el supervisor NUNCA muere por una ronda
             _apunta(escenario=esc, resultado="ERROR", segundos=0, sha=_sha(), motivo=str(e)[:200], log="")
         time.sleep(PAUSA_S)

@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-27 22:56**
+Last updated: **2026-08-28 00:06**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -36,7 +36,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `best-rated-rental-car__es` | 2 | 2 | ? | 2026-08-27 12:09 | yes | No está listo para producción: el bloqueador nº1 es que el encargo pedía ofertas de coches con precio para el fin de semana y zaelar entregó solo el nombre d… |
 | ❌ | `best-rated-rental-car__us` | 2 | 1 | ? | 2026-08-27 22:42 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía 53 resultados reales en su hoja y entregó 0 por su nombre, terminando la conversación co… |
 | ✅ | `cheapest-monitor` | 2 | 4 | ? | 2026-08-26 01:21 | yes | El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es… |
-| ❌ | `cheapest-monitor__us` | 2 | 1 | ? | 2026-08-27 22:30 | yes | No está listo para producción en este caso de uso: el bloqueador nº1 es que zaelar dejó morir la conversación esperando un worker atascado sin entregar ni un… |
+| ❌ | `cheapest-monitor__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 00:06 | yes | El caso NO está listo para producción: el sistema es frágil (el worker colapsó con errores de archivo y timeouts) e ineficiente (278 búsquedas), lo que deriv… |
 | ❌ | `compare-broadband-plans__es` | 2 | 2 | ? | 2026-08-27 12:17 | yes | No está listo para producción: el bloqueador nº1 es que nunca preguntó cuánto paga el usuario hoy, así que la pregunta 'cuál me ahorra más' quedó sin respond… |
 | ❌ | `compare-insurance-quotes__es` | 2 | 2 | ? | 2026-08-27 12:02 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ignoró instrucciones explícitas del sistema (muro y aviso empujado) y narró normalidad mientra… |
 | ✅ | `find-best-hotel-city__es` | 2 | 4 | ? | 2026-08-25 10:22 | yes | Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usua… |

@@ -94,10 +94,16 @@ def test_la_fuente_real_compila_y_tiene_huella():
 
 def test_la_recarga_va_ENTRE_rondas_y_nunca_dentro():
     """A mitad de ronda hay un subproceso vivo con su navegador: re-ejecutar ahí lo dejaría huérfano y la
-    ronda se perdería. El sitio es después del `sleep`, con la vuelta ya cerrada."""
+    ronda se perdería. El sitio es después del `sleep`, con la vuelta ya cerrada.
+
+    Reescrito 2026-08-28, NO volteado: el ancla era el texto EXACTO `una_ronda(esc)` y se rompió al pasar el
+    plató en la llamada (`una_ronda(esc, plato_de(esc))`, nodo 10.104). La propiedad protegida —el orden
+    ronda → sleep → recarga— no cambió ni un ápice; lo que cambió es que ahora se busca la LLAMADA y no una
+    de sus firmas posibles, para que el próximo argumento no vuelva a tumbar un test que no va de eso.
+    """
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
-    i_ronda, i_sleep, i_rec = (src.index("una_ronda(esc)"), src.index("time.sleep(PAUSA_S)"),
+    i_ronda, i_sleep, i_rec = (src.index("parte = una_ronda(esc"), src.index("time.sleep(PAUSA_S)"),
                                src.index("_recargar_si_cambie(_mia)"))
     assert i_ronda < i_sleep < i_rec
 
