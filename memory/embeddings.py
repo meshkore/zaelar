@@ -199,6 +199,31 @@ _PROBE_ENV = "ZAELAR_EMBED_PROBE_TIMEOUT"
 _PROBE_DEFAULT_S = 1.5
 
 
+def _indexed_space_to_defend() -> bool:
+    """¿Hay un espacio vectorial INDEXADO que proteger? (V2-350, 2026-08-27)
+
+    «Un timeout no es una ausencia» (V2-349) conserva `ollama` cuando la sonda se queda sin tiempo, para no
+    degradar el proceso a fastembed y buscar vectores embeddinggemma con consultas de 384 rellenadas a 768. Esa
+    regla es verdadera **cuando hay algo que corromper**, y estaba mal acotada: en una BD sin sellar y sin
+    vectores no protege nada y cuesta el canal semántico entero.
+
+    Medido en el plató del arnés (ronda 13, 2026-08-27): el workspace ES tenía 6 píldoras, 1 vector y NINGÚN
+    `.embedsig`, y cada recall salía «recall on FTS only». Ahí fastembed habría dado recall semántico REAL y
+    coherente consigo mismo. El workspace US, en cambio, SÍ trae firma (`ollama:embeddinggemma:768`) — y ahí
+    conservar es exactamente lo correcto, que es el caso que protege V2-103.
+
+    La firma es la respuesta EXACTA a la pregunta: es la declaración de con qué está indexada esta BD. Sin ella,
+    `space_ok()` ya hace fail-open («base nueva, asume coherente»), así que no hay veredicto que defender.
+
+    Ante la DUDA se defiende. La asimetría es deliberada: degradar de más corrompe en SILENCIO (V2-103), y
+    conservar de más cuesta un recall léxico, que se ve y se pasa."""
+    try:
+        from . import reembed as _reembed          # perezoso: `reembed` importa este módulo
+        return _reembed.stored_signature() is not None
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def probe_budget_s() -> float:
     try:
         return max(0.1, float(os.getenv(_PROBE_ENV, str(_PROBE_DEFAULT_S))))
@@ -314,7 +339,7 @@ def _resolve_backend():
     # en sí tarda 25 ms; el arnés lo estaba midiendo como «la memoria tarda 10 s en no encontrar nada».
     if _ollama_embed(["ping"], timeout=probe_budget_s()) is not None:
         _backend = "ollama"
-    elif _ollama_timeout:
+    elif _ollama_timeout and _indexed_space_to_defend():
         # UN TIMEOUT NO ES UNA AUSENCIA, y esto es lo que hace SEGURO acortar la sonda. Con 20 s, una petición
         # encolada detrás del CORAZÓN podía llegar a tiempo; con 1,5 s no llegaría, y el camino de antes la
         # habría leído como «Ollama no está» → fastembed → 384 dims rellenados a 768 contra un índice sellado

@@ -322,9 +322,15 @@ def test_una_llamada_REAL_conserva_su_presupuesto_entero(monkeypatch):
 
 
 def test_un_TIMEOUT_de_la_sonda_NO_degrada_el_espacio_vectorial(monkeypatch):
-    """El corazón del cambio. Un reloj agotado significa «no lo sé todavía», no «Ollama no está»."""
+    """El corazón del cambio. Un reloj agotado significa «no lo sé todavía», no «Ollama no está».
+
+    V2-350 le puso su precondición EXPLÍCITA: esto vale donde hay un índice sellado que defender. Antes el caso
+    no la declaraba y pasaba por el ambiente — verde al correr el fichero solo, rojo en la suite entera, según
+    qué BD tuviera delante. Un test que depende de eso afirma menos de lo que parece."""
+    from memory import reembed
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(reembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
     _presupuesto_visto(monkeypatch)
     monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
     emb.reset()
@@ -380,3 +386,57 @@ def test_mientras_Ollama_no_conteste_tambien_las_llamadas_reales_usan_el_reloj_c
     vistos.clear()
     emb._ollama_embed(["otra más"])
     assert vistos == [20.0], f"tras una respuesta buena el presupuesto entero no volvió: {vistos}"
+
+
+# ── «Un timeout no es una ausencia» SOLO donde hay algo que defender (V2-350, 2026-08-27) ────────────────────
+#
+# V2-349 conserva `ollama` cuando la sonda se queda sin tiempo, para no buscar vectores embeddinggemma con
+# consultas fastembed rellenadas. Verdadero cuando hay un índice sellado; MAL ACOTADO cuando no lo hay.
+#
+# Medido en el plató (ronda 13): el workspace ES tenía 6 píldoras, 1 vector y ningún `.embedsig`, y cada recall
+# salía «recall on FTS only» — o sea, memoria a medias en cada ronda por proteger un espacio que no existía.
+# Ahí fastembed da recall semántico REAL y coherente consigo mismo. El US sí trae firma, y ahí conservar es lo
+# correcto: es el caso que protege V2-103.
+
+def _sin_ollama_a_tiempo(monkeypatch):
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(emb.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(_timeout_error()))
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+
+
+def test_SIN_indice_sellado_un_timeout_SI_degrada(monkeypatch):
+    """No hay espacio que corromper, y quedarse en solo-léxico es peor que un fastembed coherente consigo mismo."""
+    from memory import reembed
+    _sin_ollama_a_tiempo(monkeypatch)
+    monkeypatch.setattr(reembed, "stored_signature", lambda: None)
+    emb.reset()
+
+    assert emb.active_backend() == "fastembed", (
+        "se conservó un Ollama que no contesta sobre una BD sin sellar: no protege nada y cuesta el canal "
+        "semántico entero — es lo que dejaba al plató en «recall on FTS only» cada ronda")
+
+
+def test_CON_indice_sellado_un_timeout_NO_degrada(monkeypatch):
+    """La otra dirección, y la que protege V2-103: aquí SÍ hay un espacio declarado y degradar lo corrompe."""
+    from memory import reembed
+    _sin_ollama_a_tiempo(monkeypatch)
+    monkeypatch.setattr(reembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
+    emb.reset()
+
+    assert emb.active_backend() == "ollama", (
+        "con la BD sellada embeddinggemma, degradar busca esos vectores con consultas de 384 rellenadas a 768 "
+        "y en SILENCIO: exactamente el fallo que a V2-103 le costó una auditoría")
+    assert emb._resolved_at == 0.0, "y se re-sondea en la próxima llamada, no dentro de 5 minutos"
+
+
+def test_ante_la_DUDA_se_defiende(monkeypatch):
+    """Si no se puede leer la firma no se sabe si hay algo que proteger. La asimetría es deliberada: degradar de
+    más corrompe en SILENCIO; conservar de más cuesta un recall léxico, que se ve y se pasa."""
+    from memory import reembed
+    _sin_ollama_a_tiempo(monkeypatch)
+    monkeypatch.setattr(reembed, "stored_signature",
+                        lambda: (_ for _ in ()).throw(OSError("disco ilegible")))
+    emb.reset()
+    assert emb.active_backend() == "ollama"
