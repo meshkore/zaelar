@@ -75,8 +75,11 @@ def test_el_ruido_de_visibilidad_de_pestañas_no_es_una_op_de_widget():
     """El juez de la ronda 7 colgó un [alta] entero de «los widgets 160 y 165 nunca se abrieron» — eran
     eventos `tab:visibility` del frontend con ids numéricos crudos, no widgets."""
     ops = V.widget_ops([{"cat": "widget", "label": "tab:visibility", "id": "160"},
+                        {"cat": "widget", "label": "agent:state", "id": "124"},
                         {"cat": "widget", "label": "show", "id": "imagenes"}])
-    assert "160" not in ops and "imagenes" in ops
+    assert "160" not in ops and "124" not in ops and "imagenes" in ops
+    # La ronda GRABADA lo subió de ruido a inundación: el espectador conecta la sesión de voz y caen ~230
+    # filas `agent:state` — el juez leyó «no hay show» con `imagenes: show×5` delante.
 
 
 def test_el_juez_sabe_que_el_visor_pinta_la_fuente():

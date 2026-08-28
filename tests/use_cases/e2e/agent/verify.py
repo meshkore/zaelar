@@ -299,10 +299,12 @@ def widget_ops(all_events: list[dict]) -> dict:
         # genéricas de datos»— y puntuó 1/5 «alucinación de éxito» sobre una ronda donde la música SONABA y la
         # lista EXISTÍA. Un fallo se cuenta aparte (`…✗`): que el widget se negara y que el cambio entrara son
         # hechos opuestos, y juntarlos es como sobrevive un «Hecho.» que no es verdad.
-        # `tab:*` es contabilidad de visibilidad del FRONTEND (qué pestaña mira el navegador), no una
-        # operación de widget — y sus ids numéricos crudos («160», «165») contaminaban el informe: el juez
-        # de la ronda 7 colgó un [alta] entero de ese ruido («los widgets 160 y 165 nunca se abrieron»).
-        if label.startswith("tab:"):
+        # `tab:*` y `agent:*` son contabilidad del FRONTEND/sesión de voz (qué pestaña mira el navegador,
+        # el estado del worker de LiveKit), no operaciones de widget — y sus ids numéricos crudos («160»,
+        # «165») contaminaban el informe: el juez de la ronda 7 colgó un [alta] entero de ese ruido, y en la
+        # primera ronda GRABADA (espectador conectado → sesión de voz viva) fueron ~230 filas `agent:state`
+        # que ahogaron el mecanismo real — el juez leyó «no hay show» con `imagenes: show×5` delante.
+        if label.startswith(("tab:", "agent:")):
             continue
         if label in ("action", "action_failed"):
             acto = str((f.get("action") if f.get("action") is not None else e.get("action")) or "")
