@@ -5163,8 +5163,12 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   delante**. Medido en `find-direct-flight-budget__es`: `sheet_named_ms` cae entre el turno 5 y el 6, y en los
   turnos 6, 7 y 8 el bloque vivo traía la cara de «sin avanzar» y CERO filas con **cuatro vuelos con nombre**
   en la hoja; el juez le puso 2/5 por «negar lo que el sistema le mostraba», y el sistema le mostraba lo
-  contrario. **Y no es un caso aislado**: barrido sobre los 353 informes guardados, de las 48 rondas cuya hoja
-  llegó a tener nombres, **45 tienen turnos a los que no se les dijo — 257 turnos ciegos** (de 262 en bruto, 5
+  contrario. **⚠️ el recuento estaba MAL MEDIDO**: el detector buscaba la frase en la línea de «TAREAS
+  DE FONDO» y el imperativo de resultados es OTRA línea del prompt, así que «45 de 48 rondas, 257 turnos ciegos»
+  hay que volver a medirlo (corregido 05:48; los informes viejos no permiten recalcularlo). Lo que NO se cae es
+  el caso que lo abrió —`find-direct-flight-budget__es`, leído a mano turno a turno— ni el mecanismo del sello
+  rancio, que se confirmó con una señal del MOTOR (`vacías: 7`) y no con este detector. En su día el barrido
+  dijo (de 262 en bruto, 5
   eran tarea ya terminada y se descuentan). Eso reordena la lectura de meses de tablero: buena parte de «narra
   trabajo que no ocurre» y «retiene lo que tiene» no es conducta, es que no se lo dijimos. **Dónde NO está la
   avería**: `_found_candidates` ya cae a `_sheet_has_rows` cuando el worker no reportó su cuenta, y éste lee por la
