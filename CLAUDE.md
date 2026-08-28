@@ -5112,6 +5112,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El puente del worker habla el vocabulario de widgets (V2-433, 2026-08-28)**: la anomalía llegó ya con el
+  comando dentro (V2-429) — «ERROR: el widget «music» no existe · lo que se intentó: …»— y la carpeta se llama
+  `musica`. El puente resolvía con `paths.dir_for`, que casa con el id de la CARPETA y nada más, mientras
+  `widgets/registry.py` construye normalizada la identidad de los 26 (id + nombre + alias): el vocabulario
+  estaba y nadie lo miraba desde ese lado. **Y no era solo cosa del inglés**: la misma búsqueda rechazaba
+  `reloj`, el nombre castellano del widget cuya carpeta es `clock`. `widgets/naming.resolve` recupera de
+  entrada `reloj → clock` y `playlist → musica`. Tres reglas: una **colisión es una negativa, no una apuesta**
+  (elegir uno de dos widgets donde el llamante va a ESCRIBIR es peor que decir que no), el «no existe» **dice
+  los que hay** (un nombre rechazado a secas deja al worker reintentando el mismo — medido esta noche en otras
+  tres puertas), y **las dos puertas** (leer y operar) lo usan, con test, porque arreglar una sola dejaría al
+  worker resolviendo un nombre para leer y fallando con el mismo para escribir. `music` seguía sin resolver
+  porque no estaba en NINGÚN manifiesto: añadido al de `musica` y solo ahí, que es el caso medido — los
+  manifiestos son el vocabulario único que lee todo el sistema, y una tabla de sinónimos en el puente habría
+  creado un segundo que se separa del primero sin avisar. **Abierto y del operador**: `calendar`, `weather` y
+  `browser` tampoco resuelven; inventar el vocabulario inglés de los 26 no es mecanismo, es producto. Nodo
+  4.71, cuatro desarmes.
+
 - **La hoja llena y el prompt diciendo que no (V2-432, 2026-08-28)**: «tenía resultados y contestó que no
   había novedades» es el bloqueador más repetido del tablero, y hay otra lectura que decide de quién es la
   culpa — **si en su prompt ponía que la tarea seguía atascada, contestó exactamente lo que le pusimos
