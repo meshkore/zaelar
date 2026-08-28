@@ -424,6 +424,7 @@ def record_by_nav_task(nav_tid) -> "SessionRecord | None":
 # La sección vive ahora en su propio módulo HOJA, que no importa este fichero: las tres funciones que recorren
 # el registro vivo lo reciben, y estas envolturas se lo pasan. Se re-exporta todo porque hay producción y tests
 # que lo importan por nombre desde aquí — es una mudanza, no un cambio de interfaz.
+from nucleo.turn_marks import mark_stall_offered, stall_offered  # noqa: F401 — re-export
 from nucleo.sheets import (  # noqa: F401 — re-export
     PHASES_KEPT, _phrases, _sheet_close, _sheet_open, sheet_id_for, sheet_of,
 )

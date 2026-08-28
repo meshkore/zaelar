@@ -626,6 +626,11 @@ DOMAINS: list[dict] = [
         {"id": "2.40", "title": "No se copia el idioma de las NOTAS INTERNAS del prompt",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_no_se_copia_el_idioma_de_las_notas_internas.py"]},
+        # V2-454 — «dilo la PRIMERA vez y ofrece pararla»: el modelo no puede saber si es la primera, así que
+        # la oferta se repetía turno tras turno. 49 de 334 rondas, con el operador ya habiendo contestado.
+        {"id": "4.80", "title": "La oferta de PARAR se hace una vez — el hecho se queda",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_la_oferta_de_parar_se_hace_una_vez.py"]},
         {"id": "4.79", "title": "Las filas de la hoja viajan aunque NO haya navegador",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_las_filas_viajan_aunque_no_haya_navegador.py"]},

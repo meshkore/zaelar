@@ -5124,6 +5124,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **La oferta de PARAR se hace una vez — el hecho se queda (V2-454, 2026-08-28)**: el bloque dice «si una tarea
+  sale ENCALLADA o SIN AVANZAR, dilo con esas letras **la primera vez** y ofrece pararla», y **el modelo no
+  puede saber si es la primera** — es un hecho NUESTRO, lo mismo que V2-224 aprendió con el aviso de muerte.
+  Medido sobre las 334 rondas guardadas: **49 (14 %) repiten la oferta dos o más veces**, diez de ellas en las
+  últimas quince de hoy. El daño no es la redundancia: **el operador YA CONTESTÓ** — en `search-buy-used-car`
+  dijo «párale y prueba de nuevo, o miramos por otro sitio, tú decides» y el turno siguiente volvió a plantear
+  la misma disyuntiva. Se cuenta en **`nucleo/turn_marks.py`** (módulo propio: el trinquete pidió extraer en
+  vez de subir el techo de `dispatch`, y el asunto es real — *lo que un turno ya le puso delante al modelo*), y
+  **el HECHO se queda**: quitar también el estado devolvería el «sigue en marcha» que V2-131 cerró. De paso,
+  `live_blocks` cruzó las 900 líneas y el bloque de tareas salió a `nucleo/flash/task_block.py`, con el mismo
+  precedente que `navegador_lines`. Nodo 4.80, cuatro desarmes. **No cierra** que el sistema LEA la respuesta
+  del operador: se deja de preguntar por conteo, no porque se haya entendido lo que contestó.
+
 - **El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene DOS causas (V2-453, 2026-08-28)**: o el
   recall no llegó (el presupuesto de 800 ms vence y el turno sigue sin memoria durable — avería nuestra, y **la
   mayoritaria**: V2-311 midió 21 de 27 recalls vivos abandonados) o llegó y el modelo lo ignoró (conducta).
