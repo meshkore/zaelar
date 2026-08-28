@@ -782,6 +782,28 @@ def _media_rows(wid: str, got: dict) -> tuple:
     return filas, listas
 
 
+def _playback(got: dict) -> dict:
+    """What the player is HOLDING RIGHT NOW, in its own raw fields — or {} if it has no playback block.
+
+    `widgets_producing` already answers "is something playing?", and it is the authoritative answer: the
+    engine evaluates the widget's own `active_when` against its real data. What it does NOT carry is the
+    VALUES that verdict was derived from, and the scenarios name them literally — `play-music-and-build-
+    playlist` demands "`yt.videoId` con `yt.paused` falso". So the judge was handed a conclusion it could
+    not check against anything, and three rounds running it answered by distrusting the conclusion.
+
+    Measured on 2026-08-28 (21:27, 21:38, 21:51): with `widgets_producing: ["musica"]` stated in words —
+    "if `musica` appears here the music WAS playing, whatever else says otherwise" — the verdicts still read
+    "the report shows no evidence the player is active". Publishing the fields costs nothing: `media_list`
+    already holds the whole payload. A derived fact nobody can verify persuades nobody.
+    """
+    yt = (got or {}).get("yt")
+    if not isinstance(yt, dict):
+        return {}
+    vid = str(yt.get("videoId") or "").strip()
+    return {"videoId": vid, "title": str(yt.get("title") or "").strip()[:120],
+            "paused": bool(yt.get("paused")), "loaded": bool(vid)}
+
+
 def media_list() -> dict:
     """What the PLAYERS are holding when the round ends — the delivery surface of a media errand.
 
@@ -810,6 +832,9 @@ def media_list() -> dict:
         titulos = [t for t in titulos if t]
         out["widgets"][wid] = {"n": len(filas), "n_named": len(titulos), "titles": titulos[:8],
                                "lists": listas}
+        _pb = _playback(got)
+        if _pb:
+            out["widgets"][wid]["playing"] = _pb
         out["n_items"] += len(filas)
         out["titles"].extend(titulos[:8])
         out["lists"].extend({**l, "widget": wid} for l in listas)

@@ -70,3 +70,26 @@ def test_an_empty_player_is_still_reported_as_empty(monkeypatch):
     out = _read({"youtube": {"list": []}, "musica": {"playlists": []}}, monkeypatch)
     assert out["read"] is True and out["n_items"] == 0
     assert "VACÍA" in judge.mechanism_facts({"media_list": out})
+
+
+def test_the_raw_playback_fields_are_published(monkeypatch):
+    """`widgets_producing` is a CONCLUSION; the scenarios name the raw fields («`yt.videoId` con
+    `yt.paused` falso»). Three rounds in a row on 2026-08-28 answered the conclusion by distrusting it —
+    "the report shows no evidence the player is active" — with it stated in words right in front of them.
+    A derived fact nobody can check against anything persuades nobody."""
+    out = _read({"youtube": {"list": []}, "musica": MUSICA_REAL}, monkeypatch)
+    pb = out["widgets"]["musica"]["playing"]
+    assert pb["videoId"] == "0iLF_rtUbq0" and pb["paused"] is False and pb["loaded"] is True
+
+
+def test_a_widget_with_no_playback_block_publishes_nothing(monkeypatch):
+    """`youtube` keeps its playback at the top level, not under `yt` — inventing an empty block for it
+    would state "nothing loaded" about a player that was never asked."""
+    out = _read({"youtube": YOUTUBE_REAL, "musica": {"playlists": []}}, monkeypatch)
+    assert "playing" not in out["widgets"]["youtube"]
+
+
+def test_the_judge_is_shown_those_fields(monkeypatch):
+    out = _read({"youtube": {"list": []}, "musica": MUSICA_REAL}, monkeypatch)
+    facts = judge.mechanism_facts({"media_list": out, "widgets_producing": ["musica"]})
+    assert "videoId=0iLF_rtUbq0" in facts and "paused=false" in facts

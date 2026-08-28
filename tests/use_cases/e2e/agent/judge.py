@@ -939,6 +939,18 @@ def mechanism_facts(mech: dict) -> str:
         lines.append(f"· SONANDO/REPRODUCIENDO al terminar la ronda: {', '.join(sorted(prod))}. Lo dice el "
                      f"propio motor evaluando el `active_when` del widget contra sus datos reales, así que "
                      f"es un HECHO: si aquí sale `musica`, la música sonaba, diga lo que diga el resto.")
+        # LOS VALORES DE LOS QUE SALE ESE VEREDICTO (V2-468). La línea de arriba es una CONCLUSIÓN, y los
+        # criterios de los casos nombran los campos crudos («`yt.videoId` con `yt.paused` falso»). Tres
+        # rondas seguidas del 2026-08-28 respondieron a la conclusión desconfiando de ella —«el informe no
+        # muestra evidencia de que el reproductor esté activo»— teniéndola enunciada delante. Un hecho
+        # derivado que nadie puede comprobar no convence: se publican los campos, que ya estaban a mano.
+        for _w, _d in sorted((_ml.get("widgets") or {}).items()):
+            _pb = (_d or {}).get("playing") or {}
+            if _pb.get("loaded"):
+                lines.append(f"·   ▸ `{_w}` tiene CARGADO `videoId={_pb.get('videoId')}` "
+                             f"«{_pb.get('title')}» con `paused={str(bool(_pb.get('paused'))).lower()}` — "
+                             f"son los campos crudos de los que sale el veredicto de arriba, leídos del "
+                             f"almacén del widget al terminar la ronda.")
     elif prod is not None:
         lines.append("· NADA estaba sonando ni reproduciéndose al terminar la ronda, según el estado "
                      "DECLARADO del motor (se le preguntó y contestó que ninguno de sus widgets estaba "
