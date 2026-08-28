@@ -974,6 +974,21 @@ def mechanism_facts(mech: dict) -> str:
         elif au.get("n_evidence"):
             lines.append("·   Sin anomalías: ningún error interno, ninguna acción descartada, ningún silencio "
                          "largo. Si el resultado fue malo, la causa está en la CONDUCTA, no en el mecanismo.")
+        # UN SOLO EVENTO NO ES UNA DURACIÓN DE CERO (V2-468). `audit.spans` viaja en el JSON con `first_ms` y
+        # `last_ms`, y de ahí se lee una duración que para un span de UN evento sale 0 — pero un rail que
+        # anuncia el arranque UNA vez y se calla mientras suena tiene exactamente esa forma. Medido en
+        # `play-music-and-build-playlist` (2026-08-28 21:38): `rail:music.playing` con n=1, y el juez escribió
+        # «el span muestra duración de 0 ms (instantáneo) … se considera que solo se preparó el audio sin que
+        # sonara» — contradiciendo el hecho enunciado dos líneas más arriba, que decía que la música sonaba.
+        # No se inventó nada: leyó un campo REAL cuya forma invita a esa lectura. Se nombra, y se dice a
+        # dónde mirar en su lugar; sin afirmar lo contrario, que es trabajo de `widgets_producing`.
+        _puntuales = [k for k, v in (au.get("spans") or {}).items() if isinstance(v, dict) and v.get("n") == 1]
+        if _puntuales:
+            lines.append(f"·   ⏱️ Spans con UN SOLO evento: {', '.join(sorted(_puntuales))}. Su `first_ms` y su "
+                         f"`last_ms` coinciden porque solo hubo un evento, NO porque durara cero: un rail que "
+                         f"anuncia el arranque una vez y se calla mientras trabaja tiene esta forma. NO "
+                         f"deduzcas de aquí que algo no llegó a ocurrir o duró un instante — para «¿seguía "
+                         f"sonando/corriendo?» está la línea de SONANDO/REPRODUCIENDO, que lo mide de verdad.")
     return "\n".join(lines)
 
 
