@@ -566,6 +566,13 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/test_image_search.py",
                       "tests/agent_headless/unit/flash/test_image_turn.py",
                       "tests/browser/unit/widgets/test_imagenes.py"]},
+        # Y el visor RENDERIZADO, que es otro nodo porque mide otra cosa: el defecto que lo estrenó
+        # (`flechas: 0` con la imagen caída) no da un error, no rompe ningún test de fuente y solo se ve
+        # pintándolo — la lección del 4.19, en otro widget.
+        {"id": "4.83", "title": "El visor de imágenes RENDERIZA: la foto manda en la pantalla, la fuente se ve y "
+                                "enlaza, y las flechas SOBREVIVEN a una imagen que no carga",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_imagenes_render.py"]},
         # 2026-08-27, medido en el plató: el 402 de las 18:55 castigó al titular SEIS HORAS, el operador recargó
         # a las 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se cayó a su vez, el cerebro
         # se quedó MUDO con el titular sano una fila más arriba — y no había forma de decirle que ya había saldo.

@@ -87,9 +87,12 @@ export function render(el, data, ctx){
     img.loading="eager"; img.decoding="async"; img.referrerPolicy="no-referrer";
     // A hotlinked picture can 403 or vanish. Saying so beats a silent broken-image glyph, which reads as our
     // bug rather than the source's — the same "never lie about an empty box" rule the players learned (V2-383).
+    //
+    // It replaces THE PICTURE, never the stage: clearing the stage also removed the ‹ › arrows, and a set where
+    // one photo is dead is exactly when the operator needs them most — the notice would have told them to try
+    // the next one while taking away the way to get there. Found by RENDERING it, not by reading it (V2-124).
     img.onerror = () => {
-      stage.textContent="";
-      stage.appendChild(txt("div","imgempty","Esta imagen ya no carga desde su origen. Prueba con la siguiente."));
+      img.replaceWith(txt("div","imgempty","Esta imagen ya no carga desde su origen. Prueba con la siguiente."));
     };
     stage.appendChild(img);
     if(items.length>1){
