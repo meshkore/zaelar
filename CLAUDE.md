@@ -5112,6 +5112,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La entrega se NOMBRA y lo no verificable no se da por cumplido (V2-469, 2026-08-29)**: una noche de
+  casos de catálogo (vídeos, playlist de enlaces, monitor US) con la misma raíz en cuatro caras. (1) Regla
+  nueva de `nucleo/flash/prompt.py`: un criterio del operador que el modelo no puede VERIFICAR («con buenas
+  reseñas», «sin IA») no se entrega nunca como cumplido — se entrega lo que hay diciendo, en la misma frase,
+  con qué señales se aproximó o que no puede garantizarlo. (2) `widget_data_turn`: «Hecho.» a una PREGUNTA es
+  una no-respuesta — el ack enumera lo que el widget tiene con sus pistas (`named_ack`); un fallo de op se
+  dice SOBRE la respuesta hablada (`ensure_failure_named`); y los enlaces pegados viajan TODOS
+  (`complete_pasted_links` — el modelo soltaba el primero). (3) `video_turn.ensure_delivery_named`: el
+  resultado de una búsqueda de lista se nombra en el MISMO turno (la voz no puede hacerlo después: el
+  despacho es async). (4) El mecanismo alrededor dejaba mentir a los de arriba: un anuncio de DDG no es un
+  resultado (`websearch._is_ad`), el navegador de tareas habla el idioma del MOTOR
+  (`navegador/owner._browser_locale` — al agente US se le servía el Amazon español y el «Select your
+  Country» de Best Buy), y un payload de texto plano para `web_search` ES la query
+  (`bridge_usage.bare_query_payload`, la regla de V2-341: la forma natural no cuesta el turno). En youtube:
+  un hit sin título (Shorts) no es candidato, el conteo casa con los nombres que da, y la pista de «suena»
+  dice la verdad (pos 0 falsy + reproductor que bloquea la inserción ofrece el enlace). Nodos 4.56, 4.58 y
+  10.122-10.127; la campaña con sus mediciones vive en la iniciativa V2-469 (roadmap en disco).
+
 - **Un caso BLOQUEADO no es una avería, ni un turno que gastar cada vuelta (V2-448, 2026-08-28)**: el runner
   se niega a conducir un escenario cuyas tareas de roadmap siguen pendientes (norma del operador del
   2026-08-21) y sale en 3 s; el supervisor lo archivaba como **INFRA**, la etiqueta de «el instrumento se
