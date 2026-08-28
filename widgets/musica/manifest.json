@@ -147,7 +147,11 @@
     "reproductor de música",
     "mi música",
     "playlist",
-    "lista de reproducción"
+    "lista de reproducción",
+    "music",
+    "play music",
+    "song",
+    "songs"
   ],
   "runtime": {
     "output": "audio",

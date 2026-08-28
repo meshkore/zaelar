@@ -170,7 +170,14 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             from widgets.server_api import MISSING, run_widget_hook
             man = runtime.get(wid)
             if not man:
-                return {"ok": False, "error": f"el widget «{wid}» no existe"}
+                # …y antes de decir que no existe, PREGUNTAR por el nombre que el resto del sistema ya conoce:
+                # el registro trae la identidad de los 26 (id, nombre y alias) y este puente no la miraba.
+                from widgets import naming as _nm
+                _id, _varios = _nm.resolve(wid)
+                if _id:
+                    wid, man = _id, runtime.get(_id)
+                if not man:
+                    return {"ok": False, "error": _nm.not_found(wid, _varios)}
 
             def _call(view_data):
                 try:
@@ -239,7 +246,12 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         try:
             from widgets import runtime
             if runtime.get(wid) is None:
-                return {"ok": False, "error": f"el widget «{wid}» no existe"}
+                from widgets import naming as _nm
+                _id, _varios = _nm.resolve(wid)
+                if _id and runtime.get(_id) is not None:
+                    wid = _id
+                else:
+                    return {"ok": False, "error": _nm.not_found(wid, _varios)}
             try:
                 from widgets import provenance as _prov
                 _prov.note(wid, f"worker:{getattr(rec, 'task_id', '')}")

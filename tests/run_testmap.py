@@ -589,6 +589,14 @@ DOMAINS: list[dict] = [
         # 2026-08-28 — la avería de V2-432 no hace ruido: `_sheet_of_tab` devuelve "" y el prompt se compone
         # como si no hubiera nada, indistinguible de que de verdad no lo haya. Encontrarla exigió cruzar el
         # instante en que la hoja se llenó con el texto de cada prompt, ronda por ronda.
+        # 2026-08-28 — el puente del worker contestaba «el widget «music» no existe» a un nombre que el resto
+        # del sistema resuelve sin pestañear: `paths.dir_for` casa con la CARPETA y nada más, mientras el
+        # registro trae la identidad (id, nombre, alias) de los 26. Y no era solo cosa del inglés: la misma
+        # búsqueda rechazaba `reloj`, el nombre castellano del widget cuya carpeta es `clock`.
+        {"id": "4.71", "title": "El puente del worker habla el vocabulario de widgets — y una colisión es una "
+                                "negativa, no una apuesta",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_bridge_speaks_the_widget_vocabulary.py"]},
         {"id": "4.70", "title": "Una hoja de encargo SIN RESOLVER lo dice — el fallo dejaba de ser mudo",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_an_unresolved_errand_sheet_is_not_silent.py"]},
