@@ -5113,8 +5113,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
 - **El worker PUEDE escribir lo que le decimos que escriba (V2-435, 2026-08-28)**: le pedíamos escribir un
-  fichero y no le dábamos la tool. El payload de los puentes va por `@fichero` desde V2-379 y el prompt lo dice
-  con todas las letras —«escríbelo con Write a un fichero de tu directorio»—, pero **`Write` no estaba en la
+  fichero y no le dábamos la tool. El payload de los puentes va por `@fichero` desde que la puerta de permisos
+  rechazó el JSON en línea, y el prompt lo dice con todas las letras —«escríbelo con Write a un fichero de tu directorio»—, pero **`Write` no estaba en la
   allowlist** que se pasa al CLI (30 entradas, ninguna), así que pedía una aprobación que en headless nadie va
   a dar. Medido en `find-best-hotel-city__us`, con la cadena entera visible por primera vez gracias a los
   arreglos de la misma noche: «Claude requested permissions to write to …/informe.json, but you haven't
