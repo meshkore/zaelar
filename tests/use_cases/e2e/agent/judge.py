@@ -897,6 +897,18 @@ def mechanism_facts(mech: dict) -> str:
                          f"así que si zaelar dijo que eso estaba «en pantalla», el operador no lo vio.")
     else:
         lines.append("· No se observó ninguna operación de widget en esta corrida.")
+    # V2-463 — las BÚSQUEDAS DE IMÁGENES son viajes reales al mundo exterior (un Chromium caliente carga
+    # Google/Bing y parsea el payload vivo), y hasta hoy el juez no las veía: la ronda que entregó 12 fotos
+    # de ferrari.com en 3 s se puntuó 2/5 como «alucinación visual» por «cero evidencias externas». Se
+    # enuncian TODAS, también las fallidas — la de los diccionarios fue indiagnosticable por no tener rastro.
+    fotos = mech.get("image_searches") or []
+    if fotos:
+        for fx in fotos[:6]:
+            estado = (f"{fx['count']} fotos de {', '.join(fx['sites'][:3]) or fx['source']}" if fx.get("ok")
+                      else ("BLOQUEADA por el buscador" if fx.get("blocked") else "sin resultados"))
+            degradada = f" (Google falló → {fx['source']})" if fx.get("degraded_from") else ""
+            lines.append(f"· Búsqueda de imágenes REAL «{fx['query'][:60]}» → {estado}{degradada}. Esto es un "
+                         f"HECHO del mecanismo: el navegador de búsqueda cargó el índice y trajo eso.")
     # V2-395 — QUÉ ESTÁ PRODUCIENDO al terminar. `widget_ops` dice qué se TOCÓ, y eso no contesta «¿suena
     # algo de verdad?», que es el criterio literal de todos los casos de medios. El dato entró en el informe
     # con V2-392 y se quedó ahí: esta sección —la que traduce el mecanismo a PALABRAS— no lo nombraba, y un

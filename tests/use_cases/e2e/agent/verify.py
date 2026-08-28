@@ -308,6 +308,33 @@ def widget_ops(all_events: list[dict]) -> dict:
     return ops
 
 
+def image_searches(all_events: list[dict]) -> list[dict]:
+    """Every PICTURE search this round ran, with its query and what came back (V2-463).
+
+    Exists because the audit's evidence reader only counts workers and browser tasks, so a round that
+    delivered 12 real photos from ferrari.com in 3 s was judged «cero evidencias externas» and scored 2/5 as
+    a visual hallucination — the product had done exactly the right thing and the INSTRUMENT could not see
+    it. A picture search IS a trip to the outside world (a warm Chromium loads Google/Bing and parses the
+    live payload); its emission (`image_turn._evidence`) is the receipt, and this reader hands it to the
+    judge. It also carries the failed ones — the dictionary-query round was undiagnosable precisely because
+    the junk search left no trace once the next `show` overwrote the widget store.
+    """
+    out: list[dict] = []
+    for e in all_events:
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        if "fotos: búsqueda" not in label:
+            continue
+        g = lambda k: f.get(k) if f.get(k) is not None else e.get(k)
+        out.append({"query": str(g("query") or ""), "ok": bool(g("ok")),
+                    "count": int(g("count") or 0), "source": str(g("source") or ""),
+                    "sites": list(g("sites") or []), "blocked": bool(g("blocked")),
+                    "degraded_from": str(g("degraded_from") or "")})
+    return out
+
+
 def _error_gist(text: str, limit: int = 200) -> str:
     """El trozo del error que SIRVE. En un traceback eso está al FINAL, no al principio.
 
@@ -404,7 +431,11 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
                           "que": f"tool={d.get('tool') or '?'} razón={d.get('reason') or '?'}"})
     # Zero evidence with a worker or browser expected means nothing came back from the outside world. A
     # claim about the world cannot be true in that run, whatever the transcript says.
-    if not evidence and ({"Brain Workers", "worker", "Widgets", "widget"} & set(exp)):
+    # …y una BÚSQUEDA DE IMÁGENES con resultados también es el mundo exterior trayendo algo (V2-463): el
+    # Chromium caliente carga Google/Bing de verdad. Sin esto, la ronda que entregó 12 fotos de ferrari.com
+    # en 3 s se auditó como «sin evidencia externa» y el juez la llamó alucinación visual.
+    _fotos_reales = any(x.get("ok") and x.get("count") for x in image_searches([e for e, _ in evs]))
+    if not evidence and not _fotos_reales and ({"Brain Workers", "worker", "Widgets", "widget"} & set(exp)):
         anomalies.append({"clase": "sin_evidencia_externa", "certeza": "hecho",
                           "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"})
     for sp, d in sorted(spans.items()):
@@ -930,6 +961,8 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         # Qué widget se tocó y cómo. Sin esto, «la cita no está en la agenda» solo se podía inferir del
         # bloque de CRONS, que no habla de agendas.
         "widget_ops": widget_ops(all_events),
+        # V2-463 — cada búsqueda de imágenes con su query y lo que trajo, incluidas las fallidas.
+        "image_searches": image_searches(all_events),
         # V2-392 — y qué widget está PRODUCIENDO al terminar: sonando, reproduciendo, corriendo. `widget_ops`
         # dice qué se TOCÓ, que no es lo mismo que si algo acabó pasando. «Suena algo de verdad» es el
         # criterio literal de todos los casos de medios y el informe no podía responderlo: medido en

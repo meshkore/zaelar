@@ -5152,7 +5152,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   indiagnosticable porque el show siguiente pisó el almacén y la query basura desapareció; ahora cada
   búsqueda emite query/fuente/nº/blocked/degraded, incluida la vacía) y el juez recibe «⚠️ ESCRITOS PERO
   NUNCA ABIERTOS» cuando un widget tiene escrituras y cero shows en la ronda (V2-346: un hecho que no se
-  enuncia es invisible). 7 casos en los nodos de los tres rails; desarme verificado.
+  enuncia es invisible). 7 casos en los nodos de los tres rails; desarme verificado. **Adenda medida la misma
+  tarde**: con todo eso puesto, la ronda entregó 12 fotos reales de ferrari.com en el primer turno y el juez
+  la puntuó 2/5 como «alucinación visual» — el lector de evidencia solo contaba workers/navegador. Una
+  búsqueda de imágenes ES el mundo exterior: `verify.image_searches` + la auditoría la acepta como evidencia
+  (solo CON fotos) + el juez la recibe enunciada, también la fallida y la degradación a Bing. Nodo 10.118.
 
 - **Z.AI: el plan primero, los créditos después (V2-462, 2026-08-28)**: el plan de código amaneció agotado
   (`1310`, reset el 1 de sept) y el juez del plató perdió una ronda (GLM 429 → DeepSeek 402 → AIMLAPI 504×2).

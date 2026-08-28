@@ -2176,6 +2176,13 @@ DOMAINS: list[dict] = [
         # tenía clavados (43921/43922) mientras la tanda desatendida arrancaba en `preferred_port(43918)` —
         # un número para los DOS idiomas, y encima deslizante. El operador abrió el 43921 esperando al agente
         # español y no había nada: esa dirección solo existía para `--lab`.
+        # V2-463: el producto entregó 12 fotos reales de ferrari.com en 3 s y el juez lo llamó «alucinación
+        # visual» — el lector de evidencia solo contaba workers y navegador. El instrumento acusaba al
+        # producto por mirar donde la evidencia no está.
+        {"id": "10.118", "title": "Una búsqueda de imágenes ES evidencia externa — y el juez la ve enunciada, "
+                                  "también la fallida",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_picture_search_is_external_evidence.py"]},
         {"id": "10.116", "title": "Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
                                   "de mudarla",
             "ch": UNIT,
