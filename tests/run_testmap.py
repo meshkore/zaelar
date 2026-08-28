@@ -223,6 +223,10 @@ DOMAINS: list[dict] = [
             # porqué del paso— y no salía en ninguna pantalla. El marcador la separa de lo que verificamos
             # nosotros: el worker AFIRMA cosas (V2-249).
             "tests/agent_headless/unit/workers/test_what_the_worker_says_reaches_the_screen.py",
+            # V2-457 — un worker que CURA fotos las entrega en el VISOR, no en la hoja: si no, la ruta
+            # rápida las enseña y la lenta las vuelca en una tabla, o sea la misma petición con dos
+            # respuestas según por dónde entre. La frontera es qué ES la respuesta, no si hay imágenes.
+            "tests/agent_headless/unit/workers/test_photos_are_delivered_to_the_viewer.py",
             "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
             # V2-301: el brief se compone EN PARALELO con el spawn — el compositor razonador (15-30 s) corría
