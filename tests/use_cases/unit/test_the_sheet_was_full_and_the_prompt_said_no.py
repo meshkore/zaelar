@@ -81,3 +81,36 @@ def test_y_no_se_le_dice_nada_cuando_no_hubo_ceguera():
     hechos = J.mechanism_facts({"sheet_hidden_from_the_prompt": {"n": 0, "measurable": True, "turns": []}})
     txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
     assert "NO SE LO DIJIMOS" not in txt
+
+
+def test_la_CAUSA_se_lee_del_flujo_y_no_de_las_anomalias():
+    """El aviso del motor es un evento `perf`, no un error, así que la lista de anomalías del auditor —que
+    solo recoge `is_error`— no lo vería NUNCA. Emitir la señal y no traerla al informe habría sido la tercera
+    media faena de la misma noche: el dato existe, y donde se mira no está."""
+    import json
+    ev = {"kind": "perf", "cat": "system",
+          "payload": json.dumps({"kind": "perf", "cat": "system",
+                                 "label": "🧾 hoja del encargo SIN RESOLVER", "nav_task": "6175ca-1"})}
+    got = V.unresolved_errand_sheets([ev, ev])
+    assert got["n"] == 2 and got["tabs"] == {"6175ca-1": 2}
+    assert V.unresolved_errand_sheets([]) == {"n": 0, "tabs": {}}
+
+
+def test_la_causa_va_PEGADA_al_aviso_y_no_en_una_linea_suelta():
+    """Dice lo mismo al juez —no culpes al modelo—, así que una segunda frase repitiéndolo sería ruido."""
+    from tests.use_cases.e2e.agent import judge as J
+    hechos = J.mechanism_facts({"sheet_hidden_from_the_prompt": {"n": 2, "measurable": True,
+                                                                "turns": [{"turn": 6}, {"turn": 7}]},
+                                "unresolved_errand_sheets": {"n": 3, "tabs": {"6175ca-1": 3}}})
+    txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
+    assert "NO SE LO DIJIMOS" in txt and "se sabe POR QUÉ" in txt and "6175ca-1" in txt
+    assert txt.index("NO SE LO DIJIMOS") < txt.index("se sabe POR QUÉ")
+
+
+def test_y_sin_causa_conocida_no_se_inventa_una():
+    from tests.use_cases.e2e.agent import judge as J
+    hechos = J.mechanism_facts({"sheet_hidden_from_the_prompt": {"n": 2, "measurable": True,
+                                                                "turns": [{"turn": 6}, {"turn": 7}]},
+                                "unresolved_errand_sheets": {"n": 0, "tabs": {}}})
+    txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
+    assert "NO SE LO DIJIMOS" in txt and "se sabe POR QUÉ" not in txt

@@ -618,6 +618,13 @@ def mechanism_facts(mech: dict) -> str:
                      f"{', '.join(str(x.get('turn')) for x in _oc.get('turns') or [])}). Si en esos turnos "
                      f"contestó «sigo buscando» o «sin novedades», está repitiendo lo que le pusimos delante: "
                      f"NO lo puntúes como retener ni como negar lo que tenía. El fallo es del sistema.")
+        # LA CAUSA, en la misma línea y no en otra: dice lo mismo al juez —no culpes al modelo— y una segunda
+        # frase repitiéndolo sería ruido. Se añade solo si el motor llegó a avisar de que no supo qué caja era.
+        _sr = mech.get("unresolved_errand_sheets") or {}
+        if _sr.get("n"):
+            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n']} vez/veces el motor no supo qué hoja era la de "
+                         f"este encargo (pestañas: {', '.join(_sr.get('tabs') or {})}). Es una avería nuestra "
+                         f"de fontanería, no una decisión suya.")
     # EL PRECIO EQUIVOCADO, con los dos números. Al juez le llega como HECHO y no como impresión: en
     # `compare-broadband-plans__es` lo cazó a ojo y lo puso de bloqueador nº1, y el informe no tenía con qué
     # respaldarlo ni contradecirlo.

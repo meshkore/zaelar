@@ -911,6 +911,9 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "ground_truth_unreadable": probe_client.read_failures(),
         # WHICH BRAIN ran this round. A score with no subject is not a measurement — see `brains_that_ran`.
         "brains": brains_that_ran(all_events),
+        # …y si el motor supo QUÉ HOJA era la de este encargo. Causa candidata de los turnos ciegos: ver
+        # `unresolved_errand_sheets` y `sheet_hidden_from_the_prompt`.
+        "unresolved_errand_sheets": unresolved_errand_sheets(all_events),
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),
@@ -1515,6 +1518,27 @@ def _price_anchor(title: str) -> str:
         if len(palabra) >= 4 and palabra not in _GENERIC_HEADS and palabra not in _ETIQUETAS:
             return palabra
     return ""
+
+
+def unresolved_errand_sheets(all_events: list[dict]) -> dict:
+    """Cuántas veces el motor NO supo qué hoja era la de este encargo, y de qué pestañas.
+
+    Es la señal que `errand_sheet._sheet_of_tab` emite cuando mueren sus dos caminos (V2-432), y hay que
+    leerla APARTE: es un evento `perf`, no un error, así que la lista de anomalías del auditor —que solo
+    recoge `is_error`— no la vería nunca. Emitir la señal y no traerla al informe habría sido la tercera media
+    faena de la misma noche: el dato existe, y donde se mira no está.
+
+    Es la CAUSA candidata de `sheet_hidden_from_the_prompt`: aquélla cuenta los turnos a los que no se les
+    dijo, ésta dice si fue porque no supimos de qué caja hablábamos. Las dos juntas cierran el diagnóstico.
+    """
+    tabs: dict[str, int] = {}
+    for e in (all_events or []):
+        f = _fields(e)
+        if "SIN RESOLVER" not in str(f.get("label") or e.get("label") or ""):
+            continue
+        t = str(f.get("nav_task") or e.get("nav_task") or "?")
+        tabs[t] = tabs.get(t, 0) + 1
+    return {"n": sum(tabs.values()), "tabs": tabs}
 
 
 def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
