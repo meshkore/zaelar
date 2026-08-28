@@ -14,6 +14,26 @@ operador); se reporta como pendiente. (V2-086: enviar al cluster ya NO pasa por 
 from __future__ import annotations
 
 
+def _primera_clave(widget_id: str, action: str) -> str:
+    """La PRIMERA clave del payload declarado de esta acción, o "" — leída del manifest, no supuesta.
+
+    Es a donde va una referencia en lenguaje natural cuando la acción no declara campo de id: la primera
+    clave es, por convención de todos los manifests, el dato principal de la acción (`url` en `youtube.add`,
+    `item` en `imagenes.select`, `playlist` en `musica.add_to_playlist`). Data-driven a propósito: la
+    alternativa era una tabla de widgets, que es justo lo que este árbol no quiere.
+    """
+    try:
+        from widgets import runtime
+        spec = ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
+        payload = spec.get("payload")
+        if isinstance(payload, dict):
+            for k in payload:
+                return str(k)
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 async def execute(tool_calls: list) -> dict:
     """Despacha las data-ops del turno y devuelve el parte, o dice cuál saltó y POR QUÉ.
 
@@ -56,11 +76,17 @@ async def execute(tool_calls: list) -> dict:
                 _rr = _refs.resolve(wid, act, _ref, pl)
                 if getattr(_rr, "ok", False) and isinstance(_rr.payload, dict):
                     pl = _rr.payload
-                _campo = _refs.id_field_for_action(wid, act) or "item"
-                # Un manifest sin campo de id declarado (p. ej. `imagenes`) hace que `resolve` conteste
-                # «ok, nada que resolver» con el payload intacto — y la referencia se perdería igual que
-                # antes. Si el modelo dio una y no aterrizó en el payload, viaja cruda en el campo del id:
-                # el resolver PROPIO del widget decide, y su negativa enseña el menú.
+                # DÓNDE cae la referencia lo dice el MANIFEST, no una clave inventada (V2-467). Primero el
+                # campo de id declarado; si la acción no tiene ninguno, su PRIMERA clave de payload, que es
+                # la que el widget lee de verdad. Poner un literal `"item"` fue un defecto medido: el
+                # operador pegó dos enlaces de YouTube, el modelo llamó a `add` con la referencia, y el
+                # payload salió `{"item": "<enlaces>"}` — `youtube.add` lee `url`, así que contestó «dime
+                # qué vídeo añado» con los dos enlaces delante. Con `imagenes.select` no se vio porque su
+                # clave se llama, justamente, `item`.
+                _campo = _refs.id_field_for_action(wid, act) or _primera_clave(wid, act) or "item"
+                # Un manifest sin campo de id declarado hace que `resolve` conteste «ok, nada que resolver»
+                # con el payload intacto — y la referencia se perdería. Si el modelo dio una y no aterrizó,
+                # viaja cruda en esa clave: el resolver PROPIO del widget decide, y su negativa enseña el menú.
                 if not str(pl.get(_campo) or "").strip():
                     pl = {**pl, _campo: _ref}
             except Exception:  # noqa: BLE001

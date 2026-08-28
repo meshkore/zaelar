@@ -171,3 +171,53 @@ def test_el_item_de_la_tool_llega_al_widget(monkeypatch):
     # Resuelto por `refs` a un id real si hay items en pantalla; si no, el texto crudo viaja en el campo
     # del id — lo que NO puede pasar es que el widget reciba un select vacío.
     assert any(str(v).strip() for k, v in (visto.get("payload") or {}).items()), visto
+
+
+# ── V2-467 — la referencia cae donde el MANIFEST dice, no en una clave inventada ────────────────────────
+def test_la_referencia_aterriza_en_la_clave_que_el_widget_LEE(monkeypatch):
+    """Defecto medido (2026-08-28, `build-a-video-playlist-from-links`): el operador pegó dos enlaces de
+    YouTube, el modelo llamó a `add` con la referencia y el payload salió `{"item": "<enlaces>"}` — pero
+    `youtube.add` lee `url`, así que contestó «dime qué vídeo añado» con los dos enlaces delante. Con
+    `imagenes.select` no se había visto porque su clave se llama, justamente, `item`.
+    """
+    import asyncio
+    visto = {}
+
+    async def _brain_action(wid, action, payload):
+        visto.update({"wid": wid, "action": action, "payload": payload})
+        return {"ok": True}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    from nucleo.flash import widget_data_turn as W
+    enlaces = "https://www.youtube.com/watch?v=dQw4w9WgXcQ y https://youtu.be/9bZkp7q19f0"
+    asyncio.run(W.execute([{"name": "widget_data",
+                            "args": {"widget_id": "youtube", "action": "add", "item": enlaces}}]))
+    assert visto["payload"].get("url") == enlaces, f"cayó en la clave equivocada: {visto['payload']}"
+    assert "item" not in visto["payload"], "«item» no existe para esta acción — el widget no lo lee"
+
+
+def test_la_clave_se_LEE_del_manifest_y_no_de_una_tabla():
+    """Data-driven a propósito: la alternativa era una tabla por widget, que es justo lo que este árbol no
+    quiere. La primera clave del payload es, por convención de todos los manifests, el dato principal."""
+    from nucleo.flash.widget_data_turn import _primera_clave
+    assert _primera_clave("youtube", "add") == "url"
+    assert _primera_clave("imagenes", "select") == "item"
+    assert _primera_clave("musica", "add_to_playlist") == "playlist"
+    assert _primera_clave("noexiste", "nada") == ""
+
+
+def test_un_payload_que_YA_trae_el_dato_no_se_pisa(monkeypatch):
+    """La mitad de sensibilidad: si el modelo puso bien el payload, la referencia no puede sobrescribirlo."""
+    import asyncio
+    visto = {}
+
+    async def _brain_action(wid, action, payload):
+        visto.update(payload)
+        return {"ok": True}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    from nucleo.flash import widget_data_turn as W
+    asyncio.run(W.execute([{"name": "widget_data",
+                            "args": {"widget_id": "youtube", "action": "add",
+                                     "item": "algo suelto", "payload": {"url": "https://youtu.be/ok"}}}]))
+    assert visto.get("url") == "https://youtu.be/ok"
