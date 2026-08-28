@@ -746,34 +746,73 @@ _GENERIC_HEADS = {"monitor", "monitores", "guitarra", "guitarras", "bicicleta", 
                   "hotel", "hoteles", "vuelo", "vuelos", "acustica", "electrica", "gaming", "nuevo", "nueva"}
 
 
-def media_list() -> dict:
-    """Lo que hay en la LISTA del reproductor al acabar la ronda — la entrega de un encargo multimedia.
+def _media_rows(wid: str, got: dict) -> tuple:
+    """The items a media widget is HOLDING, read in that widget's own shape. Returns (rows, lists).
 
-    V2-402 fijó que el contenido que se VE u OYE se canaliza por su widget dedicado —buscarlo incluido— y que
-    la hoja de resultados es para INFORMACIÓN. El arnés nunca se enteró: sigue midiendo la entrega contra
-    `results_sheet`, que para estos casos está vacía POR DISEÑO.
+    Each player stores its content differently and reading them as if they were the same is how a working
+    round gets reported as an empty one. `youtube` keeps a flat queue in `list`; `musica` keeps NAMED
+    playlists in `playlists[]`, each with its own `tracks[]`, and has no `list` key at all.
 
-    Medido en `find-videos-on-a-topic-no-ai-slop` (2026-08-28): `widget_ops` registra `youtube.search ×4`, o
-    sea que el enrutado de V2-402 funcionó, y el informe publicó `results_sheet: 0 items`. El juez concluyó
-    que zaelar «anunció 2 vídeos sin respaldo en el sistema» y puntuó resultado 1. La afirmación podía ser
-    cierta y el informe no tenía dónde mirarlo. Afecta a TODA la familia multimedia —vídeo y música— así que
-    no es una ronda: es una clase de escenario midiéndose contra la superficie que no usa.
+    MEASURED, on `play-music-and-build-playlist` (2026-08-28 21:27). The engine did the whole job: the model
+    called `add_to_playlist` twice, the store finished holding `playlists=[{name: "Curro", tracks: [the track
+    that was playing]}]` and `yt.videoId` live with `paused: false` — both halves of the success check. The
+    reader asked `musica` for `list`, got nothing, and published `n_items: 0`; the judge read that and wrote
+    "hallucination of saved state, the playlist is EMPTY", scoring resultado 2 and mecanismo 2. Nothing in the
+    product was wrong. A field read at the wrong level does not fail loudly — it INVENTS a fact, and the
+    invented one reads exactly as credible as a true one.
 
-    Se leen los dos reproductores porque los dos tienen lista desde V2-366, y se reportan APARTE: mezclarlos
-    con la hoja borraría la frontera que V2-402 estableció, que es justo lo que hay que poder comprobar.
+    `lists` travels apart from `rows` because for music the NAME is half the request ("una lista que se llame
+    Curro"): a report that only counts tracks cannot tell a right-named list from a wrong-named one.
     """
-    out: dict = {"read": False, "widgets": {}, "n_items": 0, "titles": []}
+    got = got if isinstance(got, dict) else {}
+    listas: list = []
+    if isinstance(got.get("playlists"), list):
+        filas: list = []
+        for pl in got["playlists"]:
+            if not isinstance(pl, dict):
+                continue
+            tracks = [t for t in (pl.get("tracks") or []) if isinstance(t, dict)]
+            listas.append({"name": str(pl.get("name") or pl.get("id") or "").strip(), "n": len(tracks)})
+            filas.extend(tracks)
+        return filas, listas
+    filas = [i for i in (got.get("list") or []) if isinstance(i, dict)]
+    nombre = str(got.get("list_name") or "").strip()
+    if nombre:
+        listas.append({"name": nombre, "n": len(filas)})
+    return filas, listas
+
+
+def media_list() -> dict:
+    """What the PLAYERS are holding when the round ends — the delivery surface of a media errand.
+
+    V2-402 settled that anything WATCHED or LISTENED to is channelled through its own widget, searching
+    included, and that the results sheet is for INFORMATION. The harness never found out: it kept measuring
+    delivery against `results_sheet`, which for these cases is empty BY DESIGN.
+
+    Measured on `find-videos-on-a-topic-no-ai-slop` (2026-08-28): `widget_ops` recorded `youtube.search x4`,
+    so the V2-402 routing worked, and the report published `results_sheet: 0 items`. The judge concluded that
+    zaelar "announced 2 videos with nothing behind them" and scored resultado 1. The claim could have been
+    true and the report had nowhere to check it. It affects the WHOLE media family — video and music — so it
+    is not one round: it is a class of scenario being measured against the surface it does not use.
+
+    Both players are read because both have had a list since V2-366, and they are reported APART: folding
+    them into the sheet would erase the boundary V2-402 drew, which is precisely what has to stay checkable.
+    Each is read in ITS OWN shape — see `_media_rows`, and the round that cost.
+    """
+    out: dict = {"read": False, "widgets": {}, "n_items": 0, "titles": [], "lists": []}
     for wid in ("youtube", "musica"):
         got = probe_client.widget_data(wid, "")
         if got is None:
             continue
         out["read"] = True
-        filas = [i for i in ((got or {}).get("list") or []) if isinstance(i, dict)]
+        filas, listas = _media_rows(wid, got)
         titulos = [str(i.get("title") or "").strip() for i in filas]
         titulos = [t for t in titulos if t]
-        out["widgets"][wid] = {"n": len(filas), "n_named": len(titulos), "titles": titulos[:8]}
+        out["widgets"][wid] = {"n": len(filas), "n_named": len(titulos), "titles": titulos[:8],
+                               "lists": listas}
         out["n_items"] += len(filas)
         out["titles"].extend(titulos[:8])
+        out["lists"].extend({**l, "widget": wid} for l in listas)
     out["titles"] = out["titles"][:8]
     return out
 

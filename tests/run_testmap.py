@@ -2202,6 +2202,10 @@ DOMAINS: list[dict] = [
                                   "de mudarla",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},
+        {"id": "10.120", "title": "Cada reproductor guarda su lista a SU manera — leerlos igual inventa una ronda "
+                                  "vacía",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_each_player_stores_its_list_its_own_way.py"]},
         {"id": "10.115", "title": "El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene dos causas",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_el_recall_que_no_llego_se_cuenta.py"]},

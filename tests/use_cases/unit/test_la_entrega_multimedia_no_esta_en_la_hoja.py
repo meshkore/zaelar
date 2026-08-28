@@ -54,11 +54,17 @@ def test_el_lector_distingue_VACIO_de_NADIE_MIRO(monkeypatch):
 
 
 def test_el_lector_cuenta_las_filas_de_los_DOS_reproductores():
-    """Los dos tienen lista desde V2-366; mirar solo uno deja media familia sin medir."""
+    """Los dos tienen lista desde V2-366; mirar solo uno deja media familia sin medir.
+
+    Cada uno con SU forma real (V2-468): este test daba `{"list": …}` a los dos, y `musica` no tiene esa
+    clave — pasaba en verde certificando una ficción, que es exactamente cómo el defecto llegó a producción.
+    """
     from tests.use_cases.e2e.agent import probe_client
     orig = probe_client.widget_data
     try:
-        probe_client.widget_data = lambda w, q="": {"list": [{"title": f"{w}-1"}, {"title": f"{w}-2"}]}
+        probe_client.widget_data = lambda w, q="": (
+            {"list": [{"title": "yt-1"}, {"title": "yt-2"}]} if w == "youtube" else
+            {"playlists": [{"name": "Curro", "tracks": [{"title": "m-1"}, {"title": "m-2"}]}]})
         out = verify.media_list()
         assert out["n_items"] == 4 and set(out["widgets"]) == {"youtube", "musica"}
     finally:

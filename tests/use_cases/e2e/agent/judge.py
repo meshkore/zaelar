@@ -644,11 +644,18 @@ def mechanism_facts(mech: dict) -> str:
     _ml = mech.get("media_list") or {}
     if _ml.get("read") and _ml.get("n_items"):
         _det = ", ".join(f"{k} ×{v.get('n')}" for k, v in (_ml.get("widgets") or {}).items() if v.get("n"))
+        _nombres = ", ".join(f"«{l.get('name')}» ({l.get('n')})" for l in (_ml.get("lists") or [])
+                             if str(l.get("name") or "").strip())
         lines.append(f"· ▶️ LISTA DEL REPRODUCTOR: {_ml['n_items']} elemento(s) ({_det}) — p.ej. "
                      f"«{'», «'.join((_ml.get('titles') or [])[:3])}». Para un encargo de VÍDEO o MÚSICA la "
                      f"entrega es ÉSTA, no la hoja de resultados (V2-402: lo que se ve u oye va a su widget; "
                      f"la hoja es para información). Una hoja vacía en un caso así es lo ESPERADO y NO prueba "
                      f"que no entregara nada — compruébalo aquí antes de puntuar resultado.")
+        if _nombres:
+            # El NOMBRE es la mitad del encargo cuando el operador lo dicta («una lista que se llame Curro»):
+            # sin él, un contador de canciones no distingue la lista correcta de otra cualquiera.
+            lines.append(f"· ▶️ LISTAS CON NOMBRE: {_nombres}. Si el operador pidió una lista llamada de una "
+                         f"forma concreta, ÉSTE es el sitio donde se comprueba que existe y qué tiene dentro.")
     elif _ml.get("read"):
         lines.append("· ▶️ LISTA DEL REPRODUCTOR: VACÍA. En un encargo de vídeo o música esto sí es no haber "
                      "entregado — es la superficie donde tenía que aparecer (V2-402).")
