@@ -103,6 +103,9 @@ def spoken_for(parte: dict, ack: str) -> str:
     parte = parte if isinstance(parte, dict) else {}
     if parte.get("executed") != "play_video":
         return ack
+    # THE ENGINE'S LANGUAGE, not Spanish (V2-464): same hole its imagenes sibling was caught with live on
+    # the US agent — every canned line here was Spanish on an English-only engine. One read decides the set.
+    en = _lang() == "en"
     if parte.get("accion") == "list":
         # A search is NAMED like the single video is: how many and which, verifiable at a glance (V2-057) —
         # and it invites a choice, because choosing is exactly what asking to SEARCH (vs to PLAY) means.
@@ -110,12 +113,31 @@ def spoken_for(parte: dict, ack: str) -> str:
             added = [str(t) for t in (parte.get("added") or []) if str(t).strip()]
             if added:
                 nombres = " · ".join(f"«{t}»" for t in added[:3])
-                return f"Te he puesto {len(added)} vídeos en la lista: {nombres}… dime cuál pongo."
-            return "Ya estaban todos en la lista — dime cuál pongo."
+                return (f"I've queued {len(added)} videos: {nombres}… tell me which one to play."
+                        if en else
+                        f"Te he puesto {len(added)} vídeos en la lista: {nombres}… dime cuál pongo.")
+            return ("They were all in the list already — tell me which one to play." if en
+                    else "Ya estaban todos en la lista — dime cuál pongo.")
         msg = str(parte.get("message") or "").strip()
+        if en:
+            return "I couldn't search for them: " + (msg or "I found no videos of that.")
         return "No he podido buscarlos: " + (msg or "no encontré vídeos de eso.")
     if parte.get("ok"):
         t = str(parte.get("title") or "").strip()
-        return f"Ya lo tienes en pantalla: «{t}»." if t else ack
+        if not t:
+            return ack
+        return f"It's up on your screen: «{t}»." if en else f"Ya lo tienes en pantalla: «{t}»."
     msg = str(parte.get("message") or "").strip()
+    if en:
+        return "I couldn't play it: " + (msg or "I found no such video.")
     return "No he podido ponerlo: " + (msg or "no encontré ese vídeo.")
+
+
+def _lang() -> str:
+    """`en` or `es` — the engine's own language (monolingual per process, `voice/engine/core/langs`)."""
+    try:
+        from voice.engine.core import langs
+        code = (langs.current_code() or "es").lower()
+        return "en" if code.startswith("en") else "es"
+    except Exception:  # noqa: BLE001
+        return "es"

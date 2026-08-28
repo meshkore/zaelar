@@ -101,9 +101,11 @@ def test_si_no_cargo_lo_dice_en_vez_de_dar_por_bueno():
     assert "no" in dicho.lower()
 
 
-def test_un_bloqueo_del_buscador_no_es_que_no_haya_fotos():
+def test_un_bloqueo_del_buscador_no_es_que_no_haya_fotos(monkeypatch):
     """Piden acciones distintas: reintentar, frente a buscar otra cosa. Confundirlas manda al operador a
-    cambiar una consulta que estaba bien."""
+    cambiar una consulta que estaba bien. (Idioma FIJADO: desde V2-464 las frases siguen al motor, y el
+    entorno de la suite resuelve inglés — este caso mide el CONTENIDO, no el idioma.)"""
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)
     dicho = image_turn.spoken_for({"executed": "show_images", "ok": False, "blocked": True}, "ack")
     assert "bloque" in dicho.lower()
 
@@ -179,3 +181,25 @@ def test_el_juez_ve_un_widget_escrito_pero_nunca_abierto():
     src = (_pl.Path(__file__).resolve().parents[4] / "tests" / "use_cases" / "e2e" / "agent"
            / "judge.py").read_text(encoding="utf-8")
     assert "ESCRITOS PERO NUNCA ABIERTOS" in src
+
+
+# ── V2-464 — la boca habla el idioma del MOTOR ──────────────────────────────────────────────────────────
+def test_en_el_motor_ingles_las_frases_salen_en_ingles(monkeypatch):
+    """Medido en vivo en la primera ronda del agente US: el tester en inglés, zaelar contestando «Te he
+    puesto 12 fotos en pantalla…» toda la conversación. El motor es monolingüe por proceso — una lectura
+    decide el juego entero de frases."""
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en-US", raising=False)
+    dicho = image_turn.spoken_for(
+        {"executed": "show_images", "ok": True, "count": 12, "sites": ["www.ferrari.com"]}, "ack")
+    assert "photos on screen" in dicho and "ferrari.com" in dicho
+    assert "pantalla" not in dicho
+    fallo = image_turn.spoken_for({"executed": "show_images", "ok": False, "message": "x"}, "ack")
+    assert fallo.startswith("I couldn't")
+
+
+def test_y_el_reproductor_de_video_igual(monkeypatch):
+    """El hermano llevaba el MISMO agujero desde V2-383 sin que ninguna ronda US de vídeo lo destapara."""
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
+    from nucleo.flash import video_turn
+    dicho = video_turn.spoken_for({"executed": "play_video", "ok": True, "title": "Some Doc"}, "ack")
+    assert dicho == "It's up on your screen: «Some Doc»."

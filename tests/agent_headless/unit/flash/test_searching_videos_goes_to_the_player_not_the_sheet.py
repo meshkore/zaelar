@@ -71,14 +71,18 @@ def test_a_play_request_still_loads_one_video(rail):
     assert parte.get("accion") != "list"
 
 
-def test_the_mouth_names_the_candidates_and_invites_a_choice(rail):
+def test_the_mouth_names_the_candidates_and_invites_a_choice(rail, monkeypatch):
+    # V2-464: las frases siguen al MOTOR y el entorno de la suite resuelve inglés — se fija el castellano
+    # porque este caso mide el CONTENIDO de la frase, no su idioma.
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)
     parte = asyncio.run(VT.execute("vídeos de paella", "list"))
     spoken = VT.spoken_for(parte, "Hecho.")
     assert "3" in spoken and "Paella de marisco" in spoken and "cuál" in spoken
     assert spoken != "Hecho.", "a search must never collapse into the canned ack"
 
 
-def test_a_failed_search_is_said_not_acked(rail):
+def test_a_failed_search_is_said_not_acked(rail, monkeypatch):
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464
     rail["_res"] = {"ok": False, "message": "No encontré vídeos de eso."}
     parte = asyncio.run(VT.execute("zzz", "list"))
     spoken = VT.spoken_for(parte, "Hecho.")

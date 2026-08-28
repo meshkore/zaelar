@@ -220,7 +220,8 @@ def test_si_CARGA_se_NOMBRA_el_video():
     assert "Dune: Part Two" in salida and "Hecho." not in salida
 
 
-def test_si_NO_carga_se_DICE_en_vez_de_Hecho():
+def test_si_NO_carga_se_DICE_en_vez_de_Hecho(monkeypatch):
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: frases siguen al motor
     """El corazón del defecto: una frase de entrega sobre una caja vacía. Quinta vez (V2-176, V2-209, V2-377,
     V2-380)."""
     salida = _boca({"executed": "play_video", "ok": False, "message": "No encontré ese vídeo."})
@@ -228,7 +229,8 @@ def test_si_NO_carga_se_DICE_en_vez_de_Hecho():
     assert "Hecho." not in salida
 
 
-def test_un_fallo_SIN_motivo_no_se_queda_mudo():
+def test_un_fallo_SIN_motivo_no_se_queda_mudo(monkeypatch):
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: frases siguen al motor
     assert "no encontré ese vídeo" in _boca({"executed": "play_video", "ok": False})
 
 

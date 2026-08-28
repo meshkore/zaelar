@@ -149,17 +149,38 @@ def spoken_for(parte: dict, ack: str) -> str:
     parte = parte if isinstance(parte, dict) else {}
     if parte.get("executed") != "show_images":
         return ack
+    # THE ENGINE'S LANGUAGE, not Spanish (V2-464). Measured live on the US lab agent, first round: every
+    # canned line here came out as «Te he puesto 12 fotos en pantalla…» on an English-only engine — the
+    # tester answered in English, zaelar in Spanish, for the whole conversation. Same resolution as
+    # `music_flow._lang()`: the engine is monolingual per process, so one read decides the set.
+    en = _lang() == "en"
     if parte.get("ok"):
         n = int(parte.get("count") or 0)
         sites = [s for s in (parte.get("sites") or []) if s]
-        de = f" de {', '.join(sites[:2])}" if sites else ""
+        de = (f" from {', '.join(sites[:2])}" if en else f" de {', '.join(sites[:2])}") if sites else ""
         if n == 1:
-            return f"Ya la tienes en pantalla{de}."
-        return f"Te he puesto {n} fotos en pantalla{de} — dime si quieres ver alguna en concreto."
+            return f"It's up on your screen{de}." if en else f"Ya la tienes en pantalla{de}."
+        return (f"I've put {n} photos on screen{de} — tell me if you want a closer look at any of them."
+                if en else
+                f"Te he puesto {n} fotos en pantalla{de} — dime si quieres ver alguna en concreto.")
     if parte.get("blocked"):
-        return "No he podido buscar las fotos ahora mismo: el buscador me ha bloqueado. Lo reintento si quieres."
+        return ("I couldn't search for photos right now: the search engine blocked me. I can retry if you want."
+                if en else
+                "No he podido buscar las fotos ahora mismo: el buscador me ha bloqueado. Lo reintento si quieres.")
     msg = str(parte.get("message") or parte.get("execute_error") or "").strip()
+    if en:
+        return "I couldn't show them: " + (msg or "I found no photos of that.")
     return "No he podido enseñártelas: " + (msg or "no encontré fotos de eso.")
+
+
+def _lang() -> str:
+    """`en` or `es` — the engine's own language (monolingual per process, `voice/engine/core/langs`)."""
+    try:
+        from voice.engine.core import langs
+        code = (langs.current_code() or "es").lower()
+        return "en" if code.startswith("en") else "es"
+    except Exception:  # noqa: BLE001
+        return "es"
 
 
 async def voice_turn(req: dict, *, silent: bool) -> "tuple[dict, str]":
