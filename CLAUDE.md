@@ -5138,7 +5138,13 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   el requisito para tocarlo con el operador durmiendo: equivocarse en el enrutado de ESCRITURA manda los
   resultados a una caja que nadie mira, que es justo el defecto que se arregla. Nodo 4.72, cuatro desarmes —
   y uno de ellos enseñó que un `.pyc` rancio puede sobrevivir a la restauración y dejar el código bueno
-  comportándose como el defecto.
+  comportándose como el defecto. **⚠️ La CAUSA no se sostiene (06:38)**: con Z.ai recuperando cuota, la señal
+  de caja vacía debía caer si venía de los relevos por saldo, y no cae — 4 de 15 rondas sin cuota frente a 2 de
+  6 con ella. La señal es real y del motor; el ARREGLO es defensivo y no puede hacer daño (mira una segunda
+  caja solo si la primera no tiene lo que busca, y no toca a quien escribe); la causa que escribí venía de leer
+  el caso que `nucleo/sheets.py` documenta del 2026-08-23 y **no de evidencia en estas rondas**. Queda abierta.
+  Segunda historia causal de la noche que tumba mi propia medición, y las dos por comprobar una consecuencia
+  que la teoría obligaba a tener.
 
 - **El puente del worker habla el vocabulario de widgets (V2-433, 2026-08-28)**: la anomalía llegó ya con el
   comando dentro (V2-429) — «ERROR: el widget «music» no existe · lo que se intentó: …»— y la carpeta se llama
