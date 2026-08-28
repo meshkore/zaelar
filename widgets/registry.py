@@ -23,7 +23,8 @@ from . import runtime, system_surfaces
 # `origin:"user"` on what it creates). Anything not here and without origin = "user".
 # V2-086: `cluster-registro` left this list when the widget was retired — the NETWORK is a NATIVE surface ("Clusters"
 # tab in ChatWall), not a user widget: it is system infrastructure, not something the operator creates.
-_BUILTINS = {"agenda", "clock", "timer", "search", "results", "navegador", "mensajeria", "musica", "youtube"}
+_BUILTINS = {"agenda", "clock", "timer", "search", "results", "navegador", "mensajeria", "musica", "youtube",
+             "imagenes"}
 
 
 def origin_of(w: dict) -> str:

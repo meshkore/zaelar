@@ -303,7 +303,7 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
         if not ran:
             _discard(wid)                              # a killed/timed-out agent may leave a half-written folder
             return {"ok": False, "id": wid, "error": err}
-        ok, verr = _validate(wid)
+        ok, verr = _validate(wid, stamp_origin=True)
         if not ok:
             _discard(wid)                              # never leave debris in the catalog — delete the bad folder
             return {"ok": False, "id": wid, "error": verr}
@@ -349,7 +349,7 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
     try:
         with _lock:
             ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip()), token=token)
-        ok, verr = (_validate(wid) if ran else (False, err))
+        ok, verr = (_validate(wid, stamp_origin=True) if ran else (False, err))
         if not ok and bak:                              # bad edit → roll back to the version that worked
             shutil.rmtree(d, ignore_errors=True)
             shutil.move(os.path.join(bak, wid), d)

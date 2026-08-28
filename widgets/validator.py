@@ -273,7 +273,7 @@ def _scan_data_py(src: str, wid: str = "") -> str | None:
     return None
 
 
-def _validate(wid: str) -> tuple[bool, str]:
+def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
     """The widget must meet the contract before we trust it in the catalog."""
     d = paths.dir_for(wid) or paths.new_dir(wid)
     man_p, js_p = os.path.join(d, "manifest.json"), os.path.join(d, "widget.js")
@@ -296,13 +296,20 @@ def _validate(wid: str) -> tuple[bool, str]:
                        f"the widget would be unidentifiable; use distinctive keywords")
     if coll:
         logger.warning(f"widget-agent: '{wid}' keyword collisions (identify() will disambiguate): {coll}")
-    # Folder name is authoritative, and this widget is created by the user (V2-083), so stamp origin:"user" so the
-    # Config Widgets tab lists it as user-owned. Built-ins use the curated registry._BUILTINS list.
+    # Folder name is authoritative. `origin:"user"` is stamped ONLY when the caller is the generator, i.e. when
+    # this widget was JUST created by the operator (V2-083) — that is what the Config Widgets tab reads for its
+    # "de serie"/"tuyo" badge, and built-ins resolve through the curated `registry._BUILTINS` list instead.
+    #
+    # ⚠️ `stamp_origin` exists because this same validator is ALSO the contract check `make test-widgets` runs over
+    # the WHOLE catalog, and there the stamp is plain wrong: measured 2026-08-28, one harness run relabelled 15
+    # SHIPPED widgets — `musica`, `youtube`, `navegador`, `results` among them — as user-created, `results` losing
+    # an explicit `origin:"builtin"` it already had. Nothing failed; the manifests were simply rewritten on disk,
+    # waiting for someone to commit them. A check that MUTATES what it is checking has to be told when it may.
     _dirty = False
     if man.get("id") != wid:
         man["id"] = wid
         _dirty = True
-    if man.get("origin") != "user":
+    if stamp_origin and man.get("origin") != "user":
         man["origin"] = "user"
         _dirty = True
     if _dirty:
