@@ -5133,7 +5133,13 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `live_blocks.py` cruzó el umbral de fichero-dios y el trinquete pidió trocear, con razón: resolver la caja
   del encargo es asunto propio —dos caminos, tres llamantes, y cuando falla falla MUDO— y vive ahora en
   `nucleo/flash/errand_sheet.py`, con un test que exige que las dos referencias sean el MISMO objeto porque
-  dos copias dejarían el aviso en un sitio y el prompt componiéndose con el otro.
+  dos copias dejarían el aviso en un sitio y el prompt componiéndose con el otro. **Verificado en vivo a los 30
+  minutos** en `search-buy-guitar__es`: el juez escribió «el bloqueador nº1 es que EL SISTEMA no mostró a
+  zaelar las filas durante 6 turnos seguidos, obligándole a repetir "sigo buscando" cuando ya había 15
+  candidatos reales» —culpa atribuida a quien la tiene— y la ronda **pasó con 4**, cuando antes se habría
+  archivado como «retiene lo que tiene». **Y la sospechosa quedó DESCARTADA**: `unresolved_errand_sheets: 0`,
+  la caja sí se resolvía. Queda por saber qué hay entre esa resolución y la cara de resultados; ahora hay dos
+  señales en cada informe para averiguarlo sin cruzar timestamps a mano.
 
 - **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
   concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
