@@ -13,6 +13,41 @@ from nucleo.flash.probe import _session, _SESSIONS, run_turn
 router = APIRouter()
 
 
+def _wall(role: str, text: str) -> None:
+    """Put one line of THIS conversation on the operator's chat wall, live.
+
+    Operator's rule (2026-08-28), watching an unattended round drive the agent while the chat stayed empty:
+    «si se opera por voz se transcribe al chat, y si se opera por chat se ve el texto, tanto si se hace
+    manualmente sobre el widget del chat como si estamos manejando la conversación a través de la API». One
+    conversation, one place to read it, whatever door it came in through.
+
+    It was missing because this channel was built as a HEADLESS test surface (V2-032): nobody was meant to be
+    looking. That stopped being true the day the lab agents got a fixed port so the operator could watch a
+    round happen — and an agent working silently is indistinguishable from an agent stuck.
+
+    `wall` in the extra is the marker the frontend keys on (`services/sse.js`), NOT the label: a substring
+    match on a label is a contract nobody can see from either side. It rides on `kind="brain"` because that
+    is already a family the wall subscribes to, so this adds a reader, not a taxonomy (the observability
+    families are total and enforced by `test_observer_categories.py`).
+
+    Deliberately NOT emitted as `kind="transcript"`, which is the other event the wall paints: that one also
+    feeds the frontend's voice-command fast path (`handleWidgetVoice`), so a probe turn that says "cierra la
+    agenda" would be executed TWICE — once by the channel that already executes actions, once by the browser.
+    Showing a conversation must never change what it does.
+
+    Never fatal: the wall is a window onto the turn, not part of it.
+    """
+    if not (text or "").strip():
+        return
+    try:
+        from voice.observer import emit
+        emit("brain", "💬 chat (canal de texto)", text=text[:4000],
+             role="user" if role == "user" else "assistant",
+             extra={"cat": "flash", "wall": "you" if role == "user" else "agent"})
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @router.post("/api/flash/say")
 async def say(text: str = Body(..., embed=True), session: str = Body("default", embed=True),
               ingest: bool = Body(True, embed=True), prompt: bool = Body(False, embed=True),
@@ -38,7 +73,15 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
         _lang_detect.ensure_for_text(text)
     except Exception:
         pass
+    # AL MURO, antes de nada: el turno puede tardar segundos y el operador tiene que ver ya lo que se ha
+    # pedido. Si se pintara al final, la pantalla estaría muda justo mientras el agente trabaja — que es el
+    # rato en el que se mira.
+    _wall("user", text)
     res = await run_turn(text, sid=session, ingest=ingest, model=model, execute=execute)
+    # `reply` es una LISTA de frases (el turno puede decir varias). Unirlas y no `str()`-earlas: un `str()`
+    # sobre la lista pintaría en el muro `['Te las busco ahora mismo.']`, corchetes y comillas incluidos.
+    _reply = res.get("reply")
+    _wall("agent", " ".join(str(x) for x in _reply) if isinstance(_reply, list) else str(_reply or ""))
     if prompt and res.get("ok"):
         # opcional: incluye el prompt compuesto (para inspeccionar qué estado/memoria vio el modelo)
         # Misma guarda que el turno: esto corre en el loop del server, así que un recall lento aquí congela el

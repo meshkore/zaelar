@@ -157,6 +157,17 @@ export function openSSE(desktop) {
       // El LATIDO propio del server (nucleo/loop.py, puenteado en server/__init__.py) → un beat del ECG del orbe.
       // En reposo marca el ritmo real (solo revisando crons/procesos); las tareas y turnos lo aceleran (Ecg.js).
       store.pushPulse({ kind: "tick", n: d.n });
+    } else if (d.kind === "brain" && d.wall) {
+      // V2-461: el canal de TEXTO (probe / `POST /api/flash/say`) también se VE. Es la misma conversación,
+      // así que va al mismo sitio: por voz se transcribe al muro, por el widget de chat se escribe en él, y
+      // por la API — que es como se conducen las rondas del plató — hasta hoy no aparecía en ninguna parte.
+      // El operador miraba trabajar al agente con el chat en blanco, que es indistinguible de un agente
+      // colgado. Se distingue por `d.wall` y no por el texto del label: una comparación de subcadenas es un
+      // contrato que no se ve desde ninguno de los dos lados.
+      // NO llega como `transcript` A PROPÓSITO (ver `nucleo/flash/probe_api._wall`): esa rama alimenta además
+      // el atajo de órdenes por voz, y un turno del probe que diga «cierra la agenda» se ejecutaría DOS veces.
+      if (d.wall === "you") store.pushChat({ role: "you", text: d.text });
+      else store.pushAgentChat(d.text);
     } else if (d.kind === "brain" && /reply/.test(String(d.label || ""))) {       // un turno del FlashBrain se cerró
       store.pushPulse({ kind: "turn" });                                          // → pico QRS más alto en el ECG
       // …y el TEXTO al muro de chat YA (V2-116). Antes el muro solo se alimentaba del `transcript` de LiveKit, que

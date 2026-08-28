@@ -5143,6 +5143,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **Un MATIZ sobre una foto no es un encargo · y la conversación por API se VE (V2-461, 2026-08-28)**: en la
+  primera corrida del caso con el operador delante, el turno 1 puso 12 fotos en el visor (✅) y «una de esas,
+  la que mejor se vea, **pero que sea el Amalfi, no otro Ferrari**» no llamó a NINGUNA tool —prometió y
+  calló— y al turno siguiente escaló a un Brain Worker. **El defecto estaba escrito en la descripción de la
+  propia tool, puesta ese mismo día**: «escala … o mejores si las que ya enseñaste NO LE VALEN» — y ese
+  matiz ES eso, así que el modelo obedeció. Dos cosas que no hay que confundir: **la hoja genérica de
+  Resultados no la eligió el worker, la abre la ESCALADA** (esa tarjeta es la ficha de la tarea), así que el
+  destino de la entrega no era el problema; y el turno mudo lo causó **no tener dicho a dónde va «una de
+  esas»** —el mecanismo (`widget_data` sobre las acciones del visor) ya existía—. Regla del operador: «en
+  realidad sólo estamos pidiendo una imagen» → un matiz afina la `query` y se vuelve a llamar YA, «una de
+  esas» es del widget, y se escala SOLO si pide sacarlas de UNA web concreta. Sin subir el techo del
+  catálogo (21.191/21.200), compactando la tool tres veces. Nodo 4.84. · **Y el muro de chat**: el canal de
+  texto (probe / `POST /api/flash/say`) no se veía en pantalla porque nació HEADLESS (V2-032), y eso dejó de
+  ser verdad el día que el plató tuvo puerto fijo para que el operador mirara — un agente que trabaja con el
+  chat en blanco es indistinguible de uno colgado. Se marca con un CAMPO (`wall`), no con el label, y **NO
+  como `transcript`**: esa rama alimenta el atajo de órdenes por voz del navegador y un turno que dijera
+  «cierra la agenda» se ejecutaría dos veces. Nodo 4.85, las DOS mitades (motor + navegador).
+
 - **Un agente del plató arranca con la sesión EN BLANCO (V2-460, 2026-08-28)**: el operador abrió el 43921
   recién levantado y lo primero que vio fue la hoja de un encargo de coches de alquiler de días antes. El
   runner ya limpiaba antes de CADA caso desde el 2026-08-21 (misma queja, otro camino); faltaba el arranque a

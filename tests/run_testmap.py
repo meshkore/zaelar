@@ -569,6 +569,21 @@ DOMAINS: list[dict] = [
         # Y el visor RENDERIZADO, que es otro nodo porque mide otra cosa: el defecto que lo estrenó
         # (`flechas: 0` con la imagen caída) no da un error, no rompe ningún test de fuente y solo se ve
         # pintándolo — la lección del 4.19, en otro widget.
+        # V2-461, medido en la PRIMERA corrida del caso contra el agente ES: el turno 1 puso 12 fotos en el
+        # visor, y «una de esas, que sea el Amalfi y no otro Ferrari» no llamó a NINGUNA tool — el modelo
+        # prometió y calló, y al turno siguiente escaló. El defecto estaba escrito en la propia descripción de
+        # la tool («escala … o mejores si las que ya enseñaste no le valen»), puesta ese mismo día.
+        {"id": "4.84", "title": "Un MATIZ sobre una foto afina la consulta — no convierte ver una foto en un "
+                                "encargo, y «una de esas» es del visor",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_photo_qualifier_is_not_an_errand.py"]},
+        # V2-461: el canal de TEXTO nació headless (V2-032) y dejó de serlo el día que el plató tuvo puerto
+        # fijo para que el operador mirara. Un agente que trabaja con el chat en blanco es indistinguible de
+        # uno colgado. Las DOS mitades (motor + navegador) o falla saliendo vacío, que es el propio defecto.
+        {"id": "4.85", "title": "La conversación por API se VE en el muro de chat, igual que la voz y el chat "
+                                "escrito",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_probe_wall.py"]},
         {"id": "4.83", "title": "El visor de imágenes RENDERIZA: la foto manda en la pantalla, la fuente se ve y "
                                 "enlaza, y las flechas SOBREVIVEN a una imagen que no carga",
             "ch": UNIT,

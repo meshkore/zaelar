@@ -84,10 +84,11 @@ TOOLS: list[dict] = [
         "function": {
             "name": "show_images",
             "description": (
-                "Enseña FOTOS en pantalla: «una foto de X», «enséñame cómo es Y», «fotos del hotel». Se buscan y "
-                "salen en el visor aquí mismo. No es web_search (trae texto, no enseña) ni play_video (eso es un "
-                "VÍDEO). Escala solo si hay que CURAR: que sean las oficiales/verificadas, o mejores si las que ya "
-                "enseñaste no le valen. Tarda unos segundos: habla en presente («te las busco»), nunca en pasado."
+                "Enseña FOTOS en pantalla: «una foto de X», «enséñame cómo es Y», «fotos del hotel». Salen en el "
+                "visor. No es web_search (trae texto, no enseña) ni play_video (eso es un VÍDEO). Un MATIZ («ese y "
+                "no otro», «reales», «del interior») afina la `query` y la vuelves a llamar YA: pedir una foto "
+                "sigue siéndolo. Si ya hay fotos en el visor y quiere UNA: widget_data sobre `imagenes`. Escala "
+                "SOLO si pide sacarlas de UNA web concreta. Habla en presente («te las busco»), nunca en pasado."
             ),
             "parameters": {
                 "type": "object",
