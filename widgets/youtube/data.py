@@ -190,6 +190,35 @@ def view_data(q: str = "") -> dict:
         return {**_seed(), "error": str(e)[:120]}
 
 
+def ref_index() -> list:
+    """The videos in the LIST, so the brain can name one instead of guessing an index (`widgets/refs.py`).
+
+    The only member of the media family that did not publish its items — measured 2026-08-28 comparing the
+    three: `musica` and `imagenes` answer, this one returned "". Two consequences, and the second is the
+    expensive one: «pon la tercera» / «quita la de los Beatles» had nothing to resolve against (and the
+    model must never invent an id, V2-026); and with the card OPEN AND EMPTY the brief could not say so,
+    which is exactly the «doy por entregado lo que no está» that V2-377/380/383 each paid for once.
+
+    `field: "item"` matches `play_item`/`remove`/`move`'s own payload key, and the label is the title the
+    operator would actually say. The CURRENT one is marked in the hint: «la que suena» is a real way to
+    refer to a video, and without it the brain cannot tell which of twelve is playing."""
+    try:
+        db = _load()
+    except Exception:  # noqa: BLE001
+        return []
+    cur = int(db.get("pos") or -1)
+    out = []
+    for i, it in enumerate(db.get("list") or []):
+        titulo = str(it.get("title") or it.get("url") or it.get("videoId") or "").strip()
+        if not titulo:
+            continue
+        pistas = [p for p in (str(it.get("channel") or "").strip(),
+                              "la que suena" if i == cur else "") if p]
+        out.append({"id": str(i + 1), "label": titulo[:80], "field": "item",
+                    "hint": " · ".join(pistas)})
+    return out
+
+
 def _bump(db: dict, cmd: str) -> dict:
     db["last_cmd"] = cmd
     db["cmd_seq"] = int(db.get("cmd_seq") or 0) + 1

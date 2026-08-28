@@ -122,4 +122,24 @@ export function render(el, data, ctx){
     });
     el.appendChild(strip);
   }
+
+  // ── TECLADO: ← → para pasar fotos (V2-465) ─────────────────────────────────────────────────────
+  // El tercero de la familia sin teclas: `musica` y `youtube` ya las tenían. En un visor de fotos las
+  // flechas son lo PRIMERO que la gente prueba, y sin ellas hay que ir al ratón para algo que el widget
+  // ya sabe hacer. Se escucha en la TARJETA (no en document) para que dos visores abiertos no se peleen
+  // por la misma tecla, y `tabIndex` es lo que hace que la tarjeta pueda tener el foco.
+  if(items.length>1){
+    el.tabIndex = 0;
+    el.onkeydown = (e)=>{
+      // Nunca robar las flechas mientras alguien escribe (el chat, un campo de otro widget encima).
+      const a = document.activeElement;
+      if(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return;
+      let act = "";
+      if(e.key === "ArrowRight") act = "next";
+      else if(e.key === "ArrowLeft") act = "previous";
+      if(!act) return;
+      e.preventDefault();
+      try{ ctx.action(act); }catch(_){}
+    };
+  }
 }

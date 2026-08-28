@@ -277,3 +277,37 @@ def test_un_video_que_NO_cargo_no_abre_nada(monkeypatch):
     from nucleo.flash import video_turn
     asyncio.run(video_turn.execute("algo"))
     assert not [e for e in emitted if e[0] == "widget" and e[1] == "show"]
+
+
+# ── V2-465 — el reproductor PUBLICA su lista ────────────────────────────────────────────────────────────
+def test_el_reproductor_publica_sus_items_para_que_el_cerebro_los_nombre(monkeypatch, tmp_path):
+    """Único de la familia de medios que no lo hacía (medido 2026-08-28 comparando los tres): `musica` e
+    `imagenes` contestaban y este devolvía "". Dos consecuencias, y la segunda es la cara: «pon la tercera»
+    no tenía contra qué resolver —y el modelo NUNCA debe inventar un id (V2-026)—, y con la tarjeta ABIERTA
+    Y VACÍA el brief no podía decirlo, que es el «doy por entregado lo que no está» de V2-377/380/383."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    db = yt._load()
+    db["list"] = [{"videoId": "a1", "title": "Paella paso a paso", "channel": "Cocina"},
+                  {"videoId": "b2", "title": "Ferrari Amalfi first drive", "channel": "MotorTrend"}]
+    db["pos"] = 1
+    store.save(yt.WID, db)
+
+    idx = yt.ref_index()
+    assert [i["id"] for i in idx] == ["1", "2"], "se nombra por NÚMERO, como se dice en voz"
+    assert all(i["field"] == "item" for i in idx), "`item` es la clave que usa play_item/remove/move"
+    assert "Paella" in idx[0]["label"]
+    assert "la que suena" in idx[1]["hint"], "cuál de doce está sonando es una referencia real del operador"
+
+    from widgets import refs
+    linea = refs.items_line("youtube")
+    assert "Paella" in linea and "MotorTrend" in linea
+
+
+def test_una_lista_VACIA_lo_dice_en_vez_de_callar(monkeypatch, tmp_path):
+    """La mitad que evita el defecto caro: sin índice, «abierta y vacía» y «no publica» eran indistinguibles."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets import refs
+    assert "VACÍA" in refs.items_line("youtube")

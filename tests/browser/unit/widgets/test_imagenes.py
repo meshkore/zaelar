@@ -191,3 +191,16 @@ def test_un_select_imposible_dice_que_no_y_enseña_lo_que_hay(data):
     data.apply_action("show", {"items": _items(2)})
     r = data.apply_action("select", {"item": "un koala"})
     assert r["ok"] is False and "koala" in r["error"] and "1:" in r["error"]
+
+
+# ── V2-465 — teclado ────────────────────────────────────────────────────────────────────────────────────
+def test_las_flechas_pasan_fotos_y_no_roban_al_que_escribe():
+    """El tercero de la familia sin teclas: `musica` y `youtube` ya las tenían. Se comprueba la FUENTE
+    porque el comportamiento vive en el navegador — y las dos mitades importan: que las flechas actúen, y
+    que NO se las quiten a un campo de texto (el chat vive en la misma pantalla)."""
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "imagenes"
+          / "widget.js").read_text(encoding="utf-8")
+    assert "ArrowRight" in js and "ArrowLeft" in js
+    assert 'el.onkeydown' in js, "se escucha en la TARJETA, no en document: dos visores no se pelean"
+    assert "INPUT" in js and "isContentEditable" in js, "no robar teclas a quien escribe"
