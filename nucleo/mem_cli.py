@@ -33,8 +33,21 @@ def _post(path: str, payload: dict, timeout: float = 20.0) -> dict:
         headers["X-Zaelar-Token"] = tok
     req = urllib.request.Request(
         _BASE + path, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode("utf-8") or "{}")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode("utf-8") or "{}")
+    except urllib.error.HTTPError as e:
+        # EL MOTIVO VIAJA EN EL CUERPO, y `HTTPError` solo trae el número. Medido el 2026-08-28: cinco intentos
+        # del worker de guardar hallazgos operativos —«Wallapop filtro que funciona: …max_sale_price=8000»,
+        # «Milanuncios bloqueado por anti-bot», «coches.net da error persistente»— murieron con «HTTP Error
+        # 422: Unprocessable Entity» y nada más. El servidor SÍ dice por qué («descartado por el gate de
+        # precisión (<razón>)»), y el worker no llegaba a leerlo: reintenta o se rinde a ciegas, y el hallazgo
+        # —que es justo lo que evita que el siguiente worker repita el trabajo— se pierde.
+        try:
+            detalle = json.loads(e.read().decode("utf-8") or "{}").get("detail") or ""
+        except Exception:  # noqa: BLE001
+            detalle = ""
+        raise RuntimeError(f"HTTP {e.code}" + (f": {detalle}" if detalle else f": {e.reason}")) from None
 
 
 def _recall(query: str, k: int = 8) -> int:

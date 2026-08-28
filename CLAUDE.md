@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Una memoria rechazada dice POR QUÉ (V2-436, 2026-08-28)**: con el comando ya dentro de las anomalías,
+  **cinco** intentos del worker de guardar hallazgos OPERATIVOS —«Wallapop filtro que funciona:
+  …max_sale_price=8000», «Milanuncios bloqueado por anti-bot», «coches.net da error persistente», «Facebook
+  Marketplace requiere login»— murieron con `HTTP Error 422: Unprocessable Entity` **y nada más**. Es
+  exactamente el conocimiento que evita que el siguiente worker repita el trabajo (la razón de ser de V2-344).
+  El servidor SÍ dice por qué —«descartado por el gate de precisión (<razón>)», en el CUERPO— y
+  `urllib.error.HTTPError` solo trae el número: el worker reintentaba o se rendía a ciegas. Ahora se propaga,
+  con dos cuidados que salieron de los desarmes: un cuerpo ILEGIBLE no puede empeorar el error (un fallo al
+  explicar un fallo deja al que lee peor que si no se hubiera intentado) y el camino sano no cambia. **El gate
+  NO se toca**: que rechace estos cinco puede ser correcto o demasiado estrecho, y decidirlo sin saber la
+  razón sería el error que esta noche se ha pagado tres veces. La pista es que el gate pasa hallazgos con
+  forma de ANUNCIO y estos cinco son operativos — el CÓMO en vez del QUÉ; si la memoria debe guardarlo es
+  decisión del operador. Nodo 4.74, tres desarmes.
+
 - **El worker PUEDE escribir lo que le decimos que escriba (V2-435, 2026-08-28)**: le pedíamos escribir un
   fichero y no le dábamos la tool. El payload de los puentes va por `@fichero` desde que la puerta de permisos
   rechazó el JSON en línea, y el prompt lo dice con todas las letras —«escríbelo con Write a un fichero de tu directorio»—, pero **`Write` no estaba en la

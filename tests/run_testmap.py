@@ -602,6 +602,13 @@ DOMAINS: list[dict] = [
         # allowlist: el CLI pedía una aprobación que en headless nadie da. Medido en `find-best-hotel-city__us`
         # con la cadena entera visible: «requested permissions to write to …/informe.json» y acto seguido «no
         # puedo leer el payload de informe.json». Nueve turnos ciegos y 1/5.
+        # 2026-08-28 — cinco intentos del worker de guardar hallazgos operativos («Wallapop filtro que
+        # funciona…», «Milanuncios bloqueado por anti-bot», «coches.net da error persistente») murieron con
+        # «HTTP Error 422: Unprocessable Entity» y NADA MÁS. El servidor sí dice por qué, en el cuerpo, y
+        # `HTTPError` solo trae el número: el worker reintenta o se rinde a ciegas y el hallazgo se pierde.
+        {"id": "4.74", "title": "Una memoria rechazada dice POR QUÉ — el motivo viaja en el cuerpo",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_rejected_memory_says_why.py"]},
         {"id": "4.73", "title": "El worker PUEDE escribir lo que le decimos que escriba — solo `Write`",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_the_worker_can_write_what_we_told_it_to_write.py"]},
