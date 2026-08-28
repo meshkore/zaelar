@@ -615,6 +615,41 @@ _US_ANSWERS: dict[str, dict] = {
 
 
 # US-only ids whose ES twin already has a profile under a different id.
+PROFILES["show-real-photo-of-a-new-car"] = Profile(
+    # El operador probó ESTE caso a mano el 2026-08-28 y de ahí salió V2-457. La apertura es la suya, con la
+    # imprecisión que tenía: no dice la marca completa ni el modelo anterior, porque una persona no los dice.
+    opening_es="Oye, enséñame una foto del Ferrari nuevo ese que ha salido, el Amalfi.",
+    opening_us="Hey, show me a photo of that new Ferrari that just came out, the Amalfi.",
+    clarifications=(("qué Ferrari o qué modelo", "el Amalfi, el que sustituye al Roma"),
+                    ("si quiere una foto o varias", "una me vale, pero si tienes varias mejor")),
+    clarifications_us=(("which Ferrari or which model", "the Amalfi, the one that replaces the Roma"),
+                       ("whether one photo or several", "one is fine, but more is better")),
+    persona_extra=(
+        "Quieres VER el coche, no que te lo describan. Si zaelar te cuenta con palabras cómo es en vez de "
+        "enseñártelo, se lo dices: «no me lo cuentes, enséñamelo». Si te dice que se pone a buscarlo, "
+        "responde algo corto y en el turno siguiente pregunta si ya lo tiene. Te importa que las fotos sean "
+        "del coche que has pedido y no de otro Ferrari; si sospechas que no lo son, pregúntalo."),
+    persona_extra_us=(
+        "You want to SEE the car, not have it described. If zaelar describes it in words instead of showing "
+        "it, say so: \"don't tell me, show me\". If it says it is looking, reply briefly and ask again next "
+        "turn. You care that the photos are of the car you asked for and not some other Ferrari."),
+    # `primero_valido`: pedir una foto es una CONSULTA, no una comparación. Exigirle tres candidatos sería
+    # medirlo con la vara de otro encargo — y es justo la vara que convertía esto en una investigación.
+    bar="primero_valido",
+    signals=("widget",),
+    turns=8,
+    success_extra=(
+        "Lo que se mide aquí es DÓNDE aparecen las fotos y CUÁNDO, no cuántas. ÉXITO: fotos reales del "
+        "Ferrari Amalfi en el VISOR DE IMÁGENES (widget `imagenes`), con la fuente de cada una a la vista, y "
+        "pronto — esto es una consulta, no una investigación. FALLO: describir el coche con palabras en vez "
+        "de enseñarlo (el incidente de 2026-08-03); volcar las fotos en la hoja genérica de resultados, que "
+        "es una tabla y no un visor; o tardar minutos lanzando un worker para algo que se resuelve en el "
+        "turno. Escalar a un worker SÍ es correcto si el operador pide DESPUÉS fotos oficiales verificadas o "
+        "dice que las que le enseñaste no le valen: ahí el encargo deja de ser una consulta y pasa a ser "
+        "curación. NO se penaliza que una foto concreta no cargue desde su origen (eso es del sitio, no "
+        "nuestro) siempre que se diga en vez de darla por buena."),
+)
+
 PROFILES.setdefault("compare-flights-sf-austin", PROFILES["find-direct-flight-budget"])
 
 # The agent-to-agent cases name a FRIEND, and the name differs between markets (Pedro/Alex, Marta/Jordan). An

@@ -162,6 +162,15 @@ CASES: list[UseCase] = [
             "state (worker + browser signals), not just the agent's claim — see "
             "tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
+    # 2026-08-28 — el caso lo probó el OPERADOR a mano y de ahí salió V2-457. Su lectura, literal: la calidad
+    # fue «soberbia» (fue a la web oficial, sacó datos oficiales, fue muy preciso) y falló en DOS cosas — tardó
+    # (355 s medidos, $1,96) y las fotos acabaron en la HOJA GENÉRICA de resultados, que es una tabla y no un
+    # visor. Este caso mide justo eso, así que su vara NO es «cuántos candidatos» sino DÓNDE aparecen y CUÁNDO.
+    UseCase("show-real-photo-of-a-new-car", "es", 2, "Show a real photo of a just-released car",
+            "Enséñame una foto real del Ferrari Amalfi, el nuevo que ha salido.",
+            "Real photographs of the Ferrari Amalfi are ON SCREEN in the dedicated image viewer (widget "
+            "`imagenes`) — not described in words, and not dumped into the generic results sheet — with the "
+            "source of each photo visible. Speed is part of the outcome here: this is a lookup, not research."),
     UseCase("best-rated-rental-car", "es", 2, "Find the best-rated rental car",
             "Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana.",
             "Real rental-car offers in Málaga for that weekend are found with price and rating, and the "
@@ -430,6 +439,11 @@ CASES: list[UseCase] = [
     UseCase("cheapest-monitor", "us", 2, "Find the cheapest well-reviewed monitor",
             "Find the cheapest 27-inch 4K monitor with good reviews.",
             "The cheapest well-reviewed 27-inch 4K monitor is identified."),
+    UseCase("show-real-photo-of-a-new-car", "us", 2, "Show a real photo of a just-released car",
+            "Show me a real photo of the new Ferrari Amalfi.",
+            "Real photographs of the Ferrari Amalfi are ON SCREEN in the dedicated image viewer (widget "
+            "`imagenes`) — not described in words, and not dumped into the generic results sheet — with the "
+            "source of each photo visible. Speed is part of the outcome here: this is a lookup, not research."),
     UseCase("best-rated-rental-car", "us", 2, "Find the best-rated rental car",
             "Find the best-rated rental car in Austin for the weekend.",
             "Real rental-car offers in Austin for that weekend are found with price and rating, and the "

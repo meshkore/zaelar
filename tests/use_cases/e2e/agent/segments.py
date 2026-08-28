@@ -106,6 +106,9 @@ SEGMENTS: dict[str, Segment] = {
     # Information, a comparison, a plan, a widget, a reminder: the deliverable IS the answer, so there is no
     # wall to stop at. These are graded on the FULL outcome and carry no real-data note.
     "quick-fact-opening-hours": _done(),
+    # Enseñar una foto se completa ENTERO: no hay muro, ni cuenta, ni nada que reservar — la entrega ES
+    # el resultado. Y por eso es el caso limpio para medir DÓNDE aparece y CUÁNDO (V2-457).
+    "show-real-photo-of-a-new-car": _done(),
     "remember-and-remind-deadline": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
@@ -291,6 +294,12 @@ FINDINGS_EXEMPT = {
     # · build-a-video-playlist-from-links → lo entregado es una LISTA DENTRO del widget de vídeo, que ya es
     #   la superficie; una hoja de resultados al lado sería una segunda pantalla contando lo mismo.
     "build-a-video-playlist-from-links",
+    # · show-real-photo-of-a-new-car → lo entregado es la FOTO, y su superficie es el visor `imagenes`. Es la
+    #   misma frontera que la línea de arriba, un medio más allá (V2-402 la fijó para el vídeo, V2-457 para la
+    #   imagen): lo que se VE tiene su widget, la hoja es para INFORMACIÓN. Darle el contrato de hallazgos le
+    #   diría al juez que espere una lista en la hoja — o sea, le pediría al agente exactamente el defecto que
+    #   este caso existe para medir.
+    "show-real-photo-of-a-new-car",
 }
 # Y el que SÍ entrega hallazgos, dicho para que no se arrastre por parecido temático: en
 # `find-videos-on-a-topic-no-ai-slop` el operador pidió ELEGIR ÉL entre 3 o 4 opciones con nombre. Eso es

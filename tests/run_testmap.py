@@ -192,6 +192,10 @@ DOMAINS: list[dict] = [
             # `probe.py` es la implementación PARALELA del provider de voz—, así que la DECISIÓN pasa a
             # `provider_failure.py` y la leen los dos canales.
             "tests/agent_headless/unit/flash/test_the_text_channel_relays_too.py",
+            # V2-458 — el relevo se saltaba al escalón de al lado cuando compartía CUENTA con el que
+            # acababa de quedarse sin saldo: un reintento gastado en un hermano que no podía funcionar,
+            # con el único proveedor sano sin llegar a probarse. Medido con el motor vivo.
+            "tests/agent_headless/unit/flash/test_same_account_relay.py",
             # V2-254: la TERCERA superficie que enseña píldoras a un modelo, y la que corre CADA TURNO. La regla
             # («una píldora de fondo no es un hecho sobre la persona») estaba escrita en tres sitios y aplicada
             # en uno; las otras dos hubo que descubrirlas con un fallo en vivo cada una. Aquí se APLICA la que ya
@@ -547,6 +551,17 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
                       "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+        # 2026-08-28 (V2-457): enseñar una foto era un ENCARGO de worker — 355 s y $1,96 medidos en la sesión
+        # manual del operador — y pasa a ser un turno de 3 s por `show_images`, con su propio visor. Tres piezas
+        # que se prueban por separado: el PARSER del payload del buscador de imágenes (la parte frágil, y por eso
+        # la única con un payload REAL grabado como fixture: si Google cambia de formato se pone rojo aquí y no
+        # en una ronda del plató tres días después), la EJECUCIÓN compartida por los dos canales, y el VISOR.
+        {"id": "4.82", "title": "Enseñar fotos es un turno ligero: parser del buscador de imágenes con payload "
+                                "real · el visor se carga y se NOMBRA lo que trae · nunca la hoja de resultados",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_image_search.py",
+                      "tests/agent_headless/unit/flash/test_image_turn.py",
+                      "tests/browser/unit/widgets/test_imagenes.py"]},
         # 2026-08-27, medido en el plató: el 402 de las 18:55 castigó al titular SEIS HORAS, el operador recargó
         # a las 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se cayó a su vez, el cerebro
         # se quedó MUDO con el titular sano una fila más arriba — y no había forma de decirle que ya había saldo.
@@ -1309,9 +1324,9 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
         {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py"]},
-        # V2-456: cámara DESACTIVADA a petición del operador (mic-only) — el código queda comentado, no borrado.
+        # V2-457: cámara DESACTIVADA a petición del operador (mic-only) — el código queda comentado, no borrado.
         # La trampa que fija: la URL de session.js sirve session-lk.js bajo LiveKit, hay que vigilar LOS DOS.
-        {"id": "4.81", "title": "La sesión NUNCA pide la cámara (mic-only, V2-456): ningún getUserMedia de vídeo activo en app/ ni mobile/, y el micro sobrevive al apagado",
+        {"id": "4.81", "title": "La sesión NUNCA pide la cámara (mic-only, V2-457): ningún getUserMedia de vídeo activo en app/ ni mobile/, y el micro sobrevive al apagado",
          "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_session_never_asks_for_the_camera.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",

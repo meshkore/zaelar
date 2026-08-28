@@ -89,7 +89,17 @@ def _lazy_imports(p: Path) -> int:
 _CEILINGS: dict[str, tuple[int, int]] = {
     # nucleo.py 3461→3475: 246007a («enséñamelo» resolves to the ERRAND's sheet — round 24 opened the bare
     # box beside a 20-row delivery) net of dde26a2's shared confirm gate (−9). F1/F2 still own this file's debt.
-    "voice/engine/llm/providers/nucleo.py": (3475, 155),
+    # …y 3475→3493 el 2026-08-28 (V2-457: `show_images`), subido CON la auditoría que la regla pide y después
+    # de extraer lo extraíble, no en su lugar. Lo que queda son 18 líneas netas de CABLEADO de una capacidad
+    # nueva en el canal de voz: la rama de la tool (7) vive dentro del cierre `_on_tool_call`, que comparte 13
+    # dicts de estado de turno por closure — moverla es el rediseño `TurnState` que V2-112 dejó escrito y
+    # aplazado A PROPÓSITO para su propia sesión; la declaración, la señal del gate de fallbacks y el bloque
+    # posterior al stream son una línea cada uno y no forman módulo. Lo que SÍ se extrajo se extrajo:
+    # `image_turn.voice_turn()` se llevó el cuerpo de la rama posterior al stream Y la resolución del idioma,
+    # así que este fichero tampoco gana un import perezoso (155 sigue en 155). La DEUDA sigue en pie y es la
+    # misma: F1/F2 de V2-112. Un techo que no se puede pagar sin tocar el camino caliente de la voz a las tres
+    # de la mañana se sube con su nombre encima, que es lo que esta tabla lleva haciendo desde el 24-08.
+    "voice/engine/llm/providers/nucleo.py": (3493, 155),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
@@ -115,7 +125,11 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).
-    "nucleo/flash/probe.py": (1214, 89),
+    # probe.py 1214→1226 el 2026-08-28 (V2-457), misma auditoría y por la misma razón: este canal es la
+    # implementación PARALELA del provider de voz, así que una capacidad nueva se cablea en LOS DOS o diverge
+    # —lo que esta casa ya pagó cuatro veces (V2-121, V2-176, V2-380, V2-383)—. Son tres ramas de una cadena
+    # `elif` (clasificar, ejecutar, decir) que no forman módulo: lo compartible ya vive en `image_turn`.
+    "nucleo/flash/probe.py": (1226, 89),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 paso 3 · 26-08: +3 V2-342 (la bifurcación
