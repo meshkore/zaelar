@@ -224,3 +224,22 @@ def test_es_la_APERTURA_y_no_el_silencio_lo_que_hace_inocente():
     linea = "no me vale la Epiphone DR-100, porfa busca otra"
     assert V.recites_our_candidates(linea, titulos, heard="") != [], "a media conversación SÍ delata"
     assert V.recites_our_candidates(linea, titulos, opening=True) == [], "en la apertura, no"
+
+
+def test_a_measurement_is_not_a_model_code():
+    """`27inch`/`4k`/`144hz` are SPECS, not identity: a number+unit token is exactly what the person says
+    on their own when stating requirements, so it must never satisfy the model-code check.
+
+    Measured 2026-08-29 in `cheapest-monitor__us` (00:28 round, judged 4/5): a worker prose note titled
+    «## 27-inch 4K monitors mentioned **Note:** …» reached `known_titles`, its head normalized to
+    `27inch 4k`, the digits-and-letters heuristic read `27inch` as a model code, and the tester's own
+    requirements line — «I need a 27-inch **4K** monitor» — was filed as a role flip. Third clean round
+    archived INFRA over the same phrase; the guard was killing the rounds it exists to protect.
+    """
+    prose_note = '## 27-inch 4K monitors mentioned **Note:** The article states "Prices are pulled live"'
+    linea = "Hmm, you dropped the 4K part — I need a 27-inch **4K** monitor, not just any budget one."
+    assert V.recites_our_candidates(linea, [prose_note], heard="let me search for budget monitors") == [], \
+        "a spec phrase the person can say alone must not read as reciting our sheet"
+    # …and a real model code keeps its teeth: digits+letters that are NOT a unit still identify.
+    assert V.recites_our_candidates("tengo la Yamaha F370BL apuntada", ["Yamaha F370BL guitarra negra"],
+                                    heard="") != [], "a true model code still flags"

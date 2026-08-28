@@ -638,6 +638,10 @@ def ghost_widgets(all_events: list[dict]) -> dict:
 #: con cualquier frase que hable de monitores de 27 pulgadas, que es justo lo que la persona SÍ puede decir.
 _TITLE_MIN_WORDS = 2
 _TITLE_MIN_CHARS = 12
+#: A number glued to a unit — a measurement, never a model code. `u275wupt` or `f370bl` stay identity.
+_SPEC_TOKEN = re.compile(
+    r"^\d+(?:[.,]\d+)?(?:inch|in|cm|mm|k|p|hz|khz|mhz|ghz|fps|ms|w|wh|v|mah|gb|tb|mb|nits?|kg|g|lbs?)$"
+    r"|^\d+x\d+$", re.I)
 
 
 def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int = 1,
@@ -768,7 +772,12 @@ def _title_head(title: str) -> str:
     # IDENTIFICA si trae un CÓDIGO DE MODELO —un token con dígitos, como `f370bl` o `cd60`— o si, sin él, es
     # bastante largo. El corte por caracteres a secas tiraba «fender cd60» por UNO, y ése es justo el título
     # que cualquiera recita entero: la longitud es un proxy de identidad y el modelo es la identidad.
-    if any(any(c.isdigit() for c in w) and any(c.isalpha() for c in w) for w in head.split()):
+    # A number+unit token (`27inch`, `4k`, `144hz`) is a SPEC, not identity: it is exactly what the person
+    # says on their own when stating requirements. Measured 2026-08-29 in `cheapest-monitor__us`: a worker
+    # prose note headed «27-inch 4K monitors mentioned…» matched the tester's own requirements line and a
+    # 4/5 round was archived INFRA over it — the guard killing the round it exists to protect.
+    if any(any(c.isdigit() for c in w) and any(c.isalpha() for c in w) and not _SPEC_TOKEN.match(w)
+           for w in head.split()):
         return head
     return head if len(head) >= _TITLE_MIN_CHARS else ""
 
