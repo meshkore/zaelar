@@ -163,3 +163,31 @@ def test_los_items_en_pantalla_se_pueden_nombrar_por_voz(data):
 def test_view_data_nunca_revienta(data):
     assert data.view_data()["n"] == 0
     assert data.view_data("cualquier cosa")["items"] == []
+
+
+# ── V2-463 — el select entiende una frase y su fallo enseña el menú ─────────────────────────────────────
+def test_una_FRASE_con_el_titulo_dentro_resuelve(data):
+    """Medido: el modelo pide «la que sea claramente del Amalfi», nunca un fragmento limpio. La frase entera
+    no es subcadena de ningún título, pero su token con contenido («amalfi») sí — y resuelve a la PRIMERA
+    coincidencia, que con un conjunto homogéneo es la mejor lectura de «una que sea de ese coche»."""
+    data.apply_action("show", {"items": _items(3)})
+    r = data.apply_action("select", {"item": "la que sea claramente del Amalfi"})
+    assert r["ok"] and r["i"] == 1
+    # …y el número 1-based sigue mandando cuando lo dan limpio (la ruta de siempre, intacta):
+    assert data.apply_action("select", {"item": "3"})["i"] == 3
+
+
+def test_un_select_sin_item_pide_y_ENSEÑA_el_menu(data):
+    """El literal medido era «no encuentro esa imagen (None)» — tres veces en una ronda, y el modelo contestó
+    «te la dejo puesta» sobre el fallo. Con las opciones en el error, el turno siguiente puede elegir."""
+    data.apply_action("show", {"items": _items(2)})
+    r = data.apply_action("select", {})
+    assert r["ok"] is False
+    assert "None" not in r["error"]
+    assert "dime cuál" in r["error"] and "1:" in r["error"] and "Ferrari" in r["error"]
+
+
+def test_un_select_imposible_dice_que_no_y_enseña_lo_que_hay(data):
+    data.apply_action("show", {"items": _items(2)})
+    r = data.apply_action("select", {"item": "un koala"})
+    assert r["ok"] is False and "koala" in r["error"] and "1:" in r["error"]

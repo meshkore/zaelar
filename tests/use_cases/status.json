@@ -3456,7 +3456,76 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-447-uc-compare-phone-plans-us.md",
         "task": ".meshkore/modules/nucleo/tasks/T493-uc-compare-phone-plans-us-fix.md"
       }
+    },
+    "show-real-photo-of-a-new-car__es": {
+      "last_run": "2026-08-28 16:32",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 4,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción. El bloqueador número uno es la incapacidad del asistente para manejar los errores de lectura del widget (widget_data_failed), lo que le lleva a fingir una selección visual exitosa mientras el sistema reporta 'no encuentro esa imagen', dejando al usuario en un bucle de petición sin respuesta.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa imagen (None)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa imagen (None)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa imagen (None)"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 2,
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "de67f65",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "44 GB"
+          }
+        ],
+        "n": 2
+      }
     }
   },
-  "updated": "2026-08-28 12:09"
+  "updated": "2026-08-28 16:32"
 }

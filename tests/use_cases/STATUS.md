@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-28 12:09**
+Last updated: **2026-08-28 16:32**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -71,6 +71,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ⚠️ | `search-buy-used-car__us` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 12:09 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
 | ✅ | `search-secondhand-monitor__es` | 2 | 4 | ? | 2026-08-27 10:51 | yes | El caso se completa con resultados reales y bien montados en la hoja, pero zaelar negó resultados que ya tenía delante y ocultó un bloqueo del sitio: el bloq… |
 | ✅ | `search-secondhand-monitor__us` | 2 | 4 | ? | 2026-08-27 21:01 | yes | El caso está listo para producción en términos funcionales (el usuario obtiene sus monitores), pero el código del worker requiere revisión para corregir erro… |
+| ❌ | `show-real-photo-of-a-new-car__es` | 2 | 2 | — | 2026-08-28 16:32 | yes | No está listo para producción. El bloqueador número uno es la incapacidad del asistente para manejar los errores de lectura del widget (widget_data_failed), … |
 | ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 08:49 | yes | No está listo para producción: el bloqueador nº1 es que zaelar entregó enlaces a páginas de programa como si fueran el resultado concreto que el usuario pidi… |
 | ❌ | `weekend-barber-availability__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:36 | yes | No está listo para producción: el bloqueador principal es la incapacidad del worker para extraer y escribir la disponibilidad real en la hoja de resultados, … |
 | ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 3 | `deepseek-v4-flash` | 2026-08-28 10:41 | yes | No está listo para producción: el bloqueador nº1 es la adaptación — preguntó preferencias que ya tenía en memoria y ofreció actividades de altura a una perso… |
@@ -79,7 +80,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**14 passing · 25 failing · 3 infra** of 42 scenarios we can actually finish.
+**14 passing · 26 failing · 3 infra** of 43 scenarios we can actually finish.
 
 Plus **16 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `best-pediatric-dentists__us`, `book-barber-slot__us`, `book-hotel-night-known__es`, `book-hotel-night-known__us`, `buy-known-product__us`, `cancel-subscription-before-charge__es`, `cancel-subscription-before-charge__us`, `compare-flights-madrid-lisboa`, `compare-flights-sf-austin__us`, `find-theatre-tickets__es`, `find-theatre-tickets__us`, `renew-gym-membership__es`, `renew-gym-membership__us`, `reorder-prescription__us`, `restaurant-tonight-madrid`, `restaurant-tonight-nyc__us`.
 
@@ -89,19 +90,19 @@ Plus **16 🔒 capped** (need the user's own credentials; measured for honesty o
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 56 | 41 | 14 |
+| ✅ completable | 58 | 42 | 14 |
 | 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 41 of 56 ever run (15 never run)
+## Coverage of the RUNNABLE list — 42 of 58 ever run (16 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
 | 1 | es | 6 | 6 | 4 |
-| 2 | es | 20 | 20 | 7 |
-| 2 | us | 10 | 18 | 2 |
+| 2 | es | 21 | 21 | 7 |
+| 2 | us | 10 | 19 | 2 |
 | 3 | es | 3 | 5 | 0 |
 | 3 | us | 0 | 2 | 0 |
 | 4 | es | 2 | 2 | 1 |

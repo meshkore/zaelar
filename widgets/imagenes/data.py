@@ -111,6 +111,14 @@ def _resolve(items: list, item) -> "int | None":
     for k, it in enumerate(items):
         if low in str(it.get("title") or "").lower() or low in str(it.get("site") or "").lower():
             return k
+    # The model rarely hands over a clean fragment: it says «la que sea claramente del Amalfi» (measured
+    # 2026-08-28, three failed selects in one round). A whole-phrase substring cannot match that, but its one
+    # meaningful TOKEN can. Longest tokens first so «ferrari amalfi» prefers the more specific word; short
+    # tokens (articles, «la», «del») never match anything by construction (>3 chars).
+    for tok in sorted((t for t in low.split() if len(t) > 3), key=len, reverse=True):
+        for k, it in enumerate(items):
+            if tok in str(it.get("title") or "").lower() or tok in str(it.get("site") or "").lower():
+                return k
     return None
 
 
@@ -185,7 +193,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if a == "select":
             k = _resolve(items, p.get("item"))
             if k is None:
-                return {"ok": False, "error": f"no encuentro esa imagen ({p.get('item')})", "n": len(items)}
+                # The refusal NAMES what is on screen (V2-463). «no encuentro esa imagen (None)» was measured
+                # verbatim in a round: the model had called select with NO item, got told nothing usable, and
+                # answered the operator «te la dejo puesta» over a failure — three times. With the choices in
+                # the error, the next model turn can actually pick one.
+                menu = " · ".join(f"{i}: {str(it.get('title') or it.get('site') or '?')[:40]}"
+                                  for i, it in enumerate(items[:6], 1))
+                pide = ("dime cuál: un número o parte del título" if not str(p.get("item") or "").strip()
+                        else f"no encuentro «{str(p.get('item'))[:60]}»")
+                return {"ok": False, "error": f"{pide}. En pantalla: {menu}", "n": len(items)}
         elif a == "next":
             k = (int(db.get("i") or 0) + 1) % len(items)
         else:
