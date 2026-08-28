@@ -543,13 +543,16 @@ def navegador_lines() -> list[str]:
                 # La rama va DENTRO del imperativo (norma del operador), y lo que pide es lo que SÍ se puede
                 # hacer con lo que hay: el HECHO de que está produciendo, sin prometer detalles que no tiene.
                 if not _rows_bit:
+                    # V2-443 — sin filas solo hay `kept`, que lo dice el WORKER: se marca, no se afirma.
                     lines.append(
-                        _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando, pero "
-                        "sus nombres AÚN NO están escritos, así que no los tienes. Dile eso tal cual —que ya "
-                        "está sacando cosas y que en cuanto tenga los nombres se los pasas—, sin inventarte "
-                        "ninguno y sin prometer un detalle concreto. NO digas que sigue «sin resultados» ni "
-                        "que «no ha encontrado nada»: eso es falso y es lo contrario de lo que pasa." +
-                        _shared + _walls_note)
+                        _head + f" {_has_results} DICE QUE YA TIENE CANDIDATOS —es SU cuenta, no la hemos comprobado— y"
+                        " NO ha llegado ni una fila, así que no tienes ningún nombre. La tarea no está bloqueada ni"
+                        " esperando: sigue trabajando. Cuéntale eso y solo eso —que sigue en ello y que aún no ha"
+                        " llegado nada que puedas darle, y que se lo pasas en cuanto llegue—; si te pregunta qué tiene,"
+                        " di honestamente que todavía nada confirmado. Y OJO con la diferencia, que es toda la"
+                        " cuestión: «TODAVÍA NO HA LLEGADO nada» es cierto y puedes decirlo; «NO HA ENCONTRADO nada»"
+                        " es otra cosa, ESO NO LO SABES y no lo digas. NO te inventes nombres, NO prometas un detalle"
+                        " concreto y NO digas que ya tienes resultados ni que están en pantalla." + _shared + _walls_note)
                 elif True:
                     lines.append(
                             _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE "

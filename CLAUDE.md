@@ -5112,6 +5112,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Sin filas, lo único que hay es la PALABRA del worker (V2-443, 2026-08-28)**: la cara de «ya ha encontrado»
+  tiene dos fuentes — con filas, la hoja la respalda y es un HECHO; **sin filas solo queda `kept`**, la cuenta
+  que el propio worker escribe con `hbnote considered --kept N`. El bloque la renderizaba en firme y, encima,
+  le prohibía al turno la frase contraria («NO digas que sigue sin resultados… eso es falso»). Medido en
+  `find-theatre-tickets__us` con el censo de V2-440 dentro: **la cara disparó once veces con
+  `worker_outcome.found: []`, cero filas en ninguna hoja y la hoja del encargo diciendo «sin resultados
+  todavía»**. Le poníamos delante una afirmación falsa y le prohibíamos la verdadera, así que la única salida
+  era decirle al operador que ya estaba sacando cosas — y eso se puntúa como prometer lo que no se tiene.
+  Misma familia que V2-358 y V2-249: **no se tira, se MARCA**. Y **la prohibición se parte en dos**, que es lo
+  que de verdad cambia el turno: «TODAVÍA NO HA LLEGADO nada» habla de la ENTREGA, es cierto y se puede decir;
+  «NO HA ENCONTRADO nada» habla del mundo, **no lo sabemos** y sigue prohibido — que era lo que V2-330
+  protegía y sigue en pie. La tarea se sigue diciendo VIVA o «no ha llegado nada» se leería como «está parada»
+  y empujaría a relanzarla (V2-152). Nodo 4.77, cuatro desarmes, y los cuatro salieron verdes en la primera
+  pasada con **«no tests ran»**: en zsh un parámetro sin comillas no se parte en palabras (`${=T}`) — la
+  trampa de V2-238, otra vez.
+
 - **Pedirlo dos veces no es hacerlo dos veces (V2-442, 2026-08-28)**: al juez se le decía «el mismo encargo se
   lanzó N veces … puntúa EFICIENCIA abajo» **sin decirle cuántos workers NACIERON**, y con eso archivó
   `buy-known-product__us` como que «duplica trabajo de navegación» — con `n_spawned: 1` en el mismo informe.

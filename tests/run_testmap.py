@@ -614,6 +614,12 @@ DOMAINS: list[dict] = [
         # devolvía VACÍO: el saneado se comía los dos puntos y componía `results--results82d86e-2`, una clave
         # que no existe. Una hoja vacía es indistinguible de «aún no ha encontrado nada»: el fallo no hace
         # ruido, cambia la respuesta.
+        # V2-443 — sin filas, `_found_candidates` solo puede leer `kept`, la cuenta que escribe el propio
+        # worker. Se renderizaba como hecho («YA HA ENCONTRADO algo») y se le prohibía al turno decir lo
+        # contrario. Medido: 11 disparos con la hoja vacía en todas partes y el worker sin encontrar nada.
+        {"id": "4.77", "title": "Sin filas, lo único que hay es la PALABRA del worker — y se marca",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_sin_filas_lo_unico_que_hay_es_la_palabra_del_worker.py"]},
         {"id": "4.76", "title": "El id del canvas y la instancia son la misma hoja — y una devolvía vacío",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_canvas_id_and_the_instance_are_the_same_sheet.py"]},

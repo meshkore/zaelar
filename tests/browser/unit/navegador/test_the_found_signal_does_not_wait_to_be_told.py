@@ -104,5 +104,8 @@ def test_y_la_cara_LLEGA_al_estado_cuando_la_hoja_tiene_filas():
     state = "\n".join(LB.navegador_lines())
     assert "YA HA ENCONTRADO ALGO" in state
     # V2-330: sin filas escritas, la orden es decir la verdad de lo que hay, no recitar lo que no tiene.
+    # V2-443 — la rama SIN filas cambió de texto (ahora marca la cuenta como del worker), así que la
+    # alternativa se actualiza: dejarla apuntando a una frase que ya no existe la vuelve inalcanzable y el
+    # `or` pasaría a comprobar una sola cosa sin que nada fallara.
     assert ("CUÉNTALE en este turno LO QUE ENCAJE" in state
-            or "sus nombres AÚN NO están escritos" in state)
+            or "DICE QUE YA TIENE CANDIDATOS" in state)

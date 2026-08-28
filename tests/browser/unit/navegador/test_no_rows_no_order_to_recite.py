@@ -53,22 +53,40 @@ def test_sin_filas_NO_se_le_ordena_recitar():
 
 
 def test_sin_filas_se_le_dice_la_VERDAD_de_lo_que_hay():
-    """Ni «no ha encontrado nada» (falso) ni un recital imposible: está produciendo y los nombres no están."""
+    """Reescrito 2026-08-28 (V2-443), NO volteado. La propiedad es la misma —sin filas se le dice la verdad de
+    lo que hay, ni un recital imposible ni una negativa— y lo que cambió es CUÁL es esa verdad.
+
+    V2-330 la escribió como «YA HA ENCONTRADO algo», y sin filas eso solo se puede leer de `kept`: la cuenta
+    que el propio worker reporta. Medido en `find-theatre-tickets__us` (2026-08-28), esa afirmación fue FALSA
+    once veces en una ronda — `worker_outcome.found: []`, la hoja vacía en todas partes. La afirmación se
+    marca ahora como lo que es (suya, sin comprobar) y el hecho nuestro —no ha llegado ni una fila— se dice
+    en firme.
+    """
     st = _estado("Busca una guitarra acústica", "v330-2", [])
-    assert "YA HA ENCONTRADO algo" in st
-    assert "sus nombres AÚN NO están escritos" in st
+    assert "DICE QUE YA TIENE CANDIDATOS" in st and "no la hemos comprobado" in st
+    assert "NO ha llegado ni una fila" in st
 
 
-def test_y_la_frase_FALSA_queda_prohibida_por_su_nombre():
-    """«Sigue sin resultados» es lo que decía el modelo, y es lo contrario de lo que pasa."""
+def test_se_separa_NO_HA_LLEGADO_de_NO_HA_ENCONTRADO():
+    """Reescrito 2026-08-28 (V2-443), NO volteado — y ésta es la reescritura que más importa entender.
+
+    V2-330 prohibió «no ha encontrado nada» porque con el worker produciendo es lo contrario de lo que pasa, y
+    eso sigue siendo cierto: el mundo puede estar lleno y nosotros no saberlo. Lo que la prohibición se llevaba
+    por delante era la frase VERDADERA y útil —«todavía no ha llegado nada»—, que habla de la ENTREGA y es un
+    hecho nuestro. Sin ella, la única salida que le quedaba al turno era afirmar que ya estaba sacando cosas.
+
+    Así que no se levanta la prohibición: se parte en dos, que es lo que le permite al operador decidir si
+    espera o cambia de sitio.
+    """
     st = _estado("Busca una guitarra acústica", "v330-3", [])
-    assert "no ha encontrado nada" in st and "es falso" in st
+    assert "«NO HA ENCONTRADO nada»" in st and "NO LO SABES" in st
+    assert "«TODAVÍA NO HA LLEGADO nada» es cierto y puedes decirlo" in st
 
 
 def test_no_se_le_deja_INVENTARSE_un_nombre():
     """El riesgo del arreglo por el otro lado: si se le dice «cuéntale que va bien» sin más, rellena el hueco."""
     st = _estado("Busca una guitarra acústica", "v330-4", [])
-    assert "sin inventarte" in st
+    assert "NO te inventes nombres" in st
 
 
 def test_CON_filas_el_imperativo_de_siempre_sigue_intacto():
@@ -78,7 +96,7 @@ def test_CON_filas_el_imperativo_de_siempre_sigue_intacto():
     assert "CUÉNTALE en este turno LO QUE ENCAJE" in st
     assert "LO QUE YA HA ENTREGADO" in st
     assert "Fender CD-60 — 120 €" in st
-    assert "sus nombres AÚN NO están escritos" not in st
+    assert "DICE QUE YA TIENE CANDIDATOS" not in st
 
 
 def test_las_dos_ramas_son_EXCLUYENTES():

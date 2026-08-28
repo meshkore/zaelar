@@ -542,8 +542,12 @@ def test_a_task_that_already_found_something_is_not_blocked():
     # el modelo contestaba «te aviso» (79 % de esos turnos, medido). Lo que esta prueba fija sigue siendo lo
     # suyo —que una tarea con resultados NO se reporta como bloqueada— y ahora también que se diga la verdad
     # de lo que hay: está produciendo, los nombres aún no están escritos.
-    assert "sus nombres AÚN NO están escritos" in state
-    assert "no ha encontrado nada" in state          # …y la frase falsa queda PROHIBIDA por su nombre
+    assert "DICE QUE YA TIENE CANDIDATOS" in state          # V2-443: la rama sin filas, con su texto nuevo
+    # V2-443 — la prohibición sigue, en minúsculas ya no: se partió en dos. «No ha ENCONTRADO nada» sigue
+    # prohibida (no lo sabemos), y «todavía no ha LLEGADO nada» pasó a estar permitida porque es cierta y es
+    # lo que el operador necesita para decidir si espera. Sin esa mitad, la única salida que le quedaba al
+    # turno era afirmar que ya estaba sacando cosas — falso once veces en una sola ronda medida.
+    assert "«NO HA ENCONTRADO nada»" in state and "NO LO SABES" in state
 
 
 def test_and_results_win_over_a_WALL_too():
@@ -606,7 +610,7 @@ def _three_live():
 def test_the_imperative_names_the_task_it_is_about():
     _three_live()
     state = _live()
-    assert "«Entradas El Rey León» YA HA ENCONTRADO algo" in state
+    assert "«Entradas El Rey León» DICE QUE YA TIENE CANDIDATOS" in state    # V2-443
     assert "ESA TAREA YA HA ENCONTRADO" not in state       # la forma ambigua que medía el veredicto
 
 
@@ -616,7 +620,7 @@ def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
     _three_live()
     state = _live()
     assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state          # el hecho del Netflix, listado
-    assert state.count("YA HA ENCONTRADO algo") == 1
+    assert state.count("DICE QUE YA TIENE CANDIDATOS") == 1                  # V2-443
     assert "SOLO LA DESBLOQUEA ÉL" not in state                 # …pero sin su propio imperativo
 
 
