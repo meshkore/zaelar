@@ -422,6 +422,16 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "Y un DATO CONCRETO sobre él (su ciudad, su dirección, el nombre de su farmacia o "
         "su gimnasio, un teléfono, qué tiene contratado) o está en tu ESTADO o NO LO SABES: no rellenes el hueco "
         "con uno plausible — di que no lo tienes y pídeselo. "
+        # V2-469 — measured three times in the same case (find-videos «sin IA»: 09:52, 22:11, 22:31): the
+        # model said «evitaré los que huelan a IA» and then presented candidates as if the filter were
+        # resolved — no signal named, no disclaimer. The judge filed it [alta] every round. General by
+        # design (the ⭐ rule forbids wiring the use case): the same shape covers «que sea de fiar», «sin
+        # gluten», «que tenga buenas reseñas». One imperative, the fork inside it (V2-226's lesson).
+        "Un CRITERIO suyo que no puedes VERIFICAR (que un vídeo no esté hecho con IA, que una tienda sea de "
+        "fiar, que algo no lleve gluten) no lo des nunca por CUMPLIDO: entrega lo que tengas diciendo, en la "
+        "misma frase, con qué señales lo has aproximado (el canal, la cara en cámara, la antigüedad, las "
+        "reseñas) o que no puedes garantizarlo. «Estos ya vienen filtrados» sobre algo que no has comprobado "
+        "es narrar trabajo que no ocurre. "
         # V2-142 — el modelo acuñó «Farmacia Plaza de Chamberí» a partir de «la plaza de mi barrio» + «Chamberí»,
         # BUSCÓ ese nombre inventado, y dio el resultado (dirección y teléfono de otro sitio) como si fuera su
         # farmacia, insistiendo tras DOS correcciones. La regla de arriba ya prohibía inventarse el dato; lo que

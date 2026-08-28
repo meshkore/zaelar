@@ -267,3 +267,15 @@ def test_the_prompt_forbids_handing_the_task_back_to_the_operator(fresh_db):
     assert "El trabajo es TUYO" in system
     assert "avísame cuando tengas algo" in system
     assert "sigo sin novedades" in system
+
+
+# ── a criterion the model cannot VERIFY is never delivered as fulfilled (V2-469, 2026-08-28) ─────────────
+def test_an_unverifiable_criterion_is_never_given_as_fulfilled(fresh_db):
+    """Measured three times in `find-videos-on-a-topic-no-ai-slop` (09:52, 22:11, 22:31): the operator asked
+    for videos «sin IA», the model said «evitaré los que huelan a IA» and then presented candidates as if the
+    filter were resolved — no signal named, no disclaimer. The case's own criterion says both honest paths:
+    name the signals you approximate with, or say you cannot guarantee it. General by design (⭐ rule: never
+    wire the use case): the same shape covers «que sea de fiar», «sin gluten», «que tenga buenas reseñas»."""
+    system, _ = prompt.build_flash_system()
+    assert "no puedes VERIFICAR" in system
+    assert "no lo des nunca por CUMPLIDO" in system
