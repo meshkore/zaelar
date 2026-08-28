@@ -634,10 +634,15 @@ def mechanism_facts(mech: dict) -> str:
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_ghost']} vez/veces las filas estaban en la hoja "
                          f"DESNUDA —la que no es de ningún encargo— mientras la de éste estaba vacía. "
                          f"Avería nuestra de fontanería: el motor miró bien, entregó mal el escritor.")
-        elif _sr.get("n_wrong_box"):
-            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_wrong_box']} vez/veces el motor leyó una caja que "
-                         f"NO era la de este encargo ({', '.join(_sr.get('wrong_boxes') or {})}) mientras las "
-                         f"filas estaban en otra. Avería nuestra de fontanería.")
+        elif _sr.get("n_with_other_sheets"):
+            # V2-440 — el veredicto sale del CENSO DEL INSTANTE, no de `n_wrong_box`. Ése compara con el
+            # estado FINAL de la ronda y marcó los 11 avisos de `find-theatre-tickets__us` como caja
+            # equivocada cuando el censo dice que los 11 eran DESFASE: nadie tenía filas en ese momento.
+            # Decirle al juez una causa falsa once veces es peor que no decirle ninguna.
+            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_with_other_sheets']} vez/veces había filas en OTRA "
+                         f"hoja ({', '.join(_sr.get('other_sheets') or [])}) mientras la de este encargo "
+                         f"estaba vacía. Compáralo con la cadena del encargo antes de llamarlo avería: la "
+                         f"hoja de un encargo ANTERIOR tiene filas con todo el derecho.")
         elif _sr.get("n_unreadable"):
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_unreadable']} vez/veces la lectura de la hoja "
                          f"REVENTÓ y el error se tragó solo ({'; '.join(_sr.get('errors') or [])}). Avería "

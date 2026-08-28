@@ -5158,7 +5158,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   esa ronda SÍ deja medido y sigue abierto: **10 de 12 turnos avisados de que había algo con CERO filas**, con
   los resultados existiendo los últimos 5 minutos — la trampa de V2-330, escrita por nosotros. Descartado por
   el camino: no es `sheet_key` (V2-439) ni el lector (reproducido en aislamiento, con la caja resuelta
-  devuelve las filas). Nodo 10.110, cinco desarmes — y el primero **no mordía**: los tests pasaban con el
+  devuelve las filas). **Primera medida en vivo (`find-theatre-tickets__us`): 11 avisos, los 11 DESFASE** — y el clasificador viejo los marcó los 11 como caja equivocada, así que hubo que retirarlo también del JUEZ, que seguía leyéndolo: contarle una avería inexistente once veces en una ronda le baja la nota de mecanismo por algo que no pasó. Lo que esa ronda deja como defecto real y sin ambigüedad: **la cara dice «ya ha encontrado algo» once veces con la hoja vacía en todas partes** — la señal que la enciende no está respaldada por ninguna fila. Nodo 10.110, siete desarmes — y el primero **no mordía**: los tests pasaban con el
   emisor MUDO, o sea un lector interpretando un campo que nadie escribe, que publica ceros y se leen como «no
   pasó». El censo va acotado, así que **el orden decide qué se puede diagnosticar**: primero las cajas que se
   miraron (el ancla), después las que más filas tienen.

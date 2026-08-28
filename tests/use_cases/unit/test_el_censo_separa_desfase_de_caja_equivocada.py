@@ -108,3 +108,27 @@ def test_el_MOTOR_emite_el_censo_y_no_solo_las_cajas(monkeypatch, tmp_path):
     # informe va acotado a propósito, así que dentro de la suite completa —con las hojas que dejan otros
     # tests— la nuestra puede caer fuera del corte sin que nada esté roto. Comprobado: falla solo ahí.
     assert "cen-1:1" in censo, censo
+
+
+def test_al_juez_se_le_da_la_causa_del_CENSO_y_no_la_del_estado_final():
+    """`n_wrong_box` compara con el estado FINAL de la ronda y por eso marcó los ONCE avisos de
+    `find-theatre-tickets__us` (2026-08-28) como caja equivocada, cuando el censo dice que los once eran
+    DESFASE: nadie tenía filas en ese instante. Decirle al juez una causa falsa once veces es peor que no
+    darle ninguna — se la creerá y bajará la nota de mecanismo por una avería inexistente."""
+    from tests.use_cases.e2e.agent import judge
+    mech = {"sheet_hidden_from_the_prompt": {"n": 2, "turns": [{"turn": 5}]},
+            "unresolved_errand_sheets": {"n_wrong_box": 11, "wrong_boxes": {"86f804-2": 11},
+                                         "n_lag": 11, "n_ghost": 0, "n_with_other_sheets": 0}}
+    txt = judge.mechanism_facts(mech)
+    assert "caja que NO era" not in txt and "86f804-2" not in txt
+
+
+def test_y_si_el_CENSO_dice_que_habia_filas_en_otra_hoja_SI_se_le_dice():
+    """La mitad que impide que el arreglo sea silencio: cuando el censo sí encuentra filas fuera, esa es la
+    pista buena y tiene que llegar — con el aviso de que una hoja anterior las tiene con todo el derecho."""
+    from tests.use_cases.e2e.agent import judge
+    mech = {"sheet_hidden_from_the_prompt": {"n": 2, "turns": [{"turn": 5}]},
+            "unresolved_errand_sheets": {"n_lag": 0, "n_ghost": 0,
+                                         "n_with_other_sheets": 3, "other_sheets": ["e84138-1:12"]}}
+    txt = judge.mechanism_facts(mech)
+    assert "e84138-1:12" in txt and "encargo ANTERIOR" in txt

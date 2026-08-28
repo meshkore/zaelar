@@ -134,21 +134,29 @@ def test_resolver_a_la_caja_EQUIVOCADA_se_cuenta_aparte():
 
 
 def test_al_juez_se_le_dice_CUÁL_de_las_averías_fue():
-    """Reescrito 2026-08-28, NO volteado: la propiedad —cada avería lleva a mirar un sitio distinto del motor,
-    así que «avería» a secas no basta— es la misma. Lo que cambió es CUÁLES son averías: la caja vacía a secas
-    dejó de serlo (en cinco de las seis rondas medidas era el camino sano), y su sitio lo ocupa la caja
-    EQUIVOCADA, que es la que de verdad dice algo."""
+    """Reescrito DOS veces el 2026-08-28 y NUNCA volteado. La propiedad no ha cambiado nunca: cada avería lleva
+    a mirar un sitio distinto del motor, así que «avería» a secas no basta.
+
+    Lo que cambia es QUÉ señal la nombra. Primero fue la caja vacía a secas (dejó de serlo: en cinco de seis
+    rondas era el camino sano). Después la caja EQUIVOCADA, derivada de comparar con `sheet_timing.sheet_box`
+    — y esa comparación quedó DESACREDITADA con una medida en vivo: en `find-theatre-tickets__us` marcó los
+    ONCE avisos como caja equivocada cuando el censo del instante (V2-440) dice que los once eran DESFASE,
+    nadie tenía filas. Un estado FINAL no puede contestar una pregunta sobre un INSTANTE, y contarle al juez
+    una avería inexistente once veces en una ronda le baja la nota de mecanismo por algo que no pasó.
+
+    Hoy la nombra el censo: `n_with_other_sheets` (había filas en otra hoja) y `n_ghost` (en la desnuda).
+    """
     from tests.use_cases.e2e.agent import judge as J
     base = {"sheet_hidden_from_the_prompt": {"n": 2, "measurable": True, "turns": [{"turn": 6}, {"turn": 7}]}}
     mala = J.mechanism_facts({**base, "unresolved_errand_sheets": {
         "n": 0, "tabs": {}, "n_empty": 3, "empty_sheets": {"f1743e-2": 3},
-        "n_wrong_box": 3, "wrong_boxes": {"f1743e-2": 3}}})
+        "n_lag": 0, "n_ghost": 0, "n_with_other_sheets": 3, "other_sheets": ["f1743e-1:12"]}})
     txt = "\n".join(mala) if isinstance(mala, list) else str(mala)
-    assert "NO era la de este encargo" in txt and "f1743e-2" in txt
-    # …y una caja vacía que SÍ era la suya no le dice nada al juez
+    assert "filas en OTRA" in txt and "f1743e-1:12" in txt
+    # …y una caja vacía porque el encargo aún no había encontrado nada no le dice nada al juez
     sana = J.mechanism_facts({**base, "unresolved_errand_sheets": {
         "n": 0, "tabs": {}, "n_empty": 3, "empty_sheets": {"24cd96-1": 3},
-        "n_wrong_box": 0, "wrong_boxes": {}}})
+        "n_lag": 3, "n_ghost": 0, "n_with_other_sheets": 0, "other_sheets": []}})
     txt2 = "\n".join(sana) if isinstance(sana, list) else str(sana)
     assert "NO era la de este encargo" not in txt2 and "se sabe POR QUÉ" not in txt2
     sin = J.mechanism_facts({**base, "unresolved_errand_sheets": {"n": 2, "tabs": {"a-1": 2},
