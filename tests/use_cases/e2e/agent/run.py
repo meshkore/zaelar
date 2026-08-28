@@ -314,6 +314,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     if quiescence is not None:
         mech["quiescence"] = quiescence
     mech["turn_actions"] = turn_actions
+    # V2-469 — each widget op with the turn it fired in: the judge kept guessing timing wrong (three
+    # rounds, three wrong [alta]s). Derived here because only run.py holds transcript AND events together.
+    try:
+        mech["widget_ops_by_turn"] = verifymod.widget_ops_by_turn(all_events, transcript)
+    except Exception:  # noqa: BLE001
+        pass
     # V2-400 — el flujo CRUDO contra el techo del lector, ANTES del filtro por tiempo (el filtro esconde el
     # recorte). Nunca ha mordido (máx histórico 1.128 sobre 4.000), pero el día que muerda sería invisible:
     # familias, widget_ops y la auditoría entera saldrían de un flujo recortado sin que nada lo dijera.

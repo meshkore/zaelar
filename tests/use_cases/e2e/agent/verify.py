@@ -266,6 +266,39 @@ def dropped_actions(all_events: list[dict]) -> list[dict]:
     return out
 
 
+def widget_ops_by_turn(all_events: list[dict], transcript: list[dict]) -> dict:
+    """Each widget ACTION with the turn it fired in — the judge kept guessing timing wrong (V2-469).
+
+    Three rounds of `build-a-video-playlist`, three wrong [alta]s: «play se ejecutó en el primer turno»
+    (timeline: +217s, right after «ponla ya»), «add dispara reproducciones» (the plays sit in the turn
+    where the operator said «ponla»), «falta un add por enlace» (one add carries N links by design). The
+    ops existed with timestamps and the report only gave totals. Buckets each `label=="action"` widget
+    event into the OPERATOR turn on the table when it fired (same numbering as `turn_actions`); an op
+    before any turn folds into t0 — inventing a negative turn would be worse than a coarse first bucket.
+    """
+    marcas = [float(t.get("at") or 0) * 1000.0 for t in (transcript or [])
+              if isinstance(t, dict) and t.get("who") != "zaelar"]
+    if not marcas:
+        return {}
+    out: dict[str, list] = {}
+    for e in (all_events or []):
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        cat = f.get("cat") if f.get("cat") is not None else e.get("cat")
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        if cat != "widget" or label != "action":
+            continue
+        accion = str((f.get("action") if f.get("action") is not None else e.get("action")) or "").strip()
+        if not accion:
+            continue
+        wid = str((f.get("id") if f.get("id") is not None else e.get("id")) or "").split("::", 1)[0]
+        ts = float((f.get("t_ms") if f.get("t_ms") is not None else e.get("t_ms")) or 0)
+        idx = max(0, sum(1 for m in marcas if m <= ts) - 1)
+        out.setdefault(f"t{idx}", []).append(f"{wid}.{accion}")
+    return out
+
+
 def widget_ops(all_events: list[dict]) -> dict:
     """Which WIDGET each data-op touched, and how many — the half of the mechanism nobody could see.
 

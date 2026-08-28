@@ -937,6 +937,20 @@ def mechanism_facts(mech: dict) -> str:
                          f"así que si zaelar dijo que eso estaba «en pantalla», el operador no lo vio.")
     else:
         lines.append("· No se observó ninguna operación de widget en esta corrida.")
+    # V2-469 — CUÁNDO pasó cada op, no solo cuántas. Tres rondas seguidas de `build-a-video-playlist` con
+    # [alta]s equivocadas por adivinar el instante: «play se ejecutó en el primer turno» (timeline: justo
+    # tras «ponla ya»), «add dispara reproducciones» (los play caen en el turno del «ponla») y «falta un
+    # add por enlace» (uno lleva N por diseño). El dato existía con su reloj y el informe daba totales.
+    _opt = mech.get("widget_ops_by_turn") or {}
+    if _opt:
+        _vista = " · ".join(f"{t}: {', '.join(a)}" for t, a in sorted(
+            _opt.items(), key=lambda kv: int(kv[0][1:]) if kv[0][1:].isdigit() else 0))
+        lines.append(f"· ⏱ OPS POR TURNO (t<i> = lo que el operador tenía sobre la mesa): {_vista}. Dos "
+                     f"reglas ANTES de acusar por estas ops: un solo `add` puede llevar VARIOS enlaces (es "
+                     f"como se le enseña al modelo — no exijas un add por enlace), y un `play`/`next` que "
+                     f"cae en el turno donde el operador lo PIDIÓ («ponla», «pasa al siguiente») es una "
+                     f"orden suya, no un autoplay de `add`: compara el turno de la op con lo que el "
+                     f"operador dijo en ESE turno antes de archivar una violación de diseño.")
     # V2-463 — las BÚSQUEDAS DE IMÁGENES son viajes reales al mundo exterior (un Chromium caliente carga
     # Google/Bing y parsea el payload vivo), y hasta hoy el juez no las veía: la ronda que entregó 12 fotos
     # de ferrari.com en 3 s se puntuó 2/5 como «alucinación visual» por «cero evidencias externas». Se

@@ -173,6 +173,51 @@ def complete_pasted_links(tool_calls: list, operator_text: str) -> list:
     return tool_calls
 
 
+def ensure_failure_named(spoken: str, parte: dict) -> str:
+    """The failure rides along even when the model SPOKE (V2-469, round 11 turn 7): «Ahora en pantalla te
+    muestro el siguiente» over `widget_data_failed` («No hay más vídeos en la lista») — the honest canned
+    line only replaced a MUTE turn, so a spoken narration lied over a failure the system had in hand.
+    Sibling of `video_turn.ensure_delivery_named`, the failure direction. A mute turn is left alone: the
+    canned replacement downstream already owns it.
+    """
+    spoken = (spoken or "").strip()
+    parte = parte if isinstance(parte, dict) else {}
+    if not spoken:
+        return spoken
+    msgs = []
+    if parte.get("executed") == "widget_data_failed":
+        msgs.append(str(parte.get("message") or "").strip() or "el widget no lo aceptó.")
+    else:
+        for f in (parte.get("fallidas") or []):
+            m = str((f or {}).get("message") or "").strip()
+            if m:
+                msgs.append(m)
+    if not msgs:
+        return spoken
+    cola = "No he podido: " + msgs[0]
+    if cola.lower() in spoken.lower() or msgs[0].lower() in spoken.lower():
+        return spoken
+    return spoken.rstrip() + " " + cola
+
+
+_ASKS = None
+
+
+def _asked_something(text: str) -> bool:
+    """A question without a question mark is still a question: «dime qué está sonando» (measured, round 11
+    turn 1) carries no «?». Tiny closed set of ASK shapes — not intent classification, just the asking
+    surface — plus the literal question mark."""
+    global _ASKS
+    import re as _re
+    import unicodedata as _ud
+    if "?" in str(text or ""):
+        return True
+    plano = "".join(c for c in _ud.normalize("NFKD", str(text or "").lower()) if not _ud.combining(c))
+    if _ASKS is None:
+        _ASKS = _re.compile(r"\b(dime|dimelo|me dices|me cuentas|cuentame|tell me|what's playing)\b")
+    return bool(_ASKS.search(plano))
+
+
 def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     """A bare «Hecho.» to a QUESTION is a non-answer (V2-469, `build-a-video-playlist` 23:05): «¿Y qué hay
     en la lista?» → mute model over a redundant `add` → «Hecho.», twice, watchdog nudging both times and
@@ -187,7 +232,7 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     base = spoken_for(parte, ack)
     if parte.get("executed") != "widget_data" or parte.get("fallidas"):
         return base
-    if "?" not in str(operator_text or ""):
+    if not _asked_something(operator_text):
         return base
     wid = str(parte.get("widget") or "").strip()
     if not wid:

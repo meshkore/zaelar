@@ -1167,6 +1167,14 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             spoken = _video_turn.ensure_delivery_named(spoken, return_extra_exec)
         except Exception:
             pass
+    # V2-469 — and the FAILURE rides along too: a spoken narration over a failed data-op («te muestro el
+    # siguiente» over «No hay más vídeos en la lista») lied because the honest canned line only replaced
+    # a mute turn. Sibling augmentation, failure direction.
+    if action == "widget_data" and isinstance(return_extra_exec, dict):
+        try:
+            spoken = _widget_data_turn.ensure_failure_named(spoken, return_extra_exec)
+        except Exception:
+            pass
 
     # EL BACKSTOP DE ENTREGA (V2-305/336/339, extraído a `delivery` en V2-340): una respuesta de pura espera
     # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de

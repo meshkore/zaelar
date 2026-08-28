@@ -55,3 +55,41 @@ def test_the_probe_wires_the_completion():
     from pathlib import Path
     src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "complete_pasted_links" in src
+
+
+# ── the failure rides along even when the model spoke (V2-469, round 11 turn 7) ──────────────────────────
+def test_a_spoken_reply_over_a_failed_op_gets_the_failure_appended():
+    """«Ahora en pantalla te muestro el siguiente» over widget_data_failed («No hay más vídeos en la
+    lista») — the model spoke, so the honest canned failure never replaced anything, and the narration
+    lied over a failure the system had in hand."""
+    parte = {"executed": "widget_data_failed", "widget": "youtube", "act": "next",
+             "message": "No hay más vídeos en la lista."}
+    out = WDT.ensure_failure_named("Ahora en pantalla te muestro el siguiente.", parte)
+    assert out.startswith("Ahora en pantalla")
+    assert "No hay más vídeos" in out
+
+
+def test_a_successful_op_appends_nothing():
+    parte = {"executed": "widget_data", "widget": "youtube", "act": "next"}
+    assert WDT.ensure_failure_named("Hecho.", parte) == "Hecho."
+
+
+def test_a_mute_turn_keeps_the_plain_failure_line():
+    parte = {"executed": "widget_data_failed", "widget": "youtube", "act": "next", "message": "no va"}
+    assert WDT.ensure_failure_named("", parte) == ""
+
+
+# ── «dime qué está sonando» is a question without a question mark (V2-469, round 11 turn 1) ─────────────
+def test_dime_counts_as_asking(monkeypatch):
+    from widgets import refs
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: [
+        {"id": "1", "label": "Rick", "field": "item", "hint": "la que suena"}])
+    parte = {"executed": "widget_data", "widget": "youtube", "act": "play"}
+    out = WDT.named_ack(parte, "Hecho.", "Perfecto, pues ponla y dime qué está sonando ahora mismo.")
+    assert "Rick" in out and out != "Hecho."
+
+
+def test_the_probe_wires_the_failure_augmentation():
+    from pathlib import Path
+    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    assert "ensure_failure_named" in src

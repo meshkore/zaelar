@@ -2215,6 +2215,10 @@ DOMAINS: list[dict] = [
         {"id": "10.124", "title": "La séptima cara del flip: descargo + contraoferta de servicio del tester",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_driver_flip_by_counter_offer.py"]},
+        {"id": "10.125", "title": "Las ops de widget llevan su TURNO — el juez adivinaba el instante y archivaba "
+                                  "[alta]s falsas",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_las_ops_llevan_su_turno.py"]},
         {"id": "10.122", "title": "El reloj de la entrega también lee los títulos de la HOJA — sin nota, no corría",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_delivery_clock_reads_the_sheet_titles_too.py"]},
