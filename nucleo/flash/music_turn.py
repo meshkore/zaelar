@@ -42,6 +42,16 @@ async def execute(action: str, query: str) -> dict:
     try:
         from nucleo.flash import music_flow as _mflow
         res = await _mflow.run(action, query, extract=None)
+        # The player CARD opens where the data lands (V2-463) - shared rail, same fix as its two siblings
+        # (imagenes/youtube): the voice provider emits its own early show, the probe channel emitted none, so
+        # probe rounds played music on a canvas with no card. Only on PLAY-like success: a stop/volume op on
+        # an already-closed card must not reopen it.
+        if bool(getattr(res, "ok", False)) and str(action or "").strip() not in ("stop", "pause", "close"):
+            try:
+                from voice.observer import emit as _emit
+                _emit("widget", "show", extra={"id": "musica", "src": "flash"})
+            except Exception:  # noqa: BLE001
+                pass
         return {"executed": "play_music", "ok": bool(getattr(res, "ok", False)),
                 "accion": action, "query": str(query or "")[:80],
                 "message": str(getattr(res, "message", "") or "")[:160]}

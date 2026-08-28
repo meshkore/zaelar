@@ -70,6 +70,8 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
             parte["blocked"] = True
         if not items:
             parte["message"] = str(res.get("error") or "")[:160] or "no encontré fotos de eso"
+            # También la que volvió VACÍA — es exactamente la que hay que poder diagnosticar después.
+            _evidence(parte)
             return parte
         from widgets.server_api import brain_action
         loaded = await brain_action("imagenes", "show",
@@ -77,6 +79,18 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
         loaded = loaded if isinstance(loaded, dict) else {}
         parte["ok"] = bool(loaded.get("ok"))
         parte["count"] = int(loaded.get("n") or 0)
+        # THE CARD OPENS WHERE THE DATA LANDS (V2-463). The voice provider emits its own early `show` for
+        # instant feedback, but this rail is shared with the probe channel - and there NOBODY emitted it, so a
+        # whole measured round filled the viewer while the operator watched a canvas where no card ever
+        # appeared (2026-08-28, `show-real-photo-of-a-new-car__es`: 12 photos in the store, nothing on
+        # screen). Emitting on the shared rail instead of patching the second channel is the lesson this
+        # codebase has now paid for five times. Idempotent on the frontend; only fires when something loaded.
+        if parte["ok"] and parte["count"]:
+            try:
+                from voice.observer import emit as _emit
+                _emit("widget", "show", extra={"id": "imagenes", "src": "flash"})
+            except Exception:  # noqa: BLE001
+                pass
         # WHERE the pictures come from is part of the answer, not decoration: the operator's own review of the
         # slow route praised it for going to the official site, so a fast route that cannot say whose picture
         # this is would be trading the thing he valued for speed.
@@ -84,10 +98,30 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
         parte["first"] = str(items[0].get("title") or items[0].get("site") or "")[:120]
         if not parte["ok"]:
             parte["message"] = str(loaded.get("error") or "")[:160]
+        _evidence(parte)
         return parte
     except Exception as e:  # noqa: BLE001
         parte["execute_error"] = str(e)[:200]
+        _evidence(parte)
         return parte
+
+
+def _evidence(parte: dict) -> None:
+    """One observability line per SEARCH, with the query and where the photos came from.
+
+    Exists because the round that produced dictionary pictures could not be diagnosed afterwards: the
+    next `show` overwrote the widget store, so the junk query was simply GONE - the only trace was the
+    spoken sentence naming spanishdict.com. What a search asked and what it got back is evidence of
+    the turn, not state of the widget, and evidence is emitted the moment it exists (V2-463)."""
+    try:
+        from voice.observer import emit as _emit
+        _emit("brain", "🖼️ fotos: búsqueda", role="system", extra={
+            "cat": "flash", "query": str(parte.get("query") or ""), "ok": bool(parte.get("ok")),
+            "count": int(parte.get("count") or 0), "source": str(parte.get("source") or ""),
+            "sites": list(parte.get("sites") or []), "blocked": bool(parte.get("blocked")),
+            "degraded_from": str(parte.get("degraded_from") or "")})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _sites(items: list) -> list:

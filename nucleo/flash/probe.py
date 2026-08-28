@@ -1053,7 +1053,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 except Exception as e:  # noqa: BLE001
                     return_extra_exec = {"execute_error": str(e)[:200]}
             elif action == "canvas:show:imagenes" and images_req:
-                # V2-457 — las fotos se ENSEÑAN; mismo rail que la voz (`image_turn`), compartido.
+                # V2-457 — las fotos se ENSEÑAN; mismo rail que la voz (`image_turn`), compartido. La apertura
+                # de la TARJETA vive en ese rail (V2-463): este canal no emite el show por su cuenta.
                 return_extra_exec = await _image_turn.execute(images_req["query"], images_req.get("n") or 12)
             elif action == "canvas:show:youtube" and video_req:
                 # V2-383 — EL VÍDEO SE PONE, NO SE ROTULA. Hermano de la música: mismo rail que la voz

@@ -152,3 +152,30 @@ def test_una_averia_del_rail_no_tumba_el_turno():
     from pathlib import Path
     cuerpo = Path("nucleo/flash/music_turn.py").read_text()
     assert "except Exception" in cuerpo and "execute_error" in cuerpo
+
+
+# ── V2-463 — la tarjeta del reproductor se abre en el rail COMPARTIDO ───────────────────────────────────
+def test_poner_musica_ABRE_la_tarjeta_y_pararla_no_la_reabre(monkeypatch):
+    """Mismo agujero que imagenes/youtube en el canal probe. Y la mitad fina: un stop sobre una tarjeta ya
+    cerrada no puede volver a abrirla — parar es parar (V2-092)."""
+    import asyncio
+    emitted: list[tuple] = []
+
+    class _R:
+        ok = True
+        message = ""
+
+    async def _run(action, query, extract=None):
+        return _R()
+
+    monkeypatch.setattr("nucleo.flash.music_flow.run", _run, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    from nucleo.flash import music_turn
+    asyncio.run(music_turn.execute("play", "jazz"))
+    shows = [e for e in emitted if e[0] == "widget" and e[1] == "show"]
+    assert shows and shows[0][2].get("id") == "musica"
+    emitted.clear()
+    asyncio.run(music_turn.execute("stop", ""))
+    assert not [e for e in emitted if e[0] == "widget" and e[1] == "show"]

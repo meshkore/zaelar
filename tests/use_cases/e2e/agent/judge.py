@@ -884,6 +884,17 @@ def mechanism_facts(mech: dict) -> str:
         lines.append(f"· Operaciones de WIDGET observadas: {pretty}. Una `data` es una ESCRITURA en ese "
                      f"widget: si ahí sale `agenda (data×1)`, la cita se escribió, digan lo que digan los "
                      f"disparadores.")
+        # V2-463 — ESCRIBIR no es ENSEÑAR. La ronda que lo fijó: 12 fotos en el almacén del visor y el
+        # operador mirando un canvas donde la tarjeta nunca llegó a abrirse — el canal probe no emitía el
+        # `show` y el informe traía la familia `widget` contenta. Un widget con escrituras y CERO `show` en
+        # una ronda que empieza con el canvas en blanco es un widget que nadie vio; el juez tiene que poder
+        # decirlo con el hecho delante, no deducirlo del transcript.
+        mudos = sorted(w for w, o in ops.items()
+                       if not o.get("show") and any(k != "close" for k in o))
+        if mudos:
+            lines.append(f"· ⚠️ ESCRITOS PERO NUNCA ABIERTOS en esta ronda: {', '.join(mudos)}. Recibieron "
+                         f"datos y ninguna orden de mostrarse — la ronda empieza con el canvas en blanco, "
+                         f"así que si zaelar dijo que eso estaba «en pantalla», el operador no lo vio.")
     else:
         lines.append("· No se observó ninguna operación de widget en esta corrida.")
     # V2-395 — QUÉ ESTÁ PRODUCIENDO al terminar. `widget_ops` dice qué se TOCÓ, y eso no contesta «¿suena

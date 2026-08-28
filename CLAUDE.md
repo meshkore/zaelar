@@ -5143,6 +5143,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **La tarjeta se abre donde aterrizan los datos (V2-463, 2026-08-28)**: 12 fotos en el almacén del visor y
+  el operador mirando un canvas donde la tarjeta nunca se abrió. La voz emitía el `show` al llegar la tool;
+  el canal probe —el que conduce TODAS las rondas del plató— no lo emitía nadie, y **youtube y musica tenían
+  el mismo agujero**. Sexta vez de la misma forma («cablear en ambos»), así que esta vez la decisión va al
+  rail COMPARTIDO: `*_turn.execute` emite el show, solo si algo CARGÓ, y un `stop` de música no reabre. Dos
+  piezas más: **evidencia por búsqueda** (`image_turn._evidence` — la ronda de los diccionarios fue
+  indiagnosticable porque el show siguiente pisó el almacén y la query basura desapareció; ahora cada
+  búsqueda emite query/fuente/nº/blocked/degraded, incluida la vacía) y el juez recibe «⚠️ ESCRITOS PERO
+  NUNCA ABIERTOS» cuando un widget tiene escrituras y cero shows en la ronda (V2-346: un hecho que no se
+  enuncia es invisible). 7 casos en los nodos de los tres rails; desarme verificado.
+
 - **Z.AI: el plan primero, los créditos después (V2-462, 2026-08-28)**: el plan de código amaneció agotado
   (`1310`, reset el 1 de sept) y el juez del plató perdió una ronda (GLM 429 → DeepSeek 402 → AIMLAPI 504×2).
   El operador recargó DeepSeek, puso $20 de créditos en Z.AI y dictó la política: forfait primero, créditos

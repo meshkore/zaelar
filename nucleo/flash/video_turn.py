@@ -60,18 +60,36 @@ async def execute(query: str, action: str = "play") -> dict:
             # V2-402 — a media search goes to the PLAYER: several candidates into the list, nothing autoplays.
             res = await brain_action("youtube", "search", {"query": q} if q else {})
             res = res if isinstance(res, dict) else {}
+            _show_card(bool(res.get("ok")))
             return {"executed": "play_video", "accion": "list", "ok": bool(res.get("ok")),
                     "query": q[:80], "added": [str(t)[:120] for t in (res.get("added") or [])],
                     "count": int(res.get("count") or 0),
                     "message": str(res.get("message") or res.get("error") or "")[:160]}
         res = await brain_action("youtube", "load", {"query": q} if q else {})
         res = res if isinstance(res, dict) else {}
+        _show_card(bool(res.get("ok", res.get("videoId"))))
         return {"executed": "play_video", "ok": bool(res.get("ok", res.get("videoId"))),
                 "query": q[:80], "videoId": str(res.get("videoId") or ""),
                 "title": str(res.get("title") or "")[:120],
                 "message": str(res.get("message") or res.get("error") or "")[:160]}
     except Exception as e:  # noqa: BLE001
         return {"executed": "play_video", "ok": False, "query": q[:80], "execute_error": str(e)[:200]}
+
+
+def _show_card(loaded: bool) -> None:
+    """The player CARD opens where the data lands (V2-463) - shared rail, so the probe channel gets it too.
+
+    The voice provider emits its own early show for instant feedback (idempotent on the frontend); this one
+    is the guarantee. Found via the imagenes sibling: a measured round filled the widget while the operator
+    watched a canvas where no card ever appeared - and this player had the exact same hole on the probe side.
+    """
+    if not loaded:
+        return
+    try:
+        from voice.observer import emit as _emit
+        _emit("widget", "show", extra={"id": "youtube", "src": "flash"})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def spoken_for(parte: dict, ack: str) -> str:

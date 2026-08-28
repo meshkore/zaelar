@@ -111,3 +111,71 @@ def test_un_bloqueo_del_buscador_no_es_que_no_haya_fotos():
 def test_un_turno_que_no_era_de_fotos_conserva_su_propio_ack():
     assert image_turn.spoken_for({"executed": "play_video"}, "ack") == "ack"
     assert image_turn.spoken_for({}, "ack") == "ack"
+
+
+# ── V2-463 — la tarjeta se ABRE donde aterrizan los datos, y cada búsqueda deja su evidencia ────────────
+def test_cargar_fotos_ABRE_la_tarjeta_del_visor(monkeypatch):
+    """La ronda que lo fijó (2026-08-28): 12 fotos en el almacén y el operador mirando un canvas donde la
+    tarjeta nunca se abrió — la voz emitía el `show` y el canal probe no. El rail COMPARTIDO es quien abre:
+    quinta vez que «cablear en ambos» se paga, así que la decisión vive donde los dos canales ya pasan."""
+    emitted: list[tuple] = []
+
+    async def _images(q, k):
+        return {"query": q, "items": _items(2), "source": "google", "blocked": False}
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": True, "n": 2}
+
+    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    asyncio.run(image_turn.execute("Ferrari Amalfi", 2))
+    shows = [e for e in emitted if e[0] == "widget" and e[1] == "show"]
+    assert shows and shows[0][2].get("id") == "imagenes", "sin el show, el operador mira un canvas vacío"
+
+
+def test_sin_fotos_NO_se_abre_ninguna_tarjeta(monkeypatch):
+    """Abrir un visor vacío sobre un «no encontré nada» es enseñar una caja hueca — la mitad de sensibilidad."""
+    emitted: list[tuple] = []
+
+    async def _images(q, k):
+        return {"query": q, "items": [], "source": "google", "blocked": False}
+
+    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    asyncio.run(image_turn.execute("algo inexistente"))
+    assert not [e for e in emitted if e[0] == "widget" and e[1] == "show"]
+
+
+def test_cada_busqueda_emite_su_evidencia_con_la_QUERY(monkeypatch):
+    """La búsqueda de los diccionarios no se pudo diagnosticar: el `show` siguiente pisó el almacén y la
+    query basura desapareció. Lo que una búsqueda pidió y lo que trajo es evidencia del TURNO, no estado del
+    widget — se emite en el momento en que existe, incluida la que salió mal."""
+    emitted: list[tuple] = []
+
+    async def _images(q, k):
+        return {"query": q, "items": [], "source": "bing", "blocked": False}
+
+    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    asyncio.run(image_turn.execute("avísame cuando la tengas"))
+    ev = [e for e in emitted if e[0] == "brain" and "búsqueda" in e[1]]
+    assert ev, "una búsqueda sin rastro es indiagnosticable"
+    x = ev[0][2]
+    assert x.get("query") == "avísame cuando la tengas"
+    assert x.get("source") == "bing" and x.get("ok") is False
+
+
+def test_el_juez_ve_un_widget_escrito_pero_nunca_abierto():
+    """La otra mitad, en el arnés: `widget_ops` ya contaba los `show`, pero el hecho «datos sin tarjeta» no
+    se enunciaba y un campo que el juez no ve en palabras es invisible (V2-346)."""
+    import pathlib as _pl
+    src = (_pl.Path(__file__).resolve().parents[4] / "tests" / "use_cases" / "e2e" / "agent"
+           / "judge.py").read_text(encoding="utf-8")
+    assert "ESCRITOS PERO NUNCA ABIERTOS" in src

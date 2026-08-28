@@ -239,3 +239,39 @@ def test_un_turno_que_NO_es_de_video_conserva_su_ack():
 def test_un_exito_SIN_titulo_no_inventa_uno():
     """Sin título no hay nada que verificar, así que se cae al ack en vez de fabricar un nombre."""
     assert _boca({"executed": "play_video", "ok": True, "title": ""}) == "Hecho."
+
+
+# ── V2-463 — la tarjeta del reproductor se abre en el rail COMPARTIDO ───────────────────────────────────
+def test_cargar_un_video_ABRE_la_tarjeta_tambien_desde_el_probe(monkeypatch):
+    """Mismo agujero que el visor de imágenes: la voz emitía su `show` y el canal probe ninguno, así que una
+    ronda medida reproducía sobre un canvas sin tarjeta. La apertura vive en `video_turn.execute`."""
+    import asyncio
+    emitted: list[tuple] = []
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": True, "videoId": "abc123", "title": "x"}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    from nucleo.flash import video_turn
+    asyncio.run(video_turn.execute("un documental"))
+    shows = [e for e in emitted if e[0] == "widget" and e[1] == "show"]
+    assert shows and shows[0][2].get("id") == "youtube"
+
+
+def test_un_video_que_NO_cargo_no_abre_nada(monkeypatch):
+    import asyncio
+    emitted: list[tuple] = []
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": False, "error": "nada"}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, extra or {})))
+    from nucleo.flash import video_turn
+    asyncio.run(video_turn.execute("algo"))
+    assert not [e for e in emitted if e[0] == "widget" and e[1] == "show"]
