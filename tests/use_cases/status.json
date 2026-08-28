@@ -2044,25 +2044,36 @@
       }
     },
     "build-a-video-playlist-from-links": {
-      "last_run": "2026-08-28 09:33",
-      "overall": 1,
-      "judge": "deepseek-v4-pro",
-      "brain": "deepseek-v4-flash",
+      "last_run": "2026-08-28 20:31",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
       "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
+        "naturalidad": 4,
+        "adaptacion": 1,
+        "resultado": 4,
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirma haber montado la lista con los dos vídeos cuando el mecanismo solo registra add×1 y la lista quedó vacía tras las limpiezas, sin reponer los ítems del usuario.",
+      "verdict": "No está listo para producción: aunque construyó la lista correctamente, infringió la regla de diseño de no reproducir al añadir y mostró una incapacidad grave para adaptarse a un recordatorio simple debido a un fallo interno que manejó mal.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: Dime qué vídeo añado (enlace o nombre)."
+        },
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
       "sandboxed": true,
-      "provisional": null,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 1,
       "turns_used": 8,
       "families": [
@@ -2075,20 +2086,25 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "e76eb1a",
-        "n_dirty": 1,
+        "sha": "0927273",
+        "n_dirty": 2,
         "dirty": [
-          "nucleo/flash/live_blocks.py"
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
         ]
       },
       "machine": {
         "gpu_models": [
           {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
+            "size": "44 GB"
           }
         ],
-        "n": 1
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-387-uc-build-a-video-playlist-from-links.md",
@@ -3564,5 +3580,5 @@
       }
     }
   },
-  "updated": "2026-08-28 19:16"
+  "updated": "2026-08-28 20:31"
 }
