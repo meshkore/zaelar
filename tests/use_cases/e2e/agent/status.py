@@ -235,6 +235,16 @@ def _state(overall, r: dict) -> str:
 _ICON = {"PASS": "✅", "FAIL": "❌", "INFRA": "⚠️", "CAPPED": "🔒"}
 
 
+#: Cómo abre el juez cuando su conclusión es que NO. Se mira solo el ARRANQUE del veredicto: en el cuerpo la
+#: misma frase aparece a menudo negada («no está listo… salvo por») y buscarla en cualquier sitio marcaría
+#: filas que dicen lo contrario.
+_NO_LISTO = ("no está listo", "no esta listo", "no listo", "el caso no está listo")
+
+
+def _judge_says_not_ready(verdict: str | None) -> bool:
+    return (str(verdict or "").strip().lower()).startswith(_NO_LISTO)
+
+
 def _brain_cell(e: dict) -> str:
     """A row from BEFORE this field existed has no brain, and it must not be shown as if it had none: `—` is
     a measured absence (no worker ran), `?` is an unknown one. Conflating them would let every old row read
@@ -279,6 +289,13 @@ def _render(led: dict) -> None:
         st = e.get("state", "INFRA")
         overall = e.get("overall")
         verdict = (e.get("verdict") or "").replace("|", "·").replace("\n", " ")
+        if e.get("state") == "PASS" and _judge_says_not_ready(e.get("verdict")):
+            # EL DESACUERDO, VISIBLE. `PASS` es el umbral del arnés (overall ≥ 4 y mecanismo ≥ 3) y «listo
+            # para producción» es la opinión del juez: son dos preguntas distintas y las dos valen, así que
+            # no se fuerza a que coincidan. Lo que no puede es ESCONDERSE — una fila verde que abre diciendo
+            # «No está listo para producción» le da al lector dos cosas contrarias en la misma línea y la que
+            # se queda es el icono. Medido el 2026-08-28: 2 de las 13 verdes.
+            verdict = f"**⚠️ el juez dice que NO está listo, aunque la nota pase** · {verdict}"
         if e.get("state") == "INFRA" and e.get("infra_reason"):
             # El motivo MANDA sobre el veredicto en una fila INFRA: el veredicto habla de un producto que en
             # esa ronda no llegó a medirse, y leerlo como si sí invita justo al diagnóstico equivocado.

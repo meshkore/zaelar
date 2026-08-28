@@ -106,3 +106,40 @@ def test_y_el_juez_marcando_INFRA_es_OTRA_cosa():
     r = _ronda(verdict={"overall": 1, "scores": {}, "veredicto": "INFRA: no hubo respuesta"})
     assert S._state(1, r) == "INFRA"
     assert "juez" in r["_infra_reason"] and "conductor" not in r["_infra_reason"]
+
+
+# ── Una fila verde no puede esconder que el juez dijo que no ────────────────────────────────────────────────
+def test_una_fila_VERDE_cuyo_juez_dice_que_NO_lo_enseña(tmp_path, monkeypatch):
+    """`PASS` es el umbral del arnés (overall ≥ 4 y mecanismo ≥ 3) y «listo para producción» es la opinión del
+    juez: dos preguntas distintas, las dos válidas, y no se fuerza a que coincidan. Lo que no puede es
+    esconderse — una fila verde que abre con «No está listo para producción» le da al lector dos cosas
+    contrarias en la misma línea, y la que se queda es el icono.
+
+    Medido el 2026-08-28: 2 de las 13 verdes del tablero, las dos de esa madrugada.
+    """
+    monkeypatch.setattr(S, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(S, "BOARD_PATH", tmp_path / "STATUS.md")
+    S.record([_ronda(verdict={"overall": 4, "scores": {"mecanismo": 4},
+                              "veredicto": "No está listo para producción: el bloqueador nº1 es…"})],
+             sandboxed=True)
+    fila = [l for l in (tmp_path / "STATUS.md").read_text(encoding="utf-8").splitlines() if "x__es" in l][0]
+    assert "✅" in fila and "el juez dice que NO está listo" in fila
+
+
+def test_y_una_verde_conforme_no_arrastra_el_aviso(tmp_path, monkeypatch):
+    """Un aviso que sale en cada fila verde deja de ser un aviso."""
+    monkeypatch.setattr(S, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(S, "BOARD_PATH", tmp_path / "STATUS.md")
+    S.record([_ronda(verdict={"overall": 5, "scores": {"mecanismo": 5},
+                              "veredicto": "Sí, está listo para producción: la ejecución es impecable."})],
+             sandboxed=True)
+    fila = [l for l in (tmp_path / "STATUS.md").read_text(encoding="utf-8").splitlines() if "x__es" in l][0]
+    assert "✅" in fila and "NO está listo" not in fila
+
+
+def test_solo_se_mira_el_ARRANQUE_del_veredicto():
+    """En el cuerpo la misma frase aparece a menudo negada, y buscarla en cualquier sitio marcaría filas que
+    dicen justo lo contrario."""
+    assert S._judge_says_not_ready("No está listo para producción: …")
+    assert not S._judge_says_not_ready("El caso funciona; sería falso decir que no está listo.")
+    assert not S._judge_says_not_ready("")
