@@ -31,6 +31,10 @@ DRIVE_MODEL = _env("TESTER_DRIVE_MODEL", "deepseek/deepseek-v4-flash")   # decid
 # Z.AI (GLM) — competent judge/reasoning. Key in .meshkore/credentials/tester.env (⚠ needs balance / recharge).
 ZAI_KEY = _env("TESTER_ZAI_KEY")
 ZAI_BASE = _env("TESTER_ZAI_BASE", "https://api.z.ai/api/anthropic")   # coding-plan endpoint (Anthropic-compatible)
+# Los CRÉDITOS de Z.AI (pago por uso) viven en OTRA cartera y OTRO endpoint: paas/v4, OpenAI-compatible, misma
+# key. Medido el 2026-08-28 con el plan agotado (1310 hasta el 1 de sept): el endpoint del plan NO cae a
+# créditos solo — devuelve 1310 aunque haya saldo. Regla del operador: plan primero, créditos al agotarse.
+ZAI_PAAS_BASE = _env("TESTER_ZAI_PAAS_BASE", "https://api.z.ai/api/paas/v4")
 ZAI_JUDGE_MODEL = _env("TESTER_ZAI_JUDGE_MODEL", "glm-4.6")        # glm-4.6/glm-5/glm-5.2 (see z.ai model list)
 JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek/deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
 

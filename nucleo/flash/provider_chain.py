@@ -100,6 +100,15 @@ def _known_chain() -> list[dict]:
     zai = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"],
            "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.3"), "provider": "zai",
            "plan": "Z.AI GLM (coding plan)"}
+    # PLAN PRIMERO, CRÉDITOS DESPUÉS (norma del operador, 2026-08-28). El forfait es un muro, no una cuesta:
+    # medido con el plan agotado (1310 hasta el 1 de sept) y $20 de créditos en la cuenta — el endpoint del
+    # plan NO cae a créditos solo, y los créditos NO sirven el endpoint Anthropic. Misma key, otra URL, otro
+    # protocolo (paas/v4 es OpenAI-compatible; `model_spec._is_zai` lo excluye para que no acabe en
+    # `/v1/messages`). Mismo modelo que el plan a propósito: un relevo que cambia de modelo cambia de
+    # conducta, y este solo cambia de cartera.
+    zai_credits = {"name": "z.ai-créditos", "base_url": "https://api.z.ai/api/paas/v4", "env": ["Z_AI_API_KEY"],
+                   "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.3"), "provider": "aimlapi",
+                   "plan": "Z.AI créditos (pago por uso)"}
     aimlapi = {"name": "aimlapi", "base_url": os.getenv("LLM_BASE_URL") or "https://api.aimlapi.com/v1",
                "env": ["LLM_API_KEY", "AIMLAPI_KEY"], "model": override_model or "deepseek/deepseek-v4-flash",
                "provider": "aimlapi", "plan": "AIMLAPI"}
@@ -109,7 +118,7 @@ def _known_chain() -> list[dict]:
             "model": override_model or "llama-3.3-70b-versatile", "provider": "aimlapi", "plan": "Groq directo"}
     # Un override LLM_API_KEY/LLM_BASE_URL explícito ganaba SIEMPRE a Z.AI en el código anterior (el operador
     # pinchó un endpoint a mano) — se preserva reordenando, no descartando: si Z.AI se recupera, sigue en la cadena.
-    return [aimlapi, zai, xai, groq] if explicit else [zai, aimlapi, xai, groq]
+    return [aimlapi, zai, zai_credits, xai, groq] if explicit else [zai, zai_credits, aimlapi, xai, groq]
 
 
 def _VOICE_RELAYS() -> list[dict]:

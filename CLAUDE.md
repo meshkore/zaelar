@@ -5143,6 +5143,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **Z.AI: el plan primero, los créditos después (V2-462, 2026-08-28)**: el plan de código amaneció agotado
+  (`1310`, reset el 1 de sept) y el juez del plató perdió una ronda (GLM 429 → DeepSeek 402 → AIMLAPI 504×2).
+  El operador recargó DeepSeek, puso $20 de créditos en Z.AI y dictó la política: forfait primero, créditos
+  al agotarse, **progresivo**. Lo medido que hay que saber: el endpoint del plan **NO cae a créditos solo**
+  (1310 con saldo al lado); los créditos viven en **paas/v4 (OpenAI-compatible), misma key** — misma cuenta,
+  dos carteras y dos protocolos en el mismo host; en paas **glm-4.6 razona por defecto** y devuelve
+  `content:""` con todo en `reasoning_content` — `thinking: disabled` es parte del contrato de la pata; y los
+  créditos **no sirven el endpoint Anthropic** → los workers no pueden usarlos (su cadena ya releva a
+  DeepSeek-Anthropic, vivo tras la recarga). Cableado en DOS sitios: la pata `glm_credits_call` del juez
+  (ENTRE plan y DeepSeek — mismo modelo, otra cartera, las notas siguen siendo comparables) y el escalón
+  `z.ai-créditos` del canal MeshKore. Las dos trampas que lo habrían matado sin ruido: `_is_zai()` casaba por
+  HOST (paas habría ido a `/v1/messages` → 404 con pinta de caída, justo en el escalón de socorro; ahora
+  excluye `/paas/`), y el emparejamiento de V2-458 (misma cuenta) — lo salva que el 1310 **anuncia su reset**
+  → cuota, no saldo → no arrastra. Nodos 2.4 y 10.25, desarmes en los dos lados; la sensibilidad protege los
+  $20: con el plan vivo los créditos NO se gastan.
+
 - **Un MATIZ sobre una foto no es un encargo · y la conversación por API se VE (V2-461, 2026-08-28)**: en la
   primera corrida del caso con el operador delante, el turno 1 puso 12 fotos en el visor (✅) y «una de esas,
   la que mejor se vea, **pero que sea el Amalfi, no otro Ferrari**» no llamó a NINGUNA tool —prometió y

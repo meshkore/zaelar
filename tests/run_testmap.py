@@ -196,6 +196,11 @@ DOMAINS: list[dict] = [
             # acababa de quedarse sin saldo: un reintento gastado en un hermano que no podía funcionar,
             # con el único proveedor sano sin llegar a probarse. Medido con el motor vivo.
             "tests/agent_headless/unit/flash/test_same_account_relay.py",
+            # V2-462 — plan primero, créditos después (misma cuenta Z.AI, dos carteras y dos protocolos en el
+            # mismo host). El 1310 del plan anuncia su reset → es cuota, no saldo, y NO arrastra al escalón de
+            # créditos; y `_is_zai()` casaba por host, que habría mandado paas/v4 a /v1/messages (404 con
+            # pinta de caída, justo en el escalón de socorro).
+            "tests/agent_headless/unit/flash/test_zai_credits_tier.py",
             # V2-254: la TERCERA superficie que enseña píldoras a un modelo, y la que corre CADA TURNO. La regla
             # («una píldora de fondo no es un hecho sobre la persona») estaba escrita en tres sitios y aplicada
             # en uno; las otras dos hubo que descubrirlas con un fallo en vivo cada una. Aquí se APLICA la que ya
@@ -1806,7 +1811,12 @@ DOMAINS: list[dict] = [
         {"id": "10.24", "title": "A round killed by infrastructure is parked and judged later, not re-driven",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_pending_rounds.py"]},
         {"id": "10.25", "title": "The judge tries the vendor direct before the broker",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_tries_the_vendor_first.py"]},
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_tries_the_vendor_first.py",
+                                  # V2-462: y ANTES de cambiar de proveedor gasta las DOS carteras de Z.AI —
+                                  # plan y créditos (paas/v4, misma key, thinking APAGADO: en paas glm-4.6
+                                  # razona por defecto y devuelve content vacío). Mismo modelo, otra cartera:
+                                  # las notas del tablero siguen siendo comparables.
+                                  "tests/use_cases/unit/test_the_judge_spends_the_plan_before_the_credits.py"]},
         {"id": "10.26", "title": "An empty body is a transient failure, never an empty verdict",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_empty_answer_is_not_an_answer.py"]},
         {"id": "10.27", "title": "The direct leg disables thinking: the judge must not reason out loud",

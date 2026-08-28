@@ -83,6 +83,38 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
 
+def glm_credits_call(messages: list[dict], model: str | None = None, max_tokens: int = 2000,
+                     out: dict | None = None) -> str:
+    """The SAME GLM, paid from the OTHER wallet: Z.AI's pay-per-use credits via paas/v4 (OpenAI-compatible).
+
+    Exists because the coding plan's quota is a wall, not a slope — measured 2026-08-28 with the plan
+    exhausted (error 1310, reset Sept 1) and $20 of credits sitting in the account: the plan endpoint does
+    NOT fall through to credits on its own, and the credits wallet does not serve the Anthropic endpoint.
+    Same key, different URL, different protocol. Operator's rule: plan first, credits when it runs out —
+    so this leg sits BETWEEN the plan and DeepSeek, keeping the judge on the SAME model (the verdicts stay
+    comparable across the wallet switch, which falling to DeepSeek does not give).
+
+    `thinking: disabled` IS load-bearing here, same lesson as the DeepSeek direct leg: on paas/v4 glm-4.6
+    reasons by default and a 10-token probe came back with `content: ""` and every token in
+    `reasoning_content` — a 200 that looks like an answer and parses as nothing.
+    """
+    if not config.ZAI_KEY:
+        raise RuntimeError("no TESTER_ZAI_KEY")
+    model = model or config.ZAI_JUDGE_MODEL
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens,
+               "thinking": {"type": "disabled"}}
+    req = urllib.request.Request(
+        config.ZAI_PAAS_BASE.rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": f"Bearer {config.ZAI_KEY}", "Content-Type": "application/json",
+                 "User-Agent": _UA},
+    )
+    with urllib.request.urlopen(req, timeout=180) as r:
+        ch = json.loads(r.read())["choices"][0]
+    _anota_corte(out, ch.get("finish_reason"))
+    return ch["message"]["content"]
+
+
 # Provider transients: worth another attempt. A 401/402/404 is not — that is configuration or balance, and
 # retrying it only burns time.
 _TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure",
@@ -156,8 +188,20 @@ def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = 
             if not (_txt or "").strip():
                 raise RuntimeError("respuesta VACÍA (200 sin contenido)")
             return _txt, config.ZAI_JUDGE_MODEL
-        except Exception as e:  # no balance / quota / transport / EMPTY → DeepSeek (never lose the judgement)
-            print(f"[judge] GLM unavailable ({str(e)[:80]}) → DeepSeek fallback", file=sys.stderr)
+        except Exception as e:  # quota / transport / EMPTY → the credits wallet first, then DeepSeek
+            print(f"[judge] GLM plan unavailable ({str(e)[:80]}) → Z.AI credits (paas/v4)", file=sys.stderr)
+            # PLAN FIRST, CREDITS SECOND (operator, 2026-08-28): the flat-rate plan is a wall — 1310 with a
+            # funded credits wallet right next to it — so the fall-through has to be explicit. Same model,
+            # other wallet: the verdict stays comparable, which is the whole reason this leg goes before
+            # DeepSeek and not after.
+            try:
+                _anota_corte(out, "")
+                _txt = glm_credits_call(messages, max_tokens=max_tokens, out=out)
+                if not (_txt or "").strip():
+                    raise RuntimeError("respuesta VACÍA (200 sin contenido)")
+                return _txt, config.ZAI_JUDGE_MODEL
+            except Exception as e2:
+                print(f"[judge] Z.AI credits unavailable ({str(e2)[:80]}) → DeepSeek fallback", file=sys.stderr)
     # DIRECT before the broker: the vendor's endpoint stayed up through the same runs in which the broker
     # returned 429/503/504 and cost three measured rounds.
     if config.DEEPSEEK_KEY:

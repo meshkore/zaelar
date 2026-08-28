@@ -70,7 +70,12 @@ class ModelSpec:
         return "googleapis" in u or "generativelanguage" in u
 
     def _is_zai(self) -> bool:
-        return "api.z.ai" in self.resolved_base_url().lower()
+        """The coding-plan (Anthropic-compatible) endpoint ONLY. Z.ai's pay-per-use credits live at
+        `/api/paas/v4`, which is OpenAI-compatible: matching it here would force it down `_complete_zai`'s
+        `/v1/messages` path and buy a 404 that looks exactly like an outage. Same host, two protocols —
+        the URL segment is what tells them apart (V2-462)."""
+        u = self.resolved_base_url().lower()
+        return "api.z.ai" in u and "/paas/" not in u
 
     def _is_deepseek(self) -> bool:
         """DeepSeek DIRECTO (`api.deepseek.com`), distinto de DeepSeek servido por el broker AIMLAPI. La diferencia
