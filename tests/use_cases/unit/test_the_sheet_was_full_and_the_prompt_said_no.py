@@ -93,7 +93,8 @@ def test_la_CAUSA_se_lee_del_flujo_y_no_de_las_anomalias():
                                  "label": "🧾 hoja del encargo SIN RESOLVER", "nav_task": "6175ca-1"})}
     got = V.unresolved_errand_sheets([ev, ev])
     assert got["n"] == 2 and got["tabs"] == {"6175ca-1": 2}
-    assert V.unresolved_errand_sheets([]) == {"n": 0, "tabs": {}}
+    vacio = V.unresolved_errand_sheets([])
+    assert vacio["n"] == 0 and vacio["tabs"] == {} and vacio["n_empty"] == 0
 
 
 def test_la_causa_va_PEGADA_al_aviso_y_no_en_una_linea_suelta():
@@ -114,3 +115,33 @@ def test_y_sin_causa_conocida_no_se_inventa_una():
                                 "unresolved_errand_sheets": {"n": 0, "tabs": {}}})
     txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
     assert "NO SE LO DIJIMOS" in txt and "se sabe POR QUÉ" not in txt
+
+
+def test_resolver_a_la_caja_EQUIVOCADA_se_cuenta_aparte():
+    """Fallar al resolver ya se contaba; resolver a la caja equivocada se veía **igual que acertar**. Y era
+    el caso de `search-buy-guitar__es`: `unresolved_errand_sheets.n` salió a 0 —o sea que resolvió— y aun así
+    hubo seis turnos en los que al modelo no se le dijo que tuviera nada, con 15 candidatos en la hoja."""
+    import json
+    def _ev(label, **extra):
+        return {"kind": "perf", "cat": "system",
+                "payload": json.dumps({"kind": "perf", "cat": "system", "label": label, **extra})}
+    got = V.unresolved_errand_sheets([
+        _ev("🧾 hoja del encargo SIN RESOLVER", nav_task="a-1"),
+        _ev("🧾 hoja del encargo RESUELTA PERO VACÍA", nav_task="b-1", hoja="results", n_items=0),
+        _ev("🧾 hoja del encargo RESUELTA PERO VACÍA", nav_task="b-1", hoja="results", n_items=0)])
+    assert got["n"] == 1 and got["tabs"] == {"a-1": 1}
+    assert got["n_empty"] == 2 and got["empty_sheets"] == {"results": 2}
+
+
+def test_al_juez_se_le_dice_CUÁL_de_las_dos_averías_fue():
+    """Las dos llevan a mirar sitios distintos del motor, así que decir «avería» a secas no basta."""
+    from tests.use_cases.e2e.agent import judge as J
+    base = {"sheet_hidden_from_the_prompt": {"n": 2, "measurable": True, "turns": [{"turn": 6}, {"turn": 7}]}}
+    vacia = J.mechanism_facts({**base, "unresolved_errand_sheets": {"n": 0, "tabs": {},
+                                                                   "n_empty": 3, "empty_sheets": {"results": 3}}})
+    txt = "\n".join(vacia) if isinstance(vacia, list) else str(vacia)
+    assert "VACÍA" in txt and "results" in txt
+    sin = J.mechanism_facts({**base, "unresolved_errand_sheets": {"n": 2, "tabs": {"a-1": 2},
+                                                                 "n_empty": 0, "empty_sheets": {}}})
+    txt2 = "\n".join(sin) if isinstance(sin, list) else str(sin)
+    assert "no supo qué hoja" in txt2 and "VACÍA" not in txt2

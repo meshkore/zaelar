@@ -75,3 +75,28 @@ def test_live_blocks_sigue_usando_LA_MISMA_funcion():
     semana, y aquí significaría que el aviso existe en un sitio y el prompt se compone con el otro."""
     from nucleo.flash import live_blocks as LB
     assert LB._sheet_of_tab is ES._sheet_of_tab
+
+
+# ── Y la otra mitad: RESUELTA, pero no es la que tiene las filas ────────────────────────────────────────────
+def test_una_hoja_resuelta_y_VACIA_tambien_lo_dice(monkeypatch, _emitido):
+    """Fallar al resolver ya se contaba. Resolver a la caja EQUIVOCADA se veía exactamente igual que acertar —
+    y era el caso de `search-buy-guitar__es` (2026-08-28): `unresolved_errand_sheets.n` salió a **0**, o sea
+    que resolvió, y aun así hubo seis turnos en los que al modelo no se le dijo que tuviera nada, con quince
+    candidatos en la hoja. Sin esta línea el diagnóstico se queda en «resolvió bien y algo pasa después»."""
+    from nucleo.flash import live_blocks as LB
+    import widgets.results.data as _rd
+    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results")
+    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
+    assert LB._sheet_has_rows("6175ca-1") is False
+    assert _emitido and "RESUELTA PERO VACÍA" in _emitido[0]["label"]
+    assert _emitido[0]["extra"]["hoja"] == "results", "sin decir CUÁL caja miró no se puede comparar"
+
+
+def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
+    """La mitad de sensibilidad: es el camino sano y se recorre en cada turno."""
+    from nucleo.flash import live_blocks as LB
+    import widgets.results.data as _rd
+    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results::6175ca-1")
+    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "Yamaha F370BL"}]})
+    assert LB._sheet_has_rows("6175ca-1") is True
+    assert _emitido == []

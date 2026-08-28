@@ -132,7 +132,20 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
         if not sheet:
             return False
         items = (_sheet.view_data(sheet) or {}).get("items") or []
-        return any(str((i or {}).get("title") or "").strip() for i in items)
+        if any(str((i or {}).get("title") or "").strip() for i in items):
+            return True
+        # RESUELTA PERO VACÍA — y esto es lo que el aviso de V2-432 NO cubría: fallar al resolver ya se
+        # cuenta, pero resolver a la caja EQUIVOCADA se ve exactamente igual que acertar. Medido el
+        # 2026-08-28 en `search-buy-guitar__es`: `unresolved_errand_sheets` salió a 0 —o sea que resolvió— y
+        # aun así hubo 6 turnos en los que al modelo no se le dijo que tuviera nada, con 15 candidatos en la
+        # hoja. Sin esta línea, el diagnóstico se queda en «resolvió bien y algo pasa después».
+        try:
+            from voice.observer import emit
+            emit("perf", "🧾 hoja del encargo RESUELTA PERO VACÍA", role="system",
+                 extra={"nav_task": str(nav_task_id), "hoja": str(sheet), "n_items": len(items)})
+        except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
+            pass
+        return False
     except Exception:
         return False
 

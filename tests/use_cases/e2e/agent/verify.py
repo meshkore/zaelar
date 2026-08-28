@@ -1532,13 +1532,21 @@ def unresolved_errand_sheets(all_events: list[dict]) -> dict:
     dijo, ésta dice si fue porque no supimos de qué caja hablábamos. Las dos juntas cierran el diagnóstico.
     """
     tabs: dict[str, int] = {}
+    vacias: dict[str, int] = {}
     for e in (all_events or []):
         f = _fields(e)
-        if "SIN RESOLVER" not in str(f.get("label") or e.get("label") or ""):
-            continue
+        etiqueta = str(f.get("label") or e.get("label") or "")
         t = str(f.get("nav_task") or e.get("nav_task") or "?")
-        tabs[t] = tabs.get(t, 0) + 1
-    return {"n": sum(tabs.values()), "tabs": tabs}
+        if "SIN RESOLVER" in etiqueta:
+            tabs[t] = tabs.get(t, 0) + 1
+        elif "RESUELTA PERO VACÍA" in etiqueta:
+            # LA OTRA MITAD. Fallar al resolver ya se contaba; resolver a la caja EQUIVOCADA se veía igual
+            # que acertar, y era el caso de `search-buy-guitar__es` — 0 sin resolver, y aun así seis turnos
+            # sin decirle que tuviera nada, con 15 candidatos en la hoja.
+            k = str(f.get("hoja") or e.get("hoja") or "?")
+            vacias[k] = vacias.get(k, 0) + 1
+    return {"n": sum(tabs.values()), "tabs": tabs,
+            "n_empty": sum(vacias.values()), "empty_sheets": vacias}
 
 
 def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:

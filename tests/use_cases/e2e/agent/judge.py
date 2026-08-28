@@ -621,7 +621,11 @@ def mechanism_facts(mech: dict) -> str:
         # LA CAUSA, en la misma línea y no en otra: dice lo mismo al juez —no culpes al modelo— y una segunda
         # frase repitiéndolo sería ruido. Se añade solo si el motor llegó a avisar de que no supo qué caja era.
         _sr = mech.get("unresolved_errand_sheets") or {}
-        if _sr.get("n"):
+        if _sr.get("n_empty"):
+            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_empty']} vez/veces el motor resolvió la hoja de "
+                         f"este encargo y la encontró VACÍA ({', '.join(_sr.get('empty_sheets') or {})}) "
+                         f"mientras los resultados estaban en otro sitio. Avería nuestra de fontanería.")
+        elif _sr.get("n"):
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n']} vez/veces el motor no supo qué hoja era la de "
                          f"este encargo (pestañas: {', '.join(_sr.get('tabs') or {})}). Es una avería nuestra "
                          f"de fontanería, no una decisión suya.")
