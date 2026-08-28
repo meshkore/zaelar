@@ -1517,6 +1517,48 @@ def _price_anchor(title: str) -> str:
     return ""
 
 
+def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
+    """Turnos en los que la hoja YA tenía filas con nombre y el prompt del turno no lo decía.
+
+    Es la pregunta que decide la atribución del bloqueador más repetido del tablero. «Tenía resultados y
+    contestó que no había novedades» se lee como una mentira del producto; si en su prompt ponía que la tarea
+    seguía atascada, entonces contestó **exactamente lo que le contamos**, y el defecto es nuestro.
+
+    Medido en `find-direct-flight-budget__es` (2026-08-28, plató 24/7). `sheet_named_ms` cae entre el turno 5
+    y el 6; en los turnos **6, 7 y 8** el bloque vivo traía la cara de «sin avanzar» y CERO filas, con cuatro
+    vuelos con nombre en la hoja del encargo. El juez lo puntuó 2/5 por «retener la entrega y negar lo que el
+    sistema le mostraba». El sistema le mostraba lo contrario.
+
+    Esto NO dice dónde está la avería —`_found_candidates` ya cae a `_sheet_has_rows`, así que la resolución
+    de la caja del encargo es la sospechosa— y no intenta adivinarlo. Dice CUÁNTAS veces pasa, que es lo que
+    convierte una inferencia sobre una ronda en un número sobre muchas.
+
+    Sin `sheet_named_ms` no hay pregunta que hacer: la hoja nunca tuvo nombres y no hay nada que ocultar.
+    """
+    t = dict(timing or {})
+    named_ms = t.get("sheet_named_ms")
+    if not named_ms:
+        return {"turns": [], "n": 0, "measurable": False}
+    ciegos = []
+    for r in (prompt_rows or []):
+        at = (r or {}).get("at_ms")
+        if not at or at <= named_ms:
+            continue
+        if (r or {}).get("sheet_rows"):
+            continue
+        linea = str((r or {}).get("live_line") or "").strip()
+        if not linea:
+            # SIN BLOQUE VIVO no hay ceguera: la tarea ya no está en curso, así que sus resultados o se
+            # entregaron o se cerraron, y no había nada que contarle en ese turno. Cinco de los 262 turnos
+            # marcados en el barrido eran esto, y contarlos habría inflado el número con la clase de caso que
+            # el propio hallazgo dice que NO es.
+            continue
+        if "YA HA ENCONTRADO" in linea:
+            continue          # se le dijo que había algo, aunque no le diéramos los nombres: no es ceguera
+        ciegos.append({"turn": (r or {}).get("turn"), "linea": linea[:120]})
+    return {"turns": ciegos, "n": len(ciegos), "measurable": True}
+
+
 def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
     """Precios que zaelar ATRIBUYÓ a un candidato NUESTRO y que no son los que trae la hoja.
 

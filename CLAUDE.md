@@ -5112,6 +5112,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La hoja llena y el prompt diciendo que no (V2-432, 2026-08-28)**: «tenía resultados y contestó que no
+  había novedades» es el bloqueador más repetido del tablero, y hay otra lectura que decide de quién es la
+  culpa — **si en su prompt ponía que la tarea seguía atascada, contestó exactamente lo que le pusimos
+  delante**. Medido en `find-direct-flight-budget__es`: `sheet_named_ms` cae entre el turno 5 y el 6, y en los
+  turnos 6, 7 y 8 el bloque vivo traía la cara de «sin avanzar» y CERO filas con **cuatro vuelos con nombre**
+  en la hoja; el juez le puso 2/5 por «negar lo que el sistema le mostraba», y el sistema le mostraba lo
+  contrario. **Y no es un caso aislado**: barrido sobre los 353 informes guardados, de las 48 rondas cuya hoja
+  llegó a tener nombres, **45 tienen turnos a los que no se les dijo — 257 turnos ciegos** (de 262 en bruto, 5
+  eran tarea ya terminada y se descuentan). Eso reordena la lectura de meses de tablero: buena parte de «narra
+  trabajo que no ocurre» y «retiene lo que tiene» no es conducta, es que no se lo dijimos. **Dónde NO está la
+  avería**: `_found_candidates` ya cae a `_sheet_has_rows` cuando el worker no reportó su cuenta, y éste lee por la
+  pestaña con los dos caminos del escritor (V2-352) — la sospechosa es la resolución de la CAJA del encargo, porque la ronda tenía
+  dos hojas (`results` y `results::6175ca-1`) y el bloque vivo no encontró las filas de la que las tenía. No
+  se afirma: el plató se borra en cada ronda y no se puede reproducir a mano. Lo que hay es el número en cada
+  informe, y **al juez se le dice que no lo puntúe como negar**. Nodo 10.109, cuatro desarmes.
+
 - **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
   concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
   que no eran, dejando a la persona **siete minutos** esperando. El método cubría «si no se puede certificar,

@@ -2011,6 +2011,14 @@ DOMAINS: list[dict] = [
         # dijo BIEN dos veces y a la tercera soltó «lo de Digi ronda los 4,9 euros al mes». El juez lo cazó a
         # ojo y lo puso de bloqueador nº1; el informe no tenía con qué respaldarlo NI contradecirlo. Un precio
         # equivocado no es un matiz: quien contrata con ese dato se lleva veinte euros de sorpresa al mes.
+        # 2026-08-28 — la pregunta que decide la ATRIBUCIÓN del bloqueador más repetido del tablero. En
+        # `find-direct-flight-budget__es`, los turnos 6-8 recibieron la cara de «sin avanzar» y CERO filas con
+        # cuatro vuelos con nombre en la hoja; el juez lo puntuó 2/5 por «negar lo que el sistema le mostraba»,
+        # y el sistema le mostraba lo contrario. Barrido de los 353 informes: de las 48 rondas cuya hoja llegó
+        # a tener nombres, 45 tienen turnos a los que no se les dijo — 257 turnos.
+        {"id": "10.109", "title": "La hoja llena y el prompt diciendo que no — «negó» o «no se lo dijimos»",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_sheet_was_full_and_the_prompt_said_no.py"]},
         {"id": "10.108", "title": "El precio que DICE es el que TIENE — el dato bueno lo tenía delante",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_price_it_says_is_the_price_it_has.py"]},

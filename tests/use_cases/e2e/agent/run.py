@@ -457,6 +457,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # «¿entregó lo que TENÍA?», que es la pregunta del operador (V2-332).
             # …Y SI EL PRECIO QUE DIJO ES EL QUE TIENE. Nombrar el candidato bueno y colgarle un importe
             # inventado es peor que no nombrarlo: quien contrata con ese dato se lleva la sorpresa después.
+            # …Y SI LA HOJA ESTABA LLENA MIENTRAS SU PROMPT DECÍA QUE NO. Decide la atribución del
+            # bloqueador más repetido del tablero: «negó lo que tenía» o «le contamos que no tenía nada».
+            mech["sheet_hidden_from_the_prompt"] = verifymod.sheet_hidden_from_the_prompt(
+                mech.get("prompt_context"), mech.get("sheet_timing"))
             mech["price_mismatches"] = verifymod.prices_that_do_not_match(
                 transcript, mech.get("results_sheet"))
             mech["delivery_completeness"] = verifymod.delivery_completeness(
