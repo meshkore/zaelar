@@ -5120,8 +5120,13 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `reorder-prescription__us`: tres turnos a **32, 72 y 111 segundos DESPUÉS** de que la hoja tuviera seis
   farmacias con nombre y dirección, avisados de que había algo y con **cero filas**; el modelo nombró cero de
   seis y el juez lo llamó «falla gravemente al no entregar esos datos». Se instrumenta el hueco (con las cajas
-  que miró, para poder compararlas con dónde están las filas) y **no se arregla a ciegas**: la ronda siguiente
-  dirá si el problema es la resolución o el instante. Nodo 4.70 ampliado, tres desarmes. ⚠️ Y una lección de
+  que miró, para poder compararlas con dónde están las filas) y **no se arregla a ciegas**: **primera medida (08:06)**: en `renew-gym-membership__us` miró
+  EXACTAMENTE la caja que acabó teniendo la fila, así que no es resolución sino **desfase** entre el instante
+  en que la fila se registra (eventos) y aquel en que la hoja la entrega (`view_data`) — cuatro turnos
+  después de existir. **Su impacto sigue sin probarse**: en esa ronda la entrega fue 4 nombres sobre 1
+  disponible, o sea que el modelo entregó igual por las notas empujadas y el desfase no costó nada. Cuarta vez
+  en la noche que una señal prometedora encoge al mirarla de cerca: se deja puesta y no se le atribuye daño
+  hasta que una ronda lo demuestre. Nodo 4.70 ampliado, tres desarmes. ⚠️ Y una lección de
   lectura: **las DOS ramas del bloque contienen «YA HA ENCONTRADO»** —también la que dice que no hay nombres—,
   así que buscar esa frase NO distingue «se le dieron las filas» de «se le dijo que las habrá».
 
