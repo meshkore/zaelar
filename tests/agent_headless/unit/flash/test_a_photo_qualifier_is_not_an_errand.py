@@ -85,10 +85,21 @@ def test_sigue_sin_confundirse_con_las_otras_dos_hermanas():
 def test_habla_en_PRESENTE_porque_tarda_segundos():
     """Regla ganada en V2-380/383 y que aquí sigue viva: decirlo en pasado («te las he puesto») antes de que
     existan es la quinta versión de la misma mentira sobre una caja vacía."""
-    assert "presente" in _desc("show_images")
+    assert "Presente" in _desc("show_images")     # compactado en V2-463: «Presente (…), nunca pasado»
 
 
 # ── el precio ───────────────────────────────────────────────────────────────────────────────────────────
+def test_que_sea_de_verdad_es_un_matiz_no_un_encargo():
+    """Ronda 6 (2026-08-28): «busca algo que se note que es el Amalfi de verdad» escaló a un worker de 4
+    minutos con la respuesta oficial ya en pantalla. Las DOS superficies lo dicen ahora: la tool nombra esos
+    matices, y el NO-list de escalate añade «aunque las pida verificadas o de verdad»."""
+    d = _desc("show_images")
+    assert "de verdad" in d and "que se note que es X" in d
+    assert "nunca un worker" in d
+    e = _desc("escalate_to_slowbrain")
+    assert "verificadas/de verdad" in e
+
+
 def test_el_catalogo_no_ha_crecido_por_explicarlo_mejor():
     """El techo se paga en CADA turno de voz. Esta redacción entró compactando la propia tool tres veces en
     vez de subirlo, que es lo que manda el trinquete de `test_router.py`."""
