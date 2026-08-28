@@ -13,9 +13,21 @@ from __future__ import annotations
 import asyncio
 import pathlib
 
+import pytest
+
 from nucleo.flash import probe_api
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
+
+
+@pytest.fixture(autouse=True)
+def _sin_detector_de_idioma(monkeypatch):
+    """`say()` es el BORDE HTTP y ahí vive el detector de primer arranque (V2-170), que PERSISTE el idioma
+    en `settings.json`. En un test unitario eso rompe el invariante de la suite («el fichero de ajustes
+    arranca vacío», `conftest.py`) — y lo hace de forma dependiente del orden, que es la peor manera. Se
+    desarma aquí: estos casos miden el MURO, no la detección."""
+    import i18n.init.detect as _d
+    monkeypatch.setattr(_d, "ensure_for_text", lambda *a, **k: None, raising=False)
 
 
 def _capture(monkeypatch) -> list[dict]:
