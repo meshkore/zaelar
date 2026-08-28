@@ -228,6 +228,89 @@ async def search_google(query: str, k: int = 5) -> dict:
             pass
 
 
+async def search_images(query: str, k: int = 12) -> dict:
+    """PICTURES for a query, through the same warm Chromium. `{query, items, source, blocked}` (V2-457).
+
+    This rides the existing browser instead of starting one for images because the warm profile is the whole
+    reason the fast path is fast: it has already taken Google's consent wall and it is already running, so a
+    picture search costs a page load (~3s) instead of a browser boot (~2.3s more, measured by the prewarm).
+
+    Fail-soft, never raising: a picture request that finds nothing still has to come back and say so. Google
+    blocking is reported as `blocked` rather than swallowed, because the caller's answer differs — a blocked
+    search should try Bing, an empty one should not.
+    """
+    if not await ensure_started():
+        return {"query": query, "items": [], "source": "", "blocked": False, "error": "browser no disponible"}
+    from nucleo import image_search as _imgs
+    hl, gl = _where()
+    page = await _ctx.new_page()
+    try:
+        # `udm=2` is the images vertical. `pws=0` turns off personalisation so two operators asking the same
+        # thing see the same pictures — a search whose results depend on the engine's browsing history is not
+        # reproducible, and this suite's whole job is measuring it.
+        url = (f"https://www.google.com/search?q={quote_plus(query)}&udm=2"
+               f"&hl={hl}&gl={gl}&pws=0")
+        await page.goto(url, wait_until="domcontentloaded", timeout=_TIMEOUT_MS)
+        await _dismiss_consent(page)
+        if await _looks_blocked(page):
+            return {"query": query, "items": [], "source": "google", "blocked": True}
+        # The payload is in inline scripts, not the DOM, so there is no element to wait for — the tiles render
+        # from it afterwards. A short settle beats a selector wait that would succeed on a skeleton page.
+        await page.wait_for_timeout(1200)
+        blob = await page.evaluate(
+            "() => Array.from(document.querySelectorAll('script')).map(s => s.textContent || '').join('\\n')")
+        items = _imgs.parse_google_images(blob or "", k)
+        return {"query": query, "items": items, "source": "google", "blocked": False}
+    except Exception as e:  # noqa: BLE001
+        return {"query": query, "items": [], "source": "google", "blocked": False, "error": str(e)[:200]}
+    finally:
+        try:
+            await page.close()
+        except Exception:
+            pass
+
+
+async def search_images_bing(query: str, k: int = 12) -> dict:
+    """The fallback index, used only when Google is blocked — and labelled, because it is measurably worse.
+
+    Asked for a Ferrari Amalfi on 2026-08-28 it returned an SF90, an F8 and two F80s: right brand, wrong car,
+    nine times out of ten. It is here so a captcha degrades the answer instead of removing it, and `source`
+    travels with the result so whoever reads the run can tell which index answered.
+    """
+    if not await ensure_started():
+        return {"query": query, "items": [], "source": "", "blocked": False, "error": "browser no disponible"}
+    from nucleo import image_search as _imgs
+    page = await _ctx.new_page()
+    try:
+        await page.goto(f"https://www.bing.com/images/search?q={quote_plus(query)}",
+                        wait_until="domcontentloaded", timeout=_TIMEOUT_MS)
+        try:
+            await page.wait_for_selector("a.iusc", timeout=6000)
+        except Exception:
+            pass
+        html = await page.content()
+        return {"query": query, "items": _imgs.parse_bing_images(html or "", k),
+                "source": "bing", "blocked": False}
+    except Exception as e:  # noqa: BLE001
+        return {"query": query, "items": [], "source": "bing", "blocked": False, "error": str(e)[:200]}
+    finally:
+        try:
+            await page.close()
+        except Exception:
+            pass
+
+
+async def images(query: str, k: int = 12) -> dict:
+    """Pictures for a query: Google, and Bing only if Google refused. One entry point for both channels."""
+    res = await search_images(query, k)
+    if res.get("blocked") or not res.get("items"):
+        alt = await search_images_bing(query, k)
+        if alt.get("items"):
+            alt["degraded_from"] = "google"
+            return alt
+    return res
+
+
 def search_sync(query: str, k: int = 5) -> dict:
     """Puente para `websearch` (corre en un hilo): agenda `search_google` en el loop del server. Lanza si el loop no
     está enlazado (arranque aún no hecho) o si la búsqueda falla → websearch degrada a DDG."""

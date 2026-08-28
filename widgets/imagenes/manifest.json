@@ -1,0 +1,77 @@
+{
+  "id": "imagenes",
+  "version": "0.1.0",
+  "title": "Imágenes",
+  "description": "Visor de fotografías: una imagen grande, la tira de miniaturas debajo, flechas para pasar, y arriba el título de lo que se está viendo con su fuente. Solo mirar — ni edición ni retoque.",
+  "whenToUse": "Cuando el usuario quiere VER una o varias fotografías/imágenes en pantalla (una foto de algo, fotos de un sitio, imágenes de un producto), pasar de una a otra, o abrir las imágenes que ya están guardadas en este equipo.",
+  "keywords": [
+    "foto",
+    "fotos",
+    "fotografía",
+    "fotografías",
+    "imagen",
+    "imágenes",
+    "enséñame una foto",
+    "muéstrame una foto",
+    "visor de imágenes",
+    "galería de fotos",
+    "siguiente foto",
+    "foto anterior",
+    "miniaturas",
+    "photo",
+    "photos",
+    "picture",
+    "pictures",
+    "image gallery"
+  ],
+  "entry": "widget.js",
+  "usage": "Para enseñar fotos usa 'show' con la lista de imágenes en 'items' (cada una {url, thumb, title, site, page, w, h}) y 'query'/'title' con qué se está viendo — reemplaza lo que hubiera. 'add' añade más sin perder las de antes. Para moverse: 'next', 'previous', o 'select' con el número (1-N) o parte del título/fuente ('la de Ferrari'). 'local' abre las imágenes guardadas en este equipo (widgets/_data/imagenes/), sin buscar nada en la web. 'clear' vacía el visor. Es SOLO un visor: no recorta, no edita, no descarga. Las imágenes las busca quien llama (show_images en el turno rápido, o un worker si hay que curar) — este widget no busca por su cuenta.",
+  "actions": {
+    "show": {
+      "desc": "enseña un conjunto de fotos (reemplaza lo que hubiera) y deja la primera en grande",
+      "payload": {
+        "items": "lista de {url, thumb, title, site, page, w, h}",
+        "query": "qué se buscó, en palabras (opcional)",
+        "title": "título a mostrar arriba (opcional)",
+        "source": "de dónde salieron: google | bing | local | worker (opcional)"
+      }
+    },
+    "add": {
+      "desc": "añade más fotos a las que ya están, sin perderlas",
+      "payload": {
+        "items": "lista de {url, thumb, title, site, page, w, h}"
+      }
+    },
+    "select": {
+      "desc": "pone en grande una foto concreta (por número 1-N o por parte de su título/fuente)",
+      "payload": {
+        "item": "número 1-N o texto del título/fuente"
+      }
+    },
+    "next": {
+      "desc": "pasa a la foto siguiente",
+      "payload": {}
+    },
+    "previous": {
+      "desc": "vuelve a la foto anterior",
+      "payload": {}
+    },
+    "local": {
+      "desc": "abre las imágenes guardadas en este equipo (no busca en la web)",
+      "payload": {}
+    },
+    "clear": {
+      "desc": "vacía el visor",
+      "payload": {}
+    }
+  },
+  "name": "Imágenes",
+  "aliases": [
+    "imágenes",
+    "fotos",
+    "el visor de fotos",
+    "la galería",
+    "visor de imágenes"
+  ],
+  "fullscreen": "native"
+}

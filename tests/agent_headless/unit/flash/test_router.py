@@ -8,7 +8,7 @@ def test_tools_are_openai_functions():
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget",
                      "manage_widget_alias", "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
-                     "reveal_secret", "play_music", "play_video", "reply_message", "connect_cluster",
+                     "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",
                      "cluster_send", "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():
         assert t["type"] == "function"
@@ -118,27 +118,55 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # que la descripción solo lleva qué hace + las FRONTERAS contra NUESTRAS otras tools. Este techo obliga a que
 # añadir una tool nueva pase por recortar, no por engordar el turno de todos. Si hay que subirlo, que sea una
 # decisión con su medición al lado (`tests/agent_headless/e2e/prompt_cost/bench_fast_model.py`, nodo 2.13).
-MAX_CATALOG_CHARS = 21_000
+#
+# SUBIDO 21.000 → 21.200 el 2026-08-28 (V2-457, `show_images`), con la medición al lado que la norma pide y
+# después de recortar, no en lugar de recortar. Lo medido, misma petición y mismos dos caminos:
+#
+#     Brain Worker (lo que el operador recibió)   355 s   $1,96   10 fotos de galerías de terceros
+#     `show_images` por el Chromium caliente        3,0 s  ~$0     originales de cdn.ferrari.com, máster 3128x2333
+#
+# La tool pesa 727 chars, y antes de subir el techo se recortaron ~170 de redundancia REAL: la frontera de fotos
+# se decide en `show_images` y sobraba repetida en el SÍ-list de `escalate_to_slowbrain`, `web_search` la decía
+# larga, y los paréntesis de `show_panel` eran prosa explicativa. Lo que NO se hizo es quitar una regla nacida de
+# un incidente para proteger un número: cada una de ellas costó una ronda medida, y el catálogo existe para
+# llevarlas. El coste de la subida son ~50 tokens por turno; lo que compra es que enseñar una foto deje de ser
+# un encargo de seis minutos.
+MAX_CATALOG_CHARS = 21_200
 
 
-# ── "muéstrame una foto de X" tiene que escalar, no narrar (incidente real 2026-08-03) ───────────────────────
+# ── "muéstrame una foto de X" NO se describe de palabra (incidente real 2026-08-03) ──────────────────────────
 # El cerebro pedía a web_search una foto que web_search no puede dar (solo texto) y acababa DESCRIBIENDO la
-# imagen de palabra en vez de mostrarla — 6 turnos de "no se ve nada"/disculpas antes de rendirse. Las tools no
-# tienen un parámetro para esto (no hay «pedir imagen»): la frontera vive en la DESCRIPCIÓN, así que el test es
-# textual — cachea la regresión si alguien recorta esta frase sin darse cuenta de por qué está.
+# imagen en vez de mostrarla — 6 turnos de "no se ve nada"/disculpas antes de rendirse. Las tools no tienen un
+# parámetro para esto (no hay «pedir imagen»): la frontera vive en la DESCRIPCIÓN, así que el test es textual.
+#
+# ⚠️ El DESTINO cambió el 2026-08-28 (V2-457) y estos tests se reescriben con su motivo, nunca en silencio. En
+# 2026-08-03 la única salida disponible era ESCALAR, y estaba bien: no había ninguna otra forma de conseguir una
+# foto real. Hoy sí la hay, y el escalado costaba 355 s y $1,96 frente a 3,0 s por `show_images` — así que la
+# frontera pasa a apuntar ahí. Lo que NO cambia, y es la mitad que estos tests protegen de verdad, es que una
+# petición de VER una foto jamás se resuelve describiéndola con palabras.
 def _desc(name: str) -> str:
     return next(t["function"]["description"] for t in router.TOOLS if t["function"]["name"] == name)
 
 
-def test_web_search_description_excludes_showing_a_real_photo():
+def test_web_search_description_sends_a_real_photo_to_the_image_viewer():
     d = _desc("web_search").lower()
     assert "foto" in d or "imagen" in d
     assert "texto" in d           # deja claro que solo trae texto, nunca la imagen en sí
+    assert "show_images" in d     # …y NOMBRA a dónde va: sin destino, «no es aquí» deja al modelo improvisando
 
 
-def test_escalate_description_covers_fetching_a_real_photo():
-    d = _desc("escalate_to_slowbrain").lower()
-    assert "foto" in d or "imagen" in d
+def test_escalate_no_longer_claims_showing_a_photo_and_points_at_the_tool():
+    """El SÍ-list ya no reclama enseñar fotos; el NO-list las manda a `show_images`.
+
+    Ojo con el test que sustituye: pedía `"foto" in d` a secas, y eso HOY seguiría pasando — la palabra está en
+    el NO-list. O sea que habría certificado como correcta justo la regla contraria a la que su nombre afirmaba.
+    Por eso se comprueba la LISTA, no la palabra.
+    """
+    d = _desc("escalate_to_slowbrain")
+    si, no = d.split("NO:", 1)
+    assert "foto" not in si.lower() and "imagen" not in si.lower(), (
+        "enseñar una foto ya no es motivo para lanzar un worker: es un turno de 3 s por `show_images`")
+    assert "show_images" in no, "el NO-list tiene que decir a dónde va, como ya hace con play_video/play_music"
 
 
 def test_tool_catalog_stays_compact():

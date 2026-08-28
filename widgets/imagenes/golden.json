@@ -1,0 +1,11 @@
+{
+  "view_data_shape": {
+    "current": "dict",
+    "i": "int",
+    "items": "list",
+    "n": "int",
+    "query": "str",
+    "source": "str",
+    "title": "str"
+  }
+}

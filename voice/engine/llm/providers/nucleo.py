@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import data_ops as _data_ops, video_turn as _video_turn  # V2-391 / V2-402: sin ciclos
+from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: sin ciclos
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -1045,6 +1045,7 @@ class NucleoLLMStream(llm.LLMStream):
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
         music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
+        images_req = {"v": None}                   # V2-457: {'query','n'} de `show_images`, ejecutado tras el stream
                                           # (volumen/pausa) pedida EN EL MISMO turno que un play/queue (bug real
                                           # 2026-07-23: "pon música de Queen y súbele el volumen" decía las DOS
                                           # cosas pero solo ejecutaba la 1ª — la 2ª se tiraba en silencio)
@@ -1637,6 +1638,14 @@ class NucleoLLMStream(llm.LLMStream):
                     _vop, _vlbl = _video_turn.voice_dispatch(args.get("action"))
                     _apply_widget_data("youtube", _vop, {"query": _vq} if _vq else {})
                     emit("brain", _vlbl, text=_vq[:80], role="system")
+            elif name == "show_images":
+                # V2-457: FOTOS = visor `imagenes` (VER), tercera hermana de play_music/play_video. Una por
+                # turno; se EJECUTA tras el stream (buscar es red) y se dice allí si el modelo calló.
+                if "show_images" not in _tool_fired:
+                    _tool_fired.add("show_images")
+                    images_req["v"] = _image_turn.request_from([{"name": name, "args": args}])
+                    emit("widget", "show", extra={"id": "imagenes", "src": "flash"})
+                    emit("brain", "🖼️ fotos → visor imagenes", text=images_req["v"]["query"][:80], role="system")
             elif name == "show_widget":
                 # MOSTRAR un widget (incl. JUEGOS) como TOOL de 1ª clase — más fiable que el tag [[show]] cuando la
                 # palabra colisiona con play_music/play_video ('juega al snake'). Converge en la MISMA ruta de canvas
@@ -2715,6 +2724,14 @@ class NucleoLLMStream(llm.LLMStream):
         # continúa con más datos) y cada reproducción se vuelca a memoria (source="music" → gustos/historial).
         # Todo el I/O va FUERA del event loop (to_thread, V2-011). Se dice el mensaje si (a) falló, (b) el modelo
         # no habló (nunca mudo), o (c) la cadena RESOLVIÓ otra cosa que lo dicho (validación por anuncio).
+        if images_req["v"] is not None:
+            # V2-457 — aquí y no en la rama de la tool: buscar es red y en el stream bloquearía el turno (V2-011).
+            _parte_img, _say_img = await _image_turn.voice_turn(images_req["v"], silent=not spoken_text)
+            emit("brain", "🖼️ fotos ↩", text=str(_parte_img)[:200], role="system")
+            if _say_img:
+                send(speech.sanitize(_say_img, drop_metadata=False))
+                spoken_text = "".join(spoken).strip()
+
         if music_req["v"] is not None:
             mq = music_req["v"]
             emit("brain", "🎵 música", text=f"{mq.get('action')} {mq.get('query')}".strip(), role="system")
@@ -2965,6 +2982,7 @@ class NucleoLLMStream(llm.LLMStream):
             acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
             or escalate_req["v"] is not None or search_req["v"] is not None
             or music_req["v"] is not None or "play_video" in _tool_fired
+            or images_req["v"] is not None
             or confirm_state.get("opened") or confirm_state.get("handled"))
 
         # SAFETY NET (PRIMERO): el modelo a veces DICE que abre/cierra un widget sin emitir la tag → la emitimos

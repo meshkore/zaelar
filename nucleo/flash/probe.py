@@ -31,6 +31,7 @@ import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
 from nucleo.flash import music_turn as _music_turn
+from nucleo.flash import image_turn as _image_turn
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
 
@@ -393,6 +394,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
     music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo
     video_req = None                        # V2-383: lo que pidió `play_video`, para EJECUTARLO abajo
+    images_req = None                       # V2-457: lo que pidió `show_images`, igual
     # hard-interrupt DETERMINISTA (V2-015) — ESPEJO del provider (nucleo.py:122): 'cierra todo'/'quita todo' →
     # [[close]] TODO; 'para'/'silencio'/'basta' → corta sin acción. En voz/chat se resuelve ANTES que el LLM; sin
     # este espejo el probe daba veredictos FALSOS ('cierra todo' caía en widget_data ~60% de las veces, 2026-07-21).
@@ -429,6 +431,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     elif "play_video" in names:
         action = "canvas:show:youtube"       # V2-045: VER → widget youtube (show + data-op load); espejo del provider
         video_req = _video_turn.request_from(tool_calls)   # V2-383: y se EJECUTA abajo, como la música
+    elif "show_images" in names:
+        action = "canvas:show:imagenes"      # V2-457: FOTOS → visor `imagenes`; espejo del provider
+        images_req = _image_turn.request_from(tool_calls)
     elif "show_panel" in names:
         # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) por voz — espejo del provider (emite `panel`).
         _sp = next(t for t in tool_calls if t["name"] == "show_panel")
@@ -1047,6 +1052,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     return_extra_exec = {"executed": "login_done", "resumed": _resumed}
                 except Exception as e:  # noqa: BLE001
                     return_extra_exec = {"execute_error": str(e)[:200]}
+            elif action == "canvas:show:imagenes" and images_req:
+                # V2-457 — las fotos se ENSEÑAN; mismo rail que la voz (`image_turn`), compartido.
+                return_extra_exec = await _image_turn.execute(images_req["query"], images_req.get("n") or 12)
             elif action == "canvas:show:youtube" and video_req:
                 # V2-383 — EL VÍDEO SE PONE, NO SE ROTULA. Hermano de la música: mismo rail que la voz
                 # (`brain_action` → `load` del widget `youtube`), que es quien de verdad busca y carga.
@@ -1098,6 +1106,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # cierto. El turno que resuelve un sí/no tampoco puede caer al backstop genérico y contestar
                 # «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
+            elif action == "canvas:show:imagenes" and images_req:
+                # V2-457 — se NOMBRA cuántas y de quién, ANTES del ack genérico de `canvas:` (razón: la del vídeo).
+                spoken = _image_turn.spoken_for(
+                    return_extra_exec if isinstance(return_extra_exec, dict) else {}, _lg.data_ack)
             elif action == "canvas:show:youtube" and video_req:
                 # V2-383 — se NOMBRA el vídeo que cargó. Va ANTES del ack genérico de `canvas:` a propósito:
                 # ahí abajo un turno de vídeo solo puede decir «aquí lo tienes» o —si no cargó— «está vacío»,

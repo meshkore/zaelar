@@ -27,6 +27,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a leaf)
+from nucleo.flash import tools_media as _tools_media  # V2-457: el literal de las tools de medios
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
 
@@ -38,6 +40,7 @@ RECALL = "recall"      # V2-056: el MODELO decide recordar (memoria durable del 
 REVEAL = "reveal"      # V2-060: el operador pide un SECRETO guardado (reveal_secret) — ruta ligera; valor OUT-OF-BAND
 MUSIC = "music"        # V2-041: reproduce/controla música por un conector (play_music) — ruta ligera, en el turno
 VIDEO = "video"        # V2-045: reproduce un VÍDEO en el widget youtube (play_video) — hermano de MUSIC, VER≠OÍR
+IMAGES = "images"      # V2-457: enseña FOTOS en el visor `imagenes` (show_images) — tercera hermana de MUSIC/VIDEO
 SHOW = "show"          # MOSTRAR/ABRIR un widget del canvas (show_widget) — tool de 1ª clase, converge en [[show:id]]
 PANEL = "panel"        # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) en una pestaña (show_panel)
 ALIAS = "alias"        # V2-082: añade/quita un NOMBRE/ALIAS de un widget (manage_widget_alias) — escritura de manifest
@@ -49,7 +52,8 @@ ANSWER = "answer"      # V2-038: responde la pregunta de un Brain Worker que esp
 # Prioridad al colapsar varias tool calls de un mismo turno en una decisión (mayor = manda). STOP manda sobre todo
 # (si el operador pide parar Y otra cosa, primero para); ANSWER/INJECT por encima de ESCALATE (refinar/responder un
 # worker vivo antes que abrir otro). MUSIC va con las rutas ligeras (SEARCH), por debajo de las de worker.
-_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, SHOW: 3, PANEL: 3, ALIAS: 3,
+_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
+             PANEL: 3, ALIAS: 3,
              ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
 
 
@@ -80,17 +84,19 @@ TOOLS: list[dict] = [
             #    era del provider, que solo ejecutaba la PRIMERA escalada); y «no está en el catálogo» no es
             #    motivo: un widget que no existe es justo el que se construye.
             # V2-402 — el NO-list manda poner/BUSCAR vídeo/música/podcast a play_video/play_music, no a la hoja.
+            # V2-457 — y ENSEÑAR fotos sale del SÍ-list: era un encargo de worker (355 s y $1,96 medidos el
+            # 2026-08-28) y ahora es un turno de 3 s por `show_images`. Lo que se queda aquí es CURAR fotos.
             "description": (
                 "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
                 "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace; "
-                "crear, modificar o arreglar el CÓDIGO de un widget; conseguir una "
-                "foto REAL para ENSEÑARLA (no la describas: búscala); recordar algo de OTRAS sesiones "
+                "crear, modificar o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
                 "fuera de tu ESTADO; y HACER, cambiar o DESHACER un compromiso real "
                 "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
                 "NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
                 "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
                 "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); poner/BUSCAR "
-                "vídeo/música/podcast (play_video/play_music, no la hoja). VARIAS tareas distintas en un "
+                "vídeo/música/podcast (play_video/play_music, no la hoja); enseñar FOTOS (show_images). "
+                "VARIAS tareas distintas en un "
                 "turno = una llamada por CADA UNA (corren a la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
                 "Ante la duda, escala. "
                 "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
@@ -158,10 +164,9 @@ TOOLS: list[dict] = [
             "name": "show_panel",
             "description": (
                 "Abre o CIERRA el PANEL lateral NATIVO del operador — es UI fija, NUNCA show_widget ni "
-                "[[show]]. `panel`: 'procesos' (lo que estás haciendo: brain workers, trabajos y tareas en marcha e "
-                "histórico) | 'crons' (lo que tiene programado o agendado) | 'chat' (el muro de texto, para "
-                "escribirte en vez de hablar) | 'clusters' (la red MeshKore: a qué clusters está conectado, quién "
-                "hay y cuánto tráfico). Úsala cuando quiera VER esa lista; si solo pregunta un dato suelto "
+                "[[show]]. `panel`: 'procesos' (brain workers y tareas, en marcha e histórico) | 'crons' (lo "
+                "que tiene programado) | 'chat' (el muro de texto, para escribirte) | 'clusters' (la red "
+                "MeshKore: quién hay y cuánto tráfico). Úsala cuando quiera VER esa lista; si solo pregunta un dato suelto "
                 "('¿cuántas tareas tienes?'), respóndelo hablando. Con `action:'close'` lo CIERRA: «cierra el "
                 "chat», «quita los procesos». El chat NO es un widget, así que [[close]] no lo cierra — es ESTA."
             ),
@@ -273,8 +278,8 @@ TOOLS: list[dict] = [
                 "el tiempo, un resultado, una noticia, una cotización). Vuelve en este turno y lo dices tú, sin "
                 "tarjeta ni navegador. Si la pregunta trae DOS datos («a qué hora abre Y cuánto cuesta»), van "
                 "AMBOS en la MISMA `query` y respondes los dos en ese turno: una sola búsqueda, no media "
-                "respuesta. Solo trae TEXTO — nunca una foto/imagen real que enseñar (si piden VERLA, "
-                "escala; describirla de palabra no es lo que pidieron). NUNCA para datos PROPIOS del operador (sus mensajes, su agenda, sus widgets, "
+                "respuesta. Solo trae TEXTO — nunca una foto/imagen: si piden VERLA es show_images, y "
+                "describirla de palabra no es lo que pidieron. NUNCA para datos PROPIOS del operador (sus mensajes, su agenda, sus widgets, "
                 "sus conectores, qué tienes tú conectado): eso sale de tu ESTADO o se muestra. NUNCA la hora ni la "
                 "fecha LOCALES (están en tu ESTADO) — pero la hora en OTRO sitio SÍ se busca, jamás la calcules a "
                 "ojo. Tampoco es web_search buscar ANUNCIOS en un marketplace ni un INFORME/comparativa a fondo, ni "
@@ -345,68 +350,7 @@ TOOLS: list[dict] = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "play_music",
-            # V2-041: capacidad de PRIMER NIVEL (como web_search) — reproducir música por un conector de streaming
-            # (hoy Spotify). Frontera clara: es ESCUCHAR música, NO un dato del mundo (web_search) NI un vídeo.
-            "description": (
-                "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
-                "qué poner en lenguaje natural (artista/canción/género), vacío = reanudar; acepta pistas vagas, no "
-                "pidas el nombre exacto. `action`: play (def) | queue | pause | resume | next | previous | volume_up "
-                "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (el sistema "
-                "encadena solo, tú no vigilas). Si el operador SOLO comenta o se queja de lo que suena, no "
-                "reproduzcas otra vez; pero si quiere algo DISTINTO —aunque lo diga como deseo ('quería algo más "
-                "tranquilo') o dentro de una pregunta— SÍ es cambiar: llámala con la nueva preferencia. VER algo en "
-                "pantalla (vídeo, videoclip, tráiler, peli) es play_video, no esto. Abrir un juego o widget se "
-                "MUESTRA, no se reproduce. Sus LISTAS guardadas son del widget `musica` (widget_data play_playlist / "
-                "create_playlist / add_to_playlist); CURAR una lista con contenido es escalate."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string",
-                              "description": ("qué reproducir en lenguaje natural (artista/canción/género); "
-                                              "vacío = reanudar lo que sonaba")},
-                    "action": {"type": "string",
-                               "description": ("play (def) | queue [encolar para después] | pause | resume | next | "
-                                               "previous | volume_up | volume_down | stop")},
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        # V2-045: VÍDEO como tool de 1ª CLASE, hermana de play_music — el no-razonador confundía vídeo con música
-        # y la prosa de frontera en play_music NO lo movía (3 intentos); tool-vs-tool sí discrimina, SIN tablas de
-        # verbos. El "cuándo" vive en la descripción; el provider ejecuta → [[show:youtube]] + data-op load/search.
-        "type": "function",
-        "function": {
-            "name": "play_video",
-            "description": (
-                "Reproduce un VÍDEO en el widget `youtube` — VER en pantalla: 'pon el vídeo de…', un videoclip, un "
-                "tráiler, una peli, un directo, un tutorial. También «el último/más reciente vídeo de <alguien>» (se "
-                "ordena por fecha). `query` = qué vídeo, en lenguaje natural; acepta descripciones vagas. No es "
-                "play_music (eso es OÍR) ni web_search (eso es un dato que se cuenta). La búsqueda tarda unos "
-                "segundos en segundo plano: habla en presente o futuro ('lo busco', 'te lo cargo'), NUNCA en pasado "
-                "— decir 'hecho' antes de que esté cargado es mentir, aunque ya hubiera otro vídeo en pantalla. "
-                "BUSCAR contenido para ver/oír y ELEGIR ('búscame vídeos de X', 'qué documentales hay', un podcast) "
-                "también es ESTA tool, con action=list: varios candidatos a la LISTA, sin reproducir. No lo escales "
-                "ni lo mandes a la hoja de resultados: la hoja es para INFORMACIÓN, no para lo que se ve u oye."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {"type": "string",
-                              "description": "qué vídeo VER, en lenguaje natural (se busca/carga en YouTube)"},
-                    "action": {"type": "string", "description": (
-                        "play (def: carga y reproduce el mejor resultado) | list (varios candidatos a la LISTA)")},
-                },
-                "required": ["query"],
-            },
-        },
-    },
+    *_tools_media.TOOLS,
     {
         # V2-051: RESPONDER a un mensaje del buzón unificado (`mensajeria`). Function-calling (fiable, V2-026) en
         # vez de un tag inline. El provider la enruta a la data-op `reply` (confirm:true) → el gate CONFIRM (V2-025)
@@ -713,7 +657,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "workers":   ("send_to_worker", "stop_worker", "answer_worker"),
     "cluster":   ("connect_cluster", "set_cluster_objective", "cluster_send"),
     "messaging": ("reply_message",),
-    "media":     ("play_music", "play_video"),
+    "media":     ("play_music", "play_video", "show_images"),
     "web":       ("web_search", "authenticate_web", "login_done"),
     "memory":    ("recall", "reveal_secret"),
 }
@@ -759,6 +703,7 @@ _SITUATIONAL = {
     "reply_message":         lambda ctx: ctx.get("messaging_on", True),   # sin conector de mensajería no hay a quién
     "reveal_secret":         lambda ctx: ctx.get("has_vault", True),      # V2-060: sin bóveda no hay secreto que leer
     "play_video":            lambda ctx: ctx.get("has_video_widget", True),  # play_video CARGA el widget `youtube`
+    "show_images":           lambda ctx: ctx.get("has_image_widget", True),  # show_images CARGA el visor `imagenes`
 }
 
 
@@ -789,7 +734,7 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
                  confirm_pending: bool = False, auth_pending: bool = False,
                  has_workers: bool = False, ask_pending: bool = False,
                  cluster_widget_open: bool = True, messaging_on: bool = True,
-                 has_vault: bool = True, has_video_widget: bool = True,
+                 has_vault: bool = True, has_video_widget: bool = True, has_image_widget: bool = True,
                  cluster_connected: bool = False) -> dict:
     """Arma el `context` de `tools()` desde señales de estado baratas. `has_widgets` = hay catálogo de widgets
     (siempre lo hay hoy) O alguno abierto. `has_workers` = hay Brain Workers vivos (→ send/stop_worker). `ask_pending`
@@ -803,6 +748,7 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
             "has_workers": bool(has_workers), "ask_pending": bool(ask_pending),
             "cluster_widget_open": bool(cluster_widget_open), "messaging_on": bool(messaging_on),
             "has_vault": bool(has_vault), "has_video_widget": bool(has_video_widget),
+            "has_image_widget": bool(has_image_widget),
             "cluster_connected": bool(cluster_connected)}
 
 
@@ -878,6 +824,8 @@ def decide(name: str, args: dict | None = None) -> Decision:
     if name == "play_video":
         return Decision(VIDEO, {"query": (args.get("query") or "").strip(),
                                 "action": _video_action(args.get("action"))})
+    if name == "show_images":
+        return Decision(IMAGES, _image_turn.request_from([{"name": "show_images", "args": args}]))
     if name == "show_widget":
         return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
     if name == "show_panel":
