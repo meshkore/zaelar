@@ -30,6 +30,7 @@ def test_the_watchdog_window_covers_a_whole_round():
     class _S:  # minimal scenario stub
         persona_brief = ""
         success_checks = ""
+        opening_line = ""
 
     tr = ([{"who": "tester", "text": "a bit cheaper than $250 would be great", "at": 1.0}] +
           [{"who": ("zaelar" if i % 2 else "tester"), "text": f"turno {i}", "at": float(i + 2)}
