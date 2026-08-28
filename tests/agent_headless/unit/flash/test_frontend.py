@@ -86,9 +86,10 @@ def test_action_mode_failclosed_on_error(monkeypatch):
 
 
 def test_probe_deictic_show_uses_recent_conversation(monkeypatch):
-    from nucleo.flash import probe
+    from nucleo.flash import probe, show_target
 
-    monkeypatch.setattr(probe, "_identify_ctx",
+    # patched on show_target (the defining module) — probe re-exports these names since the extraction
+    monkeypatch.setattr(show_target, "_identify_ctx",
                         lambda _runtime, text: "meteo-soria" if "tiempo" in text.lower() else None)
     context = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"}]
     assert probe._show_target("Vale, pues muéstramelo.", context) == "meteo-soria"
