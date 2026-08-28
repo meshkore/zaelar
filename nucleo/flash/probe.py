@@ -1065,7 +1065,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # implementación PARALELA del provider de voz y lo que se comparte es el MECANISMO.
                 return_extra_exec = await _music_turn.execute(music_req["action"], music_req["query"])
             elif action == "widget_data":
-                return_extra_exec = await _widget_data_turn.execute(tool_calls)
+                # V2-469 — the links the operator pasted all travel: two links in one message, the model's
+                # single add carried one. His own words verbatim, so completing invents nothing.
+                return_extra_exec = await _widget_data_turn.execute(
+                    _widget_data_turn.complete_pasted_links(tool_calls, text))
             else:
                 return_extra_exec = {}
         except Exception as e:  # noqa: BLE001

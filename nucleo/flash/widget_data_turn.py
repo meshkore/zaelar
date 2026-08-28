@@ -135,6 +135,44 @@ async def execute(tool_calls: list) -> dict:
     return parte
 
 
+_YT_LINK = None  # compiled lazily below
+
+
+def complete_pasted_links(tool_calls: list, operator_text: str) -> list:
+    """The links the operator PASTED all travel (V2-469, `build-a-video-playlist` 23:17): two links in one
+    message, the model's single `add` carried one — «Hecho» over half the errand, and the user had to
+    correct it. The multi-link add already works (V2-384 bis); what failed was the payload. The links are
+    the operator's own words verbatim, so appending the ones his turn carries invents nothing. Narrow on
+    purpose: only youtube `add`, only links present in THIS turn's text, no-op everywhere else.
+    """
+    global _YT_LINK
+    import re as _re
+    if _YT_LINK is None:
+        _YT_LINK = _re.compile(r"https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([0-9A-Za-z_-]{11})\S*")
+    text = str(operator_text or "")
+    pasted = [(m.group(0), m.group(1)) for m in _YT_LINK.finditer(text)]
+    if not pasted or not isinstance(tool_calls, list):
+        return tool_calls
+    adds = [t for t in tool_calls
+            if isinstance(t, dict) and t.get("name") == "widget_data"
+            and str(((t.get("args") or {}).get("widget_id") or "")).strip().lower() == "youtube"
+            and str(((t.get("args") or {}).get("action") or "")).strip() == "add"]
+    if not adds:
+        return tool_calls
+    covered = " ".join(
+        str(((t.get("args") or {}).get("payload") or {}).get(k) or "")
+        for t in adds for k in ("url", "urls", "query", "item")) + " ".join(
+        str((t.get("args") or {}).get("item") or "") for t in adds)
+    faltan = [url for url, vid in pasted if vid not in covered]
+    if not faltan:
+        return tool_calls
+    args = adds[0].get("args") or {}
+    pl = dict(args.get("payload") if isinstance(args.get("payload"), dict) else {})
+    pl["url"] = (str(pl.get("url") or "").strip() + " " + " ".join(faltan)).strip()
+    adds[0]["args"] = {**args, "payload": pl}
+    return tool_calls
+
+
 def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     """A bare «Hecho.» to a QUESTION is a non-answer (V2-469, `build-a-video-playlist` 23:05): «¿Y qué hay
     en la lista?» → mute model over a redundant `add` → «Hecho.», twice, watchdog nudging both times and
@@ -156,8 +194,15 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
         return base
     try:
         from widgets import refs as _refs
-        labels = [str(i.get("label") or "").strip() for i in _refs._ref_index(wid)]
-        labels = [l for l in labels if l]
+        labels = []
+        for i in _refs._ref_index(wid):
+            l = str(i.get("label") or "").strip()
+            if not l:
+                continue
+            # The hint travels (V2-469, round 10): «¿y qué está sonando?» got the enumeration WITHOUT
+            # marking which one — the labels answered a different question than the one asked.
+            h = str(i.get("hint") or "").strip()
+            labels.append(f"{l[:80]} ({h})" if h else l[:80])
     except Exception:  # noqa: BLE001
         labels = []
     if not labels:
@@ -168,7 +213,7 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
         en = _langs.current_code() == "en"
     except Exception:  # noqa: BLE001
         pass
-    vista = " · ".join(f"«{l[:80]}»" for l in labels[:4])
+    vista = " · ".join(f"«{l}»" for l in labels[:4])
     resto = len(labels) - 4
     if resto > 0:
         vista += (f" and {resto} more" if en else f" y {resto} más")

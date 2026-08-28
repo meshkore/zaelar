@@ -535,7 +535,9 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/flash/test_hecho_sobre_una_op_que_fallo.py",
                       # V2-469: y «Hecho.» a una PREGUNTA es una no-respuesta — el ack enumera lo que el
                       # widget tiene (ref_index), medido en build-a-video-playlist (23:05).
-                      "tests/agent_headless/unit/flash/test_a_question_is_answered_with_what_the_widget_holds.py"]},
+                      "tests/agent_headless/unit/flash/test_a_question_is_answered_with_what_the_widget_holds.py",
+                      # V2-469: los enlaces pegados viajan TODOS al add, y la enumeración marca «la que suena».
+                      "tests/agent_headless/unit/flash/test_the_pasted_links_all_travel.py"]},
         # V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación: solo entró el
         # primer `add`, el `next` no encontró segundo vídeo y el turno anunció que sonaba igualmente.
         {"id": "4.55", "title": "Dos enlaces pegados son dos `add` · sin reabrir la cita doble ni la enumeración",
