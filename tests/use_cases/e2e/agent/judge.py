@@ -1251,6 +1251,11 @@ crudos: si un instante es MAYOR que otro es que ocurrió DESPUÉS, sin más cuen
 {json.dumps(_clocks_relative(mech), ensure_ascii=False, indent=2)}
 
 === VEREDICTOS DEL WATCHDOG DURANTE LA SESIÓN (detección de desvíos en vivo) ===
+Son la OPINIÓN de otro modelo emitida en caliente, y se equivoca: en una ronda medida acusó a zaelar de
+inventarse un límite de 250 dólares que el usuario había dicho LITERALMENTE dos turnos antes («a bit
+cheaper than $250 would be great»). Antes de adoptar uno como hallazgo, contrasta su afirmación contra el
+transcript de arriba — si el transcript lo desmiente, el veredicto se descarta y NO baja ninguna nota. Y
+nunca cites al watchdog como respaldo de un hallazgo: el respaldo es lo que tú mismo compruebes.
 {json.dumps(watchdog_events, ensure_ascii=False) if watchdog_events else '(ninguno — nunca se desvió)'}
 
 {rubric}

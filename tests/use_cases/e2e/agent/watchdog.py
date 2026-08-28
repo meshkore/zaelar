@@ -49,7 +49,11 @@ _SYSTEM = (
 
 def build_messages(scenario, transcript: list[dict], mechanism_hint: str = "") -> list[dict]:
     lines = []
-    for t in transcript[-10:]:
+    # 24 and not 10 (V2-469): with `[-10:]` (5 exchanges) the round's budget-setting turn sat OUTSIDE the
+    # window and the watchdog filed «a $250 limit the user never gave» over the user's own literal words —
+    # true of the window, false of the conversation, amplified by the judge into the round's [alta]. Rounds
+    # cap at ~11 exchanges, so 24 entries covers any whole round at ~400 chars each.
+    for t in transcript[-24:]:
         who = "USUARIO" if t.get("who") == "tester" else "ZAELAR"
         txt = " ".join(str(t.get("text") or "").split())[:400]
         if txt:

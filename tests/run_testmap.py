@@ -2225,6 +2225,10 @@ DOMAINS: list[dict] = [
                                   "[alta]s falsas",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_las_ops_llevan_su_turno.py"]},
+        {"id": "10.126", "title": "El watchdog es OPINIÓN y su ventana cubre la ronda entera — un hecho fuera "
+                                  "de la ventana se volvía acusación",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_el_watchdog_es_opinion_no_hecho.py"]},
         {"id": "10.122", "title": "El reloj de la entrega también lee los títulos de la HOJA — sin nota, no corría",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_delivery_clock_reads_the_sheet_titles_too.py"]},
