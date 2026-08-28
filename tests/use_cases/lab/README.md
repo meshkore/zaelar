@@ -21,6 +21,7 @@ they remembered to find nothing listening.
 python -m tests.use_cases.lab up            # both, with voice, on their own LiveKit rooms
 python -m tests.use_cases.lab status
 python -m tests.use_cases.lab say es "Necesito un fontanero hoy mismo en mi ciudad."
+python -m tests.use_cases.lab clean es      # blank session (canvas + background work); memory KEPT
 python -m tests.use_cases.lab reset es      # wipe its memory, reseed the profile, SAME port
 python -m tests.use_cases.lab logs es -n 80
 python -m tests.use_cases.lab down
@@ -30,6 +31,18 @@ Open the port in a browser and you get the whole product: the orb, the canvas, w
 agent opens them, the process list, the results sheet with its live progress tab, the observability
 viewer (◷) and the memory map (🧠). Nothing about that screen is special to the lab — it is the same
 frontend the operator's own engine serves, pointed at a different database.
+
+## A boot is a BLANK session
+
+`up` leaves the agent on a blank session — background work stopped, canvas cleared, a new observability
+window — and keeps its memory and its profile. It has to: what persists here is not the process but the
+**workspace on disk**, so without it a freshly booted agent opens showing the errand of a week ago, and the
+◷ visor cannot tell "this test" from whatever was there before (operator, 2026-08-28, looking at exactly
+that). The runner does the same before EVERY case; `clean` does it to a running agent without a reboot.
+
+It is `/reset/hard` and never `/api/reset/full` with a wipe flag — that one relaunches the engine with
+`make run` in the real engine directory, which would take the lab and the operator's engine down together.
+And it is reported both ways: asking for the clean-up is not having got it.
 
 ## Why two and not one
 

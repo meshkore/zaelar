@@ -5143,6 +5143,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **Un agente del plató arranca con la sesión EN BLANCO (V2-460, 2026-08-28)**: el operador abrió el 43921
+  recién levantado y lo primero que vio fue la hoja de un encargo de coches de alquiler de días antes. El
+  runner ya limpiaba antes de CADA caso desde el 2026-08-21 (misma queja, otro camino); faltaba el arranque a
+  mano. Un agente del plató es persistente a propósito —esa es la razón del puerto fijo— y **lo que persiste
+  no es el proceso sino el workspace en disco**, así que canvas, trabajo de fondo y ventana de observabilidad
+  sobreviven a un reinicio, que es justo lo que hace ilegible una ronda: el ◷ no sabe separar «este test» de
+  lo de antes. `up` limpia al arrancar y hay verbo `lab clean <k>` para hacerlo sin reiniciar. Es
+  **`/reset/hard`, jamás `/api/reset/full` con banderas**: ese relanza el motor con un `make run` en el
+  directorio REAL y `run-livekit.sh` siega todo `python -m server` por NOMBRE — se llevaría el plató y el
+  motor del operador de una vez. Y se dice en los dos sentidos (`cleaned`), porque pedir la limpieza no es
+  haberla conseguido. Nodo 10.117.
+
 - **Tres agentes en esta máquina, tres puertos, y ninguno se mueve (V2-459, 2026-08-28)**: el operador volvió
   a `127.0.0.1:43921` —donde había estado mirando al agente español— y no había nada. No era un arranque
   fallido: **esa dirección solo existía para la mitad del arnés**. El laboratorio tenía 43921/43922 clavados y

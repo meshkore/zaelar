@@ -42,6 +42,9 @@ def _report(st: stage.LabState) -> None:
     print(f"  ✅ {p.key}  {st.base_url}  {voice} · pid {st.pid} · {mins}   ({p.title})")
     if st.chain:
         print(f"       cadena: {st.chain}")
+    # Se dice SIEMPRE, y en los dos sentidos. Pedir la limpieza no es haberla conseguido, y el sitio donde
+    # eso se paga es el ◷: una ronda leída sobre el canvas de la anterior no se puede interpretar.
+    print(f"       sesión: {'EN BLANCO (memoria y perfil intactos)' if st.cleaned else 'NO se pudo limpiar al arrancar — puede arrastrar pantalla y procesos de antes'}")
 
 
 def _watch_lines(st: stage.LabState) -> None:
@@ -106,6 +109,35 @@ def cmd_reset(args) -> int:
             continue
         _report(st)
         _watch_lines(st)
+    return rc
+
+
+def cmd_clean(args) -> int:
+    """Dejar la sesión en BLANCO sin reiniciar: canvas, procesos de fondo y ventana de observabilidad.
+
+    `up` ya lo hace al arrancar y el runner lo hace antes de CADA caso, así que esto es para el agente que
+    lleva rato en pie y al que se le va a mirar algo — la norma del operador es que un test empiece con la
+    pantalla limpia para poder centrar el ◷ en la tarea en curso. La memoria y el perfil NO se tocan: para
+    eso está `reset`, que es otra cosa y lo dice.
+    """
+    rc = 0
+    for p in _targets(args.agent):
+        st = stage.status(p)
+        if not st.running:
+            print(f"  ⬜ {p.key} no está en marcha — nada que limpiar")
+            continue
+        out = stage.clean_session(p)
+        if not out:
+            print(f"  ✗ {p.key} NO se pudo limpiar — sigue con la pantalla y los procesos de antes")
+            rc = 1
+            continue
+        r = out.get("reset") or {}
+        blanked = ", ".join((r.get("widgets") or {}).get("blanked") or []) or "nada abierto"
+        killed = r.get("killed") or {}
+        print(f"  ✅ {p.key} sesión EN BLANCO (memoria y perfil intactos) · sesión nueva "
+              f"{str(out.get('session') or '')[:8]}")
+        print(f"       canvas: {blanked}")
+        print(f"       trabajo parado: {killed}")
     return rc
 
 
@@ -227,6 +259,10 @@ def main(argv=None) -> int:
     stt = sub.add_parser("status", help="qué hay en pie")
     stt.add_argument("agent", choices=agents, nargs="?", default="all")
     stt.set_defaults(fn=cmd_status)
+
+    cl = sub.add_parser("clean", help="sesión en BLANCO sin reiniciar (canvas + procesos; memoria intacta)")
+    cl.add_argument("agent", nargs="?", default="all", choices=["es", "us", "all"])
+    cl.set_defaults(fn=cmd_clean)
 
     rs = sub.add_parser("reset", help="borrar memoria + resembrar perfil, MISMO puerto")
     rs.add_argument("agent", choices=agents, nargs="?", default="all")

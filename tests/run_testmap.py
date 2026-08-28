@@ -2139,6 +2139,14 @@ DOMAINS: list[dict] = [
         # caminos (hoja, extracción, nota). 2 de 246 rondas medibles, y ocho bugs míos por el camino.
         # V2-453 — el motor emite desde V2-311 que un recall no llegó, y el informe no lo leía: «pregunta lo
         # que ya sabe» quedaba sin atribuir entre avería nuestra y conducta del modelo.
+        # V2-460: un agente del plató es persistente a propósito, así que su canvas y su trabajo de fondo
+        # sobreviven al PROCESO — lo que persiste es el workspace en disco. El operador abrió el 43921 recién
+        # levantado y vio la hoja de un encargo de días antes: con eso delante, el visor ◷ no sabe separar
+        # «este test» de lo que hubiera antes.
+        {"id": "10.117", "title": "El plató arranca con la sesión EN BLANCO — canvas y procesos fuera, "
+                                  "memoria y perfil intactos",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_lab_agent_boots_on_a_blank_session.py"]},
         # V2-459: tres agentes en esta máquina y sus puertos son marcadores del operador. El laboratorio los
         # tenía clavados (43921/43922) mientras la tanda desatendida arrancaba en `preferred_port(43918)` —
         # un número para los DOS idiomas, y encima deslizante. El operador abrió el 43921 esperando al agente

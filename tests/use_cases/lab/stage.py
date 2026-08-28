@@ -68,6 +68,7 @@ class LabState:
     answering: bool = False        # the port answers /api/status
     foreign: bool = False          # something answers on our port and it is NOT ours
     chain: str = ""                # the provider ladder this agent was seeded with
+    cleaned: bool = False          # its session was blanked at boot (canvas/processes; memory intact)
 
     @property
     def base_url(self) -> str:
@@ -106,7 +107,7 @@ def status(profile: LabProfile) -> LabState:
     pid = meta.get("pid")
     st = LabState(profile=profile, running=_alive(pid), pid=pid,
                   voice=bool(meta.get("voice")), started_at=float(meta.get("started_at") or 0.0),
-                  chain=str(meta.get("chain") or ""))
+                  chain=str(meta.get("chain") or ""), cleaned=bool(meta.get("cleaned")))
     st.answering = _get(f"{st.base_url}/api/status") is not None
     # Something on our port that we did not start. Reported, never worked around: the operator opened
     # this URL expecting THIS agent, and answering them with someone else's engine is worse than an error.
@@ -302,6 +303,42 @@ def env_for(profile: LabProfile, *, voice: bool) -> dict:
     return env
 
 
+def _post(url: str, payload: dict, timeout: float = 60.0) -> dict | None:
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=body, method="POST",
+                                 headers={"User-Agent": _UA, "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read() or b"{}")
+    except Exception:
+        return None
+
+
+def clean_session(profile: LabProfile) -> dict | None:
+    """Leave the agent on a BLANK session, keeping its memory and its state.
+
+    Norm of the operator (2026-08-28), said while looking at a freshly booted lab agent that opened showing
+    the results sheet of a rental-car errand from a WEEK before: «lo primero que hay que hacer cuando se
+    lanza un test de un use case es hacer un reset y dejar la sesión limpia para todos los procesos. Puedes
+    mantener la memoria o el estado básico, pero el resto tiene que estar listo para empezar una sesión en
+    blanco y poder centrar la observabilidad en la tarea y el test en curso.»
+
+    A lab agent is persistent ON PURPOSE — that is the whole point of the fixed port — so its canvas, its
+    background work and its observability window survive not just a run but a reboot: the workspace outlives
+    the process. What survives is exactly what makes a round unreadable, because the ◷ visor cannot separate
+    «this test» from «whatever was here before».
+
+    It is `/reset/hard` and NOT `/api/reset/full` with the wipe flags, for two independent reasons: memory
+    and the profile must stay (they are what makes this agent Marc from Madrid), and `reset/full` with a
+    wipe relaunches the engine with `make run` in the REAL engine directory — which would kill the lab and
+    take the operator's own engine with it.
+
+    Never fatal: an agent up with a dirty screen still measures. The caller SAYS what happened, because a
+    clean-up nobody checked is exactly the kind of claim this tree has been burned by.
+    """
+    return _post(f"http://127.0.0.1:{profile.port}/reset/hard", {})
+
+
 def up(profile: LabProfile, *, voice: bool = True, fresh: bool = False,
       boot_timeout: float = 180.0) -> tuple[SandboxEngine | None, LabState]:
     st = status(profile)
@@ -323,9 +360,15 @@ def up(profile: LabProfile, *, voice: bool = True, fresh: bool = False,
 
     eng = spawn_engine(workspace=ws, port=profile.port, log_path=_log_path(profile),
                        extra_env=env_for(profile, voice=voice), boot_timeout=boot_timeout)
+    # BLANK SESSION on every boot — see `clean_session`. `spawn_engine` already waited for `/api/status`,
+    # so there is something to ask. On a seeded (brand new) workspace there is nothing to clear, but it is
+    # asked anyway: a boot that behaves differently depending on the history of the disk is a boot nobody
+    # can reason about, and the answer is what the CLI prints either way.
+    cleaned = clean_session(profile)
     _meta_path(profile).write_text(json.dumps({
         "pid": eng.process.pid, "port": profile.port, "voice": voice,
         "started_at": time.time(), "workspace": str(ws), "seeded": seeded, "chain": chain,
+        "cleaned": bool(cleaned), "session": (cleaned or {}).get("session", ""),
     }, indent=2), encoding="utf-8")
     return eng, status(profile)
 
