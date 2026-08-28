@@ -469,6 +469,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 pass
             mech["sheet_hidden_from_the_prompt"] = verifymod.sheet_hidden_from_the_prompt(
                 mech.get("prompt_context"), mech.get("sheet_timing"))
+            # …y su HERMANO, que cuenta la otra mitad: avisado de que había algo y servido con cero filas.
+            # Aquél se salta esos turnos a propósito (no estaban ciegos, se les dijo), así que sin esto la
+            # trampa de V2-330 no la cuenta nadie y el tablero la lee como que el agente retiene lo que tiene.
+            mech["told_but_given_no_rows"] = verifymod.told_but_given_no_rows(
+                mech.get("prompt_context"), mech.get("sheet_timing"))
             mech["price_mismatches"] = verifymod.prices_that_do_not_match(
                 transcript, mech.get("results_sheet"))
             mech["delivery_completeness"] = verifymod.delivery_completeness(

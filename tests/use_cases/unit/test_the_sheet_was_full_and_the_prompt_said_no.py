@@ -275,3 +275,63 @@ def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
     assert '"says_found": "YA HA ENCONTRADO" in sp,' in src, (
         "se busca en `live` (la línea de tareas) y el imperativo de resultados es OTRA línea del prompt")
     assert src.index('"says_found": "YA HA ENCONTRADO" in sp,') > src.index("sp = p.get(")
+
+
+# ── AVISADO Y SIN FILAS ────────────────────────────────────────────────────────────────────────────────
+# La otra mitad de la misma pregunta. `sheet_hidden_from_the_prompt` se salta los turnos con `says_found` a
+# propósito —al turno SÍ se le dijo—, así que la trampa que V2-330 nombró y no cerró no la contaba nadie: la
+# cara ordena «CUÉNTALE con nombre y precio» y el prompt no trae ni una fila. Medido en `search-buy-bicycle__es`
+# (2026-08-28): 10 turnos avisados, cero filas en todos, con los resultados existiendo los últimos 315 s.
+from tests.use_cases.e2e.agent.verify import told_but_given_no_rows
+
+
+def _t(turn, at_ms, says_found, rows):
+    return {"turn": turn, "at_ms": at_ms, "says_found": says_found, "sheet_rows": rows, "live_line": "x"}
+
+
+def test_avisado_y_con_CERO_filas_se_cuenta():
+    out = told_but_given_no_rows([_t(4, 200.0, True, []), _t(5, 300.0, True, [])], {"sheet_named_ms": 100.0})
+    assert out["n"] == 2 and [x["turn"] for x in out["turns"]] == [4, 5]
+
+
+def test_avisado_y_CON_filas_no_se_cuenta():
+    """El camino bueno. Si contara aquí, el número diría que le pedimos lo imposible justo cuando acertamos."""
+    out = told_but_given_no_rows([_t(4, 200.0, True, ["«Bici — 150€»"])], {"sheet_named_ms": 100.0})
+    assert out["n"] == 0
+
+
+def test_un_turno_al_que_NO_se_le_avisó_es_del_otro_contador():
+    """Ceguera y orden imposible son fallos distintos con arreglos distintos; contarlos juntos borra la
+    diferencia y manda a mirar donde no es."""
+    out = told_but_given_no_rows([_t(4, 200.0, False, [])], {"sheet_named_ms": 100.0})
+    assert out["n"] == 0
+
+
+def test_antes_de_que_la_hoja_tuviera_nombres_no_hay_nada_que_dar():
+    """Sin este corte el contador marcaría desde el primer turno de toda ronda: no es que no le diéramos las
+    filas, es que todavía no existían."""
+    out = told_but_given_no_rows([_t(2, 50.0, True, [])], {"sheet_named_ms": 100.0})
+    assert out["n"] == 0
+
+
+def test_sin_hoja_con_nombres_la_pregunta_NO_es_medible():
+    """«Cero» y «no se puede saber» no son lo mismo, y el cero es el que tranquiliza."""
+    assert told_but_given_no_rows([_t(2, 50.0, True, [])], {})["measurable"] is False
+
+
+def test_al_juez_se_le_DICE_que_le_pedimos_lo_imposible():
+    """El dato ya estaba en el transcript las veces que se puntuó mal; lo que faltaba era la instrucción.
+    Sin esto, el juez sigue leyendo «no dio nombres» como retención."""
+    from tests.use_cases.e2e.agent import judge
+    txt = judge.mechanism_facts({"told_but_given_no_rows": {"n": 3, "turns": [{"turn": 7}]}})
+    assert "IMPOSIBLE" in txt.upper() and "3" in txt
+
+
+def test_run_lo_CALCULA_o_el_informe_sale_sin_el():
+    """La guarda de cableado, que es la que faltaba en tres nodos de esta semana: los cinco casos de arriba
+    llaman a la función directamente, así que pasan enteros con la línea de `run.py` BORRADA — y entonces el
+    campo no existe, el juez no recibe nada y el tablero vuelve a puntuar como retención lo que es nuestro.
+    Un contador que nadie llama mide cero, y el cero se lee como «no pasó»."""
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
+    assert 'mech["told_but_given_no_rows"] = verifymod.told_but_given_no_rows(' in src

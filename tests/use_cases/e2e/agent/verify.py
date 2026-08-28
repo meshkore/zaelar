@@ -1686,6 +1686,40 @@ def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | 
     return {"turns": ciegos, "n": len(ciegos), "measurable": True}
 
 
+def told_but_given_no_rows(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
+    """Turnos AVISADOS de que había algo y servidos con CERO filas — la trampa que escribimos nosotros.
+
+    `sheet_hidden_from_the_prompt` se salta a propósito los turnos con `says_found`: al turno SÍ se le dijo,
+    así que no estaba ciego. Correcto por su definición, y deja sin contar el caso que V2-330 nombró y no
+    cerró: la cara ordena «CUÉNTALE lo que encaje, con nombre y precio» y el prompt no trae ni una fila. Un
+    imperativo que el prompt hace imposible de cumplir no es una instrucción — y desde fuera se lee como que
+    el agente retiene lo que tiene, que es el bloqueador más repetido del tablero.
+
+    V2-330 lo midió el 2026-08-25: **sin filas, el 79 % de esos turnos responde con espera; con filas, 42 %**.
+    Lo que faltaba era el contador por ronda, para saber si el arreglo llegó o si el caso sigue vivo.
+
+    Medido en `search-buy-bicycle__es` (2026-08-28): **10 turnos avisados, 0 filas en todos**, con los
+    resultados existiendo los últimos 315 s de la ronda. El juez lo puntuó como negar la entrega.
+
+    Solo cuenta turnos POSTERIORES a que la hoja tuviera nombres: antes de eso no hay filas que dar y el
+    silencio es correcto — sin ese corte, el contador marcaría cada ronda desde el primer turno.
+    """
+    named_ms = float(((timing or {}).get("sheet_named_ms") or 0) or 0)
+    if not prompt_rows or not named_ms:
+        return {"turns": [], "n": 0, "measurable": False}
+    tocados: list[dict] = []
+    for r in prompt_rows:
+        at = (r or {}).get("at_ms")
+        if not at or at <= named_ms:
+            continue
+        if not (r or {}).get("says_found"):
+            continue                      # no se le avisó: ése lo cuenta `sheet_hidden_from_the_prompt`
+        if (r or {}).get("sheet_rows"):
+            continue                      # se le avisó Y se le dieron: el camino bueno
+        tocados.append({"turn": (r or {}).get("turn")})
+    return {"turns": tocados[:12], "n": len(tocados), "measurable": True}
+
+
 def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
     """Precios que zaelar ATRIBUYÓ a un candidato NUESTRO y que no son los que trae la hoja.
 

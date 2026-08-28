@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **«Le pedimos lo imposible»: avisado de que había algo y servido con CERO filas (V2-441, 2026-08-28)**: el
+  contador de turnos CIEGOS se salta a propósito los que llevaban `says_found` —a ésos sí se les dijo—, y eso
+  dejaba sin contar el caso que V2-330 nombró y no cerró: la cara ordena «CUÉNTALE lo que encaje, **con nombre
+  y precio**» y el prompt no trae ni una fila. Medido en `search-buy-bicycle__es`: **10 turnos avisados con
+  cero filas**, con los resultados existiendo los últimos 315 s, `sheet_hidden_from_the_prompt: n=0` (con
+  razón) y el juez puntuándolo como negar la entrega — los dos hechos ciertos y ninguno contado. V2-330 ya
+  tenía el efecto medido (**sin filas 79 % de esos turnos responde con espera; con filas 42 %**); faltaba el
+  contador POR RONDA para saber si el arreglo llegó. **Al juez se le dice, con las dos mitades**: no bajar la
+  nota por no dar nombres que no tenía, y **sí** por callar que había algo — sin esa segunda mitad el hecho se
+  vuelve una amnistía y el 42 % restante deja de puntuarse. Nodo 10.109 ampliado, seis desarmes, y el sexto es
+  el que faltaba en tres nodos de esta semana: **los cinco primeros pasan enteros con la línea de `run.py`
+  borrada**, o sea con el campo sin calcular — un contador que nadie llama mide cero, y el cero se lee como
+  «no pasó».
+
 - **El censo del INSTANTE separa dos causas que se veían idénticas (V2-440, 2026-08-28)**: la cara dice «YA HA
   ENCONTRADO algo» y la hoja no da ni una fila, y eso tiene DOS causas con arreglos OPUESTOS — **desfase** (el
   worker aún no ha entregado: el aviso es correcto y no hay nada que tocar) y **caja equivocada** (las filas

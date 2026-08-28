@@ -611,6 +611,15 @@ def mechanism_facts(mech: dict) -> str:
     # LA HOJA LLENA Y EL PROMPT DICIENDO QUE NO. Va ANTES del precio y de la entrega porque cambia de quién
     # es la culpa de todo lo que venga después: un turno al que le dijimos «sigue atascada» no está negando
     # nada, está repitiendo lo que le pusimos delante.
+    # AVISADO Y SIN FILAS — la otra mitad, y la que más veces se ha puntuado como si fuera del modelo. Va
+    # aquí arriba por lo mismo: cambia de quién es la culpa de lo que venga después.
+    _tg = mech.get("told_but_given_no_rows") or {}
+    if _tg.get("n"):
+        lines.append(f"· ⚠️ LE PEDIMOS LO IMPOSIBLE: en {_tg['n']} turno(s) el prompt le dijo que la tarea YA "
+                     f"HABÍA ENCONTRADO algo y le ordenó contarlo «con nombre y precio» — SIN darle ni una "
+                     f"fila (turnos {', '.join(str(x.get('turn')) for x in _tg.get('turns') or [])}). No "
+                     f"podía nombrar lo que no tenía: NO le bajes la nota por no dar nombres en esos turnos. "
+                     f"Lo que SÍ es suyo es si además calló que había algo: eso sí podía decirlo.")
     _oc = mech.get("sheet_hidden_from_the_prompt") or {}
     if _oc.get("n"):
         lines.append(f"· ⚠️ NO SE LO DIJIMOS: en {_oc['n']} turno(s) posteriores a que la hoja tuviera filas "
@@ -621,7 +630,11 @@ def mechanism_facts(mech: dict) -> str:
         # LA CAUSA, en la misma línea y no en otra: dice lo mismo al juez —no culpes al modelo— y una segunda
         # frase repitiéndolo sería ruido. Se añade solo si el motor llegó a avisar de que no supo qué caja era.
         _sr = mech.get("unresolved_errand_sheets") or {}
-        if _sr.get("n_wrong_box"):
+        if _sr.get("n_ghost"):
+            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_ghost']} vez/veces las filas estaban en la hoja "
+                         f"DESNUDA —la que no es de ningún encargo— mientras la de éste estaba vacía. "
+                         f"Avería nuestra de fontanería: el motor miró bien, entregó mal el escritor.")
+        elif _sr.get("n_wrong_box"):
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_wrong_box']} vez/veces el motor leyó una caja que "
                          f"NO era la de este encargo ({', '.join(_sr.get('wrong_boxes') or {})}) mientras las "
                          f"filas estaban en otra. Avería nuestra de fontanería.")
