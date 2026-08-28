@@ -1105,7 +1105,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # Una data-op SÍ terminó, y un «no, déjalo» también resuelve algo de verdad: ahí «Hecho.» es
                 # cierto. El turno que resuelve un sí/no tampoco puede caer al backstop genérico y contestar
                 # «¿me lo repites?» a una confirmación.
-                spoken = _lg.data_ack
+                # V2-469 — but «Hecho.» to a QUESTION is a non-answer: when the operator asked something
+                # and the model went mute over the op, the ack enumerates what the widget now holds.
+                if action == "widget_data" and isinstance(return_extra_exec, dict):
+                    spoken = _widget_data_turn.named_ack(return_extra_exec, _lg.data_ack, text)
+                else:
+                    spoken = _lg.data_ack
             elif action == "canvas:show:imagenes" and images_req:
                 # V2-457 — se NOMBRA cuántas y de quién, ANTES del ack genérico de `canvas:` (razón: la del vídeo).
                 spoken = _image_turn.spoken_for(

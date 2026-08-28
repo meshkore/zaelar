@@ -135,6 +135,46 @@ async def execute(tool_calls: list) -> dict:
     return parte
 
 
+def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
+    """A bare «Hecho.» to a QUESTION is a non-answer (V2-469, `build-a-video-playlist` 23:05): «¿Y qué hay
+    en la lista?» → mute model over a redundant `add` → «Hecho.», twice, watchdog nudging both times and
+    the user asking FIVE times before getting the titles.
+
+    When the operator's turn ASKED something and the model said nothing, the ack enumerates what the
+    acted-on widget now holds — read live from its `ref_index`, the same contract reference-resolution
+    already uses, so it is generic (agenda, player list, photo strip) and never invented: a widget that
+    publishes nothing keeps the plain ack. Failures keep `spoken_for`'s honest message untouched.
+    """
+    parte = parte if isinstance(parte, dict) else {}
+    base = spoken_for(parte, ack)
+    if parte.get("executed") != "widget_data" or parte.get("fallidas"):
+        return base
+    if "?" not in str(operator_text or ""):
+        return base
+    wid = str(parte.get("widget") or "").strip()
+    if not wid:
+        return base
+    try:
+        from widgets import refs as _refs
+        labels = [str(i.get("label") or "").strip() for i in _refs._ref_index(wid)]
+        labels = [l for l in labels if l]
+    except Exception:  # noqa: BLE001
+        labels = []
+    if not labels:
+        return base
+    en = False
+    try:
+        from voice.engine.core import langs as _langs
+        en = _langs.current_code() == "en"
+    except Exception:  # noqa: BLE001
+        pass
+    vista = " · ".join(f"«{l[:80]}»" for l in labels[:4])
+    resto = len(labels) - 4
+    if resto > 0:
+        vista += (f" and {resto} more" if en else f" y {resto} más")
+    return (f"Done. Right now it holds: {vista}." if en else f"Hecho. Ahora mismo hay: {vista}.")
+
+
 def spoken_for(parte: dict, ack: str) -> str:
     """Lo que se DICE tras una data-op. `ack` es el enlatado del idioma, solo para el caso bueno.
 
