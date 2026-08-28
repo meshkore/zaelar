@@ -2090,6 +2090,11 @@ DOMAINS: list[dict] = [
         {"id": "10.113", "title": "Un caso BLOQUEADO no es una avería, ni un turno que gastar cada vuelta",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_un_caso_bloqueado_no_es_una_averia.py"]},
+        # V2-450 — un precio de mercado dicho antes de que nada se hubiera entregado por ninguno de los TRES
+        # caminos (hoja, extracción, nota). 2 de 246 rondas medibles, y ocho bugs míos por el camino.
+        {"id": "10.114", "title": "Un precio de mercado ANTES de entregar nada — y los tres caminos de entrega",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_un_precio_de_mercado_antes_de_entregar_nada.py"]},
         {"id": "10.112", "title": "La entrega multimedia NO está en la hoja — está en la lista del reproductor",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_la_entrega_multimedia_no_esta_en_la_hoja.py"]},

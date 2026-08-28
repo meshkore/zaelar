@@ -1724,6 +1724,147 @@ def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | 
     return {"turns": ciegos, "n": len(ciegos), "measurable": True}
 
 
+#: El importe ENTERO, con su separador de millares. La primera versión llevaba `\d{1,4}([.,]\d{1,2})?` y sobre
+#: «2.500 euros» empezaba a casar en «500 euros» — el mismo fallo de separador que costó V2-326 (un ×10 en el
+#: precio) y una de las seis correcciones de V2-430. Aquí el daño es distinto y peor: al partir el número, el
+#: TOPE que lo precede («por menos de 2.») se queda fuera de la ventana y el presupuesto del propio operador
+#: se archiva como una invención del agente.
+_IMPORTE_MERCADO = re.compile(
+    r"(?<![\d.,])(?:\$\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|€\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|"
+    r"\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\s*(?:€|euros?|dollars?|usd)\b)", re.I)
+#: Un TOPE no es un hallazgo. «under $400», «por menos de 150 euros», «hasta 300 €» son el presupuesto que
+#: acaba de decir el operador, y el agente repitiéndolo es correcto — medido: 10 de las 12 primeras respuestas
+#: con cifra eran esto. Sin este filtro el detector acusaría de inventar justo cuando el agente escucha bien.
+_TOPE = re.compile(r"(under|below|no\s+more\s+than|up\s+to|less\s+than|within|"
+                   r"menos\s+de|por\s+debajo\s+de|hasta|m[aá]ximo|max|bajo|"
+                   # Formas MEDIDAS en los informes, no imaginadas: «que no pase(n) de 12.000 euros» y sus
+                   # primas salían como invención en seis rondas siendo el tope que puso el operador.
+                   r"no\s+pase[n]?\s+de|no\s+supere[n]?|no\s+llegue[n]?\s+a|no\s+m[aá]s\s+de|"
+                   r"presupuesto\s+de|budget\s+of)\s*$", re.I)
+
+
+#: Una nota que ANUNCIA una entrega. Su texto llega recortado al informe, así que se reconoce por la cabecera
+#: que pone el propio motor, no por lo que quepa después.
+_ENTREGA_EN_NOTA = re.compile(r"(ha\s+SACADO\s+esto|ha\s+devuelto\s+esto|YA\s+HA\s+ENCONTRADO|"
+                              r"DICE\s+haber\s+encontrado)", re.I)
+
+#: El agente ATRIBUYENDO la cifra al operador («tú antes hablabas de unos 300 euros», «you mentioned $400»).
+#: No es una afirmación sobre el mercado sino un recall de lo que dijo el propio operador —a veces de una
+#: sesión anterior, que el arnés no puede ver— así que marcarlo sería acusar al agente de inventar justo
+#: cuando está recordando bien. Medido en `cheapest-monitor` (2026-08-23).
+_ATRIBUIDO_AL_OPERADOR = re.compile(
+    r"(t[uú]\s+(antes\s+)?(hablabas|dec[ií]as|dijiste|me\s+dijiste|coment(aste|abas))|"
+    r"seg[uú]n\s+me\s+dijiste|you\s+(said|mentioned|told\s+me)|your\s+budget)", re.I)
+
+#: Lo que el operador pone sobre la mesa, INCLUIDO el número pelado: dice «pago unos 60 al mes» y «por debajo
+#: de 300 si se puede», sin moneda. Exigirla dejaba su propio presupuesto fuera de la lista y el agente
+#: repitiéndolo salía como invención — medido en `compare-broadband-plans__es` y en `cheapest-monitor`.
+_CIFRA_PELADA = re.compile(r"(?<![\d.,])\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?(?![\d.,])")
+
+
+def _solo_numero(importe: str) -> str:
+    """El NÚMERO de un importe, sin símbolo ni separadores — para comparar «300€» con «unos 300 euros»."""
+    d = "".join(ch for ch in str(importe or "") if ch.isdigit())
+    return d.lstrip("0") or d
+
+
+def market_claims_before_delivery(transcript, timing: dict | None, sheet: dict | None = None,
+                                  notes: list | None = None) -> dict:
+    """Turnos que dan un PRECIO DE MERCADO antes de que el sistema haya entregado una sola fila.
+
+    Es la clase de bloqueador que domina el tablero US, y es la más cara: un precio inventado dicho con
+    seguridad se lee igual que uno correcto, y quien contrata con él se lleva la sorpresa. Medido el
+    2026-08-28 en cuatro de las últimas catorce rondas:
+
+    * `compare-flights-sf-austin__us` — «nonstop SF→Rome desde ~$314 con Condor, Scandinavian, WestJet».
+    * `compare-insurance-quotes__us` — «la búsqueda volvió con las tres cotizaciones» + rangos de GEICO,
+      Progressive y State Farm, con el mecanismo sin una sola cotización.
+    * `compare-phone-plans__us` — «I've got concrete numbers now… from around $15/month» con el worker en
+      0/5 pasos.
+    * `book-hotel-night-known__us` — «Done — that's confirmed» con la hoja a cero.
+
+    ⚠️ Mi PRIMERA medida de esto dio «2 de 328 rondas» y era falsa por mirar solo la PRIMERA respuesta: la
+    invención llega a mitad de conversación, cuando el operador insiste y no hay nada que darle. Un detector
+    que mira el turno 1 mide la cortesía inicial, no el defecto.
+
+    CONSERVADOR, por la misma asimetría que `prices_that_do_not_match`: un falso positivo acusa al producto
+    de mentir. No cuenta un TOPE (el presupuesto que el operador acaba de decir — 10 de 12 casos de la
+    primera medida eran eso), ni una cifra que ya dijo el propio operador, ni nada posterior a la primera
+    fila con nombre (ahí el precio puede venir de la hoja y eso lo mide `prices_that_do_not_match`).
+    """
+    tr = transcript if isinstance(transcript, list) else []
+    if not tr or notes is None:
+        # SIN LAS NOTAS no se puede contestar: son uno de los tres caminos por los que un hallazgo llega al
+        # cerebro, y sin su reloj todo turno parece anterior a la entrega. Los informes de antes de que el
+        # campo existiera caen aquí, que es lo correcto — «no lo sé» no es «se lo inventó».
+        return {"turns": [], "n": 0, "measurable": False}
+    # HAY DOS RELOJES DE ENTREGA y quedarse con uno inventa hallazgos. La hoja es uno; el otro son las NOTAS
+    # EMPUJADAS (V2-223), que llevan los hallazgos al cerebro en cuanto el navegador extrae, ANTES de que nada
+    # se escriba con nombre. Medido: en `hotel-under-15-days` el turno marcado decía «una experiencia de
+    # flamenco… a 25 euros», que es exactamente lo que el navegador había extraído, y en `cheapest-monitor` el
+    # «LG 27US500-W por 169 euros» de V2-235. Los dos eran entregas REALES contadas como invención. Manda el
+    # más TEMPRANO: a partir de ahí el agente ya tenía de dónde sacar una cifra.
+    _relojes = [float(((timing or {}).get(k) or 0) or 0)
+                for k in ("sheet_named_ms", "first_result_ms", "sheet_rows_ms")]
+    # …Y EL TERCER CAMINO: la NOTA EMPUJADA. Es por donde los hallazgos llegan al cerebro en cuanto el
+    # navegador extrae (V2-223), antes de que nada se escriba con nombre — y solo cuentan las que traen una
+    # CIFRA, que es lo que le da al turno de dónde sacar un precio. Sin esto, cinco rondas de
+    # `hotel-under-15-days` («Experiencia Premium… 25 euros», que el navegador había extraído de verdad) y el
+    # «LG 27US500-W por 169 euros» de V2-235 salían como invención. Entregas REALES por la otra puerta.
+    for n in (notes or []):
+        if not isinstance(n, dict):
+            continue
+        _t = str(n.get("text") or "")
+        # Vale CUALQUIER nota que anuncie una entrega, no solo las que traen la cifra dentro: el texto llega
+        # RECORTADO al informe, así que exigir el importe descarta entregas reales por dónde cae el corte —
+        # medido en `search-buy-bicycle__es` («El navegador ha SACADO esto de la página: PedroPerfil…») y en
+        # `cheapest-monitor`. Ante la duda, no acusar: un falso positivo aquí dice que el producto miente.
+        if _ENTREGA_EN_NOTA.search(_t) or _IMPORTE_MERCADO.search(_t):
+            _relojes.append(float(n.get("at_ms") or 0) or 0)
+    _vivos = [x for x in _relojes if x > 0]
+    named_ms = min(_vivos) if _vivos else 0.0
+    if not named_ms and (sheet or {}).get("n_named"):
+        # LA HOJA TIENE FILAS Y NO SÉ CUÁNDO LLEGARON. Sin ese instante no se puede decir qué turno fue antes,
+        # y tratarlo como «no se entregó nunca» hace elegible la ronda entera: medido en
+        # `search-buy-camera__us`, donde el turno marcado CITABA la hoja («ya hay candidatos: Nikon D70s —
+        # $89»). «No lo sé» no es «no pasó», y aquí el cero tranquilizador sería el contrario: un hallazgo
+        # inventado sobre un turno que estaba haciendo lo correcto.
+        return {"turns": [], "n": 0, "measurable": False}
+    dichos: set[str] = set()
+    fuera: list[dict] = []
+    for i, t in enumerate(tr):
+        texto = str((t or {}).get("text") or "")
+        quien = str((t or {}).get("who") or "")
+        cifras = [m.group(0) for m in _IMPORTE_MERCADO.finditer(texto)]
+        if quien != "zaelar":
+            # Se compara el NÚMERO, no el literal: el operador dice «300€» y el agente «unos 300 euros», y
+            # comparar cadenas archiva como invención al agente repitiendo lo que le acaban de decir.
+            dichos.update(_solo_numero(c) for c in cifras)
+            dichos.update(_solo_numero(m.group(0)) for m in _CIFRA_PELADA.finditer(texto))
+            continue
+        # `at` viene en SEGUNDOS y `sheet_named_ms` en milisegundos: compararlos crudos daría que todo turno
+        # es anterior a la entrega, o sea el detector marcando la ronda entera.
+        at_ms = float((t or {}).get("at") or 0) * 1000.0
+        if named_ms and at_ms and at_ms >= named_ms:
+            continue
+        for m in _IMPORTE_MERCADO.finditer(texto):
+            if _solo_numero(m.group(0)) in dichos:
+                continue
+            # 40 y no 24: «poco viejo y que no pase de 12.000 euros» dejaba el tope FUERA de la ventana por
+            # un carácter, y cuatro rondas de `search-buy-used-car` salieron como invención siendo el
+            # presupuesto que el operador acababa de decir.
+            if _ATRIBUIDO_AL_OPERADOR.search(texto[max(0, m.start() - 90):m.start()]):
+                continue
+            # 40 y no 24: «poco viejo y que no pase de 12.000 euros» dejaba el tope FUERA de la ventana por
+            # un carácter, y cuatro rondas de `search-buy-used-car` salieron como invención siendo el
+            # presupuesto que el operador acababa de decir.
+            if _TOPE.search(texto[max(0, m.start() - 40):m.start()]):
+                continue
+            fuera.append({"turn": i, "cifra": m.group(0), "frase": texto[max(0, m.start() - 70):m.start() + 60]})
+            break
+    return {"turns": fuera[:6], "n": len(fuera), "measurable": True}
+
+
 def told_but_given_no_rows(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
     """Turnos AVISADOS de que había algo y servidos con CERO filas — la trampa que escribimos nosotros.
 

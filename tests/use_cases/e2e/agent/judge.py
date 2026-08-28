@@ -615,6 +615,23 @@ def mechanism_facts(mech: dict) -> str:
     # aquí arriba por lo mismo: cambia de quién es la culpa de lo que venga después.
     # LA ENTREGA DE UN ENCARGO MULTIMEDIA NO ESTÁ EN LA HOJA (V2-445). Va antes de todo lo de la hoja porque
     # cambia contra qué se mide: para un encargo de vídeo o música, `results_sheet: 0` es lo ESPERADO.
+    # PRECIOS DE MERCADO SIN NADA ENTREGADO (V2-450). Va con las dos mitades y la segunda es la que más
+    # veces hace falta: cuando esto NO dispara y aun así el precio parece salido de la nada, lo más probable
+    # es que llegara por una NOTA EMPUJADA segundos antes — medido en `compare-insurance-quotes__us`, donde
+    # la nota de la búsqueda cayó 2,6 s antes del turno de GEICO y el juez lo archivó como «INVENTÓ el
+    # resultado final». Hay TRES caminos de entrega (hoja, extracción, nota) y el veredicto miraba uno.
+    _mc = mech.get("market_claims_before_delivery") or {}
+    if _mc.get("n"):
+        _ej = (_mc.get("turns") or [{}])[0]
+        lines.append(f"· ⚠️ PRECIO DE MERCADO SIN RESPALDO: {_mc['n']} vez/veces dio una cifra de mercado "
+                     f"({_ej.get('cifra')}) ANTES de que nada se hubiera entregado por ninguno de los tres "
+                     f"caminos (hoja, extracción, nota): «{str(_ej.get('frase'))[:110]}». No es un matiz — un "
+                     f"precio inventado dicho con seguridad se lee igual que uno correcto.")
+    elif _mc.get("measurable"):
+        lines.append("· ℹ️ Ninguna cifra de mercado se dijo antes de que hubiera entrega. Si una te parece "
+                     "salida de la nada, mira las NOTAS EMPUJADAS: llevan hallazgos al cerebro en cuanto el "
+                     "navegador extrae, así que el dato pudo llegar segundos antes sin pasar por la hoja. NO "
+                     "lo puntúes como invención sin comprobar ese camino.")
     _ml = mech.get("media_list") or {}
     if _ml.get("read") and _ml.get("n_items"):
         _det = ", ".join(f"{k} ×{v.get('n')}" for k, v in (_ml.get("widgets") or {}).items() if v.get("n"))

@@ -5124,6 +5124,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **Un precio de mercado ANTES de entregar nada — y los TRES caminos de entrega (V2-450, 2026-08-28)**: fui a
+  medir la clase que domina el tablero US (dar precios sin nada detrás) y el barrido de las **329 rondas
+  guardadas** deja **2 de 246 medibles**, las dos verificadas leyendo. Lo que cambia para qué sirve el
+  instrumento salió por el camino: en `compare-insurance-quotes__us` el juez escribió «INVENTÓ el resultado
+  final» y **la nota de la búsqueda había caído 2,6 segundos antes** del turno. Hay **TRES caminos** por los
+  que un hallazgo llega al cerebro —la hoja, la extracción y la NOTA EMPUJADA (V2-223)— y el veredicto miraba
+  uno; así que su valor principal no es acusar sino **impedir que se acuse**, y la línea que va al juez lleva
+  esa mitad primero. **Ocho errores míos por el camino**, todos del barrido y ninguno de la lectura: mirar
+  solo la primera respuesta, el separador de millares (que además saca el TOPE de la ventana), la ventana a 24
+  caracteres, topes reales fuera de la lista, `sheet_named_ms=None` leído como «no se entregó nunca» con el
+  turno CITANDO la hoja, un solo reloj, comparar cadenas en vez de números, y exigirle moneda al operador
+  («pago unos 60 al mes»). Y una novena de método: **un script que muta en memoria y escribe al final es
+  todo-o-nada**, así que un `assert` intermedio descartó en silencio un arreglo que yo daba por aplicado — lo
+  encontré imprimiendo el patrón real, no leyendo mi diff. Nodo 10.114, seis desarmes; el de las unidades saca
+  **3 rojos** porque mezclar segundos con milisegundos hace que todo turno parezca anterior a la entrega.
+
 - **La entrega multimedia no está en la hoja (V2-445, 2026-08-28)**: V2-402 fijó que el contenido que se VE u
   OYE se canaliza por su widget dedicado —buscarlo incluido— y que la hoja es para INFORMACIÓN. **El arnés
   nunca se enteró**: seguía midiendo la entrega contra `results_sheet`, que para esa familia está vacía POR
