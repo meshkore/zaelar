@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La cara dice que hay filas y la hoja no las da (V2-438, 2026-08-28)**: el CUARTO camino, y el único que
+  quedaba mudo. La cara de resultados se enciende con `_p["has_results"]` **o** con `_found_candidates`, y el
+  `or` **hace cortocircuito**: si el primero es cierto, `_sheet_has_rows` ni se llama y sus tres avisos no
+  existen. Entonces `_sheet_top_rows` resuelve por su cuenta, no encuentra caja con filas, y el turno sale
+  diciendo «ya ha encontrado algo, pero sus nombres AÚN NO están escritos» — con los nombres escritos. Medido
+  en `reorder-prescription__us`: tres turnos a **32, 72 y 111 segundos DESPUÉS** de que la hoja tuviera seis
+  farmacias con nombre y dirección, avisados de que había algo y con **cero filas**; el modelo nombró cero de
+  seis y el juez lo llamó «falla gravemente al no entregar esos datos». Se instrumenta el hueco (con las cajas
+  que miró, para poder compararlas con dónde están las filas) y **no se arregla a ciegas**: la ronda siguiente
+  dirá si el problema es la resolución o el instante. Nodo 4.70 ampliado, tres desarmes. ⚠️ Y una lección de
+  lectura: **las DOS ramas del bloque contienen «YA HA ENCONTRADO»** —también la que dice que no hay nombres—,
+  así que buscar esa frase NO distingue «se le dieron las filas» de «se le dijo que las habrá».
+
 - **Un elemento muerto dice qué hacer (V2-437, 2026-08-28)**: **siete** «Element is not attached to the DOM»
   en dos rondas del plató, con el worker repitiendo `click 13` una y otra vez. El mensaje era el crudo de
   Playwright y nada más — mientras su hermano, el ref fuera de la mirada, dice desde siempre «haz `look`… no

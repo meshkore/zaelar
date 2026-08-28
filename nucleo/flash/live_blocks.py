@@ -100,7 +100,7 @@ def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
         return False
 
 
-from nucleo.flash.errand_sheet import _sheet_of_tab, boxes_of_tab   # V2-432: su propio módulo
+from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_tab   # V2-432
 
 
 def _sheet_has_rows(nav_task_id: str) -> bool:
@@ -217,6 +217,7 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
                       if any(str((i or {}).get("title") or "").strip()
                              for i in ((_sheet.view_data(c) or {}).get("items") or []))), "")
         if not sheet:
+            aviso_sin_filas(nav_task_id, cajas)      # V2-438: el único camino que quedaba mudo
             return []
         out: list[str] = []
         _con_nombre = 0

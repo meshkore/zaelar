@@ -86,3 +86,25 @@ def _registro_de_tab(nav_task_id: str) -> str:
         return str(_disp.sheet_for_nav_task(str(nav_task_id)) or "").strip()
     except Exception:  # noqa: BLE001
         return ""
+
+
+def aviso_sin_filas(nav_task_id: str, cajas: list[str]) -> None:
+    """La cara dice que hay algo y la hoja no da ni una fila — el cuarto camino, y el único que quedaba mudo.
+
+    La cara se enciende con `_p["has_results"]` **o** con `_found_candidates`, y ese `or` hace CORTOCIRCUITO:
+    si el primero es cierto, `_sheet_has_rows` ni se llama y sus tres avisos no existen. Entonces
+    `_sheet_top_rows` resuelve por su cuenta, no encuentra caja con filas, y el turno sale diciendo «ya ha
+    encontrado algo, pero sus nombres AÚN NO están escritos» — con los nombres escritos.
+
+    Medido en `reorder-prescription__us` (2026-08-28): tres turnos a 32, 72 y 111 segundos DESPUÉS de que la
+    hoja tuviera seis farmacias con nombre y dirección, avisados de que había algo y con cero filas. El modelo
+    nombró cero de seis.
+
+    Lleva las CAJAS que miró: sin ellas no se puede comparar con dónde están las filas de verdad.
+    """
+    try:
+        from voice.observer import emit
+        emit("perf", "🧾 la cara dice que hay filas y la hoja no las da", role="system",
+             extra={"nav_task": str(nav_task_id), "cajas": ", ".join(cajas or [])[:120]})
+    except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
+        pass

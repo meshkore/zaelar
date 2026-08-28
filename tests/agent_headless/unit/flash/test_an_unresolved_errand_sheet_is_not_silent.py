@@ -117,3 +117,36 @@ def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
     assert LB._sheet_has_rows("6175ca-1") is False
     assert _emitido and "ILEGIBLE" in _emitido[0]["label"]
     assert "KeyError" in _emitido[0]["extra"]["error"], "sin el error no hay nada que investigar"
+
+
+def test_la_cara_dice_que_hay_filas_y_la_hoja_no_las_da(monkeypatch, _emitido):
+    """El cuarto camino, y el único que quedaba MUDO.
+
+    La cara de resultados se enciende con `_p["has_results"]` **O** con `_found_candidates`, y el `or` hace
+    CORTOCIRCUITO: si el primero es cierto, `_sheet_has_rows` ni se llama y sus tres avisos no existen.
+    Entonces `_sheet_top_rows` resuelve por su cuenta, no encuentra caja con filas, y el turno sale diciendo
+    «ya ha encontrado algo, pero sus nombres aún no están escritos» — con los nombres escritos.
+
+    Medido en `reorder-prescription__us` (2026-08-28): tres turnos a 32, 72 y 111 segundos DESPUÉS de que la
+    hoja tuviera seis farmacias con nombre y dirección, avisados de que había algo y con cero filas. El modelo
+    nombró cero de seis, y el juez lo llamó «falla gravemente al no entregar esos datos».
+    """
+    from nucleo.flash import live_blocks as LB
+    import widgets.results.data as _rd
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
+    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
+    assert LB._sheet_top_rows("d787b2-1") == []
+    # el aviso vive en `errand_sheet` (su casa: va de la hoja del encargo) y `live_blocks` lo llama
+    assert _emitido and "no las da" in _emitido[0]["label"]
+    assert "d787b2-1" in _emitido[0]["extra"]["cajas"], "sin las cajas no se puede comparar con dónde están"
+
+
+def test_y_cuando_SÍ_las_da_no_dice_nada(monkeypatch, _emitido):
+    """La mitad de sensibilidad: es el camino sano y se recorre en cada turno con resultados."""
+    from nucleo.flash import live_blocks as LB
+    import widgets.results.data as _rd
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
+    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "CVS · 701 Van Ness Ave"}]})
+    filas = LB._sheet_top_rows("d787b2-1")
+    assert filas and "CVS" in filas[0]
+    assert _emitido == []

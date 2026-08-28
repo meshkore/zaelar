@@ -1543,6 +1543,7 @@ def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dic
     tabs: dict[str, int] = {}
     vacias: dict[str, int] = {}
     ilegibles: list[str] = []
+    sin_filas: list[str] = []
     for e in (all_events or []):
         f = _fields(e)
         etiqueta = str(f.get("label") or e.get("label") or "")
@@ -1555,6 +1556,10 @@ def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dic
             # sin decirle que tuviera nada, con 15 candidatos en la hoja.
             k = str(f.get("hoja") or e.get("hoja") or "?")
             vacias[k] = vacias.get(k, 0) + 1
+        elif "la cara dice que hay filas y la hoja no las da" in etiqueta:
+            # EL CUARTO CAMINO, y el único que quedaba mudo: la cara se enciende por `_p["has_results"]`, el
+            # `or` hace cortocircuito y `_sheet_has_rows` —con sus tres avisos— ni se llama.
+            sin_filas.append(str(f.get("cajas") or e.get("cajas") or "?")[:120])
         elif "ILEGIBLE" in etiqueta:
             # EL TERCER CAMINO. Con los otros dos a cero y turnos ciegos, era el único que quedaba: la
             # lectura reventando y el `except` tragándoselo (medido en `weekend-motor-events__es`).
@@ -1569,7 +1574,8 @@ def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dic
     return {"n": sum(tabs.values()), "tabs": tabs,
             "n_empty": sum(vacias.values()), "empty_sheets": vacias,
             "n_wrong_box": sum(mal.values()), "wrong_boxes": mal,
-            "n_unreadable": len(ilegibles), "errors": ilegibles[:4]}
+            "n_unreadable": len(ilegibles), "errors": ilegibles[:4],
+            "n_face_without_rows": len(sin_filas), "face_boxes": sin_filas[:4]}
 
 
 def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
