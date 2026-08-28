@@ -100,7 +100,7 @@ def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
         return False
 
 
-from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_tab   # V2-432
+from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_tab, rows_of_sheet
 
 
 def _sheet_has_rows(nav_task_id: str) -> bool:
@@ -832,6 +832,9 @@ def pending_task_lines() -> list[str]:
                 _kept = int(t.get("kept", 0) or 0)
                 if _kept > 0:
                     bit += f" — DICE haber encontrado {_kept} candidato(s)"   # V2-444: SU cuenta, sin comprobar
+                _f = rows_of_sheet(str(t.get("sheet") or ""), 3) if t.get("sheet") else []   # V2-451
+                if _f:
+                    bit += " — YA ENTREGADO (de su hoja): " + "; ".join(_f)
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "

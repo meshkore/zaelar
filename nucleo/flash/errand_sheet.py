@@ -133,3 +133,33 @@ def aviso_sin_filas(nav_task_id: str, cajas: list[str]) -> None:
              extra={"nav_task": str(nav_task_id), "cajas": ", ".join(cajas or [])[:120], "censo": censo})
     except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
         pass
+
+
+def rows_of_sheet(sheet: str, n: int = 3) -> list[str]:
+    """Las primeras filas CON NOMBRE de una hoja, como «título — precio». Keyed por la HOJA, no por la pestaña.
+
+    `_sheet_top_rows` (en `live_blocks`) resuelve la hoja DESDE la pestaña del navegador, así que solo puede
+    contestar cuando hay navegador. Un encargo resuelto por BÚSQUEDA no lo tiene, y el 2026-08-28 se midió el
+    coste en `cheapest-monitor__us`: `navegador_task_id` VACÍO, seis monitores con nombre y precio en la hoja,
+    `shown_to_model: false` en los doce turnos y el juez de bloqueador «respondió con una promesa vacía… la
+    hoja ya tenía 6». No es que la resolución fallara: es que el bloque de filas no se compone si no hay
+    pestaña, y entonces ni siquiera se emite el aviso de V2-438 —porque vive dentro de la función que nadie
+    llama—. Un hueco que no falla con ruido: falla saliendo vacío.
+
+    Mismo formato que la otra, a propósito: es el mismo dato en el mismo prompt y dos redacciones distintas
+    obligan al modelo a decidir si son lo mismo.
+    """
+    try:
+        from widgets.results import data as _sheet
+        out: list[str] = []
+        for i in ((_sheet.view_data(str(sheet or "")) or {}).get("items") or []):
+            title = str((i or {}).get("title") or "").strip()
+            if not title:
+                continue
+            price = str((i or {}).get("price") or "").strip()
+            out.append(f"«{title[:60]} — {price[:24]}»" if price else f"«{title[:60]} — SIN PRECIO»")
+            if len(out) >= max(1, int(n)):
+                break
+        return out
+    except Exception:  # noqa: BLE001 — leer la hoja no puede tumbar el prompt
+        return []

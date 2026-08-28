@@ -398,7 +398,8 @@ def pending_summaries() -> list[dict]:
              # V2-354 — segundos sin COMPLETAR un paso del plan (≠ `silent_s`); el porqué, en `NO_STEP_SECS`.
              "no_step_s": int(now - (getattr(r, "last_step_at", 0) or r.started)),
              # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.
-             "considered": r.considered, "kept": r.kept}
+             "considered": r.considered, "kept": r.kept,
+             "sheet": sheet_of(r)}     # V2-451: la hoja es del ENCARGO, y sin esto solo viajaba con navegador
             for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
 
 

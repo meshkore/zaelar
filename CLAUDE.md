@@ -5124,6 +5124,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **Las filas de la hoja viajan aunque NO haya navegador (V2-451, 2026-08-28)**: la causa que V2-432, V2-441 y
+  V2-444 fueron dejando escrita, y es estructural — **el bloque de filas colgaba de la PESTAÑA**.
+  `_sheet_top_rows` resuelve la hoja DESDE la tarea de navegador y `navegador_lines()` solo compone caras si
+  hay tareas, así que un encargo resuelto por BÚSQUEDA no tiene por dónde enseñar nada; y ni siquiera se emite
+  el aviso de V2-438, porque vive dentro de la función que nadie llama. Medido en `cheapest-monitor__us`:
+  **`navegador_task_id` VACÍO, seis monitores con nombre y precio en la hoja, `shown_to_model: false`, y todo
+  el censo a cero — ni un aviso**, con el juez de bloqueador «respondió con una promesa vacía… la hoja ya
+  tenía 6». Ahora el resumen del encargo lleva **su hoja** (`sheet_of(r)`, que ya estaba a mano y es de quien
+  es la hoja, V2-259) y el bloque de TAREAS DE FONDO añade «— YA ENTREGADO (de su hoja): …». **Sin hoja
+  sellada no se lee nada**: la caja PELADA es el cementerio de rondas anteriores —lo que cae sin encargo detrás
+  y nadie vacía— y leerla enseñaría hallazgos de otro encargo como propios. Nodo 4.79, cuatro desarmes. **Queda abierto** que hay dos lectores
+  del mismo dato — el de la pestaña y éste.
+
 - **Un precio de mercado ANTES de entregar nada — y los TRES caminos de entrega (V2-450, 2026-08-28)**: fui a
   medir la clase que domina el tablero US (dar precios sin nada detrás) y el barrido de las **329 rondas
   guardadas** deja **2 de 246 medibles**, las dos verificadas leyendo. Lo que cambia para qué sirve el

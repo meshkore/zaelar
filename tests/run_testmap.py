@@ -619,6 +619,11 @@ DOMAINS: list[dict] = [
         # contrario. Medido: 11 disparos con la hoja vacía en todas partes y el worker sin encontrar nada.
         # V2-444 — el MISMO defecto en el bloque de TAREAS DE FONDO, que lee el mismo `kept` y además ordenaba
         # tratarlo como entrega. Y era el que disparaba: 7 turnos medidos con la cara del navegador apagada.
+        # V2-451 — el bloque de filas colgaba de la PESTAÑA del navegador, así que un encargo resuelto por
+        # búsqueda llenaba la hoja y el prompt no nombraba ni una fila (ni emitía el aviso de V2-438).
+        {"id": "4.79", "title": "Las filas de la hoja viajan aunque NO haya navegador",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_las_filas_viajan_aunque_no_haya_navegador.py"]},
         {"id": "4.78", "title": "El `kept` del bloque de tareas también es del WORKER, no un hecho",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_el_kept_del_bloque_de_tareas_tambien_es_suyo.py"]},
