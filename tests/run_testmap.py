@@ -1309,6 +1309,10 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
         {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py"]},
+        # V2-456: cámara DESACTIVADA a petición del operador (mic-only) — el código queda comentado, no borrado.
+        # La trampa que fija: la URL de session.js sirve session-lk.js bajo LiveKit, hay que vigilar LOS DOS.
+        {"id": "4.81", "title": "La sesión NUNCA pide la cámara (mic-only, V2-456): ningún getUserMedia de vídeo activo en app/ ni mobile/, y el micro sobrevive al apagado",
+         "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_session_never_asks_for_the_camera.py"]},
         {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,

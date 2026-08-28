@@ -167,7 +167,8 @@ frontend/
       dom.js              h() hyperscript (the JSX-equivalent) + raw() + mount() + $
       store.js            app-wide reactive state as signals (conn, mic, cam, botSpeaking, voices, theme, …)
     services/             framework-agnostic logic — migrates UNCHANGED
-      session.js          the WebRTC/session ENGINE (start/stop/reset/reconnect, mic+camera, speaker gate)
+      session.js          the WebRTC/session ENGINE (start/stop/reset/reconnect, mic capture, speaker gate;
+                          camera capture disabled 2026-08-28 — code kept commented, V2-456)
       theme.js            dark/light mode — applies the `theme` signal to `<html data-theme>` + persists it
       audio.js  vad.js  stt.js  sse.js  status.js  visualizer.js  voiceCommands.js  api.js
     components/           function components (read store, build DOM via h(), run effects) — map 1:1 to Solid

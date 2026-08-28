@@ -13,7 +13,8 @@
 //     voice.observer.emit reaches the same /events stream as before.
 //   • The mic analyser / orb visualiser: we still getUserMedia the mic locally
 //     (for the analyser) AND publish that same track to LiveKit.
-//   • Camera stays a LOCAL preview (not published), exactly as before.
+//   • Camera capture is DISABLED (2026-08-28, operator): mic-only. The old local-preview code is kept
+//     commented in start()/toggleCam() for an eventual re-enable.
 //
 // Loaded instead of session.js when the backend runs the LiveKit engine
 // (main.js picks the engine from /api/livekit). See INI-012.
@@ -187,12 +188,14 @@ export function toggleBotMute() {
 }
 export async function toggleCam() {
   const next = !store.camOff(); store.setCamOff(next); localStorage.setItem("hb_cam_off", next ? "1" : "0");
-  if (!next && stream && stream.getVideoTracks().length === 0) {
-    try {
-      const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
-      vs.getVideoTracks().forEach(t => stream.addTrack(t)); if (videoEl) videoEl.srcObject = stream;
-    } catch (e) { console.warn("camera unavailable:", e); }
-  }
+  // CAMERA CAPTURE DISABLED (operator, 2026-08-28) — see the note in start(). The toggle still records the
+  // preference (so a future re-enable honors it) but never opens the device.
+  // if (!next && stream && stream.getVideoTracks().length === 0) {
+  //   try {
+  //     const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
+  //     vs.getVideoTracks().forEach(t => stream.addTrack(t)); if (videoEl) videoEl.srcObject = stream;
+  //   } catch (e) { console.warn("camera unavailable:", e); }
+  // }
   applyCam();
 }
 
@@ -296,10 +299,14 @@ export async function start() {
     _bootPhase("voz");   // mic granted — the voice link is coming up (frontend-known milestone)
     await populateMicPicker();
     populateMicModePicker();
-    if (!store.camOff()) {
-      try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
-      catch (e) { console.warn("camera unavailable (audio continues):", e); }
-    }
+    // CAMERA CAPTURE DISABLED (operator, 2026-08-28): the session is mic-only for now. The CameraUnit surface
+    // was already hidden (2026-08-09), yet this best-effort acquisition still ran on every start() and made the
+    // browser ask for camera permission on each boot — most jarring on the phone shell. Kept commented, NOT
+    // deleted: re-enabling is uncommenting this block and the matching one in toggleCam().
+    // if (!store.camOff()) {
+    //   try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
+    //   catch (e) { console.warn("camera unavailable (audio continues):", e); }
+    // }
     // After enumerating devices and (maybe) asking for the camera, two more `await`s have gone by. Here `stop()`
     // would have closed the mic and set `stream = null`, so carrying on means `initMic(null)` — the original error.
     if (gen !== _gen) return _abortedStartup(gen, null);

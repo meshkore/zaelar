@@ -5133,6 +5133,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   divergencia ya había ocurrido el mismo día. `errand_sheet.fila(item)` es ahora el único, y el desarme pone
   en rojo los DOS caminos, que es justo lo que antes no pasaba.
 
+- **La sesión NUNCA pide la cámara — mic-only (V2-456, 2026-08-28)**: la CameraUnit está oculta desde el
+  2026-08-09, pero los DOS motores de sesión conservaban el `getUserMedia({video})` best-effort del arranque
+  (y otro en `toggleCam`), así que cada arranque seguía disparando el permiso de cámara del navegador — sobre
+  todo en el móvil — para una preview que nadie puede ver. Orden del operador: **comentado, no borrado** (los
+  cuatro bloques llevan la fecha y reactivar es descomentar). La trampa del cambio es la de siempre: la URL de
+  `session.js` sirve `session-lk.js` bajo LiveKit (`server/livekit_api.py`) — arreglar solo el que probaste
+  deja el vivo pidiendo permiso. Nodo 4.81 (fuente, patrón de V2-088): ningún `getUserMedia` de vídeo ACTIVO
+  en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
+  nombre; desarme verificado descomentando el bloque (2 rojos).
+
 - **La oferta de PARAR se hace una vez — el hecho se queda (V2-454, 2026-08-28)**: el bloque dice «si una tarea
   sale ENCALLADA o SIN AVANZAR, dilo con esas letras **la primera vez** y ofrece pararla», y **el modelo no
   puede saber si es la primera** — es un hecho NUESTRO, lo mismo que V2-224 aprendió con el aviso de muerte.

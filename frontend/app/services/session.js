@@ -98,12 +98,14 @@ export function toggleBotMute() {
 }
 export async function toggleCam() {
   const next = !store.camOff(); store.setCamOff(next); localStorage.setItem("hb_cam_off", next ? "1" : "0");
-  if (!next && stream && stream.getVideoTracks().length === 0) {   // turning ON but no camera track yet → acquire it
-    try {
-      const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
-      vs.getVideoTracks().forEach(t => stream.addTrack(t)); if (videoEl) videoEl.srcObject = stream;
-    } catch (e) { console.warn("camera unavailable:", e); }
-  }
+  // CAMERA CAPTURE DISABLED (operator, 2026-08-28) — see the note in start(). The toggle still records the
+  // preference (so a future re-enable honors it) but never opens the device.
+  // if (!next && stream && stream.getVideoTracks().length === 0) {
+  //   try {
+  //     const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
+  //     vs.getVideoTracks().forEach(t => stream.addTrack(t)); if (videoEl) videoEl.srcObject = stream;
+  //   } catch (e) { console.warn("camera unavailable:", e); }
+  // }
   applyCam();
 }
 
@@ -174,10 +176,14 @@ export async function start() {
     diagMic("after getUserMedia(audio)");
     await populateMicPicker();
     // video is best-effort and MUST NOT block/break audio. Skip it if the camera is toggled OFF.
-    if (!store.camOff()) {
-      try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
-      catch (e) { console.warn("camera unavailable (audio continues):", e); }
-    }
+    // CAMERA CAPTURE DISABLED (operator, 2026-08-28): the session is mic-only for now. The CameraUnit surface
+    // was already hidden (2026-08-09), yet this best-effort acquisition still ran on every start() and made the
+    // browser ask for camera permission on each boot — most jarring on the phone shell. Kept commented, NOT
+    // deleted: re-enabling is uncommenting this block and the matching one in toggleCam().
+    // if (!store.camOff()) {
+    //   try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
+    //   catch (e) { console.warn("camera unavailable (audio continues):", e); }
+    // }
     if (videoEl) videoEl.srcObject = stream; started = true; store.setStarted(true);
     applyMic(); applyCam();   // honor persisted mic-muted / camera-off on the live stream
     let iceServers = await api.iceServers();
