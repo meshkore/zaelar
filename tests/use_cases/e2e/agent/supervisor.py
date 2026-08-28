@@ -147,26 +147,41 @@ def una_ronda(escenario: str, lab: str = "es") -> dict:
         cola = log.read_text(encoding="utf-8", errors="replace")[-2500:]
     except Exception:  # noqa: BLE001
         pass
-    if motivo:
-        resultado = motivo.split(":")[0]
-    elif "PASSED 1/1" in cola:
-        resultado = "PASS"
-    # V2-363 — UNA AVERÍA DEL ARNÉS NO ES UN CASO QUE FALLA. El runner imprime «PASSED 0/1» también cuando la
-    # ronda se corrió entera y el JUEZ no devolvió JSON válido: 10,7 min de navegador real en
-    # `two-searches-two-sheets` (2026-08-27) quedaron apuntados como FAIL en el diario, que es la lista con la
-    # que se decide dónde trabajar. El instrumento acusando al producto, otra vez, y esta vez en MI diario.
-    elif "INFRA" in cola or "el juez no devolvió JSON" in cola:
-        resultado = "INFRA"
-    elif "PASSED 0/1" in cola:
-        resultado = "FAIL"
-    else:
-        resultado = "INFRA"
+    resultado = motivo.split(":")[0] if motivo else _veredicto_de_cola(cola)
     parte = {"escenario": escenario, "resultado": resultado, "segundos": segundos, "sha": sha,
              "motivo": motivo, "log": str(log)}
     _apunta(**parte)
     # Fuera del parte que va al diario a propósito: es una señal para el bucle, no un hecho del escenario, y
     # el diario es lo que lee el operador para decidir dónde trabajar.
     return dict(parte, _rancio=(_PLATO_RANCIO in cola))
+
+
+def _veredicto_de_cola(cola: str) -> str:
+    """Qué fue de la ronda, leído de lo que imprimió el runner. FUERA de la función que conduce la ronda a
+    propósito: ahí dentro haría falta un plató entero para probarlo, y lo que decide es una cadena.
+
+    Cuatro salidas y ninguna es un matiz de otra — cada una manda a mirar a un sitio distinto:
+
+    * **PASS/FAIL** — hubo medida.
+    * **BLOQUEADO** (V2-448) — el caso es de FUTURO: sus tareas de roadmap siguen pendientes, así que el
+      runner se niega a conducirlo (norma del operador, 2026-08-21) y sale en 3 s. No hay nada roto y no hay
+      nada que arreglar hoy.
+    * **INFRA** (V2-363) — el instrumento se rompió. El runner imprime «PASSED 0/1» también cuando la ronda se
+      corrió entera y el JUEZ no devolvió JSON: 10,7 min de navegador real quedaron apuntados como FAIL en el
+      diario, que es la lista con la que se decide dónde trabajar.
+
+    El orden importa: BLOQUEADO va ANTES que INFRA porque la cola de un caso bloqueado no contiene «PASSED»
+    de ninguna clase y caería en el `else`, que es INFRA.
+    """
+    if "PASSED 1/1" in cola:
+        return "PASS"
+    if "no queda ningún caso conducible" in cola or "no se conducen" in cola:
+        return "BLOQUEADO"
+    if "INFRA" in cola or "el juez no devolvió JSON" in cola:
+        return "INFRA"
+    if "PASSED 0/1" in cola:
+        return "FAIL"
+    return "INFRA"
 
 
 def _reinicia_plato(lab: str = "es") -> bool:
@@ -239,7 +254,15 @@ def rotacion() -> list[str]:
         # el escenario EXISTE, el catálogo lo lista, y el marcador —que es donde se mira— no dice que
         # falte. Es la familia de «un test fuera del mapa AFIRMA que corrió».
         try:
-            nunca = [x.id for x in _con_runner() if x.id not in dict(filas)]
+            # V2-448 — y FUERA los casos de FUTURO. El runner se niega a conducir uno cuyas tareas de roadmap
+            # siguen pendientes (operador, 2026-08-21), así que sale en 3 s sin medir nada — pero como nunca
+            # llega al marcador, `nunca` lo vuelve a elegir en cada vuelta, para siempre. Medido el
+            # 2026-08-28: `repeat-a-finished-search` (pendiente de V2-260) gastando un turno de la rotación y
+            # dejando una fila falsa en el diario. Mismo trato que los `capped`: trabajo que nadie puede
+            # cerrar hoy no entra en el bucle de mejora. Vuelve solo cuando su iniciativa lo desbloquee.
+            from tests.use_cases.e2e.agent import segments as _G
+            nunca = [x.id for x in _con_runner()
+                     if x.id not in dict(filas) and not _G.blocked_by(x.id)]
         except Exception:  # noqa: BLE001 — un catálogo ilegible NO puede costar la rotación entera
             nunca = []
         if rotos or buenos or nunca:

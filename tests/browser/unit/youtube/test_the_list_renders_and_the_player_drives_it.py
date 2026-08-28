@@ -113,7 +113,12 @@ def test_the_players_ended_message_advances_only_from_our_player(_page):
     other = json.dumps({"event": "onStateChange", "info": 0, "id": "hb-musica"})
     _page.evaluate("m => window.postMessage(m, '*')", other)
     _page.wait_for_timeout(50)
-    assert _page.evaluate("window.__calls") == []
+    # The property is that OUR queue does not advance — not that the page stays perfectly silent. Asserting
+    # zero calls of ANY kind made this flaky under a full-suite run: the REAL YouTube embed emits its own
+    # `player_error` (code 150) when the network is contended, which has nothing to do with whose `ended`
+    # this is. Measured 2026-08-28: green in isolation three times, red inside the full suite.
+    calls = _page.evaluate("window.__calls")
+    assert not [c for c in calls if (c or [None])[0] in ("ended", "next", "play_item")], calls
 
 
 def test_a_stopped_agent_never_advances_the_queue(_page):

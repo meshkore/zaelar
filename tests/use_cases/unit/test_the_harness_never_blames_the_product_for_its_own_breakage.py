@@ -48,16 +48,22 @@ def test_el_juez_sin_JSON_es_INFRA_aunque_el_runner_imprima_PASSED_0_1():
 
 def test_la_clasificacion_del_supervisor_es_LA_MISMA_que_esta():
     """Guarda contra la divergencia: si el supervisor cambia su orden y este test no, el test estaría
-    afirmando una conducta que el código ya no tiene."""
+    afirmando una conducta que el código ya no tiene.
+
+    V2-448 — la clasificación salió a `_veredicto_de_cola`, así que la guarda mira ESA función en vez de las
+    líneas sueltas de la ronda. La propiedad no cambia y el ORDEN sigue siendo lo que se protege: «PASSED
+    0/1» aparece también en la ronda que el juez no supo puntuar, así que INFRA tiene que ir antes que FAIL —
+    y BLOQUEADO antes que INFRA, porque la cola de un caso de futuro no trae «PASSED» de ninguna clase y
+    caería en el `else`, que es INFRA.
+    """
     from pathlib import Path
     src = "\n".join(ln for ln in Path("tests/use_cases/e2e/agent/supervisor.py").read_text().splitlines()
                     if not ln.strip().startswith("#"))
-    # Anclado en la línea ÚNICA de la clasificación: hay dos «if motivo:» en el fichero —el del kill, dentro
-    # del bucle de vigilancia, y éste— y el primer intento de esta guarda encontró el equivocado.
-    i = src.index('resultado = motivo.split')
-    cuerpo = src[i:i + 700]
-    assert 'el juez no devolvió JSON' in cuerpo
-    assert cuerpo.index('resultado = "INFRA"') < cuerpo.index('resultado = "FAIL"'), \
+    i = src.index("def _veredicto_de_cola")
+    cuerpo = src[i:i + 1400]
+    assert "el juez no devolvió JSON" in cuerpo
+    assert cuerpo.index('return "BLOQUEADO"') < cuerpo.index('return "INFRA"')
+    assert cuerpo.index('return "INFRA"') < cuerpo.index('return "FAIL"'), \
         "el orden IMPORTA: «PASSED 0/1» aparece también en la ronda sin veredicto"
 
 

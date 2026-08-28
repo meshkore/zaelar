@@ -2083,6 +2083,16 @@ DOMAINS: list[dict] = [
         # positivo medido: `search-buy-bicycle__es` marcó `e84138-2` y esa caja acabó con 35 filas.
         # V2-442 — el dedup absorbe la segunda escalada sin lanzar worker, y entonces no hay navegación
         # duplicada: hay una escalada de más. Al juez se le decía «se lanzó 2 veces» sin cuántos NACIERON.
+        # V2-445 — V2-402 mandó el contenido que se ve u oye a su widget, y el arnés siguió midiendo la
+        # entrega contra la hoja: para toda la familia multimedia está vacía por diseño y publicaba «0».
+        # V2-448 — un caso de FUTURO se archivaba como INFRA (la etiqueta de «el instrumento se rompió») y,
+        # como nunca llega al marcador, la rotación volvía a elegirlo en cada vuelta, para siempre.
+        {"id": "10.113", "title": "Un caso BLOQUEADO no es una avería, ni un turno que gastar cada vuelta",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_un_caso_bloqueado_no_es_una_averia.py"]},
+        {"id": "10.112", "title": "La entrega multimedia NO está en la hoja — está en la lista del reproductor",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_la_entrega_multimedia_no_esta_en_la_hoja.py"]},
         {"id": "10.111", "title": "Pedirlo dos veces no es hacerlo dos veces — el dedup absorbió el segundo",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_pedirlo_dos_veces_no_es_hacerlo_dos_veces.py"]},

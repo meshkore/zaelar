@@ -5112,6 +5112,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un caso BLOQUEADO no es una avería, ni un turno que gastar cada vuelta (V2-448, 2026-08-28)**: el runner
+  se niega a conducir un escenario cuyas tareas de roadmap siguen pendientes (norma del operador del
+  2026-08-21) y sale en 3 s; el supervisor lo archivaba como **INFRA**, la etiqueta de «el instrumento se
+  rompió», que manda a mirar donde no hay nada roto — la misma lección que el día que una avería del ARNÉS se
+  archivó como un caso que falla, un escalón más abajo. Y el defecto caro es el otro: un caso bloqueado
+  **nunca llega al marcador**, así que la rama de «nunca medidos» volvía a elegirlo **en cada vuelta, para
+  siempre**. Medido: `repeat-a-finished-search`, pendiente de V2-260. La
+  clasificación sale a `_veredicto_de_cola` —dentro de la función que conduce la ronda haría falta un plató
+  entero para probar lo que decide una cadena— con BLOQUEADO **antes** que INFRA, porque esa cola no contiene
+  «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
+  `else`, que también es INFRA, así que pasaba con la rama borrada.
+
+- **La entrega multimedia no está en la hoja (V2-445, 2026-08-28)**: V2-402 fijó que el contenido que se VE u
+  OYE se canaliza por su widget dedicado —buscarlo incluido— y que la hoja es para INFORMACIÓN. **El arnés
+  nunca se enteró**: seguía midiendo la entrega contra `results_sheet`, que para esa familia está vacía POR
+  DISEÑO. Medido en `find-videos-on-a-topic-no-ai-slop`: `widget_ops` trae `youtube.search ×4` —o sea que el
+  enrutado funcionó— y el informe publicó `results_sheet: 0`, con el juez concluyendo que zaelar «anunció 2
+  vídeos sin respaldo en el sistema» y puntuando resultado 1. **No es una ronda, es una CLASE de escenario**
+  midiéndose contra la superficie que no usa. Quinto instrumento acusando al producto la misma noche. Se lee
+  la lista de los DOS reproductores (los dos la tienen desde V2-366) y se reporta APARTE de la hoja —
+  mezclarlas borraría la frontera que hay que poder comprobar—, y al juez se le dan **las dos mitades**: con
+  elementos, la hoja vacía es lo esperado; **vacía, eso sí es no haber entregado**, o el arreglo sería una
+  amnistía para la familia entera. Nodo 10.112, cinco desarmes.
+
 - **El mismo defecto en el SEGUNDO bloque, y era el que disparaba (V2-444, 2026-08-28)**: V2-443 marcó `kept`
   como afirmación del worker en la cara del NAVEGADOR, y hay otro bloque que lee el mismo campo —el resumen de
   **TAREAS DE FONDO**— que lo escribía igual de firme y encima ordenaba tratarlo como entrega («entonces la

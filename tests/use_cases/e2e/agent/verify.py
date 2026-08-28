@@ -707,6 +707,38 @@ _GENERIC_HEADS = {"monitor", "monitores", "guitarra", "guitarras", "bicicleta", 
                   "hotel", "hoteles", "vuelo", "vuelos", "acustica", "electrica", "gaming", "nuevo", "nueva"}
 
 
+def media_list() -> dict:
+    """Lo que hay en la LISTA del reproductor al acabar la ronda — la entrega de un encargo multimedia.
+
+    V2-402 fijó que el contenido que se VE u OYE se canaliza por su widget dedicado —buscarlo incluido— y que
+    la hoja de resultados es para INFORMACIÓN. El arnés nunca se enteró: sigue midiendo la entrega contra
+    `results_sheet`, que para estos casos está vacía POR DISEÑO.
+
+    Medido en `find-videos-on-a-topic-no-ai-slop` (2026-08-28): `widget_ops` registra `youtube.search ×4`, o
+    sea que el enrutado de V2-402 funcionó, y el informe publicó `results_sheet: 0 items`. El juez concluyó
+    que zaelar «anunció 2 vídeos sin respaldo en el sistema» y puntuó resultado 1. La afirmación podía ser
+    cierta y el informe no tenía dónde mirarlo. Afecta a TODA la familia multimedia —vídeo y música— así que
+    no es una ronda: es una clase de escenario midiéndose contra la superficie que no usa.
+
+    Se leen los dos reproductores porque los dos tienen lista desde V2-366, y se reportan APARTE: mezclarlos
+    con la hoja borraría la frontera que V2-402 estableció, que es justo lo que hay que poder comprobar.
+    """
+    out: dict = {"read": False, "widgets": {}, "n_items": 0, "titles": []}
+    for wid in ("youtube", "musica"):
+        got = probe_client.widget_data(wid, "")
+        if got is None:
+            continue
+        out["read"] = True
+        filas = [i for i in ((got or {}).get("list") or []) if isinstance(i, dict)]
+        titulos = [str(i.get("title") or "").strip() for i in filas]
+        titulos = [t for t in titulos if t]
+        out["widgets"][wid] = {"n": len(filas), "n_named": len(titulos), "titles": titulos[:8]}
+        out["n_items"] += len(filas)
+        out["titles"].extend(titulos[:8])
+    out["titles"] = out["titles"][:8]
+    return out
+
+
 def results_sheet(ids: list[str] | None = None) -> dict:
     """What the RESULTS SHEET holds at the end of the round, read from the engine.
 
