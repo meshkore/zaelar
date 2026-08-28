@@ -578,6 +578,13 @@ DOMAINS: list[dict] = [
         # visor, y «una de esas, que sea el Amalfi y no otro Ferrari» no llamó a NINGUNA tool — el modelo
         # prometió y calló, y al turno siguiente escaló. El defecto estaba escrito en la propia descripción de
         # la tool («escala … o mejores si las que ya enseñaste no le valen»), puesta ese mismo día.
+        # V2-466: petición del operador tras una tarde de captchas. El orden de los índices ES la medición
+        # (google captcha · yandex el coche correcto · bing el equivocado 9 de 10), y Bing el último no es
+        # estética: era el primer recambio, así que cada captcha caía en el índice más flojo.
+        {"id": "4.86", "title": "Cadena de buscadores de imágenes: google → yandex → bing, y el motivo de la "
+                                "degradación viaja (bloqueado ≠ vacío)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_image_engine_chain.py"]},
         {"id": "4.84", "title": "Un MATIZ sobre una foto afina la consulta — no convierte ver una foto en un "
                                 "encargo, y «una de esas» es del visor",
             "ch": UNIT,
