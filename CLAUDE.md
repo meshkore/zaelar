@@ -5163,7 +5163,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   delante**. Medido en `find-direct-flight-budget__es`: `sheet_named_ms` cae entre el turno 5 y el 6, y en los
   turnos 6, 7 y 8 el bloque vivo traía la cara de «sin avanzar» y CERO filas con **cuatro vuelos con nombre**
   en la hoja; el juez le puso 2/5 por «negar lo que el sistema le mostraba», y el sistema le mostraba lo
-  contrario. **⚠️ el recuento estaba MAL MEDIDO**: el detector buscaba la frase en la línea de «TAREAS
+  contrario. **⚠️ RECTIFICADO: el hallazgo era MÍO, no del producto** — con el detector arreglado, dos rondas medidas dan
+  9 de cada 10 turnos AVISADOS y cero ciegos, así que el sistema sí se lo decía. Y la «verificación en vivo»
+  del juez era CIRCULAR: ese hecho se lo había metido yo en `mechanism_facts`. Sobreviven `vacías: 7` (señal
+  del motor), el mecanismo del sello rancio (leído del código) y lo de `Write` (error literal del CLI); se cae
+  la ESCALA. **El recuento estaba MAL MEDIDO**: el detector buscaba la frase en la línea de «TAREAS
   DE FONDO» y el imperativo de resultados es OTRA línea del prompt, así que «45 de 48 rondas, 257 turnos ciegos»
   hay que volver a medirlo (corregido 05:48; los informes viejos no permiten recalcularlo). Lo que NO se cae es
   el caso que lo abrió —`find-direct-flight-budget__es`, leído a mano turno a turno— ni el mecanismo del sello
