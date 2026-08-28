@@ -141,6 +141,19 @@ _FLIP_TAKES_OVER = re.compile(r"\bvoy\s+a\s+(buscar|filtrar|mirar|revisar|compro
 _FLIP_STANDBY = re.compile(r"(dame\s+un\s+momento|te\s+aviso|en\s+cuanto\s+(lo\s+)?tenga|te\s+digo\s+algo)", re.I)
 # ...unless what they are going off to check is their OWN, which a real person does all the time.
 _FLIP_OWN = re.compile(r"\b(mi|mis)\s+(calendario|agenda|fechas|correo|email|cuenta|banco|móvil|notas)\b", re.I)
+# Face 7 — COUNTER-OFFERING a service: «lo que sí puedo hacer es buscarte…» / "what I can do is find
+# you…". Measured 2026-08-28 (`find-videos-on-a-topic-no-ai-slop`, 22:11), in the tester's slot: the
+# persona disclaimed the deliverable («no tengo aquí una lista ya comprobada para dártela… no puedo
+# garantizarte eso») and then offered to search FOR zaelar — and zaelar agreed with the plan its own
+# user had just proposed as its assistant, which the judge then scored against zaelar. No link, bullet,
+# vocative or «voy a buscar», so none of the six faces saw it. The tell is the DIRECTION of the service:
+# searching/bringing/getting something for the OTHER party only runs assistant→person here. The verb
+# list is the searching kind on purpose — «pasarte el enlace que vi» hands the assistant a datum, which
+# is the legitimate direction, so `pasarte` stays out.
+_FLIP_COUNTER_OFFER = re.compile(
+    r"(lo\s+que\s+s[ií]\s+puedo\s+hacer\s+es[^.\n]{0,40}\b(buscarte|mirarte|traerte|conseguirte|"
+    r"localizarte|encontrarte)\b|"
+    r"what\s+i\s+can\s+do\s+is[^.\n]{0,40}\b(find|look\s+for|get|bring)\s+you)\b", re.I)
 
 
 # Face 6 — the person promising DELIVERY. Measured 2026-08-23 (`cheapest-monitor`, round 7), in the user's
@@ -247,6 +260,10 @@ def looks_like_the_assistant(txt: str, persona_name: str = "") -> bool:
     # OUR MACHINERY, operated in the first person: the object is what gives it away, not the verb.
     if (_FLIP_OUR_MACHINERY.search(txt) and _FLIP_OPERATES_IT.search(txt)
             and not _FLIP_ALSO_ME.search(txt) and not _FLIP_OWN.search(txt)):
+        return True
+    # Face 7 — counter-offering to search FOR the other party (see _FLIP_COUNTER_OFFER). Decisive on its
+    # own: the service only runs assistant→person, so no pairing signal is needed.
+    if _FLIP_COUNTER_OFFER.search(txt):
         return True
     if len(txt) < 200:      # a real chat message does not arrive with links AND bullets AND bold
         return False
