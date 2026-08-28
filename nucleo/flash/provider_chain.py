@@ -335,6 +335,51 @@ _ROLE_LABEL = {ROLE_CLUSTER: "cerebro de cluster", ROLE_VOICE: "cerebro de voz"}
 _ROLE_HEALTH_KEY = {ROLE_CLUSTER: "cluster_brain", ROLE_VOICE: "llm"}
 
 
+def _same_account_as(tier: dict, role: str) -> list[str]:
+    """Los OTROS escalones de la cadena que gastan de la MISMA cuenta que `tier`.
+
+    Un saldo agotado es un hecho de la CUENTA, no del modelo. La cadena de voz del operador tiene dos escalones
+    de DeepSeek —`deepseek-v4-flash` y `deepseek-v4-pro`— y los dos cobran de `DEEPSEEK_API_KEY`: cuando esa
+    cuenta se queda a cero, los dos están muertos y solo el tercero (otro proveedor) puede contestar.
+
+    Medido el 2026-08-28 con el motor vivo: el titular devolvió 402, el relevo fue al hermano, el hermano
+    devolvió 402 —la misma cuenta— y ahí se acabó el único reintento que V2-252 concede, así que el turno salió
+    con el error puesto **mientras AIMLAPI respondía 200 una fila más abajo**. Dos escalones que comparten
+    cuenta no son dos escalones: son el mismo, y gastar el reintento en el hermano es gastarlo en nada.
+
+    Hacen falta DOS señales, y exigir las dos es lo que lo hace seguro: mismo HOST y misma credencial resuelta.
+    La credencial sola no basta —dos proveedores que no tienen nada que ver pueden acabar leyendo el mismo valor
+    (un placeholder, una variable compartida, un stub) y emparejarlos apagaría un escalón sano—; el host solo
+    tampoco, porque dos cuentas distintas del mismo proveedor son dos saldos distintos. Se comparan las
+    credenciales RESUELTAS y no los nombres de las variables: dos escalones pueden nombrar la clave distinto y
+    leer la misma. El valor no se registra ni se devuelve — solo se compara.
+
+    Ante la duda NO se empareja: sin credencial o sin host no hay pareja, y una cuenta repartida entre dos hosts
+    se comporta como hasta hoy (un reintento gastado). Equivocarse por defecto cuesta una vuelta; equivocarse por
+    exceso apaga un proveedor que funcionaba.
+    """
+    mio = ((tier.get("api_key") or "").strip() or _token_for(tier) or "")
+    casa = _host(tier)
+    if not mio or not casa:
+        return []
+    fuera = []
+    for t in chain(role):
+        if t.get("name") == tier.get("name"):
+            continue
+        suyo = ((t.get("api_key") or "").strip() or _token_for(t) or "")
+        if suyo and suyo == mio and _host(t) == casa:
+            fuera.append(t["name"])
+    return fuera
+
+
+def _host(tier: dict) -> str:
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(str(tier.get("base_url") or "")).netloc or "").lower()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTER) -> dict | None:
     """Un turno murió por el PROVEEDOR: marca el escalón, avisa, y devuelve el escalón de RELEVO (o None).
 
@@ -366,6 +411,9 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
         return None                                  # rate-limit pasajero: no releves, se reintenta solo
 
     _store.set(t["name"], until, _health.REASON_HEALTH)
+    hermanos = _same_account_as(t, role) if dry else []  # V2-458
+    for h in hermanos:
+        _store.set(h, until, _health.REASON_HEALTH)
 
     nxt = pick(role)
     when = time.strftime("%d %b %H:%M", time.localtime(until))
@@ -380,7 +428,8 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     _sin = (f" · SIN RELEVO: tengo credencial de {', '.join(_callados)} pero en self-host la cadena de voz es "
             f"solo el titular — ponlos en `fast.providers` para permitirlo") if _callados else \
         " · SIN RELEVO disponible"
-    detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
+    _con = f" (y {', '.join(hermanos)}: misma cuenta)" if hermanos else ""
+    detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}{_con}"
               + (f" → relevo a «{nxt['name']}»" if nxt else _sin))
     logger.warning(f"{label}: {detail}")
 
