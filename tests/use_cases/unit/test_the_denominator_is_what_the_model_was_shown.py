@@ -132,8 +132,13 @@ def test_el_campo_lo_escribe_prompt_context_desde_la_linea_ENTERA():
     """La fontanería: si `prompt_context` no lo rellena, el campo existe y siempre está vacío."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    assert '"sheet_rows": _rows_in(live),' in src, "el campo no se escribe desde la línea completa"
-    assert src.index('"sheet_rows": _rows_in(live),') > src.index("def _rows_in(")
+    # V2-451 — reescrito, NO volteado. La propiedad es la misma: el campo se escribe desde el TEXTO COMPLETO,
+    # nunca desde el recorte que se guarda para leer. Lo que cambió es CUÁL es ese texto: había un solo bloque
+    # con filas (el del navegador, en `live`) y ahora hay dos, y en las cuatro rondas siguientes al arreglo
+    # `navegador_task_id` estaba VACÍO en las cuatro — leer solo esa línea habría dado «no se le enseñó nada»
+    # para siempre. `sp` es el prompt entero, que es donde caben los dos.
+    assert '"sheet_rows": _rows_in(sp),' in src, "el campo no se escribe desde el prompt completo"
+    assert src.index('"sheet_rows": _rows_in(sp),') > src.index("def _rows_in(")
 
 
 def test_la_cabecera_que_buscamos_es_la_que_el_MOTOR_escribe():

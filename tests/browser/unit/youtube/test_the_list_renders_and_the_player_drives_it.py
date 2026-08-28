@@ -126,7 +126,11 @@ def test_a_stopped_agent_never_advances_the_queue(_page):
     msg = json.dumps({"event": "onStateChange", "info": 0, "id": "hb-youtube"})
     _page.evaluate("m => window.postMessage(m, '*')", msg)
     _page.wait_for_timeout(50)
-    assert _page.evaluate("window.__calls") == []                # V2-092: parar es parar
+    # Misma corrección que su hermano de arriba: la propiedad es que la COLA no avance, no que la página se
+    # quede muda. El embed real de YouTube emite su propio `player_error` (150) con la red cargada, y eso puso
+    # este fichero en rojo dos veces en la suite completa mientras pasaba en aislamiento.
+    calls = _page.evaluate("window.__calls")
+    assert not [c for c in calls if (c or [None])[0] in ("ended", "next", "play_item")], calls   # V2-092
 
 
 def test_the_filter_hides_rows_without_touching_the_list_and_the_chip_clears_it(_page):

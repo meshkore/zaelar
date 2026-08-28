@@ -84,3 +84,23 @@ def test_el_resumen_del_encargo_LLEVA_su_hoja():
     rec = _encargo_sin_navegador()
     fila = next(x for x in D.pending_summaries() if x["id"] == "w1")
     assert fila.get("sheet") == rec.sheet
+
+
+# ── Y EL INSTRUMENTO TIENE QUE PODER VERLO ────────────────────────────────────────────────────────────────
+# El arreglo puso las filas en un bloque NUEVO con su propia cabecera, y `verify._rows_in` leía solo la del
+# navegador sobre la LÍNEA del navegador. Medido el 2026-08-28: en las cuatro rondas siguientes al arreglo
+# `navegador_task_id` estaba VACÍO en las cuatro, así que `shown_to_model` habría salido False para siempre y
+# yo habría concluido que el arreglo no funciona. Un arreglo que el instrumento no puede ver no se puede
+# verificar — y aquí el instrumento soy yo mismo dos horas antes.
+def test_el_ARNES_reconoce_la_cabecera_del_bloque_de_tareas():
+    from tests.use_cases.e2e.agent.verify import _rows_in
+    _encargo_sin_navegador(sheet="v451-arnes", filas=(("Dell S2725QC", "$280"), ("LG 27UP650-W", "$230")))
+    sp = "\n".join(LB.pending_task_lines())
+    assert _rows_in(sp) == ["Dell S2725QC", "LG 27UP650-W"], sp[:200]
+
+
+def test_y_sigue_reconociendo_la_del_NAVEGADOR():
+    """Sensibilidad por el otro lado: enseñar a leer la nueva no puede costar la vieja, que es la que mide
+    todas las rondas con navegador."""
+    from tests.use_cases.e2e.agent.verify import _ROWS_HEAD, _rows_in
+    assert _rows_in(f"NAVEGADOR …{_ROWS_HEAD}«Bici Orbea — 150€». OJO: la hoja") == ["Bici Orbea"]

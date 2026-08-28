@@ -986,16 +986,28 @@ _DONE_MARK = "TAREAS DE FONDO — YA ACABADAS"
 _ALERT = ("⛔", "❓", "bloque", "captcha", "no puedo seguir", "confirm")
 
 
-def _rows_in(live_line: str) -> list[str]:
-    """Los títulos que el bloque de la hoja puso en ESTE turno, sacados de la línea COMPLETA."""
-    if _ROWS_HEAD not in (live_line or ""):
-        return []
-    trozo = live_line.split(_ROWS_HEAD, 1)[1].split(". OJO:", 1)[0]
-    fuera = []
-    for t in trozo.split(";"):
-        titulo = t.strip().split(" — ")[0].strip()
-        if titulo and titulo not in fuera:
-            fuera.append(titulo)
+def _rows_in(texto: str) -> list[str]:
+    """Los títulos de la hoja que el prompt puso delante del modelo en ESTE turno.
+
+    DOS cabeceras, porque hay DOS bloques que las llevan y mirar una sola mide medio producto: la del
+    NAVEGADOR (`_ROWS_HEAD`, cuando hay pestaña) y la de TAREAS DE FONDO (`_ROWS_HEAD_TAREA`, V2-451, para el
+    encargo resuelto por búsqueda). Medido el 2026-08-28: en las cuatro rondas siguientes al arreglo
+    `navegador_task_id` estaba VACÍO en las cuatro, así que un lector de una sola cabecera habría devuelto
+    `shown_to_model: False` para siempre — y yo habría concluido que el arreglo no funciona.
+
+    Se lee sobre el PROMPT ENTERO, no sobre la línea del navegador: la pregunta es «¿le llegaron filas?», y
+    la respuesta no puede depender de en qué bloque cayeron.
+    """
+    fuera: list[str] = []
+    t0 = texto or ""
+    for cabecera, corte in ((_ROWS_HEAD, ". OJO:"), (_ROWS_HEAD_TAREA, " (llevas ")):
+        if cabecera not in t0:
+            continue
+        for bloque in t0.split(cabecera)[1:]:
+            for t in bloque.split(corte, 1)[0].split(";"):
+                titulo = t.strip().strip("«»").split(" — ")[0].strip().strip("«»")
+                if titulo and titulo not in fuera:
+                    fuera.append(titulo)
     return fuera
 
 
@@ -1042,7 +1054,7 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     # rondas — o sea «no se le mostró nada», que es lo contrario de la verdad, y con la pinta
                     # exacta de un arreglo aplicado. Subir el tope solo mueve el problema al siguiente prompt
                     # largo; un campo no se puede recortar por accidente.
-                    "sheet_rows": _rows_in(live),
+                    "sheet_rows": _rows_in(sp),      # V2-451: el PROMPT ENTERO, que es donde caben los dos
                     # LA CARA, en su campo. Se leía buscando «YA HA ENCONTRADO» dentro de `live_line`, que va
                     # recortada — y el 2026-08-28 eso marcó como CIEGOS cuatro turnos de una ronda cuyo bloque
                     # sí lo decía, más allá del corte. Tercera vez en la misma noche que un recorte convierte
@@ -2065,6 +2077,8 @@ def delivered_by_name(transcript, known_titles) -> dict:
 
 #: El encabezado exacto con el que `live_blocks` empuja las filas de la hoja al prompt del turno.
 _ROWS_HEAD = "LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): "
+#: La del bloque de TAREAS DE FONDO (V2-451), que es la única que existe cuando el encargo no abre navegador.
+_ROWS_HEAD_TAREA = " — YA ENTREGADO (de su hoja): "
 
 
 def shown_candidates(prompt_rows: list[dict] | None) -> list[str]:

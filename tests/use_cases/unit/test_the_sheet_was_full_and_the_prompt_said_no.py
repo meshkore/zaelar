@@ -287,6 +287,11 @@ def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
     assert marca in src, (
         "se busca en `live` (la línea de tareas) y el imperativo de resultados es OTRA línea del prompt")
     assert src.index(marca) > src.index("sp = p.get(")
+    # V2-451 — y LAS FILAS igual. Se calculaban sobre `live` (la línea del NAVEGADOR) y desde el arreglo hay
+    # un segundo bloque que las lleva; en las cuatro rondas siguientes `navegador_task_id` estaba VACÍO, así
+    # que un campo leído de esa línea habría dado «no se le enseñó nada» para siempre. La pregunta es si le
+    # llegaron filas, y la respuesta no puede depender de en qué bloque cayeron.
+    assert '"sheet_rows": _rows_in(sp),' in src, "las filas vuelven a leerse de una sola línea del prompt"
 
 
 # ── AVISADO Y SIN FILAS ────────────────────────────────────────────────────────────────────────────────

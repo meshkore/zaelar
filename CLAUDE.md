@@ -5134,8 +5134,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   tenía 6». Ahora el resumen del encargo lleva **su hoja** (`sheet_of(r)`, que ya estaba a mano y es de quien
   es la hoja, V2-259) y el bloque de TAREAS DE FONDO añade «— YA ENTREGADO (de su hoja): …». **Sin hoja
   sellada no se lee nada**: la caja PELADA es el cementerio de rondas anteriores —lo que cae sin encargo detrás
-  y nadie vacía— y leerla enseñaría hallazgos de otro encargo como propios. Nodo 4.79, cuatro desarmes. **Queda abierto** que hay dos lectores
-  del mismo dato — el de la pestaña y éste.
+  y nadie vacía— y leerla enseñaría hallazgos de otro encargo como propios. Nodo 4.79, seis desarmes. ⚠️ Y **el instrumento no podía ver el arreglo**: las filas nuevas llevan otra cabecera y `_rows_in` leía solo la del navegador, sobre la línea del navegador — en las cuatro rondas siguientes `navegador_task_id` estaba VACÍO en las cuatro, así que `shown_to_model` habría salido `False` para siempre y yo habría concluido que el arreglo no funciona. Ahora lee el prompt ENTERO y conoce las dos. **Queda abierto** que hay dos lectores del mismo dato — el de la pestaña y éste.
 
 - **Un precio de mercado ANTES de entregar nada — y los TRES caminos de entrega (V2-450, 2026-08-28)**: fui a
   medir la clase que domina el tablero US (dar precios sin nada detrás) y el barrido de las **329 rondas
