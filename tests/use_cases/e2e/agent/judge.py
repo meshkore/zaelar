@@ -906,7 +906,11 @@ def mechanism_facts(mech: dict) -> str:
         for fx in fotos[:6]:
             estado = (f"{fx['count']} fotos de {', '.join(fx['sites'][:3]) or fx['source']}" if fx.get("ok")
                       else ("BLOQUEADA por el buscador" if fx.get("blocked") else "sin resultados"))
-            degradada = f" (Google falló → {fx['source']})" if fx.get("degraded_from") else ""
+            _por = fx.get("degraded_because")
+            degradada = ((f" (Google BLOQUEADO por captcha → {fx['source']}: la calidad floja es del bloqueo, "
+                          f"no del producto)" if _por == "blocked"
+                          else f" (Google sin resultados → {fx['source']})")
+                         if fx.get("degraded_from") else "")
             lines.append(f"· Búsqueda de imágenes REAL «{fx['query'][:60]}» → {estado}{degradada}. Esto es un "
                          f"HECHO del mecanismo: el navegador de búsqueda cargó el índice y trajo eso.")
     # V2-395 — QUÉ ESTÁ PRODUCIENDO al terminar. `widget_ops` dice qué se TOCÓ, y eso no contesta «¿suena

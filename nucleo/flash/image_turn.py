@@ -66,6 +66,8 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
         parte["source"] = str(res.get("source") or "")
         if res.get("degraded_from"):
             parte["degraded_from"] = str(res["degraded_from"])
+            if res.get("degraded_because"):
+                parte["degraded_because"] = str(res["degraded_because"])
         if res.get("blocked"):
             parte["blocked"] = True
         if not items:
@@ -119,7 +121,8 @@ def _evidence(parte: dict) -> None:
             "cat": "flash", "query": str(parte.get("query") or ""), "ok": bool(parte.get("ok")),
             "count": int(parte.get("count") or 0), "source": str(parte.get("source") or ""),
             "sites": list(parte.get("sites") or []), "blocked": bool(parte.get("blocked")),
-            "degraded_from": str(parte.get("degraded_from") or "")})
+            "degraded_from": str(parte.get("degraded_from") or ""),
+            "degraded_because": str(parte.get("degraded_because") or "")})
     except Exception:  # noqa: BLE001
         pass
 

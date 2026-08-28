@@ -307,6 +307,14 @@ async def images(query: str, k: int = 12) -> dict:
         alt = await search_images_bing(query, k)
         if alt.get("items"):
             alt["degraded_from"] = "google"
+            # WHY it degraded travels with the answer (V2-463). Google's "unusual traffic" captcha was being
+            # detected and then LOST right here: `alt` is Bing's own result, whose `blocked` is False, so a
+            # whole afternoon of rounds degraded silently and the wrong-car photos read as a product defect.
+            # A captcha and an empty result ask for different things (wait vs rephrase), so the reason is
+            # named, not collapsed into the flag.
+            alt["degraded_because"] = "blocked" if res.get("blocked") else "empty"
+            if res.get("blocked"):
+                alt["blocked"] = True
             return alt
     return res
 

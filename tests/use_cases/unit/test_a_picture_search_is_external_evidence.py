@@ -55,4 +55,25 @@ def test_el_juez_recibe_cada_busqueda_enunciada():
     txt = J.mechanism_facts(mech)
     assert "Ferrari Amalfi" in txt and "www.ferrari.com" in txt
     assert "basura" in txt and "sin resultados" in txt
-    assert "Google falló → bing" in txt
+    assert "Google sin resultados → bing" in txt
+
+
+def test_un_bloqueo_de_google_se_dice_con_su_nombre():
+    """Una tarde entera de rondas degradó a Bing en silencio: el captcha de «tráfico inusual» se detectaba y
+    el combinador lo PERDÍA (devolvía el resultado de Bing, cuyo `blocked` es False). Las fotos flojas de
+    Bing se leyeron como defecto del producto. Un captcha y un vacío piden cosas distintas — esperar frente a
+    reformular — y el juez tiene que poder cargar la calidad al bloqueo, no al producto."""
+    from tests.use_cases.e2e.agent import judge as J
+    mech = {"image_searches": [{"query": "Ferrari Amalfi", "ok": True, "count": 12, "source": "bing",
+                                "sites": ["x.com"], "blocked": True, "degraded_from": "google",
+                                "degraded_because": "blocked"}]}
+    txt = J.mechanism_facts(mech)
+    assert "BLOQUEADO por captcha" in txt and "no del producto" in txt
+
+
+def test_el_ruido_de_visibilidad_de_pestañas_no_es_una_op_de_widget():
+    """El juez de la ronda 7 colgó un [alta] entero de «los widgets 160 y 165 nunca se abrieron» — eran
+    eventos `tab:visibility` del frontend con ids numéricos crudos, no widgets."""
+    ops = V.widget_ops([{"cat": "widget", "label": "tab:visibility", "id": "160"},
+                        {"cat": "widget", "label": "show", "id": "imagenes"}])
+    assert "160" not in ops and "imagenes" in ops
