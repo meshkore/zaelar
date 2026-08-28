@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-28 23:36**
+Last updated: **2026-08-29 01:01**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -46,7 +46,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `best-rated-rental-car__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:11 | yes | No está listo para producción: el bloqueador nº1 es que zaelar anunció entregas y pasos que no existían (hoja vacía, worker atascado) y no entregó los result… |
 | ❌ | `best-rated-rental-car__us` | 2 | 2.4 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 11:37 | yes | No está listo para producción: entregó ofertas reales con precio y fuente en la hoja, pero no la valoración que la petición pedía explícitamente ("best-rated… |
 | ✅ | `cheapest-monitor` | 2 | 4 | ? | 2026-08-26 01:21 | yes | El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es… |
-| ❌ | `cheapest-monitor__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 10:31 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo 6 candidatos reales delante en su prompt y no nombró ni uno solo en 9 turnos, dejando al … |
+| ❌ | `cheapest-monitor__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-29 01:01 | yes | No está listo para producción: el sistema navegó y se topó con varios muros, pero el asistente ocultó esos fallos al usuario y no entregó ningún resultado en… |
 | ❌ | `compare-broadband-plans__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:23 | yes | El caso no está listo para producción: el asistente encuentra datos reales pero falla en la toma de decisión y cierre, quedándose atrapado en bucles de búsqu… |
 | 🔒 | `compare-flights-madrid-lisboa` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 04:43 | yes | No está listo para producción: el bloqueador nº1 es que zaelar vuelca filas crudas de la hoja en lugar de construir una comparación legible con el requisito … |
 | 🔒 | `compare-flights-sf-austin__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 09:44 | yes | No está listo para producción: el bloqueador nº1 es que zaelar presentó vuelos y precios como encontrados sin que el mecanismo hubiera extraído nada, y despu… |

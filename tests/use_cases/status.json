@@ -2177,29 +2177,30 @@
       }
     },
     "cheapest-monitor__us": {
-      "last_run": "2026-08-28 10:31",
-      "overall": 1,
-      "judge": "deepseek-v4-pro",
+      "last_run": "2026-08-29 01:01",
+      "overall": 2,
+      "judge": "glm-4.6",
       "brain": "deepseek-v4-flash",
       "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 2,
+        "naturalidad": 4,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 3,
+        "mecanismo": 5,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar tuvo 6 candidatos reales delante en su prompt y no nombró ni uno solo en 9 turnos, dejando al usuario sin respuesta a una pregunta que ya estaba resuelta.",
+      "verdict": "No está listo para producción: el sistema navegó y se topó con varios muros, pero el asistente ocultó esos fallos al usuario y no entregó ningún resultado en la hoja (0 candidatos), actuando como si todo estuviera en marcha cuando en realidad estaba estancado.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [],
       "sandboxed": true,
-      "provisional": null,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -2207,18 +2208,25 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "326189b",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "af0eae3",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
             "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
+            "size": "39 GB"
           }
         ],
-        "n": 1
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
@@ -3582,5 +3590,5 @@
       }
     }
   },
-  "updated": "2026-08-28 23:36"
+  "updated": "2026-08-29 01:01"
 }
