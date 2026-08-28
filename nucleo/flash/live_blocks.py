@@ -100,7 +100,7 @@ def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
         return False
 
 
-from nucleo.flash.errand_sheet import _sheet_of_tab   # V2-432: vive en su propio módulo
+from nucleo.flash.errand_sheet import _sheet_of_tab, boxes_of_tab   # V2-432: su propio módulo
 
 
 def _sheet_has_rows(nav_task_id: str) -> bool:
@@ -128,12 +128,18 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
     """
     try:
         from widgets.results import data as _sheet
-        sheet = _sheet_of_tab(nav_task_id)      # V2-352: los dos caminos, como el escritor
-        if not sheet:
+        # TODAS las cajas del encargo, no solo la primera que resuelva: en un RELEVO el sello de la pestaña
+        # apunta a la caja nueva (vacía) y los hallazgos siguen en la heredada (V2-432, ver `boxes_of_tab`).
+        cajas = boxes_of_tab(nav_task_id)
+        if not cajas:
             return False
-        items = (_sheet.view_data(sheet) or {}).get("items") or []
-        if any(str((i or {}).get("title") or "").strip() for i in items):
-            return True
+        sheet, items = cajas[0], []
+        for _c in cajas:
+            _it = (_sheet.view_data(_c) or {}).get("items") or []
+            if any(str((i or {}).get("title") or "").strip() for i in _it):
+                return True
+            if _c == cajas[0]:
+                sheet, items = _c, _it
         # RESUELTA PERO VACÍA — y esto es lo que el aviso de V2-432 NO cubría: fallar al resolver ya se
         # cuenta, pero resolver a la caja EQUIVOCADA se ve exactamente igual que acertar. Medido el
         # 2026-08-28 en `search-buy-guitar__es`: `unresolved_errand_sheets` salió a 0 —o sea que resolvió— y
@@ -204,7 +210,12 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
     """
     try:
         from widgets.results import data as _sheet
-        sheet = _sheet_of_tab(nav_task_id)      # V2-352: los dos caminos, como el escritor
+        # Las MISMAS cajas que mira `_sheet_has_rows`: si la señal dice que hay filas y estas líneas salen de
+        # otra caja, el prompt afirma que hay algo y no puede nombrarlo — que es peor que las dos por separado.
+        cajas = boxes_of_tab(nav_task_id)
+        sheet = next((c for c in cajas
+                      if any(str((i or {}).get("title") or "").strip()
+                             for i in ((_sheet.view_data(c) or {}).get("items") or []))), "")
         if not sheet:
             return []
         out: list[str] = []

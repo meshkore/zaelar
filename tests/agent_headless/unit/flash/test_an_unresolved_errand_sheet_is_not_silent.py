@@ -85,7 +85,7 @@ def test_una_hoja_resuelta_y_VACIA_tambien_lo_dice(monkeypatch, _emitido):
     candidatos en la hoja. Sin esta línea el diagnóstico se queda en «resolvió bien y algo pasa después»."""
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results")
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
     assert LB._sheet_has_rows("6175ca-1") is False
     assert _emitido and "RESUELTA PERO VACÍA" in _emitido[0]["label"]
@@ -96,7 +96,7 @@ def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
     """La mitad de sensibilidad: es el camino sano y se recorre en cada turno."""
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results::6175ca-1")
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "Yamaha F370BL"}]})
     assert LB._sheet_has_rows("6175ca-1") is True
     assert _emitido == []
@@ -112,7 +112,7 @@ def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
     """
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results::6175ca-1")
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: (_ for _ in ()).throw(KeyError("items")))
     assert LB._sheet_has_rows("6175ca-1") is False
     assert _emitido and "ILEGIBLE" in _emitido[0]["label"]

@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un RELEVO no es un encargo nuevo, tampoco para quien LEE la hoja (V2-434, 2026-08-28)**: el final de
+  V2-432. Un relanzamiento por falta de cuota HEREDA la hoja de su predecesor, pero el **sello de la pestaña**
+  «se escribe una sola vez, en `tasks.create()`» y el relevo crea pestaña nueva — así que el sello apunta a la
+  caja nueva (vacía) mientras los hallazgos siguen en la heredada. El sello no está ausente: está **RANCIO**, y
+  su docstring solo contemplaba lo primero. `boxes_of_tab` da las dos, **sello primero y registro después**
+  —invertirlo cambiaría de quién es la hoja, y eso sí toca a quien escribe—, y el lector se queda con la
+  primera que TENGA filas. Las filas que se muestran salen de **esa misma caja**: si la señal dijera que hay
+  algo y las líneas vinieran de otra, el prompt afirmaría tener resultados sin poder nombrarlos, que es peor
+  que las dos cosas por separado. **Solo el LECTOR** —hay un test que lo exige recorriendo el árbol—, y ése era
+  el requisito para tocarlo con el operador durmiendo: equivocarse en el enrutado de ESCRITURA manda los
+  resultados a una caja que nadie mira, que es justo el defecto que se arregla. Nodo 4.72, cuatro desarmes —
+  y uno de ellos enseñó que un `.pyc` rancio puede sobrevivir a la restauración y dejar el código bueno
+  comportándose como el defecto.
+
 - **El puente del worker habla el vocabulario de widgets (V2-433, 2026-08-28)**: la anomalía llegó ya con el
   comando dentro (V2-429) — «ERROR: el widget «music» no existe · lo que se intentó: …»— y la carpeta se llama
   `musica`. El puente resolvía con `paths.dir_for`, que casa con el id de la CARPETA y nada más, mientras

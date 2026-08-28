@@ -51,3 +51,38 @@ def _sheet_of_tab(nav_task_id: str) -> str:
         except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
             pass
     return _reg
+
+
+def boxes_of_tab(nav_task_id: str) -> list[str]:
+    """TODAS las cajas que este encargo puede tener, en orden: el sello primero, el registro después.
+
+    `_sheet_of_tab` devuelve la PRIMERA que resuelva, y esa es la identidad correcta para escribir. Para LEER
+    no basta, y el 2026-08-28 se midió por qué: en `compare-flights-madrid-lisboa` el bloque vivo miró
+    `f1743e-2` siete veces —vacía— mientras las filas estaban en `f1743e-1`, y el prompt le dijo al modelo que
+    no tenía nada durante cuatro turnos.
+
+    La causa la documenta `nucleo/sheets.py` y tiene nombre: **«A RELAY IS NOT A NEW ERRAND»**. Cuando el
+    proveedor se queda sin cuota, el relanzamiento del MISMO objetivo HEREDA la hoja de su predecesor — pero el
+    **sello de la pestaña** «se escribe una sola vez, en `tasks.create()`», y el relevo crea pestaña nueva. Así
+    que el sello apunta a la caja nueva (vacía) y los hallazgos siguen en la heredada. El sello no está
+    ausente, está RANCIO, y su docstring solo contemplaba lo primero.
+
+    Esto es SOLO PARA LEER (`_sheet_has_rows`, `_sheet_top_rows`): quien escribe resuelve por su cuenta, y
+    dárselo aquí no cambia dónde cae ni una fila. Se ordena sello → registro para no invertir la identidad de
+    nadie: solo se mira la segunda cuando la primera no tiene lo que se busca.
+    """
+    fuera: list[str] = []
+    for candidato in (_sheet_of_tab(nav_task_id), _registro_de_tab(nav_task_id)):
+        c = str(candidato or "").strip()
+        if c and c not in fuera:
+            fuera.append(c)
+    return fuera
+
+
+def _registro_de_tab(nav_task_id: str) -> str:
+    """La hoja que el REGISTRO de sesiones vivas da para esta pestaña — la heredada, en un relevo."""
+    try:
+        from nucleo import dispatch as _disp
+        return str(_disp.sheet_for_nav_task(str(nav_task_id)) or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""

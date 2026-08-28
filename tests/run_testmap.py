@@ -593,6 +593,13 @@ DOMAINS: list[dict] = [
         # del sistema resuelve sin pestañear: `paths.dir_for` casa con la CARPETA y nada más, mientras el
         # registro trae la identidad (id, nombre, alias) de los 26. Y no era solo cosa del inglés: la misma
         # búsqueda rechazaba `reloj`, el nombre castellano del widget cuya carpeta es `clock`.
+        # 2026-08-28 — el final de V2-432. En `compare-flights-madrid-lisboa` el bloque vivo miró `f1743e-2`
+        # (vacía, 7 veces) mientras las filas estaban en `f1743e-1`: un RELEVO hereda la hoja del predecesor,
+        # pero el sello de la pestaña «se escribe una sola vez, en tasks.create()» y el relevo crea pestaña
+        # nueva. El sello no falta: está RANCIO. Arregla el lado del LECTOR y nada más.
+        {"id": "4.72", "title": "Un RELEVO no es un encargo nuevo, tampoco para quien LEE la hoja",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_relay_is_not_a_new_errand_for_the_reader.py"]},
         {"id": "4.71", "title": "El puente del worker habla el vocabulario de widgets — y una colisión es una "
                                 "negativa, no una apuesta",
             "ch": UNIT,
