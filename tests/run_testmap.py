@@ -586,6 +586,12 @@ DOMAINS: list[dict] = [
         # (una respuesta COMPLETA) y el worker llenó la hoja de eventos que no eran, dejando a la persona
         # siete minutos esperando. El método cubría «no puedo certificarlo»; lo contrario —«lo he certificado
         # y no existe»— no estaba, y sin eso el único final que le queda al worker es seguir buscando.
+        # 2026-08-28 — la avería de V2-432 no hace ruido: `_sheet_of_tab` devuelve "" y el prompt se compone
+        # como si no hubiera nada, indistinguible de que de verdad no lo haya. Encontrarla exigió cruzar el
+        # instante en que la hoja se llenó con el texto de cada prompt, ronda por ronda.
+        {"id": "4.70", "title": "Una hoja de encargo SIN RESOLVER lo dice — el fallo dejaba de ser mudo",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_an_unresolved_errand_sheet_is_not_silent.py"]},
         {"id": "4.69", "title": "Un «no» bien fundado es una ENTREGA — y rellenar para no volver vacío, no",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_well_founded_no_is_a_delivery.py"]},

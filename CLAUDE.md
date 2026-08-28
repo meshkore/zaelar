@@ -5126,7 +5126,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   pestaña con los dos caminos del escritor (V2-352) — la sospechosa es la resolución de la CAJA del encargo, porque la ronda tenía
   dos hojas (`results` y `results::6175ca-1`) y el bloque vivo no encontró las filas de la que las tenía. No
   se afirma: el plató se borra en cada ronda y no se puede reproducir a mano. Lo que hay es el número en cada
-  informe, y **al juez se le dice que no lo puntúe como negar**. Nodo 10.109, cuatro desarmes.
+  informe, y **al juez se le dice que no lo puntúe como negar**. Nodo 10.109, cuatro desarmes. **Primer paso
+  dado** (nodo 4.70): `_sheet_of_tab` avisa cuando ni el sello ni el registro resuelven la hoja —donde mueren
+  los dos caminos—, con su mitad de sensibilidad (resolver por el segundo camino NO avisa: llamar avería a lo
+  que funciona convierte el aviso en ruido, y el bloque vivo se compone en todos los turnos). Al instrumentarlo
+  `live_blocks.py` cruzó el umbral de fichero-dios y el trinquete pidió trocear, con razón: resolver la caja
+  del encargo es asunto propio —dos caminos, tres llamantes, y cuando falla falla MUDO— y vive ahora en
+  `nucleo/flash/errand_sheet.py`, con un test que exige que las dos referencias sean el MISMO objeto porque
+  dos copias dejarían el aviso en un sitio y el prompt componiéndose con el otro.
 
 - **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
   concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
