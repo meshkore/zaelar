@@ -5159,11 +5159,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   resolver, **7 «resuelta pero VACÍA»** — el bloque vivo miró la caja `f1743e-2` (vacía) mientras las filas
   estaban en `f1743e-1`, con `worker:1` y `worker:2` sobre el mismo encargo. **Lee la caja de un worker y las
   filas están en la del otro**: resuelve siempre y resuelve a una caja REAL vacía, por eso durante meses se ha
-  visto igual que un encargo que no encontró nada. **NO se arregla a ciegas**: unir las cajas del mismo
-  encargo es correcto si `-1` y `-2` son dos workers de uno (patrón de relevo), y sería un defecto peor —
-  mezclar dos búsquedas del usuario— si son dos encargos; `n_errands: 2` apunta a lo segundo y los `srcs` a lo
-  primero, y los dos indicios se contradicen. Lo siguiente es leer cómo se acuña el id de la caja al crear la
-  tarea y decidir con eso.
+  visto igual que un encargo que no encontró nada. **Y el mecanismo está NOMBRADO**, leyendo y no adivinando: `nucleo/sheets.py`
+  documenta este defecto exacto —«A RELAY IS NOT A NEW ERRAND», medido en `cheapest-monitor` el 2026-08-23,
+  con `-1` vacía y `-2` con los 13 hallazgos—, así que `f1743e-1` y `-2` son **dos escalones de UN encargo** y
+  el relevo debe HEREDAR la hoja. Dónde se rompe: el sello de la pestaña «se escribe una sola vez, en
+  `tasks.create()`», y el relevo crea pestaña nueva, así que su sello apunta a la hoja nueva mientras los
+  hallazgos heredados siguen en la del predecesor. **Explica por qué esta noche pasa tanto**: con Z.ai sin
+  cuota desde las 01:55, cada encargo relevea. El arreglo —que el sello del relevo apunte a la hoja
+  heredada— toca el enrutado de dónde se leen y escriben los hallazgos de TODOS los encargos, y equivocarse
+  ahí no da un error: manda los resultados a una caja que nadie mira, que es el defecto que se arregla. Queda
+  con el sitio señalado.
 
 - **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
   concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
