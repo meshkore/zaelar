@@ -50,3 +50,20 @@ def test_the_launch_reads_it_instead_of_a_pin():
     src = Path("widgets/navegador/owner.py").read_text(encoding="utf-8")
     assert '_browser_locale()' in src
     assert 'locale="es-ES"' not in src.replace('("es-ES", "Europe/Madrid")', "")
+
+
+def test_the_profile_travels_with_the_locale(monkeypatch, tmp_path):
+    """A browser that PRESENTS en-US must not carry cookies acquired while presenting es-ES: the site
+    remembers the contradiction longer than the declaration. Measured 2026-08-29 in `cheapest-monitor__us`
+    (worker session 085b1384): the launch already declared en-US and Amazon still served «Deliver to
+    Spain» prices in EUR from the persistent profile's cookies — the worker burned ~80s fighting the
+    currency and gave up. es-ES keeps the legacy `profile` name so the operator's saved logins stay."""
+    _clean(monkeypatch)
+    from widgets.navegador import owner as O
+    monkeypatch.setattr(O.store, "data_dir", lambda wid: str(tmp_path))
+    from voice.engine.core import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
+    assert O._profile_dir().endswith("/profile"), "Spanish keeps the profile of always"
+    monkeypatch.setattr(langs, "current_code", lambda: "en")
+    d = O._profile_dir()
+    assert d.endswith("/profile-en-US"), f"en-US gets its own profile, got {d}"

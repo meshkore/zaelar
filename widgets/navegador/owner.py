@@ -270,8 +270,16 @@ def _headless() -> bool:
 
 def _profile_dir() -> str:
     """PERSISTENT and ISOLATED profile (cookies/session/logins are saved on disk → no need to re-enter credentials).
-    Lives inside the widget, separate from your Chrome and your 9222 automation: it NEVER shares your own profile."""
-    d = os.path.join(store.data_dir(WID), "profile")
+    Lives inside the widget, separate from your Chrome and your 9222 automation: it NEVER shares your own profile.
+
+    Keyed by the locale the browser PRESENTS (V2-469): declaring en-US at launch is not enough when the
+    cookies were acquired declaring es-ES — the site remembers the contradiction longer than the
+    declaration. Measured 2026-08-29 (`cheapest-monitor__us`, worker session 085b1384): Amazon kept
+    serving «Deliver to Spain» EUR prices to the en-US browser and the worker burned ~80s fighting the
+    currency before giving up. es-ES keeps the legacy `profile` name so existing saved logins stay."""
+    loc, _tz = _browser_locale()
+    name = "profile" if loc == "es-ES" else f"profile-{loc}"
+    d = os.path.join(store.data_dir(WID), name)
     os.makedirs(d, exist_ok=True)
     return d
 
