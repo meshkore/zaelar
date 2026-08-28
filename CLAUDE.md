@@ -5155,8 +5155,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   zaelar las filas durante 6 turnos seguidos, obligándole a repetir "sigo buscando" cuando ya había 15
   candidatos reales» —culpa atribuida a quien la tiene— y la ronda **pasó con 4**, cuando antes se habría
   archivado como «retiene lo que tiene». **Y la sospechosa quedó DESCARTADA**: `unresolved_errand_sheets: 0`,
-  la caja sí se resolvía. Queda por saber qué hay entre esa resolución y la cara de resultados; ahora hay dos
-  señales en cada informe para averiguarlo sin cruzar timestamps a mano.
+  la caja sí se resolvía. **DIAGNÓSTICO CERRADO** en `compare-flights-madrid-lisboa` (04:43): 4 turnos ciegos, 0 sin
+  resolver, **7 «resuelta pero VACÍA»** — el bloque vivo miró la caja `f1743e-2` (vacía) mientras las filas
+  estaban en `f1743e-1`, con `worker:1` y `worker:2` sobre el mismo encargo. **Lee la caja de un worker y las
+  filas están en la del otro**: resuelve siempre y resuelve a una caja REAL vacía, por eso durante meses se ha
+  visto igual que un encargo que no encontró nada. **NO se arregla a ciegas**: unir las cajas del mismo
+  encargo es correcto si `-1` y `-2` son dos workers de uno (patrón de relevo), y sería un defecto peor —
+  mezclar dos búsquedas del usuario— si son dos encargos; `n_errands: 2` apunta a lo segundo y los `srcs` a lo
+  primero, y los dos indicios se contradicen. Lo siguiente es leer cómo se acuña el id de la caja al crear la
+  tarea y decidir con eso.
 
 - **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
   concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
