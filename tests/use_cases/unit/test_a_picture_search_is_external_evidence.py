@@ -77,3 +77,15 @@ def test_el_ruido_de_visibilidad_de_pestañas_no_es_una_op_de_widget():
     ops = V.widget_ops([{"cat": "widget", "label": "tab:visibility", "id": "160"},
                         {"cat": "widget", "label": "show", "id": "imagenes"}])
     assert "160" not in ops and "imagenes" in ops
+
+
+def test_el_juez_sabe_que_el_visor_pinta_la_fuente():
+    """Ronda 8: entrega perfecta y 1/5 porque «el mecanismo no indica que la fuente estuviera asociada en la
+    visualización» — lo indica el test de RENDER del widget (4.83). Un hecho del producto que el juez no
+    recibe enunciado no existe para él (V2-346)."""
+    from tests.use_cases.e2e.agent import judge as J
+    txt = J.mechanism_facts({"widget_ops": {"imagenes": {"show": 1, "data": 1}}})
+    assert "FUENTE" in txt and "4.83" in txt
+    # …y sin el visor en juego, la línea no aparece (no es un descargo genérico):
+    txt2 = J.mechanism_facts({"widget_ops": {"agenda": {"data": 1}}})
+    assert "4.83" not in txt2

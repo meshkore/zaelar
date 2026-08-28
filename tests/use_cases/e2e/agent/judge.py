@@ -889,6 +889,16 @@ def mechanism_facts(mech: dict) -> str:
         # `show` y el informe traía la familia `widget` contenta. Un widget con escrituras y CERO `show` en
         # una ronda que empieza con el canvas en blanco es un widget que nadie vio; el juez tiene que poder
         # decirlo con el hecho delante, no deducirlo del transcript.
+        # V2-463 — lo que el VISOR pinta por construcción es un hecho del producto, no algo que la voz tenga
+        # que enumerar. La ronda 8 entregó 12 fotos con su select funcionando y el juez puntuó 1/5 porque «el
+        # mecanismo no indica que la fuente estuviera asociada en la visualización» — lo indica el test de
+        # render del widget (nodo 4.83): cabecera con título y FUENTE de la foto grande, y el enlace a su
+        # página. Juzgar sin ese hecho es exigirle a la boca lo que la pantalla ya enseña.
+        if (ops.get("imagenes") or {}).get("show"):
+            lines.append("· El visor `imagenes` PINTA por construcción el título y la FUENTE de la foto en "
+                         "grande, enlazada a su página de origen (verificado por su test de render, nodo "
+                         "4.83). La atribución visible por foto es un HECHO del producto: no exijas que la "
+                         "voz la enumere entera.")
         mudos = sorted(w for w, o in ops.items()
                        if not o.get("show") and any(k != "close" for k in o))
         if mudos:
