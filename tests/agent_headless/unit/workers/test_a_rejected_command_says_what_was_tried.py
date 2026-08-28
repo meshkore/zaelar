@@ -70,3 +70,33 @@ def test_la_sesion_GUARDA_el_comando_al_casar_el_paso_con_su_resultado():
     src = Path("nucleo/workers/claude_session.py").read_text(encoding="utf-8")
     assert '"cmd": str((tin or {}).get("command") or "")[:220]' in src, "el paso no guarda su comando"
     assert 'cmd=meta.get("cmd", "")' in src, "el resultado no recupera el comando de su paso"
+
+
+def test_y_la_ANOMALIA_del_informe_lo_enseña():
+    """Media faena, y la mitad que faltaba era la del lector.
+
+    El comando llegaba al evento crudo y la anomalía —que es lo que aparece en el informe y lo que lee quien
+    va a arreglarlo— seguía diciendo solo la regla rota. Medido el 2026-08-28, con el motor ya guardándolo:
+    `search-buy-bicycle__us` publicó «Contains simple_expansion» a secas otra vez.
+    """
+    import json
+    from tests.use_cases.e2e.agent import verify as V
+    ev = {"kind": "task", "cat": "worker",
+          "payload": json.dumps({"kind": "task", "cat": "worker", "label": "· paso ⚠️ error",
+                                 "text": "Contains simple_expansion", "is_error": True, "rel_ms": 1000,
+                                 "span": "worker:1", "cmd": "python -m nucleo.nav_cli extract $(cat q.txt)"})}
+    anomalias = V.audit([ev])["anomalies"]
+    interno = [a for a in anomalias if a["clase"] == "error_interno"]
+    assert interno and "lo que se intentó" in interno[0]["que"]
+    assert "$(cat q.txt)" in interno[0]["que"]
+
+
+def test_y_sin_comando_la_anomalia_no_arrastra_una_coletilla_vacia():
+    """Una coletilla que sale siempre deja de leerse, y «lo que se intentó: ``» no dice nada."""
+    import json
+    from tests.use_cases.e2e.agent import verify as V
+    ev = {"kind": "task", "cat": "worker",
+          "payload": json.dumps({"kind": "task", "cat": "worker", "label": "· paso ⚠️ error",
+                                 "text": "Traceback…", "is_error": True, "rel_ms": 1000, "span": "worker:1"})}
+    interno = [a for a in V.audit([ev])["anomalies"] if a["clase"] == "error_interno"]
+    assert interno and "lo que se intentó" not in interno[0]["que"]

@@ -363,6 +363,10 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
 
     errors = [{"cat": _f(e, f, "cat"), "kind": _f(e, f, "kind"), "label": _f(e, f, "label"),
                "span": _f(e, f, "span"), "rel_ms": _f(e, f, "rel_ms"),
+               # QUÉ SE INTENTÓ, cuando el motor lo guardó (V2-429). Sin esto el comando existe en el evento
+               # crudo y no llega a la anomalía, que es donde se LEE — media faena, y la mitad que faltaba
+               # era justo la del lector.
+               "cmd": str(_f(e, f, "cmd") or "")[:220],
                "text": str(_f(e, f, "text") or "")[:240]}
               for e, f in evs if _f(e, f, "is_error")]
     evidence = [e for e, f in evs if _f(e, f, "evidence")]
@@ -391,8 +395,10 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
 
     anomalies: list[dict] = []
     for e in errors:
-        anomalies.append({"clase": "error_interno", "certeza": "hecho",
-                          "que": f"{e['cat']}/{e['kind']} «{e['label']}»: {_error_gist(e['text'])}"})
+        _que = f"{e['cat']}/{e['kind']} «{e['label']}»: {_error_gist(e['text'])}"
+        if e.get("cmd"):
+            _que += f" · lo que se intentó: `{e['cmd']}`"
+        anomalies.append({"clase": "error_interno", "certeza": "hecho", "que": _que})
     for d in dropped_actions([e for e, _ in evs]):
         anomalies.append({"clase": "accion_descartada", "certeza": "hecho",
                           "que": f"tool={d.get('tool') or '?'} razón={d.get('reason') or '?'}"})

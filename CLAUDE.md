@@ -5122,8 +5122,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   guarda y `step_result` lo recupera, **solo cuando el paso falla** (el comando de un paso sano es ruido, y
   una fila que sale siempre deja de mirarse) y **sin escribir un campo vacío** cuando no lo hay (`cmd: ""` se
   lee como «se intentó nada», que no es «no lo sabemos»). Los cuatro los cacé por casualidad leyendo logs; el
-  quinto se lee del informe — la diferencia entre arreglar defectos y poder arreglarlos. Nodo 4.68, tres
-  desarmes.
+  quinto se lee del informe — la diferencia entre arreglar defectos y poder arreglarlos. **Media faena
+  corregida a los diez minutos**: el comando llegaba al evento crudo y la ANOMALÍA del informe —lo que se
+  lee— seguía diciendo solo la regla rota; guardar el dato y no llevarlo donde se mira no arregla nada. Nodo
+  4.68, siete tests, cinco desarmes.
 
 - **Un traceback se recorta por la COLA (V2-428, 2026-08-28)**: los tres tracebacks guardados en el tablero
   como anomalías de certeza «hecho» quedaban en «Traceback … `<frozen runpy>` … `_run_module_as_main` …
