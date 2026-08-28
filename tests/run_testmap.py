@@ -2070,6 +2070,11 @@ DOMAINS: list[dict] = [
         # piden arreglos opuestos: desfase (aún no ha entregado; el aviso es correcto) y caja equivocada (las
         # filas están en otra hoja). Separarlas comparando con el estado FINAL de la ronda dio un falso
         # positivo medido: `search-buy-bicycle__es` marcó `e84138-2` y esa caja acabó con 35 filas.
+        # V2-442 — el dedup absorbe la segunda escalada sin lanzar worker, y entonces no hay navegación
+        # duplicada: hay una escalada de más. Al juez se le decía «se lanzó 2 veces» sin cuántos NACIERON.
+        {"id": "10.111", "title": "Pedirlo dos veces no es hacerlo dos veces — el dedup absorbió el segundo",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_pedirlo_dos_veces_no_es_hacerlo_dos_veces.py"]},
         {"id": "10.110", "title": "El censo del INSTANTE separa desfase de caja equivocada",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_el_censo_separa_desfase_de_caja_equivocada.py"]},

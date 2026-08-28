@@ -660,10 +660,26 @@ def mechanism_facts(mech: dict) -> str:
     _de = mech.get("duplicate_errands") or {}
     if (_de.get("worst") or 0) >= 2 or (_de.get("identical_repeats") or 0) > 0:
         _g0 = ((_de.get("groups") or [{}])[0]) or {}
-        lines.append(f"· ⚠️ ENCARGOS DUPLICADOS: el mismo encargo se lanzó {max(_de.get('worst') or 0, 2)} "
-                     f"veces («{str(_g0.get('goal') or '?')[:110]}»). Es un hecho medido sobre los encargos "
-                     f"que NACIERON (los relevos de proveedor ya están descontados): puntúa EFICIENCIA "
-                     f"abajo por esto.")
+        _veces = max(_de.get("worst") or 0, 2)
+        # PEDIRLO DOS VECES NO ES HACERLO DOS VECES, y la diferencia decide la nota. El dedup
+        # (`dispatch.find_duplicate`) absorbe la segunda escalada sin lanzar worker, y entonces NO hay trabajo
+        # duplicado: hay una decisión de escalar de más, que cuesta un turno y nada más. Medido el 2026-08-28
+        # en `buy-known-product__us` — dos escaladas de texto IDÉNTICO, `n_spawned: 1`, un solo worker — y el
+        # juez lo archivó como «duplica trabajo de navegación». Cuarto caso esa noche de un instrumento
+        # acusando al producto de algo que no hizo. El caso REAL existe y se ha medido (24-25 de agosto: dos
+        # y tres encargos en el grupo con TRES workers nacidos), así que no se puede absolver en bloque: se
+        # mira cuántos NACIERON.
+        _nacidos = _de.get("n_spawned")
+        if isinstance(_nacidos, int) and _nacidos < _veces:
+            lines.append(f"· ℹ️ El mismo encargo se PIDIÓ {_veces} veces («{str(_g0.get('goal') or '?')[:90]}»), "
+                         f"pero el dedup lo absorbió: nacieron {_nacidos} worker(s), así que NO hubo trabajo "
+                         f"duplicado. Es una escalada de más —eficiencia, y poco— NUNCA navegación duplicada.")
+        else:
+            lines.append(f"· ⚠️ ENCARGOS DUPLICADOS: el mismo encargo se lanzó {_veces} "
+                         f"veces («{str(_g0.get('goal') or '?')[:110]}») y nacieron "
+                         f"{_nacidos if isinstance(_nacidos, int) else '?'} worker(s), o sea que el trabajo "
+                         f"SÍ se hizo por duplicado. Es un hecho medido sobre los encargos que NACIERON (los "
+                         f"relevos de proveedor ya están descontados): puntúa EFICIENCIA abajo por esto.")
     # V2-399 — un worker cuyos PUENTES fallan no es un worker sin criterio. La forma catastrófica la ataja
     # el preflight (`bridge_allowlist_refusal`); ésta es la parcial, que hasta hoy solo viajaba en crudo.
     _wb = mech.get("worker_bridges") or {}

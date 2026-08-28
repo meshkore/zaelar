@@ -5112,6 +5112,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Pedirlo dos veces no es hacerlo dos veces (V2-442, 2026-08-28)**: al juez se le decía «el mismo encargo se
+  lanzó N veces … puntúa EFICIENCIA abajo» **sin decirle cuántos workers NACIERON**, y con eso archivó
+  `buy-known-product__us` como que «duplica trabajo de navegación» — con `n_spawned: 1` en el mismo informe.
+  El dedup había absorbido la segunda escalada, que es su trabajo: no hubo navegación duplicada, hubo una
+  escalada de más. Cuarto caso de la misma noche de un instrumento acusando al producto de algo que no hizo
+  (barrido: 15 duplicados idénticos en 214 rondas, y en las cuatro últimas absorbidos). **No se absuelve en
+  bloque** porque el defecto real está medido —24 y 25 de agosto, grupos de dos y tres con TRES workers
+  nacidos—: lo que decide es cuántos nacieron, y ese número ya viajaba sin que nadie lo mirara. **Fail-closed**:
+  sin el campo se mantiene la advertencia, porque «no lo sé» no puede absolver o el arreglo borraría hallazgos
+  archivados. Nodo 10.111, tres desarmes. Sigue abierto lo caro: la PARÁFRASIS (V2-123) no la absorbe nadie.
+
 - **«Le pedimos lo imposible»: avisado de que había algo y servido con CERO filas (V2-441, 2026-08-28)**: el
   contador de turnos CIEGOS se salta a propósito los que llevaban `says_found` —a ésos sí se les dijo—, y eso
   dejaba sin contar el caso que V2-330 nombró y no cerró: la cara ordena «CUÉNTALE lo que encaje, **con nombre
