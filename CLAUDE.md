@@ -5112,6 +5112,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un elemento muerto dice qué hacer (V2-437, 2026-08-28)**: **siete** «Element is not attached to the DOM»
+  en dos rondas del plató, con el worker repitiendo `click 13` una y otra vez. El mensaje era el crudo de
+  Playwright y nada más — mientras su hermano, el ref fuera de la mirada, dice desde siempre «haz `look`… no
+  inventes refs ni reintentes el mismo». Son **el mismo problema** —un ref que caducó— contado de dos maneras,
+  y solo una servía. Se añade la salida y se CONSERVA el mensaje crudo: es cierto y le sirve a quien depura,
+  mientras que al que está trabajando le falta justo lo otro. Dos entradas más de la misma tanda: el
+  `select_option` sobre un div que parece un `<select>`, y el timeout. Lo que YA dice qué hacer no se duplica
+  —una línea que se repite deja de leerse— y un error desconocido NO se inventa una salida, porque sugerir un
+  remedio equivocado es peor que no sugerir ninguno. Nodo 4.75, tres desarmes.
+
 - **Una memoria rechazada dice POR QUÉ (V2-436, 2026-08-28)**: con el comando ya dentro de las anomalías,
   **cinco** intentos del worker de guardar hallazgos OPERATIVOS —«Wallapop filtro que funciona:
   …max_sale_price=8000», «Milanuncios bloqueado por anti-bot», «coches.net da error persistente», «Facebook

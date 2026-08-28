@@ -606,6 +606,13 @@ DOMAINS: list[dict] = [
         # funciona…», «Milanuncios bloqueado por anti-bot», «coches.net da error persistente») murieron con
         # «HTTP Error 422: Unprocessable Entity» y NADA MÁS. El servidor sí dice por qué, en el cuerpo, y
         # `HTTPError` solo trae el número: el worker reintenta o se rinde a ciegas y el hallazgo se pierde.
+        # 2026-08-28 — siete «Element is not attached to the DOM» en dos rondas, con el worker repitiendo
+        # `click 13` una y otra vez. El mensaje era el crudo de Playwright y nada más, mientras su hermano —el
+        # ref fuera de la mirada— dice desde siempre «haz `look`… no reintentes el mismo». Mismo problema, un
+        # ref caducado, contado de dos maneras, y solo una servía.
+        {"id": "4.75", "title": "Un elemento muerto dice qué hacer — sin perder el mensaje crudo",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_dead_element_says_what_to_do.py"]},
         {"id": "4.74", "title": "Una memoria rechazada dice POR QUÉ — el motivo viaja en el cuerpo",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_rejected_memory_says_why.py"]},

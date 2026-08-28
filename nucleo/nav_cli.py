@@ -103,9 +103,40 @@ def _sees() -> bool:
     return (os.environ.get("ZAELAR_NAV_VISION") or "").strip().lower() not in ("0", "false", "no")
 
 
+#: Fallos de Playwright que el worker se encuentra y que NO dicen qué hacer. El mensaje crudo se conserva —es
+#: cierto y ayuda a quien depura— y se le añade la salida, que es lo único que le falta al que está trabajando.
+_QUE_HACER = (
+    ("not attached to the dom",
+     "El elemento ya no existe: la página se ha redibujado desde que miraste. Haz `look` otra vez y usa un "
+     "ref del listado NUEVO — repetir el mismo número volverá a fallar."),
+    ("element is not a <select>",
+     "Eso no es un desplegable de verdad: muchos sitios los dibujan con divs. Haz `look` y haz `click` en el "
+     "control y luego en la opción, como haría una persona."),
+    ("timeout", "La página no ha contestado a tiempo. NO repitas la misma acción —se encolaría encima—: haz "
+                "`look` para ver dónde ha quedado y decide desde ahí."),
+)
+
+
+def _salida(error: str) -> str:
+    """Qué hacer a continuación, si este error tiene una salida conocida. «» si no la tiene.
+
+    Medido el 2026-08-28 en el plató 24/7: **siete** `click` contra elementos muertos («Element is not
+    attached to the DOM») en dos rondas, y el mensaje no decía nada más. Su hermano —el ref fuera de la
+    mirada— sí lo dice desde siempre («Haz `look` … no inventes refs ni reintentes el mismo») y esa asimetría
+    no tiene motivo: los dos son el mismo problema, un ref que caducó.
+    """
+    low = (error or "").lower()
+    for aguja, salida in _QUE_HACER:
+        if aguja in low:
+            return salida
+    return ""
+
+
 def _print_state(res: dict) -> None:
     if not res.get("ok"):
-        print("ERROR: " + str(res.get("error") or res.get("msg") or "desconocido"))
+        _err = str(res.get("error") or res.get("msg") or "desconocido")
+        _sal = _salida(_err)
+        print("ERROR: " + _err + (f" · {_sal}" if _sal else ""))
         return
     if "listings" in res:
         print(json.dumps(res.get("listings", []), ensure_ascii=False, indent=2))
