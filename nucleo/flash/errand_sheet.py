@@ -156,10 +156,45 @@ def rows_of_sheet(sheet: str, n: int = 3) -> list[str]:
             title = str((i or {}).get("title") or "").strip()
             if not title:
                 continue
-            price = str((i or {}).get("price") or "").strip()
-            out.append(f"«{title[:60]} — {price[:24]}»" if price else f"«{title[:60]} — SIN PRECIO»")
+            out.append(fila(i))
             if len(out) >= max(1, int(n)):
                 break
         return out
     except Exception:  # noqa: BLE001 — leer la hoja no puede tumbar el prompt
         return []
+
+
+def fila(item: dict) -> str:
+    """UNA fila de la hoja, como la ve el modelo: «título — dato accionable».
+
+    Es el ÚNICO formateador (V2-455). Había dos —el de la cara del navegador y el de aquí, V2-451— y dos
+    copias de una regla se separan sin avisar: esta casa lo ha pagado cuatro veces esta semana. La regla que
+    formatean tiene tres inquilinos que costaron una ronda cada uno:
+
+    * **la AUSENCIA, dicha** (V2-360): una fila sin importe se renderizaba como un título a secas y el modelo
+      tenía que deducir del silencio que no hay precio — «Direct, Allianz Direct, Génesis… estas tres ya te
+      sirven», nombres sin dato presentados como presupuestos comparables.
+    * **un TELÉFONO cuenta como dato accionable** (V2-240): un resultado es un nombre y una forma de actuar
+      sobre él, nunca un precio.
+    * **una PISTA de búsqueda no es un candidato sin precio** (V2-376): llamarla «SIN PRECIO» la presenta como
+      una ficha a la que le falta un dato, y así acaban ofreciéndose «9 precios y ofertas 2026» como planes.
+    """
+    i = item or {}
+    title = str(i.get("title") or "").strip()
+    price = str(i.get("price") or "").strip()
+    tel = str(i.get("tel") or "").strip()
+    facts = [f for f in (i.get("facts") or []) if isinstance(f, dict)]
+    if not tel:
+        tel = next((str(f.get("value") or "").strip() for f in facts
+                    if str(f.get("label") or "").strip().lower().startswith("tel")), "")
+    pista = any(str(f.get("value") or "").strip().lower() == "búsqueda web"
+                and str(f.get("label") or "").strip().lower() == "origen" for f in facts)
+    if price:
+        dato = price[:20]
+    elif tel:
+        dato = tel[:20]
+    elif pista:
+        dato = "PÁGINA WEB por mirar, aún no es un candidato"
+    else:
+        dato = "SIN PRECIO"
+    return "«" + title[:70] + " — " + dato + "»"

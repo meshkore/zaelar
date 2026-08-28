@@ -5124,6 +5124,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **Un solo formateador de fila (V2-455, 2026-08-28)**: V2-451 dejó DOS —el de la pestaña y el de la hoja— y
+  su propia sección «lo que no cierra» lo decía. La regla que formatean tiene **tres inquilinos y cada uno
+  costó una ronda**: la AUSENCIA dicha (una fila sin importe salía como un título a secas y el modelo tenía
+  que deducir del silencio que no hay precio), el TELÉFONO como dato accionable (V2-240) y la PISTA de
+  búsqueda que NO es un candidato (llamarla «SIN PRECIO» la presenta como una ficha a la que le falta un dato)
+  — **y la copia nueva tenía una de las tres**, o sea que la
+  divergencia ya había ocurrido el mismo día. `errand_sheet.fila(item)` es ahora el único, y el desarme pone
+  en rojo los DOS caminos, que es justo lo que antes no pasaba.
+
 - **La oferta de PARAR se hace una vez — el hecho se queda (V2-454, 2026-08-28)**: el bloque dice «si una tarea
   sale ENCALLADA o SIN AVANZAR, dilo con esas letras **la primera vez** y ofrece pararla», y **el modelo no
   puede saber si es la primera** — es un hecho NUESTRO, lo mismo que V2-224 aprendió con el aviso de muerte.

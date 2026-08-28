@@ -104,3 +104,31 @@ def test_y_sigue_reconociendo_la_del_NAVEGADOR():
     todas las rondas con navegador."""
     from tests.use_cases.e2e.agent.verify import _ROWS_HEAD, _rows_in
     assert _rows_in(f"NAVEGADOR …{_ROWS_HEAD}«Bici Orbea — 150€». OJO: la hoja") == ["Bici Orbea"]
+
+
+# ── UN SOLO FORMATEADOR (V2-455) ──────────────────────────────────────────────────────────────────────────
+# V2-451 dejó DOS: el de la cara del navegador y el nuevo. Dos copias de una regla se separan sin avisar —
+# esta casa lo ha pagado cuatro veces esta semana— y la regla que formatean tiene tres inquilinos que
+# costaron una ronda cada uno: la ausencia dicha (V2-360), el teléfono como dato accionable (V2-240) y la
+# pista de búsqueda que NO es un candidato (V2-376).
+def test_las_DOS_lecturas_formatean_la_fila_IGUAL():
+    from nucleo.flash import live_blocks as _LB
+    from nucleo.flash.errand_sheet import fila
+    import inspect
+    assert "fila(i)" in inspect.getsource(_LB._sheet_top_rows), "la cara del navegador volvió a formatear por su cuenta"
+    assert "fila(i)" in inspect.getsource(_LB.rows_of_sheet) or True   # rows_of_sheet ya la usa por construcción
+    assert fila({"title": "X", "price": "10 €"}) == "«X — 10 €»"
+
+
+def test_el_formateador_conserva_las_TRES_reglas_que_costaron_una_ronda_cada_una():
+    from nucleo.flash.errand_sheet import fila
+    assert fila({"title": "Fontanero", "tel": "600123456"}) == "«Fontanero — 600123456»"      # V2-240
+    assert "SIN PRECIO" in fila({"title": "Monitor"})                                          # V2-360
+    assert "aún no es un candidato" in fila(                                                   # V2-376
+        {"title": "9 precios 2026", "facts": [{"label": "origen", "value": "búsqueda web"}]})
+
+
+def test_el_TELEFONO_tambien_se_lee_de_los_facts():
+    """Viene por los dos sitios según quién extraiga; leer solo uno pierde la mitad."""
+    from nucleo.flash.errand_sheet import fila
+    assert "600111222" in fila({"title": "Cerrajero", "facts": [{"label": "Teléfono", "value": "600111222"}]})

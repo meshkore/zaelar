@@ -100,7 +100,7 @@ def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
         return False
 
 
-from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_tab, rows_of_sheet
+from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_tab, fila, rows_of_sheet
 
 
 def _sheet_has_rows(nav_task_id: str) -> bool:
@@ -228,34 +228,10 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
             if len(out) >= max(1, int(n)):      # se sigue CONTANDO aunque ya no se liste
                 _con_nombre += 1
                 continue
-            price = str((i or {}).get("price") or "").strip()
-            # V2-360 — LA AUSENCIA, DICHA. Sin esto una fila sin importe se renderiza como un título a secas y
-            # el modelo tiene que deducir del SILENCIO que no hay precio; medido en `compare-insurance-quotes__es`
-            # (2026-08-27): de cuatro filas solo una traía importe, y el turno anunció «Direct, Allianz Direct,
-            # Génesis, MAPFRE y Pelayo… estas tres primeras ya te sirven» — nombres sin dato presentados como
-            # presupuestos comparables. Es el mismo remedio que V2-127 («AUSENCIA de ubicación, dicha con todas
-            # las letras») y V2-133 («SIN paso reportado aún»): nombrar el hueco cuesta una palabra y cierra la
-            # sustitución. Un teléfono cuenta como importe a estos efectos — misma regla que `by_amount`: un
-            # resultado es un nombre y una forma de actuar sobre él, nunca un precio (V2-240).
-            _tel = str((i or {}).get("tel") or "").strip()
-            _facts = [f for f in ((i or {}).get("facts") or []) if isinstance(f, dict)]
-            if not _tel:
-                _tel = next((str(f.get("value") or "").strip() for f in _facts
-                             if str(f.get("label") or "").strip().lower().startswith("tel")), "")
-            # V2-376 — una PISTA de búsqueda web no es un candidato sin precio: es una página que quizá lleve
-            # al candidato. Llamarla «SIN PRECIO» la presenta como una ficha a la que le falta un dato, y así
-            # es como acaban ofreciéndose «9 precios y ofertas 2026» y «Top actividad en Bilbao» como planes.
-            _pista = any(str(f.get("value") or "").strip().lower() == "búsqueda web"
-                         and str(f.get("label") or "").strip().lower() == "origen" for f in _facts)
-            if price:
-                _dato = price[:20]
-            elif _tel:
-                _dato = _tel[:20]
-            elif _pista:
-                _dato = "PÁGINA WEB por mirar, aún no es un candidato"
-            else:
-                _dato = "SIN PRECIO"
-            out.append("«" + title[:70] + " — " + _dato + "»")
+            # V2-455 — UN SOLO FORMATEADOR. Las tres reglas que aplica (la ausencia dicha, el teléfono como
+            # dato accionable, la pista de búsqueda que no es candidato) costaron una ronda cada una y vivían
+            # DUPLICADAS desde V2-451. Dos copias de una regla se separan sin avisar.
+            out.append(fila(i))
             _con_nombre += 1
         _tope = max(1, int(n))
         # V2-374 — LO QUE QUEDA FUERA SE CUENTA. Es la segunda mitad de V2-234, que la nota del navegador ya
