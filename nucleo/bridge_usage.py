@@ -37,6 +37,23 @@ def guided(hint_for: Callable[[str], str]) -> type[argparse.ArgumentParser]:
     return _GuidedParser
 
 
+def bare_query_payload(action: str, raw: str):
+    """A plain-text payload for a QUERY action IS the query (V2-469) — or None when it is not that.
+
+    Measured in `cheapest-monitor__us` (00:14): the worker called `act web_search` with the payload being
+    the bare query («LG 27US500-W 27 inch 4K monitor price») — the natural shape, V2-341's family — and
+    lost the turn to «payload JSON inválido». For an action whose payload is exactly {"query": …} a plain
+    text has one reading. Anything that STARTS like JSON is a badly written JSON, not a query (converting
+    would run a search with braces inside); any other action's structure would be invented, so: None.
+    """
+    if str(action or "").strip() != "web_search":
+        return None
+    texto = str(raw or "").strip()
+    if not texto or texto.startswith("{") or texto.startswith("["):
+        return None
+    return {"query": texto[:400]}
+
+
 def parse_payload(texto: str) -> tuple[dict, str]:
     """`(payload, error)` — el JSON del worker, tolerando el envoltorio que un modelo escribe sin pensar.
 

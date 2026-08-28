@@ -121,8 +121,14 @@ def _cmd_act(action: str, payload_json: str) -> int:
     # ésta es la anomalía nº 1 del tablero entero, y su mensaje no daba nada con lo que corregirla.
     payload, _perr = _bu.parse_payload(_raw)
     if _perr:
-        print(f"payload JSON inválido ({_src}): {_perr}", file=sys.stderr)
-        return 1
+        # V2-469 — a plain-text payload for web_search IS the query (V2-341's rule: the natural shape must
+        # not cost the turn). Anything else keeps the honest error. See `bridge_usage.bare_query_payload`.
+        _bare = _bu.bare_query_payload(action, _raw)
+        if _bare is not None:
+            payload = _bare
+        else:
+            print(f"payload JSON inválido ({_src}): {_perr}", file=sys.stderr)
+            return 1
     res = _post("/api/worker/act", {"task_id": tid, "token": tok, "action": action, "payload": payload})
     _emit_injections(res)
     if res.get("denied"):

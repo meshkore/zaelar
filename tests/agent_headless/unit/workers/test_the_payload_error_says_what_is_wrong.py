@@ -70,3 +70,31 @@ def test_el_puente_lo_USA_y_enseña_el_motivo():
     src = Path("nucleo/worker_bridge.py").read_text(encoding="utf-8")
     assert "_bu.parse_payload(_raw)" in src
     assert 'payload JSON inválido ({_src}): {_perr}' in src
+
+
+# ── V2-469 · un texto plano para web_search ES la query ──────────────────────────────────────────────────
+def test_una_query_pelada_para_web_search_es_la_query():
+    """Medido en `cheapest-monitor__us` (00:14): el worker llamó `act web_search` con el payload siendo la
+    query pelada («LG 27US500-W 27 inch 4K monitor price») — lo natural, la familia de V2-341 — y perdió
+    el turno con «payload JSON inválido». Para una acción cuyo payload es exactamente {"query": …}, un
+    texto plano no tiene otra lectura. Vive en `bare_query_payload`, que decide UNA vez para el CLI."""
+    d = BU.bare_query_payload("web_search", "LG 27US500-W 27 inch 4K monitor price")
+    assert d == {"query": "LG 27US500-W 27 inch 4K monitor price"}
+
+
+def test_otra_accion_con_texto_plano_sigue_siendo_error():
+    """Convertir texto plano para una acción con estructura inventaría el payload — eso sí es ambiguo."""
+    assert BU.bare_query_payload("push_channel", "mándale esto a Marc") is None
+
+
+def test_un_json_roto_no_se_convierte_en_query():
+    """Un texto que EMPIEZA como JSON y no parsea es un JSON mal escrito, no una query: convertirlo
+    ejecutaría una búsqueda con las llaves dentro."""
+    assert BU.bare_query_payload("web_search", '{"query": "hoteles"') is None
+
+
+def test_el_cli_cablea_la_conversion():
+    """Guarda de cableado: los tres de arriba pasan enteros con la llamada del CLI borrada."""
+    from pathlib import Path
+    src = Path("nucleo/worker_bridge.py").read_text(encoding="utf-8")
+    assert "bare_query_payload" in src
