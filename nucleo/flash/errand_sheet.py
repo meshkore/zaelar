@@ -167,6 +167,13 @@ def rows_of_sheet(sheet: str, n: int = 3) -> list[str]:
 def fila(item: dict) -> str:
     """UNA fila de la hoja, como la ve el modelo: «título — dato accionable».
 
+    ⚠️ HIPÓTESIS PROBADA Y RETIRADA (2026-08-28): numerarlas («1) …; 2) …»). Las dos veces medidas de un precio
+    mal citado el modelo había **CRUZADO dos filas** —«Rockrider ST 100» a 80 € cuando era del «ST 500», y
+    «Pelayo» a 165 € cuando 165 era de «Qualitas Auto»— y un índice haría de cada par una unidad. Se
+    implementó y se retiró: **rompía ocho tests que afirman el formato exacto**, cada uno guardando una
+    propiedad real, y reescribirlos por una idea con dos casos de evidencia y ningún mecanismo comprobado es
+    el canje equivocado. Queda anotada aquí para cuando haya más medida; `price_mismatches` la contaría.
+
     Es el ÚNICO formateador (V2-455). Había dos —el de la cara del navegador y el de aquí, V2-451— y dos
     copias de una regla se separan sin avisar: esta casa lo ha pagado cuatro veces esta semana. La regla que
     formatean tiene tres inquilinos que costaron una ronda cada uno:
