@@ -311,3 +311,49 @@ def test_una_lista_VACIA_lo_dice_en_vez_de_callar(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets import refs
     assert "VACÍA" in refs.items_line("youtube")
+
+
+# ── V2-467 — la lista del reproductor se puede NOMBRAR ──────────────────────────────────────────────────
+def test_la_lista_se_puede_nombrar_como_las_de_musica(monkeypatch, tmp_path):
+    """Asimetría de familia medida en `build-a-video-playlist-from-links`: `musica` tiene listas con nombre y
+    este reproductor no, así que «llámala la de la tarde» no tenía dónde caer — el modelo no encontró acción
+    y el propio catálogo de escalate («no estar en el catálogo NO es motivo para negarte») mandó una cola de
+    dos enlaces a un Brain Worker. El escenario llama a eso FALLO: es un rail, se resuelve en el turno."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    r = yt.apply_action("name_list", {"name": "la de la tarde"})
+    assert r["ok"] and r["name"] == "la de la tarde"
+    assert yt.view_data()["list_name"] == "la de la tarde"
+
+
+def test_un_nombre_vacio_lo_QUITA_igual_que_el_filtro(monkeypatch, tmp_path):
+    """Dos acciones de lista no pueden discrepar sobre qué significa un payload vacío: `filter_list` ya usa
+    «vacío = quitar»."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    yt.apply_action("name_list", {"name": "x"})
+    assert yt.apply_action("name_list", {})["name"] == ""
+    assert yt.view_data()["list_name"] == ""
+
+
+def test_la_tarjeta_ENSEÑA_el_nombre_o_no_sirve_de_nada():
+    """Un nombre que solo vive en el store no deja al operador verificar que se le hizo caso."""
+    import pathlib
+    js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
+          / "widget.js").read_text(encoding="utf-8")
+    assert "list_name" in js and "_rot" in js
+
+
+def test_las_acciones_declaradas_siguen_siendo_las_que_hace(monkeypatch, tmp_path):
+    """El gate del generador rechaza una acción declarada que nadie atiende y una atendida sin declarar."""
+    import json
+    import pathlib
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    m = json.loads((pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
+                    / "manifest.json").read_text(encoding="utf-8"))
+    assert "name_list" in m["actions"]
+    assert yt.apply_action("name_list", {}).get("ok") is True

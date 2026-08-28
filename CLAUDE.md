@@ -5158,7 +5158,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **El reproductor publica su lista y el visor tiene teclado (V2-465, 2026-08-28)**: auditados los tres de la
   familia de medios lado a lado. `youtube` era el ÚNICO sin `ref_index()` — el cerebro no veía la lista, así
   que «pon la tercera» no tenía contra qué resolver (y nunca debe inventar un id, V2-026), y con la tarjeta
-  ABIERTA Y VACÍA el brief no podía decirlo: el «doy por entregado lo que no está» de V2-377/380/383. Marca
+  ABIERTA Y VACÍA el brief no podía decirlo: el «doy por entregado lo que no está» de V2-380/383. Marca
   cuál suena. `imagenes` era el único sin teclado (← →, en la TARJETA y sin robárselas a quien escribe).
   **Descartado a propósito**: darle `active_when` a `imagenes` — ese contrato significa PRODUCIENDO y engancha
   el ⏻ global; una foto quieta no se suspende.

@@ -110,6 +110,12 @@
       "desc": "vacía la lista de reproducción (lo que suena sigue sonando)",
       "payload": {}
     },
+    "name_list": {
+      "desc": "pone nombre a la lista (vacío = quitarlo)",
+      "payload": {
+        "name": "cómo llamarla, p. ej. «la de la tarde» (vacío = quitar el nombre)"
+      }
+    },
     "play": {
       "desc": "reanuda/reproduce el vídeo",
       "payload": {}

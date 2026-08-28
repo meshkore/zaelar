@@ -38,6 +38,11 @@ _SEED = {
     "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
     "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
     "list_filter": "",    # display-only filter over the list (filter_list); never touches the list itself
+    # V2-467 — the list's NAME. `musica` has named playlists and this player did not, so «llámala la de la
+    # tarde» had nowhere to land: the model found no action, and the escalate catalogue's own «no estar en
+    # el catálogo NO es motivo para negarte» sent a two-link queue to a Brain Worker (measured, and the
+    # scenario calls escalating this a FAILURE — it is a rail, V2-042). "" = the card shows its generic title.
+    "list_name": "",
 }
 
 _YT_RE = re.compile(
@@ -438,6 +443,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["list_filter"] = str(p.get("q") or p.get("query") or "").strip()
         store.save(WID, db)
         return {"ok": True, "filter": db["list_filter"]}
+
+    if action == "name_list":
+        # Naming is not renaming ANOTHER list: this player has exactly ONE queue, so the name is a field of
+        # the card, not an entity. Empty clears it back to the generic title — the same «vacío = quitar» that
+        # `filter_list` already uses, so two list actions do not disagree about what an empty payload means.
+        nombre = str(p.get("name") or p.get("title") or p.get("item") or "").strip()[:80]
+        db["list_name"] = nombre
+        store.save(WID, db)
+        return {"ok": True, "name": nombre, "count": len(db.get("list") or [])}
 
     if action == "clear_list":
         # Empties the LIST only: whatever is playing keeps playing (voice «vacía la lista» must not cut the
