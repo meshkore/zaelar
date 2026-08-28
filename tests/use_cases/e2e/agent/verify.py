@@ -308,6 +308,29 @@ def widget_ops(all_events: list[dict]) -> dict:
     return ops
 
 
+def _error_gist(text: str, limit: int = 200) -> str:
+    """El trozo del error que SIRVE. En un traceback eso está al FINAL, no al principio.
+
+    Medido el 2026-08-28: los tres tracebacks del tablero se guardaron recortados por delante, así que lo que
+    quedó fue «Traceback (most recent call last): File "<frozen runpy>", line 198, in _run_module_as_main
+    File "<frozen runpy>", line 88, in _run_code File "/Users…» — cien caracteres de andamiaje idéntico en
+    cualquier fallo de Python, y la línea de la excepción, que es la única que dice algo, cortada fuera.
+
+    Tres anomalías de certeza «hecho» en el informe, y ninguna diagnosticable. Con esto pasan a serlo.
+
+    Se detecta por la palabra que abre TODO traceback de Python y se queda la cola; cualquier otro texto se
+    recorta como siempre, por delante, porque ahí lo importante sí va primero.
+    """
+    t = " ".join((text or "").split())
+    if len(t) <= limit:
+        return t
+    if "Traceback (most recent call last)" in t:
+        # La cola, y con una marca de que se recortó por delante: un error que empieza a media frase sin
+        # avisar se lee como un error distinto del que fue.
+        return "…" + t[-limit:]
+    return t[:limit]
+
+
 def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> dict:
     """Walk the WHOLE stream and report what a families summary cannot see.
 
@@ -369,7 +392,7 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
     anomalies: list[dict] = []
     for e in errors:
         anomalies.append({"clase": "error_interno", "certeza": "hecho",
-                          "que": f"{e['cat']}/{e['kind']} «{e['label']}»: {e['text'][:160]}"})
+                          "que": f"{e['cat']}/{e['kind']} «{e['label']}»: {_error_gist(e['text'])}"})
     for d in dropped_actions([e for e, _ in evs]):
         anomalies.append({"clase": "accion_descartada", "certeza": "hecho",
                           "que": f"tool={d.get('tool') or '?'} razón={d.get('reason') or '?'}"})

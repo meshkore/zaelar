@@ -1989,6 +1989,13 @@ DOMAINS: list[dict] = [
         # reconstruir cuál de las CUATRO ramas las movió fue imposible — el dict de la ronda ya no existe
         # cuando alguien lee el tablero. Y las cuatro piden acciones opuestas: bug del instrumento, recargar
         # un proveedor, levantar el prewarm, o mirar la cadena del juez.
+        # 2026-08-28 — los tres tracebacks guardados como anomalías de certeza «hecho» se recortaban por
+        # DELANTE, así que lo que quedaba era «Traceback … <frozen runpy> … _run_module_as_main …»: cien
+        # caracteres de andamiaje idéntico en cualquier fallo de Python, con la línea de la excepción cortada
+        # fuera. Tres hechos registrados y ninguno diagnosticable — la forma más cara de tener razón.
+        {"id": "10.107", "title": "Un traceback se recorta por la COLA — el andamiaje se comía la excepción",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_traceback_is_cut_from_the_wrong_end.py"]},
         {"id": "10.106", "title": "Una fila INFRA dice CUÁL — las cuatro puertas piden acciones opuestas",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_infra_says_which_infra.py"]},

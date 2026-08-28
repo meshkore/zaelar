@@ -5112,6 +5112,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un traceback se recorta por la COLA (V2-428, 2026-08-28)**: los tres tracebacks guardados en el tablero
+  como anomalías de certeza «hecho» quedaban en «Traceback … `<frozen runpy>` … `_run_module_as_main` …
+  File "/Users…» — cien caracteres de andamiaje **idéntico en cualquier fallo de Python**, con la línea de la
+  excepción cortada fuera. El recorte por delante es correcto para un mensaje normal y lo peor posible para un
+  traceback, donde lo que sirve está al final. Tres hechos registrados y ninguno diagnosticable: el informe
+  afirmaba que había un error interno del navegador y no dejaba saber cuál — la forma más cara de tener razón,
+  y la misma familia que V2-421 y V2-425 (el sistema tiene la respuesta y no la imprime). `_error_gist` se
+  queda la cola cuando el texto abre como un traceback y lo marca con `…` —un error que empieza a media frase
+  sin avisar se lee como otro error—; el resto se recorta por delante, porque darle la vuelta a todo
+  arreglaría tres anomalías y rompería las otras nueve. Nodo 10.107, tres desarmes.
+
 - **La apertura del tester no puede recitar nuestra hoja (V2-427, 2026-08-28)**: lo encontró un TRINQUETE
   alimentado por el plató 24/7 — `test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos` barre
   las líneas del tester de todos los informes y exige como mucho tres marcadas, «el umbral sube cuando el
