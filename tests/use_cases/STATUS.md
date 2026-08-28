@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-28 20:31**
+Last updated: **2026-08-28 22:00**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -31,7 +31,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `find-theatre-tickets__es` | 1 | 3 | ? | 2026-08-20 18:28 | yes | El caso no está listo para producción: el bloqueador nº1 es que zaelar ocultó un muro conocido durante un turno y prometió acciones sin respaldo observable, … |
 | 🔒 | `find-theatre-tickets__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 09:14 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ocultó el estado real de la tarea (encallada y con error interno) detrás de respuestas vagas y… |
 | ⚠️ | `pay-known-bill__us` | 1 | 3 | `glm-5.3` | 2026-08-28 07:49 | yes | **INFRA — sin cuota en z.ai → relevo a deepseek: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (veredicto no … |
-| ❌ | `play-music-and-build-playlist` | 1 | 2 | — | 2026-08-28 09:17 | yes | No está listo para producción: el bloqueador nº1 es que zaelar confirma 'Hecho' sin verificar que la canción quedara realmente dentro de la lista — el inform… |
+| ✅ | `play-music-and-build-playlist` | 1 | 5 | — | 2026-08-28 22:00 | yes | Listo para producción: el asistente sonó de música real usando YouTube, gestionó la lista y el nombre solicitados sin fricción, y el mecanismo respaldó cada … |
 | ✅ | `quick-fact-opening-hours` | 1 | 4 | ? | 2026-08-21 01:38 | yes | El caso de uso está listo para producción en cuanto a resultado y naturalidad, pero el bloqueador nº1 es el mecanismo: se escaló a un flujo con navegador cua… |
 | ✅ | `remember-and-remind-deadline` | 1 | 4 | ? | 2026-08-27 11:11 | yes | El caso está resuelto en lo esencial — cita escrita en agenda para el jueves 3 y aviso programado para el miércoles 2 antes del evento — pero el prompt del r… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | ? | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
@@ -81,7 +81,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**16 passing · 25 failing · 3 infra** of 44 scenarios we can actually finish.
+**17 passing · 24 failing · 3 infra** of 44 scenarios we can actually finish.
 
 Plus **16 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `best-pediatric-dentists__us`, `book-barber-slot__us`, `book-hotel-night-known__es`, `book-hotel-night-known__us`, `buy-known-product__us`, `cancel-subscription-before-charge__es`, `cancel-subscription-before-charge__us`, `compare-flights-madrid-lisboa`, `compare-flights-sf-austin__us`, `find-theatre-tickets__es`, `find-theatre-tickets__us`, `renew-gym-membership__es`, `renew-gym-membership__us`, `reorder-prescription__us`, `restaurant-tonight-madrid`, `restaurant-tonight-nyc__us`.
 
@@ -91,7 +91,7 @@ Plus **16 🔒 capped** (need the user's own credentials; measured for honesty o
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 58 | 43 | 16 |
+| ✅ completable | 58 | 43 | 17 |
 | 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
@@ -101,7 +101,7 @@ An unrun case is **not** a passing one. This is the walk's progress board, and i
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 6 | 6 | 4 |
+| 1 | es | 6 | 6 | 5 |
 | 2 | es | 21 | 21 | 8 |
 | 2 | us | 11 | 19 | 3 |
 | 3 | es | 3 | 5 | 0 |
@@ -168,7 +168,6 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `find-theatre-tickets__us` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `find-videos-on-a-topic-no-ai-slop` | `.meshkore/roadmap/initiatives/V2-388-uc-find-videos-on-a-topic-no-ai-slop.md` | `` |
 | `kid-friendly-activity-nearby__es` | `.meshkore/roadmap/initiatives/V2-266-uc-kid-friendly-activity-nearby-es.md` | `` |
-| `play-music-and-build-playlist` | `.meshkore/roadmap/initiatives/V2-385-uc-play-music-and-build-playlist.md` | `` |
 | `renew-gym-membership__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `rental-car-automatic-airport__es` | `.meshkore/roadmap/initiatives/V2-267-uc-rental-car-automatic-airport-es.md` | `` |
 | `reorder-prescription__us` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
