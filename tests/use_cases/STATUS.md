@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-28 04:43**
+Last updated: **2026-08-28 12:09**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -20,55 +20,68 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 
 | | scenario | tier | overall | brain | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|---|
+| 🔒 | `book-barber-slot__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 08:22 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma haber encontrado y reservado la barbería habitual sin ningún respaldo en el sistema (ho… |
 | 🔒 | `book-hotel-night-known__es` | 1 | 2 | ? | 2026-08-21 14:05 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó haber identificado el hotel correcto y prometió una reserva sin respaldo en los datos r… |
-| ❌ | `build-a-video-playlist-from-links` | 1 | 1 | `deepseek-v4-flash` | 2026-08-28 04:24 | yes | No está listo para producción: el resultado prometido (lista 'la de la tarde' con dos vídeos en el widget youtube) no existe en el store — solo hay un add de… |
+| 🔒 | `book-hotel-night-known__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 08:41 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó una reserva confirmada que no existía, y solo se retractó cuando el usuario le obligó a… |
+| ❌ | `build-a-video-playlist-from-links` | 1 | 1 | `deepseek-v4-flash` | 2026-08-28 09:33 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma haber montado la lista con los dos vídeos cuando el mecanismo solo registra add×1 y la … |
 | ✅ | `build-workout-tracker-widget` | 1 | 5 | ? | 2026-08-20 01:01 | yes | Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sist… |
+| 🔒 | `buy-known-product__us` | 1 | 3 | `deepseek-v4-flash` | 2026-08-28 08:56 | yes | No está listo para producción: el bloqueador nº1 es que zaelar dejó al usuario esperando más de 5 minutos ante una tarea encallada sin decirle 'sin avanzar' … |
 | 🔒 | `cancel-subscription-before-charge__es` | 1 | 3 | ? | 2026-08-21 13:53 | yes | No está listo para producción: el bloqueador nº1 es el éxito falso del turno 2 («Hecho» sin cancelación real), que rompe la confianza en una acción irreversi… |
+| 🔒 | `cancel-subscription-before-charge__us` | 1 | 2 | `glm-5.3` | 2026-08-28 07:08 | yes | El caso no está listo para producción. El fallo crítico es la incapacidad para cumplir la promesa de crear un recordatorio (ni siquiera se escribió en el sis… |
 | 🔒 | `find-theatre-tickets__es` | 1 | 3 | ? | 2026-08-20 18:28 | yes | El caso no está listo para producción: el bloqueador nº1 es que zaelar ocultó un muro conocido durante un turno y prometió acciones sin respaldo observable, … |
-| ❌ | `play-music-and-build-playlist` | 1 | 2 | — | 2026-08-28 04:18 | yes | No está listo para producción: la música sonó de verdad, pero la lista 'Curro' se creó vacía sin la canción dentro, y el bloqueador nº1 es que no se ejecutó … |
+| 🔒 | `find-theatre-tickets__us` | 1 | 2 | `deepseek-v4-flash` | 2026-08-28 09:14 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ocultó el estado real de la tarea (encallada y con error interno) detrás de respuestas vagas y… |
+| ⚠️ | `pay-known-bill__us` | 1 | 3 | `glm-5.3` | 2026-08-28 07:49 | yes | **INFRA — sin cuota en z.ai → relevo a deepseek: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (veredicto no … |
+| ❌ | `play-music-and-build-playlist` | 1 | 2 | — | 2026-08-28 09:17 | yes | No está listo para producción: el bloqueador nº1 es que zaelar confirma 'Hecho' sin verificar que la canción quedara realmente dentro de la lista — el inform… |
 | ✅ | `quick-fact-opening-hours` | 1 | 4 | ? | 2026-08-21 01:38 | yes | El caso de uso está listo para producción en cuanto a resultado y naturalidad, pero el bloqueador nº1 es el mecanismo: se escaló a un flujo con navegador cua… |
 | ✅ | `remember-and-remind-deadline` | 1 | 4 | ? | 2026-08-27 11:11 | yes | El caso está resuelto en lo esencial — cita escrita en agenda para el jueves 3 y aviso programado para el miércoles 2 antes del evento — pero el prompt del r… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | ? | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
+| 🔒 | `renew-gym-membership__us` | 1 | 3 | `deepseek-v4-flash` | 2026-08-28 08:06 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega lo que el sistema ya le ha puesto delante (resultados encontrados y notas empujadas… |
+| 🔒 | `reorder-prescription__us` | 1 | 2 | `glm-5.3` | 2026-08-28 07:27 | yes | El caso de uso NO está listo para producción: la parte técnica (mecanismo) funciona y localiza los datos, pero el modelo falla gravemente al no entregar esos… |
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | ? | 2026-08-27 07:20 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no cierra la tarea ni entrega resultados concretos en tiempo útil — el worker se atascó 3+ min… |
+| 🔒 | `restaurant-tonight-nyc__us` | 1 | 2 | `glm-5.3` | 2026-08-28 06:46 | yes | No está listo para producción: falló el objetivo principal (no reservó ni presentó opciones) y cometió un fallo grave de confianza al prometer una llamada te… |
 | ✅ | `watch-a-video-not-listen-to-it` | 1 | 5 | ? | 2026-08-27 14:33 | yes | El caso está resuelto con éxito total: zaelar identificó correctamente el contenido como vídeo (evitando la regresión de música), cargó el widget de YouTube … |
-| ❌ | `best-plumber-same-day__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:36 | yes | No está listo para producción: el bloqueador nº1 es que zaelar negó tener resultados que ya estaban en su prompt y bloqueó la entrega de un fontanero urgente… |
-| ⚠️ | `best-plumber-same-day__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:42 | yes | **INFRA — el arnés se cayó o el veredicto llegó marcado INFRA** · (veredicto no medible: No está listo para producción: el bloqueador nº1 es que zaelar no en… |
-| ❌ | `best-rated-rental-car__es` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 02:03 | yes | No está listo para producción: el caso pedía encontrar y nombrar el coche mejor valorado y no se entregó ni una sola opción real; el bloqueador nº1 es que el… |
-| ❌ | `best-rated-rental-car__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 01:56 | yes | No está listo para producción: el caso pedía encontrar y nombrar el coche mejor valorado y la conversación termina sin un solo candidato real, con la hoja de… |
+| 🔒 | `best-pediatric-dentists__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 09:26 | yes | No está listo para producción: el bloqueador nº1 es que zaelar retiene resultados que ya tiene en su prompt y no entrega ratings ni intenta la reserva, dejan… |
+| ❌ | `best-plumber-same-day__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 05:39 | yes | El caso no está listo para producción. El bloqueador nº1 es la incapacidad del modelo para sincronizar su narrativa con el estado real del sistema (negación … |
+| ❌ | `best-plumber-same-day__us` | 2 | 3 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 11:10 | yes | El entregable existe y la recomendación de Ace Plumbing & Rooter está bien verificada (reseñas, teléfono, licencia, horario), pero este caso no está listo pa… |
+| ❌ | `best-rated-rental-car__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:11 | yes | No está listo para producción: el bloqueador nº1 es que zaelar anunció entregas y pasos que no existían (hoja vacía, worker atascado) y no entregó los result… |
+| ❌ | `best-rated-rental-car__us` | 2 | 2.4 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 11:37 | yes | No está listo para producción: entregó ofertas reales con precio y fuente en la hoja, pero no la valoración que la petición pedía explícitamente ("best-rated… |
 | ✅ | `cheapest-monitor` | 2 | 4 | ? | 2026-08-26 01:21 | yes | El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es… |
-| ❌ | `cheapest-monitor__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 01:03 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados que tiene delante — la hoja contenía 6 filas desde 105 segundos ante… |
-| ❌ | `compare-broadband-plans__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 02:15 | yes | No está listo para producción: el bloqueador nº1 es que zaelar retuvo la mitad de los resultados que tenía delante y dio un precio equivocado (4,9€ en vez de… |
+| ❌ | `cheapest-monitor__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 10:31 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo 6 candidatos reales delante en su prompt y no nombró ni uno solo en 9 turnos, dejando al … |
+| ❌ | `compare-broadband-plans__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:23 | yes | El caso no está listo para producción: el asistente encuentra datos reales pero falla en la toma de decisión y cierre, quedándose atrapado en bucles de búsqu… |
 | 🔒 | `compare-flights-madrid-lisboa` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 04:43 | yes | No está listo para producción: el bloqueador nº1 es que zaelar vuelca filas crudas de la hoja en lugar de construir una comparación legible con el requisito … |
-| ❌ | `compare-insurance-quotes__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:50 | yes | No está listo para producción: el bloqueador nº1 es que zaelar entregó una comparativa incompleta y con precios que no coinciden con los datos reales de la h… |
+| 🔒 | `compare-flights-sf-austin__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 09:44 | yes | No está listo para producción: el bloqueador nº1 es que zaelar presentó vuelos y precios como encontrados sin que el mecanismo hubiera extraído nada, y despu… |
+| ❌ | `compare-insurance-quotes__es` | 2 | 3 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 11:52 | yes | No está listo para producción: la comparativa llegó con un precio mal citado (Pelayo 165 frente a 202), sin una recomendación final cerrada y tras más de sie… |
+| ❌ | `compare-insurance-quotes__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 10:01 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó un éxito falso con cotizaciones inventadas mientras el worker seguía encallado y la hoj… |
+| ❌ | `compare-phone-plans__us` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 10:09 | yes | No está listo para producción: el bloqueador nº1 es que narró resultados como verificados mientras el worker llevaba 4 minutos sin avanzar y con un error int… |
 | ✅ | `find-best-hotel-city__es` | 2 | 4 | ? | 2026-08-25 10:22 | yes | Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usua… |
-| ❌ | `find-best-hotel-city__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:15 | yes | No está listo para producción: el caso pedía hoteles reales comparados y no se entregó ni un solo candidato con nombre; el bloqueador nº1 es la extracción de… |
-| ❌ | `find-concert-tickets__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 02:51 | yes | No está listo para producción en este caso de uso: el bloqueador nº1 es que zaelar no cierra el resultado negativo ('no hay concierto de Rosalía en Madrid es… |
-| ❌ | `find-direct-flight-budget__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 03:02 | yes | No está listo para producción en este caso de uso: el bloqueador nº1 es que zaelar tenía resultados reales y una pregunta de confirmación delante y respondió… |
-| ❌ | `find-videos-on-a-topic-no-ai-slop` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 04:33 | yes | No está listo para producción: el bloqueador nº1 es que la hoja de resultados acabó con 4 candidatos de tests de velocidad en vez de vídeos de poda de olivos… |
+| ❌ | `find-best-hotel-city__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 10:48 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía 4 candidatos reales en su hoja y solo entregó 2, con 2 precios dichos mal, mientras narr… |
+| ❌ | `find-concert-tickets__es` | 2 | 3.5 | `deepseek-v4-flash` | 2026-08-28 07:18 | yes | El caso no está listo para producción porque, aunque el comportamiento conversacional y la gestión de bloqueos fueron excelentes, falló el objetivo del usuar… |
+| ❌ | `find-direct-flight-budget__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 07:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo 8 vuelos reales con nombre y precio en su prompt y no entregó ni uno, respondiendo con ge… |
+| ❌ | `find-videos-on-a-topic-no-ai-slop` | 2 | 1 | — | 2026-08-28 09:52 | yes | No está listo para producción: zaelar narró candidatos que nunca existieron en el sistema, dejó la hoja de resultados vacía y afirmó haber filtrado por un cr… |
 | ✅ | `hotel-under-15-days` | 2 | 4 | ? | 2026-08-26 01:06 | yes | El caso es FUNCIONAL y está listo para producción porque zaelar encontró, filtró y desplegó opciones reales de forma correcta; el bloqueador principal no es … |
-| ❌ | `kid-friendly-activity-nearby__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 03:17 | yes | No está listo para producción: el bloqueador nº1 es que zaelar negó tres veces una evidencia que el sistema le puso delante en el prompt («YA HA ENCONTRADO A… |
-| ❌ | `rental-car-automatic-airport__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 03:24 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados reales que tiene delante — responde con un precio suelto y modelos n… |
-| ❌ | `search-buy-bicycle__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 03:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar dijo «sin novedades» cuando ya tenía candidatos reales en la hoja, y luego entregó opciones si… |
-| ❌ | `search-buy-bicycle__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 02:23 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ignoró dos avisos empujados de bloqueo y entregó 0 de 1 resultados que tenía delante, dejando … |
+| ❌ | `kid-friendly-activity-nearby__es` | 2 | 1 | — | 2026-08-28 07:55 | yes | No está listo para producción: el bloqueador nº1 es que zaelar agendó una idea genérica sin buscar ni presentar opciones reales con precio y fuente, dejando … |
+| ❌ | `rental-car-automatic-airport__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 08:13 | yes | No está listo para producción: el bloqueador nº1 es que la búsqueda tarda más que la conversación y zaelar no entrega los resultados que ya tiene en su promp… |
+| ❌ | `search-buy-bicycle__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 08:31 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo delante durante tres turnos la instrucción explícita de contar el bloqueo y los resultado… |
+| ❌ | `search-buy-bicycle__us` | 2 | 2 | `glm-5.3` | 2026-08-28 06:31 | yes | No está listo: falló el resultado (hoja vacía) y la transparencia (ocultó bloqueos 403 prometiendo éxito), requiriendo mejoras en el reporte de estado del wo… |
 | ✅ | `search-buy-camera__es` | 2 | 4 | ? | 2026-08-27 14:54 | yes | El caso es funcional y el sistema encontró opciones reales (Canon EOS 4000D con 2.019 disparos, Nikon D800 con 15.000) que se entregaron visualmente, pero el… |
-| ⚠️ | `search-buy-camera__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:29 | yes | **INFRA — el arnés se cayó o el veredicto llegó marcado INFRA** · (veredicto no medible: No está listo para producción: el bloqueador nº1 es que entrega una … |
+| ✅ | `search-buy-camera__us` | 2 | 4 | `deepseek-v4-flash` | 2026-08-28 05:32 | yes | El caso es funcional y los datos son reales (lo cual es crítico), pero adolece de lentitud en la entrega y parcialidad en el resumen; corregir el timing de p… |
 | ✅ | `search-buy-guitar__es` | 2 | 4 | `deepseek-v4-flash` | 2026-08-28 03:49 | yes | **⚠️ el juez dice que NO está listo, aunque la nota pase** · No está listo para producción: el bloqueador nº1 es que el sistema no mostró a zaelar las filas … |
 | ✅ | `search-buy-motorcycle__es` | 2 | 4 | `deepseek-v4-flash` | 2026-08-28 04:00 | yes | **⚠️ el juez dice que NO está listo, aunque la nota pase** · No está listo para producción: el bloqueador nº1 es que zaelar negó cuatro veces resultados que … |
-| ❌ | `search-buy-used-car` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 01:24 | yes | No está listo para producción: el bloqueador nº1 es que zaelar ignoró tres veces la instrucción explícita de entregar resultados que ya tenía delante, hacien… |
-| ❌ | `search-buy-used-car__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 02:07 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega el 'top 3' de coches individuales con precio y origen — entrega 2 de 8 páginas de l… |
+| ⚠️ | `search-buy-used-car` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 10:57 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
+| ⚠️ | `search-buy-used-car__us` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 12:09 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
 | ✅ | `search-secondhand-monitor__es` | 2 | 4 | ? | 2026-08-27 10:51 | yes | El caso se completa con resultados reales y bien montados en la hoja, pero zaelar negó resultados que ya tenía delante y ocultó un bloqueo del sitio: el bloq… |
 | ✅ | `search-secondhand-monitor__us` | 2 | 4 | ? | 2026-08-27 21:01 | yes | El caso está listo para producción en términos funcionales (el usuario obtiene sus monitores), pero el código del worker requiere revisión para corregir erro… |
-| ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 04:06 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía 8 resultados reales delante y no nombró ni uno, dejando al usuario con la impresión de q… |
-| ❌ | `weekend-barber-availability__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 02:29 | yes | No está listo para producción: el bloqueador nº1 es que afirma éxitos y acepta reservas sin ningún resultado real detrás, dejando al usuario con un plan fals… |
-| ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 1 | `deepseek-v4-flash` | 2026-08-28 01:12 | yes | No está listo para producción: el bloqueador nº1 es que la conversación termina sin un solo plan cerrado para el fin de semana — ni disponibilidad confirmada… |
-| ❌ | `weekend-motor-events__es` | 3 | 2 | `deepseek-v4-flash` | 2026-08-28 04:15 | yes | No está listo para producción: el bloqueador nº1 es que de 8 resultados reales que el sistema le puso delante solo entregó 2 por su nombre, dejando al usuari… |
-| ⚠️ | `weekend-plan-barcelona__es` | 3 | 1 | `deepseek-v4-flash+glm-5.3` | 2026-08-28 00:57 | yes | No está listo para producción: el bloqueador nº1 es que no usó la memoria sembrada para acotar la propuesta y, tras 56 búsquedas y 2 workers, la hoja de resu… |
+| ❌ | `things-to-do-nearby-weekend__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 08:49 | yes | No está listo para producción: el bloqueador nº1 es que zaelar entregó enlaces a páginas de programa como si fueran el resultado concreto que el usuario pidi… |
+| ❌ | `weekend-barber-availability__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 06:36 | yes | No está listo para producción: el bloqueador principal es la incapacidad del worker para extraer y escribir la disponibilidad real en la hoja de resultados, … |
+| ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 3 | `deepseek-v4-flash` | 2026-08-28 10:41 | yes | No está listo para producción: el bloqueador nº1 es la adaptación — preguntó preferencias que ya tenía en memoria y ofreció actividades de altura a una perso… |
+| ❌ | `weekend-motor-events__es` | 3 | 2 | `deepseek-v4-flash` | 2026-08-28 09:07 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía 7 resultados reales delante y solo entregó 2 por su nombre, dejando sin decir los museos… |
+| ❌ | `weekend-plan-barcelona__es` | 3 | 2 | `deepseek-v4-flash` | 2026-08-28 10:24 | yes | No está listo para producción: el bloqueador nº1 es que zaelar retuvo 6 de 8 resultados reales que tenía delante y entregó solo 2, mientras repetía la misma … |
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
-| ❌ | `two-searches-two-sheets` | 4 | 2 | ? | 2026-08-27 11:14 | yes | No está listo para producción: el bloqueador nº1 es la atribución — zaelar cerró las dos búsquedas sin preguntar cuál, mandó más fontaneros cuando el usuario… |
+| ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**13 passing · 23 failing · 3 infra** of 39 scenarios we can actually finish.
+**14 passing · 25 failing · 3 infra** of 42 scenarios we can actually finish.
 
-Plus **6 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `book-hotel-night-known__es`, `cancel-subscription-before-charge__es`, `compare-flights-madrid-lisboa`, `find-theatre-tickets__es`, `renew-gym-membership__es`, `restaurant-tonight-madrid`.
+Plus **16 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `best-pediatric-dentists__us`, `book-barber-slot__us`, `book-hotel-night-known__es`, `book-hotel-night-known__us`, `buy-known-product__us`, `cancel-subscription-before-charge__es`, `cancel-subscription-before-charge__us`, `compare-flights-madrid-lisboa`, `compare-flights-sf-austin__us`, `find-theatre-tickets__es`, `find-theatre-tickets__us`, `renew-gym-membership__es`, `renew-gym-membership__us`, `reorder-prescription__us`, `restaurant-tonight-madrid`, `restaurant-tonight-nyc__us`.
 
 ## Segments — what can be carried out END TO END today
 
@@ -76,11 +89,11 @@ Plus **6 🔒 capped** (need the user's own credentials; measured for honesty on
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 56 | 39 | 13 |
-| 🔑 credentials | 54 | 6 | 0 |
+| ✅ completable | 56 | 41 | 14 |
+| 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 39 of 56 ever run (17 never run)
+## Coverage of the RUNNABLE list — 41 of 56 ever run (15 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
@@ -88,7 +101,7 @@ An unrun case is **not** a passing one. This is the walk's progress board, and i
 |---|---|---|---|---|
 | 1 | es | 6 | 6 | 4 |
 | 2 | es | 20 | 20 | 7 |
-| 2 | us | 8 | 18 | 1 |
+| 2 | us | 10 | 18 | 2 |
 | 3 | es | 3 | 5 | 0 |
 | 3 | us | 0 | 2 | 0 |
 | 4 | es | 2 | 2 | 1 |
@@ -101,12 +114,23 @@ Operator's rule (2026-08-18): renewing a gym membership can never work with no g
 
 | scenario | scope | what is missing |
 |---|---|---|
+| `best-pediatric-dentists__us` | no_booking | cerrar la cita (teléfono o cuenta) |
+| `book-barber-slot__us` | no_booking | cerrar la cita (teléfono o cuenta) |
 | `book-hotel-night-known__es` | no_booking | cerrar la reserva (cuenta y tarjeta) |
+| `book-hotel-night-known__us` | no_booking | cerrar la reserva (cuenta y tarjeta) |
+| `buy-known-product__us` | no_account | una cuenta con lista de deseos y un medio de pago |
 | `cancel-subscription-before-charge__es` | no_account | una suscripción real y acceso a esa cuenta |
+| `cancel-subscription-before-charge__us` | no_account | una suscripción real y acceso a esa cuenta |
 | `compare-flights-madrid-lisboa` | no_booking | comprar el vuelo (cuenta y tarjeta) |
+| `compare-flights-sf-austin__us` | no_booking | comprar el vuelo (cuenta y tarjeta) |
 | `find-theatre-tickets__es` | no_booking | comprar las entradas (cuenta y tarjeta) |
+| `find-theatre-tickets__us` | no_booking | comprar las entradas (cuenta y tarjeta) |
+| `pay-known-bill__us` | no_account | una factura real y acceso al proveedor/banco |
 | `renew-gym-membership__es` | no_account | una cuota de gimnasio real y una cuenta en su web |
+| `renew-gym-membership__us` | no_account | una cuota de gimnasio real y una cuenta en su web |
+| `reorder-prescription__us` | no_account | una farmacia habitual y una receta real |
 | `restaurant-tonight-madrid` | no_booking | cerrar la mesa (teléfono o cuenta en la plataforma) |
+| `restaurant-tonight-nyc__us` | no_booking | cerrar la mesa (teléfono o cuenta en la plataforma) |
 
 ## Where the work on each failing case happens
 
@@ -116,38 +140,59 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
+| `best-pediatric-dentists__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `best-plumber-same-day__es` | `.meshkore/roadmap/initiatives/V2-228-uc-best-plumber-same-day-es.md` | `` |
+| `best-plumber-same-day__us` | `.meshkore/roadmap/initiatives/V2-407-uc-best-plumber-same-day-us.md` | `` |
 | `best-rated-rental-car__es` | `.meshkore/roadmap/initiatives/V2-230-uc-best-rated-rental-car-es.md` | `` |
 | `best-rated-rental-car__us` | `.meshkore/roadmap/initiatives/V2-408-uc-best-rated-rental-car-us.md` | `` |
+| `book-barber-slot__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
+| `book-hotel-night-known__us` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `build-a-video-playlist-from-links` | `.meshkore/roadmap/initiatives/V2-387-uc-build-a-video-playlist-from-links.md` | `` |
+| `buy-known-product__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
+| `cancel-subscription-before-charge__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `cheapest-monitor__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `compare-broadband-plans__es` | `.meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md` | `` |
 | `compare-flights-madrid-lisboa` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
+| `compare-flights-sf-austin__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `compare-insurance-quotes__es` | `.meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md` | `` |
+| `compare-insurance-quotes__us` | `.meshkore/roadmap/initiatives/V2-446-uc-compare-insurance-quotes-us.md` | `.meshkore/modules/nucleo/tasks/T492-uc-compare-insurance-quotes-us-fix.md` |
+| `compare-phone-plans__us` | `.meshkore/roadmap/initiatives/V2-447-uc-compare-phone-plans-us.md` | `.meshkore/modules/nucleo/tasks/T493-uc-compare-phone-plans-us-fix.md` |
 | `find-best-hotel-city__us` | `.meshkore/roadmap/initiatives/V2-405-uc-find-best-hotel-city-us.md` | `` |
 | `find-concert-tickets__es` | `.meshkore/roadmap/initiatives/V2-263-uc-find-concert-tickets-es.md` | `` |
 | `find-direct-flight-budget__es` | `.meshkore/roadmap/initiatives/V2-265-uc-find-direct-flight-budget-es.md` | `` |
 | `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
+| `find-theatre-tickets__us` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `find-videos-on-a-topic-no-ai-slop` | `.meshkore/roadmap/initiatives/V2-388-uc-find-videos-on-a-topic-no-ai-slop.md` | `` |
 | `kid-friendly-activity-nearby__es` | `.meshkore/roadmap/initiatives/V2-266-uc-kid-friendly-activity-nearby-es.md` | `` |
 | `play-music-and-build-playlist` | `.meshkore/roadmap/initiatives/V2-385-uc-play-music-and-build-playlist.md` | `` |
+| `renew-gym-membership__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `rental-car-automatic-airport__es` | `.meshkore/roadmap/initiatives/V2-267-uc-rental-car-automatic-airport-es.md` | `` |
+| `reorder-prescription__us` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
+| `restaurant-tonight-nyc__us` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `search-buy-bicycle__es` | `.meshkore/roadmap/initiatives/V2-268-uc-search-buy-bicycle-es.md` | `` |
 | `search-buy-bicycle__us` | `.meshkore/roadmap/initiatives/V2-410-uc-search-buy-bicycle-us.md` | `` |
-| `search-buy-used-car` | `.meshkore/roadmap/initiatives/V2-227-uc-search-buy-used-car.md` | `` |
-| `search-buy-used-car__us` | `.meshkore/roadmap/initiatives/V2-409-uc-search-buy-used-car-us.md` | `` |
 | `things-to-do-nearby-weekend__es` | `.meshkore/roadmap/initiatives/V2-312-uc-things-to-do-nearby-weekend-es.md` | `` |
-| `two-searches-two-sheets` | `.meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md` | `.meshkore/modules/nucleo/tasks/T472-uc-two-searches-two-sheets-fix.md` |
+| `two-searches-two-sheets` | `.meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md` | `` |
 | `weekend-adventure-sports-bilbao__es` | `.meshkore/roadmap/initiatives/V2-217-uc-weekend-adventure-sports-bilbao-es.md` | `` |
 | `weekend-barber-availability__es` | `.meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md` | `` |
 | `weekend-motor-events__es` | `.meshkore/roadmap/initiatives/V2-272-uc-weekend-motor-events-es.md` | `` |
+| `weekend-plan-barcelona__es` | `.meshkore/roadmap/initiatives/V2-216-uc-weekend-plan-barcelona-es.md` | `` |
+
+## Rondas en las que NO le dijimos lo que ya tenía
+
+Turnos posteriores a que la hoja tuviera filas con nombre en los que el prompt de zaelar **no decía que hubiera nada**. En esos turnos, un «sigo buscando» no es retener ni negar: es repetir lo que le pusimos delante. Parte del rojo de estas filas es nuestro.
+
+| scenario | turnos ciegos |
+|---|---|
+| `best-plumber-same-day__es` | 10 |
+| `search-buy-camera__us` | 4 |
 
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
 
 | scenario | max concurrent tasks | distinct worker kinds |
 |---|---|---|
 | `three-tasks-at-once` | 3 | code, generic, web |
-| `two-searches-two-sheets` | 3 | generic, research, web |
+| `two-searches-two-sheets` | 2 | web |
