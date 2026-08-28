@@ -2139,6 +2139,14 @@ DOMAINS: list[dict] = [
         # caminos (hoja, extracción, nota). 2 de 246 rondas medibles, y ocho bugs míos por el camino.
         # V2-453 — el motor emite desde V2-311 que un recall no llegó, y el informe no lo leía: «pregunta lo
         # que ya sabe» quedaba sin atribuir entre avería nuestra y conducta del modelo.
+        # V2-459: tres agentes en esta máquina y sus puertos son marcadores del operador. El laboratorio los
+        # tenía clavados (43921/43922) mientras la tanda desatendida arrancaba en `preferred_port(43918)` —
+        # un número para los DOS idiomas, y encima deslizante. El operador abrió el 43921 esperando al agente
+        # español y no había nada: esa dirección solo existía para `--lab`.
+        {"id": "10.116", "title": "Tres agentes, tres puertos fijos — y un puerto ocupado PARA la tanda en vez "
+                                  "de mudarla",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},
         {"id": "10.115", "title": "El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene dos causas",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_el_recall_que_no_llego_se_cuenta.py"]},

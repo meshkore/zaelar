@@ -5143,6 +5143,49 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **Tres agentes en esta máquina, tres puertos, y ninguno se mueve (V2-459, 2026-08-28)**: el operador volvió
+  a `127.0.0.1:43921` —donde había estado mirando al agente español— y no había nada. No era un arranque
+  fallido: **esa dirección solo existía para la mitad del arnés**. El laboratorio tenía 43921/43922 clavados y
+  documentados como que nunca cambian, mientras la tanda desatendida arrancaba en `preferred_port(43918)`: UN
+  número para los dos idiomas y, encima, deslizante a un puerto efímero si estaba ocupado. Así que «el agente
+  español» tenía dos direcciones según qué comando lo hubiera levantado, y la que se deslizaba no era una
+  dirección — la ronda corría donde cupiera y después nadie podía decir dónde. El deslizamiento **compraba
+  menos de lo que parecía**: un motor huérfano tumbaba igual todas las tandas siguientes (medido en
+  `test_run_persistence.py`), solo que callando. Ahora hay UNA tabla (`tests/platform/ports.py`: 43917
+  operador · 43921 ES · 43922 US), el puerto sale del **idioma del caso** y no de quién lanzó la tanda,
+  `preferred_port()` **se ha ido** (mientras exista alguien la vuelve a llamar «solo para que no falle el
+  arranque»), y un puerto ocupado es un **error que dice quién lo tiene** y sale con 4 (no se puede medir), no
+  con 3 (no se debe). Nodo 10.116, dos desarmes. También se comprueba que el 43917 de la tabla es el que
+  `server/__main__.py` arranca solo: esa fila no la controla el arnés y una colisión ahí se paga con la
+  sesión de trabajo de una persona.
+
+- **Enseñar una foto es un turno de 3 s, no un encargo de 355 (V2-457, 2026-08-28)**: el operador pidió a mano
+  «una foto real del Ferrari Amalfi» y el sistema escaló a un Brain Worker — **372 s y $1,96**, con las fotos
+  volcadas en la hoja de resultados genérica y la primera visible a los 3m25s (presentó dos veces). Medida la
+  misma petición por las dos rutas: worker 355 s / $1,96 / Autocar India y mad4wheels, frente a `show_images`
+  **3,0 s / ~0 / cdn.ferrari.com, Wikimedia 3128×2333, netcarshow 3748×2811**. La ruta rápida no es solo más
+  rápida, **trae más autoridad**: el worker nunca llegó a la galería de Ferrari porque se pinta con JS y su
+  `fetch` vio una página vacía, mientras que un índice de imágenes ya la había rastreado. Así que escalar se
+  queda para **CURAR**, no para encontrar. Tres piezas: el visor `widgets/imagenes/` (foto grande, tira de
+  miniaturas, ‹ ›, título con la FUENTE — un previsualizador y nada más, por V2-402: lo que se VE tiene widget
+  propio), la tool `show_images` hermana de `play_music`/`play_video` **cableada en los DOS canales** (voz y
+  probe, el defecto que esta casa ha pagado cuatro veces), y la receta del worker, que decía con esas letras
+  que «una foto» va a la hoja — o sea que la ruta rápida las enseñaba y la lenta las volvía a volcar en una
+  tabla. **La frontera es qué ES la respuesta**: «enséñame fotos de X» → visor; «búscame un hotel» → la foto
+  es una columna de la ficha. Bing se midió y se descartó como titular (9 de 10 eran otro coche) pero queda de
+  socorro etiquetado si Google bloquea. Nodos 4.82 y 4.83. El bug que solo apareció RENDERIZANDO: el aviso de
+  «esta imagen ya no carga» se llevaba por delante las flechas, justo cuando más hacen falta.
+
+- **Un saldo agotado apaga a los escalones de su MISMA cuenta (V2-458, 2026-08-28)**: la cadena del operador es
+  `deepseek-v4-flash → deepseek-v4-pro → aimlapi-failover` y los dos primeros cobran de la misma clave. Con la
+  cuenta a cero, el único reintento que concede V2-252 se gastaba **en un hermano imposible** y el tercer
+  escalón —el único de otra cuenta, que respondía 200— no se probaba nunca: el turno salía mudo. Un saldo es
+  un hecho de la CUENTA, así que cae sobre todos los que la comparten, y hacen falta **dos** señales: **mismo
+  host Y misma credencial resuelta**. La credencial sola no basta y no es hipotético — lo destapó un test que
+  ya existía (siembra `Z_AI_API_KEY` y `AIMLAPI_KEY` con el mismo literal), así que una regla que solo mirara
+  la clave habría apagado Z.AI al fallar AIMLAPI. Ante la duda **no se empareja**. La distinción de V2-243 no
+  se toca: una CUOTA es del modelo y se repone sola.
+
 - **La oferta de PARAR se hace una vez — el hecho se queda (V2-454, 2026-08-28)**: el bloque dice «si una tarea
   sale ENCALLADA o SIN AVANZAR, dilo con esas letras **la primera vez** y ofrece pararla», y **el modelo no
   puede saber si es la primera** — es un hecho NUESTRO, lo mismo que V2-224 aprendió con el aviso de muerte.

@@ -82,16 +82,24 @@ context manager. Two things worth knowing:
   properly is a product change (a workspace-relative catalog would also stop the sandbox from seeing
   the built-in widgets), so it is recorded, not guessed at.
 
+The port comes from one table, `tests/platform/ports.py`, which is also where the lab agents get theirs:
+this machine runs **three** agents — the operator's own engine on `43917`, the Spanish sandbox on `43921`
+and the American one on `43922` — and each answers there whether the round was launched with `--sandbox`
+or with `--lab`. A busy port is an **error** that names who is holding it, never a reason to slide to
+another one: an agent that quietly moves is an agent you cannot find, and the operator has these
+bookmarked.
+
 Don't run `make run` while a sandbox is alive — `scripts/run-livekit.sh` reaps every `python -m
 server` by process NAME, not by port, so it would kill the sandbox too. The reverse is safe.
 
 ### Watching the test agent while it works
 
-The sandbox prints its URL on boot and prefers port **43918** (falls back to a free one if taken), and its
-workspace is KEPT under `tests/runs/use_cases/sandbox/<stamp>/` (gitignored). So a run is observable, not a
-black box:
+The sandbox answers on **the fixed port of its locale** — `43921` for a Spanish batch, `43922` for an
+American one — and its workspace is KEPT under `tests/runs/use_cases/sandbox/<stamp>/` (gitignored). So a
+run is observable, not a black box:
 
-- open `http://127.0.0.1:43918` while the batch runs — the ◷ visor shows this agent's events/flows live;
+- open `http://127.0.0.1:43921` (ES) or `http://127.0.0.1:43922` (US) while the batch runs — the ◷ visor
+  shows this agent's events/flows live;
 - `GET /api/observability/flows?limit=30` lists its task flows (each probe turn is a flow, with `origin`,
   `title`, families and duration); `GET /api/tasks` is the live worker registry;
 - the workspace survives the run, so its `zaelar.db` and `logs/` can be inspected afterwards.

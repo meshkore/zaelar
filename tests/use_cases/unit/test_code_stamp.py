@@ -120,7 +120,10 @@ def test_the_stamp_is_taken_BEFORE_the_engine_boots(monkeypatch, tmp_path):
 
     import tests.platform.sandbox_engine as SE
     monkeypatch.setattr(SE, "sandbox_engine", _fake_engine)
-    monkeypatch.setattr(SE, "preferred_port", lambda p: p)
+    # The port is now a fixed one per locale and a busy one refuses the round (V2-459). This case is about
+    # WHEN the stamp is taken, so whether the machine happens to have that agent up must not decide it.
+    import tests.platform.ports as PORTS
+    monkeypatch.setattr(PORTS, "busy_refusal", lambda port, **kw: "")
     monkeypatch.setattr(R, "_run_batch", lambda *a, **k: order.append("run") or 0)
     # The batch now spends one throwaway turn checking the brain can speak (`brain_preflight`); this test
     # is about WHEN the stamp is taken, and a fake engine has nothing to answer with.

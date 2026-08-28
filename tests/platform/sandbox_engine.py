@@ -171,16 +171,11 @@ def _wait_ready(eng: SandboxEngine, timeout: float) -> None:
     raise TimeoutError(f"sandbox engine did not answer on {eng.base_url} in {timeout}s\n{eng.log_tail(80)}")
 
 
-def preferred_port(want: int) -> int:
-    """`want` if it's free, otherwise an ephemeral one. A STABLE port matters for a sandbox the operator is
-    meant to watch (they can bookmark it), but it must never be a hard requirement — two batches at once, or
-    a leftover process, would otherwise fail the boot instead of just moving over."""
-    try:
-        with socket.socket() as s:
-            s.bind(("127.0.0.1", want))
-        return want
-    except OSError:
-        return free_port()
+# `preferred_port(want)` USED TO LIVE HERE: `want` if free, an ephemeral one otherwise. It was removed on
+# 2026-08-28 (V2-459) because the fallback was the bug. A sandbox the operator is meant to WATCH needs an
+# address they can bookmark, and "usually 43918" is not an address — the round that slid was unfindable, and
+# a leftover engine on the wanted port killed every later batch anyway, silently. Which port each of this
+# machine's three agents owns is now a table (`tests/platform/ports.py`), and a busy one refuses out loud.
 
 
 def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,

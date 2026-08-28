@@ -298,6 +298,11 @@ engine bug; correlate the transcript, `/events`, actions and judge report first.
 - Engine/application: `http://127.0.0.1:43917`.
 - Test Observatory: `http://127.0.0.1:8765`.
 - Both bind to loopback and serve different purposes.
+- **Three agents run on this machine, on three fixed ports** — the table is `tests/platform/ports.py` and
+  everything that boots one reads it: `43917` the operator's own engine, `43921` the Spanish sandbox and
+  `43922` the American one (`tests/use_cases/lab/`, and the `--sandbox` batch of that locale). The number
+  never changes between runs and a busy port is a refusal naming who holds it, never a slide to a free one:
+  the operator watches these while they work, and an agent that moves is an agent they cannot find.
 - `make reset` deletes human-memory/observability state; it is destructive and is **not** routine test setup.
 - Prefer fixture DBs, `ingest:false`, unique session IDs and provider sandboxes.
 - Never expose secrets in cases, command arguments, events, screenshots or reports. Event fields named token,

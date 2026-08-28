@@ -10,6 +10,13 @@ watching — by the time you open the URL, the port is gone.
 | `es` | **http://127.0.0.1:43921** | `es` | Marc, lives in Madrid, Spain |
 | `us` | **http://127.0.0.1:43922** | `en` | Alex, lives in San Francisco, California |
 
+Those two numbers are not written here or in `profiles.py` — they come from `tests/platform/ports.py`,
+the one table of the **three** agents this machine runs (the operator's own engine holds `43917`). The
+unattended batch reads the same table, so a Spanish round answers on `43921` whether it was started with
+`--lab es` or with `--sandbox`. Until 2026-08-28 it did not: `--sandbox` booted on `preferred_port(43918)`
+— one number for both languages, sliding to an ephemeral one when taken — and the operator opened the port
+they remembered to find nothing listening.
+
 ```
 python -m tests.use_cases.lab up            # both, with voice, on their own LiveKit rooms
 python -m tests.use_cases.lab status

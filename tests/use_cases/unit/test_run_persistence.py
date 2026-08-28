@@ -69,8 +69,8 @@ def test_record_of_one_leaves_the_other_rows_untouched(tmp_path, monkeypatch):
 # ── una tanda que no midió NADA no puede pasar por una re-prueba ───────────────────────────────────────────
 def test_a_batch_that_measured_nothing_is_reported_and_files_NOTHING(monkeypatch):
     """El fallo que enseñó esto: un SANDBOX HUÉRFANO (`python -m server`, PPID 1) que un lote matado dejó
-    atrás se quedó con el puerto 43918, así que cada `run.py --verify` posterior moría al arrancar en menos de
-    un segundo. `_runner_alive()` no lo ve —busca un proceso `…agent.run`, no el motor que el lote levanta— así
+    atrás se quedó con el puerto del sandbox, así que cada `run.py --verify` posterior moría al arrancar en
+    menos de un segundo. `_runner_alive()` no lo ve —busca un proceso `…agent.run`, no el motor que el lote levanta— así
     que el tick seguía lanzando tandas imposibles y luego LEÍA EL VEREDICTO ANTERIOR del marcador y actuaba
     sobre él: logueaba «re-probado» para un caso que nadie corrió y, peor, `rotate_failure` habría archivado
     una iniciativa describiendo una corrida de hace una hora como si fuera evidencia nueva.
@@ -103,7 +103,12 @@ def test_a_batch_that_measured_nothing_is_reported_and_files_NOTHING(monkeypatch
     assert filed == [], f"actuó sobre un veredicto rancio: {filed}"
     said = " ".join(logged)
     assert "NO SE MIDIERON" in said
-    assert "43918" in said, "el log tiene que decir DÓNDE mirar, o el siguiente lo diagnostica de cero"
+    # Los DOS puertos de sandbox, y leídos de la tabla (V2-459): el huérfano se queda con el del idioma de
+    # la tanda que lo dejó, y el que lee el log no sabe cuál fue. Antes decía «43918» a pelo, un número que
+    # desde V2-459 no usa nadie — un rastro que manda a mirar donde no hay nada es peor que ninguno.
+    from tests.platform import ports as PORTS
+    for _p in (PORTS.SANDBOX_ES, PORTS.SANDBOX_US):
+        assert str(_p) in said, "el log tiene que decir DÓNDE mirar, o el siguiente lo diagnostica de cero"
 
 
 def test_but_a_batch_that_DID_measure_is_acted_on_normally(monkeypatch):

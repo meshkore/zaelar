@@ -36,6 +36,8 @@ import sys
 import time
 from pathlib import Path
 
+from tests.platform import ports as PORTS
+
 from . import initiative as I, scenarios as SC, segments as SG, status as statusmod
 
 ENGINE = I.ENGINE          # the repo root a batch must be launched from (`python -m tests…` needs it as cwd)
@@ -200,9 +202,9 @@ def _retest_pending() -> dict:
         sid = p["scenario"]
         e = led.get(sid) or {}
         # DID IT ACTUALLY RUN? A batch can exit having measured nothing — the case that taught us this was an
-        # ORPHANED SANDBOX (`python -m server`, PPID 1) left behind by a killed batch: it kept port 43918, so
-        # every later `run.py --verify` died on boot in under a second. `_runner_alive()` does not see it (it
-        # looks for a `…agent.run` process, not the engine the batch spawns), so the tick kept starting batches
+        # ORPHANED SANDBOX (`python -m server`, PPID 1) left behind by a killed batch: it kept the sandbox's
+        # port, so every later `run.py --verify` died on boot in under a second. `_runner_alive()` does not see
+        # it (it looks for a `…agent.run` process, not the engine the batch spawns), so the tick kept batches
         # that could not work, and then read the ledger's PREVIOUS verdict and acted on it: it logged
         # "re-probado" for a case nobody re-ran, and worse, `rotate_failure` would file an initiative
         # describing a run from an hour ago as if it were new evidence. Stale evidence is worse than none —
@@ -299,9 +301,13 @@ def _retest_pending() -> dict:
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
     if unrun:
+        # Los DOS puertos, nombrados, y leídos de la tabla: el huérfano se queda con el del idioma de la
+        # tanda que lo dejó atrás, y quien lee esto no sabe cuál fue. Un número escrito a mano aquí ya
+        # mandó a mirar el 43918, que desde V2-459 no lo usa nadie.
+        _puertos = " ".join(f"-iTCP:{p}" for p in (PORTS.SANDBOX_ES, PORTS.SANDBOX_US))
         _log(f"paso 1 · NO SE MIDIERON (la tanda salió sin medir nada — mira si quedó un sandbox huérfano "
-             f"ocupando el puerto: `lsof -nP -iTCP:43918 -sTCP:LISTEN`). Su tarea de verify sigue pendiente y "
-             f"el próximo tick lo reintenta; NO se toca su iniciativa: {', '.join(unrun)}")
+             f"ocupando el puerto de su idioma: `lsof -nP {_puertos} -sTCP:LISTEN`). Su tarea de verify sigue "
+             f"pendiente y el próximo tick lo reintenta; NO se toca su iniciativa: {', '.join(unrun)}")
     if blocked:
         _log(f"paso 1 · BLOQUEADOS (su objetivo no se alcanza aquí; solo se mide la HONESTIDAD, y la ronda "
              f"va al paraguas compartido): {'; '.join(blocked)}")

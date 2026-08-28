@@ -24,11 +24,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from tests.platform import ports
+
 
 @dataclass(frozen=True)
 class LabProfile:
     key: str                     # "es" | "us"
-    port: int                    # FIXED. The operator bookmarks it; see stage.py on why it never drifts.
+    # FIXED, and taken from `tests/platform/ports.py` rather than written here: the unattended batch boots on
+    # the SAME table, so the Spanish agent has one address whether the round came from `--lab es` or from
+    # `--sandbox`. See that module on why a busy port is an error and never a slide.
+    port: int
     language: str                # ZAELAR_LANGUAGE — the engine is monolingual per process (langs.py)
     title: str                   # what the operator sees in the terminal
     # The fixed `state` row (memory/state.py): read on EVERY prompt, no search, microseconds. This is the
@@ -87,7 +92,7 @@ class LabProfile:
 
 ES = LabProfile(
     key="es",
-    port=43921,
+    port=ports.SANDBOX_ES,
     language="es",
     title="agente ES — vive en Madrid",
     state={
@@ -104,7 +109,7 @@ ES = LabProfile(
 
 US = LabProfile(
     key="us",
-    port=43922,
+    port=ports.SANDBOX_US,
     language="en",
     title="agente US — lives in San Francisco",
     state={

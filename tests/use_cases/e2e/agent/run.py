@@ -1634,13 +1634,19 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
 
 
 def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
-    from tests.platform.sandbox_engine import preferred_port, sandbox_engine
-    # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
-    # the operator can actually WATCH this run: open the URL below while it works and the ◷ visor / the
-    # observability API show this agent's flows, tasks and events. A fresh workspace per batch means a fresh
-    # `config/identity.json`, i.e. each batch is a NEW install/user_id in observability rather than mixing
-    # into the operator's own session. Ephemeral+random would be tidier but invisible, and invisible defeats
-    # the point of running these at all.
+    from tests.platform import ports
+    from tests.platform.sandbox_engine import sandbox_engine
+    # The workspace is KEPT, under a timestamped dir, and the port is THE one this locale's sandbox always
+    # answers on — both so the operator can actually WATCH this run: open the URL below while it works and
+    # the ◷ visor / the observability API show this agent's flows, tasks and events. A fresh workspace per
+    # batch means a fresh `config/identity.json`, i.e. each batch is a NEW install/user_id in observability
+    # rather than mixing into the operator's own session. Ephemeral+random would be tidier but invisible,
+    # and invisible defeats the point of running these at all.
+    #
+    # THE PORT IS PER LOCALE AND FIXED (`tests/platform/ports.py`). It used to be `preferred_port(43918)`:
+    # one number for both languages, sliding to an ephemeral one when taken. Two consequences, both paid for
+    # — the operator opened 43921 expecting the Spanish agent and found nothing (that address only existed
+    # for `--lab`), and a round that slid left no way to say afterwards WHERE it had run.
     lang = "es" if (chosen and chosen[0].locale == "es") else "en"
     # STAMP BEFORE BOOTING, and this is not a nicety — a lazy stamp LIES. Measured on itself 2026-08-20: the
     # sandbox booted at 19:37:07, the fixing agent committed the obedience fix at 19:39:41, the stamp was first
@@ -1658,9 +1664,17 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
     _chain = seed_provider_chain(ws)
     if _chain:
         print(f"  ▸ cadena de proveedores sembrada desde la config real: {_chain}")
-    print(f"▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id, "
-          f"ZAELAR_LANGUAGE={lang})…")
-    with sandbox_engine(keep_workspace=ws, port=preferred_port(43918),
+    port = ports.sandbox_port(lang)
+    # Refused, never worked around. Exit 4 = NO SE PUEDE MEDIR (same family as a mute brain), apart from 3 =
+    # NO SE DEBE (dirty tree): a batch that cannot get its own address has not been forbidden, it has been
+    # blocked, and the two want different things from whoever reads the log.
+    _busy = ports.busy_refusal(port, want=f"el sandbox {lang.upper()} de esta tanda")
+    if _busy:
+        print(_busy)
+        raise SystemExit(4)
+    print(f"▶ booting an isolated sandbox engine (own DB/workspace, fresh user_id, "
+          f"ZAELAR_LANGUAGE={lang}) on its FIXED port {port}…")
+    with sandbox_engine(keep_workspace=ws, port=port,
                         extra_env={"ZAELAR_LANGUAGE": lang}) as eng:
         print(f"✓ sandbox up at {eng.base_url}")
         print(f"  ▸ WATCH IT LIVE: {eng.base_url}  (flows/events/tasks of this test agent)")
