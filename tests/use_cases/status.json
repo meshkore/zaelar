@@ -3458,27 +3458,27 @@
       }
     },
     "show-real-photo-of-a-new-car__es": {
-      "last_run": "2026-08-28 17:16",
-      "overall": 5,
+      "last_run": "2026-08-28 19:00",
+      "overall": 4,
       "judge": "glm-4.6",
       "brain": "",
       "state": "PASS",
       "infra_reason": null,
       "scores": {
         "naturalidad": 5,
-        "adaptacion": 5,
+        "adaptacion": 4,
         "resultado": 5,
         "mecanismo": 5,
-        "eficiencia": 5
+        "eficiencia": 3
       },
-      "verdict": "Sí está listo para producción: cumplió el objetivo en el widget correcto, con fuentes visibles y en un tiempo inmediato.",
+      "verdict": "Sí está listo para producción porque cumple el objetivo principal (fotos reales en el visor correcto con atribución) y el mecanismo es sólido, aunque debe mejorar la proactividad al validar dudas para evitar bucles de pregunta-respuesta.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
-      "turns_used": 7,
+      "turns_used": 8,
       "families": [
         "flash",
         "main",
@@ -3489,7 +3489,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "bc91406",
+        "sha": "1873dfc",
         "n_dirty": 2,
         "dirty": [
           "widgets/entrenamientos/",
@@ -3504,12 +3504,65 @@
           },
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "37 GB"
+            "size": "22 GB"
+          }
+        ],
+        "n": 2
+      }
+    },
+    "show-real-photo-of-a-new-car__us": {
+      "last_run": "2026-08-28 19:16",
+      "overall": 5,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "PASS",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 4,
+        "eficiencia": 5
+      },
+      "verdict": "Sí está listo para producción este caso de uso: resolvió la consulta de forma inmediata, usando el visor correcto y con atribución visible, sin bloqueos ni errores de resultado.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 2,
+      "turns_used": 4,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "94e492b",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "40 GB"
           }
         ],
         "n": 2
       }
     }
   },
-  "updated": "2026-08-28 17:16"
+  "updated": "2026-08-28 19:16"
 }
