@@ -328,6 +328,32 @@ _STEALTH_JS = """
 """
 
 
+def _browser_locale() -> tuple:
+    """Locale+timezone the task browser PRESENTS, paired — following the engine's language (V2-469).
+
+    They were pinned to es-ES/Europe/Madrid for every engine: measured in `cheapest-monitor__us` (worker
+    session 79bfd2ce), Amazon.com served product pages in SPANISH on the US agent and Best Buy answered
+    «Select your Country» — a site localizes by what the browser declares, and the declaration outranked
+    the engine. Same reason and same shape as websearch's Accept-Language fix (V2-411): engine language,
+    env escape hatches (NAVEGADOR_LOCALE / NAVEGADOR_TZ), Spanish as the fallback of always. Read at
+    LAUNCH: a language switch mid-session applies when the persistent context is next recreated.
+    """
+    env_loc = os.environ.get("NAVEGADOR_LOCALE", "").strip()
+    env_tz = os.environ.get("NAVEGADOR_TZ", "").strip()
+    if env_loc:
+        return env_loc, (env_tz or ("Europe/Madrid" if env_loc.startswith("es") else "America/New_York"))
+    try:
+        from voice.engine.core import langs as _langs
+        code = (_langs.current_code() or "es").lower()
+    except Exception:  # noqa: BLE001 — the browser must never die because the language is unreadable
+        code = "es"
+    if code == "en":
+        return "en-US", (env_tz or "America/New_York")
+    if code == "es":
+        return "es-ES", (env_tz or "Europe/Madrid")
+    return f"{code}-{code.upper()}", (env_tz or "Europe/Madrid")
+
+
 async def _ensure_page():
     """ONE real window (headed) with a PERSISTENT PROFILE and lazy startup. Reuses any existing window/tab (never opens
     one window per request → no desktop clutter). Isolated profile: does not touch your Chrome or your 9222/9200
@@ -350,9 +376,10 @@ async def _ensure_page():
 
         async def _launch(headless: bool, channel: str | None):
             # channel="chrome" = the installed REAL Chrome (real-browser fingerprint, not Playwright's Chromium that
-            # anti-bot systems recognize). timezone_id keeps the zone consistent with locale es-ES.
-            kw = dict(headless=headless, viewport=VIEWPORT, locale="es-ES",
-                      timezone_id="Europe/Madrid", user_agent=_UA, args=args)
+            # anti-bot systems recognize). timezone_id keeps the zone consistent with the locale.
+            _loc, _tz = _browser_locale()
+            kw = dict(headless=headless, viewport=VIEWPORT, locale=_loc,
+                      timezone_id=_tz, user_agent=_UA, args=args)
             if channel:
                 kw["channel"] = channel
             return await _pw.chromium.launch_persistent_context(_profile_dir(), **kw)

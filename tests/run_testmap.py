@@ -772,7 +772,10 @@ DOMAINS: list[dict] = [
         {"id": "4.60", "title": "La búsqueda mira desde donde vive la persona — locale del navegador y "
                                 "Accept-Language siguen al idioma del motor (con escotilla de env)",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_the_search_looks_from_where_the_person_lives.py"]},
+            "paths": ["tests/agent_headless/unit/test_the_search_looks_from_where_the_person_lives.py",
+                      # V2-469: el NAVEGADOR también — locale/timezone del Chromium seguían clavados a
+                      # es-ES/Madrid y Amazon.com servía fichas en español al agente US.
+                      "tests/browser/unit/navegador/test_the_browser_speaks_the_engines_language.py"]},
         # 2026-08-27 — al poner Z.AI de titular del Brain Worker (decisión del operador) salieron DOS fallos
         # mudos del mismo tronco: un modelo que RAZONA carga su deliberación contra `max_tokens`, así que el
         # brief del compositor volvía truncado con un 200 y sin error («respuesta ilegible» en el log, worker
