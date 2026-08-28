@@ -5143,6 +5143,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **Cadena de buscadores de imágenes (V2-466, 2026-08-28)**: petición del operador tras una tarde de captchas
+  de Google. **Medido antes de elegir** (misma máquina, misma consulta): google captcha · ecosia captcha
+  (proxia) · ddg/brave/startpage/qwant solo pintan tras interacción · **yandex 30 tiles con el coche
+  CORRECTO** · bing 52 tiles con el coche EQUIVOCADO 9 de 10. La ruta JSON de DDG (`i.js`+`vqd`) da **403**,
+  descartada. Orden `("google","yandex","bing")` — **es la medición, no la reputación**, y Bing el último no
+  es estética: era el primer recambio, así que cada captcha mandaba el turno al índice más flojo y el coche
+  equivocado se leía como defecto del producto. `images()` prueba en cadena y el resultado dice quién
+  contestó (`source`), quién falló primero (`degraded_from`), **por qué** (`blocked`=esperar ≠ `empty`=
+  reformular) y a cuántos se preguntó (`tried`). Coste conocido y DICHO: los títulos de Yandex vuelven en su
+  idioma (ruso) — mejor un pie ilegible sobre el coche correcto que uno limpio sobre otro coche. Añadir un
+  índice = una fila más su `search_images_*`. 9 casos, parser puro sin red.
+
+- **El reproductor publica su lista y el visor tiene teclado (V2-465, 2026-08-28)**: auditados los tres de la
+  familia de medios lado a lado. `youtube` era el ÚNICO sin `ref_index()` — el cerebro no veía la lista, así
+  que «pon la tercera» no tenía contra qué resolver (y nunca debe inventar un id, V2-026), y con la tarjeta
+  ABIERTA Y VACÍA el brief no podía decirlo: el «doy por entregado lo que no está» de V2-377/380/383. Marca
+  cuál suena. `imagenes` era el único sin teclado (← →, en la TARJETA y sin robárselas a quien escribe).
+  **Descartado a propósito**: darle `active_when` a `imagenes` — ese contrato significa PRODUCIENDO y engancha
+  el ⏻ global; una foto quieta no se suspende.
+
 - **La ronda deja un VÍDEO — modo escaparate + grabador (V2-464, 2026-08-28)**: petición del operador —
   grabar la pantalla mientras el caso corre en background, con el chat abierto y los widgets alineados como
   el snap del sistema, y enlazar el .webm sin sonido desde el informe (material de showcase). Piezas:

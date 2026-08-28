@@ -270,6 +270,55 @@ async def search_images(query: str, k: int = 12) -> dict:
             pass
 
 
+async def search_images_yandex(query: str, k: int = 12) -> dict:
+    """The SECOND index of the chain, added because Google is not always available (V2-466).
+
+    Measured 2026-08-28 from this machine, same query on all of them: Google answered a captcha, Ecosia too
+    (it proxies the big ones), DuckDuckGo/Brave/Startpage/Qwant only render their gallery after interaction,
+    and Yandex returned 30 usable tiles with the right car. Bing answers too and stays LAST on purpose: asked
+    for a Ferrari Amalfi it returned an SF90, an F8 and two F80s — right brand, wrong car, nine times out of
+    ten.
+
+    Its known cost: the TITLES come back in the index's own language (Russian for a Spanish query). The
+    picture is right and the caption may not be readable, which is why `source` travels with every result.
+
+    The tiles are read from the DOM (Yandex has no payload in a script like Google's), and the brittle half —
+    the full-size URL inside the tile link's `img_url` — is parsed by a PURE function next door, so it can be
+    tested without a network."""
+    if not await ensure_started():
+        return {"query": query, "items": [], "source": "", "blocked": False, "error": "browser no disponible"}
+    from nucleo import image_search as _imgs
+    page = await _ctx.new_page()
+    try:
+        await page.goto(f"https://yandex.com/images/search?text={quote_plus(query)}",
+                        wait_until="domcontentloaded", timeout=_TIMEOUT_MS)
+        await _dismiss_consent(page)
+        if await _looks_blocked(page):
+            return {"query": query, "items": [], "source": "yandex", "blocked": True}
+        await page.wait_for_timeout(2500)      # la rejilla se pinta por JS; no hay selector estable que esperar
+        rows = await page.evaluate("""() => {
+          const out = [];
+          document.querySelectorAll('img').forEach(i => {
+            const s = i.currentSrc || i.src || '';
+            const w = i.naturalWidth || i.width, h = i.naturalHeight || i.height;
+            if (!s.startsWith('http') || w < 100) return;
+            const a = i.closest('a');
+            if (!a || !a.href) return;
+            out.push({href: a.href, alt: i.alt || '', thumb: s, w: w, h: h});
+          });
+          return out;
+        }""")
+        return {"query": query, "items": _imgs.parse_yandex_rows(rows or [], k),
+                "source": "yandex", "blocked": False}
+    except Exception as e:  # noqa: BLE001
+        return {"query": query, "items": [], "source": "yandex", "blocked": False, "error": str(e)[:200]}
+    finally:
+        try:
+            await page.close()
+        except Exception:
+            pass
+
+
 async def search_images_bing(query: str, k: int = 12) -> dict:
     """The fallback index, used only when Google is blocked — and labelled, because it is measurably worse.
 
@@ -300,23 +349,52 @@ async def search_images_bing(query: str, k: int = 12) -> dict:
             pass
 
 
+#: The image indexes, in the order they are tried. Ordered by MEASURED quality on 2026-08-28, not by
+#: reputation: Google is the best answer when it answers (cdn.ferrari.com originals, 3128x2333 masters);
+#: Yandex is the best of the rest that works headless without interaction; Bing answers reliably but got the
+#: WRONG CAR nine times out of ten for the query that started this, so it is the last resort, never the
+#: default. Adding one is adding a row here plus its `search_images_*` leg — the chain itself does not change.
+_IMAGE_ENGINES = ("google", "yandex", "bing")
+
+
 async def images(query: str, k: int = 12) -> dict:
-    """Pictures for a query: Google, and Bing only if Google refused. One entry point for both channels."""
-    res = await search_images(query, k)
-    if res.get("blocked") or not res.get("items"):
-        alt = await search_images_bing(query, k)
-        if alt.get("items"):
-            alt["degraded_from"] = "google"
-            # WHY it degraded travels with the answer (V2-463). Google's "unusual traffic" captcha was being
-            # detected and then LOST right here: `alt` is Bing's own result, whose `blocked` is False, so a
-            # whole afternoon of rounds degraded silently and the wrong-car photos read as a product defect.
-            # A captcha and an empty result ask for different things (wait vs rephrase), so the reason is
-            # named, not collapsed into the flag.
-            alt["degraded_because"] = "blocked" if res.get("blocked") else "empty"
-            if res.get("blocked"):
-                alt["blocked"] = True
-            return alt
-    return res
+    """Pictures for a query, trying the indexes in order until one answers. One entry point for both channels.
+
+    A CHAIN and not a fallback pair (V2-466, operator's request): «no podemos confiar todo el rato en Google».
+    Google's captcha was blocking whole afternoons and every round silently landed on Bing, which is the
+    weakest index — the wrong-car photos then read as a product defect. Now each engine is tried in turn, and
+    what the answer carries is not just WHICH one served it but WHY the previous ones did not:
+    `degraded_from` (who was tried first) and `degraded_because` (`blocked` = captcha, wait; `empty` = no
+    results, rephrase — two different actions, so they are never collapsed into one flag).
+
+    An engine that raises or comes back empty costs one page load and the chain moves on; only if ALL of them
+    fail does the caller get an empty answer, and then it is a fact about the world, not about one index.
+    """
+    _legs = {"google": search_images, "yandex": search_images_yandex, "bing": search_images_bing}
+    primero: dict = {}
+    intentados: list[str] = []
+    for name in _IMAGE_ENGINES:
+        leg = _legs.get(name)
+        if leg is None:
+            continue
+        res = await leg(query, k)
+        res = res if isinstance(res, dict) else {}
+        if not primero:
+            primero = res
+        if res.get("items"):
+            if intentados:
+                res["degraded_from"] = intentados[0]
+                res["degraded_because"] = "blocked" if primero.get("blocked") else "empty"
+                res["tried"] = list(intentados)
+                if primero.get("blocked"):
+                    res["blocked"] = True
+            return res
+        intentados.append(name)
+    # Nadie contestó: se devuelve lo del PRIMERO (su error/bloqueo es el que explica el turno) diciendo a
+    # cuántos se preguntó — «no hay fotos de eso» y «los tres índices están caídos» piden cosas distintas.
+    primero = dict(primero or {"query": query, "items": [], "source": "", "blocked": False})
+    primero["tried"] = list(intentados)
+    return primero
 
 
 def search_sync(query: str, k: int = 5) -> dict:

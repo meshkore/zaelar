@@ -36,6 +36,7 @@ recorded payload and the parser is measured against it.
 from __future__ import annotations
 
 import re
+from urllib.parse import parse_qs, urlparse
 
 # One result in Google's image payload is a pair of adjacent [url, height, width] triples: the gstatic thumbnail
 # first, then the real file. Anchoring on the *pair* is what makes this specific — a lone triple matches dozens
@@ -107,6 +108,47 @@ def parse_google_images(blob: str, k: int = 12) -> list[dict]:
 # pictures were a different car. That is not a slower answer, it is a wrong one, and a wrong picture returned
 # in 1.5s is worse than no picture — so Bing only runs when Google is blocked, and what it returns is labelled.
 _BING = re.compile(r'<a[^>]*class="[^"]*\biusc\b[^"]*"[^>]*\sm="([^"]*)"', re.I)
+
+
+def parse_yandex_rows(rows: list, k: int = 12) -> list:
+    """Normalise the raw tiles Yandex's DOM gives us into the family contract (V2-466).
+
+    PURE on purpose, like its Google sibling: what Yandex hands over is a list of
+    `{href, alt, thumb}` read in the page, and the brittle half — pulling the full-size URL out of the
+    tile link's `img_url` parameter — is exactly the half that must be testable without a network.
+
+    Yandex earns its place by MEASUREMENT (2026-08-28, same machine, same query): Google answered a
+    captcha, Ecosia too, DuckDuckGo and Brave render their gallery only after interaction, and Yandex
+    returned 30 usable tiles with the right car. Its known cost is the TITLES, which come back in the
+    index's own language (Russian for a Spanish query) — the picture is right, the caption may not be
+    readable, and that is why the engine that answered always travels with the result.
+
+    `site` is DERIVED from the image host, the same convention the Bing leg already uses: Yandex does
+    not hand the publisher over, and attributing a photo to whoever serves it beats no attribution."""
+    out, seen = [], set()
+    for r in rows or []:
+        if not isinstance(r, dict):
+            continue
+        href = str(r.get("href") or "")
+        try:
+            full = parse_qs(urlparse(href).query).get("img_url", [""])[0]
+        except Exception:  # noqa: BLE001
+            full = ""
+        if not full.startswith("http") or full in seen:
+            continue
+        seen.add(full)
+        thumb = str(r.get("thumb") or "")
+        titulo = str(r.get("alt") or "").strip()
+        try:
+            host = (urlparse(full).netloc or "").lower()
+        except Exception:  # noqa: BLE001
+            host = ""
+        out.append({"url": full, "thumb": thumb if thumb.startswith("http") else full,
+                    "title": titulo[:200], "site": host, "page": href,
+                    "w": int(r.get("w") or 0), "h": int(r.get("h") or 0)})
+        if len(out) >= max(1, int(k or 12)):
+            break
+    return out
 
 
 def parse_bing_images(html: str, k: int = 12) -> list[dict]:
