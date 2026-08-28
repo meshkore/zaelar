@@ -2229,6 +2229,10 @@ DOMAINS: list[dict] = [
                                   "de la ventana se volvía acusación",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_el_watchdog_es_opinion_no_hecho.py"]},
+        {"id": "10.127", "title": "`offered` lee los TRES caminos — la nota de búsqueda y la narración del "
+                                  "worker eran invisibles y la regla nº1 no tenía dónde mirar",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_offered_lee_los_tres_caminos.py"]},
         {"id": "10.122", "title": "El reloj de la entrega también lee los títulos de la HOJA — sin nota, no corría",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_delivery_clock_reads_the_sheet_titles_too.py"]},

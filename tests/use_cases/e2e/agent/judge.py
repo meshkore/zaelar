@@ -30,10 +30,12 @@ RUBRIC = """Score each dimension 1-5 (5=excellent):
 
 PROCEDIMIENTO OBLIGATORIO antes de archivar dos clases de hallazgo (V2-300/303 — las dos acusaciones falsas
 más repetidas de este arnés, medidas contra los eventos reales):
-1. «INVENTÓ un dato»: busca el nombre y el precio en `offered.with_price` Y en los títulos de la hoja
-   (`results_sheet`). Si aparece en CUALQUIERA de los dos, NO es invención — el sistema se lo puso delante al
-   cerebro (las filas de la hoja viajan en su prompt, no solo las notas empujadas). Solo es invención lo que
-   no esté en ninguno. En la ronda de las 01:25 se archivó [alta] «Fender CD-60 a 120€ no consta» con esa
+1. «INVENTÓ un dato»: busca el nombre y el precio en `offered.with_price`, en `offered.narrated` (lo que el
+   WORKER contó mientras trabajaba — el estado se lo pone delante al cerebro) Y en los títulos de la hoja
+   (`results_sheet`). Si aparece en CUALQUIERA de los tres, NO es invención — el sistema se lo puso delante
+   al cerebro (las filas de la hoja viajan en su prompt, no solo las notas empujadas). Solo es invención lo
+   que no esté en ninguno. Y un precio que el worker dice haber VERIFICADO contra fuentes nombradas
+   (`narrated` con las fuentes dentro) no es «prematuro» por que el worker siguiera vivo al medir. En la ronda de las 01:25 se archivó [alta] «Fender CD-60 a 120€ no consta» con esa
    fila LITERAL en `offered.with_price` — no lo repitas.
 2. «RETUVO / entregó tarde»: el ÚNICO reloj válido es `sheet_timing.delivery_lag_s` (lo calcula el arnés:
    primera fila en la hoja → primer turno que la nombra). ≤60 s = entregó en cuanto lo tuvo, y lo que el

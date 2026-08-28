@@ -1599,9 +1599,26 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
             txt = str((json.loads(raw) or {}).get("text") or "")
         except Exception:
             continue
-        if "SACADO" not in txt:
+        # TWO note headers, one per producing channel (V2-469): the navigator's «ha SACADO esto» and the
+        # search channel's «ha devuelto esto». This reader only knew the first — measured in
+        # `cheapest-monitor__us` (00:04): 10 search notes pushed, `n_offered: 0`, and the judge's rule 1,
+        # with nowhere to look, filed «afirmación de éxito falsa» over a worker-verified price.
+        if "SACADO" not in txt and "ha devuelto esto" not in txt:
             continue
         out["notes"] += 1
+        if "ha devuelto esto" in txt and "SACADO" not in txt:
+            m = re.search(r"»\s*:\s*(.+)$", txt, re.S)
+            if not m:
+                continue
+            chunk = m.group(1).strip()
+            head = chunk.split(" — ")[0].strip()
+            if head and not head.startswith("http") and head.lower() not in seen:
+                seen.add(head.lower())
+                out["titles"].append(head[:120])
+                out["with_price"].append(chunk[:150])
+                if not _NUMERIC_HEAD.match(head):
+                    out["named"].append(head[:120])
+            continue
         # The note lists rows as «title — price — url», joined by "; ", between "página, trabajando en
         # «goal»: " and the trailing ". Nadie más lo sabe". Parse that span only: the instruction prose
         # after it also contains words like "resultado" and would otherwise be read as a finding.
@@ -1643,6 +1660,26 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
                 out["with_price"].append(chunk.strip()[:150])
                 if not _NUMERIC_HEAD.match(head):
                     out["named"].append(head[:120])
+    # THIRD channel (V2-469): the worker's own NARRATION, which the live-task block puts in front of the
+    # brain (V2-150's last-note). «El LG aparece a $194.99 en Amazon (mínimo histórico)» reached the model
+    # through it and no reader made it visible to the judge. Capped raw lines — facts, never a verdict.
+    try:
+        con2 = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+        nar_rows = con2.execute(
+            "SELECT payload FROM events WHERE topic = 'observer' AND ts_ms >= ? AND kind = 'task' "
+            "AND label LIKE '%worker%' ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+        con2.close()
+        nar = []
+        for (raw,) in nar_rows:
+            try:
+                _tx = str((json.loads(raw) or {}).get("text") or "").strip()
+            except Exception:
+                continue
+            if _tx and _tx not in nar:
+                nar.append(_tx[:220])
+        out["narrated"] = nar[-12:]
+    except Exception:
+        out["narrated"] = []
     out["n_offered"] = len(out["titles"])
     out["n_named"] = len(out["named"])
     return out
