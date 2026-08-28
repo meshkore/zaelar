@@ -621,14 +621,17 @@ def mechanism_facts(mech: dict) -> str:
         # LA CAUSA, en la misma línea y no en otra: dice lo mismo al juez —no culpes al modelo— y una segunda
         # frase repitiéndolo sería ruido. Se añade solo si el motor llegó a avisar de que no supo qué caja era.
         _sr = mech.get("unresolved_errand_sheets") or {}
-        if _sr.get("n_unreadable"):
+        if _sr.get("n_wrong_box"):
+            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_wrong_box']} vez/veces el motor leyó una caja que "
+                         f"NO era la de este encargo ({', '.join(_sr.get('wrong_boxes') or {})}) mientras las "
+                         f"filas estaban en otra. Avería nuestra de fontanería.")
+        elif _sr.get("n_unreadable"):
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_unreadable']} vez/veces la lectura de la hoja "
                          f"REVENTÓ y el error se tragó solo ({'; '.join(_sr.get('errors') or [])}). Avería "
                          f"nuestra de fontanería.")
-        elif _sr.get("n_empty"):
-            lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n_empty']} vez/veces el motor resolvió la hoja de "
-                         f"este encargo y la encontró VACÍA ({', '.join(_sr.get('empty_sheets') or {})}) "
-                         f"mientras los resultados estaban en otro sitio. Avería nuestra de fontanería.")
+        # La caja VACÍA a secas ya NO se cuenta como avería: medido el 2026-08-28, en cinco de las seis
+        # rondas con esa señal el motor miró la caja CORRECTA y estaba vacía porque el encargo aún no había
+        # encontrado nada — el camino sano. Solo la caja EQUIVOCADA (arriba) dice algo.
         elif _sr.get("n"):
             lines.append(f"   ↳ y se sabe POR QUÉ: {_sr['n']} vez/veces el motor no supo qué hoja era la de "
                          f"este encargo (pestañas: {', '.join(_sr.get('tabs') or {})}). Es una avería nuestra "

@@ -133,18 +133,28 @@ def test_resolver_a_la_caja_EQUIVOCADA_se_cuenta_aparte():
     assert got["n_empty"] == 2 and got["empty_sheets"] == {"results": 2}
 
 
-def test_al_juez_se_le_dice_CUÁL_de_las_dos_averías_fue():
-    """Las dos llevan a mirar sitios distintos del motor, así que decir «avería» a secas no basta."""
+def test_al_juez_se_le_dice_CUÁL_de_las_averías_fue():
+    """Reescrito 2026-08-28, NO volteado: la propiedad —cada avería lleva a mirar un sitio distinto del motor,
+    así que «avería» a secas no basta— es la misma. Lo que cambió es CUÁLES son averías: la caja vacía a secas
+    dejó de serlo (en cinco de las seis rondas medidas era el camino sano), y su sitio lo ocupa la caja
+    EQUIVOCADA, que es la que de verdad dice algo."""
     from tests.use_cases.e2e.agent import judge as J
     base = {"sheet_hidden_from_the_prompt": {"n": 2, "measurable": True, "turns": [{"turn": 6}, {"turn": 7}]}}
-    vacia = J.mechanism_facts({**base, "unresolved_errand_sheets": {"n": 0, "tabs": {},
-                                                                   "n_empty": 3, "empty_sheets": {"results": 3}}})
-    txt = "\n".join(vacia) if isinstance(vacia, list) else str(vacia)
-    assert "VACÍA" in txt and "results" in txt
+    mala = J.mechanism_facts({**base, "unresolved_errand_sheets": {
+        "n": 0, "tabs": {}, "n_empty": 3, "empty_sheets": {"f1743e-2": 3},
+        "n_wrong_box": 3, "wrong_boxes": {"f1743e-2": 3}}})
+    txt = "\n".join(mala) if isinstance(mala, list) else str(mala)
+    assert "NO era la de este encargo" in txt and "f1743e-2" in txt
+    # …y una caja vacía que SÍ era la suya no le dice nada al juez
+    sana = J.mechanism_facts({**base, "unresolved_errand_sheets": {
+        "n": 0, "tabs": {}, "n_empty": 3, "empty_sheets": {"24cd96-1": 3},
+        "n_wrong_box": 0, "wrong_boxes": {}}})
+    txt2 = "\n".join(sana) if isinstance(sana, list) else str(sana)
+    assert "NO era la de este encargo" not in txt2 and "se sabe POR QUÉ" not in txt2
     sin = J.mechanism_facts({**base, "unresolved_errand_sheets": {"n": 2, "tabs": {"a-1": 2},
                                                                  "n_empty": 0, "empty_sheets": {}}})
-    txt2 = "\n".join(sin) if isinstance(sin, list) else str(sin)
-    assert "no supo qué hoja" in txt2 and "VACÍA" not in txt2
+    txt3 = "\n".join(sin) if isinstance(sin, list) else str(sin)
+    assert "no supo qué hoja" in txt3
 
 
 def test_las_TRES_averías_se_cuentan_por_separado():
@@ -160,6 +170,37 @@ def test_las_TRES_averías_se_cuentan_por_separado():
         _ev("🧾 hoja del encargo ILEGIBLE", nav_task="c-1", error="KeyError: items")])
     assert got["n"] == 1 and got["n_empty"] == 1 and got["n_unreadable"] == 1
     assert got["errors"] == ["KeyError: items"]
+
+
+def test_la_caja_VACÍA_a_secas_ya_no_es_una_avería():
+    """Medido el 2026-08-28 sobre las seis rondas que trajeron la señal: en CINCO el motor miró la caja
+    CORRECTA y estaba vacía porque el encargo aún no había encontrado nada — el camino sano, no un defecto.
+    En UNA leyó `f1743e-2` mientras las filas estaban en `f1743e-1`, y ésa sí.
+
+    Sin separarlas, la señal dispara en el caso normal y quien la lea concluirá lo que concluí yo: que hay un
+    patrón donde hay un caso.
+    """
+    import json
+    def _ev(**extra):
+        return {"kind": "perf", "cat": "system",
+                "payload": json.dumps({"kind": "perf", "cat": "system",
+                                       "label": "🧾 hoja del encargo RESUELTA PERO VACÍA", **extra})}
+    # la MISMA caja que acabó teniendo las filas → camino sano
+    sano = V.unresolved_errand_sheets([_ev(nav_task="a-1", hoja="24cd96-1")], sheet_box="24cd96-1")
+    assert sano["n_empty"] == 1 and sano["n_wrong_box"] == 0
+    # una caja DISTINTA → eso sí
+    malo = V.unresolved_errand_sheets([_ev(nav_task="a-2", hoja="f1743e-2")], sheet_box="f1743e-1")
+    assert malo["n_wrong_box"] == 1 and malo["wrong_boxes"] == {"f1743e-2": 1}
+
+
+def test_sin_saber_dónde_cayeron_las_filas_no_se_acusa():
+    """Sin `sheet_box` no hay con qué comparar, y llamar equivocada a una caja por si acaso es justo el error
+    que esto arregla."""
+    import json
+    ev = {"kind": "perf", "cat": "system",
+          "payload": json.dumps({"kind": "perf", "cat": "system",
+                                 "label": "🧾 hoja del encargo RESUELTA PERO VACÍA", "hoja": "x-1"})}
+    assert V.unresolved_errand_sheets([ev])["n_wrong_box"] == 0
 
 
 def test_al_juez_la_ILEGIBLE_le_llega_con_su_error():

@@ -459,6 +459,14 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # inventado es peor que no nombrarlo: quien contrata con ese dato se lleva la sorpresa después.
             # …Y SI LA HOJA ESTABA LLENA MIENTRAS SU PROMPT DECÍA QUE NO. Decide la atribución del
             # bloqueador más repetido del tablero: «negó lo que tenía» o «le contamos que no tenía nada».
+            # …y AHORA que `sheet_timing` existe, se recalcula la señal de cajas separando la que estaba
+            # vacía (camino normal: aún no hay nada) de la EQUIVOCADA (leyó otra distinta de la que tiene las
+            # filas). `mechanism_report` la compone sin ese dato porque allí todavía no se ha medido.
+            try:
+                mech["unresolved_errand_sheets"] = verifymod.unresolved_errand_sheets(
+                    all_events, str((mech.get("sheet_timing") or {}).get("sheet_box") or ""))
+            except Exception:  # noqa: BLE001 — una señal de diagnóstico no puede tumbar el informe
+                pass
             mech["sheet_hidden_from_the_prompt"] = verifymod.sheet_hidden_from_the_prompt(
                 mech.get("prompt_context"), mech.get("sheet_timing"))
             mech["price_mismatches"] = verifymod.prices_that_do_not_match(

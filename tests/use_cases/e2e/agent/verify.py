@@ -913,7 +913,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "brains": brains_that_ran(all_events),
         # …y si el motor supo QUÉ HOJA era la de este encargo. Causa candidata de los turnos ciegos: ver
         # `unresolved_errand_sheets` y `sheet_hidden_from_the_prompt`.
-        "unresolved_errand_sheets": unresolved_errand_sheets(all_events),
+        "unresolved_errand_sheets": unresolved_errand_sheets(all_events),   # `sheet_box` se añade en run.py
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),
@@ -1529,7 +1529,7 @@ def _price_anchor(title: str) -> str:
     return ""
 
 
-def unresolved_errand_sheets(all_events: list[dict]) -> dict:
+def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dict:
     """Cuántas veces el motor NO supo qué hoja era la de este encargo, y de qué pestañas.
 
     Es la señal que `errand_sheet._sheet_of_tab` emite cuando mueren sus dos caminos (V2-432), y hay que
@@ -1559,8 +1559,16 @@ def unresolved_errand_sheets(all_events: list[dict]) -> dict:
             # EL TERCER CAMINO. Con los otros dos a cero y turnos ciegos, era el único que quedaba: la
             # lectura reventando y el `except` tragándoselo (medido en `weekend-motor-events__es`).
             ilegibles.append(str(f.get("error") or e.get("error") or "?")[:160])
+    # LA CAJA EQUIVOCADA, separada de la caja VACÍA. Medido el 2026-08-28 sobre las seis rondas que trajeron
+    # la señal: en CINCO el motor miró la caja correcta y estaba vacía porque el encargo aún no había
+    # encontrado nada — el camino normal, no un defecto. En UNA (`compare-flights-madrid-lisboa`) leyó
+    # `f1743e-2` mientras las filas estaban en `f1743e-1`, y ésa sí. Sin separarlas, la señal dispara en el
+    # caso sano y el que la lea concluirá lo que concluí yo: que hay un patrón donde hay un caso.
+    _caja = str(sheet_box or "").strip()
+    mal = {k: v for k, v in vacias.items() if _caja and k != _caja} if _caja else {}
     return {"n": sum(tabs.values()), "tabs": tabs,
             "n_empty": sum(vacias.values()), "empty_sheets": vacias,
+            "n_wrong_box": sum(mal.values()), "wrong_boxes": mal,
             "n_unreadable": len(ilegibles), "errors": ilegibles[:4]}
 
 
