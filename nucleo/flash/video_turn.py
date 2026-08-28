@@ -92,6 +92,31 @@ def _show_card(loaded: bool) -> None:
         pass
 
 
+def ensure_delivery_named(spoken: str, parte: dict) -> str:
+    """Append a LIST search's outcome to whatever the model already said — a promise must not outlive
+    its own delivery.
+
+    V2-469, round 8 of `find-videos` (22:47): the model spoke «Voy a buscar vídeos reales…» while
+    `execute()` had already put 5 titled hits in the list — the canned naming only fired when the model
+    was MUTE (`if not spoken`), so the user had to ASK for the titles, and next turn the model DENIED
+    having searched («ya estaban ahí en tu lista»): it never learns its own async-looking search landed.
+    The failed branch rides along on purpose («no he podido buscarlos») — a promise standing alone over
+    nothing is the same lie in the other direction. Voice cannot do this in-turn (its dispatch is async
+    and the result does not exist before the reply streams), so this is the probe/text channel's half,
+    not a diverged twin.
+    """
+    spoken = (spoken or "").strip()
+    parte = parte if isinstance(parte, dict) else {}
+    if parte.get("executed") != "play_video" or parte.get("accion") != "list":
+        return spoken
+    canned = spoken_for(parte, "")
+    if not spoken:
+        return canned
+    if not canned or canned in spoken:
+        return spoken
+    return spoken.rstrip() + " " + canned
+
+
 def spoken_for(parte: dict, ack: str) -> str:
     """Lo que se DICE tras intentar poner el vídeo. `ack` es el enlatado del idioma, solo para el caso bueno mudo.
 

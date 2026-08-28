@@ -76,3 +76,30 @@ def test_run_lo_CALCULA_o_el_campo_no_existe():
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
     assert 'mech["media_list"] = verifymod.media_list()' in src
+
+
+def test_con_el_reproductor_LLENO_la_hoja_vacia_no_acusa_entrega_ausente():
+    """V2-469 · the prompt contradicted itself and the judge picked the wrong half (measured, round 8 of
+    `find-videos`, 22:47): «hoja SIN candidatos → entrega ausente en la única superficie que la guarda»
+    stated flatly, four lines above a player list holding 5 named videos — and the judge invented «un
+    mandato explícito de usar la HOJA DE RESULTADOS», the exact opposite of V2-402's design. When the
+    player has items, the empty-sheet line DEFERS to it instead of accusing."""
+    out = judge.mechanism_facts({
+        "results_sheet": {"read": True, "n_items": 0, "n_named": 0, "titles": []},
+        "media_list": {"read": True, "n_items": 5,
+                       "widgets": {"youtube": {"n": 5, "n_named": 5, "titles": ["A", "B"], "lists": []}},
+                       "titles": ["A", "B"]},
+    })
+    assert "única superficie que la guarda" not in out
+    assert "REPRODUCTOR" in out
+    assert "lo esperado" in out
+
+
+def test_sin_reproductor_la_hoja_vacia_SIGUE_acusando():
+    """The half that keeps the fix from being an amnesty: with nothing in any player, an empty sheet on a
+    search errand is still absent delivery, said exactly as before."""
+    out = judge.mechanism_facts({
+        "results_sheet": {"read": True, "n_items": 0, "n_named": 0, "titles": []},
+        "media_list": {"read": True, "n_items": 0, "widgets": {}, "titles": []},
+    })
+    assert "única superficie que la guarda" in out

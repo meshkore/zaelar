@@ -297,8 +297,20 @@ def mechanism_facts(mech: dict) -> str:
                          "quiere decir que el worker no rellenó ese apartado, que es opcional y sirve para "
                          "contar qué sitios probó y cuáles le fallaron. No lo puntúes como invención.")
     else:
-        lines.append("· La hoja de resultados se leyó y acabó SIN candidatos con nombre. Si el encargo era "
-                     "buscar y comparar, eso sí es entrega ausente en la única superficie que la guarda.")
+        # V2-469 — the prompt contradicted itself and the judge picked the wrong half (round 8 of
+        # find-videos, 22:47): this line stated «entrega ausente en la única superficie que la guarda»
+        # four lines above a player list holding 5 named videos, and the judge invented «un mandato
+        # explícito de usar la HOJA DE RESULTADOS» — the opposite of V2-402's design (media delivery goes
+        # to the PLAYER; the sheet is for information). When any player holds items, this line DEFERS.
+        _ml_n = int(((mech.get("media_list") or {}).get("n_items") or 0))
+        if _ml_n > 0:
+            lines.append(f"· La hoja de resultados acabó SIN candidatos — y el REPRODUCTOR tiene {_ml_n} "
+                         f"elemento(s) (línea ▶️ más abajo). En un encargo multimedia esa ES la superficie "
+                         f"de entrega por diseño: la hoja vacía aquí es lo esperado. NO lo cuentes como "
+                         f"«entrega ausente» ni exijas que los candidatos estuvieran en la hoja.")
+        else:
+            lines.append("· La hoja de resultados se leyó y acabó SIN candidatos con nombre. Si el encargo era "
+                         "buscar y comparar, eso sí es entrega ausente en la única superficie que la guarda.")
     # CUÁNTAS cajas, que es otra pregunta que «qué había en la caja». Solo se dice si hubo apertura: en un
     # encargo único no aporta nada, y en dos es lo que decide el veredicto.
     si = mech.get("sheet_instances") or {}

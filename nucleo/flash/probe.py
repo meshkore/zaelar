@@ -1150,6 +1150,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
+    # V2-469 — a promise must not outlive its own delivery: when the model DID speak («voy a buscar…»)
+    # while its list-search already filled the player, the canned naming above never fired (it is gated
+    # on the mute turn) — the user had to ask for the titles and the next turn the model DENIED having
+    # searched. The decision lives once in `video_turn.ensure_delivery_named`; a non-list turn is a no-op.
+    if action == "canvas:show:youtube" and video_req and isinstance(return_extra_exec, dict):
+        try:
+            spoken = _video_turn.ensure_delivery_named(spoken, return_extra_exec)
+        except Exception:
+            pass
+
     # EL BACKSTOP DE ENTREGA (V2-305/336/339, extraído a `delivery` en V2-340): una respuesta de pura espera
     # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de
     # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
