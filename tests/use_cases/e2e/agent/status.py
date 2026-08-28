@@ -80,6 +80,10 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
             "missing_signals": mech.get("missing_signals") or [],
+            # CUÁNTOS TURNOS le ocultamos lo que ya tenía (V2-432). Va a la fila porque es lo que decide si el
+            # rojo de esa fila es del producto o nuestro, y el juez ya lo dice en prosa: sin el número aquí,
+            # leerlo obliga a abrir el informe de cada ronda una por una.
+            "blind_turns": int(((mech.get("sheet_hidden_from_the_prompt") or {}).get("n")) or 0),
             # The FULL stream audit, kept for the same reason as `families`: the close is decided by the tick
             # in the parent process, where the run dict no longer exists. A case does NOT close with anomalies
             # here, even if the judge gives it a 5 — see `tick._retest_pending`.
@@ -406,6 +410,20 @@ def _render(led: dict) -> None:
         for sid in sorted(work):
             w = work[sid]
             lines.append(f"| `{sid}` | `{w.get('initiative', '—')}` | `{w.get('task', '—')}` |")
+        lines.append("")
+
+    # LO QUE NO LE DIJIMOS, junto y con su número. Sale antes de las secciones de mecanismo porque cambia
+    # cómo se leen las notas de arriba: una fila con turnos ciegos tiene una parte de su rojo puesta por
+    # nosotros (V2-432 — 45 de 48 rondas guardadas, 257 turnos).
+    ciegas = {s: e["blind_turns"] for s, e in scen.items() if e.get("blind_turns")}
+    if ciegas:
+        lines += ["## Rondas en las que NO le dijimos lo que ya tenía", "",
+                  "Turnos posteriores a que la hoja tuviera filas con nombre en los que el prompt de zaelar "
+                  "**no decía que hubiera nada**. En esos turnos, un «sigo buscando» no es retener ni negar: "
+                  "es repetir lo que le pusimos delante. Parte del rojo de estas filas es nuestro.", "",
+                  "| scenario | turnos ciegos |", "|---|---|"]
+        for sid in sorted(ciegas, key=lambda k: -ciegas[k]):
+            lines.append(f"| `{sid}` | {ciegas[sid]} |")
         lines.append("")
 
     multi = {s: e for s, e in scen.items() if e.get("max_concurrent") is not None}

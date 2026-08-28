@@ -170,3 +170,31 @@ def test_al_juez_la_ILEGIBLE_le_llega_con_su_error():
                                      "n_unreadable": 2, "errors": ["KeyError: items"]}})
     txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
     assert "REVENTÓ" in txt and "KeyError: items" in txt
+
+
+def test_el_TABLERO_dice_en_qué_filas_no_le_dijimos_nada(tmp_path, monkeypatch):
+    """El juez ya lo dice en prosa, ronda por ronda. Sin el número en el tablero, leerlo obliga a abrir el
+    informe de cada ronda una por una — y el tablero es donde se mira.
+
+    Va con su número porque «hubo turnos ciegos» y «hubo catorce» piden lecturas distintas de la misma nota.
+    """
+    from tests.use_cases.e2e.agent import status as S
+    monkeypatch.setattr(S, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(S, "BOARD_PATH", tmp_path / "STATUS.md")
+    S.record([{"scenario": "x__es", "tier": 2,
+               "run": {"transcript": [], "mechanism_report": {"sheet_hidden_from_the_prompt": {"n": 6}}},
+               "verdict": {"overall": 2, "scores": {"mecanismo": 3}, "veredicto": "flojo"}}], sandboxed=True)
+    board = (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+    assert "NO le dijimos lo que ya tenía" in board
+    assert "| `x__es` | 6 |" in board
+
+
+def test_y_sin_turnos_ciegos_no_aparece_la_sección(tmp_path, monkeypatch):
+    """Una sección que sale siempre deja de leerse, y el tablero ya tiene seis."""
+    from tests.use_cases.e2e.agent import status as S
+    monkeypatch.setattr(S, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(S, "BOARD_PATH", tmp_path / "STATUS.md")
+    S.record([{"scenario": "x__es", "tier": 2,
+               "run": {"transcript": [], "mechanism_report": {"sheet_hidden_from_the_prompt": {"n": 0}}},
+               "verdict": {"overall": 4, "scores": {"mecanismo": 4}, "veredicto": "bien"}}], sandboxed=True)
+    assert "NO le dijimos" not in (tmp_path / "STATUS.md").read_text(encoding="utf-8")
