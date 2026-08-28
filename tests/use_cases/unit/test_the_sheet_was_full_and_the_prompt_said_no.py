@@ -231,5 +231,6 @@ def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
     verde sobre el defecto restaurado."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    assert '"says_found": "YA HA ENCONTRADO" in live,' in src
-    assert src.index('"says_found": "YA HA ENCONTRADO" in live,') > src.index('live = next(')
+    assert '"says_found": "YA HA ENCONTRADO" in sp,' in src, (
+        "se busca en `live` (la línea de tareas) y el imperativo de resultados es OTRA línea del prompt")
+    assert src.index('"says_found": "YA HA ENCONTRADO" in sp,') > src.index("sp = p.get(")

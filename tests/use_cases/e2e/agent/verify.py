@@ -1016,7 +1016,10 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     # sí lo decía, más allá del corte. Tercera vez en la misma noche que un recorte convierte
                     # un dato en una conclusión falsa; las otras dos fueron las filas de la hoja y la
                     # clasificación de las caras. Un campo no se recorta por accidente.
-                    "says_found": "YA HA ENCONTRADO" in live,
+                    # …y se busca en el PROMPT ENTERO, no en la línea de tareas. El imperativo de resultados
+                    # («YA HA ENCONTRADO algo: CUÉNTALE…») es OTRA línea del prompt, y `live` solo trae la de
+                    # «TAREAS DE FONDO EN CURSO» — mirar ahí es preguntarle a la línea equivocada.
+                    "says_found": "YA HA ENCONTRADO" in sp,
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out
