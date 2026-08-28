@@ -357,3 +357,36 @@ def test_las_acciones_declaradas_siguen_siendo_las_que_hace(monkeypatch, tmp_pat
                     / "manifest.json").read_text(encoding="utf-8"))
     assert "name_list" in m["actions"]
     assert yt.apply_action("name_list", {}).get("ok") is True
+
+
+def test_con_player_error_la_pista_dice_que_NO_suena_y_por_que(monkeypatch, tmp_path):
+    """V2-469 · «la que suena» is a LIE over a broken player. Measured in `build-a-video-playlist-from-links`
+    (23:05): `play` → `player_error ×2` (embedding disabled — Rick Astley refuses the iframe) and nothing
+    surfaced the fact, so the model answered «¿qué está sonando?» with evasions for four turns. V2-401
+    already fixed the producing predicate; the hint the brain READS still claimed playback. With
+    `player_error` set, the current item's hint states the block instead."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    db = yt._load()
+    db["list"] = [{"videoId": "a1", "title": "Never Gonna Give You Up", "channel": "Rick Astley"}]
+    db["pos"] = 0
+    db["player_error"] = "150"
+    store.save(yt.WID, db)
+
+    idx = yt.ref_index()
+    assert "la que suena" not in (idx[0]["hint"] or "")
+    assert "no se puede reproducir" in idx[0]["hint"]
+
+
+def test_sin_player_error_la_pista_de_la_que_suena_se_conserva(monkeypatch, tmp_path):
+    """Sensitivity in the safe direction: a healthy player keeps the reference the operator actually uses."""
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
+    from widgets.youtube import data as yt
+    db = yt._load()
+    db["list"] = [{"videoId": "a1", "title": "Paella paso a paso", "channel": "Cocina"}]
+    db["pos"] = 0
+    db["player_error"] = ""
+    store.save(yt.WID, db)
+    assert "la que suena" in yt.ref_index()[0]["hint"]

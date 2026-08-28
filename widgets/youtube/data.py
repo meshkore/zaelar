@@ -228,14 +228,23 @@ def ref_index() -> list:
         db = _load()
     except Exception:  # noqa: BLE001
         return []
-    cur = int(db.get("pos") or -1)
+    # `db.get("pos") or -1` was a falsy-zero bug (V2-469): with the FIRST video playing (pos=0, the most
+    # common case) the `or` turned it into -1 and no item was ever marked as playing.
+    cur = int(db.get("pos", -1))
+    # «la que suena» over a broken player is a lie (V2-469, measured: play → player_error ×2, embedding
+    # disabled, and the model answered «¿qué está sonando?» with evasions for four turns — nothing it READS
+    # carried the fact). V2-401 fixed the producing predicate; this is the hint's half.
+    roto = bool(str(db.get("player_error") or "").strip())
     out = []
     for i, it in enumerate(db.get("list") or []):
         titulo = str(it.get("title") or it.get("url") or it.get("videoId") or "").strip()
         if not titulo:
             continue
-        pistas = [p for p in (str(it.get("channel") or "").strip(),
-                              "la que suena" if i == cur else "") if p]
+        _estado = ""
+        if i == cur:
+            _estado = ("no se puede reproducir aquí (el sitio bloquea la inserción); ofrécele otra o el enlace"
+                       if roto else "la que suena")
+        pistas = [p for p in (str(it.get("channel") or "").strip(), _estado) if p]
         out.append({"id": str(i + 1), "label": titulo[:80], "field": "item",
                     "hint": " · ".join(pistas)})
     return out
