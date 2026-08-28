@@ -620,6 +620,15 @@ def mechanism_facts(mech: dict) -> str:
     # es que llegara por una NOTA EMPUJADA segundos antes — medido en `compare-insurance-quotes__us`, donde
     # la nota de la búsqueda cayó 2,6 s antes del turno de GEICO y el juez lo archivó como «INVENTÓ el
     # resultado final». Hay TRES caminos de entrega (hoja, extracción, nota) y el veredicto miraba uno.
+    # EL RECALL QUE NO LLEGÓ (V2-453). Va arriba por lo mismo que el resto: decide de quién es la culpa de
+    # «pregunta lo que ya sabe» — si el recall venció su presupuesto, el turno NO tenía esas preferencias.
+    _rn = mech.get("recall_not_delivered") or {}
+    if _rn.get("n"):
+        _m = ", ".join(f"{k} ×{v}" for k, v in (_rn.get("reasons") or {}).items())
+        lines.append(f"· ⚠️ MEMORIA QUE NO LLEGÓ: {_rn['n']} vez/veces el recall durable no se entregó a "
+                     f"tiempo ({_m}); ejemplo de lo que se preguntaba: «{'», «'.join(_rn.get('queries') or [])}». "
+                     f"Si en esos turnos zaelar preguntó algo que el operador ya le había contado, NO lo "
+                     f"puntúes como fallo de memoria ni de adaptación: no lo tenía delante. Es avería nuestra.")
     _mc = mech.get("market_claims_before_delivery") or {}
     if _mc.get("n"):
         _ej = (_mc.get("turns") or [{}])[0]

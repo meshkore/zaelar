@@ -1877,6 +1877,38 @@ def market_claims_before_delivery(transcript, timing: dict | None, sheet: dict |
     return {"turns": fuera[:6], "n": len(fuera), "measurable": True}
 
 
+def recall_not_delivered(all_events: list[dict]) -> dict:
+    """Turnos que pidieron memoria durable y se quedaron sin ella — la señal de V2-311, que nadie recogía.
+
+    «El agente pregunta lo que ya sabe» es un bloqueador recurrente del tablero y tiene DOS causas con
+    arreglos opuestos: el recall NO LLEGÓ (avería nuestra: el presupuesto de 800 ms vence y el turno sigue sin
+    memoria durable) o llegó y el modelo lo ignoró (conducta). Desde fuera se ven idénticas, que es la forma
+    exacta del confundido que V2-432 cerró para la hoja.
+
+    El motor ya lo dice desde V2-311 —fila `memory` «recall sin entregar», con el motivo y la consulta— y el
+    informe no lo leía. Un evento que nadie recoge deja la pregunta sin contestar igual que si no existiera:
+    medido el 2026-08-28, `weekend-motor-events__es` archivó como fallo de ADAPTACIÓN («pregunta ¿qué te
+    gusta? cuando las preferencias ya estaban en su memoria, sembradas y verificadas») sin nada que dijera si
+    esas preferencias llegaron al prompt.
+
+    Va APARTE del recuento de anomalías: es un evento `memory`, no un error, así que el auditor —que solo
+    recoge `is_error`— no lo vería nunca. Mismo motivo que `unresolved_errand_sheets`.
+    """
+    motivos: dict[str, int] = {}
+    consultas: list[str] = []
+    for e in (all_events or []):
+        f = _fields(e)
+        if "recall sin entregar" not in str(f.get("label") or e.get("label") or ""):
+            continue
+        r = str(f.get("reason") or e.get("reason") or "?")
+        motivos[r] = motivos.get(r, 0) + 1
+        q = str(f.get("query") or e.get("query") or "").strip()
+        if q and q not in consultas:
+            consultas.append(q)
+    return {"n": sum(motivos.values()), "reasons": motivos, "queries": consultas[:4],
+            "read": True}
+
+
 def told_but_given_no_rows(prompt_rows: list[dict] | None, timing: dict | None) -> dict:
     """Turnos AVISADOS de que había algo y servidos con CERO filas — la trampa que escribimos nosotros.
 

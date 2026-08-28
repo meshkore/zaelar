@@ -2102,6 +2102,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/use_cases/unit/test_un_caso_bloqueado_no_es_una_averia.py"]},
         # V2-450 — un precio de mercado dicho antes de que nada se hubiera entregado por ninguno de los TRES
         # caminos (hoja, extracción, nota). 2 de 246 rondas medibles, y ocho bugs míos por el camino.
+        # V2-453 — el motor emite desde V2-311 que un recall no llegó, y el informe no lo leía: «pregunta lo
+        # que ya sabe» quedaba sin atribuir entre avería nuestra y conducta del modelo.
+        {"id": "10.115", "title": "El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene dos causas",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_el_recall_que_no_llego_se_cuenta.py"]},
         {"id": "10.114", "title": "Un precio de mercado ANTES de entregar nada — y los tres caminos de entrega",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_un_precio_de_mercado_antes_de_entregar_nada.py"]},

@@ -475,6 +475,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # V2-445 — la LISTA del reproductor es la entrega de un encargo multimedia (V2-402), y el arnés
             # solo miraba la hoja: para esa familia está vacía por diseño y el informe publicaba «0».
             mech["media_list"] = verifymod.media_list()
+            # V2-453 — el recall que NO llegó. Sin esto, «preguntó lo que ya sabía» no se puede atribuir.
+            mech["recall_not_delivered"] = verifymod.recall_not_delivered(all_events)
             mech["market_claims_before_delivery"] = verifymod.market_claims_before_delivery(
                 transcript, mech.get("sheet_timing"), mech.get("results_sheet"),
                 mech.get("proactive_notes"))

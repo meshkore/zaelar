@@ -5124,6 +5124,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **El recall que NO llegó se cuenta — «preguntó lo que ya sabía» tiene DOS causas (V2-453, 2026-08-28)**: o el
+  recall no llegó (el presupuesto de 800 ms vence y el turno sigue sin memoria durable — avería nuestra, y **la
+  mayoritaria**: V2-311 midió 21 de 27 recalls vivos abandonados) o llegó y el modelo lo ignoró (conducta).
+  Desde fuera se ven idénticas — la forma del confundido que V2-432 cerró para la hoja, en otro subsistema.
+  **No faltaba la señal**: el motor la emite desde V2-311 («recall sin entregar», con motivo y consulta) y el
+  informe **no la leía**, así que `weekend-motor-events__es` se archivó como fallo de ADAPTACIÓN [alta] sin
+  nada que dijera si esas preferencias llegaron al prompt. Al juez se le da con la instrucción, no solo el
+  hecho: **no lo puntúes como fallo de memoria ni de adaptación**. Con cero perdidos no se dice nada. Nodo
+  10.115, cuatro desarmes. **No cierra** que el recall no llegue: subir el presupuesto es un canje
+  latencia↔memoria que decide el operador.
+
 - **El prompt está en castellano y el operador habla inglés: el modelo copiaba su idioma (V2-452,
   2026-08-28)**: barrido de las 40 rondas US guardadas — **8 (20 %) llevan castellano en la voz de zaelar**, y
   **tres contestan ENTERAS en castellano** a un angloparlante («Hecho, te aviso en cuanto tenga candidatos»);
