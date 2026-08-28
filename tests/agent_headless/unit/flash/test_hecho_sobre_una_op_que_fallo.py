@@ -148,3 +148,26 @@ def test_la_boca_del_fallo_va_ANTES_del_ack_generico():
     i_fallo = src.index('elif action == "widget_data" and isinstance(return_extra_exec, dict)')
     i_ack = src.index('elif action in ("widget_data", "confirm_task_no"):')
     assert i_fallo < i_ack
+
+
+# ── V2-463 — la referencia al item VIAJA por el canal de texto ──────────────────────────────────────────
+def test_el_item_de_la_tool_llega_al_widget(monkeypatch):
+    """La tool declara `item` como argumento propio y este camino lo TIRABA: solo pasaba `payload`, así que
+    «ponme la 1, la del Spider» llegaba al visor como un select sin item — tres fallos medidos en una ronda,
+    con el modelo diciendo «te la dejo puesta» encima."""
+    import asyncio
+    visto = {}
+
+    async def _brain_action(wid, action, payload):
+        visto.update({"wid": wid, "action": action, "payload": payload})
+        return {"ok": True}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    from nucleo.flash import widget_data_turn as W
+    asyncio.run(W.execute([{"name": "widget_data",
+                            "args": {"widget_id": "imagenes", "action": "select",
+                                     "item": "la 1, la del Spider"}}]))
+    assert visto.get("action") == "select"
+    # Resuelto por `refs` a un id real si hay items en pantalla; si no, el texto crudo viaja en el campo
+    # del id — lo que NO puede pasar es que el widget reciba un select vacío.
+    assert any(str(v).strip() for k, v in (visto.get("payload") or {}).items()), visto

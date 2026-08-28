@@ -42,6 +42,29 @@ async def execute(tool_calls: list) -> dict:
         wid = str(a.get("widget_id") or "").strip().lower()
         act = str(a.get("action") or "").strip()
         pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
+        # LA REFERENCIA AL ITEM VIAJA (V2-463). La tool declara `item` como argumento propio («referencia en
+        # lenguaje natural, nunca un id inventado») y este camino lo TIRABA: solo pasaba `payload`, así que
+        # «ponme la 1, la del Spider» llegaba al widget como un select sin item — tres fallos medidos en una
+        # ronda con el modelo diciendo «te la dejo puesta» encima. Se resuelve con el MISMO mecanismo que la
+        # voz (`widgets.refs.resolve`, el id real contra lo que hay en pantalla, jamás inventado); si no
+        # resuelve, el texto crudo viaja igual en el campo del id para que el resolver PROPIO del widget
+        # (p. ej. el de `imagenes`, que casa por tokens) tenga su oportunidad y su negativa enseñe el menú.
+        _ref = str(a.get("item") or "").strip()
+        if _ref:
+            try:
+                from widgets import refs as _refs
+                _rr = _refs.resolve(wid, act, _ref, pl)
+                if getattr(_rr, "ok", False) and isinstance(_rr.payload, dict):
+                    pl = _rr.payload
+                _campo = _refs.id_field_for_action(wid, act) or "item"
+                # Un manifest sin campo de id declarado (p. ej. `imagenes`) hace que `resolve` conteste
+                # «ok, nada que resolver» con el payload intacto — y la referencia se perdería igual que
+                # antes. Si el modelo dio una y no aterrizó en el payload, viaja cruda en el campo del id:
+                # el resolver PROPIO del widget decide, y su negativa enseña el menú.
+                if not str(pl.get(_campo) or "").strip():
+                    pl = {**pl, _campo: _ref}
+            except Exception:  # noqa: BLE001
+                pl = {**pl, "item": _ref}
         mode = _fe.action_mode(wid, act)
         if mode != _wa.FAST:
             saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
