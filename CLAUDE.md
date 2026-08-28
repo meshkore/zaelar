@@ -5124,6 +5124,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «PASSED» de ninguna clase y caería en el `else`. Fuera de la rotación, mismo trato que los `capped`. Nodo 10.113, tres desarmes — y **el segundo no mordía** en la primera versión: la cola que usaba caía en el
   `else`, que también es INFRA, así que pasaba con la rama borrada.
 
+- **El prompt está en castellano y el operador habla inglés: el modelo copiaba su idioma (V2-452,
+  2026-08-28)**: barrido de las 40 rondas US guardadas — **8 (20 %) llevan castellano en la voz de zaelar**, y
+  **tres contestan ENTERAS en castellano** a un angloparlante («Hecho, te aviso en cuanto tenga candidatos»);
+  las otras cinco son una palabra suelta dentro de una frase inglesa («Bueno», «todavía»), que es la firma de
+  la copia. **El idioma NO está mal fijado** (`memory_language: {"effective":"en","explicit":true}`) y el lock
+  ya era duro («REGLA ABSOLUTA, POR ENCIMA DE TODO»): lo que faltaba era **decir que lo que LEE está en otra
+  lengua a propósito** — todos los bloques del prompt están en castellano siempre, y el lock mandaba escribir
+  en inglés sin nombrar lo que NO hay que copiar (la lección de V2-221: sin la frase dentro, el modelo no
+  tiene con qué contrastarse). Se añade una cara al lock **solo cuando el operador no habla castellano**, con
+  las cuatro palabras medidas nombradas y los saludos dentro de la regla —tres de los ocho casos son una
+  respuesta inglesa que acaba en «Bueno…»—. **El camino castellano queda byte por byte igual**: allí el aviso
+  sobraría y engordar el prompt de todos los turnos por un defecto que ahí no existe es el canje equivocado.
+  Nodo 2.40, cuatro desarmes. **No cierra** que el prompt esté en castellano; esto es el cinturón.
+
 - **Las filas de la hoja viajan aunque NO haya navegador (V2-451, 2026-08-28)**: la causa que V2-432, V2-441 y
   V2-444 fueron dejando escrita, y es estructural — **el bloque de filas colgaba de la PESTAÑA**.
   `_sheet_top_rows` resuelve la hoja DESDE la tarea de navegador y `navegador_lines()` solo compone caras si

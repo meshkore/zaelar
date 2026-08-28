@@ -621,6 +621,11 @@ DOMAINS: list[dict] = [
         # tratarlo como entrega. Y era el que disparaba: 7 turnos medidos con la cara del navegador apagada.
         # V2-451 — el bloque de filas colgaba de la PESTAÑA del navegador, así que un encargo resuelto por
         # búsqueda llenaba la hoja y el prompt no nombraba ni una fila (ni emitía el aviso de V2-438).
+        # V2-452 — el prompt entero está en castellano y el operador puede hablar otro idioma: el modelo
+        # copiaba el de las notas. 8 de 40 rondas US, tres de ellas contestando entero en castellano.
+        {"id": "2.40", "title": "No se copia el idioma de las NOTAS INTERNAS del prompt",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_no_se_copia_el_idioma_de_las_notas_internas.py"]},
         {"id": "4.79", "title": "Las filas de la hoja viajan aunque NO haya navegador",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_las_filas_viajan_aunque_no_haya_navegador.py"]},

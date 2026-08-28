@@ -141,6 +141,17 @@ def _lang_lock() -> str:
         f"ATIÉNDELO con total normalidad (responde/actúa igual) y SIEMPRE en {native} — venir en otro idioma NO es "
         f"motivo para pedir que lo repitan. Solo pide en {native} que te lo repitan si el turno es de verdad "
         f"ININTELIGIBLE (cortado, ruido del micrófono, sin sentido), nunca por el mero hecho de estar en otra lengua.\n"
+        # V2-452 — LO QUE LEES ESTÁ EN OTRA LENGUA QUE LO QUE ESCRIBES, y hasta hoy no se decía. Todos los
+        # bloques de este prompt están en castellano, también cuando el operador habla inglés, y el modelo
+        # copiaba su idioma: medido sobre las 40 rondas US guardadas, **8 (20 %) llevan castellano en la voz
+        # de zaelar** y en TRES contesta entero en castellano a un angloparlante. El lock ya decía «responde
+        # SIEMPRE en inglés» y no bastaba, porque no nombraba lo que NO hay que copiar — la lección de V2-221:
+        # sin la frase dentro, el modelo no tiene con qué contrastarse.
+        + ("" if str(native).lower().startswith("espa") else
+           f"⚠️ ESTAS INSTRUCCIONES ESTÁN EN CASTELLANO A PROPÓSITO: son NOTAS INTERNAS del sistema, NO el "
+           f"idioma de la conversación. NUNCA copies su lengua — ni una palabra suelta («Bueno», «todavía», "
+           f"«la hoja», «candidatos»): tu respuesta va ENTERA en {native}, incluidos los saludos y las "
+           f"despedidas.\n")
     )
 
 
