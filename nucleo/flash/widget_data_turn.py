@@ -102,6 +102,16 @@ async def execute(tool_calls: list) -> dict:
                              "message": str(res.get("message") or res.get("error") or "")[:160]})
             continue
         hechas.append({"widget": wid, "act": act})
+        # LA TARJETA SE ABRE DONDE ATERRIZAN LOS DATOS (V2-463, ahora también en el caso genérico). Medido
+        # en `build-a-video-playlist-from-links`: el modelo ejecutó `name_list` y el informe marcó «ESCRITOS
+        # PERO NUNCA ABIERTOS» — el operador no vio nada, así que «hecho» era invisible. Una data-op que
+        # ESCRIBE es exactamente lo que el frontend ya usa para repintar una tarjeta abierta; que además la
+        # abra cuando no lo está es la misma decisión, no una nueva. Idempotente en el navegador.
+        try:
+            from voice.observer import emit as _emit
+            _emit("widget", "show", extra={"id": wid, "src": "flash"})
+        except Exception:  # noqa: BLE001
+            pass
     if not hechas:
         if fallidas:
             f0 = fallidas[0]

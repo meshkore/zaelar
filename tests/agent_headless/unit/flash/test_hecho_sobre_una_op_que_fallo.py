@@ -221,3 +221,45 @@ def test_un_payload_que_YA_trae_el_dato_no_se_pisa(monkeypatch):
                             "args": {"widget_id": "youtube", "action": "add",
                                      "item": "algo suelto", "payload": {"url": "https://youtu.be/ok"}}}]))
     assert visto.get("url") == "https://youtu.be/ok"
+
+
+# ── V2-467 — la tarjeta se abre donde aterrizan los datos, también en el caso genérico ──────────────────
+def test_una_data_op_que_ESCRIBE_abre_su_tarjeta(monkeypatch):
+    """Medido en `build-a-video-playlist-from-links`: el modelo ejecutó `name_list` y el informe marcó
+    «ESCRITOS PERO NUNCA ABIERTOS» — el operador no vio nada, así que «hecho» era invisible. Es la misma
+    decisión de V2-463 (los rails de medios ya la tenían), aplicada al caso general: una data-op que escribe
+    es justo lo que el frontend ya usa para repintar una tarjeta abierta."""
+    import asyncio
+    emitted: list[tuple] = []
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": True}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, (extra or {}).get("id"))))
+    from nucleo.flash import widget_data_turn as W
+    asyncio.run(W.execute([{"name": "widget_data",
+                            "args": {"widget_id": "youtube", "action": "name_list",
+                                     "payload": {"name": "la de la tarde"}}}]))
+    assert ("widget", "show", "youtube") in emitted
+
+
+def test_una_op_que_el_widget_RECHAZA_no_abre_nada(monkeypatch):
+    """La mitad de sensibilidad: abrir una tarjeta sobre un cambio que no ocurrió es enseñar una caja que
+    contradice lo que se acaba de decir."""
+    import asyncio
+    emitted: list[tuple] = []
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": False, "error": "no lo acepto"}
+
+    monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
+                        emitted.append((kind, label, (extra or {}).get("id"))))
+    from nucleo.flash import widget_data_turn as W
+    asyncio.run(W.execute([{"name": "widget_data",
+                            "args": {"widget_id": "youtube", "action": "name_list"}}]))
+    assert not [e for e in emitted if e[1] == "show"]
