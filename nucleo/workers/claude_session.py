@@ -30,7 +30,16 @@ from loguru import logger
 from .base import WorkerBackend, WorkerEvent, WorkerSpec
 
 _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-_DEFAULT_TOOLS = ["Read"]
+# `Write` está aquí porque NUESTRO PROPIO PROMPT lo exige: el payload de los puentes va por `@fichero` desde
+# V2-379 —«escríbelo con Write a un fichero de tu directorio»— y sin la tool en la allowlist el CLI pide una
+# aprobación que en headless nadie va a dar. Medido el 2026-08-28 en `find-best-hotel-city__us`: «Claude
+# requested permissions to write to …/zaelar-workers/6b9810-1/informe.json, but you haven't granted it yet»,
+# y acto seguido el puente contestando «no puedo leer el payload de informe.json». Le pedíamos algo imposible.
+#
+# Solo `Write`, y a propósito: ni `Edit` ni `NotebookEdit`. Un worker estrena directorio de usar y tirar
+# (`workers/workdir.py`) y ahí escribir su propio JSON es la operación más pequeña que hay; MODIFICAR ficheros
+# que ya existen es otra cosa y nadie la ha pedido. Con `deny_tools` (input no confiable) sigue sin nada.
+_DEFAULT_TOOLS = ["Read", "Write"]
 # PUENTES agnósticos que un worker CONFIABLE puede usar (Bash acotado a estos CLIs, nunca un Bash abierto).
 # hbmem/hbnote/hbweb (V2-036) + hbask/hbact (V2-038, plano request/response). Se omiten si deny_tools (§v3·P).
 # Puentes del worker (hbmem/hbnote/hbweb/hbask/hbwidget). El allowlist casa por PREFIJO LITERAL del comando, así

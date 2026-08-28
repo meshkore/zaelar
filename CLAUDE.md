@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El worker PUEDE escribir lo que le decimos que escriba (V2-435, 2026-08-28)**: le pedíamos escribir un
+  fichero y no le dábamos la tool. El payload de los puentes va por `@fichero` desde V2-379 y el prompt lo dice
+  con todas las letras —«escríbelo con Write a un fichero de tu directorio»—, pero **`Write` no estaba en la
+  allowlist** que se pasa al CLI (30 entradas, ninguna), así que pedía una aprobación que en headless nadie va
+  a dar. Medido en `find-best-hotel-city__us`, con la cadena entera visible por primera vez gracias a los
+  arreglos de la misma noche: «Claude requested permissions to write to …/informe.json, but you haven't
+  granted it yet» y acto seguido «no puedo leer el payload de informe.json». Nueve turnos ciegos y 1/5. Una
+  instrucción que el sistema hace imposible de cumplir no es una instrucción: es una trampa para el modelo Y
+  para quien lea el transcript. **Solo `Write`**, ni `Edit` ni `NotebookEdit`: el worker estrena directorio de
+  usar y tirar y escribir su propio JSON es la operación más pequeña que hay, mientras que modificar ficheros
+  existentes es otra cosa y nadie la ha pedido. Con `deny_tools` (input no confiable) sigue sin nada. Hay un
+  test que exige que el prompt y la allowlist digan lo MISMO: el defecto no era que faltara una tool, era que
+  faltaba la que el prompt pide. Nodo 4.73, tres desarmes.
+
 - **Un RELEVO no es un encargo nuevo, tampoco para quien LEE la hoja (V2-434, 2026-08-28)**: el final de
   V2-432. Un relanzamiento por falta de cuota HEREDA la hoja de su predecesor, pero el **sello de la pestaña**
   «se escribe una sola vez, en `tasks.create()`» y el relevo crea pestaña nueva — así que el sello apunta a la

@@ -597,6 +597,14 @@ DOMAINS: list[dict] = [
         # (vacía, 7 veces) mientras las filas estaban en `f1743e-1`: un RELEVO hereda la hoja del predecesor,
         # pero el sello de la pestaña «se escribe una sola vez, en tasks.create()» y el relevo crea pestaña
         # nueva. El sello no falta: está RANCIO. Arregla el lado del LECTOR y nada más.
+        # 2026-08-28 — le pedíamos escribir un fichero y no le dábamos la tool. El payload de los puentes va
+        # por `@fichero` desde V2-379 y el prompt lo dice con todas las letras, pero `Write` no estaba en la
+        # allowlist: el CLI pedía una aprobación que en headless nadie da. Medido en `find-best-hotel-city__us`
+        # con la cadena entera visible: «requested permissions to write to …/informe.json» y acto seguido «no
+        # puedo leer el payload de informe.json». Nueve turnos ciegos y 1/5.
+        {"id": "4.73", "title": "El worker PUEDE escribir lo que le decimos que escriba — solo `Write`",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_worker_can_write_what_we_told_it_to_write.py"]},
         {"id": "4.72", "title": "Un RELEVO no es un encargo nuevo, tampoco para quien LEE la hoja",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_relay_is_not_a_new_errand_for_the_reader.py"]},
