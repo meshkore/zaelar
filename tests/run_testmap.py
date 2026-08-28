@@ -559,7 +559,12 @@ DOMAINS: list[dict] = [
                                 "reproducir · play/list normalizado UNA vez para voz y probe",
             "ch": UNIT,
             "paths": ["tests/browser/unit/youtube/test_a_media_search_fills_the_list_not_the_sheet.py",
-                      "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py"]},
+                      "tests/agent_headless/unit/flash/test_searching_videos_goes_to_the_player_not_the_sheet.py",
+                      # V2-469: a hit the parser cannot NAME is not a candidate (Shorts blocks carry no
+                      # title, and a fixed window let them STEAL the neighbour's), and the canned line's
+                      # count matches the names it gives.
+                      "tests/browser/unit/youtube/test_a_short_without_a_title_is_not_a_candidate.py",
+                      "tests/agent_headless/unit/flash/test_the_count_matches_the_names_it_gives.py"]},
         # 2026-08-28 (V2-457): enseñar una foto era un ENCARGO de worker — 355 s y $1,96 medidos en la sesión
         # manual del operador — y pasa a ser un turno de 3 s por `show_images`, con su propio visor. Tres piezas
         # que se prueban por separado: el PARSER del payload del buscador de imágenes (la parte frágil, y por eso

@@ -139,17 +139,34 @@ def _search_many(q: str, n: int = 5) -> list:
     except Exception:
         return []
     out, seen = [], set()
-    for m in re.finditer(r'"videoId":"([0-9A-Za-z_-]{11})"', html):
+    ms = list(re.finditer(r'"videoId":"([0-9A-Za-z_-]{11})"', html))
+    for i, m in enumerate(ms):
         vid = m.group(1)
         if vid in seen:                                  # the page repeats each id many times (thumbs, params)
             continue
         seen.add(vid)
         # videoRenderer block for THIS video: title, channel and publication date are extracted from it.
-        blk = html[m.start(): m.start() + 2500]
+        # Bounded at the NEXT DIFFERENT videoId (V2-469): a fixed 2500-char window can reach into the
+        # following video's block, and a title-less Shorts block would then STEAL its neighbour's title —
+        # naming one video and playing another. The same id repeating (thumbs, params) stays inside.
+        end = m.start() + 2500
+        for m2 in ms[i + 1:]:
+            if m2.group(1) != vid:
+                end = min(end, m2.start())
+                break
+        blk = html[m.start(): end]
         t = re.search(r'"title":\{"runs":\[\{"text":"([^"]{2,140})"', blk)
+        if not t:
+            # V2-469 — a hit the parser cannot NAME is not a candidate. Shorts blocks repeat "videoId"
+            # but carry reelPlayerOverlayRenderer instead of "title":{"runs":…}; a query whose results
+            # page led with them returned 5 hits, all untitled, and every one became a bare
+            # «youtu.be/<id>» row the operator could not choose from («no me has puesto ningún título.
+            # Así me es imposible elegir»). Skip and keep walking: named hits further down fill n, and
+            # a page with none returns [] — the `search` action already says that honestly.
+            continue
         ch = re.search(r'"(?:ownerText|longBylineText)":\{"runs":\[\{"text":"([^"]{1,80})"', blk)
         pub = re.search(r'"publishedTimeText":\{"simpleText":"([^"]{2,40})"', blk)
-        out.append({"videoId": vid, "title": _unesc(t.group(1)) if t else "",
+        out.append({"videoId": vid, "title": _unesc(t.group(1)),
                     "channel": _unesc(ch.group(1)) if ch else "",
                     "published": _unesc(pub.group(1)) if pub else ""})
         if len(out) >= n:

@@ -284,7 +284,7 @@ export function render(root, data, ctx){
     const filt = String(data.list_filter || "").trim().toLowerCase();
     // V2-467 — el NOMBRE de la lista manda sobre el rótulo genérico: si el operador la llamó «la de la
     // tarde», eso es lo que tiene que leer en la tarjeta para verificar de un vistazo que se le hizo caso.
-    const _nom = String(d.list_name || "").trim();
+    const _nom = String(data.list_name || "").trim();
     const _rot = _nom || "Lista";
     const head = el("div", "hb-yt-listh", lst.length ? (_rot + " · " + lst.length) : _rot);
     if(filt){

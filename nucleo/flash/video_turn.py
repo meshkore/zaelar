@@ -113,9 +113,14 @@ def spoken_for(parte: dict, ack: str) -> str:
             added = [str(t) for t in (parte.get("added") or []) if str(t).strip()]
             if added:
                 nombres = " · ".join(f"«{t}»" for t in added[:3])
-                return (f"I've queued {len(added)} videos: {nombres}… tell me which one to play."
+                # The count must match what is shown (V2-469): «5 vídeos: a · b · c…» was answered with
+                # «me has dicho 5 pero solo veo 3» — a bare ellipsis reads as lost items; «y N más» is a fact.
+                resto = len(added) - 3
+                if resto > 0:
+                    nombres += (f" and {resto} more" if en else f" y {resto} más")
+                return (f"I've queued {len(added)} videos: {nombres} — tell me which one to play."
                         if en else
-                        f"Te he puesto {len(added)} vídeos en la lista: {nombres}… dime cuál pongo.")
+                        f"Te he puesto {len(added)} vídeos en la lista: {nombres} — dime cuál pongo.")
             return ("They were all in the list already — tell me which one to play." if en
                     else "Ya estaban todos en la lista — dime cuál pongo.")
         msg = str(parte.get("message") or "").strip()
