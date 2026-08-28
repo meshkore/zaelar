@@ -2000,6 +2000,13 @@ DOMAINS: list[dict] = [
         # DELANTE, así que lo que quedaba era «Traceback … <frozen runpy> … _run_module_as_main …»: cien
         # caracteres de andamiaje idéntico en cualquier fallo de Python, con la línea de la excepción cortada
         # fuera. Tres hechos registrados y ninguno diagnosticable — la forma más cara de tener razón.
+        # 2026-08-28, plató 24/7 — `compare-broadband-plans__es`: la hoja tenía «Digi → 23 €/mes», el agente lo
+        # dijo BIEN dos veces y a la tercera soltó «lo de Digi ronda los 4,9 euros al mes». El juez lo cazó a
+        # ojo y lo puso de bloqueador nº1; el informe no tenía con qué respaldarlo NI contradecirlo. Un precio
+        # equivocado no es un matiz: quien contrata con ese dato se lleva veinte euros de sorpresa al mes.
+        {"id": "10.108", "title": "El precio que DICE es el que TIENE — el dato bueno lo tenía delante",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_price_it_says_is_the_price_it_has.py"]},
         {"id": "10.107", "title": "Un traceback se recorta por la COLA — el andamiaje se comía la excepción",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_traceback_is_cut_from_the_wrong_end.py"]},

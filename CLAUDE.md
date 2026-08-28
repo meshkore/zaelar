@@ -5112,6 +5112,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El precio que DICE es el que TIENE (V2-430, 2026-08-28)**: en `compare-broadband-plans__es` la hoja tenía
+  «Digi → 23 €/mes», el agente lo dijo BIEN dos veces y a la tercera soltó «lo de Digi ronda los **4,9 euros**
+  al mes» — mismo candidato, precio inventado, contradiciéndose a sí mismo, y justo en el turno en que el
+  usuario pedía los datos para decidir. El juez lo cazó a ojo y lo puso de bloqueador nº1; el informe no tenía
+  con qué respaldarlo NI contradecirlo. Un precio equivocado no es un matiz: quien contrata con ese dato se
+  lleva veinte euros de sorpresa al mes, y el dato bueno lo tenía delante. Conservador a propósito (ventana
+  corta detrás del nombre, precio en la hoja obligatorio, varios importes y uno que cuadre no marca,
+  tolerancia de un céntimo) porque un falso positivo acusa al producto de mentir. Dos cosas que enseñó el
+  desarme: **el ancla no puede ser `_title_head`** —exige dos palabras y con su listón `Digi · 500 Mb…` no
+  tiene ancla, así que el caso medido no se habría cazado— y **los títulos con acento eran invisibles**,
+  porque el ancla va sin acentos y se buscaba sobre el texto crudo: «masmovil» nunca aparece dentro de
+  «MásMóvil», y DOS tests estaban pasando por eso y no por la lógica. El plegado es 1:1 para que el índice
+  valga sobre el original. Nodo 10.108, cinco desarmes.
+
 - **Un comando rechazado dice qué se intentó (V2-429, 2026-08-28)**: cuatro rechazos distintos de la puerta
   de permisos en una sola noche («simple_expansion», «brace with quote», el `&`, el `cd`) y en los CUATRO el
   evento guardaba qué regla se rompió **y nada del comando**. Eso no distingue las dos causas, que piden

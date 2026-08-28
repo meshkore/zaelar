@@ -455,6 +455,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 transcript, _pares + [str(t) for t in ((mech.get("offered") or {}).get("named") or [])])
             # …y EL CRUCE: de lo que le dieron, cuánto nombró. «¿Entregó algo?» ya se sabía; esto responde a
             # «¿entregó lo que TENÍA?», que es la pregunta del operador (V2-332).
+            # …Y SI EL PRECIO QUE DIJO ES EL QUE TIENE. Nombrar el candidato bueno y colgarle un importe
+            # inventado es peor que no nombrarlo: quien contrata con ese dato se lleva la sorpresa después.
+            mech["price_mismatches"] = verifymod.prices_that_do_not_match(
+                transcript, mech.get("results_sheet"))
             mech["delivery_completeness"] = verifymod.delivery_completeness(
                 mech.get("delivered_by_name"), mech.get("results_sheet"),
                 verifymod.shown_candidates(mech.get("prompt_context")))

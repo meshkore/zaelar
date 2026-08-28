@@ -608,6 +608,13 @@ def mechanism_facts(mech: dict) -> str:
             lines.append(f"· ℹ️ Y OJO CON ESTE: la hoja tenía {_dc.get('in_sheet')} filas en total, o sea "
                          f"que {_oculto} NUNCA llegaron a su prompt. Eso es un límite NUESTRO, no una "
                          f"retención suya: no puedes bajarle la nota por no nombrar lo que no le enseñamos.")
+    # EL PRECIO EQUIVOCADO, con los dos números. Al juez le llega como HECHO y no como impresión: en
+    # `compare-broadband-plans__es` lo cazó a ojo y lo puso de bloqueador nº1, y el informe no tenía con qué
+    # respaldarlo ni contradecirlo.
+    for _pm in (mech.get("price_mismatches") or [])[:4]:
+        lines.append(f"· ⚠️ PRECIO EQUIVOCADO: dijo que «{_pm.get('titulo')}» cuesta {_pm.get('dicho')} y en "
+                     f"su hoja pone {_pm.get('en_la_hoja')} (turno {_pm.get('turno')}). El dato bueno lo "
+                     f"tenía delante: esto no es «no lo sabía», es haberlo dicho mal.")
     # V2-399 — el mismo encargo lanzado varias veces quema turnos y presupuesto, y solo viajaba en crudo.
     _de = mech.get("duplicate_errands") or {}
     if (_de.get("worst") or 0) >= 2 or (_de.get("identical_repeats") or 0) > 0:

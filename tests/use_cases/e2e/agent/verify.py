@@ -1448,6 +1448,122 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+#: Un importe con su moneda, delante o detrás. Los millares pueden ir con punto, coma o espacio (`1.299`,
+#: `1,299`, `1 299`) y el decimal con punto o coma: las dos convenciones conviven en un plató que mide en
+#: castellano y en inglés, y elegir una sola convierte «$1,299.50» en 1,29 € — medido al escribir esto.
+_MONEDA = r"€|eur|euros?|\$|usd|d[oó]lares"
+_NUM = r"\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?"
+_PRECIO = re.compile(rf"({_NUM})\s*(?:{_MONEDA})|(?:€|\$)\s*({_NUM})", re.I)
+
+
+def _importe(txt: str) -> float | None:
+    """El primer importe de un texto, como número. `None` si no hay ninguno."""
+    m = _PRECIO.search(txt or "")
+    if not m:
+        return None
+    crudo = (m.group(1) or m.group(2) or "").replace(" ", "")
+    # 1.234,56 → 1234.56 ; 34,99 → 34.99 ; 1,234.56 → 1234.56
+    if "," in crudo and "." in crudo:
+        crudo = crudo.replace("." if crudo.rfind(",") > crudo.rfind(".") else ",", "")
+    crudo = crudo.replace(",", ".")
+    try:
+        return float(crudo)
+    except ValueError:
+        return None
+
+
+#: Plegado de acentos CARÁCTER A CARÁCTER: la longitud se conserva, así que un índice sobre el texto plegado
+#: vale sobre el original. `_norm_title` no sirve para esto — colapsa la puntuación y mueve las posiciones.
+_SIN_TILDE = str.maketrans("áàäâãéèëêíìïîóòöôõúùüûñçÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ",
+                           "aaaaaeeeeiiiiooooouuuuncAAAAAEEEEIIIIOOOOOUUUUNC")
+
+
+def _fold(texto: str) -> str:
+    return (texto or "").translate(_SIN_TILDE).lower()
+
+
+def _price_anchor(title: str) -> str:
+    """El NOMBRE por el que se reconocería este candidato en una frase, para colgarle un precio.
+
+    NO se reutiliza `_title_head`, y la diferencia importa. Aquel exige dos palabras y descarta lo genérico
+    porque su trabajo es acusar a alguien de SABER algo que no podía saber, y ahí un título corto («Monitor
+    27») es justo lo que una persona sí puede decir sola: un falso positivo acusa al conductor de hacer
+    trampa. Aquí no se acusa a nadie de saber nada — se compara un importe con el que trae la hoja —, así que
+    una sola palabra distintiva vale, y hace falta: `_title_head("Digi · 500 Mb + 100 GB + TV")` devuelve ""
+    y el caso medido era exactamente ése.
+
+    El riesgo de una palabra suelta lo cubren las otras tres condiciones de `prices_that_do_not_match`: tiene
+    que haber precio en la hoja, precio dicho en la ventana, y que NINGUNO de los dichos cuadre.
+    """
+    for palabra in _norm_title(title).split():
+        if len(palabra) >= 4 and palabra not in _GENERIC_HEADS:
+            return palabra
+    return ""
+
+
+def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
+    """Precios que zaelar ATRIBUYÓ a un candidato NUESTRO y que no son los que trae la hoja.
+
+    Medido en `compare-broadband-plans__es` (2026-08-28, plató 24/7). La hoja tenía
+    «Digi · 500 Mb + 100 GB + TV → 23 €/mes», el agente lo dijo BIEN dos veces —«Digi (23€/mes)»— y a la
+    tercera soltó *«lo de Digi ronda los 4,9 euros al mes»*. Mismo candidato, precio inventado, y
+    contradiciéndose a sí mismo dentro de la misma conversación. El juez lo cazó a ojo y lo puso de bloqueador
+    nº1; el informe no tenía con qué respaldarlo, igual que pasaba con «¿entregó lo que tenía?» antes de
+    V2-332.
+
+    Un precio equivocado no es un matiz: es la diferencia entre un asistente útil y uno peligroso. Quien
+    decide contratar con ese dato se lleva una sorpresa de veinte euros al mes.
+
+    CONSERVADOR a propósito, porque un falso positivo aquí acusa al producto de mentir:
+
+    * solo se mira DENTRO de una ventana corta detrás del nombre del candidato — un importe suelto en la
+      frase puede ser el presupuesto de la persona, el precio de otra cosa o un total;
+    * hacen falta LOS DOS precios, el de la hoja y el dicho. Si la hoja no trae importe, no hay con qué
+      comparar y no se acusa a nadie;
+    * si en la ventana hay VARIOS importes y alguno cuadra, no se marca: «29,90, rebajado desde 35» es
+      correcto y tiene dos números;
+    * y hay tolerancia de un céntimo, para que un redondeo de formato no cuente como una mentira.
+    """
+    sh = dict(sheet or {})
+    titulos = [str(t) for t in (sh.get("titles") or [])]
+    precios = [str(p) for p in (sh.get("prices") or [])]
+    fuera: list[dict] = []
+    for i, titulo in enumerate(titulos):
+        suyo = _importe(precios[i]) if i < len(precios) else None
+        cabeza = _price_anchor(titulo)
+        if suyo is None or not cabeza:
+            continue
+        for n, t in enumerate(transcript or []):
+            if (t.get("who") or "") != "zaelar":
+                continue
+            texto = " ".join(str(t.get("text") or "").split())
+            # SE BUSCA SOBRE EL TEXTO PLEGADO, no sobre el crudo. El ancla sale de `_norm_title` (sin
+            # acentos), así que «masmovil» no aparece NUNCA dentro de «MásMóvil» — cazado al desarmar, y dos
+            # de los tests de este nodo estaban pasando por eso y no por la lógica.
+            # Y el plegado es 1:1 a propósito: `_norm_title` también se come la puntuación («29,90» → «29 90»),
+            # así que sirve para comparar títulos y NO para localizar un índice sobre el texto original.
+            j = _fold(texto).find(cabeza)
+            if j < 0:
+                continue
+            ventana = texto[j + len(cabeza): j + len(cabeza) + 90]
+            # TODOS los importes de la ventana, no solo el primero: «29,90, rebajado desde 35» lleva dos y
+            # el bueno es uno de ellos.
+            dichos: list[float] = []
+            resto = ventana
+            while True:
+                v = _importe(resto)
+                if v is None:
+                    break
+                dichos.append(v)
+                m = _PRECIO.search(resto)
+                resto = resto[m.end():]
+            if not dichos or any(abs(v - suyo) <= 0.01 for v in dichos):
+                continue
+            fuera.append({"titulo": titulo[:60], "en_la_hoja": suyo, "dicho": dichos[0], "turno": n})
+            break
+    return fuera
+
+
 def delivered_by_name(transcript, known_titles) -> dict:
     """QUÉ CANDIDATOS NOMBRÓ ZAELAR CON SUS PROPIAS PALABRAS, y en qué turno. El hecho que contradice «retiene».
 
