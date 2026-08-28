@@ -2119,28 +2119,23 @@
       }
     },
     "find-videos-on-a-topic-no-ai-slop": {
-      "last_run": "2026-08-28 09:52",
-      "overall": 1,
-      "judge": "deepseek-v4-pro",
+      "last_run": "2026-08-28 22:57",
+      "overall": 4,
+      "judge": "glm-4.6",
       "brain": "",
-      "state": "FAIL",
+      "state": "PASS",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 4,
+        "mecanismo": 3,
+        "eficiencia": 4
       },
-      "verdict": "No está listo para producción: zaelar narró candidatos que nunca existieron en el sistema, dejó la hoja de resultados vacía y afirmó haber filtrado por un criterio (sin IA) que no verificó ni podía verificar; el bloqueador nº1 es que anuncia resultados sin que haya ninguna búsqueda ni extracción real detrás.",
+      "verdict": "El caso está casi listo para producción, pero debe mejorar la sincronización entre el relato del agente y el estado real del widget, así como garantizar que los datos presentados tengan una procedencia externa verificable en el informe.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "widget/widget «action_failed»: No encuentro ese vídeo en la lista."
-        },
         {
           "clase": "sin_evidencia_externa",
           "certeza": "hecho",
@@ -2148,9 +2143,9 @@
         }
       ],
       "sandboxed": true,
-      "provisional": null,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 7,
       "families": [
         "flash",
         "main",
@@ -2161,20 +2156,25 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f72f6cf",
-        "n_dirty": 1,
+        "sha": "4c3c5cb",
+        "n_dirty": 2,
         "dirty": [
-          "nucleo/flash/live_blocks.py"
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
         ]
       },
       "machine": {
         "gpu_models": [
           {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          },
+          {
             "name": "qwen3.6:27b-mlx",
-            "size": "45 GB"
+            "size": "41 GB"
           }
         ],
-        "n": 1
+        "n": 2
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-388-uc-find-videos-on-a-topic-no-ai-slop.md",
@@ -3587,5 +3587,5 @@
       }
     }
   },
-  "updated": "2026-08-28 22:00"
+  "updated": "2026-08-28 22:57"
 }
