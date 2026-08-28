@@ -1011,6 +1011,12 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     # exacta de un arreglo aplicado. Subir el tope solo mueve el problema al siguiente prompt
                     # largo; un campo no se puede recortar por accidente.
                     "sheet_rows": _rows_in(live),
+                    # LA CARA, en su campo. Se leía buscando «YA HA ENCONTRADO» dentro de `live_line`, que va
+                    # recortada — y el 2026-08-28 eso marcó como CIEGOS cuatro turnos de una ronda cuyo bloque
+                    # sí lo decía, más allá del corte. Tercera vez en la misma noche que un recorte convierte
+                    # un dato en una conclusión falsa; las otras dos fueron las filas de la hoja y la
+                    # clasificación de las caras. Un campo no se recorta por accidente.
+                    "says_found": "YA HA ENCONTRADO" in live,
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out
@@ -1584,6 +1590,8 @@ def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | 
             continue
         if (r or {}).get("sheet_rows"):
             continue
+        if (r or {}).get("says_found"):
+            continue          # el bloque SÍ se lo dijo: ver `says_found`, que se calcula sobre la línea entera
         linea = str((r or {}).get("live_line") or "").strip()
         if not linea:
             # SIN BLOQUE VIVO no hay ceguera: la tarea ya no está en curso, así que sus resultados o se

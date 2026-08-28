@@ -198,3 +198,38 @@ def test_y_sin_turnos_ciegos_no_aparece_la_sección(tmp_path, monkeypatch):
                "run": {"transcript": [], "mechanism_report": {"sheet_hidden_from_the_prompt": {"n": 0}}},
                "verdict": {"overall": 4, "scores": {"mecanismo": 4}, "veredicto": "bien"}}], sandboxed=True)
     assert "NO le dijimos" not in (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+
+
+def test_la_CARA_se_lee_de_su_campo_y_no_de_la_línea_recortada():
+    """Tercera vez en la misma noche que un recorte convierte un dato en una conclusión falsa.
+
+    `says_found` se calcula sobre la línea COMPLETA, antes de recortarla a 1200. Buscando la frase dentro de
+    `live_line` se marcaron como ciegos cuatro turnos de `search-buy-camera__us` cuyo bloque sí lo decía —más
+    allá del corte—, y con ellos se estuvo a punto de abrir una cuarta hipótesis sobre un defecto inexistente.
+
+    Las otras dos veces fueron las filas de la hoja (que empiezan pasado el corte) y la clasificación de las
+    caras (275 de 281 turnos «con pregunta» que eran boilerplate). Un campo no se recorta por accidente.
+    """
+    largo = "TAREAS DE FONDO EN CURSO: " + ("x" * 1400) + " · YA HA ENCONTRADO ALGO"
+    ciego = V.sheet_hidden_from_the_prompt(
+        [{"turn": 6, "at_ms": 1100.0, "live_line": largo[:1200], "says_found": True}], _T)
+    assert ciego["n"] == 0, "el bloque se lo dijo y el recorte lo escondía"
+
+
+def test_y_sin_el_campo_se_sigue_mirando_la_prosa():
+    """Los informes anteriores al campo no lo tienen y siguen siendo la única evidencia de sus rondas."""
+    viejo = [{"turn": 6, "at_ms": 1100.0,
+              "live_line": "TAREAS DE FONDO · la tarea YA HA ENCONTRADO algo"}]
+    assert V.sheet_hidden_from_the_prompt(viejo, _T)["n"] == 0
+
+
+def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
+    """La fontanería: si `prompt_context` no lo rellena desde `live` —la línea completa, antes del recorte—,
+    el campo existe, sale siempre False y el detector vuelve a marcar ciegos los turnos que sí se avisaron.
+
+    Cazado desarmando: con el campo puesto a mano en los fixtures, quitarlo del emisor dejaba los 19 tests en
+    verde sobre el defecto restaurado."""
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
+    assert '"says_found": "YA HA ENCONTRADO" in live,' in src
+    assert src.index('"says_found": "YA HA ENCONTRADO" in live,') > src.index('live = next(')
