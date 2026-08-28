@@ -5124,7 +5124,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   tiene ancla, así que el caso medido no se habría cazado— y **los títulos con acento eran invisibles**,
   porque el ancla va sin acentos y se buscaba sobre el texto crudo: «masmovil» nunca aparece dentro de
   «MásMóvil», y DOS tests estaban pasando por eso y no por la lógica. El plegado es 1:1 para que el índice
-  valga sobre el original. Nodo 10.108, cinco desarmes.
+  valga sobre el original. **El barrido por las 61 rondas guardadas fue lo que lo hizo fiable**: la primera
+  versión decía «21 rondas con precio equivocado» y ese número era mentira — etiquetas de listado usadas como
+  ancla («Buen precio», «Opción i/v»), un ancla que valía para DOS Passat de la misma hoja, el punto de millar
+  leído como decimal («4.999» → 4,999) y el redondeo al hablar («ronda los 200» sobre 205) contados como
+  mentiras. Cerradas: **4 rondas de 61 (6,5 %)**, con errores del 84 %, 38 %, 31 % y 9 %. Y una sexta en
+  dirección contraria: contra el informe REAL el caso que lo motivó había dejado de cazarse, porque «Digi»
+  sale DOS veces en ese turno y la primera no lleva precio — miraba solo la primera mención, y mi fixture
+  sintético tenía una sola. Seis errores míos en un detector de treinta líneas, y los seis los enseñó el mismo
+  gesto: pasarlo por los datos guardados en vez de por los que me había inventado. Nodo 10.108, dieciséis
+  tests, diez desarmes.
 
 - **Un comando rechazado dice qué se intentó (V2-429, 2026-08-28)**: cuatro rechazos distintos de la puerta
   de permisos en una sola noche («simple_expansion», «brace with quote», el `&`, el `cd`) y en los CUATRO el

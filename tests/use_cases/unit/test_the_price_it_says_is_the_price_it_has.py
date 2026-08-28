@@ -96,3 +96,50 @@ def test_el_plegado_conserva_la_LONGITUD():
     assert len(V._fold(a)) == len(a)
     assert V._fold(a).startswith("masmovil esta a 29,90")
     assert len(V._norm_title(a)) != len(a), "si esto cambiara, el comentario de arriba dejaría de ser cierto"
+
+
+def test_se_miran_TODAS_las_menciones_del_nombre_en_un_turno():
+    """Cazado comparando contra el informe REAL, no contra el fixture. En el turno del «4,9» la palabra
+    «Digi» sale dos veces y la PRIMERA no lleva precio detrás («…de Digi; de Movistar y Vodafone aún no me ha
+    llegado el dato…»), así que quedarse con ella hacía invisible justo el caso que motivó todo esto.
+
+    Mi fixture sintético tenía una sola mención y pasaba en verde. El dato de verdad, no.
+    """
+    turno = ("Mira, ahora mismo solo tengo confirmado lo de Digi; de Movistar y Vodafone aún no me ha "
+             "llegado el dato del precio, así que no te lo puedo dar todavía. Si quieres te lo paso, y "
+             "mientras tanto te digo que lo de Digi ronda los 4,9 euros al mes.")
+    got = V.prices_that_do_not_match(_z(turno), _HOJA)
+    assert len(got) == 1 and got[0]["dicho"] == 4.9
+
+
+def test_un_ancla_que_vale_para_DOS_filas_no_identifica_a_ninguna():
+    """La hoja de `search-buy-used-car` traía dos Passat: «volkswagen» casaba con los dos y se comparaba el
+    precio que el agente dijo de uno contra el del otro. Eso no es decir mal el precio — es que no sabemos de
+    cuál hablaba, y acusar por eso es peor que no mirar."""
+    hoja = {"titles": ["Volkswagen Passat Variant Executive", "Volkswagen Passat 2.0 TDI 2006"],
+            "prices": ["24.900 €", "4.999 €"]}
+    assert V.prices_that_do_not_match(_z("el Volkswagen Passat sale por 4.999 €"), hoja) == []
+
+
+def test_un_REDONDEO_al_hablar_no_es_una_mentira():
+    """«Ronda los 200» sobre 205 es como habla una persona. El corte al 5 % lo separa de «4,9 sobre 23», y
+    salió de mirar los 70 desajustes del barrido: los redondeos caían todos por debajo."""
+    hoja = {"titles": ["Canon EOS 4000D · kit 18-55"], "prices": ["205 €"]}
+    assert V.prices_that_do_not_match(_z("la Canon EOS 4000D ronda los 200 €"), hoja) == []
+    assert V.prices_that_do_not_match(_z("la Canon EOS 4000D está a 140 €"), hoja) != []
+
+
+def test_el_punto_de_MILLAR_no_es_un_decimal():
+    """«4.999 €» son cuatro mil novecientos noventa y nueve. Leerlo como 4,999 acusaba de mentir al agente
+    que había dicho el precio BIEN — medido en el barrido de las 61 rondas guardadas."""
+    assert V._importe("4.999 €") == 4999.0
+    assert V._importe("24.900 €") == 24900.0
+    assert V._importe("29,90 €") == 29.9, "y el decimal con coma sigue siendo decimal"
+
+
+def test_una_ETIQUETA_de_anuncio_no_es_el_nombre_de_un_candidato():
+    """La hoja recoge títulos como «Buen precio» u «Opción i/v · 09:25». Anclar en «buen» u «opcion» hace que
+    cualquier frase con esa palabra arrastre el importe que venga detrás."""
+    assert V._price_anchor("Buen precio") == ""
+    assert V._price_anchor("Opción i/v · 09:25") == ""
+    assert V._price_anchor("Nikon D5500") == "nikon"

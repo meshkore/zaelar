@@ -1462,9 +1462,14 @@ def _importe(txt: str) -> float | None:
     if not m:
         return None
     crudo = (m.group(1) or m.group(2) or "").replace(" ", "")
-    # 1.234,56 → 1234.56 ; 34,99 → 34.99 ; 1,234.56 → 1234.56
     if "," in crudo and "." in crudo:
+        # 1.234,56 y 1,234.56: el separador que va DETRÁS es el decimal, el otro es de millar.
         crudo = crudo.replace("." if crudo.rfind(",") > crudo.rfind(".") else ",", "")
+    elif re.fullmatch(r"\d{1,3}(?:[.,]\d{3})+", crudo):
+        # UN SOLO separador con EXACTAMENTE tres cifras detrás es de MILLAR, no decimal: «4.999 €» son cuatro
+        # mil novecientos noventa y nueve euros, no cuatro con novecientos noventa y nueve. Medido al pasar el
+        # detector por las 61 rondas guardadas: acusaba de mentir al agente que había dicho el precio BIEN.
+        crudo = crudo.replace(".", "").replace(",", "")
     crudo = crudo.replace(",", ".")
     try:
         return float(crudo)
@@ -1482,6 +1487,17 @@ def _fold(texto: str) -> str:
     return (texto or "").translate(_SIN_TILDE).lower()
 
 
+#: Palabras que un LISTADO usa como etiqueta y que no identifican a nadie. Salieron del barrido de las 61
+#: rondas guardadas: la hoja recoge títulos como «Buen precio» u «Opción i/v · 09:25», y anclar en «buen» u
+#: «opcion» hace que cualquier frase con esa palabra arrastre el importe que venga detrás. El detector
+#: acusaba al producto de mentir sobre candidatos que no existen.
+_ETIQUETAS = frozenset((
+    "buen", "buena", "bueno", "precio", "precios", "oferta", "ofertas", "desde", "hasta", "opcion",
+    "opciones", "nuevo", "nueva", "usado", "usada", "barato", "barata", "rebajado", "total", "mejor",
+    "option", "options", "good", "price", "prices", "deal", "deals", "used", "new", "cheap", "from", "best",
+))
+
+
 def _price_anchor(title: str) -> str:
     """El NOMBRE por el que se reconocería este candidato en una frase, para colgarle un precio.
 
@@ -1496,7 +1512,7 @@ def _price_anchor(title: str) -> str:
     que haber precio en la hoja, precio dicho en la ventana, y que NINGUNO de los dichos cuadre.
     """
     for palabra in _norm_title(title).split():
-        if len(palabra) >= 4 and palabra not in _GENERIC_HEADS:
+        if len(palabra) >= 4 and palabra not in _GENERIC_HEADS and palabra not in _ETIQUETAS:
             return palabra
     return ""
 
@@ -1527,8 +1543,15 @@ def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
     sh = dict(sheet or {})
     titulos = [str(t) for t in (sh.get("titles") or [])]
     precios = [str(p) for p in (sh.get("prices") or [])]
+    # UN ANCLA QUE VALE PARA DOS FILAS NO IDENTIFICA A NINGUNA. Medido al barrer las 61 rondas guardadas: la
+    # hoja de `search-buy-used-car` traía dos Passat, «volkswagen» casaba con los dos, y el detector comparaba
+    # el precio que el agente había dicho de uno contra el del otro. Acusar de mentir por eso es peor que no
+    # mirar: no es que dijera mal el precio, es que no sabemos de cuál hablaba.
+    _anclas = [_price_anchor(t) for t in titulos]
     fuera: list[dict] = []
     for i, titulo in enumerate(titulos):
+        if _anclas[i] and _anclas.count(_anclas[i]) > 1:
+            continue
         suyo = _importe(precios[i]) if i < len(precios) else None
         cabeza = _price_anchor(titulo)
         if suyo is None or not cabeza:
@@ -1542,10 +1565,22 @@ def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
             # de los tests de este nodo estaban pasando por eso y no por la lógica.
             # Y el plegado es 1:1 a propósito: `_norm_title` también se come la puntuación («29,90» → «29 90»),
             # así que sirve para comparar títulos y NO para localizar un índice sobre el texto original.
-            j = _fold(texto).find(cabeza)
-            if j < 0:
+            # TODAS las apariciones del nombre en el turno, no solo la primera. Medido contra el informe real
+            # de `compare-broadband-plans__es`: en el turno del «4,9» la palabra «Digi» sale DOS veces y la
+            # primera no lleva precio detrás («…de Digi; de Movistar y Vodafone aún no me ha llegado el
+            # dato…»), así que quedarse con ella hacía invisible justo el caso que motivó todo esto. Mi
+            # fixture sintético tenía una sola mención y pasaba; el dato de verdad, no.
+            plano = _fold(texto)
+            ventana = ""
+            j = plano.find(cabeza)
+            while j >= 0:
+                trozo = texto[j + len(cabeza): j + len(cabeza) + 90]
+                if _importe(trozo) is not None:
+                    ventana = trozo
+                    break
+                j = plano.find(cabeza, j + 1)
+            if not ventana:
                 continue
-            ventana = texto[j + len(cabeza): j + len(cabeza) + 90]
             # TODOS los importes de la ventana, no solo el primero: «29,90, rebajado desde 35» lleva dos y
             # el bueno es uno de ellos.
             dichos: list[float] = []
@@ -1557,7 +1592,10 @@ def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
                 dichos.append(v)
                 m = _PRECIO.search(resto)
                 resto = resto[m.end():]
-            if not dichos or any(abs(v - suyo) <= 0.01 for v in dichos):
+            # TOLERANCIA RELATIVA, no de céntimos. «Ronda los 200» sobre 205 es como habla una persona, no una
+            # mentira; «4,9» sobre 23 no lo es. El corte al 5 % separa las dos y salió de mirar los 70
+            # desajustes del barrido: los redondeos caían todos por debajo y los inventos, muy por encima.
+            if not dichos or any(abs(v - suyo) <= max(0.01, suyo * 0.05) for v in dichos):
                 continue
             fuera.append({"titulo": titulo[:60], "en_la_hoja": suyo, "dicho": dichos[0], "turno": n})
             break
