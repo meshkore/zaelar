@@ -106,8 +106,47 @@ def test_se_alterna_pero_NO_se_baraja():
     assert sorted(got) == sorted(ids), "no se pierde ni se duplica ningún caso"
 
 
-def test_la_prioridad_manda_sobre_el_intercalado():
-    """Un `__us` roto va antes que un `__es` que pasa: primero el grupo, y dentro del grupo se alterna."""
+def test_la_prioridad_sigue_mandando_DENTRO_de_cada_plato():
+    """Reescrito 2026-08-28, NO volteado. La propiedad —la prioridad manda— es la misma; lo que cambió es
+    dónde significa algo.
+
+    Antes se alternaba dentro de cada grupo (`intercala(rotos) + intercala(nunca) + intercala(buenos)`), y
+    medido en las cuatro primeras horas del 24/7 eso dio **25 rondas ES contra 7 US**: ES tiene más casos
+    rotos, así que al agotar los US del grupo «rotos» quedaban trece ES seguidos antes de llegar al grupo
+    «nunca medidos», que es donde viven los 52 US sin tocar.
+
+    Ahora cada plató lleva su cola completa (rotos → nunca → buenos) y se alternan turno a turno. Lo que se
+    sacrifica es que un roto de un plató vaya antes que un nunca-medido del OTRO — una comparación que no
+    significa nada, porque son dos productos midiéndose en paralelo, no una sola lista.
+    """
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
-    assert "intercala(rotos) + intercala(nunca) + intercala(buenos)" in src
+    assert "return intercala(cola_es + cola_us)" in src
+    assert src.index("rotos + nunca + buenos") < src.index("return intercala(cola_es + cola_us)")
+
+
+def test_cada_plato_lleva_su_PROPIA_cola_de_prioridad():
+    """Intercalar dentro de cada grupo no bastaba, y se vio en las cifras: **25 rondas ES contra 7 US** en las
+    cuatro primeras horas del plató 24/7.
+
+    La causa: ES tiene muchos más casos rotos, así que tras agotar los US del grupo «rotos» quedaban trece ES
+    seguidos ANTES de que empezara el grupo «nunca medidos» — que es donde viven los 52 casos US que nadie ha
+    tocado. La prioridad se respetaba y el operador seguía sin datos de US.
+
+    Ahora cada plató recorre rotos → nunca → buenos por su cuenta y se alternan turno a turno: la prioridad
+    sigue intacta DENTRO de cada locale, que es donde significa algo.
+    """
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
+    assert "cola_es = [x for x in rotos + nunca + buenos if not x.endswith" in src
+    assert "return intercala(cola_es + cola_us)" in src
+
+
+def test_un_ROTO_de_su_plato_sigue_yendo_antes_que_un_BUENO_del_mismo():
+    """La prioridad no se sacrifica por alternar: se sacrifica que un roto de un plató vaya antes que un
+    nunca-medido del OTRO, que es una comparación que no significa nada."""
+    got = S.intercala(["roto__es", "nunca__es", "bueno__es", "roto__us", "nunca__us"])
+    solo_es = [x for x in got if not x.endswith("__us")]
+    assert solo_es == ["roto__es", "nunca__es", "bueno__es"]
+    solo_us = [x for x in got if x.endswith("__us")]
+    assert solo_us == ["roto__us", "nunca__us"]

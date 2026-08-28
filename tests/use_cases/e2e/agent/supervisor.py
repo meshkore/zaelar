@@ -246,9 +246,20 @@ def rotacion() -> list[str]:
             # Rotos primero (donde hay algo que ganar y ya sabemos qué mirar), NUNCA MEDIDOS después
             # (información nueva, pero cada uno cuesta una ronda entera de plató), y los que pasan al final
             # para que una regresión se vea sin comerse el turno de nadie.
-            # Intercalado DENTRO de cada grupo: la prioridad manda, pero un grupo entero de un solo plató
-            # deja al otro sin medir durante horas (ver `intercala`).
-            return intercala(rotos) + intercala(nunca) + intercala(buenos)
+            # CADA PLATÓ CON SU PROPIA COLA DE PRIORIDAD, y alternando entre las dos.
+            #
+            # Intercalar DENTRO de cada grupo no bastaba, y se vio en las cifras: 25 rondas ES contra 7 US en
+            # las cuatro primeras horas del 24/7. La causa es que ES tiene muchos más casos rotos, así que
+            # tras agotar los US del grupo «rotos» quedaban trece ES seguidos ANTES de que empezara el grupo
+            # «nunca medidos» —donde viven los 52 US que nadie ha tocado—. La prioridad se respetaba y el
+            # operador seguía sin datos de US.
+            #
+            # Así cada plató recorre rotos → nunca → buenos por su cuenta, y se alternan turno a turno: la
+            # prioridad sigue intacta DENTRO de cada locale, que es donde significa algo, y ninguno de los dos
+            # puede quedarse esperando a que el otro termine su lista.
+            cola_es = [x for x in rotos + nunca + buenos if not x.endswith("__us")]
+            cola_us = [x for x in rotos + nunca + buenos if x.endswith("__us")]
+            return intercala(cola_es + cola_us)
     except Exception:  # noqa: BLE001
         pass
     return ["search-buy-used-car"]
