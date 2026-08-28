@@ -146,7 +146,17 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
         except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
             pass
         return False
-    except Exception:
+    except Exception as _e:  # noqa: BLE001
+        # EL TERCER CAMINO MUDO, y el que quedaba. Medido el 2026-08-28 en `weekend-motor-events__es`: cuatro
+        # turnos ciegos con las DOS señales a cero, o sea que ni falló al resolver ni encontró la caja vacía
+        # — solo queda que esto reventara y el `except` se lo tragara. Un fallo que se traga a sí mismo es
+        # peor que uno ruidoso: deja al prompt diciendo que no hay nada y a quien investiga sin nada que leer.
+        try:
+            from voice.observer import emit
+            emit("perf", "🧾 hoja del encargo ILEGIBLE", role="system",
+                 extra={"nav_task": str(nav_task_id), "error": f"{type(_e).__name__}: {_e}"[:160]})
+        except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
+            pass
         return False
 
 

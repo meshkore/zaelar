@@ -1533,6 +1533,7 @@ def unresolved_errand_sheets(all_events: list[dict]) -> dict:
     """
     tabs: dict[str, int] = {}
     vacias: dict[str, int] = {}
+    ilegibles: list[str] = []
     for e in (all_events or []):
         f = _fields(e)
         etiqueta = str(f.get("label") or e.get("label") or "")
@@ -1545,8 +1546,13 @@ def unresolved_errand_sheets(all_events: list[dict]) -> dict:
             # sin decirle que tuviera nada, con 15 candidatos en la hoja.
             k = str(f.get("hoja") or e.get("hoja") or "?")
             vacias[k] = vacias.get(k, 0) + 1
+        elif "ILEGIBLE" in etiqueta:
+            # EL TERCER CAMINO. Con los otros dos a cero y turnos ciegos, era el único que quedaba: la
+            # lectura reventando y el `except` tragándoselo (medido en `weekend-motor-events__es`).
+            ilegibles.append(str(f.get("error") or e.get("error") or "?")[:160])
     return {"n": sum(tabs.values()), "tabs": tabs,
-            "n_empty": sum(vacias.values()), "empty_sheets": vacias}
+            "n_empty": sum(vacias.values()), "empty_sheets": vacias,
+            "n_unreadable": len(ilegibles), "errors": ilegibles[:4]}
 
 
 def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:

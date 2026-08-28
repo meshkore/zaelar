@@ -145,3 +145,28 @@ def test_al_juez_se_le_dice_CUÁL_de_las_dos_averías_fue():
                                                                  "n_empty": 0, "empty_sheets": {}}})
     txt2 = "\n".join(sin) if isinstance(sin, list) else str(sin)
     assert "no supo qué hoja" in txt2 and "VACÍA" not in txt2
+
+
+def test_las_TRES_averías_se_cuentan_por_separado():
+    """Las tres llevan a mirar sitios distintos del motor: no resolver, resolver a la caja equivocada, y que
+    la lectura reviente. Meterlas en el mismo saco deja al que investiga donde estaba."""
+    import json
+    def _ev(label, **extra):
+        return {"kind": "perf", "cat": "system",
+                "payload": json.dumps({"kind": "perf", "cat": "system", "label": label, **extra})}
+    got = V.unresolved_errand_sheets([
+        _ev("🧾 hoja del encargo SIN RESOLVER", nav_task="a-1"),
+        _ev("🧾 hoja del encargo RESUELTA PERO VACÍA", nav_task="b-1", hoja="results"),
+        _ev("🧾 hoja del encargo ILEGIBLE", nav_task="c-1", error="KeyError: items")])
+    assert got["n"] == 1 and got["n_empty"] == 1 and got["n_unreadable"] == 1
+    assert got["errors"] == ["KeyError: items"]
+
+
+def test_al_juez_la_ILEGIBLE_le_llega_con_su_error():
+    from tests.use_cases.e2e.agent import judge as J
+    hechos = J.mechanism_facts({
+        "sheet_hidden_from_the_prompt": {"n": 4, "measurable": True, "turns": [{"turn": 9}]},
+        "unresolved_errand_sheets": {"n": 0, "tabs": {}, "n_empty": 0, "empty_sheets": {},
+                                     "n_unreadable": 2, "errors": ["KeyError: items"]}})
+    txt = "\n".join(hechos) if isinstance(hechos, list) else str(hechos)
+    assert "REVENTÓ" in txt and "KeyError: items" in txt

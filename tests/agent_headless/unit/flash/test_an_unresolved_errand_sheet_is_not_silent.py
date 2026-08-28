@@ -100,3 +100,20 @@ def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "Yamaha F370BL"}]})
     assert LB._sheet_has_rows("6175ca-1") is True
     assert _emitido == []
+
+
+def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
+    """El tercer camino mudo, y el que quedaba. Medido el 2026-08-28 en `weekend-motor-events__es`: cuatro
+    turnos ciegos con las DOS señales anteriores a cero — ni falló al resolver ni encontró la caja vacía—, así
+    que solo quedaba que la lectura reventara y el `except` se lo tragase.
+
+    Un fallo que se traga a sí mismo es peor que uno ruidoso: deja al prompt diciendo que no hay nada y a
+    quien investiga sin nada que leer.
+    """
+    from nucleo.flash import live_blocks as LB
+    import widgets.results.data as _rd
+    monkeypatch.setattr(LB, "_sheet_of_tab", lambda *_a, **_k: "results::6175ca-1")
+    monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: (_ for _ in ()).throw(KeyError("items")))
+    assert LB._sheet_has_rows("6175ca-1") is False
+    assert _emitido and "ILEGIBLE" in _emitido[0]["label"]
+    assert "KeyError" in _emitido[0]["extra"]["error"], "sin el error no hay nada que investigar"
