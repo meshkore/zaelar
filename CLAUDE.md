@@ -5112,6 +5112,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un «no» bien fundado es una ENTREGA (V2-431, 2026-08-28)**: en `find-concert-tickets__es` no había
+  concierto de Rosalía en Madrid ese mes —respuesta completa y correcta— y el worker llenó la hoja de eventos
+  que no eran, dejando a la persona **siete minutos** esperando. El método cubría «si no se puede certificar,
+  dilo con honestidad» (paso 7) y faltaba **lo contrario**: sí lo certifiqué, y lo que certifiqué es que no
+  existe. Sin decirlo, el único final que le queda al worker es seguir buscando — volver vacío no está en su
+  repertorio, así que rellena, y rellenar es PEOR que el vacío porque el vacío se lee en dos segundos y la
+  lista de cosas-que-no-son hay que descartarla una a una. Paso 8, con las dos mitades: se entrega diciendo
+  dónde miraste y qué descartaste (un «no» sin eso no se distingue de no haberlo intentado), y **nunca
+  rellenar** para no volver vacío. **Sin medida en vivo**: es una línea de prompt y lo medido aquí es que un
+  hecho empujado llega 3/3 y el mismo en el prompt 0/13 — ésta es norma de cierre y no hecho, que es la clase
+  que el worker sí sigue, pero eso es expectativa y no medición. Nodo 4.69, tres desarmes.
+
 - **El precio que DICE es el que TIENE (V2-430, 2026-08-28)**: en `compare-broadband-plans__es` la hoja tenía
   «Digi → 23 €/mes», el agente lo dijo BIEN dos veces y a la tercera soltó «lo de Digi ronda los **4,9 euros**
   al mes» — mismo candidato, precio inventado, contradiciéndose a sí mismo, y justo en el turno en que el

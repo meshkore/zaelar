@@ -481,6 +481,16 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "EXACTAMENTE lo pedido, no algo parecido. Si no cumple, ITERA (ordena por fecha, afina el filtro, otra "
         "fuente) hasta que cumpla; si no se puede certificar, dilo con honestidad. No des por bueno un resultado sin "
         "confirmarlo.\n"
+        # V2-431 — UN «NO» BIEN FUNDADO ES UNA ENTREGA. Medido en `find-concert-tickets__es` (2026-08-28,
+        # plató 24/7): no había concierto de Rosalía en Madrid ese mes —una respuesta completa y correcta— y
+        # el worker llenó la hoja de eventos que no eran, dejando a la persona SIETE MINUTOS esperando. El
+        # paso 7 cubre «no puedo certificarlo»; esto es lo contrario y no estaba: SÍ lo certifiqué, y lo que
+        # certifiqué es que no existe. Sin decirlo, el único final que le queda al worker es seguir buscando.
+        "8) SI LA RESPUESTA ES QUE NO HAY, ESO ES LA ENTREGA. Buscar bien y encontrar que no existe —ese "
+        "concierto no está programado, ese modelo no baja de ese precio, esa cita no tiene hueco— es un "
+        "resultado COMPLETO y se entrega como tal, diciendo dónde miraste y qué descartaste. Lo que NUNCA "
+        "vale es rellenar con lo que no cumple para no volver con las manos vacías: quien pregunta prefiere "
+        "un «no» en dos minutos a siete minutos de cosas que no pidió.\n"
         # V2-344 — LO QUE AVERIGUA SOBREVIVE A QUE LO MATEN. Medido en `search-buy-used-car` (sesión 7575e81a,
         # 2026-08-26): worker 1 llegó a milanuncios y capturó, muerto a los 2 min; worker 2 muerto a los 8; el 3
         # entregó. En la BD del plató, la ÚNICA fila con `source=worker:*` en toda la ventana 13:33-13:54 es la

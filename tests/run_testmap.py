@@ -582,6 +582,13 @@ DOMAINS: list[dict] = [
         # «brace with quote», el `&`, el `cd`) y en los CUATRO el evento decía qué regla se rompió y nada del
         # comando. Eso no distingue «el worker escribió algo raro» (conducta) de «nuestro prompt se lo enseñó»
         # (culpa nuestra), que piden acciones opuestas — y dos de las cuatro eran lo segundo.
+        # 2026-08-28, plató 24/7 — `find-concert-tickets__es`: no había concierto de Rosalía en Madrid ese mes
+        # (una respuesta COMPLETA) y el worker llenó la hoja de eventos que no eran, dejando a la persona
+        # siete minutos esperando. El método cubría «no puedo certificarlo»; lo contrario —«lo he certificado
+        # y no existe»— no estaba, y sin eso el único final que le queda al worker es seguir buscando.
+        {"id": "4.69", "title": "Un «no» bien fundado es una ENTREGA — y rellenar para no volver vacío, no",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_well_founded_no_is_a_delivery.py"]},
         {"id": "4.68", "title": "Un comando RECHAZADO dice qué se intentó — solo cuando el paso falla",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_rejected_command_says_what_was_tried.py"]},
