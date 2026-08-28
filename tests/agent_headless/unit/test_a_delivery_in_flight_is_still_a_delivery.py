@@ -159,15 +159,23 @@ def test_y_ese_era_el_agujero_la_fase_por_si_sola_dice_lo_contrario():
     assert "en cola" in st
 
 
-def test_la_rama_que_autoriza_contarlo_cubre_tambien_los_candidatos():
-    """La nota entregada y los candidatos encontrados son el MISMO caso: algo ya traído con la tarea viva.
+def test_los_candidatos_NO_van_en_la_rama_que_autoriza_contarlo():
+    """Reescrito 2026-08-28 (V2-444), NO volteado — y aquí la propiedad SÍ cambia, con su medida detrás.
 
-    Va en la rama que YA existe y no en una segunda orden: dos imperativos en un párrafo salen a cara o
-    cruz (V2-224), que es exactamente lo que esta iniciativa lleva tres caras arreglando.
+    Este test afirmaba que «la nota entregada y los candidatos encontrados son el MISMO caso». No lo son, y
+    la diferencia es de dónde viene cada uno: una nota de paso dice lo que el worker ENTREGÓ, y `kept` es la
+    cuenta que el worker DICE tener. Medido en `best-pediatric-dentists__us` (2026-08-28): siete turnos con
+    el bloque diciendo que había encontrado candidatos, cero filas en el prompt y la hoja con veinte. La rama
+    ordenaba contar una entrega que no existía.
+
+    Lo que se conserva entero es la forma: la bifurcación va DENTRO del mismo imperativo (V2-224), nunca como
+    segunda orden. Lo que cambia es a qué lado cae el recuento del worker.
     """
     _con_candidatos()
     low = P.live_state().lower()
-    assert "ya ha encontrado candidatos" in low, "la rama no nombra el caso que acaba de aparecer en el bloque"
+    assert "dice haber encontrado" in low, "el bloque ya no nombra el recuento del worker"
+    assert "su cuenta sin comprobar" in low, "no se atribuye: vuelve a leerse como un hecho nuestro"
+    assert "no lo cuentes como entrega" in low
     i_vacio, i_rama = low.find("todavía no lo sabes"), low.find("pero lee el paso")
     assert i_vacio != -1 and i_rama != -1 and i_rama > i_vacio
 
@@ -179,8 +187,10 @@ def test_el_texto_del_bloque_y_el_de_la_rama_usan_las_MISMAS_palabras():
     """
     _con_candidatos()
     st = P.live_state()
-    assert "YA HA ENCONTRADO" in st
-    assert "YA HA ENCONTRADO candidatos" in st or "ya ha encontrado candidatos" in st.lower()
+    # V2-444 — la propiedad es la misma (bloque y rama tienen que usar LAS MISMAS palabras o el modelo no
+    # puede casarlas, lección de V2-221); lo que cambió es cuáles, al atribuirle el recuento al worker.
+    assert "DICE haber encontrado" in st
+    assert "«DICE haber encontrado N»" in st
 
 
 def test_no_pisa_la_nota_entregada_las_dos_caras_conviven():
@@ -216,7 +226,8 @@ def test_no_pisa_la_nota_entregada_las_dos_caras_conviven():
 def test_el_bloque_dice_CUANTOS_ha_encontrado_y_no_donde_estan():
     _con_candidatos()
     st = P.live_state()
-    assert "YA HA ENCONTRADO 35 candidato(s)" in st
+    # V2-444 — sigue diciendo CUÁNTOS y no DÓNDE (V2-278 intacto); ahora además dice QUIÉN lo cuenta.
+    assert "DICE haber encontrado 35 candidato(s)" in st
     assert "en la hoja" not in st, "el bloque vuelve a afirmar la PANTALLA desde una señal de amplitud"
 
 

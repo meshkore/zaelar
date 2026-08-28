@@ -617,6 +617,11 @@ DOMAINS: list[dict] = [
         # V2-443 — sin filas, `_found_candidates` solo puede leer `kept`, la cuenta que escribe el propio
         # worker. Se renderizaba como hecho («YA HA ENCONTRADO algo») y se le prohibía al turno decir lo
         # contrario. Medido: 11 disparos con la hoja vacía en todas partes y el worker sin encontrar nada.
+        # V2-444 — el MISMO defecto en el bloque de TAREAS DE FONDO, que lee el mismo `kept` y además ordenaba
+        # tratarlo como entrega. Y era el que disparaba: 7 turnos medidos con la cara del navegador apagada.
+        {"id": "4.78", "title": "El `kept` del bloque de tareas también es del WORKER, no un hecho",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_el_kept_del_bloque_de_tareas_tambien_es_suyo.py"]},
         {"id": "4.77", "title": "Sin filas, lo único que hay es la PALABRA del worker — y se marca",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_sin_filas_lo_unico_que_hay_es_la_palabra_del_worker.py"]},

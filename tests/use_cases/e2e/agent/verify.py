@@ -1019,7 +1019,13 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     # …y se busca en el PROMPT ENTERO, no en la línea de tareas. El imperativo de resultados
                     # («YA HA ENCONTRADO algo: CUÉNTALE…») es OTRA línea del prompt, y `live` solo trae la de
                     # «TAREAS DE FONDO EN CURSO» — mirar ahí es preguntarle a la línea equivocada.
-                    "says_found": "YA HA ENCONTRADO" in sp,
+                    # V2-444 — DOS bloques distintos dicen que el encargo encontró algo, y hay que aceptar
+                    # los dos o el contador mide medio producto: la cara del NAVEGADOR («YA HA ENCONTRADO») y
+                    # el resumen de TAREAS DE FONDO (el recuento `kept` del worker). En
+                    # `best-pediatric-dentists__us` el que disparó fue el segundo — siete turnos avisados y la
+                    # cara del navegador sin encenderse ni una vez— así que mirar solo la primera habría dado
+                    # cero justo en la ronda que lo destapó.
+                    "says_found": ("YA HA ENCONTRADO" in sp) or ("DICE haber encontrado" in sp),
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out

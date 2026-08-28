@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El mismo defecto en el SEGUNDO bloque, y era el que disparaba (V2-444, 2026-08-28)**: V2-443 marcó `kept`
+  como afirmación del worker en la cara del NAVEGADOR, y hay otro bloque que lee el mismo campo —el resumen de
+  **TAREAS DE FONDO**— que lo escribía igual de firme y encima ordenaba tratarlo como entrega («entonces la
+  tarea SÍ ha traído eso — cuéntalo en este turno»). Medido en `best-pediatric-dentists__us` con
+  `told_but_given_no_rows` estrenándose: **7 turnos avisados con cero filas**, veinte dentistas con nombre y
+  ★rating en la hoja, ninguna fila en ningún prompt — **y la cara del navegador no se encendió ni una vez**,
+  así que arreglar solo V2-443 dejaba vivo justo el camino que se estaba midiendo. Cuarta vez que esta casa
+  paga lo mismo: **el fallo no fue la regla, fue tenerla repetida.** El contador tuvo que aceptar las DOS
+  frases por la misma razón: miraba solo la del navegador y habría dado cero donde había siete. Lo ENTREGADO
+  se sigue ordenando contar, con test (V2-222 intacto: negar una entrega que el operador tiene delante es peor
+  que no haberla hecho). Nodo 4.78, tres desarmes. **Sigue abierto** por qué esas 20 filas no viajaron a
+  ningún prompt: el censo dice que la caja era la correcta y había una sola hoja en toda la ronda.
+
 - **Sin filas, lo único que hay es la PALABRA del worker (V2-443, 2026-08-28)**: la cara de «ya ha encontrado»
   tiene dos fuentes — con filas, la hoja la respalda y es un HECHO; **sin filas solo queda `kept`**, la cuenta
   que el propio worker escribe con `hbnote considered --kept N`. El bloque la renderizaba en firme y, encima,

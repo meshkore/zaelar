@@ -831,7 +831,7 @@ def pending_task_lines() -> list[str]:
                 # is already on the summary; the same signal the browser face reads (V2-200) is read here.
                 _kept = int(t.get("kept", 0) or 0)
                 if _kept > 0:
-                    bit += f" — YA HA ENCONTRADO {_kept} candidato(s)"   # V2-278: cuántos, nunca DÓNDE
+                    bit += f" — DICE haber encontrado {_kept} candidato(s)"   # V2-444: SU cuenta, sin comprobar
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "
@@ -858,18 +858,14 @@ def pending_task_lines() -> list[str]:
                          # delivery that was on screen. The fork goes INSIDE the imperative rather than in a
                          # separate sentence: two orders in one paragraph come out heads-or-tails.
                          "PERO lee el PASO antes de decir eso: si dice que algo ya está ENTREGADO, ESCRITO o "
-                         "EN PANTALLA, o que YA HA ENCONTRADO candidatos, entonces la tarea SÍ ha traído "
-                         "eso — cuéntalo en este turno, di qué "
-                         "hay y qué falta todavía, y NO contestes «sigo con ello». Lo que sigue EN CURSO es "
+                         "EN PANTALLA, entonces la tarea SÍ ha traído eso — cuéntalo en este turno, di qué hay y qué"
+                         " falta todavía, y NO contestes «sigo con ello». Un «DICE haber encontrado N» es SU cuenta sin"
+                         " comprobar: puedes decir que va sacando cosas y que aún no ha llegado nada que darle, pero NO"
+                         " lo cuentes como entrega ni nombres nada. Lo que sigue EN CURSO es "
                          "la tarea, no lo que ya está entregado; negar una entrega que el operador tiene "
                          "delante en la pantalla es peor que no haberla hecho. "
-                         # V2-348, cuarta cara — y la SIMÉTRICA, medida en `search-buy-used-car` ronda 8
-                         # (2026-08-26). El paso decía «coches.net caído tras portada (página de error)» y el
-                         # turno contestó «está entrando en el marketplace y ya va dando pasos. No ha sacado
-                         # coches aún, pero no está atascada». Ni una palabra del sitio que se había caído. No
-                         # es desobediencia otra vez: el bloque tenía rama para ENCALLADA, para SIN paso y para
-                         # ENTREGADO — solo las buenas noticias llevaban un «cuéntalo». La asimetría estaba
-                         # AQUÍ, así que el modelo relató la mitad que el bloque nombraba.
+                         # V2-348, cuarta cara y la SIMÉTRICA: solo las buenas noticias llevaban un «cuéntalo»,
+                         # así que el modelo relataba la mitad que el bloque nombraba. Medido en su iniciativa.
                          "Y LO MISMO AL REVÉS, que es este mismo defecto con el signo cambiado: si el paso dice "
                          "que algo ha FALLADO —un sitio caído, un filtro que no se aplicó, un plan B— cuéntalo "
                          "TAMBIÉN en este turno, con el nombre de lo que falló y qué haces en su lugar; un "

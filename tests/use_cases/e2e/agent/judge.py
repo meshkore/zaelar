@@ -615,11 +615,11 @@ def mechanism_facts(mech: dict) -> str:
     # aquí arriba por lo mismo: cambia de quién es la culpa de lo que venga después.
     _tg = mech.get("told_but_given_no_rows") or {}
     if _tg.get("n"):
-        lines.append(f"· ⚠️ LE PEDIMOS LO IMPOSIBLE: en {_tg['n']} turno(s) el prompt le dijo que la tarea YA "
-                     f"HABÍA ENCONTRADO algo y le ordenó contarlo «con nombre y precio» — SIN darle ni una "
-                     f"fila (turnos {', '.join(str(x.get('turn')) for x in _tg.get('turns') or [])}). No "
-                     f"podía nombrar lo que no tenía: NO le bajes la nota por no dar nombres en esos turnos. "
-                     f"Lo que SÍ es suyo es si además calló que había algo: eso sí podía decirlo.")
+        lines.append(f"· ⚠️ LE PEDIMOS LO IMPOSIBLE: en {_tg['n']} turno(s) el prompt le dijo que el encargo YA "
+                     f"HABÍA ENCONTRADO algo y le mandó contarlo — SIN darle ni una fila (turnos "
+                     f"{', '.join(str(x.get('turn')) for x in _tg.get('turns') or [])}). No podía nombrar lo "
+                     f"que no tenía: NO le bajes la nota por no dar nombres en esos turnos. Lo que SÍ es suyo "
+                     f"es si además calló que había algo: eso sí podía decirlo.")
     _oc = mech.get("sheet_hidden_from_the_prompt") or {}
     if _oc.get("n"):
         lines.append(f"· ⚠️ NO SE LO DIJIMOS: en {_oc['n']} turno(s) posteriores a que la hoja tuviera filas "

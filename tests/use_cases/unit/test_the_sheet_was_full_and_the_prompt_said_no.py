@@ -280,9 +280,13 @@ def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
     verde sobre el defecto restaurado."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    assert '"says_found": "YA HA ENCONTRADO" in sp,' in src, (
+    # V2-444 — la propiedad no cambia (se calcula sobre el prompt ENTERO, `sp`, no sobre la línea recortada);
+    # lo que cambió es que se aceptan las DOS frases, porque son dos bloques distintos y en la ronda que lo
+    # destapó disparó el segundo mientras el primero no salió ni una vez.
+    marca = '"says_found": ("YA HA ENCONTRADO" in sp) or ("DICE haber encontrado" in sp),'
+    assert marca in src, (
         "se busca en `live` (la línea de tareas) y el imperativo de resultados es OTRA línea del prompt")
-    assert src.index('"says_found": "YA HA ENCONTRADO" in sp,') > src.index("sp = p.get(")
+    assert src.index(marca) > src.index("sp = p.get(")
 
 
 # ── AVISADO Y SIN FILAS ────────────────────────────────────────────────────────────────────────────────
