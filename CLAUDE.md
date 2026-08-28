@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **`results::X` y `X` son la MISMA hoja, y una volvía VACÍA (V2-439, 2026-08-28)**: el canvas nombra una
+  instancia `results::<corr>` (V2-259) y el almacén usa `results--<corr>`, porque `store._safe_id` no admite
+  `::`. Cuando a `sheet_key` le llega el id del canvas ENTERO, el saneado se come los dos puntos y compone
+  `results--results82d86e-2` — una clave que **no existe**, así que la hoja vuelve **vacía**, indistinguible
+  de «aún no hay nada»: sin error, sin traza, sin filas. Salió tirando del hilo de por qué el bloque de filas
+  no ha aparecido nunca en 45 rondas medidas, y **no cierra aquello**: lo explicaría solo si algún llamante
+  pasa el id del canvas, y eso NO está medido — el arreglo es defensivo y una instancia pelada se comporta
+  exactamente igual que antes. Tres cuidados: **solo el prefijo PROPIO** (tolerar cualquiera convertiría el id
+  de otro widget en un alias silencioso de una hoja nuestra), `sheet_key("")` sigue siendo `results` byte por
+  byte (sin migración y sin dos linajes vivos compitiendo, la trampa de V2-242), y **cero líneas netas**: el
+  trinquete tiene ese fichero-dios en 1029 y mi docstring de tres líneas lo pasaba de largo — el razonamiento
+  vive en la iniciativa, en el fichero basta el hecho. Nodo 4.76, tres desarmes.
+
 - **La cara dice que hay filas y la hoja no las da (V2-438, 2026-08-28)**: el CUARTO camino, y el único que
   quedaba mudo. La cara de resultados se enciende con `_p["has_results"]` **o** con `_found_candidates`, y el
   `or` **hace cortocircuito**: si el primero es cierto, `_sheet_has_rows` ni se llama y sus tres avisos no

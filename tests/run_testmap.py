@@ -610,6 +610,13 @@ DOMAINS: list[dict] = [
         # `click 13` una y otra vez. El mensaje era el crudo de Playwright y nada más, mientras su hermano —el
         # ref fuera de la mirada— dice desde siempre «haz `look`… no reintentes el mismo». Mismo problema, un
         # ref caducado, contado de dos maneras, y solo una servía.
+        # 2026-08-28 — `results::82d86e-2` y `82d86e-2` son la misma hoja dicha de dos maneras, y la primera
+        # devolvía VACÍO: el saneado se comía los dos puntos y componía `results--results82d86e-2`, una clave
+        # que no existe. Una hoja vacía es indistinguible de «aún no ha encontrado nada»: el fallo no hace
+        # ruido, cambia la respuesta.
+        {"id": "4.76", "title": "El id del canvas y la instancia son la misma hoja — y una devolvía vacío",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_canvas_id_and_the_instance_are_the_same_sheet.py"]},
         {"id": "4.75", "title": "Un elemento muerto dice qué hacer — sin perder el mensaje crudo",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_dead_element_says_what_to_do.py"]},

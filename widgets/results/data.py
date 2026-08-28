@@ -75,8 +75,8 @@ def _safe_sheet(sheet) -> str:
 
 
 def sheet_key(sheet: str = "") -> str:
-    """Clave de almacén de UNA hoja. Sin instancia → la hoja de siempre, byte por byte."""
-    s = _safe_sheet(sheet)
+    """Clave de almacén de UNA hoja. Sin instancia → la de siempre, byte por byte. `results::X` ES `X`."""
+    s = _safe_sheet(str(sheet or "").removeprefix(f"{WIDGET_ID}::"))   # V2-439: sin esto la clave NO existe
     return WIDGET_ID if not s else f"{WIDGET_ID}{_INSTANCE_SEP}{s}"
 
 
