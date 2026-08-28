@@ -323,6 +323,17 @@ def mechanism_facts(mech: dict) -> str:
                      f"MECANISMO, no de las respuestas: si zaelar nombró candidatos que están en una de esas "
                      f"cajas, los tenía y los dijo bien. Y si el encargo acabó repartido en varias cajas cuando "
                      f"la conversación era UNA búsqueda, eso es lo que hay que contar en «mecanismo».")
+    elif si.get("written_ids"):
+        # The POSITIVE fact, stated (V2-469). With this absent, the judge reconstructed visibility from raw
+        # `widget_ops` counters — where a scoped box's `show` is logged under its FAMILY key (`results`),
+        # not under `results::<id>` — and filed [alta] «la hoja nunca recibió show» over a sheet the
+        # mechanism had already measured as seen (`n_unseen: 0`). Same family as the 0ms span: a raw number
+        # without its meaning enunciated reads like evidence of the opposite.
+        lines.append("· TODAS las cajas de resultados escritas SE MOSTRARON en pantalla (ninguna quedó "
+                     "oculta: eso ya está medido, arriba saldría un ⚠️ si no). OJO al leer `widget_ops`: el "
+                     "`show` de una caja con ámbito (`results::<id>`) se registra bajo su familia "
+                     "(`results`), así que «`results--…` tiene data y no tiene show» NO significa que no se "
+                     "viera — no deduzcas visibilidad de esos contadores crudos.")
     gw = mech.get("ghost_widgets") or {}
     if gw.get("ghosts"):
         which = ", ".join(g["id"] for g in gw["ghosts"])

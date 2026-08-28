@@ -2133,6 +2133,29 @@ def prices_that_do_not_match(transcript, sheet: dict | None) -> list[dict]:
     return fuera
 
 
+def delivery_said_at(transcript, titles) -> float | None:
+    """First instant (ms) a zaelar turn names any of `titles` — the tick of `delivery_lag_s`.
+
+    V2-469: this lived inline in run.py and matched only `offered.titles` (the note channel). A worker
+    that writes rows straight into the sheet pushes no note, so the clock never ran and the judge —
+    holding only the ambiguous `after_last_turn_s` — filed «retuvo 4 minutos» over a one-turn delivery.
+    The caller hands the UNION of every delivery surface's titles; matching uses the same normalized
+    heads as `recites_our_candidates` (round 33: a verbatim-prefix clock is a clock that mostly
+    doesn't run). Returns None when nothing was named: a fabricated instant here would manufacture the
+    very retention verdict this clock exists to kill.
+    """
+    heads = [h for h in (_title_head(t) for t in (titles or []) if t) if h]
+    if not heads:
+        return None
+    for t in (transcript or []):
+        if (t or {}).get("who") != "zaelar":
+            continue
+        low = _norm_title(t.get("text") or "")
+        if any(h in low for h in heads):
+            return float(t.get("at") or 0) * 1000.0
+    return None
+
+
 def delivered_by_name(transcript, known_titles) -> dict:
     """QUÉ CANDIDATOS NOMBRÓ ZAELAR CON SUS PROPIAS PALABRAS, y en qué turno. El hecho que contradice «retiene».
 

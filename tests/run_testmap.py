@@ -2202,6 +2202,13 @@ DOMAINS: list[dict] = [
                                   "de mudarla",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_three_agents_have_fixed_ports.py"]},
+        {"id": "10.122", "title": "El reloj de la entrega también lee los títulos de la HOJA — sin nota, no corría",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_delivery_clock_reads_the_sheet_titles_too.py"]},
+        {"id": "10.123", "title": "Una hoja que SÍ se mostró se dice — o el juez reconstruye lo contrario de "
+                                  "widget_ops",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_a_sheet_that_was_shown_is_said_to_have_been_shown.py"]},
         {"id": "10.121", "title": "Un span de UN evento no dura cero — y contradecía al hecho que sí lo mide",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_a_single_event_span_is_not_a_zero_duration.py"]},

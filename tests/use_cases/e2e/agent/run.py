@@ -399,20 +399,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 _st = mech.get("sheet_timing") or {}
                 _rows_at = _st.get("sheet_named_ms") or _st.get("sheet_rows_ms")
                 _st["delivery_clock"] = "intake" if _st.get("sheet_named_ms") else "primera escritura"
-                _said_at = None
-                # The SAME identity `recites_our_candidates` uses (normalized head), not a raw 24-char prefix:
-                # round 33 measured the difference — zaelar said «Harley Benton CLGS 10S» against a sheet title
-                # of «Guitarra Acústica Harley Benton…», the literal prefix never matched, the lag came out
-                # None, and the judge — without the clock line — filed «retención artificial» again. A clock
-                # that only ticks when the model recites the title verbatim is a clock that mostly doesn't run.
-                _heads = [h for h in (verifymod._title_head(t) for t in (offered.get("titles") or []) if t) if h]
-                for t in transcript:
-                    if t.get("who") != "zaelar":
-                        continue
-                    low = verifymod._norm_title(t.get("text") or "")
-                    if any(h in low for h in _heads):
-                        _said_at = (t.get("at") or 0) * 1000
-                        break
+                # UNION of delivery surfaces (V2-469): a worker writing rows straight into the sheet pushes
+                # no note, so a clock fed only `offered.titles` never ran on that path and the judge filed
+                # «retuvo 4 minutos» over a one-turn delivery. Head-matching itself lives in
+                # `verify.delivery_said_at` (round 33: a verbatim-prefix clock mostly doesn't run).
+                _sh_titles = (mech.get("results_sheet") or {}).get("titles") or []
+                _said_at = verifymod.delivery_said_at(
+                    transcript, list(offered.get("titles") or []) + list(_sh_titles))
                 mech["sheet_timing"]["delivery_lag_s"] = (
                     round((_said_at - _rows_at) / 1000.0, 1) if (_said_at and _rows_at) else None)
             except Exception:  # noqa: BLE001
