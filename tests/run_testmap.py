@@ -578,6 +578,13 @@ DOMAINS: list[dict] = [
         # inválido ni qué se leyó. El worker reintenta lo mismo tres y cuatro veces. Y la causa más probable
         # —la valla de markdown que a un modelo le sale sola al escribir JSON— no es ambigua, así que
         # rechazarla no protegía de nada: solo gastaba la vuelta.
+        # 2026-08-28 — cuatro rechazos distintos de la puerta de permisos en una noche («simple_expansion»,
+        # «brace with quote», el `&`, el `cd`) y en los CUATRO el evento decía qué regla se rompió y nada del
+        # comando. Eso no distingue «el worker escribió algo raro» (conducta) de «nuestro prompt se lo enseñó»
+        # (culpa nuestra), que piden acciones opuestas — y dos de las cuatro eran lo segundo.
+        {"id": "4.68", "title": "Un comando RECHAZADO dice qué se intentó — solo cuando el paso falla",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_a_rejected_command_says_what_was_tried.py"]},
         {"id": "4.67", "title": "El error de payload dice QUÉ falló — y la valla de markdown se tolera, el "
                                 "casi-JSON no",
             "ch": UNIT,

@@ -445,8 +445,16 @@ class ClaudeCodeSession(WorkerBackend):
                 if step:
                     # Se recuerda el ÚLTIMO paso para poder atribuirle su respuesta: el `tool_result` llega en el
                     # mensaje siguiente (rol `user`) y NO dice de qué tool era más que por `tool_use_id`.
-                    self._steps().setdefault(str(block.get("id") or ""), {"tool": name, "where": step.get("where", "")})
-                    self._last_step = {"tool": name, "where": step.get("where", "")}
+                    # LA ENTRADA, no solo la herramienta. Cuando la puerta de permisos rechaza un comando, el
+                    # `tool_result` trae el motivo («Contains simple_expansion») y NADA de lo que se intentó —
+                    # así que desde fuera no se puede distinguir un worker que escribió algo raro de un prompt
+                    # NUESTRO que se lo enseñó. Cuatro veces la noche del 2026-08-28 hubo que adivinarlo, y dos
+                    # de esas veces la culpa era nuestra (V2-424 el `&`, V2-426 el `cd`). Solo se guarda, y
+                    # solo se emite cuando el paso FALLA: ver `session._emit_step_result`.
+                    _meta = {"tool": name, "where": step.get("where", ""),
+                             "cmd": str((tin or {}).get("command") or "")[:220]}
+                    self._steps().setdefault(str(block.get("id") or ""), _meta)
+                    self._last_step = dict(_meta)
                     yield self._ev("step", tool=name, model=self._model, **step)
             return
         if t == "user":
@@ -462,6 +470,7 @@ class ClaudeCodeSession(WorkerBackend):
                     or getattr(self, "_last_step", None) or {}
                 yield self._ev("step_result", text=self._result_text(block.get("content")),
                                tool=meta.get("tool", ""), where=meta.get("where", ""),
+                               cmd=meta.get("cmd", ""),
                                is_error=bool(block.get("is_error")),
                                # el escalón con el que corre ESTA sesión: si sus tools se agotan, hay que culpar al
                                # que las sirve, no al que esté primero en la cadena ahora mismo (tras un relevo son

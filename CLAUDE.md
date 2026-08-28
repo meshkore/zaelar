@@ -5112,6 +5112,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **Un comando rechazado dice qué se intentó (V2-429, 2026-08-28)**: cuatro rechazos distintos de la puerta
+  de permisos en una sola noche («simple_expansion», «brace with quote», el `&`, el `cd`) y en los CUATRO el
+  evento guardaba qué regla se rompió **y nada del comando**. Eso no distingue las dos causas, que piden
+  acciones opuestas: el worker escribió algo raro (conducta, se mide) o **nuestro propio prompt se lo enseñó**
+  (culpa nuestra, se arregla en el prompt). **Dos de las cuatro eran lo segundo** —V2-424 y V2-426— y hubo que
+  reconstruirlo a mano cada vez; la cuarta se quedó sin reconstruir por falta de rastro. El sistema tenía el
+  comando delante, en el `tool_use`, y lo tiraba al casar el paso con su resultado. Ahora el meta del paso lo
+  guarda y `step_result` lo recupera, **solo cuando el paso falla** (el comando de un paso sano es ruido, y
+  una fila que sale siempre deja de mirarse) y **sin escribir un campo vacío** cuando no lo hay (`cmd: ""` se
+  lee como «se intentó nada», que no es «no lo sabemos»). Los cuatro los cacé por casualidad leyendo logs; el
+  quinto se lee del informe — la diferencia entre arreglar defectos y poder arreglarlos. Nodo 4.68, tres
+  desarmes.
+
 - **Un traceback se recorta por la COLA (V2-428, 2026-08-28)**: los tres tracebacks guardados en el tablero
   como anomalías de certeza «hecho» quedaban en «Traceback … `<frozen runpy>` … `_run_module_as_main` …
   File "/Users…» — cien caracteres de andamiaje **idéntico en cualquier fallo de Python**, con la línea de la

@@ -743,9 +743,11 @@ class WorkerSession:
             place, kind = _PLACE.get(where, _PLACE["sistema"])
             from nucleo.workers.probes import is_menu_probe   # ver su docstring: leer el menú NO es estrellarse
             bad = bool(d.get("is_error")) and not is_menu_probe(body)
-            emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body,
-                 extra={"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
-                        "is_error": bad, "span": f"worker:{self._rec.task_id}"})
+            _ex = {"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
+                   "is_error": bad, "span": f"worker:{self._rec.task_id}"}
+            if bad and d.get("cmd"):
+                _ex["cmd"] = str(d["cmd"])[:220]     # QUÉ se intentó, no solo que salió mal (ver claude_session)
+            emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body, extra=_ex)
             # CEGUERA: un error de cuota de las TOOLS del proveedor no hace fallar la llamada al modelo, así que no
             # dispara el relevo y el worker sigue razonando SIN poder buscar. Sin esto no había ni alerta ni rastro:
             # el worker parecía sano y entregaba conclusiones sin material. Ver `providers.note_tool_blindness`.
