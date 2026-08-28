@@ -54,15 +54,15 @@ TOOLS: list[dict] = [
         "function": {
             "name": "play_video",
             "description": (
-                "Reproduce un VÍDEO en el widget `youtube` — VER en pantalla: 'pon el vídeo de…', un videoclip, un "
-                "tráiler, una peli, un directo, un tutorial. También «el último/más reciente vídeo de <alguien>» (se "
-                "ordena por fecha). `query` = qué vídeo, en lenguaje natural; acepta descripciones vagas. No es "
-                "play_music (eso es OÍR) ni web_search (eso es un dato que se cuenta). La búsqueda tarda unos "
-                "segundos en segundo plano: habla en presente o futuro ('lo busco', 'te lo cargo'), NUNCA en pasado "
-                "— decir 'hecho' antes de que esté cargado es mentir, aunque ya hubiera otro vídeo en pantalla. "
-                "BUSCAR contenido para ver/oír y ELEGIR ('búscame vídeos de X', 'qué documentales hay', un podcast) "
-                "también es ESTA tool, con action=list: varios candidatos a la LISTA, sin reproducir. No lo escales "
-                "ni lo mandes a la hoja de resultados: la hoja es para INFORMACIÓN, no para lo que se ve u oye."
+                "Reproduce un VÍDEO en el widget `youtube` — VER en pantalla: 'pon el vídeo de…', un videoclip, "
+                "un tráiler, una peli, un directo. También «el último vídeo de <alguien>» (se ordena por fecha). `query` = qué vídeo, en lenguaje natural; acepta descripciones vagas. No es "
+                "play_music (eso es OÍR) ni web_search (un dato que se cuenta). Tarda unos segundos: habla en "
+                "presente o futuro ('lo busco'), NUNCA en pasado — decir 'hecho' antes de que cargue es mentir, "
+                "aunque ya hubiera otro vídeo en pantalla. BUSCAR para ver/oír y ELEGIR ('búscame vídeos de X', "
+                "'qué documentales hay', un podcast) también es ESTA tool, con action=list: varios candidatos a "
+                "la LISTA, sin reproducir. Un ENLACE ya PEGADO NO se reproduce: se AÑADE con "
+                "widget_data(youtube, add) — «añadir a la cola»; cortarle lo que ve es un defecto. No lo "
+                "escales ni lo mandes a la hoja: es para INFORMACIÓN, no para lo que se ve u oye."
             ),
             "parameters": {
                 "type": "object",

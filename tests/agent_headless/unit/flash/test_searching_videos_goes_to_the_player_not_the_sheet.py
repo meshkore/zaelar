@@ -164,3 +164,15 @@ def test_a_probe_search_turn_reaches_the_widgets_search_dataop(monkeypatch, tmp_
     assert res["ok"] is True
     assert seen == {"wid": "youtube", "action": "search", "payload": {"query": "vídeos de recetas de paella"}}, \
         "the search must reach the player's list; landing anywhere else is the defect the operator saw"
+
+
+# ── V2-467 — un enlace YA PEGADO se encola, no se reproduce ─────────────────────────────────────────────
+def test_un_enlace_pegado_se_AÑADE_a_la_lista_y_no_arranca_la_reproduccion():
+    """Medido en `build-a-video-playlist-from-links`: pegar dos enlaces y pedir una lista disparó
+    `play_video` — el escenario declara ese arranque un DEFECTO explícito, «como añadir a la cola de
+    YouTube: cortarte lo que ves no es una comodidad». El catálogo no distinguía «búscame un vídeo» (esta
+    tool) de «aquí tienes el enlace» (una data-op del widget), así que el modelo cogía la que conocía."""
+    d = _desc("play_video")
+    assert "ENLACE ya PEGADO" in d
+    assert "widget_data(youtube, add)" in d, "hay que decir A DÓNDE va, no solo que no es aquí"
+    assert "cola" in d, "la analogía es lo que hace la regla aplicable a un caso que nadie ha escrito"
