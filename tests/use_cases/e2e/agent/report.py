@@ -51,6 +51,9 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
         if sc:
             lines.append("scores: " + ", ".join(f"{k} {val}" for k, val in sc.items())
                          + f"  · juez: {v.get('_judge_model','?')}")
+        if r.get("video"):
+            # V2-464 — el vídeo de la ronda, al lado de la sesión y sus flujos: lo que habría visto el usuario.
+            lines.append(f"🎥 vídeo: {r['video']}")
         lines.append(f"informe de mecanismo: familias observadas = {mech.get('families_observed', [])}, "
                      f"esperadas = {mech.get('expected_signals', [])}, "
                      f"faltantes = {mech.get('missing_signals', []) or '(ninguna)'}")

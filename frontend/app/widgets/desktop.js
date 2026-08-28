@@ -856,6 +856,36 @@ export class Desktop {
     card.style.top =Math.max(top,(innerHeight*0.30 + off))+"px";
   }
 
+  // ORDENAR el canvas en una rejilla alineada (V2-464, showcase). One command, invocable from anywhere the
+  // SSE reaches (POST /api/canvas/arrange -> widget/arrange), like the OS window-snap the operator asked for.
+  // The area avoids a DOCKED chat wall and the orb strip at the bottom; every card gets the same cell so a
+  // recording reads clean. Sizes clamp to the card's own max-width/height, so nothing distorts.
+  arrange(){
+    const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
+    if(!cards.length) return {ok:true, n:0};
+    const pad=this.tile.pad, y0=this.tile.top, y1=innerHeight-150;   // 150 = orb/status strip
+    let x0=pad, x1=innerWidth-pad;
+    const cw=document.querySelector("#chatwall");
+    if(cw && cw.classList.contains("open")){
+      const r=cw.getBoundingClientRect();
+      if(r.width){
+        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);       // docked/floating on the LEFT
+        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);  // …or on the RIGHT
+      }
+    }
+    const n=cards.length;
+    const cols=n===1?1:(n<=4?2:Math.ceil(Math.sqrt(n)));
+    const rows=Math.ceil(n/cols);
+    const cellW=Math.floor((x1-x0-(cols-1)*pad)/cols), cellH=Math.floor((y1-y0-(rows-1)*pad)/rows);
+    cards.forEach((c,i)=>{
+      const row=Math.floor(i/cols), col=i%cols;
+      c.style.left=(x0+col*(cellW+pad))+"px"; c.style.top=(y0+row*(cellH+pad))+"px";
+      c.style.width=Math.max(320, cellW)+"px"; c.style.height=Math.max(240, cellH)+"px";
+    });
+    this._persist();
+    return {ok:true, n};
+  }
+
   // Live rects to avoid: every OTHER open widget + the camera unit + the voice orb (so widgets never sit on them).
   _obstacles(exceptCard){
     const rects=[];

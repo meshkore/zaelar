@@ -793,11 +793,32 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         except Exception as e:
             print(f"  ⚠️ no pude resetear el motor antes del caso: {e} — este caso puede arrastrar "
                   f"trabajo de antes")
+        # V2-464 — GRABACIÓN opcional (--record): un Chromium espectador con ?showcase=1 mira el plató
+        # mientras la ronda corre y deja un .webm sin sonido en tests/runs/use_cases/videos/. Fail-soft
+        # entero: una grabación que no arranca nunca tira la medición — se dice y se sigue.
+        _rec = None
+        if getattr(config, "RECORD", False):
+            from . import recorder as _recmod
+            _rec = _recmod.Recorder(config.ZAELAR_URL)
+            if _rec.start():
+                print(f"  🎥 grabando la pantalla ({config.ZAELAR_URL}/?showcase=1)")
+            else:
+                print(f"  ⚠️ sin grabación: {_rec.error}")
+                _rec = None
         try:
             results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results],
                                           sandboxed=sandboxed, provisional=provisional))
+            if _rec is not None and results:
+                _video = _rec.stop(results[-1].get("scenario") or scenario.id)
+                _rec = None
+                if _video:
+                    results[-1]["video"] = _video
+                    print(f"  🎥 vídeo → {_video}")
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
             print(f"  ✗ scenario crashed: {e}")
+            if _rec is not None:
+                _rec.stop(scenario.id)   # una ronda que reventó no puede dejar un Chromium espectador vivo
+                _rec = None
             # Say WHAT STATE the engine was in and WHAT ITS LOG SAYS, right here — the answer exists at this
             # moment and «INFRA: timed out» alone already cost half an hour of manual diagnosis (2026-08-23).
             # A ScenarioCrash arrives with its autopsy taken at death; anything else gets one now.
@@ -1773,12 +1794,17 @@ def main() -> None:
     ap.add_argument("--include-blocked", action="store_true",
                     help="conducir TAMBIÉN los casos de futuro (los que declaran tareas de roadmap "
                          "pendientes en segments.py). Por defecto se saltan: su fallo ya está escrito")
+    ap.add_argument("--record", action="store_true",
+                    help="graba la PANTALLA de la ronda (Chromium espectador con ?showcase=1: chat acoplado y "
+                         "rejilla auto-ordenada) y guarda un .webm sin sonido en tests/runs/use_cases/videos/, "
+                         "enlazado desde el informe. Pensado para --lab; el vídeo es espejo, nunca condición")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="measure even with uncommitted engine files (for the fixing agent's own work-in-progress)")
     ap.add_argument("--judge-pending", action="store_true",
                     help="judge the rounds parked on disk because the judge was unavailable, and fold them "
                          "into the scoreboard — without driving the conversation again")
     args = ap.parse_args()
+    config.RECORD = bool(getattr(args, "record", False))
     if args.judge_pending:
         raise SystemExit(_judge_pending())
     if args.list:

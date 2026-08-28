@@ -504,6 +504,17 @@ def _live_canvas_instances() -> list:
     return seen
 
 
+@router.post("/api/canvas/arrange")
+async def canvas_arrange():
+    """Aligns every open card into a grid — the OS-style window snap, invocable by API (V2-464).
+
+    The frontend does the geometry (it is the canvas authority, V2-035); this only broadcasts the ORDER over
+    the same SSE rail every other canvas command travels. Exists for the use-case recorder (a video where the
+    cards land tidy without a hand on the mouse) and for anything else that can POST — the operator asked for
+    it by analogy with the desktop-arrange gesture of macOS/Windows."""
+    return JSONResponse(emit("widget", "arrange", extra={"src": "api"}))
+
+
 @router.get("/api/canvas/layout")
 async def canvas_layout():
     """The desktop AS the operator left it (cards + positions) PLUS `live`, the instance cards of errands

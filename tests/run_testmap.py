@@ -2176,6 +2176,14 @@ DOMAINS: list[dict] = [
         # tenía clavados (43921/43922) mientras la tanda desatendida arrancaba en `preferred_port(43918)` —
         # un número para los DOS idiomas, y encima deslizante. El operador abrió el 43921 esperando al agente
         # español y no había nada: esa dirección solo existía para `--lab`.
+        # V2-464: petición del operador — grabar la pantalla mientras el caso corre (chat acoplado, rejilla
+        # auto-ordenada tipo snap del sistema) y enlazar el .webm desde el informe, como material de showcase.
+        # La parada del espectador es por STDIN a propósito: el .webm solo se materializa al cerrar el
+        # contexto de Playwright, y matarlo a señales pierde el fichero de una ronda que ya se pagó.
+        {"id": "10.119", "title": "La ronda deja un VÍDEO — espectador con parada por stdin, modo escaparate "
+                                  "en el frontend, y el informe lo enlaza",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_the_round_leaves_a_video.py"]},
         # V2-463: el producto entregó 12 fotos reales de ferrari.com en 3 s y el juez lo llamó «alucinación
         # visual» — el lector de evidencia solo contaba workers y navegador. El instrumento acusaba al
         # producto por mirar donde la evidencia no está.

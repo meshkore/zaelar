@@ -5143,6 +5143,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en `app/` ni `mobile/`, el micro sobrevive al apagado, y el barrido impide una tercera puerta con otro
   nombre; desarme verificado descomentando el bloque (2 rojos).
 
+- **La ronda deja un VÍDEO — modo escaparate + grabador (V2-464, 2026-08-28)**: petición del operador —
+  grabar la pantalla mientras el caso corre en background, con el chat abierto y los widgets alineados como
+  el snap del sistema, y enlazar el .webm sin sonido desde el informe (material de showcase). Piezas:
+  `Desktop.arrange()` (rejilla, esquiva chat acoplado y franja del orbe), `POST /api/canvas/arrange` (el snap
+  por API, mismo rail SSE que show/close), modo `?showcase=1` (chat acoplado izquierda + auto-arrange con
+  debounce en cada apertura — SOLO en showcase, al operador normal un auto-orden le movería lo suyo) y
+  `recorder.py` + `run.py --record` (Chromium espectador 1920×1080, `record_video_dir` de Playwright). **La
+  parada del espectador es por STDIN, nunca por señal**: el .webm solo se materializa al cerrar el contexto,
+  y matarlo pierde el fichero de una ronda que ya se pagó. Verificado en vivo: primer .webm real de 21 MB con
+  la ronda entera. Nodo 10.119.
+
 - **La tarjeta se abre donde aterrizan los datos (V2-463, 2026-08-28)**: 12 fotos en el almacén del visor y
   el operador mirando un canvas donde la tarjeta nunca se abrió. La voz emitía el `show` al llegar la tool;
   el canal probe —el que conduce TODAS las rondas del plató— no lo emitía nadie, y **youtube y musica tenían

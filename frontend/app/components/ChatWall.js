@@ -374,7 +374,15 @@ export function ChatWall() {
 
   // ── restore geometry ────────────────────────────────────────────────────────────────────────────────────
   let placed = false;
-  if (floatGeo) { applyFloat(floatGeo); placed = true; }
+  // V2-464 — modo ESCAPARATE (?showcase=1): el chat arranca ABIERTO y ACOPLADO a la izquierda, para que una
+  // grabación desatendida enseñe la conversación sin que nadie toque nada. Antes que el float guardado: en
+  // el plató la geometría persistida es de otra sesión y un chat flotante a medias tapa las tarjetas.
+  const _showcase = new URLSearchParams(location.search).has("showcase");
+  if (_showcase) {
+    applyDock("left", (loadDock() || {}).w || DOCK_DEF_W);
+    placed = true;
+    store.setChatOpen(true);
+  } else if (floatGeo) { applyFloat(floatGeo); placed = true; }
 
   window.addEventListener("resize", () => { if (dockSide) applyDock(dockSide, wallEl.offsetWidth); });
   setReserve();

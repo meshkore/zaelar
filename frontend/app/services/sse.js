@@ -10,6 +10,11 @@ import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";
 
+// V2-464 — modo ESCAPARATE: ?showcase=1 en la URL. Lo usa el grabador de casos de uso (recorder.py): chat
+// abierto y rejilla auto-ordenada, para que el vídeo salga legible sin manos.
+const _SHOWCASE = new URLSearchParams(location.search).has("showcase");
+let _arrT = null;
+
 let es = null;
 
 export function openSSE(desktop) {
@@ -48,7 +53,12 @@ export function openSSE(desktop) {
       // sigan contando igual. La regla es la que faltaba, no el evento: **un informe de lo que ya pasó no es una
       // orden**, y el que lo mandó es justamente quien no tiene nada que hacer con él.
       const _eco = d.src === "user";
-      if (d.label === "show" && d.id && !_eco) desktop.show(d.id, { data: d.data });       // brain shows it (with pushed data, if any)
+      if (d.label === "show" && d.id && !_eco) {
+        desktop.show(d.id, { data: d.data });       // brain shows it (with pushed data, if any)
+        // V2-464 — en showcase cada apertura re-ordena la rejilla sola, para que una grabación desatendida
+        // salga alineada sin manos. Solo en showcase: al operador normal un auto-orden le movería lo suyo.
+        if (_SHOWCASE) { clearTimeout(_arrT); _arrT = setTimeout(() => desktop.arrange && desktop.arrange(), 700); }
+      }
       else if (d.label === "create" && d.id) desktop.createWidget(d.id, d.spec);  // brain asked to BUILD a new widget
       else if (d.label === "modify" && d.id) desktop.modifyWidget(d.id, d.change);// brain asked to EDIT an existing widget
       else if (d.label === "delete" && d.id) desktop.onDeleted(d.id);             // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
@@ -59,6 +69,7 @@ export function openSSE(desktop) {
       else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question, action: d.action });      // irreversible action (delete/data) → Sí/No overlay ON the card
       else if (d.label === "confirm-cancel" && d.id) desktop.hideConfirm(d.id);   // confirmation resolved/cancelled elsewhere (voice/timeout)
       else if (d.label === "close" && !_eco) d.id ? desktop.close(d.id) : desktop.closeAll();
+      else if (d.label === "arrange") desktop.arrange && desktop.arrange();       // V2-464: rejilla alineada (showcase/API)
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (izquierda/derecha/…)
       else if (d.label === "resize" && d.id) desktop.resize(d.id, d.data);          // resize a widget (HERMES-ONLY)
       else if (d.label === "fullscreen" && d.id) desktop.fullscreen(d.id);          // toggle native fullscreen
