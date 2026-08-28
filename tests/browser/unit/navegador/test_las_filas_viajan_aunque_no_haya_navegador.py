@@ -115,8 +115,8 @@ def test_las_DOS_lecturas_formatean_la_fila_IGUAL():
     from nucleo.flash import live_blocks as _LB
     from nucleo.flash.errand_sheet import fila
     import inspect
-    assert "fila(i)" in inspect.getsource(_LB._sheet_top_rows), "la cara del navegador volvió a formatear por su cuenta"
-    assert "fila(i)" in inspect.getsource(_LB.rows_of_sheet) or True   # rows_of_sheet ya la usa por construcción
+    assert "fila(i)" in inspect.getsource(_LB._sheet_top_rows), (
+        "la cara del navegador volvió a formatear por su cuenta")
     assert fila({"title": "X", "price": "10 €"}) == "«X — 10 €»"
 
 
@@ -132,3 +132,4 @@ def test_el_TELEFONO_tambien_se_lee_de_los_facts():
     """Viene por los dos sitios según quién extraiga; leer solo uno pierde la mitad."""
     from nucleo.flash.errand_sheet import fila
     assert "600111222" in fila({"title": "Cerrajero", "facts": [{"label": "Teléfono", "value": "600111222"}]})
+
