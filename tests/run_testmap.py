@@ -746,7 +746,10 @@ DOMAINS: list[dict] = [
         {"id": "4.63", "title": "Que nos BLOQUEEN no es que el mundo esté vacío — el motor lo dice y el arnés "
                                 "lee el campo, no la prosa",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_a_blocked_search_is_not_an_empty_world.py"]},
+            "paths": ["tests/agent_headless/unit/test_a_blocked_search_is_not_an_empty_world.py",
+                      # V2-469: un ANUNCIO del buscador no es un resultado — los y.js de DDG (con títulos
+                      # del país de la IP, no del motor) aterrizaban en la hoja como candidatos.
+                      "tests/agent_headless/unit/test_an_ad_is_not_a_search_result.py"]},
         {"id": "4.62", "title": "Una recarga es INVISIBLE desde aquí, así que se vuelve a probar — libertad "
                                 "condicional al saldo agotado, en las DOS cadenas",
             "ch": UNIT,

@@ -403,11 +403,39 @@ def _ddg(q: str, k: int) -> dict:
         raise RuntimeError(blocked)      # so the chain's reason string SAYS it instead of "sin resultados"
     links = _LINK_RE.findall(body)
     snippets = _SNIPPET_RE.findall(body)
-    results = []
-    for i in range(min(len(snippets), k)):
-        href, title = (links[i] if i < len(links) else ("", ""))
-        results.append({"title": _clean(title), "snippet": _clean(snippets[i]), "url": _ddg_href(href)})
+    results = _assemble_ddg_results(links, snippets, k)
     return {"query": q, "answer": answer, "results": results, "source": "ddg"}
+
+
+def _is_ad(url: str) -> bool:
+    """A search-engine AD is not a search result (V2-469): measured in `cheapest-monitor__us`, DDG's
+    `y.js?ad_domain=…&ad_type=txad` redirects landed in the sheet as the first two «candidates», with
+    SPANISH titles on the US engine — ads follow the machine's IP, not the engine's locale. Recognized by
+    the redirect's SHAPE (ad host path / ad params), never by words in a page's own path."""
+    u = str(url or "")
+    try:
+        p = urlparse(u)
+        if "duckduckgo.com" in (p.netloc or "") and p.path.startswith("/y.js"):
+            return True
+        q = p.query or ""
+        return "ad_provider=" in q or "ad_type=" in q
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _assemble_ddg_results(links: list, snippets: list, k: int) -> list:
+    """Pair links with snippets and keep the first k ORGANIC rows — ads are skipped at the source so no
+    consumer downstream (brain note, worker lead, results sheet) ever sees them."""
+    out = []
+    for i, sn in enumerate(snippets):
+        href, title = (links[i] if i < len(links) else ("", ""))
+        url = _ddg_href(href)
+        if _is_ad(url):
+            continue
+        out.append({"title": _clean(title), "snippet": _clean(sn), "url": url})
+        if len(out) >= k:
+            break
+    return out
 
 
 def _ddg_instant(q: str) -> str:
