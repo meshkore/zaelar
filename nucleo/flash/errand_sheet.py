@@ -100,11 +100,36 @@ def aviso_sin_filas(nav_task_id: str, cajas: list[str]) -> None:
     hoja tuviera seis farmacias con nombre y dirección, avisados de que había algo y con cero filas. El modelo
     nombró cero de seis.
 
-    Lleva las CAJAS que miró: sin ellas no se puede comparar con dónde están las filas de verdad.
+    Lleva las CAJAS que miró Y EL CENSO de todas las hojas EN ESE INSTANTE (V2-440), porque sin lo segundo las
+    dos causas se ven idénticas y piden arreglos opuestos: si en ese momento NINGUNA hoja tiene filas es un
+    DESFASE (el worker aún no ha entregado y el aviso es correcto); si otra caja SÍ las tiene es RESOLUCIÓN
+    (miramos donde no era, y ahí sí hay un defecto). El 2026-08-28 se pasaron horas sin poder decidir entre las
+    dos leyendo el estado FINAL de la ronda, que es el que ya no distingue nada — para entonces la caja que se
+    miró tenía 35 filas y la pregunta era si las tenía cuando se miró.
+
+    El censo es un recuento, nunca contenido: los títulos de la hoja son datos del mundo y esto es una fila de
+    observabilidad.
     """
+    censo = ""
+    try:
+        from widgets.results import data as _sheet
+        _miradas = {str(c or "").strip() for c in (cajas or [])}
+        cuenta: list[tuple[str, int]] = []
+        for sid in (_sheet.sheets() or []):
+            items = (_sheet.view_data(sid) or {}).get("items") or []
+            cuenta.append((str(sid or ""), sum(1 for i in items
+                                               if str((i or {}).get("title") or "").strip())))
+        # El campo va ACOTADO, así que el ORDEN decide qué sobrevive al corte y no puede ser el del almacén:
+        # primero las cajas que se MIRARON (son el ancla de la pregunta — sin ellas el censo no se puede
+        # interpretar), después las que más filas tienen. Una hoja con catorce filas explica una ronda; tres
+        # con una cada una, no.
+        cuenta.sort(key=lambda t: (t[0] not in _miradas, -t[1], t[0]))
+        censo = " ".join(f"{sid or '(base)'}:{n}" for sid, n in cuenta[:12])[:300]
+    except Exception:  # noqa: BLE001 — un censo ilegible no puede empeorar el aviso que acompaña
+        censo = "?"
     try:
         from voice.observer import emit
         emit("perf", "🧾 la cara dice que hay filas y la hoja no las da", role="system",
-             extra={"nav_task": str(nav_task_id), "cajas": ", ".join(cajas or [])[:120]})
+             extra={"nav_task": str(nav_task_id), "cajas": ", ".join(cajas or [])[:120], "censo": censo})
     except Exception:  # noqa: BLE001 — instrumentar no puede tumbar el prompt
         pass

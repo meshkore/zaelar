@@ -5112,6 +5112,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **El censo del INSTANTE separa dos causas que se veían idénticas (V2-440, 2026-08-28)**: la cara dice «YA HA
+  ENCONTRADO algo» y la hoja no da ni una fila, y eso tiene DOS causas con arreglos OPUESTOS — **desfase** (el
+  worker aún no ha entregado: el aviso es correcto y no hay nada que tocar) y **caja equivocada** (las filas
+  están en otra hoja: ahí sí hay defecto). La única forma de decidirlo era comparar contra el estado FINAL de
+  la ronda, y **un estado final no puede contestar una pregunta sobre un instante**: medido en
+  `search-buy-bicycle__es`, mi instrumento marcó `e84138-2` como equivocada y esa caja acabó con **35 filas**
+  — era la correcta y estaba vacía cuando se miró. Ahora el motor emite, junto a las cajas que miró, **cuántas
+  filas con nombre tiene cada hoja en ese instante** (recuento, nunca contenido) y el arnés deriva de ahí el
+  veredicto, con dos salidas más que evitan inventar: un censo ILEGIBLE es un HUECO —jamás «desfase»— y las
+  filas en la hoja DESNUDA son la **caja FANTASMA**, categoría propia. Esa tercera no es cosmética: esconderla
+  bajo «desfase» es falso (en un desfase no hay nada escrito y aquí las filas existen a un palmo) y contarla
+  como una hoja de encargo mandaría a arreglar la RESOLUCIÓN cuando lo roto es la ENTREGA — el motor miró
+  bien. Pasa de verdad: la ronda de la bici trae `written_ids: ['results', 'results::e84138-2']`. ⚠️ Y una
+  corrección DENTRO del propio arreglo: la primera versión llamaba «caja equivocada» a que otra hoja tuviera
+  filas, y es falso —el censo lista TODO el almacén y **la hoja de un encargo anterior tiene filas
+  legítimamente**—, así que con dos encargos una ronda sana salía marcada. Queda como `otras_con_filas`, un
+  HECHO que se compara con la cadena del encargo y no un veredicto que el instrumento adivina; lo cazó un
+  test que solo fallaba dentro de la suite completa. Lo que
+  esa ronda SÍ deja medido y sigue abierto: **10 de 12 turnos avisados de que había algo con CERO filas**, con
+  los resultados existiendo los últimos 5 minutos — la trampa de V2-330, escrita por nosotros. Descartado por
+  el camino: no es `sheet_key` (V2-439) ni el lector (reproducido en aislamiento, con la caja resuelta
+  devuelve las filas). Nodo 10.110, cinco desarmes — y el primero **no mordía**: los tests pasaban con el
+  emisor MUDO, o sea un lector interpretando un campo que nadie escribe, que publica ceros y se leen como «no
+  pasó». El censo va acotado, así que **el orden decide qué se puede diagnosticar**: primero las cajas que se
+  miraron (el ancla), después las que más filas tienen.
+
 - **`results::X` y `X` son la MISMA hoja, y una volvía VACÍA (V2-439, 2026-08-28)**: el canvas nombra una
   instancia `results::<corr>` (V2-259) y el almacén usa `results--<corr>`, porque `store._safe_id` no admite
   `::`. Cuando a `sheet_key` le llega el id del canvas ENTERO, el saneado se come los dos puntos y compone

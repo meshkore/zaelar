@@ -1544,6 +1544,9 @@ def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dic
     vacias: dict[str, int] = {}
     ilegibles: list[str] = []
     sin_filas: list[str] = []
+    desfase = 0
+    fantasma = 0
+    mal_caja: list[str] = []
     for e in (all_events or []):
         f = _fields(e)
         etiqueta = str(f.get("label") or e.get("label") or "")
@@ -1559,23 +1562,84 @@ def unresolved_errand_sheets(all_events: list[dict], sheet_box: str = "") -> dic
         elif "la cara dice que hay filas y la hoja no las da" in etiqueta:
             # EL CUARTO CAMINO, y el único que quedaba mudo: la cara se enciende por `_p["has_results"]`, el
             # `or` hace cortocircuito y `_sheet_has_rows` —con sus tres avisos— ni se llama.
-            sin_filas.append(str(f.get("cajas") or e.get("cajas") or "?")[:120])
+            _cajas = str(f.get("cajas") or e.get("cajas") or "?")[:120]
+            sin_filas.append(_cajas)
+            # EL CENSO DEL INSTANTE (V2-440) es lo que separa las dos causas; sin él se ven idénticas.
+            _veredicto, _donde = _censo_dice(str(f.get("censo") or e.get("censo") or ""), _cajas)
+            if _veredicto == "desfase":
+                desfase += 1
+            elif _veredicto == "otras_con_filas":
+                mal_caja.append(_donde)
+            elif _veredicto == "fantasma":
+                fantasma += 1
         elif "ILEGIBLE" in etiqueta:
             # EL TERCER CAMINO. Con los otros dos a cero y turnos ciegos, era el único que quedaba: la
             # lectura reventando y el `except` tragándoselo (medido en `weekend-motor-events__es`).
             ilegibles.append(str(f.get("error") or e.get("error") or "?")[:160])
-    # LA CAJA EQUIVOCADA, separada de la caja VACÍA. Medido el 2026-08-28 sobre las seis rondas que trajeron
-    # la señal: en CINCO el motor miró la caja correcta y estaba vacía porque el encargo aún no había
-    # encontrado nada — el camino normal, no un defecto. En UNA (`compare-flights-madrid-lisboa`) leyó
-    # `f1743e-2` mientras las filas estaban en `f1743e-1`, y ésa sí. Sin separarlas, la señal dispara en el
-    # caso sano y el que la lea concluirá lo que concluí yo: que hay un patrón donde hay un caso.
+    # LA CAJA EQUIVOCADA, separada de la caja VACÍA. Se compara contra `sheet_timing.sheet_box`, que es el
+    # estado FINAL de la ronda — y ESO ES LO QUE FALLA, medido el 2026-08-28 en `search-buy-bicycle__es`:
+    # marcó `e84138-2` como equivocada y esa caja acabó con 35 filas, o sea que era la correcta y estaba
+    # vacía cuando se miró. El estado final no puede contestar una pregunta sobre un instante. Se conserva
+    # porque cubre los avisos de la rama VACÍA (que no traen censo), y el veredicto BUENO —el que sale del
+    # censo, abajo— no depende de esto.
     _caja = str(sheet_box or "").strip()
     mal = {k: v for k, v in vacias.items() if _caja and k != _caja} if _caja else {}
     return {"n": sum(tabs.values()), "tabs": tabs,
             "n_empty": sum(vacias.values()), "empty_sheets": vacias,
             "n_wrong_box": sum(mal.values()), "wrong_boxes": mal,
             "n_unreadable": len(ilegibles), "errors": ilegibles[:4],
-            "n_face_without_rows": len(sin_filas), "face_boxes": sin_filas[:4]}
+            "n_face_without_rows": len(sin_filas), "face_boxes": sin_filas[:4],
+            # EL CENSO DEL INSTANTE (V2-440), tres hechos que antes se veían iguales. `n_lag` = ninguna hoja
+            # tenía filas cuando se miró: el aviso era correcto y no hay nada que arreglar en el motor.
+            # `n_ghost` = las filas estaban en la hoja DESNUDA (el motor miró bien; entregó mal el escritor).
+            # `other_sheets` = qué OTRAS hojas tenían filas — un hecho para comparar con la cadena del
+            # encargo, NUNCA un veredicto: la hoja de un encargo anterior tiene filas legítimamente.
+            "n_lag": desfase, "n_ghost": fantasma,
+            "n_with_other_sheets": len(mal_caja), "other_sheets": mal_caja[:4]}
+
+
+def _censo_dice(censo: str, cajas: str) -> tuple[str, str]:
+    """`(veredicto, dónde)` a partir del censo `«hoja:n hoja:n»` que emite el motor y de las cajas que miró.
+
+    Cuatro salidas y ninguna se puede adivinar desde fuera: **desfase** (nadie tenía filas: el aviso es
+    correcto y no hay nada que arreglar), **fantasma** (las filas están en la hoja DESNUDA, la que no es de
+    ningún encargo: el motor miró bien y entregó mal el escritor — arreglo distinto, categoría distinta),
+    **otras_con_filas** y **""** cuando el censo no se pudo leer o cuando miramos justo donde estaban.
+
+    ⚠️ `otras_con_filas` es un HECHO, no un veredicto, y la diferencia importa: el censo lista TODAS las hojas
+    del almacén, y **la hoja de un encargo ANTERIOR tiene filas legítimamente**. Llamarlo «caja equivocada»
+    —como hacía la primera versión— convierte una ronda sana en un defecto en cuanto hay dos encargos, que es
+    el mismo error que este nodo existe para no repetir: un estado que no distingue, publicado como si
+    distinguiera. Quien lo lea compara los nombres con la cadena del encargo; el instrumento no lo adivina.
+    """
+    c = (censo or "").strip()
+    if not c or c == "?":
+        return "", ""
+    miradas = {x.strip() for x in (cajas or "").split(",") if x.strip()}
+    con_filas: list[str] = []
+    desnuda = False
+    for par in c.split():
+        nombre, _, n = par.rpartition(":")
+        if not n.isdigit() or int(n) <= 0:
+            continue
+        if not nombre or nombre == "(base)":     # así la nombra el emisor cuando la hoja no lleva instancia
+            desnuda = True
+            continue
+        con_filas.append((nombre, int(n)))
+    fuera = [(x, k) for x, k in con_filas if x not in miradas]
+    if fuera:
+        # Ordenadas por CUÁNTAS filas tienen: el campo va acotado, y si el corte cae por orden alfabético la
+        # hoja que explica la ronda puede quedarse fuera mientras sobreviven tres con una fila cada una.
+        fuera.sort(key=lambda t: (-t[1], t[0]))
+        return "otras_con_filas", ", ".join(f"{x}:{k}" for x, k in fuera)[:160]
+    if con_filas:
+        return "", ""                            # miramos donde estaban: el motor acertó
+    # LA CAJA FANTASMA, que NO es un desfase y esconderla ahí sería lo cómodo. `_sheet_of_tab` lo documenta:
+    # sin hoja resuelta los hallazgos caen en la caja `results` DESNUDA, «la que no es de nadie» — así que la
+    # hoja del encargo está vacía con las filas escritas a un palmo. Medido en `search-buy-bicycle__es`, donde
+    # `written_ids` trae `results` Y `results::e84138-2`. Va aparte porque el arreglo es OTRO: allí el motor
+    # miró bien y el escritor entregó mal.
+    return ("fantasma", "(base)") if desnuda else ("desfase", "")
 
 
 def sheet_hidden_from_the_prompt(prompt_rows: list[dict] | None, timing: dict | None) -> dict:

@@ -2066,6 +2066,13 @@ DOMAINS: list[dict] = [
         # cuatro vuelos con nombre en la hoja; el juez lo puntuó 2/5 por «negar lo que el sistema le mostraba»,
         # y el sistema le mostraba lo contrario. Barrido de los 353 informes: de las 48 rondas cuya hoja llegó
         # a tener nombres, 45 tienen turnos a los que no se les dijo — 257 turnos.
+        # V2-440 — la cara dice «ya ha encontrado» y la hoja no da ni una fila, y eso tiene DOS causas que
+        # piden arreglos opuestos: desfase (aún no ha entregado; el aviso es correcto) y caja equivocada (las
+        # filas están en otra hoja). Separarlas comparando con el estado FINAL de la ronda dio un falso
+        # positivo medido: `search-buy-bicycle__es` marcó `e84138-2` y esa caja acabó con 35 filas.
+        {"id": "10.110", "title": "El censo del INSTANTE separa desfase de caja equivocada",
+            "ch": UNIT,
+            "paths": ["tests/use_cases/unit/test_el_censo_separa_desfase_de_caja_equivocada.py"]},
         {"id": "10.109", "title": "La hoja llena y el prompt diciendo que no — «negó» o «no se lo dijimos»",
             "ch": UNIT,
             "paths": ["tests/use_cases/unit/test_the_sheet_was_full_and_the_prompt_said_no.py"]},
