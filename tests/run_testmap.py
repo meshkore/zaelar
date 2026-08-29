@@ -39,6 +39,11 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
             "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
+            # V2-490 (2026-08-29): el hecho crítico SÍ llegaba (píldoras pineadas, `critical=health`, línea
+            # «⚠️ CRÍTICO» en el estado) y aun así 2 de 4 rondas propusieron macarrones a un celíaco. Es
+            # OBEDIENCIA, no fontanería: el límite se repite AL FINAL y dicho como comprobación sobre lo que
+            # se va a decir, no como biografía. Sin una palabra de dominio — gobierna la CLASE del hecho.
+            "tests/memory/unit/test_the_limit_is_the_last_thing_read.py",
             "tests/memory/unit/test_memory_boundary.py",
             "tests/memory/unit/test_memory_owes_nucleo_nothing.py",
             "tests/memory/unit/test_the_suite_owns_its_own_environment.py",

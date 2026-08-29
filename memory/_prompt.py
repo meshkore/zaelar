@@ -210,6 +210,34 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     if convo:
         parts.append("── DE QUÉ ÍBAIS HABLANDO (lo más reciente primero; el último MANDA si hay contradicción) ──\n"
                      + "\n".join(convo))
+    # V2-490 — EL LÍMITE, OTRA VEZ Y AL FINAL, DICHO COMO COMPROBACIÓN Y NO COMO BIOGRAFÍA.
+    #
+    # Medido sobre 4 rondas de `knows-who-i-am-without-being-told-again` (2026-08-29): 2 de 4 rojas, y en las
+    # dos el mismo hallazgo — «Propuso macarrones a un usuario celíaco». El dato **sí llegaba** como límite:
+    # dos píldoras con `critical='health'`, importancia 0,95, pineadas, y la línea «⚠️ CRÍTICO» presente en el
+    # bloque de estado (verificado por `memoria-dev` componiendo el estado real). O sea que no es fontanería:
+    # es OBEDIENCIA, la clase que esta noche ya se cerró cinco veces por el lado de la entrega — un imperativo
+    # de prompt pierde aproximadamente una ronda de cada tres.
+    #
+    # Dos cosas cambian respecto a la línea de arriba, y las dos a propósito:
+    #   · POSICIÓN — arriba queda quinta de una docena de entradas (ubicación, widgets abiertos, procesos de
+    #     fondo, rails, encargos, conversación reciente…). Aquí es lo último que se lee antes del turno.
+    #   · FORMA — arriba es un HECHO sobre la persona («es celíaco»), que el modelo lee como biografía. Aquí es
+    #     una COMPROBACIÓN sobre lo que va a decir. Y nombra el fallo exacto que se midió: proponerlo y
+    #     matizarlo después («pasta o arroz… bueno, la pasta sin gluten») cuenta como haberlo propuesto.
+    #
+    # Sin lista de nada: no hay una sola palabra de dominio aquí. Lo que gobierna es la CLASE del hecho
+    # (`meta.critical`), que ya la pone el guarda del writer; adaptar esto a comida sería adaptarse al caso de
+    # uso, que es justo lo prohibido.
+    #
+    # ⚠️ Es una hipótesis con su medición PENDIENTE: el listón son 6 rondas. Si no mueve la aguja, lo que
+    # queda no es más prosa — es una comprobación de la respuesta antes de emitirla, y eso cuesta una llamada.
+    if crit:
+        parts.append("── LÍMITES QUE NO PUEDES SALTARTE ──\n"
+                     + "⚠️ " + " · ".join(crit) + "\n"
+                     + "Antes de PROPONERLE nada que vaya a comer, beber, tomar o hacer, compruébalo contra esa "
+                       "línea: si no la cumple, NO lo nombres y ofrécele otra cosa. Proponerlo y matizarlo "
+                       "después cuenta como habérselo propuesto.")
     block = "\n\n".join(parts)
     return block, op, stats
 
