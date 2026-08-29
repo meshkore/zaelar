@@ -5182,6 +5182,49 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **DOS puertas por las que entra un vector de otro espacio, y ninguna fallaba con ruido (V2-484 y V2-485,
+  2026-08-29)**: V2-482 quitó el daño permanente y dejó escrito que la puerta no estaba medida. Lo está, y
+  **son dos, con causas distintas**. Las dos se reprodujeron de punta a punta antes de tocar nada.
+  - **(1) El permiso caducaba con el RELOJ, no con el BACKEND** (`memory/reembed.py::space_ok`). El veredicto
+    se cachea 60 s porque lo consultan cada insert y cada recall, y se cacheaba **solo por tiempo** — pero es
+    un veredicto sobre el espacio ACTIVO, así que durante hasta 60 s tras un cambio de backend devolvía la
+    respuesta de la pregunta anterior. Un backend que cae a `hash` dentro de esa ventana escribe con el
+    permiso de cuando Ollama estaba vivo, y **`last_degraded` es False A PROPÓSITO para un hash configurado**
+    («es su propio espacio consistente — lo gobierna la firma embedsig»): los dos guardas se remiten el uno al
+    otro y no queda ninguno. La fila sale con vector, sin marcador y sin error. **El backend pasa a ser parte
+    de la clave**, leído CRUDO del módulo y no por `active_backend()` — ese accessor resuelve, y resolver
+    puede sondear: un guarda que corre en cada insert y cada recall no puede meterles una llamada de red por
+    delante.
+  - **Y la comprobación que DECIDE se hace DESPUÉS de tener el vector**: la primera se hace sin saber en qué
+    espacio va a salir, y la resolución del backend ocurre DENTRO de `_emb.embed()`. La primera se queda —
+    evita pagar un embedding que se va a tirar—, pero la que manda es la segunda. ⚠️ **Reproducirlo exige
+    insertar CON SLOT**: sin slot, `insert_memory` consulta antes `_semantic_dedup_on()`, que resuelve el
+    backend por su cuenta, así que el vuelco ocurre ANTES del primer guarda y ése ya lo caza. Un caso sin slot
+    salía **verde con el arreglo desarmado**.
+  - **(2) El nodo-concepto escribía su vector SIN NINGÚN guarda** (`writer._get_or_create_concept`). Aquí no
+    hay carrera ni permiso rancio: nunca hubo comprobación, ni de firma ni de degradación, y encima dentro de
+    un `except Exception` que devuelve None. **Medido por la FORMA de cada vector no denso del índice del
+    operador: 9 filas con exactamente 384 no-ceros y 384 ceros al final** — fastembed rellenado a 768 dentro
+    de un índice sellado `ollama:embeddinggemma:768`, y **todas** nodos-concepto («familia», «guitar»,
+    «trabajo», «preferencias»…). Con esas 9 el daño sube de 15 filas a **~25**. El nodo se sigue creando
+    siempre (es un hub del grafo; sin él `_link_concepts` no cose nada): lo que se difiere es su vector.
+  - **El reparador alcanza ya las dos clases.** La huella de hash solo vale para hash; un vector de otro
+    modelo REAL no se reproduce desde su texto, pero **su forma lo dice**: `_fit_dim` rellena con ceros, así
+    que una cola de ceros de media longitud significa que quien lo produjo tenía como mucho la mitad de esas
+    dimensiones. Acotado por la otra punta y es lo que impide que el arreglo se coma una base sana: **en un
+    índice sellado con fastembed, un vector rellenado ES el nativo**. La frontera es gruesa a propósito
+    (`dim // 2`): un modelo de 512 rellenado a 768 deja 256 ceros y NO se caza — ensancharla empezaría a
+    adivinar sobre vectores meramente dispersos, y un falso positivo aquí tira un vector bueno.
+  - ⚠️ **Y un verde prestado de los míos, en el sitio de siempre**: los casos usaban `monkeypatch.undo()` para
+    enfriar el caché, y ese deshace TODO lo que la función lleva puesto — incluido el `ZAELAR_DB` del fixture.
+    Con él revertido, el guarda pasaba a leer el `.embedsig` de la memoria **REAL del operador**, así que
+    pasaban en solitario por una firma ajena y fallaban en la suite entera. La regla ya escrita
+    (`ZAELAR_HOME` no basta, hay que apuntar la BD del plató) tiene una forma más: **una utilidad de test que
+    deshaga parches indiscriminadamente devuelve al proceso a la base real**.
+  - Nodos 1.2 y 1.5, desarme en los dos sentidos en cada mitad. **Sin verificar en vivo**, y no puede estarlo
+    todavía: el reparador corre dentro del proceso, en la pasada del sueño, así que la base del operador no
+    cambia hasta que reinicie sobre HEAD.
+
 - **Un vector de espacio AJENO no lo repara nadie, nunca (V2-482, 2026-08-29)**: `repair_embeddings` solo
   busca filas SIN vector, que es lo que deja el guarda de firma del writer al refusar. Una fila cuyo vector
   ajeno se coló por un fail-open TIENE vector, así que la pasada de reparación **no la selecciona jamás**: las
