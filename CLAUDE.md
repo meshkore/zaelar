@@ -5131,6 +5131,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   ruido, no identidad). Los errores del widget sobreviven a ser HABLADOS (el modelo los lorea). Tests en
   `tests/browser/unit/agenda/` (+13 esta tanda).
 
+- **El deck móvil se NAVEGA, y su restore alcanzó la paridad V2-351 (V2-474, 2026-08-29)**: auditoría del shell
+  móvil contra la semana de cambios de widgets + iteración de UX pedida por el operador. Lo medido primero: los
+  PIPS —la única señal siempre visible de «hay más tarjetas»— estaban a `bottom:6px` DENTRO del stage, o sea
+  **100 % debajo del dock fixed** (z-60, 84px+safe): no existían en pantalla, con todos los tests de fuente en
+  verde. Ahora viven encima del dock y cada pip es un BOTÓN que salta a su tarjeta. Tres afordancias más, todas
+  chrome del host (la regla «un dedo es del widget» no se toca): el contador `k/n` de la cabecera es un botón
+  que abre el **conmutador de tarjetas** (fila por tarjeta con su título VIVO, la actual marcada, × de 44px,
+  «cerrar todo»; para ENCIMA del dock y se repinta/cierra siguiendo al deck), **swipe de UN dedo sobre la
+  CABECERA** para paginar, y el **badge de «reproduciendo»** en pip y conmutador — leído del
+  `runtime.active_when` del manifest con la MISMA semántica que `widgets/producers.py::is_producing`
+  (true/false por veracidad, resto por texto, `error` nunca produce), jamás una lista de nombres de widgets,
+  que es el `if` por-widget que ese contrato existe para matar. Y `restore()` gana las cuatro piezas que el
+  escritorio cogió en V2-351 y este host no — cada una muerde MÁS en un móvil: fallback de `/api/canvas/layout`
+  (el localStorage es per-navegador y un teléfono ES un navegador nuevo: una PWA recién instalada abría con el
+  deck vacío con encargos vivos en la cuenta), barrido de fósiles (la tarjeta BASE junto a su instancia
+  resucitaba una hoja vacía encima de la llena), encargos vivos del servidor aunque este dispositivo no los
+  guardara, y `navegador::tN` sin tarea viva fuera. Trinquetes: el 4.18 aprende `tr(` (las claves i18n de
+  Deck.js escapaban al ratchet — tres claves faltantes con el escaneo en verde) + checks derivados de pips/
+  restore/badge; nodo NUEVO **4.86** renderiza el deck con tres widgets falsos por route-interception y lo mide
+  todo (23 checks, 4 desarmes verificados, y el de «instalación nueva» necesita contexto de navegador PROPIO o
+  el localStorage de la página anterior lo falsea). La auditoría de widgets en vertical salió limpia:
+  `imagenes` tiene flechas y miniaturas táctiles (el teclado de V2-465 es extra), las acciones de mensajería
+  van a opacity .3 (atenuadas, no invisibles), y `arrange()` del deck ya era el no-op correcto. **Sin verificar
+  en vivo con el motor del operador** (abrir /m headless competiría por el candado de voz); la nube no lo tiene
+  hasta la próxima release.
+
 - **La entrega se NOMBRA y lo no verificable no se da por cumplido (V2-469, 2026-08-29)**: una noche de
   casos de catálogo (vídeos, playlist de enlaces, monitor US) con la misma raíz en cuatro caras. (1) Regla
   nueva de `nucleo/flash/prompt.py`: un criterio del operador que el modelo no puede VERIFICAR («con buenas

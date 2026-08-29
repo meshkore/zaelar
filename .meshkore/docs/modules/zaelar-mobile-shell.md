@@ -110,6 +110,33 @@ is a ~200-line panel UI keyed to a wide window, and re-fitting it is its own pie
   If one finger also paged, every scrollable widget would be unusable. A single touch is never intercepted.
 - **A card is hidden while paging, never unmounted.** A video that keeps playing behind another card is correct;
   re-mounting it on every swipe would cut it off. The global stop (V2-092) is what silences it.
+
+### Navigating the deck (V2-474, 2026-08-29)
+
+Four ways to see and change what is open, all host chrome, none stealing a gesture from the widget:
+
+- **The pips** sit ABOVE the dock (`bottom: calc(var(--dock-h) + safe-area)`) and each one is a 26px BUTTON
+  that jumps to its card. They shipped at `bottom:6px` — 100% under the fixed dock bar, so the only always-on
+  "there are more cards" signal did not exist on screen, with every source-level test green. Geometry is
+  measured by node 4.86, not assumed. `pointer-events` live on the buttons, never the full-width row.
+- **The `k/n` chip** in every card header is a button that opens the **deck switcher**: one row per open card,
+  named by its LIVE title (same source the header paints), the current one marked, a 44px × per row, and
+  "close all". It stops ON TOP of the dock like every sheet — mic and ⏻ stay reachable — and it mirrors the
+  deck: a close repaints it in place, an emptied deck dismisses it.
+- **A one-finger swipe on the HEADER pages.** The header is host chrome — no widget scrolls or drags there —
+  so a single finger is safe to claim only there. Same thresholds as the two-finger gesture.
+- **The producing badge.** A hidden card that is PRODUCING (music behind the front card) marks its pip and its
+  switcher row: sound with no visible source reads as a haunted phone. "Producing" is read from the manifest's
+  `runtime.active_when` (V2-092), evaluated with the SAME semantics as `widgets/producers.py::is_producing`
+  (`true`/`false` by truthiness, anything else by text, degraded data never produces) — never a widget-name
+  list, which is exactly the per-widget `if` that contract exists to kill. One manifest fetch per base, cached.
+
+`restore()` is at parity with the desktop's V2-351 pass, and each piece bites harder on a phone: the SERVER
+fallback (`/api/canvas/layout`) because localStorage is per-browser and a phone IS a new browser — a freshly
+installed PWA used to open on an empty deck while the account had live errands; the fossil sweep (a bare BASE
+card next to its own instance resurrects an empty sheet over the full one); live errands coming back even if
+this device never saved them (start on the computer, follow on the phone); and a `navegador::tN` with no live
+task filtered out (process state, nothing to reload).
 ### The dock, and why the orb is in the middle of it
 
 Six controls in three zones — `mic · speaker · captions` | **ORB** | `chat · menu` — laid out
@@ -227,3 +254,16 @@ phone silently ignores the brain:
 
 Verified by breaking each one: dropping a Deck method, inventing an endpoint and linking the desktop stylesheet
 each turn the node red.
+
+Node **4.19** — `tests/browser/e2e/mobile/render_dock.py` renders the shell at 390×844 and measures the dock:
+orb centred and PAINTED, tap targets, sheets stopping above the dock, the stopped→⏻→painted cycle.
+
+Node **4.86** — `tests/browser/e2e/mobile/render_deck.py` renders the DECK with three fake widgets served by
+Playwright route interception (catalog, data, manifest and the `widget.js` module itself) and measures the
+navigation: pips visible above the dock and jumping on tap, the producing badge following `active_when`, the
+switcher opening/jumping/closing/emptying, one-finger header paging, and `restore()`'s V2-351 parity (fossil
+sweep, live errands, server fallback on a fresh browser — that last one needs its OWN browser context, or
+page 2's localStorage leaks into "fresh install" and fails it falsely). Four disarms verified: pips back under
+the dock, fossil sweep dropped, producing evaluation shorted, header swipe unwired — each turned exactly its
+own checks red. Note for the 4.18 scan: Deck.js imports `t as tr`, and the i18n key ratchet had to learn `tr(`
+— with `t(` alone, every key that file asks for escaped the check.
