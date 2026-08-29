@@ -263,6 +263,17 @@ def insert_memory(
             if embedding is None and getattr(_emb, "last_degraded", False):
                 pending_reason = "degraded"
                 vec = None
+            # SEGUNDA comprobación, y es la que DECIDE (V2-484). La de arriba se hace ANTES de tener el vector,
+            # así que responde por el espacio ACTIVO EN ESE INSTANTE — y la resolución del backend ocurre DENTRO
+            # de `_emb.embed()`, una línea más abajo. Si ahí Ollama resulta estar ocupado y fastembed no carga,
+            # el backend cae a `hash` con el permiso ya concedido: `last_degraded` es False A PROPÓSITO para un
+            # hash CONFIGURADO («es su propio espacio consistente — lo gobierna la firma embedsig»), o sea que
+            # los dos guardas se remiten el uno al otro y no queda ninguno. Así entraron los 15 vectores de otro
+            # espacio del índice del operador, sin marcador y sin error. La primera llamada sigue estando: evita
+            # pagar un embedding que se va a tirar; la que manda es ésta, con el espacio del vector ya sabido.
+            elif embedding is None and not _embed_sig_ok():
+                pending_reason = "sig_mismatch"
+                vec = None
         if vec is not None:
             try:
                 db.execute("INSERT INTO vec_memories (memory_id, embedding) VALUES (?, ?)", (mid, _pack(vec)))

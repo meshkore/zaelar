@@ -81,3 +81,95 @@ def test_los_DOS_motivos_que_escribe_el_writer_son_legibles(fresh_db):
 def test_marcar_NUNCA_lanza_aunque_la_fila_no_exista(fresh_db):
     """Corre dentro de una escritura ya hecha: reventar aquí perdería la píldora, que sí se guardó bien."""
     memwriter._mark_embed_pending(memdb.get_db(), 999_999, "sig_mismatch")   # no debe lanzar
+
+
+# ── V2-484 · el permiso caducaba con el BACKEND, no con el reloj ────────────────────────────────────────────
+#
+# Los 15 vectores de otro espacio del índice del operador (V2-482) entraron por aquí, y la carrera se
+# reprodujo entera: el veredicto de `space_ok()` se cacheaba 60 s SOLO por tiempo, así que un backend que caía
+# a `hash` dentro de esa ventana escribía con el permiso de cuando Ollama estaba vivo. Sin marcador y sin
+# error: la fila queda indistinguible de una sana.
+
+@pytest.fixture
+def sellado_gemma(tmp_path, monkeypatch):
+    """Un índice que declara un espacio REAL. El backend de los tests es `hash` → cualquier vector suyo es
+    ajeno, así que el guarda TIENE que refusar salvo que alguien le dé un permiso caducado."""
+    from memory import reembed as memreembed
+    (tmp_path / "zaelar.db.embedsig").write_text("ollama:embeddinggemma:768", encoding="utf-8")
+    memreembed._SPACE_CACHE = (0.0, True, None)
+    # La PRECONDICIÓN se declara, no se hereda: si la ruta de la firma resolviera a otro sitio, estos casos
+    # medirían el `.embedsig` de otra base y su verde no valdría nada.
+    assert memreembed.stored_signature() == "ollama:embeddinggemma:768"
+    yield
+    memreembed._SPACE_CACHE = (0.0, True, None)
+
+
+def _con_ollama_vivo():
+    """Calienta el caché en el instante en que la firma SÍ casaba (Ollama contestando embeddinggemma).
+
+    Restaura A MANO y NO con `monkeypatch.undo()`: ese deshace todo lo que la función lleva puesto en ese
+    momento, **incluido el `ZAELAR_DB` de `fresh_db`**. Con él revertido, `_sig_path()` deja de apuntar a la
+    base del test y el guarda pasa a leer el `.embedsig` de la memoria REAL del operador — así que estos casos
+    salían verdes en solitario por leer una firma ajena y rojos en la suite entera según qué ruta tuvieran
+    delante. Un verde prestado, otra vez."""
+    from memory import embeddings as mememb
+    from memory import reembed as memreembed
+    previo = (mememb.active_backend, mememb._active_model_name, mememb._backend)
+    mememb.active_backend = lambda: "ollama"
+    mememb._active_model_name = lambda: "embeddinggemma"
+    mememb._backend = "ollama"
+    try:
+        assert memreembed.space_ok() is True
+    finally:
+        mememb.active_backend, mememb._active_model_name, mememb._backend = previo
+
+
+def test_el_permiso_NO_sobrevive_a_una_caida_del_backend(fresh_db, sellado_gemma, monkeypatch):
+    from memory import embeddings as mememb
+    from memory import reembed as memreembed
+    _con_ollama_vivo()
+    monkeypatch.setattr(mememb, "_backend", "hash")          # segundos después, dentro del TTL
+    assert memreembed.space_ok() is False
+
+
+def test_un_vector_de_otro_espacio_NO_se_escribe_con_el_permiso_de_antes(fresh_db, sellado_gemma, monkeypatch):
+    """La carrera COMPLETA por el camino real de escritura — es la que dejó 15 filas dañadas y mudas."""
+    from memory import embeddings as mememb
+    _con_ollama_vivo()
+    monkeypatch.setattr(mememb, "_backend", "hash")
+    mid = memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
+    fila = memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,))
+    assert fila is None                                      # sin vector: mejor sin él que de otro espacio
+    assert _marca(mid) == "sig_mismatch"                      # y CONTABLE, que es lo que faltaba
+
+
+def test_el_guarda_decide_DESPUES_de_saber_en_que_espacio_salio_el_vector(fresh_db, sellado_gemma, monkeypatch):
+    """El vuelco DENTRO de la misma llamada: la resolución del backend ocurre dentro de `_emb.embed()`, o sea
+    DESPUÉS de la primera comprobación. Sin la segunda, ese vector entra con el permiso ya concedido.
+
+    Va CON SLOT a propósito, y esto costó encontrarlo: sin slot, `insert_memory` consulta antes
+    `_semantic_dedup_on()`, que resuelve el backend por su cuenta — así que el vuelco ocurre ANTES del primer
+    guarda y ése ya lo caza. Con slot se salta ese paso y el backend sigue siendo el bueno cuando el guarda de
+    entrada mira. Medido en los dos sentidos: con la segunda comprobación el vector se refusa; sin ella se
+    escribe, sin marcador. Un caso sin slot habría salido verde con el arreglo DESARMADO."""
+    from memory import embeddings as mememb
+    _con_ollama_vivo()
+    monkeypatch.setattr(mememb, "_backend", "ollama")        # el guarda de ENTRADA aún ve el espacio bueno
+
+    def _embed_que_cae(_t):
+        mememb._backend = "hash"                             # Ollama ocupado Y fastembed sin cargar
+        return mememb._l2_normalize(mememb._fit_dim(mememb._hash_embed(_t, 768), 768))
+
+    monkeypatch.setattr(mememb, "embed", _embed_que_cae)
+    monkeypatch.setattr(mememb, "last_degraded", False)      # hash CONFIGURADO no se declara degradado
+    mid = memwriter.insert_memory("Le gusta la guitarra.", level="long", kind="pref", slot="operator.tastes")
+    assert memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,)) is None
+    assert _marca(mid) == "sig_mismatch"
+
+
+def test_con_el_espacio_ESTABLE_el_camino_sano_no_cambia(fresh_db, monkeypatch):
+    """La otra mitad: sin firma sellada (BD nueva) se sigue escribiendo el vector como siempre. Un guarda que
+    también parase esto no sería más seguro, sería una base sin canal semántico."""
+    mid = memwriter.insert_memory("Vive en Madrid.", level="long", kind="fact")
+    assert memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,)) is not None
+    assert _marca(mid) is None

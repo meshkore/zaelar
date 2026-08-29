@@ -64,7 +64,10 @@ def _vec_count() -> int:
         return 0
 
 
-_SPACE_CACHE: tuple[float, bool] = (0.0, True)
+#: (instante, veredicto, backend con el que se calculó). El BACKEND forma parte de la clave, no es un
+#: adorno: el veredicto es sobre el espacio ACTIVO, así que sobrevivir a un cambio de backend es servir
+#: la respuesta de otra pregunta (V2-484).
+_SPACE_CACHE: tuple[float, bool, object] = (0.0, True, None)
 
 
 def space_ok(ttl: float = 60.0) -> bool:
@@ -78,17 +81,29 @@ def space_ok(ttl: float = 60.0) -> bool:
     a vector on a mismatch (`_mark_embed_pending`, V2-103), but the READER had no equivalent check and would
     happily embed the query in the WRONG space and fuse pure noise into the RRF. Two callers, one question, so
     one cached answer — two independent 60s caches of the same predicate would have drifted apart exactly when it
-    mattered, during the window where one of them is wrong."""
+    mattered, during the window where one of them is wrong.
+
+    THE BACKEND IS PART OF THE KEY (V2-484). Time alone was not enough: the verdict is about the ACTIVE space,
+    and for up to `ttl` seconds after the backend changed this returned the verdict for the PREVIOUS one. That
+    is the fail-open the 15 foreign vectors in the operator's live index came through — reproduced end to end:
+    warm the cache while Ollama answers, let the backend fall to hash seconds later (Ollama busy AND fastembed
+    not loaded), and `insert_memory` stores a literal `_hash_embed` into an index sealed
+    `ollama:embeddinggemma:768`, with `embed_pending` unset, so nothing downstream can tell it happened.
+
+    The backend is read RAW off the module rather than through `active_backend()`, on purpose: that accessor
+    resolves, and resolving can probe. A guard consulted on every insert and every recall must not be able to
+    put a network call in front of them."""
     global _SPACE_CACHE
     now = _t.time()
-    if now - _SPACE_CACHE[0] < ttl:
+    backend = getattr(_emb, "_backend", None)
+    if now - _SPACE_CACHE[0] < ttl and _SPACE_CACHE[2] == backend:
         return _SPACE_CACHE[1]
     try:
         stored = stored_signature()
         ok = stored is None or stored == signature()
     except Exception:  # noqa: BLE001
         ok = True
-    _SPACE_CACHE = (now, ok)
+    _SPACE_CACHE = (now, ok, backend)
     return ok
 
 
