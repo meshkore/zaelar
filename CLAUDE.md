@@ -5157,6 +5157,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en vivo con el motor del operador** (abrir /m headless competiría por el candado de voz); la nube no lo tiene
   hasta la próxima release.
 
+- **Una garantía escrita en un solo idioma es un defecto para todos los demás (V2-475, 2026-08-29)**: la
+  familia de garantías de entrega (`nucleo/flash/delivery.py`) —la que existe porque «cuando la conducta
+  correcta es determinista la garantiza el código, no la temperatura»— estaba escrita ENTERA contra formas del
+  castellano, puertas y frases. Falla en las dos direcciones a la vez y ninguna parece un fallo desde fuera:
+  `stalled_task_backstop` **nunca disparaba en inglés** (su puerta `_WAITING_REPLY_RE` no tenía ni una forma
+  inglesa, así que «let me nudge the search» sobre una tarea tres minutos encallada pasaba de largo), y
+  `sheet_delivery_backstop` **sí disparaba, pegando un párrafo en español** a una respuesta inglesa — la
+  garantía convertida en el defecto que existe para evitar. Medido en `find-best-hotel-city__us` (2026-08-28,
+  2/5 con mecanismo 3: la búsqueda encontró cuatro hoteles con precio y la entrega dio dos, con dos precios
+  dichos mal y el atasco narrado como normalidad). Se añaden las puertas inglesas y las dos frases en inglés,
+  con `_speaks_en()` guardado y falso por defecto: esta familia no puede perder una entrega por un import. **La
+  trampa que dejó al descubierto** es la que hay que recordar: los tres tests que afirmaban la forma castellana
+  no declaraban idioma, lo heredaban — y el ambiente de un proceso de test limpio es **inglés**
+  (`langs._default_code()`), así que afirmaban «lo que salga por defecto» y acertaban por accidente. Una frase
+  que el sistema le dice al operador se prueba con el idioma DECLARADO, nunca heredado. Nodo 2.2, 980 verdes.
 - **La entrega se NOMBRA y lo no verificable no se da por cumplido (V2-469, 2026-08-29)**: una noche de
   casos de catálogo (vídeos, playlist de enlaces, monitor US) con la misma raíz en cuatro caras. (1) Regla
   nueva de `nucleo/flash/prompt.py`: un criterio del operador que el modelo no puede VERIFICAR («con buenas

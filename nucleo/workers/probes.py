@@ -26,7 +26,7 @@ must not be measured as a CRASH.
 from __future__ import annotations
 
 #: Los puentes que servimos nosotros. Un `usage:` de otro binario no lo sabemos interpretar y se deja como está.
-OUR_BRIDGES = ("nav_cli", "worker_bridge", "widget_cli")
+OUR_BRIDGES = ("nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
 
 
 def is_menu_probe(text: str) -> bool:
