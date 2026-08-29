@@ -5182,6 +5182,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **Un vector de espacio AJENO no lo repara nadie, nunca (V2-482, 2026-08-29)**: `repair_embeddings` solo
+  busca filas SIN vector, que es lo que deja el guarda de firma del writer al refusar. Una fila cuyo vector
+  ajeno se coló por un fail-open TIENE vector, así que la pasada de reparación **no la selecciona jamás**: las
+  que el guarda cazó sanan cada noche y estas no, y son la mitad peor —ruido fundido en el RRF de cada recall
+  semántico e invisible en todo recuento de `embed_pending`—. **Medido sobre la memoria VIVA del operador: 15
+  filas durables con un `_hash_embed` LITERAL** (coseno 1.0000 contra recomputarlo de su propio texto) dentro de
+  un índice sellado `ollama:embeddinggemma:768`, y son las píldoras de GUSTOS — las ocho de Ferrari entre ellas.
+  - **La consecuencia, medida sobre esas mismas filas**: `semantic_dedup` no puede fundirlas NUNCA, porque su
+    umbral está calibrado sobre embeddinggemma (0,82-0,90 entre ecos de un hecho) y las colisiones hash entre
+    esas ocho frases topan en **0,788**. Ocho copias vivas de un gusto, cada una decayendo sola (las de guitarra
+    a peso 0,049), ninguna con peso para llegar al bloque pasivo. **El umbral no es lo que está mal: lo están
+    los vectores** — por eso no se toca.
+  - **Solo el espacio HASH es detectable así, y es el punto**: hash es el destino de la degradación de
+    emergencia, o sea el espacio que se filtra. Un vector de otro modelo REAL no se reproduce desde el texto, y
+    mantenerlo fuera es trabajo del guarda de firma. No hace nada cuando hash ES el espacio sellado (dev, tests,
+    BD nueva) ni cuando no hay firma: **sin espacio declarado no hay nada respecto a lo que ser ajeno**.
+  - **Borrar el vector es TODA la reparación**: la pasada que sigue selecciona la fila justo porque ya no tiene,
+    y la re-embebe en el espacio bueno. Marcarla `embed_pending` además es lo que hace CONTABLE en `hygiene()`
+    un fallo al conseguirlo, en vez de silencioso.
+  - **Abierto, y es lo que de verdad falta**: el guarda de escritura EXISTE y hoy FUNCIONA —reproducido: refusa
+    y marca `sig_mismatch`—, así que esos 15 entraron por un **fail-open**, no por falta de guarda. Cuál de los
+    dos (`_embed_sig_ok` cuando el import revienta, o `space_ok` cuando no encuentra el `.embedsig`) **no está
+    medido y no se afirma**. Esto quita el daño permanente, no la puerta por la que entró.
+  - **Y contesta al encargo de FAVORITOS ESTRUCTURADOS (INI-026/B3) que lo destapó**: un slot de gustos es la
+    forma equivocada, medido — un slot es SINGULAR por construcción (tres gustos con `slot=operator.tastes` →
+    **1 vivo, 2 `valid=0`**) y además `semantic_dedup` solo corre sobre `slot IS NULL`, así que ponerles slot los
+    saca del único fusor que tienen. La forma para esta misma clase ya la fijó el operador en `memory/slots.py:77`
+    con `operator.family`: «un resumen en TEXTO que se restablece por reformulación (`garble_guard=False`), **no
+    una lista estructurada nueva**». Matiz que corrige la trampa del encargo: un slot con `:` no queda fuera del
+    recall sin más — `background_slot_off_topic` lo tira SALVO que el prompt nombre la palabra, o sea que solo
+    recuerda su gusto si él ya lo ha dicho, que es lo contrario de lo que se quiere. Nodo 1.2, desarme en los dos
+    sentidos (sin la llamada 1 rojo, sin acotar el espacio 2). **Sin verificar en vivo.**
+
 - **La TERCERA puerta al scheduler no normalizaba (V2-480, 2026-08-29)**: `safe_reminder_prompt` dice en su
   docstring que existe «para que las DOS puertas al scheduler digan lo mismo» — y la acción `schedule` del
   worker es la TERCERA, nació después (V2-249) y nunca la llamó. Medido en la primera ronda de
