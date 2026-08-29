@@ -546,7 +546,13 @@ def live_state() -> str:
     _now = _t.time()
     _days = "; ".join(f"{_t.strftime('%A', _t.localtime(_now + i * 86400)).lower()} "
                       f"{_t.strftime('%Y-%m-%d', _t.localtime(_now + i * 86400))}" for i in range(1, 8))
-    lines.append(f"Próximos días (para fechar un aviso o una cita): {_days}.")
+    # V2-473 (ronda 4): la lista es un TRADUCTOR de días nombrados, y sin decirlo el modelo la leyó como el
+    # límite de su calendario — «en mi lista de próximos días solo tengo hasta el 5», rechazando una cita
+    # válida a 10 días y preguntando después «¿es 2026?».
+    lines.append(f"Próximos días (para traducir un día NOMBRADO —«el miércoles»— a su fecha): {_days}. "
+                 "NO es el límite de tu agenda: una fecha explícita («el 8 de septiembre») se apunta tal "
+                 "cual, a cualquier distancia, y sin año es del año en curso (o del siguiente si ya pasó) "
+                 "— no pidas confirmación de ninguna de las dos cosas.")
     # V2-348 — el bloque de TAREAS DE FONDO se mudó a `live_blocks.py` por el mismo trinquete y con
     # el mismo precedente que el del navegador (V2-276): mismo texto, mismas ramas, mismo fail-open.
     lines.extend(_live_blocks.pending_task_lines())

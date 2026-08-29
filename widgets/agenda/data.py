@@ -285,8 +285,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # that names the expected keys (so the model retries with the right shape), never a silent row.
         if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime", "time")):
             return {"ok": False,
-                    "error": "no me ha llegado ningún dato de la cita — mándame en payload el title, "
-                             "la date (YYYY-MM-DD) y la startTime (HH:MM), y la apunto"}
+                    "error": "no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting "
+                             "con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada "
+                             "al operador si ya te los dijo"}
         title = payload.get("title", "Cita")
         # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
         # lands correctly even if the model does not calculate the date itself.

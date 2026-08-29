@@ -279,3 +279,14 @@ def test_an_unverifiable_criterion_is_never_given_as_fulfilled(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "no puedes VERIFICAR" in system
     assert "no lo des nunca por CUMPLIDO" in system
+
+
+def test_the_days_list_is_a_translator_not_a_calendar_limit():
+    """V2-473 round 4: the 7-day list («Próximos días…») ends ~Sept 5 and the model told the operator
+    «en mi lista de próximos días solo tengo hasta el 5», refusing a valid Sept 8 appointment and then
+    asking «¿es 2026?». The list exists to translate a NAMED weekday to its date; an explicit date is
+    used as given, any distance into the future, current year unless passed."""
+    txt = prompt.live_state()
+    assert "Próximos días" in txt
+    assert "NO es el límite" in txt, "the line must state the boundary of its own purpose"
+    assert "año en curso" in txt, "a dated request without a year is this year, not a question"

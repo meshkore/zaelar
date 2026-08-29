@@ -153,8 +153,9 @@ def test_an_empty_payload_writes_nothing_and_says_why(agenda):
     res = A.apply_action("add_meeting", {})
     assert len(A.load_db().get("meetings", [])) == before, "defaults must not fabricate an appointment"
     err = str((res or {}).get("error") or "")
-    assert "title" in err and "date" in err and "startTime" in err, \
-        f"the refusal names the expected keys so the model can retry: {res}"
+    assert "YYYY-MM-DD" in err and "HH:MM" in err and "add_meeting" in err, \
+        f"the refusal teaches the retry shape: {res}"
+    assert "payload" not in err, "round 4: the model parrots the error — it must survive being spoken"
 
 
 # ── V2-473 (b): the default reminder is the AGENDA's job, not the model's conduct ───────────────────────────
