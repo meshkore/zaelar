@@ -113,7 +113,11 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_the_backstop_silence_is_visible.py",
             # V2-339: la guarda anti-feed miraba UNA señal (vocabulario compartido) y silenciaba los dominios
             # donde los resultados buenos no se parecen — coches, hoteles, vuelos. Ahora exige DOS.
-            "tests/agent_headless/unit/flash/test_a_feed_is_two_signals_not_one.py"]},
+            "tests/agent_headless/unit/flash/test_a_feed_is_two_signals_not_one.py",
+            # V2-472: un importe que NINGUNA fuente nuestra nombra no sobrevive a un encargo vivo — la clase
+            # de bloqueador que domina el tablero US («under $400» sobre un techo de $250), garantizada por
+            # código porque el imperativo del prompt pierde una ronda de cada tres.
+            "tests/agent_headless/unit/flash/test_an_unbacked_amount_does_not_survive_an_errand.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py",
             # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory

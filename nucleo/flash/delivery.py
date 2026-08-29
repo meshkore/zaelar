@@ -226,6 +226,53 @@ def stalled_task_backstop(reply: str, encargo: str, minutos: int, motivo: str) -
             "¿La paro y probamos por otro lado, o le doy un poco más de margen?")
 
 
+#: A monetary amount as a reply writes one — same shape as `findings._AMOUNT_RE` (kept textually in sync;
+#: importing the worker package from the flash layer for one regex would be a heavier coupling than the copy).
+_REPLY_AMOUNT_RE = _re.compile(
+    r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP))",
+    _re.I)
+_BACKING_NUM_RE = _re.compile(r"\d[\d.,]*")
+
+
+def _digits(s: str) -> str:
+    return "".join(c for c in str(s or "") if c.isdigit())
+
+
+def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active: bool = True):
+    """Cut the sentences of `reply` whose monetary amounts NO source of ours names. Returns (reply, dropped).
+
+    V2-472 — the blocker class that dominates the US board, measured by the instrument as
+    `market_claims_before_delivery`: mid-errand, with nothing to hand over yet, the model invents a market
+    figure («under $400» over a $250 ceiling, «$200–300 sweet spot», «CUNPU at $136») and says it with the
+    same confidence as a real one. The prompt already forbids it («o está en tu ESTADO o NO LO SABES») and
+    loses one round in three — so the conduct is guaranteed by code, like every rule in this family.
+
+    Conservative by the instrument's own asymmetry (a false cut removes a REAL delivery):
+      · backing = the operator's own words this conversation + the errand sheet's rows — every legitimate
+        way a figure can reach a reply, now that V2-471 lands snippet prices as sheet rows;
+      · gate = a LIVE errand only (`active`): with nothing running, an amount is an answer, not a finding;
+      · fail-open = a reply that would vanish entirely stays whole (a mute turn is the worse failure,
+        V2-336) — the event still reports what was seen.
+    """
+    reply = str(reply or "")
+    if not active or not reply or not _REPLY_AMOUNT_RE.search(reply):
+        return reply, []
+    backing = {_digits(t) for t in _BACKING_NUM_RE.findall(str(user_text or ""))}
+    for row in rows or []:
+        backing |= {_digits(t) for t in _BACKING_NUM_RE.findall(str(row or ""))}
+    kept, dropped = [], []
+    for sent in _re.split(r"(?<=[.!?])\s+", reply):
+        amounts = _REPLY_AMOUNT_RE.findall(sent)
+        if amounts and any(_digits(a) not in backing for a in amounts):
+            dropped.append(sent.strip())
+        else:
+            kept.append(sent)
+    out = " ".join(s for s in kept if s.strip()).strip()
+    if not out:
+        return reply, dropped                      # fail-open: never trade an invention for a mute turn
+    return out, dropped
+
+
 def apply_to_reply(spoken: str, window) -> str:
     """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
 
@@ -241,6 +288,26 @@ def apply_to_reply(spoken: str, window) -> str:
         dicho = " ".join(str((m or {}).get("content") or "") for m in (window or [])
                          if (m or {}).get("role") == "assistant")
         encargo, filas = _lb.any_live_task_rows()
+        # V2-472 — an unbacked amount does not survive a live errand. FIRST, so the backstops below append
+        # rows to a reply already clean of inventions. The gate is the same «live errand» the backstops use;
+        # backing rows come wider than the top-3 face (a figure delivered in row 7 is still a delivery).
+        _user = " ".join(str((m or {}).get("content") or "") for m in (window or [])
+                         if (m or {}).get("role") == "user")
+        _back_rows = _lb.any_live_task_rows(30)[1] if encargo else []
+        # The gate cannot be «the sheet has rows»: rounds 10/12's inventions came while the worker ran over
+        # an EMPTY sheet — exactly when there is nothing real to say and inventing thrives. A live errand is
+        # rows OR anything still running (same reader as `show_target._running_goals`).
+        _live = bool(encargo)
+        if not _live:
+            try:
+                from nucleo import dispatch as _disp
+                _live = bool(_disp.pending_summaries())
+            except Exception:
+                _live = False
+        spoken, _cut = strip_unbacked_amounts(spoken or "", user_text=_user, rows=_back_rows,
+                                              active=_live)
+        if _cut:
+            _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
         extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo)
         if extra:
             _emit("📬 backstop de entrega: la espera sale con las filas")
