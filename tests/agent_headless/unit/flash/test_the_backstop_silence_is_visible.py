@@ -44,7 +44,9 @@ def test_el_caso_MEDIDO_rows_3_y_calla_queda_registrado(monkeypatch):
     """La ronda del 12:09: había TRES filas y el backstop calló porque ya estaban dichas. El evento tiene que
     llevar el 3 — es el número que resolvió el misterio."""
     filas = ["Fiat Panda 4x4 — 6900 €", "Mercedes Clase A — 9500 €", "Peugeot 3008 — 8490 €"]
-    dicho = "Ya te dije: el Fiat Panda 4x4, el Mercedes Clase A y el Peugeot 3008."
+    # nombre + dato: desde V2-471 una fila con precio solo cuenta como dicha cuando su precio también sonó
+    dicho = ("Ya te dije: el Fiat Panda 4x4 por 6900 €, el Mercedes Clase A por 9500 € y el "
+             "Peugeot 3008 por 8490 €.")
     _, ev = _capturar(monkeypatch, "te aviso en cuanto lo tenga", filas, dicho=dicho)
     assert ev and ev[0][1]["rows"] == 3
     assert ev[0][1]["said_chars"] > 0

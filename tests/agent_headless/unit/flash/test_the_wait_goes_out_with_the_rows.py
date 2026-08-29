@@ -149,11 +149,10 @@ def test_a_heterogeneous_errand_YA_NO_es_un_coste_asumido():
                                      errand="busca cosas para el piso nuevo")
     assert out, "el encargo heterogéneo vuelve a silenciarse: V2-339 revertido"
     assert "Lámpara de pie" in out and "Microondas Balay" in out
-    # ⚠️ «Sofá cama gris» NO sale, y no es cosa de V2-339: la regla de frescura pide un token distintivo de
-    # ≥5 letras o con dígito, y «sofá», «cama» y «gris» tienen cuatro. Es una limitación REAL y separada —
-    # los títulos de palabras cortas no se anuncian nunca— que esta prueba deja anotada en vez de tapar
-    # ajustando la aserción a lo que salga.
-    assert "Sofá" not in out
+    # «Sofá cama gris» quedaba fuera («sofá», «cama», «gris»: ningún token distintivo de ≥5 letras) — la
+    # limitación que esta prueba dejó ANOTADA en su día. V2-471 la cerró por el camino del DATO: una fila
+    # cuyo precio (180) no ha sonado es una fila sin entregar, tenga el título los tokens que tenga.
+    assert "Sofá" in out, "la fila de título corto entra ahora por su dato (V2-471)"
 
 
 # ── V2-364: la puerta ya no es el vocabulario de espera, es la PREGUNTA ─────────────────────────────────

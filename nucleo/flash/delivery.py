@@ -108,7 +108,16 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         title = _norm_txt(row.split(" — ")[0])
         toks = [w for w in title.split()
                 if (any(c.isdigit() for c in w) or len(w) >= 5) and w not in _errand_toks]
+        # V2-471, segunda puerta de la misma propiedad: lo entregable es «nombre — dato», no el nombre solo.
+        # Ronda 12 del monitor: «Dell S2725QS» sonó en el turno 2, así que TODAS las filas Dell contaban como
+        # dichas — mientras el $279.99 que la fila llevaba no sonó nunca, que era justo lo que el bucle de
+        # «déjame confirmar el precio» le debía al operador. Una fila CON dato se da por dicha cuando su dato
+        # ha sonado; el nombre solo salda las filas que no llevan dato.
+        _dato = _norm_txt(row.split(" — ", 1)[1]) if " — " in row else ""
+        _dato_toks = [w for w in _dato.split() if any(c.isdigit() for c in w)]
         if toks and not any(t in said for t in toks):
+            fresh.append(row)
+        elif _dato_toks and not any(t in said for t in _dato_toks):
             fresh.append(row)
         if len(fresh) >= 3:
             break

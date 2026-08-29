@@ -74,8 +74,13 @@ def test_una_pregunta_de_DATO_tampoco_retiene(reply):
 # ── lo que NO cambia ───────────────────────────────────────────────────────────────────────────────────────
 
 def test_las_filas_YA_dichas_siguen_sin_re_anunciarse():
-    """El disco rayado de V2-189 no se reabre por esto."""
-    dicho = "Te he encontrado una Yamaha R125, una Brixton 125cc y una Honda Varadero XL125V"
+    """El disco rayado de V2-189 no se reabre por esto.
+
+    V2-471 redefinió «dicha»: nombre + DATO (una fila con precio no está entregada hasta que su precio
+    suena — ronda 12 del monitor). El fixture dice ahora las dos mitades, que es lo que una entrega real
+    dice; los nombres a secas los cubre `test_a_named_row_whose_datum_never_sounded_is_still_fresh`."""
+    dicho = ("Te he encontrado una Yamaha R125 por 500 €, una Brixton 125cc por 1200 € y una "
+             "Honda Varadero XL125V del 2006 por 1400 €")
     assert _bs("¿La paro o sigo?", dicho=dicho) == ""
 
 
@@ -130,6 +135,28 @@ def test_callar_ante_una_PREGUNTA_deja_su_fila(monkeypatch):
     monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: (ENCARGO, [f.strip("«»") for f in FILAS]))
     monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
     monkeypatch.setattr(D, "_emit", lambda label, **k: vistos.append((label, k)))
-    dicho = "Te he encontrado una Yamaha R125, una Brixton 125cc y una Honda Varadero XL125V"
+    # nombre + dato: desde V2-471 una fila con precio solo queda «dicha» cuando su precio ha sonado
+    dicho = ("Te he encontrado una Yamaha R125 por 500 €, una Brixton 125cc por 1200 € y una "
+             "Honda Varadero XL125V del 2006 por 1400 €")
     D.apply_to_reply("¿La paro o sigo?", [{"role": "assistant", "content": dicho}])
     assert any("CALLÓ" in l for l, _ in vistos), "un silencio sin fila es indistinguible de una avería"
+
+
+def test_a_named_row_whose_datum_never_sounded_is_still_fresh():
+    """V2-471, second door of the same property: the deliverable is «name — datum», not the name alone.
+
+    Round 12 of `cheapest-monitor__us`: zaelar had said «Dell S2725QS» in turn 2, so every Dell row counted
+    as delivered by the title-token scan — while the $279.99 the row carried never sounded, which was the
+    exact thing the five-turn «let me confirm the price» loop owed the operator. A row with a datum is
+    delivered when its datum has sounded; the name alone only settles rows that carry no datum."""
+    from nucleo.flash import delivery as D
+    said = "I've got the Dell S2725QS on Amazon now, let me verify its current price."
+    row = "Dell 27 Plus 4K Monitor S2725QS — $279.99"
+    out = D.sheet_delivery_backstop("Still pulling that together, give me a moment.",
+                                    [row], said_before=said, errand="cheapest 27 inch 4K monitor")
+    assert "$279.99" in out, out
+    # …and once the datum HAS sounded, the row is delivered — no broken record (V2-189)
+    out2 = D.sheet_delivery_backstop("Still pulling that together, give me a moment.",
+                                     [row], said_before=said + " It sells for $279.99 right now.",
+                                     errand="cheapest 27 inch 4K monitor")
+    assert out2 == "", out2
