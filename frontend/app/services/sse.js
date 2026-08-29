@@ -12,7 +12,8 @@ import { t, applyLang } from "../core/i18n.js?v=1";
 
 // V2-464 — modo ESCAPARATE: ?showcase=1 en la URL. Lo usa el grabador de casos de uso (recorder.py): chat
 // abierto y rejilla auto-ordenada, para que el vídeo salga legible sin manos.
-const _SHOWCASE = new URLSearchParams(location.search).has("showcase");
+// Guarded: the frontier harness mounts this module under Node, where `location` does not exist.
+const _SHOWCASE = typeof location !== "undefined" && new URLSearchParams(location.search).has("showcase");
 let _arrT = null;
 
 let es = null;
