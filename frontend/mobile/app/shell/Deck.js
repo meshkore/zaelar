@@ -57,7 +57,11 @@ function injectStyles() {
     border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
   .zm-title{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     font:600 15px/1.25 var(--sans);color:var(--hb-ink)}
-  .zm-count{flex:0 0 auto;font:600 11px/1 var(--sans);color:var(--hb-muted-2);letter-spacing:.04em}
+  /* The k/n counter is a BUTTON since 2026-08-29: it opens the deck switcher. Hidden with one card — a
+     "1/1" chip invites a tap that shows a list of one, which reads as broken. */
+  .zm-count{flex:0 0 auto;display:none;align-items:center;min-height:32px;padding:0 10px;border:1px solid var(--hb-line);
+    border-radius:9px;background:var(--hb-bubble);color:var(--hb-muted);font:600 11px/1 var(--sans);letter-spacing:.04em}
+  .zm-count.show{display:flex}
   .zm-x{flex:0 0 auto;width:34px;height:34px;border:none;border-radius:10px;background:var(--hb-bubble);
     color:var(--hb-muted);font-size:18px;line-height:1}
   /* THE SCROLLER is a wrapper around the widget's own div, never the widget div itself: a widget.js does
@@ -88,10 +92,46 @@ function injectStyles() {
     animation:zmspin 1.05s linear infinite}
   @keyframes zmspin{to{transform:rotate(360deg)}}
   .zm-card.loading .zm-scroll{display:flex;align-items:center;justify-content:center}
-  /* PAGE PIPS: the only affordance that says "there are more cards and two fingers move you between them". */
-  .zm-pips{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:6px;pointer-events:none}
-  .zm-pip{width:6px;height:6px;border-radius:50%;background:var(--hb-neutral);transition:background .2s,width .2s}
-  .zm-pip.on{width:18px;border-radius:3px;background:var(--hb-accent)}
+  /* PAGE PIPS — the deck's position indicator, and a CONTROL: each pip is a 26px button that jumps to its card.
+     They sit ABOVE the dock on purpose: at bottom:6px they were 100% hidden UNDER the fixed dock (z-index 60,
+     84px + safe-area tall) — the only always-visible "there are more cards" signal did not exist on screen.
+     Found by measuring geometry, not by reading (the unpainted-orb lesson again). pointer-events live on the
+     BUTTONS, never the row: the row spans the full width and would eat taps meant for the widget under it. */
+  .zm-pips{position:absolute;left:0;right:0;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom) + 2px);
+    display:flex;justify-content:center;pointer-events:none;z-index:4}
+  .zm-pip{pointer-events:auto;width:26px;height:26px;border:none;background:transparent;padding:0;margin:0;
+    display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .zm-pip::before{content:"";width:6px;height:6px;border-radius:3px;background:var(--hb-neutral);
+    transition:background .2s,width .2s,box-shadow .2s}
+  .zm-pip.on::before{width:18px;background:var(--hb-accent)}
+  /* A hidden card that is PRODUCING (music playing behind the front card — the V2-092 runtime contract)
+     announces itself on its pip: sound with no visible source reads as a haunted phone, not as a feature. */
+  .zm-pip.prod::before{background:var(--hb-accent2);box-shadow:0 0 6px var(--hb-accent2)}
+  .zm-pip.on.prod::before{background:var(--hb-accent)}
+  /* THE DECK SWITCHER — the phone's task switcher. Opened from the k/n chip in any card header; lists every
+     open card by its LIVE title (the same source the header paints), marks the one producing sound, jumps on
+     tap, closes with its x. It stops ABOVE the dock like every sheet in this shell: the mic and the ⏻ must
+     stay reachable whatever is open. */
+  .zm-switch{position:fixed;left:0;right:0;top:0;bottom:calc(var(--dock-h) + env(safe-area-inset-bottom));
+    z-index:66;display:flex;flex-direction:column;justify-content:flex-end;background:var(--hb-bg-a);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);opacity:0;pointer-events:none;transition:opacity .18s}
+  .zm-switch.open{opacity:1;pointer-events:auto}
+  .zm-swpanel{background:var(--hb-bg-soft);border-top:1px solid var(--hb-line);border-radius:18px 18px 0 0;
+    padding:14px 14px 10px;max-height:70%;overflow:auto;transform:translateY(14px);transition:transform .18s}
+  .zm-switch.open .zm-swpanel{transform:none}
+  .zm-swhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 10px}
+  .zm-swhead b{font:600 15px/1.2 var(--sans);color:var(--hb-ink)}
+  .zm-swall{border:none;border-radius:9px;background:var(--hb-bubble);color:var(--hb-muted);
+    font:600 12px var(--sans);min-height:34px;padding:0 12px}
+  .zm-swrow{display:flex;align-items:center;gap:4px;border:1px solid var(--hb-line);border-radius:12px;
+    background:var(--hb-bg);min-height:52px;margin-bottom:8px;padding:0 4px 0 0}
+  .zm-swrow.cur{border-color:var(--hb-accent)}
+  .zm-swgo{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:8px;min-height:52px;border:none;
+    background:transparent;padding:0 4px 0 14px;text-align:left;font:500 14px/1.3 var(--sans);color:var(--hb-ink)}
+  .zm-swgo span{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .zm-swprod{flex:0 0 auto;color:var(--hb-accent2);font-size:14px;font-style:normal}
+  .zm-swx{flex:0 0 auto;width:44px;height:44px;border:none;border-radius:10px;background:var(--hb-bubble);
+    color:var(--hb-muted);font-size:17px;line-height:1}
   /* CONFIRM overlay (irreversible action): identical semantics to the desktop's, sized for a thumb. */
   .zm-confirm{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;
     gap:16px;padding:24px;background:var(--hb-bg-a);backdrop-filter:blur(8px);text-align:center}
@@ -123,8 +163,11 @@ export class Deck {
     this._openTimer = 0;
     this._empty = null;
     this._pips = null;
+    this._runtime = {};         // base -> active_when clauses (V2-092 runtime contract), null = declares none
+    this._sw = null; this._swPanel = null;
     this._wireGestures();
     this._mountEmpty();
+    this._mountSwitch();
   }
 
   // ── the host contract, part 1: state the brain and main.js read ───────────────────────────────────────────
@@ -204,8 +247,10 @@ export class Deck {
       const sig = JSON.stringify(data);
       if (sig === w._dataSig) return;                 // nothing changed → no re-render, no flicker
       w._dataSig = sig;
+      w._data = data;
       w._mod.render(w.body, data, w._ctx);
       this._applyTitle(w, data);
+      this._paint();                                  // fresh data can flip the producing badge (V2-092)
     } catch (_) { /* a failed refresh leaves the last good render on screen, which is the honest fallback */ }
   }
 
@@ -304,15 +349,123 @@ export class Deck {
       // the global stop (V2-092) is what silences it, not paging away from it.
       w.card.classList.toggle("live", k === this.at);
       w.card.setAttribute("aria-hidden", k === this.at ? "false" : "true");
-      if (w.countEl) w.countEl.textContent = this.order.length > 1 ? `${k + 1}/${this.order.length}` : "";
+      if (w.countEl) {
+        w.countEl.textContent = this.order.length > 1 ? `${k + 1}/${this.order.length}` : "";
+        w.countEl.classList.toggle("show", this.order.length > 1);
+      }
     });
     if (this._pips) {
       this._pips.innerHTML = "";
-      if (this.order.length > 1) for (let k = 0; k < this.order.length; k++) {
-        const d = document.createElement("i"); d.className = "zm-pip" + (k === this.at ? " on" : ""); this._pips.appendChild(d);
-      }
+      if (this.order.length > 1) this.order.forEach((id, k) => {
+        const w = this.cards.get(id);
+        const d = document.createElement("button");
+        d.className = "zm-pip" + (k === this.at ? " on" : "") + (w && this._producing(w) ? " prod" : "");
+        d.setAttribute("aria-label", (w && w.titleEl.textContent) || id);
+        d.onclick = () => this._goTo(k, 0);
+        this._pips.appendChild(d);
+      });
     }
     if (this._empty) this._empty.classList.toggle("on", this.order.length === 0);
+    // The switcher mirrors the deck it lists: a close/show/title change repaints it, and an emptied deck
+    // dismisses it (a switcher over nothing is a modal with no purpose and no obvious way out).
+    if (this._sw && this._sw.classList.contains("open")) {
+      if (this.order.length === 0) this.closeSwitcher(); else this._renderSwitch();
+    }
+  }
+
+  // ── the deck switcher: the phone's task switcher ──────────────────────────────────────────────────────────
+  _mountSwitch() {
+    const ov = document.createElement("div"); ov.className = "zm-switch";
+    ov.addEventListener("click", (e) => { if (e.target === ov) this.closeSwitcher(); });
+    const panel = document.createElement("div"); panel.className = "zm-swpanel";
+    ov.appendChild(panel);
+    // Sibling of the stage, not a child: the stage carries pointer-events:none, which would kill every tap.
+    this.stage.parentNode.appendChild(ov);
+    this._sw = ov; this._swPanel = panel;
+  }
+  openSwitcher() {
+    if (!this.order.length || !this._sw) return;
+    this._renderSwitch();
+    this._sw.classList.add("open");
+  }
+  closeSwitcher() { if (this._sw) this._sw.classList.remove("open"); }
+  _renderSwitch() {
+    const p = this._swPanel; if (!p) return;
+    p.textContent = "";
+    const head = document.createElement("div"); head.className = "zm-swhead";
+    const title = document.createElement("b"); title.textContent = tr("mobile.open_widgets");
+    const all = document.createElement("button"); all.className = "zm-swall";
+    all.textContent = tr("mobile.close_all");
+    all.onclick = () => { this.closeAll(); this.closeSwitcher(); };
+    head.append(title, all); p.appendChild(head);
+    this.order.forEach((id, k) => {
+      const w = this.cards.get(id); if (!w) return;
+      const row = document.createElement("div"); row.className = "zm-swrow" + (k === this.at ? " cur" : "");
+      const go = document.createElement("button"); go.className = "zm-swgo";
+      const name = document.createElement("span");
+      name.textContent = w.titleEl.textContent || w.base;      // the LIVE title, same source the header paints
+      go.appendChild(name);
+      if (this._producing(w)) {
+        const b = document.createElement("i"); b.className = "zm-swprod"; b.textContent = "♪";
+        b.title = tr("mobile.producing");
+        go.appendChild(b);
+      }
+      go.onclick = () => { this._goTo(k, 0); this.closeSwitcher(); };
+      const x = document.createElement("button"); x.className = "zm-swx"; x.textContent = "×";
+      x.setAttribute("aria-label", tr("desktop.close"));
+      x.onclick = () => this.close(id);
+      row.append(go, x); p.appendChild(row);
+    });
+  }
+
+  // ── "is this card PRODUCING right now?" — V2-092's runtime contract, read the way the server reads it ─────
+  async _runtimeFor(base) {
+    if (base in this._runtime) return;
+    this._runtime[base] = null;                              // claimed: one manifest fetch per base, ever
+    try {
+      const man = await fetch(`/widgets/${base}/manifest`).then((r) => (r.ok ? r.json() : null));
+      const aw = man && man.runtime && man.runtime.active_when;
+      const clauses = Array.isArray(aw) ? aw : (aw && typeof aw === "object" ? [aw] : []);
+      if (clauses.length) { this._runtime[base] = clauses; this._paint(); }
+    } catch (_) { /* no runtime declared or unreachable → never marked producing, which is the safe reading */ }
+  }
+  // Mirrors widgets/producers.py::is_producing EXACTLY — `true`/`false` compare by TRUTH (a videoId is a
+  // string), anything else by text, degraded data (`error`) never produces. Diverging from the server here
+  // would make the phone claim something plays that the global ⏻ does not know about, or the reverse.
+  _producing(w) {
+    const clauses = (w && this._runtime[w.base]) || null;
+    const d = w && w._data;
+    if (!clauses || !clauses.length || !d || typeof d !== "object" || d.error) return false;
+    const dig = (o, path) => {
+      let c = o;
+      for (const part of String(path).split(".")) { if (!c || typeof c !== "object") return undefined; c = c[part]; }
+      return c;
+    };
+    return clauses.some((cond) => Object.entries(cond || {}).every(([path, want]) => {
+      const got = dig(d, path);
+      if (want === true) return !!got;
+      if (want === false) return !got;
+      return String(got) === String(want);
+    }));
+  }
+
+  // ONE-finger paging on the HEADER only. The header is host chrome — no widget scrolls, pans or drags there —
+  // so a single finger is safe to claim, unlike the card body where one finger belongs to the widget (the rule
+  // at the top of this file). Same thresholds as the two-finger gesture, for one muscle memory.
+  _wireHeadSwipe(head) {
+    let x0 = 0, y0 = 0, on = false;
+    head.addEventListener("touchstart", (e) => {
+      if (e.touches.length !== 1) { on = false; return; }
+      x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; on = true;
+    }, { passive: true });
+    head.addEventListener("touchmove", (e) => {
+      if (!on || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - x0, dy = e.touches[0].clientY - y0;
+      if (Math.abs(dx) < 48 || Math.abs(dx) < Math.abs(dy) * 2) return;
+      on = false;
+      if (dx < 0) this.next(); else this.prev();
+    }, { passive: true });
+    head.addEventListener("touchend", () => { on = false; }, { passive: true });
   }
 
   // TWO fingers page; one finger is the widget's. Tracked on the STAGE (capture phase) so a widget's own scroller
@@ -344,8 +497,11 @@ export class Deck {
   _buildCard(id, baseId, q) {
     const card = document.createElement("div"); card.className = "zm-card loading"; card.dataset.wid = id;
     const head = document.createElement("div"); head.className = "zm-head";
+    this._wireHeadSwipe(head);
     const titleEl = document.createElement("div"); titleEl.className = "zm-title"; titleEl.textContent = baseId;
-    const countEl = document.createElement("div"); countEl.className = "zm-count";
+    const countEl = document.createElement("button"); countEl.className = "zm-count";
+    countEl.setAttribute("aria-label", tr("mobile.open_widgets"));
+    countEl.onclick = () => this.openSwitcher();
     const x = document.createElement("button"); x.className = "zm-x"; x.textContent = "×";
     x.setAttribute("aria-label", tr("desktop.close"));
     x.onclick = () => this.close(id);
@@ -388,7 +544,9 @@ export class Deck {
       w.body.dataset.hostTitle = "1";
       mod.render(w.body, data, ctx);
       this._applyTitle(w, data);
-      w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx;
+      w._dataSig = JSON.stringify(data); w._data = data; w._mod = mod; w._ctx = ctx;
+      this._runtimeFor(baseId);                       // lazy, cached: does this widget declare production?
+      this._paint();
       this._persist();
     } catch (e) {
       console.error("mobile widget mount failed", w.id, e);
@@ -486,8 +644,32 @@ export class Deck {
     } catch (_) {}
     let ids = [];
     try { ids = JSON.parse(localStorage.getItem("zaelar_mobile_deck") || "[]"); } catch (_) {}
+    let items = (Array.isArray(ids) ? ids : []).map((id) => ({ id: String(id || ""), q: "" })).filter((it) => it.id);
+    // V2-351, the mobile half (2026-08-29). The desktop got these on 2026-08-26 and this host silently did not,
+    // and each one bites HARDER on a phone:
+    //   · SERVER FALLBACK — localStorage is per-browser, and a phone IS a new browser: a freshly installed PWA
+    //     opened on an empty deck even while the account had a desktop full of work. /api/canvas/layout is the
+    //     same endpoint the desktop consults, geometry ignored here (a deck has none).
+    //   · LIVE ERRANDS — the sheet/browser card of an errand running RIGHT NOW comes back even if this device
+    //     never saved it. That is the start-on-the-computer, follow-on-the-phone story, and it is `srv.live`.
+    //   · THE FOSSIL SWEEP — a bare BASE card next to its own instance is the pre-V2-261 ghost: every restore
+    //     resurrected an empty «Resultados» on top of the full sheet. A base card is legitimate ALONE.
+    //   · a navegador::tN with no live task behind it has nothing to reload (process state, not a sheet).
+    let srv = { items: [], live: [] };
+    try { srv = (await fetch("/api/canvas/layout").then((r) => r.json())) || srv; } catch (_) {}
+    if (!items.length && Array.isArray(srv.items) && srv.items.length) {
+      items = srv.items.map((it) => ({ id: String((it && it.id) || ""), q: String((it && it.q) || "") })).filter((it) => it.id);
+    }
+    const bases = new Set(items.filter((it) => it.id.includes("::")).map((it) => it.id.split("::", 1)[0]));
+    items = items.filter((it) => it.id.includes("::") || !bases.has(it.id));
+    const have = new Set(items.map((it) => it.id));
+    for (const id of Array.isArray(srv.live) ? srv.live : []) {
+      if (id && !have.has(String(id))) { items.push({ id: String(id), q: "" }); have.add(String(id)); }
+    }
+    const liveSet = new Set((Array.isArray(srv.live) ? srv.live : []).map(String));
+    items = items.filter((it) => !(it.id.startsWith("navegador::") && !liveSet.has(it.id)));
     // Capped at 8: a deck is paged one card at a time, so restoring 40 would mount 40 widgets to show one.
-    for (const id of Array.isArray(ids) ? ids.slice(0, 8) : []) { try { await this.show(id); } catch (_) {} }
+    for (const it of items.slice(0, 8)) { try { await this.show(it.id, { q: it.q }); } catch (_) {} }
     this._goTo(0, 0);
   }
 

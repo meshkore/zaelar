@@ -243,7 +243,10 @@ const shellFiles = readdirSync(join(ENGINE, "frontend", "mobile", "app", "shell"
   .map((f) => ["frontend", "mobile", "app", "shell", f]);
 const usedKeys = new Set();
 for (const parts of [...shellFiles, ["frontend", "mobile", "app", "main.js"]]) {
-  for (const m of read(...parts).matchAll(/\bt\(\s*["']([a-zA-Z0-9_.]+)["']\s*\)/g)) usedKeys.add(m[1]);
+  // `t(` AND `tr(` — Deck.js imports `t as tr`, and a scan that only knew `t(` let every key that file asks
+  // for escape the ratchet (found 2026-08-29 while adding the switcher's strings: the scan was green with
+  // three keys missing from both bundles).
+  for (const m of read(...parts).matchAll(/\btr?\(\s*["']([a-zA-Z0-9_.]+)["']\s*\)/g)) usedKeys.add(m[1]);
 }
 check("the key scan actually found the shell's strings", usedKeys.size >= 15,
   `only ${usedKeys.size} t() keys found — the regex probably stopped matching`);
@@ -257,6 +260,37 @@ check("no fake `t(...) || fallback` dead code in the mobile shell",
   ![...shellFiles, ["frontend", "mobile", "app", "main.js"]]
     .some((parts) => /\bt\([^)]*\)\s*\|\|/.test(read(...parts))),
   "t() returns the key on a miss, which is truthy — an `|| fallback` after it can never run");
+
+// ── THE DECK'S NAVIGATION IS VISIBLE AND TAPPABLE (2026-08-29 iteration) ──────────────────────────────────────
+// The pips shipped at bottom:6px inside the stage — 100% under the fixed dock (z-index 60, 84px+safe tall).
+// The only always-on "there are more cards" signal did not exist on screen, and every source-level test was
+// green. These pin the geometry INTENT (above the dock) and the interactivity (buttons, not decoration).
+check("the pips sit ABOVE the dock, not under it",
+  /\.zm-pips\s*\{[^}]*bottom:\s*calc\(var\(--dock-h\)/.test(DECK),
+  "zm-pips must offset by --dock-h (+ safe-area); a fixed small bottom puts them under the dock bar");
+check("the pips are tappable controls, not decoration",
+  /\.zm-pip\s*\{[^}]*pointer-events:\s*auto/.test(DECK),
+  "each pip must take taps (the row stays pointer-events:none so it never eats the widget's touches)");
+
+// ── V2-351 PARITY: both hosts restore from the server and sweep base-card fossils ─────────────────────────────
+// The desktop learned these on 2026-08-26; the Deck silently did not, and each one bites harder on a phone
+// (localStorage is per-browser, and a phone IS a new browser — a fresh PWA install opened on an empty deck
+// while the account had live errands). Derived from the desktop's own code so the two hosts cannot re-diverge.
+for (const [name, src] of [["desktop", DESKTOP], ["Deck", DECK]]) {
+  check(`${name} restores from the server layout (/api/canvas/layout)`,
+    src.includes("/api/canvas/layout"),
+    "the per-browser localStorage cannot be the only copy of the open set");
+  check(`${name} sweeps base-card fossils on restore`,
+    /split\(\s*"::"\s*,\s*1\s*\)/.test(src),
+    "a bare BASE card next to its own instance resurrects an empty sheet on top of the full one (V2-351)");
+}
+
+// ── the producing badge mirrors the SERVER's contract, never a widget name list ───────────────────────────────
+// "Is something playing behind the front card" must be read from the V2-092 runtime declaration the global ⏻
+// already uses. A hardcoded youtube/musica list is exactly the shape widgets/producers.py exists to kill.
+check("the Deck reads active_when (the declared production contract), not widget names",
+  /active_when/.test(DECK) && !/["'](?:youtube|musica)["']/.test(DECK),
+  "the producing badge must evaluate runtime.active_when from the manifest; naming widgets re-creates the per-widget if");
 
 // ── one module, one ?v= ────────────────────────────────────────────────────────────────────────────────────────
 // V2-087, the hard way: a different query string is a DIFFERENT MODULE INSTANCE in the browser. Two copies of

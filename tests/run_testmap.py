@@ -1507,6 +1507,15 @@ DOMAINS: list[dict] = [
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
+        # The deck's NAVIGATION measured in a phone-sized Chromium with three fake widgets served by route
+        # interception: pips visible ABOVE the dock and tappable (the originals shipped 100% under it, green
+        # at source level), the k/n chip opening the switcher, one-finger paging on the header, the producing
+        # badge following runtime.active_when, and restore() at V2-351 parity with the desktop (server
+        # fallback, fossil sweep, live errands, dead navegador instances filtered).
+        {"id": "4.86", "title": "Deck MÓVIL RENDERIZADO: pips visibles y pulsables, conmutador de tarjetas, "
+                                "swipe de cabecera, badge de producción y restore V2-351",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_deck.py"},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [
