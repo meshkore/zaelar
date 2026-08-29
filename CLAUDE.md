@@ -5234,6 +5234,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.6, desarme verificado en los dos arreglos. **La red respondiendo está verificada en vivo por
     nuestro propio puente**; que un worker lo haga solo, no — eso lo mide el plató.
 
+- **Una frase deja DOS píldoras críticas, y el corte expulsaba un hecho de SEGURIDAD (V2-491, 2026-08-29)**:
+  `critical_facts` corta a 6 por importancia·peso y deduplicaba por cadena EXACTA. Una sola frase del operador
+  deja dos píldoras críticas —la destilada por el CORAZÓN (`path='llm'`) y la literal que guarda la red de
+  salud (`path='health-net'`, `ingest.py`)— y al ser textos distintos no colapsaban: **cada hecho ocupaba dos
+  de las seis plazas**. Medido sembrando cuatro hechos críticos distintos por su camino real (celiaquía,
+  frutos secos, diabetes, marcapasos): **el marcapasos DESAPARECE** de la línea más prominente del prompt,
+  expulsado por las copias de los otros tres. Es el fallo que esa línea existe para evitar —«olvidar una
+  alergia bajo densidad es un fallo de seguridad», dice su propio comentario— cometido por su propio cap. Y
+  con V2-490 repitiendo la línea al final, el mismo hecho llegaba a salir **cuatro veces** en 718 caracteres.
+  - **El enlace es EXACTO, no un parecido, y eso es lo único que lo hace seguro**: la píldora destilada guarda
+    en `meta.raw` la frase del operador y el texto de la de la red ES esa frase. Se retira la copia cuando otra
+    píldora crítica **declara haber nacido de ella**. Por prefijo, porque `raw` viaja recortado a 120.
+  - ⚠️ **Deduplicar por PARECIDO se probó y se descartó CON NÚMEROS**, porque aquí un falso positivo BORRA una
+    restricción médica: el par que SÍ debe fundirse (destilada vs literal de la celiaquía) puntúa jaccard
+    **0,30** / cobertura 0,50, y los que JAMÁS deben fundirse —«frutos secos» vs «marisco», penicilina vs
+    ibuprofeno— puntúan **0,25-0,33** / 0,50. **Ningún umbral los separa**, así que no hay umbral bueno: solo
+    la procedencia. Es la lección de V2-123 (el dedup engañado por la puntuación) en un sitio donde el falso
+    positivo no cuesta trabajo repetido sino una alergia perdida.
+  - ⚠️ **Y un margen que me inventé**: subí el fetch del SQL de `*2` a `*3` «para que quepan las copias», y el
+    desarme enseñó que **ningún caso lo exige** — las destiladas pesan 0,95 y las copias 0,7, así que las que
+    sobreviven al ranking son justo las que se conservan. Revertido: una constante que nadie puede volver a
+    justificar es deuda, no margen. **Un desarme que no muerde también acusa al arreglo, no solo al test.**
+  - Nodo 1.4, desarme en los dos sentidos (3 rojos sin el dedup, 1 sin la guarda que protege a la píldora que
+    declara su origen) y la dirección contraria con caso propio: tres alergias distintas siguen conviviendo.
+    **Sin verificar en vivo.**
+
 - **DOS puertas por las que entra un vector de otro espacio, y ninguna fallaba con ruido (V2-484 y V2-485,
   2026-08-29)**: V2-482 quitó el daño permanente y dejó escrito que la puerta no estaba medida. Lo está, y
   **son dos, con causas distintas**. Las dos se reprodujeron de punta a punta antes de tocar nada.
