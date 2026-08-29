@@ -5256,7 +5256,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     desarme enseñó que **ningún caso lo exige** — las destiladas pesan 0,95 y las copias 0,7, así que las que
     sobreviven al ranking son justo las que se conservan. Revertido: una constante que nadie puede volver a
     justificar es deuda, no margen. **Un desarme que no muerde también acusa al arreglo, no solo al test.**
-  - Nodo 1.4, desarme en los dos sentidos (3 rojos sin el dedup, 1 sin la guarda que protege a la píldora que
+  - Nodo 1.6, desarme en los dos sentidos (3 rojos sin el dedup, 1 sin la guarda que protege a la píldora que
     declara su origen) y la dirección contraria con caso propio: tres alergias distintas siguen conviviendo.
     **Sin verificar en vivo.**
 
