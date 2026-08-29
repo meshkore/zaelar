@@ -777,6 +777,13 @@ def mechanism_facts(mech: dict) -> str:
             lines.append(f"· ℹ️ El worker NO consultó la red (`mesh_cli`); usó {', '.join(sorted(_usados))}. Es "
                          f"un hecho sobre el mecanismo, no una falta de conducta: puede que no hubiera agente "
                          f"para este encargo. No lo puntúes por sí solo.")
+        else:
+            # Ni una sesión de worker atribuible a ESTA ronda. Puede ser que ninguno naciera, o que el fichero
+            # de sesión aún no estuviera escrito al verificar. Decirlo es lo que impide que la ausencia de la
+            # línea se lea como «no preguntó»: una sección que a veces sale y a veces no, sin decir por qué, es
+            # peor que una que no sale nunca.
+            lines.append("· El registro de puentes se leyó, pero NINGUNA sesión de worker cae dentro de esta "
+                         "ronda: de aquí no se puede decir ni que preguntara a la red ni que no.")
     if _wb.get("errors"):
         _we = ", ".join(f"{k} ×{v}" for k, v in list(_wb["errors"].items())[:5])
         lines.append(f"· ⚠️ PUENTES DEL WORKER CON ERRORES: {_we}. El worker pide el navegador, la memoria "

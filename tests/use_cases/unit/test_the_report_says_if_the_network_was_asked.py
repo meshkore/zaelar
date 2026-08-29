@@ -56,3 +56,13 @@ def test_los_ERRORES_de_puente_se_siguen_diciendo():
     txt = mechanism_facts(_mech(worker_bridges={
         "read": True, "sessions": 1, "by_bridge": {"nav_cli": 1}, "errors": {"nav_cli": 3}}))
     assert "PUENTES DEL WORKER CON ERRORES" in txt and "nav_cli ×3" in txt
+
+
+def test_sin_sesiones_en_la_ventana_lo_DICE_en_vez_de_callarse():
+    """Una sección que a veces sale y a veces no, sin decir por qué, es peor que una que no sale nunca: la
+    ausencia de la línea se leería como «no preguntó». Medido: en la ronda de las 21:06 el registro estaba
+    ahí y la línea no salió, y no había forma de saber cuál de las dos cosas había pasado."""
+    txt = mechanism_facts(_mech(worker_bridges={
+        "read": True, "sessions": 0, "by_bridge": {}, "errors": {}}))
+    assert "NINGUNA sesión de worker cae dentro de esta ronda" in txt
+    assert "ni que preguntara a la red ni que no" in txt
