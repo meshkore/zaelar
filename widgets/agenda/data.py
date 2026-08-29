@@ -30,7 +30,11 @@ def _strip_accents(s: str) -> str:
 # meetings, and a duplicate that is silently dropped is worse than a duplicate that is visible. So the rule is
 # narrow ON PURPOSE — same day, same time, same title once articles/case/punctuation are gone. A legitimate
 # repeat carries a different hour or a different title; what it never carries is the same three.
-_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "de", "del", "the", "a", "an"}
+# …plus the widget's own category nouns (V2-473 round 5): «Cita dentista con los niños» and «Dentista con
+# los niños» are the SAME commitment — the model re-titles on a retry and the dedup let both rows in, each
+# spawning its default reminder. The category noun of the widget itself is title noise, not identity.
+_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "de", "del", "the", "a", "an",
+             "cita", "reunion", "reunión", "meeting", "appointment", "evento"}
 
 
 def _title_key(title: str) -> str:

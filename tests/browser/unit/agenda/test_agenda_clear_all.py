@@ -250,3 +250,16 @@ def test_agenda_errors_are_speakable():
     src = inspect.getsource(A.apply_action)
     for err in _re.findall(r'"error": f?"([^"]+)"', src):
         assert not _re.match(r"^\w+_?\w*:", err), f"un error con prefijo interno acaba en la boca: {err}"
+
+
+def test_a_retitled_retry_is_the_same_meeting(agenda, sched_log):
+    """V2-473 round 5: «Dentista con los niños» then «Cita dentista con los niños» — same day, same hour,
+    re-titled on a retry — landed as TWO meetings with TWO default reminders. The widget's own category
+    noun is title noise, not identity."""
+    agenda.apply_action("add_meeting", {"title": "Dentista con los niños", "date": "2099-09-08",
+                                        "time": "15:00"})
+    agenda.apply_action("add_meeting", {"title": "Cita dentista con los niños", "date": "2099-09-08",
+                                        "time": "15:00"})
+    ms = [m for m in agenda.load_db().get("meetings", []) if "iños" in m.get("title", "")]
+    assert len(ms) == 1, ms
+    assert len(sched_log["created"]) == 1, "one commitment, one reminder"
