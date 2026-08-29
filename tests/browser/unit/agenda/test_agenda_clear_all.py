@@ -117,3 +117,41 @@ def test_esta_declarada_y_pide_confirmacion():
     assert actions.classify(spec, "clear_all") == actions.CONFIRM, "vaciar la agenda tiene que pedir un sí/no"
     assert "clear_all" in (man.get("usage") or ""), \
         "el `usage` es lo que le dice al cerebro CUÁNDO usarla en vez de ir de uno en uno"
+
+
+# ── V2-473: the write does not invent — measured in `dentist-appointment-into-agenda`, round 1 ──────────────
+# Four rows told the story (2026-08-29 14:19): an empty payload wrote «Cita, today, 17:00» (every field a
+# DEFAULT wearing the face of success), and «date: 2026-09-08 15:00» — the model's natural datetime shape —
+# kept the date but silently DROPPED the 15:00, defaulting startTime to 17:00. The operator's «a las tres de
+# la tarde» never survived the write, twice, and the reply said «Hecho.» both times.
+
+
+def test_a_datetime_glued_in_date_keeps_its_hour(agenda):
+    A = agenda
+    A.apply_action("add_meeting", {"title": "Dentista niños", "date": "2026-09-08 15:00"})
+    m = [x for x in A.load_db().get("meetings", []) if x.get("title") == "Dentista niños"][-1]
+    assert m["date"] == "2026-09-08" and m["startTime"] == "15:00", m
+    A.apply_action("cancel_meeting", {"title": "Dentista niños"})
+    # the T separator is the same natural shape
+    A.apply_action("add_meeting", {"title": "Revisión", "date": "2026-09-10T09:30"})
+    m = [x for x in A.load_db().get("meetings", []) if x.get("title") == "Revisión"][-1]
+    assert m["date"] == "2026-09-10" and m["startTime"] == "09:30", m
+    A.apply_action("cancel_meeting", {"title": "Revisión"})
+
+
+def test_an_explicit_startTime_outranks_the_glued_hour(agenda):
+    A = agenda
+    A.apply_action("add_meeting", {"title": "Vacuna", "date": "2026-09-08 15:00", "startTime": "16:00"})
+    m = [x for x in A.load_db().get("meetings", []) if x.get("title") == "Vacuna"][-1]
+    assert m["startTime"] == "16:00", m
+    A.apply_action("cancel_meeting", {"title": "Vacuna"})
+
+
+def test_an_empty_payload_writes_nothing_and_says_why(agenda):
+    A = agenda
+    before = len(A.load_db().get("meetings", []))
+    res = A.apply_action("add_meeting", {})
+    assert len(A.load_db().get("meetings", [])) == before, "defaults must not fabricate an appointment"
+    err = str((res or {}).get("error") or "")
+    assert "title" in err and "date" in err and "startTime" in err, \
+        f"the refusal names the expected keys so the model can retry: {res}"

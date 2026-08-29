@@ -222,11 +222,29 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             if t.get("projectId") == pid and t.get("status") in (None, "todo", "in_progress"):
                 t["status"] = "dropped"
     elif action == "add_meeting":
+        # V2-473 — the write does not INVENT. Measured in `dentist-appointment-into-agenda` round 1
+        # (2026-08-29): an empty payload wrote «Cita, today, 17:00» — every field a default wearing the
+        # face of success — and the reply said «Hecho.». A write with none of the real fields is an error
+        # that names the expected keys (so the model retries with the right shape), never a silent row.
+        if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime")):
+            return {"ok": False,
+                    "error": "add_meeting sin datos: manda payload con title, date (YYYY-MM-DD) y "
+                             "startTime (HH:MM) — no invento una cita por ti"}
         title = payload.get("title", "Cita")
         # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
         # lands correctly even if the model does not calculate the date itself.
-        start = _resolve_time(payload.get("startTime", ""), default="17:00")
-        date = _resolve_date(payload.get("date", ""))
+        _rawdate = str(payload.get("date", "") or "")
+        _rawtime = str(payload.get("startTime", "") or "")
+        # V2-473 — the model's natural datetime shape («2026-09-08 15:00», or with a T) is BOTH fields in
+        # one: the date resolver kept the date and silently dropped the hour, so «a las tres de la tarde»
+        # became the 17:00 default. The glued hour fills startTime only when none was given explicitly.
+        _m = re.match(r"^\s*(\d{4}-\d{2}-\d{2})[T ]+(\d{1,2}:\d{2})\s*$", _rawdate)
+        if _m:
+            _rawdate = _m.group(1)
+            if not _rawtime.strip():
+                _rawtime = _m.group(2)
+        start = _resolve_time(_rawtime, default="17:00")
+        date = _resolve_date(_rawdate)
         end = payload.get("endTime", "")
         if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
             eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
