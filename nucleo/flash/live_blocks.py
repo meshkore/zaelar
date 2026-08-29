@@ -195,9 +195,10 @@ def _driver_is_gone(nav_task_id: str, prog: dict) -> bool:
 
 
 #: Cuánto puede ocupar el bloque de filas en el prompt. `fila()` trunca a 70 de título y 20 de dato, así que
-#: una fila cabe en ~100 caracteres: este techo es el tope DURO de doce filas en el peor caso, y en la práctica
-#: la mitad. Es el bound real; `n` es el suave. Existe porque el tope tiene que ser de TAMAÑO y no de conteo —
-#: una hoja de títulos larguísimos con un cap por unidades mete en el prompt lo que le dé la gana.
+#: una fila cabe en ~95 caracteres. MEDIDO: doce filas con los títulos al máximo ocupan **926**, o sea que a
+#: doce este techo NO muerde y lleva una fila de holgura — y está bien: es el bound para que subir `n` mañana
+#: no meta en el prompt lo que le dé la gana. El tope tiene que ser de TAMAÑO y no de conteo, porque una hoja
+#: de títulos larguísimos con un cap por unidades no está acotada por nada.
 _SHEET_ROWS_BUDGET = 1200
 
 

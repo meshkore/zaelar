@@ -230,3 +230,44 @@ def test_el_backstop_de_ATASCO_conserva_la_puerta_vieja():
     atasco en turnos donde no venía a cuento."""
     assert RG.stalled_task_backstop("Perfecto, lo dejo así entonces.", "busca entradas", 5, "sin avanzar") == ""
     assert RG.stalled_task_backstop("Sigo con ello, te aviso.", "busca entradas", 5, "sin avanzar") != ""
+
+
+def test_una_hoja_de_DOCE_filas_viaja_entera_hasta_su_techo_de_tamano(monkeypatch):
+    """V2-479 — cinco filas eran pocas, y el cambio tiene que poder comprobarse.
+
+    Medido dos veces: `search-buy-camera__es` con CATORCE candidatos (cuatro de las cinco mostradas eran
+    accesorios) y `find-best-hotel-city__us` ronda 6 con DOCE hoteles, dos por debajo del tope del operador,
+    mostrando las caras. El turno concluyó sobre el total un conjunto que no había visto entero.
+    """
+    from nucleo.flash import live_blocks as LB
+
+    filas = [{"title": f"Hotel {i:02d}", "price": f"${100 + i}"} for i in range(12)]
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda t: ["results"], raising=False)
+    monkeypatch.setattr("widgets.results.data.view_data", lambda c=None: {"items": filas}, raising=False)
+
+    out = LB._sheet_top_rows("t1")
+    assert len(out) == 12, f"se enseñaron {len(out)} de 12: el tope no subió"
+    assert "Hotel 11" in out[-1], out[-1]
+    assert not any("no listados aquí" in r for r in out), "avisa de un resto que no existe"
+
+
+def test_y_el_techo_de_TAMANO_manda_sobre_el_conteo(monkeypatch):
+    """El bound real es de TAMAÑO, no de unidades — y por eso se prueba pidiendo MÁS de doce.
+
+    A doce filas el techo no muerde (medido: 926 de 1200 caracteres con los títulos al máximo, o sea que el
+    tope de doce lleva una fila de holgura), y eso está bien: el techo existe para que subir `n` mañana no
+    meta en el prompt lo que le dé la gana. Un test que fingiera que corta a doce estaría afirmando algo
+    falso sobre el código que dice guardar.
+    """
+    from nucleo.flash import live_blocks as LB
+
+    filas = [{"title": "H" * 70, "price": f"${i}"} for i in range(30)]
+    monkeypatch.setattr(LB, "boxes_of_tab", lambda t: ["results"], raising=False)
+    monkeypatch.setattr("widgets.results.data.view_data", lambda c=None: {"items": filas}, raising=False)
+
+    out = LB._sheet_top_rows("t1", 30)
+    cuerpo = [r for r in out if "no listados aquí" not in r]
+    assert len(cuerpo) < 30, "el techo de tamaño no cortó nada con treinta filas largas"
+    assert sum(len(r) for r in cuerpo) <= LB._SHEET_ROWS_BUDGET + 100, "el bloque se pasó de su techo"
+    # V2-374 — lo que queda fuera se sigue CONTANDO: cortar y callarse devuelve el defecto original.
+    assert any("no listados aquí" in r for r in out), "cortó y se calló el resto"
