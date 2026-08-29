@@ -101,6 +101,14 @@ def _repair_limit_default() -> int:
 #: the margin is only there so float round-trips through `struct` cannot turn a match into a miss.
 _FOREIGN_MATCH = 0.999
 
+#: Consecutive rows whose embed fell back to the emergency hash before the pass gives up (V2-497).
+#: A degraded backend is a PROCESS-WIDE condition, not a per-row accident, so carrying on just repeats the same
+#: failed call once per waiting row. Measured against a saturated Ollama: 40 probes over 30s, 40 rejections, zero
+#: successes — while a large model holds the GPU the refusal is total, not intermittent. It is not 1 because
+#: `_resolve_backend` deliberately leaves a saturated backend re-probing on the very next call ("a drained queue
+#: can happen a second later"), so a single blip must not end a pass that could still heal the rest.
+_DEGRADED_STREAK_STOP = 3
+
 
 def _looks_padded(v: list[float]) -> bool:
     """Does this vector come from a SMALLER space, zero-padded up to the index dimension? (V2-485)
@@ -149,10 +157,16 @@ def _drop_foreign_vectors(db, limit: int) -> int:
     reproducible from the text, and keeping those out is the signature guard's job, not this one's.
 
     Does nothing when hash IS the sealed space (dev, tests, a fresh DB) — there the vectors are native — nor
-    when nothing is sealed, because then there is no space to call anything foreign to. Deleting the vector is
-    the entire repair: the pass that follows selects the row precisely because it now has none, and re-embeds
-    it in the correct space. Marking `embed_pending` too is what makes a failure to do so COUNTABLE in
-    `hygiene()` instead of silent.
+    when nothing is sealed, because then there is no space to call anything foreign to. Marking `embed_pending`
+    is what makes a failure to re-embed COUNTABLE in `hygiene()` instead of silent.
+
+    ⚠️ CORRECTED 2026-08-29 (V2-497), where it was claimed: this used to say "deleting the vector is the entire
+    repair: the pass that follows re-embeds it in the correct space". That second half is CONDITIONAL, not a
+    given — measured on the operator's own copy, the drop retired all 25 and the re-embed that follows healed
+    ZERO, because the embedding backend was saturated. The drop still stands on its own argument (foreign noise
+    fused into every RRF is worse than an absence FTS still covers), but it is HALF an operation whenever the
+    backend is down, so this pass no longer promises the other half — `repair_embeddings` says what actually
+    happened.
     """
     from . import embeddings as _emb
     from . import reembed as _reembed
@@ -189,7 +203,7 @@ def _drop_foreign_vectors(db, limit: int) -> int:
         # hacía este aviso cuando solo sabía de hash.
         detalle = ", ".join(f"{n} {k}" for k, n in por_clase.items() if n)
         logger.warning(f"memoria: {gone} vectores de espacio ajeno ({detalle}) retirados de un índice "
-                       f"«{sealed}» — se re-embeben en esta misma pasada")
+                       f"«{sealed}» — quedan a la espera de re-embeberse (lo dice la fase de reparación)")
         try:
             from voice import health_state
             health_state.record("memory", "degraded",
@@ -217,11 +231,19 @@ def repair_embeddings(limit: int | None = None) -> int:
         (limit,),
     )
     fixed = 0
+    degradadas = 0     # filas cuyo embed cayó al hash de emergencia: el backend real no contestó
+    racha = 0
     for r in rows:
         try:
             vec = _emb.embed(r["text"])
             if getattr(_emb, "last_degraded", False):
-                continue           # backend caído a hash — mejor sin vector que con vector de otro espacio
+                # backend caído a hash — mejor sin vector que con vector de otro espacio
+                degradadas += 1
+                racha += 1
+                if racha >= _DEGRADED_STREAK_STOP:
+                    break
+                continue
+            racha = 0
             # Y la firma SE VUELVE A MIRAR, por fila (V2-484). La de la entrada se hizo una vez y esto es un
             # BUCLE: si el backend se resuelve a `hash` a mitad, `last_degraded` no lo declara —un hash
             # configurado es su propio espacio coherente— y el permiso de la entrada sigue concedido. Sería la
@@ -238,7 +260,45 @@ def repair_embeddings(limit: int | None = None) -> int:
             fixed += 1
         except Exception:
             continue
+    _report_repair_backlog(len(rows), fixed, degradadas)
     return fixed
+
+
+def _report_repair_backlog(esperando: int, reparadas: int, degradadas: int) -> None:
+    """Say when the repair pass could NOT do its job — the half that was missing (V2-497).
+
+    `repair_embeddings` returns an int, and 0 meant two opposite things: "nothing was waiting" (healthy) and
+    "45 rows were waiting and the backend refused every one" (broken). Nothing else told them apart — the
+    per-row skip was a bare `continue`, and `hygiene()` does report `embed_pending` but only its heuristic-write
+    percentage ever raises an alert, so a standing backlog reached nobody. The reassuring reading was the one
+    that came out.
+
+    MEASURED 2026-08-29 on a copy of the operator's memory: 25 foreign vectors dropped, 20 rows already pending,
+    45 waiting in total, `repair_embeddings` → **0**, and the only line in the log was the drop announcing
+    success. Cause: `/api/embed` answering `server busy, please try again` while a 40 GB model held the GPU —
+    the documented `_ollama_busy` condition, which correctly DEFERS the vector instead of demoting the space.
+    Deferring is right; doing it silently, once a day, is what let ~25 damaged vectors sit there indefinitely.
+
+    Not cleared on a healthy pass, deliberately: the `memory` health key is shared with the vector-space
+    mismatch and the degraded-embedding notices (V2-311), so clearing here would wipe somebody else's warning.
+    It ages out on its own TTL.
+    """
+    pendientes = esperando - reparadas
+    if pendientes <= 0:
+        return
+    if degradadas:
+        causa = (f"el backend de embeddings no contestó ({degradadas} caídas al hash de emergencia) — se "
+                 f"difiere el vector para conservar el espacio; se reintenta en el próximo sueño")
+    else:
+        causa = "el permiso de escritura de vectores lo denegó la firma del índice, o el embed falló por fila"
+    logger.warning(f"memoria: {pendientes} de {esperando} píldoras siguen SIN vector tras la reparación — {causa}")
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded",
+                            f"{pendientes} píldoras sin vector: la reparación del sueño no pudo re-embeberlas "
+                            f"({'backend de embeddings caído o saturado' if degradadas else 'firma del índice'})")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ── fase 1b · índice de PARÁFRASIS (V2-031 T2, con LLM inyectado) ──────────────────────────────────────────
