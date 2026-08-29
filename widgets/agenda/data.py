@@ -283,15 +283,17 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # (2026-08-29): an empty payload wrote «Cita, today, 17:00» — every field a default wearing the
         # face of success — and the reply said «Hecho.». A write with none of the real fields is an error
         # that names the expected keys (so the model retries with the right shape), never a silent row.
-        if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime")):
+        if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime", "time")):
             return {"ok": False,
-                    "error": "add_meeting sin datos: manda payload con title, date (YYYY-MM-DD) y "
-                             "startTime (HH:MM) — no invento una cita por ti"}
+                    "error": "no me ha llegado ningún dato de la cita — mándame en payload el title, "
+                             "la date (YYYY-MM-DD) y la startTime (HH:MM), y la apunto"}
         title = payload.get("title", "Cita")
         # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
         # lands correctly even if the model does not calculate the date itself.
         _rawdate = str(payload.get("date", "") or "")
-        _rawtime = str(payload.get("startTime", "") or "")
+        # V2-473 round 3: three probe samples in a row sent `time`, not the manifest's `startTime`, and the
+        # hour fell to the default AGAIN. The unambiguous natural alias must not cost the fact (V2-341).
+        _rawtime = str(payload.get("startTime", "") or payload.get("time", "") or "")
         # V2-473 — the model's natural datetime shape («2026-09-08 15:00», or with a T) is BOTH fields in
         # one: the date resolver kept the date and silently dropped the hour, so «a las tres de la tarde»
         # became the 17:00 default. The glued hour fills startTime only when none was given explicitly.
@@ -346,13 +348,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                  and (not date or m.get("date") == date)]
         if not title or not _hits:
             return {"ok": False,
-                    "error": "set_reminder: no encuentro esa cita — manda title (y date si hay varias) "
-                             "de una cita existente"}
+                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
+                             "apuntada (y la fecha si hay varias)"}
         _at = str(payload.get("at") or payload.get("time") or payload.get("startTime") or "").strip()
         _mm = re.match(r"^\s*(?:(\d{4}-\d{2}-\d{2})[T ]+)?(\d{1,2}:\d{2})\s*$", _at)
         if not _mm:
             return {"ok": False,
-                    "error": "set_reminder: manda `at` con la hora del aviso (HH:MM del día de la cita, "
+                    "error": "me falta la hora del aviso — mándala en `at` (HH:MM del día de la cita, "
                              "o YYYY-MM-DD HH:MM)"}
         m = _hits[0]
         _cancel_reminder(m)

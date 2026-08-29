@@ -224,3 +224,28 @@ def test_clear_all_cancels_every_meeting_reminder(agenda, sched_log):
     agenda.apply_action("add_meeting", {"title": "Vacuna", "date": "2099-09-09", "startTime": "10:00"})
     agenda.apply_action("clear_all", {})   # the confirm gate lives upstream (widgets/confirm.py)
     assert len(sched_log["cancelled"]) >= 2, sched_log
+
+
+def test_the_models_natural_time_key_is_read(agenda, sched_log):
+    """V2-473 round 3: three probe samples in a row sent `time` (not the manifest's `startTime`) and the
+    hour fell to the 17:00 default AGAIN. The unambiguous natural alias must not cost the fact (V2-341)."""
+    agenda.apply_action("add_meeting", {"title": "Dentista niños", "date": "2099-09-08", "time": "15:00"})
+    m = [x for x in agenda.load_db().get("meetings", []) if x.get("title") == "Dentista niños"][-1]
+    assert m["startTime"] == "15:00", m
+    # explicit startTime still outranks the alias
+    agenda.apply_action("add_meeting", {"title": "Vacuna", "date": "2099-09-09",
+                                        "time": "10:00", "startTime": "11:00"})
+    m2 = [x for x in agenda.load_db().get("meetings", []) if x.get("title") == "Vacuna"][-1]
+    assert m2["startTime"] == "11:00", m2
+
+
+def test_agenda_errors_are_speakable():
+    """Round 3 [media]: the model parroted «set_reminder: no encuentro esa cita…» verbatim to the user.
+    The message is for the model, but it ends up in a mouth — it must survive being spoken."""
+    import inspect
+    import re as _re
+
+    from widgets.agenda import data as A
+    src = inspect.getsource(A.apply_action)
+    for err in _re.findall(r'"error": f?"([^"]+)"', src):
+        assert not _re.match(r"^\w+_?\w*:", err), f"un error con prefijo interno acaba en la boca: {err}"
