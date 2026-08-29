@@ -759,6 +759,24 @@ def mechanism_facts(mech: dict) -> str:
     # V2-399 — un worker cuyos PUENTES fallan no es un worker sin criterio. La forma catastrófica la ataja
     # el preflight (`bridge_allowlist_refusal`); ésta es la parcial, que hasta hoy solo viajaba en crudo.
     _wb = mech.get("worker_bridges") or {}
+    # V2-489 — ¿PREGUNTÓ A LA RED antes de abrir el navegador? Hasta hoy nada lo decía, y por eso el hecho de
+    # que la red MeshKore llevara 399 informes sin una sola consulta hubo que sacarlo a mano (V2-486/487). El
+    # dato ya se recogía (`by_bridge`); solo se publicaban sus ERRORES.
+    #
+    # Se enuncia como HECHO y con su límite dicho: la detección es por aparición del nombre del puente en el
+    # log de la sesión del worker, así que la PRESENCIA es fuerte y la AUSENCIA lo es menos (una sesión que no
+    # se pudo leer no distingue «no preguntó» de «no lo vimos»). Sin esa frase, un instrumento ciego acusaría
+    # al producto — que es la clase de falso defecto que ya costó seis acusaciones.
+    _usados = {k: v for k, v in (_wb.get("by_bridge") or {}).items() if v}
+    if _wb.get("read"):
+        if "mesh_cli" in _usados:
+            lines.append("· ✅ EL WORKER PREGUNTÓ A LA RED (`mesh_cli`) antes de buscar por su cuenta. Es el "
+                         "camino barato y sin navegador que el producto quiere primero: si la red le sirvió, "
+                         "que la ronda sea rápida NO es haber hecho menos trabajo.")
+        elif _usados:
+            lines.append(f"· ℹ️ El worker NO consultó la red (`mesh_cli`); usó {', '.join(sorted(_usados))}. Es "
+                         f"un hecho sobre el mecanismo, no una falta de conducta: puede que no hubiera agente "
+                         f"para este encargo. No lo puntúes por sí solo.")
     if _wb.get("errors"):
         _we = ", ".join(f"{k} ×{v}" for k, v in list(_wb["errors"].items())[:5])
         lines.append(f"· ⚠️ PUENTES DEL WORKER CON ERRORES: {_we}. El worker pide el navegador, la memoria "

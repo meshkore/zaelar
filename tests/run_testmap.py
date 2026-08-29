@@ -1780,7 +1780,11 @@ DOMAINS: list[dict] = [
         # El juez no puede contradecir su propio informe de mecanismo: un veredicto así manda al equipo del
         # motor a arreglar algo que no ocurrió, y en un bucle desatendido eso llena el tablero de trabajo falso.
         {"id": "10.5", "title": "El juez lee el mecanismo en prosa y no lo contradice",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_mechanism_facts.py"]},
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_mechanism_facts.py",
+                                  # V2-489: el informe dice si el worker PREGUNTÓ A LA RED antes de buscar
+                                  # por su cuenta. El dato ya se recogía y solo se publicaban sus errores —
+                                  # por eso los 399 informes sin una consulta hubo que sacarlos a mano.
+                                  "tests/use_cases/unit/test_the_report_says_if_the_network_was_asked.py"]},
         # Una acción que el turno DECIDIÓ y el sistema tiró (V2-171) tiene que llegar al juez: es la diferencia
         # entre «no lo intentó» y «lo intentó y le tiraron la orden», que desde un transcript se ven iguales.
         {"id": "10.6", "title": "Acciones descartadas: forma real del evento y que llegue al juez",
