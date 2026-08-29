@@ -5201,6 +5201,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Borrar el vector es TODA la reparación**: la pasada que sigue selecciona la fila justo porque ya no tiene,
     y la re-embebe en el espacio bueno. Marcarla `embed_pending` además es lo que hace CONTABLE en `hygiene()`
     un fallo al conseguirlo, en vez de silencioso.
+  - ⚠️ **La fusión CONSERVA, no ACUMULA — y esto NO cierra el frente de los favoritos.** Dije al cluster que
+    con los vectores sanos las ocho colapsan «en una con el peso de las ocho», y se subió a INI-026 como el
+    hecho que decidía. **Es falso**: `semantic_dedup` conserva la MEJOR e invalida el resto, y llama
+    `reinforce([keep], step=0.0)` — el `step=0.0` es explícito, sube `access_count` y resetea el decay, **el
+    peso no lo toca**. Simulado sobre copia de la base real con la regla de desempate del propio código:
+    Ferrari 8→1 sobrevive con **0,297**, guitarra 2→1 con **0,03**, corte del top-5 **0,446**, y el top-5 sale
+    **byte por byte idéntico**. Así que arreglar los vectores quita el ruido del RRF y siete duplicados, y
+    **no cambia quién llega al bloque pasivo**. Deduje que fundir acumula evidencia sin leer la rama de fusión,
+    y lo dije con la misma seguridad que los tres hechos que sí había medido.
   - **Abierto, y es lo que de verdad falta**: el guarda de escritura EXISTE y hoy FUNCIONA —reproducido: refusa
     y marca `sig_mismatch`—, así que esos 15 entraron por un **fail-open**, no por falta de guarda. Cuál de los
     dos (`_embed_sig_ok` cuando el import revienta, o `space_ok` cuando no encuentra el `.embedsig`) **no está
