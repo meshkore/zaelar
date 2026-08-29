@@ -414,3 +414,81 @@ def test_run_full_cycle_reports(fresh_db):
     assert set(rep) >= {"repaired", "sem_deduped", "insights", "hygiene", "ms"}
     # el marcador queda sembrado → el próximo due() respeta cadencia
     assert memrem.due() is False
+
+
+# ── V2-482 · un vector de ESPACIO AJENO se retira para que la reparación lo vea ─────────────────────────────
+#
+# `repair_embeddings` solo busca filas SIN vector, que es lo que deja el guarda de firma del writer. Una fila
+# cuyo vector ajeno se coló ANTES del guarda tiene vector, así que la pasada de reparación no la selecciona
+# jamás: el daño es permanente por construcción. Medido 2026-08-29 sobre la memoria viva del operador — 15
+# filas durables con un `_hash_embed` literal dentro de un índice sellado `ollama:embeddinggemma:768`.
+
+@pytest.fixture
+def sellado_gemma(monkeypatch):
+    """El índice declara un espacio REAL, y el backend activo de los tests es `hash` → todo vector hash que
+    haya dentro es ajeno. Se declara la precondición en vez de heredarla del entorno."""
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
+    monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
+
+
+def _vector_de(mid: int):
+    row = memdb.get_db().query_one("SELECT embedding FROM vec_memories WHERE memory_id=?", (mid,))
+    return memrem._unpack(row["embedding"]) if row else None
+
+
+def test_un_vector_hash_dentro_de_un_indice_sellado_se_retira(fresh_db, sellado_gemma):
+    mid = memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
+    assert _vector_de(mid) is not None                      # el writer lo metió con el backend hash activo
+    assert memrem._drop_foreign_vectors(memdb.get_db(), 100) == 1
+    assert _vector_de(mid) is None
+
+
+def test_la_fila_queda_MARCADA_para_que_hygiene_la_cuente(fresh_db, sellado_gemma):
+    mid = memwriter.insert_memory("Le interesa la guitarra.", level="long", kind="pref")
+    memrem._drop_foreign_vectors(memdb.get_db(), 100)
+    row = memdb.get_db().query_one(
+        "SELECT json_extract(meta,'$.embed_pending') AS p FROM memories WHERE id=?", (mid,))
+    assert row["p"] == "foreign_space"
+
+
+def test_un_vector_del_espacio_BUENO_no_se_toca(fresh_db, sellado_gemma):
+    mid = memwriter.insert_memory("Vive en Madrid.", level="long", kind="fact")
+    denso = [0.03] * mememb.dim()
+    memdb.get_db().execute("UPDATE vec_memories SET embedding=? WHERE memory_id=?",
+                           (memwriter._pack(denso), mid))
+    assert memrem._drop_foreign_vectors(memdb.get_db(), 100) == 0
+    assert _vector_de(mid) is not None
+
+
+def test_si_HASH_es_el_espacio_sellado_no_hay_nada_ajeno(fresh_db, monkeypatch):
+    """Dev, tests, una BD recién nacida: ahí los vectores hash son NATIVOS, no intrusos."""
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "stored_signature", lambda: "hash:hash:768")
+    memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
+    assert memrem._drop_foreign_vectors(memdb.get_db(), 100) == 0
+
+
+def test_sin_firma_sellada_no_se_llama_ajeno_a_nada(fresh_db, monkeypatch):
+    """Sin espacio declarado no hay nada respecto a lo que ser ajeno — borrar sería tirar el único canal
+    semántico que esa base tiene."""
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "stored_signature", lambda: None)
+    memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
+    assert memrem._drop_foreign_vectors(memdb.get_db(), 100) == 0
+
+
+def test_repair_embeddings_AHORA_alcanza_la_fila_con_vector_ajeno(fresh_db, sellado_gemma, monkeypatch):
+    """El camino entero: retirar el vector ajeno es lo que hace que la MISMA pasada lo re-embeba bien.
+
+    `embed` se sustituye por un vector denso porque en producción `_embed_sig_ok()` cierto significa que el
+    backend activo ES el sellado; con el `hash` de los tests, reparar devolvería otro vector ajeno."""
+    mid = memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
+    denso = [0.02] * mememb.dim()
+    monkeypatch.setattr(mememb, "embed", lambda _t: list(denso))
+    monkeypatch.setattr(mememb, "last_degraded", False)
+    assert memrem.repair_embeddings(limit=100) == 1
+    assert _vector_de(mid) == pytest.approx(denso)
+    row = memdb.get_db().query_one(
+        "SELECT json_extract(meta,'$.embed_pending') AS p FROM memories WHERE id=?", (mid,))
+    assert row["p"] is None                                 # reparada → el marcador se limpia

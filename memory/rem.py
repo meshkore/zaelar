@@ -97,6 +97,75 @@ def _repair_limit_default() -> int:
 
 
 # ── fase 1 · reparación de vectores ─────────────────────────────────────────────────────────────────────────
+#: A stored vector IS the hash of its own text. Both sides are L2-normalised, so a genuine match is 1.0 exactly;
+#: the margin is only there so float round-trips through `struct` cannot turn a match into a miss.
+_FOREIGN_MATCH = 0.999
+
+
+def _drop_foreign_vectors(db, limit: int) -> int:
+    """Delete vectors produced by the HASH backend from an index sealed for a real embedding model (V2-482).
+
+    `repair_embeddings` below only ever looks for rows with NO vector, because that is what the write guard
+    leaves behind: on a signature mismatch the writer refuses the vector and marks `meta.embed_pending`
+    (`writer._embed_sig_ok`). A row whose FOREIGN vector got past that guard HAS a vector, so the repair pass
+    never selects it and the damage is permanent by construction. The rows the guard caught heal on the next
+    sleep; these never do — and they are the worse half: a hash vector in an embeddinggemma index is noise
+    fused into the RRF on every semantic recall, and it is invisible to every count of `embed_pending`.
+
+    MEASURED 2026-08-29 on the operator's live memory: 15 durable rows carry a literal `_hash_embed` output
+    (cosine 1.0000 against a recomputation from their own text) inside an index sealed
+    `ollama:embeddinggemma:768`. The consequence was measured on the same rows: `semantic_dedup` can never
+    merge them, because its threshold is calibrated on embeddinggemma (0.82-0.90 between echoes of one fact,
+    see SEM_DEDUP_THRESHOLD) while hash collisions between those same sentences top out at 0.788. So the
+    operator's memory holds eight live copies of one taste, each decaying alone, none with the weight to reach
+    the passive block. The threshold is not what is wrong here — the vectors are, and this is where they die.
+
+    Only the HASH space is detectable this way, and that is the point rather than a shortfall: hash is the
+    emergency degradation target, so it is the space that leaks. A vector from a different REAL model is not
+    reproducible from the text, and keeping those out is the signature guard's job, not this one's.
+
+    Does nothing when hash IS the sealed space (dev, tests, a fresh DB) — there the vectors are native — nor
+    when nothing is sealed, because then there is no space to call anything foreign to. Deleting the vector is
+    the entire repair: the pass that follows selects the row precisely because it now has none, and re-embeds
+    it in the correct space. Marking `embed_pending` too is what makes a failure to do so COUNTABLE in
+    `hygiene()` instead of silent.
+    """
+    from . import embeddings as _emb
+    from . import reembed as _reembed
+    sealed = _reembed.stored_signature()
+    if not sealed or sealed.startswith("hash:"):
+        return 0
+    rows = db.query(
+        "SELECT m.id, m.text, v.embedding FROM memories m JOIN vec_memories v ON v.memory_id = m.id "
+        "WHERE m.valid=1 AND m.kind NOT IN ('conv') LIMIT ?", (limit,))
+    gone = 0
+    for r in rows:
+        txt = (r["text"] or "").strip()
+        if not txt:
+            continue
+        try:
+            stored = _unpack(r["embedding"])
+            hashed = _emb._l2_normalize(_emb._fit_dim(_emb._hash_embed(txt, len(stored)), len(stored)))
+            if _cos(stored, hashed) < _FOREIGN_MATCH:
+                continue
+            db.execute("DELETE FROM vec_memories WHERE memory_id=?", (r["id"],))
+            _writer._mark_embed_pending(db, r["id"], "foreign_space")
+            gone += 1
+        except Exception:  # noqa: BLE001
+            continue
+    if gone:
+        logger.warning(f"memoria: {gone} vectores de espacio ajeno (hash) retirados de un índice «{sealed}» "
+                       f"— se re-embeben en esta misma pasada")
+        try:
+            from voice import health_state
+            health_state.record("memory", "degraded",
+                                f"{gone} vectores de otro espacio retirados del índice: el recall semántico "
+                                f"estaba fusionando ruido en esas píldoras")
+        except Exception:  # noqa: BLE001
+            pass
+    return gone
+
+
 def repair_embeddings(limit: int | None = None) -> int:
     """Re-embebe píldoras válidas sin vector (o `meta.embed_pending`). Solo si la firma del backend activo casa
     con el índice (jamás repara metiendo vectores de otro espacio). Devuelve nº reparadas."""
@@ -105,6 +174,8 @@ def repair_embeddings(limit: int | None = None) -> int:
     db = _db.get_db()
     if not db.vec_available or not _writer._embed_sig_ok():
         return 0
+    # BEFORE the SELECT, never after: a foreign vector is exactly what hides its own row from it (V2-482).
+    _drop_foreign_vectors(db, limit)
     from . import embeddings as _emb
     rows = db.query(
         "SELECT m.id, m.text, m.meta FROM memories m LEFT JOIN vec_memories v ON v.memory_id = m.id "
