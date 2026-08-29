@@ -94,3 +94,69 @@ def test_critical_facts_reader(fresh_db):
     facts = memapi.critical_facts()
     joined = " ".join(facts).lower()
     assert "penicilina" in joined and "marcapasos" in joined
+
+
+# ── V2-491 · una frase deja DOS píldoras críticas, y el corte se aplicaba a PÍLDORAS ────────────────────────
+#
+# La destilada por el CORAZÓN y la literal de la red de salud (`ingest.py`) son textos DISTINTOS, así que el
+# dedup por cadena exacta no las colapsaba y cada hecho ocupaba dos de las seis plazas. Medido: con cuatro
+# hechos críticos distintos, el cuarto DESAPARECE de la línea más prominente del prompt.
+
+def _par(destilada: str, cruda: str) -> None:
+    """Las dos píldoras que una sola frase del operador deja hoy: la del CORAZÓN (con `meta.raw`) y la que
+    guarda la red de seguridad de salud (el enunciado literal, sin `raw`)."""
+    writer.insert_memory(destilada, level="long", kind="fact",
+                         meta={"source": "voice", "path": "llm", "raw": cruda[:120]})
+    writer.insert_memory(cruda, level="long", kind="fact", meta={"source": "voice", "path": "health-net"})
+
+
+def test_la_copia_de_la_red_no_expulsa_a_otro_hecho_critico(fresh_db):
+    from memory import _prompt
+    _par("El operador es celíaco y no puede comer nada con gluten.",
+         "Oye, apúntate una cosa mía: soy celíaco, no puedo tomar nada con gluten.")
+    _par("Es alérgico a los frutos secos.", "Soy alérgico a los frutos secos, ojo.")
+    _par("Es diabético y se pincha insulina.", "Soy diabético.")
+    _par("Lleva marcapasos desde 2019.", "Llevo marcapasos, que lo sepas.")
+    crit = " · ".join(_prompt.critical_facts(limit=6)).lower()
+    for tema in ("celíac", "frutos secos", "diabét", "marcapasos"):
+        assert tema in crit, f"«{tema}» expulsado de la línea crítica por una copia"
+
+
+def test_sobrevive_la_DESTILADA_y_no_el_enunciado_crudo(fresh_db):
+    from memory import _prompt
+    _par("El operador es celíaco y no puede comer nada con gluten.",
+         "Oye, apúntate una cosa mía: soy celíaco, no puedo tomar nada con gluten.")
+    crit = _prompt.critical_facts(limit=6)
+    assert len(crit) == 1
+    assert crit[0].startswith("El operador es celíaco")
+
+
+def test_DOS_ALERGIAS_DISTINTAS_siguen_conviviendo(fresh_db):
+    """La dirección contraria, y es la que importa: aquí un falso positivo BORRA una restricción médica.
+    Deduplicar por PARECIDO se midió y se descartó — el par que sí debe fundirse puntúa POR DEBAJO de éstos."""
+    from memory import _prompt
+    for t in ("Es alérgico a los frutos secos.", "Es alérgico al marisco.", "Es alérgico a la penicilina."):
+        writer.insert_memory(t, level="long", kind="fact")
+    crit = " · ".join(_prompt.critical_facts(limit=6)).lower()
+    assert "frutos secos" in crit and "marisco" in crit and "penicilina" in crit
+
+
+def test_una_pildora_que_declara_su_origen_NUNCA_se_retira(fresh_db):
+    """Solo se retira la COPIA — la que no dice de dónde viene. Si se retirara la destilada, el hecho se
+    quedaría en el prompt con las palabras del operador en vez de con el dato limpio, o peor: sin ninguna."""
+    from memory import _prompt
+    writer.insert_memory("Es celíaco.", level="long", kind="fact",
+                         meta={"source": "voice", "path": "llm", "raw": "Es celíaco."})
+    crit = _prompt.critical_facts(limit=6)
+    assert crit == ["Es celíaco."]
+
+
+def test_un_enunciado_MAS_LARGO_que_el_recorte_sigue_reconociendose(fresh_db):
+    """`meta.raw` viaja recortado a 120 caracteres, así que la copia se reconoce por PREFIJO. Sin eso, toda
+    frase larga del operador volvería a ocupar dos plazas."""
+    from memory import _prompt
+    larga = ("Oye, apúntate una cosa importante sobre mí que conviene que tengas siempre presente: "
+             "soy celíaco y no puedo tomar absolutamente nada que lleve gluten, ni una miga.")
+    assert len(larga) > 120
+    _par("El operador es celíaco y no puede comer nada con gluten.", larga)
+    assert _prompt.critical_facts(limit=6) == ["El operador es celíaco y no puede comer nada con gluten."]

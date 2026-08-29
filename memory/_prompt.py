@@ -350,21 +350,52 @@ def critical_facts(limit: int = 8) -> list[str]:
     por el guard del writer. Lectura DIRECTA. Van a una LÍNEA PROPIA del estado (compose_state) que se surface
     SIEMPRE — nunca dependen del ranking/cap de `salient_long`: olvidar una alergia bajo densidad es un fallo de
     seguridad (auditoría de memoria 2026-07-14, hallazgo del corpus v3: la penicilina se enterraba bajo ~130
-    píldoras). Solo válidos y durables; dedup por texto normalizado (varias alergias distintas SÍ coexisten)."""
+    píldoras). Solo válidos y durables; dedup por texto normalizado (varias alergias distintas SÍ coexisten).
+
+    UNA FRASE DEL OPERADOR DEJA DOS PÍLDORAS CRÍTICAS, y el corte se aplicaba a PÍLDORAS (V2-491, 2026-08-29):
+    la destilada por el CORAZÓN (`meta.path='llm'`) y la literal que guarda la red de seguridad de salud
+    (`path='health-net'`, `ingest.py`). El dedup era por cadena EXACTA, así que no colapsan — son textos
+    distintos — y cada hecho ocupa DOS plazas de las 6. Medido sembrando cuatro hechos críticos distintos por su
+    camino real (celiaquía, frutos secos, diabetes, marcapasos): **el marcapasos DESAPARECE**, expulsado de la
+    línea más prominente del prompt por las copias de los otros tres. Es exactamente el fallo que esta línea
+    existe para evitar, cometido por su propio cap.
+
+    **El enlace es EXACTO, no un parecido**, y eso es lo que lo hace seguro: la píldora destilada guarda en
+    `meta.raw` la frase del operador (`ingest.py`, recortada a 120), y el texto de la píldora de la red ES esa
+    frase. Así que se retira la copia cuando otra píldora crítica declara haber nacido de ella.
+
+    ⚠️ **Deduplicar por PARECIDO se probó y se descartó con números**, porque aquí un falso positivo BORRA una
+    restricción: sobre pares reales, el que SÍ debe fundirse (destilada vs literal de la celiaquía) puntúa
+    jaccard 0,30 / cobertura 0,50, y los que JAMÁS deben fundirse —«alérgico a los frutos secos» vs «alérgico al
+    marisco», penicilina vs ibuprofeno— puntúan 0,25-0,33 / 0,50. **Ningún umbral los separa**, así que no hay
+    umbral bueno: solo el enlace por procedencia."""
     try:
         rows = _db.get_db().query(
-            "SELECT text FROM memories WHERE valid=1 AND level IN ('mid','long') "
+            "SELECT text, json_extract(meta,'$.raw') AS raw FROM memories "
+            "WHERE valid=1 AND level IN ('mid','long') "
             "AND json_extract(meta,'$.critical')='health' ORDER BY (importance*weight) DESC, updated DESC LIMIT ?",
+            # El margen se queda en *2, el de siempre: subirlo parecía necesario «para las copias que se van a
+            # retirar» y NINGÚN caso lo respalda — las destiladas pesan 0,95 y las copias 0,7, así que las que
+            # sobreviven al ranking son justo las que se conservan. Un margen sin caso que lo exija es una
+            # constante que nadie podrá volver a justificar.
             (int(limit) * 2,))
     except Exception:
         return []
+    _plano = lambda t: " ".join((t or "").lower().split())
+    # Frases del operador que ALGUNA píldora crítica declara como origen suyo.
+    origenes = {_plano(r["raw"]) for r in rows if (r["raw"] or "").strip()}
     out, seen = [], set()
     for r in rows:
         t = (r["text"] or "").strip()
-        k = " ".join(t.lower().split())
-        if t and k not in seen:
-            seen.add(k)
-            out.append(t)
+        k = _plano(t)
+        if not t or k in seen:
+            continue
+        # El `raw` viaja recortado a 120, así que la copia se reconoce por PREFIJO: una frase más larga que el
+        # recorte seguiría siendo la misma frase.
+        if any(o and (k == o or k.startswith(o)) for o in origenes) and not (r["raw"] or "").strip():
+            continue
+        seen.add(k)
+        out.append(t)
         if len(out) >= limit:
             break
     return out
