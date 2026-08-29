@@ -173,3 +173,57 @@ def test_con_el_espacio_ESTABLE_el_camino_sano_no_cambia(fresh_db, monkeypatch):
     mid = memwriter.insert_memory("Vive en Madrid.", level="long", kind="fact")
     assert memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,)) is not None
     assert _marca(mid) is None
+
+
+# ── V2-485 · el nodo-concepto escribía su vector SIN ningún guarda ──────────────────────────────────────────
+#
+# Ni carrera ni permiso rancio: `_get_or_create_concept` insertaba en `vec_memories` sin mirar la firma ni la
+# degradación. Por ahí entraron los 9 vectores fastembed (384 rellenados a 768) del índice del operador, todos
+# nodos-concepto. El nodo tiene que seguir naciendo — es un hub del grafo — y lo que se difiere es su vector.
+
+def _concepto(nombre: str):
+    return memdb.get_db().query_one(
+        "SELECT id FROM memories WHERE kind='concept' AND lower(text)=? LIMIT 1", (nombre,))
+
+
+def test_un_concepto_NO_recibe_vector_de_otro_espacio(fresh_db, sellado_gemma, monkeypatch):
+    from memory import embeddings as mememb
+    _con_ollama_vivo()
+    monkeypatch.setattr(mememb, "_backend", "hash")          # el índice dice gemma, el backend ya no
+    memwriter.insert_memory("Toca la guitarra.", level="long", kind="fact", concepts=["guitarra"])
+    c = _concepto("guitarra")
+    assert c is not None                                     # el HUB nace igual: sin él el grafo no cose
+    assert memdb.get_db().query_one(
+        "SELECT 1 FROM vec_memories WHERE memory_id=?", (c["id"],)) is None
+    assert _marca(c["id"]) == "sig_mismatch"                 # y queda CONTABLE para el sueño
+
+
+def test_un_concepto_NO_recibe_vector_de_un_backend_caido_en_caliente(fresh_db, monkeypatch):
+    """La otra mitad del gate: `last_degraded` también faltaba en este camino.
+
+    La bandera se pone DENTRO de `embed_batch`, así que dejarla puesta de antemano no sirve — la propia
+    llamada la recalcula. Se simula como ocurre de verdad: la caída se declara al producir el vector."""
+    from memory import embeddings as mememb
+
+    def _embed_que_se_cae(t):
+        mememb.last_degraded = True                          # backend real caído en caliente → hash de emergencia
+        return mememb._l2_normalize(mememb._fit_dim(mememb._hash_embed(t, 768), 768))
+
+    monkeypatch.setattr(mememb, "embed", _embed_que_se_cae)
+    memwriter.insert_memory("Le gusta el pádel.", level="long", kind="fact", concepts=["deporte"])
+    c = _concepto("deporte")
+    assert c is not None
+    assert memdb.get_db().query_one(
+        "SELECT 1 FROM vec_memories WHERE memory_id=?", (c["id"],)) is None
+    assert _marca(c["id"]) == "degraded"
+
+
+def test_con_el_espacio_sano_el_concepto_SI_recibe_su_vector(fresh_db):
+    """Sin esto, «no escribas vectores malos» se satisface no escribiendo ninguno — y un concepto sin vector
+    no lo encuentra una consulta de categoría, que es para lo que existe el nodo."""
+    memwriter.insert_memory("Le gusta el buceo.", level="long", kind="fact", concepts=["ocio"])
+    c = _concepto("ocio")
+    assert c is not None
+    assert memdb.get_db().query_one(
+        "SELECT 1 FROM vec_memories WHERE memory_id=?", (c["id"],)) is not None
+    assert _marca(c["id"]) is None

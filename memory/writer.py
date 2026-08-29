@@ -394,7 +394,20 @@ def _get_or_create_concept(db, name: str) -> int | None:
             if db.fts_available:
                 cur.execute("INSERT INTO fts_memories (rowid, text) VALUES (?, ?)", (cid, n))
         if db.vec_available:
-            db.execute("INSERT INTO vec_memories (memory_id, embedding) VALUES (?, ?)", (cid, _pack(_emb.embed(n))))
+            # El MISMO gate que la píldora (V2-484). Este camino insertaba el vector sin comprobar NADA — ni la
+            # firma del índice ni la degradación en caliente — así que no es una carrera ni un permiso rancio:
+            # aquí nunca hubo guarda. Por aquí entraron los 9 vectores fastembed (384 rellenados a 768) que
+            # tiene el índice del operador, y son TODOS nodos-concepto («familia», «guitar», «trabajo»…).
+            # El nodo se crea igual: es un hub del grafo y sin él `_link_concepts` no puede coser nada. Lo que
+            # se difiere es su VECTOR, que es justo lo que `repair_embeddings` sabe recuperar — y se marca para
+            # que mientras tanto sea CONTABLE en `hygiene()` en vez de un hueco mudo.
+            vec = _emb.embed(n)
+            if getattr(_emb, "last_degraded", False):
+                _mark_embed_pending(db, cid, "degraded")
+            elif not _embed_sig_ok():
+                _mark_embed_pending(db, cid, "sig_mismatch")
+            else:
+                db.execute("INSERT INTO vec_memories (memory_id, embedding) VALUES (?, ?)", (cid, _pack(vec)))
         return int(cid)
     except Exception:
         return None
