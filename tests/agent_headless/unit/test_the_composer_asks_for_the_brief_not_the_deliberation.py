@@ -88,14 +88,37 @@ def test_the_composer_actually_asks_for_it(monkeypatch):
 
 def test_and_the_relay_asks_for_it_too(monkeypatch):
     """The relay rung is where this would rot unnoticed: it only runs when the titular is already down, so a
-    thinking brief there would be a second, rarer, undiagnosable «respuesta ilegible»."""
-    import inspect
+    thinking brief there would be a second, rarer, undiagnosable «respuesta ilegible».
 
-    src = inspect.getsource(__import__("nucleo.research", fromlist=["compose"]).compose)
-    calls = [ln for ln in src.splitlines() if "FastClient().complete(" in ln]
-    assert len(calls) == 2, f"the composer no longer has two rungs ({len(calls)}) — check this test still applies"
-    body = src[src.index("_pc_retry.spec_for(_relay)"):]
-    assert "no_thinking=True" in body.split(")", 2)[0] + body.split(")", 2)[1], \
+    Rewritten 2026-08-29 (V2-488). It used to read the SOURCE of `compose` and grep for `no_thinking=True`
+    after `_pc_retry.spec_for(_relay)`. That check went red on a refactor that PRESERVED the behaviour — both
+    rungs now go through one helper, which is the very thing that keeps them from drifting apart — and it
+    would have gone GREEN on any refactor that kept the substring and broke the call. This codebase already
+    paid for that lesson once: a guard that only grepped a substring survived its rule being mutated to
+    `if False and …`. So it asks the FUNCTION now, not the file."""
+    from nucleo import research
+
+    llamadas: list[dict] = []
+
+    async def _fake_complete(self, messages, *, spec=None, max_tokens=None, tools=None, on_tool_call=None,
+                             no_thinking=False):
+        llamadas.append({"no_thinking": no_thinking, "spec": spec})
+        if len(llamadas) == 1:
+            raise RuntimeError("429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at "
+                               "2026-09-01 01:39:02]")
+        return '{"goal": "g", "breadth": {"min_candidates": 3}, "rubric": ["r"]}'
+
+    _relevo = {"name": "relevo-de-prueba"}
+    monkeypatch.setattr(FastClient, "complete", _fake_complete)
+    monkeypatch.setattr(research, "_spec", lambda: (_zai_spec(), "titular"))
+    monkeypatch.setattr(research, "enabled", lambda: True)
+    monkeypatch.setattr(research, "_note_provider_failure", lambda exc, tier: _relevo)
+    import nucleo.flash.provider_chain as _pc
+    monkeypatch.setattr(_pc, "spec_for", lambda tier: _zai_spec())
+
+    asyncio.run(research.compose("búscame un fontanero"))
+    assert len(llamadas) == 2, f"el relevo no llegó a pedir nada ({len(llamadas)} llamada/s)"
+    assert llamadas[1]["no_thinking"] is True, \
         "the relay rung composes WITH thinking — the same truncation, only rarer"
 
 

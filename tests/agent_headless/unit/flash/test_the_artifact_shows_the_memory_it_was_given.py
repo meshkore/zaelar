@@ -26,8 +26,18 @@ MARCA = "PILDORA_DE_FONDO_MARCADOR"
 RECALL = f"Puede que venga a cuento (de tu memoria):\n· {MARCA}"
 
 
-def _prompt(recent: str = "") -> str:
-    s, _ = fp.build_flash_system(recall_block=RECALL, recent_block=recent)
+# El ESTADO compartido se lee de la BASE, así que sin control el prompt mide una cosa distinta en cada máquina
+# —y en la corrida completa del mapa, otra suite puede dejar apuntando una base con memoria de verdad—. Este
+# caso mide el RECORTE, no cuánta memoria tenga quien lo corra: con el estado suelto salía verde en solitario y
+# rojo en el mapa entero (2026-08-29), que es la forma exacta de un test que mide su entorno.
+_ESTADO = ("── QUIÉN ERES ──\nEres zaelar.\n\n── QUIÉN TIENES DELANTE ──\nEl operador se llama Marc.")
+
+
+def _prompt(recent: str = "", estado: str = _ESTADO) -> str:
+    import unittest.mock as _mock
+    from nucleo.flash import memory_cache
+    with _mock.patch.object(memory_cache, "get", lambda: (estado, "Marc")):
+        s, _ = fp.build_flash_system(recall_block=RECALL, recent_block=recent)
     return s
 
 
@@ -84,3 +94,30 @@ def test_la_cola_sigue_cubriendo_el_estado_vivo(cabeza, cola):
     ex = ob._prompt_excerpt(s + "y" * 20000)
     assert cola >= 7000
     assert ex.endswith("y" * 100)
+
+
+# ── el margen, dicho como NÚMERO ─────────────────────────────────────────────────────────────────────────────
+# El caso de arriba pasa o falla según cuánto ocupe lo que va DELANTE del recall, y eso crece solo: cada bloque
+# nuevo del estado (V2-490 añadió uno) empuja la memoria hacia el centro recortado. Un booleano no avisa de que
+# el margen se está agotando — avisa cuando ya se agotó, y entonces el artefacto lleva tiempo mintiendo.
+
+def test_el_MARGEN_hasta_el_recorte_se_mide_y_no_se_agota():
+    """Sensibilidad de la de arriba: no basta con que HOY quepa."""
+    s = _prompt("CONVERSACIÓN RECIENTE:\n" + ("· una línea de charla previa\n" * 60))
+    pos = s.find(MARCA)
+    assert pos >= 0
+    margen = ob._HEAD_CHARS - pos
+    assert margen > 400, (
+        f"la memoria enseñada queda a {margen} caracteres de caerse del artefacto. No ha fallado todavía, y por "
+        f"eso hay que mirarlo ahora: cuando falle, un verificador dirá «limpio» sobre un prompt sucio.")
+
+
+def test_un_ESTADO_grande_empuja_la_memoria_fuera_y_hay_que_saberlo():
+    """La otra dirección, y es la que ocurre en producción: un operador con mucha memoria durable tiene un
+    bloque de estado largo. Esto NO afirma que hoy pase — afirma que el recorte es por POSICIÓN, así que el
+    riesgo existe y no depende de nada que se pueda arreglar con un techo más alto."""
+    enorme = _ESTADO + "\n" + ("· un hecho durable más sobre la persona\n" * 300)
+    s = _prompt(estado=enorme)
+    assert MARCA in s, "el bloque de recall ya no viaja en el prompt: esto sería otro fallo"
+    assert MARCA not in ob._prompt_excerpt(s), (
+        "si esto pasa a ser verde, el recorte ha dejado de ser por posición y este aviso sobra")
