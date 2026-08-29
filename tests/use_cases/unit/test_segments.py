@@ -246,3 +246,15 @@ def test_a_parked_twin_is_a_real_case_with_a_reason_and_a_sibling():
         assert len(reason.strip()) >= 40, f"aparcado sin razón escrita: {sid}"
         twins = {s.id for s in SC.all_scenarios() if PH.bare(s.id) == PH.bare(sid)} - {sid}
         assert twins, f"{sid} se aparca por entorno pero no tiene gemelo que pruebe la capacidad"
+
+
+def test_the_two_scoreboard_surfaces_agree_on_what_is_parked():
+    """The Observatory page and STATUS.md read ONE dataset; a distinction added to only one of them does not
+    fail with noise, it fails coming out EMPTY on the other — the failure mode this repo has already paid for
+    with observability. This holds them to the same source (`phases.parked_reason`)."""
+    from tests.use_cases.e2e.agent import phases as PH
+    from tests.use_cases.e2e.agent import status as ST
+
+    for sid in PH.GEO_PARKED:
+        assert ST._parked_reason(sid) == PH.parked_reason(sid), sid
+    assert ST._parked_reason("quick-fact-opening-hours") == ""

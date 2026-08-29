@@ -239,6 +239,16 @@ def _state(overall, r: dict) -> str:
 _ICON = {"PASS": "✅", "FAIL": "❌", "INFRA": "⚠️", "CAPPED": "🔒"}
 
 
+def _parked_reason(scenario_id: str) -> str:
+    """The operator-owned environmental parking reason, or "" — guarded so an unreadable boundary cannot
+    blank the board."""
+    try:
+        from . import phases as _ph
+        return _ph.parked_reason(scenario_id)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 #: Cómo abre el juez cuando su conclusión es que NO. Se mira solo el ARRANQUE del veredicto: en el cuerpo la
 #: misma frase aparece a menudo negada («no está listo… salvo por») y buscarla en cualquier sitio marcaría
 #: filas que dicen lo contrario.
@@ -311,14 +321,25 @@ def _render(led: dict) -> None:
             f"{overall if overall is not None else '—'} | {_brain_cell(e)} | {e.get('last_run', '—')} | "
             f"{'yes' if e.get('sandboxed') else 'no'} | {verdict} |")
 
-    passed = sum(1 for e in scen.values() if e.get("state") == "PASS")
-    failed = sum(1 for e in scen.values() if e.get("state") == "FAIL")
-    infra = sum(1 for e in scen.values() if e.get("state") == "INFRA")
     capped = [s for s, e in scen.items() if e.get("state") == "CAPPED"]
+    # Parked for an ENVIRONMENTAL wall (phases.GEO_PARKED): same treatment as capped, different reason — the
+    # blocker is the outside world of THAT locale and the sibling twin proves the capability. Rendered here as
+    # well as in the Observatory on purpose: this board and that page read ONE dataset, and a distinction added
+    # to only one of the two surfaces does not fail with noise — it fails by coming out empty on the other.
+    parked = [s for s in scen if _parked_reason(s)]
+    countable = {s: e for s, e in scen.items() if s not in capped and s not in parked}
+    passed = sum(1 for e in countable.values() if e.get("state") == "PASS")
+    failed = sum(1 for e in countable.values() if e.get("state") == "FAIL")
+    infra = sum(1 for e in countable.values() if e.get("state") == "INFRA")
     # The denominator is the cases we CAN finish. Counting the capped ones in turned the board into a tally of
     # perpetual debt: every batch measured them again and they came back red, with nothing to fix.
     lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of "
-                  f"{len(scen) - len(capped)} scenarios we can actually finish."]
+                  f"{len(countable)} scenarios we can actually finish."]
+    if parked:
+        lines += ["", "Plus **" + str(len(parked)) + " 🌍 parked** for an environmental wall a user in that "
+                      "country would not hit (the sibling twin proves the capability). Visible, not counted, "
+                      "each with its reason:"]
+        lines += [f"- `{s}` — {_parked_reason(s)}" for s in sorted(parked)]
     if capped:
         good = sum(1 for s in capped if (scen[s].get("overall") or 0) >= PASS_THRESHOLD)
         lines += ["", f"Plus **{len(capped)} 🔒 capped** (need the user's own credentials; measured for honesty "
@@ -442,8 +463,9 @@ def summary_line() -> str:
     scen = (load().get("scenarios") or {})
     if not scen:
         return "no recorded results yet"
-    passed = sum(1 for e in scen.values() if e.get("state") == "PASS")
-    return f"{passed}/{len(scen)} scenarios passing (see tests/use_cases/STATUS.md)"
+    countable = {s: e for s, e in scen.items() if not _parked_reason(s)}
+    passed = sum(1 for e in countable.values() if e.get("state") == "PASS")
+    return f"{passed}/{len(countable)} scenarios passing (see tests/use_cases/STATUS.md)"
 
 
 def attach_workspaces(mapping: dict) -> None:
