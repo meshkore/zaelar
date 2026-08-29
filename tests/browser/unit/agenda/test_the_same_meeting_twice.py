@@ -71,3 +71,20 @@ def test_a_title_made_only_of_articles_never_matches_anything():
     _add("el")
     _add("la")
     assert len(_meetings()) == 2
+
+
+def test_a_title_contained_in_the_other_at_the_same_instant_is_the_same_meeting():
+    """V2-473 round 6 (the PASS round's remaining [media]): «Llevar a los niños al dentista» and
+    «Dentista niños», same day and hour, landed as two meetings with two reminders. At the SAME
+    date+time, one title's meaningful tokens being a subset of the other's is the same commitment —
+    nobody has two distinct appointments at the same instant whose names contain each other."""
+    from widgets.agenda import data as ag
+    a = {"title": "Llevar a los niños al dentista", "date": "2099-09-08", "startTime": "15:00"}
+    b = {"title": "Dentista niños", "date": "2099-09-08", "startTime": "15:00"}
+    assert ag._is_same_meeting(a, b) and ag._is_same_meeting(b, a)
+    # different instant → two meetings, contained title or not
+    c = {"title": "Dentista niños", "date": "2099-09-08", "startTime": "10:00"}
+    assert not ag._is_same_meeting(a, c)
+    # same instant but DISJOINT titles stays two meetings (a double-booked hour is the user's business)
+    d = {"title": "Peluquería", "date": "2099-09-08", "startTime": "15:00"}
+    assert not ag._is_same_meeting(a, d)

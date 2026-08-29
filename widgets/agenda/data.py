@@ -44,13 +44,23 @@ def _title_key(title: str) -> str:
 
 
 def _is_same_meeting(a: dict, b: dict) -> bool:
-    """Same day, same start time and the same title once the noise is gone."""
+    """Same day, same start time and the same title once the noise is gone.
+
+    V2-473 round 6: at the SAME instant, one title's meaningful tokens being a SUBSET of the other's is
+    also the same commitment («Llevar a los niños al dentista» vs «Dentista niños» landed as two meetings
+    with two reminders). Disjoint titles at the same hour stay two meetings — a double-booked hour is the
+    user's business, not ours to merge."""
     if str(a.get("date") or "") != str(b.get("date") or ""):
         return False
     if str(a.get("startTime") or "") != str(b.get("startTime") or ""):
         return False
     ka, kb = _title_key(a.get("title")), _title_key(b.get("title"))
-    return bool(ka) and ka == kb
+    if not ka or not kb:
+        return False
+    if ka == kb:
+        return True
+    sa, sb = set(ka.split()), set(kb.split())
+    return sa <= sb or sb <= sa
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WIDGET_ID = "agenda"
