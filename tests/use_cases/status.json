@@ -2234,38 +2234,27 @@
       }
     },
     "find-best-hotel-city__us": {
-      "last_run": "2026-08-29 19:22",
+      "last_run": "2026-08-29 20:06",
       "overall": 2,
       "judge": "glm-4.6",
       "brain": "deepseek-v4-flash",
       "state": "INFRA",
       "infra_reason": "recall semántico DEGRADADO en esta ronda (backend: fastembed)",
       "scores": {
-        "naturalidad": 5,
+        "naturalidad": 4,
         "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 4,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador principal es la incapacidad del cerebro para leer y filtrar correctamente su propia hoja de resultados, lo que provocó que ocultara opciones válidas al usuario.",
+      "verdict": "No está listo para producción. El bloqueador principal es que el sistema falla en completar el objetivo esencial: no pudo extraer ni presentar un solo hotel concreto que cumpliera los criterios, entregando en su lugar enlaces a listados externos.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argument cmd: invalid choice: 'help' (choose · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli help`"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «🧭 navegador»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
-      "turns_used": 7,
+      "turns_used": 6,
       "families": [
         "flash",
         "memory",
@@ -2275,9 +2264,11 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "2daca19",
-        "n_dirty": 2,
+        "sha": "e4e92bb",
+        "n_dirty": 4,
         "dirty": [
+          "memory/reembed.py",
+          "memory/writer.py",
           "widgets/entrenamientos/",
           "widgets/inversiones/golden.json"
         ]
@@ -2286,7 +2277,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
+            "size": "42 GB"
           }
         ],
         "n": 1
@@ -3757,7 +3748,60 @@
         ],
         "n": 1
       }
+    },
+    "knows-who-i-am-without-being-told-again": {
+      "last_run": "2026-08-29 20:07",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "INFRA",
+      "infra_reason": "recall semántico DEGRADADO en esta ronda (backend: fastembed)",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 1,
+        "resultado": 1,
+        "mecanismo": 5,
+        "eficiencia": 3
+      },
+      "verdict": "No está listo para producción para este caso de uso; el bloqueador número uno es la incapacidad para recordar y aplicar proactivamente una restricción de salud crítica sembrada en memoria, lo que genera respuestas inadecuadas y requiere corrección por parte del usuario.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "tier": 1,
+      "turns_used": 6,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "e4e92bb",
+        "n_dirty": 4,
+        "dirty": [
+          "memory/reembed.py",
+          "memory/writer.py",
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "41 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-483-uc-knows-who-i-am-without-being-told-again.md",
+        "task": ".meshkore/modules/nucleo/tasks/T495-uc-knows-who-i-am-without-being-told-again-fix.md"
+      }
     }
   },
-  "updated": "2026-08-29 19:25"
+  "updated": "2026-08-29 20:07"
 }
