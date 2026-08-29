@@ -5157,6 +5157,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en vivo con el motor del operador** (abrir /m headless competiría por el candado de voz); la nube no lo tiene
   hasta la próxima release.
 
+- **El arranque en frío enseñaba claves i18n crudas — y la leyenda buena llegaba sin que la viera nadie
+  (V2-481, 2026-08-29)**: pendiente conocido desde que se desplegó el móvil. Son **DOS** defectos y arreglar uno
+  solo no arregla nada. (1) `t()` cae al bundle inglés y si tampoco está muestra la CLAVE —correcto en una
+  pantalla cargada— y en el arranque en frío `/api/i18n/bundle` no contesta todavía, así que el **primer
+  pantallazo de quien acaba de instalar la PWA** era `boot.encendiendo`. (2) `LABELS` del `BootOverlay` era un
+  literal de módulo, así que `t()` corría UNA vez **al importar el fichero**: cuando el motor por fin
+  contestaba, la cadena buena llegaba y no la veía nadie — el mismo patrón que V2-124 midió en el móvil. El
+  suelo (`BOOT_FLOOR`) es **estrecho a propósito** (solo lo que se pinta antes de que el motor conteste) y
+  **byte-idéntico al bundle base**, con guarda: si dijera algo distinto la leyenda cambiaría de frase a mitad
+  del arranque. ⚠️ La primera versión del guarda solo leía la constante y **pasaba con el suelo desarmado** —
+  un guarda que comprueba que el código EXISTE no comprueba que se USE; el bueno enchufa el módulo real sin
+  ningún bundle. Nodo 4.1.
+
 - **Cinco filas eran pocas, y decirle que hay más no es enseñárselas (V2-479, 2026-08-29)**: `_sheet_top_rows`
   empujaba al prompt como mucho **5** filas de la hoja. Medido dos veces: `search-buy-camera__es` tenía CATORCE
   candidatos y cuatro de las cinco mostradas eran accesorios (V2-374); `find-best-hotel-city__us` ronda 6 tenía
