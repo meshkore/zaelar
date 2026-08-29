@@ -155,7 +155,7 @@ def test_a_successful_errand_teaches_the_route(monkeypatch, tmp_path):
                                   intent: {"at": 9e9, "agent": {"agent_id": agent["agent_id"],
                                                                 "endpoint": agent["endpoint"]}}}))
     monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "agents": [FREE]})
-    monkeypatch.setattr(m, "ask", lambda agent, prompt: {"ok": True, "data": {"count": 10}})
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {"count": 10}})
     assert m.serve("hotel in Madrid")["ok"] is True
     assert m.route_for("bookings.hotels")["agent_id"] == "roomrover"
 
@@ -166,7 +166,7 @@ def test_a_learned_route_is_tried_first(monkeypatch):
     monkeypatch.setattr(m, "_routes", lambda: {"bookings.hotels": {"at": _t.time(), "agent": cached}})
     monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "agents": [PAID]})
     order = []
-    monkeypatch.setattr(m, "ask", lambda agent, prompt: (order.append(agent["agent_id"]),
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: (order.append(agent["agent_id"]),
                                                          {"ok": True, "data": {}})[1])
     monkeypatch.setattr(m, "remember_route", lambda *a: None)
     m.serve("hotel in Madrid")

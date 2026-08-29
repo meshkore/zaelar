@@ -46,6 +46,11 @@ def main(argv: list[str] | None = None) -> int:
     p_serve = sub.add_parser("serve", help="buscar Y pedirlo, reutilizando la ruta ya aprendida")
     p_serve.add_argument("errand")
     p_serve.add_argument("--prompt", default="", help="el encargo con FECHAS ABSOLUTAS y todos los datos")
+    # V2-487 · repetible: `--field city=New York --field country_code=US`. Un agente que rechaza el texto libre
+    # contesta 400 diciendo QUÉ campos quiere (`agent_asks`); esto es por dónde se le vuelve a preguntar. Aquí
+    # no hay esquema de nada: la clave y el valor los pone quien tiene el encargo.
+    p_serve.add_argument("--field", action="append", default=[], metavar="CLAVE=VALOR",
+                         help="campo estructurado del propio agente; repetible")
 
     a = ap.parse_args(argv)
     try:
@@ -65,7 +70,18 @@ def main(argv: list[str] | None = None) -> int:
                                      for x in res.get("agents") or []]}, ensure_ascii=False))
         return 0
 
-    res = mesh_agents.serve(a.errand, a.prompt or a.errand)
+    campos: dict = {}
+    for par in a.field or []:
+        clave, sep, valor = str(par).partition("=")
+        if not sep or not clave.strip():
+            print(json.dumps({"ok": False, "reason": f"`--field {par}` no tiene la forma clave=valor"},
+                             ensure_ascii=False))
+            return 0
+        valor = valor.strip()
+        # Un número enviado como texto lo rechazan algunos agentes (`adults: "2"`), y convertirlo aquí no
+        # supone nada del dominio: es la forma del valor, no su significado.
+        campos[clave.strip()] = int(valor) if valor.lstrip("-").isdigit() else valor
+    res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None)
     print(json.dumps(res, ensure_ascii=False, default=str))
     return 0
 

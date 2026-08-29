@@ -292,6 +292,15 @@ DOMAINS: list[dict] = [
             # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
             # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
             "tests/agent_headless/unit/test_mesh_agents.py",
+            # V2-486/487 (2026-08-29): la red estaba construida y verificada en vivo, y NO se consultó ni
+            # una vez en 399 informes de worker. Dos causas apiladas, ninguna en la red. (1) el bloque
+            # «PASO 0 — pregunta a la red» vivía solo en `_web_prompt`, y un hotel BUSCADO (no reservado)
+            # se enruta a `generic`, cuyo prompt no nombraba `mesh_cli` — el worker no descartaba la red,
+            # no sabía que existe. (2) un agente que contesta 400 diciendo QUÉ campos necesita SÍ ha
+            # contestado, y se aplastaba a «los agentes de la red no contestaron»: con esos campos son
+            # diez hoteles reales de Nueva York en 0,4 s, sin navegador.
+            "tests/agent_headless/unit/test_the_network_is_asked_before_searching.py",
+            "tests/agent_headless/unit/test_a_400_that_says_what_it_needs_is_an_answer.py",
             # V2-219: el worker se murió DOS veces en la aridad de nuestro propio CLI, en casos sin relación
             # (`scroll down` cuatro veces, `worker_bridge act` sin payload) — y la ronda acabó con CERO
             # búsquedas. Una mitad es que el CLI estaba equivocado (una dirección es una forma legítima de

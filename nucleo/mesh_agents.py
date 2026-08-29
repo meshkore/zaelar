@@ -186,23 +186,63 @@ def _skill_path(endpoint: str) -> str:
     return path if path and path != "/" else _DEFAULT_SKILL_PATH
 
 
-def ask(agent: dict, prompt: str) -> dict:
+# V2-487 · lo que el agente CONTESTA cuando dice que no, medido el 2026-08-29 contra `roomrover` en vivo:
+#
+#     POST /v1/search {"prompt": "hotel in New York City check-in 2026-09-10 …"}
+#       → 400 {"error": "parse_failed", "detail": "Oracle parser did not return constraints.
+#                        Pass structured fields (city, checkin, checkout) instead."}
+#     POST /v1/search {"city": "New York", "checkin": "2026-09-10", "checkout": "2026-09-12", "adults": 2}
+#       → 400 {"error": "missing_fields", "need": ["country_code"]}
+#     …con `country_code: "US"` → **200 con diez hoteles reales de Nueva York**, precio, nota y enlace de
+#       reserva, en 0,4 s y sin navegador.
+#
+# O sea: el agente no callaba, nos estaba diciendo CÓMO preguntarle — y este `ask` lo aplastaba a «respondió
+# 400», que `serve` volvía a aplastar a «los agentes de la red no contestaron». Esa frase es una diagnosis
+# FALSA, y de las caras: manda al worker a abrir un Chromium contra Booking por un dato que estaba a un campo
+# de distancia. La forma exacta la avisa el propio docstring del módulo («answers 400 missing_fields, which at
+# least says so») — estaba sabido y aun así se tiraba.
+#
+# El campo se pasa, no se adivina: aquí NO hay ningún esquema de hoteles ni de vuelos. El agente declara lo
+# que necesita, el worker —que es quien tiene el encargo y el razonamiento— lo compone. Ese es el mismo
+# contrato que el resto del módulo: sin catálogo, sin lista de proveedores, nada que curar para siempre.
+_HINT_KEYS = ("error", "detail", "need", "needs", "missing", "required", "message", "hint")
+
+
+def _what_the_agent_asks_for(data) -> dict:
+    """Lo accionable de una respuesta de error, sin arrastrar el cuerpo entero al contexto del worker."""
+    if not isinstance(data, dict):
+        return {}
+    return {k: data[k] for k in _HINT_KEYS if data.get(k) not in (None, "", [], {})}
+
+
+def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
     """Put the errand to one agent. Returns `{ok, data|error|payment_required}` — never raises, never pays.
 
     `prompt` must carry ABSOLUTE dates and the concrete details: an agent's own resolution of «esta noche» is
     not something to rely on (measured: it answered with a check-in from the previous year and zero results).
+
+    `fields` are the agent's OWN structured parameters, straight through. Nothing here knows what any of them
+    mean, and that is the point — see the note above `_HINT_KEYS`.
     """
     endpoint = _endpoint_of(agent)
     if not endpoint:
         return {"ok": False, "error": "el agente no publica un endpoint HTTP"}
     url = endpoint.rstrip("/") + _skill_path(endpoint)
-    status, data = _post(url, {"prompt": prompt, "query": prompt})
+    # O texto libre O campos, NUNCA los dos — medido contra `roomrover` el 2026-08-29. Con `prompt` presente
+    # el agente toma su camino de lenguaje natural y **descarta los campos**: el mismo cuerpo que devuelve diez
+    # hoteles sin `prompt` devuelve `parse_failed` con él dentro. «Lo explícito gana al texto libre» era una
+    # suposición mía sobre el precedence del agente, y era falsa; esto es lo que se midió.
+    body = {str(k): v for k, v in (fields or {}).items()} or {"prompt": prompt, "query": prompt}
+    status, data = _post(url, body)
     if status == 402:
         # A charge is a decision for the operator, and this build only uses free agents anyway. Reported as a
         # fact so the caller can say so, never held and never paid.
         return {"ok": False, "payment_required": True, "challenge": data, "agent": agent.get("agent_id")}
     if status != 200:
-        return {"ok": False, "error": f"{agent.get('agent_id') or url} respondió {status or 'nada'}"}
+        asks = _what_the_agent_asks_for(data)
+        return {"ok": False, "status": status, "asks": asks,
+                "error": f"{agent.get('agent_id') or url} respondió {status or 'nada'}",
+                "agent": agent.get("agent_id")}
     return {"ok": True, "agent": agent.get("agent_id"), "endpoint": url, "data": data}
 
 
@@ -260,7 +300,7 @@ def remember_route(intent: str, agent: dict) -> None:
         logger.debug(f"mesh: no pude recordar la ruta de {intent}: {e}")
 
 
-def serve(errand: str, prompt: str = "") -> dict:
+def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     """Discovery + contact in one call, using the learned route first. The whole module in one verb.
 
     Returns `{ok, agent, data}` on success, or `{ok: False, reason}` — where `reason` is meant to be said out
@@ -278,11 +318,21 @@ def serve(errand: str, prompt: str = "") -> dict:
         agents = [cached] + [a for a in agents if a.get("agent_id") != cached.get("agent_id")]
     if not agents:
         return {"ok": False, "reason": "no hay ningún agente libre en la red para esto", "intent": intent}
+    dijo: dict = {}
+    quien = ""
     for agent in agents[:2]:            # one retry with the next candidate; beyond that the browser is faster
-        res = ask(agent, prompt)
+        res = ask(agent, prompt, fields)
         if res.get("ok"):
             remember_route(intent, agent)                    # a no-op for an intent that cannot key a route
             return {"ok": True, "intent": intent, "agent": agent.get("agent_id"), "data": res.get("data")}
         if res.get("payment_required"):
             return {"ok": False, "reason": f"«{agent.get('agent_id')}» cobra por esto", "intent": intent}
+        if not dijo and res.get("asks"):
+            dijo, quien = res["asks"], str(agent.get("agent_id") or "")
+    # V2-487: un agente que contesta 400 diciendo QUÉ le falta SÍ contestó. Decir aquí «no contestaron» es lo
+    # que mandaba el encargo al navegador con la respuesta a un campo de distancia.
+    if dijo:
+        return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo,
+                "reason": f"«{quien}» no acepta el encargo en texto libre y dice qué necesita "
+                          f"(ver `agent_asks`): vuelve a pedírselo con `--field clave=valor`"}
     return {"ok": False, "reason": "los agentes de la red no contestaron", "intent": intent}

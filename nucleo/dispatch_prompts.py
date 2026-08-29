@@ -106,6 +106,63 @@ _METHOD_BLOCK = (
     "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.")
 
 
+# V2-167 · el navegador es el ÚLTIMO recurso, no el primero. Conducir un Chromium por una web de reservas es
+# pelearse con las defensas que esas webs despliegan justo contra esto: una corrida entera se quedó en el muro
+# anti-bot de Booking y otra en el CAPTCHA de Google. La red MeshKore tiene agentes que sirven esos mismos
+# dominios por HTTP, gratis, en un segundo — medido: `roomrover` devuelve 10 hoteles reales con enlace de
+# reserva, `aerocast` 10 vuelos con precio. No hay catálogo de agentes en ninguna parte: se le pregunta al
+# oráculo EN EL MOMENTO, y lo que esté vivo y sea gratis ese día es lo que sale.
+#
+# V2-486 (2026-08-29) · esto vivía SOLO dentro de `_web_prompt`, y por eso la red no se consultó NI UNA vez en
+# 399 informes de worker. La medición que lo cazó no es de la red, es del enrutador: `classify_kind` manda a
+# `kind="web"` lo que `site_catalog.category_of` reconoce, y ese detector pide un verbo de RESERVA —
+# «resérvame hotel en Nueva York» → `hotel_booking`, pero «búscame el mejor hotel de Nueva York» → `None`, o
+# sea `generic`. Un hotel BUSCADO (que es como lo dice el operador) caía en el prompt genérico, que no
+# nombraba `mesh_cli` en ninguna línea: la red no es que se descartara, es que el worker no sabía que existe.
+#
+# Se arregla por el PROMPT y no por el enrutador a propósito. Ensanchar `category_of` para que una búsqueda
+# cuente como transaccional MUEVE a `kind="web"` encargos que hoy resuelve un worker genérico —y el propio
+# `errand_kind` documenta por qué eso es peligroso: el fraseo de una búsqueda es el mismo que el de una
+# investigación—. Dar el PASO 0 al genérico no cambia QUIÉN atiende el encargo, solo le dice que antes de
+# buscar pregunte. Es la MISMA asimetría que ya se corrigió con el catálogo de sitios de confianza (V2-118) y
+# con las reglas del cajón (V2-211): un bloque que solo viajaba en un prompt, y el otro worker sin él.
+def _mesh_first_block(py: str = "python", *, browser: bool) -> str:
+    """El PASO 0 —preguntar a la red antes de buscar— en UN solo sitio, para los dos prompts de worker.
+
+    `browser=True` es el worker WEB, cuyo siguiente recurso es abrir el Chromium; `browser=False` el genérico,
+    que buscará por su cuenta. Solo cambia el ENCABEZADO y la salida del último punto: lo que se le manda hacer
+    es idéntico, y tenerlo dos veces es exactamente como estas dos mitades se separan sin avisar.
+    """
+    cabeza = ("PASO 0 — ANTES DE ABRIR EL NAVEGADOR, pregunta a la red si ya hay un agente que haga esto:\n"
+              if browser else
+              "PASO 0 — ANTES DE PONERTE A BUSCARLO TÚ, pregunta a la red si ya hay un agente que haga esto:\n")
+    cola = ("Si dice que no hay agente, o el resultado no vale, sigue con el método de abajo — es lo normal: "
+            if browser else
+            "Si dice que no hay agente, o el resultado no vale, sigue con tu método normal — es lo normal: ")
+    return (
+        cabeza
+        + f"   {py} -m nucleo.mesh_cli find \"<el encargo, tal cual lo dijo el operador>\"\n"
+        + f"   {py} -m nucleo.mesh_cli serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
+        "   · EN EL IDIOMA DEL OPERADOR y con sus palabras: la red hace su propio análisis y en español encuentra "
+        "igual («entradas de teatro en Madrid» devuelve un agente gratis con diez eventos reales).\n"
+        "   · FECHAS ABSOLUTAS (2026-09-10), nunca «esta noche»: el agente resolvió esa expresión al año pasado "
+        "y devolvió cero resultados; con la fecha explícita devolvió diez.\n"
+        "   · COMPRUEBA lo que vuelve: el emparejamiento falla en los bordes (una consulta de restaurante puede "
+        "contestarla un agente de hoteles). Si el dominio no encaja, es que no hay agente.\n"
+        # V2-487 · el segundo intento. Medido: `roomrover` rechaza el texto libre y CONTESTA qué campos quiere;
+        # con ellos devuelve diez hoteles reales de Nueva York en 0,4 s. Sin esta línea el worker leía un `ok:
+        # false` y se iba al navegador con la respuesta a un campo de distancia.
+        "   · Si la respuesta trae `agent_asks`, el agente NO ha dicho que no: te está diciendo qué necesita. "
+        "Vuelve a pedírselo añadiendo esos campos, uno por `--field`, p. ej. "
+        "`--field city=\"New York\" --field country_code=US --field checkin=2026-09-10`. Manda los campos SOLOS "
+        "(sin `--prompt`): con texto libre delante, el agente lo interpreta a él y los ignora.\n"
+        "   · Si `ok:true` y los datos SIRVEN, esa es tu respuesta: entrega eso y no sigas buscando. "
+        + cola +
+        "hoy hay agentes vivos de hoteles, vuelos y entradas/eventos, y para lo demás el navegador sigue siendo "
+        "el camino.\n\n"
+    )
+
+
 def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None = None) -> str:
     header = ("Eres un Brain Worker del asistente personal zaelar: una sesión de trabajo que CONDUCE una tarea del "
               "operador con tus herramientas (memoria, navegador, código, búsqueda). Resuelve la PETICIÓN de forma "
@@ -149,6 +206,9 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
     if trusted:
         parts.append(_today_block())
         parts.append(_METHOD_BLOCK)
+        # V2-486: el PASO 0 de la red también aquí — el porqué, en `_mesh_first_block`. Se escribe
+        # con `python` a secas porque `_with_interpreter` sustituye el intérprete en todo el prompt.
+        parts.append(_mesh_first_block(browser=False).rstrip())
         # SITIOS DE CONFIANZA también para el worker GENÉRICO (V2-118, 2026-08-18). Este catálogo solo viajaba en
         # `_web_prompt`, o sea únicamente cuando el operador NOMBRABA el sitio; el resto de las compras y
         # búsquedas de mercado —que caen aquí— salían sin él. Se midió: «búscame un monitor barato de SEGUNDA
@@ -400,26 +460,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
         "'down'/'up'. Usa la sintaxis exacta de arriba, no la que te parezca natural.\n\n"
-        # V2-167 · el navegador es el ÚLTIMO recurso, no el primero. Conducir un Chromium por una web de
-        # reservas es pelearse con las defensas que esas webs despliegan justo contra esto: una corrida entera
-        # se quedó en el muro anti-bot de Booking y otra en el CAPTCHA de Google. La red MeshKore tiene agentes
-        # que sirven esos mismos dominios por HTTP, gratis, en un segundo — medido: `roomrover` devuelve 10
-        # hoteles reales con enlace de reserva, `aerocast` 10 vuelos con precio. No hay catálogo de agentes en
-        # ninguna parte: se le pregunta al oráculo EN EL MOMENTO, y lo que esté vivo y sea gratis ese día es lo
-        # que sale.
-        f"PASO 0 — ANTES DE ABRIR EL NAVEGADOR, pregunta a la red si ya hay un agente que haga esto:\n"
-        f"   {py} -m nucleo.mesh_cli find \"<el encargo, tal cual lo dijo el operador>\"\n"
-        f"   {py} -m nucleo.mesh_cli serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
-        "   · EN EL IDIOMA DEL OPERADOR y con sus palabras: la red hace su propio análisis y en español encuentra "
-        "igual («entradas de teatro en Madrid» devuelve un agente gratis con diez eventos reales).\n"
-        "   · FECHAS ABSOLUTAS (2026-09-10), nunca «esta noche»: el agente resolvió esa expresión al año pasado "
-        "y devolvió cero resultados; con la fecha explícita devolvió diez.\n"
-        "   · COMPRUEBA lo que vuelve: el emparejamiento falla en los bordes (una consulta de restaurante puede "
-        "contestarla un agente de hoteles). Si el dominio no encaja, es que no hay agente.\n"
-        "   · Si `ok:true` y los datos SIRVEN, esa es tu respuesta: no abras el navegador, entrega eso. Si dice "
-        "que no hay agente, o el resultado no vale, sigue con el método de abajo — es lo normal: hoy hay "
-        "agentes vivos de hoteles, vuelos y entradas/eventos, y para lo demás el navegador sigue siendo el "
-        "camino.\n\n"
+        + _mesh_first_block(py, browser=True) +
         "MÉTODO — como lo haría una persona competente; entiende la página y AVANZA (no des vueltas):\n"
         + (
             "1) MIRA con `look` (VISIÓN) antes de actuar: abre el PNG con Read y ubica los campos/botones por su "

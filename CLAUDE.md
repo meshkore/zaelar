@@ -5182,6 +5182,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **La red MeshKore estaba construida, verificada en vivo y NUNCA se consultaba — dos causas apiladas y
+  ninguna en la red (V2-486 y V2-487, 2026-08-29)**: el operador la pidió explícitamente para las búsquedas de
+  servicios (hoteles, vuelos), y el censo decía **0 consultas en 399 informes de worker**.
+  - **(1) El PASO 0 solo viajaba en el prompt del NAVEGADOR** (`dispatch_prompts._web_prompt`), y el encargo
+    con el que se pide no llega ahí. Medido en el enrutador, no en la red: `classify_kind` promociona a
+    `kind="web"` lo que `site_catalog.category_of` reconoce, y ese detector exige un verbo de RESERVA —
+    «resérvame hotel en Nueva York» → `hotel_booking`, pero **«búscame el mejor hotel de Nueva York» → `None`**,
+    o sea `generic`. Y el prompt genérico **no nombraba `mesh_cli` en ninguna línea**: el worker no descartaba
+    la red, no sabía que existe. Se arregla por el PROMPT y no por el enrutador a propósito: ensanchar
+    `category_of` movería a `web` encargos que hoy atiende un genérico, y el propio `errand_kind` documenta por
+    qué eso es peligroso (el fraseo de una búsqueda es el de una investigación). Dar el PASO 0 al genérico no
+    cambia QUIÉN atiende, solo le dice que pregunte antes de buscar. Es la MISMA asimetría de V2-118 (catálogo
+    de sitios) y V2-211 (reglas del cajón), y por eso el bloque queda en **una sola función**
+    (`_mesh_first_block`) con dos encabezados: tenerlo escrito dos veces es como la segunda copia se queda
+    atrás sin que nada falle.
+  - **(2) Un 400 que dice QUÉ campo falta SÍ es una respuesta.** `ask` lo aplastaba a «respondió 400» y `serve`
+    lo volvía a aplastar a **«los agentes de la red no contestaron»** — una diagnosis falsa y cara: manda a
+    abrir un Chromium contra Booking teniendo la respuesta a un campo de distancia. Medido en vivo contra
+    `roomrover`: texto libre → `400 parse_failed` con el detalle «pass structured fields»; con `city/checkin/
+    checkout/adults` → `400 missing_fields need:[country_code]`; con él → **200 con diez hoteles reales de
+    Nueva York, precio, nota y enlace de reserva, en 0,4 s y sin navegador**. La forma la avisaba el propio
+    docstring del módulo desde el primer día; estaba sabida y se tiraba igual.
+  - **O texto libre O campos, nunca los dos** — y esto NO es deducible: con `prompt` dentro, el agente toma su
+    camino de lenguaje natural y **descarta los campos**; el mismo cuerpo que devuelve diez hoteles sin él
+    devuelve `parse_failed` con él. Escribí «lo explícito gana al texto libre» como suposición sobre el
+    precedence del agente y la medición la tumbó.
+  - **Sigue sin haber esquema de nada de nuestro lado**: el agente declara lo que necesita (`agent_asks`), el
+    worker —que tiene el encargo y el razonamiento— compone los campos, y viajan tal cual por `--field
+    clave=valor`. Ni una tabla de hoteles ni de vuelos, que es el invariante del módulo desde V2-167.
+  - Nodo 2.6, desarme verificado en los dos arreglos. **La red respondiendo está verificada en vivo por
+    nuestro propio puente**; que un worker lo haga solo, no — eso lo mide el plató.
+
 - **DOS puertas por las que entra un vector de otro espacio, y ninguna fallaba con ruido (V2-484 y V2-485,
   2026-08-29)**: V2-482 quitó el daño permanente y dejó escrito que la puerta no estaba medida. Lo está, y
   **son dos, con causas distintas**. Las dos se reprodujeron de punta a punta antes de tocar nada.
