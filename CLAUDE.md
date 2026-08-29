@@ -5112,6 +5112,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     ninguno. Nodo 4.59, cuatro desarmes. El reparto completo y qué se puede cambiar vive en el WORKSPACE
     (`docs/ops/zaelar-model-allocation.md` de su `.meshkore`), no aquí: es producto + nube.
 
+- **La agenda no inventa, y el aviso por defecto es SUYO (V2-473, 2026-08-29)**: el caso
+  `dentist-appointment-into-agenda` (ES PASS 4/5 en 6 rondas de defecto-por-ronda; US 5/5 a la primera)
+  dejó estas reglas en `widgets/agenda/data.py` + `nucleo/flash/{router,prompt}.py`. (1) **La escritura no
+  inventa**: un `add_meeting` sin title/date/hora es un ERROR que enseña la forma del reintento — los
+  defaults fabricaban «Cita, hoy, 17:00» con cara de éxito. (2) **La forma natural no cuesta el hecho**
+  (V2-341): la hora pegada en `date` («2026-09-08 15:00») y el alias `time` se leen; el `startTime`
+  explícito manda. (3) **El aviso por defecto lo crea la AGENDA al escribir la cita** (~2h antes, prompt
+  RESUELTO, `reminder_id`/`remindAt` en la cita, jamás para el pasado) — la ronda 2 midió la alternativa:
+  el modelo escaló a un worker que murió en el login de Google con «Hecho» encima. (4) **`set_reminder` es
+  vocabulario** (la lección de `clear_all`): mover el aviso es una acción declarada, y las alarmas viajan
+  con sus citas al borrar (`cancel_meeting`/`clear_all`) — una alarma huérfana dispara una cita fantasma.
+  (5) La lista de «Próximos días» del prompt DECLARA que es un traductor de días nombrados, no el límite
+  del calendario (el modelo rechazó una cita válida a 10 días por leerla como tope). (6) La doctrina ya no
+  se contradice: la tool decía «el recordatorio es un [[cron.create]] aparte» contra el mecanismo nuevo
+  (familia V2-222) — el cron queda para avisos SUELTOS sin cita. (7) El dedup de citas entiende reintentos
+  retitulados y títulos contenidos a la misma fecha+hora (los sustantivos de categoría del widget son
+  ruido, no identidad). Los errores del widget sobreviven a ser HABLADOS (el modelo los lorea). Tests en
+  `tests/browser/unit/agenda/` (+13 esta tanda).
+
 - **La entrega se NOMBRA y lo no verificable no se da por cumplido (V2-469, 2026-08-29)**: una noche de
   casos de catálogo (vídeos, playlist de enlaces, monitor US) con la misma raíz en cuatro caras. (1) Regla
   nueva de `nucleo/flash/prompt.py`: un criterio del operador que el modelo no puede VERIFICAR («con buenas
