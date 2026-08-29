@@ -52,3 +52,23 @@ def bare(scenario_id: str) -> str:
 def phase_of(scenario_id: str) -> int:
     """1 = inside the production v1 promise; 2 = later/unproven/complex."""
     return 1 if bare(scenario_id) in PHASE1 else 2
+
+
+#: Locale twins parked for an ENVIRONMENTAL blocker, with the reason stated (operator rule, 2026-08-29).
+#: A twin belongs here only when both hold: (a) its blocker comes from the outside world of that locale —
+#: geo-fencing, IP-based pricing, a region wall — not from our code, and (b) the sibling twin is MEASURED
+#: green, so the capability itself is proven. Rationale: a wall a real user standing in that country would
+#: never hit must not hold the launch. Parking is not passing: the case stays visible with its 🌍 flag and
+#: its reason, and it leaves the launch gauge's denominator instead of pretending to be green.
+GEO_PARKED: dict[str, str] = {
+    "cheapest-monitor__us": (
+        "Amazon geolocaliza por IP: aun con un perfil en-US limpio sirve «Deliver to Spain» y precios de "
+        "España. El gemelo ES está verde (4/5), así que la capacidad está probada; desde una IP de EEUU "
+        "el muro no existe."
+    ),
+}
+
+
+def parked_reason(scenario_id: str) -> str:
+    """The environmental reason this twin is parked, or "" if it is measured normally."""
+    return GEO_PARKED.get(str(scenario_id or ""), "")

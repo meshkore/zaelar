@@ -88,10 +88,16 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = _json.loads(sb.read_text(encoding="utf-8")) if sb.exists() else {}
                 from tests.use_cases.e2e.agent import phases as _ph
-                fases = {1: {"pass": 0, "total": 0}, 2: {"pass": 0, "total": 0}}
+                fases = {1: {"pass": 0, "total": 0, "parked": 0}, 2: {"pass": 0, "total": 0, "parked": 0}}
                 for sid, row in (data.get("scenarios") or {}).items():
                     f = _ph.phase_of(sid)
                     row["phase"] = f
+                    row["parked"] = _ph.parked_reason(sid)
+                    if row["parked"]:
+                        # Parked for an environmental wall: visible, but outside the gauge's denominator
+                        # so the launch reading is not held down by a wall of the outside world.
+                        fases[f]["parked"] += 1
+                        continue
                     fases[f]["total"] += 1
                     if row.get("state") == "PASS":
                         fases[f]["pass"] += 1

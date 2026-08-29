@@ -224,3 +224,22 @@ def test_every_scenario_has_a_phase():
     from tests.use_cases.e2e.agent import scenarios as SC
     for s in SC.all_scenarios():
         assert PH.phase_of(s.id) in (1, 2)
+
+
+def test_a_parked_twin_is_a_real_case_with_a_reason_and_a_sibling():
+    """The guard that keeps 🌍 from becoming a rug.
+
+    Parking exists for ONE shape: an outside-world wall that a user standing in that country would not hit,
+    on a capability a sibling twin proves. What is deterministic — and therefore checked here — is that the
+    parked id is a live case, that somebody WROTE the reason, and that a sibling exists at all: a parked case
+    with no twin has nothing proving the capability, so the wall would be our excuse rather than a diagnosis.
+    Whether that twin is actually green is a MEASUREMENT (status.json), never asserted from a unit test.
+    """
+    from tests.use_cases.e2e.agent import phases as PH
+
+    live = {s.id for s in SC.all_scenarios()}
+    for sid, reason in PH.GEO_PARKED.items():
+        assert sid in live, f"aparcado que ya no existe en el catálogo: {sid}"
+        assert len(reason.strip()) >= 40, f"aparcado sin razón escrita: {sid}"
+        twins = {s.id for s in SC.all_scenarios() if PH.bare(s.id) == PH.bare(sid)} - {sid}
+        assert twins, f"{sid} se aparca por entorno pero no tiene gemelo que pruebe la capacidad"
