@@ -1171,7 +1171,11 @@ DOMAINS: list[dict] = [
         # los rótulos nuevos del visor salían como su clave cruda porque `setLang` al mismo valor es no-op).
         {"id": "4.11", "title": "i18n de la UI: presets alineados + t() reactivo al CONTENIDO del bundle",
             "ch": UNIT, "paths": ["tests/browser/unit/i18n/test_bundles.py",
-                                  "tests/browser/unit/i18n/test_bundle_reactivity.py"]},
+                                  "tests/browser/unit/i18n/test_bundle_reactivity.py",
+                                  # V2-481: el arranque en frío de una Machine no tiene bundle todavía, así
+                                  # que el primer pantallazo de una PWA recién instalada salía como
+                                  # `boot.encendiendo`. Suelo estrecho + la leyenda resuelta en cada pintado.
+                                  "tests/browser/unit/i18n/test_cold_start_floor.py"]},
         # LA PILA de Energy (2026-08-13). El operador se quedó sin energía a mitad de trabajo y se enteró por un
         # cartel, sin haber visto nunca cuánta le quedaba. Aquí se guarda la ESCALA —huecos fijos y valor por
         # rayita variable, con el color atado a la CAPACIDAD y no al saldo para que no cambie mientras gastas—

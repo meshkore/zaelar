@@ -53,12 +53,31 @@ export function available() { return Object.keys(BUNDLES); }
 })();
 
 // t(key, params?) — localized string. Reads store.lang() (reactive dependency).
+// V2-481 — EL SUELO DEL ARRANQUE EN FRÍO.
+//
+// `t()` cae al bundle inglés y, si tampoco está, muestra la CLAVE — visible a propósito, porque una cadena
+// que falta tiene que verse. Eso vale para una pantalla ya cargada y falla justo donde más se nota: en el
+// arranque en frío de una Machine, `/api/i18n/bundle` todavía no contesta, así que el PRIMER pantallazo que
+// ve alguien que acaba de instalar la PWA es `boot.encendiendo`. La primera impresión del producto.
+//
+// El suelo es DELIBERADAMENTE estrecho: solo las cadenas que se pintan ANTES de que el motor conteste. No es
+// un segundo vocabulario —eso sería dos copias de una regla, que esta casa ya ha pagado— y hay un test que
+// exige que cada clave de aquí exista en el bundle base: si alguien renombra una, esto se pone rojo en vez de
+// quedarse sirviendo una cadena huérfana para siempre.
+const BOOT_FLOOR = {
+  "boot.encendiendo": "Starting up zaelar…",
+  "boot.voz": "Connecting voice…",
+  "boot.memoria": "Composing memory…",
+  "boot.reflejo": "Tuning the reflex…",
+};
+
 export function t(key, params) {
   const code = store.lang();
   bundleRev();                            // dependencia reactiva: re-renderiza cuando el bundle cambia de contenido
   const dict = BUNDLES[code] || BUNDLES.en || {};
   let s = dict[key];
   if (s == null) s = (BUNDLES.en || {})[key];
+  if (s == null) s = BOOT_FLOOR[key];     // V2-481: el arranque en frío no tiene bundle todavía
   if (s == null) s = key;                 // last resort: show the key (visible = "needs a string")
   if (params) for (const k in params) s = s.split("{" + k + "}").join(String(params[k]));
   return s;

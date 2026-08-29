@@ -10,19 +10,30 @@ import * as store from "../core/store.js?v=2";
 import { startBootAnim } from "./boot-anim.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
-const LABELS = {
-  encendiendo: t("boot.encendiendo"),
-  voz: t("boot.voz"),
-  memoria: t("boot.memoria"),
-  reflejo: t("boot.reflejo"),
+// V2-481 — la leyenda se resuelve EN CADA PINTADO, no al importar el módulo.
+//
+// Esto era un objeto literal, así que `t()` corría UNA vez, al cargar el fichero — antes de que el bundle
+// existiera. Cuando el motor por fin contestaba, la leyenda seguía diciendo `boot.encendiendo`: la cadena
+// buena llegaba y no la veía nadie. Es el mismo defecto que V2-124 midió en el móvil («un `textContent = t()`
+// en construcción congela lo que hubiera»), y aquí no falla con ruido — falla enseñando una clave.
+const LABEL_KEYS = {
+  encendiendo: "boot.encendiendo",
+  voz: "boot.voz",
+  memoria: "boot.memoria",
+  reflejo: "boot.reflejo",
   listo: "",
 };
+
+function labelFor(phase) {
+  const k = LABEL_KEYS[phase];
+  return k ? t(k) : "";
+}
 
 export function BootOverlay() {
   let canvas;
   const ovl = h("div", { class: () => "boot-ovl" + (store.bootReady() ? " gone" : ""), "aria-hidden": "true" },
     h("canvas", { class: "boot-canvas", ref: el => (canvas = el) }),
-    h("div", { class: "boot-caption" }, () => LABELS[store.bootPhase()] || ""),
+    h("div", { class: "boot-caption" }, () => labelFor(store.bootPhase())),
   );
 
   // Start the engine once the overlay is in the DOM (ref fires pre-mount, so getBoundingClientRect is 0 then).
