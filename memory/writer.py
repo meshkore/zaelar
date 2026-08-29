@@ -67,8 +67,34 @@ _CRITICAL_HEALTH_RE = re.compile(
     r"asm[aá]tic[oa])\b", re.I)
 
 
+# UNA LIMITACIÓN DE INGESTIÓN NO SIEMPRE TRAE SU PALABRA DE CATEGORÍA (V2-499, 2026-08-29, autorizado por el
+# operador aceptando los falsos positivos). El detector de arriba casa la CATEGORÍA («alérgico», «celíaco»,
+# «intolerante»), y así es como la gente lo dice la mitad de las veces; la otra mitad dice lo que NO PUEDE HACER:
+# «no puede comer gluten», «no puedo tomar lactosa». Esa frase no contiene ninguna de las palabras del catálogo,
+# así que no se marcaba `critical`, no llegaba a la línea ⚠️ CRÍTICO y quedaba compitiendo por una plaza del
+# ranking — que es exactamente el fallo que V2-490 midió con macarrones ofrecidos a un celíaco.
+#
+# El COSTE está aceptado y es real, así que conviene decirlo entero: aquí un falso positivo no es inocuo, porque
+# la línea crítica tiene cap (6) y una frase social colada puede EXPULSAR un marcapasos — el daño que V2-491
+# acababa de cerrar. Por eso se acota por la única vía que no exige adivinar: una restricción que NOMBRA UN
+# MOMENTO («hoy no puedo comer»,«ahora no puedo tomar nada») habla de ese momento, no de la persona, y queda
+# fuera. Lo que NO se filtra, a propósito, es lo ambiguo sin marca temporal («no puedo comer más»): descartarlo
+# exigiría entender la frase, y ante la duda esta línea existe para pecar de más.
+_INGESTION_LIMIT_RE = re.compile(
+    r"(?:\bno\s+(?:puede[ns]?|puedo|debe[ns]?|debo)\s+(?:comer|tomar|beber|ingerir|probar|consumir)\b"
+    r"|\b(?:can(?:no|')?t|cannot|must\s+not|mustn'?t)\s+(?:eat|drink|have|take|consume)\b)", re.I)
+
+# Una restricción fechada en un momento concreto no es un hecho durable de la persona.
+_MOMENTARY_RE = re.compile(
+    r"\b(hoy|ahora\s+mismo|ahora|esta\s+noche|este\s+rato|luego|m[aá]s\s+tarde|"
+    r"today|tonight|right\s+now|later)\b", re.I)
+
+
 def _is_critical_health(text: str) -> bool:
-    return bool(_CRITICAL_HEALTH_RE.search(text or ""))
+    t = text or ""
+    if _CRITICAL_HEALTH_RE.search(t):
+        return True
+    return bool(_INGESTION_LIMIT_RE.search(t)) and not _MOMENTARY_RE.search(t)
 
 
 def _stamp_critical(meta):
