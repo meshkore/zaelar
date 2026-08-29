@@ -27,6 +27,23 @@ from memory import db as memdb
 from memory import writer as memwriter
 
 
+@pytest.fixture(autouse=True)
+def _backend_declarado(monkeypatch):
+    """El backend se DECLARA, no se hereda del ambiente.
+
+    Estos casos preguntan «¿casa el espacio activo con el sellado?», así que dependen de cuál es el activo — y
+    sin forzarlo, con Ollama en la máquina, V2-350 lo CONSERVA como `ollama` y la firma casa: `space_ok()`
+    devuelve True y los casos salen rojos por un motivo que no es el suyo. Salían verdes con
+    `ZAELAR_EMBED_BACKEND=hash` en el entorno y rojos por el runner oficial, que no lo fuerza. Misma trampa que
+    ya costó una tanda en V2-349."""
+    from memory import embeddings as mememb
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "hash", "embed_model": ""})
+    mememb.reset()
+    yield
+    mememb.reset()
+
+
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
