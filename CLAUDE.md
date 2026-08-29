@@ -5157,6 +5157,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en vivo con el motor del operador** (abrir /m headless competiría por el candado de voz); la nube no lo tiene
   hasta la próxima release.
 
+- **Cinco filas eran pocas, y decirle que hay más no es enseñárselas (V2-479, 2026-08-29)**: `_sheet_top_rows`
+  empujaba al prompt como mucho **5** filas de la hoja. Medido dos veces: `search-buy-camera__es` tenía CATORCE
+  candidatos y cuatro de las cinco mostradas eran accesorios (V2-374); `find-best-hotel-city__us` ronda 6 tenía
+  **DOCE hoteles con dos por debajo del tope del operador** (€46 y €58) y las cinco mostradas eran las caras —
+  el turno concluyó «all well above your $150» sobre un conjunto que no había visto entero. La segunda es la
+  que decide, porque **V2-374 ya añadía el aviso «y N más no listadas» y concluyó igual**. Tope suave 5 → 12
+  con un **techo DURO de TAMAÑO** (`_SHEET_ROWS_BUDGET`, 1200 caracteres): `fila()` trunca a 70+20, así que una
+  fila cabe en ~100 y doce son ~1.200 caracteres en un prompt de ~10.000 tokens. El techo es de tamaño y no de
+  conteo a propósito — una hoja de títulos larguísimos con un cap por unidades mete lo que le dé la gana. **No
+  se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
+  adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
+
+- **La TERCERA puerta al scheduler no normalizaba (V2-480, 2026-08-29)**: `safe_reminder_prompt` dice en su
+  docstring que existe «para que las DOS puertas al scheduler digan lo mismo» — y la acción `schedule` del
+  worker es la TERCERA, nació después (V2-249) y nunca la llamó. Medido en la primera ronda de
+  `find-a-future-release-and-remind-me`: el trabajo quedó programado con la frase CRUDA del operador dentro, así
+  que el día que suene el agente le leerá sus propias palabras — y las leerá como una petición que APUNTAR, que
+  es el bucle que toda esta zona existe para cerrar. **No se ensancha ninguna regex**: la forma de PETICIÓN
+  («¿te enteras y me avisas?») sigue sin cubrirse, y perseguir formas es la cinta de correr de V2-151.
+
 - **La puerta del backstop de entrega tampoco era la LONGITUD (V2-478, 2026-08-29)**: había un tope de 300
   caracteres con esta premisa escrita — «una respuesta larga ya está contando algo, y pisarla sería peor».
   Medido en `find-best-hotel-city__us` ronda 5, la premisa es falsa: el turno era largo —«I've got a partial

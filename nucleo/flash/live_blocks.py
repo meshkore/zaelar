@@ -194,7 +194,14 @@ def _driver_is_gone(nav_task_id: str, prog: dict) -> bool:
         return False
 
 
-def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
+#: Cuánto puede ocupar el bloque de filas en el prompt. `fila()` trunca a 70 de título y 20 de dato, así que
+#: una fila cabe en ~100 caracteres: este techo es el tope DURO de doce filas en el peor caso, y en la práctica
+#: la mitad. Es el bound real; `n` es el suave. Existe porque el tope tiene que ser de TAMAÑO y no de conteo —
+#: una hoja de títulos larguísimos con un cap por unidades mete en el prompt lo que le dé la gana.
+_SHEET_ROWS_BUDGET = 1200
+
+
+def _sheet_top_rows(nav_task_id: str, n: int = 12) -> list[str]:
     """The first few NAMED rows already delivered for this errand, as «title — price» strings.
 
     Measured on `search-buy-guitar__es` (2026-08-24, round 21): the face below ORDERS the turn to say WHAT was
@@ -221,19 +228,29 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
             return []
         out: list[str] = []
         _con_nombre = 0
+        _chars = 0
         for i in (_sheet.view_data(sheet) or {}).get("items") or []:
             title = str((i or {}).get("title") or "").strip()
             if not title:
                 continue
-            if len(out) >= max(1, int(n)):      # se sigue CONTANDO aunque ya no se liste
-                _con_nombre += 1
+            if len(out) >= max(1, int(n)) or _chars >= _SHEET_ROWS_BUDGET:
+                _con_nombre += 1                 # se sigue CONTANDO aunque ya no se liste
                 continue
             # V2-455 — UN SOLO FORMATEADOR. Las tres reglas que aplica (la ausencia dicha, el teléfono como
             # dato accionable, la pista de búsqueda que no es candidato) costaron una ronda cada una y vivían
             # DUPLICADAS desde V2-451. Dos copias de una regla se separan sin avisar.
-            out.append(fila(i))
+            _f = fila(i)
+            out.append(_f)
+            _chars += len(_f)
             _con_nombre += 1
-        _tope = max(1, int(n))
+        _tope = len(out)
+        # V2-479 — CINCO FILAS ERAN POCAS, y está medido dos veces. `search-buy-camera__es` (V2-374) tenía
+        # CATORCE candidatos y las cinco que llegaron eran cuatro accesorios; `find-best-hotel-city__us` ronda
+        # 6 (2026-08-29) tenía DOCE hoteles con dos por debajo del tope del operador (€46 y €58) y las cinco
+        # mostradas eran las caras — el turno concluyó «all well above your $150» sobre un conjunto que no
+        # había visto entero. V2-374 ya añadía «y N más no listadas» y aun así concluyó: **decirle que hay
+        # más no es enseñárselas**, y «di solo lo que RESPONDE a lo que pidió» sigue siendo imposible sobre lo
+        # que no ve (V2-330). El coste es acotado y pequeño: ~100 caracteres por fila en el peor caso.
         # V2-374 — LO QUE QUEDA FUERA SE CUENTA. Es la segunda mitad de V2-234, que la nota del navegador ya
         # aplica desde entonces («y N filas más de la misma página») y esta cara nunca tuvo: cortaba en cinco y
         # se callaba, así que para el turno esas cinco ERAN la hoja entera.
@@ -251,6 +268,7 @@ def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
         if _con_nombre > _tope:
             out.append(f"(y {_con_nombre - _tope} candidato(s) más con nombre en la hoja, no listados aquí)")
         return out
+
     except Exception:
         return []
 
