@@ -85,6 +85,19 @@ _CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un dí
                 '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
 
 
+def _safe_reminder_prompt(text: str) -> str:
+    """Normaliza el prompt de un cron a la forma de AVISO — misma regla que las otras dos puertas (V2-214).
+
+    Guardado: esta acción ya funciona hoy, y perder un aviso que el worker sí pudo poner por un import sería
+    peor que dejar pasar una redacción cruda.
+    """
+    try:
+        from nucleo.flash.router_guards import safe_reminder_prompt
+        return safe_reminder_prompt(text)
+    except Exception:  # noqa: BLE001
+        return text
+
+
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
     if action == "use_tool" and payload.get("tool") == "web_search":
@@ -141,6 +154,11 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                 return {"ok": False, "error": f"ya has programado {len(mias)} avisos en esta tarea, que es el "
                                               f"tope. Si necesitas otro, cancela uno o dilo en tu entrega."}
             name = f"{(payload.get('name') or what)[:80]} [worker:{tid}]"
+            # V2-480 — LA TERCERA PUERTA. `safe_reminder_prompt` existe desde V2-214 y su docstring dice «para
+            # que las DOS puertas al scheduler digan lo mismo»; esta acción es la TERCERA, nació después
+            # (V2-249) y nunca la llamó. El lector de un cron es el AGENTE en otro momento, así que dejarle las
+            # palabras del operador le pide APUNTAR — el bucle que toda esta zona existe para cerrar.
+            what = _safe_reminder_prompt(what)
             out = await asyncio.to_thread(scheduler.create, what, spec, name)
             if not out.get("ok"):
                 # La forma la sabe él; que la diga (mismo contrato que V2-203).

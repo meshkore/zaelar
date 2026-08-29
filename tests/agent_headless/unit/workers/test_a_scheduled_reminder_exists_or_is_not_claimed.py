@@ -211,3 +211,38 @@ def test_un_aviso_que_NO_se_pudo_poner_no_deja_fila(agenda, monkeypatch):
     monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
     _act({"when": "esta tarde", "prompt": "x"})
     assert not vistos
+
+
+def test_la_TERCERA_puerta_al_scheduler_normaliza_como_las_otras_dos(agenda, monkeypatch):
+    """V2-480 — `safe_reminder_prompt` dice en su docstring que existe «para que las DOS puertas al scheduler
+    digan lo mismo»; esta acción es la TERCERA, nació después (V2-249) y nunca la llamó.
+
+    Medido en `find-a-future-release-and-remind-me` (2026-08-29): el trabajo quedó programado con la frase
+    CRUDA del operador dentro, así que el día que suene el agente le leerá al operador sus propias palabras —
+    y, peor, las leerá como una petición que apuntar, que es el bucle que toda esta zona existe para cerrar.
+    """
+    from nucleo import scheduler
+
+    creados: list[str] = []
+    real = scheduler.create
+
+    def _spy(prompt, spec, name):
+        creados.append(prompt)
+        return real(prompt, spec, name)
+
+    monkeypatch.setattr(scheduler, "create", _spy, raising=False)
+    out = _act({"when": "mañana a las 9", "prompt": "el jueves tengo que renovar el seguro del coche"})
+    assert out.get("ok"), out
+    assert creados and creados[0].startswith("AVISA al operador"), creados
+
+
+def test_y_un_prompt_que_YA_es_una_orden_al_agente_no_se_toca(agenda, monkeypatch):
+    """La otra dirección: normalizar de más envolvería una orden legítima dentro de otra orden."""
+    from nucleo import scheduler
+
+    creados: list[str] = []
+    real = scheduler.create
+    monkeypatch.setattr(scheduler, "create",
+                        lambda p, s, n: (creados.append(p), real(p, s, n))[1], raising=False)
+    _act({"when": "mañana a las 9", "prompt": "AVISA al operador: estreno de Dexter T2"})
+    assert creados == ["AVISA al operador: estreno de Dexter T2"], creados
