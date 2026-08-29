@@ -143,6 +143,18 @@ def reembed(batch: int = 128) -> dict:
     for i in range(0, total, batch):
         chunk = rows[i:i + batch]
         vecs = _emb.embed_batch([r["text"] for r in chunk])
+        # A DEGRADED RE-EMBED IS WORSE THAN NO RE-EMBED (2026-08-30). `embed_batch` never fails to return
+        # vectors: if the titular does not answer it falls back to hashing and says so in `last_degraded`.
+        # Without this stop the loop put LEXICAL vectors into the semantic index and then stamped the cloud
+        # provider's signature over them — leaving the database lying about its own space, which is precisely
+        # what the seal exists to prevent. It stops WITHOUT stamping: the old signature stays, `check()` keeps
+        # warning, and the job can simply be run again.
+        if _emb.last_degraded:
+            logger.error("re-embed ABORTED at %d/%d: the embedding backend is degraded — the signature is NOT "
+                         "sealed and the vector table is left incomplete. Fix the credential and re-run.",
+                         done, total)
+            return {"ok": False, "reason": "backend degraded halfway through the re-embed",
+                    "reindexed": done, "total": total}
         for r, v in zip(chunk, vecs):
             try:
                 db.execute("INSERT INTO vec_memories (memory_id, embedding) VALUES (?, ?)",

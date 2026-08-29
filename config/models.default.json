@@ -1,134 +1,135 @@
 {
   "_doc": [
-    "LA TABLA DE MODELOS. Un solo sitio, público, en el repositorio (V2-500, norma del operador 2026-08-30).",
+    "THE MODEL TABLE. One place, public, in the repository (V2-500, operator's rule 2026-08-30).",
     "",
-    "Antes esto vivía repartido en SEIS sitios que derivaban en silencio: config/v2.py::_DEFAULTS,",
+    "This used to live in SIX places that drifted apart in silence: config/v2.py::_DEFAULTS,",
     "nucleo/flash/provider_chain.py, nucleo/workers/providers.py, voice/engine/core/config.py,",
-    "engine/fly.accounts.toml y cloud/provisioner/src/machineConfig.js. Nada comparaba unos con otros, así que",
-    "la norma vivía en el config LOCAL del operador —que está gitignorado y no viaja— y cada instalación nueva,",
-    "y la nube, arrancaban con otra cosa. Se descubrió porque el cerebro de cluster gastó créditos de Z.AI que",
-    "nadie había autorizado: el catálogo interno iba encabezado por Z.AI y ningún fichero del repo lo decía.",
+    "engine/fly.accounts.toml and cloud/provisioner/src/machineConfig.js. Nothing compared any of them, so the",
+    "rule ended up living in the operator's LOCAL config — which is gitignored and does not travel — and every",
+    "fresh install, and the cloud, booted with something else. It surfaced when the cluster brain spent Z.AI",
+    "credits nobody had authorised: the internal catalogue was headed by Z.AI and no file in the repo said so.",
     "",
-    "REGLAS QUE GOBIERNAN ESTA TABLA (todas del operador):",
-    "  1. UN SOLO FAILOVER por servicio. Titular y suplente; si el suplente cae, esa parte deja de funcionar.",
-    "     Nada de cadenas de tres o cuatro: no se pueden razonar ni configurar ni depurar.",
-    "  2. DeepSeek por su proveedor DIRECTO es el titular de todo lo que no sea el Brain Worker.",
-    "  3. AIMLAPI es SOLO failover — un broker para alcanzar DeepSeek u otro modelo cuando el directo cae.",
-    "  4. Z.AI es SOLO del Brain Worker, dentro de Claude Code. No es failover de nada más (V2-496).",
-    "  5. Todo lo de aquí tiene que poder correr EN LA NUBE. Ollama no: es un servidor local y dentro de un",
-    "     contenedor no existe. Por eso los embeddings van por `fastembed`, que corre en proceso.",
+    "RULES THAT GOVERN THIS TABLE (all of them the operator's):",
+    "  1. ONE FAILOVER per service. A titular and a stand-in; if the stand-in falls, that part stops working.",
+    "     No chains of three or four: they cannot be reasoned about, configured or debugged.",
+    "  2. DeepSeek through its DIRECT provider is the titular of everything that is not the Brain Worker.",
+    "  3. AIMLAPI is failover ONLY — a broker used to reach DeepSeek or another model when direct is down.",
+    "  4. Z.AI belongs to the Brain Worker ONLY, inside Claude Code. It is nobody else's failover (V2-496).",
+    "  5. Everything here has to be able to run IN THE CLOUD. Ollama cannot: it is a local server and inside a",
+    "     container it does not exist. That is why the embeddings go through a CLOUD provider (measured — see",
+    "     that row).",
     "",
-    "ESTO SON LOS VALORES POR DEFECTO, no la configuración efectiva. El usuario los cambia desde el panel de",
-    "configuración del frontend (store `config/v2.json`, gitignorado): otros proveedores, sus propias claves.",
-    "Lo que escriba ahí GANA sobre este fichero, y este fichero es lo que ve quien no ha tocado nada.",
+    "THESE ARE THE DEFAULTS, not the effective configuration. The user changes them from the frontend's settings",
+    "panel (store `config/v2.json`, gitignored): other providers, their own keys. Whatever they write there WINS",
+    "over this file, and this file is what someone who has changed nothing gets.",
     "",
-    "LAS CLAVES NO ESTÁN AQUÍ. Aquí va el NOMBRE de la variable (`key_env`); el valor se resuelve del store de",
-    "credenciales por endpoint. Este fichero es público."
+    "THE KEYS ARE NOT HERE. This holds the NAME of the variable (`key_env`); the value is resolved from the",
+    "credential store by endpoint. This file is public."
   ],
 
   "services": {
     "voice_brain": {
-      "label": "FlashBrain — el turno de voz y de chat",
+      "label": "FlashBrain — the voice and chat turn",
       "titular": {"provider": "deepseek", "model": "deepseek-v4-pro",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
                    "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "El DIRECTO obedece `thinking:disabled` (TTFT p50 1,16 s); el broker acepta el campo y razona igual (8,7 s). Banco de 42 turnos por brazo, 2026-08-15: Pro enruta 41/42, Flash directo 38/42 (falló `mostrar widget` 3 de 3)."
+      "why": "The DIRECT endpoint honours `thinking:disabled` (TTFT p50 1.16s); the broker accepts the field and reasons anyway (8.7s). Bench of 42 turns per arm, 2026-08-15: Pro routes 41/42, direct Flash 38/42 (failed `show widget` 3 out of 3)."
     },
 
     "brain_worker": {
-      "label": "Brain Worker / SlowBrain — el que navega y ejecuta",
+      "label": "Brain Worker / SlowBrain — the one that browses and executes",
       "titular": {"provider": "claude_code", "model": "glm-5.3",
                   "base_url": "https://api.z.ai/api/anthropic", "key_env": "Z_AI_API_KEY",
                   "vision": false},
       "failover": {"provider": "claude_code", "model": "deepseek-v4-flash",
                    "base_url": "https://api.deepseek.com/anthropic", "key_env": "DEEPSEEK_API_KEY",
                    "vision": false},
-      "why": "Lo conduce el CLI de Claude Code, que habla protocolo ANTHROPIC — por eso los dos endpoints son `/anthropic` y por eso los créditos de Z.AI (`paas/v4`, OpenAI-compatible) NO pueden entrar aquí. `vision:false` está medido: los GLM y DeepSeek V4 confabulan sobre imágenes que no ven, así que el navegador va por DOM."
+      "why": "Driven by the Claude Code CLI, which speaks the ANTHROPIC protocol — that is why both endpoints are `/anthropic`, and why Z.AI's credits wallet (`paas/v4`, OpenAI-compatible) CANNOT be used here. `vision:false` is measured: the GLMs and DeepSeek V4 confabulate about images they cannot see, so the browser works off the DOM."
     },
 
     "brief_composer": {
-      "label": "Compositor del brief — dirige la búsqueda del worker",
+      "label": "Brief composer — steers the worker's search",
       "titular": {"provider": "deepseek", "model": "deepseek-v4-pro",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
                    "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Pide la respuesta y no la deliberación (`no_thinking`). Si el modelo NO puede apagar el razonamiento, se reintenta CON razonamiento y presupuesto de 3.200 (V2-488) — antes eso dejaba TODA búsqueda dirigida a ciegas, en silencio."
+      "why": "Asks for the answer, not the deliberation (`no_thinking`). If the model CANNOT turn reasoning off, it retries WITH reasoning and a 3200 budget (V2-488) — before that, every directed search ran blind, in silence."
     },
 
     "memory_writer": {
-      "label": "Memoria · CORAZÓN — destila cada turno en píldoras",
+      "label": "Memory · HEART — distils every turn into pills",
       "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
                    "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Elegido por medición (21 candidatos × 34 casos × 4 ejes, 2026-08-09): iguala a gpt-4.1-mini en los dos ejes que destruyen datos, a −55 % de coste. Escribe fuera de la ruta caliente, así que su latencia no cuesta nada."
+      "why": "Chosen by measurement (21 candidates x 34 cases x 4 axes, 2026-08-09): matches gpt-4.1-mini on the two axes that destroy data, at -55% cost. It writes off the hot path, so its latency costs nothing."
     },
 
     "memory_rem": {
-      "label": "Memoria · sueño REM — síntesis y reparación nocturna",
+      "label": "Memory · REM sleep — nightly synthesis and repair",
       "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
                    "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Mismo modelo que el CORAZÓN a propósito: escriben en el mismo sitio y con el mismo criterio."
+      "why": "The same model as the HEART on purpose: they write to the same place with the same judgement."
     },
 
     "embeddings": {
-      "label": "Memoria · embeddings (el espacio semántico)",
-      "titular": {"provider": "fastembed", "model": "BAAI/bge-small-en-v1.5",
-                  "base_url": "", "key_env": ""},
+      "label": "Memory · embeddings (the semantic space)",
+      "titular": {"provider": "openai", "model": "text-embedding-3-small",
+                  "base_url": "https://api.openai.com/v1", "key_env": "OPENAI_API_KEY", "dims": 768},
       "failover": null,
-      "why": "CORRE EN PROCESO — sin servidor, sin GPU, dentro de un contenedor. Ollama queda FUERA por norma: es un servidor local y en la nube no existe. Sin failover a propósito: un segundo espacio vectorial no es un suplente, es OTRA memoria — mezclarlos es el defecto que costó V2-482/484/485. Si esto cae, el recall semántico se degrada y se DICE.",
-      "warning": "Cambiar este valor cambia el ESPACIO. Una instalación existente conserva el suyo (sellado en `.embedsig`, `memory/reembed.py`); migrar exige re-embed explícito."
+      "why": "CHOSEN BY MEASUREMENT on 2026-08-29 (12 facts ES+EN, 12 queries sharing NO words with their fact, recall@1): text-embedding-3-small 12/12 margin +0.204 · mistral-embed 10/12 +0.050 · fastembed bge-small 7/12 +0.021 (an ENGLISH-ONLY model: on Spanish it misses one in three). DeepSeek has NO embeddings endpoint (404 verified) and AIMLAPI's returns 403, so there is no provider choice to make here. 768 dims are requested via the `dimensions` parameter (matryoshka): it measures the same as 1536 (12/12, +0.204 vs +0.201) and fits the `EMBED_DIM` the database already has — changing the model does NOT force a schema migration. Ollama is OUT by the operator's rule: it is a local server and inside a container it does not exist.",
+      "warning": "NO FAILOVER, DELIBERATELY: a second provider is ANOTHER vector space, not a stand-in — mixing them is the defect that cost V2-482/484/485. If the provider falls, the vector is DEFERRED (the writer marks `embed_pending`, REM repairs it) and recall drops to lexical, said in amber; the space is never swapped in flight. Changing this value changes the SPACE: the signature lives in `<db>.embedsig` and migrating requires `memory/reembed.py`."
     },
 
     "reranker": {
-      "label": "Memoria · reranker",
-      "titular": {"provider": "local", "model": "", "base_url": "", "key_env": ""},
+      "label": "Memory · reranker",
+      "titular": {"provider": "off", "model": "", "base_url": "", "key_env": ""},
       "failover": null,
-      "why": "fastembed en CPU, en proceso. Es una MEJORA del orden, no una fuente: si no está, el recall sigue funcionando peor ordenado."
+      "why": "OFF by default so LOCAL and CLOUD measure the same thing. Its model (jina-reranker, ~1.1GB) downloads on first boot and dominated a Machine's cold start (2min18s -> 58s with it off), so the cloud has run without it since 2026-08-13; shipping it on by default locally meant measuring locally a system that does not exist in the cloud. It is an ORDERING improvement, not a source: without it recall still works, just worse ordered. Turn it on with `local` (fastembed on CPU) from the panel once the memory grows."
     },
 
     "stt": {
-      "label": "Voz · STT (voz→texto)",
+      "label": "Voice · STT (speech to text)",
       "titular": {"provider": "deepgram", "model": "", "base_url": "", "key_env": "DEEPGRAM_API_KEY"},
       "failover": {"provider": "voxtral", "model": "", "base_url": "", "key_env": "MISTRAL_API_KEY"},
-      "why": "Los dos son de nube y sirven a un contenedor. Whisper local queda fuera por la misma norma que Ollama."
+      "why": "Both are cloud services and serve a container. Local Whisper is out by the same rule as Ollama."
     },
 
     "tts": {
-      "label": "Voz · TTS (texto→voz)",
+      "label": "Voice · TTS (text to speech)",
       "titular": {"provider": "elevenlabs", "model": "", "base_url": "", "key_env": "ELEVENLABS_API_KEY"},
       "failover": null,
-      "why": "Sin suplente y dicho: Cartesia lo descartó el operador por coste y Kokoro es local (no existe en la nube). Si ElevenLabs se agota, la voz deja de sonar — y eso tiene que verse en el panel, no adivinarse."
+      "why": "No stand-in, and said out loud: Cartesia was ruled out by the operator on cost and Kokoro is local (it does not exist in the cloud). If ElevenLabs runs out, the voice stops sounding — and that has to be VISIBLE in the panel, not guessed."
     },
 
     "triage": {
-      "label": "Mensajería · triaje de lo que llega",
+      "label": "Messaging · triage of what arrives",
       "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
                    "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Estaba en xAI `grok`, que el 2026-08-30 devuelve 403 por CRÉDITOS AGOTADOS — y grok está vetado para enrutar por mis-routing medido. Fuera."
+      "why": "It used to be xAI `grok`, which on 2026-08-30 returns 403 for EXHAUSTED CREDITS — and grok is vetoed for routing on measured mis-routing. Out."
     },
 
     "susurro": {
-      "label": "Susurro — sugerencias proactivas en segundo plano",
+      "label": "Susurro — proactive background suggestions",
       "enabled": false,
       "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
                   "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
       "failover": null,
-      "why": "APAGADO por defecto, por decisión durable del operador tras el incidente del bucle Susurro→worker que ahogaba la voz. Se enciende desde el panel."
+      "why": "OFF by default after the Susurro->worker loop incident that drowned the voice. Turned on from the panel — the operator's own install has had it on since 2026-07-26, once the circuit breaker existed."
     }
   },
 
   "retired": {
-    "_": "Lo que se quitó y POR QUÉ, para que nadie lo vuelva a añadir creyendo que falta.",
-    "xai": "Créditos agotados (403 verificado el 2026-08-30) y `grok` vetado para enrutar por mis-routing medido.",
-    "groq": "El modelo que teníamos declarado (`llama-3.3-70b-versatile`) YA NO EXISTE: 404 `model_not_found`. Un escalón con un nombre caducado es peor que no tenerlo.",
-    "ollama": "Servidor local: dentro de un contenedor no existe. Norma del operador — todo lo de esta tabla tiene que poder correr en la nube.",
-    "cartesia": "Descartado por el operador por coste.",
-    "zai_credits": "La cartera de pago por uso de Z.AI (`paas/v4`) es OpenAI-compatible y el worker habla Anthropic, así que no puede usarla; y fuera del worker Z.AI no se usa (V2-496)."
+    "_": "What was removed and WHY, so nobody adds it back believing it is missing.",
+    "xai": "Credits exhausted (403 verified 2026-08-30) and `grok` vetoed for routing on measured mis-routing.",
+    "groq": "The model we had declared (`llama-3.3-70b-versatile`) NO LONGER EXISTS: 404 `model_not_found`. A rung with an expired name is worse than no rung.",
+    "ollama": "A local server: inside a container it does not exist. Operator's rule — everything in this table has to be able to run in the cloud.",
+    "cartesia": "Ruled out by the operator on cost.",
+    "zai_credits": "Z.AI's pay-per-use wallet (`paas/v4`) is OpenAI-compatible and the worker speaks Anthropic, so it cannot use it; and outside the worker Z.AI is not used at all (V2-496)."
   }
 }

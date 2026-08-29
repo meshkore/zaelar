@@ -5202,6 +5202,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **The memory's semantic space comes from a CLOUD provider, and a paid call is metered (V2-501,
+  2026-08-30)**: operator's rule — *«in the cloud we are going to use commercial models… and in local use one
+  of those right now»*. The embeddings titular was **Ollama**, a LOCAL server: inside a container it does not
+  exist, so every cloud Machine fell through to `fastembed`, whose default model is **English only**, in a
+  product used in Spanish. That does not raise — it answers differently, so local and cloud had been searching
+  in DIFFERENT SPACES for months behind one `logger.warning`.
+  - **Chosen by measurement** (12 facts ES+EN, 12 queries sharing no words with their fact, recall@1):
+    `text-embedding-3-small` **12/12** (+0.204) · `mistral-embed` 10/12 (+0.050) · `fastembed` bge-small
+    **7/12** (+0.021). DeepSeek has **no** embeddings endpoint (404) and AIMLAPI's returns 403, so the
+    "DeepSeek direct is titular" rule does not apply here: the service does not exist.
+  - **768 dims are REQUESTED** (`dimensions`, matryoshka) — it measures the same as 1536 and fits the
+    `EMBED_DIM` every database already has, so adopting the provider forces a schema migration on nobody.
+  - **An outage never changes the space.** The provider returns `None` → `last_degraded` → the writer defers
+    the vector and REM repairs it, exactly as for a saturated Ollama (V2-103). And `reembed()` now **stops
+    without stamping** if the backend is degraded: before, it finished "fine" and sealed the cloud signature
+    over a half-hashed index — the database lying about its own space, which is what the seal exists to prevent.
+  - **A new paid provider needs a rate row and a meter.** The coverage gate caught it the same hour: without a
+    row it billed at the punitive catch-all, ~100x the real price for the cheapest model on the list. The call
+    goes through `meter_openai_response` (deferred import, same written-down trade as `memory/rerank.py`).
+  - ⚠️ **A value in the environment beats a default**, so the table alone was not enough. Found underneath it:
+    `MEM_PROCESSOR_MODEL=qwen2.5:3b` in the credential store — the **HEART was running an Ollama model** while
+    three documents said DeepSeek — plus `GLM_MODEL`, `LLM_MODEL`, `EVAL_MODEL` and `TTS_PROVIDER=deepgram`
+    (that is the STT) in `.env`. A model name in an env file is not configuration, it is a second table.
+  - **The suite must never buy embeddings.** Three autodetection tests started measuring the network of
+    whoever ran them (green with a key on the laptop, red in CI). The root `conftest.py` makes the cloud
+    backend behave as unavailable unless a test opts in.
+
 - **El reparto de modelos vive en UNA tabla pública, y un solo failover por servicio (V2-500, 2026-08-30)**:
   norma del operador — *«la configuración debe estar en un archivo por defecto, público y en el repositorio…
   quiero que ese archivo sea único y no quiero que estos datos estén en mil sitios a la vez»* y *«solo quiero

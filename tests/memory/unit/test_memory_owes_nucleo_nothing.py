@@ -49,6 +49,10 @@ INVERSE_IMPORTS_DEBT: dict[tuple[str, str], str] = {
         "while DORMANT so that turning the remote reranker on is never free by accident. A registered-callback "
         "design reopens exactly that hole for any process that forgets to register — real money going unbilled, "
         "silently, in exchange for layer purity. Deferred import inside an opt-in branch is the cheaper trade.",
+    ("memory/embeddings.py", "nucleo.energy_meter"):
+        "meters the CLOUD embedding call (V2-501). Same trade as rerank above, and the argument is stronger "
+        "here: the reranker is dormant, this runs on every insert AND every query. Deferred import inside the "
+        "cloud branch, right after a successful response; the local backends never reach it.",
 }
 
 _FROM_DOTTED_RE = re.compile(r"^[ \t]*from[ \t]+nucleo\.([a-z_]+)")           # from nucleo.workers import ledger

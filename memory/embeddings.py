@@ -1,21 +1,29 @@
-"""memory/embeddings.py — embeddings LOCALES para la memoria (V2-002 · T46).
+"""memory/embeddings.py — the memory's embeddings (V2-002 · T46; CLOUD provider since V2-501).
 
-Se calculan **al insertar** (en el writer) y **al consultar** (en el retriever). Cadena de backends, de mejor
-a más disponible, resuelta perezosamente y cacheada:
+Computed **on insert** (in the writer) and **on query** (in the retriever). Backends, from the titular to the
+always-available one, resolved lazily and cached:
 
-  1. **Ollama** — `embeddinggemma` (768 dims, multilingüe → bueno para castellano), on-device, sin coste por
-     inserción. Modelo/host por env (`ZAELAR_EMBED_MODEL` / `ZAELAR_EMBED_HOST`); fallback de modelo
-     `nomic-embed-text`. Es el backend por defecto si Ollama responde.
-  2. **fastembed** — ONNX-Runtime, sin server/GPU. Solo si el paquete está instalado.
-  3. **hashing determinista** — feature-hashing bag-of-words a `EMBED_DIM` dims, L2-normalizado. SIEMPRE
-     disponible (cero deps, cero red) → los tests y los entornos sin Ollama nunca se quedan sin embeddings.
-     Da señal LÉXICA (textos que comparten palabras quedan más cerca), no semántica profunda.
+  1. **cloud, OpenAI `/embeddings` protocol** — the TITULAR (`config/models.default.json` §embeddings:
+     `text-embedding-3-small`, 768 dims requested via `dimensions`). It is the only one that runs identically
+     on a laptop and inside a Fly container, which is the operator's rule: *local must measure what the cloud
+     measures*. Chosen by measurement, not by catalogue — the numbers are in that row's `why`.
+  2. **Ollama** — `embeddinggemma`. NO LONGER THE DEFAULT: it is a local server, it does not exist in the
+     cloud, and an install using it measured something other than the cloud did. Kept because databases are
+     sealed with its signature and because a self-hoster with a GPU may prefer it (chosen in the panel).
+  3. **fastembed** — ONNX-Runtime, no server. A safety net, NOT a titular: its default model
+     (`BAAI/bge-small-en-v1.5`) is ENGLISH ONLY and scores 7/12 on Spanish recall where the titular scores 12.
+  4. **deterministic hashing** — feature-hashing into `EMBED_DIM` dims, L2-normalised. ALWAYS available (no
+     deps, no network) → tests and bare environments are never left without a vector. LEXICAL signal only.
 
-Todos los vectores se **L2-normalizan** → la distancia L2 de sqlite-vec se comporta como similitud coseno.
-El vector siempre tiene dimensión `schema.EMBED_DIM` (768): se trunca/rellena si un backend devuelve otra.
+Every vector is **L2-normalised** → sqlite-vec's L2 distance behaves like cosine similarity. The vector always
+has the ACTIVE backend's dimension; it is truncated/padded if a backend returns another.
 
-**Regla de modelo por invocación**: aquí el modelo de embeddings tiene un DEFAULT configurable por env; no fija
-ninguna env global que fuerce a los cerebros. Es una elección de infraestructura de la memoria, no del cerebro.
+**A titular failure NEVER changes the space.** Neither a saturated Ollama nor a 429 from the cloud provider
+demotes the process: the call fails, `last_degraded` says so, the writer defers the vector (`embed_pending`,
+repaired by REM) and the reader drops to lexical. Swapping the space in flight is the defect V2-103 cost.
+
+**Model-per-invocation rule**: the embedding model has a configurable default here; it sets no global env that
+would force the brains. It is memory infrastructure, not a brain's choice.
 """
 import hashlib
 import json
@@ -32,19 +40,24 @@ _TOKEN_RE = re.compile(r"\w+", re.UNICODE)
 logger = logging.getLogger("zaelar.memory.embeddings")
 
 
+# Backends that are a legitimate operator CHOICE (not a fault). Anything else is degradation: the titular did
+# not answer and we are producing a WORSE signal than the one the database is indexed with.
+_HEALTHY = ("cloud", "ollama")
+
+
 def _warn_if_degraded(backend: str, forced: bool) -> None:
-    """T176 — la memoria por SIGNIFICADO depende críticamente del backend: embeddinggemma (Ollama) aguanta a escala;
-    el fallback fastembed COLAPSA con miles de recuerdos y 'hash' es solo-léxico. Si caemos a un backend degradado
-    la superpotencia se pierde EN SILENCIO → avisamos una vez (visible en logs/diagnóstico)."""
-    if backend == "ollama":
+    """T176 — recall BY MEANING depends critically on the backend: the cloud titular and embeddinggemma hold up
+    at scale; the fastembed fallback COLLAPSES with thousands of memories (and is English-only on top of that)
+    and 'hash' is lexical-only. If we drop to a degraded backend the superpower is lost IN SILENCE → warn once."""
+    if backend in _HEALTHY:
         return
-    src = "forzado por ZAELAR_EMBED_BACKEND" if forced else "Ollama/embeddinggemma NO disponible"
+    src = "forced by ZAELAR_EMBED_BACKEND" if forced else "the titular provider is NOT available"
     if backend == "hash":
-        logger.warning("⚠️ memoria: embeddings en 'hash' (%s) — recall SEMÁNTICO prácticamente DESACTIVADO "
-                       "(solo FTS léxico). Arranca Ollama con embeddinggemma para memoria por significado.", src)
-    else:  # fastembed u otro
-        logger.warning("⚠️ memoria: embeddings en '%s' (%s) — recall semántico DEGRADADO a escala (colapsa con "
-                       "miles de recuerdos, T176). Recomendado: Ollama + embeddinggemma.", backend, src)
+        logger.warning("⚠️ memory: embeddings on 'hash' (%s) — SEMANTIC recall practically DISABLED (lexical FTS "
+                       "only). Check the embedding provider's credential.", src)
+    else:  # fastembed or other
+        logger.warning("⚠️ memory: embeddings on '%s' (%s) — semantic recall DEGRADED (collapses at scale and its "
+                       "default model is English-only, T176).", backend, src)
     _report_degraded(backend, forced)
 
 
@@ -67,14 +80,14 @@ def _report_degraded(backend: str, forced: bool) -> None:
     try:
         from voice import health_state
         health_state.record("memory", "degraded",
-                            f"embeddings en '{backend}': Ollama/embeddinggemma no disponible — "
-                            f"recall por significado {'DESACTIVADO' if backend == 'hash' else 'degradado'}")
+                            f"embeddings on '{backend}': the titular provider is not available — "
+                            f"recall by meaning {'DISABLED' if backend == 'hash' else 'degraded'}")
     except Exception:  # noqa: BLE001
         pass  # la observabilidad NUNCA rompe la memoria
 
 
 # ── backend activo (resuelto una vez, con re-intento si quedó DEGRADADO) ──────────────────────────────────────
-_backend: str | None = None      # 'ollama' | 'fastembed' | 'hash'
+_backend: str | None = None      # 'cloud' | 'ollama' | 'fastembed' | 'hash'
 _fastembed_model = None
 _active_dim: int | None = None   # dim del modelo ACTIVO (V2-031: provider-driven, ya no fijo a 768)
 _resolved_at: float = 0.0        # cuándo se resolvió `_backend` por última vez (para el re-intento)
@@ -265,6 +278,94 @@ def _fastembed_embed(texts: list[str]) -> list[list[float]] | None:
         return None
 
 
+# ── CLOUD backend (OpenAI `/embeddings` protocol) ─────────────────────────────────────────────────────────────
+# Models that accept `dimensions` (matryoshka): a SHORTER vector can be requested without losing quality.
+# Measured 2026-08-29 over 12 ES+EN queries: 768 dims scores 12/12 with a +0.204 margin and 1536 scores 12/12
+# with +0.201 — so asking for 768 costs nothing and fits the `EMBED_DIM` the vector table is already created
+# with, which means adopting the new provider does NOT force a schema migration on anybody.
+_MATRYOSHKA = ("text-embedding-3",)
+
+
+def _cloud_base_url() -> str:
+    return (str(_mem_cfg().get("embed_base_url") or "").strip()
+            or os.getenv("ZAELAR_EMBED_BASE_URL") or "https://api.openai.com/v1")
+
+
+def _cloud_model() -> str:
+    # store (panel) > env > default. Changing the model REQUIRES a re-embed (memory/reembed.py) — never mix spaces.
+    return (str(_mem_cfg().get("embed_model") or "").strip()
+            or os.getenv("ZAELAR_EMBED_MODEL") or "text-embedding-3-small")
+
+
+def _cloud_key() -> str:
+    """The credential, BY NAME, read from the table itself (the `key_env` of the `embeddings` row).
+
+    The tempting move was to call `nucleo.provider_keys`, the house endpoint→variable resolver. We do not, and
+    not for tidiness: `memory/` does not import `nucleo/` (guarded by `test_memory_owes_nucleo_nothing`),
+    because the memory has to exist without a brain. And it turns out no resolver is needed here: the table
+    ALREADY says what pays for this row, so it is read where it is already written instead of inferred from the
+    URL.
+
+    CONTRACT for anyone changing the endpoint from the panel: if you point `embed_base_url` at another
+    provider, put its key in `embed_api_key` too. It is not guessed — guessing is how one provider's key gets
+    sent to another's host, which already cost this house two days of silent 401s.
+    """
+    inline = str(_mem_cfg().get("embed_api_key") or "").strip()
+    if inline:
+        return inline
+    env_name = "OPENAI_API_KEY"
+    try:
+        from config import models as _table
+        env_name = str((_table.rungs("embeddings")[0] or {}).get("key_env") or "") or env_name
+    except Exception:  # noqa: BLE001
+        pass
+    return os.getenv(env_name, "")
+
+
+def _cloud_dims() -> int | None:
+    """Dims to REQUEST, or None if the model does not accept the parameter (then its native dim rules)."""
+    return EMBED_DIM if any(m in _cloud_model().lower() for m in _MATRYOSHKA) else None
+
+
+def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list[float]] | None:
+    """POST `{base_url}/embeddings`. Returns None on ANY failure — and returning None is a decision, not an
+    omission: the caller turns it into `last_degraded`, the writer defers the vector and the database's space
+    stays as it is. A 429 must never become a change of vector space (V2-103)."""
+    key = _cloud_key()
+    if not key:
+        return None
+    body: dict = {"model": _cloud_model(), "input": list(texts)}
+    dims = _cloud_dims()
+    if dims:
+        body["dimensions"] = dims
+    req = urllib.request.Request(
+        _cloud_base_url().rstrip("/") + "/embeddings",
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout or float(os.getenv("ZAELAR_EMBED_TIMEOUT_S", "20"))) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        rows = sorted(data["data"], key=lambda it: it.get("index", 0))
+        out = [list(map(float, it["embedding"])) for it in rows]
+        if len(out) != len(texts):
+            return None
+        # THE BILLING GATE. Deferred import, and it is a deliberate exception to "memory/ does not import
+        # nucleo/" — the same trade already written down for `memory/rerank.py`: a register-a-callback design
+        # reopens the hole for any process that forgets to register, and what leaks through that hole is real
+        # money, silently. Here the argument is stronger than for the reranker, which is dormant: this runs on
+        # every insert AND every query. Metering never takes down the metered (V2-097), hence the swallow.
+        try:
+            from nucleo.energy_meter import meter_openai_response
+            meter_openai_response(data, base_url=_cloud_base_url(), model=_cloud_model())
+        except Exception:  # noqa: BLE001
+            pass
+        return out
+    except Exception as e:  # noqa: BLE001
+        logger.debug("cloud embeddings failed: %s", _error_body(e) or e)
+        return None
+
+
 def _hash_embed(text: str, dim: int = EMBED_DIM) -> list[float]:
     """Feature-hashing bag-of-words → vector determinista de `dim` dims. Señal léxica, cero deps/red."""
     vec = [0.0] * dim
@@ -297,7 +398,7 @@ def _resolve_backend():
     if _backend is not None:
         # Re-intento (V2-103): solo si la resolución fue AUTOMÁTICA, el backend actual está DEGRADADO (no
         # 'ollama') y ya pasó el TTL — nunca pisa una elección explícita, nunca re-sondea un backend sano.
-        if _forced or _backend == "ollama":
+        if _forced or _backend in _HEALTHY:
             return
         if (_t.time() - _resolved_at) < _BACKEND_RECHECK_S:
             return
@@ -315,9 +416,14 @@ def _resolve_backend():
     cfg_val = str(_mem_cfg().get("embed_provider") or "").strip()
     if cfg_val == "auto":
         cfg_val = ""
-    forced = cfg_val or os.getenv("ZAELAR_EMBED_BACKEND")  # 'ollama'|'fastembed'|'hash'|… — UI/tests/power-user
+    forced = cfg_val or os.getenv("ZAELAR_EMBED_BACKEND")  # 'openai'|'ollama'|'fastembed'|'hash'|… — UI/tests
     if forced in ("auto", ""):
-        forced = None                               # 'auto' = autodetección (ollama→fastembed→hash), no forzar
+        forced = None                               # 'auto' = autodetect (cloud→ollama→fastembed→hash)
+    # The PROVIDER name in the table is 'openai' (that is its protocol); the internal backend is called 'cloud'
+    # because any compatible endpoint serves. One alias, here, so the `.embedsig` signature does not depend on
+    # how the provider happened to be spelled in the panel.
+    if forced in ("openai", "cloud", "azure", "voyage"):
+        forced = "cloud"
     if forced:
         _backend = forced
         _forced = True
@@ -337,7 +443,12 @@ def _resolve_backend():
     # fresco costaba **20,8 s** —lo paga el DDL de la tabla vectorial, que necesita `dim()`— porque esta sonda
     # usaba el presupuesto de una llamada REAL (20 s) contra un Ollama vivo pero con la GPU ocupada. La consulta
     # en sí tarda 25 ms; el arnés lo estaba midiendo como «la memoria tarda 10 s en no encontrar nada».
-    if _ollama_embed(["ping"], timeout=probe_budget_s()) is not None:
+    # The CLOUD comes first: it is the table's titular and the only backend that exists identically on a laptop
+    # and inside a container. Probed only if a credential is present — without one there is nothing to test and
+    # the probe would be a request guaranteed to fail on every boot.
+    if _cloud_key() and _cloud_embed(["ping"], timeout=probe_budget_s()) is not None:
+        _backend = "cloud"
+    elif _ollama_embed(["ping"], timeout=probe_budget_s()) is not None:
         _backend = "ollama"
     elif _ollama_timeout and _indexed_space_to_defend():
         # UN TIMEOUT NO ES UNA AUSENCIA, y esto es lo que hace SEGURO acortar la sonda. Con 20 s, una petición
@@ -387,7 +498,7 @@ def _resolve_backend():
 
 
 def active_backend() -> str:
-    """Devuelve el backend en uso ('ollama'|'fastembed'|'hash'). Resuelve perezosamente. Para tests/diagnóstico."""
+    """Backend in use ('cloud'|'ollama'|'fastembed'|'hash'). Resolved lazily. For tests/diagnostics."""
     _resolve_backend()
     return _backend  # type: ignore
 
@@ -409,6 +520,8 @@ def reset():
 
 
 def _active_model_name() -> str:
+    if _backend == "cloud":
+        return _cloud_model()
     if _backend == "ollama":
         return _ollama_model()
     # ⚠️ KNOWN MISLABEL, deliberately left alone (2026-08-18). For the fastembed backend this returns the config's
@@ -449,7 +562,9 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
     _resolve_backend()
     d = dim()
     out: list[list[float]] | None = None
-    if _backend == "ollama":
+    if _backend == "cloud":
+        out = _cloud_embed(texts)
+    elif _backend == "ollama":
         out = _ollama_embed(texts)
     elif _backend == "fastembed":
         out = _fastembed_embed(texts)
@@ -476,12 +591,21 @@ def dim() -> int:
     if _backend == "hash":
         _active_dim = EMBED_DIM
         return _active_dim
+    if _backend == "cloud":
+        # For a matryoshka model WE decide the dim by asking for it — reading it from a registry by name would
+        # guess the native one (1536) while the arriving vector is 768 wide.
+        d = _cloud_dims()
+        if d:
+            _active_dim = d
+            return _active_dim
     name = _active_model_name().lower()
     for k, d in _MODEL_DIMS.items():
         if k in name:
             _active_dim = d
             return _active_dim
     # desconocido → probe: la longitud REAL del primer vector manda.
-    probe = _ollama_embed(["x"]) if _backend == "ollama" else (_fastembed_embed(["x"]) if _backend == "fastembed" else None)
+    probe = (_cloud_embed(["x"]) if _backend == "cloud"
+             else _ollama_embed(["x"]) if _backend == "ollama"
+             else _fastembed_embed(["x"]) if _backend == "fastembed" else None)
     _active_dim = len(probe[0]) if probe else EMBED_DIM
     return _active_dim

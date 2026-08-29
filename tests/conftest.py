@@ -68,3 +68,40 @@ def _reranker_deja_de_depender_de_la_maquina():
             os.environ.pop("MEMORY_RERANK", None)
         else:
             os.environ["MEMORY_RERANK"] = previo_env
+
+
+@pytest.fixture(autouse=True)
+def _cloud_embeddings_never_reach_the_network():
+    """The embeddings titular became a PAID provider (V2-501) — and that turned half the suite into its
+    customer without anyone deciding so.
+
+    Measured 2026-08-30, the moment the table changed: three autodetection tests in `test_embeddings.py`
+    started failing with `assert 'cloud' == 'fastembed'`. They were not broken: they probed the new rung, and
+    since the operator's machine DOES have `OPENAI_API_KEY` in its environment, the probe went out to the
+    internet and came back with a real vector. That is the worst shape of this failure: the tests neither hang
+    nor complain, they simply measure the network of whoever runs them — green on a laptop with a key, red in
+    CI without one, and a bill nobody asked for.
+
+    So INSIDE the suite the cloud backend behaves like an unavailable provider, a path the module already knows
+    how to walk (returning `None` = "did not answer" → defer the vector, never change the space). A test that
+    genuinely wants to measure it patches `_cloud_embed` itself, or sets `ZAELAR_TEST_EMBED_CLOUD=1` to let the
+    real call through.
+
+    No `monkeypatch`, for the same reason as the reranker fixture above: requesting it here instantiates it at
+    the outermost level and its patches are undone AFTER any module fixture's teardown.
+    """
+    import os
+    from memory import embeddings as emb
+
+    if os.environ.get("ZAELAR_TEST_EMBED_CLOUD") == "1":
+        yield
+        return
+    real = emb._cloud_embed
+    # Kept reachable by hand for the one test that DOES have to measure the real function (with `urlopen`
+    # patched, no network): without this the original is unreachable while the fixture is installed.
+    emb._REAL_CLOUD_EMBED = real
+    emb._cloud_embed = lambda texts, *, timeout=None: None
+    try:
+        yield
+    finally:
+        emb._cloud_embed = real

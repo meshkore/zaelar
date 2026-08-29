@@ -46,6 +46,12 @@ primary_region = "iad"   # same region as zaelar-demo
   CODE_AGENT_MODEL = "glm-5.3"
   MEM_PROCESSOR_URL = "https://api.deepseek.com"
   MEM_PROCESSOR_MODEL = "deepseek-v4-flash"
+  # Embeddings de la memoria (V2-501). El backend por defecto del motor era Ollama, que dentro de un contenedor
+  # NO EXISTE: la Machine caía a fastembed —un modelo solo-inglés que sobre castellano acierta 7 de 12 donde
+  # este hace 12— y nada lo decía en rojo. Se piden 768 dims para que la tabla vectorial sea la de siempre.
+  ZAELAR_EMBED_BACKEND = "openai"
+  ZAELAR_EMBED_MODEL = "text-embedding-3-small"
+  ZAELAR_EMBED_BASE_URL = "https://api.openai.com/v1"
   # NB: unlike fly.demo.toml, deliberately NO MEMORY_RERANK=off, NO ZAELAR_DEMO_* — a real account
   # keeps the memory reranker ON (quality over ephemeral boot speed) and has no demo turn/TTL caps
   # (see accountMachineConfig's docstring: bounded by Energy balance instead).

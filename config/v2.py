@@ -48,7 +48,7 @@ _DEFAULTS: dict[str, dict] = {
     "fast": {
         # OPERATOR RULE (2026-08-19): **DeepSeek V4 DIRECT from its provider is the primary option**; the
         # first fallback is the AIMLAPI broker, and only then an OpenAI or Anthropic model. This applies to all
-        # las piezas que llaman a un LLM, no solo a esta. Ver la Hard rule de `CLAUDE.md`.
+        # components that call an LLM, not just this one. See the Hard rule in `CLAUDE.md`.
         "provider": _t("voice_brain", "provider"),
         # Why V4 **PRO** rather than Flash for the direct endpoint, which is what was here before: the three-round
         # rounds on node 2.13 (42 turns per arm, 2026-08-15) measured exactly what this comment required to promote
@@ -56,17 +56,17 @@ _DEFAULTS: dict[str, dict] = {
         #
         #                                  enrutado   graves   TTFT p50
         #   AIMLAPI  deepseek-v4-flash       41/42       0       8.659 ms   ← titular anterior
-        #   DIRECTO  deepseek-v4-pro         41/42       1       1.158 ms   ← titular ahora
+        #   DIRECTO  deepseek-v4-pro         41/42       1       1.158 ms   ← titular now
         #   DIRECT    deepseek-v4-flash       38/42       1         934 ms   ← `mostrar widget` failed 3 of 3
         #
         # Direct Flash is NOT included: 3 out of 3 is not variance, it is a defect. Pro matches broker routing with
         # 224 ms more TTFT than Flash, and removes 7.5 seconds from the first token—which is what the operator
-        # experimenta como «se ha quedado tonto».
+        # experimenta as «se ha quedado tonto».
         #
         # THE COST, plainly stated: the voice turn rises from ~0.5 to ~1 Energy. `CLAUDE.md` says promoting
         # Pro “is not another measurement but a PRICING decision”; the operator made that decision under the
-        # norma de arriba. El grave que Pro marca y el broker no es `pregunta memoria → widget_data`.
-        "model": _t("voice_brain", "model"),                # de la tabla; se pasa por invocación
+        # rule above. The serious issue that Pro catches and the broker does not is `memory question → widget_data`.
+        "model": _t("voice_brain", "model"),                # from the table; passed per invocation
         "base_url": _t("voice_brain", "base_url"),          # DIRECTO, no el broker
         "api_key": "",
         # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.flash.provider_chain._voice_chain()`
@@ -77,7 +77,7 @@ _DEFAULTS: dict[str, dict] = {
         #
         # It REMAINS EMPTY by design, and the rule above does not change that: empty means “primary + the chain
         # AUTOMATIC chain”, which in the cloud is already DeepSeek direct → broker, and in SELF-HOST is only primary. A
-        # se autohospeda paga sus propias APIs y no puede llevarse la sorpresa de que el agente se pase solo a un
+        # self-hosted operator pays for their own APIs and must not be surprised by the agent switching on its own to a
         # self-hosted operator pays for their own APIs; declaring a fixed chain here would impose it on everyone.
         "providers": [],
     },
@@ -119,7 +119,7 @@ _DEFAULTS: dict[str, dict] = {
     "memory": {
         # LONG-recall reranker (off-hot-path, fail-open). Moves the correct item from top-10 to top-1/3.
         # DEFAULT `local` (V2-030): jina-reranker-v2-multilingual en CPU sube recall@1 41.6→56.2% y recall@3
-        # empata al techo OpenAI (68.7 vs 69.0%) — gratis, 100% local, sin GPU. `openai` = techo cloud opcional.
+        # empata al techo OpenAI (68.7 vs 69.0%) — gratis, 100% local, without GPU. `openai` = techo cloud opcional.
         "rerank_provider": _t("reranker", "provider"),            # 'off' | 'local' (fastembed CPU, default) | 'openai' (LLM listwise) | 'cohere'/'voyage'
         "rerank_model": "",                    # empty = provider default (openai→gpt-4o-mini, local→bge-reranker-base)
         "rerank_base_url": "",                 # alternative OpenAI-compatible endpoint (empty = OpenAI)
@@ -127,9 +127,13 @@ _DEFAULTS: dict[str, dict] = {
         "rerank_blend": 0.85,                  # peso del rerank vs score original (recencia/importancia)
         "rerank_api_key": "",                  # secret (redacted); empty = OPENAI_API_KEY from env
         # Memory embedding (Phase 3: abstraction; default remains local, without automatic re-embed).
-        "embed_provider": _t("embeddings", "provider"),              # 'auto' (ollama→fastembed→hash) | 'ollama' | 'fastembed' | 'voyage'/'openai' (cloud)
-        "embed_model": _t("embeddings", "model"),       # modelo de embedding; cambiarlo EXIGE re-embed (memory/reembed.py)
-        "embed_api_key": "",                   # secret (redacted); cloud providers only
+        # TITULAR = a CLOUD provider (`openai` = its `/embeddings` protocol, not necessarily its host). It is
+        # the only backend that exists identically on a laptop and inside a container, which is the rule: LOCAL
+        # has to measure what the CLOUD measures. 'ollama' remains available for GPU self-hosters.
+        "embed_provider": _t("embeddings", "provider"),   # 'openai' (cloud, default) | 'ollama' | 'fastembed' | 'hash' | 'auto'
+        "embed_model": _t("embeddings", "model"),         # changing it REQUIRES a re-embed (memory/reembed.py) — never mix spaces
+        "embed_base_url": _t("embeddings", "base_url"),   # OpenAI-compatible endpoint; empty = OpenAI
+        "embed_api_key": "",                   # secret (redacted); empty = credential PER ENDPOINT (provider_keys)
         # The write HEART (mem_processor): distills each turn into pills. It runs OFF-HOT-PATH (async queue) →
         # **voice does NOT pay its latency**, and READS use no LLM. That is why the choice axis is quality-vs-PRICE,
         # never speed: here a slow and cheap model is perfectly valid.
@@ -148,7 +152,7 @@ _DEFAULTS: dict[str, dict] = {
         #     `slot=operator.diet` (3/3 passes + 3/3 direct reproduction). A slot INVALIDATES everything previous
         #     with that slot → a future "now I am vegetarian" would erase the allergy. This is the exact error the
         #     prompt warns about, and in personal memory it is silent data loss, not a percentage point.
-        #   · Fallback si AIMLAPI/DeepSeek cae: `google/gemini-2.5-flash` (96,7/100/100) → `openai/gpt-4.1-mini`.
+        #   · Fallback if AIMLAPI/DeepSeek fails: `google/gemini-2.5-flash` (96,7/100/100) → `openai/gpt-4.1-mini`.
         #   · SAME model in self-host and cloud (operator decision 2026-08-09: one commercial model that works in
         #     both places). The sites that set it by env in cloud —`engine/fly.accounts.toml` and
         #     `cloud/provisioner/src/machineConfig.js`— are synchronized with this default.
@@ -270,6 +274,7 @@ _ENV_FALLBACK = {
     ("memory", "rerank_api_key"): "MEMORY_RERANK_KEY",
     ("memory", "embed_provider"): "ZAELAR_EMBED_BACKEND",
     ("memory", "embed_model"): "ZAELAR_EMBED_MODEL",
+    ("memory", "embed_base_url"): "ZAELAR_EMBED_BASE_URL",
     ("memory", "mem_processor_model"): "MEM_PROCESSOR_MODEL",
     ("memory", "mem_processor_base_url"): "MEM_PROCESSOR_URL",
     ("memory", "mem_processor_api_key"): "MEM_PROCESSOR_KEY",
@@ -393,13 +398,13 @@ def external_worker_env() -> dict:
             # (fail-loud).
             try:
                 from loguru import logger
-                logger.warning(f"code_agent.base_url={base!r} configurado pero SIN token resoluble "
-                               "(¿falta Z_AI_API_KEY en el store?) → los brain workers caerían a la licencia "
-                               "Claude Teams. Revisa credenciales.")
+                logger.warning(f"code_agent.base_url={base!r} configured pero without token resoluble "
+                               "(¿missing Z_AI_API_KEY en el store?) → the brain workers caerían a la licencia "
+                               "Claude Teams. Revisa credentials.")
             except Exception:
                 pass
             return {}
-        # ANTHROPIC_API_KEY conviviendo con base_url ambigua al CLI → se quita en el consumidor tras aplicar esto.
+        # ANTHROPIC_API_KEY coexisting with an ambiguous base_url in the CLI → removed by the consumer after this.
         return {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok}
     except Exception:
         return {}

@@ -72,6 +72,14 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
     # (config §memory.mem_processor_model — see zaelar-model-benchmarks.md §12.3). Measured cost of
     # one distilled turn: ~4076 in + ~389 out tokens => ~$0.00068, i.e. $0.68 per 1000 turns.
     "deepseek-v4-flash": (0.14, 0.28),
+    # The memory's EMBEDDINGS (V2-501, 2026-08-30). They have no output tokens at all — an embedding is not
+    # generated text — so the output rate is a real zero and not a placeholder. A row is needed even though the
+    # amounts are tiny: without one they fall to the punitive catch-all, which for the cheapest model on the
+    # whole list means over-charging by ~100x. And they are NOT rare: this runs on every insert AND every
+    # query, so a wrong rate here is a wrong rate on the hottest path the memory has.
+    "text-embedding-3-small": (0.02, 0.0),
+    "text-embedding-3-large": (0.13, 0.0),
+    "mistral-embed": (0.10, 0.0),
     # CORAZÓN fallback chain (§12.3), rated so a failover never meters as the generic fallback rate.
     "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-flash": (0.30, 2.50),

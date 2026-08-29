@@ -45,6 +45,13 @@ def _esperado() -> dict[str, str]:
         "MEM_PROCESSOR_MODEL": _titular("memory_writer", "model"),
         "ZAELAR_STT": _titular("stt", "provider"),
         "ZAELAR_TTS": _titular("tts", "provider"),
+        # The vector space is the piece that costs MOST when local and cloud differ: it does not fail, it simply
+        # finds something else. That is why all three surfaces name it identically, even though the engine
+        # carries its own default.
+        "ZAELAR_EMBED_BACKEND": _titular("embeddings", "provider"),
+        "ZAELAR_EMBED_MODEL": _titular("embeddings", "model"),
+        "ZAELAR_EMBED_BASE_URL": _titular("embeddings", "base_url"),
+        "MEMORY_RERANK": _titular("reranker", "provider"),
     }
 
 
@@ -130,3 +137,31 @@ def test_lo_RETIRADO_no_ha_vuelto():
             for muerto, host in (("xai", "api.x.ai"), ("groq", "api.groq.com")):
                 assert host not in url, (
                     f"«{muerto}» ha vuelto en {nombre}.{cual}; su motivo sigue escrito en `retired`")
+
+
+def test_every_credential_in_the_table_CAN_be_resolved_by_the_engine(monkeypatch):
+    """A row can declare a `key_env` the engine cannot resolve for THAT endpoint — and then nothing fails: the
+    request goes out unauthenticated, eats a 401 and degrades in silence (exactly what `nucleo/provider_keys`
+    documents, since it was born from four lists drifting apart). What is checked here is the only thing that
+    closes the hole: that for every `base_url` in the table the resolver returns the credential that same row
+    NAMES.
+
+    Variables are marked with sentinels instead of reading real values: the test needs no key at all and its
+    output is safe in a log.
+    """
+    from nucleo import provider_keys
+
+    for env_name in {e for _n, e in provider_keys._ENDPOINTS}:
+        monkeypatch.setenv(env_name, f"SENTINEL::{env_name}")
+
+    table = json.loads(TABLA.read_text(encoding="utf-8"))["services"]
+    for service, svc in table.items():
+        for which in ("titular", "failover"):
+            rung = svc.get(which)
+            if not rung or not rung.get("base_url") or not rung.get("key_env"):
+                continue
+            resolved = provider_keys.key_for_endpoint(rung["base_url"])
+            assert resolved == f"SENTINEL::{rung['key_env']}", (
+                f"{service}.{which}: the table says {rung['base_url']} is paid for with {rung['key_env']}, but "
+                f"the engine resolves something else ({resolved or 'NOTHING'}). Add the endpoint to "
+                f"nucleo/provider_keys.")

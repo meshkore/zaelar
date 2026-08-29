@@ -53,6 +53,11 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_widget_slot_migration.py"]},
         {"id": "1.2", "title": "Embeddings y recuperación (retriever+reranker)", "ch": UNIT, "paths": [
             "tests/memory/unit/test_embeddings.py", "tests/memory/unit/test_retriever.py",
+            # V2-501 (2026-08-30): the semantic space moved from Ollama (a LOCAL server, which does not exist
+            # inside a container) to a cloud provider, so local and cloud search the SAME space. What is
+            # guarded is not the call: it is that the dim is the one requested, that the credential is named
+            # by the table, and that a provider outage defers the vector instead of changing the space.
+            "tests/memory/unit/test_the_space_comes_from_the_cloud.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
