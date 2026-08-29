@@ -1048,3 +1048,52 @@ def test_the_tab_feeds_its_status_and_listens_for_it():
     assert 'page.on("response"' in src and "resource_type" in src and "main_frame" in src
     cap = src[src.index("async def _capture"):]
     assert 'status=int(getattr(self, "last_status", 0) or 0)' in cap
+
+
+# ── V2-470: a wall the TASK knows reaches the worker, and a wall STREAK switches the CHANNEL ────────────────
+# Measured in `cheapest-monitor__us` round 11 (2026-08-29 01:01, session a96c429b): the task recorded 403
+# walls on amazon, bestbuy, bhphotovideo and dell — 15 wall mentions in the log — while the act responses
+# carried exactly ONE «MURO» line (the google /sorry URL): `_with_wall` only sniffed the URL, so every
+# status/body-detected wall died server-side. The worker burned 28 navigations pivoting from walled site to
+# walled site, having `web_search` available the whole time, and the sheet ended with 0 rows.
+
+
+def test_a_status_wall_reaches_the_act_response():
+    from widgets.navegador import act_api
+    tid = tasks.create("probar que el muro por status viaja")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.amazon.com/dp/B0TEST", page_title="403 Forbidden",
+                      page_text="Forbidden", status=403)
+    snap = act_api._with_wall({"url": "https://www.amazon.com/dp/B0TEST", "title": "403 Forbidden"}, tid)
+    assert snap.get("wall") == "el sitio nos ha bloqueado el acceso (respuesta 403)", snap.get("wall")
+
+
+def test_walls_on_two_hosts_escalate_to_a_channel_switch():
+    from widgets.navegador import act_api
+    tid = tasks.create("probar la racha de muros")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.amazon.com/dp/B0TEST", page_title="403", page_text="x", status=403)
+    tasks.update_view(tid, url="https://www.bhphotovideo.com/c/product/1", page_title="403", page_text="x",
+                      status=403)
+    snap = act_api._with_wall({"url": "https://www.bhphotovideo.com/c/product/1", "title": "403"}, tid)
+    streak = snap.get("wall_streak") or {}
+    assert streak.get("n", 0) >= 2, snap
+    assert {"amazon.com", "bhphotovideo.com"} <= set(streak.get("sites") or []), streak
+    # one walled host is a site problem, not a channel problem — no escalation
+    tid2 = tasks.create("un solo host no es racha")
+    tasks.set_status(tid2, "working")
+    tasks.update_view(tid2, url="https://www.amazon.com/dp/1", page_title="403", page_text="x", status=403)
+    tasks.update_view(tid2, url="https://www.amazon.com/dp/2", page_title="403", page_text="x", status=403)
+    snap2 = act_api._with_wall({"url": "https://www.amazon.com/dp/2", "title": "403"}, tid2)
+    assert not snap2.get("wall_streak"), snap2
+
+
+def test_the_streak_tells_the_worker_to_change_channel(capsys):
+    from nucleo import nav_cli
+    nav_cli._print_state({"ok": True, "url": "https://www.bhphotovideo.com/c/1", "title": "403",
+                          "wall": "el sitio nos ha bloqueado el acceso (respuesta 403)",
+                          "wall_streak": {"n": 3, "sites": ["amazon.com", "bhphotovideo.com"]}})
+    out = capsys.readouterr().out
+    assert "web_search" in out, out
+    assert "worker_bridge" in out, "the instruction names the bridge, not just the tool"
+    assert "amazon.com" in out and "bhphotovideo.com" in out, "the streak names the walled sites"

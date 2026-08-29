@@ -159,6 +159,17 @@ def _print_state(res: dict) -> None:
         # dónde ir. Se listan ya excluido el host que acaba de bloquear.
         for _a in (res.get("wall_alts") or [])[:3]:
             print(f"   → prueba en {_a.get('name', '')}: {_a.get('url', '')}")
+        # V2-470 — when the walls span SEVERAL sites, the browser channel itself is being refused and another
+        # retailer is a treadmill, not an alternative. Measured (`cheapest-monitor__us` round 11): 28
+        # navigations across four walled retailers with `web_search` available the whole time, sheet 0 rows.
+        _streak = res.get("wall_streak") or {}
+        if _streak:
+            _sites = ", ".join(_streak.get("sites") or [])
+            print(f"⛔ RACHA DE MUROS: ya te han bloqueado {_streak.get('n')} veces en varios sitios ({_sites}). "
+                  f"NO sigas navegando para conseguir estos datos: pídelos con la búsqueda web por el puente —\n"
+                  f'   python -m nucleo.worker_bridge act use_tool \'{{"tool":"web_search","args":{{"query":"<qué buscas>"}}}}\'\n'
+                  f"   (los precios y fichas suelen venir en los propios resultados). Si de verdad necesitas la "
+                  f"página, cambia a un dominio que NO esté en la lista de bloqueados.")
     if res.get("hint"):
         print(f"⚠️ AVISO: {res['hint']}")
     print(f"URL: {res.get('url', '')}")

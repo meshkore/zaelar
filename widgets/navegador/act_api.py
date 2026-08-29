@@ -84,6 +84,12 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
     try:
         from widgets.navegador import tasks as _t
         reason = _t.wall_reason(str((snap or {}).get("url") or ""))
+        # V2-470 — the wall the TASK already knows (status 403/429, body needles — computed at capture,
+        # tasks.py) has to travel too: URL sniffing alone let round 11 of `cheapest-monitor__us` record
+        # walls on four retailers while the act responses carried exactly ONE «MURO» line. The worker's
+        # entire view of the page is this response; a wall it cannot see is a wall it grinds against.
+        if not reason and task_id:
+            reason = str((_t.get(task_id) or {}).get("wall") or "")
     except Exception:
         return snap
     if reason:
@@ -101,6 +107,20 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
             alts = _sc.alternatives_for(goal, _t.host_of(str(snap.get("url") or "")))
             if alts:
                 snap["wall_alts"] = [{"name": n, "url": u} for n, u in alts[:3]]
+        except Exception:
+            pass
+        # V2-470 — pivoting SITES has a limit the pivoter cannot see: when this task's wall history spans
+        # TWO OR MORE hosts, the browser channel itself is being refused (fresh profile, anti-bot mood),
+        # and «prueba otro sitio» becomes a treadmill. The streak is a fact of the task record; what to do
+        # about it is printed by nav_cli, next to the wall it belongs to. One walled host stays a site
+        # problem — the alternatives above are the right answer there.
+        try:
+            from widgets.navegador import tasks as _t3
+            hist = (_t3.get(task_id) or {}).get("walls") or [] if task_id else []
+            sites = sorted({str(w.get("site") or "") for w in hist if w.get("site")}
+                           | ({_t.host_of(str(snap.get("url") or ""))} - {""}))
+            if len(sites) >= 2:
+                snap["wall_streak"] = {"n": max(len(hist), 2), "sites": sites}
         except Exception:
             pass
     return snap
