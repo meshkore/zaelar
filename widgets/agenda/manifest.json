@@ -29,15 +29,23 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting, cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso.",
+  "usage": "Añade citas con add_meeting (cada cita crea su aviso por defecto ~2h antes; muévelo con set_reminder), cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso.",
   "actions": {
     "add_meeting": {
-      "desc": "añade una cita/reunión al día",
+      "desc": "añade una cita/reunión al día — crea SOLO su aviso por defecto (~2h antes), no hace falta pedirlo; para moverlo o quitarlo usa set_reminder",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (hoy si se omite)",
         "startTime": "HH:MM",
         "endTime": "HH:MM"
+      }
+    },
+    "set_reminder": {
+      "desc": "mueve el AVISO de una cita existente a otra hora («avísame a mediodía»)",
+      "payload": {
+        "title": "string (título de la cita, aunque sea parcial)",
+        "date": "YYYY-MM-DD (si hay varias con ese título)",
+        "at": "HH:MM del día de la cita, o YYYY-MM-DD HH:MM"
       }
     },
     "cancel_meeting": {

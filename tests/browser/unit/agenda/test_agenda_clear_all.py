@@ -155,3 +155,72 @@ def test_an_empty_payload_writes_nothing_and_says_why(agenda):
     err = str((res or {}).get("error") or "")
     assert "title" in err and "date" in err and "startTime" in err, \
         f"the refusal names the expected keys so the model can retry: {res}"
+
+
+# ── V2-473 (b): the default reminder is the AGENDA's job, not the model's conduct ───────────────────────────
+# Round 2 measured the alternative: to create the asked reminder the model escalated to a WORKER that died on
+# Google's login screen, said «Hecho», and `scheduled_jobs.created` stayed empty. The operator's mandate
+# (INI-026 A2) is literal: telling the agent an appointment schedules default notice (~2h before) with no one
+# asking — so the write itself schedules it, and moving it is vocabulary (`set_reminder`), the clear_all
+# lesson: when a frequent intention has no action, the model cannot get it right.
+
+
+@pytest.fixture
+def sched_log(monkeypatch):
+    from nucleo import scheduler as S
+    calls = {"created": [], "cancelled": []}
+    monkeypatch.setattr(S, "create", lambda prompt, schedule, name="", repeat="", now=None: (
+        calls["created"].append({"prompt": prompt, "schedule": schedule, "name": name})
+        or {"ok": True, "id": len(calls["created"]), "schedule": {"display": schedule}, "display": schedule}))
+    monkeypatch.setattr(S, "cancel", lambda ref: calls["cancelled"].append(str(ref)) or True)
+    return calls
+
+
+def test_adding_a_meeting_schedules_its_default_reminder(agenda, sched_log):
+    agenda.apply_action("add_meeting", {"title": "Dentista niños", "date": "2099-09-08",
+                                        "startTime": "15:00"})
+    assert len(sched_log["created"]) == 1, sched_log
+    job = sched_log["created"][0]
+    assert job["schedule"] == "2099-09-08 13:00", "the default notice falls 2h BEFORE the appointment"
+    assert "Dentista niños" in job["prompt"] and "15:00" in job["prompt"], \
+        "the prompt is RESOLVED content — what to say when it fires, not the user's raw sentence"
+    m = [x for x in agenda.load_db().get("meetings", []) if x.get("title") == "Dentista niños"][-1]
+    assert m.get("reminder_id"), "the meeting remembers its reminder so it can be moved/cancelled"
+
+
+def test_a_duplicate_meeting_does_not_double_the_reminder(agenda, sched_log):
+    p = {"title": "Dentista niños", "date": "2099-09-08", "startTime": "15:00"}
+    agenda.apply_action("add_meeting", p)
+    agenda.apply_action("add_meeting", p)
+    assert len(sched_log["created"]) == 1, "same meeting twice = one reminder"
+
+
+def test_set_reminder_moves_it_and_cancels_the_old_one(agenda, sched_log):
+    agenda.apply_action("add_meeting", {"title": "Dentista niños", "date": "2099-09-08",
+                                        "startTime": "15:00"})
+    res = agenda.apply_action("set_reminder", {"title": "dentista", "at": "12:00"})
+    assert not (res or {}).get("error"), res
+    assert sched_log["cancelled"], "the old reminder is cancelled, not left to fire twice"
+    assert sched_log["created"][-1]["schedule"] == "2099-09-08 12:00", sched_log["created"][-1]
+    m = [x for x in agenda.load_db().get("meetings", []) if "Dentista" in x.get("title", "")][-1]
+    assert m.get("remindAt", "").endswith("12:00"), m
+
+
+def test_set_reminder_without_a_findable_meeting_says_so(agenda, sched_log):
+    res = agenda.apply_action("set_reminder", {"title": "peluquería", "at": "12:00"})
+    assert "error" in (res or {}), res
+
+
+def test_cancelling_the_meeting_cancels_its_reminder(agenda, sched_log):
+    agenda.apply_action("add_meeting", {"title": "Dentista niños", "date": "2099-09-08",
+                                        "startTime": "15:00"})
+    agenda.apply_action("cancel_meeting", {"title": "Dentista niños"})
+    assert sched_log["cancelled"], "an orphan alarm fires a ghost appointment"
+
+
+def test_clear_all_cancels_every_meeting_reminder(agenda, sched_log):
+    agenda.apply_action("add_meeting", {"title": "Dentista niños", "date": "2099-09-08",
+                                        "startTime": "15:00"})
+    agenda.apply_action("add_meeting", {"title": "Vacuna", "date": "2099-09-09", "startTime": "10:00"})
+    agenda.apply_action("clear_all", {})   # the confirm gate lives upstream (widgets/confirm.py)
+    assert len(sched_log["cancelled"]) >= 2, sched_log

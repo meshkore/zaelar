@@ -147,6 +147,63 @@ _WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2, "jueves":
              "sabado": 5, "sábado": 5, "domingo": 6}
 
 
+def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_minutes: int = 120) -> tuple:
+    """Schedule the appointment's notice. Returns (job_id, display) — ("", reason) when nothing was scheduled.
+
+    V2-473: by default it falls `before_minutes` before the appointment (the operator's «avisos por
+    defecto, en plan, dos horas antes», INI-026 A2); `at` overrides with an absolute «YYYY-MM-DD HH:MM».
+    The prompt is RESOLVED content — what to say when it fires — never the user's raw sentence (the
+    remember-and-remind lesson: a raw prompt re-asks the agent to schedule instead of reminding). A notice
+    whose instant already passed is not scheduled: an alarm for the past is a fabrication with a bell.
+    """
+    import time as _t
+    try:
+        target = _t.mktime((int(date[:4]), int(date[5:7]), int(date[8:10]),
+                            int(start[:2]), int(start[3:5]), 0, 0, 1, -1))
+    except Exception:  # noqa: BLE001 — unreadable date/time → no notice, the write itself still lands
+        return "", "fecha/hora ilegibles"
+    if at:
+        try:
+            when = _t.mktime((int(at[:4]), int(at[5:7]), int(at[8:10]),
+                              int(at[11:13]), int(at[14:16]), 0, 0, 1, -1))
+        except Exception:  # noqa: BLE001
+            return "", "instante del aviso ilegible"
+    else:
+        when = target - before_minutes * 60
+        if when <= _t.time() + 60 < target:
+            when = _t.time() + 60                      # appointment within the window → notice now-ish
+    if when <= _t.time() or target <= _t.time() - 60:
+        return "", "el instante ya pasó"
+    stamp = _t.strftime("%Y-%m-%d %H:%M", _t.localtime(when))
+    try:
+        from voice.engine.core import langs as _langs
+        _en = (_langs.current_code() or "es").lower() == "en"
+    except Exception:  # noqa: BLE001
+        _en = False
+    prompt = (f"Remind the operator: «{title}» on {date} at {start}."
+              if _en else f"Recuérdale al operador: «{title}» el {date} a las {start}.")
+    try:
+        from nucleo import scheduler as _sched
+        r = _sched.create(prompt, stamp, name=f"aviso: {title[:80]}")
+    except Exception as e:  # noqa: BLE001 — the scheduler must never lose the agenda WRITE
+        return "", str(e)
+    if not (r or {}).get("ok"):
+        return "", str((r or {}).get("error") or "scheduler")
+    return str(r.get("id") or ""), stamp
+
+
+def _cancel_reminder(meeting: dict) -> None:
+    """Cancel the meeting's scheduled notice, if it has one. Best-effort: an orphan alarm fires a ghost."""
+    ref = str((meeting or {}).get("reminder_id") or "").strip()
+    if not ref:
+        return
+    try:
+        from nucleo import scheduler as _sched
+        _sched.cancel(ref)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _resolve_date(raw: str) -> str:
     """Convert a spoken relative date (tomorrow, today, the day after tomorrow, a weekday, or already 'YYYY-MM-DD') into
     'YYYY-MM-DD'. Sensible default: today. This keeps a relative-date appointment correctly placed even when the
@@ -253,19 +310,59 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # V2-208: la MISMA cita dos veces (ver `_is_same_meeting`). Un aviso duplicado se oye una vez; una cita
         # duplicada se VE, y se queda ahí hasta que alguien la borra a mano.
         if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
+            # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
+            # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a WORKER
+            # that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed empty. Telling
+            # the agent an appointment schedules its notice (~2h before) with nobody asking (INI-026 A2);
+            # moving it is `set_reminder`. Best-effort: a scheduler failure must not lose the WRITE — but
+            # it is stored on the meeting, so the state never claims a notice that does not exist.
+            _jid, _at = _schedule_reminder(title, date, start)
+            if _jid:
+                _new["reminder_id"], _new["remindAt"] = _jid, _at
             db.setdefault("meetings", []).append(_new)
     elif action == "cancel_meeting":
         # Cancel meeting(s) matching title (case-insensitive, accent-insensitive) plus optional date.
         title = _strip_accents((payload.get("title") or "").strip().lower())
         raw_date = payload.get("date", "")
         date = _resolve_date(raw_date) if raw_date else ""
-        db["meetings"] = [
-            m for m in db.get("meetings", [])
-            if not (
-                (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                and (not date or m.get("date") == date)
-            )
-        ]
+        _keep, _gone = [], []
+        for m in db.get("meetings", []):
+            _hit = ((not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                    and (not date or m.get("date") == date))
+            (_gone if _hit else _keep).append(m)
+        db["meetings"] = _keep
+        # V2-473 — an orphan alarm fires a ghost appointment: the reminder goes with its meeting.
+        for m in _gone:
+            _cancel_reminder(m)
+    elif action == "set_reminder":
+        # V2-473 — moving the notice is VOCABULARY (the clear_all lesson: a frequent intention with no
+        # action cannot be gotten right). Finds the meeting like cancel_meeting does, cancels its current
+        # reminder and schedules the new instant; errors NAME what is missing so the model can retry.
+        title = _strip_accents((payload.get("title") or "").strip().lower())
+        raw_date = payload.get("date", "")
+        date = _resolve_date(raw_date) if raw_date else ""
+        _hits = [m for m in db.get("meetings", [])
+                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                 and (not date or m.get("date") == date)]
+        if not title or not _hits:
+            return {"ok": False,
+                    "error": "set_reminder: no encuentro esa cita — manda title (y date si hay varias) "
+                             "de una cita existente"}
+        _at = str(payload.get("at") or payload.get("time") or payload.get("startTime") or "").strip()
+        _mm = re.match(r"^\s*(?:(\d{4}-\d{2}-\d{2})[T ]+)?(\d{1,2}:\d{2})\s*$", _at)
+        if not _mm:
+            return {"ok": False,
+                    "error": "set_reminder: manda `at` con la hora del aviso (HH:MM del día de la cita, "
+                             "o YYYY-MM-DD HH:MM)"}
+        m = _hits[0]
+        _cancel_reminder(m)
+        _when_date = _mm.group(1) or m.get("date") or _today()
+        _hhmm = f"{int(_mm.group(2)[:_mm.group(2).index(':')]):02d}:{_mm.group(2)[-2:]}"
+        _jid, _disp = _schedule_reminder(m.get("title", "Cita"), m.get("date", _when_date),
+                                         m.get("startTime", ""), at=f"{_when_date} {_hhmm}")
+        if not _jid:
+            return {"ok": False, "error": f"no pude programar el aviso: {_disp}"}
+        m["reminder_id"], m["remindAt"] = _jid, _disp
     elif action == "clear_all":
         # VACIAR LA AGENDA ENTERA, en UNA acción (2026-08-14, sesión b70a45d0).
         #
@@ -290,6 +387,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 t["updatedAt"] = _today()
         for p in db.get("projects", []):
             p["status"] = "frozen"
+        for m in db.get("meetings", []):
+            _cancel_reminder(m)                        # V2-473: emptied appointments take their alarms along
         db["meetings"] = []
         db["blocks"] = []
         # NO se toca el MARCO del día (horario laboral, hora de comer): eso sale de su configuración
