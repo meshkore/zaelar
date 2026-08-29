@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-29 15:10**
+Last updated: **2026-08-29 19:11**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -56,7 +56,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `compare-insurance-quotes__us` | 2 | 1 | `deepseek-v4-flash` | 2026-08-28 10:01 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó un éxito falso con cotizaciones inventadas mientras el worker seguía encallado y la hoj… |
 | ❌ | `compare-phone-plans__us` | 2 | 3 | `deepseek-v4-flash` | 2026-08-28 10:09 | yes | No está listo para producción: el bloqueador nº1 es que narró resultados como verificados mientras el worker llevaba 4 minutos sin avanzar y con un error int… |
 | ✅ | `find-best-hotel-city__es` | 2 | 4 | ? | 2026-08-25 10:22 | yes | Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usua… |
-| ❌ | `find-best-hotel-city__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 10:48 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tenía 4 candidatos reales en su hoja y solo entregó 2, con 2 precios dichos mal, mientras narr… |
+| ⚠️ | `find-best-hotel-city__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-29 19:11 | yes | **INFRA — recall semántico DEGRADADO en esta ronda (backend: fastembed)** · (veredicto no medible: No está listo para producción: el agente encontró datos vá… |
 | ❌ | `find-concert-tickets__es` | 2 | 3.5 | `deepseek-v4-flash` | 2026-08-28 07:18 | yes | El caso no está listo para producción porque, aunque el comportamiento conversacional y la gestión de bloqueos fueron excelentes, falló el objetivo del usuar… |
 | ❌ | `find-direct-flight-budget__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-28 07:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar tuvo 8 vuelos reales con nombre y precio en su prompt y no entregó ni uno, respondiendo con ge… |
 | ✅ | `find-videos-on-a-topic-no-ai-slop` | 2 | 4 | — | 2026-08-28 22:57 | yes | El caso está casi listo para producción, pero debe mejorar la sincronización entre el relato del agente y el estado real del widget, así como garantizar que … |
@@ -83,7 +83,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**21 passing · 22 failing · 3 infra** of 46 scenarios we can actually finish.
+**21 passing · 21 failing · 4 infra** of 46 scenarios we can actually finish.
 
 Plus **16 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `best-pediatric-dentists__us`, `book-barber-slot__us`, `book-hotel-night-known__es`, `book-hotel-night-known__us`, `buy-known-product__us`, `cancel-subscription-before-charge__es`, `cancel-subscription-before-charge__us`, `compare-flights-madrid-lisboa`, `compare-flights-sf-austin__us`, `find-theatre-tickets__es`, `find-theatre-tickets__us`, `renew-gym-membership__es`, `renew-gym-membership__us`, `reorder-prescription__us`, `restaurant-tonight-madrid`, `restaurant-tonight-nyc__us`.
 
@@ -163,7 +163,6 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `compare-insurance-quotes__es` | `.meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md` | `` |
 | `compare-insurance-quotes__us` | `.meshkore/roadmap/initiatives/V2-446-uc-compare-insurance-quotes-us.md` | `.meshkore/modules/nucleo/tasks/T492-uc-compare-insurance-quotes-us-fix.md` |
 | `compare-phone-plans__us` | `.meshkore/roadmap/initiatives/V2-447-uc-compare-phone-plans-us.md` | `.meshkore/modules/nucleo/tasks/T493-uc-compare-phone-plans-us-fix.md` |
-| `find-best-hotel-city__us` | `.meshkore/roadmap/initiatives/V2-405-uc-find-best-hotel-city-us.md` | `` |
 | `find-concert-tickets__es` | `.meshkore/roadmap/initiatives/V2-263-uc-find-concert-tickets-es.md` | `` |
 | `find-direct-flight-budget__es` | `.meshkore/roadmap/initiatives/V2-265-uc-find-direct-flight-budget-es.md` | `` |
 | `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |

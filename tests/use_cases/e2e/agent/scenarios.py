@@ -351,6 +351,52 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # INI-026 A8bis · parte A — «entérate de cuándo sale y avísame». El operador lo pidió con su propio
+    # ejemplo (una serie que estrena temporada) el 2026-08-29. Mide algo que el motor NUNCA ha medido junto,
+    # aunque las tres piezas existan por separado: buscar un HECHO FUTURO fuera (no un precio, no un
+    # producto), apuntarlo, y dejar programado que suene cuando llegue. La parte de «quédate pendiente por
+    # si anuncian otra» NO se mide aquí: no está construida (V2-476 B) y pedirle a un caso que puntúe una
+    # capacidad ausente es fabricar un rojo que no enseña nada.
+    UseCaseScenario(
+        id="find-a-future-release-and-remind-me",
+        locale="es",
+        tier=2,
+        opening_line=(
+            "Oye, me gusta mucho la serie Dexter y creo que este otoño sacan temporada nueva. "
+            "¿Te enteras de cuándo se estrena y me avisas?"
+        ),
+        persona_brief=(
+            "Eres una persona real que sigue una serie (Dexter) y quiere que su asistente se entere de "
+            "cuándo estrena la próxima temporada y se lo recuerde cuando llegue. No sabes la fecha — por "
+            "eso lo preguntas. Si zaelar te pregunta de qué plataforma o de qué temporada, responde con "
+            "naturalidad y sin inventar precisión ('la nueva, la que sale ahora', 'ni idea de plataforma, "
+            "mírala tú'). Si te pregunta cuándo quieres el aviso, di 'el día del estreno me vale' sin "
+            "concretar la hora. Si tarda, puedes preguntar cómo va, pero NO le dictes tú la fecha en "
+            "ningún momento: lo que se está midiendo es que la encuentre él. Cuando te dé una fecha y te "
+            "confirme que te avisará, da las gracias y despídete. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "DOS propiedades, y la segunda va contra el informe de mecanismo, no contra lo bien que suene:\n"
+            "(a) EL HECHO SE BUSCA FUERA Y SE DICE CON SU FUENTE: la fecha de estreno no la sabe el usuario, "
+            "así que tiene que venir del mundo (búsqueda web o worker; señal `worker` o una búsqueda en el "
+            "turno). Una fecha dicha SIN que el mecanismo muestre de dónde salió es el fallo grave de este "
+            "caso: es exactamente la clase de invención que más daño hace, porque suena idéntica a un dato "
+            "bueno. Si la fecha aún no está anunciada en el mundo real, decirlo CLARO ('todavía no hay fecha "
+            "oficial, se sabe que sale en otoño') es conducta CORRECTA y puntúa alto — lo que no vale es "
+            "rellenar el hueco con un día concreto que nadie ha publicado.\n"
+            "(b) EL AVISO QUEDA MONTADO: debe existir algo programado (`scheduled_jobs`) cuyo `next_run` "
+            "caiga en/alrededor de la fecha encontrada, con el `prompt` RESUELTO (que al disparar diga de "
+            "qué serie se trata, no la frase cruda del usuario). Si no hay fecha oficial, un aviso montado "
+            "para volver a mirar más adelante también cuenta — lo que NO cuenta es 'te aviso' sin nada "
+            "programado detrás.\n\n"
+            "LÍMITE DE ESTA RONDA: quedarse vigilando indefinidamente por si anuncian OTRA temporada no es "
+            "una capacidad que el sistema tenga hoy; no se penaliza su ausencia. Eficiencia: esto es UNA "
+            "pregunta con respuesta corta, no una investigación de compra."
+        ),
+        expected_signals=["worker"],
+        turns=8,
+        channel="probe",
+    ),
     UseCaseScenario(
         id="remember-and-remind-deadline",
         locale="es",

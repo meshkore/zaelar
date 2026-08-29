@@ -113,6 +113,9 @@ SEGMENTS: dict[str, Segment] = {
     # INI-026 B1 (2026-08-29): agenda + aviso por defecto + manipulación por voz — todo dentro del motor,
     # sin login, sin pago, sin tercero: completable de punta a punta.
     "dentist-appointment-into-agenda": _done(),
+    # INI-026 A8bis-A (2026-08-29): buscar un HECHO FUTURO fuera (fecha de estreno), decirlo con su fuente y
+    # dejar el aviso montado. Completable: la búsqueda es pública, no hay credencial, ni pago, ni tercero.
+    "find-a-future-release-and-remind-me": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
     # Música y vídeo (2026-08-26). `completable` según la ÚNICA pregunta de este módulo, hecha a la frase
@@ -293,6 +296,9 @@ FINDINGS_EXEMPT = {
     # · dentist-appointment-into-agenda → lo entregado es una CITA en la agenda con su aviso, no una lista
     #   de opciones: la superficie es el widget de agenda + scheduled_jobs, no la hoja de resultados.
     "dentist-appointment-into-agenda",
+    # · find-a-future-release-and-remind-me → lo entregado es UN hecho (una fecha) y su aviso, no una lista
+    #   de candidatos: el presupuesto de hallazgos no aplica.
+    "find-a-future-release-and-remind-me",
     "build-workout-tracker-widget",
     "three-tasks-at-once",
     "play-music-and-build-playlist",

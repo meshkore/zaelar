@@ -122,7 +122,10 @@ def test_a_findings_case_must_require_the_results_SHEET():
     """
     from tests.use_cases.e2e.agent import scenarios as SC
     from tests.use_cases.e2e.agent import segments as G
-    exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline"}
+    # `find-a-future-release-and-remind-me` entrega UN hecho (una fecha) y su aviso programado: se verifica
+    # por `scheduled_jobs`, igual que `remember-and-remind-deadline`, no por la hoja de resultados.
+    exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline",
+              "find-a-future-release-and-remind-me"}
     for scn in SC.all_scenarios():
         if not G.is_completable(scn.id) or G.bare(scn.id) in exempt:
             continue
