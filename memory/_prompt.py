@@ -83,6 +83,14 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
         crit = []
     if crit:
         sit.append("⚠️ CRÍTICO (tenlo SIEMPRE presente): " + " · ".join(crit))
+    # GUSTOS Y PREFERENCIAS: línea propia, FUERA del ranking del perfil saliente — son estado ACTIVO (norma del
+    # operador 2026-08-29), no algo que le pasó. Medido: competían por una plaza del top-5 y la perdían siempre.
+    try:
+        gustos = tastes(limit=6)
+    except Exception:
+        gustos = []
+    if gustos:
+        sit.append("GUSTOS Y PREFERENCIAS suyos (dalo por sabido, sin buscar): " + " · ".join(gustos))
     # Campos CUSTOM escalares del estado (objetivo/proyecto/coche/empresa/cumpleaños…): la "pila" durable del
     # operador va SIEMPRE — el cerebro debe verla sin tener que recordarla.
     for k, v in st.items():
@@ -403,6 +411,63 @@ def critical_facts(limit: int = 8) -> list[str]:
 
 
 
+def tastes(limit: int = 6) -> list[str]:
+    """GUSTOS Y PREFERENCIAS del operador — línea PROPIA del estado, fuera del ranking que siempre pierden.
+
+    Norma del operador (2026-08-29): *«los gustos forman parte del estado activo — no son datos históricos ni
+    cosas que hayan sucedido en el pasado, sino que tienen que estar ahí»*.
+
+    MEDIDO sobre su memoria viva antes de escribir nada: el bloque pasivo que ve el modelo en CADA turno tenía
+    DOS líneas —una regla de trabajo y un `[RESET]` del sistema— y **ni un solo gusto**, con 12 píldoras `pref`
+    guardadas (Ferrari ×7, guitarra y música ×2). No se perdían al escribirse: se escriben bien y pierden el
+    RANKING. `salient_long` ordena por importancia·peso y esas píldoras pesan 0,3-0,494 contra un corte de
+    0,446 dominado por píldoras de 0,99. Así que el arreglo no es tocar el orden — es la misma forma que
+    `critical_facts` (V2-491): lo que tiene que estar SIEMPRE no compite por una plaza.
+
+    ⚠️ **UN SLOT ERA LA VÍA OBVIA Y ESTÁ MEDIDA COMO MUERTA.** `operator.tastes` con reflejo en el estado, calcando
+    `operator.family`, era el diseño natural. Dos hechos lo tumban: (1) el prompt del CORAZÓN enseña
+    EXPLÍCITAMENTE que un gusto es ADITIVO y va con `slot=null` («aficiones/gustos… → slot=null SIEMPRE»,
+    porque un slot invalida lo anterior y a alguien le pueden gustar los Ferrari Y la guitarra); y (2)
+    `operator.family` lleva desde el 2026-08-17 en el catálogo y se ha escrito **CERO veces** en la memoria del
+    operador — la regla aditiva del destilador gana a la entrada del catálogo, así que un slot nuevo nacería
+    igual de inerte. La clase ya está en el dato (`kind='pref'`, la que el propio destilador asigna a una
+    preferencia/deseo) y se estaba tirando: se RENDERIZA la distinción que existe, sin slot nuevo, sin campo
+    nuevo y sin lista de palabras.
+
+    Se llama GUSTOS Y PREFERENCIAS, no «gustos», porque eso es lo que la clase contiene de verdad: junto a
+    Ferrari y guitarra vive «prefiere que las tareas las haga un worker», que es una preferencia legítima sobre
+    cómo trabajas. Etiquetar la línea por la clase que el dato trae es honesto; llamarla «gustos» convertiría esa
+    fila en una afición.
+
+    Los ecos casi idénticos (siete formas de «le interesan los Ferrari») NO se colapsan aquí: fundirlos es
+    trabajo de `semantic_dedup`, que CONSERVA la mejor e invalida el resto. Hoy no puede hacerlo con estas filas
+    —sus vectores están dañados y la reparación está bloqueada (V2-482/V2-497)—, así que hasta que sanen esta
+    línea puede repetirse. Se dice aquí en vez de inventar un dedup por parecido en la capa de pintar, que es
+    justo lo que V2-491 descartó con números."""
+    try:
+        rows = _db.get_db().query(
+            "SELECT text FROM memories WHERE valid=1 AND level IN ('mid','long') AND kind='pref' "
+            # mismas exclusiones que el pasivo: fondo namespaced (`:`), peers no confiables y los CRÍTICOS,
+            # que tienen su propia línea y no se duplican.
+            "AND (slot IS NULL OR slot NOT LIKE '%:%') "
+            "AND (json_extract(meta,'$.critical') IS NULL) "
+            "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted') "
+            "ORDER BY (importance * weight) DESC, updated DESC LIMIT ?", (int(limit) * 3,))
+    except Exception:
+        return []
+    out, seen = [], set()
+    for r in rows:
+        t = (r["text"] or "").strip().replace("\n", " ")
+        k = " ".join(t.lower().split())
+        if not t or k in seen:
+            continue
+        seen.add(k)
+        out.append(t[:140])
+        if len(out) >= limit:
+            break
+    return out
+
+
 def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
     """LO QUE ZAELAR "SABE DE TI" — las memorias durables MÁS salientes (mayor importancia·peso), lectura DIRECTA
     (µs, sin embeddings ni retriever) — SOTA "in-context availability": un humano sabe que le gusta el pádel sin
@@ -418,7 +483,10 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
     # (fuera del pasivo). Siguen siendo recuperables por el retriever ante una pregunta EXPLÍCITA por esa ciudad.
     rows = db.query(
         "SELECT id, text, importance, weight, kind FROM memories "
-        "WHERE valid=1 AND level IN ('mid','long') AND kind != 'profile' "
+        # `pref` sale de aquí porque tiene su propia línea desde V2-498 (`tastes()`): dejarlo lo pintaría DOS
+        # veces en el mismo prompt. Y libera plaza — medido en la memoria del operador, una de las dos únicas
+        # que llegaban al bloque era una preferencia.
+        "WHERE valid=1 AND level IN ('mid','long') AND kind NOT IN ('profile','pref') "
         "AND (slot IS NULL OR slot NOT LIKE '%:%') "
         "AND (json_extract(meta,'$.critical') IS NULL) "        # los CRÍTICOS van en su línea propia (no aquí, sin dup)
         "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted') "
