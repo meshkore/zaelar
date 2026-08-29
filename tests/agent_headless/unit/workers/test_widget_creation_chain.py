@@ -29,6 +29,21 @@ from nucleo.flash import router_guards as g
 ASK = "Móntame un widget para ir apuntando mis entrenamientos, con el día y qué hice."
 
 
+@pytest.fixture(autouse=True)
+def _fresh_catalog(monkeypatch):
+    """Pin the file's PREMISE: a fresh install where no widget named by these asks exists yet.
+
+    Without this, the premise silently depends on the OPERATOR'S LIVE CATALOG: the day a real
+    `widgets/entrenamientos/` got generated on this machine (2026-08-29), `widget_action(ASK)` started
+    resolving to MODIFY of that existing widget — link-2's `== "create"` went red, and worse, link-3's
+    `_drive` took the modify path that the stub did not cover and launched a REAL headless `claude` that
+    MODIFIED the operator's live widget from inside a unit test, ~28s and real tokens per test. The exact
+    class `feedback_unit_tests_never_touch_live_artifacts` names. The catalog contents are ENVIRONMENT for
+    this file, not the seam under test — the seams are the routing and the drive, and they stay real."""
+    monkeypatch.setattr(code_helpers, "_identify_widget",
+                        lambda request: {"match": None, "ambiguous": False, "candidates": []})
+
+
 def _spec(req: str, kind: str = "code") -> WorkerSpec:
     return WorkerSpec(task_id="T-chain", kind=kind, env={"ZAELAR_TASK_REQUEST": req})
 
@@ -86,6 +101,12 @@ def _drive(monkeypatch, *, req, gen_result):
     monkeypatch.setattr("voice.observer.emit",
                         lambda cat, label, **kw: seen.append((cat, label, kw.get("extra") or {})))
     monkeypatch.setattr(_gen, "generate_widget", lambda *a, **k: gen_result, raising=False)
+    # Belt on top of the fixture: whatever the routing resolves to, this file must NEVER be able to launch a
+    # real CLI. If a drift ever reaches modify/delete, fail loudly instead of mutating a live widget.
+    def _never(*a, **k):
+        raise AssertionError("unit test reached the real modify/delete path — the catalog isolation broke")
+    monkeypatch.setattr(_gen, "modify_widget", _never, raising=False)
+    monkeypatch.setattr(_gen, "delete_widget", _never, raising=False)
     backend = GeneratorBackend()
     backend._task_id = "T-chain"
     asyncio.run(backend._drive(req))

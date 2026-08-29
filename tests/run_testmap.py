@@ -1512,7 +1512,7 @@ DOMAINS: list[dict] = [
         # at source level), the k/n chip opening the switcher, one-finger paging on the header, the producing
         # badge following runtime.active_when, and restore() at V2-351 parity with the desktop (server
         # fallback, fossil sweep, live errands, dead navegador instances filtered).
-        {"id": "4.86", "title": "Deck MÓVIL RENDERIZADO: pips visibles y pulsables, conmutador de tarjetas, "
+        {"id": "4.87", "title": "Deck MÓVIL RENDERIZADO: pips visibles y pulsables, conmutador de tarjetas, "
                                 "swipe de cabecera, badge de producción y restore V2-351",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_deck.py"},
