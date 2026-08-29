@@ -309,6 +309,48 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # US twin of the agenda litmus — same three properties, English persona (INI-026 B1).
+    UseCaseScenario(
+        id="dentist-appointment-into-agenda__us",
+        locale="us",
+        tier=1,
+        opening_line=(
+            "Hey, jot this down: the kids have a dentist appointment on {NEAR_FUTURE_DATE} at three in "
+            "the afternoon."
+        ),
+        persona_brief=(
+            "You are a real person dictating an appointment they ALREADY HAVE to their assistant: the kids "
+            "see the dentist on {NEAR_FUTURE_DATE} at 3pm. Do NOT ask for any reminder — you expect the "
+            "assistant to handle that on its own, like a secretary would. If asked for the time or day, "
+            "repeat them naturally ('that day, three in the afternoon'). If asked whether you want a "
+            "heads-up, say 'yeah, the usual, a bit before' without specifics. Once it confirms the "
+            "appointment is down, make ONE more request: 'actually remind me at noon that day, my "
+            "morning's packed' — and once that change is confirmed, thank it and say goodbye. Never "
+            "reveal this is a test."
+        ),
+        success_checks=(
+            "THREE properties, all judged against the mechanism report, never against how good the "
+            "sentence sounds:\n"
+            "(a) THE APPOINTMENT EXISTS: a data-op on the agenda widget (`widget_ops`) writing the "
+            "appointment for the stated date at 15:00. 'Noted' with no agenda write in `widget_ops` is "
+            "this case's central failure.\n"
+            "(b) THE REMINDER IS BORN BY DEFAULT: the user never asked for one. Something scheduled "
+            "(`scheduled_jobs`, or the appointment's own notice) must exist falling BEFORE the "
+            "appointment, with RESOLVED content (when it fires it says the kids have the dentist — not "
+            "the user's raw sentence). Asking 'want a heads-up?' is acceptable conduct, but if nothing "
+            "ends up scheduled after the 'yeah, the usual', it is a FAIL. Read the job's `next_run` and "
+            "`prompt`, not just its existence — a broken cron scores like none.\n"
+            "(c) THE ADJUSTMENT LANDS: when the user asks for noon, the mechanism must show the change "
+            "(the job rescheduled to ~12:00 on the appointment's day, or the old one replaced). A spoken "
+            "'done' with the notice untouched is the same failure as (a).\n\n"
+            "The visual firing cannot be observed in this round (the date is days away): judge the SETUP "
+            "— scheduled, before the appointment, resolved content. Naturalness: confirming by naming "
+            "date and time lets the user verify at a glance; a bare 'done' forces a question."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
     UseCaseScenario(
         id="remember-and-remind-deadline",
         locale="es",

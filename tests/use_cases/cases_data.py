@@ -403,6 +403,13 @@ CASES: list[UseCase] = [
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
 
     # --- US / tier 1: bounded single-site action --------------------------------------------
+    UseCase("dentist-appointment-into-agenda", "us", 1, "A told appointment lands whole in the agenda",
+            "Hey, jot this down: the kids have a dentist appointment on {NEAR_FUTURE_DATE} "
+            "at three in the afternoon.",
+            "The appointment exists in the agenda widget with its date and time; a reminder exists BY "
+            "DEFAULT (the user never asked for one) scheduled BEFORE the appointment with resolved "
+            "content; and a follow-up voice adjustment («better remind me at noon») is applied for real.",
+            status="promoted"),
     UseCase("restaurant-tonight-nyc", "us", 1, "Book a known restaurant tonight",
             "Book a table for 2 tonight at 7pm at Katz's Delicatessen.",
             "A table for 2 is booked at Katz's for 7pm tonight."),
