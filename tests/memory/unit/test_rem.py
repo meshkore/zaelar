@@ -430,6 +430,7 @@ def sellado_gemma(monkeypatch):
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
     monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
+    monkeypatch.setattr(memreembed, "_SPACE_CACHE", (0.0, True, None))   # global: se restaura, no se pisa
 
 
 def _vector_de(mid: int):
@@ -547,3 +548,40 @@ def test_el_aviso_DESGLOSA_la_clase_de_vector_retirado(fresh_db, sellado_gemma, 
     memrem._drop_foreign_vectors(memdb.get_db(), 100)
     aviso = " ".join(dicho)
     assert "1 hash" in aviso and "1 rellenado" in aviso
+
+
+def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fresh_db, monkeypatch):
+    """La misma forma de V2-484 en el peor sitio: la función que REPARA, en bucle. La firma se comprueba al
+    entrar y luego se reparan N filas; un backend que se resuelve a `hash` a mitad no se declara degradado
+    (un hash configurado es su propio espacio coherente) y el permiso de la entrada sigue en pie.
+
+    Va con la firma REAL, no con `_embed_sig_ok` falseado: un doble que siempre dice que sí no puede medir un
+    guarda que existe justo para decir que no. (El primer intento usaba el fixture que lo falsea y salía en
+    rojo con el arreglo puesto Y sin él — o sea que no medía nada.)"""
+    from memory import embeddings as mememb
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
+    monkeypatch.setattr(mememb, "active_backend", lambda: mememb._backend)   # sigue al backend, como el real
+    monkeypatch.setattr(mememb, "_active_model_name", lambda: "embeddinggemma")
+    monkeypatch.setattr(memreembed, "_SPACE_CACHE", (0.0, True, None))
+
+    ids = [memwriter.insert_memory(f"dato durable {i}", level="long", kind="fact") for i in range(4)]
+    memdb.get_db().execute("DELETE FROM vec_memories")           # todas pendientes de reparar
+
+    denso = [0.02] * mememb.dim()
+    llamadas = {"n": 0}
+
+    def _embed_que_cae_a_mitad(_t):
+        llamadas["n"] += 1
+        if llamadas["n"] > 2:
+            mememb._backend = "hash"                             # a mitad del bucle el espacio deja de casar
+        return list(denso)
+
+    monkeypatch.setattr(mememb, "_backend", "ollama")
+    monkeypatch.setattr(mememb, "embed", _embed_que_cae_a_mitad)
+    monkeypatch.setattr(mememb, "last_degraded", False)
+    memrem.repair_embeddings(limit=100)
+
+    con_vector = memdb.get_db().query_one(
+        "SELECT COUNT(*) c FROM vec_memories WHERE memory_id IN (%s)" % ",".join("?" * len(ids)), tuple(ids))
+    assert con_vector["c"] == 2      # las dos de antes de la caída, y ni una después

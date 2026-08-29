@@ -222,6 +222,13 @@ def repair_embeddings(limit: int | None = None) -> int:
             vec = _emb.embed(r["text"])
             if getattr(_emb, "last_degraded", False):
                 continue           # backend caído a hash — mejor sin vector que con vector de otro espacio
+            # Y la firma SE VUELVE A MIRAR, por fila (V2-484). La de la entrada se hizo una vez y esto es un
+            # BUCLE: si el backend se resuelve a `hash` a mitad, `last_degraded` no lo declara —un hash
+            # configurado es su propio espacio coherente— y el permiso de la entrada sigue concedido. Sería la
+            # misma carrera en el peor sitio posible: la función que repara escribiendo vectores ajenos, en
+            # serie, sobre las filas que acaba de limpiar.
+            if not _writer._embed_sig_ok():
+                continue
             db.execute("INSERT INTO vec_memories (memory_id, embedding) VALUES (?, ?)",
                        (r["id"], _writer._pack(vec)))
             meta = json.loads(r["meta"] or "{}")
