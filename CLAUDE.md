@@ -5157,6 +5157,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en vivo con el motor del operador** (abrir /m headless competiría por el candado de voz); la nube no lo tiene
   hasta la próxima release.
 
+- **La puerta del backstop de entrega tampoco era la LONGITUD (V2-478, 2026-08-29)**: había un tope de 300
+  caracteres con esta premisa escrita — «una respuesta larga ya está contando algo, y pisarla sería peor».
+  Medido en `find-best-hotel-city__us` ronda 5, la premisa es falsa: el turno era largo —«I've got a partial
+  shortlist up on screen, six central candidates for that weekend»— y **no nombró ni un hotel ni un precio**.
+  Contaba una NARRACIÓN, no un hecho, así que el operador se quedó con menos que tras un «te aviso» y encima
+  convencido de que ya tenía algo. **Tercera corrección de la misma puerta mirando la propiedad equivocada**:
+  el vocabulario de espera (V2-364), la pregunta (V2-371) y ahora el tamaño. La propiedad que importa —si el
+  turno NOMBRA lo que la hoja tiene— ya se calculaba fila a fila (`fresh`), así que no había que inventarla:
+  bastaba con dejar de taparla. La protección real sigue en pie y ahora se COMPRUEBA en vez de suponerse: un
+  turno que ya nombró sus filas produce `fresh` vacío y no recibe nada, mida lo que mida. El test que afirmaba
+  la premisa vieja se reescribió en las dos direcciones. 2222 verdes.
+
 - **Una garantía escrita en un solo idioma es un defecto para todos los demás (V2-475, 2026-08-29)**: la
   familia de garantías de entrega (`nucleo/flash/delivery.py`) —la que existe porque «cuando la conducta
   correcta es determinista la garantiza el código, no la temperatura»— estaba escrita ENTERA contra formas del
