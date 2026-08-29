@@ -26,7 +26,12 @@ def _clean(monkeypatch):
     fresh._loaded = True                              # sin tocar la memoria real
     monkeypatch.setattr(fresh, "_save", lambda: None)
     monkeypatch.setattr(pc, "_store", fresh)
-    for _var in ("Z_AI_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY", "XAI_API_KEY", "GROQ_API_KEY",
+    # `DEEPSEEK_API_KEY` entró en esta lista el 2026-08-30 y no es cosmético: al pasar el titular de la cadena
+    # a DeepSeek (V2-497), una clave del ENTORNO —la del operador, la de otra suite— compraba un escalón que
+    # estos casos dan por ausente. Pasaban en solitario y fallaban en el mapa entero, que es la forma de un
+    # test que mide su entorno.
+    for _var in ("Z_AI_API_KEY", "DEEPSEEK_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY",
+                 "XAI_API_KEY", "GROQ_API_KEY", "MOONSHOT_API_KEY",
                  "MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "MESHKORE_MISSION_MODEL_ZAI"):
         monkeypatch.delenv(_var, raising=False)
     yield
@@ -52,10 +57,10 @@ def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
     falte."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
-    monkeypatch.setenv("XAI_API_KEY", "k3")
-    monkeypatch.setenv("GROQ_API_KEY", "k4")
-    assert [t["name"] for t in pc.chain()] == ["aimlapi", "xai", "groq"]
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
+    monkeypatch.setenv("AIMLAPI_KEY", "k3")
+    # UN SOLO FAILOVER (norma del operador, 2026-08-30): titular + suplente, y se acabó.
+    assert [t["name"] for t in pc.chain()] == ["deepseek-directo", "aimlapi-failover"]
     assert not any("z.ai" in (t.get("base_url") or "") for t in pc.chain())
 
 
@@ -75,7 +80,7 @@ def test_explicit_llm_override_sigue_mandando(monkeypatch):
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("LLM_API_KEY", "k2")
     monkeypatch.setenv("LLM_BASE_URL", "https://api.aimlapi.com/v1")
-    assert [t["name"] for t in pc.chain()] == ["aimlapi"]
+    assert [t["name"] for t in pc.chain()][0] == "endpoint-del-operador"
 
 
 def test_operator_can_order_the_chain_by_hand(monkeypatch):
@@ -91,10 +96,10 @@ def test_operator_can_order_the_chain_by_hand(monkeypatch):
 # ── clasificar la avería: agotado ≠ rate-limit pasajero (misma regla que el hermano de workers) ─────────────
 def test_a_passing_rate_limit_does_not_burn_a_provider(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert pc.classify_failure(BARE_429) == "rate"
     assert pc.note_failure(BARE_429) is None            # se reintenta solo, no se releva
-    assert pc.pick()["name"] == "xai"
+    assert pc.pick()["name"] == "deepseek-directo"
 
 
 def test_a_task_failure_is_not_a_provider_failure():
@@ -105,14 +110,14 @@ def test_a_task_failure_is_not_a_provider_failure():
 # ── el relevo ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("AIMLAPI_KEY", "k")
-    monkeypatch.setenv("XAI_API_KEY", "k2")
-    assert pc.pick()["name"] == "aimlapi"
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    monkeypatch.setenv("AIMLAPI_KEY", "k2")
+    assert pc.pick()["name"] == "deepseek-directo"
 
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1"})
-    assert nxt["name"] == "xai"
-    assert pc.pick()["name"] == "xai"          # el siguiente turno ya arranca en el relevo (STICKY)
-    assert pc._store._cooldown["aimlapi"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
+    assert nxt["name"] == "aimlapi-failover"
+    assert pc.pick()["name"] == "aimlapi-failover"          # el siguiente turno ya arranca en el relevo (STICKY)
+    assert pc._store._cooldown["deepseek-directo"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
@@ -122,9 +127,9 @@ def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
     así que aquí va un agotamiento de cuota de verdad. La intención del test no cambia; lo que tenía dos
     significados era el ejemplo."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure("quota exceeded", {"name": "xai", "base_url": "x"})
-    assert time.time() < pc._store._cooldown["xai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    pc.note_failure("quota exceeded", {"name": "deepseek-directo", "base_url": "x"})
+    assert time.time() < pc._store._cooldown["deepseek-directo"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
 
 
 # ── V2-243: un SALDO agotado no es una cuota ────────────────────────────────────────────────────────────────
@@ -143,9 +148,9 @@ def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
     castigo sigue siendo mayor que el de una cuota sin fecha, pero cabe en una libertad condicional.
     """
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure("API Error 402 Insufficient Balance", {"name": "xai", "base_url": "x"})
-    until = pc._store._cooldown["xai"]
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    pc.note_failure("API Error 402 Insufficient Balance", {"name": "deepseek-directo", "base_url": "x"})
+    until = pc._store._cooldown["deepseek-directo"]
     assert until > time.time(), "un saldo agotado tiene que castigar algo"
     assert until <= time.time() + pc._DEPLETED_COOLDOWN_S + 1
     assert pc._DEPLETED_COOLDOWN_S <= 30 * 60, \
@@ -156,9 +161,15 @@ def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
     """Sensibilidad, y no es teórico: un plan con forfait puede decir «insufficient credit … reset at …». Si
     anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure("insufficient credit, quota will reset at 2026-08-30", {"name": "xai", "base_url": "x"})
-    assert pc._store._cooldown["xai"] == time.mktime(time.strptime("2026-08-30", "%Y-%m-%d")), \
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    # La fecha se calcula, no se escribe: con "2026-08-30" literal este caso funcionó hasta las 23:33
+    # del 29 y a partir de ahí la fecha anunciada quedaba en el pasado, así que mandaba el suelo de
+    # cuarentena y el caso pasaba a medir lo contrario de lo que dice. Un test con una fecha dentro
+    # tiene una bomba de relojería dentro.
+    _manana = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400))
+    pc.note_failure(f"insufficient credit, quota will reset at {_manana}",
+                    {"name": "deepseek-directo", "base_url": "x"})
+    assert pc._store._cooldown["deepseek-directo"] == time.mktime(time.strptime(_manana, "%Y-%m-%d")), \
         "con fecha anunciada manda la fecha: es el camino de la CUOTA, no el del saldo"
 
 
@@ -168,8 +179,8 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
     dichos = []
     monkeypatch.setattr(health_state, "record", lambda *a, **k: dichos.append(a), raising=False)
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure("Insufficient Balance", {"name": "xai", "base_url": "x"})
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    pc.note_failure("Insufficient Balance", {"name": "deepseek-directo", "base_url": "x"})
     detalle = " ".join(str(x) for a in dichos for x in a)
     assert "SIN SALDO" in detalle and "recargar" in detalle
     assert "sin cuota hasta" not in detalle
@@ -177,19 +188,19 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
 
 def test_no_tier_left_returns_none(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     # Una sola credencial = un solo escalón ofrecido; al secarlo no queda nadie a quien preguntar.
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "https://api.x.ai/v1"})
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
     assert nxt is None
     assert pc.pick() is None
 
 
 def test_clear_lets_the_operator_resume_after_topping_up(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "x"})
-    pc.clear("xai")
-    assert pc.pick()["name"] == "xai"
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "x"})
+    pc.clear("deepseek-directo")
+    assert pc.pick()["name"] == "deepseek-directo"
 
 
 def test_spec_for_carries_model_and_credential(monkeypatch):
@@ -202,22 +213,22 @@ def test_spec_for_carries_model_and_credential(monkeypatch):
 # ── y que el PANEL se entere ──────────────────────────────────────────────────────────────────────────────
 def test_the_alerts_panel_surfaces_an_exhausted_cluster_provider(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k2")
     from config import balances
     assert not [a for a in balances.cluster_providers() if a["state"] == "error"]
 
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "https://api.x.ai/v1"})
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
     rows = balances.cluster_providers()
     bad = [r for r in rows if r["state"] == "error"]
-    assert bad and bad[0]["key"] == "cluster:xai" and "cuota" in bad[0]["detail"]
+    assert bad and bad[0]["key"] == "cluster:deepseek-directo" and "cuota" in bad[0]["detail"]
     assert [r for r in rows if r["state"] == "ok" and "EN USO" in r["detail"]]
 
 
 def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "x"})
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "x"})
     pc.note_failure("1113 Insufficient balance or no resource package",
                     {"name": "groq", "base_url": "https://api.groq.com/openai/v1"})
     from config import balances
@@ -264,10 +275,10 @@ def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
     """The original single caller (`connectors/meshkore/brain.py`) never passes `role` — it must keep hitting the
     cluster chain exactly as before."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("AIMLAPI_KEY", "k")
-    monkeypatch.setenv("XAI_API_KEY", "k2")
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1"})
-    assert nxt["name"] == "xai"
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    monkeypatch.setenv("AIMLAPI_KEY", "k2")
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
+    assert nxt["name"] == "aimlapi-failover"
 
 
 def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
@@ -295,13 +306,19 @@ def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
 
 def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    monkeypatch.setenv("AIMLAPI_KEY", "k2")
     assert pc.pick() is not None
-    # El tier COMPLETO, como lo entrega `pick()` — URL real y `env` incluidos. El emparejamiento de V2-458
-    # casa por host+credencial RESUELTA: sin `env` la credencial no resuelve y sin la URL real no hay host,
-    # y en ambos casos el hermano de créditos quedaba en pie — este caso pasaba a medir otra cosa (V2-462).
-    pc.note_failure("Insufficient Balance", {"name": "xai", "base_url": "https://api.z.ai/api/anthropic",
-                                             "env": ["Z_AI_API_KEY"]})
+    # El tier COMPLETO, como lo entrega `pick()` — URL real y `env` incluidos: el emparejamiento de V2-458 casa
+    # por host + credencial RESUELTA, y sin eso el hermano queda en pie y el caso mide otra cosa.
+    #
+    # Con UN SOLO failover (norma 2026-08-30) secar la cadena son dos golpes, no cuatro — y esa es media razón
+    # de la norma: una cadena de cinco escalones nunca llegaba a estar seca, así que el turno no podía decirle
+    # al operador «no queda nadie, esto lo arreglas tú recargando».
+    pc.note_failure("Insufficient Balance", {"name": "deepseek-directo",
+                                             "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]})
+    pc.note_failure("Insufficient Balance", {"name": "aimlapi-failover",
+                                             "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]})
     assert pc.pick() is None, "sin este hecho, el turno no puede distinguir un tropiezo de una cadena seca"
 
 
@@ -350,7 +367,7 @@ def test_en_self_host_la_cadena_de_voz_es_SOLO_el_titular(monkeypatch):
     """La regla, tal cual, y sin ella el resto de este bloque no significa nada."""
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert all(t["name"] != "xai-fast" for t in pc._voice_chain())
 
 
@@ -358,8 +375,8 @@ def test_un_escalon_CALLADO_con_credencial_y_sano_se_puede_nombrar(monkeypatch):
     _sin_lista_explicita(monkeypatch)
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
-    monkeypatch.setenv("XAI_API_KEY", "k")
-    assert "xai-fast" in pc.suppressed_relays()
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    assert "deepseek-directo" in pc.suppressed_relays()
 
 
 def test_un_escalon_SIN_credencial_no_esta_callado_sino_que_NO_EXISTE(monkeypatch):
@@ -388,7 +405,7 @@ def test_en_la_NUBE_no_hay_nada_callado(monkeypatch):
     """Allí la cadena sí trae relevos, así que un «escalón callado» sería una frase falsa."""
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True, raising=False)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert pc.suppressed_relays() == []
 
 
@@ -399,7 +416,7 @@ def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
     monkeypatch.setattr(v2, "get", lambda k: {"providers": [{"name": "x"}]} if k == "fast" else {}, raising=False)
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert pc.suppressed_relays() == []
 
 
@@ -432,7 +449,7 @@ def _dos_escalones(monkeypatch):
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k")
 
 
@@ -466,7 +483,7 @@ def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
-    monkeypatch.setenv("XAI_API_KEY", "k")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     pc.note_stall(role=pc.ROLE_VOICE)
     assert pc.note_stall(role=pc.ROLE_VOICE) is None
     assert pc._store._cooldown.get("xai", 0) == 0

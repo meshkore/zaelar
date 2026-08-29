@@ -95,49 +95,35 @@ _relay_turns: dict[str, int] = {}      # name -> turnos ya servidos por ese esca
 
 # ── catálogo por defecto (SIN config explícita) — mismo orden/prioridad que `brain.py._resolve_endpoint` ────
 def _known_chain() -> list[dict]:
-    override_model = os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL") or os.getenv("LLM_MODEL") or ""
+    """Los escalones por defecto del cerebro de voz: **titular + UN failover**, y nada más.
+
+    V2-500 — salen de `config/models.default.json`, la tabla única y pública. Antes esto era un catálogo
+    escrito aquí, con cinco escalones (Z.AI, sus créditos, AIMLAPI, xAI, Groq) que nadie comparaba con nada:
+    la norma del operador vivía solo en su `config/v2.json`, gitignorado, así que una instalación nueva —y la
+    nube— arrancaban con otro reparto. Y el primero de esos cinco era Z.AI, que es como su cartera acabó
+    pagando turnos de cluster que nadie había autorizado.
+
+    **Un solo failover** es también norma (2026-08-30): una cadena de cuatro no se puede razonar ni depurar, y
+    los dos últimos escalones que había aquí estaban muertos sin que nadie lo supiera — xAI sin créditos (403)
+    y Groq con un modelo retirado (404 `model_not_found`).
+
+    Un `LLM_API_KEY`/`LLM_BASE_URL` explícito —el operador pinchando un endpoint a mano— se sigue respetando y
+    va el primero.
+    """
+    from config import models as _tabla
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
-    # Z.AI NO ESTÁ EN ESTA CADENA, y su ausencia es una NORMA del operador (2026-08-30), no un descuido:
-    #
-    #   «el proveedor de Z.AI solo sirve para el Brain Worker, para usarse dentro de Claude Code; no sirve
-    #    como failover de nada más y no se debe utilizar en ningún otro apartado del agente.»
-    #
-    # Esta cadena es la del CEREBRO DE VOZ — y de todo lo que cuelga de `pick()`: el compositor del brief, el
-    # cerebro de cluster, el turno rápido. Ninguno de esos es un worker, así que ninguno puede tocar Z.AI.
-    # Hasta hoy sí estaban aquí sus dos carteras (el plan por `api/anthropic` y los créditos por `paas/v4`,
-    # V2-462) y se gastaban solas por relevo, que es como el operador vio bajar el saldo de una cartera que
-    # no había autorizado para esto. El escalón de créditos NO se mueve al worker: allí manda el CLI de
-    # Claude Code, que habla protocolo Anthropic, y `paas/v4` es OpenAI-compatible — meterlo en esa lista
-    # daría un 404 con pinta de caída (V2-493 lo deja escrito y sin construir).
-    #
-    # El catálogo de Z.AI para el WORKER vive donde le corresponde y es el ÚNICO sitio:
-    # `nucleo/workers/providers.py::KNOWN`.
-    # DEEPSEEK DIRECTO ES EL TITULAR, y hasta hoy no estaba en este catálogo — solo en la config explícita del
-    # operador. Se vio al quitar Z.AI (V2-496): la cabeza pasó a ser el broker AIMLAPI y, con AIMLAPI caído esa
-    # misma noche (curl a pelo: 45 s y HTTP 000), el turno se quedaba en `APITimeoutError` mientras
-    # `api.deepseek.com` contestaba en **0,68 s**. O sea que este catálogo llevaba tiempo desalineado con el
-    # reparto canónico —«FlashBrain: DeepSeek directo → v4-pro → AIMLAPI failover»— y Z.AI le tapaba el hueco.
-    #
-    # El DIRECTO delante del broker no es preferencia: el directo OBEDECE `thinking:disabled` (TTFT p50
-    # 1,01 s) y el broker acepta el campo y razona igual (4,24 s y 2.138 tokens de razonamiento). Y el `pro`
-    # va detrás del `flash` porque razona: solo sirve como relevo, nunca como titular de voz.
-    deepseek = {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
-                "model": override_model or "deepseek-v4-flash", "provider": "deepseek",
-                "plan": "DeepSeek directo V4 Flash"}
-    deepseek_pro = {"name": "deepseek-directo-pro", "base_url": "https://api.deepseek.com",
-                    "env": ["DEEPSEEK_API_KEY"], "model": "deepseek-v4-pro", "provider": "deepseek",
-                    "plan": "DeepSeek directo V4 Pro (relevo)"}
-    aimlapi = {"name": "aimlapi", "base_url": os.getenv("LLM_BASE_URL") or "https://api.aimlapi.com/v1",
-               "env": ["LLM_API_KEY", "AIMLAPI_KEY"], "model": override_model or "deepseek/deepseek-v4-flash",
-               "provider": "aimlapi", "plan": "AIMLAPI"}
-    xai = {"name": "xai", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
-           "model": override_model or "grok-4.20-0309-non-reasoning", "provider": "aimlapi", "plan": "xAI directo"}
-    groq = {"name": "groq", "base_url": "https://api.groq.com/openai/v1", "env": ["GROQ_API_KEY"],
-            "model": override_model or "llama-3.3-70b-versatile", "provider": "aimlapi", "plan": "Groq directo"}
-    # Un override LLM_API_KEY/LLM_BASE_URL explícito ganaba SIEMPRE a Z.AI en el código anterior (el operador
-    # pinchó un endpoint a mano) — se preserva reordenando, no descartando: si Z.AI se recupera, sigue en la cadena.
-    return ([aimlapi, deepseek, deepseek_pro, xai, groq] if explicit
-            else [deepseek, deepseek_pro, aimlapi, xai, groq])
+    override_model = (os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL")
+                      or os.getenv("LLM_MODEL") or "")
+    escalones = _tabla.chain_for("voice_brain", names=("deepseek-directo", "aimlapi-failover"))
+    if override_model:
+        for e in escalones:
+            e["model"] = override_model
+    if explicit:
+        pinchado = {"name": "endpoint-del-operador", "base_url": os.getenv("LLM_BASE_URL") or "",
+                    "env": ["LLM_API_KEY"], "model": override_model or "", "provider": "aimlapi",
+                    "plan": "endpoint configurado a mano"}
+        return [pinchado] + escalones
+    return escalones
 
 
 def _VOICE_RELAYS() -> list[dict]:

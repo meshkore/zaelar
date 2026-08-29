@@ -49,36 +49,26 @@ KNOWN: list[dict] = [
     # an observation — worse than DeepSeek's honest "I cannot read the screenshot" (measured 2026-08-24).
     # Declaring the trait here is what makes `vision_env()` set `ZAELAR_NAV_VISION=0` and send the worker
     # down the DOM route instead, whichever GLM is on the other end.
-    {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic",
-     "env": ["Z_AI_API_KEY"], "plan": "GLM coding plan", "vision": False},
-    {"name": "moonshot", "base_url": "https://api.moonshot.ai/anthropic",
-     "env": ["MOONSHOT_API_KEY", "KIMI_API_KEY"], "plan": "Kimi Code"},
-    # DeepSeek expone un endpoint Anthropic-compatible propio (2026-08-13), y este escalón estuvo escrito y SIN
-    # PROBAR hasta el 2026-08-14 porque faltaba la credencial.
+    # V2-500 — la tabla única (`config/models.default.json`) decide QUIÉN y CON QUÉ MODELO; aquí solo se
+    # traduce. **Titular + UN failover**, norma del operador: Z.AI (plan de código, protocolo Anthropic) y
+    # DeepSeek por su endpoint Anthropic. Moonshot salió de aquí al aplicarla — no estaba medido ni tenía
+    # credencial, así que era un escalón que solo alargaba la cadena.
     #
-    # ⚠️ Al llegar la key se probó y **el `model` que declaraba era inválido**. Decía `sonnet` sobre la creencia de
-    # que el gateway mapea alias de Claude (`claude-sonnet*` → v4-flash). NO los mapea: responde
-    # `400 — «The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed sonnet»`.
-    # Verificado con los tres alias de Claude (400 los tres) y con los nombres propios de DeepSeek (200 los dos).
-    #
-    # O sea que este escalón habría fallado con 400 en CADA petición desde el instante en que la credencial
-    # entrara — y habría fallado justo cuando se le necesita, porque un escalón de relevo solo se usa cuando el
-    # titular ya está caído. **Un relevo sin probar es peor que no tener relevo**: convierte una caída de proveedor
-    # en una caída total, y el síntoma («el worker muere al instante») no apunta al modelo.
-    #
-    # Es pago por token (no suscripción), así que rompe la regla del operador de «forfait, nunca por token» — va
-    # DESPUÉS de los planes y existe como red de seguridad barata.
-    #
-    # ⚠️ `vision: False` — V4 NO LEE IMÁGENES, y el camino de VISIÓN del navegador (V2-049) le manda una captura
-    # en CADA acción. Medido en `search-buy-guitar__es` (2026-08-24 11:23), con el relevo puesto («z.ai → relevo a
-    # deepseek»): el worker abrió Wallapop, hizo `Read` de la PNG y contestó **«La captura no se pudo leer (formato
-    # no soportado). Sigo por DOM»** — y otra vez cuatro pasos después. La PNG estaba perfecta (1280×800, 8-bit RGB
-    # en disco); el que no puede verla es el modelo. Así que cada acción le costaba un `Read` de ~300-530 KB para
-    # descubrir lo mismo, y encima lo narró al operador, que no tiene qué hacer con eso.
-    {"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
-     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "deepseek-v4-flash",
-     "vision": False},
+    # Los DOS llevan `vision: False`, y eso está MEDIDO, no supuesto: los GLM contestan con seguridad sobre
+    # imágenes que no han visto (un rojo plano volvió «Orange», un azul «Teal») y DeepSeek V4 al menos lo dice
+    # («no se pudo leer, sigo por DOM»). El camino de visión del navegador manda una captura en CADA acción,
+    # y una captura confabulada tiene la FORMA de una observación. Por eso `vision_env()` apaga la visión y el
+    # worker va por DOM.
 ]
+
+
+def _known_from_table() -> list[dict]:
+    from config import models as _tabla
+    return _tabla.chain_for("brain_worker", names=("z.ai", "deepseek"))
+
+
+KNOWN = _known_from_table()
+
 # Escalón final SOLO LOCAL: sin base_url el CLI usa la licencia con la que el operador ya está logueado. No
 # necesita credencial y por eso no puede fallar por cuota de API — pero consume su licencia, así que va el último.
 LICENSE_TIER = {"name": "licencia-claude", "base_url": "", "env": [], "plan": "licencia local de Claude Code",

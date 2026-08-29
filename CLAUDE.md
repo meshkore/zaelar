@@ -5182,6 +5182,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **El reparto de modelos vive en UNA tabla pública, y un solo failover por servicio (V2-500, 2026-08-30)**:
+  norma del operador — *«la configuración debe estar en un archivo por defecto, público y en el repositorio…
+  quiero que ese archivo sea único y no quiero que estos datos estén en mil sitios a la vez»* y *«solo quiero
+  un failover por servicio, no complicaciones de tres failovers en línea»*. La tabla es
+  **`config/models.default.json`**; `config/models.py` la lee; los cuatro consumidores de Python leen de ahí.
+  - **Estaba en SEIS sitios** y nada los comparaba, así que la norma acababa solo en el `config/v2.json` del
+    operador —gitignorado, no viaja— y cada instalación nueva y cada máquina de nube arrancaban con otro
+    reparto. Medido: la nube tenía **AIMLAPI de titular de voz**, la memoria iba por el broker en los dos
+    lados, la cadena por defecto tenía **cinco escalones encabezados por Z.AI**, el triaje apuntaba a xAI
+    **sin créditos** y los embeddings a **Ollama**, que en un contenedor no existe.
+  - **Un solo failover** tiene dos motivos: una cadena de cinco no se puede razonar ni depurar, y **nunca
+    llega a estar seca**, así que el turno no podía decir «no queda nadie, esto se arregla recargando».
+  - **Fuera xAI y Groq**, medido el mismo día: `403 used all available credits` y `404 model_not_found`
+    (`llama-3.3-70b-versatile` está retirado). Los dos últimos escalones por defecto llevaban muertos sin que
+    nadie lo supiera. Su motivo queda escrito en la sección `retired` de la tabla, que es lo que impide que
+    el siguiente los añada creyendo que faltan.
+  - **Embeddings a `fastembed`** (en proceso, sin servidor): todo lo de la tabla tiene que poder correr en la
+    nube. ⚠️ cambiar ese valor cambia el ESPACIO vectorial; una instalación existente conserva el suyo.
+  - Las dos superficies de nube (`fly.accounts.toml` y `cloud/provisioner/.../machineConfig.js`) no son
+    Python, así que son COPIAS y las vigila el nodo 7.26. **Abierto**: `DEEPSEEK_API_KEY` no existía en
+    `cloud/` — hay que crear el secreto de Fly antes del próximo despliegue.
+
 - **Z.AI es del BRAIN WORKER y de nadie más (V2-496, 2026-08-30 — deroga V2-462)**: norma del operador,
   literal — *«el proveedor de Z.AI solo sirve para el Brain Worker, para utilizarse dentro de Claude Code; no
   sirve como failover de nada más y no se debe utilizar en ningún otro apartado del agente»*. V2-462 había

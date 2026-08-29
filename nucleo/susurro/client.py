@@ -50,7 +50,7 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     # never a direct OpenAI endpoint — there is no OPENAI_API_KEY in the cloud and this would fail in silence.
     # 2026-08-21: both moved off OpenAI together, which is the point — a literal here that drifts from the config
     # default is a fallback that only runs when something is already wrong, so nobody would notice it drifted.
-    model = str(c.get("model") or "deepseek/deepseek-v4-flash")
+    model = str(c.get("model") or "deepseek-v4-flash")
     base = str(c.get("base_url") or "https://api.aimlapi.com/v1").rstrip("/")
     key = resolved_api_key(base, str(c.get("api_key") or "").strip())
     messages = [

@@ -178,7 +178,7 @@ def test_full_cluster_framing_is_identity_safe(fresh_db):
 def test_off_track_alert_mentions_objective_and_asks_operator(fresh_db, monkeypatch):
     # T-03 (auditoría 2026-07-26): un peer intentando redirigir la charla debe notificarse Y pedir permiso,
     # distinto del aviso genérico "sin avance" de dead_end/stuck.
-    from connectors.meshkore import bridge as bridge_mod, evaluator
+    from connectors.meshkore import brain, bridge as bridge_mod, evaluator
 
     events = []
     monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
@@ -190,6 +190,11 @@ def test_off_track_alert_mentions_objective_and_asks_operator(fresh_db, monkeypa
     async def _fake_eval(win, metrics, *, spec, timeout=30.0):
         return {"health": "off_track", "action": "pause", "reason": "el peer quiere cambiar de tema"}
     monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+    # El veredicto ya viene fingido; lo que faltaba por fingir era CÓMO SE LLEGA a pedirlo. `_evaluate_and_apply`
+    # resuelve antes `brain._spec()`, que sin credencial LANZA y el bloque es fail-open: se traga la excepción,
+    # no emite nada y el caso mide «no hubo aviso» sin haber ejercitado el aviso. Pasaba en solitario (el
+    # proceso tenía alguna clave a mano) y fallaba en el mapa entero — un test que mide su entorno.
+    monkeypatch.setattr(brain, "_spec", lambda: object())
 
     asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
     alerts = [a[1] for a, k in events if a and a[0] == "error"]
@@ -198,7 +203,7 @@ def test_off_track_alert_mentions_objective_and_asks_operator(fresh_db, monkeypa
 
 
 def test_off_track_alert_without_objective_says_none_was_set(fresh_db, monkeypatch):
-    from connectors.meshkore import bridge as bridge_mod, evaluator
+    from connectors.meshkore import brain, bridge as bridge_mod, evaluator
 
     events = []
     monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
@@ -210,6 +215,11 @@ def test_off_track_alert_without_objective_says_none_was_set(fresh_db, monkeypat
     async def _fake_eval(win, metrics, *, spec, timeout=30.0):
         return {"health": "off_track", "action": "pause", "reason": "sin objetivo claro"}
     monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+    # El veredicto ya viene fingido; lo que faltaba por fingir era CÓMO SE LLEGA a pedirlo. `_evaluate_and_apply`
+    # resuelve antes `brain._spec()`, que sin credencial LANZA y el bloque es fail-open: se traga la excepción,
+    # no emite nada y el caso mide «no hubo aviso» sin haber ejercitado el aviso. Pasaba en solitario (el
+    # proceso tenía alguna clave a mano) y fallaba en el mapa entero — un test que mide su entorno.
+    monkeypatch.setattr(brain, "_spec", lambda: object())
 
     asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
     alerts = [a[1] for a, k in events if a and a[0] == "error"]
@@ -218,7 +228,7 @@ def test_off_track_alert_without_objective_says_none_was_set(fresh_db, monkeypat
 
 def test_dead_end_alert_stays_generic_not_off_track_wording(fresh_db, monkeypatch):
     # el mensaje diferenciado es SOLO para off_track — dead_end/stuck conservan el aviso genérico existente.
-    from connectors.meshkore import bridge as bridge_mod, evaluator
+    from connectors.meshkore import brain, bridge as bridge_mod, evaluator
 
     events = []
     monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
@@ -230,6 +240,11 @@ def test_dead_end_alert_stays_generic_not_off_track_wording(fresh_db, monkeypatc
     async def _fake_eval(win, metrics, *, spec, timeout=30.0):
         return {"health": "dead_end", "action": "pause", "reason": "bloqueado por dependencia"}
     monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+    # El veredicto ya viene fingido; lo que faltaba por fingir era CÓMO SE LLEGA a pedirlo. `_evaluate_and_apply`
+    # resuelve antes `brain._spec()`, que sin credencial LANZA y el bloque es fail-open: se traga la excepción,
+    # no emite nada y el caso mide «no hubo aviso» sin haber ejercitado el aviso. Pasaba en solitario (el
+    # proceso tenía alguna clave a mano) y fallaba en el mapa entero — un test que mide su entorno.
+    monkeypatch.setattr(brain, "_spec", lambda: object())
 
     asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
     alerts = [a[1] for a, k in events if a and a[0] == "error"]

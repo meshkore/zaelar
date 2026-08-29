@@ -1650,16 +1650,16 @@ DOMAINS: list[dict] = [
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente
         # simplemente trabaja sin el contexto que el puntero existía para darle. Mismo defecto que el 7.16
         # sobre CLAUDE.md, una carpeta más allá. Se salta en un clon limpio (team/ va gitignorada).
-        {"id": "7.21", "title": "Un perfil de equipo no arranca a su agente con rutas muertas",
+        {"id": "7.25", "title": "Un perfil de equipo no arranca a su agente con rutas muertas",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_a_team_profile_points_at_real_docs.py"]},
-        # V2-497 (2026-08-30): el reparto de modelos vivía en SEIS sitios que nadie comparaba, así que la
+        # V2-500 (2026-08-30): el reparto de modelos vivía en SEIS sitios que nadie comparaba, así que la
         # norma acababa solo en el config LOCAL del operador —gitignorado— y la nube arrancaba con otro.
         # Ahora hay UNA tabla pública (`config/models.default.json`); los cuatro consumidores de Python la
         # LEEN, y las dos superficies de nube (TOML de Fly + JS del provisioner) son copias que este nodo
         # vigila. Incluye la norma: UN solo failover, nada que dependa de un servidor local, Z.AI solo en
         # el worker, y lo retirado no vuelve.
-        {"id": "7.22", "title": "El reparto de modelos vive en UNA tabla y las copias de nube no derivan",
+        {"id": "7.26", "title": "El reparto de modelos vive en UNA tabla y las copias de nube no derivan",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_the_three_surfaces_say_the_same.py"]},
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",

@@ -87,7 +87,5 @@ def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     names = [t["name"] for t in PC._known_chain()]
     assert names[0] == "deepseek-directo", f"el titular de voz no encabeza el catálogo: {names}"
-    assert names.index("deepseek-directo") < names.index("aimlapi"), (
-        "el broker por delante del directo: acepta `thinking:disabled` y razona igual (4,24 s vs 1,01 s)")
-    assert names.index("deepseek-directo") < names.index("deepseek-directo-pro"), (
-        "el `pro` RAZONA — solo vale como relevo, nunca como titular de voz")
+    assert names == ["deepseek-directo", "aimlapi-failover"], (
+        f"la cadena de voz tiene que ser titular + UN failover, y es {names} — norma del operador 2026-08-30")

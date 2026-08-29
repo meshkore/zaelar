@@ -48,7 +48,7 @@ def _cfg(monkeypatch, **over):
 def test_a_tier_without_credentials_is_not_offered(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("KIMI_API_KEY", raising=False)
     names = [t["name"] for t in prov.chain()]
     assert names[0] == "z.ai"                    # el configurado va primero
@@ -60,8 +60,10 @@ def test_a_second_subscription_joins_the_chain(monkeypatch):
     """Dos suscripciones baratas cubren el hueco semanal de una — sin tocar código, solo poniendo la key."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("MOONSHOT_API_KEY", "k2")
-    assert [t["name"] for t in prov.chain()] == ["z.ai", "moonshot", "licencia-claude"]
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
+    # V2-497: titular + UN failover (+ la licencia local, que no es un proveedor de API sino el
+    # salvavidas de quien se autohospeda). Moonshot salió: ni medido ni con credencial.
+    assert [t["name"] for t in prov.chain()] == ["z.ai", "deepseek", "licencia-claude"]
 
 
 def test_cloud_never_offers_the_browser_licence(monkeypatch):
@@ -73,13 +75,13 @@ def test_cloud_never_offers_the_browser_licence(monkeypatch):
 
 
 def test_operator_can_order_the_chain_by_hand(monkeypatch):
-    _cfg(monkeypatch, providers=[{"name": "moonshot", "base_url": "https://api.moonshot.ai/anthropic",
-                                  "env": ["MOONSHOT_API_KEY"]},
+    _cfg(monkeypatch, providers=[{"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
+                                  "env": ["DEEPSEEK_API_KEY"]},
                                  {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic",
                                   "env": ["Z_AI_API_KEY"]}])
-    monkeypatch.setenv("MOONSHOT_API_KEY", "k2")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    assert [t["name"] for t in prov.chain()] == ["moonshot", "z.ai"]
+    assert [t["name"] for t in prov.chain()] == ["deepseek", "z.ai"]
 
 
 # ── clasificar la avería: agotado ≠ rate-limit pasajero ───────────────────────────────────────────────────
@@ -155,8 +157,14 @@ def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
     anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    prov.note_failure("insufficient credit, quota will reset at 2026-08-30", {"name": "z.ai", "base_url": "x"})
-    assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime("2026-08-30", "%Y-%m-%d")), \
+    # La fecha se calcula, no se escribe: con "2026-08-30" literal este caso funcionó hasta las 23:33
+    # del 29 y a partir de ahí la fecha anunciada quedaba en el pasado, así que mandaba el suelo de
+    # cuarentena y el caso pasaba a medir lo contrario de lo que dice. Un test con una fecha dentro
+    # tiene una bomba de relojería dentro.
+    _manana = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400))
+    prov.note_failure(f"insufficient credit, quota will reset at {_manana}",
+                      {"name": "z.ai", "base_url": "x"})
+    assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime(_manana, "%Y-%m-%d")), \
         "con fecha anunciada manda la fecha: es el camino de la CUOTA, no el del saldo"
 
 
@@ -184,18 +192,18 @@ def test_the_local_licence_is_never_put_in_cooldown(monkeypatch):
 def test_env_for_worker_points_at_the_healthy_tier(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "zzz")
-    monkeypatch.setenv("MOONSHOT_API_KEY", "mmm")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ddd")
     assert prov.env_for_worker()["ANTHROPIC_AUTH_TOKEN"] == "zzz"
     prov.note_failure(REAL_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     env = prov.env_for_worker()
-    assert env["ANTHROPIC_BASE_URL"] == "https://api.moonshot.ai/anthropic"
-    assert env["ANTHROPIC_AUTH_TOKEN"] == "mmm"
+    assert env["ANTHROPIC_BASE_URL"] == "https://api.deepseek.com/anthropic"
+    assert env["ANTHROPIC_AUTH_TOKEN"] == "ddd"
 
 
 def test_falling_back_to_the_licence_means_no_redirect(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "zzz")
-    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     prov.note_failure(REAL_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     assert prov.env_for_worker() == {}          # sin ANTHROPIC_BASE_URL el CLI usa la licencia logueada
 
@@ -241,10 +249,10 @@ def test_the_model_belongs_to_its_tier_not_to_the_global_config(monkeypatch):
     «There's an issue with the selected model (glm-5.2)». `code_agent.model` solo existe en SU proveedor."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("MOONSHOT_API_KEY", "k2")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
     by_name = {t["name"]: t for t in prov.chain()}
-    assert by_name["z.ai"]["model"] == "glm-5.2"          # el configurado sí lo lleva
-    assert by_name["moonshot"]["model"] == ""             # otro proveedor → su propio default
+    assert by_name["z.ai"]["model"] == "glm-5.3"          # el de la tabla
+    assert by_name["deepseek"]["model"] == "deepseek-v4-flash"   # el suplente lleva EL SUYO, de la tabla
     assert by_name["licencia-claude"]["model"] == ""      # la licencia → el default del CLI
 
 

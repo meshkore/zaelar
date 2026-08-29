@@ -33,19 +33,19 @@ primary_region = "iad"   # same region as zaelar-demo
   # gitignored), el store queda vacío y manda el env (`config/v2.py::get`: defaults → store → env). Si algún día se
   # pone el secret de DeepSeek en este app, esto se puede alinear; hasta entonces, alinearlo a mano deja al cerebro
   # de voz apuntando a un endpoint sin credencial en CADA Machine de cuenta.
-  FAST_PROVIDER = "aimlapi"
-  FAST_BASE_URL = "https://api.aimlapi.com/v1"
-  FAST_MODEL = "deepseek/deepseek-v4-flash"
+  FAST_PROVIDER = "deepseek"
+  FAST_BASE_URL = "https://api.deepseek.com"
+  FAST_MODEL = "deepseek-v4-pro"
   # Arranque en FRÍO barato: las Machines de cuenta AUTOSTOPan (min_machines_running=0) para no gastar, así que CADA
   # sesión paga el boot. El reranker de memoria (jina ~1.1GB) lo domina (2min18s→58s al apagarlo, medido en la demo).
   # Un usuario nuevo casi no tiene memoria → el reranker apenas aporta al principio, así que OFF en la nube (sin warm
   # pool, decisión del operador 2026-08-13). Reversible: enciéndelo cuando los usuarios acumulen memoria grande.
   MEMORY_RERANK = "off"
-  ZAELAR_STT = "voxtral"
+  ZAELAR_STT = "deepgram"
   CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
   CODE_AGENT_MODEL = "glm-5.3"
-  MEM_PROCESSOR_URL = "https://api.aimlapi.com/v1"
-  MEM_PROCESSOR_MODEL = "deepseek/deepseek-v4-flash"
+  MEM_PROCESSOR_URL = "https://api.deepseek.com"
+  MEM_PROCESSOR_MODEL = "deepseek-v4-flash"
   # NB: unlike fly.demo.toml, deliberately NO MEMORY_RERANK=off, NO ZAELAR_DEMO_* — a real account
   # keeps the memory reranker ON (quality over ephemeral boot speed) and has no demo turn/TTL caps
   # (see accountMachineConfig's docstring: bounded by Energy balance instead).

@@ -27,31 +27,47 @@ _lock = threading.Lock()
 
 # Shape by section + defaults. Adding a capability = one entry here.
 # NB: `*_model` values are DEFAULTS; the brain passes them PER INVOCATION (never a global model env var).
+# ── THE SINGLE TABLE ───────────────────────────────────────────────────────────────────────────────────────
+# V2-500 — default allocation lives in `config/models.default.json`, public and in the repository, NOT in
+# this dictionary. It used to be spread across six places that silently diverged; the policy ended up only in the
+# operator's gitignored `config/v2.json`, which does not travel, so every new installation—and the cloud—started
+# with something different.
+#
+# Only settings that are NOT “which model” remain here: thresholds, windows, and flags. Models come from the
+# table, along with their rule: **primary + ONE failover**, never more.
+from config import models as _tabla
+
+
+def _t(servicio: str, campo: str, cual: str = "titular") -> str:
+    fila = _tabla.titular(servicio) if cual == "titular" else (_tabla.failover(servicio) or {})
+    return str(fila.get(campo) or "")
+
+
 _DEFAULTS: dict[str, dict] = {
     # FlashBrain — fast non-reasoning layer (provider `nucleo`, V2-004). Non-reasoners only.
     "fast": {
-        # NORMA DEL OPERADOR (2026-08-19): **DeepSeek V4 DIRECTO de su proveedor es la opción principal**; el
-        # primer fallback es el broker AIMLAPI y, solo después, un modelo de OpenAI o Anthropic. Aplica a todas
+        # OPERATOR RULE (2026-08-19): **DeepSeek V4 DIRECT from its provider is the primary option**; the
+        # first fallback is the AIMLAPI broker, and only then an OpenAI or Anthropic model. This applies to all
         # las piezas que llaman a un LLM, no solo a esta. Ver la Hard rule de `CLAUDE.md`.
-        "provider": "deepseek",
-        # Por qué V4 **PRO** y no Flash por el endpoint directo, que es lo que había aquí antes: el banco a 3
-        # rondas del nodo 2.13 (42 turnos por brazo, 2026-08-15) midió justo lo que este comentario exigía para
-        # promover el directo —«córrelo a 3 rondas y si aguanta 14/14, cámbialo»— y lo que aguantó fue Pro:
+        "provider": _t("voice_brain", "provider"),
+        # Why V4 **PRO** rather than Flash for the direct endpoint, which is what was here before: the three-round
+        # rounds on node 2.13 (42 turns per arm, 2026-08-15) measured exactly what this comment required to promote
+        # direct routing—“run it for 3 rounds and switch if it holds 14/14”—and Pro was the one that held:
         #
         #                                  enrutado   graves   TTFT p50
         #   AIMLAPI  deepseek-v4-flash       41/42       0       8.659 ms   ← titular anterior
         #   DIRECTO  deepseek-v4-pro         41/42       1       1.158 ms   ← titular ahora
-        #   DIRECTO  deepseek-v4-flash       38/42       1         934 ms   ← falló `mostrar widget` 3 de 3
+        #   DIRECT    deepseek-v4-flash       38/42       1         934 ms   ← `mostrar widget` failed 3 of 3
         #
-        # Flash directo NO entra: 3 de 3 no es varianza, es un defecto. Pro iguala el enrutado del broker por
-        # 224 ms más de TTFT que Flash, y quita 7,5 segundos al primer token — que es lo que el operador
+        # Direct Flash is NOT included: 3 out of 3 is not variance, it is a defect. Pro matches broker routing with
+        # 224 ms more TTFT than Flash, and removes 7.5 seconds from the first token—which is what the operator
         # experimenta como «se ha quedado tonto».
         #
-        # LO QUE CUESTA, dicho: el turno de voz pasa de ~0,5 a ~1 Energy. `CLAUDE.md` dejó escrito que promover
-        # Pro «no es otra medición sino una decisión de TARIFA»; esa decisión la ha tomado el operador con la
+        # THE COST, plainly stated: the voice turn rises from ~0.5 to ~1 Energy. `CLAUDE.md` says promoting
+        # Pro “is not another measurement but a PRICING decision”; the operator made that decision under the
         # norma de arriba. El grave que Pro marca y el broker no es `pregunta memoria → widget_data`.
-        "model": "deepseek-v4-pro",                         # default; passed per invocation
-        "base_url": "https://api.deepseek.com",             # DIRECTO, no el broker
+        "model": _t("voice_brain", "model"),                # de la tabla; se pasa por invocación
+        "base_url": _t("voice_brain", "base_url"),          # DIRECTO, no el broker
         "api_key": "",
         # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.flash.provider_chain._voice_chain()`
         # already read `cfg.get("providers")` on this exact key — its own docstring says "the operator activates
@@ -59,10 +75,10 @@ _DEFAULTS: dict[str, dict] = {
         # and this one was never declared here. The promised override existed in the reader and was unreachable
         # from the config API: any patch touching it was silently dropped, `ok: true` included.
         #
-        # SIGUE VACÍA a propósito, y la norma de arriba no lo cambia: vacía significa «titular + la cadena
-        # AUTOMÁTICA», que en la nube ya va DeepSeek directo → broker, y en SELF-HOST es solo el titular. Quien
+        # It REMAINS EMPTY by design, and the rule above does not change that: empty means “primary + the chain
+        # AUTOMATIC chain”, which in the cloud is already DeepSeek direct → broker, and in SELF-HOST is only primary. A
         # se autohospeda paga sus propias APIs y no puede llevarse la sorpresa de que el agente se pase solo a un
-        # proveedor que él no eligió — declarar aquí una cadena fija se la impondría a todo el mundo.
+        # self-hosted operator pays for their own APIs; declaring a fixed chain here would impose it on everyone.
         "providers": [],
     },
     # SlowBrain — headless code agent behind the CodeAgent interface (V2-006).
@@ -104,15 +120,15 @@ _DEFAULTS: dict[str, dict] = {
         # LONG-recall reranker (off-hot-path, fail-open). Moves the correct item from top-10 to top-1/3.
         # DEFAULT `local` (V2-030): jina-reranker-v2-multilingual en CPU sube recall@1 41.6→56.2% y recall@3
         # empata al techo OpenAI (68.7 vs 69.0%) — gratis, 100% local, sin GPU. `openai` = techo cloud opcional.
-        "rerank_provider": "local",            # 'off' | 'local' (fastembed CPU, default) | 'openai' (LLM listwise) | 'cohere'/'voyage'
+        "rerank_provider": _t("reranker", "provider"),            # 'off' | 'local' (fastembed CPU, default) | 'openai' (LLM listwise) | 'cohere'/'voyage'
         "rerank_model": "",                    # empty = provider default (openai→gpt-4o-mini, local→bge-reranker-base)
         "rerank_base_url": "",                 # alternative OpenAI-compatible endpoint (empty = OpenAI)
         "rerank_top_n": 20,                    # nº de candidatos del tope que se reordenan
         "rerank_blend": 0.85,                  # peso del rerank vs score original (recencia/importancia)
         "rerank_api_key": "",                  # secret (redacted); empty = OPENAI_API_KEY from env
         # Memory embedding (Phase 3: abstraction; default remains local, without automatic re-embed).
-        "embed_provider": "auto",              # 'auto' (ollama→fastembed→hash) | 'ollama' | 'fastembed' | 'voyage'/'openai' (cloud)
-        "embed_model": "embeddinggemma",       # modelo de embedding; cambiarlo EXIGE re-embed (memory/reembed.py)
+        "embed_provider": _t("embeddings", "provider"),              # 'auto' (ollama→fastembed→hash) | 'ollama' | 'fastembed' | 'voyage'/'openai' (cloud)
+        "embed_model": _t("embeddings", "model"),       # modelo de embedding; cambiarlo EXIGE re-embed (memory/reembed.py)
         "embed_api_key": "",                   # secret (redacted); cloud providers only
         # The write HEART (mem_processor): distills each turn into pills. It runs OFF-HOT-PATH (async queue) →
         # **voice does NOT pay its latency**, and READS use no LLM. That is why the choice axis is quality-vs-PRICE,
@@ -144,8 +160,8 @@ _DEFAULTS: dict[str, dict] = {
         # break every cloud machine's memory writes on next deploy. Local/self-host installs that want the
         # direct-endpoint reliability fix (2026-08-16/17: AIMLAPI went fully unresponsive for this model) set
         # this in `config/v2.json` (gitignored, per-machine) instead, same pattern as any other local override.
-        "mem_processor_model": "deepseek/deepseek-v4-flash",     # empty = env MEM_PROCESSOR_MODEL or fallback
-        "mem_processor_base_url": "https://api.aimlapi.com/v1",  # endpoint OpenAI-compatible; a Ollama = local
+        "mem_processor_model": _t("memory_writer", "model"),     # empty = env MEM_PROCESSOR_MODEL or fallback
+        "mem_processor_base_url": _t("memory_writer", "base_url"),  # endpoint OpenAI-compatible; a Ollama = local
         "mem_processor_api_key": "",                     # secret (redacted); empty = PER-ENDPOINT key (AIMLAPI_KEY)
         # DEEP sleep «REM phase» (V2-056, memory/rem.py): daily LLM consolidation — synthesis of pill clusters into
         # high-level INSIGHTS (kind='insight', slot insight:<concept>, superseded by sleep). Fully off-hot-path
@@ -163,8 +179,8 @@ _DEFAULTS: dict[str, dict] = {
         #       in the §12.3 sweep) — a bad place for consolidation that processes batches.
         # Same AIMLAPI-by-default reasoning as `mem_processor_base_url` above: no cloud env override for REM
         # either, no DEEPSEEK_API_KEY provisioned in the cloud — checked-in default has to stay broker-routed.
-        "rem_model": "deepseek/deepseek-v4-flash",
-        "rem_base_url": "https://api.aimlapi.com/v1",
+        "rem_model": _t("memory_rem", "model"),
+        "rem_base_url": _t("memory_rem", "base_url"),
         "rem_api_key": "",                               # secret (redacted); empty = key by endpoint
         "rem_every_hours": 24,                           # deep-sleep cadence (min 1h)
     },
@@ -173,9 +189,9 @@ _DEFAULTS: dict[str, dict] = {
     # EXTERNAL; the personal message now DOES leave to the cloud (tradeoff explicitly accepted 2026-07-17). Simple
     # classification task (no tool-routing) → grok is fine and uses xAI credit. Configurable per piece.
     "triage": {
-        "provider": "xai",
-        "model": "grok-4.20-0309-non-reasoning",
-        "base_url": "https://api.x.ai/v1",
+        "provider": _t("triage", "provider"),
+        "model": _t("triage", "model"),
+        "base_url": _t("triage", "base_url"),
         "api_key": "",                                    # secret (redacted); empty = XAI_API_KEY from env
     },
     # «Susurro» (V2-053) — off-hot-path conversational auditor: a POWERFUL model (here it CAN be a reasoner,
@@ -184,8 +200,8 @@ _DEFAULTS: dict[str, dict] = {
     # repair_say + finding). First-class kill switch: `enabled` (UI) + env ZAELAR_SUSURRO. Hard fail-open: no
     # key/timeout → nothing happens. NEVER modifies BRAIN RULES at runtime (V2-053 §3d invariant).
     "susurro": {
-        "enabled": True,
-        "provider": "aimlapi",
+        "enabled": _tabla.enabled("susurro", False),
+        "provider": _t("susurro", "provider"),
         # 2026-08-09 — through the BROKER, not a direct account. Operator rule: one API account to manage
         # (AIMLAPI); Z.AI and Groq are separate and only where needed. The direct OpenAI account was also heavily
         # rate-limited (429 with few calls in flight, 20s p50 measured in the §12.3 sweep), which disguised an
@@ -196,9 +212,10 @@ _DEFAULTS: dict[str, dict] = {
         # distinction is deliberate and is the whole rule — catalogues keep it, defaults and relay chains do not.
         # Nothing is lost by the swap here: benchmark §10 (choosing the Susurro model with data) was never run,
         # so `gpt-4.1-mini` was inherited rather than measured for THIS task.
-        "model": "deepseek/deepseek-v4-flash",
-        "base_url": "https://api.aimlapi.com/v1",
-        "api_key": "",                          # secret (redacted); empty = resolved by endpoint (OPENAI_API_KEY…)
+        # 2026-08-30 — now DIRECT, like the rest: AIMLAPI is ONLY failover (operator rule).
+        "model": _t("susurro", "model"),
+        "base_url": _t("susurro", "base_url"),
+        "api_key": "",                          # secret (redacted); empty = resolved by endpoint
         "pulse_turns": 0,                       # 0 = friction only; N = also light audit every N turns
         "cooldown_s": 60,                       # minimum between audits (anti-burst)
         "window_turns": 8,                      # verbatim conversation turns in the audit window
@@ -219,8 +236,8 @@ _DEFAULTS: dict[str, dict] = {
     # v2 deployment flags. After Hermes' burial (V2-009), the default brain is «Colmena» itself.
     "flags": {
         "brain": "nucleo",                                  # active brain: 'nucleo' (own) · 'direct'/'local' (baselines)
-        "memory_enabled": True,                             # memoria central (V2-002/003)
-        "loop_enabled": True,                               # loop orquestador (V2-005)
+        "memory_enabled": True,                             # central memory (V2-002/003)
+        "loop_enabled": True,                               # orchestrator loop (V2-005)
     },
 }
 
