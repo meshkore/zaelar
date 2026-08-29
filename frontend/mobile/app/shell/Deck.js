@@ -193,6 +193,10 @@ export class Deck {
   // bring that card to the front.
   fullscreen(id) { const i = this.order.indexOf(id); if (i >= 0) this._goTo(i, 0); }
 
+  // Desktop aligns its grid here (V2-464 showcase). On mobile there is no grid — one card fills the screen —
+  // so an aligned deck is the deck it already is. Kept explicit so the shared bridges' contract stays whole.
+  arrange() {}
+
   async refreshData(id) {
     const w = this.cards.get(id); if (!w || !w._mod) return;
     try {
