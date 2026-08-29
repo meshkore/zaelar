@@ -110,6 +110,9 @@ SEGMENTS: dict[str, Segment] = {
     # el resultado. Y por eso es el caso limpio para medir DÓNDE aparece y CUÁNDO (V2-457).
     "show-real-photo-of-a-new-car": _done(),
     "remember-and-remind-deadline": _done(),
+    # INI-026 B1 (2026-08-29): agenda + aviso por defecto + manipulación por voz — todo dentro del motor,
+    # sin login, sin pago, sin tercero: completable de punta a punta.
+    "dentist-appointment-into-agenda": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
     # Música y vídeo (2026-08-26). `completable` según la ÚNICA pregunta de este módulo, hecha a la frase
@@ -287,6 +290,9 @@ def blocked_by(scenario_id: str) -> tuple[str, ...]:
 FINDINGS_EXEMPT = {
     "quick-fact-opening-hours",
     "remember-and-remind-deadline",
+    # · dentist-appointment-into-agenda → lo entregado es una CITA en la agenda con su aviso, no una lista
+    #   de opciones: la superficie es el widget de agenda + scheduled_jobs, no la hoja de resultados.
+    "dentist-appointment-into-agenda",
     "build-workout-tracker-widget",
     "three-tasks-at-once",
     "play-music-and-build-playlist",

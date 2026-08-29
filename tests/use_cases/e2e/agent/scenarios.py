@@ -263,6 +263,52 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # ── INI-026 frente B1: el listón de agenda del operador, literal (2026-08-29) ─────────────────────
+    # Lo que `remember-and-remind-deadline` NO mide: el aviso debe nacer POR DEFECTO (nadie lo pide) y la
+    # cita debe poder manipularse por voz después de creada.
+    UseCaseScenario(
+        id="dentist-appointment-into-agenda",
+        locale="es",
+        tier=1,
+        opening_line=(
+            "Oye, apúntate que tenemos cita para llevar a los niños al dentista el {FECHA_FUTURA_CERCANA} "
+            "a las tres de la tarde."
+        ),
+        persona_brief=(
+            "Eres una persona real dictándole a su asistente una cita que YA TIENE: los niños van al "
+            "dentista el {FECHA_FUTURA_CERCANA} a las 15:00. NO pidas ningún recordatorio — esperas que el "
+            "asistente lo gestione solo, como haría una secretaria. Si te pregunta la hora o el día, "
+            "repítelos con naturalidad ('ese día, a las tres de la tarde'). Si te pregunta si quieres que te "
+            "avise, di 'sí, lo normal, con algo de antelación' sin concretar más. Cuando te confirme que "
+            "la cita está apuntada, haz UNA petición más: 'mejor avísame ese día a mediodía, que por la "
+            "mañana estoy liado' — y cuando te confirme ese cambio, da las gracias y despídete. No "
+            "reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "TRES propiedades, y las tres van contra el informe de mecanismo, no contra lo bien que suene "
+            "la frase:\n"
+            "(a) LA CITA EXISTE: una data-op sobre el widget de agenda (bloque `widget_ops`) que escriba "
+            "la cita de la fecha dicha a las 15:00. Si el agente dice 'apuntada' y `widget_ops` no "
+            "muestra ninguna escritura de agenda, es el fallo central de este caso.\n"
+            "(b) EL AVISO NACE POR DEFECTO: el usuario NO pidió recordatorio. Debe existir algo programado "
+            "(`scheduled_jobs`, o un aviso propio de la cita en la agenda) que caiga ANTES de la cita a las 15:00, con el contenido RESUELTO (que al disparar diga que los niños tienen "
+            "dentista, no la frase cruda del usuario). Preguntar '¿quieres que te avise?' es conducta "
+            "aceptable, pero si tras el 'sí, lo normal' no queda nada programado, es FALLO. Mira el "
+            "`next_run` y el `prompt` del trabajo, no solo que exista — un cron roto puntúa igual que "
+            "ninguno.\n"
+            "(c) LA MANIPULACIÓN SE APLICA: cuando el usuario pide mover el aviso a mediodía del día de la cita, "
+            "el mecanismo debe mostrar el cambio (el trabajo reprogramado a ~12:00 del día de la cita, o el viejo "
+            "sustituido por el nuevo). Un 'hecho' hablado con el aviso intacto en su hora anterior es el "
+            "mismo fallo que (a).\n\n"
+            "El disparo visual del aviso no se puede observar en esta ronda (la cita cae días después): "
+            "se juzga el MONTAJE — que lo programado exista, caiga antes de la cita y lleve contenido "
+            "resuelto. Naturalidad: confirmar nombrando fecha y hora es lo que deja "
+            "al usuario verificar de un vistazo; un 'hecho' a secas obliga a preguntar."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
     UseCaseScenario(
         id="remember-and-remind-deadline",
         locale="es",

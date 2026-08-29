@@ -95,6 +95,17 @@ CASES: list[UseCase] = [
             "the agent's claim. No third-party site, login or payment involved, which is why this is a fair "
             "test of the generation path itself.",
             status="promoted"),
+    # Añadido 2026-08-29 (INI-026 frente B1): el listón de agenda del operador, LITERAL. Se diferencia de
+    # `remember-and-remind-deadline` en las dos cosas que aquel no mide: el aviso debe nacer POR DEFECTO
+    # (nadie lo pide) y la cita debe poder MANIPULARSE por voz después de creada.
+    UseCase("dentist-appointment-into-agenda", "es", 1, "A told appointment lands whole in the agenda",
+            "Oye, apúntate que tenemos cita para llevar a los niños al dentista el {FECHA_FUTURA_CERCANA} "
+            "a las tres de la tarde.",
+            "The appointment exists in the agenda widget with its date and time; a reminder exists BY "
+            "DEFAULT (the user never asked for one) scheduled BEFORE the appointment with resolved "
+            "content; and a follow-up voice adjustment («mejor avísame a mediodía») is applied for real.",
+            status="promoted"),
+
     UseCase("remember-and-remind-deadline", "es", 1, "Record a commitment and set its reminder",
             "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
             "The commitment is stored durably AND a reminder exists for the day before — the two halves are "
