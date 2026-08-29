@@ -78,7 +78,7 @@ def test_el_de_casos_de_uso_existe_y_lleva_lo_que_hace_falta_para_arrancar():
 
 
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
-@pytest.mark.parametrize("perfil", ["use-case-tester.md", "developer.md"])
+@pytest.mark.parametrize("perfil", ["use-case-tester.md", "developer.md", "dev-memory.md"])
 def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
     """El tester mide y el developer arregla; se coordinan por un cluster privado. Si un perfil no dice dónde
     están sus credenciales, esa sesión vuelve al copy-paste por el operador — que es justo lo que el cluster
@@ -89,3 +89,18 @@ def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
         assert var in cuerpo, f"«{perfil}» no nombra {var}"
     assert (ENGINE / ".meshkore/credentials/cluster-use-cases.env").exists(), (
         "el fichero de credenciales que los perfiles citan no está en el store")
+
+
+@pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
+def test_el_perfil_de_MEMORIA_dice_por_donde_se_empieza():
+    """El perfil que permite retomar la memoria desde un contexto vacío. Se comprueban las piezas SIN las que
+    esa sesión no puede arrancar: el diseño del módulo, su territorio, la base REAL del operador (que solo se
+    toca en copia), los sandboxes con la EVIDENCIA del turno —lo único que separa «no le llegó» de «no
+    obedeció»— y la trampa del backend heredado, que hace salir verdes casos que no miden nada."""
+    p = TEAM / "dev-memory.md"
+    assert p.exists(), "sin este perfil, retomar la memoria exige reconstruir el contexto a mano"
+    cuerpo = p.read_text(encoding="utf-8")
+    for pieza in ("zaelar-memory.md", "memory/_data/zaelar.db", "sandbox.db", "events",
+                  "ZAELAR_EMBED_BACKEND", "tests/run_testmap.py", "test_memory_owes_nucleo_nothing.py",
+                  "mem_processor.py", "python -m tests run memory"):
+        assert pieza in cuerpo, f"el perfil no dice «{pieza}», que hace falta para arrancar"
