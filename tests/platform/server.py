@@ -77,6 +77,31 @@ class Handler(BaseHTTPRequestHandler):
         if self.path.startswith("/api/catalog/"):
             self._catalog(self.path.removeprefix("/api/catalog/"))
             return
+        if self.path == "/api/usecases/scoreboard":
+            # The functionality scoreboard (tests/use_cases/status.json, written by every e2e agent run),
+            # enriched with the LAUNCH PHASE of each case (phases.py, operator-owned boundary). Served live
+            # so the Observatory shows WHAT THE PRODUCT CAN DO — and how much of the v1 promise is green —
+            # next to the code-integrity suites (operator ask, 2026-08-29).
+            import json as _json
+            sb = HERE.parent / "use_cases" / "status.json"
+            data = {}
+            try:
+                data = _json.loads(sb.read_text(encoding="utf-8")) if sb.exists() else {}
+                from tests.use_cases.e2e.agent import phases as _ph
+                fases = {1: {"pass": 0, "total": 0}, 2: {"pass": 0, "total": 0}}
+                for sid, row in (data.get("scenarios") or {}).items():
+                    f = _ph.phase_of(sid)
+                    row["phase"] = f
+                    fases[f]["total"] += 1
+                    if row.get("state") == "PASS":
+                        fases[f]["pass"] += 1
+                data["phases"] = {str(k): v for k, v in fases.items()}
+            except Exception:  # noqa: BLE001 — an unreadable boundary must not blank the scoreboard
+                pass
+            payload = _json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self._headers("application/json", len(payload))
+            self.wfile.write(payload)
+            return
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:

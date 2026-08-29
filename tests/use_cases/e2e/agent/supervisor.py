@@ -92,15 +92,18 @@ def plato_de(escenario: str) -> str:
     return "us" if escenario.endswith("__us") else "es"
 
 
-def una_ronda(escenario: str, lab: str = "es") -> dict:
-    """Lanza UNA ronda y la vigila. Devuelve el parte, con el motivo si hubo que cortarla."""
+def una_ronda(escenario: str, lab: str = "es", fresh: bool = True) -> dict:
+    """Lanza UNA ronda y la vigila. Devuelve el parte, con el motivo si hubo que cortarla.
+
+    `fresh=False` (modo CONTINUO, operador 2026-08-29): el plató NO se resetea entre casos — la memoria
+    del agente sobrevive, como una persona real que encadena encargos en la misma sesión de su día."""
     _SALIDA.mkdir(parents=True, exist_ok=True)
     log = _SALIDA / f"{escenario}.log"
     sha, t0 = _sha(), time.time()
     with log.open("w", encoding="utf-8") as fh:
         p = subprocess.Popen(
             [sys.executable, "-m", "tests.use_cases.e2e.agent.run", "--lab", lab,
-             "--scenario", escenario, "--rounds", "1", "--fresh"],
+             "--scenario", escenario, "--rounds", "1"] + (["--fresh"] if fresh else []),
             cwd=_RAIZ, stdout=fh, stderr=subprocess.STDOUT, start_new_session=True)
 
     motivo, ultimo_tam, ultimo_cambio = "", -1, time.time()
@@ -350,17 +353,43 @@ def _recargar_si_cambie(huella_inicial: str) -> None:
     os.execv(sys.executable, [sys.executable, "-m", "tests.use_cases.e2e.agent.supervisor"])
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    # La BATERÍA DE LANZAMIENTO (operador 2026-08-29): `--phase 1` limita la rotación al alcance de la
+    # versión de producción (phases.py, frontera del operador); `--continuo` mantiene la memoria entre
+    # casos — una persona real encadenando encargos; `--vueltas N` para tras N pasadas (0 = sin fin).
+    import argparse
+    ap = argparse.ArgumentParser(prog="supervisor")
+    ap.add_argument("--phase", type=int, default=0, help="limitar a la fase de lanzamiento (1|2); 0 = todas")
+    ap.add_argument("--continuo", action="store_true",
+                    help="no resetear el plató entre casos: la memoria sobrevive (persona continua)")
+    ap.add_argument("--vueltas", type=int, default=0, help="parar tras N pasadas completas (0 = sin fin)")
+    # `argv=None` (llamada programática/tests) = defaults; la CLI pasa sys.argv[1:] explícito.
+    a = ap.parse_args(argv if argv is not None else [])
     orden = rotacion()
+    if a.phase:
+        from tests.use_cases.e2e.agent import phases as _ph
+        orden = [x for x in orden if _ph.phase_of(x) == a.phase]
+        if not orden:
+            print(f"[supervisor] la fase {a.phase} no tiene casos en la rotación", flush=True)
+            return 1
     _mia = _huella()
     print(f"[supervisor] {len(orden)} escenarios · hang={HANG_S}s cap={CAP_S}s · diario={_DIARIO} "
-          f"· fuente {_mia} · HEAD {_sha()}", flush=True)
+          f"· fuente {_mia} · HEAD {_sha()}"
+          + (f" · FASE {a.phase}" if a.phase else "") + (" · CONTINUO (memoria viva)" if a.continuo else ""),
+          flush=True)
     i = 0
     while True:
+        if a.vueltas and i >= a.vueltas * len(orden):
+            print(f"[supervisor] {a.vueltas} vuelta(s) completas — fin", flush=True)
+            return 0
         esc = orden[i % len(orden)]
         i += 1
         try:
-            parte = una_ronda(esc, plato_de(esc))
+            # En continuo, SOLO la primera ronda resetea (arranque limpio de la persona); después la
+            # memoria es parte de lo medido. El kwarg solo viaja cuando difiere del default: los dobles de
+            # test (y cualquier llamante viejo) conservan la firma (esc, lab).
+            _kw = {"fresh": False} if (a.continuo and i > 1) else {}
+            parte = una_ronda(esc, plato_de(esc), **_kw)
             if parte.get("_rancio"):
                 # UNA sola vez, y sin bucle: si tras reiniciar sigue rancio, la ronda entra como INFRA y se
                 # pasa al siguiente. Reintentar hasta que cuadre convertiría un plató que no arranca en un
@@ -376,4 +405,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    import sys as _sys
+    raise SystemExit(main(_sys.argv[1:]))

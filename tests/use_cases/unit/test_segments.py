@@ -205,3 +205,22 @@ def test_a_findings_case_gets_a_turn_budget_a_real_search_can_fit_in():
     for scn in SC.all_scenarios():
         if G.delivers_findings(scn.id):
             assert scn.turns >= 10, f"{scn.id}: {scn.turns} turnos para una búsqueda real"
+
+
+def test_phase1_ids_exist_and_are_promoted():
+    """The launch boundary (phases.PHASE1) must point at real, runnable cases: a dead id in the launch
+    list renders a promise nobody can measure. And phase 1 is never empty — an empty launch scope means
+    the module was edited into meaninglessness, not that we promise nothing."""
+    from tests.use_cases.e2e.agent import phases as PH
+    from tests.use_cases.e2e.agent import scenarios as SC
+    known = {PH.bare(s.id) for s in SC.all_scenarios()}
+    missing = sorted(b for b in PH.PHASE1 if b not in known)
+    assert not missing, f"ids de Fase 1 sin escenario detrás: {missing}"
+    assert len(PH.PHASE1) >= 5
+
+
+def test_every_scenario_has_a_phase():
+    from tests.use_cases.e2e.agent import phases as PH
+    from tests.use_cases.e2e.agent import scenarios as SC
+    for s in SC.all_scenarios():
+        assert PH.phase_of(s.id) in (1, 2)
