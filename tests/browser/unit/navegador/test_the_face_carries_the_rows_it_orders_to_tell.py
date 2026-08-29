@@ -60,15 +60,25 @@ def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
     # …y lo que NO cambió: la fila sigue estando. Descartarla escondería un hallazgo real.
 
 
-def test_acotado_a_cinco_esto_va_a_un_prompt_no_a_una_pantalla():
-    """El tope sigue siendo CINCO filas. Lo que V2-374 añade detrás es una línea que CUENTA las escondidas —
-    no una sexta fila: sin ella el turno leía esas cinco como la hoja entera y cerró una conversación
-    ofreciendo accesorios con nueve cámaras guardadas."""
+def test_acotado_por_TAMANO_esto_va_a_un_prompt_no_a_una_pantalla():
+    """V2-479 — el tope pasa de CINCO a DOCE, y el bound real deja de ser un conteo.
+
+    Cinco era conservador y costó dos rondas medidas: `search-buy-camera__es` con catorce candidatos (cuatro
+    de las cinco mostradas eran accesorios, V2-374) y `find-best-hotel-city__us` ronda 6 con doce hoteles, dos
+    por debajo del tope del operador, mostrando las caras — el turno concluyó «all well above your $150» sobre
+    un conjunto que no había visto entero. La segunda es la que decide: **V2-374 ya avisaba de las escondidas y
+    concluyó igual**, o sea que decirle que hay más no es enseñárselas.
+
+    La línea que cuenta el resto SIGUE — cortar y callarse es el defecto de V2-374 — y el techo de TAMAÑO
+    (`_SHEET_ROWS_BUDGET`) es el bound real: un cap por unidades no acota nada sobre títulos larguísimos.
+    """
     tid = T.create("Busca monitores", sheet="v298-3")
-    _sheet_with("v298-3", [{"title": f"Monitor candidato {i}", "price": "60 €"} for i in range(12)])
+    _sheet_with("v298-3", [{"title": f"Monitor candidato {i}", "price": "60 €"} for i in range(20)])
     filas = LB._sheet_top_rows(tid)
-    assert sum(1 for f in filas if f.startswith("«")) == 5
-    assert "7 candidato(s) más" in filas[-1]
+    cuerpo = [f for f in filas if f.startswith("«")]
+    assert len(cuerpo) == 12, f"se mostraron {len(cuerpo)}: el tope no es el de V2-479"
+    assert "8 candidato(s) más" in filas[-1]
+    assert sum(len(f) for f in cuerpo) <= LB._SHEET_ROWS_BUDGET, "el bloque se pasó de su techo de tamaño"
 
 
 def test_sin_hoja_no_hay_filas_y_no_hay_error():

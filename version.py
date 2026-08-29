@@ -11,11 +11,12 @@ import os
 import subprocess
 import time
 
-# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: V2-104
-# corrected against a REAL DeepSeek V4 Flash validation run — the LLM verifier is now the arbiter of REM's
-# insight faithfulness gate, not the deterministic backstop, which was vetoing faithful word→digit paraphrases
-# ("las nueve" → "las 9") before the smarter check ever ran).
-VERSION = "3.15"
+# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: the
+# DELIVERY block — V2-475 the guarantees now speak the operator's language (they were mute in English and
+# spoke Spanish into English replies), V2-478 the backstop's gate is no longer LENGTH but whether the turn
+# NAMES what the sheet holds, V2-479 twelve rows travel instead of five, V2-480 the worker's door into the
+# scheduler normalizes like the other two, V2-481 a cold start no longer shows raw i18n keys).
+VERSION = "3.16"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
