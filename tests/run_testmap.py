@@ -1636,6 +1636,14 @@ DOMAINS: list[dict] = [
         {"id": "7.17", "title": "Un test fuera del mapa no es un test (trinquete de las TRES formas de desaparecer)",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py"]},
+        # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
+        # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
+        # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente
+        # simplemente trabaja sin el contexto que el puntero existía para darle. Mismo defecto que el 7.16
+        # sobre CLAUDE.md, una carpeta más allá. Se salta en un clon limpio (team/ va gitignorada).
+        {"id": "7.21", "title": "Un perfil de equipo no arranca a su agente con rutas muertas",
+         "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_a_team_profile_points_at_real_docs.py"]},
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
         # 2026-08-21: SEGUNDA vez que un helper se cuela ENTRE `@router.<verbo>(ruta)` y el handler que la
