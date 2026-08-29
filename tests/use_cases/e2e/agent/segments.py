@@ -116,6 +116,9 @@ SEGMENTS: dict[str, Segment] = {
     # INI-026 A8bis-A (2026-08-29): buscar un HECHO FUTURO fuera (fecha de estreno), decirlo con su fuente y
     # dejar el aviso montado. Completable: la búsqueda es pública, no hay credencial, ni pago, ni tercero.
     "find-a-future-release-and-remind-me": _done(),
+    # INI-026, el centro de v1 tras la directriz del 2026-08-29: que el agente recuerde quién eres. Todo
+    # dentro del motor (siembra + recall + una respuesta), sin credencial, sin pago y sin tercero.
+    "knows-who-i-am-without-being-told-again": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
     # Música y vídeo (2026-08-26). `completable` según la ÚNICA pregunta de este módulo, hecha a la frase
@@ -299,6 +302,9 @@ FINDINGS_EXEMPT = {
     # · find-a-future-release-and-remind-me → lo entregado es UN hecho (una fecha) y su aviso, no una lista
     #   de candidatos: el presupuesto de hallazgos no aplica.
     "find-a-future-release-and-remind-me",
+    # · knows-who-i-am-without-being-told-again → lo entregado es una CONVERSACIÓN que aplica lo que ya sabía;
+    #   no hay hallazgos que presupuestar.
+    "knows-who-i-am-without-being-told-again",
     "build-workout-tracker-widget",
     "three-tasks-at-once",
     "play-music-and-build-playlist",

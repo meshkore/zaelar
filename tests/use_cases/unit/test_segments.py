@@ -125,7 +125,9 @@ def test_a_findings_case_must_require_the_results_SHEET():
     # `find-a-future-release-and-remind-me` entrega UN hecho (una fecha) y su aviso programado: se verifica
     # por `scheduled_jobs`, igual que `remember-and-remind-deadline`, no por la hoja de resultados.
     exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline",
-              "find-a-future-release-and-remind-me"}
+              "find-a-future-release-and-remind-me",
+              # Recordar quién eres se entrega hablando: no hay hoja de resultados que exigir.
+              "knows-who-i-am-without-being-told-again"}
     for scn in SC.all_scenarios():
         if not G.is_completable(scn.id) or G.bare(scn.id) in exempt:
             continue

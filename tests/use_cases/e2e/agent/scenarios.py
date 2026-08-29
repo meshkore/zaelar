@@ -351,6 +351,52 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
+    # INI-026 · el CENTRO de v1 tras la directriz del operador del 2026-08-29 — «vamos a centrarnos en el
+    # apoyo a UNA persona: la memoria, la agenda, y que el agente recuerde quiénes somos y qué queremos».
+    # El catálogo no tenía ningún caso que midiera eso: `remember-and-remind-deadline` mide APUNTAR y AVISAR,
+    # no RECORDAR quién eres. Se siembra en una sesión APARTE (`memory_seed`) precisamente para que recordar
+    # exija memoria y no la ventana conversacional — escribir la preferencia en el mismo hilo mediría lectura
+    # de contexto y lo llamaríamos memoria.
+    UseCaseScenario(
+        id="knows-who-i-am-without-being-told-again",
+        locale="es",
+        tier=1,
+        memory_seed=[
+            "Oye, apúntate una cosa mía: soy celíaco, no puedo tomar nada con gluten.",
+            "Y otra: no bebo alcohol, ni siquiera cerveza sin.",
+        ],
+        seed_probe_query="celíaco gluten",
+        opening_line="Oye, dame ideas para la cena de esta noche, algo sencillo que pueda hacer en casa.",
+        persona_brief=(
+            "Eres una persona real pidiéndole ideas de cena a su asistente, al que YA le has contado antes "
+            "—en otra conversación— que eres celíaco y que no bebes alcohol. Por eso NO lo vuelves a decir: "
+            "das por hecho que se acuerda, como harías con una persona. Si el asistente propone algo con "
+            "gluten (pasta normal, pan, cerveza), reacciona como reaccionaría alguien a quien se le ha "
+            "olvidado su condición: con extrañeza, no con una explicación completa ('¿pero eso no lleva "
+            "gluten?'). Si te PREGUNTA si tienes alguna restricción, contesta con naturalidad pero deja "
+            "constancia de que ya se lo habías dicho ('sí, hombre, lo del gluten, te lo dije'). Cuando te dé "
+            "una o dos ideas que te encajen, da las gracias y despídete. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "UNA propiedad, y es la que el operador puso en el centro de la versión de producción: **que se "
+            "acuerde de quién es sin que se lo vuelvan a decir**.\n"
+            "(a) LO APLICA SIN QUE SE LO PIDAN: las ideas de cena deben respetar el sin gluten desde el PRIMER "
+            "turno en que propone algo, sin que el usuario lo mencione en esta conversación. Proponer pasta o "
+            "pan y corregir después NO cuenta como recordar: cuenta como haberlo olvidado y haber sido "
+            "corregido.\n"
+            "(b) NO LO PREGUNTA: preguntar «¿tienes alguna restricción?» es conducta ACEPTABLE de un asistente "
+            "que no sabe nada, y aquí es un FALLO leve — se lo habían dicho. Puntúa adaptación abajo, no "
+            "resultado, si acaba aplicándolo bien tras preguntar.\n\n"
+            "LO QUE NO SE PENALIZA: si el informe dice que la siembra NO aterrizó en memoria (mira el bloque de "
+            "siembra), el fallo es del destilador y no del agente — no bajes la nota por no recordar algo que "
+            "nunca se guardó. Y si el informe dice que el recall NO llegó en esos turnos (hay una señal para "
+            "eso), tampoco: eso es fontanería nuestra, no conducta suya. Eficiencia: esto es una charla corta, "
+            "sin encargo ni búsqueda."
+        ),
+        expected_signals=[],
+        turns=6,
+        channel="probe",
+    ),
     # INI-026 A8bis · parte A — «entérate de cuándo sale y avísame». El operador lo pidió con su propio
     # ejemplo (una serie que estrena temporada) el 2026-08-29. Mide algo que el motor NUNCA ha medido junto,
     # aunque las tres piezas existan por separado: buscar un HECHO FUTURO fuera (no un precio, no un
