@@ -75,3 +75,17 @@ def test_el_de_casos_de_uso_existe_y_lleva_lo_que_hace_falta_para_arrancar():
     for pieza in ("tests/run_testmap.py", "tests.use_cases.lab", "tests.use_cases.e2e.agent.run",
                   "tests/use_cases/STATUS.md", "43921", "43922"):
         assert pieza in cuerpo, f"el perfil no dice «{pieza}», que hace falta para arrancar"
+
+
+@pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
+@pytest.mark.parametrize("perfil", ["use-case-tester.md", "developer.md"])
+def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
+    """El tester mide y el developer arregla; se coordinan por un cluster privado. Si un perfil no dice dónde
+    están sus credenciales, esa sesión vuelve al copy-paste por el operador — que es justo lo que el cluster
+    existe para quitar. Se comprueba el PUNTERO, nunca un valor."""
+    cuerpo = (TEAM / perfil).read_text(encoding="utf-8")
+    assert "cluster-use-cases.env" in cuerpo, f"«{perfil}» no dice dónde están las credenciales del cluster"
+    for var in ("MESHKORE_UC_CLUSTER_ID", "MESHKORE_UC_TOKEN"):
+        assert var in cuerpo, f"«{perfil}» no nombra {var}"
+    assert (ENGINE / ".meshkore/credentials/cluster-use-cases.env").exists(), (
+        "el fichero de credenciales que los perfiles citan no está en el store")
