@@ -11,11 +11,24 @@ import os
 import subprocess
 import time
 
-# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: the
-# DELIVERY block — V2-475 the guarantees now speak the operator's language (they were mute in English and
-# spoke Spanish into English replies), V2-478 the backstop's gate is no longer LENGTH but whether the turn
-# NAMES what the sheet holds, V2-479 twelve rows travel instead of five, V2-480 the worker's door into the
-# scheduler normalizes like the other two, V2-481 a cold start no longer shows raw i18n keys).
+# Semantic version of the engine — bump it by hand when closing a notable block of changes.
+#
+# Latest: DELIVERY + REACH. Two blocks, both closed the same night.
+#
+#   DELIVERY — V2-475 the guarantees now speak the operator's language (they were mute in English and spoke
+#   Spanish into English replies), V2-478 the backstop's gate is no longer LENGTH but whether the turn NAMES
+#   what the sheet holds, V2-479 twelve rows travel instead of five, V2-480 the worker's door into the
+#   scheduler normalizes like the other two, V2-481 a cold start no longer shows raw i18n keys.
+#
+#   REACH — V2-486 the «ask the mesh first» step reached only the BROWSER prompt, and a hotel that is SEARCHED
+#   (rather than booked) is routed to the generic worker, which never named the bridge: the network was built,
+#   verified live, and consulted zero times in 399 worker reports. V2-487 an agent answering 400 with the
+#   field it needs HAS answered — that was flattened into «the network did not reply», which sends a Chromium
+#   at Booking with the answer one field away; measured live, ten real New York hotels in 0.4 s. V2-488 the
+#   research composer asked a model that CANNOT stop reasoning to stop reasoning, and a 400 gives no relay
+#   tier, so every directed search silently degraded to a blind one. V2-489 the round now says whether the
+#   worker asked the network at all. V2-490 a critical health limit is repeated LAST and phrased as a check on
+#   what is about to be said — measurement still pending, and its initiative says so.
 VERSION = "3.16"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
