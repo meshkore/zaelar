@@ -96,11 +96,35 @@ def test_las_filas_YA_dichas_siguen_sin_re_anunciarse():
     assert _bs("¿La paro o sigo?", dicho=dicho) == ""
 
 
-def test_una_respuesta_LARGA_sigue_sin_pisarse():
-    """Una respuesta larga ya está contando algo; añadirle filas detrás sería peor."""
-    largo = "¿La paro? " + ("Te cuento con detalle lo que llevo hasta ahora y por qué. " * 8)
+def test_una_respuesta_larga_que_YA_NOMBRA_sus_filas_no_se_pisa():
+    """La protección de verdad contra pisar una entrega: el turno ya dijo lo que la hoja tiene.
+
+    Hasta V2-478 esto se aproximaba por LONGITUD («una respuesta larga ya está contando algo»). La
+    aproximación era cómoda y falsa —ver el test de abajo—, así que ahora se afirma la propiedad real: si las
+    filas ya sonaron, `fresh` sale vacío y no se añade nada, mida lo que mida el turno.
+    """
+    largo = ("Te cuento con detalle lo que llevo hasta ahora y por qué, con calma. " * 4) + \
+            ("Tengo una Yamaha R125 Blanca Deportiva por 500 €, una Brixton 125cc por 1200 € y una "
+             "Honda Varadero XL125V del 2006 por 1400 €.")
     assert len(largo) > 300
     assert _bs(largo) == ""
+
+
+def test_una_respuesta_LARGA_que_NO_NOMBRA_NADA_sí_recibe_las_filas():
+    """El defecto que tiró la premisa vieja, medido en `find-best-hotel-city__us` ronda 5 (2026-08-29).
+
+    El turno era largo y decía «I've got a partial shortlist up on screen — six central candidates for that
+    weekend»: no nombró ni un hotel ni un precio. Con la puerta de los 300 caracteres, ese turno quedaba
+    protegido como si estuviera entregando algo, y el operador se iba con MENOS que tras un «te aviso» — con
+    la convicción añadida de que ya tenía resultados. Largo no es lo mismo que entregado.
+    """
+    narrando = ("Ya tengo una preselección en pantalla con varios candidatos centrales para ese fin de "
+                "semana, y te cuento cómo la he montado y qué criterios he ido aplicando por el camino, "
+                "porque hay bastante que explicar sobre las opciones disponibles y sus condiciones, y "
+                "también sobre lo que he tenido que descartar antes de llegar hasta aquí con todo esto.")
+    assert len(narrando) > 300
+    out = _bs(narrando)
+    assert "Yamaha R125" in out
 
 
 def test_sin_filas_frescas_no_hay_nada_que_entregar():

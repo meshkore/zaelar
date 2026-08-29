@@ -78,8 +78,22 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     frontera de V2-278 (nunca afirmar la pantalla EN VUELO) no aplica a una escritura que ya ocurrió.
     """
     r = _norm_txt(str(reply or ""))
-    if not r or len(str(reply or "")) > 300:
+    if not r:
         return ""
+    # V2-478 — LA PUERTA TAMPOCO ERA LA LONGITUD.
+    #
+    # Aquí había un tope de 300 caracteres con este razonamiento: «una respuesta larga ya está contando algo,
+    # y pisarla sería peor». Medido en `find-best-hotel-city__us` ronda 5 (2026-08-29), esa premisa es falsa:
+    # el turno era largo —«I've got a partial shortlist up on screen, six central candidates for that
+    # weekend»— y no nombró NI UN hotel ni UN precio. Contaba una NARRACIÓN, no un hecho; el operador se
+    # quedó igual de sin nada que con un «te aviso», solo que más convencido de que ya tenía algo.
+    #
+    # Es la tercera vez que esta puerta se corrige mirando la propiedad equivocada: primero fue el
+    # vocabulario de espera (V2-364), luego la pregunta (V2-371), ahora la longitud. La propiedad que
+    # importa de verdad no es cómo suena el turno ni cuánto ocupa: es si NOMBRA lo que la hoja ya tiene. Y
+    # eso ya se calcula abajo, fila a fila (`fresh`), así que la puerta correcta no hace falta inventarla —
+    # basta con dejar de tapar el cálculo con una heurística de tamaño. Un turno que ya nombró sus filas no
+    # recibe nada porque `fresh` sale vacío, que es la protección real contra pisar una entrega.
     # V2-364 — LA PUERTA YA NO ES EL VOCABULARIO DE ESPERA, ES LA PREGUNTA.
     #
     # Hasta aquí esto exigía que la respuesta SONARA a espera (`_WAITING_REPLY_RE`), y esa lista se ha
