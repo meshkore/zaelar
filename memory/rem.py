@@ -102,6 +102,30 @@ def _repair_limit_default() -> int:
 _FOREIGN_MATCH = 0.999
 
 
+def _looks_padded(v: list[float]) -> bool:
+    """Does this vector come from a SMALLER space, zero-padded up to the index dimension? (V2-485)
+
+    `_fit_dim` pads with zeros, so a run of trailing zeros half the vector long can only mean the model that
+    produced it had at most half these dimensions. Measured in the operator's live index: 9 rows with exactly
+    384 non-zeros and 384 trailing zeros inside a 768-dim index sealed `ollama:embeddinggemma:768` — fastembed,
+    unmistakably, and all of them concept nodes (the unguarded path this same initiative closed).
+
+    This is the half the hash fingerprint cannot reach: a vector from a different REAL model is not
+    reproducible from its own text, but its SHAPE still gives it away. A dense normalised embedding does not
+    end in hundreds of exact zeros.
+
+    The bound is deliberately coarse (`dim // 2`): a 512-dim model padded to 768 leaves 256 trailing zeros and
+    is NOT caught. Widening it would start guessing about vectors that are merely sparse, and here a false
+    positive throws away a good vector.
+    """
+    tail = 0
+    for x in reversed(v):
+        if x != 0.0:
+            break
+        tail += 1
+    return tail >= len(v) // 2
+
+
 def _drop_foreign_vectors(db, limit: int) -> int:
     """Delete vectors produced by the HASH backend from an index sealed for a real embedding model (V2-482).
 
@@ -135,6 +159,8 @@ def _drop_foreign_vectors(db, limit: int) -> int:
     sealed = _reembed.stored_signature()
     if not sealed or sealed.startswith("hash:"):
         return 0
+    # En un índice sellado con fastembed, un vector rellenado ES el nativo: ahí solo vale la huella de hash.
+    padding_is_foreign = not sealed.startswith("fastembed:")
     rows = db.query(
         "SELECT m.id, m.text, v.embedding FROM memories m JOIN vec_memories v ON v.memory_id = m.id "
         "WHERE m.valid=1 AND m.kind NOT IN ('conv') LIMIT ?", (limit,))
@@ -146,7 +172,8 @@ def _drop_foreign_vectors(db, limit: int) -> int:
         try:
             stored = _unpack(r["embedding"])
             hashed = _emb._l2_normalize(_emb._fit_dim(_emb._hash_embed(txt, len(stored)), len(stored)))
-            if _cos(stored, hashed) < _FOREIGN_MATCH:
+            es_hash = _cos(stored, hashed) >= _FOREIGN_MATCH
+            if not es_hash and not (padding_is_foreign and _looks_padded(stored)):
                 continue
             db.execute("DELETE FROM vec_memories WHERE memory_id=?", (r["id"],))
             _writer._mark_embed_pending(db, r["id"], "foreign_space")

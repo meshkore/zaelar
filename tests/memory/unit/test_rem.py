@@ -492,3 +492,43 @@ def test_repair_embeddings_AHORA_alcanza_la_fila_con_vector_ajeno(fresh_db, sell
     row = memdb.get_db().query_one(
         "SELECT json_extract(meta,'$.embed_pending') AS p FROM memories WHERE id=?", (mid,))
     assert row["p"] is None                                 # reparada → el marcador se limpia
+
+
+# ── V2-485 · el vector AJENO que no se puede reproducir desde el texto, pero cuya FORMA lo delata ───────────
+
+def _con_vector_rellenado(texto: str) -> int:
+    """Una píldora cuyo vector viene de un espacio de media dimensión, rellenado con ceros — la forma exacta
+    de un fastembed dentro de un índice de 768."""
+    mid = memwriter.insert_memory(texto, level="long", kind="fact")
+    dim = mememb.dim()
+    relleno = [0.05] * (dim // 2) + [0.0] * (dim // 2)
+    memdb.get_db().execute("UPDATE vec_memories SET embedding=? WHERE memory_id=?",
+                           (memwriter._pack(relleno), mid))
+    return mid
+
+
+def test_un_vector_RELLENADO_desde_un_espacio_menor_se_retira(fresh_db, sellado_gemma):
+    """Los 9 del índice del operador: 384 no-ceros + 384 ceros al final dentro de un índice de 768 sellado
+    embeddinggemma. Un fastembed no se reproduce desde su texto — su forma sí lo dice."""
+    mid = _con_vector_rellenado("un dato cualquiera")
+    memrem._drop_foreign_vectors(memdb.get_db(), 100)
+    assert _vector_de(mid) is None
+
+
+def test_con_FASTEMBED_sellado_un_vector_rellenado_es_el_NATIVO(fresh_db, monkeypatch):
+    """La mitad que impide que el arreglo se coma una base sana: fastembed ES 384 rellenados a 768, así que
+    ahí la forma no delata nada y solo vale la huella de hash."""
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "stored_signature", lambda: "fastembed:bge-small:768")
+    monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
+    mid = _con_vector_rellenado("un dato cualquiera")
+    memrem._drop_foreign_vectors(memdb.get_db(), 100)
+    assert _vector_de(mid) is not None
+
+
+def test_la_frontera_del_relleno_es_la_MITAD_de_la_dimension():
+    """Deliberadamente gruesa: un modelo de 512 rellenado a 768 deja 256 ceros y NO se caza. Ensancharla
+    empezaría a adivinar sobre vectores meramente dispersos, y aquí un falso positivo tira un vector bueno."""
+    assert memrem._looks_padded([0.1] * 384 + [0.0] * 384) is True
+    assert memrem._looks_padded([0.1] * 385 + [0.0] * 383) is False
+    assert memrem._looks_padded([0.1] * 768) is False
