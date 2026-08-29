@@ -6,7 +6,8 @@ Reads the environment via ``core.env`` and the profile defaults via
 zaelar adaptations (INI-012):
   * env knob prefix ``VL2_`` -> ``ZAELAR_``; provider API keys keep zaelar's
     existing standard names (OPENAI_API_KEY, AIMLAPI_KEY, CARTESIA_API_KEY,
-    MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY, Z_AI_API_KEY).
+    MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY). Z.AI NO: es solo del Brain Worker
+    (dentro de Claude Code), norma del operador 2026-08-30 — su catálogo vive en nucleo/workers/providers.py.
   * web_port 43917, room "zaelar", English prompt/greeting.
   * llm_provider defaults to the ``BRAIN`` env (hermes|duo|direct) when set — the
     hermes/duo/direct LLM providers are added later by another change; this only
@@ -61,7 +62,7 @@ class Settings:
     stt_provider: str = pick("ZAELAR_STT", "stt")          # voxtral|deepgram|whisper_local
     tts_provider: str = pick("ZAELAR_TTS", "tts")          # cartesia|kokoro_local
     # BRAIN (hermes|duo|direct) wins; then profile default; then ZAELAR_LLM_PROVIDER.
-    llm_provider: str = _llm_provider_default()            # hermes|duo|direct|aimlapi|openai|gemini|glm|claude|local
+    llm_provider: str = _llm_provider_default()            # hermes|duo|direct|aimlapi|openai|gemini|claude|local
 
     # --- Model ids ----------------------------------------------------------
     # Empty -> each LLM provider falls back to its own sensible default model.
@@ -126,9 +127,6 @@ class Settings:
     mistral_api_key: str = env("MISTRAL_API_KEY")
     deepgram_api_key: str = env("DEEPGRAM_API_KEY")
     gemini_api_key: str = env("GEMINI_API_KEY")
-    zai_api_key: str = env("Z_AI_API_KEY")
-    zai_base_url: str = env("Z_AI_BASE_URL", "https://api.z.ai/api/paas/v4")
-    glm_model: str = env("GLM_MODEL", "glm-4.6")
 
     # --- Logging ------------------------------------------------------------
     log_dir: Path = ZAELAR_ROOT / ".meshkore" / "logs" / "voice"

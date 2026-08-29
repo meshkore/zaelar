@@ -97,18 +97,21 @@ _relay_turns: dict[str, int] = {}      # name -> turnos ya servidos por ese esca
 def _known_chain() -> list[dict]:
     override_model = os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL") or os.getenv("LLM_MODEL") or ""
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
-    zai = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"],
-           "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.3"), "provider": "zai",
-           "plan": "Z.AI GLM (coding plan)"}
-    # PLAN PRIMERO, CRÉDITOS DESPUÉS (norma del operador, 2026-08-28). El forfait es un muro, no una cuesta:
-    # medido con el plan agotado (1310 hasta el 1 de sept) y $20 de créditos en la cuenta — el endpoint del
-    # plan NO cae a créditos solo, y los créditos NO sirven el endpoint Anthropic. Misma key, otra URL, otro
-    # protocolo (paas/v4 es OpenAI-compatible; `model_spec._is_zai` lo excluye para que no acabe en
-    # `/v1/messages`). Mismo modelo que el plan a propósito: un relevo que cambia de modelo cambia de
-    # conducta, y este solo cambia de cartera.
-    zai_credits = {"name": "z.ai-créditos", "base_url": "https://api.z.ai/api/paas/v4", "env": ["Z_AI_API_KEY"],
-                   "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.3"), "provider": "aimlapi",
-                   "plan": "Z.AI créditos (pago por uso)"}
+    # Z.AI NO ESTÁ EN ESTA CADENA, y su ausencia es una NORMA del operador (2026-08-30), no un descuido:
+    #
+    #   «el proveedor de Z.AI solo sirve para el Brain Worker, para usarse dentro de Claude Code; no sirve
+    #    como failover de nada más y no se debe utilizar en ningún otro apartado del agente.»
+    #
+    # Esta cadena es la del CEREBRO DE VOZ — y de todo lo que cuelga de `pick()`: el compositor del brief, el
+    # cerebro de cluster, el turno rápido. Ninguno de esos es un worker, así que ninguno puede tocar Z.AI.
+    # Hasta hoy sí estaban aquí sus dos carteras (el plan por `api/anthropic` y los créditos por `paas/v4`,
+    # V2-462) y se gastaban solas por relevo, que es como el operador vio bajar el saldo de una cartera que
+    # no había autorizado para esto. El escalón de créditos NO se mueve al worker: allí manda el CLI de
+    # Claude Code, que habla protocolo Anthropic, y `paas/v4` es OpenAI-compatible — meterlo en esa lista
+    # daría un 404 con pinta de caída (V2-493 lo deja escrito y sin construir).
+    #
+    # El catálogo de Z.AI para el WORKER vive donde le corresponde y es el ÚNICO sitio:
+    # `nucleo/workers/providers.py::KNOWN`.
     aimlapi = {"name": "aimlapi", "base_url": os.getenv("LLM_BASE_URL") or "https://api.aimlapi.com/v1",
                "env": ["LLM_API_KEY", "AIMLAPI_KEY"], "model": override_model or "deepseek/deepseek-v4-flash",
                "provider": "aimlapi", "plan": "AIMLAPI"}
@@ -118,7 +121,7 @@ def _known_chain() -> list[dict]:
             "model": override_model or "llama-3.3-70b-versatile", "provider": "aimlapi", "plan": "Groq directo"}
     # Un override LLM_API_KEY/LLM_BASE_URL explícito ganaba SIEMPRE a Z.AI en el código anterior (el operador
     # pinchó un endpoint a mano) — se preserva reordenando, no descartando: si Z.AI se recupera, sigue en la cadena.
-    return [aimlapi, zai, zai_credits, xai, groq] if explicit else [zai, zai_credits, aimlapi, xai, groq]
+    return [aimlapi, xai, groq] if explicit else [aimlapi, xai, groq]
 
 
 def _VOICE_RELAYS() -> list[dict]:

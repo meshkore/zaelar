@@ -213,7 +213,7 @@ DOMAINS: list[dict] = [
             # mismo host). El 1310 del plan anuncia su reset → es cuota, no saldo, y NO arrastra al escalón de
             # créditos; y `_is_zai()` casaba por host, que habría mandado paas/v4 a /v1/messages (404 con
             # pinta de caída, justo en el escalón de socorro).
-            "tests/agent_headless/unit/flash/test_zai_credits_tier.py",
+            "tests/agent_headless/unit/flash/test_zai_is_the_workers_only.py",
             # V2-254: la TERCERA superficie que enseña píldoras a un modelo, y la que corre CADA TURNO. La regla
             # («una píldora de fondo no es un hecho sobre la persona») estaba escrita en tres sitios y aplicada
             # en uno; las otras dos hubo que descubrirlas con un fallo en vivo cada una. Aquí se APLICA la que ya

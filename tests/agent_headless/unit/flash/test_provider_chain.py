@@ -38,52 +38,63 @@ def _cfg(monkeypatch, providers=None):
 
 
 # ── zero-config: la cadena por defecto usa las credenciales presentes, en el MISMO orden que antes ──────────
-def test_default_chain_prefers_zai_then_aimlapi_then_xai_then_groq(monkeypatch):
+def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
+    """NORMA DEL OPERADOR (2026-08-30): «el proveedor de Z.AI solo sirve para el Brain Worker, para usarse
+    dentro de Claude Code; no sirve como failover de nada más y no se debe utilizar en ningún otro apartado
+    del agente».
+
+    Esta cadena la usan el cerebro de VOZ, el compositor del brief y el cerebro de cluster — ninguno es un
+    worker. Hasta el 2026-08-30 llevaba las DOS carteras de Z.AI (plan por `api/anthropic` y créditos por
+    `paas/v4`, V2-462) y se gastaban solas por relevo: así fue como bajó el saldo de una cartera que el
+    operador no había autorizado para esto.
+
+    La key va PUESTA a propósito: lo que se fija es que la ausencia es una DECISIÓN, no una credencial que
+    falte."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k2")
     monkeypatch.setenv("XAI_API_KEY", "k3")
     monkeypatch.setenv("GROQ_API_KEY", "k4")
-    # V2-462: el escalón de CRÉDITOS de Z.AI va pegado al plan — misma cuenta, otra cartera. Plan primero,
-    # créditos al agotarse (norma del operador, 2026-08-28), y solo después se cambia de proveedor.
-    assert [t["name"] for t in pc.chain()] == ["z.ai", "z.ai-créditos", "aimlapi", "xai", "groq"]
+    assert [t["name"] for t in pc.chain()] == ["aimlapi", "xai", "groq"]
+    assert not any("z.ai" in (t.get("base_url") or "") for t in pc.chain())
 
 
 def test_a_tier_without_credentials_is_not_offered(monkeypatch):
+    """Sin credencial no es un escalón, es un espejismo. Y con la de Z.AI puesta y NINGUNA otra, la cadena de
+    voz se queda VACÍA — que es la norma de arriba vista desde el otro lado: esa key ya no compra un escalón
+    aquí."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    # La MISMA key sirve las dos carteras de Z.AI (V2-462), así que con solo esa credencial se ofrecen las
-    # dos; lo que este caso fija es que aimlapi/xai/groq, SIN credencial, no aparecen.
-    assert [t["name"] for t in pc.chain()] == ["z.ai", "z.ai-créditos"]
+    assert [t["name"] for t in pc.chain()] == []
 
 
-def test_explicit_llm_override_wins_over_zai(monkeypatch):
-    """Un LLM_BASE_URL/LLM_API_KEY explícito seguía ganando a Z.AI antes de esto (el operador pinchó un endpoint a
-    mano) — se preserva reordenando (aimlapi primero), no descartando Z.AI de la cadena."""
+def test_explicit_llm_override_sigue_mandando(monkeypatch):
+    """Un `LLM_BASE_URL`/`LLM_API_KEY` explícito —el operador pinchando un endpoint a mano— sigue yendo el
+    primero. Lo que cambia respecto de antes es a quién adelanta: ya no a Z.AI, que no está."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("LLM_API_KEY", "k2")
     monkeypatch.setenv("LLM_BASE_URL", "https://api.aimlapi.com/v1")
-    assert [t["name"] for t in pc.chain()] == ["aimlapi", "z.ai", "z.ai-créditos"]
+    assert [t["name"] for t in pc.chain()] == ["aimlapi"]
 
 
 def test_operator_can_order_the_chain_by_hand(monkeypatch):
     _cfg(monkeypatch, providers=[
         {"name": "groq", "base_url": "https://api.groq.com/openai/v1", "env": ["GROQ_API_KEY"]},
-        {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"]},
+        {"name": "xai", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"]},
     ])
     monkeypatch.setenv("GROQ_API_KEY", "g")
-    monkeypatch.setenv("Z_AI_API_KEY", "z")
-    assert [t["name"] for t in pc.chain()] == ["groq", "z.ai"]
+    monkeypatch.setenv("XAI_API_KEY", "z")
+    assert [t["name"] for t in pc.chain()] == ["groq", "xai"]
 
 
 # ── clasificar la avería: agotado ≠ rate-limit pasajero (misma regla que el hermano de workers) ─────────────
 def test_a_passing_rate_limit_does_not_burn_a_provider(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k")
     assert pc.classify_failure(BARE_429) == "rate"
     assert pc.note_failure(BARE_429) is None            # se reintenta solo, no se releva
-    assert pc.pick()["name"] == "z.ai"
+    assert pc.pick()["name"] == "xai"
 
 
 def test_a_task_failure_is_not_a_provider_failure():
@@ -94,17 +105,14 @@ def test_a_task_failure_is_not_a_provider_failure():
 # ── el relevo ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
-    assert pc.pick()["name"] == "z.ai"
+    monkeypatch.setenv("AIMLAPI_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k2")
+    assert pc.pick()["name"] == "aimlapi"
 
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
-    # V2-462: el plan agotado releva a los CRÉDITOS de la misma cuenta, no a otro proveedor — es literalmente
-    # la política que pidió el operador. Y NO arrastra al hermano aunque compartan key: un 429 CON fecha de
-    # reset es cuota, no saldo, y el emparejamiento de V2-458 solo se dispara con saldo.
-    assert nxt["name"] == "z.ai-créditos"
-    assert pc.pick()["name"] == "z.ai-créditos"         # el siguiente turno ya arranca en el relevo (STICKY)
-    assert pc._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1"})
+    assert nxt["name"] == "xai"
+    assert pc.pick()["name"] == "xai"          # el siguiente turno ya arranca en el relevo (STICKY)
+    assert pc._store._cooldown["aimlapi"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
@@ -114,9 +122,9 @@ def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
     así que aquí va un agotamiento de cuota de verdad. La intención del test no cambia; lo que tenía dos
     significados era el ejemplo."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure("quota exceeded", {"name": "z.ai", "base_url": "x"})
-    assert time.time() < pc._store._cooldown["z.ai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure("quota exceeded", {"name": "xai", "base_url": "x"})
+    assert time.time() < pc._store._cooldown["xai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
 
 
 # ── V2-243: un SALDO agotado no es una cuota ────────────────────────────────────────────────────────────────
@@ -135,9 +143,9 @@ def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
     castigo sigue siendo mayor que el de una cuota sin fecha, pero cabe en una libertad condicional.
     """
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure("API Error 402 Insufficient Balance", {"name": "z.ai", "base_url": "x"})
-    until = pc._store._cooldown["z.ai"]
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure("API Error 402 Insufficient Balance", {"name": "xai", "base_url": "x"})
+    until = pc._store._cooldown["xai"]
     assert until > time.time(), "un saldo agotado tiene que castigar algo"
     assert until <= time.time() + pc._DEPLETED_COOLDOWN_S + 1
     assert pc._DEPLETED_COOLDOWN_S <= 30 * 60, \
@@ -148,9 +156,9 @@ def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
     """Sensibilidad, y no es teórico: un plan con forfait puede decir «insufficient credit … reset at …». Si
     anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure("insufficient credit, quota will reset at 2026-08-30", {"name": "z.ai", "base_url": "x"})
-    assert pc._store._cooldown["z.ai"] == time.mktime(time.strptime("2026-08-30", "%Y-%m-%d")), \
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure("insufficient credit, quota will reset at 2026-08-30", {"name": "xai", "base_url": "x"})
+    assert pc._store._cooldown["xai"] == time.mktime(time.strptime("2026-08-30", "%Y-%m-%d")), \
         "con fecha anunciada manda la fecha: es el camino de la CUOTA, no el del saldo"
 
 
@@ -160,8 +168,8 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
     dichos = []
     monkeypatch.setattr(health_state, "record", lambda *a, **k: dichos.append(a), raising=False)
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure("Insufficient Balance", {"name": "z.ai", "base_url": "x"})
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure("Insufficient Balance", {"name": "xai", "base_url": "x"})
     detalle = " ".join(str(x) for a in dichos for x in a)
     assert "SIN SALDO" in detalle and "recargar" in detalle
     assert "sin cuota hasta" not in detalle
@@ -169,28 +177,24 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
 
 def test_no_tier_left_returns_none(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    # V2-462: con la key de Z.AI puesta hay DOS carteras, así que «no queda nadie» exige secar las dos — el
-    # plan por cuota (con fecha) y los créditos por saldo (1113, sin fecha).
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "x"})
-    assert nxt["name"] == "z.ai-créditos"
-    nxt = pc.note_failure("1113 Insufficient balance or no resource package",
-                          {"name": "z.ai-créditos", "base_url": "https://api.z.ai/api/paas/v4"})
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    # Una sola credencial = un solo escalón ofrecido; al secarlo no queda nadie a quien preguntar.
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "https://api.x.ai/v1"})
     assert nxt is None
     assert pc.pick() is None
 
 
 def test_clear_lets_the_operator_resume_after_topping_up(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "x"})
-    pc.clear("z.ai")
-    assert pc.pick()["name"] == "z.ai"
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "x"})
+    pc.clear("xai")
+    assert pc.pick()["name"] == "xai"
 
 
 def test_spec_for_carries_model_and_credential(monkeypatch):
     monkeypatch.setenv("Z_AI_API_KEY", "zzz")
-    tier = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "env": ["Z_AI_API_KEY"]}
+    tier = {"name": "xai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "env": ["Z_AI_API_KEY"]}
     spec = pc.spec_for(tier)
     assert spec.model == "glm-5.2" and spec.base_url == "https://api.z.ai/api/anthropic" and spec.api_key == "zzz"
 
@@ -198,24 +202,24 @@ def test_spec_for_carries_model_and_credential(monkeypatch):
 # ── y que el PANEL se entere ──────────────────────────────────────────────────────────────────────────────
 def test_the_alerts_panel_surfaces_an_exhausted_cluster_provider(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k2")
     from config import balances
     assert not [a for a in balances.cluster_providers() if a["state"] == "error"]
 
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "x"})
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "https://api.x.ai/v1"})
     rows = balances.cluster_providers()
     bad = [r for r in rows if r["state"] == "error"]
-    assert bad and bad[0]["key"] == "cluster:z.ai" and "cuota" in bad[0]["detail"]
+    assert bad and bad[0]["key"] == "cluster:xai" and "cuota" in bad[0]["detail"]
     assert [r for r in rows if r["state"] == "ok" and "EN USO" in r["detail"]]
 
 
 def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "x"})
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "xai", "base_url": "x"})
     pc.note_failure("1113 Insufficient balance or no resource package",
-                    {"name": "z.ai-créditos", "base_url": "https://api.z.ai/api/paas/v4"})
+                    {"name": "groq", "base_url": "https://api.groq.com/openai/v1"})
     from config import balances
     assert any(r["key"] == "cluster:sin-relevo" for r in balances.cluster_providers())
 
@@ -260,10 +264,10 @@ def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
     """The original single caller (`connectors/meshkore/brain.py`) never passes `role` — it must keep hitting the
     cluster chain exactly as before."""
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
-    monkeypatch.setenv("AIMLAPI_KEY", "k2")
-    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
-    assert nxt["name"] == "z.ai-créditos"    # V2-462: el relevo natural del plan es su otra cartera
+    monkeypatch.setenv("AIMLAPI_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k2")
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1"})
+    assert nxt["name"] == "xai"
 
 
 def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
@@ -291,12 +295,12 @@ def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
 
 def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     _cfg(monkeypatch)
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k")
     assert pc.pick() is not None
     # El tier COMPLETO, como lo entrega `pick()` — URL real y `env` incluidos. El emparejamiento de V2-458
     # casa por host+credencial RESUELTA: sin `env` la credencial no resuelve y sin la URL real no hay host,
     # y en ambos casos el hermano de créditos quedaba en pie — este caso pasaba a medir otra cosa (V2-462).
-    pc.note_failure("Insufficient Balance", {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic",
+    pc.note_failure("Insufficient Balance", {"name": "xai", "base_url": "https://api.z.ai/api/anthropic",
                                              "env": ["Z_AI_API_KEY"]})
     assert pc.pick() is None, "sin este hecho, el turno no puede distinguir un tropiezo de una cadena seca"
 
@@ -418,7 +422,7 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
 # su sandbox: `deepseek/deepseek-v4-flash` —el modelo del escalón de failover— TIMEOUT a los 75 s, mientras
 # `deepseek/deepseek-v4-pro` contestaba en 18,3 s. El relevo existía, entró, y se quedó mudo igual.
 
-_UNO = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
+_UNO = {"name": "xai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
 _DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
 
 
@@ -428,7 +432,7 @@ def _dos_escalones(monkeypatch):
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k")
 
 
@@ -436,7 +440,7 @@ def test_UN_atasco_suelto_no_releva(monkeypatch):
     """Relevar por una hipo de red sería cambiar de proveedor por ruido."""
     _dos_escalones(monkeypatch)
     assert pc.note_stall(role=pc.ROLE_VOICE) is None
-    assert pc.pick(pc.ROLE_VOICE)["name"] == "z.ai"
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "xai"
 
 
 def test_DOS_atascos_seguidos_SI_relevan(monkeypatch):
@@ -444,7 +448,7 @@ def test_DOS_atascos_seguidos_SI_relevan(monkeypatch):
     pc.note_stall(role=pc.ROLE_VOICE)
     nxt = pc.note_stall(role=pc.ROLE_VOICE)
     assert nxt and nxt["name"] == "aimlapi", "el escalón atascado se quedaba elegido para siempre"
-    assert pc._store._cooldown.get("z.ai", 0) > time.time()
+    assert pc._store._cooldown.get("xai", 0) > time.time()
 
 
 def test_un_turno_BUENO_rompe_la_racha(monkeypatch):
@@ -462,10 +466,10 @@ def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "_slow_streak", {})
-    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("XAI_API_KEY", "k")
     pc.note_stall(role=pc.ROLE_VOICE)
     assert pc.note_stall(role=pc.ROLE_VOICE) is None
-    assert pc._store._cooldown.get("z.ai", 0) == 0
+    assert pc._store._cooldown.get("xai", 0) == 0
 
 
 def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():

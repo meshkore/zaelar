@@ -5182,6 +5182,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **Z.AI es del BRAIN WORKER y de nadie más (V2-496, 2026-08-30 — deroga V2-462)**: norma del operador,
+  literal — *«el proveedor de Z.AI solo sirve para el Brain Worker, para utilizarse dentro de Claude Code; no
+  sirve como failover de nada más y no se debe utilizar en ningún otro apartado del agente»*. V2-462 había
+  puesto sus DOS carteras en la cadena de VOZ (plan por `api/anthropic`, créditos por `paas/v4`) y funcionaba
+  demasiado bien: la voz relevaba sola a los créditos, y así bajó el saldo de una cartera no autorizada para
+  eso. **El operador lo vio en el panel de Z.AI antes que nosotros en el código.**
+  - Fuera de `provider_chain._known_chain()` (que sirve a la voz, al compositor del brief y al cerebro de
+    cluster), fuera el proveedor `glm` del motor de voz —que además era un RAZONADOR ofrecido como cerebro de
+    voz, violando ya la regla dura— y fuera sus tres ajustes de `voice/engine/core/config.py`: un ajuste sin
+    proveedor que lo lea es una invitación a volver a enchufarlo.
+  - **El único sitio donde vive es `nucleo/workers/providers.py::KNOWN`**, con su endpoint Anthropic y su
+    `vision: False` medido.
+  - Medido en vivo: el plan agotado da `1310 … reset 2026-09-01` y **NO cae a créditos solo**; los créditos
+    contestan 200 por `paas/v4`, que es **OpenAI-compatible**. Y el worker lo conduce el CLI de Claude Code,
+    que habla **Anthropic** — por eso el escalón de créditos del worker queda **declarado y sin construir**:
+    mudarlo de un renglón daría un 404 con pinta de caída justo en el escalón de socorro.
+  - Guardas de propiedad NEGATIVA (nodo 2.6), que es la que se rompe sola: no está en la cadena, ni en los
+    relevos de latencia, ni como proveedor de voz, ni como ajuste — y el worker SÍ lo conserva. Desarme
+    verificado.
+
 - **El compositor del brief pedía «no razones» a un modelo que NO PUEDE dejar de hacerlo, y toda búsqueda
   dirigida degradaba a búsqueda ciega en silencio (V2-488, 2026-08-29)**: medido en el plató US, idéntico en
   las dos rondas del hotel — `400 {'code': '1210', 'message': 'This model always engages in thinking and
