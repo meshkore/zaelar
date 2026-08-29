@@ -78,7 +78,7 @@ def test_el_de_casos_de_uso_existe_y_lleva_lo_que_hace_falta_para_arrancar():
 
 
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
-@pytest.mark.parametrize("perfil", ["use-case-tester.md", "developer.md", "dev-memory.md"])
+@pytest.mark.parametrize("perfil", ["use-case-tester.md", "dev-main.md", "dev-memory.md", "dev-mobile.md"])
 def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
     """El tester mide y el developer arregla; se coordinan por un cluster privado. Si un perfil no dice dónde
     están sus credenciales, esa sesión vuelve al copy-paste por el operador — que es justo lo que el cluster
