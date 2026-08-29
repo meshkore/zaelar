@@ -8,7 +8,21 @@ and failing. Same family as the never-mute backstop (V2-132) and `holding_line` 
 behaviour is deterministic — named rows in front, reply says only «wait» — the code guarantees it, not the
 model's temperature.
 """
+import pytest
+
 from nucleo.flash import delivery as RG
+
+
+@pytest.fixture(autouse=True)
+def _hablando_en_castellano(monkeypatch):
+    """These tests assert the SPANISH wording, so they state the language instead of inheriting it.
+
+    Until V2-475 this family had one wording and the language was invisible; now that the sentence follows
+    the operator's language, a test that leaves it ambient is really asserting «whatever the default is»
+    (English on a fresh engine) — which is how a Spanish assertion silently starts grading English output.
+    """
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es")
+
 
 # La segunda LLEVA la categoría a propósito: la puerta de pertenencia (ronda 35) exige compartir un token
 # con el encargo, y un título sin la palabra categoría («Yamaha F370BL Negra» a secas) NO se anuncia — es el

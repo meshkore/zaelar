@@ -46,7 +46,25 @@ _WAITING_REPLY_RE = _re.compile(
     r"en cuanto (tenga|salga|encuentre|aparezca|sepa|lo tenga|este|la tenga)|"
     r"sigo con ello|sigo dandole|sigo en ello|sigo pendiente|sigo buscando|sigo trabajando|dame un momento|"
     r"dame un segundo|voy a reunir|lo miro y te digo|"
-    r"sin novedades|sigue en marcha|todavia no|aun no|quedamos así|me quedo a la espera)")
+    r"sin novedades|sigue en marcha|todavia no|aun no|quedamos así|me quedo a la espera|"
+    # V2-475 — the same door in English. Without these, the stall backstop simply never fired for an
+    # English operator: every gate in this family was written against Spanish wording only.
+    r"i ?'?ll let you know|i will let you know|keep you posted|as soon as i|"
+    r"still (working|looking|searching|running|on it|digging)|"
+    r"working on it|i'?m on it|let me (nudge|check|keep)|"
+    r"give me a (moment|second|minute)|hang on|one moment|bear with me|"
+    r"nothing yet|no results yet|not yet|in the meantime)")
+
+
+def _speaks_en() -> bool:
+    """Is the operator being spoken to in English right now? (`langs.current_code()`, same reader the rest of
+    the flash layer uses.) Guarded and false by default: this family must never lose a delivery to an import.
+    """
+    try:
+        from voice.engine.core import langs as _langs
+        return (_langs.current_code() or "").strip().lower() == "en"
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "") -> str:
@@ -126,6 +144,15 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     if _looks_like_an_unfiltered_feed(rows):
         return ""
     _filas = "; ".join(f"«{f}»" for f in fresh)
+    # V2-475 — the sentence goes out in the language the operator is being spoken to. Until here this family
+    # only knew Spanish, so an English turn got a Spanish paragraph glued to its reply: the guarantee itself
+    # became the defect it was written to prevent.
+    if _speaks_en():
+        if _preguntando:
+            return "And while you think about it, there are already candidates on the results sheet: " + _filas + "."
+        return ("Actually, there are already candidates on the results sheet: "
+                + _filas
+                + ". Tell me if any of them works for you, or I keep narrowing it down.")
     if _preguntando:
         # Los hechos y punto: la pregunta que cierra el turno tiene que seguir siendo la suya. Y la frase se
         # lee DETRÁS de esa pregunta, así que no puede empezar como si viniera delante.
@@ -194,7 +221,11 @@ def _looks_like_an_unfiltered_feed(rows) -> bool:
 #: Lo que ya cuenta como haberlo dicho. Si la respuesta nombra el atasco con SUS palabras, el backstop calla:
 #: añadir detrás sería el disco rayado que V2-189 existe para evitar.
 _YA_LO_DICE_RE = _re.compile(r"(atasc|encallad|sin avanzar|no avanza|clavad|parad[ao]|bloquead|"
-                             r"lleva \d+ min|se ha quedado)")
+                             r"lleva \d+ min|se ha quedado|"
+                             # English half of the same «it already says it» check (V2-475): without it the
+                             # sentence would be appended behind a reply that had just said the same thing.
+                             r"stuck|stalled|not moving|no progress|hasn'?t (moved|advanced|progressed)|"
+                             r"frozen|been \d+ min)")
 
 
 def stalled_task_backstop(reply: str, encargo: str, minutos: int, motivo: str) -> str:
@@ -221,6 +252,10 @@ def stalled_task_backstop(reply: str, encargo: str, minutos: int, motivo: str) -
     n = _norm_txt(r)
     if not _WAITING_REPLY_RE.search(n) or _YA_LO_DICE_RE.search(n):
         return ""
+    if _speaks_en():
+        _qe = "with no signal at all" if motivo == "callada" else "without completing a single step"
+        return (f"Straight up, though: it has been {minutos} min {_qe}, so it may well be stuck. "
+                "Do you want me to stop it and try another way, or give it a bit longer?")
     _q = "sin dar señal" if motivo == "callada" else "sin completar un paso"
     return (f"Aunque te lo digo claro: lleva {minutos} min {_q}, así que puede estar atascada. "
             "¿La paro y probamos por otro lado, o le doy un poco más de margen?")

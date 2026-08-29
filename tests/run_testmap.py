@@ -117,7 +117,11 @@ DOMAINS: list[dict] = [
             # V2-472: un importe que NINGUNA fuente nuestra nombra no sobrevive a un encargo vivo — la clase
             # de bloqueador que domina el tablero US («under $400» sobre un techo de $250), garantizada por
             # código porque el imperativo del prompt pierde una ronda de cada tres.
-            "tests/agent_headless/unit/flash/test_an_unbacked_amount_does_not_survive_an_errand.py"]},
+            "tests/agent_headless/unit/flash/test_an_unbacked_amount_does_not_survive_an_errand.py",
+            # V2-475: toda esta familia estaba escrita SOLO contra formas en castellano, y fallaba en las dos
+            # direcciones a la vez: el atasco jamás sonaba en inglés, y la entrega sí — en español, pegada a
+            # una respuesta inglesa. La garantía sale en el idioma en que se le habla al operador.
+            "tests/agent_headless/unit/flash/test_the_guarantees_speak_the_operators_language.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py",
             # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory

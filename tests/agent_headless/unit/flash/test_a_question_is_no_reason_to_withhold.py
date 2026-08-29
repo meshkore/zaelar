@@ -26,6 +26,18 @@ import pytest
 
 from nucleo.flash import delivery as D
 
+
+@pytest.fixture(autouse=True)
+def _hablando_en_castellano(monkeypatch):
+    """These tests assert the SPANISH wording, so they state the language instead of inheriting it.
+
+    Until V2-475 this family had one wording and the language was invisible; now that the sentence follows
+    the operator's language, a test that leaves it ambient is really asserting «whatever the default is»
+    (English on a fresh engine) — which is how a Spanish assertion silently starts grading English output.
+    """
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es")
+
+
 FILAS = ["Yamaha R125 Blanca Deportiva — 500 €", "Brixton 125cc — 1200 €",
          "Honda Varadero XL125V 2006 — 1400 €"]
 ENCARGO = "moto de segunda mano de 125cc en buen estado"
