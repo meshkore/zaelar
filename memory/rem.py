@@ -165,6 +165,7 @@ def _drop_foreign_vectors(db, limit: int) -> int:
         "SELECT m.id, m.text, v.embedding FROM memories m JOIN vec_memories v ON v.memory_id = m.id "
         "WHERE m.valid=1 AND m.kind NOT IN ('conv') LIMIT ?", (limit,))
     gone = 0
+    por_clase = {"hash": 0, "rellenado": 0}
     for r in rows:
         txt = (r["text"] or "").strip()
         if not txt:
@@ -178,11 +179,17 @@ def _drop_foreign_vectors(db, limit: int) -> int:
             db.execute("DELETE FROM vec_memories WHERE memory_id=?", (r["id"],))
             _writer._mark_embed_pending(db, r["id"], "foreign_space")
             gone += 1
+            por_clase["hash" if es_hash else "rellenado"] += 1
         except Exception:  # noqa: BLE001
             continue
     if gone:
-        logger.warning(f"memoria: {gone} vectores de espacio ajeno (hash) retirados de un índice «{sealed}» "
-                       f"— se re-embeben en esta misma pasada")
+        # La CLASE va desglosada, y no es cosmética: las dos entran por puertas distintas — un `hash` viene de
+        # un permiso rancio (V2-484) y un `rellenado` de un camino sin guarda (V2-485). Contarlas juntas bajo
+        # una sola etiqueta manda el diagnóstico siguiente a la puerta equivocada, que es exactamente lo que
+        # hacía este aviso cuando solo sabía de hash.
+        detalle = ", ".join(f"{n} {k}" for k, n in por_clase.items() if n)
+        logger.warning(f"memoria: {gone} vectores de espacio ajeno ({detalle}) retirados de un índice "
+                       f"«{sealed}» — se re-embeben en esta misma pasada")
         try:
             from voice import health_state
             health_state.record("memory", "degraded",

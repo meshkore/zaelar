@@ -532,3 +532,18 @@ def test_la_frontera_del_relleno_es_la_MITAD_de_la_dimension():
     assert memrem._looks_padded([0.1] * 384 + [0.0] * 384) is True
     assert memrem._looks_padded([0.1] * 385 + [0.0] * 383) is False
     assert memrem._looks_padded([0.1] * 768) is False
+
+
+def test_el_aviso_DESGLOSA_la_clase_de_vector_retirado(fresh_db, sellado_gemma, monkeypatch):
+    """Las dos clases entran por puertas distintas — hash por un permiso rancio (V2-484), rellenado por un
+    camino sin guarda (V2-485). Un aviso que las cuente juntas bajo una etiqueta manda el diagnóstico
+    siguiente a la puerta equivocada, que es lo que hacía cuando solo sabía de hash."""
+    memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")   # vector hash real
+    _con_vector_rellenado("otro dato cualquiera")                                     # forma de fastembed
+    dicho: list[str] = []
+    # Se captura el logger del módulo y NO con `caplog`: aquí se escribe con loguru, que no propaga al
+    # `logging` de la stdlib — un caso montado sobre caplog saldría verde sin haber leído ni un aviso.
+    monkeypatch.setattr(memrem.logger, "warning", lambda m, *a, **k: dicho.append(str(m)))
+    memrem._drop_foreign_vectors(memdb.get_db(), 100)
+    aviso = " ".join(dicho)
+    assert "1 hash" in aviso and "1 rellenado" in aviso
