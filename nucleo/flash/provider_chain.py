@@ -112,6 +112,21 @@ def _known_chain() -> list[dict]:
     #
     # El catálogo de Z.AI para el WORKER vive donde le corresponde y es el ÚNICO sitio:
     # `nucleo/workers/providers.py::KNOWN`.
+    # DEEPSEEK DIRECTO ES EL TITULAR, y hasta hoy no estaba en este catálogo — solo en la config explícita del
+    # operador. Se vio al quitar Z.AI (V2-496): la cabeza pasó a ser el broker AIMLAPI y, con AIMLAPI caído esa
+    # misma noche (curl a pelo: 45 s y HTTP 000), el turno se quedaba en `APITimeoutError` mientras
+    # `api.deepseek.com` contestaba en **0,68 s**. O sea que este catálogo llevaba tiempo desalineado con el
+    # reparto canónico —«FlashBrain: DeepSeek directo → v4-pro → AIMLAPI failover»— y Z.AI le tapaba el hueco.
+    #
+    # El DIRECTO delante del broker no es preferencia: el directo OBEDECE `thinking:disabled` (TTFT p50
+    # 1,01 s) y el broker acepta el campo y razona igual (4,24 s y 2.138 tokens de razonamiento). Y el `pro`
+    # va detrás del `flash` porque razona: solo sirve como relevo, nunca como titular de voz.
+    deepseek = {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
+                "model": override_model or "deepseek-v4-flash", "provider": "deepseek",
+                "plan": "DeepSeek directo V4 Flash"}
+    deepseek_pro = {"name": "deepseek-directo-pro", "base_url": "https://api.deepseek.com",
+                    "env": ["DEEPSEEK_API_KEY"], "model": "deepseek-v4-pro", "provider": "deepseek",
+                    "plan": "DeepSeek directo V4 Pro (relevo)"}
     aimlapi = {"name": "aimlapi", "base_url": os.getenv("LLM_BASE_URL") or "https://api.aimlapi.com/v1",
                "env": ["LLM_API_KEY", "AIMLAPI_KEY"], "model": override_model or "deepseek/deepseek-v4-flash",
                "provider": "aimlapi", "plan": "AIMLAPI"}
@@ -121,7 +136,8 @@ def _known_chain() -> list[dict]:
             "model": override_model or "llama-3.3-70b-versatile", "provider": "aimlapi", "plan": "Groq directo"}
     # Un override LLM_API_KEY/LLM_BASE_URL explícito ganaba SIEMPRE a Z.AI en el código anterior (el operador
     # pinchó un endpoint a mano) — se preserva reordenando, no descartando: si Z.AI se recupera, sigue en la cadena.
-    return [aimlapi, xai, groq] if explicit else [aimlapi, xai, groq]
+    return ([aimlapi, deepseek, deepseek_pro, xai, groq] if explicit
+            else [deepseek, deepseek_pro, aimlapi, xai, groq])
 
 
 def _VOICE_RELAYS() -> list[dict]:

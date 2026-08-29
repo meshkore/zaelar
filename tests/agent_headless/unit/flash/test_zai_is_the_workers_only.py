@@ -71,3 +71,23 @@ def test_el_worker_SIGUE_teniendo_su_escalon_de_ZAI():
         "el worker habla protocolo Anthropic; un endpoint OpenAI aquí es un 404 con pinta de caída")
     assert all(t.get("vision") is False for t in zai), (
         "el rasgo medido de GLM —confabula sobre imágenes que no ve— no puede perderse al reordenar")
+
+
+# ── el agujero que dejó al quitarlo ──────────────────────────────────────────────────────────────────────
+
+def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
+    """Quitar Z.AI dejó de cabeza al broker AIMLAPI — y esa misma noche AIMLAPI estaba caído (curl a pelo:
+    45 s y HTTP 000) mientras `api.deepseek.com` contestaba en 0,68 s. El turno se quedaba en
+    `APITimeoutError` con el titular bueno a un renglón.
+
+    La causa no fue quitar Z.AI: fue que este catálogo llevaba tiempo **desalineado con el reparto canónico**
+    —«FlashBrain: DeepSeek directo → v4-pro → AIMLAPI failover»— y Z.AI le tapaba el hueco. Un fallo así solo
+    se ve el día que se mueve la pieza de encima."""
+    for var in ("MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL"):
+        monkeypatch.delenv(var, raising=False)
+    names = [t["name"] for t in PC._known_chain()]
+    assert names[0] == "deepseek-directo", f"el titular de voz no encabeza el catálogo: {names}"
+    assert names.index("deepseek-directo") < names.index("aimlapi"), (
+        "el broker por delante del directo: acepta `thinking:disabled` y razona igual (4,24 s vs 1,01 s)")
+    assert names.index("deepseek-directo") < names.index("deepseek-directo-pro"), (
+        "el `pro` RAZONA — solo vale como relevo, nunca como titular de voz")
