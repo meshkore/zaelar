@@ -25,6 +25,24 @@ Tres decisiones que hacen que esto no se convierta en ruido:
 """
 from __future__ import annotations
 
+import re as _re
+
+#: A monetary amount as sources actually write one: $1,299.99 · 199,99 € · €249 · USD 249 · 249 USD · £99.
+#: Currencies, not categories — recognising money is domain-agnostic; recognising products would not be.
+_AMOUNT_RE = _re.compile(
+    r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP))",
+    _re.I)
+
+
+def _lone_amount(text: str) -> str:
+    """The ONE monetary amount `text` names, or "" when it names none — or several (V2-471).
+
+    Several amounts is ambiguity («was $399 now $279», «from $199 to $499») and picking one would be
+    inventing a datum with the shape of an observation; absence is honest and `fila()` says it out loud."""
+    hits = [h.strip() for h in _AMOUNT_RE.findall(str(text or ""))]
+    return hits[0][:20] if len(hits) == 1 else ""
+
+
 MAX_CHARS = 700          # lo que cabe en una nota sin convertir la conversación en un volcado
 MIN_CHARS = 12           # por debajo no hay hallazgo que contar («ok», «done», una línea vacía)
 
@@ -178,6 +196,16 @@ def hand_search_rows(rec, res: dict) -> int:
                  "facts": [{"label": "Origen", "value": "búsqueda web"}]}
                 for r in (res.get("results") or [])[:4] if isinstance(r, dict)]
         rows = [r for r in rows if r["title"]]
+        # V2-471 — the price the snippet already NAMES travels as the row's datum. Measured in
+        # `cheapest-monitor__us` round 12: 46 rows, all `price: None`, while titles carried the figure
+        # («…S2725QS for $279.99») — the model's «let me confirm the price» loop was honest, and the
+        # delivery backstop cannot append what the rows do not carry. One unambiguous amount in the title
+        # (else exactly one in the snippet) is the source's own claim; with several amounts nothing is
+        # guessed — absence is said by `fila()`, a guess is invented data (V2-430's whole family).
+        for r in rows:
+            p = _lone_amount(r["title"]) or _lone_amount(r.get("subtitle") or "")
+            if p:
+                r["price"] = p
         if not rows:
             return 0
         from widgets.results import intake

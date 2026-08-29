@@ -8,6 +8,8 @@ legítima de resolver «actividades cerca», así que sus hallazgos son hallazgo
 """
 from __future__ import annotations
 
+import types
+
 import pytest
 
 from nucleo.workers import findings
@@ -79,3 +81,41 @@ def test_el_worker_api_lo_llama_donde_entrega_la_nota():
     assert "hand_web_finding" in llamadas, "¿la nota desapareció? eso es OTRA regresión (V2-236)"
     assert "hand_search_rows" in llamadas, \
         "el return de búsqueda volvió a tener un solo camino: la nota que se gasta en un turno — la hoja queda vacía"
+
+
+# ── V2-471: the price the snippet already names travels as the row's DATO ───────────────────────────────────
+# Measured in `cheapest-monitor__us` round 12 (2026-08-29 13:39): 46 rows in the sheet, every one with
+# `price: None`, while several TITLES carried the figure («Dell offers the 27 Plus 4K Monitor S2725QS for
+# $279.99»). The model's five-turn «let me confirm the price» loop was HONEST — its sheet held no price as a
+# datum — and the delivery backstop cannot append what the rows do not carry. One unambiguous amount in the
+# title (or, failing that, exactly one in the snippet) is the source's own claim; ambiguity stays absent —
+# absence is said by `fila()` («sin precio»), a guess is invented data.
+
+
+def test_a_single_amount_in_the_title_becomes_the_price():
+    from nucleo.workers import findings as F
+    rec = types.SimpleNamespace(sheet="s1")
+    pushed = {}
+
+    def _fake_push(rows, **kw):
+        pushed["rows"] = rows
+        return len(rows)
+
+    import widgets.results.intake as intake
+    orig = intake.push
+    intake.push = _fake_push
+    try:
+        F.hand_search_rows(rec, {"source": "ddg", "results": [
+            {"title": "Dell offers the 27 Plus 4K Monitor S2725QS for $279.99",
+             "snippet": "The deal is live now", "url": "https://x.example/a"},
+            {"title": "Sceptre U279W 27\" 4K UHD Monitor",
+             "snippet": "Now 199,99 € en oferta", "url": "https://x.example/b"},
+            {"title": "Best 27-inch monitors 2026",
+             "snippet": "Prices range from $199.99 to $499.99 across brands", "url": "https://x.example/c"},
+        ]})
+    finally:
+        intake.push = orig
+    rows = pushed["rows"]
+    assert rows[0].get("price") == "$279.99", rows[0]
+    assert rows[1].get("price") == "199,99 €", rows[1]
+    assert "price" not in rows[2], "two amounts is ambiguity, and ambiguity stays absent"
