@@ -1,13 +1,33 @@
 # zaelar
 
-## Public repository language rule
+## Working language: English, everywhere inside `engine/`
 
-This repository is public. All source-code comments, docstrings, inline explanations, developer-facing
-instructions, and maintenance notes MUST be written in English, recursively throughout `engine/`. Before
-finishing a change, search the touched area for Spanish comments and translate every one. Do not introduce
-new Spanish comments or developer documentation. Spanish user-facing labels, voice responses, localization
-catalogues, and intentional multilingual product content are runtime data and remain subject to the i18n
-rules rather than this comment-language rule.
+`engine/` is the PUBLIC repository. Anyone who clones it reads what is written here, so **everything a
+developer reads is English** — there is no half of this rule that is optional:
+
+- source-code comments and docstrings;
+- **test function names** and test docstrings (`def test_the_repair_says_when_it_could_not`, not `def
+  test_una_reparacion_que_no_pudo_lo_DICE`);
+- log, warning and exception messages;
+- technical documentation under `.meshkore/` — architecture, modules, ops playbooks, `V2-xxx`
+  initiatives — and this file;
+- **commit messages** of any commit that touches `engine/`.
+
+**This rule beats "write code that reads like the code around it".** Measured 2026-08-29: 777 of the
+1139 tracked `.py` files still carry Spanish comments — 16126 blocks, 68% of the repo. That is a
+**backlog under translation**, not the house register, and reading it as the local idiom is precisely
+how this rule kept losing to it. Do not translate your neighbours either: a separate pass owns that
+corpus and editing the same files concurrently only makes conflicts. Write **your** lines in English,
+leave the rest alone.
+
+Spanish that is **product data** is untouched by this rule and must stay Spanish: user-facing labels,
+voice replies, `i18n/bundles/*.json`, prompt text the operator's agent speaks, and the Spanish
+vocabulary inside detectors and regexes. Those answer to the i18n rules (`voice/engine/core/langs.py`,
+V2-089), not to this one. Our customers speaking Spanish has nothing to do with what language we
+develop in.
+
+The boundary stops at `engine/`: the workspace root `../.meshkore/` is the operator's private business
+context and stays in Spanish on purpose.
 
 > **`.meshkore/` es una CARPETA REAL de ESTE repo** (2026-07-28, antes era un symlink a `../.meshkore`). engine
 > es el repo PÚBLICO OSS y lleva SU propio `.meshkore/` con el contexto MeshKore Standard del MOTOR —

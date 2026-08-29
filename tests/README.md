@@ -39,7 +39,13 @@ their owning suite, but executable testing code belongs under `tests/<suite>/`.
 5. Read the terminal exit code and failure trace. The dashboard is observability, not the source of truth for PASS.
 6. Report the exact command, passed/failed/skipped counts, live services used and remaining untested boundary.
 7. If a new behavior has no catalog case, add it in the same change and validate `tests/platform/tests`.
-8. Multiple agents/humans can share this repo and the stable Observatory port at once. Set
+8. **Name the test in English** — `def test_the_repair_says_when_it_could_not`, not
+   `def test_una_reparacion_que_no_pudo_lo_DICE`. Docstrings and comments too: a test name is the
+   sentence a stranger reads to learn what the system promises, and this repo is public. Much of
+   `tests/` is still Spanish; that is a backlog under translation, not the convention to copy. The
+   *content* a case feeds the agent is different — a Spanish use case is product data and stays
+   Spanish. Full rule: first section of `../CLAUDE.md`.
+9. Multiple agents/humans can share this repo and the stable Observatory port at once. Set
    `ZAELAR_TEST_ACTOR=<your name>` before `run` (e.g. `ZAELAR_TEST_ACTOR=claude-code ./.venv/bin/python -m
    tests run <suite> --no-open`) so whoever is watching the dashboard can tell who launched it — the header
    otherwise falls back to OS user/host/branch/parent-process, which doesn't distinguish concurrent agents on
