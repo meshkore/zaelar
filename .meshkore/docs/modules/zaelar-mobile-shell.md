@@ -118,7 +118,7 @@ Four ways to see and change what is open, all host chrome, none stealing a gestu
 - **The pips** sit ABOVE the dock (`bottom: calc(var(--dock-h) + safe-area)`) and each one is a 26px BUTTON
   that jumps to its card. They shipped at `bottom:6px` — 100% under the fixed dock bar, so the only always-on
   "there are more cards" signal did not exist on screen, with every source-level test green. Geometry is
-  measured by node 4.86, not assumed. `pointer-events` live on the buttons, never the full-width row.
+  measured by node 4.87, not assumed. `pointer-events` live on the buttons, never the full-width row.
 - **The `k/n` chip** in every card header is a button that opens the **deck switcher**: one row per open card,
   named by its LIVE title (same source the header paints), the current one marked, a 44px × per row, and
   "close all". It stops ON TOP of the dock like every sheet — mic and ⏻ stay reachable — and it mirrors the
@@ -258,7 +258,7 @@ each turn the node red.
 Node **4.19** — `tests/browser/e2e/mobile/render_dock.py` renders the shell at 390×844 and measures the dock:
 orb centred and PAINTED, tap targets, sheets stopping above the dock, the stopped→⏻→painted cycle.
 
-Node **4.86** — `tests/browser/e2e/mobile/render_deck.py` renders the DECK with three fake widgets served by
+Node **4.87** — `tests/browser/e2e/mobile/render_deck.py` renders the DECK with three fake widgets served by
 Playwright route interception (catalog, data, manifest and the `widget.js` module itself) and measures the
 navigation: pips visible above the dock and jumping on tap, the producing badge following `active_when`, the
 switcher opening/jumping/closing/emptying, one-finger header paging, and `restore()`'s V2-351 parity (fossil

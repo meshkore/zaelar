@@ -5149,7 +5149,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   resucitaba una hoja vacía encima de la llena), encargos vivos del servidor aunque este dispositivo no los
   guardara, y `navegador::tN` sin tarea viva fuera. Trinquetes: el 4.18 aprende `tr(` (las claves i18n de
   Deck.js escapaban al ratchet — tres claves faltantes con el escaneo en verde) + checks derivados de pips/
-  restore/badge; nodo NUEVO **4.86** renderiza el deck con tres widgets falsos por route-interception y lo mide
+  restore/badge; nodo NUEVO **4.87** renderiza el deck con tres widgets falsos por route-interception y lo mide
   todo (23 checks, 4 desarmes verificados, y el de «instalación nueva» necesita contexto de navegador PROPIO o
   el localStorage de la página anterior lo falsea). La auditoría de widgets en vertical salió limpia:
   `imagenes` tiene flechas y miniaturas táctiles (el teclado de V2-465 es extra), las acciones de mensajería
