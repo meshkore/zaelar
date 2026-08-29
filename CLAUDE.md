@@ -5182,6 +5182,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **El compositor del brief pedía «no razones» a un modelo que NO PUEDE dejar de hacerlo, y toda búsqueda
+  dirigida degradaba a búsqueda ciega en silencio (V2-488, 2026-08-29)**: medido en el plató US, idéntico en
+  las dos rondas del hotel — `400 {'code': '1210', 'message': 'This model always engages in thinking and
+  cannot be disabled; please use low, high, or max'}` → «el worker sale SIN brief (búsqueda sin dirigir)». **Y
+  no relevaba**: un 400 de parámetro no es una caída de proveedor, así que `classify_failure` no da tier de
+  relevo y la excepción llega al fail-open — ninguna de las dos redes que el módulo ya tenía lo tapaba. La
+  culpa era NUESTRA: el proveedor sirve, y hasta decía qué valores admite.
+  - `no_thinking` **no se quita**: está medido (2026-08-27) que con razonamiento el bloque se carga contra
+    `max_tokens` y 1.600 vuelve truncado e ilegible; apagarlo da el mismo brief en 22,3 s y 681 tokens. Lo que
+    faltaba era el otro caso. Sobre ese rechazo concreto se reintenta **con** razonamiento y **3.200** de
+    presupuesto — el número sale de la medición (2.517 tokens de salida con thinking), no de una estimación.
+  - **Una sola puerta** (`_pedir`) para la llamada normal y la del relevo: la corrección valía para las dos, y
+    una regla escrita dos veces es como la segunda copia se queda atrás sin que nada falle.
+  - El predicado exige la **conjunción** (hablar de razonamiento Y de que no se puede desactivar; el código
+    `1210` vale solo) para no tragarse un 429 de cuota agotada — si lo hiciera, el relevo de V2-225 dejaría de
+    dispararse. Y **el tier no se pone en cuarentena**: apartar a un proveedor que sirve, por un parámetro
+    nuestro, deja además sin él al cerebro de cluster.
+  - Tercera cara de **la capacidad se MIDE, no se lee** (razonador que se come `max_tokens`; «lee imágenes»
+    que no lee; y ahora «se le puede apagar el razonamiento» a quien no). Nodo 2.6, desarme verificado.
+
 - **La red MeshKore estaba construida, verificada en vivo y NUNCA se consultaba — dos causas apiladas y
   ninguna en la red (V2-486 y V2-487, 2026-08-29)**: el operador la pidió explícitamente para las búsquedas de
   servicios (hoteles, vuelos), y el censo decía **0 consultas en 399 informes de worker**.

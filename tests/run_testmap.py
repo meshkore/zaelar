@@ -301,6 +301,11 @@ DOMAINS: list[dict] = [
             # diez hoteles reales de Nueva York en 0,4 s, sin navegador.
             "tests/agent_headless/unit/test_the_network_is_asked_before_searching.py",
             "tests/agent_headless/unit/test_a_400_that_says_what_it_needs_is_an_answer.py",
+            # V2-488 (2026-08-29): el compositor del brief pedía `no_thinking` a un modelo que NO PUEDE
+            # apagar el razonamiento; el 400 no es una caída de proveedor, así que tampoco había relevo y
+            # TODA búsqueda dirigida degradaba a búsqueda ciega, en silencio. Medido en el plató US en las
+            # dos rondas del hotel, idéntico. Reintenta CON razonamiento y con presupuesto para él.
+            "tests/agent_headless/unit/test_a_model_that_cannot_stop_thinking.py",
             # V2-219: el worker se murió DOS veces en la aridad de nuestro propio CLI, en casos sin relación
             # (`scroll down` cuatro veces, `worker_bridge act` sin payload) — y la ronda acabó con CERO
             # búsquedas. Una mitad es que el CLI estaba equivocado (una dirección es una forma legítima de

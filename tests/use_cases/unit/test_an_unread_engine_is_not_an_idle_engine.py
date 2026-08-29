@@ -95,7 +95,14 @@ def test_the_report_names_what_it_could_not_read():
     assert "/widgets/producing" in paths
 
 
-def test_a_healthy_report_carries_no_such_field():
+def test_a_healthy_report_carries_no_such_field(monkeypatch):
+    """Sensibilidad: si el campo apareciera SIEMPRE, dejaría de significar nada.
+
+    Las lecturas se sustituyen por una que CONTESTA. Antes esto salía a la red de verdad contra
+    `config.ZAELAR_URL`, así que su veredicto dependía de que hubiera un motor escuchando — y en la corrida
+    completa del mapa no lo hay: falló con `URLError: nodename nor servname provided` y en solitario pasaba.
+    Un unitario que necesita un artefacto vivo no mide lo que dice medir; mide el entorno."""
+    monkeypatch.setattr(P, "_get", lambda path, timeout=15.0: {})
     P.clear_read_failures()
     mech = V.mechanism_report([], [])
     assert not mech.get("ground_truth_unreadable")

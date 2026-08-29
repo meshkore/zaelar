@@ -280,6 +280,37 @@ def _declined(raw: str) -> bool:
     return isinstance(p, dict) and not p.get("research")
 
 
+# V2-488 · un modelo que NO PUEDE apagar el razonamiento tumbaba TODAS las búsquedas dirigidas, en silencio.
+#
+# Medido en el plató US el 2026-08-29, en las dos rondas del hotel (20:03:02 y 20:40:36), idéntico:
+#
+#     research: el compositor falló (Error code: 400 - {'error': {'code': '1210', 'message': 'This model
+#     always engages in thinking and cannot be disabled; please use low, high, or max'}})
+#     — el worker sale SIN brief (búsqueda sin dirigir)
+#
+# Y no relevaba: un 400 de parámetro no es una caída de proveedor, así que `classify_failure` no da tier de
+# relevo y la excepción viaja hasta el fail-open. O sea que el motor DEGRADABA a búsqueda ciega —justo lo que
+# este módulo existe para cerrar— cada vez que la cadena elegía un razonador puro, y lo hacía por una línea
+# nuestra, no por el proveedor.
+#
+# Es la tercera cara de la misma lección ya escrita en el reparto de modelos: **la capacidad se MIDE, no se
+# lee**. `no_thinking` se envía como si todo modelo pudiera; el que no puede lo dice con un 400 clarísimo y
+# hasta con la lista de valores que admite.
+def _no_puede_dejar_de_pensar(exc: Exception) -> bool:
+    """¿El proveedor ha rechazado la PETICIÓN de no razonar (frente a haberse caído)?
+
+    Se lee del mensaje porque es donde viene: el cliente envuelve el cuerpo del 400 en el texto de la
+    excepción. Se exige la conjunción —hablar de razonamiento Y de que no se puede desactivar— para no
+    confundirlo con un 400 de otra cosa; el código propietario `1210` vale por sí solo.
+    """
+    t = str(exc or "").lower()
+    if "1210" in t:
+        return True
+    habla_de_razonar = ("thinking" in t) or ("reasoning" in t) or ("razona" in t)
+    no_se_puede = ("cannot be disabled" in t) or ("can not be disabled" in t) or ("cannot disable" in t)
+    return habla_de_razonar and no_se_puede
+
+
 async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_TIMEOUT) -> dict | None:
     """Petición cruda → brief estructurado. `None` = el compositor dijo que **no es una investigación**;
     `ComposerUnavailable` = no pudo contestar (ver esa clase: la diferencia vale medio presupuesto).
@@ -298,15 +329,36 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             raise ComposerUnavailable("sin proveedor")
         from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
         _msgs = build_messages(req, context, _today_block())
+        # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 against the
+        # reasoning tier (Z.AI GLM): with thinking on, the block is charged against `max_tokens`, so 1.600
+        # came back truncated and unparseable — logged as «respuesta ilegible», which reads like a broken
+        # model and was really a budget that never fit. Raising the budget works but costs 67,7 s and 2.517
+        # output tokens; switching thinking off produces the same parseable brief in 22,3 s and 681 tokens.
+        # The worker cannot start until this returns, so the seconds are the person's, not ours.
+        async def _pedir(_spec_, *, pensando: bool = False):
+            """Una sola puerta para las dos llamadas (la normal y la del relevo): la corrección de abajo tenía
+            que valer para las dos, y una regla escrita dos veces es como la segunda copia se queda atrás."""
+            if pensando:
+                # V2-488: si el modelo NO PUEDE apagar el razonamiento, apagarlo no es una opción — y entonces
+                # el presupuesto tiene que caber la deliberación, que es exactamente lo que midió el comentario
+                # de arriba (2.517 tokens de salida con thinking puesto). Con 1.600 vuelve truncado.
+                return await asyncio.wait_for(
+                    FastClient().complete(_msgs, spec=_spec_, max_tokens=3200), timeout=timeout)
+            return await asyncio.wait_for(
+                FastClient().complete(_msgs, spec=_spec_, max_tokens=1600, no_thinking=True), timeout=timeout)
+
         try:
-            # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 against the
-            # reasoning tier (Z.AI GLM): with thinking on, the block is charged against `max_tokens`, so 1.600
-            # came back truncated and unparseable — logged as «respuesta ilegible», which reads like a broken
-            # model and was really a budget that never fit. Raising the budget works but costs 67,7 s and 2.517
-            # output tokens; switching thinking off produces the same parseable brief in 22,3 s and 681 tokens.
-            # The worker cannot start until this returns, so the seconds are the person's, not ours.
-            out = await asyncio.wait_for(
-                FastClient().complete(_msgs, spec=spec, max_tokens=1600, no_thinking=True), timeout=timeout)
+            try:
+                out = await _pedir(spec)
+            except Exception as e:  # noqa: BLE001
+                if not _no_puede_dejar_de_pensar(e):
+                    raise
+                # No es una caída del proveedor: es que le pedimos algo que ese modelo no admite. Marcar el tier
+                # como caído aquí lo pondría en cuarentena por culpa NUESTRA, y el relevo iría a otro modelo
+                # cuando el que hay sirve perfectamente.
+                logger.warning("research: el modelo del compositor no puede apagar el razonamiento — "
+                               "reintento CON razonamiento y presupuesto para él")
+                out = await _pedir(spec, pensando=True)
         except asyncio.TimeoutError:
             raise
         except Exception as e:  # noqa: BLE001
@@ -316,9 +368,13 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
                 raise
             logger.warning(f"research: el compositor releva a {_relay.get('name')} tras «{str(e)[:80]}»")
             from nucleo.flash import provider_chain as _pc_retry
-            out = await asyncio.wait_for(
-                FastClient().complete(_msgs, spec=_pc_retry.spec_for(_relay), max_tokens=1600, no_thinking=True),
-                timeout=timeout)
+            _spec_relay = _pc_retry.spec_for(_relay)
+            try:
+                out = await _pedir(_spec_relay)
+            except Exception as e2:  # noqa: BLE001
+                if not _no_puede_dejar_de_pensar(e2):
+                    raise
+                out = await _pedir(_spec_relay, pensando=True)
     except asyncio.TimeoutError:
         logger.warning(f"research: el compositor no contestó en {timeout:.0f}s — el worker arranca SIN brief "
                        "(búsqueda sin dirigir); mejor eso que dejar la tarea sin salir")
