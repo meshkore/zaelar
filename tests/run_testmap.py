@@ -39,6 +39,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
             "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
+            # V2-498 (2026-08-29): los gustos son estado ACTIVO (norma del operador) y no llegaban al bloque
+            # pasivo — se escriben bien y PIERDEN el ranking. Línea propia, fuera del cap, como los críticos.
+            "tests/memory/unit/test_tastes_are_active_state.py",
             # V2-490 (2026-08-29): el hecho crítico SÍ llegaba (píldoras pineadas, `critical=health`, línea
             # «⚠️ CRÍTICO» en el estado) y aun así 2 de 4 rondas propusieron macarrones a un celíaco. Es
             # OBEDIENCIA, no fontanería: el límite se repite AL FINAL y dicho como comprobación sobre lo que
@@ -78,13 +81,19 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
         {"id": "1.5", "title": "Sueño REM / síntesis", "ch": UNIT, "paths": [
-            "tests/memory/unit/test_rem.py", "tests/memory/unit/test_rem_prompt.py"]},
+            "tests/memory/unit/test_rem.py", "tests/memory/unit/test_rem_prompt.py",
+            "tests/memory/unit/test_repair_says_when_it_could_not.py"]},
         {"id": "1.6", "title": "Bóveda y secretos", "ch": UNIT, "paths": [
             "tests/memory/unit/test_vault.py", "tests/memory/unit/test_vault_flow.py",
             "tests/memory/unit/test_vault_ingest.py", "tests/memory/unit/test_vault_rules.py",
             "tests/memory/unit/test_secrets.py", "tests/memory/unit/test_pill_slot.py",
             "tests/memory/unit/test_slots_audit.py", "tests/memory/unit/test_location_grounding.py",
-            "tests/memory/unit/test_critical_health.py", "tests/memory/integration/test_seed_from_hermes.py"]},
+            "tests/memory/unit/test_critical_health.py",
+            # V2-499 (2026-08-29): la línea crítica casaba la CATEGORÍA («celíaco») y no lo que la persona dice
+            # que NO PUEDE hacer («no puede comer gluten») — autorizado por el operador aceptando los falsos
+            # positivos, que ese fichero deja medidos y con nombre.
+            "tests/memory/unit/test_ingestion_limit_is_critical.py",
+            "tests/memory/integration/test_seed_from_hermes.py"]},
         {"id": "1.7", "title": "API HTTP de memoria", "ch": HTTP, "paths": [
             "tests/memory/integration/test_api.py", "tests/memory/integration/test_vault_api.py",
             "tests/memory/e2e/test_server_api.py"]},
@@ -1644,6 +1653,15 @@ DOMAINS: list[dict] = [
         {"id": "7.21", "title": "Un perfil de equipo no arranca a su agente con rutas muertas",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_a_team_profile_points_at_real_docs.py"]},
+        # V2-497 (2026-08-30): el reparto de modelos vivía en SEIS sitios que nadie comparaba, así que la
+        # norma acababa solo en el config LOCAL del operador —gitignorado— y la nube arrancaba con otro.
+        # Ahora hay UNA tabla pública (`config/models.default.json`); los cuatro consumidores de Python la
+        # LEEN, y las dos superficies de nube (TOML de Fly + JS del provisioner) son copias que este nodo
+        # vigila. Incluye la norma: UN solo failover, nada que dependa de un servidor local, Z.AI solo en
+        # el worker, y lo retirado no vuelve.
+        {"id": "7.22", "title": "El reparto de modelos vive en UNA tabla y las copias de nube no derivan",
+         "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_the_three_surfaces_say_the_same.py"]},
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
         # 2026-08-21: SEGUNDA vez que un helper se cuela ENTRE `@router.<verbo>(ruta)` y el handler que la

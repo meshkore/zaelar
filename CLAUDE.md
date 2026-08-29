@@ -5323,6 +5323,70 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     todavía: el reparador corre dentro del proceso, en la pasada del sueño, así que la base del operador no
     cambia hasta que reinicie sobre HEAD.
 
+- **Un reparador INERTE parecía un reparador SIN TRABAJO (V2-497, 2026-08-29)**: encargo del operador —
+  disparar REM a mano y probar que la teoría de V2-482 se sostiene. Sobre una COPIA de su base el purgado
+  **disparó y funcionó** (25 vectores ajenos retirados, 16 hash + 9 rellenado, y los 9 rellenados TODOS
+  nodos-concepto, justo lo que V2-485 predijo) y acto seguido **`repair_embeddings` devolvió 0** con 45 filas
+  esperando. Instrumentado: `embed()` devolvía 768 dims con `last_degraded=True` — o sea el hash de emergencia,
+  porque `/api/embed` contestaba `server busy, maximum pending requests exceeded`. Es la condición
+  `_ollama_busy` que el módulo ya documenta y resuelve BIEN (difiere el vector en vez de degradar el espacio);
+  lo que no estaba resuelto es que difiere **en silencio, una vez al día**.
+  - **El defecto es un confundido, no el backend**: `0` significaba a la vez «no había nada que reparar» (sano)
+    y «45 esperando y el backend rechazó todas» (roto). El salto por fila era un `continue` pelado, y
+    `hygiene()` informa de `embed_pending` pero **solo su porcentaje heurístico llega a alertar**. Y el purgado,
+    que sí avisa al retirar, dejaba la mitad ruidosa junto a la mitad muda: se lee como *funcionó, todo bien*.
+    **La respuesta equivocada era la tranquilizadora**, otra vez (V2-311, V2-482).
+  - **Descartado con NÚMEROS el arreglo tentador**: reintentar. Sondeado 40 veces en 30 s con un modelo de 40 GB
+    en la GPU: **40 rechazos, 0 aciertos** — mientras un modelo grande la ocupa, la negativa es TOTAL, no
+    intermitente. Así que la pasada **se rinde tras 3 caídas seguidas** (45 llamadas inútiles → 3; 4 s → 0,4 s)
+    y no es 1 porque el resolutor deja a un saturado re-sondeando en la llamada siguiente: hay un caso que exige
+    que un bache suelto NO cueste la pasada entera.
+  - **Se retira una afirmación mía que era falsa**: el docstring del purgado prometía «la pasada que sigue lo
+    re-embebe en el espacio correcto» y el aviso decía «se re-embeben en esta misma pasada». Esa mitad es
+    CONDICIONAL — corregido donde lo dije. El purgado se queda incondicional (su argumento se sostiene solo),
+    pero deja de prometer la otra mitad.
+  - **Quién ocupaba la GPU, y el operador debería saberlo**: un consumidor REMOTO por
+    `cloudflared tunnel run meshkore-ollama`. **Mientras ese túnel sirva un modelo grande, la memoria no puede
+    reparar ni deduplicar nada.** Nodo 1.5, cuatro desarmes. **Esto hace VISIBLE que la reparación no corre; no
+    la hace correr** — los ~25 vectores del operador sanarán en el primer sueño con la GPU libre.
+
+- **Los GUSTOS son estado ACTIVO, y el slot obvio está medido como MUERTO (V2-498, 2026-08-29)**: norma del
+  operador — *«los gustos no son datos históricos ni cosas que hayan sucedido en el pasado, sino que tienen que
+  estar ahí»*. Medido antes de tocar nada: el bloque pasivo real de su memoria tenía **dos líneas** —una regla
+  de trabajo y un `[RESET]` del sistema— y **ni un gusto**, con 12 píldoras `kind='pref'` guardadas (Ferrari ×7,
+  guitarra ×2). No se pierden al escribirse: **pierden el RANKING** (0,3-0,494 contra un corte dominado por
+  píldoras de 0,99).
+  - ⚠️ **`operator.tastes` era la vía natural y no habría escrito nunca nada.** Dos hechos: el prompt del
+    CORAZÓN enseña EXPLÍCITAMENTE que un gusto es ADITIVO y va con `slot=null` (un slot invalida lo anterior, y a
+    alguien le pueden gustar los Ferrari Y la guitarra), y **`operator.family` lleva desde el 2026-08-17 en el
+    catálogo con CERO escrituras** — de 448 durables vivas, 437 sin slot y solo `operator.name`/`operator.location`
+    en uso. La regla aditiva del destilador gana a la entrada del catálogo.
+  - El arreglo es la forma de `critical_facts` (V2-491): **lo que tiene que estar SIEMPRE no compite por una
+    plaza**. La clase ya está en el dato (`kind='pref'`) y se tiraba — se renderiza la distinción que existe, sin
+    slot, sin campo y sin lista de palabras (principio de V2-337). `pref` sale de `salient_long` para no pintarse
+    dos veces. Se llama **GUSTOS Y PREFERENCIAS** porque eso es lo que la clase contiene: junto a Ferrari vive
+    «prefiere que las tareas las haga un worker», y llamarlo «gustos» convertiría esa fila en una afición.
+  - **Los costes, enteros**: 4 de 6 plazas son ecos del mismo gusto —fundirlos es de `semantic_dedup`, hoy
+    bloqueado (V2-497), y **un dedup léxico tampoco serviría**, medido: sus siete ecos están en DOS idiomas y no
+    comparten palabras de contenido—; y la guitarra (peso 0,05) no entra, **pero no por la política de
+    decaimiento actual** (λ=0,001/día ⇒ vida media 693 días): son víctimas del bug de sobre-decaimiento arreglado
+    el 2026-07-19, así que no se toca el decaimiento por un daño histórico ya cerrado. Nodo 1.1, cuatro desarmes.
+
+- **Una limitación de INGESTIÓN dicha sin palabra de categoría también es crítica (V2-499, 2026-08-29,
+  autorizado por el operador aceptando los falsos positivos)**: `_CRITICAL_HEALTH_RE` casa la CATEGORÍA
+  («alérgico», «celíaco», «intolerante»), que es como se dice la mitad de las veces; la otra mitad dice lo que
+  NO PUEDE HACER — «no puede comer gluten». Esa frase no lleva ninguna palabra del catálogo, así que no se
+  marcaba `critical`, no llegaba a la línea ⚠️ CRÍTICO y competía por una plaza del ranking: **exactamente el
+  fallo que V2-490 midió** con macarrones ofrecidos a un celíaco. Va en `_is_critical_health`, el guard del
+  writer, único chokepoint de TODA escritura.
+  - **El coste no es inocuo y por eso lleva UNA acotación**: la línea crítica tiene cap (6), así que una frase
+    social colada puede EXPULSAR un marcapasos — el daño que V2-491 acababa de cerrar. Se acota por la única vía
+    que no exige adivinar: **una restricción que NOMBRA UN MOMENTO habla de ese momento, no de la persona**
+    («hoy no puedo comer contigo»). Lo ambiguo sin marca temporal («no puedo comer más») **NO se filtra**: ante
+    la duda esta línea existe para pecar de más — un plato que no se ofrece cuesta una pregunta, una alergia
+    olvidada cuesta otra cosa. Ese falso positivo queda MEDIDO y con nombre en un test, para que quien estreche
+    el detector vea qué está cambiando. Nodo 1.6, tres desarmes en tres direcciones.
+
 - **Un vector de espacio AJENO no lo repara nadie, nunca (V2-482, 2026-08-29)**: `repair_embeddings` solo
   busca filas SIN vector, que es lo que deja el guarda de firma del writer al refusar. Una fila cuyo vector
   ajeno se coló por un fail-open TIENE vector, así que la pasada de reparación **no la selecciona jamás**: las
