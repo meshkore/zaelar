@@ -240,3 +240,29 @@ def test_y_sin_poder_leer_el_recorrido_no_se_ACUSA():
         "worker_outcome": {"navigations": 3},
     }}, "verdict": {"overall": 2}}
     assert _state(2, r) != "INFRA"
+
+
+def test_un_puente_que_no_contesta_tampoco_mide_una_busqueda():
+    """La variante que se coló (2026-08-30, `search-secondhand-monitor__es`): las 7 llamadas murieron EN EL
+    PUENTE, `navigations` quedó a 0, y la condición del plató-sin-navegador —que exige intentos de navegar—
+    no vio nada. La ronda salió FAIL siendo avería.
+
+    La firma: el worker NOMBRÓ `nav_cli` (o sea que lo intentó), su sesión murió en Exit code 2, y ni una
+    página se alcanzó. Un worker que decide no navegar no nombra `nav_cli`."""
+    from tests.use_cases.e2e.agent.status import _state
+
+    r = {"run": {"mechanism_report": {
+        "page_journey": {"read": True, "n_pages": 0},
+        "worker_outcome": {"navigations": 0},
+        "worker_bridges": {"read": True, "by_bridge": {"nav_cli": 1}, "sessions_with_exit2": 1},
+    }}, "verdict": {"overall": 2}}
+    assert _state(2, r) == "INFRA"
+    assert "puente del navegador no contestó" in r["_infra_reason"]
+
+    # Contrapeso: un worker que ni intentó el navegador (caso conversacional) no es una avería.
+    r2 = {"run": {"mechanism_report": {
+        "page_journey": {"read": True, "n_pages": 0},
+        "worker_outcome": {"navigations": 0},
+        "worker_bridges": {"read": True, "by_bridge": {"mem_cli": 2}, "sessions_with_exit2": 0},
+    }}, "verdict": {"overall": 2}}
+    assert _state(2, r2) != "INFRA"

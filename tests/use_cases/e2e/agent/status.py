@@ -224,6 +224,16 @@ def _state(overall, r: dict) -> str:
     if _pj.get("read") and not _pj.get("n_pages") and (_wo.get("navigations") or 0) > 0:
         return _infra(r, f"el plató NO tiene navegador: {_wo.get('navigations')} intento(s) de navegar y "
                          f"NINGUNA página alcanzada (revisa el Chromium del plató)")
+    # …Y LA VARIANTE QUE SE COLÓ (2026-08-30, search-secondhand-monitor__es): las llamadas murieron EN EL
+    # PUENTE, así que `navigations` quedó a 0 y la condición de arriba no vio nada. La firma es la sesión del
+    # worker nombrando `nav_cli`, la ronda entera sin UNA página alcanzada, y la sesión acabada en Exit code 2.
+    # Un worker que decide no navegar no nombra `nav_cli`; uno al que el puente no le contesta, sí.
+    _wb = mech_.get("worker_bridges") or {}
+    if (_pj.get("read") and not _pj.get("n_pages")
+            and (_wb.get("by_bridge") or {}).get("nav_cli")
+            and _wb.get("sessions_with_exit2")):
+        return _infra(r, "el puente del navegador no contestó: el worker llamó a nav_cli, la sesión murió en "
+                         "Exit code 2 y NINGUNA página se alcanzó (cuelgue del Chromium o del bridge)")
     if overall is None:
         return _infra(r, "el juez no devolvió nota")
     # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4
