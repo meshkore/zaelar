@@ -143,3 +143,37 @@ def test_solo_se_mira_el_ARRANQUE_del_veredicto():
     assert S._judge_says_not_ready("No está listo para producción: …")
     assert not S._judge_says_not_ready("El caso funciona; sería falso decir que no está listo.")
     assert not S._judge_says_not_ready("")
+
+
+# ── y la ronda de infraestructura tiene que DECIRSE, no solo guardarse (2026-08-30) ───────────────────────
+def test_el_supervisor_no_puede_leer_una_ronda_INFRA_como_FAIL():
+    """`status.py::_infra` ya marcaba la fila INFRA con su motivo, y su propio comentario avisa de que fundir
+    INFRA con FAIL «es como un marcador empieza a mentir». Pero el SUPERVISOR clasifica leyendo la SALIDA del
+    runner, no el informe — así que veía «PASSED 0/1» y anotaba FAIL.
+
+    Medido: la ronda de las 14:26 corrió con el recall degradado (el proveedor de embeddings se cayó a mitad),
+    `status.json` la guardó como `state: INFRA` con su motivo, y la línea que lee el operador dijo FAIL. Dos
+    vistas del mismo dato en desacuerdo, y la que se lee era la mala — que es exactamente cómo una ronda de
+    infraestructura acaba atribuida al producto.
+    """
+    from tests.use_cases.e2e.agent.supervisor import _veredicto_de_cola
+
+    cola = "INFRA: recall semántico DEGRADADO en esta ronda (backend: cloud)\nPASSED 0/1 (overall>=4)"
+    assert _veredicto_de_cola(cola) == "INFRA", "una ronda con la infraestructura caída se anota como fallo del producto"
+
+    # Los contrapesos, sin los cuales esto es «marcarlo todo INFRA»: una ronda normal que falla sigue siendo
+    # FAIL, y una que pasa sigue siendo PASS.
+    assert _veredicto_de_cola("PASSED 0/1 (overall>=4)") == "FAIL"
+    assert _veredicto_de_cola("PASSED 1/1 (overall>=4)") == "PASS"
+
+
+def test_el_runner_ANUNCIA_el_motivo_no_solo_la_palabra():
+    """Con «INFRA» a secas el supervisor clasifica bien y el operador sigue sin saber cuál de las cuatro
+    puertas fue: arnés caído, turnos vacíos, recall degradado o juez sin nota piden acciones OPUESTAS."""
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as R
+
+    src = inspect.getsource(R)
+    assert 'print(f"INFRA: {r[\'_infra_reason\']}")' in src or "INFRA: {r['_infra_reason']}" in src, \
+        "el runner anuncia INFRA sin decir de cuál — el motivo ya lo tiene delante"

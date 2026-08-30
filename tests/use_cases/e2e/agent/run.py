@@ -929,6 +929,15 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
 
     overalls = [r["verdict"].get("overall") for r in results if r["verdict"].get("overall") is not None]
     passed = sum(1 for o in overalls if o >= 4)
+    # UNA RONDA DE INFRAESTRUCTURA SE DICE EN VOZ ALTA, y no solo en el marcador (2026-08-30).
+    # `status.py::_infra` ya marcaba la fila INFRA con su motivo — y su propio comentario avisa de que fundir
+    # INFRA con FAIL «es como un marcador empieza a mentir». Pero el SUPERVISOR clasifica leyendo esta salida,
+    # no el informe, así que veía «PASSED 0/1» y anotaba FAIL. Medido: la ronda de las 14:26 salió con el
+    # recall degradado (proveedor de embeddings caído), `status.json` la guardó como INFRA con su motivo, y la
+    # línea que yo leo dijo FAIL. Dos vistas del mismo dato, en desacuerdo — y la que se lee era la mala.
+    for r in results:
+        if r.get("_infra_reason"):
+            print(f"INFRA: {r['_infra_reason']}")
     print(f"PASSED {passed}/{len(results)} (overall>=4)")
     return 0 if passed == len(results) else 1
 
