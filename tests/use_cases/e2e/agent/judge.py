@@ -784,11 +784,23 @@ def mechanism_facts(mech: dict) -> str:
             # peor que una que no sale nunca.
             lines.append("· El registro de puentes se leyó, pero NINGUNA sesión de worker cae dentro de esta "
                          "ronda: de aquí no se puede decir ni que preguntara a la red ni que no.")
+    # EL LÍMITE VA DICHO, igual que en el bloque de arriba — y por la misma razón, que aquí se pagó el mismo
+    # día. `errors[puente]` NO atribuye: suma una vez por cada puente NOMBRADO en una sesión que contenía
+    # `Exit code 2`, así que una sesión rota que mencione tres puentes sale como tres errores. El propio
+    # detector lo dice («una coincidencia en la sesión, no una atribución») y esta línea lo publicaba como si
+    # fueran tres puentes rotos. Medido en `search-buy-motorcycle__us` (2026-08-30): el juez lo firmó [alta]
+    # contra el producto e INVENTÓ los detalles —«argumentos faltantes, errores de fichero»— que nunca
+    # recibió, porque solo le llegaron unos contadores.
+    _sesiones_rotas = _wb.get("sessions_with_exit2")
     if _wb.get("errors"):
-        _we = ", ".join(f"{k} ×{v}" for k, v in list(_wb["errors"].items())[:5])
-        lines.append(f"· ⚠️ PUENTES DEL WORKER CON ERRORES: {_we}. El worker pide el navegador, la memoria "
-                     f"y la red por esos puentes: si volvió con menos de lo esperado, mira esto antes de "
-                     f"culpar a su criterio. Un puente roto es MECANISMO, no conducta.")
+        _nombrados = ", ".join(sorted(_wb["errors"]))
+        _cuantas = _sesiones_rotas if isinstance(_sesiones_rotas, int) else "alguna(s)"
+        lines.append(f"· ⚠️ {_cuantas} sesión(es) de worker terminaron en `Exit code 2`. Los puentes NOMBRADOS "
+                     f"en esa(s) sesión(es) son: {_nombrados} — es una COINCIDENCIA en el mismo log, NO una "
+                     f"atribución: no se sabe cuál falló, ni siquiera si el fallo fue de un puente. NO puntúes "
+                     f"un puente concreto por esto y NO describas la causa, que aquí no consta. Úsalo solo "
+                     f"para explicar por qué el worker pudo volver con menos. Un puente roto es MECANISMO, "
+                     f"no conducta.")
     # V2-399 — la memoria semántica del plató puede estar degradada sin que lo esté la de producción.
     _em = mech.get("embeddings") or {}
     if _em.get("degraded") or _em.get("skipped"):

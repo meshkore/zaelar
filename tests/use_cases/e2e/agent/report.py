@@ -175,14 +175,33 @@ def _mechanism_numbers(mech: dict) -> list[str]:
     for c in (dup.get("continuations") or [])[:3]:
         out.append(f"· un worker MÁS por continuación del mismo encargo — {c.get('why')}: paga tokens dos "
                    f"veces, pero NO es un duplicado ni un fallo del dedup")
+    # `g["n"]` CUENTA PETICIONES DE ESCALADA con el mismo texto (`text_source: escalate.requested`), no workers.
+    # Llamarlas «workers» inventaba un hecho, y lo inventaba con el desmentido en la línea de al lado: medido en
+    # `cheapest-monitor__us` (2026-08-30), el informe decía «2 workers para UN encargo … se paga entero cada vez»
+    # con `worker_health.spawned: 1` y `duplicate_errands.n_spawned: 1` en el mismo bloque. Un worker nació. No se
+    # pagó dos veces. La acusación llegó a un encargo antes de que dev-main la desmontara leyendo la base del
+    # plató — o sea que el instrumento gastó el tiempo de otro agente.
+    #
+    # `n_spawned` es del conjunto de la ventana, así que como cota es CONSERVADORA: si un grupo dice más
+    # peticiones que workers nacidos en toda la ronda, esas peticiones no pueden haber sido workers. Y el hueco
+    # no es un detalle contable — es el hallazgo: una escalada que abre su hoja en pantalla y no llega a nacer
+    # deja una caja esperando trabajo que nadie empezó.
+    _nacidos = dup.get("n_spawned")
     for g in (dup.get("groups") or [])[:3]:
         _bar, _met = g.get("engine_bar"), g.get("engine_metric") or "contención"
         _bar_txt = f"{_met} del motor {g.get('max_sim')} ≥ {_bar}" if _bar else "sin poder leer la vara del motor"
         _how = (f"el dedup NO disparó ({_bar_txt})" if g.get("over_engine_bar")
                 else f"reformulado — el motor lo ve a {g.get('max_sim')}, por debajo de su {_bar}")
-        out.append(f"⚠️ **{g.get('n')} workers para UN encargo** · contención {g.get('min_sim')}–"
-                   f"{g.get('max_sim')} · {_how}: «{g.get('goal')}» — se paga entero cada vez y cada uno "
-                   f"abre su propia hoja")
+        _n = g.get("n")
+        if isinstance(_nacidos, int) and isinstance(_n, int) and _n > _nacidos:
+            out.append(f"⚠️ **{_n} escaladas con el MISMO texto y solo {_nacidos} worker(s) NACIDO(S)** · "
+                       f"contención {g.get('min_sim')}–{g.get('max_sim')} · {_how}: «{g.get('goal')}» — NO se "
+                       f"paga dos veces (solo corrió {_nacidos}); lo que hay que mirar son las "
+                       f"{_n - _nacidos} escalada(s) que no llegaron a nacer y qué dejaron en pantalla")
+        else:
+            out.append(f"⚠️ **{_n} workers para UN encargo** · contención {g.get('min_sim')}–"
+                       f"{g.get('max_sim')} · {_how}: «{g.get('goal')}» — se paga entero cada vez y cada uno "
+                       f"abre su propia hoja")
     if (dup.get("groups") or []) and not dup.get("continuations_visible"):
         out.append("  ⚠️ leído del `goal` del spawn, que NO dice de dónde viene: un RELEVO de proveedor sale "
                    "aquí como duplicado y no se puede distinguir")

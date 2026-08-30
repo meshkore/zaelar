@@ -2466,7 +2466,12 @@ def worker_bridges(*, since: float = 0.0, logs_dir: str = "") -> dict:
     """
     import glob
     import os
-    out: dict = {"sessions": 0, "by_bridge": {}, "errors": {}, "read": False}
+    # `sessions_with_exit2` es el ÚNICO número honesto sobre fallos aquí: `errors[puente]` suma una vez por
+    # CADA puente nombrado en una sesión que además contenía `Exit code 2`, así que una sola sesión rota con
+    # tres puentes mencionados sale como tres errores. Medido en `search-buy-motorcycle__us` (2026-08-30):
+    # `{nav_cli: 1, worker_bridge: 1, mesh_cli: 1}` era UN fallo, y el juez lo leyó como tres puentes rotos y
+    # firmó un hallazgo [alta] inventándose los detalles («argumentos faltantes, errores de fichero»).
+    out: dict = {"sessions": 0, "by_bridge": {}, "errors": {}, "sessions_with_exit2": 0, "read": False}
     base = logs_dir or os.path.join(os.path.dirname(str(config.SANDBOX_DB)), "..", "..", "logs", "sessions")
     try:
         ficheros = sorted(glob.glob(os.path.join(base, "*.jsonl")))
@@ -2492,6 +2497,8 @@ def worker_bridges(*, since: float = 0.0, logs_dir: str = "") -> dict:
                 # sesión, no una atribución.
                 if "Exit code 2" in texto:
                     out["errors"][puente] = out["errors"].get(puente, 0) + 1
+        if "Exit code 2" in texto:
+            out["sessions_with_exit2"] += 1
     return out
 
 

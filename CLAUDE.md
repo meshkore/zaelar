@@ -5202,6 +5202,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **The instrument must not turn a coincidence into a cause (V2-506, 2026-08-30)**: two false `[alta]`
+  findings in the first three rounds of the 24h iteration, both the same shape — a field meaning
+  *co-occurrence* rendered as *attribution*, which the judge then signed as a product defect.
+  - **Escalations counted as workers.** `duplicate_errands.groups[].n` counts escalation REQUESTS with the
+    same text (`text_source: escalate.requested`). The report printed «2 workers para UN encargo … se paga
+    entero cada vez» with `worker_health.spawned: 1` in the same block. One worker ran; nothing was paid
+    twice. `dev-main` disproved it by reconstructing the window from the lab's `sandbox.db` — **the
+    instrument spent another agent's time.** The real finding was underneath: escalation 1 opened its
+    results sheet on screen and its worker never started.
+  - **One broken session counted as three broken bridges.** `worker_bridges.errors` increments once per
+    bridge NAMED in a session containing `Exit code 2` — its own docstring says «una coincidencia en la
+    sesión, no una atribución». The judge received it as an error list and filed `[alta]` naming
+    «argumentos faltantes, errores de archivo», **detail it invented**: it had received three counters.
+  - ⚠️ **The judge treats the mechanism report as ground truth BY DESIGN** — that is what makes a use-case
+    verdict worth more than reading a transcript. The price is that every unqualified number becomes a fact
+    it reasons from and fills in. So: **a number that reaches the judge must carry what it is a number OF —
+    in the line the judge reads**, not in the detector's docstring. Both detectors documented their limit;
+    neither published it.
+  - A wrong product defect is not a smaller version of a right one: it sends a developer to the wrong file,
+    and it makes the next true finding cheaper to dismiss.
+
 - **A retired provider may not be named by ANY ladder (V2-504, 2026-08-30)**: V2-500 retired xAI and Groq
   by measurement (`403 used all available credits`, `404 model_not_found` — `llama-3.3-70b-versatile` no
   longer exists) and removed them from ONE ladder. There are TWO. The voice LATENCY-RELAY ladder

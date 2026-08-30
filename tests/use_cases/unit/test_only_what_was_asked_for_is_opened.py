@@ -155,6 +155,51 @@ def test_the_report_SAYS_it_when_an_errand_ran_twice():
     assert "0,60" not in joined, "el informe sigue citando la vara vieja del motor"
 
 
+def test_escalations_are_not_WORKERS_and_the_report_must_not_say_they_are():
+    """El grupo cuenta PETICIONES DE ESCALADA con el mismo texto (`text_source: escalate.requested`), no
+    workers nacidos. Llamarlas «workers» inventa un hecho — y lo inventaba con el desmentido pegado.
+
+    Medido en `cheapest-monitor__us` (2026-08-30): el informe imprimió «2 workers para UN encargo … se paga
+    entero cada vez» mientras el MISMO bloque traía `worker_health.spawned: 1` y
+    `duplicate_errands.n_spawned: 1`. Un worker nació; nadie pagó dos veces. La acusación viajó hasta un
+    encargo y la desmontó dev-main leyendo la base del plató: el instrumento gastó el tiempo de otro agente.
+
+    La cota es CONSERVADORA a propósito: `n_spawned` es de toda la ventana, así que si un grupo dice más
+    peticiones que workers nacidos en la ronda entera, esas peticiones no pueden haber sido workers.
+    """
+    from tests.use_cases.e2e.agent import report as reportmod
+    joined = "\n".join(reportmod._mechanism_numbers({
+        "worker_health": {"spawned": 1, "ok": 0, "still_running": 1},
+        "duplicate_errands": {"n_spawned": 1, "worst": 2, "continuations_visible": True,
+                              "groups": [{"n": 2, "goal": "Investigate current work monitors", "identical": True,
+                                          "min_sim": 1.0, "max_sim": 1.0, "jaccard_max": 1.0,
+                                          "engine_metric": "contención", "engine_bar": 0.45,
+                                          "over_engine_bar": True}]},
+    }))
+    assert "2 workers para UN encargo" not in joined, "vuelve a contar peticiones y llamarlas workers"
+    assert "se paga entero cada vez" not in joined, "afirma un doble cobro que su propio contador desmiente"
+    assert "solo 1 worker(s) NACIDO(S)" in joined
+    # Y el hueco tiene que quedar SEÑALADO, porque es el hallazgo de verdad: una escalada que abre su hoja en
+    # pantalla y no llega a nacer deja una caja esperando trabajo que nadie empezó.
+    assert "no llegaron a nacer" in joined
+
+
+def test_and_a_REAL_double_spawn_is_still_reported_as_such():
+    """El contrapeso, sin el cual lo de arriba es «desactivar el detector»: cuando de verdad nacen dos workers
+    para un encargo, el informe tiene que seguir diciéndolo con todas las letras."""
+    from tests.use_cases.e2e.agent import report as reportmod
+    joined = "\n".join(reportmod._mechanism_numbers({
+        "worker_health": {"spawned": 2, "ok": 1},
+        "duplicate_errands": {"n_spawned": 2, "worst": 2, "continuations_visible": True,
+                              "groups": [{"n": 2, "goal": "Busca un hotel", "identical": True,
+                                          "min_sim": 1.0, "max_sim": 1.0, "jaccard_max": 1.0,
+                                          "engine_metric": "contención", "engine_bar": 0.45,
+                                          "over_engine_bar": True}]},
+    }))
+    assert "2 workers para UN encargo" in joined
+    assert "se paga entero cada vez" in joined
+
+
 def _rounds(tmp_path, spawns: list[str], asked: list[str] | None = None) -> str:
     """Los DOS eventos que existen de verdad: la escalada (texto completo) y el nacimiento (goal recortado)."""
     db = tmp_path / "r.db"

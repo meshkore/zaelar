@@ -51,11 +51,26 @@ def test_sin_informe_de_puentes_tampoco_afirma_nada():
     assert "consultó la red" not in txt and "PREGUNTÓ A LA RED" not in txt
 
 
-def test_los_ERRORES_de_puente_se_siguen_diciendo():
-    """V2-399 seguía en pie: un worker cuyos puentes fallan no es un worker sin criterio."""
+def test_los_ERRORES_de_puente_se_siguen_diciendo_PERO_SIN_ATRIBUIR():
+    """V2-399 sigue en pie: un worker cuyos puentes fallan no es un worker sin criterio, así que el hecho tiene
+    que llegar al juez. Lo que NO puede llegar es como una atribución.
+
+    `errors[puente]` suma una vez por cada puente NOMBRADO en una sesión que contenía `Exit code 2` — el propio
+    detector lo dice: «una coincidencia en la sesión, no una atribución». Medido en
+    `search-buy-motorcycle__us` (2026-08-30): `{nav_cli: 1, worker_bridge: 1, mesh_cli: 1}` era UN fallo, el
+    juez leyó tres puentes rotos, firmó [alta] contra el producto e inventó los detalles («argumentos
+    faltantes, errores de fichero») que nunca recibió — solo le habían llegado unos contadores.
+    """
     txt = mechanism_facts(_mech(worker_bridges={
-        "read": True, "sessions": 1, "by_bridge": {"nav_cli": 1}, "errors": {"nav_cli": 3}}))
-    assert "PUENTES DEL WORKER CON ERRORES" in txt and "nav_cli ×3" in txt
+        "read": True, "sessions": 1, "by_bridge": {"nav_cli": 1, "mesh_cli": 1},
+        "errors": {"nav_cli": 1, "mesh_cli": 1}, "sessions_with_exit2": 1}))
+
+    assert "Exit code 2" in txt, "el hecho tiene que seguir llegando al juez"
+    assert "nav_cli" in txt and "mesh_cli" in txt, "y con los puentes que había en esa sesión"
+    # La parte que impide el falso defecto: el número honesto es de SESIONES, y el límite va escrito.
+    assert "1 sesión(es)" in txt, "vuelve a contar puentes en vez de sesiones rotas"
+    assert "NO una atribución" in txt
+    assert "NO describas la causa" in txt, "sin esto el juez se inventa el detalle que no recibió"
 
 
 def test_sin_sesiones_en_la_ventana_lo_DICE_en_vez_de_callarse():
