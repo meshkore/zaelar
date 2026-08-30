@@ -43,6 +43,48 @@ def _lone_amount(text: str) -> str:
     return hits[0][:20] if len(hits) == 1 else ""
 
 
+#: Un enlace, como lo escribe cualquier fuente. Reconocer un enlace es agnóstico del dominio; reconocer un
+#: producto no lo sería.
+_URL_RE = _re.compile(r"https?://\S{4,}", _re.I)
+
+#: El ENVOLTORIO de una tool: su propia transcripción, con el JSON de enlaces dentro. Es ESTRUCTURA (un
+#: array de objetos detrás de dos puntos), no una frase — por eso no hace falta reconocer el idioma en que
+#: cada CLI redacta su cabecera, que es la carrera que este repo lleva perdiendo desde V2-364.
+_ENVELOPE_RE = _re.compile(r':\s*\[\s*\{\s*"')
+
+
+def looks_like_a_finding(text: str) -> bool:
+    """¿Este texto TRAE algo, o solo CUENTA lo que pasó?
+
+    V2-511. `_maybe_hand_web` empuja el texto CRUDO de cualquier paso web que no sea `is_error`, y una tool
+    que devuelve un rechazo CON ÉXITO no lo es. Medido en `cheapest-monitor__us` (20260830-130649) con la
+    hoja VACÍA y 17 notas ofrecidas al cerebro: siete eran errores HTTP o negativas del propio worker
+    («The server returned HTTP 404…», «Based on the content provided, I'm unable to summarize…») y **once
+    eran el envoltorio del buscador del CLI** («Web search results for query: … Links: [{"title":…»). Cero
+    fichas. El juez llevaba cuatro rondas archivando «presenta candidatos irrelevantes» y el agente no
+    elegía mal: le dábamos eso.
+
+    DOS cortes, los dos ESTRUCTURALES — no una lista de frases en inglés, que es la cinta de correr que
+    V2-364 ya midió («perseguir el idioma es una carrera que no se gana») y que además dejaría fuera a
+    cualquier CLI que redacte su cabecera de otra forma:
+
+      · un ENVOLTORIO de tool (JSON de enlaces dentro) es su transcripción, no un resultado que nadie vetó;
+      · un hallazgo trae un DATO DURO —un enlace o un importe—. Una narración sobre la página no trae
+        ninguno de los dos, y ese es justo su parecido de familia: cuenta, no entrega.
+
+    COSTE ACEPTADO Y DICHO: un hallazgo cuyo único dato accionable sea un TELÉFONO (el encargo de servicio
+    de V2-240) no pasa este corte por esta puerta. No se añade aquí a propósito — «nueve a catorce dígitos»
+    sobre prosa libre es la trampa que V2-321 pagó (una fecha leída como teléfono), y la hoja SÍ conserva el
+    teléfono por su propio camino. Antes de ensancharlo, medirlo.
+    """
+    t = " ".join(str(text or "").split())
+    if not t:
+        return False
+    if _ENVELOPE_RE.search(t):
+        return False
+    return bool(_URL_RE.search(t) or _AMOUNT_RE.search(t))
+
+
 MAX_CHARS = 700          # lo que cabe en una nota sin convertir la conversación en un volcado
 MIN_CHARS = 12           # por debajo no hay hallazgo que contar («ok», «done», una línea vacía)
 
@@ -95,6 +137,10 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
     """
     body = clip(text)
     if len(body) < MIN_CHARS:
+        return False
+    # V2-511 — lo que CUENTA lo que pasó no se empuja como si TRAJERA algo. V2-510 arregló el imperativo
+    # (una página no es un candidato); esto quita de en medio lo que ni siquiera es una página.
+    if not looks_like_a_finding(body):
         return False
     key = str(task_id)
     seen = _HANDED.setdefault(key, set())

@@ -6477,6 +6477,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     rechazo con éxito no lo es). Distinguir un rechazo de un hallazgo sin acabar en una lista de frases de
     error en inglés quiere su propia medición.
 
+- **Lo que CUENTA lo que pasó no es lo que TRAE algo (V2-511, 2026-08-30)**: `_maybe_hand_web` empujaba el
+  texto CRUDO de todo paso web que no fuera `is_error` — **y una tool que devuelve un rechazo CON ÉXITO no lo
+  es**. Medido en `cheapest-monitor__us` (20260830-130649) con la hoja **VACÍA** (`in_sheet: 0`,
+  `shown_to_model: false`) y **17 notas** ofrecidas igual: 7 errores HTTP y negativas del propio worker, **11
+  el envoltorio del buscador del CLI** («Web search results for query: … Links: [{"title":…»), **0 fichas**.
+  El juez llevaba cuatro rondas archivando «presenta candidatos irrelevantes» [alta] y el agente no elegía
+  mal: le dábamos eso.
+  - **DOS cortes ESTRUCTURALES, no una lista de frases**: un ENVOLTORIO se delata por su forma (un array JSON
+    de enlaces tras dos puntos), no por su prosa; y un hallazgo trae un DATO DURO —enlace o importe—, que es
+    lo que una narración sobre la página nunca tiene. Lo pedido era «lo que empiece por *The server
+    returned*», y eso es la carrera que V2-364 midió como imposible de ganar, además de dejar fuera a
+    cualquier CLI que redacte su cabecera de otra forma.
+  - **El ORDEN importa y tiene test**: un envoltorio está LLENO de enlaces, así que mirar primero si hay URL
+    dejaría pasar los once.
+  - **Coste aceptado y dicho**: un hallazgo cuyo único dato accionable sea un TELÉFONO (V2-240) no pasa por
+    esta puerta. No se ensancha a propósito — «nueve a catorce dígitos» sobre prosa libre es la trampa que
+    pagó V2-321, y la hoja conserva el teléfono por su camino.
+  - Nodo 2.5, 16 casos, desarme en cuatro direcciones — la que decide es la CONTRARIA (exigir enlace **y**
+    importe): un filtro que lo tira todo pasa todos los casos de «esto es basura» y deshace V2-236 en
+    silencio.
+  - ⚠️ **Segundo desarme verde en dos iniciativas, y otra vez el fallo era del TEST**: emparejaba dos cadenas
+    CORTAS, cuya firma es la cadena entera, así que quemar una no podía tapar a la otra. `_HANDED` indexa por
+    `body[:200]`, o sea que el peligro solo existe con textos largos que comparten prefijo — una página leída
+    dos veces, estéril y luego llena. Reescrito con ese caso.
+  - **No añade señal, quita ruido**: si la vuelta siguiente sale con `offered` casi a cero y la hoja SIGUE
+    vacía, lo que falta está aguas arriba —el worker no extrae— y es otro fichero.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

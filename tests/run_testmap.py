@@ -263,6 +263,10 @@ DOMAINS: list[dict] = [
             # —el canal que de verdad mueve al cerebro— seguía ordenando «dáselo con nombre, precio y
             # enlace» sobre lo que fuera, así que un titular de comparativa se entregaba como producto.
             "tests/agent_headless/unit/workers/test_a_search_return_is_a_lead_not_a_candidate.py",
+            # V2-511 — y la otra mitad: `_maybe_hand_web` empujaba el texto CRUDO de todo paso web que no
+            # fuera `is_error`, y una tool que devuelve un rechazo CON ÉXITO no lo es. 17 notas ofrecidas
+            # con la hoja VACÍA: 7 errores/negativas y 11 el envoltorio del buscador del CLI. Cero fichas.
+            "tests/agent_headless/unit/workers/test_what_counts_is_not_what_it_brings.py",
             "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
             # V2-507 — sólo el ACIERTO del dedup dejaba fila, así que «no casó con nada» y «no había nada
