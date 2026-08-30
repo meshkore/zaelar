@@ -163,12 +163,16 @@ def _VOICE_RELAYS() -> list[dict]:
     {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
      "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-pro"), "provider": "aimlapi",
      "plan": "DeepSeek directo V4 Pro (enrutado del titular, TTFT ×7,5 mejor)"},
-    {"name": "xai-fast", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
-     "model": os.getenv("ZAELAR_VOICE_RELAY_XAI_MODEL", "grok-4-fast"), "provider": "aimlapi",
-     "plan": "xAI Grok Fast (1,4× el titular)"},
-    {"name": "groq", "base_url": "https://api.groq.com/openai/v1", "env": ["GROQ_API_KEY"],
-     "model": os.getenv("ZAELAR_VOICE_RELAY_GROQ_MODEL", "llama-3.3-70b-versatile"), "provider": "aimlapi",
-     "plan": "Groq LPU (TTFT sub-segundo, 4,2× el titular)"},
+    # xAI (`grok-4-fast`) y Groq (`llama-3.3-70b-versatile`) ESTUVIERON AQUÍ y se fueron el 2026-08-30 (V2-504).
+    # V2-500 los retiró del catálogo por medición —xAI devuelve `403 used all available credits` y el modelo de
+    # Groq ya no existe, `404 model_not_found`— pero los quitó de UNA cadena y hay DOS: esta, la de relevo por
+    # LATENCIA, siguió nombrándolos. No hacía daño, porque en self-host esta lista sale vacía y ninguno de los
+    # tres motores la usaba; hacía algo peor a medio plazo: era el documento donde el reparto seguía diciendo
+    # otra cosa, y cada vez que alguien lo leía volvía a abrirse la misma discusión.
+    #
+    # Norma del operador, y aquí es donde se aplica: **un solo failover por servicio**. El relevo por latencia
+    # tiene UN escalón, el de arriba, que además es el mismo cerebro por otro endpoint — o sea que relevar ya
+    # no cambia el modelo bajo medición, que era el otro motivo por el que una escalera larga estorbaba.
 ]
 
 

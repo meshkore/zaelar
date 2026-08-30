@@ -143,17 +143,29 @@ def test_en_self_host_NO_hay_relevo_por_defecto(monkeypatch):
 
 def test_en_la_nube_la_cadena_es_barata_y_rapida(monkeypatch):
     """El orden NO es por calidad, es por (rapidez al primer token, precio de entrada). Con el input dominando
-    14:1 en este cerebro, lo único que cuenta es el precio de entrada: `grok-4-fast` está a 1,4× el titular;
-    `grok-4.5` estaría a 14×, y por eso NO entra de fábrica."""
+    14:1 en este cerebro, lo único que cuenta es el precio de entrada.
+
+    ⚠️ Este test EXIGÍA `grok-4-fast` en la cadena hasta el 2026-08-30. Dejó de ser una garantía y pasó a ser la
+    contradicción: la tabla retiró xAI midiendo (`403 used all available credits`) y este test obligaba a
+    mantenerlo, así que quitarlo del código ponía la suite en rojo. Un test puede convertirse en el sitio donde
+    sobrevive una decisión derogada, y entonces defiende justo lo que hay que quitar (V2-504).
+
+    Lo que se fija ahora es la propiedad que sigue viva: **un solo relevo, barato y rápido**, y ninguno de los
+    caros que se rechazaron midiendo.
+    """
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True)
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
     from nucleo.flash import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
-    modelos = [t.get("model") for t in pc._voice_chain()]
-    assert "grok-4-fast" in modelos
-    assert not any("grok-4.5" in str(m) for m in modelos), "un escalón de 14× no puede ser el defecto"
+    modelos = [str(t.get("model")) for t in pc._voice_chain()]
+
+    assert len(modelos) == 2, f"titular + UN relevo, norma del operador — la cadena trae {len(modelos)}: {modelos}"
+    assert "deepseek-v4-pro" in modelos, "el relevo es el MISMO cerebro por el endpoint directo (V2-097)"
+    # Los caros que se rechazaron MIDIENDO. `grok-4.5` estaría a 14× el titular; ninguno puede volver de fábrica.
+    for caro in ("grok-4.5", "grok-4.6", "gpt-4.1", "claude"):
+        assert not any(caro in m for m in modelos), f"un escalón de {caro} no puede ser el defecto"
 
 
 def test_el_primer_escalon_de_relevo_es_el_que_pasa_la_puerta_de_enrutado(monkeypatch):
