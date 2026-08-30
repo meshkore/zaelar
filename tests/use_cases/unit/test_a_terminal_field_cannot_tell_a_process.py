@@ -49,7 +49,13 @@ def test_el_recorrido_viaja_ENTERO_no_solo_donde_acabo(tmp_path):
 
 
 @pytest.mark.parametrize("titulo", ["Page Not Found", "Access Denied", "Robot Check", "403 Forbidden",
-                                   "Are you a human?", "Too Many Requests 429"])
+                                   "Are you a human?", "Too Many Requests 429",
+                                   # Los INTERSTICIALES anti-bot no dicen que lo son, y son los que de verdad
+                                   # nos paran. «Just a moment…» (Cloudflare) se colo en la PRIMERA ronda que
+                                   # corrio con esta señal: newegg contaba como visitada, sin una sola ficha,
+                                   # y el informe la presentaba como un sitio que no tenia nada.
+                                   "Just a moment...", "Checking your browser before accessing",
+                                   "Attention Required! | Cloudflare", "Pardon Our Interruption"])
 def test_un_muro_se_dice_como_MURO(tmp_path, titulo):
     """El título lo dice en cuatro palabras; el cuerpo de un muro son 5 KB de HTML que no dicen nada.
 

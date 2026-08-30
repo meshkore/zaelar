@@ -1493,7 +1493,14 @@ def _items_in(txt: str) -> list[dict]:
 #: Va sobre el título y no sobre el cuerpo a propósito: el cuerpo de un muro es HTML de 5 KB que no dice nada,
 #: y el título lo dice en cuatro palabras. Se compara en minúsculas y sin acentos del lado del patrón.
 _MUROS = ("page not found", "not found", "access denied", "forbidden", "robot check", "are you a human",
-          "captcha", "unusual traffic", "blocked", "403", "429", "service unavailable")
+          "captcha", "unusual traffic", "blocked", "403", "429", "service unavailable",
+          # Los INTERSTICIALES anti-bot, que no dicen nunca que lo son. «Just a moment…» es el de Cloudflare y
+          # se lo tragó la primera ronda que corrió con esta señal (2026-08-30, newegg.com/p/pl): la página
+          # cuenta como visitada, no trae ni una ficha, y sin esta fila el informe la presenta como un sitio
+          # que simplemente no tenía nada. Es exactamente el fallo que esta señal existe para impedir, un
+          # proveedor más abajo.
+          "just a moment", "checking your browser", "verify you are human", "attention required",
+          "one more step", "ddos-guard", "pardon our interruption")
 
 
 def page_journey(db_path, *, since: float = 0.0, limit: int = 24) -> dict:
