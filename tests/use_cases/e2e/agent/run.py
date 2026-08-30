@@ -395,16 +395,6 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # conté que el agente «se quedó en la portada de Amazon»: había pasado por la página de resultados
             # correcta dos pasos antes, y por Best Buy después. Un campo terminal no puede contar un proceso.
             mech["page_journey"] = verifymod.page_journey(config.SANDBOX_DB, since=started_at)
-            # EL SELLO: cada cifra de entrega se lleva pegado si la ronda se había ASENTADO al medirla.
-            # El arnés ya avisaba —«el motor SEGUÍA trabajando al medir»— y salió en 23 de los 30 informes del
-            # 2026-08-30, y aun así construí tres series de entrega mezclando rondas asentadas y sin asentar.
-            # Un aviso al lado de la cifra se puede no pesar; un campo DENTRO de la cifra viaja con ella a
-            # cualquier tabla que alguien haga después. Misma regla que V2-506/V2-512: un número solo vale si
-            # dice de qué es — y aquí, si se leyó al final de la película o a la mitad.
-            _asentado = (quiescence or {}).get("settled")
-            for _clave in ("delivery_completeness", "offered", "worker_outcome"):
-                if isinstance(mech.get(_clave), dict):
-                    mech[_clave]["settled"] = _asentado
             # DELIVERY LAG, computed HERE and not left for the judge to infer (V2-300). Round 25: rows landed
             # 21:37:08, zaelar named them 21:37:36 — 28 s, the very next turn — and the judge, holding a raw
             # epoch it cannot cross with turn numbers, wrote «lo tuvo 123 segundos y calló» [alta]. A number
@@ -500,6 +490,21 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["delivery_completeness"] = verifymod.delivery_completeness(
                 mech.get("delivered_by_name"), mech.get("results_sheet"),
                 verifymod.shown_candidates(mech.get("prompt_context")))
+            # EL SELLO, Y VA AQUÍ A PROPÓSITO: DESPUÉS de la última cifra que hay que sellar. La primera
+            # versión lo puso 100 líneas antes, donde `delivery_completeness` todavía no existía: selló
+            # `offered` y `worker_outcome`, se saltó justo la cifra que más se lee, y NO se quejó — el
+            # `isinstance` que puse por prudencia se tragó el fallo. Una guarda que convierte un error en
+            # silencio es peor que no tenerla, y es el defecto que llevo el día entero señalando en otros.
+            #
+            # Qué sella: si la ronda se había ASENTADO al medirla. El arnés ya avisaba —«el motor SEGUÍA
+            # trabajando al medir»— y salió en 23 de los 30 informes del 2026-08-30; aun así construí tres
+            # series de entrega mezclando asentadas y no asentadas. Un aviso AL LADO de la cifra se puede no
+            # pesar; un campo DENTRO viaja con ella a cualquier tabla que alguien haga después.
+            _asentado = (quiescence or {}).get("settled")
+            for _clave in ("delivery_completeness", "offered", "worker_outcome"):
+                _dst = mech.get(_clave)
+                if isinstance(_dst, dict):
+                    _dst["settled"] = _asentado
             # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
             # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».

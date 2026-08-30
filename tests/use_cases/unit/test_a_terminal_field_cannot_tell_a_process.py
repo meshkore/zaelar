@@ -133,3 +133,8 @@ def test_cada_cifra_de_entrega_dice_si_la_ronda_se_ASENTO():
     assert '"delivery_completeness", "offered", "worker_outcome"' in src, (
         "alguna cifra de entrega vuelve a viajar sin decir si se leyó al final o a la mitad")
     assert '_asentado = (quiescence or {}).get("settled")' in src
+    # EL ORDEN, que es donde falló la primera versión: el sello tiene que ir DESPUÉS de la última cifra que
+    # sella. Puesto antes, `delivery_completeness` todavía no existe, el `isinstance` lo salta y no se queja:
+    # dos de tres selladas y la que más se lee, no. Medido en la ronda 20260830-1541.
+    assert src.index('mech["delivery_completeness"] = ') < src.index('_asentado = (quiescence'), (
+        "el sello vuelve a ir ANTES de que exista la cifra que más se lee — y falla en silencio")
