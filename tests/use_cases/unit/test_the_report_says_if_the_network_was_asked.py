@@ -141,3 +141,32 @@ def test_una_PISTA_no_se_cuenta_como_candidato(tmp_path):
     # Y las partes SUMAN: lo que llega por nota no lleva calificador, así que se cuenta como sin clasificar
     # en vez de colarse en uno de los dos lados.
     assert o["n_offered"] == o["n_candidates"] + len(o["leads"]) + o["n_unclassified"]
+
+
+def test_la_PROSA_del_prompt_no_produce_candidatos(tmp_path):
+    """Aflojar el patrón a la palabra «ENTREGADO» para cubrir la segunda redacción hizo que casara con
+    INSTRUCCIONES del prompt que la contienen, y de ahí salían «candidatos» como «va dando pasos», «el de
+    siempre» o «tienes dos cosas: primero el recibo de la luz y segundo tu receta» — cinco cadenas fijas,
+    idénticas en todas las rondas, que además envenenaban `delivered_by_name`, porque se alimenta de aquí.
+
+    Un matcher que se afloja para cubrir un caso nuevo se traga el ruido del viejo.
+    """
+    import json as _j
+    import sqlite3
+
+    from tests.use_cases.e2e.agent import verify
+
+    db = tmp_path / "s.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
+    sp = ('Cuando el operador te ha ENTREGADO algo, no lo repitas: «el de siempre», «va dando pasos». '
+          'Ejemplo: si te dice «tienes dos cosas: primero el recibo de la luz», eso NO es un candidato. '
+          '… — YA ENTREGADO (de su hoja): «Acer Nitro VG270K — $159.99» (llevas 40s).')
+    con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
+                (1000.0, "observer", "flash", _j.dumps({"system_prompt": sp})))
+    con.commit(); con.close()
+
+    o = verify.offered_to_brain(str(db))
+    assert o["candidates"] == ["Acer Nitro VG270K"], f"la prosa se coló: {o['candidates']}"
+    for basura in ("el de siempre", "va dando pasos", "el recibo de la luz"):
+        assert not any(basura in c for c in o["candidates"] + o["leads"]), f"«{basura}» sigue contando"

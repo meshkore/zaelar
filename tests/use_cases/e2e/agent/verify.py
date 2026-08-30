@@ -1751,7 +1751,14 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
         # Las dos redacciones, y sus dos finales: la de `live_blocks` cierra con «. OJO» y la de `task_block`
         # sigue con « (llevas Ns)». Se corta por lo que venga primero en vez de por un terminador fijo, que es
         # lo que ataba este lector a UNA de las dos.
-        m = re.search(r"ENTREGADO[^:]*:\s*(.+?)(?:\.\s*OJO|\(llevas|\.\s*Si el operador|$)", sp, re.S)
+        # LAS DOS CABECERAS EXACTAS, no la palabra suelta. Aflojarlo a `ENTREGADO` para cubrir la segunda
+        # redacción hizo que casara con INSTRUCCIONES del prompt que contienen la palabra, y de ahí salían
+        # «candidatos» como «va dando pasos», «el de siempre» o «tienes dos cosas: primero el recibo de la luz»
+        # — cinco cadenas fijas del prompt, en todas las rondas, que además envenenaban `delivered_by_name`
+        # porque este `named` lo alimenta. Un matcher que se afloja para cubrir un caso nuevo se traga el ruido
+        # del viejo: se enumeran las dos formas y se acabó.
+        m = re.search(r"(?:LO QUE YA HA ENTREGADO|YA ENTREGADO)\s*\([^)]*\)\s*:\s*"
+                      r"(.+?)(?:\.\s*OJO|\(llevas|\.\s*Si el operador|$)", sp, re.S)
         if not m:
             continue
         for chunk in re.findall(r"«([^»]+)»", m.group(1)):
