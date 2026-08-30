@@ -505,6 +505,16 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 _dst = mech.get(_clave)
                 if isinstance(_dst, dict):
                     _dst["settled"] = _asentado
+            # NO TODOS LOS CAMPOS SON PROVISIONALES DE LA MISMA MANERA, y tratarlos igual hacía descartar
+            # rondas enteras cuyo dato SÍ era final. Lo que el agente DIJO y lo que el prompt le puso delante
+            # están cerrados al acabar la conversación; lo que el worker escribe en la hoja sigue creciendo.
+            #
+            # `delivered_by_name` está en medio y por eso se marca aparte: casa el transcrito CONTRA LA HOJA,
+            # así que con la hoja a medias es una COTA INFERIOR, no una cuenta. Medido: la ronda 1630 esperó
+            # 155 s y detectó dos entregas que con el tope de 60 s no habrían aparecido — no porque el agente
+            # dijera más, sino porque había más hoja contra la que casar.
+            if isinstance(mech.get("delivered_by_name"), dict):
+                mech["delivered_by_name"]["lower_bound"] = not _asentado
             # …Y SI ALGUIEN RESETEÓ EL MOTOR A MITAD. Un reset cierra todas las tarjetas, y cerrar una
             # tarjeta con la tarea viva deja la pestaña en `cancelled` sin tocar al worker — la firma exacta
             # de la familia archivada como «cancelación a mitad con el navegador en la página buena».

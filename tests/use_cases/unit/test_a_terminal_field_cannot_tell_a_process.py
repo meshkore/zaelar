@@ -138,3 +138,24 @@ def test_cada_cifra_de_entrega_dice_si_la_ronda_se_ASENTO():
     # dos de tres selladas y la que más se lee, no. Medido en la ronda 20260830-1541.
     assert src.index('mech["delivery_completeness"] = ') < src.index('_asentado = (quiescence'), (
         "el sello vuelve a ir ANTES de que exista la cifra que más se lee — y falla en silencio")
+
+
+def test_lo_que_el_agente_DIJO_no_es_provisional_igual_que_lo_que_el_worker_ESCRIBIO():
+    """Tratar todos los campos como igual de provisionales hacía descartar rondas enteras cuyo dato SÍ era
+    final, y con eso la serie no se llenaba nunca: un filtro que excluye todo no mide nada.
+
+    Lo que el agente DIJO y lo que el prompt le puso delante están cerrados al acabar la conversación. Lo que
+    el worker escribe en la hoja sigue creciendo. `delivered_by_name` está en medio —casa el transcrito CONTRA
+    la hoja— así que con la hoja a medias es una COTA INFERIOR, no una cuenta: medido, la ronda 1630 esperó
+    155 s y detectó dos entregas que con el tope de 60 s no habrían aparecido, no porque el agente dijera más
+    sino porque había más hoja contra la que casar.
+    """
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as R
+
+    src = inspect.getsource(R)
+    assert 'mech["delivered_by_name"]["lower_bound"] = not _asentado' in src, (
+        "un recuento de entregas vuelve a viajar como si fuera exacto cuando la hoja estaba a medias")
+    # Y va DESPUÉS del sello, porque depende de la misma señal.
+    assert src.index('_asentado = (quiescence') < src.index('"lower_bound"')
