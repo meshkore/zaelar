@@ -11,6 +11,7 @@ what a worker does when it needs one"), memory, widget, system, pulse.
 from __future__ import annotations
 
 import json
+import os
 import unicodedata
 import re
 import time
@@ -3058,7 +3059,14 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
     return out
 
 
-def wait_for_quiescence(db_path, *, max_wait: float = 60.0, quiet_for: float = 6.0,
+#: Cuánto se espera a que el motor calle antes de leer. Eran 60 s fijos, y en `cheapest-monitor__us` (2026-08-30)
+#: eso dejó **23 de 30 rondas sin asentar**: el worker de ese caso vive 250-400 s, así que la lectura fotografiaba
+#: la mitad de la película. No era una mentira —el informe lo avisaba en cada una— pero sí una señal peor de la
+#: que hace falta. Configurable porque el número correcto depende del caso, no del arnés.
+_ESPERA_MAX_S = float(os.getenv("UC_QUIESCE_S", "180"))
+
+
+def wait_for_quiescence(db_path, *, max_wait: float = _ESPERA_MAX_S, quiet_for: float = 6.0,
                         poll: float = 2.0) -> dict:
     """Wait until the engine STOPS writing events, so the mechanism is read after the round, not during it.
 

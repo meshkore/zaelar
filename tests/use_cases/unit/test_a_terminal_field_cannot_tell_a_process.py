@@ -100,3 +100,36 @@ def test_el_juez_recibe_el_MURO_y_la_orden_de_no_puntuarlo(tmp_path):
     assert "CERRÓ" in txt and "Access Denied" in txt
     assert "NO es del producto" in txt, "sin esto, el juez puntúa un 403 como que el worker buscó mal"
     assert "RECORRIDO" in txt, "y tiene que saber que la última página no resume lo que hizo"
+
+
+def test_la_espera_al_silencio_es_PROPORCIONADA_al_trabajo(monkeypatch):
+    """Eran 60 s fijos, y en `cheapest-monitor__us` (2026-08-30) eso dejó **23 de 30 rondas sin asentar**: el
+    worker de ese caso vive 250-400 s, así que la lectura fotografiaba la mitad de la película.
+
+    No era una mentira —el informe lo avisaba cada vez— pero sí una señal peor de la que hace falta, y con
+    ella construí tres series de entrega. Configurable porque el número correcto depende del caso.
+    """
+    from tests.use_cases.e2e.agent import verify
+
+    assert verify._ESPERA_MAX_S >= 120, "60 s no cubren a un worker que vive 250-400 s"
+    import inspect
+    firma = inspect.signature(verify.wait_for_quiescence)
+    assert firma.parameters["max_wait"].default == verify._ESPERA_MAX_S, (
+        "la espera por defecto y la constante se han separado: se configura una y manda la otra")
+
+
+def test_cada_cifra_de_entrega_dice_si_la_ronda_se_ASENTO():
+    """Un aviso AL LADO de la cifra se puede no pesar — pasó 23 veces el mismo día. Un campo DENTRO de la
+    cifra viaja con ella a cualquier tabla que alguien haga después.
+
+    Se comprueba sobre el runner porque es el único que tiene a la vez el veredicto de quiescencia y las
+    cifras: es donde se sella.
+    """
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as R
+
+    src = inspect.getsource(R)
+    assert '"delivery_completeness", "offered", "worker_outcome"' in src, (
+        "alguna cifra de entrega vuelve a viajar sin decir si se leyó al final o a la mitad")
+    assert '_asentado = (quiescence or {}).get("settled")' in src
