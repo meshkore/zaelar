@@ -126,7 +126,9 @@ def test_esta_CABLEADO_despues_del_dedup_directo():
                     if not l.strip().startswith("#"))
     assert "to_thread(about_a_live_errand" in src, (
         "la decisión no está enchufada al único punto por el que pasan todas las escaladas")
-    assert src.index("find_duplicate(") < src.index("to_thread(about_a_live_errand"), (
+    # V2-507: el barato se llama ahora `dedup_scan(` (devuelve veredicto + evidencia). El guarda sigue al
+    # ORDEN, que es lo que protege, no al nombre que tenía.
+    assert src.index("dedup_scan(") < src.index("to_thread(about_a_live_errand"), (
         "el dedup barato va primero; el modelo solo para lo que aquél no puede ver")
     assert "if _live:" in src, "sin encargos vivos no puede llamarse al modelo"
 
@@ -134,6 +136,11 @@ def test_esta_CABLEADO_despues_del_dedup_directo():
 def test_las_DOS_mitades_del_dedup_se_distinguen_en_observabilidad():
     """Contarlas juntas esconde cuál de las dos falla — y la próxima medida es justo esa."""
     import inspect
+    from nucleo import dedup as _dedup
     src = inspect.getsource(dispatch.run_listener)
     assert '"by": _dup_by' in src
-    assert '"containment"' in src and '"model"' in src
+    assert '"model"' in src
+    # V2-507: `"containment"` lo pone ahora quien lo MIDE (`dedup.scan`), no el llamante que lo suponía —
+    # allí un acierto por widget se archivaba como una contención que ese camino nunca calcula.
+    assert '"containment"' in inspect.getsource(_dedup.scan)
+    assert '"widget"' in inspect.getsource(_dedup.scan)

@@ -6390,6 +6390,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   cajón nombran los dos rechazos **con las palabras del propio guarda** — una regla que no se puede conectar
   con el error recibido no se aplica. Se sigue prohibiendo la causa, no solo nombrando el síntoma. Nodo 4.61.
 
+- **El dedup decía que NO y no decía POR QUÉ (V2-507, 2026-08-30)**: solo el ACIERTO dejaba fila
+  (`task/dedup`), así que «no casó con ninguna tarea viva» y «no había ninguna tarea viva contra la que
+  casar» se leían IGUAL desde fuera — y piden arreglos OPUESTOS: una vara rota, o una sesión que murió al
+  nacer. Medido en `cheapest-monitor__us` (ronda 20260830-114302): dos hojas abiertas (`results::101c0f-1`
+  a las 11:34:03, `-2` a las 11:34:22), **UN solo worker arrancado** (los 209 eventos `task` de la ventana
+  llevan id=2; no hay un `task/start` de id=1 en ninguna parte) y **ningún `task/dedup`**. Releyendo el log
+  de eventos del sandbox seguía sin poder decidirse cuál de las dos había pasado.
+  - **El arnés había tapado el hueco con un número que no podía falsar nada**: contención 1,0 entre los dos
+    goals que ÉL vio, que es un par DISTINTO del que compara el motor (la petición entrante contra el goal
+    truncado a 200 de una sesión viva). **Una acusación que no se puede falsar es peor que el defecto que
+    nombra** — en una iteración de 24 h, cada ronda podía culpar al dedup gratis.
+  - `nucleo/dedup.py::scan` devuelve **veredicto + evidencia** (`live` · `best` · `against` · `bar` · `by`) y
+    el caso negativo emite `task/dedup_miss`. **`live` es el campo que decide**: 0 significa que no había
+    nadie contra quien casar, y de eso no se puede culpar a ninguna vara.
+  - **La evidencia la produce el bucle que DECIDE, nunca se recalcula al lado** — una segunda copia deriva y
+    entonces la fila reporta un número que el código no usó, que es la confusión que esto quita. Por lo mismo
+    un acierto por MISMO WIDGET deja de archivarse como `by: "containment"`, una cuenta que ese camino no
+    hace.
+  - **Y la misma confusión una capa más adentro**: `except Exception: dup = ""` hacía que un juez que
+    REVENTÓ se leyera igual que uno que contestó «son distintos». Se registra (`model: "error:<Tipo>"`); el
+    fail-open **no se toca** — un juez inalcanzable no puede bloquear un encargo.
+  - ⚠️ **Un defecto que el arreglo se encontró a sí mismo**: una contención de exactamente `0.0` dejaba
+    `against` vacío, o sea la fila decía «no casé con nadie» sobre una sesión que acababa de comparar. **El
+    cero es un resultado, no una ausencia.**
+  - El trinquete de arquitectura cobró de paso (`dispatch.py` 1922 > 1865): la regla salió entera a
+    `nucleo/dedup.py`, PURA sobre los encargos vivos que se le pasan — mismo precedente que `sheets.py`,
+    `errand_kind.py` y `engine_url.py`. La guarda de deriva de `test_one_yardstick_of_similarity.py` se
+    **repuntó a `dedup.scan`**: dejada sobre el envoltorio habría seguido pasando mientras la aritmética se
+    iba a otro módulo, y **una guarda que no guarda nada se lee como cobertura**.
+  - Nodo 2.5, 12 casos, desarme en cinco direcciones — y el que importa es el CONTRARIO: sin él, «emitir
+    siempre» satisfaría todos los demás.
+  - **Lo que NO arregla**: la escalada 1 abrió hoja en pantalla y su worker nunca arrancó — ni un evento.
+    Esto es el instrumento que lo nombrará la próxima vez, no el arreglo. **Sin verificar en vivo.**
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

@@ -24,6 +24,7 @@ import time
 import unicodedata
 from dataclasses import dataclass, field
 
+from nucleo import dedup as _dedup
 from nucleo import matching
 from typing import Any
 
@@ -675,12 +676,7 @@ def _content_words(text: str) -> set:
 
 
 def _target_widget(request: str) -> str:
-    """Widget EXISTENTE que la petición referencia ('' si ninguno) — clave de dedup para tareas de widget."""
-    try:
-        from nucleo.agentes import code as _code
-        return _code._referenced_widget(request) or ""
-    except Exception:
-        return ""
+    return _dedup.target_widget(request)
 
 
 def trace_of(tid: str) -> str:
@@ -704,95 +700,24 @@ def has_live_trace(trace_id: str) -> bool:
 
 
 def find_duplicate(request: str, kind: str) -> str | None:
-    """tid de una sesión VIVA que ya está atendiendo ESTA misma petición ('' → None). El dedup vive AQUÍ, en la
-    fuente de verdad (registro RAM), NO en el snapshot de inicio de turno del provider de voz (que falló la
-    sesión 2026-07-15: la re-escalada llegó en un turno ambiente por contaminación de ventana y `_similar_pending`
-    no la vio). Dos señales: (1) MISMO widget destino (tareas de código sobre el mismo widget) → dedup fuerte;
-    (2) CONTENCIÓN de palabras de contenido con el goal de una sesión viva.
-
-    F4 (2026-08-23) — la vara es `matching.containment`, no Jaccard, y el porqué está medido: el cerebro
-    REFORMULA el encargo en cada escalada (668/437/342/298 chars el mismo caso), Jaccard divide por la UNIÓN y
-    una reformulación más larga se ve distinta *por ser más larga* — cuatro workers para un encargo el
-    2026-08-21, Jaccard entre pares 0,319-0,450, todos bajo el 0,60 de entonces. La contención divide por el
-    conjunto PEQUEÑO, que es la pregunta real («¿la versión corta está dentro de la larga?»), y separa sin
-    solape (mismo encargo 0,571-0,893 · distintos 0,062-0,227). De propina neutraliza el recorte de
-    `goal=request[:200]`: el lado truncado es el `min` por el que se divide, así que recortar el goal guardado
-    apenas mueve la medida — con Jaccard lo hundía siempre."""
-    req_w = _content_words(request)
-    if not req_w:
-        return None
-    tgt = _target_widget(request) if kind in ("code", "generic") else ""
-    for k, r in _SESSIONS.items():
-        if r.status not in LIVE_SESSION_STATES:
-            continue
-        if tgt and _target_widget(r.goal) == tgt:
-            return k
-        if matching.containment(req_w, _content_words(r.goal)) >= matching.SAME_ERRAND:
-            return k
-    return None
+    """tid de una sesión VIVA que ya atiende ESTA petición ('' → None). La REGLA vive en `nucleo/dedup.py`;
+    aquí solo se resuelve QUIÉN está vivo, que es lo único que este módulo sabe."""
+    return dedup_scan(request, kind)[0]
 
 
-_SCOPE_SYSTEM = (
-    "Decides ONE thing about an assistant's background work: the operator has errands ALREADY RUNNING, and a "
-    "new request just arrived. Is it a SEPARATE errand, or is it ABOUT one of the running ones?\n\n"
-    "ABOUT a running one (answer its number): asking how it is going, whether there is anything yet, telling it "
-    "to hurry, thanking, acknowledging, adding a detail or a correction to it, narrowing or widening it, asking "
-    "it to try another site — anything the running errand's own worker could act on.\n"
-    "SEPARATE (answer 0): a different thing to find, book, build or investigate — even in the same domain. "
-    "Looking for a guitar and looking for a camera are two errands.\n\n"
-    'Reply ONLY with JSON: {"about": <number of the running errand, or 0>}. Nothing else.\n'
-    "If you cannot tell, answer 0."
-)
+def _live_errands() -> list[tuple[str, str]]:
+    """(tid, goal) de cada sesión VIVA — el único punto que traduce el registro RAM para los dos jueces."""
+    return [(k, r.goal) for k, r in _SESSIONS.items() if r.status in LIVE_SESSION_STATES]
 
 
-def about_a_live_errand(request: str, live: list[tuple[str, str]]) -> str:
-    """The tid of the live errand this request is ABOUT, or "" when it is a genuinely NEW one.
+def dedup_scan(request: str, kind: str) -> tuple[str | None, dict]:
+    """El veredicto del dedup Y la evidencia sobre la que lo tomó (`nucleo/dedup.scan`)."""
+    return _dedup.scan(request, kind, _live_errands())
 
-    THE SECOND HALF OF THE DEDUP, and the one `find_duplicate` structurally cannot do. That one answers «is
-    this a reformulation of the same request», by containment over content words, and it is right to: it was
-    built for a brain that rewrites the errand every time it escalates. What it cannot see is a turn that is
-    not a request at all. Measured 2026-08-24, goals straight out of the lab's durable log — ONE guitar
-    search:
 
-        16:14:30  web       «Busca en marketplaces de segunda mano … una guitarra acústica…»   <- the errand
-        16:15:48  research  «¿Alguna novedad ya?»                                              <- a worker
-        16:16:20  research  «Perfecto, dale. ¿Tienes algo ya?»                                 <- another
-
-    Four cards on the operator's screen for one errand, three workers competing for the same turn, and a
-    fourth-case worker reporting on «the four searches» because its own errand WAS a follow-up question.
-    Containment reads 0 between «¿alguna novedad?» and «busca una guitarra» — correctly. There is no word
-    list that fixes this either: the ways of asking how something is going are unbounded, and a list would
-    be the hardcoding this codebase keeps paying for. So a MODEL judges it, exactly like V2-075's
-    conversational-health criterion, and for the same reason.
-
-    Runs ONLY with something already live, which is what keeps it cheap: the first errand of a conversation —
-    the common case — never pays for it. It is off the voice turn (the dispatcher already answered) though
-    still in front of a worker the operator is waiting on, hence the direct reasoning-OFF endpoint.
-
-    FAIL-OPEN, and the direction is deliberate: anything unreadable answers "" and the errand spawns, which is
-    exactly today's conduct. Refusing to spawn on a failed model call would silently swallow real errands —
-    an operator whose request vanished has no way to even see what happened, while a spurious extra worker is
-    visible on screen, which is how this defect got found in the first place.
-    """
-    if not request.strip() or not live:
-        return ""
-    menu = "\n".join(f"{i + 1}. {str(goal or '')[:160]}" for i, (_tid, goal) in enumerate(live))
-    try:
-        from nucleo import memllm
-        raw = memllm.chat_sync("errand_scope", _SCOPE_SYSTEM,
-                               f"RUNNING ERRANDS:\n{menu}\n\nNEW REQUEST:\n{request[:400]}",
-                               max_tokens=32, temperature=0.0, timeout=12.0)
-    except Exception:  # noqa: BLE001
-        return ""
-    if not raw:
-        return ""
-    m = re.search(r'"about"\s*:\s*(\d+)', raw)
-    if not m:
-        return ""
-    n = int(m.group(1))
-    # Out of range is NOT "the last one": a number nobody offered is a model that did not answer the question,
-    # and picking a neighbour would attach the operator's request to an errand chosen at random.
-    return live[n - 1][0] if 1 <= n <= len(live) else ""
+#: Re-exportado para que `run_listener` lo resuelva como global del módulo — así un test puede sustituirlo
+#: y el cableado real sigue siendo el que se prueba.
+about_a_live_errand = _dedup.about_a_live_errand
 
 
 # ATRIBUCIÓN: qué palabras de una alusión sirven para reconocer una tarea, y cuándo dos son LA MISMA cosa.
@@ -1739,20 +1664,28 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # DEDUP en la FUENTE DE VERDAD (§sesión 2026-07-15): si ya hay una sesión viva atendiendo esta misma
             # petición, NO abrimos un 2º worker (el bug de los dos «creando un widget…»). Se INYECTA como
             # refinamiento (el generador de widgets, build atómico, lo ignora con gracia; un worker vivo lo aprovecha).
-            dup = find_duplicate(request, kind if kind != "generic" else _classify_kind(request))
-            _dup_by = "containment" if dup else ""
+            dup, _ev = dedup_scan(request, kind if kind != "generic" else _classify_kind(request))
+            # `by` now comes from the deciding loop instead of being assumed here: a same-widget hit used to
+            # be filed as «containment», which is a number it never computed.
+            _dup_by = _ev.get("by") or ""
+            _model = "skipped"          # the second half only runs with something live to compare against
             if not dup:
                 # SEGUNDA MITAD DEL DEDUP, off-loop. `find_duplicate` responde «¿es una reformulación de lo
                 # mismo?» y no puede responder «¿es esto un encargo siquiera?» — ver `about_a_live_errand`.
                 # Solo corre con algo vivo, así que el primer encargo de una conversación no lo paga; y va en
                 # un hilo porque `chat_sync` es síncrono y este bucle es el del servidor.
-                _live = [(k, r.goal) for k, r in _SESSIONS.items() if r.status in LIVE_SESSION_STATES]
+                _live = _live_errands()
                 if _live:
                     try:
                         dup = await asyncio.to_thread(about_a_live_errand, request, _live)
-                        _dup_by = "model" if dup else ""
-                    except Exception:  # noqa: BLE001
+                        _dup_by = "model" if dup else _dup_by
+                        _model = "about" if dup else "separate"
+                    except Exception as e:  # noqa: BLE001
                         dup = ""
+                        # A model half that CRASHED used to be indistinguishable from one that answered
+                        # «separate» — the same confusion as the mute miss, one layer in. Recorded, not
+                        # changed: the fail-open stays, an unreachable judge must never block an errand.
+                        _model = f"error:{type(e).__name__}"
             if dup:
                 try:
                     from voice.observer import emit
@@ -1775,6 +1708,20 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 if not _merge_dedup_flow(ctx, dup):
                     _close_escalated_flow(ctx, ok=True, status="dedup_injected")
                 continue
+            # THE NEGATIVE DECISION, SAID OUT LOUD (V2-507). Only the hit was emitted, so «the dedup did not
+            # fire» could not be told from «there was nothing live to fire against» — opposite fixes, and the
+            # round of 20260830-114302 spent a full replay of the event log without settling it. `live` is the
+            # one that decides: 0 means nobody was there to match, and no yardstick can be blamed for that.
+            try:
+                from voice.observer import emit
+                emit("task", "dedup_miss", role="system", text=request[:120],
+                     extra={"id": key, "live": _ev.get("live", 0), "best": _ev.get("best", 0.0),
+                            "against": _ev.get("against", ""), "bar": _ev.get("bar", 0.0), "model": _model,
+                            "reason": ("encargo NUEVO: no había ninguna tarea viva contra la que comparar"
+                                       if not _ev.get("live") else
+                                       "encargo NUEVO: no casa con ninguna tarea viva")})
+            except Exception:
+                pass
             # V2-049 CONTINUIDAD: sin sesión viva que casar, ¿hay una gestión web INCOMPLETA reciente que ESTA
             # petición reanuda? (nudge «sigue con la ITV», o el operador aportando el dato que faltaba). Reanuda esa
             # misma pestaña + razonamiento en vez de arrancar de cero.

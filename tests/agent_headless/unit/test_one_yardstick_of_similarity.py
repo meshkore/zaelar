@@ -93,9 +93,16 @@ def test_truncation_of_the_stored_goal_is_harmless_now():
 def test_both_judges_import_the_shared_primitive():
     """The class guard. Two copies of a decision drift apart silently, and the alarm arrives as three workers
     driving one tab. If either judge grows its own set-arithmetic again, this goes red."""
-    src_dispatch = inspect.getsource(dispatch.find_duplicate)
+    # V2-507 moved the loop into `nucleo/dedup.py::scan` (the verdict now travels with the evidence it
+    # decided on) and left `find_duplicate` a wrapper. The guard has to follow the RULE, not the name:
+    # pointed at the wrapper it would keep passing while the arithmetic drifted a module away — a guard that
+    # guards nothing, which is worse than no guard because it reads like coverage.
+    from nucleo import dedup as _dedup
+    src_dispatch = inspect.getsource(_dedup.scan)
     assert "matching.containment" in src_dispatch
-    assert "len(req_w | o)" not in src_dispatch, "find_duplicate grew a private union-division again"
+    assert "len(req_w | o)" not in src_dispatch, "dedup.scan grew a private union-division again"
+    assert "dedup_scan(" in inspect.getsource(dispatch.find_duplicate), (
+        "find_duplicate must keep delegating: a second copy of the rule is how the two judges drifted apart")
 
     from widgets.navegador import tasks
     src_similar = inspect.getsource(tasks._similar)

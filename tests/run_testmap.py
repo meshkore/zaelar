@@ -261,6 +261,11 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/workers/test_photos_are_delivered_to_the_viewer.py",
             "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-507 — sólo el ACIERTO del dedup dejaba fila, así que «no casó con nada» y «no había nada
+            # contra lo que casar» se leían igual, y piden arreglos OPUESTOS. Medido en cheapest-monitor__us
+            # (20260830-114302): dos hojas, UN worker, ningún task/dedup, y ni releyendo el log de eventos se
+            # podía decidir cuál de las dos fue.
+            "tests/agent_headless/unit/test_the_dedup_says_why_it_did_not_fire.py",
             # V2-301: el brief se compone EN PARALELO con el spawn — el compositor razonador (15-30 s) corría
             # en serie antes del worker, que luego gastaba sus propios ~20 s de preámbulo; solapados, la
             # búsqueda entra en los 2-3 min del operador. El brief tardío llega por inyección (V2-038).
