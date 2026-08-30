@@ -801,6 +801,21 @@ def mechanism_facts(mech: dict) -> str:
                      f"un puente concreto por esto y NO describas la causa, que aquí no consta. Úsalo solo "
                      f"para explicar por qué el worker pudo volver con menos. Un puente roto es MECANISMO, "
                      f"no conducta.")
+    # V2-512 — UN CERO NO DICE POR QUÉ ES CERO. Medido el 2026-08-30: `bhphotovideo.com/c/search` devolvía
+    # 403 con página anti-robot mientras el informe traía `search_health: degraded=false`, así que «el worker
+    # no encontró nada» y «al worker no le dejaron entrar» llegaban aquí IDÉNTICOS. El juez solo podía leerlo
+    # como lo primero, y eso es un defecto de producto inventado a partir del humor de un comercio.
+    _pj = mech.get("page_journey") or {}
+    if _pj.get("n_walls"):
+        _muros = "; ".join(f"«{(w.get('title') or '')[:34]}»" for w in (_pj.get("walls") or [])[:3])
+        lines.append(f"· ⛔ EL MUNDO EXTERIOR CERRÓ {_pj['n_walls']} PUERTA(S) en esta ronda: {_muros}. Si el "
+                     f"worker volvió con poco o con nada, esto puede ser la causa y NO es del producto: no lo "
+                     f"puntúes como que buscó mal. Lo que SÍ es del producto es qué hizo al encontrarse el "
+                     f"muro — si lo dijo y probó otro sitio, o si se quedó callado.")
+    if _pj.get("read") and _pj.get("n_pages"):
+        lines.append(f"· El navegador pasó por {_pj['n_pages']} página(s). Júzgalo por el RECORRIDO, no por "
+                     f"dónde acabó: la última página suele ser un callejón, no el resumen de lo que hizo.")
+
     # V2-399 — la memoria semántica del plató puede estar degradada sin que lo esté la de producción.
     _em = mech.get("embeddings") or {}
     if _em.get("degraded") or _em.get("skipped"):

@@ -391,6 +391,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 [{"title": x} for x in offered.get("titles") or []], transcript)
             wo["n_offered"] = offered.get("n_offered", 0)
             mech["worker_outcome"] = wo
+            # POR DÓNDE ESTUVO, no dónde se quedó (V2-512). El informe publicaba el ÚLTIMO url y con eso yo
+            # conté que el agente «se quedó en la portada de Amazon»: había pasado por la página de resultados
+            # correcta dos pasos antes, y por Best Buy después. Un campo terminal no puede contar un proceso.
+            mech["page_journey"] = verifymod.page_journey(config.SANDBOX_DB, since=started_at)
             # DELIVERY LAG, computed HERE and not left for the judge to infer (V2-300). Round 25: rows landed
             # 21:37:08, zaelar named them 21:37:36 — 28 s, the very next turn — and the judge, holding a raw
             # epoch it cannot cross with turn numbers, wrote «lo tuvo 123 segundos y calló» [alta]. A number

@@ -2123,6 +2123,14 @@ DOMAINS: list[dict] = [
         {"id": "10.59", "title": "Only what was asked for is opened: a base card sitting on top of its own "
                                  "instance is reported as a ghost, and an unattended canvas is never called clean",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_only_what_was_asked_for_is_opened.py"]},
+        # V2-512 — el informe publicaba el ÚLTIMO url del navegador, y con eso conté que el agente «se había
+        # quedado en la portada de Amazon sin buscar»: había pasado por la página de resultados correcta dos
+        # pasos antes, y por Best Buy después — 19 páginas. Un campo terminal no puede contar un proceso. Y la
+        # otra mitad: `search_health` decía `degraded=false` con el comercio principal devolviendo 403, así que
+        # «no encontró» y «no le dejaron entrar» llegaban al juez como el mismo hecho.
+        {"id": "10.128", "title": "A terminal field cannot tell a process: the browser journey travels whole, "
+                                 "and a wall is said to be a wall so a zero is attributable",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_terminal_field_cannot_tell_a_process.py"]},
         {"id": "10.60", "title": "The engine under test is running the code we have: a clean tree is not an "
                                  "up-to-date process, and a stale lab agent refuses the round",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_engine_under_test_is_the_code_we_have.py"]},

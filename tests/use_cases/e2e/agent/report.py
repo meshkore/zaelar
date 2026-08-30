@@ -169,6 +169,17 @@ def _mechanism_numbers(mech: dict) -> list[str]:
         if wh.get("cancelled"):
             bits.append(f"{wh['cancelled']} cancelado(s) al cerrar la ronda")
         out.append("workers: " + " · ".join(bits))
+    pj = mech.get("page_journey") or {}
+    if pj.get("read") and pj.get("n_pages"):
+        _ruta = " → ".join(f"{(p.get('title') or '?')[:34]}" for p in (pj.get("pages") or [])[:6])
+        out.append(f"recorrido del navegador: {pj['n_pages']} página(s) · {_ruta}"
+                   + ("…" if pj["n_pages"] > 6 else ""))
+    if pj.get("n_walls"):
+        _m = "; ".join(f"{(w.get('why') or '?')}: {(w.get('title') or '')[:30]}" for w in pj["walls"][:3])
+        # SE DICE APARTE del resto: un `found: 0` con un muro delante no significa lo mismo que sin él, y
+        # mezclarlo con los números de entrega es como se lee un bloqueo del mundo como un fallo del producto.
+        out.append(f"⛔ **{pj['n_walls']} página(s) nos cerraron la puerta**: {_m} — un «no encontró nada» "
+                   f"con esto delante puede ser «no le dejaron entrar»")
     dup = mech.get("duplicate_errands") or {}
     # Una CONTINUACIÓN se cuenta, con su motivo, y NO como un fallo de dedup: el coste en tokens es real y
     # tiene que verse, pero llamarlo duplicado manda a mirar un mecanismo que se portó bien (V2-238/V2-117).

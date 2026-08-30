@@ -5202,6 +5202,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **A terminal field cannot tell a process, and a zero must say why it is zero (V2-512, 2026-08-30)**: two
+  mistakes hours apart, same shape, both already on their way to another agent when they were caught.
+  - The report published `navegador_task.url` — the LAST url — and from it I wrote that the agent «parked on
+    Amazon's home page without searching». It had passed through `amazon.com/s?k=27+inch+4k+monitor`, the
+    correct results page, two steps earlier, and Best Buy after that: **19 pages**. A terminal field invites
+    exactly that reading.
+  - `search_health` reported `degraded: false` while `bhphotovideo.com/c/search` answered **403 with an
+    anti-robot page** (verified with `curl`). So «found nothing» and «was not let in» reached the judge as the
+    same fact — and a product defect gets invented out of a retailer's mood.
+  - Fixed with `page_journey`: the browser's route travels WHOLE (title + url, in order) and the pages that
+    were WALLS are named. The judge is told the limit in the line it reads: *this is not the product, do not
+    score it as searching badly — what IS the product is what it did when it hit the wall.*
+  - Same rule as V2-506 one level up: **a number, a url or a silence only counts if it says what it is of.**
+
 - **The instrument must not turn a coincidence into a cause (V2-506, 2026-08-30)**: two false `[alta]`
   findings in the first three rounds of the 24h iteration, both the same shape — a field meaning
   *co-occurrence* rendered as *attribution*, which the judge then signed as a product defect.

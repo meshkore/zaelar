@@ -1489,6 +1489,75 @@ def _items_in(txt: str) -> list[dict]:
     return out
 
 
+#: Cómo se ve, en el TÍTULO de la página a la que se aterriza, que el mundo exterior nos cerró la puerta.
+#: Va sobre el título y no sobre el cuerpo a propósito: el cuerpo de un muro es HTML de 5 KB que no dice nada,
+#: y el título lo dice en cuatro palabras. Se compara en minúsculas y sin acentos del lado del patrón.
+_MUROS = ("page not found", "not found", "access denied", "forbidden", "robot check", "are you a human",
+          "captcha", "unusual traffic", "blocked", "403", "429", "service unavailable")
+
+
+def page_journey(db_path, *, since: float = 0.0, limit: int = 24) -> dict:
+    """POR DÓNDE ESTUVO el navegador, en orden — no dónde se quedó.
+
+    Nace de un error mío del 2026-08-30 que ya iba camino de otro agente: el informe publicaba
+    `navegador_task.url`, que es el ÚLTIMO url, y yo conté que el agente «se había quedado en la portada de
+    Amazon sin buscar». Había pasado por `amazon.com/s?k=27+inch+4k+monitor` —la página de resultados
+    correcta, título y todo— dos pasos antes. Un campo TERMINAL no puede contar un PROCESO, y publicar solo el
+    último invita exactamente a esa lectura.
+
+    Y trae la otra mitad, que es la que hace attribuible un `found: 0`: cuáles de esas páginas fueron un MURO.
+    Medido el mismo día con `curl`: `bhphotovideo.com/c/search` devolvía 403 con página anti-robot mientras
+    `search_health` decía `degraded: false`. Un cero que puede significar «no encontró» o «no le dejaron
+    entrar» no es una medida — y sin esta señal el juez solo puede leerlo como lo primero.
+    """
+    import sqlite3
+
+    out: dict = {"read": False, "n_pages": 0, "pages": [], "walls": [], "n_walls": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:  # noqa: BLE001
+        return out
+    try:
+        filas = con.execute(
+            "SELECT ts_ms, payload FROM events WHERE payload LIKE '%navegador%' ORDER BY ts_ms").fetchall()
+    except Exception:  # noqa: BLE001
+        return out
+    finally:
+        try: con.close()
+        except Exception: pass
+
+    out["read"] = True
+    vistas: list[tuple[str, str]] = []
+    for ts, payload in filas:
+        if since and (ts or 0) < since * 1000.0:
+            continue
+        try:
+            d = json.loads(payload)
+        except Exception:  # noqa: BLE001
+            continue
+        if "página" not in str(d.get("label") or ""):
+            continue
+        # El evento trae «TÍTULO · URL» en una línea; se parte por el separador que pone el motor.
+        texto = str(d.get("text") or "")
+        titulo, _, url = texto.partition(" · ")
+        titulo, url = titulo.strip(), url.strip()
+        if not url:
+            continue
+        if vistas and vistas[-1] == (titulo, url):
+            continue                      # la misma página repetida seguida no es un paso nuevo
+        vistas.append((titulo, url))
+
+    out["n_pages"] = len(vistas)
+    out["pages"] = [{"title": t, "url": u} for t, u in vistas[:limit]]
+    for t, u in vistas:
+        low = t.lower()
+        golpe = next((m for m in _MUROS if m in low), "")
+        if golpe:
+            out["walls"].append({"title": t, "url": u, "why": golpe})
+    out["n_walls"] = len(out["walls"])
+    return out
+
+
 def worker_outcome(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE WORKER ACHIEVED, and whether any of it reached the user.
 
