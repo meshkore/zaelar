@@ -106,23 +106,71 @@ def test_a_different_brain_is_allowed_but_SAID_OUT_LOUD(monkeypatch):
     assert "OTRO CEREBRO" in moved and "flash" in moved
 
 
-def test_the_seeded_head_is_the_operators_and_carries_NO_secret(tmp_path):
-    """`config.v2.fast_model_spec()` reads `fast.model`/`fast.base_url`, not `fast.providers[0]`: seeding
-    only the ladder left the sandbox on the hardcoded fallback, so the reorder changed nothing the turn
-    used. And `api_key` stays out — the engine resolves it by endpoint from the credential store."""
+def test_the_seeded_head_is_the_TABLE_titular_and_carries_no_secret(tmp_path):
+    """`config.v2.fast_model_spec()` reads `fast.model`/`fast.base_url`, not `fast.providers[0]`: seeding only
+    the ladder left the sandbox on the hardcoded fallback, so the reorder changed nothing the turn used. The
+    head travels with it.
+
+    It used to be the OPERATOR's head, copied from his live config. Since V2-500 the shipped ladder is the
+    table, and copying his machine is what let the ES lab spend a night answering on last night's model
+    (2026-08-30). No `api_key` is written either — the engine resolves it by endpoint from the credential
+    store, and nothing secret belongs under `tests/runs/`, which nothing cleans up.
+    """
     import json
-    src = tmp_path / "v2.json"
-    src.write_text(json.dumps({"fast": {"provider": "aimlapi", "model": "deepseek-v4-pro",
-                                        "base_url": "https://api.deepseek.com",
-                                        "api_key": "sk-NO-DEBE-VIAJAR", "providers": [A]}}),
-                   encoding="utf-8")
-    head = R._fast_head(src)
-    assert head == {"provider": "aimlapi", "model": "deepseek-v4-pro",
-                    "base_url": "https://api.deepseek.com"}
-    assert "api_key" not in head
+
+    from config import models as table
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    R.seed_provider_chain(ws)
+    out = json.loads((ws / "config" / "v2.json").read_text(encoding="utf-8"))
+
+    titular = table.rungs("voice_brain")[0]
+    assert out["fast"]["model"] == titular["model"], "the sandbox answers on a brain we do not ship"
+    assert out["fast"]["base_url"] == titular["base_url"]
+    assert out["fast"]["provider"] == titular["provider"]
+    assert "api_key" not in out["fast"]
+    assert "api_key" not in json.dumps(out)
 
 
-def test_a_head_from_an_unreadable_config_is_empty_not_a_crash(tmp_path):
-    bad = tmp_path / "nope.json"
-    bad.write_text("{not json", encoding="utf-8")
-    assert R._fast_head(bad) == {}
+def test_the_seed_IGNORES_whatever_the_operator_has_on_his_machine(tmp_path, monkeypatch):
+    """The sensitivity half, and the whole point of the change: the previous seed read the operator's live
+    `config/v2.json`, so a lab measured the machine it happened to run on. Pointing that variable at a config
+    naming a different brain must change NOTHING."""
+    import json
+
+    engine = tmp_path / "engine"
+    (engine / "config").mkdir(parents=True)
+    (engine / "config" / "v2.json").write_text(json.dumps({
+        "fast": {"provider": "aimlapi", "model": "un-cerebro-que-no-enviamos",
+                 "base_url": "https://api.aimlapi.com/v1",
+                 "providers": [{"name": "suyo", "model": "otro", "base_url": "https://api.aimlapi.com/v1"}]},
+    }), encoding="utf-8")
+    monkeypatch.setenv("ZAELAR_REAL_ENGINE", str(engine))
+
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    R.seed_provider_chain(ws)
+    out = json.loads((ws / "config" / "v2.json").read_text(encoding="utf-8"))
+
+    assert out["fast"]["model"] != "un-cerebro-que-no-enviamos"
+    assert "suyo" not in json.dumps(out), "the operator's ladder reached the lab"
+
+
+def test_a_seed_over_a_STALE_config_replaces_it_whole(tmp_path):
+    """How the defect actually reached a round: the lab's own file survived the seed. It is written whole, so
+    a block left over from a previous night cannot outlive a boot."""
+    import json
+
+    ws = tmp_path / "ws"
+    (ws / "config").mkdir(parents=True)
+    (ws / "config" / "v2.json").write_text(json.dumps({
+        "fast": {"provider": "aimlapi", "model": "de-anoche", "providers": [{"name": "viejo"}]},
+        "code_agent": {"providers": [{"name": "licencia-claude", "local_only": True}]},
+    }), encoding="utf-8")
+
+    R.seed_provider_chain(ws)
+    out = json.loads((ws / "config" / "v2.json").read_text(encoding="utf-8"))
+    assert "de-anoche" not in json.dumps(out) and "viejo" not in json.dumps(out)
+    assert "licencia-claude" not in json.dumps(out), \
+        "a local-only rung cannot exist in the cloud: a lab that keeps it measures a worker no customer has"

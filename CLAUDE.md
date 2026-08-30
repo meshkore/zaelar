@@ -5202,6 +5202,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **A lab measures the PRODUCT, not the machine it runs on (V2-502, 2026-08-30)**: both labs booted from
+  the same commit and the ES one answered `deepseek-v4-flash` through a THREE-rung chain while the US one
+  answered `deepseek-v4-pro`, the table's titular. Two silos, two products — and every ES↔US comparison
+  across that gap attributes to Spanish what belongs to the model.
+  - **Cause: a decision that was right and expired.** `seed_provider_chain()` copied `fast.providers` from
+    the operator's live `config/v2.json`, which in 2026-08 was the faithful thing (a sandbox with an empty
+    config reported «SIN RELEVO disponible» as an engine defect and had measured its own emptiness). Since
+    V2-500 the shipped ladder is the TABLE, so reading his machine became the contaminating option.
+  - ⚠️ **It failed silently.** With the operator's `fast` block removed so the table would govern, the copy
+    found nothing, returned `""` and left **whatever file was already on disk** in charge — a file from the
+    night before. An early `return ""` was the whole symptom.
+  - Fixed by seeding from the table (fast AND worker), writing `config/v2.json` **whole** so a stale block
+    cannot outlive a boot, and pinning `FAST_*`/`CODE_AGENT_*` in the lab env from the same table.
+  - **Two of its guards had been passing for the wrong reason**: they handed the seeder a fake operator
+    engine and asserted the worker travelled — but the table names the same brain, so they would have gone
+    green whatever the fake said. The missing half is now there: *a config naming a different brain must
+    change nothing.*
+
 - **The memory's semantic space comes from a CLOUD provider, and a paid call is metered (V2-501,
   2026-08-30)**: operator's rule — *«in the cloud we are going to use commercial models… and in local use one
   of those right now»*. The embeddings titular was **Ollama**, a LOCAL server: inside a container it does not

@@ -1156,47 +1156,42 @@ def tree_moved_refusal(stamp: dict, head_now: str) -> str:
 
 
 def seed_provider_chain(ws) -> str:
-    """Dale al sandbox la CADENA DE PROVEEDORES del operador, y nada más de su config.
+    """Give the sandbox the provider ladder OF THE PRODUCT — the table, not the operator's machine.
 
-    El sandbox arranca con un workspace nuevo, así que `config/v2.json` sale vacío, así que la cadena cae a
-    la de por defecto — que en self-host es **solo el titular**. El 2026-08-21, con el titular sin saldo,
-    eso salió por el log como «SIN RELEVO disponible» y yo lo reporté como un defecto del motor: el cerebro
-    era el único componente sin red. Era falso. La config real del operador tiene dos escalones
-    (`deepseek-directo` → `aimlapi-failover`) y AIMLAPI estaba vivo. Lo que medí fue mi propio vacío.
+    It used to copy `fast.providers` from the operator's live `config/v2.json`, and the reason was good at the
+    time: a fresh sandbox has an empty config, so the chain fell back to titular-only, and on 2026-08-21 that
+    surfaced as «SIN RELEVO disponible» and got reported as an engine defect. It was not — the operator had two
+    rungs and AIMLAPI was alive. The round had measured its own emptiness.
 
-    Copiar SOLO `fast.providers` es deliberado: la cadena es infraestructura, y medir el producto con una
-    cadena que el producto no usa mide otra cosa. Todo lo demás de su config se queda fuera —memoria,
-    widgets, preferencias— porque eso sí es del operador y contaminaría la ronda; ya nos costó una noche
-    descubrir que un widget suyo decidía la ciudad de un encargo.
+    Since V2-500 the shipped ladder lives in `config/models.default.json`, so reading the operator's file is no
+    longer the faithful thing — it is the contaminating one. Measured 2026-08-30, both labs freshly booted: the
+    ES lab was answering on `deepseek-v4-flash` through a THREE-rung chain left over from the night before,
+    while the US lab answered on `deepseek-v4-pro`. Two silos, two products, and neither ES row measuring what
+    we ship. Worse, the old path failed SILENTLY: with the operator's `fast` block gone (it now inherits the
+    table) the copy returned "" and left whatever file was already on disk in charge.
 
-    Devuelve lo que se sembró, para que el informe pueda decirlo. Una ronda medida con otra cadena que la
-    de ayer no es comparable con la de ayer.
+    Only the ladder and the worker are seeded — never the rest of a config. Memory, widgets and preferences
+    belong to whoever owns the machine and would contaminate the round; a widget of the operator's deciding the
+    city of an errand already cost us a night.
+
+    Returns what was seeded, so the report can say it. A round run on a different ladder than yesterday's is
+    not comparable with yesterday's.
     """
     try:
         import json as _json
         from pathlib import Path as _P
-        # `config/v2.json` está GITIGNORADO, así que un worktree de medición no lo tiene: buscar relativo a
-        # `__file__` devolvía vacío y la siembra no ocurría en silencio — el mismo fallo mudo que esto
-        # arregla. Se acepta una ruta explícita al motor de verdad, y si no, la de al lado del código.
-        import os as _os
-        cands = []
-        if _os.getenv("ZAELAR_REAL_ENGINE"):
-            cands.append(_P(_os.environ["ZAELAR_REAL_ENGINE"]) / "config" / "v2.json")
-        cands.append(_P(__file__).resolve().parents[3].parent / "config" / "v2.json")
-        src = next((c for c in cands if c.exists()), None)
-        if src is None:
-            return ""
-        chain = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {}).get("providers")
+
+        from config import models as _table
+
+        chain = list(_table.chain_for("voice_brain", names=("deepseek-directo", "aimlapi-failover")))
         if not chain:
             return ""
-        # UN ESCALÓN MÁS, con el modelo del TITULAR sobre el endpoint del failover. No es un apaño para
-        # medir a toda costa: es lo más fiel. El titular del operador es `deepseek-v4-pro` y su failover
-        # salta a `deepseek-v4-flash`, o sea que en cuanto releva **cambia el cerebro bajo medición** —
-        # y una ronda contra flash no es comparable con las de ayer contra pro. Medido el 2026-08-21,
-        # además, flash daba timeout a los 75 s en AIMLAPI mientras pro contestaba en 18: el escalón
-        # configurado apuntaba justo al que no servía. Este va DETRÁS de los suyos, así que no les quita
-        # el turno: solo evita que una noche entera se pierda cuando los dos primeros caen.
-        chain = list(chain)
+        # ONE MORE RUNG, the TITULAR's model over the failover's endpoint. Not a hack to measure at any cost:
+        # it is the more faithful thing. The titular is `deepseek-v4-pro` and the stand-in is
+        # `deepseek-v4-flash`, so the moment it relays **the brain under measurement changes** — and a round
+        # against flash is not comparable with yesterday's against pro. Measured 2026-08-21: flash also timed
+        # out at 75s on AIMLAPI while pro answered in 18. It goes BEHIND theirs, so it never takes their turn:
+        # it only stops a whole night being lost when the first two fall.
         titular_model = str((chain[0] or {}).get("model") or "")
         broker = next((x for x in chain[1:] if "aimlapi" in str(x.get("base_url") or "")), None)
         if titular_model and broker and titular_model not in str(broker.get("model") or ""):
@@ -1206,25 +1201,26 @@ def seed_provider_chain(ws) -> str:
         chain, moved = _live_rung_first(chain)
         # THE LADDER IS NOT THE TITULAR. `config.v2.fast_model_spec()` reads `fast.model` / `fast.base_url`,
         # NOT `fast.providers[0]`, so seeding only the ladder left the sandbox on the hardcoded fallback and
-        # the reorder above changed nothing that the turn actually used: the probe still went to the rung
-        # with no balance and came back 402 with `spec: deepseek/deepseek-v4-pro`. Measured 2026-08-21, on
-        # the fix for this very problem. The head travels with the ladder, and when a rung is promoted the
-        # head is repointed at it — otherwise the promotion is decoration.
-        head = _fast_head(src) or {}
-        if moved and chain:
-            head = {**head, "model": chain[0].get("model"), "base_url": chain[0].get("base_url"),
-                    "provider": chain[0].get("provider") or head.get("provider")}
-        # EL WORKER TAMBIÉN ES INFRAESTRUCTURA (2026-08-27). Sembrar solo `fast` dejaba `code_agent` vacío, y
-        # entonces `providers.pick()` cae al primer escalón SANO del catálogo sin modelo declarado: el plató
-        # arrancaba workers con `model=default` mientras el operador y la nube corren uno concreto. El mismo
-        # argumento que la cadena rápida — medir el producto con un cerebro que el producto no usa mide otra
-        # cosa —, y aquí pesa el doble: en la nube el worker SOLO puede ser Z.AI o DeepSeek (dentro de un
-        # contenedor no existe la licencia local de Claude Code), así que un plató que midiera con la licencia
-        # estaría midiendo un worker que ningún cliente puede tener.
-        cfg = _json.loads(src.read_text(encoding="utf-8")) or {}
-        agent = {k: v for k, v in (cfg.get("code_agent") or {}).items() if k != "api_key"}
+        # the reorder above changed nothing the turn actually used: the probe still went to the rung with no
+        # balance and came back 402. Measured 2026-08-21, on the fix for this very problem. The head travels
+        # with the ladder, and when a rung is promoted the head is repointed at it — otherwise the promotion
+        # is decoration.
+        head = {"provider": chain[0].get("provider"), "model": chain[0].get("model"),
+                "base_url": chain[0].get("base_url")}
+        # THE WORKER IS INFRASTRUCTURE TOO (2026-08-27). Seeding only `fast` left `code_agent` empty, and then
+        # `providers.pick()` falls to the first HEALTHY rung of the catalogue with no declared model: the lab
+        # booted workers on `model=default` while the operator and the cloud run a specific one. Same argument
+        # as the fast chain — measuring the product with a brain the product does not use measures something
+        # else — and here it weighs double: in the cloud the worker can ONLY be Z.AI or DeepSeek (there is no
+        # local Claude Code licence inside a container), so a lab measuring on the licence would be measuring a
+        # worker no customer can have.
+        worker = list(_table.chain_for("brain_worker", names=("z.ai", "deepseek")))
+        agent = {"provider": "claude_code", "model": worker[0].get("model"),
+                 "base_url": worker[0].get("base_url"), "providers": worker} if worker else {}
         dst = _P(ws) / "config"
         dst.mkdir(parents=True, exist_ok=True)
+        # WRITTEN WHOLE, never merged: a stale block that survives a seed is exactly how the ES lab kept
+        # answering on last night's model.
         (dst / "v2.json").write_text(
             _json.dumps({"fast": {**head, "providers": chain}, **({"code_agent": agent} if agent else {})},
                         ensure_ascii=False, indent=2),
@@ -1232,22 +1228,6 @@ def seed_provider_chain(ws) -> str:
         return " → ".join(str(x.get("name") or "?") for x in chain) + (f"  [{moved}]" if moved else "")
     except Exception:
         return ""
-
-
-
-
-def _fast_head(src) -> dict:
-    """The operator's `fast` head — provider/model/base_url and nothing else.
-
-    `api_key` is deliberately NOT copied: the engine resolves the key by endpoint from the credential store,
-    so the sandbox needs no secret written into a file under `tests/runs/` that nothing ever cleans up.
-    """
-    import json as _json
-    try:
-        fast = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {})
-    except Exception:
-        return {}
-    return {k: fast[k] for k in ("provider", "model", "base_url") if fast.get(k)}
 
 
 def rung_answers(rung: dict, *, timeout: float = 25.0) -> tuple[bool, str]:

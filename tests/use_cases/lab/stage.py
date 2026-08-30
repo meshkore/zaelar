@@ -292,6 +292,21 @@ def env_for(profile: LabProfile, *, voice: bool) -> dict:
     # place the agent cannot erase from under us. It also matches what the operator's own engine runs, so the
     # lab is not measuring a memory path the product does not use.
     env = {"ZAELAR_LANGUAGE": profile.language, "MEMORY_RERANK": "off"}
+    # THE BRAIN IS PINNED TO THE TABLE, for the same reason MEMORY_RERANK is pinned above: a running engine
+    # rewrites its own `config/v2.json`, so whatever a lab was started with once survives into rounds nobody
+    # meant to run that way.
+    #
+    # Measured 2026-08-30, with both labs freshly booted: the ES lab was answering on `deepseek-v4-flash`
+    # through a THREE-rung chain inherited from a config file dated the night before, while the US lab —
+    # which had no such file — answered on `deepseek-v4-pro`, the table's titular. So the two silos were not
+    # measuring the same product, and neither ES row was measuring what we ship. A locale comparison across
+    # that gap attributes to Spanish what belongs to the model, and the scoreboard has a `brain` column
+    # precisely because the same case on the titular and on a relay rung is two different products.
+    #
+    # `config.v2.get()` reads stored > env > default, so this pin only holds because `seed_provider_chain`
+    # rewrites the lab's `config/v2.json` WHOLE on every boot, from the same table. That is what kills a block
+    # left over from a previous night — which is how the defect above actually reached a round.
+    env.update(_brain_env_from_table())
     if voice:
         # The engine's own default. Its room prefix is deliberately NOT derived from "zaelar": the voice
         # worker admits any room whose name STARTS WITH its prefix (`voice/engine/pipeline/agent.py`), so
@@ -301,6 +316,38 @@ def env_for(profile: LabProfile, *, voice: bool) -> dict:
         env["ZAELAR_ENGINE"] = "livekit"
         env["ZAELAR_ROOM"] = f"lab-{profile.key}"
     return env
+
+
+#: Table key -> the env vars that carry it into a lab engine. Only the TITULAR: a lab must measure what we
+#: ship, and a stand-in that steps in mid-round is a finding the round should report, never its starting point.
+_PINNED = {
+    "voice_brain": {"provider": "FAST_PROVIDER", "model": "FAST_MODEL", "base_url": "FAST_BASE_URL"},
+    "brain_worker": {"model": "CODE_AGENT_MODEL", "base_url": "CODE_AGENT_BASE_URL"},
+}
+
+
+def _brain_env_from_table() -> dict:
+    """The titular of each brain, read from `config/models.default.json` — never copied here.
+
+    Fail-open ON PURPOSE: if the table cannot be read, the lab still boots on the engine's own defaults. A
+    lab that refuses to start is worse than a lab that starts unpinned, because the unpinned one still
+    records which brain answered (the scoreboard's `brain` column) and the round can be discarded.
+    """
+    try:
+        from config import models as _table
+    except Exception:  # noqa: BLE001
+        return {}
+    out: dict[str, str] = {}
+    for service, fields in _PINNED.items():
+        try:
+            titular = _table.rungs(service)[0]
+        except Exception:  # noqa: BLE001
+            continue
+        for field, env_name in fields.items():
+            value = str(titular.get(field) or "").strip()
+            if value:
+                out[env_name] = value
+    return out
 
 
 def _post(url: str, payload: dict, timeout: float = 60.0) -> dict | None:
