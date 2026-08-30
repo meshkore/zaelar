@@ -211,6 +211,19 @@ def _state(overall, r: dict) -> str:
     if ((mech_.get("embeddings") or {}).get("degraded")):
         _b = (mech_.get("embeddings") or {}).get("backend") or "sin prewarm"
         return _infra(r, f"recall semántico DEGRADADO en esta ronda (backend: {_b})")
+    # UN PLATÓ SIN NAVEGADOR NO MIDE UNA BÚSQUEDA. Medido el 2026-08-30: el Chromium del plató US se cayó y no
+    # volvió, el log repetía «Waiting for the browser to settle before retrying» con HARD RESET cada pocos
+    # minutos, y las rondas salían con la hoja VACÍA — indistinguibles de «el producto no encuentra nada». La
+    # serie asentada bajó 3→3→2→1→0→0 y yo estaba a un mensaje de mandarlo como defecto de extracción.
+    #
+    # La firma es inequívoca y no se confunde con una búsqueda mala: el worker INTENTÓ navegar (`navigations`
+    # > 0) y NO aterrizó en ninguna página (`page_journey.n_pages` == 0). Un worker que busca mal aterriza en
+    # páginas malas; uno sin navegador no aterriza en ninguna. Se exige `read` para no acusar cuando el
+    # recorrido simplemente no se pudo leer — una ausencia de dato no es un dato.
+    _pj, _wo = mech_.get("page_journey") or {}, mech_.get("worker_outcome") or {}
+    if _pj.get("read") and not _pj.get("n_pages") and (_wo.get("navigations") or 0) > 0:
+        return _infra(r, f"el plató NO tiene navegador: {_wo.get('navigations')} intento(s) de navegar y "
+                         f"NINGUNA página alcanzada (revisa el Chromium del plató)")
     if overall is None:
         return _infra(r, "el juez no devolvió nota")
     # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4

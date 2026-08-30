@@ -197,3 +197,46 @@ def test_SANO_lo_decide_el_motor_no_una_copia_del_arnes():
     # Y la propiedad que importa en los dos sentidos: el titular de hoy NO es degradado, y el fallback SÍ.
     assert "cloud" in verify._backends_sanos()
     assert "hash" not in verify._backends_sanos(), "el hashing léxico no puede pasar por memoria sana"
+
+
+def test_un_plato_SIN_NAVEGADOR_no_mide_una_busqueda():
+    """Medido el 2026-08-30: el Chromium del plató US se cayó y no volvió. El log repetía «Waiting for the
+    browser to settle before retrying» con HARD RESET cada pocos minutos, y las rondas salían con la hoja
+    VACÍA — indistinguibles de «el producto no encuentra nada». La serie asentada bajó 3→3→2→1→0→0 y yo estaba
+    a un mensaje de mandarlo como defecto de extracción.
+
+    La firma es inequívoca y no se confunde con buscar mal: **un worker que busca mal aterriza en páginas
+    malas; uno sin navegador no aterriza en ninguna.**
+    """
+    from tests.use_cases.e2e.agent.status import _state
+
+    r = {"run": {"mechanism_report": {
+        "page_journey": {"read": True, "n_pages": 0, "n_walls": 0},
+        "worker_outcome": {"navigations": 3, "extractions": 0},
+    }}, "verdict": {"overall": 2}}
+    assert _state(2, r) == "INFRA"
+    assert "NO tiene navegador" in r["_infra_reason"] and "3 intento" in r["_infra_reason"]
+
+
+def test_pero_una_busqueda_MALA_sigue_siendo_del_producto():
+    """El contrapeso, sin el cual esto archiva como INFRA cualquier ronda floja: si el worker SÍ aterrizó en
+    páginas, buscó mal y eso es del producto."""
+    from tests.use_cases.e2e.agent.status import _state
+
+    r = {"run": {"mechanism_report": {
+        "page_journey": {"read": True, "n_pages": 6, "n_walls": 0},
+        "worker_outcome": {"navigations": 6, "extractions": 2},
+    }}, "verdict": {"overall": 2}}
+    assert _state(2, r) != "INFRA", "una búsqueda mala se está archivando como avería del plató"
+
+
+def test_y_sin_poder_leer_el_recorrido_no_se_ACUSA():
+    """Una ausencia de dato no es un dato: si el recorrido no se pudo leer, no se puede decir que no hubiera
+    navegador."""
+    from tests.use_cases.e2e.agent.status import _state
+
+    r = {"run": {"mechanism_report": {
+        "page_journey": {"read": False, "n_pages": 0},
+        "worker_outcome": {"navigations": 3},
+    }}, "verdict": {"overall": 2}}
+    assert _state(2, r) != "INFRA"
