@@ -179,3 +179,67 @@ def test_una_pasada_sana_NO_borra_el_aviso_de_OTRO(fresh_db):
     _esperando(2)
     assert memrem.repair_embeddings(limit=100) == 2
     assert health_state.get("memory")["text"] == "aviso de otra pieza"
+
+
+# ── V2-503 · the pass that never STARTED ──────────────────────────────────────────────────────────────────────
+# V2-497 (above) gave the repair a voice, but hung it after the loop. `repair_embeddings` also refuses at the
+# ENTRANCE — no vector index, or an active backend that is not the one that sealed the index — and that exit
+# returns before any row is read, so it kept the silent 0 the fix above was written to end. Measured 2026-08-30
+# on a copy of the operator's memory: 45 pills waiting, guard closed, 0 returned in 0.0 s.
+# These cases enter through `repair_embeddings` for the same reason as the ones above (V2-199).
+
+
+def _sealed_with_another_space(monkeypatch):
+    """The index was sealed by a backend that is not the active one — the state the entrance guard defends."""
+    monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda *a, **k: False)
+
+
+def test_a_repair_blocked_at_the_door_says_so(fresh_db, monkeypatch):
+    _esperando(5)
+    said = _avisos(monkeypatch)
+    _sealed_with_another_space(monkeypatch)
+    assert memrem.repair_embeddings(limit=100) == 0
+    assert said, "the entrance guard returned 0 without a word — the V2-497 defect, surviving in this half"
+    assert "5" in said[0]
+
+
+def test_it_names_the_door_because_the_two_need_different_actions(fresh_db, monkeypatch):
+    # Signature mismatch is fixed by pointing the engine back at the right provider; a missing sqlite-vec is an
+    # install problem. A warning that does not say which one sends the reader to the wrong place.
+    _esperando(3)
+    said = _avisos(monkeypatch)
+    _sealed_with_another_space(monkeypatch)
+    memrem.repair_embeddings(limit=100)
+    assert "sealed" in said[0]
+
+    said_2 = _avisos(monkeypatch)
+    monkeypatch.setattr(memdb.get_db(), "vec_available", False)   # instance attribute, not a class one
+    memrem.repair_embeddings(limit=100)
+    assert "sqlite-vec" in said_2[0]
+
+
+def test_with_NOTHING_waiting_a_closed_door_says_nothing(fresh_db, monkeypatch):
+    # A fresh install whose signature never matched has no backlog and no problem to report.
+    said = _avisos(monkeypatch)
+    _sealed_with_another_space(monkeypatch)
+    assert memrem.repair_embeddings(limit=100) == 0
+    assert said == []
+
+
+def test_the_alert_reaches_health_and_not_only_the_log(fresh_db, monkeypatch):
+    # The log is read by whoever is already looking; health is what surfaces on its own.
+    _esperando(4)
+    _avisos(monkeypatch)
+    _sealed_with_another_space(monkeypatch)
+    memrem.repair_embeddings(limit=100)
+    alert = health_state.get("memory")
+    assert alert is not None and "4" in alert["text"]
+
+
+def test_a_closed_door_does_not_wipe_another_pieces_warning(fresh_db, monkeypatch):
+    # Same shared-key rule as the healthy path above (V2-311): this one only ever ADDS.
+    health_state.record("memory", "outage", "somebody else's warning")
+    _avisos(monkeypatch)
+    _sealed_with_another_space(monkeypatch)      # nothing waiting → nothing to say
+    memrem.repair_embeddings(limit=100)
+    assert health_state.get("memory")["text"] == "somebody else's warning"

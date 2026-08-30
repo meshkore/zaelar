@@ -220,7 +220,13 @@ def repair_embeddings(limit: int | None = None) -> int:
     if limit is None:
         limit = _repair_limit_default()
     db = _db.get_db()
-    if not db.vec_available or not _writer._embed_sig_ok():
+    # Each door says WHICH door it was. V2-497 gave the pass a voice but hung it after the loop, so the one
+    # exit that never reaches a row — this guard — kept returning the same silent 0 it was meant to end.
+    if not db.vec_available:
+        _report_repair_blocked(db, "sqlite-vec is not loaded: there is no vector index to repair into")
+        return 0
+    if not _writer._embed_sig_ok():
+        _report_repair_blocked(db, "the active embedding backend is not the one that sealed the index")
         return 0
     # BEFORE the SELECT, never after: a foreign vector is exactly what hides its own row from it (V2-482).
     _drop_foreign_vectors(db, limit)
@@ -264,8 +270,53 @@ def repair_embeddings(limit: int | None = None) -> int:
     return fixed
 
 
+def _pending_without_vector(db) -> int:
+    """How many durable pills are waiting for a vector.
+
+    Falls back to the whole durable set when the vector table itself cannot be read: with sqlite-vec absent
+    every pill is waiting by definition, and a count that raised here would silence the very warning it was
+    called to produce."""
+    try:
+        return db.query("SELECT COUNT(*) c FROM memories m LEFT JOIN vec_memories v ON v.memory_id = m.id "
+                        "WHERE m.valid=1 AND m.kind NOT IN ('conv') AND v.memory_id IS NULL")[0]["c"]
+    except Exception:  # noqa: BLE001
+        try:
+            return db.query("SELECT COUNT(*) c FROM memories WHERE valid=1 AND kind NOT IN ('conv')")[0]["c"]
+        except Exception:  # noqa: BLE001
+            return 0
+
+
+def _report_repair_blocked(db, cause: str) -> None:
+    """Say that the repair pass never even STARTED, and which door stopped it (V2-503).
+
+    V2-497 gave the pass a voice, and measured 2026-08-30 that voice could not be heard in the case that
+    matters most: `repair_embeddings` refuses at the entrance when the vector space is not the one that sealed
+    the index — correctly, because repairing there would write foreign vectors (V2-484) — and that `return 0`
+    sits BEFORE `_report_repair_backlog`. So the loop path spoke and the guard path stayed mute, which is the
+    same silent 0 the previous fix was written to end, surviving in the more likely half.
+
+    Measured on a copy of the operator's memory: 45 pills waiting, the entrance guard closed, and
+    `repair_embeddings` returning 0 in 0.0 s — indistinguishable from a healthy machine with nothing to do.
+
+    Silent when nothing is waiting: a fresh install whose signature has never matched has no backlog and no
+    problem to report. Like `_report_repair_backlog`, this never CLEARS the `memory` health key — it is shared
+    with the space-mismatch and degraded-embedding notices (V2-311) and would wipe another piece's warning."""
+    waiting = _pending_without_vector(db)
+    if waiting <= 0:
+        return
+    logger.warning(f"memory: the sleep repair could not start — {waiting} pills are still without a vector: {cause}")
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded",
+                            f"{waiting} pills without a vector: the repair pass could not start ({cause})")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def _report_repair_backlog(esperando: int, reparadas: int, degradadas: int) -> None:
     """Say when the repair pass could NOT do its job — the half that was missing (V2-497).
+
+    Sibling of `_report_repair_blocked`, which covers the pass that never started at all (V2-503).
 
     `repair_embeddings` returns an int, and 0 meant two opposite things: "nothing was waiting" (healthy) and
     "45 rows were waiting and the backend refused every one" (broken). Nothing else told them apart — the

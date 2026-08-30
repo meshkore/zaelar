@@ -5202,6 +5202,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   se reordena** por relevancia al criterio: el orden es el del DOM y reordenar por «lo que encaja» sería
   adaptarse al caso de uso. Abierto: concluir sobre lo no visto sigue sin estar garantizado por código.
 
+- **A retired provider may not be named by ANY ladder (V2-504, 2026-08-30)**: V2-500 retired xAI and Groq
+  by measurement (`403 used all available credits`, `404 model_not_found` — `llama-3.3-70b-versatile` no
+  longer exists) and removed them from ONE ladder. There are TWO. The voice LATENCY-RELAY ladder
+  (`provider_chain._VOICE_RELAYS`) went on naming both for eleven days.
+  - **It broke nothing, and that is the point.** In self-host that ladder resolves EMPTY (titular only), and
+    measured on all three engines it was empty. No llama ever ran. What it did instead was slower and worse:
+    it was the place where the allocation still said something else, so a settled decision got re-opened
+    every time somebody read it — the operator has had to repeat «the memory runs on DeepSeek direct» more
+    times than any measurement should need.
+  - So the rule is not "the catalogue is right", it is: **a provider in the table's `retired` section may
+    not appear in any ladder the engine builds.** Guarded by asking the builders as FUNCTIONS
+    (`_VOICE_RELAYS`, `_known_chain`, `workers.providers.KNOWN`), never by grepping source — a text guard
+    goes green on a rename and red on a behaviour-preserving refactor.
+  - The latency relay now has ONE rung, and it is the same brain over another endpoint: relaying no longer
+    changes the model under measurement, which was the other reason a long ladder was in the way.
+
 - **A lab measures the PRODUCT, not the machine it runs on (V2-502, 2026-08-30)**: both labs booted from
   the same commit and the ES one answered `deepseek-v4-flash` through a THREE-rung chain while the US one
   answered `deepseek-v4-pro`, the table's titular. Two silos, two products — and every ES↔US comparison
@@ -5410,6 +5426,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     todavía: el reparador corre dentro del proceso, en la pasada del sueño, así que la base del operador no
     cambia hasta que reinicie sobre HEAD.
 
+- **La voz de V2-497 estaba colgada DESPUÉS de la puerta que más se cierra (V2-503, 2026-08-30)**: al medirlo
+  a la mañana siguiente, con la GPU libre y Ollama contestando normal, `repair_embeddings` seguía devolviendo
+  **0 con 45 filas esperando — y en 0,0 s**, que es el delator: la pasada no llegó a mirar ni una fila.
+  `repair_embeddings` tiene **DOS salidas** y V2-497 solo le dio voz a una. El guarda de entrada
+  (`vec_available` / `_embed_sig_ok`) devuelve antes de leer nada, así que `_report_repair_backlog` —colgado
+  tras el bucle— es **inalcanzable justo en el fallo más probable**: un backend que se va no degrada fila a
+  fila, deja de resolver, la firma deja de casar y la pasada se rechaza en la puerta en todos los sueños
+  siguientes. El guarda es CORRECTO y se queda (reparar con otro espacio activo mete vectores ajenos, que es
+  lo que V2-482/V2-484 existen para impedir): lo que estaba mal es que **negarse fuera indistinguible de no
+  tener trabajo**. Ahora cada puerta dice CUÁL fue, porque piden acciones distintas —firma descuadrada se
+  arregla apuntando al proveedor que selló el índice; sqlite-vec ausente es un problema de instalación— y el
+  aviso va también a `health_state`, que aflora solo. **Callado si no espera nada** (instalación nueva con
+  firma que nunca casó no tiene atraso ni problema) y **nunca LIMPIA** la clave `memory`, compartida (V2-311).
+  Rectifica de paso una afirmación mía del día anterior: dije que el túnel de Ollama saturado era LA causa de
+  que los ~25 vectores dañados no sanaran, y con la GPU libre seguían sin sanar — era UNA causa. Desarme: al
+  restaurar el `return 0` mudo, **3 rojos**; los otros 10 del fichero siguen verdes porque cubren el camino
+  del bucle, y dos de los nuevos afirman SILENCIO (guardas contra avisar de más, no prueban el defecto).
+  Nodo 1.5. **Sin verificar en vivo**: que el re-embebido CURE de verdad sigue sin probarse de punta a punta.
 - **Un reparador INERTE parecía un reparador SIN TRABAJO (V2-497, 2026-08-29)**: encargo del operador —
   disparar REM a mano y probar que la teoría de V2-482 se sostiene. Sobre una COPIA de su base el purgado
   **disparó y funcionó** (25 vectores ajenos retirados, 16 hash + 9 rellenado, y los 9 rellenados TODOS
