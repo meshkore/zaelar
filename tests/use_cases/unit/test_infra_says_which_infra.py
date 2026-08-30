@@ -177,3 +177,23 @@ def test_el_runner_ANUNCIA_el_motivo_no_solo_la_palabra():
     src = inspect.getsource(R)
     assert 'print(f"INFRA: {r[\'_infra_reason\']}")' in src or "INFRA: {r['_infra_reason']}" in src, \
         "el runner anuncia INFRA sin decir de cuál — el motivo ya lo tiene delante"
+
+
+def test_SANO_lo_decide_el_motor_no_una_copia_del_arnes():
+    """Esta regla decía `backend != "ollama"`, y era verdad hasta la mañana del 2026-08-30: Ollama era el
+    titular. V2-501 movió el titular a un proveedor de NUBE y la línea se quedó con la idea vieja de «sano»,
+    así que **16 rondas de ese día salieron marcadas «recall DEGRADADO» con la memoria funcionando**: el
+    endpoint contestaba en 0,29 s y el plató daba memoria OK. Dieciséis rondas archivadas como INFRA por una
+    regla que envejeció en una mañana.
+
+    Por eso no se copia la lista: se importa de quien la decide. Si el motor cambia de titular, el arnés
+    cambia con él y nadie tiene que acordarse.
+    """
+    from memory.embeddings import _HEALTHY
+    from tests.use_cases.e2e.agent import verify
+
+    assert verify._backends_sanos() == tuple(_HEALTHY), (
+        "el arnés guarda su propia idea de «sano» — es la que envejeció y archivó 16 rondas buenas")
+    # Y la propiedad que importa en los dos sentidos: el titular de hoy NO es degradado, y el fallback SÍ.
+    assert "cloud" in verify._backends_sanos()
+    assert "hash" not in verify._backends_sanos(), "el hashing léxico no puede pasar por memoria sana"

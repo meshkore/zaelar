@@ -3496,6 +3496,29 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def _backends_sanos() -> tuple:
+    """Qué backends de embeddings son una elección legítima, LEÍDO DEL MOTOR para que no puedan separarse.
+
+    Esto decía `backend != "ollama"`, y era verdad hasta el 2026-08-30 por la mañana: Ollama era el titular.
+    V2-501 movió el titular a un proveedor de NUBE y esta línea se quedó con la idea vieja de «sano», así que
+    **las 16 rondas de ese día salieron marcadas «recall DEGRADADO» con la memoria funcionando perfectamente**
+    — comprobado a mano: el endpoint contestaba en 0,29 s y el plató daba memoria OK. Dieciséis rondas
+    archivadas como INFRA por una regla que envejeció en una mañana.
+
+    Es la tercera vez el mismo día que una decisión fiel a su momento deja de serlo al mover la fuente de
+    verdad (V2-502 sembraba del config del operador, V2-504 nombraba un proveedor retirado en la segunda
+    escalera). Por eso esto no se copia: se importa del módulo que lo decide, y si el motor cambia de idea
+    el arnés cambia con él.
+    """
+    try:
+        from memory.embeddings import _HEALTHY
+        return tuple(_HEALTHY)
+    except Exception:  # noqa: BLE001
+        # Fail-open hacia NO acusar: si no se puede leer, ningún backend se marca degradado. Un falso
+        # «degradado» archiva una ronda buena como INFRA; un falso «sano» solo pierde un matiz del informe.
+        return ("cloud", "ollama", "fastembed", "hash")
+
+
 def embeddings_backend(db_path, *, since: float = 0.0) -> dict:
     """WHICH embeddings backend served this round's recalls — `{backend, degraded, skipped}`.
 
@@ -3548,5 +3571,5 @@ def embeddings_backend(db_path, *, since: float = 0.0) -> dict:
         # model="?" when it failed. Either shape is a prewarm that did not happen.
         skipped = ("saltado" in str(label or "")) or backend in ("", "?")
         out = {"backend": backend, "skipped": skipped,
-               "degraded": bool(skipped or backend != "ollama")}
+               "degraded": bool(skipped or backend not in _backends_sanos())}
     return out
