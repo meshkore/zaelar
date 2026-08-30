@@ -6424,6 +6424,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Lo que NO arregla**: la escalada 1 abrió hoja en pantalla y su worker nunca arrancó — ni un evento.
     Esto es el instrumento que lo nombrará la próxima vez, no el arreglo. **Sin verificar en vivo.**
 
+- **Un encargo CONFIRMADO conserva su hoja (V2-508, 2026-08-30)**: la fila `dedup_miss` de V2-507 zanjó en su
+  primera ronda lo que eran dos hipótesis. `live: 0` en las DOS escaladas de `cheapest-monitor__us`, o sea que
+  la vara nunca tuvo con qué comparar y la acusación apuntaba al fichero equivocado. Lo que pasa es una cadena:
+  `run_listener` abre la hoja **al encargar** (V2-227, a propósito) y registra la sesión → `_run_session` llega
+  al gate de irreversibles → `_SESSIONS.pop(key)`, **la hoja se queda en pantalla sin nadie** → el operador
+  dice que sí → `resolve_confirm` relanza el MISMO texto por la puerta normal **sin hoja en su contexto**, así
+  que abre una caja SEGUNDA al lado. Medido: `results::101c0f-1` abierta a las 11:34:03 y jamás escrita,
+  `results::101c0f-2` 19 s después con las 200+ escrituras. **Un solo defecto explica la hoja fantasma Y el
+  dedup ciego.**
+  - **No hacía falta mecanismo nuevo**: `_sheet_open` YA hereda la hoja del predecesor para el relevo de
+    proveedor (V2-238) y el handoff de contexto (V2-117) — «*a relay continues the errand, so it keeps writing
+    where the operator is already looking*». Un confirmado es la TERCERA continuación. Solo había que hacerla
+    viajar con la pregunta aparcada.
+  - Un encargo **sin** hoja no lleva `""` sino nada: heredar una caja que no existe dejaría al relanzamiento
+    sin abrir la suya.
+  - **Y la RAÍZ está aislada y NO se toca aquí**: `danger.is_dangerous("Research … available for purchase …")`
+    → **True**, por la palabra `purchase` suelta en `_DANGER_RE`. **El operador nunca la escribió** — dijo «my
+    work monitor is dying and I need a new one»; la escribió NUESTRO compositor de brief, así que el motor se
+    dispara su propia puerta de confirmación con un texto que acaba de redactar él. Es **V2-509** y quiere su
+    medición: aquí un falso negativo cuesta dinero y un falso positivo cuesta una pregunta, así que el gate
+    falla del lado seguro y no se afloja a la ligera. La forma ya tiene precedente en el mismo fichero —
+    V2-128 arregló «recuérdame PAGAR la factura» preguntando cuál es la ORDEN.
+  - Nodo 2.5, 7 casos, desarme en cuatro direcciones — dos de ellas en el sentido CONTRARIO (`fresh=True`
+    borraría la hoja heredada; y un encargo que llega con la SUYA sellada no es una continuación, que es la
+    regla de V2-259 y tenía que sobrevivir intacta).
+  - **Sigue abierto**: una confirmación contestada que NO, o caducada, deja su hoja vacía en pantalla.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

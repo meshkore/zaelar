@@ -57,15 +57,25 @@ def _sweep_confirm(now: float | None = None) -> None:
         _EXPIRED_CONFIRM.pop(k, None)
 
 
-def remember_confirm(task_id: str, request: str, task: "Task") -> None:
-    """Keep the question the gate just asked, so a later «sí» has somewhere to go."""
+def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
+    """Keep the question the gate just asked, so a later «sí» has somewhere to go.
+
+    …AND the SHEET it had already opened (V2-508). The gate parks the errand and pops its record, but the
+    sheet is on the operator's screen by then: `run_listener` opens it at the moment of the errand, on
+    purpose, so nobody stares at a blank canvas. Without carrying it, the «sí» relaunches through the normal
+    door with no sheet in its context, mints a SECOND box beside the first, and leaves the first one empty
+    for good — measured 2026-08-30 (`cheapest-monitor__us`, `results::101c0f-1` abandoned, `-2` filled).
+
+    A CONFIRMED ERRAND IS A CONTINUATION, exactly like the provider relay and the context handoff that
+    `_sheet_open` already inherits for: same errand, same request, and the operator is already looking at
+    its box."""
     from nucleo import danger as _danger
     _sweep_confirm()
     _EXPIRED_CONFIRM.pop(str(task_id), None)      # se vuelve a preguntar: ya no es un caducado sin respuesta
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _danger.confirm_question(request),
-        "ts": time.time()}
+        "sheet": str(sheet or ""), "ts": time.time()}
 
 
 def pending_confirm() -> dict | None:
@@ -115,6 +125,11 @@ def resolve_confirm(ok: bool) -> dict | None:
     # atajo: así conserva el trace, el dedup y el registro de tareas. Lo único distinto es `confirmed`, que es
     # lo que el gate mira para dejarla pasar esta vez.
     ctx = {**p["context"], "confirmed": True, "kind": p["kind"]}
+    # La HOJA del encargo viaja con el «sí». `_sheet_open` ya sabe heredarla (compara contra la que le tocaría
+    # a ESTE task_id: si la que trae no deriva de él, es de su predecesor y no se estrena). Sin esta línea el
+    # confirmado abre caja nueva al lado de la que el operador ya tiene delante.
+    if p.get("sheet"):
+        ctx["sheet"] = str(p["sheet"])
     try:
         from nucleo.flash import escalate as _esc
         _esc.escalate_to_slowbrain(p["request"], context=ctx)

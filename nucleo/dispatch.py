@@ -1236,7 +1236,8 @@ async def _run_session(task: "Task") -> None:
             # así que el turno siguiente NO veía nada pendiente y volvía a narrar trabajo que no existía.
             # Medido en `cancel-subscription-before-charge` y en `pay-known-bill` (tres tareas, las tres
             # paradas por el gate, ninguna contada al operador).
-            remember_confirm(key, req, task)
+            # …con su HOJA: ya está abierta en pantalla y el «sí» tiene que volver a ELLA (V2-508).
+            remember_confirm(key, req, task, sheet=sheet_of(rec))
             sync_state()
         return
 

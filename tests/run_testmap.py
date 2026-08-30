@@ -455,7 +455,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/workers/test_the_progress_reads_like_a_sentence.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
-            "tests/agent_headless/unit/test_confirm_gate_task.py", "tests/agent_headless/unit/test_escalate_hygiene.py",
+            "tests/agent_headless/unit/test_confirm_gate_task.py",
+            # V2-508 — el gate aparca el encargo y TIRA su registro, pero su hoja ya está en pantalla:
+            # el «sí» relanzaba sin ella y abría una caja SEGUNDA al lado de la primera, que se quedaba
+            # vacía para siempre. Un confirmado es una CONTINUACIÓN, como el relevo de proveedor.
+            "tests/agent_headless/unit/test_a_confirmed_errand_keeps_its_sheet.py", "tests/agent_headless/unit/test_escalate_hygiene.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/susurro/test_susurro.py",
