@@ -81,3 +81,63 @@ def test_sin_sesiones_en_la_ventana_lo_DICE_en_vez_de_callarse():
         "read": True, "sessions": 0, "by_bridge": {}, "errors": {}}))
     assert "NINGUNA sesión de worker cae dentro de esta ronda" in txt
     assert "ni que preguntara a la red ni que no" in txt
+
+
+# ── el contador de «ofrecido» tiene que decir de QUÉ es (2026-08-30) ──────────────────────────────────────
+def test_las_DOS_cabeceras_del_bloque_se_leen(tmp_path):
+    """El motor escribe ese bloque desde DOS sitios con dos redacciones —`live_blocks.py` pone «LO QUE YA HA
+    ENTREGADO (nombre y precio, de la hoja):» y `task_block.py` pone «— YA ENTREGADO (de su hoja):»— y este
+    lector solo conocía la primera.
+
+    Medido en la ronda 20260830-1409, la más limpia del día: `n_offered: 0` mientras el prompt traía
+    «LG 27US500-W Ultrafine — $243.99»; «Acer Nitro VG270K — $159.99»; «CRUA Dual Mode 4K 160Hz — $229.99».
+    Un cero por no reconocer una redacción es indistinguible de un cero por no haber nada — y ese apuntaba
+    al producto.
+    """
+    import json as _j
+    import sqlite3
+
+    from tests.use_cases.e2e.agent import verify
+
+    db = tmp_path / "s.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
+    for sp in ('… — YA ENTREGADO (de su hoja): «LG 27US500-W Ultrafine — $243.99»; '
+               '«Acer Nitro VG270K — $159.99» (llevas 68s). Si el operador pregunta…',
+               '… LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): «Dell S2725QS — $199». OJO: …'):
+        con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
+                    (1000.0, "observer", "flash", _j.dumps({"system_prompt": sp})))
+    con.commit(); con.close()
+
+    o = verify.offered_to_brain(str(db))
+    assert "LG 27US500-W Ultrafine" in o["titles"], "la redacción de task_block sigue siendo invisible"
+    assert "Dell S2725QS" in o["titles"], "y la de live_blocks tiene que seguir leyéndose"
+    assert o["n_offered"] >= 3
+
+
+def test_una_PISTA_no_se_cuenta_como_candidato(tmp_path):
+    """V2-510 etiqueta las páginas de artículo «aún no es un candidato». Contarlas como ofertas produce el
+    número que hace pensar que el agente eligió mal teniendo de sobra: medido, 33 «ofrecidos» de los que 30
+    eran titulares de reseñas."""
+    import json as _j
+    import sqlite3
+
+    from tests.use_cases.e2e.agent import verify
+
+    db = tmp_path / "s.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
+    sp = ('… — YA ENTREGADO (de su hoja): «Acer Nitro VG270K — $159.99»; '
+          '«The 6 Best 27-Inch Monitors of 2026 - RTINGS.com — PÁGINA WEB por mirar, aún no es un candidato» '
+          '(llevas 40s). Si el operador pregunta…')
+    con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
+                (1000.0, "observer", "flash", _j.dumps({"system_prompt": sp})))
+    con.commit(); con.close()
+
+    o = verify.offered_to_brain(str(db))
+    assert o["candidates"] == ["Acer Nitro VG270K"]
+    assert o["leads"] and "RTINGS" in o["leads"][0]
+    assert o["n_candidates"] == 1, "una página por mirar no es una ficha ofrecida"
+    # Y las partes SUMAN: lo que llega por nota no lleva calificador, así que se cuenta como sin clasificar
+    # en vez de colarse en uno de los dos lados.
+    assert o["n_offered"] == o["n_candidates"] + len(o["leads"]) + o["n_unclassified"]

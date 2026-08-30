@@ -1654,7 +1654,13 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     somewhere), and delivery is judged against this: the titles the brain was actually offered.
     """
     import sqlite3
-    out: dict = {"notes": 0, "titles": [], "named": [], "n_offered": 0, "with_price": []}
+    # `n_offered` cuenta TODO lo que el bloque llevaba; `n_candidates` solo lo que se le ofreció COMO FICHA.
+    # No son lo mismo desde V2-510: el motor etiqueta las páginas de artículo «PÁGINA WEB por mirar, aún no es
+    # un candidato», y este lector las contaba como ofertas. Medido el 2026-08-30: 33 «ofrecidos» de los que
+    # 30 eran titulares de reseñas. Decir «se le ofrecieron 33» de eso es exactamente el número que hace
+    # pensar que el agente eligió mal teniendo de sobra.
+    out: dict = {"notes": 0, "titles": [], "named": [], "n_offered": 0, "with_price": [],
+                 "leads": [], "candidates": [], "n_candidates": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -1668,8 +1674,19 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
         # it, and the END-of-round sheet had already displaced the row — so the judge, seeing neither, filed
         # [alta] «está inventando datos». What the prompt carried IS what the brain was offered.
         prompt_rows = con.execute(
+            # DOS CABECERAS, no una (2026-08-30). El motor escribe este bloque desde DOS sitios y con dos
+            # redacciones: `live_blocks.py:510` pone «LO QUE YA HA ENTREGADO (nombre y precio, de la hoja):»
+            # y `task_block.py:137` pone «— YA ENTREGADO (de su hoja):». Este lector solo conocía la primera,
+            # así que la ronda 20260830-1409 salió con `n_offered: 0` mientras el prompt traía «LG 27US500-W
+            # Ultrafine — $243.99»; «Acer Nitro VG270K — $159.99»; «CRUA Dual Mode 4K 160Hz — $229.99».
+            # Un cero por no reconocer una redacción es indistinguible de un cero por no haber nada — y este
+            # apuntaba al producto. Se busca el trozo COMÚN.
             "SELECT payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
-            "AND payload LIKE '%LO QUE YA HA ENTREGADO%' ORDER BY ts_ms ASC",
+            # El trozo común es «ENTREGADO» a secas: una redacción dice «LO QUE YA **HA** ENTREGADO» y la otra
+            # «— YA ENTREGADO», así que `%YA ENTREGADO%` casa con la segunda y NO con la primera. Lo aprendí
+            # rompiéndolo: al enseñarle la nueva me cargué la que funcionaba, y lo cazó el caso que probaba
+            # las dos a la vez.
+            "AND payload LIKE '%ENTREGADO%' ORDER BY ts_ms ASC",
             (int(since * 1000),)).fetchall()
     except Exception:
         return out
@@ -1731,7 +1748,10 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
             sp = str((json.loads(raw) or {}).get("system_prompt") or "")
         except Exception:
             continue
-        m = re.search(r"LO QUE YA HA ENTREGADO[^:]*:\s*(.+?)\.\s*OJO", sp, re.S)
+        # Las dos redacciones, y sus dos finales: la de `live_blocks` cierra con «. OJO» y la de `task_block`
+        # sigue con « (llevas Ns)». Se corta por lo que venga primero en vez de por un terminador fijo, que es
+        # lo que ataba este lector a UNA de las dos.
+        m = re.search(r"ENTREGADO[^:]*:\s*(.+?)(?:\.\s*OJO|\(llevas|\.\s*Si el operador|$)", sp, re.S)
         if not m:
             continue
         for chunk in re.findall(r"«([^»]+)»", m.group(1)):
@@ -1743,6 +1763,11 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
                 seen.add(key)
                 out["titles"].append(head[:120])
                 out["with_price"].append(chunk.strip()[:150])
+                # El calificador lo escribe el motor (V2-510) y es la ÚNICA forma de saber si esa fila se
+                # ofreció como ficha o como sitio por mirar. Leerlo aquí es lo que separa «no te dieron nada»
+                # de «te dieron treinta artículos».
+                (out["leads"] if "aún no es un candidato" in chunk or "por mirar" in chunk
+                 else out["candidates"]).append(head[:120])
                 if not _NUMERIC_HEAD.match(head):
                     out["named"].append(head[:120])
     # THIRD channel (V2-469): the worker's own NARRATION, which the live-task block puts in front of the
@@ -1766,6 +1791,12 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     except Exception:
         out["narrated"] = []
     out["n_offered"] = len(out["titles"])
+    out["n_candidates"] = len(out["candidates"])
+    # LAS TRES PARTES TIENEN QUE SUMAR. `candidates`/`leads` solo clasifican lo que vino del BLOQUE DEL
+    # PROMPT: lo que llega por NOTA no lleva calificador y no se puede clasificar sin inventárselo. Publicarlo
+    # sin decirlo dejaría «33 ofrecidos, 6 candidatos» leyéndose como «27 pistas», que es falso. Así que el
+    # resto se cuenta como lo que es —sin clasificar— y los tres números cuadran con el total.
+    out["n_unclassified"] = max(0, out["n_offered"] - out["n_candidates"] - len(out["leads"]))
     out["n_named"] = len(out["named"])
     return out
 
