@@ -108,9 +108,18 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
         brain_notes.push(
             f"[SISTEMA] Una búsqueda web ha devuelto esto, trabajando en «{what}»: {body}. Nadie más lo sabe: no "
             f"está en la conversación hasta que tú lo digas, y el worker puede morirse antes de entregarlo. "
-            f"NÓMBRALO EN ESTE TURNO y, en la misma frase, di si sirve: si responde a lo que pidió el operador, "
-            f"dáselo con nombre, precio o dato y enlace; si no responde, dilo y di qué haces ahora. No digas que "
-            f"no hay resultados ni que sigues buscando sin más.")
+            # V2-510 — ESTO ES UNA PISTA HASTA QUE SE DEMUESTRE QUE ES UN CANDIDATO, y el imperativo lo tiene
+            # que decir. Lo que vuelve de una búsqueda son casi siempre PÁGINAS: titulares de comparativa, la
+            # portada de una tienda, el cuerpo de un 403. Ordenar «dáselo con nombre, precio y enlace» sobre
+            # eso es ordenar ofrecer un artículo como si fuera el producto — medido en `cheapest-monitor__us`
+            # (20260830-125532): el turno 4 entregó «The 6 Best Budget And Cheap Monitors of 2026 -
+            # RTINGS.com» mientras los ocho monitores REALES esperaban en la hoja.
+            f"OJO CON LO QUE ES: lo que vuelve de una búsqueda suele ser una PÁGINA —el titular de una "
+            f"comparativa, un listado, un error del sitio—, y una página NO es un candidato. NÓMBRALO EN ESTE "
+            f"TURNO diciendo lo que ES: si trae ya la cosa concreta con su nombre y su precio, dásela como "
+            f"resultado; si es un artículo, un buscador o un error, cuéntalo como por dónde vas a mirar y "
+            f"NUNCA lo ofrezcas como una opción para elegir. No digas que no hay resultados ni que sigues "
+            f"buscando sin más.")
         return True
     except Exception:  # noqa: BLE001
         return False

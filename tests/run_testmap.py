@@ -259,6 +259,10 @@ DOMAINS: list[dict] = [
             # rápida las enseña y la lenta las vuelca en una tabla, o sea la misma petición con dos
             # respuestas según por dónde entre. La frontera es qué ES la respuesta, no si hay imágenes.
             "tests/agent_headless/unit/workers/test_photos_are_delivered_to_the_viewer.py",
+            # V2-510 — V2-376 enseñó a la HOJA que lo que vuelve de una búsqueda es una PISTA; la NOTA
+            # —el canal que de verdad mueve al cerebro— seguía ordenando «dáselo con nombre, precio y
+            # enlace» sobre lo que fuera, así que un titular de comparativa se entregaba como producto.
+            "tests/agent_headless/unit/workers/test_a_search_return_is_a_lead_not_a_candidate.py",
             "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
             # V2-507 — sólo el ACIERTO del dedup dejaba fila, así que «no casó con nada» y «no había nada

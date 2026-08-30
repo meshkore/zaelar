@@ -98,8 +98,15 @@ def test_el_JUICIO_se_queda_en_el_cerebro(sesion):
     V2-223 evitó con el espectáculo de flamenco de 25 €."""
     sesion._maybe_hand_web(_web(RESPUESTA))
     n = brain_notes.drain()[0]
-    assert "di si sirve" in n
-    assert "si no responde, dilo" in n
+    # V2-510 reescribió la REDACCIÓN («di si sirve» → «diciendo lo que ES», con la rama de la página
+    # explícita) porque el imperativo viejo ordenaba entregar lo que fuera con nombre y precio, y lo que
+    # vuelve de una búsqueda suele ser un artículo. El INVARIANTE de este test no cambia y es el que se
+    # afirma ahora: se pide un JUICIO —qué es y si sirve—, nunca un anuncio a secas. Fijarlo al literal
+    # habría obligado a elegir entre arreglar el defecto y conservar la guarda.
+    assert "NÓMBRALO EN ESTE TURNO" in n
+    assert "diciendo lo que ES" in n              # el juicio se le PIDE
+    assert "si es un artículo" in n               # …y la rama de «no responde» sigue ahí
+    assert "NUNCA lo ofrezcas como una opción" in n   # más fuerte que antes: no se ordena anunciar
 
 
 def test_un_FALLO_de_la_tool_no_es_un_hallazgo(sesion):

@@ -6451,6 +6451,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     regla de V2-259 y tenía que sobrevivir intacta).
   - **Sigue abierto**: una confirmación contestada que NO, o caducada, deja su hoja vacía en pantalla.
 
+- **Lo que vuelve de una búsqueda es una PISTA, y la NOTA seguía ordenando entregarla (V2-510, 2026-08-30)**:
+  medido en `cheapest-monitor__us` (20260830-125532, ya sin la hoja doble de V2-508 encima) — al cerebro se le
+  ofrecieron titulares de comparativa («The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com»), el cuerpo
+  de un **403** y su propia prosa sobre una página que solo tenía navegación, mientras los ocho monitores REALES
+  (Dell S2722QC, LG 27UP850N-W…) esperaban en la hoja. Entregó un titular en el turno 4. **No desobedecía**: se
+  le dio un artículo y se le ordenó entregarlo.
+  - **La lección ya estaba aprendida a MEDIAS**: la fila de la HOJA marca desde el 2026-08-27 el ORIGEN de lo
+    que viene de una búsqueda (`findings.hand_search_rows`, tras contar 52 «candidatos con nombre» que eran
+    páginas) y la NOTA no se enteró — y la nota es el canal que mueve al cerebro (V2-222: nota empujada **3/3** contra línea
+    de prompt **0/13**). O sea que el único camino que funciona era el que seguía ordenando lo contrario.
+  - **Subir el corte no arregla nada** y conviene decirlo porque es el gesto obvio: son los PRIMEROS DEL DOM,
+    no los relevantes (V2-234), y V2-479 ya subió el otro lector a 12.
+  - La nota dice ahora QUÉ ES antes de ordenar nada: una página no es un candidato · si trae la cosa concreta
+    con nombre y precio, se da como resultado · si es un artículo, un buscador o un error, se cuenta como por
+    dónde se va a mirar y **NUNCA se ofrece como una opción para elegir**. Sigue siendo UNA instrucción con la
+    bifurcación dentro (V2-226).
+  - ⚠️ **Un desarme mío salió VERDE y lo que estaba mal era la mutación**: la frase se parte entre dos líneas
+    del f-string, así que el literal no casó y no se mutó nada. Ahora cada mutación **afirma que se aplicó**
+    antes de correr la suite — un desarme verde es una mutación mal hecha hasta que se demuestre lo contrario.
+  - Nodo 2.5, 7 casos, desarme en cuatro direcciones — y la que decide es la CONTRARIA: prohibir entregar
+    siempre se tragaría el caso para el que nació V2-236 (datos limpios muriéndose dentro de workers caídos).
+  - **Sigue abierto**: el cuerpo de un error y la narración del modelo viajan igual como hallazgos
+    (`session.py::_maybe_hand_web` empuja todo paso web que no sea `is_error`, y una tool que devuelve un
+    rechazo con éxito no lo es). Distinguir un rechazo de un hallazgo sin acabar en una lista de frases de
+    error en inglés quiere su propia medición.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
