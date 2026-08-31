@@ -3,7 +3,7 @@
 #
 # WHY: some actions the brain triggers are async and fire-and-forget from its point of view — most notably
 # building a widget ([[create]]/[[modify]] spawns a headless agent that takes ~1-2 min). The brain emits the tag
-# and moves on with NO idea whether it succeeded, failed, or is still running; so it claims "hecho" prematurely
+# and moves on with NO idea whether it succeeded, failed, or is still running; so it claims "done" prematurely
 # and, in a later turn, references a widget id that never got built. This mailbox closes that loop: the completing
 # action drops a short "[SISTEMA] …" note here, and the brain adapter (brains/*/…_processor.py) drains it and
 # PREPENDS it to the next prompt — so the brain learns the real outcome and stops inventing / mis-claiming.
@@ -16,22 +16,22 @@ import threading
 from loguru import logger
 
 _lock = threading.Lock()
-_pending: list[tuple[str, str]] = []   # (llave, texto) — la llave es "" para la inmensa mayoría
+_pending: list[tuple[str, str]] = []   # (key, text) — the key is "" for the vast majority
 _MAX = 20                              # bound the mailbox; drop the oldest if a burst piles up (never grow unbounded)
 
 
 def push(text: str, key: str = "") -> None:
     """Queue a one-shot system note for the brain's next turn. No-op on empty text. Best-effort.
 
-    `key` (V2-353) marca una nota RETRACTABLE: una que afirma algo sobre estado VIVO y que puede dejar de ser
-    verdad antes de entregarse. Estas notas no se entregan al vuelo — esperan al siguiente turno del operador—,
-    y ese hueco es real: medido en `search-buy-used-car` ronda 13, «El proceso lleva ya 18 minutos, ¿quieres que
-    lo pare?» y «He parado el proceso: agotó su tiempo» llegaron al MISMO prompt, sobre la MISMA tarea. Una
-    preguntaba si pararla y la otra decía que ya estaba parada. Un prompt que se contradice no tiene respuesta
-    obediente. Con llave, quien mata la tarea retracta la pregunta.
+    `key` (V2-353) marks a RETRACTABLE note: one that makes a claim about LIVE state and may stop being
+    true before delivery. These notes are not delivered in flight — they wait for the operator's next turn—,
+    and that gap is real: measured in `search-buy-used-car` round 13, «The process has been running for 18 minutes,
+    do you want to stop it?» and «I stopped the process: it timed out» reached the SAME prompt, about the SAME task.
+    One asked whether to stop it and the other said it had already been stopped. A self-contradictory prompt has no
+    obedient response. With a key, whoever kills the task retracts the question.
 
-    Una llave repetida SUSTITUYE a la anterior: dos avisos de «lleva N minutos» sobre la misma tarea son el
-    mismo aviso con el número actualizado, no dos cosas que contar.
+    A repeated key REPLACES the previous one: two notices saying «has been running for N minutes» about the same task
+    are the same notice with the updated number, not two things to count.
     """
     text = (text or "").strip()
     if not text:
@@ -47,10 +47,10 @@ def push(text: str, key: str = "") -> None:
 
 
 def retract(key: str) -> int:
-    """Quita las notas con esta LLAVE que aún no se han entregado. Devuelve cuántas. Best-effort (V2-353).
+    """Remove notes with this KEY that have not yet been delivered. Return how many. Best-effort (V2-353).
 
-    Retractar NO es censurar: quien retracta es quien acaba de hacer FALSA la nota, y casi siempre empuja la
-    suya justo después («la he parado»). Lo que se evita es que las dos lleguen juntas.
+    Retracting is NOT censorship: the person retracting is the one who has just made the note FALSE, and almost always
+    pushes their own note immediately afterward («I stopped it»). What is avoided is having both arrive together.
     """
     key = (key or "").strip()
     if not key:

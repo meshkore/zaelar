@@ -97,7 +97,7 @@ def test_a_widget_ui_event_after_a_real_stop_does_not_open_a_session():
 
 def test_a_real_user_turn_does_not_open_a_session_while_stopped():
     """Same invariant from the other direction: even a `turno`-origin trace (which normally SHOULD open a
-    session) must not, while the agent is stopped — "parar es parar" has no exception for "but it looked
+    session) must not, while the agent is stopped — "stopping means stopped" has no exception for "but it looked
     like a real turn"."""
     import asyncio
     asyncio.run(runstate.stop("operator"))

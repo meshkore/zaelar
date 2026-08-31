@@ -1,11 +1,11 @@
 #
-# version.py — SELLO DE VERSIÓN del motor (V2-074). Para SABER, sin ambigüedad, qué código está corriendo en una
-# instancia y qué versión generó cada línea de la observabilidad. Nace de una necesidad real (2026-07-26): tras
-# varios reinicios con código nuevo, no había forma de confirmar que la instancia viva y las líneas del timeline
-# eran de la versión actualizada.
+# version.py — ENGINE VERSION SEAL (V2-074). To KNOW, without ambiguity, what code is running in an
+# instance and which version generated each line of observability. It arose from a real need (2026-07-26): after
+# several restarts with new code, there was no way to confirm that the live instance and the timeline lines
+# belonged to the updated version.
 #
-# Expone: una VERSIÓN semántica (se sube a mano en cambios notables) + el SHA corto de git (cambia solo en cada
-# commit) + el instante de arranque del proceso. Todo cacheado (el SHA se lee una vez; leerlo son µs después).
+# Exposes: a semantic VERSION (bumped by hand for notable changes) + the short git SHA (changes only on each
+# commit) + the process start time. Everything is cached (the SHA is read once; subsequent reads take µs).
 #
 import os
 import subprocess
@@ -37,7 +37,7 @@ _STARTED_MS = round(time.time() * 1000)
 
 
 def sha() -> str:
-    """SHA corto de git del árbol que se está ejecutando (cacheado). 'nogit' si no hay repo/git."""
+    """Short git SHA of the tree being executed (cached). 'nogit' if there is no repo/git."""
     if "sha" not in _CACHE:
         try:
             r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=_HERE,
@@ -49,18 +49,18 @@ def sha() -> str:
 
 
 def short() -> str:
-    """Etiqueta compacta para sellar CADA evento de observabilidad: '2.74+a1b2c3d'. Barata (constante en runtime)."""
+    """Compact label for sealing EVERY observability event: '2.74+a1b2c3d'. Cheap (constant at runtime)."""
     if "short" not in _CACHE:
         _CACHE["short"] = f"{VERSION}+{sha()}"
     return _CACHE["short"]
 
 
 def started_ms() -> int:
-    """Epoch ms en que arrancó ESTE proceso (para distinguir instancias/reinicios en la observabilidad)."""
+    """Epoch ms when THIS process started (to distinguish instances/restarts in observability)."""
     return _STARTED_MS
 
 
 def info() -> dict:
-    """Detalle para /api/status y el frontend."""
+    """Details for /api/status and the frontend."""
     return {"version": VERSION, "sha": sha(), "short": short(), "started_ms": _STARTED_MS,
             "uptime_s": round((time.time() * 1000 - _STARTED_MS) / 1000)}
