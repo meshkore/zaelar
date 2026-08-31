@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Mar de testing por DOMINIOS (INI-013) — parte del universo de simulación de conversación.
-Mar de testing por dominios — simulación de conversación por el canal PROBE (rápido, alto volumen).
-Genera N parafraseos NATURALES por semilla (vía AIMLAPI, como usuarios reales) → ejercita el MISMO FlashBrain,
-router, rails, tools, memoria-estado y Susurro → auto-marca fallos de routing. Uso:
+"""Testing sea by DOMAINS (INI-013) — part of the conversation simulation universe.
+Testing sea by domain — conversation simulation through the PROBE channel (fast, high volume).
+Generates N NATURAL paraphrases per seed (via AIMLAPI, like real users) → exercises the SAME FlashBrain,
+router, rails, tools, state memory, and Whisper → automatically flags routing failures. Usage:
   ./.venv/bin/python .../sea.py <domains|all> <n_paraphrases>
 """
 import os, sys, json, time, urllib.request, concurrent.futures as cf
@@ -20,14 +20,14 @@ def probe(text, session):
     r = post("/api/flash/say", {"text": text, "session": session, "ingest": False})
     return {"action": r.get("action", ""), "reply": (r.get("reply") or ""), "ms": round((time.time()-t0)*1000)}
 
-# ---- expectativas por dominio: (nombre, semilla, verificador(action)->ok, descripción) ----
+# ---- expectations by domain: (name, seed, verifier(action)->ok, description) ----
 def is_(x):   return lambda a: a == x
 def pre(x):   return lambda a: a.startswith(x)
 def notin(*xs): return lambda a: all(x not in a for x in xs)
 def anyof(*xs): return lambda a: any(a == x or a.startswith(x) for x in xs)
 
 SEEDS = [
-    # dominio, semilla, verificador, por-qué
+    # domain, seed, verifier, rationale
     ("mem",    "¿qué coche tengo?",                       notin("widget_data","escalate"), "pregunta de dato → responder, no actuar"),
     ("mem",    "¿cómo me llamo?",                          notin("widget_data","escalate"), "identidad → chat"),
     ("mem",    "dime cuándo es la cita de la ITV",         notin("widget_data"),            "recuperar dato ≠ widget_data/Hecho"),
@@ -38,7 +38,7 @@ SEEDS = [
     ("math",   "¿cuántos días hay en tres semanas?",       notin("search","escalate"),      "cálculo simple → chat"),
     ("chat",   "cuéntame un chiste corto",                 is_("chat"),                      "charla"),
     ("chat",   "hola, ¿qué tal?",                          is_("chat"),                      "saludo"),
-    # ---- WIDGETS: mostrar / cerrar / CREAR (código→escala) / MODIFICAR (código→escala) ----
+    # ---- WIDGETS: show / close / CREATE (code→escalate) / MODIFY (code→escalate) ----
     ("show",   "abre el reloj",                            pre("canvas:show"),               "mostrar widget existente"),
     ("show",   "muéstrame la agenda",                      anyof("canvas:show","escalate"),  "mostrar agenda"),
     ("show",   "pon el tiempo en pantalla",                anyof("canvas:show","search"),    "mostrar/dar el tiempo"),
@@ -55,12 +55,12 @@ SEEDS = [
     ("music",  "ponme algo de rock para concentrarme",     is_("music"),                     "música difusa"),
     ("style",  "sé más breve al responderme",              anyof("style","chat","canvas"),   "directiva de estilo"),
     ("video",  "pon el vídeo de Despacito",                 anyof("video","canvas:show"),     "vídeo → play_video/youtube"),
-    # ---- V2-057: restricción TEMPORAL comprobable (el último / de hoy / actual) → ruta que la certifica ----
+    # ---- V2-057: verifiable TEMPORAL constraint (the latest / today's / current) → route that certifies it ----
     ("latest", "reproduce el último vídeo de José Luis Cárpatos", anyof("video","canvas:show"), "último vídeo → youtube (orden por fecha, tarjeta con fecha)"),
     ("latest", "pon el vídeo más reciente de La Vecina Rubia",     anyof("video","canvas:show"), "más reciente → youtube por fecha"),
     ("latest", "¿qué tiempo hace hoy en Tarragona?",         is_("search"),                    "tiempo de HOY → web_search anclado a hoy"),
     ("latest", "dime la cotización actual del Ibex 35",       is_("search"),                    "dato vigente → web_search now-forward"),
-    # ---- MARKETPLACES REALES: navegar un catálogo (no hay buscador que dé el dato) → escalate (navegador) ----
+    # ---- REAL MARKETPLACES: browse a catalog (no search tool provides the data) → escalate (browser) ----
     ("market", "búscame pisos de alquiler en Idealista en Barcelona por menos de 1200 al mes", is_("escalate"), "idealista → navegador"),
     ("market", "mira en Idealista pisos en venta de 3 habitaciones en Valencia",               is_("escalate"), "idealista compra → navegador"),
     ("market", "busca en coches.net un Golf diésel de segunda mano por menos de 15.000",        is_("escalate"), "coches.net → navegador"),
@@ -70,7 +70,7 @@ SEEDS = [
     ("market", "en Milanuncios busca un sofá de segunda mano en Madrid",                        is_("escalate"), "milanuncios → navegador"),
     ("market", "búscame en Amazon unos auriculares con cancelación de ruido por menos de 100",  is_("escalate"), "amazon → navegador"),
     ("market", "encuéntrame un piso para comprar en Sevilla, dos habitaciones, con terraza",    is_("escalate"), "compra piso (sin nombrar web) → navegador"),
-    # ---- investigación / informe A FONDO → escalate ----
+    # ---- in-depth research / report → escalate ----
     ("deep",   "hazme un informe comparando los tres coches eléctricos más vendidos este año",  is_("escalate"), "informe a fondo → escala"),
     ("deep",   "investiga a fondo qué barrio de Málaga es mejor para alquilar",                 is_("escalate"), "investigación → escala"),
     ("ml_en",  "what car do I have?",                       notin("widget_data","escalate"),  "EN memoria → chat"),
@@ -82,7 +82,7 @@ SEEDS = [
 ]
 
 def paraphrases(seed, n):
-    """N parafraseos NATURALES de la semilla, como los diría un humano distinto (registro variado)."""
+    """N NATURAL paraphrases of the seed, as a different person might say them (varied register)."""
     if n <= 1:
         return [seed]
     try:
@@ -102,7 +102,7 @@ def paraphrases(seed, n):
 def run(domains, n):
     seeds = [s for s in SEEDS if domains == "all" or s[0] in domains.split(",")]
     print(f"== MAR DE TESTING == dominios={domains} · semillas={len(seeds)} · parafraseos/semilla={n}")
-    # pre-generar parafraseos en paralelo
+    # pre-generate paraphrases in parallel
     variants = {}
     with cf.ThreadPoolExecutor(max_workers=6) as ex:
         futs = {ex.submit(paraphrases, s[1], n): i for i, s in enumerate(seeds)}

@@ -31,9 +31,9 @@ DRIVE_MODEL = _env("TESTER_DRIVE_MODEL", "deepseek/deepseek-v4-flash")   # decid
 # Z.AI (GLM) — competent judge/reasoning. Key in .meshkore/credentials/tester.env (⚠ needs balance / recharge).
 ZAI_KEY = _env("TESTER_ZAI_KEY")
 ZAI_BASE = _env("TESTER_ZAI_BASE", "https://api.z.ai/api/anthropic")   # coding-plan endpoint (Anthropic-compatible)
-# Los CRÉDITOS de Z.AI (pago por uso) viven en OTRA cartera y OTRO endpoint: paas/v4, OpenAI-compatible, misma
-# key. Medido el 2026-08-28 con el plan agotado (1310 hasta el 1 de sept): el endpoint del plan NO cae a
-# créditos solo — devuelve 1310 aunque haya saldo. Regla del operador: plan primero, créditos al agotarse.
+# Z.AI CREDITS (pay-per-use) live in a DIFFERENT wallet and at a DIFFERENT endpoint: paas/v4, OpenAI-compatible, same
+# key. Measured on 2026-08-28 with the plan exhausted (1310 until September 1): the plan endpoint does NOT fall back to
+# credits alone — it returns 1310 even when there is a balance. Operator rule: plan first, credits when exhausted.
 ZAI_PAAS_BASE = _env("TESTER_ZAI_PAAS_BASE", "https://api.z.ai/api/paas/v4")
 ZAI_JUDGE_MODEL = _env("TESTER_ZAI_JUDGE_MODEL", "glm-4.6")        # glm-4.6/glm-5/glm-5.2 (see z.ai model list)
 JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek/deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
@@ -65,10 +65,10 @@ def _engine_key(name: str) -> str:
 
 DEEPSEEK_KEY = _env("TESTER_DEEPSEEK_KEY") or _env("DEEPSEEK_API_KEY") or _engine_key("DEEPSEEK_API_KEY")
 DEEPSEEK_BASE = _env("TESTER_DEEPSEEK_BASE", "https://api.deepseek.com")
-# V2-338b — el relevo del juez usa el PRO, no el flash. Medido el 2026-08-26 juzgando en diferido la ronda del
-# coche: el flash rompió el JSON del veredicto tres veces seguidas («Expecting ',' delimiter: line 8») y la
-# ronda quedó INFRA con el relevo FUNCIONANDO. Un juez es salida estructurada larga — exactamente lo que
-# distingue al pro del flash — y se le llama poco (una vez por ronda), así que el coste extra no pesa.
+# V2-338b — the judge fallback uses PRO, not flash. Measured on 2026-08-26 while judging the car round after the fact:
+# flash broke the verdict JSON three times in a row («Expecting ',' delimiter: line 8») and the round ended up INFRA with
+# the fallback WORKING. A judge produces long structured output — exactly what distinguishes pro from flash — and is
+# called infrequently (once per round), so the extra cost is not significant.
 DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-pro")
 # Prefer GLM for judging when a Z.AI key is present; the client falls back to DeepSeek on any Z.AI error (no balance).
 JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "aimlapi")
@@ -78,7 +78,7 @@ TESTER_TTS = _env("TESTER_TTS", "cartesia")                       # cartesia | d
 TESTER_TTS_VOICE = _env("TESTER_TTS_VOICE", "")                   # provider-specific voice id (empty = default)
 # --- tester EARS (transcribe zaelar's replies) ------------------------------------------------------------------
 TESTER_STT = _env("TESTER_STT", "deepgram")                       # deepgram
-TESTER_LANG = _env("TESTER_LANG", "es")                           # zaelar es un asistente en CASTELLANO (default es)
+TESTER_LANG = _env("TESTER_LANG", "es")                           # zaelar is a CASTILIAN-language assistant (default es)
 
 # --- provider keys (read where the plugin expects them) ---------------------------------------------------------
 CARTESIA_API_KEY = _env("CARTESIA_API_KEY")

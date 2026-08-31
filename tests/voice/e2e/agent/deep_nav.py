@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Harness de EJECUCIÓN REAL de navegación profunda (V2-057 · INI-013): escala un objetivo de MARKETPLACE
-(Idealista/coches.net/AutoScout/Wallapop/Milanuncios/Amazon) por el canal PROBE con execute=true → el server
-lanza un Brain Worker REAL que CONDUCE el navegador (Chromium del owner) contra el sitio vivo → observamos el
-timeline: escalada registrada · tarjeta del navegador · fases (cookies/navegar/extraer) · anuncios extraídos ·
-entrega final · señales de VERIFICACIÓN (V2-057: ¿cumple la restricción? ¿ordenó/filtró? ¿dio datos reales?).
+"""Harness for REAL deep-navigation EXECUTION (V2-057 · INI-013): escalates a MARKETPLACE objective
+(Idealista/coches.net/AutoScout/Wallapop/Milanuncios/Amazon) through the PROBE channel with execute=true → the server
+launches a REAL Brain Worker that DRIVES the browser (the owner's Chromium) against the live site → we observe the
+timeline: recorded escalation · browser card · phases (cookies/navigate/extract) · extracted listings ·
+final delivery · VERIFICATION signals (V2-057: does it meet the constraint? did it sort/filter? did it provide real data?).
 
-A diferencia del mar de dominios (routing, rápido, cientos), esto es LENTO y toca sitios EN VIVO (1-3 min c/u,
-puede haber CAPTCHA/bloqueo) → se corren POCOS, como prueba e2e. Uso:
+Unlike the sea of domains (routing, fast, hundreds), this is SLOW and touches LIVE sites (1–3 min each,
+CAPTCHA/blocking may occur) → only a FEW are run, as an e2e test. Usage:
   PYTHONPATH=. .venv/bin/python tests/voice/e2e/agent/deep_nav.py <sitio|all> [timeout_s]
   sitios: idealista coches autoscout wallapop milanuncios amazon
-Requiere zaelar arrancado (make run) con el navegador backed vivo."""
+Requires zaelar to be running (make run) with the live backed browser."""
 import json
 import os
 import sys
@@ -19,7 +19,7 @@ import urllib.request
 BASE = "http://localhost:43917"
 TL = ".meshkore/logs/timeline-latest.jsonl"
 
-# objetivo REAL por sitio (lenguaje natural, como lo diría el operador) + qué palabras confirman que TOCÓ el sitio
+# REAL objective per site (natural language, as the operator would say it) + words confirming that it TOUCHED the site
 GOALS = {
     "idealista":  ("Busca en Idealista pisos de alquiler en Barcelona por menos de 1200 euros al mes y dime los 3 mejores.", "idealista"),
     "coches":     ("Mira en coches.net un Volkswagen Golf diésel de segunda mano por menos de 15.000 euros.", "coches.net"),
@@ -45,8 +45,8 @@ def _tasks():
 
 
 def _wait_idle(max_s=90):
-    """Espera a que NO haya worker vivo antes de arrancar → evita que la escalada se DEDUPE contra una tarea en
-    curso (lección 2026-07-21: lanzar coches.net con el worker de idealista aún vivo lo dedupó → fases=0)."""
+    """Waits for NO live worker before starting → prevents the escalation from being DEDUPED against an in-
+    progress task (lesson 2026-07-21: launching coches.net while the Idealista worker was still alive deduped it → phases=0)."""
     t = time.time()
     while time.time() - t < max_s:
         tk = _tasks()
@@ -66,16 +66,16 @@ def run_site(site, timeout_s=180):
         print("  ⚠️ había un worker vivo; sigo igual (puede deduparse)")
     start = os.path.getsize(TL)
     t0 = time.time()
-    # EJECUTA de verdad: lanza el worker que conduce el navegador
+    # Actually EXECUTES: launches the worker that drives the browser
     r = _post("/api/flash/say", {"text": goal, "session": sess, "ingest": False, "execute": True})
     print(f"  escalada: action={r.get('action')} · reply={ (r.get('reply') or '')[:70] }")
 
-    # observar el timeline hasta que la tarea termine (o timeout)
+    # Observe the timeline until the task finishes (or times out)
     phases, hitos, delivered, extracted_n, saw_site, saw_verify = [], [], "", 0, False, False
     deadline = t0 + timeout_s
     last_sz = start
     while time.time() < deadline:
-        # tick de espera SIN sleep foreground: una llamada de red barata marca el compás
+        # Waiting tick WITHOUT foreground sleep: an inexpensive network call sets the pace
         try:
             urllib.request.urlopen(BASE + "/api/status", timeout=3).read()
         except Exception:
@@ -98,11 +98,11 @@ def run_site(site, timeout_s=180):
                 extracted_n = max(extracted_n, 1)
             if any(k in blob for k in ("verific", "más reciente", "de hoy", "cumple", "ordena")):
                 saw_verify = True
-            # entrega final del worker (nota SISTEMA / proactiva)
+            # Worker's final delivery (SYSTEM / proactive note)
             if kind in ("notify", "tts") or "tarea completada" in blob or "brain worker · tarea" in blob:
                 if txt and len(txt) > 20:
                     delivered = txt
-        # ¿terminó? sin sesiones vivas y ya hubo escalada
+        # Finished? No live sessions and escalation has already occurred
         tk = _tasks()
         if isinstance(tk, dict) and tk.get("sessions") == [] and (time.time() - t0) > 20 and delivered:
             break

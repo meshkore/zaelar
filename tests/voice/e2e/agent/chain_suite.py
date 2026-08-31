@@ -1,28 +1,28 @@
-"""tests/voice/e2e/agent/chain_suite.py — ITERACIÓN 2 del testing del FlashBrain: HUMANO, FLEXIBLE, ENCADENADO + TRAZAS.
+"""tests/voice/e2e/agent/chain_suite.py — ITERATION 2 of FlashBrain testing: HUMAN, FLEXIBLE, CHAINED + TRACES.
 
-Sube el listón sobre `tests/voice/e2e/agent/loop_cycle.py`: en vez de UNA frase precisa por intención, prueba VARIAS frases
-humanas y difusas por intención (como hablaría el operador), verifica que el FlashBrain (la CABEZA del iceberg)
-elige la PRIMERA acción correcta que lanza la cadena, INSPECCIONA las INSTRUCCIONES del handoff (el `request` que
-recibe el worker / el `query` de la música) y comprueba la TRAZABILIDAD (V2-044): que la frase nace con un trace id
-y su decisión queda sellada con él en el timeline.
+Raises the bar over `tests/voice/e2e/agent/loop_cycle.py`: instead of ONE precise phrase per intent, tests SEVERAL human
+and fuzzy phrases per intent (as the operator would speak), verifies that FlashBrain (the ICEBERG HEAD) chooses the
+correct FIRST action that launches the chain, INSPECTS the handoff INSTRUCTIONS (the `request` received by the worker /
+the music `query`), and checks TRACEABILITY (V2-044): the phrase starts with a trace id and its decision is sealed with
+it in the timeline.
 
-Filosofía (operador 2026-07-16): el FlashBrain conduce desde arriba; las acciones complejas y el plan encadenado
-los ejecutan los workers Claude Code por detrás. Aquí se prueba que:
-  1. una frase HUMANA cae en el DOMINIO correcto (música/vídeo/widget/búsqueda/estudio/marketplace/memoria/…);
-  2. la PRIMERA acción es la que ARRANCA la cadena adecuada (no charla muda, no navegador para música, no
-     alucinar una data-op en un "ábreme X");
-  3. cuando ESCALA, el `request` lleva las INSTRUCCIONES del plan (no un escalado vacío);
-  4. el estímulo queda TRAZADO (root event + decisión con el mismo trace id).
+Philosophy (operator 2026-07-16): FlashBrain leads from above; Claude Code workers execute complex actions and the
+chained plan behind the scenes. This tests that:
+  1. a HUMAN phrase lands in the correct DOMAIN (music/video/widget/search/study/marketplace/memory/…);
+  2. the FIRST action is the one that STARTS the right chain (no silent chat, no browser for music, no
+     hallucinated data-op for an "open me X");
+  3. when it ESCALATES, the `request` carries the plan INSTRUCTIONS (not an empty escalation);
+  4. the stimulus is TRACED (root event + decision with the same trace id).
 
-Lo que el probe NO puede (no ejecuta workers/rails) queda DOCUMENTADO como cadena IDEAL en cada caso — la
-verificación de la cadena COMPLETA (worker→web→widget) vive en la observabilidad del camino real (vista Trazas).
+What the probe CANNOT do (it does not execute workers/rails) is DOCUMENTED as the IDEAL chain in each case — COMPLETE
+chain verification (worker→web→widget) lives in observability of the real path (Traces view).
 
 Uso:
     ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite                  # sweep completo
     ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --domains music,chain
-    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --sample 2       # 2 frases por caso (rotación rápida)
-    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --trace CHAIN-01 # dump del árbol de traza de un caso
-    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --json           # resumen máquina (para el cron)
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --sample 2       # 2 phrases per case (quick rotation)
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --trace CHAIN-01 # dump one case's trace tree
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --json           # machine-readable summary (for cron)
 """
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ BASE = "http://localhost:43917"
 TIMELINE = os.path.join(os.path.dirname(__file__), "..", ".meshkore", "logs", "timeline-latest.jsonl")
 
 
-# ── canal probe ──────────────────────────────────────────────────────────────────────────────────────────
+# ── probe channel ────────────────────────────────────────────────────────────────────────────────────────
 def _post(path, payload, timeout=90):
     last = None
     for _ in range(3):
@@ -61,7 +61,7 @@ def reset(sid):
         pass
 
 
-# ── accesores de resultado ───────────────────────────────────────────────────────────────────────────────
+# ── result accessors ─────────────────────────────────────────────────────────────────────────────────────
 def A(r):
     return r.get("action", "") or ""
 
@@ -102,19 +102,19 @@ def canvas(r):
 
 
 def video(r):
-    """¿el turno mandó el vídeo al widget youtube? (V2-045 tool play_video, o show/data-op de youtube)."""
+    """Did the turn send the video to the YouTube widget? (V2-045 play_video tool, or YouTube show/data-op)."""
     return tool(r, "play_video") or "youtube" in A(r) or "youtube" in R(r)
 
 
 def tags_have(r, action):
-    """¿el turno emitió una tag de canvas con esta acción? (show/close/move) — para comandos COMPUESTOS donde el
-    `action` derivado se lo lleva una tool (p.ej. play_music) pero además hubo una tag de show/close."""
+    """Did the turn emit a canvas tag with this action? (show/close/move) — for COMPOUND commands where the derived
+    `action` is handled by a tool (e.g. play_music) but there was also a show/close tag."""
     return any((t.get("action") or "") == action for t in r.get("tags", []))
 
 
 def kw(r, *words):
-    """¿el `request` del escalado O el `query` de música/búsqueda menciona alguna de estas palabras clave?
-    (verifica que las INSTRUCCIONES del handoff describen el plan, no un escalado vacío)."""
+    """Does the escalation `request` OR the music/search `query` mention any of these keywords?
+    (Verifies that the handoff INSTRUCTIONS describe the plan, rather than an empty escalation.)"""
     blob = " ".join([
         (args_of(r, "escalate_to_slowbrain").get("request") or ""),
         (args_of(r, "play_music").get("query") or ""),
@@ -124,10 +124,10 @@ def kw(r, *words):
     return any(w.lower() in blob for w in words)
 
 
-# ── trazabilidad (V2-044) ────────────────────────────────────────────────────────────────────────────────
+# ── traceability (V2-044) ───────────────────────────────────────────────────────────────────────────────
 def trace_events(tid):
-    """Eventos del timeline sellados con este trace id (root + memoria + decisión). Confirma que el estímulo
-    nace trazado y su decisión queda encadenada (la cadena COMPLETA worker→web→widget vive en el camino real)."""
+    """Timeline events sealed with this trace id (root + memory + decision). Confirms that the stimulus starts
+    traced and its decision is chained (the COMPLETE worker→web→widget chain lives on the real path)."""
     if not tid:
         return []
     out = []
@@ -146,7 +146,7 @@ def trace_events(tid):
 
 
 def trace_ok(r):
-    """El estímulo nació trazado (hay un trace id) y hay al menos el evento raíz sellado con él."""
+    """The stimulus started traced (there is a trace id) and at least the root event is sealed with it."""
     tid = r.get("trace")
     if not tid:
         return False
@@ -154,13 +154,13 @@ def trace_ok(r):
     return any(e.get("kind") == "trace" and e.get("extra", {}).get("root") for e in evs) or bool(evs)
 
 
-# ══ CATÁLOGO ═══════════════════════════════════════════════════════════════════════════════════════════════
-# Cada caso: id, domain, intent, phrasings[], head(pred sobre el resultado del probe), chain(cadena IDEAL en
-# lenguaje humano — para el informe/roadmap), note(qué invariante caza). head = la PRIMERA acción correcta que
-# ARRANCA la cadena. Predicados LAXOS a propósito (varias primeras-acciones válidas): el objetivo es cazar el
-# ERROR claro (charla muda, navegador para música, alucinar data-op), no imponer una única ruta.
+# ══ CATALOG ═══════════════════════════════════════════════════════════════════════════════════════════════
+# Each case: id, domain, intent, phrasings[], head(prediction on the probe result), chain(IDEAL chain in human
+# language — for the report/roadmap), note(which invariant it catches). head = the correct FIRST action that
+# STARTS the chain. Predicates are intentionally LAX (several valid first actions): the goal is to catch the
+# clear ERROR (silent chat, browser for music, hallucinated data-op), not impose a single route.
 CATALOG = [
-    # ── MÚSICA — reproducir / control ──
+    # ── MUSIC — playback / control ──
     {"id": "MUS-01", "domain": "music", "intent": "reproducir por artista",
      "phrasings": ["Ponme algo de Frank Sinatra.", "Quiero escuchar a Sinatra.", "Échame música de Sinatra, porfa."],
      "head": lambda r: tool(r, "play_music"),
@@ -183,7 +183,7 @@ CATALOG = [
      "chain": "play_music(action=stop) → rail música para a la primera",
      "note": "parar → play_music stop (o hard-interrupt); NUNCA escala ni busca"},
 
-    # ── MÚSICA — listas/favoritos (HUECO conocido: no implementado) ──
+    # ── MUSIC — playlists/favorites (known GAP: not implemented) ──
     {"id": "LIST-01", "domain": "playlist", "intent": "crear playlist", "gap": True,
      "phrasings": ["Créame una lista con canciones de los 80.", "Hazme una playlist de rock de los 2000.",
                    "Prepárame una lista para correr por la mañana."],
@@ -197,9 +197,9 @@ CATALOG = [
      "chain": "IDEAL: worker gestiona favoritos en el conector — HOY no implementado",
      "note": "favoritos → HUECO de producto; verificar que NO finge 'Hecho' mudo"},
 
-    # ── VÍDEO — YouTube (≠ música) ──
-    # V2-045: VÍDEO ya es tool de 1ª clase (play_video) → estos casos vuelven a ACTIVO (fin del defer). Invariante:
-    # el vídeo va al widget youtube (play_video / show:youtube / widget_data), NUNCA a play_music.
+    # ── VIDEO — YouTube (≠ music) ──
+    # V2-045: VIDEO is now a first-class tool (play_video) → these cases become ACTIVE again (end of defer). Invariant:
+    # video goes to the YouTube widget (play_video / show:youtube / widget_data), NEVER to play_music.
     {"id": "VID-01", "domain": "video", "intent": "reproducir vídeo por descripción",
      "phrasings": ["Pon el vídeo del gol de la mano de Dios.", "Enséñame el vídeo del aterrizaje del Falcon 9.",
                    "Ponme el tráiler de la última de Dune."],
@@ -223,7 +223,7 @@ CATALOG = [
      "chain": "[[close]] — cerrar ≠ borrar; no escala",
      "note": "cerrar vídeo → close; NUNCA escala ni borra (delete es permanente)"},
 
-    # ── CADENAS (centro de esta iteración): plan multi-paso desde frase difusa ──
+    # ── CHAINS (center of this iteration): multi-step plan from a fuzzy phrase ──
     {"id": "CHAIN-01", "domain": "chain", "intent": "mejor canción de un artista → reproducirla",
      "phrasings": ["Me encanta Frank Sinatra, ¿cuál es su mejor canción? Quiero escucharla.",
                    "¿Cuál es la canción más famosa de Queen? Ponla.",
@@ -233,8 +233,8 @@ CATALOG = [
      "note": "CADENA identificar→reproducir: head válido = play_music (rail resuelve) / escalate (worker) / web_search; "
              "MAL = charla muda o navegador de música"},
     {"id": "CHAIN-02", "domain": "chain", "intent": "peli/vídeo famoso → reproducir en youtube",
-     # V2-045: con play_video de 1ª clase, 'ponme una peli/vídeo/algo entretenido' debe ir al widget youtube (VER),
-     # no a play_music (OÍR). Válido también buscar/escalar (candidatos). MAL = play_music o charla muda.
+     # V2-045: with first-class play_video, 'show me a movie/video/something entertaining' must go to the YouTube
+     # widget (WATCH), not play_music (LISTEN). Searching/escalating (candidates) is also valid. BAD = play_music or silent chat.
      "phrasings": ["Ponme una película divertida y famosa para esta noche.",
                    "Quiero ver un vídeo gracioso y viral.",
                    "Enséñame algo entretenido para desconectar un rato."],
@@ -272,7 +272,7 @@ CATALOG = [
               "comandos compuestos = RELAJAR ese invariante → decisión de diseño del operador/developer, no del loop.",
      "phrasings": ["Abre el reloj y ponme algo de jazz.", "Pon música relajante y enséñame la agenda.",
                    "Muéstrame un cronómetro y sube el volumen de la música."],
-     # invariante: NO ignora una de las dos partes → o hace música + una tag/canvas de show, o al menos ambas señales.
+     # invariant: it does NOT ignore either part → either music + a show tag/canvas, or at least both signals.
      "head": lambda r: tool(r, "play_music") and (tags_have(r, "show") or canvas(r) or tool(r, "widget_data")),
      "chain": "play_music + [[show:ID]] en el MISMO turno — dos acciones, no una",
      "note": "comando compuesto → ejecuta AMBAS partes (música + show); no ignora una"},
@@ -285,7 +285,7 @@ CATALOG = [
      "chain": "[[close]] + play_music — limpia el canvas y arranca música",
      "note": "compuesto cerrar+música → close + play_music"},
 
-    # ── BÚSQUEDA directa (dato + síntesis en el turno) ──
+    # ── DIRECT SEARCH (fact + synthesis in the turn) ──
     {"id": "SRCH-01", "domain": "search", "intent": "dato factual actual",
      "phrasings": ["¿Quién ganó el último Gran Premio de F1?", "¿Qué tiempo hará mañana en Sevilla?",
                    "¿A cuánto está el euro respecto al dólar hoy?"],
@@ -304,7 +304,7 @@ CATALOG = [
      "chain": "web_search → síntesis en el turno",
      "note": "noticias/actualidad → web_search"},
 
-    # ── ESTUDIO / INFORME (research profundo → SlowBrain) ──
+    # ── STUDY / REPORT (deep research → SlowBrain) ──
     {"id": "STUDY-01", "domain": "study", "intent": "informe comparativo a fondo",
      "defer": "El modelo responde INLINE (charla) un informe/comparativa 'a fondo' en vez de escalar a un worker "
               "de research (riesgo de datos obsoletos, cutoff). La descripción de escalate YA cubre 'informe/estudio "
@@ -317,18 +317,18 @@ CATALOG = [
      "note": "informe/estudio a fondo → escala; request describe el tema",
      "handoff": lambda r: kw(r, "informe", "estudio", "compar", "surf", "coche", "moto", "enduro", "dossier", "eléctric", "autonom")},
 
-    # ── RESERVAR / ACTUAR EN WEB (ITV) ──
+    # ── BOOK / ACT ON THE WEB (ITV) ──
     {"id": "ACT-01", "domain": "webact", "intent": "reservar cita ITV (actuar, no aconsejar)",
      "phrasings": ["Resérvame cita para la ITV cuanto antes, hazlo tú en la web.",
                    "Sácame una cita en la ITV para el coche esta semana.",
                    "Gestióname la cita de la ITV, entra tú a la web y hazlo."],
-     # invariante REAL (bug ITV documentado): NO caer en el bucle de consejos por web_search sin escalar. Escalar es
-     # lo ideal; una charla que pide datos (qué centro/fecha) también es aceptable ante un 'sácame cita' escueto.
+     # REAL invariant (documented ITV bug): do NOT fall into a web_search advice loop without escalating. Escalating is
+     # ideal; chat that asks for details (which center/date) is also acceptable for a terse 'get me an appointment'.
      "head": lambda r: escal(r) or (chat(r) and not search(r)),
      "chain": "worker navega la web de la ITV → rellena → confirma (con gate de irreversibilidad)",
      "note": "reservar ITV → ESCALA (actúa) o pide datos; NUNCA consejos en bucle por web_search"},
 
-    # ── CREAR / MODIFICAR WIDGET (código → SlowBrain) ──
+    # ── CREATE / MODIFY WIDGET (code → SlowBrain) ──
     {"id": "WNEW-01", "domain": "widget_create", "intent": "crear widget nuevo",
      "phrasings": ["Créame un widget de recetas de cocina saludables.", "Hazme un widget con el precio del oro en tiempo real.",
                    "Quiero un widget que me muestre las mareas de la costa."],
@@ -344,10 +344,10 @@ CATALOG = [
      "chain": "worker generador modifica el código del widget (rollback si falla)",
      "note": "modificar CÓDIGO → escala (no data-op)"},
 
-    # ── ACCIONES DE WIDGET (data-op — FlashBrain al instante) ──
+    # ── WIDGET ACTIONS (data-op — FlashBrain instantly) ──
     {"id": "WACT-01", "domain": "widget_action", "intent": "añadir cita a la agenda (data-op)",
-     # NOTA: "recuérdame que…" NO es agenda (V2-029: auto-ingest lo guarda, sin tool) → no se usa como frase aquí;
-     # las frases son ALTAS explícitas de EVENTO con fecha/hora (apunta/añade una cita/reunión).
+     # NOTE: "remind me that…" is NOT a calendar entry (V2-029: auto-ingest stores it, without a tool) → it is not used
+     # as a phrase here; the phrases are explicit EVENT additions with a date/time (write/add an appointment/meeting).
      "phrasings": ["Apunta en la agenda que mañana a las seis tengo médico.",
                    "Añádeme una reunión el viernes a las diez con el equipo.",
                    "Métele una cita el jueves a las cinco para recoger a los niños."],
@@ -371,7 +371,7 @@ CATALOG = [
      "chain": "delete_widget → confirmación → lifecycle.delete (FlashBrain, no escala)",
      "note": "borrar widget → delete_widget (determinista, no escala)"},
 
-    # ── MENSAJERÍA ──
+    # ── MESSAGING ──
     {"id": "MSG-01", "domain": "messaging", "intent": "consultar mensajes (del conector, no buscar)",
      "phrasings": ["¿Tengo mensajes importantes en WhatsApp?", "¿Me ha escrito alguien por Telegram?",
                    "¿Hay algo urgente en mis mensajes?"],
@@ -389,9 +389,9 @@ CATALOG = [
     {"id": "MSG-03", "domain": "messaging", "intent": "dictar una respuesta (envío real con confirmación)",
      "phrasings": ["Responde a mi madre que llego tarde.", "Contéstale a Juan que vale.",
                    "Mándale un mensaje a Ana diciéndole que sí."],
-     # El invariante nuevo: la respuesta va por la data-op `reply` (confirm-gate delante) — NUNCA se escala
-     # a un worker a "enviar", y NUNCA se afirma enviado sin la data-op. Si el destinatario no resuelve
-     # contra los chats vivos del widget, preguntar es conducta correcta (sin tool también vale).
+     # New invariant: the reply goes through the `reply` data-op (confirm gate first) — it is NEVER escalated
+     # to a worker to "send", and it is NEVER claimed sent without the data-op. If the recipient does not resolve
+     # against the widget's live chats, asking is correct behavior (no tool is also valid).
      "head": lambda r: not escal(r),
      "chain": "reply data-op sobre el chat resuelto + confirmación leyendo el borrador; destinatario no "
               "resoluble → pregunta, jamás inventa",
@@ -406,7 +406,7 @@ CATALOG = [
      "chain": "[[show:mensajeria]] — guard pure-show impide alucinar data-op",
      "note": "abrir mensajería → show; NO escala NI alucina data-op"},
 
-    # ── CONECTAR CUENTAS (auth) — música al widget, web al navegador ──
+    # ── CONNECT ACCOUNTS (auth) — music to the widget, web to the browser ──
     {"id": "AUTH-01", "domain": "auth", "intent": "conectar servicio de música (→ widget musica)",
      "phrasings": ["Conéctame a mi cuenta de Spotify.", "Vincula mi Spotify.", "Enlaza mi cuenta de Apple Music."],
      "head": lambda r: not escal(r),
@@ -418,7 +418,7 @@ CATALOG = [
      "chain": "authenticate_web → navegador abre login real en perfil persistente",
      "note": "auth web → authenticate_web (sitio web sí)"},
 
-    # ── ROBUSTEZ — ruido de STT, autocorrección, ambigüedad ──
+    # ── ROBUSTNESS — STT noise, self-correction, ambiguity ──
     {"id": "ROBUST-01", "domain": "robust", "intent": "input GARBLEADO de STT (titubeos, repeticiones)",
      "phrasings": ["Eee ponme po-ponme algo de de Sinatra porfa.", "Va, pon pon música, jazz, eso, jazz.",
                    "Súbe-súbeme un poco la la música anda."],
@@ -426,7 +426,7 @@ CATALOG = [
      "chain": "el ruido de STT no debe romper el routing → play_music igual",
      "note": "STT garbleado → misma acción; robustez a titubeos/repeticiones"},
     {"id": "ROBUST-02", "domain": "robust", "intent": "autocorrección en la MISMA frase (intención FINAL)",
-     # todas retractan MÚSICA → invariante único y limpio: NO ejecuta la música retractada (obedece lo FINAL).
+     # All retract MUSIC → one clear invariant: do NOT execute the retracted music request (obey the FINAL intent).
      "phrasings": ["Pon música... espera no, mejor enséñame la agenda.",
                    "Ponme algo de jazz... uy no, ¿qué tiempo hace en Sevilla?",
                    "Pon música, bah, mejor cierra todo."],
@@ -439,7 +439,7 @@ CATALOG = [
      "chain": "sin contexto → pregunta/aclara, NO actúa a ciegas",
      "note": "referencia ambigua sin contexto → charla que aclara, no acción espuria"},
 
-    # ── USER RULES (V2-046 A1) — routing: dar/retirar una regla → set_style_directive (persistencia en loop_cycle) ──
+    # ── USER RULES (V2-046 A1) — routing: add/remove a rule → set_style_directive (persistence in loop_cycle) ──
     {"id": "RULE-01", "domain": "rules", "intent": "dar una regla de comportamiento",
      "phrasings": ["A partir de ahora responde solo sí o no.", "Sé mucho más breve cuando me hables.",
                    "Cuando te pida una acción, hazla sin responderme nada.", "Trátame siempre de usted."],
@@ -458,7 +458,7 @@ CATALOG = [
      "chain": "una orden puntual ejecuta su acción; NO se convierte en user rule",
      "note": "orden puntual → su acción normal, NUNCA set_style_directive (no polucionar rules)"},
 
-    # ── CORE — estilo / meta / multiidioma / robustez ──
+    # ── CORE — style / meta / multilingual / robustness ──
     {"id": "CORE-01", "domain": "core", "intent": "directiva de estilo",
      "phrasings": ["Háblame más formal, de usted.", "A partir de ahora sé más breve.", "Trátame de tú y con más humor."],
      "head": lambda r: A(r) == "style", "chain": "set_style_directive → directiva persiste en la sesión",
@@ -479,10 +479,10 @@ CATALOG = [
 ]
 
 
-# ── ejecución de un caso ─────────────────────────────────────────────────────────────────────────────────
+# ── case execution ───────────────────────────────────────────────────────────────────────────────────────
 def run_case(case, sample=None, verbose=True):
-    """Corre todas (o `sample`) las frases del caso. Cada frase: probe + retry×3 (varianza del titular de entonces) + traza.
-    Devuelve dict con estado GREEN/YELLOW/RED + detalle por frase."""
+    """Runs all (or `sample`) phrases for the case. Each phrase: probe + retry×3 (variance of the then-current model) + trace.
+    Returns a dict with GREEN/YELLOW/RED status plus per-phrase details."""
     phr = case["phrasings"][:sample] if sample else case["phrasings"]
     per = []
     for i, text in enumerate(phr):
@@ -520,10 +520,10 @@ def run_case(case, sample=None, verbose=True):
         status = "YELLOW"
     else:
         status = "GREEN"
-    # handoff fallido degrada a YELLOW (instrucciones pobres) aunque el head acierte
+    # A failed handoff downgrades to YELLOW (poor instructions) even if the head succeeds.
     if any(p["handoff"] is False for p in per) and status == "GREEN":
         status = "YELLOW"
-    # clasificación reportada: HUECO (producto no implementado) / DEFER (esperando developer) / activo (RED=actúa YA)
+    # Reported classification: GAP (product not implemented) / DEFER (waiting for developer) / active (RED=act now).
     kind = "gap" if case.get("gap") else ("defer" if case.get("defer") else "active")
     if verbose:
         icon = {"GREEN": "✓", "YELLOW": "~", "RED": "✗"}[status]
@@ -540,14 +540,14 @@ def run_case(case, sample=None, verbose=True):
 
 
 def dump_trace(case_id):
-    """Dump del árbol de traza de la 1ª frase de un caso (para VER la trazabilidad, petición del operador)."""
+    """Dump the trace tree for a case's first phrase (to SEE traceability, at the operator's request)."""
     case = next((c for c in CATALOG if c["id"] == case_id), None)
     if not case:
         print(f"caso {case_id} no existe"); return
     text = case["phrasings"][0]
     sid = f"cs_trace_{case_id}"
     reset(sid)
-    r = say(text, sid, ingest=True)   # ingest=True → se ven también las escrituras de memoria trazadas
+    r = say(text, sid, ingest=True)   # ingest=True → traced memory writes are also visible
     tid = r.get("trace")
     print(f"\n═══ TRAZA de {case_id} ═══\n  frase: «{text}»\n  trace: {tid}  ·  action: {A(r)}  ·  tools: {T(r)}")
     print(f"  reply: «{(r.get('reply') or '')[:100]}»")
@@ -600,7 +600,7 @@ def main():
     results = []
     for c in cases:
         results.append(run_case(c, sample=sample, verbose=not as_json))
-    # activos = los que cuentan como PASS/FAIL a actuar; gap/defer se reportan aparte (no son acción del loop).
+    # Active cases count as PASS/FAIL for action; gaps/defers are reported separately (they are not loop actions).
     active = [r for r in results if r["kind"] == "active"]
     gaps = [r for r in results if r["kind"] == "gap"]
     defers = [r for r in results if r["kind"] == "defer"]

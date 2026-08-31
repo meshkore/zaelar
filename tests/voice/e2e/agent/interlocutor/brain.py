@@ -24,17 +24,18 @@ class TesterBrain:
         self.behavior = BEHAVIORS.get(behavior, BEHAVIORS["neutral"])
         self.behavior_name = behavior
         self.turns = 0
-        # Speak zaelar's language so the test is coherent (zaelar's default is Spanish). config.TESTER_LANG drives it.
+        # Speak zaelar's language so the test is coherent (zaelar's default is Spanish). config.TESTER_LANG controls it.
         lang = (getattr(config, "TESTER_LANG", "es") or "es").lower()
         lname = {"es": "castellano (español)", "en": "English"}.get(lang, lang)
         bye = "adiós" if lang == "es" else "bye"
         path = os.path.join(HERE, "personas", f"{persona}.md")
         persona_txt = open(path, encoding="utf-8").read() if os.path.exists(path) else (
             f"Eres una persona real hablando con tu asistente de voz personal, zaelar. Habla con naturalidad.")
-        persona_name = "Ricart"   # el usuario humano que interpreta el tester (perfil real: Ricart, Soria, ES)
-        # HARD role anchor (2026-07-07): el modelo DRIVE (qwen) invertía el papel — como zaelar llega con role
-        # 'user' y las líneas del tester con role 'assistant', el modelo se creía el ASISTENTE ("soy zaelar, ¿en
-        # qué te ayudo?", "¿quieres que muestre una pantalla?"). Eso invalida el test. Este ancla lo fija a USUARIO.
+        persona_name = "Ricart"   # the human user portrayed by the tester (real profile: Ricart, Soria, ES)
+        # HARD role anchor (2026-07-07): the DRIVE model (qwen) was reversing the roles — since zaelar arrives with
+        # the 'user' role and the tester's lines with the 'assistant' role, the model thought it was the ASSISTANT ("I
+        # am zaelar, how can I help?", "would you like me to show a screen?"). That invalidates the test. This anchor
+        # fixes it as the USER.
         anchor = (
             f"IDENTIDAD FIJA — NO LA ROMPAS JAMÁS: TÚ eres una PERSONA humana llamada {persona_name} que USA por voz "
             "al asistente 'zaelar'. En este diálogo, los turnos con papel 'user' son lo que ZAELAR (el asistente) te "

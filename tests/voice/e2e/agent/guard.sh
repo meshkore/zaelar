@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Cron guard: keep the test system ALIVE without a human.
-#   1) zaelar UP on :43917 (native LiveKit + «Colmena» nucleo) — restart detached if down.
+#   1) zaelar UP on :43917 (native LiveKit + «Colmena» core) — restart detached if down.
 #   2) the overnight test loop running — start detached if not.
 # Idempotent + detached; safe to run repeatedly. Logs to tests/runs/agent/guard.log.
 set -uo pipefail
