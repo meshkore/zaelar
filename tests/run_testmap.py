@@ -1590,7 +1590,11 @@ DOMAINS: list[dict] = [
         {"id": "4.88", "title": "Conectar un canal se puede pedir por voz: la data-op declarada abre el panel "
                                 "y despliega su formulario",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/mensajeria/test_connecting_a_channel_is_reachable_by_voice.py"]},
+            "paths": ["tests/browser/unit/mensajeria/test_connecting_a_channel_is_reachable_by_voice.py",
+                      # V2-521 — a dictated reply reaches EVERY platform: msg.reply existed since V2-051 and
+                      # only email subscribed; WhatsApp's bridge had POST /send all along, Telethon sends in
+                      # one line, and nobody drained the topic.
+                      "tests/browser/unit/mensajeria/test_a_dictated_reply_reaches_every_platform.py"]},
         # RENDERIZA a propósito, por lo mismo que el 4.34: el 4.35 prueba el dato y el cableado, y seguiría
         # verde con la rama del render desactivada — medido mientras se construía (`if(false && focus …)`
         # dejó todas las aserciones de fuente en verde). Esto mira los píxeles: panel abierto, formulario
