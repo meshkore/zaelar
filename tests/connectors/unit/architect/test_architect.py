@@ -1,6 +1,6 @@
 #
-# test_architect.py — el conector Architect sin daemon real: parsing de tags (protocolo compartido) y el ciclo
-# de encargo completo (ask → poll → entrega) con un cliente falso. Ejecutar: .venv/bin/pytest connectors/architect/
+# test_architect.py — the Architect connector without a real daemon: tag parsing (shared protocol) and the complete
+# job cycle (ask → poll → delivery) with a fake client. Run: .venv/bin/pytest connectors/architect/
 #
 import asyncio
 
@@ -19,7 +19,7 @@ def _collect(text: str, chunks: bool = False):
     if not chunks:
         spoken, _ = strip_tags(text, emit, True)
         return got, spoken
-    # stream en trozos pequeños, como llega del LLM: la tag partida debe retenerse y emitirse entera
+    # stream in small chunks, as it arrives from the LLM: a split tag must be retained and emitted whole
     buf, spoken = "", []
     for i in range(0, len(text), 7):
         buf += text[i:i + 7]
@@ -48,14 +48,14 @@ def test_architect_tag_split_across_chunks_never_leaks():
     assert "[[" not in spoken
 
 
-# ── service (cliente falso) ───────────────────────────────────────────────────────────────────────────────────
+# ── service (fake client) ─────────────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def fast_polls(monkeypatch):
     monkeypatch.setenv("ARCHITECT_TOKEN", "test-token")
     monkeypatch.setattr(service, "_POLL_FAST", 0.01)
     monkeypatch.setattr(service, "_POLL_SLOW", 0.01)
-    brain_notes.drain()                      # empieza con el buzón limpio
+    brain_notes.drain()                      # start with a clean mailbox
     yield
     brain_notes.drain()
 
@@ -92,7 +92,7 @@ def test_ask_happy_path_delivers_note_and_voice(monkeypatch, fast_polls):
     notes = brain_notes.drain()
     assert any("ha terminado" in n and "INI-010" in n for n in notes)
     assert spoken and spoken[0][0] == "Architect · zaelar" and "INI-010" in spoken[0][1]
-    assert not service.inflight()            # el encargo se des-registra al acabar
+    assert not service.inflight()            # the job is unregistered when it finishes
 
 
 def test_second_ask_to_same_project_is_rejected_not_queued(monkeypatch, fast_polls):
@@ -115,7 +115,7 @@ def test_second_ask_to_same_project_is_rejected_not_queued(monkeypatch, fast_pol
     async def run():
         t = asyncio.create_task(service.ask("zaelar", "primero"))
         await started.wait()
-        await service.ask("zaelar", "segundo")          # debe rebotar con nota, sin encolar
+        await service.ask("zaelar", "segundo")          # must be rejected with a note, without queuing
         notes = brain_notes.drain()
         assert any("YA tiene un encargo en curso" in n for n in notes)
         release.set()

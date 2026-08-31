@@ -1,12 +1,12 @@
 #
-# Tests de la PROTECCIÓN DE RECURSOS del canal de cluster (V2-071). Run: .venv/bin/pytest tests/cluster/unit/test_resource.py -q
+# Tests for RESOURCE PROTECTION on the cluster channel (V2-071). Run: .venv/bin/pytest tests/cluster/unit/test_resource.py -q
 #
-# El tercer robo: que un peer nos endose el trabajo CARO (generar su código/informe → gasta NUESTROS tokens sin
-# reciprocidad). Se detecta el desequilibrio y se protege EN SILENCIO (no se le comunica al peer). Cubre:
-#   · looks_like_offload — detectar peticiones de PRODUCIR trabajo (señal del balance)
-#   · guard_code_outbound — un volcado grande de código por el canal → puntero al repo (como se redacta un secreto)
-#   · resource_verdict — el balance (equilibrado/sesgado/explotación), tolerante a la asimetría normal
-#   · meter — acumulación por-peer en la cápsula (sys_kv), sin tocar el estado del operador
+# The third theft: a peer dumping the EXPENSIVE work on us (generating their code/report → spending OUR tokens without
+# reciprocity). The imbalance is detected and protection is applied SILENTLY (the peer is not informed). Covers:
+#   · looks_like_offload — detect requests to PRODUCE work (a balance signal)
+#   · guard_code_outbound — a large code dump through the channel → repository pointer (like redacting a secret)
+#   · resource_verdict — the balance (balanced/biased/exploitation), tolerant of normal asymmetry
+#   · meter — per-peer accumulation in the capsule (sys_kv), without touching the operator's state
 #
 import pytest
 
@@ -54,7 +54,7 @@ def test_large_code_block_pointered():
     out, stripped = security.guard_code_outbound(f"aquí tienes:\n{big}\nun saludo")
     assert stripped
     assert "```" not in out and "repository" in out.lower()
-    assert "aquí tienes" in out and "un saludo" in out           # el texto alrededor se conserva
+    assert "aquí tienes" in out and "un saludo" in out           # the surrounding text is preserved
 
 
 def test_small_snippet_passes():
@@ -70,8 +70,8 @@ def test_no_code_untouched():
 
 # ── acumulador anti-fragmentación (auditoría 2026-07-26, hallazgo P1) ──────────────────────────────────────────
 def test_fragmentation_bypasses_per_message_threshold_without_accum_key():
-    # Sin accum_key (comportamiento viejo, aún soportado): cada mensaje se juzga AISLADO — el bypass es posible.
-    small = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"   # bajo umbral por mensaje
+    # Without accum_key (old behavior, still supported): each message is judged IN ISOLATION — bypass is possible.
+    small = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"   # below the per-message threshold
     for _ in range(5):
         out, stripped = security.guard_code_outbound(small)
         assert not stripped and "```" in out
@@ -80,13 +80,13 @@ def test_fragmentation_bypasses_per_message_threshold_without_accum_key():
 def test_fragmentation_trips_with_accum_key(monkeypatch):
     key = "clusterX:peerY"
     monkeypatch.setitem(security._code_accum, key, __import__("collections").deque())
-    # 3 líneas de 32 chars (98 en total) — bien bajo el umbral por-mensaje (800 chars / 15 líneas), pero
-    # acumulado tras varios fragmentos SUPERA el umbral de chars (fragmentación).
+    # 3 lines of 32 chars (98 total) — well below the per-message threshold (800 chars / 15 lines), but
+    # accumulated across several fragments it EXCEEDS the character threshold (fragmentation).
     small = "```py\n" + "\n".join(["y" * 30 + "=1"] * 3) + "\n```"
     results = [security.guard_code_outbound(small, accum_key=key)[1] for _ in range(12)]
-    assert not any(results[:8])              # 8×99=792 ≤ 800 → los primeros fragmentos, aislados, pasan
-    assert any(results[8:])                  # el acumulado supera 800 a partir de aquí → dispara
-    # y una vez disparado, ESTE mensaje concreto pierde su bloque de código:
+    assert not any(results[:8])              # 8×99=792 ≤ 800 → the first fragments, in isolation, pass
+    assert any(results[8:])                  # the accumulation exceeds 800 from this point → it triggers
+    # and once triggered, THIS specific message loses its code block:
     out, stripped = security.guard_code_outbound(small, accum_key=key)
     assert stripped and "```" not in out
 
@@ -96,7 +96,7 @@ def test_fragmentation_accum_is_per_destination(monkeypatch):
     big_enough = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"
     for _ in range(20):
         security.guard_code_outbound(big_enough, accum_key="clusterA:peer1")
-    # un destino DISTINTO no hereda el acumulado del primero
+    # a DIFFERENT destination does not inherit the first destination's accumulation
     out, stripped = security.guard_code_outbound(big_enough, accum_key="clusterA:peer2")
     assert not stripped and "```" in out
 
@@ -108,29 +108,29 @@ def test_fragmentation_window_expires(monkeypatch):
     chunk = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"
     for _ in range(20):
         security.guard_code_outbound(chunk, accum_key="clusterA:peer1")
-    _t.sleep(0.1)   # la ventana expira → el acumulado se resetea solo
+    _t.sleep(0.1)   # the window expires → the accumulation resets itself
     out, stripped = security.guard_code_outbound(chunk, accum_key="clusterA:peer1")
     assert not stripped and "```" in out
 
 
 # ── resource_verdict (pura) ─────────────────────────────────────────────────────────────────────────────────────
 def test_verdict_equilibrado_low_volume():
-    # pocos turnos → no se juzga aunque el ratio sea alto
+    # few turns → it is not judged even if the ratio is high
     assert capsule.resource_verdict(given=5000, received=100, offloads=5, turns=2) == "equilibrado"
 
 
 def test_verdict_equilibrado_no_offload():
-    # producimos mucho más (un diagrama/decisión) pero SIN que nos pidan producir → normal, no salta
+    # we produce much more (a diagram/decision) but WITHOUT being asked to produce → normal, does not trigger
     assert capsule.resource_verdict(given=5000, received=500, offloads=0, turns=10) == "equilibrado"
 
 
 def test_verdict_sesgado():
-    # ratio ≥3 + al menos una petición de producir → sesgado
+    # ratio ≥3 + at least one request to produce → biased
     assert capsule.resource_verdict(given=3000, received=800, offloads=1, turns=6) == "sesgado"
 
 
 def test_verdict_explotacion():
-    # ratio ≥6 + offload sostenido → explotación
+    # ratio ≥6 + sustained offload → exploitation
     assert capsule.resource_verdict(given=9000, received=800, offloads=4, turns=8) == "explotación"
 
 
@@ -156,6 +156,6 @@ def test_meter_isolated_per_peer(fresh_db):
     capsule.meter("meshcore", "otro", given=10)
     assert capsule.load("meshcore", "zalo")["given"] == 1000
     assert capsule.load("meshcore", "otro")["offloads"] == 0
-    # no toca el estado del operador (scope-partido): la cápsula vive en sys_kv, no en state
+    # does not touch the operator's state (split scope): the capsule lives in sys_kv, not in state
     from memory import api as memory
     assert "zalo" not in str(memory.state())

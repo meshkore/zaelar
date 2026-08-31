@@ -1,17 +1,17 @@
-"""conftest.py raíz de la suite — garantías de AISLAMIENTO que valen para TODOS los tests.
+"""Suite-root conftest.py — ISOLATION guarantees that apply to ALL tests.
 
-## El agente arranca EN MARCHA en cada test (V2-092)
+## The agent starts RUNNING in every test (V2-092)
 
-Desde que existe el interruptor global (`nucleo/runstate.py`), «¿está el agente parado?» gobierna caminos reales:
-los ciclos de background no hacen `tick()`, los crons no disparan, no se abre trabajo nuevo y los widgets que
-producen se niegan a arrancar. Ese interruptor **está persistido en la base del operador**, así que sin este fixture
-la suite dependería de un estado AMBIENTAL: correr los tests con el ⏻ apagado en la sesión real hacía fallar
-`test_background.py::test_scheduler_ticks_a_passive_widget`, y el fallo no señalaba a nada del test — pasó de verdad
-el 2026-08-13, mientras se construía la propia función.
+Since the global switch (`nucleo/runstate.py`) exists, “is the agent stopped?” governs real paths:
+background cycles do not call `tick()`, crons do not fire, no new work is opened, and the widgets they
+produce refuse to start. That switch **is persisted in the operator's database**, so without this fixture
+the suite would depend on an ENVIRONMENTAL state: running the tests with ⏻ off in the real session caused
+`test_background.py::test_scheduler_ticks_a_passive_widget` to fail, and the failure did not point to anything in
+the test — it really happened on 2026-08-13, while the feature itself was being built.
 
-Se pone la caché EN PROCESO (no se escribe nada en ninguna base), así que un test que quiera parar el agente sigue
-pudiendo — llama a `runstate.stop()` y manda él (ver `tests/agent_headless/unit/test_runstate.py`, que además usa su
-propia base temporal).
+The cache is kept IN PROCESS (nothing is written to any database), so a test that wants to stop the agent still
+can — call `runstate.stop()` and it takes precedence (see `tests/agent_headless/unit/test_runstate.py`, which also uses its
+own temporary database).
 """
 from __future__ import annotations
 
@@ -28,26 +28,26 @@ def _agente_en_marcha():
 
 @pytest.fixture(autouse=True)
 def _reranker_deja_de_depender_de_la_maquina():
-    """El reranker LOCAL descarga su modelo de HuggingFace, y la suite decía «sin red» sin serlo (2026-08-23).
+    """The LOCAL reranker downloads its HuggingFace model, and the suite claimed to be “offline” without being so (2026-08-23).
 
-    `memory/rerank.py::_cfg()` lee `config/v2.py` PRIMERO y solo cae al entorno si no hay config. Eso es la norma
-    del producto —«el store MANDA sobre `.env`»— y NO se toca aquí. El problema es que ese fichero está
-    GITIGNOREADO: es la config de CADA máquina. En la del operador `rerank_provider='local'` sin el modelo en
-    caché, así que `MEMORY_RERANK=off` no apagaba nada y cualquier test que llegara al reranker se ponía a
-    DESCARGAR. Medido: la suite de memoria pasó de 34 s a colgada **sin que cambiara una línea de test**, y tres
-    procesos de pytest quedaron bloqueados esperándose entre ellos por el lock del fichero.
+    `memory/rerank.py::_cfg()` reads `config/v2.py` FIRST and only falls back to the environment if there is no config. That is the product
+    rule —“the store OVERRIDES `.env`”— and is NOT changed here. The problem is that this file is
+    GITIGNORED: it is the config for EACH machine. On the operator's machine `rerank_provider='local'` was set without the model in
+    cache, so `MEMORY_RERANK=off` did not turn anything off and any test that reached the reranker started
+    DOWNLOADING. Measured: the memory suite went from 34 s to hanging **without a line of test code changing**, and three
+    pytest processes became blocked waiting for one another on the file lock.
 
-    Lo que no falla con ruido es lo caro: un test que se anuncia determinista y sale a la red no da un error, se
-    cuelga — o peor, mide otra cosa. Así que DENTRO de la suite el entorno gana, y por defecto el reranker está
-    apagado. Un test que quiera medirlo de verdad pone `MEMORY_RERANK` y manda él.
+    What fails silently is the expensive part: a test that claims to be deterministic and reaches the network does not report an error, it
+    hangs — or worse, measures something else. So INSIDE the suite the environment wins, and by default the reranker is
+    off. A test that genuinely wants to measure it sets `MEMORY_RERANK` and takes precedence.
 
-    La precedencia de PRODUCCIÓN queda exactamente como estaba: esto solo vive en el conftest.
+    PRODUCTION precedence remains exactly as it was: this lives only in conftest.
 
-    ⚠️ NO usa `monkeypatch`, y no es preferencia de estilo: pedirlo aquí instancia ese fixture en el nivel MÁS
-    EXTERNO de toda la suite, así que sus parches se deshacen DESPUÉS del teardown de cualquier fixture de
-    módulo. Medido al introducirlo: `test_session_rotation.py` se puso en ERROR porque su propio `_clean`
-    llamaba, al salir, a la función que el test había parcheado para que reventara — un fixture del conftest
-    raíz no puede reordenar el ciclo de vida de los demás. Guardar y restaurar a mano no toca ese orden.
+    ⚠️ It does NOT use `monkeypatch`, and this is not a style preference: requesting it here instantiates that fixture at the MOST
+    OUTER level of the entire suite, so its patches are undone AFTER the teardown of any module fixture.
+    Measured when it was introduced: `test_session_rotation.py` became ERROR because its own `_clean`
+    called, on exit, the function that the test had patched to blow up — a root-conftest fixture cannot reorder
+    the lifecycle of the others. Saving and restoring by hand does not affect that order.
     """
     import os
     from memory import rerank
