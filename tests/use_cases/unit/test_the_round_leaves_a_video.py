@@ -1,8 +1,8 @@
-"""V2-464 — la ronda deja un VÍDEO: lo que habría visto el usuario, enlazado desde el informe.
+"""V2-464 — the round leaves a VIDEO: what the user would have seen, linked from the report.
 
-Petición del operador (2026-08-28): grabar la pantalla mientras el caso corre en background — chat abierto
-para leer la conversación, widgets alineados como el snap de ventanas del sistema — y guardar el .webm sin
-sonido junto a la sesión y sus flujos, como material de showcase.
+Operator request (2026-08-28): record the screen while the case runs in the background — chat open
+to read the conversation, widgets aligned like the system window snap — and save the silent .webm
+alongside the session and its flows, as showcase material.
 """
 from __future__ import annotations
 
@@ -13,17 +13,17 @@ from tests.use_cases.e2e.agent import recorder as R, report as REP
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
 
-# ── el protocolo del espectador ─────────────────────────────────────────────────────────────────────────
+# ── the viewer protocol ─────────────────────────────────────────────────────────────────────────────────
 def test_parar_sin_haber_arrancado_es_seguro():
-    """El runner llama a stop en el finally de una ronda reventada; sin esto, la limpieza del fallo raro
-    fabricaría un fallo nuevo."""
+    """The runner calls stop in the finally block of a crashed round; without this, cleaning up the rare
+    failure would create a new failure."""
     assert R.Recorder("http://127.0.0.1:1").stop("x") == ""
 
 
 def test_un_arranque_imposible_se_dice_y_no_revienta():
-    """Fail-soft por contrato: el vídeo es espejo de la ronda, no condición — una grabación que no arranca
-    nunca puede tirar una medición que ya se pagó."""
-    r = R.Recorder("http://127.0.0.1:1")           # nadie escucha ahí
+    """Fail-soft by contract: the video mirrors the round; it is not a prerequisite — a recording that does not start
+    must never bring down a measurement that has already been paid for."""
+    r = R.Recorder("http://127.0.0.1:1")           # nobody is listening there
     assert r.start(timeout_s=10) is False
     assert r.error, "sin el motivo, el operador no sabe por qué no hay vídeo"
 
@@ -33,15 +33,15 @@ def test_el_video_va_a_la_carpeta_de_la_campaña():
 
 
 def test_la_parada_es_por_stdin_y_no_por_señal():
-    """El .webm solo se materializa al CERRAR el contexto de Playwright: matar al espectador a señales pierde
-    el fichero entero — el modo de fallo más caro, porque la ronda ya corrió. El protocolo es una orden por
-    stdin (y el EOF cuenta como orden, para no dejar huérfanos si el runner muere)."""
+    """The .webm is materialized only when the Playwright context is CLOSED: killing the viewer with signals loses
+    the entire file — the most expensive failure mode, because the round has already run. The protocol is a command via
+    stdin (and EOF counts as a command, so no orphan is left behind if the runner dies)."""
     src = R._WATCHER_SRC
     assert "sys.stdin.readline()" in src and "ctx.close()" in src
     assert "record_video_dir" in src
 
 
-# ── el informe ──────────────────────────────────────────────────────────────────────────────────────────
+# ── the report ───────────────────────────────────────────────────────────────────────────────────────────
 def _fila(**extra) -> dict:
     return {"scenario": "x", "tier": 2, "channel": "probe",
             "run": {"transcript": [], "mechanism_report": {}, "watchdog_log": []},
@@ -62,10 +62,10 @@ def test_sin_video_no_hay_linea_fantasma(tmp_path):
     assert "🎥" not in _md(_fila(), tmp_path)
 
 
-# ── el modo escaparate, las TRES mitades del frontend ───────────────────────────────────────────────────
+# ── showcase mode, the THREE frontend halves ─────────────────────────────────────────────────────────────
 def test_el_frontend_lleva_el_modo_escaparate_completo():
-    """Tres ficheros y un endpoint; cablear una parte sola no falla con ruido — falla grabando un vídeo con
-    las tarjetas amontonadas y el chat cerrado, que parece un defecto del producto."""
+    """Three files and one endpoint; wiring only one part does not fail noisily — it fails while recording a video with
+    the cards piled up and the chat closed, which looks like a product defect."""
     desk = (ENGINE / "frontend" / "app" / "widgets" / "desktop.js").read_text(encoding="utf-8")
     assert "arrange(){" in desk, "la rejilla vive en el canvas, que es su autoridad (V2-035)"
     sse = (ENGINE / "frontend" / "app" / "services" / "sse.js").read_text(encoding="utf-8")

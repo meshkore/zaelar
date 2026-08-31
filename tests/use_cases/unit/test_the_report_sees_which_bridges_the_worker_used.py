@@ -1,23 +1,23 @@
-"""V2-327 — el informe dice con qué PUENTES trabajó el worker, leído de sus logs de sesión.
+"""V2-327 — the report says which BRIDGES the worker used, read from its session logs.
 
-LA OBSERVABILIDAD NO SIRVE PARA ESTO, y lo peligroso es que parece que sí. Control medido el 2026-08-25 sobre
-la misma ventana: `nav_cli` aparece **9** veces en los eventos mientras el worker conduce el navegador decenas
-de veces. Un recuento sobre el bus da un número pequeño y creíble — y con él estuve a punto de reportar
-«`widget_cli`: 0 usos en 1350 eventos» como prueba de que ese puente no se usa nunca.
+OBSERVABILITY DOES NOT WORK FOR THIS, and the dangerous part is that it looks as though it does. A control measured
+on 2026-08-25 over the same window: `nav_cli` appears **9** times in the events while the worker drives the browser
+dozens of times. A count over the bus gives a small, credible number — and with it I almost reported
+«`widget_cli`: 0 uses in 1350 events» as proof that this bridge is never used.
 
-La fuente autoritativa dijo lo contrario, y algo mucho más útil:
+The authoritative source said the opposite, and something much more useful:
 
-    332 sesiones · 81 mencionan nav_cli · 5 mencionan widget_cli · y las CINCO llevan un Exit code 2
+    332 sessions · 81 mention nav_cli · 5 mention widget_cli · and ALL FIVE have an Exit code 2
 
-O sea que los workers SÍ lo intentaban y el puente los echaba: `--help` contestaba «comando desconocido» con
-código 2 (V2-325).
+In other words, the workers WERE trying it and the bridge was rejecting them: `--help` replied «unknown command» with
+code 2 (V2-325).
 
-POR QUÉ VA EN EL INFORME. `widget_cli` es la única forma que tiene un worker de poner en la hoja lo que aprende
-ABRIENDO fichas; sin él la hoja solo recoge lo que el extractor automático saca de un listado. Esa diferencia
-decidió tres rondas seguidas (mecanismo 4-5, resultado 1-2) y **nada en el informe la mostraba**.
+WHY IT BELONGS IN THE REPORT. `widget_cli` is the only way a worker can put into the sheet what it learns by
+OPENING records; without it, the sheet only collects what the automatic extractor pulls from a listing. That
+difference decided three consecutive rounds (mechanism 4-5, result 1-2) and **nothing in the report showed it**.
 
-Y es la mitad que faltaba de V2-325: allí se quitó una fricción medida dejando escrito que eso NO prueba que
-los workers vayan a usar la hoja. Esto es lo que lo mide.
+And it is the missing half of V2-325: there, a measured friction was removed by writing down that this does NOT
+prove that the workers will use the sheet. This is what measures it.
 """
 import json
 
@@ -28,7 +28,7 @@ from tests.use_cases.e2e.agent import verify as V
 
 @pytest.fixture
 def sesiones(tmp_path):
-    """Logs de sesión de mentira — un test unitario nunca lee los del plató vivo."""
+    """Fake session logs — a unit test never reads those from the live set."""
     d = tmp_path / "sessions"
     d.mkdir()
 
@@ -54,7 +54,7 @@ def test_cuenta_las_SESIONES_que_tocan_cada_puente(sesiones):
 
 
 def test_marca_las_que_ADEMÁS_llevan_un_fallo(sesiones):
-    """La señal que encontró V2-325: el puente se toca y la sesión muere con `Exit code 2`."""
+    """The signal V2-325 found: the bridge is touched and the session dies with `Exit code 2`."""
     d, add = sesiones
     add("a", {"text": "python -m nucleo.widget_cli --help"}, {"text": "Exit code 2 comando desconocido: --help"})
     add("b", {"text": "python -m nucleo.widget_cli read results"}, {"text": "ok"})
@@ -64,8 +64,8 @@ def test_marca_las_que_ADEMÁS_llevan_un_fallo(sesiones):
 
 
 def test_el_error_se_cuenta_como_COINCIDENCIA_no_como_culpa(sesiones):
-    """Honestidad del instrumento: un `Exit code 2` en la misma sesión NO prueba que sea de ese puente. Se
-    cuenta aparte y el docstring lo dice; si algún día se usa para acusar, hay que estrechar la señal primero."""
+    """Instrument honesty: an `Exit code 2` in the same session does NOT prove that it belongs to that bridge. It is
+    counted separately and the docstring says so; if it is ever used to assign blame, the signal must first be narrowed."""
     d, add = sesiones
     add("a", {"text": "nav_cli snapshot"}, {"text": "widget_cli read results"},
         {"text": "Exit code 2 en algún sitio"})
@@ -74,8 +74,8 @@ def test_el_error_se_cuenta_como_COINCIDENCIA_no_como_culpa(sesiones):
 
 
 def test_las_sesiones_ANTERIORES_a_la_ronda_no_cuentan(sesiones):
-    """`since` es lo que separa esta ronda de las de antes; sin él, el plató acumula 338 sesiones y el número
-    deja de significar nada sobre el caso que se está midiendo."""
+    """`since` is what separates this round from the earlier ones; without it, the set accumulates 338 sessions and
+    the number ceases to mean anything about the case being measured."""
     import os
     import time
     d, add = sesiones
@@ -88,7 +88,7 @@ def test_las_sesiones_ANTERIORES_a_la_ronda_no_cuentan(sesiones):
 
 
 def test_el_informe_LO_LLEVA():
-    """La mitad de cableado (V2-199): la lectura puede acertar y no llegar a quien la necesita."""
+    """The wiring half (V2-199): the reading can be correct and fail to reach whoever needs it."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R

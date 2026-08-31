@@ -53,7 +53,7 @@ def test_a_closing_line_closes_in_both_languages(line):
 
 @pytest.mark.parametrize("line", [
     # Mid-conversation acknowledgments and errands must NOT read as goodbyes, in either language.
-    "Gracias por avisar, ¿y el precio?",         # gracias mid-sentence, still asking
+    "Gracias por avisar, ¿y el precio?",         # thanks mid-sentence, still asking
     "Please take care of the booking and let me know.",   # an ERRAND, not a farewell
     "Thanks to that filter it should be cheaper, can you rerun it",  # thanks mid-sentence
     # THE line that ended `cheapest-monitor` on turn 2 of 10, measured 2026-08-23. It answers the agent's
@@ -68,7 +68,7 @@ def test_an_errand_or_acknowledgment_is_not_a_goodbye(line):
 
 
 def test_the_us_driver_speaks_english_to_its_own_persona():
-    """The system prompt is the steering wheel: a US persona instructed in Spanish to close with «gracias»
+    """The system prompt is the steering wheel: a US persona instructed in Spanish to close with «thanks»
     is being pushed out of character on every turn — and its sign-off then cannot match either."""
     sys_us = drivermod.Driver(_Scn("us")).history[0]["content"]
     assert "FIXED IDENTITY" in sys_us
@@ -167,8 +167,8 @@ def test_a_scenario_crash_carries_what_was_already_measured():
 def test_the_batch_handler_reads_the_crash_not_an_empty_record():
     """Wiring guard, same pattern as `test_the_wiring_is_in_the_event_handler`: the fix is one except-block
     in `_run_batch`, and an innocent refactor that rebuilds the INFRA row from scratch would silently bring
-    back `transcript: []`. Anchored on the handler's own print, which is part of the contract («si tienes
-    la respuesta, imprímela»)."""
+    back `transcript: []`. Anchored on the handler's own print, which is part of the contract («if you have
+    the answer, print it»)."""
     import inspect
     src = inspect.getsource(runmod._run_batch)
     i = src.find("scenario crashed")
@@ -184,8 +184,8 @@ def test_the_batch_handler_reads_the_crash_not_an_empty_record():
 
 def test_a_lab_round_can_start_from_clean_memory():
     """`--fresh` exists because a lab agent is PERSISTENT: it holds the memory of every round ever driven
-    against it. Measured 2026-08-23 — the third attempt at `cheapest-monitor` opened with zaelar saying «tú
-    antes hablabas de un 27" 4K por unos 300 euros», a preference from the attempt that died two hours
+    against it. Measured 2026-08-23 — the third attempt at `cheapest-monitor` opened with zaelar saying «you
+    used to talk about a 27" 4K for around 300 euros», a preference from the attempt that died two hours
     earlier. Without the flag the only way to measure clean was to remember to reset by hand first."""
     from tests.use_cases.e2e.agent import run as runmod
     ap = runmod._parser() if hasattr(runmod, "_parser") else None

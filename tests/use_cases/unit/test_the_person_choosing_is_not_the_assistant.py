@@ -1,28 +1,28 @@
-"""V2-319 — la persona que RECHAZA por nombre lo que acaba de oír no está haciendo de asistente.
+"""V2-319 — the person who REJECTS by name what they have just heard is not acting as an assistant.
 
-El detector de role-flip (V2-285/312) marca una línea del tester que recita títulos de NUESTRA hoja. Los ya
-OÍDOS solo delataban a partir de DOS en la misma línea, sobre la idea de que recitar una lista es conducta de
-asistente aunque los nombres se hayan oído. Ese umbral era un proxy de la POSTURA —lo dice el propio docstring
-del detector— y se rompió en cuanto una persona hizo lo que estos casos existen para medir: discriminar entre
-las opciones que le acaban de dar.
+The role-flip detector (V2-285/312) flags a tester line that recites titles from OUR sheet. Names already
+HEARD only gave it away starting at TWO on the same line, based on the idea that reciting a list is assistant
+behavior even when the names have been heard. That threshold was a proxy for STANCE —as the detector's own
+docstring says— and it broke as soon as a person did what these cases exist to measure: distinguish among
+the options they have just been given.
 
-Medido en la ronda 37 de la guitarra (2026-08-25 15:51), turno 17:
+Measured in guitar round 37 (2026-08-25 15:51), turn 17:
 
     «la CG-150 y la Yamaha C70 son clásicas, de nylon, ¿no? Esas NO ME VALEN. Quiero acústica de cuerda de
      metal, COMO TE DIJE. La Harley Benton y la acústica de 100 esas pinta mejor, a ver si ME CONFIRMAS zona
      y estado.»
 
-Dos nombres oídos → marcada → ronda INFRA. Y el coste no fue cero: esa ronda traía el defecto del COLGADOR de
-guitarra ofrecido como candidato (V2-318). El instrumento tiró una medida buena.
+Two names heard → flagged → INFRA round. And the cost was not zero: that round contained the guitar HANGER
+defect offered as a candidate (V2-318). The instrument threw away a good measurement.
 
-La asimetría entera, y por eso no es una excepción cómoda sino la propiedad escrita: **quien pide dice lo que
-quiere y pregunta; quien entrega dice lo que tiene y se ofrece.**
+The whole asymmetry, and therefore not a convenient exception but the stated property: **the one who asks says
+what they want and asks questions; the one who delivers says what they have and offers it.**
 """
 from tests.use_cases.e2e.agent import verify as V
 
-# Los títulos reales de la ronda 37, tal como los devolvió la hoja.
+# The actual titles from round 37, as returned by the sheet.
 _KNOWN = ["Harley Benton Acústica", "Yamaha C70 Clásica", "Fender CC-60S Natural", "Epiphone DR-100 Nat"]
-# Lo que zaelar había dicho ANTES de esa línea — los dos nombres salen de aquí.
+# What zaelar had said BEFORE that line — the two names come from here.
 _HEARD = ("Van saliendo candidatas que te valen: una Valencia CG-150 a 69€, una acústica a 100€, "
           "una Harley Benton a 100€ y una Yamaha C70 a 25€.")
 _PERSONA = ("Oye, la CG-150 y la Yamaha C70 son clásicas, de nylon, ¿no? Esas no me valen. Quiero acústica de "
@@ -35,21 +35,21 @@ def test_la_linea_MEDIDA_ya_no_se_marca():
 
 
 def test_y_ANTES_si_se_marcaba_por_el_umbral_de_dos():
-    """La sensibilidad: sin la salvedad de postura, esos dos ecos bastan. Si esto deja de ser cierto, el caso
-    ya no prueba nada y el test de arriba pasaría por accidente."""
+    """Sensitivity: without the stance caveat, those two echoes are sufficient. If this stops being true, the case
+    no longer proves anything and the test above would pass by accident."""
     ecos = [t for t in _KNOWN if V._title_head(t) and V._title_head(t) in V._norm_title(_PERSONA)
             and V._title_head(t) in V._norm_title(_HEARD)]
     assert len(ecos) >= 2
 
 
 def test_un_titulo_que_zaelar_NUNCA_dijo_sigue_delatando_con_UNO():
-    """La salvedad NO toca el caso fuerte: si el nombre no se ha oído, la persona no podía saberlo, y ni la
-    postura más de cliente del mundo explica que lo escriba."""
+    """The caveat does NOT affect the strong case: if the name has not been heard, the person could not know it, and not even
+    the most customer-like stance in the world explains them writing it."""
     assert V.recites_our_candidates("no me vale la Epiphone DR-100, porfa busca otra", _KNOWN, heard="")
 
 
 def test_los_DOS_flips_reales_siguen_cazados():
-    """El número que importa de un eximente no es a cuántos inocentes salva, es a cuántos culpables suelta."""
+    """What matters about an exemption is not how many innocents it saves, but how many guilty parties it lets go."""
     guitarra = ("He estado mirando y tengo un par de opciones de cuerdas de metal que encajan con lo que "
                 "pides: la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €. Todavía no tengo los enlaces "
                 "a mano, pero si quieres puedo centrarme en una de las dos y buscarte el anuncio completo.")
@@ -66,10 +66,10 @@ def test_los_DOS_flips_reales_siguen_cazados():
 
 
 def test_QUIERO_no_es_un_marcador_de_postura():
-    """Y ésta es la razón exacta por la que la lista de marcadores es corta. Esa línea de la cámara termina
-    «¿…o QUIERO que siga buscando?» —un garble de «quieres»— y con `quiero` en la lista se eximía sola, siendo
-    una línea que empieza «de las que tengo, la más clara es…». Un marcador que un desliz de conjugación puede
-    fabricar es ruido con forma de señal."""
+    """And this is the exact reason why the list of markers is short. That camera line ends
+    "«¿…o QUIERO que siga buscando?» —a garble of «quieres»— and with `quiero` in the list it exempted itself, despite
+    being a line that starts "«de las que tengo, la más clara es…». A marker that a conjugation slip can
+    create is noise shaped like a signal."""
     assert V._speaks_as_the_customer("o quiero que siga buscando") is False
     assert V._speaks_as_the_customer("prefiero de metal") is False
 
@@ -81,7 +81,7 @@ def test_los_marcadores_que_SI_valen_son_los_que_la_oferta_no_puede_decir():
 
 
 def test_el_barrido_de_la_ronda_LO_USA():
-    """La mitad de cableado: el eximente puede acertar y no llegar al barrido que declara INFRA (V2-199)."""
+    """The wiring half: the exemption can work and still not reach the sweep that declares INFRA (V2-199)."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
