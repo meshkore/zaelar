@@ -1,6 +1,6 @@
-"""V2-082 — edición quirúrgica de alias de widget (`widgets/aliases.py`): add/remove, guard de colisión (widget
-y superficie de sistema), guard del nombre canónico, migración perezosa de keywords. Aísla el filesystem con un
-manifest de juguete en tmp_path + monkeypatch de la ruta y el registro."""
+"""V2-082 — surgical editing of widget aliases (`widgets/aliases.py`): add/remove, collision guard (widget
+and system surface), canonical-name guard, lazy migration of keywords. Isolates the filesystem with a toy
+manifest in tmp_path plus monkeypatching of the path and registry."""
 import json
 
 import pytest
@@ -10,8 +10,8 @@ from widgets import aliases
 
 @pytest.fixture
 def toy(tmp_path, monkeypatch):
-    """Un widget 'demo' con name+keywords (sin `aliases` aún → prueba la migración perezosa) y un registro
-    controlado (demo + otro widget 'vecino' con 'ocupado' + una superficie de sistema 'chat')."""
+    """A 'demo' widget with name+keywords (without `aliases` yet → tests lazy migration) and a controlled
+    registry (demo + another 'vecino' widget with 'ocupado' + a 'chat' system surface)."""
     man = {"id": "demo", "title": "Demo", "keywords": ["demonio", "prueba"], "entry": "widget.js"}
     p = tmp_path / "manifest.json"
     p.write_text(json.dumps(man), encoding="utf-8")
@@ -19,7 +19,7 @@ def toy(tmp_path, monkeypatch):
     monkeypatch.setattr(aliases, "_manifest_path", lambda wid: str(p) if aliases._safe(wid) == "demo" else "/nope")
     monkeypatch.setattr(aliases, "_load", lambda wid: (json.loads(p.read_text(encoding="utf-8")), str(p))
                         if aliases._safe(wid) == "demo" else (None, "/nope"))
-    # registro de vecinos para las colisiones (no toca el catálogo real)
+    # Neighbor registry for collisions (does not touch the real catalog)
     import widgets.registry as registry
     reg = [
         {"id": "demo", "name": "Demo", "aliases": ["Demo", "demonio", "prueba"], "surface": "user"},
@@ -39,24 +39,24 @@ def _aliases(p):
 def test_add_new_alias(toy):
     r = aliases.add("demo", "banco de pruebas")
     assert r["ok"] and "banco de pruebas" in r["aliases"]
-    # migración perezosa: los keywords se sembraron como alias + el nombre
+    # Lazy migration: keywords were seeded as aliases + the name
     assert "Demo" in r["aliases"] and "demonio" in r["aliases"]
     assert "banco de pruebas" in _aliases(toy)
 
 
 def test_add_is_idempotent(toy):
     aliases.add("demo", "extra")
-    r = aliases.add("demo", "EXTRA")            # mismo alias (case-insensitive) → sin cambios
+    r = aliases.add("demo", "EXTRA")            # same alias (case-insensitive) → unchanged
     assert r["ok"] and r.get("unchanged")
 
 
 def test_add_collision_with_other_widget(toy):
-    r = aliases.add("demo", "ocupado")          # ya de 'vecino'
+    r = aliases.add("demo", "ocupado")          # already owned by 'vecino'
     assert not r["ok"] and r["owner"] == "vecino"
 
 
 def test_add_collision_with_system_surface(toy):
-    r = aliases.add("demo", "muro")             # ya de la superficie 'chat'
+    r = aliases.add("demo", "muro")             # already owned by the 'chat' surface
     assert not r["ok"] and r["owner"] == "chat"
 
 

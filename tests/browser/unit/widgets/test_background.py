@@ -1,4 +1,4 @@
-"""Tests de widgets/background.py — ejecución en background con ciclo (V2-034)."""
+"""Tests for widgets/background.py — background execution with a cycle (V2-034)."""
 import asyncio
 import types
 
@@ -14,8 +14,8 @@ def test_parse_period_units_and_min():
     assert bg.parse_period("90") == 90
     assert bg.parse_period(60) == 60
     assert bg.parse_period({"every": "2m"}) == 120
-    assert bg.parse_period("0") == 1              # mínimo 1s
-    assert bg.parse_period(True) is None          # bool no es un periodo
+    assert bg.parse_period("0") == 1              # minimum 1s
+    assert bg.parse_period(True) is None          # bool is not a period
     assert bg.parse_period("bad") is None
     assert bg.parse_period(None) is None
 
@@ -23,10 +23,10 @@ def test_parse_period_units_and_min():
 def test_background_period_reads_manifest():
     assert bg.background_period({"background": "1m"}) == 60
     assert bg.background_period({"background": {"every": "1h"}}) == 3600
-    assert bg.background_period({}) is None       # sin background → foreground-only
+    assert bg.background_period({}) is None       # no background → foreground-only
 
 
-# ── validación del generador ────────────────────────────────────────────────────────────────────────────
+# ── generator validation ─────────────────────────────────────────────────────────────────────────────────
 _TICK_SRC = "def view_data(q=''):\n    return {}\ndef tick():\n    return None\n"
 _NOTICK_SRC = "def view_data(q=''):\n    return {}\n"
 
@@ -38,7 +38,7 @@ def test_generator_passive_background_requires_tick():
 
 
 def test_generator_backed_background_needs_no_tick():
-    # un backed se auto-agenda por su owner → no exige tick() en data.py
+    # a backed widget is scheduled automatically by its owner → data.py does not require tick()
     assert generator._validate_background({"kind": "backed", "background": "1m"}, _NOTICK_SRC) is None
 
 
@@ -51,7 +51,7 @@ def test_generator_no_background_is_fine():
     assert generator._validate_background({"kind": "passive"}, _NOTICK_SRC) is None
 
 
-# ── el planificador llama a tick() en su ciclo (integración; sin pytest-asyncio) ──────────────────────────
+# ── the scheduler calls tick() in its cycle (integration; without pytest-asyncio) ─────────────────────────
 def test_scheduler_ticks_a_passive_widget(monkeypatch):
     calls = {"n": 0}
     fake = types.ModuleType("widgets.faketick.data")
@@ -66,7 +66,7 @@ def test_scheduler_ticks_a_passive_widget(monkeypatch):
     async def _drive():
         bg.start()
         assert "faketick" in bg.scheduled()
-        await asyncio.sleep(1.4)                  # arranca tras min(period,2)=1s, luego ≥1 tick
+        await asyncio.sleep(1.4)                  # starts after min(period,2)=1s, then ≥1 tick
         n = calls["n"]
         await bg.stop()
         return n
@@ -77,7 +77,7 @@ def test_scheduler_ticks_a_passive_widget(monkeypatch):
 
 
 def test_scheduler_skips_widget_without_tick(monkeypatch):
-    fake = types.ModuleType("widgets.notick.data")      # sin tick()
+    fake = types.ModuleType("widgets.notick.data")      # no tick()
     import importlib
     real_import = importlib.import_module
     monkeypatch.setattr(bg.runtime, "catalog", lambda: [{"id": "notick", "background": "1s"}])
@@ -90,4 +90,4 @@ def test_scheduler_skips_widget_without_tick(monkeypatch):
         await bg.stop()
         return sched
 
-    assert "notick" not in asyncio.run(_drive())        # sin tick() → no se agenda (aviso, no rompe)
+    assert "notick" not in asyncio.run(_drive())        # no tick() → not scheduled (warning, does not fail)

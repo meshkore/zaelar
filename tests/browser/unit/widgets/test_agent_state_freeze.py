@@ -1,23 +1,23 @@
 #
-# EL ESTADO DEL AGENTE ES UNA SOLA VERDAD, Y «PARADO» SIGNIFICA CONGELADO — de verdad y a la vista.
+# THE AGENT STATE IS A SINGLE TRUTH, AND “STOPPED” MEANS FROZEN — both literally and visibly.
 #
-# FALLO REAL, y caro (sesión del operador, 2026-08-10, con captura). Estuvo un buen rato hablándole a un agente
-# muerto, y lo contó así:
+# A REAL, costly FAILURE (operator session, 2026-08-10, with recording). They spent quite a while talking to a
+# dead agent, and described it like this:
 #
-#   «Como yo veía el micrófono encendido, el del altavoz encendido y el de la transcripción encendida, pensaba que
-#    estabas operativo. Además, en la observabilidad se veía cómo el micrófono estaba captando sonido. Claro, cuando
-#    el agente está parado, el micrófono está parado.»
-#   «Fíjate que está el ECG a tope y el agente debería estar completamente parado.»
+#   “Because I could see the microphone on, the speaker on, and the transcription on, I thought you were operational.
+#    Also, observability showed the microphone capturing sound. Of course, when the agent is stopped, the microphone
+#    is stopped.”
+#   “Notice that the ECG is going full blast and the agent should be completely stopped.”
 #
-# No era un fallo de audio: era un ESTADO INVISIBLE. Cada icono decidía su aspecto a partir de una señal distinta y
-# ninguna significaba «el agente funciona»: `powerOff` es la INTENCIÓN persistida y `started` es la realidad, que no
-# la miraba nadie para pintar. Con `powerOff=false` y la sesión caída, todo seguía azul. Y lo que más dice «estoy
-# vivo» de toda la pantalla —el electrocardiograma— late con el pulso del SERVIDOR, que sigue latiendo con la voz
-# apagada.
+# It was not an audio failure: it was an INVISIBLE STATE. Each icon decided its appearance from a different signal,
+# none meant “the agent is working”: `powerOff` is the persisted INTENT and `started` is reality, which nobody
+# checked when rendering. With `powerOff=false` and the session down, everything stayed blue. And the thing on the
+# entire screen that most says “I’m alive” — the electrocardiogram — beats to the SERVER’S pulse, which keeps beating
+# with the voice turned off.
 #
-# Se prueba por TEXTO porque este repo no ejecuta JS en los tests (módulos ES sin build). Aserciones groseras a
-# propósito: cazan la regresión típica (volver a pintar desde `powerOff` en vez de desde la realidad) sin fingir que
-# entienden el JS. El comportamiento se verificó además en vivo con Playwright.
+# It is tested by TEXT because this repo does not execute JS in tests (ES modules without a build). The deliberately
+# crude assertions catch the typical regression (rendering from `powerOff` instead of reality) without pretending to
+# understand the JS. The behavior was also verified live with Playwright.
 #
 from pathlib import Path
 
@@ -33,13 +33,12 @@ DOM = APP / "core" / "dom.js"
 
 
 def _code(p: Path) -> list[str]:
-    """Líneas de CÓDIGO (sin comentarios de línea): un comentario que explica el arreglo no puede aprobar el test
-    ni romperlo."""
+    """CODE lines (excluding line comments): a comment explaining the fix cannot make or break the test."""
     return [s for s in (l.strip() for l in p.read_text(encoding="utf-8").splitlines())
             if s and not s.startswith("//")]
 
 
-# ── 1) la fuente de verdad ────────────────────────────────────────────────────────────────────────────────────
+# ── 1) the source of truth ────────────────────────────────────────────────────────────────────────────────────
 def test_there_is_one_derived_answer_to_is_the_agent_alive():
     code = _code(STORE)
     assert any("agentState" in l for l in code), "el estado del agente tiene que existir como UNA respuesta"
@@ -47,8 +46,8 @@ def test_there_is_one_derived_answer_to_is_the_agent_alive():
 
 
 def test_the_state_includes_should_be_on_but_isnt():
-    """`stalled` es el estado que NO existía y el que causó el daño. Sin él, un agente caído se ve idéntico a uno
-    funcionando."""
+    """`stalled` is the state that did NOT exist and caused the damage. Without it, a down agent looks identical to a
+    working one."""
     body = STORE.read_text(encoding="utf-8")
     assert '"stalled"' in body
     for other in ('"off"', '"live"', '"starting"'):
@@ -56,15 +55,15 @@ def test_the_state_includes_should_be_on_but_isnt():
 
 
 def test_intent_alone_never_decides_whether_the_agent_is_alive():
-    """`powerOff` es lo que el operador PIDIÓ, no lo que está pasando. `agentState` tiene que consultar la realidad
-    (`started`), o volvemos al fallo."""
+    """`powerOff` is what the operator REQUESTED, not what is happening. `agentState` must check reality
+    (`started`), or we bring back the failure."""
     body = STORE.read_text(encoding="utf-8")
     i = body.index("export const agentState")
     fn = body[i:i + 900]
     assert "started()" in fn, "sin mirar `started` esto vuelve a pintar la intención"
 
 
-# ── 2) todo lo que se ve deriva de esa verdad ─────────────────────────────────────────────────────────────────
+# ── 2) everything visible derives from that truth ─────────────────────────────────────────────────────────────
 def test_the_icon_crown_dims_from_reality_not_from_the_persisted_flag():
     body = ORB.read_text(encoding="utf-8")
     i = body.index("const lidClass")
@@ -80,7 +79,7 @@ def test_the_power_icon_shows_the_four_real_states():
 
 
 def test_every_agent_state_has_a_title_in_both_bundles():
-    """Un icono en ámbar sin explicación no sirve de nada: el operador tiene que poder leer QUÉ pasa."""
+    """An amber icon without an explanation is useless: the operator must be able to read WHAT is happening."""
     import json
     for lang in ("en", "es"):
         b = json.loads((ENGINE / "i18n" / "bundles" / f"{lang}.json").read_text(encoding="utf-8"))
@@ -89,17 +88,17 @@ def test_every_agent_state_has_a_title_in_both_bundles():
             assert k in b and b[k].strip(), f"falta {k} en {lang}"
 
 
-# ── 3) parado = CONGELADO, no «parado pero moviéndose» ────────────────────────────────────────────────────────
+# ── 3) stopped = FROZEN, not “stopped but moving” ────────────────────────────────────────────────────────────
 def test_the_heartbeat_goes_flat_when_the_agent_is_not_alive():
-    """El pulso que llega es del SERVIDOR y el servidor sigue latiendo con la voz apagada. Un ECG a tope sobre un
-    agente detenido es la señal más engañosa de la pantalla."""
+    """The incoming pulse is from the SERVER, and the server keeps beating with the voice turned off. A full ECG on a
+    stopped agent is the most misleading signal on the screen."""
     code = _code(ECG)
     assert any("agentLive()" in l for l in code), "el ECG debe consultar si el agente vive antes de latir"
 
 
 def test_the_mic_meter_stops_writing_when_the_agent_is_not_alive():
-    """El analizador SOBREVIVE a `stop()` (nadie llama a `audio.reset()`), así que el medidor seguía publicando
-    nivel con el agente parado — y el operador lo veía «captando sonido» en observabilidad."""
+    """The analyzer SURVIVES `stop()` (nobody calls `audio.reset()`), so the meter kept publishing a level with the
+    agent stopped — and the operator saw it “capturing sound” in observability."""
     code = _code(VIZ)
     assert any("agentLive()" in l for l in code)
     assert any("setMicLevel(0)" in l for l in code), "al parar hay que dejar el nivel en 0, no en el último valor"
@@ -112,15 +111,15 @@ def test_stopping_retires_the_mic_blocked_ring_instead_of_freezing_it():
 
 
 def test_the_orb_itself_freezes():
-    """El orbe es lo que más personifica a zaelar; verlo ondular con el agente parado dice «estoy aquí»."""
+    """The orb is what most personifies zaelar; seeing it ripple with the agent stopped says “I’m here”."""
     assert any("frozen" in l for l in _code(ORB))
     assert "canvas#orb.frozen" in (APP / "styles.css").read_text(encoding="utf-8")
 
 
-# ── 4) el vúmetro que pidió el operador ───────────────────────────────────────────────────────────────────────
+# ── 4) the level meter the operator requested ─────────────────────────────────────────────────────────────────
 def test_the_mic_icon_is_a_level_meter_while_listening():
-    """«Quiero estar seguro de que me estás escuchando cuando hablo… que el icono del micrófono hiciera blinking,
-    incluso se hiciera un poquito más grande y más pequeño a medida que detecta la voz.»"""
+    """“I want to be sure you’re listening when I speak… I want the microphone icon to blink, even get a little bigger
+    and smaller as it detects the voice.”"""
     code = _code(ORB)
     assert any("--vu" in l for l in code), "el nivel real tiene que llegar al icono"
     assert any("micLevel()" in l for l in code)
@@ -129,7 +128,7 @@ def test_the_mic_icon_is_a_level_meter_while_listening():
 
 
 def test_the_meter_cannot_move_when_nobody_is_listening():
-    """Un medidor que se mueve con el micro silenciado o el agente parado sería la misma mentira, más fina."""
+    """A meter that moves with the microphone muted or the agent stopped would be the same lie, just subtler."""
     body = ORB.read_text(encoding="utf-8")
     i = body.index('"--vu"')
     expr = body[i:body.index("\n", i)]
@@ -137,16 +136,16 @@ def test_the_meter_cannot_move_when_nobody_is_listening():
 
 
 def test_custom_properties_actually_reach_the_dom():
-    """`el.style["--x"] = v` NO hace nada, en silencio: hay que pasar por setProperty. Sin esto el vúmetro sería
-    código muerto que parece correcto."""
+    """`el.style["--x"] = v` does NOTHING, silently: it must go through setProperty. Without this, the level meter
+    would be dead code that looks correct."""
     body = DOM.read_text(encoding="utf-8")
     assert "setProperty" in body and 'startsWith("--")' in body
 
 
-# ── 5) lo que NO debe cambiar ─────────────────────────────────────────────────────────────────────────────────
+# ── 5) what must NOT change ───────────────────────────────────────────────────────────────────────────────────
 def test_the_power_button_remains_clickable_in_every_state():
-    """Congelar es VISUAL. Si el ⏻ se deshabilitara al caerse la sesión, el operador se quedaría sin poder
-    rearrancarla — encerrado por el propio aviso."""
+    """Freezing is VISUAL. If ⏻ were disabled when the session went down, the operator would be unable to restart it
+    — trapped by the warning itself."""
     body = ORB.read_text(encoding="utf-8")
     i = body.index("pwr-")
     block = body[i - 400:i + 1200]
@@ -155,30 +154,31 @@ def test_the_power_button_remains_clickable_in_every_state():
 
 @pytest.mark.parametrize("signal", ["micMuted", "botMuted", "captionsOn", "chatOpen"])
 def test_each_control_keeps_its_own_state_underneath(signal):
-    """El apagón es una CAPA encima: al volver la corriente, cada control vuelve a mostrar lo que era. Si alguien
-    «arreglara» esto forzando los signals a false, el operador perdería sus preferencias en cada parada."""
+    """The shutdown is a LAYER on top: when power returns, each control shows what it was again. If someone “fixed”
+    this by forcing the signals to false, the operator would lose their preferences every time it stopped."""
     assert any(signal in l for l in _code(ORB)), f"{signal} sigue siendo el estado real del control"
 
 
-# ── 6) …Y ADEMÁS SE REGISTRA: el estado del cliente entra en el log (2026-08-10) ───────────────────────────────
-# Verlo en pantalla arregla al operador delante del ordenador. Pero el diagnóstico A POSTERIORI seguía ciego: en el
-# log solo estaba la INTENCIÓN (`orb:power` al pulsar ⏻), nunca la REALIDAD. Un agente caído que se pinta vivo, un
-# altavoz zombi o un micro que no se libera no dejaban ni una línea. Ahora las TRANSICIONES del cliente van por el
-# canal que ya existía (`api.uiState` → `/api/ui-event`, `src="frontend"`).
+# ── 6) …AND IT IS ALSO LOGGED: the client state enters the log (2026-08-10) ─────────────────────────────────────
+# Seeing it on screen fixes the operator’s situation in front of the computer. But the AFTER-THE-FACT diagnosis was
+# still blind: the
+# log only contained INTENT (`orb:power` when pressing ⏻), never REALITY. A down agent rendered as alive, a
+# zombie speaker, or a microphone that is not released left not even one line. Now client TRANSITIONS use the channel
+# that already existed (`api.uiState` → `/api/ui-event`, `src="frontend"`).
 #
-# Regla que estos tests protegen: son eventos de ESTADO, no de actividad — solo en transición, nunca en un bucle de
-# render. De ahí el guarda contra re-emisión con el mismo valor.
+# Rule protected by these tests: these are STATE events, not activity events — only on transition, never in a render
+# loop. Hence the guard against re-emission with the same value.
 MAIN = APP / "main.js"
 AUDIO = APP / "services" / "audio.js"
 API = APP / "services" / "api.js"
-SESSIONS_STOP = [APP / "services" / "session-lk.js",   # el que SIRVE el motor LiveKit (el que corre hoy)
-                 APP / "services" / "session.js"]      # el de Pipecat (mismo contrato, no puede divergir)
+SESSIONS_STOP = [APP / "services" / "session-lk.js",   # the one that SERVES the LiveKit engine (the one running today)
+                 APP / "services" / "session.js"]      # the Pipecat one (same contract, cannot diverge)
 VOICE_API = ENGINE / "server" / "voice_api.py"
 
 
 def test_the_client_has_its_own_door_for_state():
-    """`src="frontend"` separa «lo que hizo el operador» de «lo que le pasó al cliente». Sin esa distinción, un
-    `agent:state stalled` se leería como una acción del operador, que es lo contrario de lo que dice."""
+    """`src="frontend"` separates “what the operator did” from “what happened to the client”. Without that
+    distinction, `agent:state stalled` would be read as an operator action, which is the opposite of what it says."""
     assert any('uiState' in l and '"frontend"' in l for l in _code(API)), \
         "api.uiState debe estampar src=frontend"
     body = VOICE_API.read_text(encoding="utf-8")
@@ -198,8 +198,8 @@ def test_every_agent_state_transition_is_logged_once():
 
 
 def test_releasing_the_audio_graph_leaves_a_trace():
-    """El attach de la pista del bot ya se veía (🔈 TrackSubscribed); el RELEASE no, así que un altavoz zombi era
-    indetectable. Y del micro solo se veía apagarse el icono."""
+    """The bot track attach was already visible (🔈 TrackSubscribed); RELEASE was not, so a zombie speaker was
+    undetectable. For the microphone, only the icon turning off was visible."""
     code = _code(AUDIO)
     assert any('uiState("mic:analyser"' in l and '"open"' in l for l in code)
     assert any('uiState("mic:analyser"' in l and '"closed"' in l for l in code)
@@ -210,10 +210,10 @@ def test_releasing_the_audio_graph_leaves_a_trace():
 
 @pytest.mark.parametrize("path", SESSIONS_STOP, ids=lambda p: p.name)
 def test_stopping_really_releases_the_audio_graph(path):
-    """El evento tiene que poder AFIRMAR algo. `stop()` soltaba solo el analizador del bot: el del micro y su
-    AudioContext sobrevivían, así que «cerrado» nunca habría ocurrido y el log habría dicho la verdad a medias.
-    Cerrar el grafo entero también mata una fuga real (Chrome corta a ~6 AudioContext por página: unas cuantas
-    reconexiones y `new AudioContext()` empieza a lanzar)."""
+    """The event must be able to ASSERT something. `stop()` released only the bot analyzer: the microphone analyzer
+    and its AudioContext survived, so “closed” would never have occurred and the log would have told half the truth.
+    Closing the entire graph also kills a real leak (Chrome cuts off at ~6 AudioContexts per page: after a few
+    reconnections, `new AudioContext()` starts throwing)."""
     code = _code(path)
     assert any("audio.reset(" in l for l in code), f"{path.name} debe soltar el grafo de audio al parar"
     assert not any("audio.dropBot()" in l for l in code), \
@@ -221,16 +221,16 @@ def test_stopping_really_releases_the_audio_graph(path):
 
 
 def test_a_background_tab_is_distinguishable_from_a_freeze():
-    """`requestAnimationFrame` no corre en segundo plano y de él dependen el visualizador y varios guardas. Sin esta
-    línea, «se congeló» y «estabas en otra aplicación» son la misma foto en el log."""
+    """`requestAnimationFrame` does not run in the background, and the visualizer and several guards depend on it.
+    Without this line, “it froze” and “you were in another application” are the same snapshot in the log."""
     code = _code(MAIN)
     assert any('uiState("tab:visibility"' in l for l in code)
     assert any("visibilitychange" in l for l in code)
 
 
 def test_the_endpoint_forwards_what_makes_a_transition_readable():
-    """Los campos que no están en la lista se DESCARTAN en silencio: un evento con `prev`/`reason`/`cause` que el
-    server tira es peor que no tenerlo, porque parece instrumentado."""
+    """Fields not in the list are DISCARDED silently: an event with `prev`/`reason`/`cause` that the server throws
+    away is worse than not having it, because it looks instrumented."""
     body = VOICE_API.read_text(encoding="utf-8")
     i = body.index('@router.post("/api/ui-event")')
     block = body[i:i + 2200]
@@ -238,20 +238,20 @@ def test_the_endpoint_forwards_what_makes_a_transition_readable():
         assert f'"{k}"' in block, f"el endpoint descarta `{k}`"
 
 
-# ── 6) UN RESET DEJA EL SISTEMA LISTO — no `stalled` esperando un clic ────────────────────────────────────────
-# Misma familia que todo lo de arriba, medido en vivo el 2026-08-12: el operador apretó Reset a las 13:21:46 «para
-# que se pare todo y podamos empezar de cero» y la voz no volvió hasta las 13:22:49 — **61 segundos** con el ⏻
-# parpadeando en ámbar. No era un arranque lento: no había arranque. `resetFull()`/`resetHard()` llamaban a `stop()`
-# y NADIE levantaba la sesión; el único que re-arma es `ensureVoice()` de main.js, que corre al cargar la página y en
-# cada `pointerdown` — y el clic que dispara el reset llega ANTES del `stop()`, así que ese re-armado se pierde. La
-# voz esperaba el SIGUIENTE clic. El estado ámbar era HONESTO (`stalled` = debería estar arriba y no lo está); lo que
-# estaba roto era que un reset dejase el sistema así.
+# ── 6) A RESET LEAVES THE SYSTEM READY — not `stalled` waiting for a click ────────────────────────────────────
+# Same family as everything above, measured live on 2026-08-12: the operator pressed Reset at 13:21:46 “so that
+# everything would stop and we could start from scratch”, and the voice did not return until 13:22:49 — **61 seconds**
+# with ⏻ blinking amber. It was not a slow startup: there was no startup. `resetFull()`/`resetHard()` called `stop()`
+# and NOBODY brought the session back up; the only thing that re-arms it is `ensureVoice()` in main.js, which runs when
+# the page loads and on every `pointerdown` — and the click that triggers reset arrives BEFORE `stop()`, so that
+# re-arming is lost. The voice waited for the NEXT click. The amber state was HONEST (`stalled` = it should be up and
+# is not); what was broken was leaving the system that way after a reset.
 SESSION_LK = APP / "services" / "session-lk.js"
 
 
 def _reset_paths() -> str:
-    """Los dos caminos de reset del cliente LiveKit (el módulo que se sirve DE VERDAD: el server lo publica en la
-    URL de session.js — ver server/livekit_api.py)."""
+    """The two reset paths for the LiveKit client (the module that is ACTUALLY served: the server publishes it at the
+    session.js URL — see server/livekit_api.py)."""
     body = SESSION_LK.read_text(encoding="utf-8")
     return body[body.index("export async function resetHard()"):body.index("export function toggle()")]
 
@@ -263,7 +263,7 @@ def test_a_reset_brings_the_voice_back_by_itself():
 
 
 def test_the_rearm_obeys_an_explicit_power_off():
-    """El ⏻ apagado es una orden del operador, persistida. Un reset no puede desobedecerla encendiendo la voz."""
+    """Turning ⏻ off is a persisted operator command. A reset cannot disobey it by turning the voice on."""
     body = SESSION_LK.read_text(encoding="utf-8")
     fn = body[body.index("async function _rearmVoiceAfterReset()"):]
     fn = fn[:fn.index("\n}")]
@@ -272,8 +272,8 @@ def test_the_rearm_obeys_an_explicit_power_off():
 
 
 def test_the_rearm_does_not_fight_the_server_restart():
-    """Con borrado de memoria/credenciales el server SE REINICIA: ahí no hay sesión a la que volver y quien manda es
-    el overlay + la recarga de la página. Re-armar la voz en ese camino sería pelearse con el reinicio."""
+    """When memory/credentials are deleted, the server RESTARTS: there is no session to return to, and the overlay +
+    page reload are in charge. Re-arming the voice on that path would conflict with the restart."""
     body = SESSION_LK.read_text(encoding="utf-8")
     full = body[body.index("export async function resetFull("):body.index("export function toggle()")]
     restarting = full[full.index("store.setRestarting(true)"):]
