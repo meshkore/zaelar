@@ -57,7 +57,7 @@
       "safe": true
     },
     "reply": {
-      "desc": "Enviar una respuesta al mensaje N (hoy email; se envía por su canal con el hilo correcto)",
+      "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
       "payload": {
         "n": "int (número del mensaje/chat en la lista)",
         "text": "string (el texto a enviar)"

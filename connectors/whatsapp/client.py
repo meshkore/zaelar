@@ -34,6 +34,16 @@ async def get_messages() -> list[dict]:
     return msgs or []
 
 
+async def send_message(chat_id: str, text: str, reply_to: str | None = None) -> dict:
+    """Send a message through the bridge's POST /send (V2-521). `reply_to` threads it under the original.
+    The bridge splits long texts itself and answers {success, messageId}. Sending is slower than a read —
+    Baileys can take a while on a cold socket — hence the longer timeout."""
+    body: dict = {"chatId": chat_id, "message": text}
+    if reply_to:
+        body["replyTo"] = reply_to
+    return await _request("POST", "/send", body=body, timeout=45.0)
+
+
 async def mark_read(keys: list[dict]) -> dict:
     """Mark the indicated messages as read. Each key: {chatId, messageId, senderId?}."""
     if not keys:

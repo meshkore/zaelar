@@ -23,6 +23,7 @@ _client = None                   # telethon.TelegramClient once started
 _inbox: list[dict] = []          # inbound buffer pending triage (batching)
 _seen: set[str] = set()          # already shown messageIds (do not resurrect what the operator removed)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
+_reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
 
 
 def enabled() -> bool:
@@ -141,6 +142,41 @@ async def _drain_reads() -> None:
             store.requeue_pending_read(failed)
 
 
+async def _drain_replies() -> None:
+    """Drain dictated replies (V2-521 — same seam the email connector has had since V2-051; Telegram only
+    ever read). The widget already enqueued mark-read for the original, so this only SENDS. A failure is
+    TOLD to the operator and not requeued — one honest "no pude enviarlo" beats a send retried forever."""
+    if not ingest.v2_enabled() or _reply_inbox is None:
+        return
+    for r in _reply_inbox.drain():
+        text = (r.get("text") or "").strip()
+        try:
+            chat_id = int(r.get("chatId"))
+        except (TypeError, ValueError):
+            continue
+        if not text:
+            continue
+        try:
+            reply_to = int(r.get("messageId"))
+        except (TypeError, ValueError):
+            reply_to = None
+        try:
+            await _client.send_message(chat_id, text, reply_to=reply_to)
+            logger.info(f"Telegram: respuesta enviada a {chat_id}")
+            _note(f"[SISTEMA] Telegram enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram: fallo al enviar a {chat_id}: {e}")
+            _note(f"[SISTEMA] No se pudo enviar el Telegram a {r.get('to') or chat_id} ({e}). Avísale al operador.")
+
+
+def _note(text: str) -> None:
+    try:
+        from voice import brain_notes
+        brain_notes.push(text)
+    except Exception:
+        pass
+
+
 async def _login_qr() -> bool:
     """QR login (Telethon). Render QR in the widget and refresh it on expiry. Returns True if authorized.
     2FA (password) is out of scope -> log it and ask the operator to disable it or log in manually."""
@@ -195,9 +231,11 @@ async def _loop() -> None:
         except Exception as e:
             logger.debug(f"Telegram normalize: {e}")
 
-    global _mark_inbox
+    global _mark_inbox, _reply_inbox
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox("telegram")   # subscription in THIS loop (server) -> direct delivery
+    if ingest.v2_enabled() and _reply_inbox is None:
+        _reply_inbox = ingest.ReplyInbox("telegram")     # V2-521: dictated replies, same delivery path
     _set_status("connected", None)
     # Telethon dispatches updates only while the loop runs; this batching task coexists with that delivery.
     while True:
@@ -216,6 +254,10 @@ async def _loop() -> None:
             await _drain_reads()
         except Exception as e:
             logger.debug(f"Telegram reads tick: {e}")
+        try:
+            await _drain_replies()
+        except Exception as e:
+            logger.debug(f"Telegram replies tick: {e}")
 
 
 def start() -> None:

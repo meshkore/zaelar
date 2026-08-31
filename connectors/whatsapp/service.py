@@ -22,6 +22,7 @@ _task: asyncio.Task | None = None
 _seen: set[str] = set()          # already shown messageIds (to avoid resurrecting what the operator removed)
 _published: set[str] = set()     # v2 stateless: messageIds already published to bus (dedup before widget triage)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
+_reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
 
 
 def enabled() -> bool:
@@ -92,11 +93,41 @@ async def _drain_reads() -> None:
             store.requeue_pending_read(keys)
 
 
+async def _drain_replies() -> None:
+    """Drain dictated replies (V2-521 — the email connector had this since V2-051; WhatsApp only ever read).
+    The widget's reply action already enqueued mark-read for the original, so this only SENDS. A failure is
+    TOLD to the operator through brain_notes and not requeued: a bad send retried forever is worse than one
+    honest "no pude enviarlo"."""
+    if not ingest.v2_enabled() or _reply_inbox is None:
+        return
+    for r in _reply_inbox.drain():
+        chat_id = str(r.get("chatId") or r.get("to") or "").strip()
+        text = (r.get("text") or "").strip()
+        if not chat_id or not text:
+            continue
+        try:
+            await client.send_message(chat_id, text, reply_to=r.get("messageId") or None)
+            logger.info(f"WhatsApp: respuesta enviada a {chat_id}")
+            _note(f"[SISTEMA] WhatsApp enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"WhatsApp: fallo al enviar a {chat_id}: {e}")
+            _note(f"[SISTEMA] No se pudo enviar el WhatsApp a {r.get('to') or chat_id} ({e}). Avísale al operador.")
+
+
+def _note(text: str) -> None:
+    try:
+        from voice import brain_notes
+        brain_notes.push(text)
+    except Exception:
+        pass
+
+
 async def _loop() -> None:
-    global _mark_inbox
+    global _mark_inbox, _reply_inbox
     _set_status("starting", None)
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # subscription in THIS loop (server) -> direct delivery
+        _reply_inbox = ingest.ReplyInbox(PLATFORM)       # V2-521: dictated replies, same delivery path
     try:
         await bridge.start()
     except Exception as e:
@@ -115,6 +146,7 @@ async def _loop() -> None:
                 _set_status("connected", None)
                 await _ingest_new()
                 await _drain_reads()
+                await _drain_replies()
             else:
                 connected = False
                 _set_status("connecting", (h or {}).get("qr"))
