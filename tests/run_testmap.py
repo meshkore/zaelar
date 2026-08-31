@@ -1569,7 +1569,12 @@ DOMAINS: list[dict] = [
         {"id": "4.33", "title": "Un envío de feedback que falla lo DICE (y una lista inalcanzable no es una "
                                 "lista vacía) · una sola lectura para móvil y escritorio",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/feedback/test_a_send_that_fails_says_so.py"]},
+            "paths": ["tests/browser/unit/feedback/test_a_send_that_fails_says_so.py",
+                      # V2-519 — the session bundle is an ATTACHMENT and can never swallow the message.
+                      # The engine capped by event COUNT and never by BYTES: 200 events → 212_037, past
+                      # the endpoint's 40_000 ceiling, so every ticked submission was a flat 400 and the
+                      # operator's text was lost with it.
+                      "tests/browser/unit/feedback/test_the_attachment_never_swallows_the_message.py"]},
         # RENDERS on purpose: 4.33 proves the decision and the wiring, and would still pass with the node in
         # the DOM and zero pixels — which is exactly how the thank-you shipped. This measures box, opacity and
         # that the text is the translation and not the key (a key is truthy and passes any source-level test).

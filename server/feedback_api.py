@@ -29,6 +29,13 @@ router = APIRouter()
 
 _FEEDBACK_URL_DEFAULT = "https://zaelar-control-plane.rjj.workers.dev"
 _MAX_EVIDENCE_EVENTS = 200
+# The ingestion endpoint rejects a bundle over 40_000 bytes with a flat 400 (`_MAX_EVIDENCE_BYTES` in
+# `cloud/control-plane/src/index.js`), and its comment there claimed "generous margin over the ~30KB the
+# engine caps itself to" — a self-cap that was never written. Measured 2026-08-31 on the operator's own
+# session: 200 events serialised to 212_037 bytes, 5.3× the ceiling, so EVERY submission that ticked
+# "include this session" was refused and the operator's message was lost with it. The engine caps itself
+# by BYTES here, and the count stays as the cheap first cut.
+_MAX_EVIDENCE_BYTES = 30_000
 _TIMEOUT_S = 5.0
 
 
@@ -44,6 +51,31 @@ def _service_token() -> str:
     return (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
 
 
+def _fit_evidence(summary: dict, events: list) -> dict | None:
+    """Trim the bundle until it fits `_MAX_EVIDENCE_BYTES`, keeping the MOST RECENT events — what the
+    operator is reporting just happened, and the oldest events are the ones they are least likely to mean.
+    Returns `None` when even the summary alone does not fit (nothing sensible left to attach).
+
+    Halving instead of dropping one at a time: a session can carry thousands of events and this runs on the
+    request path. `truncated` travels in the bundle so the reader never mistakes a trimmed session for a
+    short one — the receiving end must not have to guess whether it is seeing everything."""
+    import json as _json
+
+    def _size(obj) -> int:
+        return len(_json.dumps(obj, ensure_ascii=False).encode("utf-8"))
+
+    base = {"summary": summary, "events": []}
+    if _size(base) > _MAX_EVIDENCE_BYTES:
+        return None
+    kept = list(events)
+    while kept and _size({"summary": summary, "events": kept}) > _MAX_EVIDENCE_BYTES:
+        kept = kept[-(len(kept) // 2):] if len(kept) > 1 else []
+    out: dict = {"summary": summary, "events": kept}
+    if len(kept) < len(events):
+        out["truncated"] = {"kept": len(kept), "of": len(events), "reason": "size"}
+    return out
+
+
 def _build_evidence(session_id: str) -> dict | None:
     """Capped, session-scoped-only bundle — never the operator's full history. Fails open to `None`:
     a bad evidence bundle must never block the message itself from sending."""
@@ -55,7 +87,7 @@ def _build_evidence(session_id: str) -> dict | None:
         if not summary:
             return None
         events = _flows.events(session_id=session_id, limit=_MAX_EVIDENCE_EVENTS)
-        return {"summary": summary, "events": events}
+        return _fit_evidence(summary, events)
     except Exception:
         return None
 
@@ -108,19 +140,36 @@ async def submit_feedback(
     if evidence is not None:
         body["session_evidence"] = evidence
 
-    try:
+    async def _post(payload: dict):
         async with httpx.AsyncClient(timeout=_TIMEOUT_S) as client:
             if cloud_account.is_cloud_account() and _control_plane_url():
-                resp = await client.post(
+                return await client.post(
                     _control_plane_url().rstrip("/") + "/feedback",
-                    json=body,
+                    json=payload,
                     headers={"X-Service-Token": _service_token()},
                 )
-            else:
-                body["install_id"] = _identity.user_id()
-                resp = await client.post(_feedback_url() + "/feedback/anonymous", json=body)
+            payload = {**payload, "install_id": _identity.user_id()}
+            return await client.post(_feedback_url() + "/feedback/anonymous", json=payload)
+
+    try:
+        resp = await _post(body)
+        # THE MESSAGE IS THE POINT; the session bundle is an ATTACHMENT. A refusal while carrying one is
+        # retried WITHOUT it, so a rejected attachment can never swallow what the operator actually wrote
+        # (measured 2026-08-31: an oversized bundle turned every ticked submission into a flat 400 and the
+        # text was lost). Only for a 4xx — a 5xx or a rate limit is not about the attachment, and retrying
+        # those would just be a second knock at a door that is closed for another reason.
+        dropped_evidence = False
+        if resp.status_code in (400, 413, 422) and "session_evidence" in body:
+            retry_body = {k: v for k, v in body.items() if k != "session_evidence"}
+            resp = await _post(retry_body)
+            dropped_evidence = resp.status_code < 400
         if resp.status_code >= 400:
             return {"ok": False, "error": "send_failed", "status": resp.status_code}
-        return {"ok": True, **(resp.json() or {})}
+        out = {"ok": True, **(resp.json() or {})}
+        if dropped_evidence:
+            out["evidence_dropped"] = True          # the panel says the message went but the session did not
+        elif isinstance(evidence, dict) and evidence.get("truncated"):
+            out["evidence_truncated"] = evidence["truncated"]
+        return out
     except Exception as e:  # noqa: BLE001 — fail-open, the user still sees a clear "couldn't send" state
         return {"ok": False, "error": "send_failed", "detail": str(e)}

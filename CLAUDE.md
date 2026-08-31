@@ -6581,6 +6581,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **The attachment can never swallow the message (V2-519, 2026-08-31)**: feedback with "incluir lo que ha
+  pasado en esta sesión" ticked always failed with a flat `400`, and the operator's written text was lost
+  with it — a report about the mail wizard, gone. TWO causes stacked, and the second is the interesting one:
+  - The engine capped the evidence bundle by event COUNT (200) and **never by bytes**, while the ingestion
+    endpoint refuses anything over 40 000. Measured on the operator's own session: **212 037 bytes, 5.3× the
+    ceiling**. `_fit_evidence` now trims by BYTES to 30 000, keeping the **most recent** events (what is
+    being reported just happened) and stamping `truncated:{kept,of}` so a reader never mistakes a trimmed
+    session for a short one.
+  - **A ceiling believed on both sides and measured on neither is not a contract.** The control-plane's own
+    comment asserted "generous margin over the ~30KB the engine caps itself to" — that self-cap had never
+    been written. Both sides now name the constant they trust (`cloud` commit `86ba233`).
+  - **The message is the point; the session is an attachment.** A 400/413/422 carrying evidence is retried
+    ONCE without it (`evidence_dropped:true` back to the panel). A 429 or a 5xx is NOT retried — that door
+    is closed for another reason.
+  - Node 4.33, 9 cases. **The first disarm came back GREEN**: the tests exercised `_fit_evidence` directly,
+    so deleting its call from `_build_evidence` — the exact shipped bug — changed nothing. The added
+    `test_the_builder_ACTUALLY_applies_the_trim` is what makes the node guard the WIRING and not just the
+    rule. Verified against the LIVE control-plane with the operator's real session: `HTTP 200`.
+
 - **The widget's CONFIG corner + confirmations live in the CHAT (V2-518, 2026-08-31)**: operator's design.
   The card's existing ⚙ panel (the alias editor) is the config corner: right under the title it now says
   where the piece comes from — "Tu fork del widget de sistema «id»" **with the Restaurar button** (never on
