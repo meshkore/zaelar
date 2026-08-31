@@ -19,7 +19,7 @@ def build_tts() -> _tts.TTS:
         return cartesia.TTS(**kw)
     if p == "deepgram":
         from livekit.plugins import deepgram
-        # Deepgram Aura model = voz+idioma. Voz española para un zaelar en español (Cartesia se quedó sin saldo → 402).
+        # Deepgram Aura model = voice+language. Spanish voice for a Spanish-speaking zaelar (Cartesia ran out of credit → 402).
         model = config.TESTER_TTS_VOICE or ("aura-2-selena-es" if config.TESTER_LANG == "es" else "aura-2-thalia-en")
         return deepgram.TTS(model=model, api_key=config.DEEPGRAM_API_KEY or None)
     raise ValueError(f"unsupported TESTER_TTS={p!r} (independent options: cartesia, deepgram)")

@@ -24,11 +24,11 @@ _MOTIVOS_DE_CORTE = ("length", "max_tokens")
 
 
 def _anota_corte(out: dict | None, motivo: str | None) -> None:
-    """Deja en `out` lo que el proveedor dijo del final de su respuesta. No-op si nadie preguntó.
+    """Stores in `out` what the provider said about the end of its response. No-op if nobody asked.
 
-    Parámetro de SALIDA en vez de un tercer elemento en la tupla: `judge_call` devuelve `(texto, modelo)` a
-    dos arneses y a media docena de tests, y cambiar su aridad para llevar un dato que casi nadie mira habría
-    tocado todos ellos para nada.
+    An OUTPUT parameter instead of a third tuple element: `judge_call` returns `(text, model)` to two harnesses
+    and half a dozen tests, and changing its arity to carry data that almost nobody looks at would have touched
+    all of them for no reason.
     """
     if out is None:
         return
@@ -77,8 +77,8 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
     with urllib.request.urlopen(req, timeout=180) as r:
         data = json.loads(r.read())
     parts = data.get("content") or []
-    # `stop_reason`, no `finish_reason`: esta pata habla Anthropic. Que el nombre del campo cambie con el
-    # proveedor es justo por lo que se normaliza aquí y no en quien llama.
+    # `stop_reason`, not `finish_reason`: this leg speaks Anthropic. The field name changing with the provider
+    # is precisely why it is normalized here rather than by the caller.
     _anota_corte(out, data.get("stop_reason"))
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
@@ -136,7 +136,7 @@ def deepseek_direct_call(messages: list[dict], model: str | None = None, tempera
     # `thinking: disabled` IS THE WHOLE DIFFERENCE HERE, and without it this leg is useless. Measured
     # 2026-08-20 with the judge's real 23.000-character prompt, both models, 3.000 output tokens:
     #
-    #   flash, thinking on  →     0 chars, 21,0 s, out_tok=3000 (todo razonamiento, cuerpo VACÍO)
+    #   flash, thinking on  →     0 chars, 21,0 s, out_tok=3000 (all reasoning, EMPTY body)
     #   flash, disabled     → 4.620 chars, 10,4 s, out_tok=1317
     #   pro,   thinking on  →     0 chars, 48,7 s, out_tok=3000
     #   pro,   disabled     → 4.397 chars, 19,7 s, out_tok=1299
@@ -173,9 +173,9 @@ def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = 
     """
     import sys
     import time as _t
-    # Se limpia ANTES DE CADA PATA, no una vez al entrar. Es la diferencia que destapó el desarme: limpiar al
-    # entrar deja intacta la palabra de la pata que se cayó cuando la que contesta después no dice nada, y
-    # entonces se lee «cortada» de una respuesta que ni se miró.
+    # Clear it BEFORE EACH LEG, not once on entry. This is the difference that exposed the breakdown: clearing on
+    # entry leaves the marker from the leg that failed intact when the leg that answers afterward says nothing,
+    # and then «truncated» is read from a response that was never even inspected.
     if config.JUDGE_PROVIDER == "zai" and config.ZAI_KEY:
         try:
             _anota_corte(out, "")

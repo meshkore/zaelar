@@ -157,7 +157,7 @@ class VoiceLink:
     async def send_text(self, text: str, *, kind: str = "chat") -> None:
         # Open a reply window like say() does, so wait_reply can MEASURE latency for text channels too
         # (text sent → zaelar's first audible reply). Without this, chat/paste had no latency → the judge
-        # scored latencia=1 in EVERY text report. (fix 2026-07-07)
+        # scored latency=1 in EVERY text report. (fix 2026-07-07)
         while not self._transcripts.empty():
             self._transcripts.get_nowait()
         self._bot_first_audio = None

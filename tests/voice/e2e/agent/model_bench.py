@@ -1,17 +1,17 @@
-"""tests/voice/e2e/agent/model_bench.py — BENCHMARK PROPIO de elección de modelo del FlashBrain (latencia ↔ inteligencia).
+"""tests/voice/e2e/agent/model_bench.py — FlashBrain's own model-selection BENCHMARK (latency ↔ intelligence).
 
-El PROBLEMA: la latencia percibida de la voz la domina el **TTFT del modelo rápido** (el proveedor de routing
-AIMLAPI no es el cuello — verificado; es el propio modelo el que tarda en emitir el primer token). Este script
-mide, por el CAMINO REAL del FlashBrain (mismo system prompt `build_flash_system` + mismas `router.TOOLS` +
-streaming OpenAI-compatible con `tool_choice=auto`), tres cosas por modelo candidato:
+The PROBLEM: perceived voice latency is dominated by the **TTFT of the fast model** (the AIMLAPI routing
+provider is not the bottleneck — verified; it is the model itself that takes time to emit the first token). This script
+measures, through FlashBrain's REAL PATH (same `build_flash_system` system prompt + same `router.TOOLS` +
+OpenAI-compatible streaming with `tool_choice=auto`), three things for each candidate model:
 
-  · **TTFT** (time-to-first-token/tool-delta) — lo que hace que la voz se sienta viva o lenta. Métrica reina.
-  · **total** — hasta cerrar la respuesta corta.
-  · **acierto de ROUTING** — ¿elige la tool correcta para cada turno? (proxy objetivo de "inteligencia" para el
-    FlashBrain: el fallo de grok era "no buscaba cuando debía").
+  · **TTFT** (time-to-first-token/tool-delta) — what makes the voice feel lively or slow. The king metric.
+  · **total** — until the short response is complete.
+  · **ROUTING accuracy** — does it choose the right tool for each turn? (objective proxy for "intelligence" for
+    FlashBrain: grok's failure was "it did not search when it should have").
 
-NO cambia nada de producción: no toca `config/v2`, no reconfigura el server. Solo hace llamadas de medición.
-Es un test REUTILIZABLE — corre cuando quieras re-evaluar el shortlist de modelos.
+It changes NOTHING in production: it does not touch `config/v2` or reconfigure the server. It only makes measurement calls.
+It is a REUSABLE test — run it whenever you want to re-evaluate the model shortlist.
 
 Uso:
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench                 # shortlist por defecto, 3 reps
@@ -19,7 +19,7 @@ Uso:
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --models "deepseek-v4-pro,google/gemini-3.7-flash"
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --gemini-direct # añade Gemini por el endpoint google-directo (thinking OFF)
 
-Claves: AIMLAPI_KEY (nube) y GEMINI_API_KEY (google-directo) desde el entorno (.env), igual que fast_client.
+Keys: AIMLAPI_KEY (cloud) and GEMINI_API_KEY (google-direct) from the environment (.env), just like fast_client.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ import statistics
 import time
 from dataclasses import dataclass
 
-# ── carga .env como hace el server (best-effort) ────────────────────────────────────────────────────────────
+# ── load .env as the server does (best-effort) ────────────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -50,8 +50,8 @@ class Candidate:
     model: str
     base_url: str
     api_key_env: str
-    reasoning_off: bool = False   # manda reasoning_effort='none' (solo lo acepta el endpoint google-directo)
-    extra_body: dict | None = None   # extra_body arbitrario (p.ej. DeepSeek non-thinking: {"thinking":{"type":"disabled"}})
+    reasoning_off: bool = False   # sends reasoning_effort='none' (only the google-direct endpoint accepts it)
+    extra_body: dict | None = None   # arbitrary extra_body (e.g. DeepSeek non-thinking: {"thinking":{"type":"disabled"}})
 
 
 def _aimlapi(model: str) -> Candidate:
@@ -59,7 +59,7 @@ def _aimlapi(model: str) -> Candidate:
 
 
 def _gemini_direct(model: str) -> Candidate:
-    # endpoint OpenAI-compatible de Google; el modelo va SIN el prefijo 'google/'
+    # Google's OpenAI-compatible endpoint; the model goes WITHOUT the 'google/' prefix
     m = model.split("/")[-1]
     return Candidate(f"google-direct/{m}", m,
                      "https://generativelanguage.googleapis.com/v1beta/openai/", "GEMINI_API_KEY",
@@ -67,21 +67,21 @@ def _gemini_direct(model: str) -> Candidate:
 
 
 DEFAULT_MODELS = [
-    "x-ai/grok-4-fast-non-reasoning",       # probado: rápido pero "poco listo"
-    "google/gemini-2.5-flash",              # el más listo del trío rápido; puede activar thinking
-    "google/gemini-3-5-flash",              # ★ candidato del operador
+    "x-ai/grok-4-fast-non-reasoning",       # tested: fast but "not very smart"
+    "google/gemini-2.5-flash",              # smartest of the fast trio; may activate thinking
+    "google/gemini-3-5-flash",              # ★ operator's candidate
     "google/gemini-3-flash-preview",        # gemini 3 flash
     "deepseek/deepseek-v4-flash",           # el más barato/lento del shortlist
 ]
 
 
-# ── turnos de prueba: (id, texto, ruta esperada) ────────────────────────────────────────────────────────────
-# ruta esperada: 'chat' (sin tool ni tag), 'web_search', 'canvas' (tag [[show..]]), 'escalate'
-# cada turno: (id, texto, ruta_esperada, categoría). cat="routing" → mide despacho (¿llama a la tool correcta?);
-# cat="intel" → mide INTELIGENCIA (introspección, no-alucinar, no-actuar de más, resolver contradicción). Los
-# routing casi todos los pasan; los intel DISCRIMINAN velocidad de VERDADERA inteligencia (el hueco de grok).
+# ── test turns: (id, text, expected route) ────────────────────────────────────────────────────────────
+# expected route: 'chat' (no tool or tag), 'web_search', 'canvas' (tag [[show..]]), 'escalate'
+# each turn: (id, text, expected_route, category). cat="routing" → measures dispatch (does it call the right tool?);
+# cat="intel" → measures INTELLIGENCE (introspection, not hallucinating, not over-acting, resolving contradictions). The
+# routing ones are almost all passed; the intel ones DISCRIMINATE the speed of TRUE intelligence (grok's gap).
 TURNS = [
-    # ── ROUTING (despacho) — cada turno tiene una ruta ÚNICA e inequívoca (si es ambigua, mete ruido, no señal) ──
+    # ── ROUTING (dispatch) — each turn has a UNIQUE, unambiguous route (if ambiguous, it adds noise, not signal) ──
     ("chat",       "Oye, ¿qué tal va todo? Cuéntame algo.",                                  "chat",        "routing"),
     ("search",     "¿Qué tiempo va a hacer mañana en Soria?",                                "web_search",  "routing"),
     ("search2",    "¿A qué hora abre hoy el Mercadona de mi barrio?",                         "web_search",  "routing"),
@@ -92,24 +92,24 @@ TURNS = [
     ("delete",     "Borra el widget del reloj.",                                             "delete_widget","routing"),
     ("recall",     "¿Te acuerdas de cómo me llamo?",                                         "chat",        "routing"),
     ("escalate",   "Búscame en Wallapop una moto de enduro de segunda mano por menos de 4000 euros cerca de mí.", "escalate", "routing"),
-    # ── INTELIGENCIA (turnos DUROS que discriminan; casi todos deben quedarse en `chat`, sin acción espuria) ──
-    # META: preguntar por su propia conducta NO es una orden de actuar → debe EXPLICARSE, no abrir/buscar nada.
+    # ── INTELLIGENCE (HARD turns that discriminate; almost all should stay in `chat`, with no spurious action) ──
+    # META: asking about its own behavior is NOT an instruction to act → it must EXPLAIN, not open/search anything.
     ("meta",        "¿Por qué has hecho eso? No te había pedido que abrieras nada.",         "chat", "intel"),
-    # CONTRADICCIÓN: debe reconocer/resolver, no doblar la apuesta ni alucinar una tool.
+    # CONTRADICTION: it must acknowledge/resolve it, not double down or hallucinate a tool.
     ("contra",      "Antes has dicho que sí y ahora dices que no. ¿En qué quedamos?",        "chat", "intel"),
-    # NO-BUSCAR (trampa): un cálculo trivial se resuelve SOLO, no con web_search.
+    # DO NOT SEARCH (trap): a trivial calculation is solved ALONE, not with web_search.
     ("nosearch",    "¿Cuánto es el quince por ciento de doscientos euros?",                  "chat", "intel"),
-    # NO-ACTUAR: orden explícita de NO hacer nada todavía → cero tools/tags, solo acusar recibo.
+    # DO NOT ACT: explicit instruction to do NOTHING yet → zero tools/tags, just acknowledge receipt.
     ("noact",       "No abras ni cambies nada todavía, solo escúchame un momento, ¿vale?",   "chat", "intel"),
-    # INTROSPECCIÓN: pregunta META sobre capacidades → explicar con naturalidad, sin disparar acción.
+    # INTROSPECTION: META question about capabilities → explain naturally, without triggering an action.
     ("introspect",  "¿Tú cómo sabes lo que tengo abierto en la pantalla ahora mismo?",       "chat", "intel"),
-    # COMENTARIO (no orden): observación sobre algo en pantalla → NO tocar el canvas; seguir la conversación.
+    # COMMENT (not an instruction): observation about something on screen → do NOT touch the canvas; continue the conversation.
     ("comment",     "Qué pequeño se ve ese reloj, ¿no?",                                     "chat", "intel"),
 ]
 
 
 def _build_prompt(text: str) -> tuple[str, list[dict]]:
-    """Prompt REAL del FlashBrain para este turno (mismo build que la voz/probe). Fallback: prompt mínimo."""
+    """FlashBrain's REAL prompt for this turn (same build as voice/probe). Fallback: minimal prompt."""
     try:
         from nucleo.flash.prompt import build_flash_system, compose_recent_block, needs_recall, needs_recent
         recall_q = text if needs_recall(text) else ""
@@ -129,9 +129,9 @@ def _route_of(content: str, tool_names: list[str]) -> str:
         return "web_search"
     if "widget_data" in tool_names:
         return "widget_data"
-    # MOSTRAR/ABRIR un widget = ruta "canvas", tanto por la TOOL de 1ª clase `show_widget`/`fullscreen_widget`
-    # (que converge en [[show:id]], router.TOOLS) como por el TAG inline [[show]]. Ambas son correctas → contarlas
-    # igual (de-ruidificado 2026-07-31: antes solo el tag contaba, penalizando falsamente el uso de la tool).
+    # SHOW/OPEN a widget = "canvas" route, both through the first-class TOOL `show_widget`/`fullscreen_widget`
+    # (which converges on [[show:id]], router.TOOLS) and through the inline TAG [[show]]. Both are correct → count them
+    # equally (noise-reduced 2026-07-31: previously only the tag counted, falsely penalizing tool use).
     if any(t in tool_names for t in ("show_widget", "fullscreen_widget")):
         return "canvas"
     if any(t in content for t in ("[[show", "[[close", "[[move")):
@@ -143,7 +143,7 @@ def _route_of(content: str, tool_names: list[str]) -> str:
 
 async def _one_call(cli, model: str, messages: list[dict], reasoning_off: bool,
                     extra_body: dict | None = None) -> dict:
-    """Una llamada streaming; mide TTFT (1er chunk de CUALQUIER tipo) y total. Replica fast_client."""
+    """One streaming call; measures TTFT (1st chunk of ANY kind) and total. Replicates fast_client."""
     kwargs = dict(model=model, messages=messages, max_tokens=200, stream=True,
                   tools=TOOLS, tool_choice="auto")
     extra: dict = dict(extra_body or {})
@@ -159,7 +159,7 @@ async def _one_call(cli, model: str, messages: list[dict], reasoning_off: bool,
         stream = await cli.chat.completions.create(**kwargs)
         async for chunk in stream:
             if ttft is None:
-                ttft = time.time() - t0          # primer evento del stream, sea texto o tool-delta
+                ttft = time.time() - t0          # first event in the stream, whether text or tool-delta
             try:
                 delta = chunk.choices[0].delta
             except (IndexError, AttributeError):
@@ -197,12 +197,12 @@ async def _bench_candidate(c: Candidate, reps: int) -> dict:
         reply = ""
         degenerate = False
         err = None
-        for r in range(reps + 1):        # +1 = descartar la 1ª (fría)
+        for r in range(reps + 1):        # +1 = discard the 1st one (cold)
             res = await _one_call(cli, c.model, messages, c.reasoning_off, c.extra_body)
             if not res["ok"]:
                 err = res["err"]
                 break
-            if r > 0:                     # descarta la fría
+            if r > 0:                     # discard the cold one
                 samples.append(res)
             route = res["route"]
             reply = res["reply"]
@@ -213,8 +213,8 @@ async def _bench_candidate(c: Candidate, reps: int) -> dict:
         ttfts = [s["ttft_ms"] for s in samples]
         totals = [s["total_ms"] for s in samples]
         hit = (route == expected)
-        # INTELIGENCIA: en los intel, «acertar» = NO actuar de más (quedarse en `chat`) Y no soltar una respuesta
-        # vacía/basura. La ruta espuria (abrir/buscar cuando no toca) es el fallo típico del modelo «tonto».
+        # INTELLIGENCE: in intel turns, "getting it right" = NOT over-acting (staying in `chat`) AND not giving an
+        # empty/garbage response. The spurious route (opening/searching when inappropriate) is the typical failure of the "dumb" model.
         reply_ok = len((reply or "").strip()) >= 8
         intel_ok = (cat == "intel") and hit and reply_ok
         rec = {"turn": tid, "cat": cat, "expected": expected, "route": route, "hit": hit,
@@ -234,11 +234,11 @@ async def _bench_candidate(c: Candidate, reps: int) -> dict:
     if ok_turns:
         agg = {
             "label": c.label,
-            # LATENCIA (solo de los routing "normales", comparable con el histórico)
+            # LATENCY (only from the "normal" routing turns, comparable with historical data)
             "ttft_p50_ms": round(statistics.median([t["ttft_p50"] for t in (routing or ok_turns)]), 0),
             "total_p50_ms": round(statistics.median([t["total_p50"] for t in (routing or ok_turns)]), 0),
             "routing_hits": sum(1 for t in routing if t["hit"]), "routing_total": len(routing),
-            # INTELIGENCIA (aparte del TTFT — esto decide velocidad-vs-inteligencia de verdad)
+            # INTELLIGENCE (separate from TTFT — this determines speed-versus-intelligence in reality)
             "intel_hits": sum(1 for t in intel if t["intel_ok"]), "intel_total": len(intel),
             "prompt_tokens_est": int(round(statistics.median([t["prompt_tokens_est"] for t in ok_turns]))),
             "turns": per_turn,
@@ -264,8 +264,8 @@ async def main() -> None:
             if "gemini" in m:
                 candidates.append(_gemini_direct(m))
     if args.deepseek_nothink:
-        # v4-flash por defecto va en THINKING (alta latencia/variación). En voz sirve el NON-THINKING: mismo modelo,
-        # thinking:disabled. Anthropic-compat y OpenAI-compat aceptan el campo `thinking` (api-docs.deepseek.com).
+        # v4-flash defaults to THINKING (high latency/variation). For voice, NON-THINKING is useful: same model,
+        # thinking:disabled. Anthropic-compatible and OpenAI-compatible APIs accept the `thinking` field (api-docs.deepseek.com).
         c = _aimlapi("deepseek/deepseek-v4-flash")
         candidates.append(Candidate(f"{c.label} (non-thinking)", c.model, c.base_url, c.api_key_env,
                                     extra_body={"thinking": {"type": "disabled"}}))
@@ -277,7 +277,7 @@ async def main() -> None:
     for c in candidates:
         results.append(await _bench_candidate(c, args.reps))
 
-    # ── tabla resumen ──
+    # ── summary table ──
     print("\n\n═══ RESUMEN (ordenado por TTFT) ═══")
     print(f"{'modelo':40s} {'TTFT p50':>10s} {'total p50':>10s} {'routing':>9s} {'🧠 intel':>9s} {'in≈tok':>8s}")
     print("─" * 92)
@@ -296,7 +296,7 @@ async def main() -> None:
             errs = {t.get('err','?') for t in r['turns'] if 'err' in t}
             print(f"{r['label']:40s}   TODO FALLÓ ({'; '.join(list(errs)[:1])})")
 
-    # ── guardar ──
+    # ── save ──
     os.makedirs("tests/runs/agent", exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
     path = f"tests/runs/agent/model_bench_{stamp}.json"

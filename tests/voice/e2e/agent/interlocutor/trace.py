@@ -82,7 +82,7 @@ def frontend_actions(events: list[dict]) -> list[str]:
     for e in events:
         k, lbl = e.get("kind"), e.get("label", "")
         if k in _WIDGET_KINDS:
-            wid = e.get("id")  # strip_tags emite ("show"/"close", {"id": <widget>}) → el id va en el evento
+            wid = e.get("id")  # strip_tags emits ("show"/"close", {"id": <widget>}) → the id is included in the event
             out.append(f"widget:{lbl}:{wid}" if wid else f"widget:{lbl}")
         elif isinstance(lbl, str) and any(lbl.startswith(p) for p in ("cluster.", "cron.", "architect.", "wa.")):
             out.append(f"{k}:{lbl}")
