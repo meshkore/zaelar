@@ -328,8 +328,8 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _MAX_STEPS
                 messages.append({"role": "user", "content": user})
                 action, args = await _next_action(messages, _TOOLS, strong=strong_mode)
             if action is None:
-                # V2-253: si el paso murió por argumentos ilegibles o por el tope, eso es lo que se apunta — no
-                # «no emitió acción», que es otra cosa y manda a mirar al modelo cuando el tope es nuestro.
+                # V2-253: if the step died because of unreadable arguments or the limit, that is what gets recorded — not
+                # "emitted no action," which is something else and tells us to inspect the model when the limit is ours.
                 steps.append(args.get("_error") or "(el modelo no emitió acción)")
                 break
             if action == "need_vision":
@@ -413,29 +413,29 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
         else:
             raise
     choice = resp.choices[0].message
-    # V2-253 — UNOS ARGUMENTOS ILEGIBLES NO SON UNA ACCIÓN SIN ARGUMENTOS. Esto devolvía el NOMBRE de la acción
-    # con `{}` cuando su JSON no parseaba, así que el bucle ejecutaba `click` sin ref, `type` sin texto o
-    # `navigate` sin url — una acción plausible con lo que el modelo dijo BORRADO. Es la familia de V2-171 («una
-    # tool call truncada se descarta en silencio»), y aquí es peor porque no se descarta: se actúa.
+    # V2-253 — UNREADABLE ARGUMENTS ARE NOT AN ACTION WITHOUT ARGUMENTS. This returned the action NAME
+    # with `{}` when its JSON failed to parse, so the loop executed `click` without a ref, `type` without text, or
+    # `navigate` without a URL — a plausible action with what the model said ERASED. It belongs to the V2-171 family
+    # ("a truncated tool call is silently discarded"), and it is worse here because it is not discarded: it is acted on.
     #
-    # La regla que lo ordena la adoptó el cluster el 2026-08-21: **un techo solo es peligroso si el lector acepta
-    # PREFIJOS**. Los otros lectores del motor exigen el JSON entero y caen a un default seguro; este aceptaba
-    # el prefijo vacío como si fuera lo pedido.
+    # The cluster adopted the rule governing this on 2026-08-21: **a limit is dangerous only if the reader accepts
+    # PREFIXES**. The engine's other readers require the complete JSON and fall back to a safe default; this one
+    # accepted the empty prefix as if it were what was requested.
     _cortado = str(getattr(resp.choices[0], "finish_reason", "") or "") == "length"
     for tc in (choice.tool_calls or []):
         _crudo = tc.function.arguments or "{}"
         try:
             return tc.function.name, json.loads(_crudo)
         except Exception:  # noqa: BLE001
-            # Se distingue quién lo rompió: el tope es NUESTRO y se arregla subiéndolo; unos argumentos
-            # inválidos son del modelo y se arreglan reintentando. Decir «no emitió acción» tapa las dos.
+            # Distinguish what caused the failure: the limit is OURS and is fixed by raising it; invalid arguments
+            # are the model's and are fixed by retrying. Saying "emitted no action" obscures both cases.
             _por = ("se cortó por el tope de tokens" if _cortado else "devolvió argumentos ilegibles")
             logger.warning(f"navegador agent: «{tc.function.name}» {_por} ({len(_crudo)} chars) — no se ejecuta")
-            # V2-255 — Y POR EL CANAL QUE YA EXISTE. `tool_dropped` nació en V2-171 para exactamente esto en el
-            # FlashBrain («la vuelta DECIDIÓ una acción y el sistema no pudo leer sus argumentos»), y el arnés ya
-            # lo lee (su nodo 10.6). El navegador tenía el mismo suceso y lo contaba solo en su lista de pasos,
-            # así que para cualquier instrumento de fuera no ocurría. Misma forma del evento a propósito: quien
-            # ya lo consume no tiene que cambiar nada para verlo también aquí.
+            # V2-255 — AND THROUGH THE CHANNEL THAT ALREADY EXISTS. `tool_dropped` was created in V2-171 precisely
+            # for this in FlashBrain ("the turn DECIDED on an action and the system could not read its arguments"),
+            # and the harness already reads it (its node 10.6). The browser had the same event and counted it only
+            # in its step list, so it did not occur for any external instrumentation. The event shape is deliberately
+            # the same: consumers that already handle it need no changes to see it here too.
             try:
                 from voice.observer import emit as _emit_obs
                 _emit_obs("tool_dropped", "⚠️ acción descartada",

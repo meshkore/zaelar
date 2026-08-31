@@ -1,28 +1,28 @@
-"""widgets/navegador/lazy.py — materializar lo que una página pinta AL ACERCARSE (V2-323).
+"""widgets/navegador/lazy.py — materialise what a page renders WHEN APPROACHED (V2-323).
 
-Un listado VIRTUALIZADO no crea sus fichas hasta que te acercas a ellas, así que «cero filas extraídas» y «la
-página no tiene resultados» son dos cosas distintas que se leen igual. Medido el 2026-08-25 contra la URL exacta
-que acababa de conducir un worker (`autoscout24.es/lst/cit_madrid/ft_diesel?…`):
+A VIRTUALIZED listing does not create its cards until you approach them, so “zero rows extracted” and “the
+page has no results” are two different things that read the same. Measured on 2026-08-25 against the exact URL
+that a worker had just navigated to (`autoscout24.es/lst/cit_madrid/ft_diesel?…`):
 
-    sin desplazarse : 0 anclas de anuncio en el DOM · 1 fila (mobiliario)
-    tras desplazarse: 40 anclas                     · 19 filas
+    without scrolling: 0 listing anchors in the DOM · 1 row (furniture)
+    after scrolling  : 40 anchors                  · 19 rows
 
-HTTP 200, título correcto, y el texto de la propia página decía «16.752 coches de segunda mano diésel». La ronda
-(`search-buy-used-car__es`, 19:11) reportó hoja vacía tras cuatro minutos de navegación real.
+HTTP 200, correct title, and the page's own text said “16,752 used diesel cars”. The run
+(`search-buy-used-car__es`, 19:11) reported an empty sheet after four minutes of real navigation.
 
-MÓDULO PROPIO y no un método más de `owner.TaskBrowser` porque el trinquete de arquitectura lo pidió al crecer
-ese fichero — y tenía razón por debajo del recuento: esto es mecánica de página, no estado de la pestaña. Recibe
-la página y no sabe nada de tareas, hojas ni workers.
+OWN MODULE rather than another method on `owner.TaskBrowser` because the architectural ratchet called for it as
+that file grew — and it was right beneath the line count: this is page mechanics, not tab state. It receives
+the page and knows nothing about tasks, sheets, or workers.
 """
 from __future__ import annotations
 
 import asyncio
 import os
 
-#: Cuánto más alta que la pantalla tiene que ser una página para creer que esconde filas debajo del pliegue.
-#: Medido: autoscout24 CON resultados 11,5× · una búsqueda de verdad vacía (wallapop) 0,2×. El 2 está lejos de
-#: las dos, y es lo que hace que este mecanismo RESPETE el argumento de coste de V2-294 en vez de pisarlo: una
-#: página de resultados sin nada no llega ni a una pantalla, así que nunca paga por esto.
+#: How much taller than the screen a page must be before we believe it hides rows below the fold.
+#: Measured: autoscout24 WITH results 11.5× · a genuinely empty search (wallapop) 0.2×. The 2 is far from
+#: both, and is what makes this mechanism RESPECT the cost argument from V2-294 instead of overriding it: a
+#: results page with nothing on it does not even reach one screen, so it never pays for this.
 FOLD_RATIO = float(os.environ.get("ZAELAR_NAV_FOLD_RATIO", "2") or 2)
 FOLD_STEPS = int(os.environ.get("ZAELAR_NAV_FOLD_STEPS", "4") or 4)
 _STEP_WAIT_S = 0.7
@@ -30,19 +30,19 @@ _SETTLE_S = 1.2
 
 
 async def materialise_below_the_fold(page) -> bool:
-    """Recorre la página para forzar a que aparezcan las filas perezosas, y DEVUELVE LA VISTA a su sitio.
+    """Scroll through the page to force lazy rows to appear, and RETURN THE VIEW to its place.
 
-    `True` = empujó (había contenido debajo del pliegue). `False` = no había nada que materializar, y quien
-    llama debe leerlo como «esta página está vacía de verdad», no como un fallo.
+    `True` = it pushed (there was content below the fold). `False` = there was nothing to materialise, and the
+    caller must read it as “this page is genuinely empty”, not as a failure.
 
-    La vuelta de la vista no es limpieza: el `click_at` siguiente del worker lleva coordenadas de una foto
-    tomada ANTES de esto, y una herramienta que mueve la página por debajo rompería el clicar para arreglar el
-    extraer. Comprobado en vivo: las fichas materializadas SOBREVIVEN a la vuelta arriba.
+    Returning the view is not cleanup: the worker's next `click_at` carries coordinates from a screenshot
+    taken BEFORE this, and a tool that moves the page underneath would break clicking to fix the
+    extraction. Verified live: the materialised cards SURVIVE the return to the top.
 
-    Se usa la página directamente y no `agent_act("scroll")` porque ese captura una pantalla por paso: cuatro
-    empujones costarían cuatro PNG y cuatro hitos por un movimiento que nadie pidió ver.
+    The page is used directly rather than `agent_act("scroll")` because the latter captures one screenshot per
+    step: four pushes would cost four PNGs and four milestones for a movement nobody asked to see.
 
-    Fail-soft como todo el módulo: si algo se rompe devuelve `False` y la extracción sigue su camino.
+    Fail-soft like the entire module: if something breaks, it returns `False` and extraction continues on its way.
     """
     try:
         alto, viewport, y0 = await page.evaluate(

@@ -40,14 +40,14 @@ _MAX_EVENTS = 60
 # measured walls are visible in the URL, so this is what the evidence supports; a body check would need to live where
 # the body is (the owner), not here. Keeping them apart is deliberate — one predicate reading two different inputs
 # would be a predicate that lies about half its callers.
-# ── QUÉ ES UN MURO — extraído a `widgets/navegador/walls.py` (trinquete, V2-358). Re-exports con los
-# nombres históricos: la clasificación es pura y vive allí; la HISTORIA de los muros golpeados (t["walls"])
-# sigue aquí, que es del registro.
+# ── WHAT A WALL IS — extracted to `widgets/navegador/walls.py` (ratchet, V2-358). Re-exports under the
+# historical names: classification is pure and lives there; the HISTORY of walls encountered (t["walls"])
+# remains here, because it belongs to the registry.
 from widgets.navegador.walls import (  # noqa: F401 — re-export
     WALL_BODY_PEEK_CHARS, _WALL_BODY_MAX_CHARS, body_wall_reason, host_of, status_wall_reason, wall_reason,
 )
 
-_MAX_WALLS = 6          # enough to say «esto pasa en todas partes», bounded so a loop cannot grow the task
+_MAX_WALLS = 6          # enough to say «this happens everywhere», bounded so a loop cannot grow the task
 
 # States: queued (created) · working (executing) · needs_input (waiting for answer) · open (a page opened FOR
 # the operator, standing) · done · failed · cancelled.
@@ -55,8 +55,8 @@ _MAX_WALLS = 6          # enough to say «esto pasa en todas partes», bounded s
 # V2-197 — enumerated ONCE. `active_summaries()` and `recently_finished()` used to spell out their own subsets
 # by hand, and a state in neither list is a task the live state does not mention AT ALL: not alive, not
 # finished. The model then carries on with the last thing it knew, which is the correct thing to do when
-# nobody tells it otherwise. That hole cost `cancelled` (V2-196, measured: «bucle de espera infinito sobre una
-# tarea que ya falló») — and the moment the enumeration was single-sourced it turned out `open` was sitting in
+# nobody tells it otherwise. That hole cost `cancelled` (V2-196, measured: «infinite wait loop on a task that
+# had already failed») — and the moment the enumeration was single-sourced it turned out `open` was sitting in
 # the same hole, set by `owner.py` every time a page is opened for the operator. Two lists that must be kept in
 # sync are two lists that will not be.
 LIVE_STATES = frozenset({"queued", "working", "needs_input"})
@@ -318,8 +318,8 @@ def active_progress(limit: int = 3) -> list[dict]:
     """What each live browser task has ACTUALLY done: the page it is on and how many steps it has taken.
 
     V2-145 — the brain was told a browser task existed and its goal, and nothing else, so «how is it going?» had
-    only the elapsed seconds to answer with. It turned them into detail it could not have: «lleva unos 2 minutos
-    abierto en la página» and «todavía interactuando», while the mechanism report for that very task read
+    only the elapsed seconds to answer with. It turned them into detail it could not have: «it has been open on
+    the page for about 2 minutes» and «still interacting», while the mechanism report for that very task read
     `status=working url= events=[] n_search_events=0` — the task had opened nothing at all.
 
     Same remedy as `silent_s` in V2-131, one layer down: the truth already existed here and simply never reached
@@ -333,7 +333,7 @@ def active_progress(limit: int = 3) -> list[dict]:
                  "url": (t.get("url") or "").strip(),
                  "phase": (t.get("phase") or "").strip(),
                  "steps": len(t.get("events") or []),
-                 # V2-150: the run discovered «Casa Lucio solo acepta reservas por teléfono» and the operator
+                 # V2-150: the run discovered «Casa Lucio only accepts reservations by phone» and the operator
                  # only heard it at the very end, when he asked to stop. The milestone was in the task all
                  # along; what the brain saw was a step COUNT. A number cannot be said out loud.
                  "last_event": ((t.get("events") or [{}])[-1].get("text") or "").strip()
@@ -344,9 +344,9 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # seconds, which V2-145 already established is not a description of anything.
                  "stalled_s": int(max(0.0, now - float(t.get("last_progress") or t.get("created") or now))),
                  # V2-302 — the task's AGE, as a fact. Measured on round 29 (2026-08-24 23:07): at 21 seconds
-                 # of task life the turn said «lleva un rato sin reportar nada… ¿prefieres que la pare?» —
+                 # of task life the turn said «it has not reported anything for a while… would you prefer that I stop it?» —
                  # offering to kill a task that had barely spawned, and priming the operator to abort (which
-                 # he did). The model had no age fact, so it filled the hole with «un rato». This is NOT the
+                 # he did). The model had no age fact, so it filled the hole with «a while». This is NOT the
                  # V2-145 regression: that incident was the brain having ONLY seconds and inventing detail
                  # from them; age alongside the real facts grounds the wording instead of replacing it.
                  "age_s": int(max(0.0, now - float(t.get("created") or now))),
@@ -361,9 +361,9 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # structurally unable to reach the conversation: the operator was never asked, the answer had
                  # nowhere to arrive, and the gate died on its timeout while the turn narrated progress.
                  "question": (t.get("question") or "").strip(),
-                 # V2-192: si la tarea YA TRAJO algo, eso gana a cualquier medida de atasco. Sin este campo el
-                 # turno solo podía elegir entre «sigue viva» y «está bloqueada», y ninguna de las dos es la
-                 # verdad cuando los resultados están ahí.
+                # V2-192: if the task HAS ALREADY BROUGHT something back, that outweighs any measure of being
+                # stuck. Without this field the turn could choose only between «it is still alive» and «it is
+                # blocked», and neither is true when the results are there.
                  "has_results": bool(t.get("results"))}
                 for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
     return list(reversed(rows))[:max(1, limit)]
@@ -378,7 +378,7 @@ def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
     """Tasks that ENDED in the last few minutes, and whether they brought anything back.
 
     V2-150 — `restaurant-tonight-madrid`: the mechanism report read `status=done url=` and zaelar kept saying
-    «los procesos siguen en marcha — llevan casi 5 minutos». That is not the model inventing for the sake of it:
+    «the processes are still running — they have been running for almost 5 minutes». That is not the model inventing for the sake of it:
     the brain only ever sees ACTIVE tasks (`active_summaries`/`active_progress`), so the moment this one
     finished it simply VANISHED from the state. There was no fact left saying it had ended, let alone that it
     had ended empty — and the turn filled the hole with the only thing it still had, the worker.
@@ -397,10 +397,10 @@ def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
                                 if t.get("events") else "",
                  "ago_s": int(now - float(t.get("finished") or now))}
                 for tid, t in _tasks.items()
-                # V2-196: `cancelled` también es un final, y era el único que caía en un HUECO — ni activa
-                # (`active_summaries` filtra por queued/working/needs_input) ni recién terminada. O sea que el
-                # estado no la mencionaba EN ABSOLUTO y el modelo seguía con lo último que recordaba: «bucle de
-                # espera infinito sobre una tarea que ya falló», medido en `find-theatre-tickets__es`
+                # V2-196: `cancelled` is also an ending, and it was the only one that fell into a GAP — neither
+                # active (`active_summaries` filters for queued/working/needs_input) nor recently finished. So
+                # the state did not mention it AT ALL and the model continued with what it last remembered:
+                # «infinite wait loop on a task that had already failed», measured in `find-theatre-tickets__es`
                 # (2026-08-20 03:11) con `status=cancelled` en el informe de mecanismo.
                 if t.get("status") in ENDED_STATES
                 and (now - float(t.get("finished") or 0)) <= JUST_FINISHED_S]
@@ -440,7 +440,7 @@ def add_event(task_id: str, text: str) -> None:
     _notify(task_id)
 
 
-#: The COSECHA of a browser task, key by key. Cumulative and monotonic — a page already counted never
+#: The HARVEST of a browser task, key by key. Cumulative and monotonic — a page already counted never
 #: un-counts itself, which is what lets the operator read the tab as a running total instead of a snapshot.
 TALLY_KEYS = ("pages", "rows", "repeated", "unnamed", "hollow", "kept", "offered")
 
@@ -522,10 +522,10 @@ def set_status(task_id: str, status: str) -> None:
             return
         t["status"] = status
         if status in ENDED_STATES:
-            # V2-197: la MISMA lista que usan los filtros. Estaba escrita a mano aquí también —una tercera
-            # copia— y por eso `open` no sellaba nunca cuándo había terminado: entraba en los finales y
-            # `recently_finished()` lo descartaba igual por su ventana de tiempo. Un estado terminal que no
-            # sella su hora es un final que nadie puede fechar.
+            # V2-197: the SAME list used by the filters. It was also written out by hand here —a third
+            # copy— and therefore `open` never recorded when it had ended: it entered the ended states and
+            # `recently_finished()` discarded it anyway because of its time window. A terminal state that does not
+            # record its time is an ending that nobody can date.
             t["finished"] = time.time()   # mark the CONTINUITY window (find_continuation)
             # …and the SPINNER goes off with it, for the same reason the line above exists. Measured
             # 2026-08-23 (`search-secondhand-monitor__es`): a task read `status="cancelled"` while still
@@ -584,8 +584,8 @@ def _announce_wall(task_id: str, reason: str) -> None:
     """A wall is not progress and it is not a phase: it is the end of what this task can do on its own.
 
     So it is SAID in the three places the operator can see, instead of only being a field somebody might read
-    (V2-167, operator's request: «podríamos mostrar la imagen del navegador en pantalla y decir "Booking me ha
-    bloqueado" y poner una captura de lo que ha pasado y decirle que tú ya no puedes seguir»):
+    (V2-167, operator's request: «could we show the browser image on screen and say "Booking has blocked me"
+    and add a screenshot of what happened and tell them that you can no longer continue»):
 
       · a MILESTONE, which lands in the card's feed AND in the durable event registry, so it can be audited
         later — a phase alone dies with the task;
@@ -604,7 +604,7 @@ def _announce_wall(task_id: str, reason: str) -> None:
     # …AND THE CONVERSATION, which is the one place the three above cannot reach (2026-08-20, measured on
     # `cancel-subscription-before-charge__es` and `find-theatre-tickets__es`). The card, the phase and the panel
     # are all surfaces the operator has to be LOOKING at. If he is not, the wall is recorded everywhere and said
-    # nowhere: the tester measured `wall="la página pidió resolver un captcha"`, `walls_hit=1` and brain-notes=0
+    # nowhere: the tester measured `wall="the page asked to solve a CAPTCHA"`, `walls_hit=1` and brain-notes=0
     # in the same round the turn was still narrating that the cancellation was going ahead.
     #
     # `active_progress()` already carries the wall into the prompt, but that only helps when the operator ASKS.
@@ -654,10 +654,10 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
                 # is the correct thing for it to do) the fact is erased. Measured on `find-theatre-tickets__es`
                 # (2026-08-20 12:39): the body-served wall detector fired in production — the judge quotes its
                 # exact wording back at us, «el sitio bloqueó el acceso» — the worker adapted and moved on to
-                # elcorteingles.es, and zaelar spent TEN turns saying «sigue sin dar señal de dónde está». The
+                # elcorteingles.es, and zaelar spent TEN turns saying «it still gives no indication of where it is». The
                 # obstacle had happened, nobody could still see it, and the operator was never told.
                 #
-                # Bounded, and it keeps the SITE: «me bloquearon» is a fact, «me bloqueó entradas.com» is one the
+                # Bounded, and it keeps the SITE: «I was blocked» is a fact, «entradas.com blocked me» is one the
                 # operator can act on. Same lesson as V2-150/V2-196/V2-198, now for an obstacle instead of an
                 # ending: a fact that only lives one turn is a fact the conversation loses.
                 _hist = t.setdefault("walls", [])
@@ -718,24 +718,24 @@ def answer_from_turn(text: str) -> dict | None:
     V2-202 — until now the ONLY way to answer was the card's button (`answer_task`, a widget data-op), so a
     confirm-gate hit during a voice/text errand had no route back at all: `waiting_id()` had zero callers in
     production. Measured on `find-theatre-tickets__es` (2026-08-20 13:33): the gate stopped «Comprar entradas»,
-    asked nobody, and failed the worker with `acción NO confirmada por el operador` while the turn kept
-    reporting progress. The judge, reading only the dialogue, called it «esperando una confirmación que nunca se
-    pidió al usuario» — both halves of the same hole.
+    asked nobody, and failed the worker with `action NOT confirmed by the operator` while the turn kept
+    reporting progress. The judge, reading only the dialogue, called it «waiting for a confirmation that was never
+    requested from the user» — both halves of the same hole.
 
     The decision lives HERE, with the state it resolves, exactly like `dispatch.resolve_confirm` lives with
     `_PENDING_CONFIRM`: both channels call this one function instead of each classifying on its own (V2-153 is
     what two copies of one decision cost). The yes/no classifier is the shared deterministic one — a gate is no
-    place to ask an LLM whether «venga, dale» meant yes.
+    place to ask an LLM whether «come on, go ahead» meant yes.
     """
     tid = waiting_id()
     if not tid:
         return None
-    # ⚠️ `needs_input` NO significa «hay una pregunta»: el traspaso de LOGIN lo pone (`owner._authenticate`) y las
-    # tareas que ese traspaso PAUSA también, las dos SIN pregunta. Sin esta comprobación, un turno que llevara un
-    # «vale» —«Vale, abre la web de Netflix y me dices cuando esté en el login»— se leía como la respuesta a un
-    # confirm-gate que nadie había abierto, y se comía la acción REAL de ese turno. Regresión medida el mismo día
-    # en `cancel-subscription-before-charge__es`, que era el único 5/5 del tablero. La pregunta es lo único que
-    # distingue «te estoy esperando a ti» de «estoy esperando a que TÚ hagas algo en otra ventana».
+    # ⚠️ `needs_input` does NOT mean «there is a question»: the LOGIN handoff sets it (`owner._authenticate`), and
+    # the tasks that handoff PAUSES do too, both WITHOUT a question. Without this check, a turn containing a
+    # «okay» —«Okay, open the Netflix website and tell me when it is at the login»— was read as the answer to a
+    # confirm-gate nobody had opened, consuming that turn's REAL action. Regression measured the same day
+    # in `cancel-subscription-before-charge__es`, which was the only 5/5 on the board. The question is the only thing
+    # distinguishing «I am waiting for you» from «I am waiting for YOU to do something in another window».
     if not (get(tid) or {}).get("question"):
         return None
     from widgets import confirm as _confirm

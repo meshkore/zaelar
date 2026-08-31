@@ -32,7 +32,7 @@ _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link],
 # The FINE relevance filtering (this is an enduro bike, not a "Moto G" phone) is done by the model in summarize.
 _JS_EXTRACT = r"""
 (limit) => {
-  const out=[], seen=new Map();   // key de ficha → SU FILA (V2-324: la segunda ancla completa, no se tira)
+  const out=[], seen=new Map();   // listing key → ITS ROW (V2-324: keep the second complete anchor)
   // La COMA es el separador decimal en media Europa, y faltaba de la clase de caracteres: sobre «169,00 €» el
   // patrón viejo empezaba a casar en «00» y devolvía «00 €», o sea un monitor de 169 € anunciado como de 0 €.
   // Medido el 2026-08-21 sobre una tarjeta con la forma de Amazon (precio partido en spans, con el importe
@@ -97,7 +97,7 @@ _JS_EXTRACT = r"""
       if(!t || t.length<3 || !hasLetter(t) || priceRe.test(t)) continue;
       const link=h.querySelector('a[href]')||h.closest('a[href]');
       let same=false; if(link){ try{ same=new URL(link.href).pathname===path; }catch(_){} }
-      // el encabezado que apunta a ESTA misma ficha es la señal fuerte de que la nombra a ella y no a la vecina
+      // A heading pointing to THIS same listing is the strong signal that it names this one, not its neighbor.
       if(same) return t.slice(0,90);
       if(!best) best=t;
     }
@@ -242,16 +242,15 @@ _JS_EXTRACT = r"""
   for(const a of document.querySelectorAll('a[href]')){
     let href; try{ href=a.href; }catch(_){ continue; }
     if(!href || href.startsWith('javascript:') || AD.test(href)) continue;
-    // Un `tel:` (o un `mailto:`) es una forma de CONTACTAR con la ficha, no la ficha. Sin esto, la tarjeta de un
-    // negocio salía DOS veces —una por su enlace y otra por su teléfono— y en un directorio eso es duplicar
-    // entera la página.
+    // A `tel:` (or `mailto:`) is a way to CONTACT the listing, not the listing itself. Without this, a business
+    // card appeared TWICE—once for its link and once for its phone—and in a directory that duplicates the page.
     if(/^(tel:|mailto:|sms:)/i.test(href)) continue;
     if(a.closest('ins, iframe, [class*="ad-" i], [id*="google_ads" i], [aria-label*="anuncio" i]')) continue;
     const img=a.querySelector('img');
     const text=(a.innerText||'').trim();
     // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
     let key, path=''; try{ const u=new URL(href); key=u.origin+u.pathname; path=u.pathname; }catch(_){ key=href; }
-    if(path && _porRuta[path] > 8) continue;      // V2-334: destino COMPARTIDO (redirección, política, la propia página)
+    if(path && _porRuta[path] > 8) continue;      // V2-334: SHARED destination (redirect, policy, or the page itself)
     // V2-240 — UN RESULTADO ES UN NOMBRE Y UNA FORMA DE ACTUAR SOBRE ÉL, no un precio. El filtro pedía precio
     // porque «un anuncio tiene precio», y eso es verdad de UNA clase de encargo: la compra. Un fontanero, un
     // barbero, un cerrajero o un dentista no publican precio, así que la página devolvía CERO filas y el turno
@@ -274,9 +273,9 @@ _JS_EXTRACT = r"""
     let price = priceIn(a);
     if(!price) price = cardPrice(a);
     const tel = price ? '' : cardTel(a);
-    if(!price && !tel) continue;                        // ni importe que pagar ni número al que llamar → no es una ficha
-    // Un trozo de precio NO es un nombre: se exige al menos una letra. Sin eso, «169» pasaba por título de un
-    // monitor de 169,00 € y la nota al cerebro decía «169 — 00 € — …», que es lo que el turno describió.
+    if(!price && !tel) continue;                        // neither an amount to pay nor a number to call → not a listing
+    // A price fragment is NOT a name: require at least one letter. Otherwise «169» became the title of a
+    // €169.00 monitor and the note to the model said «169 — 00 € — …», exactly what the run described.
     let title=((img&&(img.alt||''))
                ||text.split('\n').map(s=>s.trim()).find(s=>s.length>2 && hasLetter(s) && !priceRe.test(s))
                ||cardName(a, path)||'').slice(0,90);
@@ -352,7 +351,7 @@ _JS_EXTRACT = r"""
           if(xt && xt.length<=30 && priceRe.test(xt) && xt.length<=(xt.match(priceRe)[0].length+12)) prices++;
           if(prices>1) break;
         }
-        if(prices>1) break;                      // ya es la rejilla: lo que hay aquí nombra a varias
+        if(prices>1) break;                      // this is already the grid: anything here names several listings
         for(const e2 of n.querySelectorAll('[aria-label]')){
           const al=(e2.getAttribute('aria-label')||'').trim();
           if(hasLetter(al) && al.length>title.length) title=al;
@@ -374,7 +373,7 @@ _JS_EXTRACT = r"""
   }
   // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).
   const items = cands.filter(c=>c._item);
-  const list = (items.length ? items : cands).map(({_item, ...c})=>c);   // `_alts` se retira abajo
+  const list = (items.length ? items : cands).map(({_item, ...c})=>c);   // `_alts` is removed below
   // A LABEL IS NOT A NAME, and the page will hand you one whenever the price has a caption. Measured
   // 2026-08-23 on `cheapest-monitor`: eight of thirteen rows on the sheet were called «Recomendado:»,
   // «Mediano:» (four times) or «Más bajo:» — the captions of a carousel, sitting where a monitor's name
@@ -390,12 +389,11 @@ _JS_EXTRACT = r"""
   const generico = (t)=>!t || /:\s*$/.test(t) || times[t]>1;
   for(const c of list){
     if(!generico((c.title||'').trim())){ delete c._alts; continue; }
-    // V2-324 — ANTES DE BORRAR, MIRAR SI TENÍAMOS OTRO NOMBRE PARA ESTA MISMA FICHA. Varias anclas apuntan al
-    // mismo anuncio y solo una lo nombra; cuál es la buena no se puede saber arriba —depende de qué texto se
-    // repite entre fichas, que es justo lo que se acaba de contar aquí—, así que se guardaron todas y se elige
-    // ahora. Medido en autoscout24: las 19 filas salían SIN nombre porque ganaba «Abrir detalles del anuncio»
-    // (repetido 19 veces, y por eso borrado con razón) mientras «Skoda Octavia 2.0TDI Selection 85kW» se había
-    // descartado arriba por duplicado.
+    // V2-324 — BEFORE CLEARING, CHECK WHETHER WE HAVE ANOTHER NAME FOR THIS SAME LISTING. Several anchors point
+    // to the same listing and only one names it; which one is correct cannot be known above—it depends on which
+    // text repeats across listings, counted just here—so all were saved and the choice is made now. On autoscout24,
+    // the 19 rows had no name because «Abrir detalles del anuncio» won (repeated 19 times and rightly cleared),
+    // while «Skoda Octavia 2.0TDI Selection 85kW» had been discarded above as a duplicate.
     const otro = (c._alts||[]).find(t=>!generico((t||'').trim()));
     c.title = otro ? otro.slice(0,90) : '';
     delete c._alts;
@@ -558,4 +556,3 @@ async def _human_click_at(page, x: float, y: float, mouse: dict) -> None:
     await _human_move(page, x + random.uniform(-3, 3), y + random.uniform(-3, 3), m)
     await asyncio.sleep(random.uniform(0.05, 0.18))
     await page.mouse.click(m["x"], m["y"], delay=random.randint(40, 110))
-

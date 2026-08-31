@@ -60,12 +60,12 @@ def _task_view(t: dict) -> dict:
         "shot": f"shot-{t.get('id', '')}.png", "shot_rev": t.get("shot_rev", 0),
         "state": _state(t),
         "question": t.get("question", ""),
-        # V2-207 — los MUROS que esta tarea se comió. `active_progress()` los construye desde V2-176 y son lo que
-        # llega al prompt, pero esta vista no los exponía, así que desde fuera del proceso «el muro no se anotó»
-        # y «se anotó y el turno lo ignoró» se veían IDÉNTICOS. Son diagnósticos opuestos —uno es de la anotación
-        # y el otro del turno— y decidir cuál se ataca costaba una ronda entera de medición. `wall` es el de la
-        # página ACTUAL (se recalcula en cada captura) y `walls`/`last_wall` la historia, que es la que sobrevive
-        # al re-enrutado: la distinción es justo la que V2-176 existe para mantener.
+        # V2-207 — the WALLS this task got stuck on. `active_progress()` builds them from V2-176 and they are what
+        # reaches the prompt, but this view did not expose them, so from outside the process “the wall was not
+        # recorded” and “it was recorded and the turn ignored it” looked IDENTICAL. They are opposite diagnoses —
+        # one concerns the recording and the other the turn—and deciding which one to address cost a whole round of
+        # measurement. `wall` is the one for the CURRENT page (recomputed on every capture), while `walls`/`last_wall`
+        # are the history, which survives rerouting: preserving that distinction is exactly what V2-176 exists for.
         "wall": t.get("wall", ""),
         "walls_hit": len(t.get("walls") or []),
         "last_wall": ((t.get("walls") or [{}])[-1] if t.get("walls") else {}),

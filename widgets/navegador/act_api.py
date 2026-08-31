@@ -62,12 +62,12 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
 
 
 # Same threshold the FlashBrain turn uses for «sin moverse» (`nucleo/flash/prompt.py`), read from the same env
-# var so the two halves of one fact can never drift apart.
+# variable so the two halves of one fact can never drift apart.
 _STALL_HINT_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") or 120)
 
-# Lo que se espera antes de volver a mirar una página que devolvió solo filas huecas (V2-294). Corto a propósito:
-# es el tiempo de hidratación de un listado, no una espera de red — si en eso no ha pintado, mirar más no arregla
-# nada y el worker tiene sus propias salidas (cambiar de búsqueda, de sitio).
+# How long to wait before looking again at a page that returned only hollow rows (V2-294). Deliberately short:
+# this is the hydration time for a listing, not a network wait — if it has not rendered by then, waiting longer
+# fixes nothing, and the worker has its own exits (change the search or site).
 _HYDRATE_WAIT_S = float(__import__("os").environ.get("ZAELAR_NAV_HYDRATE_S", "2") or 2)
 
 
@@ -95,11 +95,11 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
     if reason:
         snap = dict(snap or {})
         snap["wall"] = reason
-        # V2-213 — «prueba otro sitio» sin decir CUÁL es un deseo, no una instrucción. Medido: trece minutos en
-        # el mismo host en `book-hotel-night-known__es`, y `restaurant-tonight-madrid` acabando en una página de
-        # resultados de DuckDuckGo. El catálogo genético sabe a qué categoría pertenece el encargo y ahora
-        # también dónde ir cuando el sitio de confianza nos cierra la puerta; el host que acaba de bloquearnos se
-        # EXCLUYE, porque ofrecer el sitio donde está atascado se lee como «insiste».
+        # V2-213 — «prueba otro sitio» without saying WHICH ONE is a wish, not an instruction. Measured: thirteen
+        # minutes on the same host in `book-hotel-night-known__es`, and `restaurant-tonight-madrid` ending on a
+        # DuckDuckGo results page. The genetic catalog knows the task's category and now also where to go when
+        # the trusted site shuts the door; the host that just blocked us is EXCLUDED, because offering the site
+        # where it is stuck reads as «insist».
         try:
             from nucleo.flash import site_catalog as _sc
             from widgets.navegador import tasks as _t2
@@ -127,7 +127,7 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
 
 
 def _query_of(url: str) -> dict:
-    """Los PARÁMETROS de la dirección, tal cual. Un listado codifica sus filtros ahí — cualquiera, no uno."""
+    """The address PARAMETERS, verbatim. A listing encodes its filters there — any filters, not just one."""
     try:
         from urllib.parse import parse_qsl, urlsplit
         return {k: v for k, v in parse_qsl(urlsplit(str(url or "")).query, keep_blank_values=True)}
@@ -136,20 +136,20 @@ def _query_of(url: str) -> dict:
 
 
 def _with_url_change(before: str, snap: dict) -> dict:
-    """Decirle al worker QUÉ cambió en la dirección de la página, no solo cuál es ahora.
+    """Tell the worker WHAT changed in the page address, not only what it is now.
 
-    V2-293 — medido en la tanda de las 13:42, `search-buy-guitar__es`, con el modelo conduciendo a ciegas (el
-    escalón que servía la sesión no lee imágenes, V2-289). El worker quería precio MÁXIMO 150 €: pulsó el filtro,
-    escribió «150»… y la página se fue a `?min_sale_price=750`. Precio MÍNIMO, y de 750. La ronda acabó ahí con
-    CERO extracciones, y nada en la respuesta del puente decía que el filtro hubiera caído en otro sitio: la URL
-    entera viaja en una línea larga entre el título y los elementos, y un parámetro nuevo dentro de ella no se ve.
+    V2-293 — measured in the 13:42 batch, `search-buy-guitar__es`, with the model driving blind (the
+    session-serving tier cannot read images, V2-289). The worker wanted a MAXIMUM price of €150: it clicked the
+    filter, typed «150»… and the page went to `?min_sale_price=750`. MINIMUM price, and 750. The round ended with
+    ZERO extractions, and nothing in the bridge response said that the filter had landed somewhere else: the full
+    URL travels on one long line between the title and elements, and a new parameter inside it is not visible.
 
-    Lo que se añade es el DELTA, que es lo único que el worker no puede deducir: la URL de ahora la tiene, la de
-    antes no. Y es genérico por construcción — se comparan los parámetros que haya, sin saber de qué sitio son ni
-    qué significan; el mismo mecanismo sirve para un filtro de precio, uno de talla o una página siguiente.
+    What is added is the DELTA, the only thing the worker cannot infer: it has the current URL, but not the
+    previous one. It is generic by construction — whatever parameters exist are compared without knowing their
+    site or meaning; the same mechanism works for a price filter, a size filter, or a next page.
 
-    Deliberadamente NO se juzga si el cambio es el que quería: eso es del worker, que es quien sabe qué pidió.
-    Aquí se dice lo que la página afirma de sí misma.
+    Deliberately, this does NOT judge whether the change is what the worker wanted: that is the worker's job,
+    since it knows what was requested. This reports what the page says about itself.
     """
     a, b = _query_of(before), _query_of(str((snap or {}).get("url") or ""))
     if not before or a == b:
@@ -234,7 +234,7 @@ _PHASE_TARGET = {           # de qué argumento sale el «target» que la frase 
 
 
 def _phase_for_action(action: str, args: dict) -> str:
-    """La frase de PROCESO de UNA acción del navegador (V2-343). Vacía = no decir nada.
+    """The PROCESS phrase for ONE browser action (V2-343). Empty means say nothing.
 
     Existe porque el operador no veía lo que ya medíamos. En la sesión `7575e81a` (2026-08-26, 21,6 min de
     encargo) el motor capturó **292 eventos de navegador, uno cada 4 segundos**, y a la pestaña de Proceso
@@ -268,7 +268,7 @@ def _phase_for_action(action: str, args: dict) -> str:
 
 
 def by_identity(items) -> tuple:
-    """Parte lo extraído en (CON nombre, SIN nombre), conservando el orden relativo dentro de cada mitad.
+    """Split the extracted items into (NAMED, UNNAMED), preserving relative order within each half.
 
     Una fila sin título no es un resultado: es cromo de navegación —un enlace de categoría, un filtro de precio—
     y sale ANTES que las fichas de producto porque ese es el orden del DOM en cualquier listado, no la mala
@@ -292,8 +292,8 @@ def by_identity(items) -> tuple:
             continue
         (named if str(it.get("title") or "").strip() else unnamed).append(it)
     # V2-346 — Y UN NOMBRE QUE VARIAS FILAS COMPARTEN COMO PLANTILLA NO ES LA IDENTIDAD DE NINGUNA.
-    # La regla de `cardWalk` («un dato que nombra a todas no nombra a ninguna») subida de los nodos a las filas.
-    # Ver `_boilerplate_prefix`. Lo degradado va al montón de las que no tienen nombre: se cuenta y se dice.
+    # The `cardWalk` rule («a datum that names every one names none») lifted from nodes to rows.
+    # See `_boilerplate_prefix`. Degraded rows join the unnamed group: they are counted and reported.
     if named:
         _tpl = _boilerplate_prefix([str(it.get("title") or "").strip() for it in named])
         if _tpl:
@@ -320,7 +320,7 @@ def by_identity(items) -> tuple:
 
 
 def _boilerplate_suffix(titles: list) -> str:
-    """La coletilla que comparte al menos la MITAD de los títulos (y nunca menos de tres), o «» si no la hay.
+    """The suffix shared by at least HALF the titles (and never fewer than three), or «» if there is none.
 
     Gemela de `_boilerplate_prefix` y con sus mismos dos frenos —longitud mínima y mitad de las filas— por las
     mismas razones: «Kit » lo comparten tres cámaras legítimas, y tres filas sueltas no hacen una plantilla.
@@ -331,15 +331,15 @@ def _boilerplate_suffix(titles: list) -> str:
     return _boilerplate_prefix([t[::-1] for t in titles if t])[::-1]
 
 
-# Una plantilla tiene que ser LARGA (una frase de navegación entera, no una palabra de categoría: «Bici » la
-# comparten tres bicis legítimas) y de la PÁGINA, no de tres filas sueltas — de ahí el mínimo de la mitad. Tres
-# «Ford Focus 1.5 TDCi» entre siete coches son tres coches, no cromo.
+# A template must be LONG (a complete navigation phrase, not a category word: «Bici » is shared by three
+# legitimate bikes) and come from the PAGE, not three unrelated rows — hence the half minimum. Three
+# «Ford Focus 1.5 TDCi» among seven cars are three cars, not chrome.
 _TPL_MIN_CHARS = 12
 _TPL_MIN_ROWS = 3
 
 
 def _boilerplate_prefix(titles: list) -> str:
-    """El prefijo que comparte al menos la MITAD de los títulos (y nunca menos de tres), o «» si no lo hay.
+    """The prefix shared by at least HALF the titles (and never fewer than three), or «» if there is none.
 
     Se busca por prefijo y no por igualdad porque así es como viene la plantilla: los nueve enlaces de
     concesionario de AutoScout24 difieren solo en el paréntesis final. Y se EXIGE que cada fila añada algo detrás
@@ -401,7 +401,7 @@ def by_amount(items) -> tuple:
 
 
 def dedupe_by_url(items) -> tuple:
-    """La MISMA url no es dos hallazgos. Devuelve (lista sin repetidos, cuántos se colapsaron).
+    """The SAME URL is not two findings. Return (deduplicated list, number collapsed).
 
     Medido por el arnés en la misma ronda del monitor: la segunda nota llevaba tres filas y las tres eran
     `aax-eu-zaz.amazon.es/x/c/JLv…` — la misma url de anuncio repetida. O sea que las repeticiones no solo
@@ -425,7 +425,7 @@ def dedupe_by_url(items) -> tuple:
 
 
 def _sheet_of(task_id: str) -> str:
-    """La hoja del encargo al que pertenece esta pestaña (V2-259). Fail-soft a "" = la hoja de siempre.
+    """The sheet for the task this tab belongs to (V2-259). Fail-soft to "" = the default sheet.
 
     V2-281 — se le pregunta a la PESTAÑA primero, porque es la que sobrevive. Esto resolvía SOLO por el
     registro de sesiones vivas, y una pestaña dura más que el worker que la abrió: el record se saca en el
@@ -492,11 +492,11 @@ def _hand_over(task_id: str, items: list) -> None:
     try:
         fresh, repeated = dedupe_by_url(items)
         named, unnamed = by_identity(fresh)
-        # V2-295 — con nombre e IMPORTE delante de con nombre y sin nada. Ver `by_amount`: `head` ofrecía las
-        # tres primeras en orden de DOM, y ahí es donde caen las fichas cuyo precio no llegó a pintar.
+        # V2-295 — named rows with an AMOUNT before named rows with nothing. See `by_amount`: `head` offered the
+        # first three in DOM order, which is where rows whose price failed to render ended up.
         priced, hollow = by_amount(named)
         named = priced + hollow
-        ordered = named + unnamed          # lo que TIENE identidad va delante; nada se descarta
+        ordered = named + unnamed          # rows WITH identity go first; nothing is discarded
         sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}~{(i or {}).get('tel', '')}"
                        for i in ordered[:5])
         if _HANDED.get(task_id) == sig:      # re-extracting the same page is not a new finding
@@ -543,7 +543,7 @@ def _hand_over(task_id: str, items: list) -> None:
         # cambio de sitio», que es una respuesta ÚTIL y cierta.
         head = (named or unnamed)[:3]
         listing = "; ".join(_one(i) for i in head)
-        # Nunca se pierde EN SILENCIO la información de que había más (doctrina de `observability/evidence.py`).
+        # Information that more existed is NEVER lost SILENTLY (the doctrine of `observability/evidence.py`).
         left = len(ordered) - len(head)
         bits = []
         if left > 0:
@@ -605,7 +605,7 @@ def _hand_over(task_id: str, items: list) -> None:
 
 
 def _sheet_already_named(task_id: str) -> bool:
-    """¿La hoja de ESTE encargo tiene ya algún resultado con nombre? (V2-370)
+    """Does THIS task's sheet already contain any named result? (V2-370)
 
     Se pregunta a la HOJA y no al registro de la tarea a propósito: `has_results` solo existe si alguien llamó
     a `set_results`, y la hoja es la que el operador tiene delante — es la misma elección que hizo V2-299 en la
@@ -639,9 +639,9 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
     confirmation gate for irreversible actions still applies. Best-effort: never raises."""
     action = (action or "").strip()
     args = args or {}
-    # V2-343: cada acción del navegador dice lo que es en la pestaña de Proceso. Va ANTES de ejecutarla a
-    # propósito: lo que el operador necesita es «entrando en coches.net» MIENTRAS entra, no después. Si la
-    # acción falla, el fallo ya tiene su propia fila (`🧭 navegador ⚠️ error`) y su línea de espera.
+        # V2-343: every browser action says what it is in the Process tab. It deliberately comes BEFORE execution:
+        # the operator needs «entrando en coches.net» WHILE entering, not afterward. If the action fails, the
+        # failure already has its own row (`🧭 navegador ⚠️ error`) and waiting line.
     _say_phase(task_id, _phase_for_action(action, args))
     try:
         from widgets.navegador import owner
@@ -671,8 +671,8 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
                     **_with_stall(task_id, _with_wall(snap, task_id))}
         if action == "visit":
-            # LEER UNA FICHA SIN PERDER EL LISTADO. Va antes de `extract` porque comparten la idea de «lo que
-            # hay en esta página», pero no la pestaña: `visit` abre la suya y la cierra.
+            # READ ONE LISTING WITHOUT LOSING THE LIST. It comes before `extract` because they share the idea of
+            # «what is on this page», but not the tab: `visit` opens its own and closes it.
             got = await tb.visit(str(args.get("url", "")), int(args.get("chars", 2500)))
             if got.get("ok"):
                 _emit_nav(task_id, "🧭 ficha", f"{str(got.get('title') or got.get('url'))[:150]}")

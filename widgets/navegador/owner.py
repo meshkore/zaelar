@@ -40,8 +40,8 @@ _NAV_TIMEOUT = 15_000   # ms — goto cap; a slow website must not block the mai
 #: execution context, and a page NAVIGATING (the Enter after typing in a search box) has none until the new
 #: document is ready. Measured 2026-08-24 on `search-buy-guitar__es`: the text WAS typed and the screenshot
 #: WAS taken at 18:03:48, then silence until the CLI gave up at 18:05:15 — 90 s of a 250 s round spent on an
-#: action that had already succeeded. Operator's rule, same day: «no tiene tiempos de espera de noventa
-#: segundos bajo ningún concepto». Generous against the 4 s measured, brutal against the 90 that was there.
+#: action that had already succeeded. Operator's rule, same day: «it must not have ninety-second timeouts
+#: under any circumstances». Generous against the 4 s measured, brutal against the 90 that was there.
 _DOM_TIMEOUT_S = 8.0
 
 # Cookie/consent banner selectors for auto-dismiss after navigation (best effort).
@@ -145,13 +145,13 @@ _CMP_ACCEPT = (".cmpboxbtnyes", "#onetrust-accept-btn-handler", "#didomi-notice-
 
 
 def _host_of(url: str) -> str:
-    """El DOMINIO de una URL — la granularidad a la que existe el consentimiento de cookies.
+    """The DOMAIN of a URL — the granularity at which cookie consent exists.
 
-    Se guardaba por URL, y un `type --submit` en un buscador CAMBIA la URL: la mirada de detrás volvía a
-    barrer entero. Medido en la tanda de las 19:39, sobre `search-buy-guitar__es`: el `type` funcionó (a las
-    19:39:07 la captura ya era de `/search?keywords=guitarra+acustica`) y el puente reportó timeout a los
-    25 s igualmente, tres veces seguidas. Un CMP es por dominio: aceptado en wallapop.com, no reaparece al
-    moverse dentro de él.
+    It was stored by URL, and `type --submit` in a search engine CHANGES the URL: the following look would
+    scan everything again. Measured in the 19:39 run on `search-buy-guitar__es`: `type` worked (at 19:39:07
+    the capture was already `/search?keywords=guitarra+acustica`) and the bridge still reported a timeout at
+    25 s, three times in a row. A CMP is per domain: accepted on wallapop.com, it does not reappear while
+    moving within it.
     """
     try:
         from urllib.parse import urlparse
@@ -182,10 +182,10 @@ async def _dismiss_overlays(page) -> None:
         pass
     # 2) Text/generic-selector fallback, in ALL frames (some CMPs live in an iframe), without waits.
     #
-    # UNA consulta por frame, no una POR SELECTOR. Eran N frames × M selectores de ida y vuelta, y una página
-    # de resultados con iframes de anuncios tiene muchos frames: medido, el barrido entero costaba ~15-20 s
-    # en la búsqueda de Wallapop. Los selectores se combinan en uno solo —que es lo que ya hace el paso (1)
-    # justo encima— así que el navegador resuelve la lista de una vez.
+    # ONE query per frame, not one PER SELECTOR. It used to be N frames × M selectors round-tripped, and a
+    # results page with ad iframes has many frames: measured, the full sweep cost ~15-20 s in Wallapop search.
+    # The selectors are combined into one —which is what step (1) immediately above already does— so the
+    # browser resolves the list in one go.
     _combined = ", ".join(_COOKIE_SELECTORS)
     for fr in page.frames:
         try:
@@ -289,7 +289,7 @@ async def _ensure_page():
         # OPTIONAL debugging port chosen by env — NEVER yours (9222/9200). Empty = Playwright internal pipe
         # (zero ports, zero collisions). If you want to attach, set NAVEGADOR_REMOTE_PORT to a different port.
         args = list(_LAUNCH_ARGS)
-        port = _remote_port()                         # configurable por UI (settings.json) / env; nunca 9222/9200
+        port = _remote_port()                         # configurable through UI (settings.json) / env; never 9222/9200
         if port:
             args.append(f"--remote-debugging-port={port}")
             _emit("remote_port", f"puerto de depuración {port}")
@@ -646,10 +646,10 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     tasks.set_phase(task_id, "listo" if (ok and success) else ("terminado" if ok else "no pude completarlo"), False)
     tasks.finish(task_id, "done" if (ok and success) else ("done" if ok else "failed"),
                  ("✅ " if (ok and success) else "") + (summary or "sin resumen"))
-    # V2-257 — la tarjeta guarda el HECHO, la hoja guarda los HALLAZGOS. Este camino nunca había tenido forma de
-    # llegar a la hoja: el bucle propio del motor no habla con `widget_cli`, así que lo que encontraba moría en la
-    # tarjeta. Va DESPUÉS del cierre, como en `dispatch._finalize_web` y por la misma razón: deja pegados el
-    # `set_results` y el final que exige el invariante de V2-192 (una tarea VIVA no puede tener resultados).
+    # V2-257 — the card stores the FACT, the sheet stores the FINDINGS. This path had never had a way to reach
+    # the sheet: the engine's own loop does not talk to `widget_cli`, so what it found died in the card. It goes
+    # AFTER completion, as in `dispatch._finalize_web` and for the same reason: it keeps `set_results` and the
+    # final state required by the V2-192 invariant together (a LIVE task cannot have results).
     if results:
         try:
             from widgets.results import intake as _intake
@@ -799,7 +799,7 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     # reopened Wallapop login while already authenticated). Headless check, no window.
     if await _already_authenticated(site):
         auth_memory.record_session_established(site)
-        # search objective to resume: the task's objective, or the one left in the memory checkpoint (auth_pendiente).
+        # search objective to resume: the task's objective, or the one left in the memory checkpoint (auth_pending).
         pend = auth_memory.read_auth_pending() or {}
         goal_to_run = ((_auth_resume.get(task_id) or {}).get("goal") or goal or pend.get("objetivo") or "").strip()
         auth_memory.clear_auth_pending()
@@ -1242,7 +1242,7 @@ from widgets.navegador.dom import (  # noqa: F401 — re-export
 # state (browse_web). 1:1 mapping: task ↔ tab ↔ canvas card. All tabs live in the SAME window (shared persistent
 # context). Reuses page-parametric helpers (_human_*, _dismiss_overlays, _describe_el).
 def _stale_ref_reason(ref: int, refs: dict, snap_url: str, now_url: str) -> str:
-    """Por qué ese `ref` no vale y QUÉ hacer, en una línea que el worker pueda usar sin adivinar."""
+    """Why that `ref` is invalid and WHAT to do, in one line the worker can use without guessing."""
     nums = sorted(int(k) for k in (refs or {}))
     if not nums:
         return (f"ref {ref}: todavía no has mirado esta página, así que no hay refs. Haz `look` y usa uno de los "
@@ -1339,10 +1339,10 @@ class TaskBrowser:
         try:
             await page.goto(url, wait_until="domcontentloaded")
             await _dismiss_overlays(page)
-            # Y SE APUNTA PARA QUÉ PÁGINA SE HIZO. Sin esto el barrido corre DOS VECES por navegación: aquí y
-            # otra vez en la mirada que viene detrás, porque la URL acaba de cambiar y esa es justamente la
-            # condición que dispara el barrido. Es el mismo peaje que se acaba de quitar de `look`, cobrado
-            # por la otra puerta.
+            # AND IT RECORDS WHICH PAGE IT WAS DONE FOR. Without this, the sweep runs TWICE per navigation: here
+            # and again in the look that follows, because the URL has just changed and that is precisely the
+            # condition that triggers the sweep. It is the same toll just removed from `look`, charged through
+            # the other gate.
             self._overlays_host = _host_of(getattr(page, "url", "") or url)
             await asyncio.sleep(0.35)
         except Exception as e:
@@ -1412,27 +1412,27 @@ class TaskBrowser:
 
     async def snapshot_for_agent(self) -> dict:
         page = await self.ensure()
-        # EL BANNER ES COSA DE LA NAVEGACIÓN, NO DE CADA MIRADA. `_dismiss_overlays` espera 2,5 s a que
-        # aparezca un CMP conocido y, si no, barre TODOS los frames × TODOS los selectores — y una web con
-        # iframes de anuncios tiene muchos frames. Se pagaba entero en cada `look`. Medido contra el plató
-        # vivo sobre es.wallapop.com, misma página y sin banner: 11,17 · 11,23 · 11,45 s, tres miradas
-        # seguidas. No es el coste de aceptar cookies una vez, es un peaje fijo por acción — y con el
-        # operador pidiendo que el worker abra pestañas y valore fichas una a una, ese peaje es el techo.
-        # Se barre al CAMBIAR de página, que es cuando puede haber banner nuevo. Si uno aparece tarde en la
-        # misma URL, sale en la captura y el worker puede clicarlo: se pierde un automatismo, no la salida.
+        # THE BANNER BELONGS TO NAVIGATION, NOT TO EACH LOOK. `_dismiss_overlays` waits 2.5 s for a known CMP
+        # to appear and, if it does not, sweeps ALL frames × ALL selectors — and a site with ad iframes has many
+        # frames. That full cost was paid on every `look`. Measured on the live es.wallapop.com setup, same page
+        # and no banner: 11.17 · 11.23 · 11.45 s, three consecutive looks. It is not the cost of accepting
+        # cookies once, but a fixed toll per action — and with the operator asking the worker to open tabs and
+        # assess listings one by one, that toll is the ceiling.
+        # Sweep when CHANGING pages, when a new banner may exist. If one appears late on the same URL, it appears
+        # in the capture and the worker can click it: one automation is lost, not the result.
         _h = _host_of(getattr(page, "url", "") or "")
         if _h != getattr(self, "_overlays_host", None):
             await _dismiss_overlays(page)
             self._overlays_host = _h
         self.refs = {}
-        # V2-248 — DÓNDE se tomó esta mirada. Se guarda para que un `ref` caducado pueda decir por qué caducó: si
-        # la página ya no es la misma, el motivo no es que el número esté mal escrito.
+        # V2-248 — WHERE this look was taken. Stored so an expired `ref` can explain why it expired: if the page
+        # is no longer the same, the reason is not that the number was written incorrectly.
         self.refs_url = getattr(page, "url", "") or ""
-        # CADA LECTURA DEL DOM, ACOTADA. Ninguna de las tres lo estaba: `query_selector_all` y `title()` caen
-        # en el timeout por defecto del contexto y `evaluate` NO TIENE NINGUNO. Y lo caro no es esperar, es lo
-        # que la espera CONVIERTE: la acción ya había funcionado —el texto estaba escrito— y el worker recibía
-        # «el navegador no ha contestado a type», o sea un fallo, y la repetía. Aquí se devuelve lo que se
-        # tenga, DICIENDO que la vista está a medias, en vez de tirar abajo una acción que salió bien.
+        # EACH DOM READ, BOUNDED. None of the three was: `query_selector_all` and `title()` hit the context's
+        # default timeout and `evaluate` HAS NONE. And the costly part is not waiting, but what waiting TURNS
+        # INTO: the action had already worked —the text had been entered— and the worker received "the browser
+        # did not respond to type", that is, a failure, and repeated it. Here, whatever is available is returned,
+        # SAYING that the view is incomplete, instead of bringing down an action that succeeded.
         _slow = []
         try:
             handles = await asyncio.wait_for(page.query_selector_all(_INTERACTIVE), _DOM_TIMEOUT_S)
@@ -1450,9 +1450,9 @@ class TaskBrowser:
             _slow.append("título")
         out = {"url": page.url, "title": title or "", "elements": "\n".join(lines)}
         if _slow:
-            # Se NOMBRA lo que no dio tiempo a leer y se dice qué hacer, en vez de entregar una vista a medias
-            # como si fuera la página entera — que es cómo un worker concluye «aquí no hay nada» sobre un
-            # listado lleno. Mismo contrato que el nodo 4.20: lo que el puente sabe, lo dice.
+            # NAME what there was not time to read and say what to do, instead of presenting a partial view as
+            # though it were the whole page —which is how a worker concludes "there is nothing here" about a
+            # full listing. Same contract as node 4.20: the bridge says what it knows.
             out["partial"] = ", ".join(_slow)
             out["note"] = (f"la página seguía cargando y no dio tiempo a leer: {out['partial']}. "
                            f"La acción SÍ se hizo. Vuelve a mirar con «look» antes de decidir nada.")
@@ -1510,13 +1510,13 @@ class TaskBrowser:
             ref = int(args.get("ref", 0))
             h = self.refs.get(ref)
             if h is None:
-                # V2-248 — UN REF CADUCADO DECÍA QUÉ PASABA Y NO CÓMO SALIR. Mismo contrato que el nodo 4.20 y que
-                # V2-203: lo que el puente sabe, lo DICE, y un fallo dice además cómo se sale de él. Medido por el
-                # arnés el 2026-08-21 (`ref 26 no existe`, la forma de V2-212): es una de las tres causas por las
-                # que un worker se moría por su cuenta, y la salida —volver a mirar— estaba a un comando.
+                # V2-248 — AN EXPIRED REF SAID WHAT WAS HAPPENING BUT NOT HOW TO RECOVER. Same contract as node 4.20
+                # and V2-203: the bridge SAYS what it knows, and an error also says how to recover. Measured by the
+                # harness on 2026-08-21 (`ref 26 does not exist`, the V2-212 form): it is one of the three causes
+                # that made a worker die on its own, while the recovery —look again— was one command away.
                 #
-                # NO se reintenta solo con el snapshot nuevo, y es deliberado: los números se REPARTEN al mirar,
-                # así que el 26 de la mirada nueva es otro elemento. Reintentar sería clicar otra cosa.
+                # It is deliberately NOT retried using only the new snapshot: numbers are ASSIGNED during a look,
+                # so 26 in the new look is a different element. Retrying would click something else.
                 return False, _stale_ref_reason(ref, self.refs, getattr(self, "refs_url", ""),
                                                 getattr(page, "url", "") or "")
             if action == "click":
@@ -1597,21 +1597,20 @@ class TaskBrowser:
             return []
 
     async def visit(self, url: str, chars: int = 2500) -> dict:
-        """Abre una ficha en OTRA pestaña, la lee y la cierra — sin mover la pestaña del listado.
+        """Open a listing in ANOTHER tab, read it, and close it — without moving the listing tab.
 
-        Petición del operador (2026-08-24): «el propio brain worker tiene que encargarse de extraer datos,
-        modelar las diferentes fichas, abrir bastantes pestañas para investigar y valorar cada una de las
-        fichas de resultados». Hoy no podía: el puente solo sabía `navigate`, que se lleva la ÚNICA pestaña
-        —así que mirar un anuncio costaba perder el listado y volver a buscarlo, dos navegaciones de 7-11 s
-        por ficha, con el buscador y los filtros que hubiera puesto por medio.
+        Operator request (2026-08-24): «the brain worker itself must extract data, model the different listings,
+        open enough tabs to investigate, and assess each result listing». It could not do that before: the bridge
+        only knew `navigate`, which takes over the ONLY tab —so inspecting one listing meant losing the results and
+        searching for it again, two 7-11 s navigations per listing, with the search and filters in between.
 
-        Lo que devuelve es lo que hace falta para VALORAR: el título, el texto de la ficha recortado, y los
-        listados que la propia página declare (precio, imagen). No una captura: valorar diez fichas por
-        visión son diez lecturas de PNG, y esto tiene que poder hacerse muchas veces.
+        It returns what is needed to ASSESS a listing: its title, truncated listing text, and the listings declared
+        by the page itself (price, image). Not a capture: assessing ten listings by vision means ten PNG reads,
+        and this must be possible many times.
 
-        La pestaña se cierra SIEMPRE, también si la lectura falla — una pestaña huérfana por ficha es cómo
-        se llega a las treinta que ya midió `_reap_popups`. Y `self.page` no se toca en ningún camino: el
-        listado sigue donde estaba, que es la razón de existir de este verbo.
+        The tab is ALWAYS closed, including if reading fails —one orphaned tab per listing is how it reaches the
+        thirty already measured by `_reap_popups`. And `self.page` is untouched on every path: the results remain
+        where they were, which is the reason this verb exists.
         """
         page = await self.ensure()
         try:
@@ -1622,22 +1621,22 @@ class TaskBrowser:
         try:
             tab = await ctx.new_page()
             await tab.goto(_normalize_url(url), wait_until="domcontentloaded")
-            # Sin barrido de banners: la ficha se lee, no se conduce, y el barrido es el peaje que se acaba
-            # de quitar del camino caliente. Un banner tapa la vista, no el texto.
+            # No banner sweep: the listing is read, not driven, and the sweep is the toll just removed from the
+            # hot path. A banner covers the view, not the text.
             title, body, items = "", "", []
             try:
                 title = await asyncio.wait_for(tab.title(), _DOM_TIMEOUT_S)
             except Exception:  # noqa: BLE001
                 pass
             try:
-                # EL CONTENIDO, NO EL MENÚ. `body.innerText` empieza por el cromo de navegación —medido en la
-                # primera prueba: «Todas las categorías Coches Motos Motor y accesorios…»— y con el texto
-                # recortado eso deja al worker valorando una ficha por el menú del sitio. Es la misma forma
-                # que V2-234 midió en la extracción, por la otra puerta.
+                # THE CONTENT, NOT THE MENU. `body.innerText` starts with navigation chrome —measured in the first
+                # test: «Todas las categorías Coches Motos Motor y accesorios…»— and with truncated text that
+                # leaves the worker assessing a listing by the site's menu. It is the same pattern V2-234 measured
+                # during extraction, through the other entry point.
                 #
-                # La regla es ESTRUCTURAL, no una lista de sitios: si la página declara su contenido
-                # principal (`main`, `article`, `[role=main]`) se lee eso; si no, el cuerpo entero, que es lo
-                # que había. No se recorta por posición ni se adivina dónde acaba el menú.
+                # The rule is STRUCTURAL, not a site list: if the page declares its main content (`main`, `article`,
+                # `[role=main]`), read that; otherwise read the entire body, which is what existed. Do not truncate
+                # by position or guess where the menu ends.
                 body = await asyncio.wait_for(tab.evaluate(
                     "() => { const m = document.querySelector('main, article, [role=main]');"
                     "        return ((m || document.body || {}).innerText) || ''; }"), _DOM_TIMEOUT_S)
