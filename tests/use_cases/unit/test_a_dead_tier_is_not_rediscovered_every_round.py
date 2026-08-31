@@ -3,13 +3,13 @@
 Measured on the round of 2026-08-24 15:16, `search-buy-bicycle__es`, from the flow's own event timeline:
 
     36.0s  worker_start  worker · claude_code
-    36.5s  task          proveedor sin cuota          ← dead half a second after starting
+    36.5s  task          provider out of quota        ← dead half a second after starting
     67.4s  task          start                        ← the relay's worker finally begins
     ...
    150.0s  task          cancel                       ← the round runs out of turns
 
 The round is 150 seconds long and the first 67 produced nothing. The engine log says why, and had said the
-same thing on every single batch that day: «brain worker: "z.ai" (GLM coding plan) sin cuota hasta el
+same thing on every single batch that day: «brain worker: "z.ai" (GLM coding plan) out of quota until the
 25 Aug 01:39 → relevo a "deepseek"». The cooldown store had that expiry written down — and `wipe()` deleted
 it with the rest of `memory/`, so the next round went at the dead tier again with a real request.
 

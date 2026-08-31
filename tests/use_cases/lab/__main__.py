@@ -42,8 +42,8 @@ def _report(st: stage.LabState) -> None:
     print(f"  ✅ {p.key}  {st.base_url}  {voice} · pid {st.pid} · {mins}   ({p.title})")
     if st.chain:
         print(f"       cadena: {st.chain}")
-    # Se dice SIEMPRE, y en los dos sentidos. Pedir la limpieza no es haberla conseguido, y el sitio donde
-    # eso se paga es el ◷: una ronda leída sobre el canvas de la anterior no se puede interpretar.
+    # Always say it, in both directions. Requesting a cleanup does not mean it was achieved, and the place
+    # where that cost is paid is the ◷: a round read on top of the previous one's canvas cannot be interpreted.
     print(f"       sesión: {'EN BLANCO (memoria y perfil intactos)' if st.cleaned else 'NO se pudo limpiar al arrancar — puede arrastrar pantalla y procesos de antes'}")
 
 
@@ -113,12 +113,12 @@ def cmd_reset(args) -> int:
 
 
 def cmd_clean(args) -> int:
-    """Dejar la sesión en BLANCO sin reiniciar: canvas, procesos de fondo y ventana de observabilidad.
+    """Leave the session BLANK without restarting: canvas, background processes, and observability window.
 
-    `up` ya lo hace al arrancar y el runner lo hace antes de CADA caso, así que esto es para el agente que
-    lleva rato en pie y al que se le va a mirar algo — la norma del operador es que un test empiece con la
-    pantalla limpia para poder centrar el ◷ en la tarea en curso. La memoria y el perfil NO se tocan: para
-    eso está `reset`, que es otra cosa y lo dice.
+    `up` already does this at startup and the runner does it before EACH case, so this is for an agent that
+    has been running for a while and is about to be inspected — the operator's rule is that a test starts with
+    a clean screen so the ◷ can be focused on the task in progress. Memory and the profile are NOT touched:
+    that is what `reset` is for, which is a different operation and says so.
     """
     rc = 0
     for p in _targets(args.agent):

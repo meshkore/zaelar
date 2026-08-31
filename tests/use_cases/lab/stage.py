@@ -145,7 +145,7 @@ def _seed_settings(profile: LabProfile) -> None:
     """Write `config/settings.json` so the agent opens READY instead of on the first-run wizard.
 
     Two things, both measured rather than assumed. (1) `wizard_done` — a fresh workspace has no settings
-    file, so `server/wizard_api._first_run()` is true and the operator's bookmark opens on «Elige un
+    file, so `server/wizard_api._first_run()` is true and the operator's bookmark opens on «Choose a
     perfil» instead of on their agent. (2) `stt_language` — leaving it out means the language is decided
     by whatever the first sentence happens to be (`i18n/init/detect`), and that same code resolves the
     LOCALE of `nucleo/flash/site_catalog.py`: an agent that guesses wrong sends a Spanish errand to
@@ -250,7 +250,7 @@ def wipe(profile: LabProfile) -> dict:
     Returns the `sys_kv` entries worth carrying over — see `_KEEP_KV`. Measured on the round of 2026-08-24
     15:16, `search-buy-bicycle__es`: the round is 150 s long and the FIRST 67 of them produced nothing,
     because `--fresh` had wiped the cooldown store and the first worker went straight at `z.ai`, which has
-    had no weekly quota since the day before (`sin cuota hasta el 25 Aug 01:39`). It died in half a second,
+    had no weekly quota since the day before (`no quota until 25 Aug 01:39`). It died in half a second,
     the relay took over, and the browsing that the case actually measures got 83 s instead of 150. **21 % of
     every round spent rediscovering a fact we already knew**, once per case, all day.
 
@@ -365,10 +365,10 @@ def clean_session(profile: LabProfile) -> dict | None:
     """Leave the agent on a BLANK session, keeping its memory and its state.
 
     Norm of the operator (2026-08-28), said while looking at a freshly booted lab agent that opened showing
-    the results sheet of a rental-car errand from a WEEK before: «lo primero que hay que hacer cuando se
-    lanza un test de un use case es hacer un reset y dejar la sesión limpia para todos los procesos. Puedes
-    mantener la memoria o el estado básico, pero el resto tiene que estar listo para empezar una sesión en
-    blanco y poder centrar la observabilidad en la tarea y el test en curso.»
+    the results sheet of a rental-car errand from a WEEK before: «the first thing to do when launching a
+    use-case test is to reset and leave the session clean for all processes. You can keep the memory or
+    basic state, but everything else must be ready to start a blank session and focus observability on the
+    task and the test currently in progress.»
 
     A lab agent is persistent ON PURPOSE — that is the whole point of the fixed port — so its canvas, its
     background work and its observability window survive not just a run but a reboot: the workspace outlives

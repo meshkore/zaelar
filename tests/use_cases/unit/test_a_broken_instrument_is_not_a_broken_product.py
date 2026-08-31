@@ -1,23 +1,23 @@
-"""`verify.py` usaba `config` sin importarlo, y el informe llamaba a eso «el worker falló» (V2-381).
+"""`verify.py` used `config` without importing it, and the report called that “the worker failed” (V2-381).
 
-Medido sobre los 360 informes con informe de mecanismo del plató: **49 llevaban**
+Measured across the 360 reports with a harness report: **49 contained**
 
     "worker_outcome_error": "name 'config' is not defined"
 
-`verify.worker_bridges()` compone su ruta con `config.SANDBOX_DB` cuando no le pasan `logs_dir`, y `run.py` la
-llama SIN `logs_dir` — pero ese módulo nunca importó `config`. O sea que esa función **no ha corrido jamás**, y
-como revienta dentro del bloque grande, todo lo que venía detrás —`delivered_by_name`,
-`delivery_completeness`, `resets_during_round`— se saltaba en silencio.
+`verify.worker_bridges()` builds its path with `config.SANDBOX_DB` when it is not passed `logs_dir`, and `run.py`
+calls it WITHOUT `logs_dir` — but that module never imported `config`. In other words, that function **has never
+run**, and because it crashes inside the large block, everything that came after it —`delivered_by_name`,
+`delivery_completeness`, `resets_during_round`— was silently skipped.
 
-Y la mitad que más daño hizo es el NOMBRE DEL CAMPO. `worker_outcome_error` se lee como «el worker falló», y
-guarda una avería de nuestro propio bloque de medición. Los dos casos de vídeo del 2026-08-27 lo citaron como
-prueba del producto:
+And the part that did the most damage is the FIELD NAME. `worker_outcome_error` reads as “the worker failed”, and
+it records a failure in our own measurement harness. The two video cases from 2026-08-27 cited it as
+evidence against the product:
 
-    «El `worker_outcome_error` prueba que el código falló antes de poder actuar»
-    «El error interno 'config not defined' bloqueó toda ejecución»
+    “`worker_outcome_error` proves that the code failed before it could act”
+    “The internal error 'config not defined' blocked all execution”
 
-Ninguna de las dos es cierta: el producto corrió; se rompió el instrumento mientras lo medía. Y el juez no
-tenía forma de saberlo, porque el campo le decía lo contrario.
+Neither is true: the product ran; the instrument broke while measuring it. And the judge had no way to know,
+because the field told it the opposite.
 """
 import pytest
 
@@ -29,10 +29,10 @@ def _texto(x) -> str:
     return x if isinstance(x, str) else "\n".join(x)
 
 
-# ── el import que faltaba ──────────────────────────────────────────────────────────────────────────────────
+# ── the missing import ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_verify_puede_resolver_su_ruta_por_defecto(tmp_path):
-    """El defecto exacto: `worker_bridges()` sin `logs_dir` reventaba con NameError antes de mirar nada."""
+    """The exact defect: `worker_bridges()` without `logs_dir` crashed with NameError before looking at anything."""
     out = V.worker_bridges(since=0)
     assert isinstance(out, dict) and "sessions" in out
 
@@ -44,13 +44,13 @@ def test_verify_IMPORTA_config():
 
 
 def test_la_ruta_explicita_sigue_mandando(tmp_path):
-    """`logs_dir` es el camino que sí funcionaba; arreglar el defecto no puede quitarlo."""
+    """`logs_dir` is the path that did work; fixing the defect must not remove it."""
     (tmp_path / "x.jsonl").write_text("", encoding="utf-8")
     out = V.worker_bridges(since=0, logs_dir=str(tmp_path))
     assert out["read"] is True
 
 
-# ── el nombre del campo ────────────────────────────────────────────────────────────────────────────────────
+# ── the field name ─────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_campo_ya_no_dice_que_falló_el_worker():
     from pathlib import Path
@@ -68,8 +68,8 @@ def test_el_juez_lo_lee_como_AVERIA_DEL_ARNES():
 
 
 def test_el_juez_DICE_qué_secciones_faltan():
-    """Un informe al que le faltan secciones es indistinguible de uno que las midió y salieron vacías: sin
-    esto, la ausencia se lee como un hecho (doctrina de `observability/evidence.py`)."""
+    """A report missing sections is indistinguishable from one that measured them and found them empty: without
+    this, absence is read as a fact (the doctrine of `observability/evidence.py`)."""
     txt = _texto(J.mechanism_facts({"harness_report_error": {
         "error": "boom", "secciones_perdidas": ["delivery_completeness"]}}))
     assert "delivery_completeness" in txt
@@ -77,13 +77,13 @@ def test_el_juez_DICE_qué_secciones_faltan():
 
 
 def test_un_informe_SANO_no_dice_nada_de_esto():
-    """Sensibilidad: un aviso que sale siempre deja de ser señal."""
+    """Sensitivity: a warning that always appears ceases to be a signal."""
     assert "EL ARNÉS se averió" not in _texto(J.mechanism_facts({"results_sheet": {"n_named": 3}}))
 
 
 def test_se_apuntan_las_secciones_que_SI_se_midieron():
-    """El parte solo puede llamar «perdida» a una sección que de verdad falte — si no, manda a buscar un
-    hueco que no existe."""
+    """The report may call a section “missing” only when it is genuinely absent — otherwise it sends us looking
+    for a gap that does not exist."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/run.py").read_text()
     assert '"secciones_perdidas": [k for k in ("worker_bridges", "delivered_by_name",' in src

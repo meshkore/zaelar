@@ -1,16 +1,16 @@
-"""Un caso de futuro se ESCRIBE hoy y no se CONDUCE hasta que sus tareas de roadmap estén hechas.
+"""A future case is WRITTEN today and not DRIVEN until its roadmap tasks are complete.
 
-Regla del operador (2026-08-21): «todos los comportamientos que espero deben formar parte de un use case lo
-más completito posible […] puedes vincular el use case a las tareas del roadmap, que son las que una vez
-resueltas permitirán probar ese use case. Y así ahora mismo jamás lo ejecutarías, porque sabrías que esas
-tareas están pendientes […] los use cases son el punto más alto de la pirámide».
+Operator rule (2026-08-21): “all the behaviors I expect should be part of a use case that is as
+complete as possible […] you can link the use case to the roadmap tasks, which, once resolved, will
+allow that use case to be tested. And so you would never run it right now, because you would know those
+tasks are pending […] use cases are the highest point of the pyramid.”
 
-Las dos mitades importan y se prueban por separado: **escribirlo** (la petición no se pierde, y quien cierre
-la tarea tiene delante el caso que la prueba) y **no conducirlo** (una conversación entera para producir un
-fallo que ya está escrito en su iniciativa, más una ronda duplicada archivada en el paraguas).
+Both halves matter and are tested separately: **writing it** (the request is not lost, and whoever closes
+the task has the case that tests it in front of them) and **not driving it** (an entire conversation to
+produce a failure that is already written in its initiative, plus a duplicate round archived under the umbrella).
 
-Y una tercera que no es obvia: **saltarlo NO puede ser en silencio**. Un caso que desaparece de la selección
-sin explicación se lee como que no existe, que es justo lo contrario de lo que pide la regla.
+And a third point that is not obvious: **skipping it must NOT be silent**. A case that disappears from the
+selection without explanation reads as though it does not exist, which is exactly the opposite of what the rule requires.
 """
 from __future__ import annotations
 
@@ -46,18 +46,18 @@ def test_a_blocked_case_is_not_in_the_batch(monkeypatch):
 
 
 def test_a_gate_LIFTS_when_its_mechanism_lands(monkeypatch):
-    """El otro lado del trinquete, y es el que se olvida. `two-searches-two-sheets` estuvo gateado por
-    V2-259 y dejó de estarlo el 2026-08-21 al aterrizar la iniciativa completa (`b8a1415` + `f3052f9`).
-    Un gate que nadie retira convierte un caso construido en un caso que no se mide NUNCA, y el marcador
-    no lo dice: la fila simplemente no aparece, igual que si no existiera."""
+    """The other side of the ratchet, and the one people forget. `two-searches-two-sheets` was gated by
+    V2-259 and stopped being gated on 2026-08-21 when the complete initiative landed (`b8a1415` + `f3052f9`).
+    A gate that nobody removes turns a built case into one that is NEVER measured, and the scoreboard
+    does not say so: the row simply does not appear, as if it did not exist."""
     got = _selected(monkeypatch)
     assert "two-searches-two-sheets" in got
     assert not G.blocked_by("two-searches-two-sheets")
 
 
 def test_the_rest_of_the_catalog_is_untouched(monkeypatch):
-    """SENSIBILIDAD, y es el lado caro: gatear de más encoge el paseo EN SILENCIO e invalida medidas que ya
-    están en el marcador. El gate es por caso que lo DECLARA, nunca por el grupo `capability` entero."""
+    """SENSITIVITY, and this is the costly side: over-gating silently shrinks the run and invalidates measures that are already
+    on the scoreboard. The gate is per case that DECLARES it, never for the entire `capability` group."""
     got = _selected(monkeypatch)
     assert "three-tasks-at-once" in got
     assert "restaurant-tonight-madrid" in got
@@ -75,18 +75,18 @@ def test_skipping_is_announced_with_the_tasks_that_gate_it(monkeypatch, capsys):
 
 
 def test_include_blocked_forces_them_in(monkeypatch):
-    """La escotilla existe porque el caso ES conducible — solo se sabe que va a fallar. Forzarlo es como se
-    produce la evidencia que va en la iniciativa."""
+    """The hatch exists because the case IS drivable—it is only known that it will fail. Forcing it is how
+    the evidence that goes into the initiative is produced."""
     got = _selected(monkeypatch, include_blocked=True)
     assert "repeat-a-finished-search" in got
 
 
 def test_every_gate_points_at_an_initiative_that_EXISTS():
-    """Sin esto, renombrar una iniciativa deja el gate citando algo que no está — y un caso bloqueado por una
-    tarea inexistente no se conduce NUNCA y nadie sabe qué hay que hacer para desbloquearlo.
+    """Without this, renaming an initiative leaves the gate citing something that is not there—and a case blocked by a
+    nonexistent task is NEVER driven, and nobody knows what needs to be done to unblock it.
 
-    Se comprueba el PREFIJO (`V2-259`) y no la fase, porque la fase vive dentro del documento; lo que tiene
-    que existir es el documento.
+    The PREFIX (`V2-259`) is checked, not the phase, because the phase lives inside the document; what has
+    to exist is the document.
     """
     for scn in SC.all_scenarios():
         for ref in G.blocked_by(scn.id):
@@ -96,8 +96,8 @@ def test_every_gate_points_at_an_initiative_that_EXISTS():
 
 
 def test_a_future_case_still_says_what_it_expects():
-    """La mitad de ESCRIBIRLO: un caso gateado sin criterio es una nota, no un use case — y el día que se
-    desbloquee habría que inventarse el listón, que es cuando se inventa a favor de lo que ya hace."""
+    """The WRITING half: a gated case without criteria is a note, not a use case—and when it is
+    unblocked, the bar would have to be invented, which is when it gets invented in favor of what it already does."""
     for scn in SC.all_scenarios():
         if not G.blocked_by(scn.id):
             continue

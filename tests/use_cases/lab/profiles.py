@@ -44,23 +44,23 @@ class LabProfile:
     pills: tuple[tuple[str, str], ...] = ()   # (slot, text)
 
     def persona_ground(self) -> str:
-        """Lo que el AGENTE ya sabe de esta persona, escrito para que lo lea el conductor del caso.
+        """What the AGENT already knows about this person, written for the case driver to read.
 
-        Existe por un fallo MEDIDO el 2026-08-24 en `search-buy-guitar__es`. El agente resolvió «una guitarra
-        cerca para probarla» a Madrid —que es EXACTAMENTE la función de este perfil, y está escrita en la
-        cabecera de este fichero: «la capa que hace que "búscame un fontanero" resuelva al país correcto sin
-        que nadie diga una ciudad»— y el conductor, que no sabía nada del perfil, lo leyó como un error y lo
-        corrigió: «yo no he dicho que sea en Madrid». Es literalmente cierto (el USUARIO no lo dijo) y no
-        viene al caso: lo sabía por memoria. El daño fue doble y el segundo es el caro:
+        It exists because of a MEASURED failure on 2026-08-24 in `search-buy-guitar__es`. The agent resolved
+        «a guitar nearby to try» to Madrid—which is EXACTLY this profile's function, and is written in the
+        header of this file: «the layer that makes "búscame un fontanero" resolve to the right country without
+        anyone saying a city»—and the driver, who knew nothing about the profile, read it as an error and
+        corrected it: «I never said it was in Madrid». That is literally true (the USER did not say it) and
+        beside the point: it knew it from memory. The damage was twofold, and the second part is the costly one:
 
-          · cinco de los diez turnos de la ronda se fueron en una discusión fabricada, y
-          · el agente se disculpó y ESCRIBIÓ la corrección: `operator.location` acabó diciendo «Marc no ha
-            confirmado que viva en Madrid». La memoria se comparte entre los casos de una tanda, así que un
-            caso destruyó el perfil sembrado para todos los que venían detrás.
+          · five of the round's ten turns were spent in a fabricated argument, and
+          · the agent apologized and WROTE the correction: `operator.location` ended up saying «Marc has not
+            confirmed that he lives in Madrid». Memory is shared among the cases in a batch, so one case
+            destroyed the seeded profile for all the ones that followed.
 
-        Se DERIVA de `state` en vez de escribirse a mano al lado, por la misma razón que el arnés lee la hoja
-        por los ids que él mismo vio abrirse: dos copias de un mismo hecho se separan, y aquí separarse
-        significa que el conductor vuelva a discutir con el perfil sin que falle nada.
+        It is DERIVED from `state` instead of being written by hand beside it, for the same reason the harness
+        reads the sheet using the ids it itself saw opened: two copies of the same fact drift apart, and here
+        drifting apart means the driver argues with the profile again without anything failing.
         """
         loc = str((self.state or {}).get("location") or "").strip()
         name = str((self.state or {}).get("operator_name") or "").strip()

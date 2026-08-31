@@ -52,7 +52,7 @@ def _ordered_by_events(base: str, limit: int = 2000) -> tuple[list[str], list[di
         trail.append({"id": e.get("id"), "label": label, "widget": wid, "src": src,
                       "ts": e.get("ts_ms") or e.get("ts"), "corr": e.get("corr_id") or e.get("corr")})
         # `closeAll` is checked FIRST because it is the one event with NO widget id — it is about all of
-        # them. Behind the `if not wid` guard it was skipped, so "cierra todo" left the screen reading as
+        # them. Behind the `if not wid` guard it was skipped, so "close everything" left the screen reading as
         # if every card were still up. Caught by its own test, not by a round.
         if label == "closeAll":
             live.clear()
@@ -72,7 +72,7 @@ def _widget_of(e: dict) -> tuple[str, str]:
     The row served by `/api/observability/events` carries the columns the sink promotes (`kind`, `label`,
     `corr_id`…) and keeps everything else inside `payload` AS A JSON STRING. The first version of this
     reader took the tail of `text`, which is empty on these events, so every widget came back nameless
-    and the screen read «(nada)» while four cards were open. A field read at the wrong level does not
+    and the screen read «(nothing)» while four cards were open. A field read at the wrong level does not
     fail — it invents a fact, and the fact it invented here was that the agent had opened nothing.
 
     `src` is worth as much as the id: `system` is the engine, `worker:1` is a Brain Worker opening its
