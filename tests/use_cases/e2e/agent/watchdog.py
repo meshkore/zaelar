@@ -60,10 +60,10 @@ def build_messages(scenario, transcript: list[dict], mechanism_hint: str = "") -
             lines.append(f"{who}: {txt}")
     convo = "\n".join(lines) or "(sin turnos)"
     mech_block = f"\n[MECANISMO EN VIVO] {mechanism_hint}\n" if mechanism_hint else ""
-    # Lo que el agente sabe de esta persona de ANTES de la conversación. Sin esto, el ejemplo canónico de
-    # off_track de este mismo prompt («una ciudad que el usuario no dijo») dispara sobre la función principal
-    # del perfil sembrado — medido el 2026-08-24 en `search-buy-guitar__es`, dos nudges seguidos empujando al
-    # agente a desdecirse de un dato correcto. Vacío fuera del plató.
+    # What the agent knew about this person BEFORE the conversation. Without this, the canonical off_track
+    # example from this same prompt («a city the user did not mention») fires on the seeded profile's main
+    # function — measured on 2026-08-24 in `search-buy-guitar__es`, with two consecutive nudges pushing the
+    # agent to contradict a correct fact. Empty outside the test set.
     ground = (config.PERSONA_PROFILE or "").strip()
     ground_block = f"\n[LO QUE ZAELAR YA SABE DE ESTA PERSONA]\n{ground}\n" if ground else ""
     user = (f"[OBJETIVO DEL USUARIO] {scenario.opening_line}\n[QUÉ CUENTA COMO ÉXITO] {scenario.success_checks}\n"

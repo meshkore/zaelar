@@ -1,29 +1,29 @@
-"""Supervisor: el plató NO PARA. Encadena casos de uso de uno en uno y corta lo que se cuelga.
+"""Supervisor: the set NEVER STOPS. Chains use cases one at a time and cuts off anything that hangs.
 
-Encargo del operador (2026-08-27): «que el sistema no se detenga y aprovechemos el tiempo al máximo», con un
-listón explícito — *«no podemos estar diez minutos para hacer una búsqueda de una guitarra en Amazon; se supone
-que la búsqueda se hace en un minuto, dos o tres máximo»*.
+Operator's instruction (2026-08-27): “the system must not stop and we should make the most of the time,” with an
+explicit standard — *“we cannot spend ten minutes doing a search for a guitar on Amazon; the search is supposed
+to take one minute, two or three at most.”*
 
-DE UNO EN UNO, y no es una preferencia: hay **un solo navegador** por plató. Dos rondas a la vez se pelean por
-la misma pestaña y las dos miden mal — es justo el defecto que el propio arnés reporta como «2 workers para UN
-encargo». Así que el ciclo es: ¿hay algo corriendo? → sí: vigilarlo; no: lanzar el siguiente.
+ONE AT A TIME, and this is not a preference: there is **one browser** per set. Two rounds at once fight over
+the same tab and both measure incorrectly — exactly the defect the harness itself reports as “2 workers for ONE
+task.” So the cycle is: is something running? → yes: monitor it; no: launch the next one.
 
-QUÉ CUENTA COMO COLGADO, y por qué así: no se mide la DURACIÓN sino el SILENCIO. Una ronda legítima puede
-tardar si está pasando cosas (el operador lo aceptó: «si tienes control preciso y observable de cada movimiento
-podemos alargarnos»); lo que no puede es dejar de dar señal. Dos cortes, y el segundo existe porque el primero
-no basta:
+WHAT COUNTS AS HUNG, and why: we measure not DURATION but SILENCE. A legitimate round may
+take time if things are happening (the operator accepted this: “if you have precise, observable control of every
+movement, we can let it run longer”); what it cannot do is stop signaling. Two cutoffs, with the second because the
+first is not enough:
 
-  · SILENCIO — el log de la ronda no crece en `HANG_S`. Es el que caza un proceso muerto, un modelo que no
-    responde, un navegador clavado. Barato y sin falsos positivos: el runner imprime cada turno.
-  · TECHO — la ronda entera pasa de `CAP_S`. Caza lo contrario: la que sí habla pero no llega a ningún lado,
-    que es exactamente la que se comió 21 minutos para entregar cero coches.
+  · SILENCE — the round's log does not grow for `HANG_S`. This catches a dead process, an unresponsive model, or
+    a stuck browser. Cheap and without false positives: the runner prints every turn.
+  · CEILING — the entire round exceeds `CAP_S`. It catches the opposite: one that does speak but gets nowhere,
+    exactly the one that spent 21 minutes delivering zero cars.
 
-Al cortar se APUNTA POR QUÉ. Una ronda matada por el supervisor no es un veredicto del juez y no puede contarse
-como si lo fuera: entra en el diario como `hung`/`capped`, con su log, para que quien lo lea sepa que ahí no hay
-medición sino una avería.
+When cutting it off, we RECORD WHY. A round killed by the supervisor is not the judge's verdict and cannot be
+counted as one: it enters the journal as `hung`/`capped`, with its log, so readers know that this is a failure,
+not a measurement.
 
-Lo que este fichero NO hace: arreglar nada. Mide y encadena; las correcciones las hace un humano o un agente
-leyendo `diario.jsonl`. Un supervisor que además tocara el motor se estaría midiendo a sí mismo.
+What this file does NOT do: fix anything. It measures and chains; a human or agent reading `diario.jsonl` makes
+the corrections. A supervisor that also touched the engine would be measuring itself.
 """
 from __future__ import annotations
 
@@ -40,28 +40,28 @@ _RAIZ = Path(__file__).resolve().parents[4]
 _SALIDA = _RAIZ / "tests" / "runs" / "use_cases" / "supervisor"
 _DIARIO = _SALIDA / "diario.jsonl"
 
-#: Sin señal en el log durante esto → colgado. El runner imprime cada turno, así que tres minutos mudos son
-#: una avería, no lentitud.
+#: No signal in the log for this long → hung. The runner prints every turn, so three silent minutes are
+#: a failure, not slowness.
 HANG_S = int(os.getenv("UC_HANG_S", "180"))
-#: Techo de la ronda entera. Sale del listón del operador (una búsqueda son 1-3 min) con margen para una
-#: conversación de ~20 turnos por encima.
+#: Ceiling for the entire round. Based on the operator's standard (a search takes 1–3 min), with room for a
+#: conversation of ~20 turns on top.
 CAP_S = int(os.getenv("UC_CAP_S", "720"))
-#: Respiro entre rondas: deja al motor cerrar pestañas y soltar el navegador antes de la siguiente.
+#: Breathing room between rounds: lets the engine close tabs and release the browser before the next one.
 PAUSA_S = int(os.getenv("UC_PAUSA_S", "20"))
-#: Prórroga cuando la ronda YA ha llegado al veredicto. Medido a la primera: `weekend-adventure-sports-bilbao`
-#: (2026-08-27) se comió el techo **dentro de `verifying mechanism`** — la conversación había terminado, el
-#: navegador ya no gastaba, y lo único que faltaba era el informe. Matarla ahí tira los doce minutos enteros y
-#: no deja ni una medición, que es exactamente lo contrario de para lo que existe el techo. El techo protege
-#: del trabajo que no llega a nada; el veredicto SÍ llega, y encima es lo que veníamos a buscar.
+#: Extension when the round has ALREADY reached the verdict. First measured with: `weekend-adventure-sports-bilbao`
+#: (2026-08-27) hit the ceiling **inside `verifying mechanism`** — the conversation had ended, the
+#: browser was no longer consuming resources, and only the report was missing. Killing it there wastes all twelve
+#: minutes and leaves no measurement, exactly the opposite of the ceiling's purpose. The ceiling protects against
+#: work that gets nowhere; the verdict DOES arrive, and it is what we came for.
 VERIFICA_EXTRA_S = int(os.getenv("UC_VERIFICA_EXTRA_S", "300"))
-#: Las señales que el runner imprime al pasar a la fase de veredicto. Si aparecen, la parte cara ya se hizo.
+#: Signals the runner prints when moving to the verdict phase. If they appear, the expensive part is done.
 _EN_VEREDICTO = ("verifying mechanism", "judging")
 
-#: Lo que imprime `run.stale_engine_refusal` cuando el plató lleva código viejo. El guarda hace lo correcto
-#: —se NIEGA a medir— pero después nadie reinicia nada, y ese es el defecto: cada ronda siguiente vuelve a
-#: negarse en ~45 s, así que el bucle parece vivo (el diario se llena, los escenarios rotan) y no mide NADA.
-#: Medido el 2026-08-27: `search-buy-camera__es` INFRA en 45 s y solo siguió porque yo estaba mirando y
-#: reinicié a mano. Con dos agentes empujando motor cada ~20 min, eso es un bucle parado disfrazado de bucle.
+#: What `run.stale_engine_refusal` prints when the set has old code. The guard does the right thing
+#: —it REFUSES to measure— but then nobody restarts anything, and that is the defect: each subsequent round
+#: refuses again in ~45 s, so the loop appears alive (the journal fills, scenarios rotate) while measuring NOTHING.
+#: Measured on 2026-08-27: `search-buy-camera__es` was INFRA at 45 s and continued only because I was watching and
+#: restarted it manually. With two agents pushing engine changes every ~20 min, that is a stopped loop disguised as a loop.
 _PLATO_RANCIO = "no es el mismo codigo"
 
 
@@ -82,21 +82,21 @@ def _sha() -> str:
 
 
 def plato_de(escenario: str) -> str:
-    """QUÉ PLATÓ le toca a este caso. El sufijo del id es la única fuente: `__us` corre en el plató US.
+    """Which SET this case belongs to. The ID suffix is the sole source: `__us` runs on the US set.
 
-    `main()` no pasaba plató, así que se quedaba el `es` por defecto para TODO — y un caso de San Francisco
-    lo conducía Marc, de Madrid, contestando en castellano dentro de un brief inglés. No falla: mide, y mide
-    un tester que se contradice a sí mismo. Es la misma familia que el 2026-08-27 dejó 19 escenarios US
-    respondiendo con realidad española, y no se ve desde fuera porque la ronda sale verde de infraestructura.
+    `main()` did not pass a set, so the default `es` remained for EVERYTHING — and a San Francisco case was
+    run by Marc, from Madrid, answering in Spanish inside an English brief. It does not fail: it measures, and
+    measures a tester contradicting itself. It is the same family that on 2026-08-27 left 19 US scenarios
+    responding with Spanish reality, invisible from outside because the round is infrastructure-green.
     """
     return "us" if escenario.endswith("__us") else "es"
 
 
 def una_ronda(escenario: str, lab: str = "es", fresh: bool = True) -> dict:
-    """Lanza UNA ronda y la vigila. Devuelve el parte, con el motivo si hubo que cortarla.
+    """Launches ONE round and monitors it. Returns the report, including the reason if it had to be cut off.
 
-    `fresh=False` (modo CONTINUO, operador 2026-08-29): el plató NO se resetea entre casos — la memoria
-    del agente sobrevive, como una persona real que encadena encargos en la misma sesión de su día."""
+    `fresh=False` (CONTINUOUS mode, operator 2026-08-29): the set is NOT reset between cases — the memory
+    of the agent survives, like a real person chaining tasks in the same session during their day."""
     _SALIDA.mkdir(parents=True, exist_ok=True)
     log = _SALIDA / f"{escenario}.log"
     sha, t0 = _sha(), time.time()
@@ -114,8 +114,8 @@ def una_ronda(escenario: str, lab: str = "es", fresh: bool = True) -> dict:
         if tam != ultimo_tam:
             ultimo_tam, ultimo_cambio = tam, time.time()
         ahora = time.time()
-        # ¿Ya está en el veredicto? Se mira solo la COLA del log: leerlo entero cada tres segundos es I/O
-        # gratis multiplicado por horas, y estas dos señales salen al final por construcción.
+        # Is it already at the verdict? Look only at the log TAIL: reading it all every three seconds is free I/O
+        # multiplied over hours, and these two signals appear at the end by construction.
         _cerca = ""
         try:
             with log.open("rb") as fh:
@@ -129,7 +129,7 @@ def una_ronda(escenario: str, lab: str = "es", fresh: bool = True) -> dict:
         elif ahora - t0 > _techo:
             motivo = f"capped: la ronda pasó de {_techo}s"
         if motivo:
-            # El grupo entero: el runner tiene hijos (el motor de plató, el navegador).
+            # The entire group: the runner has children (the set engine, the browser).
             try:
                 os.killpg(os.getpgid(p.pid), signal.SIGTERM)
             except Exception:  # noqa: BLE001
@@ -154,27 +154,27 @@ def una_ronda(escenario: str, lab: str = "es", fresh: bool = True) -> dict:
     parte = {"escenario": escenario, "resultado": resultado, "segundos": segundos, "sha": sha,
              "motivo": motivo, "log": str(log)}
     _apunta(**parte)
-    # Fuera del parte que va al diario a propósito: es una señal para el bucle, no un hecho del escenario, y
-    # el diario es lo que lee el operador para decidir dónde trabajar.
+    # Deliberately outside the report sent to the journal: it is a signal for the loop, not a fact about the scenario,
+    # and the journal is what the operator reads to decide where to work.
     return dict(parte, _rancio=(_PLATO_RANCIO in cola))
 
 
 def _veredicto_de_cola(cola: str) -> str:
-    """Qué fue de la ronda, leído de lo que imprimió el runner. FUERA de la función que conduce la ronda a
-    propósito: ahí dentro haría falta un plató entero para probarlo, y lo que decide es una cadena.
+    """What happened to the round, read from what the runner printed. Deliberately OUTSIDE the function that runs
+    the round: testing it there would require an entire set, and it decides based on a string.
 
-    Cuatro salidas y ninguna es un matiz de otra — cada una manda a mirar a un sitio distinto:
+    Four outcomes, none a nuance of another — each directs investigation to a different place:
 
     * **PASS/FAIL** — hubo medida.
-    * **BLOQUEADO** (V2-448) — el caso es de FUTURO: sus tareas de roadmap siguen pendientes, así que el
-      runner se niega a conducirlo (norma del operador, 2026-08-21) y sale en 3 s. No hay nada roto y no hay
-      nada que arreglar hoy.
-    * **INFRA** (V2-363) — el instrumento se rompió. El runner imprime «PASSED 0/1» también cuando la ronda se
-      corrió entera y el JUEZ no devolvió JSON: 10,7 min de navegador real quedaron apuntados como FAIL en el
-      diario, que es la lista con la que se decide dónde trabajar.
+    * **BLOQUEADO** (V2-448) — the case is for the FUTURE: its roadmap tasks remain pending, so the
+      runner refuses to run it (operator rule, 2026-08-21) and exits in 3 s. Nothing is broken and there is
+      nothing to fix today.
+    * **INFRA** (V2-363) — the instrument broke. The runner also prints «PASSED 0/1» when the round ran
+      completely and the JUDGE returned no JSON: 10.7 minutes of real browser time were recorded as FAIL in the
+      journal, which is the list used to decide where to work.
 
-    El orden importa: BLOQUEADO va ANTES que INFRA porque la cola de un caso bloqueado no contiene «PASSED»
-    de ninguna clase y caería en el `else`, que es INFRA.
+    Order matters: BLOQUEADO comes BEFORE INFRA because a blocked case's tail contains no «PASSED» of any kind
+    and would fall into the `else`, which is INFRA.
     """
     if "PASSED 1/1" in cola:
         return "PASS"
@@ -188,10 +188,10 @@ def _veredicto_de_cola(cola: str) -> str:
 
 
 def _reinicia_plato(lab: str = "es") -> bool:
-    """Baja y sube el plató para que corra el árbol de ahora. `True` si volvió a levantarse.
+    """Takes the set down and brings it up so the current tree runs. `True` if it came back up.
 
-    Conserva puerto, memoria y perfil — es el mismo par de comandos que imprime el propio guarda del runner,
-    no una segunda forma de reiniciarlo.
+    Preserves port, memory, and profile — it is the same pair of commands printed by the runner's own guard,
+    not a second way to restart it.
     """
     for cual in ("down", "up"):
         try:
@@ -207,37 +207,37 @@ def _reinicia_plato(lab: str = "es") -> bool:
 
 
 def intercala(ids: list[str]) -> list[str]:
-    """Alterna los dos platós DENTRO de un grupo de prioridad, conservando el orden de cada uno.
+    """Alternates the two sets WITHIN a priority group, preserving each one's order.
 
-    La prioridad («rotos primero, nunca-medidos después, los que pasan al final») es lo valioso de la
-    rotación y no se toca. Lo que se arregla es que dentro de cada grupo el orden salía del diccionario del
-    marcador, y ahí los `__us` quedaban en bloque: medido el 2026-08-28, el primer caso US estaba en la
-    **posición 21** de 132 — a unas dos horas y tres cuartos de plató. Un bucle que corre toda la noche y no
-    llega a tocar la mitad del catálogo no está midiendo esa mitad, aunque la tenga en la lista.
+    Priority (“broken first, never-measured next, passing cases last”) is what matters in the
+    rotation and is not changed. What is fixed is that within each group the order came from the scoreboard's
+    scoreboard, where the `__us` cases were grouped: measured on 2026-08-28, the first US case was in
+    **position 21** of 132 — about two hours and three quarters of set time in. A loop that runs all night and
+    never reaches half the catalog is not measuring that half, even if it has it in the list.
 
-    Alternar y no barajar: barajar haría que dos vueltas seguidas no se puedan comparar, y la rotación es
-    justamente lo que hace comparables las vueltas.
+    Alternate, do not shuffle: shuffling would make consecutive passes incomparable, while rotation is
+    precisely what makes passes comparable.
     """
     es = [x for x in ids if not x.endswith("__us")]
     us = [x for x in ids if x.endswith("__us")]
     fuera: list[str] = []
     for a, b in zip(es, us):
         fuera += [a, b]
-    fuera += es[len(us):] + us[len(es):]      # el más largo termina de tirar solo
+    fuera += es[len(us):] + us[len(es):]      # the longer one finishes on its own
     return fuera
 
 
 def rotacion() -> list[str]:
-    """El orden en que se recorren, y el orden IMPORTA porque el tiempo de plató es el recurso escaso.
+    """The order in which they are traversed, and order MATTERS because set time is the scarce resource.
 
-    `UC_ROTACION` (separado por comas) manda siempre — es el mando para clavar el foco en un caso mientras se
-    itera sobre él. Sin ella, la rotación sale del MARCADOR (`status.json`), no del catálogo: de los 135 casos
-    del catálogo solo ~32 tienen runner, y recorrer los otros 103 sería gastar el navegador en nada.
+    `UC_ROTACION` (comma-separated) always takes precedence — it is the control for focusing on a case while
+    iterating on it. Without it, rotation comes from the SCOREBOARD (`status.json`), not the catalog: only ~32 of
+    the catalog's 135 cases have a runner, and traversing the other 103 would waste the browser on nothing.
 
-    Y dentro de los que corren, primero **los que fallan**, que es donde hay algo que ganar; los que ya pasan
-    van detrás para que una regresión se vea, pero sin comerse el turno de los rotos. Los `capped` (les falta
-    una credencial del usuario y no hay forma de llegar) quedan FUERA: el operador los excluyó del bucle de
-    mejora en 2026-08-20 precisamente para que no le den trabajo que nadie puede cerrar.
+    Among those that run, **failures** come first, where there is something to gain; passing cases follow so a
+    regression is visible without taking a broken case's turn. `capped` cases (missing a user credential with no
+    way forward) stay OUT: the operator excluded them from the improvement loop on 2026-08-20 precisely so they
+    would not create work nobody can close.
     """
     env = (os.getenv("UC_ROTACION") or "").strip()
     if env:
@@ -248,41 +248,38 @@ def rotacion() -> list[str]:
         filas = (d.get("scenarios") or {}).items()
         rotos = [k for k, v in filas if str(v.get("state")) in ("FAIL", "INFRA")]
         buenos = [k for k, v in filas if str(v.get("state")) == "PASS"]
-        # V2-367 — los que TIENEN runner y NUNCA se han medido. El marcador solo lista lo que ya corrió
-        # alguna vez, así que sin esto un escenario nuevo es INVISIBLE para el bucle PARA SIEMPRE: nadie lo
-        # corre, así que nunca entra en el marcador, así que nadie lo corre. Medido el 2026-08-27: 135
-        # escenarios con runner, 32 en el marcador — **103 fuera del bucle**, y entre ellos los DOS de
-        # multimedia (`play-music-and-build-playlist`, `watch-a-video-not-listen-to-it`), o sea dos
-        # superficies enteras del producto sin una sola medida. Desde fuera esto no se ve como un hueco:
-        # el escenario EXISTE, el catálogo lo lista, y el marcador —que es donde se mira— no dice que
-        # falte. Es la familia de «un test fuera del mapa AFIRMA que corrió».
+        # V2-367 — those that HAVE a runner and have NEVER been measured. The scoreboard lists only what has run
+        # at least once, so without this a new scenario is INVISIBLE to the loop FOREVER: nobody runs it, so it never
+        # enters the scoreboard, so nobody runs it. Measured on 2026-08-27: 135 scenarios with runners, 32 on the
+        # scoreboard — **103 outside the loop**, including the TWO multimedia ones (`play-music-and-build-playlist`,
+        # `watch-a-video-not-listen-to-it`), meaning two entire product surfaces without a single measurement.
+        # From outside this does not look like a gap: the scenario EXISTS, the catalog lists it, and the scoreboard
+        # —where people look— does not say it is missing. Same family as “a test outside the map CLAIMS it ran.”
         try:
-            # V2-448 — y FUERA los casos de FUTURO. El runner se niega a conducir uno cuyas tareas de roadmap
-            # siguen pendientes (operador, 2026-08-21), así que sale en 3 s sin medir nada — pero como nunca
-            # llega al marcador, `nunca` lo vuelve a elegir en cada vuelta, para siempre. Medido el
-            # 2026-08-28: `repeat-a-finished-search` (pendiente de V2-260) gastando un turno de la rotación y
-            # dejando una fila falsa en el diario. Mismo trato que los `capped`: trabajo que nadie puede
-            # cerrar hoy no entra en el bucle de mejora. Vuelve solo cuando su iniciativa lo desbloquee.
+            # V2-448 — and EXCLUDE FUTURE cases. The runner refuses to run one whose roadmap tasks
+            # remain pending (operator, 2026-08-21), so it exits in 3 s without measuring anything — but because it never
+            # reaches the scoreboard, `nunca` selects it again on every pass, forever. Measured on
+            # 2026-08-28: `repeat-a-finished-search` (pending V2-260) consumed a rotation turn and
+            # left a false row in the journal. Same treatment as `capped`: work nobody can close today does not enter
+            # the improvement loop. It returns only when its initiative unlocks it.
             from tests.use_cases.e2e.agent import segments as _G
             nunca = [x.id for x in _con_runner()
                      if x.id not in dict(filas) and not _G.blocked_by(x.id)]
         except Exception:  # noqa: BLE001 — un catálogo ilegible NO puede costar la rotación entera
             nunca = []
         if rotos or buenos or nunca:
-            # Rotos primero (donde hay algo que ganar y ya sabemos qué mirar), NUNCA MEDIDOS después
-            # (información nueva, pero cada uno cuesta una ronda entera de plató), y los que pasan al final
-            # para que una regresión se vea sin comerse el turno de nadie.
-            # CADA PLATÓ CON SU PROPIA COLA DE PRIORIDAD, y alternando entre las dos.
+            # Broken first (where there is something to gain and we already know where to look), NEVER MEASURED next
+            # (new information, but each costs a full set round), and passing cases last so a regression is visible
+            # without consuming anyone's turn.
+            # EACH SET WITH ITS OWN PRIORITY QUEUE, alternating between the two.
             #
-            # Intercalar DENTRO de cada grupo no bastaba, y se vio en las cifras: 25 rondas ES contra 7 US en
-            # las cuatro primeras horas del 24/7. La causa es que ES tiene muchos más casos rotos, así que
-            # tras agotar los US del grupo «rotos» quedaban trece ES seguidos ANTES de que empezara el grupo
-            # «nunca medidos» —donde viven los 52 US que nadie ha tocado—. La prioridad se respetaba y el
-            # operador seguía sin datos de US.
+            # Interleaving WITHIN each group was not enough, as the figures showed: 25 ES rounds versus 7 US in
+            # the first four hours of 24/7. ES has many more broken cases, so after exhausting the US cases in the
+            # “broken” group, thirteen consecutive ES cases remained BEFORE the “never measured” group began
+            # —where the 52 untouched US cases live—. Priority was respected, yet the operator still had no US data.
             #
-            # Así cada plató recorre rotos → nunca → buenos por su cuenta, y se alternan turno a turno: la
-            # prioridad sigue intacta DENTRO de cada locale, que es donde significa algo, y ninguno de los dos
-            # puede quedarse esperando a que el otro termine su lista.
+            # Thus each set traverses broken → never → good independently, and they alternate turn by turn: priority
+            # remains intact WITHIN each locale, where it has meaning, and neither can wait for the other to finish its list.
             cola_es = [x for x in rotos + nunca + buenos if not x.endswith("__us")]
             cola_us = [x for x in rotos + nunca + buenos if x.endswith("__us")]
             return intercala(cola_es + cola_us)
@@ -292,10 +289,10 @@ def rotacion() -> list[str]:
 
 
 def _con_runner() -> list:
-    """Los escenarios que TIENEN runner, o lista vacía si el catálogo no se puede leer.
+    """Scenarios that HAVE a runner, or an empty list if the catalog cannot be read.
 
-    Aparte para que `rotacion()` siga dando la vuelta conocida si esto falla: quedarse sin rotación es peor
-    que quedarse sin los nunca-medidos.
+    Kept separate so `rotacion()` continues using the known rotation if this fails: losing the rotation is worse
+    than losing the never-measured cases.
     """
     try:
         from tests.use_cases.e2e.agent.scenarios import all_scenarios
@@ -304,21 +301,21 @@ def _con_runner() -> list:
         return []
 
 
-# ── V2-372: EL SUPERVISOR SE RECARGA A SÍ MISMO ─────────────────────────────────────────────────────────────
-# Un proceso de Python no vuelve a leer su propio fichero. Éste llevaba desde las 08:03 corriendo el código de
-# las 07:59, así que DOS arreglos suyos de esa misma mañana estuvieron inertes sin que nada lo dijera:
-# V2-363 (una avería del arnés no es un caso que falla — 09:42) y V2-367 (los 103 escenarios que nunca habían
-# corrido — 10:12). Medido: la ronda de `things-to-do-nearby-weekend__es` es INFRA en su informe —el juez no
-# devolvió JSON tras tres intentos— y el diario la apuntó FAIL, exactamente lo que V2-363 arregló tres horas
-# antes. Y la rotación seguía siendo la de 32.
+# ── V2-372: THE SUPERVISOR RELOADS ITSELF ─────────────────────────────────────────────────────────────
+# A Python process does not reread its own file. This one had been running the code from 07:59 since 08:03,
+# so TWO fixes made that same morning were inert without anything saying so:
+# V2-363 (a harness failure is not a failing case — 09:42) and V2-367 (the 103 scenarios that had never
+# run — 10:12). Measured: the `things-to-do-nearby-weekend__es` round was INFRA in its report —the judge
+# returned no JSON after three attempts— and the journal recorded it as FAIL, exactly what V2-363 fixed three hours
+# earlier. And rotation was still the 32-case one.
 #
-# Lo que hace esto MUDO es la asimetría: `una_ronda` lanza la ronda como SUBPROCESO, así que el runner, el
-# juez, los escenarios y el motor entero SÍ se recargan cada vez. Solo se queda atrás este fichero — el que
-# clasifica el resultado y elige el orden. Desde fuera todo parece al día, y el parte hasta lleva el `sha` de
-# HEAD leído al empezar la ronda: el diario AFIRMA haber medido un commit cuyo clasificador no estaba cargado.
+# What makes this SILENT is the asymmetry: `una_ronda` launches the round as a SUBPROCESS, so the runner, judge,
+# scenarios, and entire engine DO reload each time. Only this file —the one that classifies the result and chooses
+# the order— falls behind. From outside everything appears current, and the report even carries the `sha` of
+# HEAD read at the start of the round: the journal CLAIMS to have measured a commit whose classifier was not loaded.
 #
-# Es la cuarta vez de la misma familia («árbol limpio no es proceso al día») y la primera en la que quien lo
-# paga es el instrumento con el que se decide dónde trabajar.
+# This is the fourth instance of the same family (“a clean tree is not an up-to-date process”) and the first in
+# which the party paying for it is the instrument used to decide where to work.
 _FUENTE = Path(__file__).resolve()
 
 
@@ -330,9 +327,9 @@ def _huella() -> str:
 
 
 def _fuente_utilizable() -> bool:
-    """¿El fichero nuevo al menos COMPILA? Re-ejecutar sobre un fichero a medio escribir mataría el bucle, y
-    el bucle no puede pararse — es el único requisito que el operador ha repetido. Ante la duda, se sigue con
-    el código viejo: medir con algo desfasado es un defecto, quedarse sin medir es peor."""
+    """Does the new file at least COMPILE? Re-executing against a partially written file would kill the loop, and
+    the loop cannot stop — it is the one requirement the operator has repeated. When in doubt, continue with the
+    old code: measuring with something outdated is a defect; measuring nothing is worse."""
     try:
         compile(_FUENTE.read_text(encoding="utf-8"), str(_FUENTE), "exec")
         return True
@@ -341,7 +338,7 @@ def _fuente_utilizable() -> bool:
 
 
 def _recargar_si_cambie(huella_inicial: str) -> None:
-    """Entre rondas —nunca a mitad de una— vuelve a arrancarse con el código nuevo. No-op si nada cambió."""
+    """Between rounds —never halfway through one— restart with the new code. No-op if nothing changed."""
     if not huella_inicial or _huella() in ("", huella_inicial):
         return
     if not _fuente_utilizable():
@@ -354,9 +351,9 @@ def _recargar_si_cambie(huella_inicial: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    # La BATERÍA DE LANZAMIENTO (operador 2026-08-29): `--phase 1` limita la rotación al alcance de la
-    # versión de producción (phases.py, frontera del operador); `--continuo` mantiene la memoria entre
-    # casos — una persona real encadenando encargos; `--vueltas N` para tras N pasadas (0 = sin fin).
+    # The LAUNCH BATTERY (operator 2026-08-29): `--phase 1` limits rotation to the scope of the
+    # production version (phases.py, operator boundary); `--continuo` keeps memory between
+    # cases — a real person chaining tasks; `--vueltas N` stops after N passes (0 = endless).
     import argparse
     ap = argparse.ArgumentParser(prog="supervisor")
     ap.add_argument("--phase", type=int, default=0, help="limitar a la fase de lanzamiento (1|2); 0 = todas")
@@ -385,15 +382,15 @@ def main(argv: list[str] | None = None) -> int:
         esc = orden[i % len(orden)]
         i += 1
         try:
-            # En continuo, SOLO la primera ronda resetea (arranque limpio de la persona); después la
-            # memoria es parte de lo medido. El kwarg solo viaja cuando difiere del default: los dobles de
-            # test (y cualquier llamante viejo) conservan la firma (esc, lab).
+            # In continuous mode, ONLY the first round resets (the person's clean start); afterward the
+            # memory is part of what is measured. The kwarg is passed only when it differs from the default: test
+            # doubles (and any old caller) retain the (esc, lab) signature.
             _kw = {"fresh": False} if (a.continuo and i > 1) else {}
             parte = una_ronda(esc, plato_de(esc), **_kw)
             if parte.get("_rancio"):
-                # UNA sola vez, y sin bucle: si tras reiniciar sigue rancio, la ronda entra como INFRA y se
-                # pasa al siguiente. Reintentar hasta que cuadre convertiría un plató que no arranca en un
-                # bucle infinito que no mide — el mismo fallo con otra cara.
+                # ONCE only, and without a loop: if it is still stale after restarting, the round enters as INFRA and
+                # move on to the next. Retrying until it works would turn a set that does not start into an
+                # infinite loop that measures nothing — the same failure in another form.
                 _apunta(escenario=esc, resultado="RECARGA-PLATO", segundos=0, sha=_sha(),
                         motivo="el plató corría código viejo; lo reinicio y repito la ronda", log="")
                 if _reinicia_plato(plato_de(esc)):

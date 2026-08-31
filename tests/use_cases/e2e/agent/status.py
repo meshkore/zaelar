@@ -1,11 +1,11 @@
 """The SCOREBOARD — which promoted use cases actually work right now, and which don't.
 
-The operator's ask (2026-08-18): *«que tuviéramos claro cuáles están funcionando bien y cuáles no»*. Before
+The operator's ask (2026-08-18): *“that we should be clear about which ones are working well and which are not”*. Before
 this, every run wrote a fresh dated report into `tests/runs/use_cases/` and nothing accumulated — so
 answering "does the flights case work?" meant opening reports by hand and guessing which was the most
 recent meaningful one. This keeps a durable, committed, per-scenario last-known verdict.
 
-PRIVACY (this repo is PUBLIC — see CLAUDE.md's «catálogo sí, diario no» rule, and the 2026-08-15 leak of 444
+PRIVACY (this repo is PUBLIC — see CLAUDE.md's “catalogue yes, diary no” rule, and the 2026-08-15 leak of 444
 files of session transcripts): the ledger stores SCORES and a one-line verdict per scenario, never the
 transcript, never the driver's invented persona details, never extracted listing data. The CATALOG of what is
 tested and whether it passes is useful to anyone who clones the engine; the DIARY of what was said in a run
@@ -75,14 +75,14 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
             # chain MOVED mid-round: half that row is about one product and half about another.
             "brain": _brain_stamp(mech),
             "state": _state(overall, r),
-            # Por qué, si fue INFRA. Ver `_infra`: las cuatro puertas piden acciones opuestas.
+            # Why, if it was INFRA. See `_infra`: the four paths require opposite actions.
             "infra_reason": r.get("_infra_reason") or None,
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
             "missing_signals": mech.get("missing_signals") or [],
-            # CUÁNTOS TURNOS le ocultamos lo que ya tenía (V2-432). Va a la fila porque es lo que decide si el
-            # rojo de esa fila es del producto o nuestro, y el juez ya lo dice en prosa: sin el número aquí,
-            # leerlo obliga a abrir el informe de cada ronda una por una.
+            # HOW MANY TURNS we hid what it already had from it (V2-432). It belongs in the row because that
+            # determines whether the row's red is the product's or ours, and the judge already says so in prose:
+            # without the number here, reading it requires opening each round's report one by one.
             "blind_turns": int(((mech.get("sheet_hidden_from_the_prompt") or {}).get("n")) or 0),
             # The FULL stream audit, kept for the same reason as `families`: the close is decided by the tick
             # in the parent process, where the run dict no longer exists. A case does NOT close with anomalies
@@ -150,18 +150,18 @@ def _brain_stamp(mech: dict) -> str:
 
 
 def _infra(r: dict, motivo: str) -> str:
-    """Marca la fila INFRA **y deja escrito por qué**, en el propio resultado de la ronda.
+    """Mark the INFRA row **and write down why**, in the round's result itself.
 
-    `INFRA` sin motivo es un agujero de operación, no de estilo. Las cuatro puertas que llevan a él —arnés
-    caído, turnos vacíos, recall degradado, juez sin nota— piden acciones OPUESTAS: una es un bug del
-    instrumento, otra es recargar un proveedor, otra es levantar el prewarm y la cuarta es mirar la cadena del
-    juez. Desde el tablero se ven las cuatro igual.
+    `INFRA` without a reason is an operational hole, not a stylistic one. The four paths that lead to it — a
+    crashed harness, empty turns, degraded recall, and a judge with no score — require OPPOSITE actions: one
+    is an instrument bug, another is reloading a provider, another is bringing up prewarm, and the fourth is
+    inspecting the judge chain. From the board, all four look the same.
 
-    Medido el 2026-08-28, con el plató 24/7 ya corriendo: dos filas pasaron de FAIL a INFRA en una hora y
-    reconstruir cuál de las cuatro ramas las movió fue imposible sin el dict de la ronda, que para entonces ya
-    no existe. En un bucle que nadie mira durante ocho horas, ésa es exactamente la diferencia entre «está
-    midiendo» y «lleva toda la noche produciendo basura a toda velocidad» — y la segunda es peor que estar
-    parado, porque parado se nota.
+    Measured on 2026-08-28, with the 24/7 stage already running: two rows went from FAIL to INFRA in one hour,
+    and reconstructing which of the four branches moved them was impossible without the round dict, which no
+    longer existed by then. In a loop nobody watches for eight hours, that is exactly the difference between
+    “it is measuring” and “it has been producing rubbish at full speed all night” — and the latter is worse
+    than being stopped, because being stopped is noticeable.
     """
     r["_infra_reason"] = motivo
     return "INFRA"
@@ -182,12 +182,12 @@ def _state(overall, r: dict) -> str:
     completable case; closing and paying is the capped one. `derived.data_scope` is what says which is which.
     """
     run = r.get("run") or {}
-    # `crashed` NO es «se cayó»: es un campo con TRES inquilinos, y cada uno trae ya escrita su propia
-    # frase — el conductor fuera de papel (V2-313), una fuente de verdad ilegible (V2-396), o una excepción
-    # de verdad con su autopsia. Escribí aquí un motivo genérico («el arnés se cayó») y era falso para los
-    # tres: medido a la hora, sobre `best-plumber-same-day__us`, cuya frase real decía «el conductor se salió
-    # de su papel en 1 línea(s) del transcript (turno 13): la ronda no mide al producto». Adivinar un motivo
-    # teniendo el bueno delante es el mismo error que este nodo existe para arreglar, un piso más arriba.
+    # `crashed` is NOT “it crashed”: it is a field with THREE occupants, and each one already carries its own
+    # written phrase — the driver out of role (V2-313), an unreadable source of truth (V2-396), or a genuine
+    # exception with its autopsy. I wrote a generic reason here (“the harness crashed”), and it was false for
+    # all three: measured at the time, on `best-plumber-same-day__us`, whose real phrase said “the driver left
+    # its role in 1 transcript line(s) (turn 13): the round does not measure the product”. Guessing a reason
+    # when the correct one is right in front of us is the same error this node exists to fix, one level up.
     _dicho = str(run.get("crashed") or "").strip()
     if _dicho:
         return _infra(r, _dicho[:200])
@@ -211,23 +211,23 @@ def _state(overall, r: dict) -> str:
     if ((mech_.get("embeddings") or {}).get("degraded")):
         _b = (mech_.get("embeddings") or {}).get("backend") or "sin prewarm"
         return _infra(r, f"recall semántico DEGRADADO en esta ronda (backend: {_b})")
-    # UN PLATÓ SIN NAVEGADOR NO MIDE UNA BÚSQUEDA. Medido el 2026-08-30: el Chromium del plató US se cayó y no
-    # volvió, el log repetía «Waiting for the browser to settle before retrying» con HARD RESET cada pocos
-    # minutos, y las rondas salían con la hoja VACÍA — indistinguibles de «el producto no encuentra nada». La
-    # serie asentada bajó 3→3→2→1→0→0 y yo estaba a un mensaje de mandarlo como defecto de extracción.
+    # A STAGE WITHOUT A BROWSER DOES NOT MEASURE A SEARCH. Measured on 2026-08-30: the US stage's Chromium crashed and did not
+    # came back, the log repeated “Waiting for the browser to settle before retrying” with HARD RESET every few
+    # minutes, and the rounds came out with an EMPTY sheet — indistinguishable from “the product finds nothing”. The
+    # established series fell 3→3→2→1→0→0 and I was one message away from filing it as an extraction defect.
     #
-    # La firma es inequívoca y no se confunde con una búsqueda mala: el worker INTENTÓ navegar (`navigations`
-    # > 0) y NO aterrizó en ninguna página (`page_journey.n_pages` == 0). Un worker que busca mal aterriza en
-    # páginas malas; uno sin navegador no aterriza en ninguna. Se exige `read` para no acusar cuando el
+    # The signature is unambiguous and cannot be confused with a bad search: the worker ATTEMPTED to navigate (`navigations`
+    # > 0) and did NOT land on any page (`page_journey.n_pages` == 0). A worker that searches badly lands on
+    # bad pages; one without a browser lands on none. `read` is required so we do not accuse it when the
     # recorrido simplemente no se pudo leer — una ausencia de dato no es un dato.
     _pj, _wo = mech_.get("page_journey") or {}, mech_.get("worker_outcome") or {}
     if _pj.get("read") and not _pj.get("n_pages") and (_wo.get("navigations") or 0) > 0:
         return _infra(r, f"el plató NO tiene navegador: {_wo.get('navigations')} intento(s) de navegar y "
                          f"NINGUNA página alcanzada (revisa el Chromium del plató)")
-    # …Y LA VARIANTE QUE SE COLÓ (2026-08-30, search-secondhand-monitor__es): las llamadas murieron EN EL
-    # PUENTE, así que `navigations` quedó a 0 y la condición de arriba no vio nada. La firma es la sesión del
-    # worker nombrando `nav_cli`, la ronda entera sin UNA página alcanzada, y la sesión acabada en Exit code 2.
-    # Un worker que decide no navegar no nombra `nav_cli`; uno al que el puente no le contesta, sí.
+    # …AND THE VARIANT THAT SLIPPED THROUGH (2026-08-30, search-secondhand-monitor__es): the calls died IN THE
+    # BRIDGE, so `navigations` remained at 0 and the condition above saw nothing. The signature is the worker
+    # session naming `nav_cli`, the entire round with not A SINGLE page reached, and the session ending with Exit code 2.
+    # A worker that decides not to navigate does not name `nav_cli`; one whose bridge does not answer does.
     _wb = mech_.get("worker_bridges") or {}
     if (_pj.get("read") and not _pj.get("n_pages")
             and (_wb.get("by_bridge") or {}).get("nav_cli")
@@ -236,13 +236,13 @@ def _state(overall, r: dict) -> str:
                          "Exit code 2 y NINGUNA página se alcanzó (cuelgue del Chromium o del bridge)")
     if overall is None:
         return _infra(r, "el juez no devolvió nota")
-    # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4
-    # (conducta impecable: 5 en naturalidad, adaptación y resultado) con **mecanismo 1**, y el propio juez
-    # escribió «desincronización crítica: el sistema reporta estado 'working' con cero actividad de fondo». El
-    # umbral agregado lo cerró como PASADO y tiró ese hallazgo a la basura. La regla fundacional de este arnés
-    # es que el informe de mecanismo es la fuente de verdad sobre el texto (ver el docstring de judge.py), así
-    # que un 1-2 en mecanismo NO puede salir en verde aunque la media dé: sigue habiendo un defecto medido, y su
-    # sitio es una iniciativa, no un tick verde.
+    # MECHANISM takes precedence over the aggregate score. Measured on 2026-08-19: `reorder-prescription__es` got overall 4
+    # (flawless behavior: 5 for naturalness, adaptation, and outcome) with **mechanism 1**, and the judge itself
+    # wrote “critical desynchronization: the system reports state 'working' with zero background activity”. The
+    # aggregate threshold closed it as PASSED and threw that finding away. The foundational rule of this harness
+    # is that the mechanism report is the source of truth about the text (see judge.py's docstring), so
+    # a 1–2 in mechanism CANNOT appear green even if the average passes: a measured defect still exists, and its
+    # its place is an initiative, not a green tick.
     mech_score = ((r.get("verdict") or {}).get("scores") or {}).get("mecanismo")
     # CAPPED before PASS/FAIL: the cap does not depend on how well it does, but on its other half demanding a
     # user credential that does not exist here. The score is kept and shown — a capped 5 means "it got as far
@@ -272,9 +272,9 @@ def _parked_reason(scenario_id: str) -> str:
         return ""
 
 
-#: Cómo abre el juez cuando su conclusión es que NO. Se mira solo el ARRANQUE del veredicto: en el cuerpo la
-#: misma frase aparece a menudo negada («no está listo… salvo por») y buscarla en cualquier sitio marcaría
-#: filas que dicen lo contrario.
+#: How the judge begins when its conclusion is NO. Only the START of the verdict is checked: in the body, the
+#: same phrase is often negated (“not ready… except for”), and searching anywhere would mark rows that say
+#: the opposite.
 _NO_LISTO = ("no está listo", "no esta listo", "no listo", "el caso no está listo")
 
 
@@ -327,15 +327,15 @@ def _render(led: dict) -> None:
         overall = e.get("overall")
         verdict = (e.get("verdict") or "").replace("|", "·").replace("\n", " ")
         if e.get("state") == "PASS" and _judge_says_not_ready(e.get("verdict")):
-            # EL DESACUERDO, VISIBLE. `PASS` es el umbral del arnés (overall ≥ 4 y mecanismo ≥ 3) y «listo
-            # para producción» es la opinión del juez: son dos preguntas distintas y las dos valen, así que
+            # THE DISAGREEMENT, VISIBLE. `PASS` is the harness threshold (overall ≥ 4 and mechanism ≥ 3), and “ready
+            # for production” is the judge's opinion: they are two different questions and both matter, so
             # no se fuerza a que coincidan. Lo que no puede es ESCONDERSE — una fila verde que abre diciendo
-            # «No está listo para producción» le da al lector dos cosas contrarias en la misma línea y la que
+            # “Not ready for production” gives the reader two contradictory things on the same line, and the one that
             # se queda es el icono. Medido el 2026-08-28: 2 de las 13 verdes.
             verdict = f"**⚠️ el juez dice que NO está listo, aunque la nota pase** · {verdict}"
         if e.get("state") == "INFRA" and e.get("infra_reason"):
             # El motivo MANDA sobre el veredicto en una fila INFRA: el veredicto habla de un producto que en
-            # esa ronda no llegó a medirse, y leerlo como si sí invita justo al diagnóstico equivocado.
+            # that round was never measured, and reading it as if it were invites exactly the wrong diagnosis.
             verdict = f"**INFRA — {e['infra_reason']}** · (veredicto no medible: {verdict})"
         if len(verdict) > 160:
             verdict = verdict[:157] + "…"
@@ -456,9 +456,9 @@ def _render(led: dict) -> None:
             lines.append(f"| `{sid}` | `{w.get('initiative', '—')}` | `{w.get('task', '—')}` |")
         lines.append("")
 
-    # LO QUE NO LE DIJIMOS, junto y con su número. Sale antes de las secciones de mecanismo porque cambia
-    # cómo se leen las notas de arriba: una fila con turnos ciegos tiene una parte de su rojo puesta por
-    # nosotros (V2-432 — 45 de 48 rondas guardadas, 257 turnos).
+    # WHAT WE DID NOT TELL IT, together with its number. It appears before the mechanism sections because it changes
+    # how the scores above are read: a row with blind turns has part of its red caused by
+    # us (V2-432 — 45 of 48 saved rounds, 257 turns).
     ciegas = {s: e["blind_turns"] for s, e in scen.items() if e.get("blind_turns")}
     if ciegas:
         lines += ["## Rondas en las que NO le dijimos lo que ya tenía", "",

@@ -28,20 +28,20 @@ class UseCaseScenario:
     # MULTI-FLOW scenarios only (0 = single-task, the normal case): how many genuinely DIFFERENT tasks the
     # scenario asks for at once. When >0 the runner samples the live task registry (`GET /api/tasks`) every
     # turn instead of only reading the browser-task state, and the judge gets two extra dimensions
-    # (atribucion / fluidez). Concurrency has to be measured WHILE the run happens — a post-hoc event dump
+    # (attribution / fluency). Concurrency has to be measured WHILE the run happens — a post-hoc event dump
     # can prove N tasks existed but not that they were ever in flight at the SAME time, which is the whole
     # point of the scenario.
     concurrent_tasks: int = 0
-    # DISCOVERY/curation scenarios only: cosas que el operador ya le había contado al agente ANTES de esta
-    # conversación. Se siembran por el canal probe con `ingest=True` en una SESIÓN DISTINTA y luego se abre la
-    # petición real en otra sesión limpia — así recordarlas exige MEMORIA de verdad y no la ventana
-    # conversacional, que es justo la capacidad que el caso quiere medir («que sepa un poquito qué le gusta al
-    # usuario a través de la memoria», operador 2026-08-19). Sin esto, escribir las preferencias en el mismo
-    # hilo mediría lectura de contexto y lo llamaríamos memoria.
+    # DISCOVERY/curation scenarios only: things the operator had already told the agent BEFORE this
+    # conversation. They are seeded through the probe channel with `ingest=True` in a DIFFERENT SESSION,
+    # then the real request is opened in another clean session — remembering them therefore requires real
+    # MEMORY rather than the conversational window, which is exactly the capability the case measures
+    # ("that it knows a little about what the user likes through memory", operator 2026-08-19). Without this,
+    # writing the preferences in the same thread would measure context reading and we would call it memory.
     memory_seed: list[str] = field(default_factory=list)
-    # Con qué se comprueba que la siembra aterrizó (una palabra o dos que deban aparecer en el recall). Si NO
-    # aterriza, el juez tiene que saberlo: castigar al agente por no recordar algo que nunca se guardó mide el
-    # destilador, no al agente.
+    # How to check that the seed landed (one or two words that should appear in the recall). If it did NOT
+    # land, the judge must know: penalizing the agent for not remembering something that was never saved
+    # measures the distiller, not the agent.
     seed_probe_query: str = ""
 
 
@@ -202,12 +202,12 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=10,
         channel="probe",
     ),
-    # ── Escenarios ACHIEVABLE-HOY (2026-08-18) ────────────────────────────────────────────────────────
-    # Los cinco de arriba son búsquedas en webs de terceros: lentas, dependientes de un sitio que cambia y
-    # a veces de una cuenta o un teléfono. Útiles, pero como TODO lo promovido era de esa forma, el marcador
-    # solo podía salir rojo y no nos decía nada de las partes del producto que SÍ funcionan. Estos tres son
-    # necesidades reales del operador y a la vez alcanzables de punta a punta hoy: una respuesta EN EL TURNO,
-    # un widget que construye el propio motor, y un compromiso que va a memoria + agenda.
+    # ── ACHIEVABLE-TODAY scenarios (2026-08-18) ────────────────────────────────────────────────────────
+    # The five above search third-party websites: they are slow, depend on a changing site, and sometimes
+    # require an account or a phone. Useful, but because EVERYTHING promoted followed that pattern, the
+    # scoreboard could only turn red and told us nothing about the parts of the product that DO work. These
+    # three are real operator needs and also achievable end to end today: an IN-TURN response, a widget built
+    # by the engine itself, and a commitment that goes to memory + agenda.
     UseCaseScenario(
         id="quick-fact-opening-hours",
         locale="es",
@@ -230,8 +230,8 @@ SCENARIOS: list[UseCaseScenario] = [
             "aunque acabe dando la respuesta correcta — penalízalo en 'mecanismo' y en 'eficiencia'. "
             "Inventarse un precio o una hora sin haber buscado también es fallo."
         ),
-        # El fallo que este caso existe para cazar, como HECHO medido y no como prosa que el juez pueda
-        # pesar o no: levantar un Brain Worker con navegador para una pregunta de dato directo.
+        # The failure this case exists to catch, as a measured FACT rather than prose the judge may or may
+        # not weigh: starting a browser Brain Worker for a direct-fact question.
         forbidden_signals=["worker"],
         expected_signals=[],   # a propósito: `worker`/`widget` aquí serían la SEÑAL DE FALLO, no de éxito
         turns=4,
@@ -263,9 +263,9 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
-    # ── INI-026 frente B1: el listón de agenda del operador, literal (2026-08-29) ─────────────────────
-    # Lo que `remember-and-remind-deadline` NO mide: el aviso debe nacer POR DEFECTO (nadie lo pide) y la
-    # cita debe poder manipularse por voz después de creada.
+    # ── INI-026 B1 front: the operator's agenda bar, literally (2026-08-29) ─────────────────────
+    # What `remember-and-remind-deadline` does NOT measure: the reminder must be born BY DEFAULT (no one
+    # asks for it), and the appointment must be manipulable by voice after it is created.
     UseCaseScenario(
         id="dentist-appointment-into-agenda",
         locale="es",
@@ -351,12 +351,12 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=8,
         channel="probe",
     ),
-    # INI-026 · el CENTRO de v1 tras la directriz del operador del 2026-08-29 — «vamos a centrarnos en el
-    # apoyo a UNA persona: la memoria, la agenda, y que el agente recuerde quiénes somos y qué queremos».
-    # El catálogo no tenía ningún caso que midiera eso: `remember-and-remind-deadline` mide APUNTAR y AVISAR,
-    # no RECORDAR quién eres. Se siembra en una sesión APARTE (`memory_seed`) precisamente para que recordar
-    # exija memoria y no la ventana conversacional — escribir la preferencia en el mismo hilo mediría lectura
-    # de contexto y lo llamaríamos memoria.
+    # INI-026 · v1's CENTER after the operator's 2026-08-29 directive — "let's focus on supporting ONE
+    # person: memory, the agenda, and the agent remembering who we are and what we want".
+    # The catalog had no case measuring that: `remember-and-remind-deadline` measures RECORDING and ALERTING,
+    # not REMEMBERING who you are. It is seeded in a SEPARATE session (`memory_seed`) precisely so remembering
+    # requires memory rather than the conversational window — writing the preference in the same thread would
+    # measure context reading and we would call it memory.
     UseCaseScenario(
         id="knows-who-i-am-without-being-told-again",
         locale="es",
@@ -397,12 +397,12 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=6,
         channel="probe",
     ),
-    # INI-026 A8bis · parte A — «entérate de cuándo sale y avísame». El operador lo pidió con su propio
-    # ejemplo (una serie que estrena temporada) el 2026-08-29. Mide algo que el motor NUNCA ha medido junto,
-    # aunque las tres piezas existan por separado: buscar un HECHO FUTURO fuera (no un precio, no un
-    # producto), apuntarlo, y dejar programado que suene cuando llegue. La parte de «quédate pendiente por
-    # si anuncian otra» NO se mide aquí: no está construida (V2-476 B) y pedirle a un caso que puntúe una
-    # capacidad ausente es fabricar un rojo que no enseña nada.
+    # INI-026 A8bis · part A — "find out when it comes out and remind me". The operator requested it with
+    # their own example (a series premiering a season) on 2026-08-29. It measures something the engine has
+    # NEVER measured together, although all three pieces exist separately: find a FUTURE FACT externally
+    # (not a price, not a product), record it, and schedule an alert for when it arrives. The part about
+    # "staying on top of whether they announce another" is NOT measured here: it is not built (V2-476 B),
+    # and asking a case to score an absent capability would manufacture a red result that teaches nothing.
     UseCaseScenario(
         id="find-a-future-release-and-remind-me",
         locale="es",
@@ -506,19 +506,19 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=6,
         channel="probe",
     ),
-    # ── MULTI-FLOW: tres tareas a la vez, conversación entrelazada ────────────────────────────────────
-    # El caso que ninguno de los anteriores prueba: el operador NO hace una cosa y espera — encarga tres
-    # trabajos DISTINTOS (informe / búsqueda / código de widget: tres `kind` de worker distintos, tres
-    # subsistemas distintos) y luego habla de ellos DESORDENADAMENTE y por alusiones ("ese", "el del coche",
-    # "ponle que salte más alto"). Lo que se prueba no es que cada tarea funcione por separado —eso ya lo
-    # cubren los escenarios de arriba— sino tres cosas que solo aparecen cuando corren a la vez:
-    #   (1) ATRIBUCIÓN: cada mensaje va a la tarea CORRECTA (V2-032/V2-038: `send_to_worker` +
-    #       `dispatch.resolve_sessions`). El fallo que caza es responder por la tarea equivocada, o tragarse
-    #       un refinamiento en silencio.
-    #   (2) INDEPENDENCIA: que una tarea lenta o fallida no arrastre a las otras (modularidad real).
-    #   (3) FLUIDEZ: que las respuestas lleven ESTADO y suenen a una conversación enlazada ("el informe ya
-    #       está, la búsqueda sigue") y no a tres volcados de estado robóticos — petición explícita del
-    #       operador: «necesito que el sistema sea suave».
+    # ── MULTI-FLOW: three tasks at once, interleaved conversation ────────────────────────────────────
+    # The case none of the previous ones tests: the operator does NOT do one thing and wait — they assign
+    # three DIFFERENT jobs (report / search / widget code: three different worker `kind`s, three different
+    # subsystems) and then talk about them DISORDERLY and by reference ("that one", "the car one", "make it
+    # jump higher"). What is tested is not whether each task works separately — the scenarios above already
+    # cover that — but three things that appear only when they run at once:
+    #   (1) ATTRIBUTION: each message goes to the CORRECT task (V2-032/V2-038: `send_to_worker` +
+    #       `dispatch.resolve_sessions`). The failure it catches is answering for the wrong task or silently
+    #       swallowing a refinement.
+    #   (2) INDEPENDENCE: a slow or failed task must not drag the others down (real modularity).
+    #   (3) FLUENCY: responses must carry STATE and sound like a connected conversation ("the report is ready,
+    #       the search is still running") rather than three robotic status dumps — an explicit request from the
+    #       operator: "I need the system to be smooth".
     UseCaseScenario(
         id="three-tasks-at-once",
         locale="es",
@@ -575,30 +575,29 @@ SCENARIOS: list[UseCaseScenario] = [
             "responder cada turno como si no hubiera pasado nada antes, es un fallo de fluidez aunque el "
             "mecanismo por debajo sea correcto."
         ),
-        # `widget` cubre la generación del juego; `worker` el informe y la búsqueda. `flash` siempre está.
+        # `widget` covers game generation; `worker` covers the report and search. `flash` is always present.
         expected_signals=["worker", "widget"],
         turns=14,          # más que los demás: hay que dar espacio a que las tres arranquen Y se entrelacen
         channel="probe",
         concurrent_tasks=3,
     ),
 
-    # UNA HOJA POR ENCARGO — y «cierra los resultados» con dos abiertas es una PREGUNTA, no una orden.
+    # ONE SHEET PER JOB — and "close the results" with two open is a QUESTION, not an instruction.
     #
-    # Regla del operador (2026-08-21): dos búsquedas a la vez son dos navegadores y DOS hojas de resultados,
-    # cada una con su correlation_id; y una hoja TERMINADA no se reutiliza para el encargo siguiente — se abre
-    # una nueva. El motivo no es estético: reutilizar la caja BORRA una búsqueda, y una búsqueda borrada no se
-    # recupera. La otra cara de la misma regla es que, con dos cajas abiertas, «cierra los resultados» deja de
-    # ser inequívoco — y este repo ya tiene escrito qué se hace ante la duda (V2-082: se PREGUNTA, nunca se
-    # adivina). Cerrar la que no era es exactamente el borrado que la regla existe para evitar.
+    # Operator rule (2026-08-21): two searches at once are two browsers and TWO result sheets,
+    # each with its own correlation_id; and a FINISHED sheet is not reused for the next job — a new one is
+    # opened. The reason is not aesthetic: reusing the box DELETES a search, and a deleted search cannot be
+    # recovered. The other side of the same rule is that, with two boxes open, "close the results" is no
+    # longer unambiguous — and this repo already specifies what to do when unsure (V2-082: ASK, never guess).
+    # Closing the wrong one is exactly the deletion this rule exists to prevent.
     #
-    # ⚠️ HOY EL MOTOR NO HACE ESTO, y el caso se escribe igual A PROPÓSITO. `dispatch._sheet_open()` emite
-    # `widget/show` con el id pelado `"results"` y `widgets/results/data.py` guarda en UNA clave, así que dos
-    # encargos comparten hoja y se acumulan con dedup — está dicho en la sección «Abierto» de V2-257. Lo que
-    # este caso aporta HOY es la MEDIDA (`sheet_instances`: 1 caja para 2 encargos ⇒ `shared: true`), que es
-    # lo que convierte una regla de producto en un hecho comprobable. El día que V2-259 aterrice, el mismo
-    # caso pasa sin tocar una línea. La instanciación en el canvas NO es maquinaria nueva: `desktop.js::show`
-    # ya la tiene («`navegador::t3` = varias tarjetas del MISMO widget base»), y no es específica del
-    # navegador — «un id normal se comporta igual».
+    # ⚠️ THE ENGINE DOES NOT DO THIS TODAY, and the case is deliberately written anyway. `dispatch._sheet_open()` emits
+    # `widget/show` with the bare id `"results"`, and `widgets/results/data.py` stores under ONE key, so two
+    # jobs share a sheet and accumulate with deduplication — this is stated in V2-257's "Open" section. What
+    # this case contributes TODAY is the MEASUREMENT (`sheet_instances`: 1 box for 2 jobs ⇒ `shared: true`),
+    # which turns a product rule into a verifiable fact. When V2-259 lands, the same case passes unchanged.
+    # Instantiation on the canvas is NOT new machinery: `desktop.js::show` already has it (`navegador::t3` =
+    # multiple cards of the SAME base widget), and it is not browser-specific — "a normal id behaves the same".
     UseCaseScenario(
         id="two-searches-two-sheets",
         locale="es",
@@ -655,12 +654,12 @@ SCENARIOS: list[UseCaseScenario] = [
         concurrent_tasks=2,
     ),
 
-    # ── CASOS DE FUTURO: escritos ANTES que el mecanismo, y GATEADOS por sus tareas de roadmap ─────────────
-    # Regla del operador (2026-08-21): «todos los comportamientos que espero deben formar parte de un use case
-    # lo más completito posible […] los use cases son el punto más alto de la pirámide, de lo que se desprende
-    # todo lo demás». Así que la petición se escribe aquí PRIMERO, con su vínculo al roadmap en `segments.py`,
-    # y el arnés se niega a conducirla hasta que esas tareas estén hechas — conducirla hoy gastaría una
-    # conversación entera para producir un fallo que ya está escrito.
+    # ── FUTURE CASES: written BEFORE the mechanism, and GATED by their roadmap tasks ─────────────
+    # Operator rule (2026-08-21): "all behaviors I expect must be part of a use case
+    # as complete as possible [...] use cases are the highest point of the pyramid, from which
+    # everything else". So the request is written here FIRST, with its roadmap link in `segments.py`,
+    # and the harness refuses to run it until those tasks are done — running it today would spend an entire
+    # conversation producing a failure that is already documented.
 
     UseCaseScenario(
         id="repeat-a-finished-search",
@@ -792,12 +791,12 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=12,
         channel="probe",
     ),
-    # ── Música y vídeo (2026-08-26, petición del operador). Segunda instancia del hueco de REPRESENTACIÓN que
-    # ya arreglaron los tres casos del 2026-08-18: los 13 escenarios promovidos eran TODOS «entra en una web
-    # de terceros, busca, elige», así que dos superficies enteras del producto no se medían. El plató NO tiene
-    # `connectors.json`, o sea que Spotify está sin conectar y el widget `musica` nunca se ha usado ahí — lo
-    # que se mide es el camino de fallback real (`mode = spotify si conectado, si no youtube`), verificado
-    # antes de escribir esto y no supuesto.
+    # ── Music and video (2026-08-26, operator request). Second instance of the REPRESENTATION gap that
+    # the three cases from 2026-08-18 already fixed: all 13 promoted scenarios were "enter a third-party
+    # website, search, choose", so two entire product surfaces were not measured. The studio has NO
+    # `connectors.json`, meaning Spotify is not connected and the `musica` widget has never been used there —
+    # what is measured is the real fallback path (`mode = spotify if connected, otherwise youtube`),
+    # was verified before writing this, not assumed.
     UseCaseScenario(
         id="play-music-and-build-playlist",
         locale="es",
@@ -866,15 +865,15 @@ SCENARIOS: list[UseCaseScenario] = [
         channel="probe",
     ),
 
-    # ── Multimedia, segunda tanda (2026-08-27, encargo del operador). Su encuadre, y ordena lo que se mide:
-    # el de música se juzga contra SPOTIFY y el de vídeo contra YOUTUBE, pero el de vídeo «muy limpio en
-    # diseño, no lo quiero sucio con vídeos por todos lados — listas lineales de texto, título, click». Los
-    # dos se conducen POR VOZ (aquí por texto, mismo mecanismo sin STT), así que cada capacidad nueva tiene
-    # que existir como data-op DECLARADA en el manifest: una que solo se pueda tocar con el ratón no la puede
-    # pedir nadie hablando, y eso es un fallo de mecanismo aunque la tarjeta funcione preciosa.
+    # ── Multimedia, second batch (2026-08-27, operator assignment). Its framing orders what is measured:
+    # music is judged against SPOTIFY and video against YOUTUBE, but the video should be "very clean in design;
+    # I don't want it cluttered with videos everywhere — linear text lists, title, click". Both are driven BY
+    # VOICE (here by text, the same mechanism without STT), so each new capability must exist as a DECLARED
+    # data-op in the manifest: something that can only be operated with the mouse cannot be requested by voice,
+    # and that is a mechanism failure even if the card works beautifully.
     #
-    # Son DOS, no seis, y es deliberado: el operador pidió «una manera comedida que en un rato podamos
-    # realmente probarlos todos». Cada ronda de plató cuesta minutos de navegador real.
+    # There are TWO, not six, deliberately: the operator asked for "a measured way to genuinely test them all
+    # in a little while". Each studio round costs minutes of real browser time.
     UseCaseScenario(
         id="build-a-video-playlist-from-links",
         locale="es",
@@ -946,11 +945,11 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=10,
         channel="probe",
     ),
-    # ── Mensajería como widget PRINCIPAL (V2-521, 2026-08-31) — los básicos que hasta hoy no medía nadie ────
-    # El operador reprodujo a mano el primero la misma tarde (sesión acc5e85e): pidió sus mensajes de WhatsApp
-    # por voz y el motor HABLÓ el tag interno en vez de abrir el widget. Ese camino concreto (el segundo viaje
-    # de la selección de tools) solo existe en VOZ y estos casos corren por probe — pero la mitad de la cadena
-    # que SÍ comparten (enrutado → show → respuesta honesta sobre el estado real) no la medía ningún caso.
+    # ── Messaging as the PRIMARY widget (V2-521, 2026-08-31) — basics nobody had measured until today ────
+    # The operator reproduced the first one manually that same afternoon (session acc5e85e): they asked for
+    # their WhatsApp messages by voice and the engine SPOKE the internal tag instead of opening the widget.
+    # That specific path (the second pass through tool selection) exists only in VOICE and these cases run via
+    # probe — but no case measured the half they DO share (routing → show → honest response about real state).
     UseCaseScenario(
         id="show-my-messages",
         locale="es",
@@ -1107,10 +1106,11 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=6,
         channel="probe",
     ),
-    # ── Agenda: el ciclo de vida entero y la lectura honesta (INI-026 B1, segunda tanda 2026-08-31) ─────────
-    # `dentist-appointment-into-agenda` mide crear + aviso por defecto + mover el AVISO. Lo que ningún caso
-    # medía: mover la CITA sin duplicarla, anularla llevándose su alarma (V2-473: una alarma huérfana dispara
-    # una cita fantasma), y leer la agenda diciendo la verdad — también cuando la verdad es «nada».
+    # ── Agenda: the full lifecycle and honest reading (INI-026 B1, second batch 2026-08-31) ─────────
+    # `dentist-appointment-into-agenda` measures creating + default reminder + moving the REMINDER. What no
+    # case measured: moving the APPOINTMENT without duplicating it, canceling it along with its alarm (V2-473:
+    # an orphaned alarm triggers a phantom appointment), and reading the agenda truthfully — including when
+    # the truth is "nothing".
     UseCaseScenario(
         id="agenda-appointment-lifecycle",
         locale="es",
@@ -1190,10 +1190,10 @@ BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
 
 def all_scenarios() -> list[UseCaseScenario]:
     from . import derived as D
-    # Los de DESCUBRIMIENTO viven en su propio módulo (`discovery.py`): son una familia distinta —el usuario no
-    # sabe lo que quiere, así que la mitad del trabajo es inferirlo de la memoria— y son los únicos que
-    # SIEMBRAN preferencias antes de hablar. Mezclarlos aquí haría este fichero ilegible y escondería que su
-    # criterio de éxito es otro.
+    # DISCOVERY cases live in their own module (`discovery.py`): they are a distinct family —the user does not
+    # know what they want, so half the work is inferring it from memory — and they are the only ones that
+    # SEED preferences before speaking. Mixing them here would make this file unreadable and hide that their
+    # success criterion is different.
     from . import discovery as DISC
     out = list(SCENARIOS) + list(DISC.SCENARIOS)
     have = {s.id for s in out}
@@ -1209,10 +1209,10 @@ def all_scenarios() -> list[UseCaseScenario]:
     # are exactly the cases whose completion needs a phone call or a card. Without this they would keep being
     # graded on a booking nobody can make, which the operator ruled out (2026-08-18) — and, worse, the dev
     # agent would keep receiving them as bugs.
-    # Fechas SIEMPRE futuras y relativas a HOY (norma del operador, 2026-08-19; ver `dates.py` para el
-    # incidente que la motivó: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto).
-    # Se resuelve AQUÍ, en el único punto por el que pasan todos los escenarios —a mano y derivados—: hacerlo
-    # en cada constructor garantiza que el siguiente constructor nuevo se olvide.
+    # Dates are ALWAYS future and relative to TODAY (operator rule, 2026-08-19; see `dates.py` for the
+    # incident that prompted it: the catalog requested bookings for "the May holiday" with the clock in August).
+    # It is resolved HERE, at the only point through which all scenarios pass —hand-written and derived—:
+    # doing it in each constructor guarantees that the next new constructor will forget.
     from . import dates as DT
     return [_with_dates(D.apply_human_opening(D.apply_findings_contract(D.apply_data_note(s))), DT) for s in out]
 

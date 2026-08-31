@@ -173,22 +173,22 @@ def _retest_pending() -> dict:
     _log(f"paso 1 · re-probando {len(ready)} caso(s) ya arreglado(s): "
          f"{', '.join(p['scenario'] for p in ready)}")
     rc, out = _run(["--verify", "--sandbox"], timeout_s=60 * 60)
-    # PERSISTIR el stdout de la tanda. Antes solo se logueaba el rc, y el 2026-08-19 a las 16:56 cinco casos
-    # murieron con «Connection refused» sin que quedara NADA para saber en qué punto: ni el traceback, ni el
-    # orden real de ejecución, ni si el sandbox se cayó o nunca arrancó para ese grupo. Reconstruirlo a mano
-    # costó más que la propia corrida. Un tick desatendido que tira su única evidencia obliga a reproducir el
-    # fallo para diagnosticarlo, y un fallo intermitente puede no volver.
+    # PERSIST the batch's stdout. Previously only the rc was logged, and on 2026-08-19 at 16:56 five cases
+    # died with «Connection refused» without leaving ANYTHING to show where: neither the traceback, nor the
+    # actual execution order, nor whether the sandbox crashed or never started for that group. Reconstructing
+    # it by hand took longer than the run itself. An unattended tick that throws away its only evidence forces
+    # the failure to be reproduced for diagnosis, and an intermittent failure may never return.
     try:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
         (LOG_PATH.parent / f"verify-stdout-{stamp}.log").write_text(out or "(sin salida)", encoding="utf-8")
     except Exception:
         pass
-    # El rc SOLO no basta para reconstruir qué pasó. El 2026-08-20 a las 02:46 un tick con `rc=1` en 0 segundos
-    # clasificó su caso como BLOQUEADO en vez de como no-medido, y el marcador decía que su `last_run` no se
-    # había movido — o sea que el guard de arriba debería haber saltado y no saltó. No se pudo explicar con lo
-    # que había en el log, así que se registran los DOS sellos por caso: la próxima vez el log es la evidencia
-    # en vez del punto de partida de una investigación.
+    # The rc ALONE is not enough to reconstruct what happened. On 2026-08-20 at 02:46, a tick with `rc=1` in
+    # 0 seconds classified its case as BLOCKED instead of unmeasured, and the marker said its `last_run` had
+    # not moved — meaning the guard above should have skipped it but did not. The log could not explain it,
+    # so both stamps are recorded per case: next time the log is the evidence rather than the starting point
+    # of an investigation.
     _log(f"paso 1 · terminado rc={rc} · sellos "
          + ", ".join(f"{p['scenario']}: {stamp_before.get(p['scenario'])!r}→"
                      f"{((statusmod.load().get('scenarios') or {}).get(p['scenario']) or {}).get('last_run')!r}"
@@ -197,7 +197,7 @@ def _retest_pending() -> dict:
     led = statusmod.load().get("scenarios") or {}
     passed, rotated, inconclusive, blocked, unrun = [], [], [], [], []
     capped_ok, capped_short = [], []
-    passed_dirty: list[str] = []   # nota de PASS pero la auditoría del mecanismo no está limpia
+    passed_dirty: list[str] = []   # PASS noted, but the mechanism audit is not clean
     for p in ready:
         sid = p["scenario"]
         e = led.get(sid) or {}
@@ -214,11 +214,11 @@ def _retest_pending() -> dict:
             unrun.append(sid)
             continue
         if e.get("state") == "PASS":
-            # UN PASS NO BASTA PARA CERRAR (regla del operador, 2026-08-20): hay que haber leído la auditoría
-            # entera y que cada paso interno sea el que debe ser. La nota del juez mira el RESULTADO y la
-            # conducta; la auditoría mira los eventos, y las dos cosas pueden discrepar — la corrida de las
-            # 10:00 llevaba `is_error` en un paso del worker («no puedo leer el payload de sources.json») con
-            # todas las familias esperadas presentes. Cerrar ahí archiva un defecto medido.
+            # ONE PASS IS NOT ENOUGH TO CLOSE (operator's rule, 2026-08-20): the entire audit must have been
+            # read and every internal step must be what it should be. The judge's note looks at the RESULT and
+            # behavior; the audit looks at events, and the two can disagree — the 10:00 run had `is_error` on
+            # a worker step («no puedo leer el payload de sources.json») with all expected families present.
+            # Closing there archives a measured defect.
             anomalies = e.get("audit_anomalies") or []
             if anomalies:
                 what = "; ".join(f"[{a.get('clase')}] {a.get('que')}" for a in anomalies[:4])
@@ -301,9 +301,9 @@ def _retest_pending() -> dict:
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
     if unrun:
-        # Los DOS puertos, nombrados, y leídos de la tabla: el huérfano se queda con el del idioma de la
-        # tanda que lo dejó atrás, y quien lee esto no sabe cuál fue. Un número escrito a mano aquí ya
-        # mandó a mirar el 43918, que desde V2-459 no lo usa nadie.
+        # The TWO ports, named and read from the table: the orphan keeps the one for the batch's language,
+        # and whoever reads this does not know which one it was. A number written by hand here once sent
+        # someone to inspect 43918, which nobody has used since V2-459.
         _puertos = " ".join(f"-iTCP:{p}" for p in (PORTS.SANDBOX_ES, PORTS.SANDBOX_US))
         _log(f"paso 1 · NO SE MIDIERON (la tanda salió sin medir nada — mira si quedó un sandbox huérfano "
              f"ocupando el puerto de su idioma: `lsof -nP {_puertos} -sTCP:LISTEN`). Su tarea de verify sigue "

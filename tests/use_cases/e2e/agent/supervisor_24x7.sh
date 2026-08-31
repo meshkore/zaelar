@@ -1,16 +1,16 @@
 #!/bin/zsh
-# El plató NO PARA — envoltorio de arranque para el supervisor (V2-417).
+# The studio NEVER STOPS — startup wrapper for the supervisor (V2-417).
 #
-# El supervisor ya es un bucle infinito que no muere por una ronda y se recarga solo cuando cambia su
-# propio código. Lo que NO sabe hacer es volver a existir: si el proceso muere (una actualización, un
-# `killall python`, un reinicio de la máquina) no hay nadie que lo levante. Eso lo pone launchd con
-# `KeepAlive`; este script es lo que launchd arranca, y su único trabajo es dejar el mundo en condiciones
-# ANTES de entrar al bucle.
+# The supervisor is already an infinite loop that does not die after one round and reloads itself when its
+# own code changes. What it does NOT know how to do is come back into existence: if the process dies (an
+# update, a `killall python`, a machine restart), there is no one to bring it back up. launchd does that
+# with `KeepAlive`; this script is what launchd starts, and its only job is to put the world in order
+# BEFORE entering the loop.
 #
-# Levantar los platós aquí y no dentro del supervisor es deliberado: tras un reinicio no hay ningún plató
-# vivo, y un supervisor que arranca contra puertos muertos no falla — mide, y escribe una fila INFRA por
-# cada escenario de la rotación hasta que alguien mira. Un bucle que produce basura a toda velocidad es
-# peor que uno parado, porque el parado se nota.
+# Bringing the studios up here rather than inside the supervisor is deliberate: after a restart there is no
+# live studio, and a supervisor that starts against dead ports does not fail — it measures and writes an
+# INFRA row for every scenario in the rotation until someone looks. A loop that produces garbage at full
+# speed is worse than a stopped one, because the stopped one is noticeable.
 set -u
 cd "$(dirname "$0")/../../../.." || exit 1        # → engine/
 
@@ -19,12 +19,12 @@ mkdir -p "$LOGS"
 
 echo "[$(date '+%F %T')] arrancando · HEAD $(git rev-parse --short HEAD 2>/dev/null)" >> "$LOGS/arranques.log"
 
-# Los platós, idempotente: `up` sobre uno ya vivo lo respeta (conserva puerto, memoria y perfil).
+# Studios, idempotent: `up` on one that is already live leaves it alone (preserving its port, memory, and profile).
 ./.venv/bin/python -m tests.use_cases.lab up all >> "$LOGS/arranques.log" 2>&1
 
-# ZAELAR_UC_CAFFEINATE=0 para dejar que el Mac se duerma. Por defecto se impide el sueño POR INACTIVIDAD
-# (`caffeinate -i`), que es lo único que separa «corriendo 24 h» de «corriendo hasta que te vas a cenar».
-# No impide el sueño al cerrar la tapa: eso sigue siendo decisión física del operador.
+# ZAELAR_UC_CAFFEINATE=0 to let the Mac sleep. By default, sleep due to INACTIVITY is prevented
+# (`caffeinate -i`), which is the only thing separating “running for 24 hours” from “running until you go
+# out to dinner.” It does not prevent sleep when the lid is closed: that remains the operator’s physical decision.
 if [[ "${ZAELAR_UC_CAFFEINATE:-1}" == "1" ]] && command -v caffeinate >/dev/null; then
   exec caffeinate -i ./.venv/bin/python -m tests.use_cases.e2e.agent.supervisor
 fi

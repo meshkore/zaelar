@@ -1,8 +1,8 @@
 """Which use cases can be carried out END TO END today, and what blocks the rest.
 
-Asked for by the operator on 2026-08-19: *«separar del grupo las que no podamos probar ahora porque necesitan
-credenciales específicas del usuario, de los sites a los que hay que entrar o de las operaciones que hay que
-hacer […] y dejar en una lista solo los use cases que sí van a poder llevarse a cabo de inicio a fin»*.
+Asked for by the operator on 2026-08-19: *“separate from the group the cases we cannot test now because they need
+specific user credentials, sites that must be accessed, or operations that must be performed […] and leave in a
+list only the use cases that can actually be carried out from start to finish”*.
 
 Before this module the catalog had a GRADING adjustment (`derived.NO_ACCOUNT` / `derived.NO_BOOKING`) but no
 segmentation, and the two are not the same question:
@@ -16,15 +16,15 @@ Keeping only the first produced two measured defects that this module exists to 
    is `restaurant-tonight-nyc` — a DIFFERENT bare id — so the ES case carried the real-data limit and the US
    one was graded as if a table could be booked. A pair that differs only in market must never differ in what
    it can honestly be asked to do.
-2. **A note contradicting its own case.** `search-buy-guitar` asks «Encuéntrame una guitarra acústica de
-   segunda mano por menos de 150€» — a search, nothing else — and carried «lo que no se puede es cerrar la
-   compra […] pararse en el muro DICIÉNDOLO es la conducta correcta, un 5». That REWARDS asking for a card the
+2. **A note contradicting its own case.** `search-buy-guitar` asks “Find me a second-hand acoustic guitar for
+   less than €150” — a search, nothing else — and carried “the only thing that cannot be done is complete the
+   purchase […] stopping at the wall and SAYING SO is the correct behavior, a 5”. That REWARDS asking for a card the
    user never mentioned instead of delivering the list. The blocker was in the case id (`search-buy-*`) and in
    the catalog's `expected`, not in the request.
 
 So the segment is decided by ONE question, asked of the OPENING LINE and nothing else: **does what the user
 actually asked for require a credential, a payment method, a phone call, or a real object that does not
-exist?** «Búscame un monitor de segunda mano» does not. «Búscame el libro y cómpramelo» does.
+   exist?** “Find me a second-hand monitor” does not. “Find me the book and buy it for me” does.
 
 THREE groups, not two — and the split between the last two is the operator's next decision, which is why it is
 worth the extra name:
@@ -40,7 +40,7 @@ worth the extra name:
 Closed inventory ON PURPOSE, and hand-edited: `tests/use_cases/unit/test_segments.py` fails if a scenario in
 `scenarios.all_scenarios()` is not classified here, so a case added tomorrow cannot silently land in no group
 (same reason `test_observer_categories.py` exists for observability kinds). Deriving the group from a heuristic
-over the wording was considered and rejected: «resérvame» vs «búscame» is a one-word difference that decides
+over the wording was considered and rejected: “reserve it for me” vs “find it for me” is a one-word difference that decides
 whether a case is testable, and a regex getting it wrong is invisible until a whole batch is graded against the
 wrong bar.
 """
@@ -58,19 +58,19 @@ class Segment:
     group: str      # completable | credentials | capability
     grade: str      # "" = grade the whole outcome · "no_account" · "no_booking" (see derived.py for the notes)
     missing: str    # what is missing, concretely — it is quoted verbatim into the judge's note
-    # LAS TAREAS DEL ROADMAP que, resueltas, permiten probar este caso. Petición del operador (2026-08-21):
-    # «puedes vincular el use case a las tareas del roadmap […] y así ahora mismo jamás lo ejecutarías, porque
-    # sabrías que esas tareas están pendientes».
+    # ROADMAP TASKS that, once completed, make it possible to test this case. Operator request (2026-08-21):
+    # “can you link the use case to the roadmap tasks […] so that right now you would never run it, because
+    # you would know those tasks are pending”.
     #
-    # `missing` ya decía en prosa qué falta; esto lo hace ACCIONABLE en dos direcciones: el arnés se NIEGA a
-    # conducir el caso (conducirlo sería gastar una conversación entera para producir un fallo que ya está
-    # escrito, y encima archivar una iniciativa duplicada de la que lo explica), y quien cierre esas tareas
-    # tiene delante el caso que las prueba. Es la regla del operador de que los use cases son la punta de la
-    # pirámide: primero se escribe lo que se espera, y el desarrollo va detrás.
+    # `missing` already said in prose what is missing; this makes it ACTIONABLE in two directions: the harness
+    # REFUSES to run the case (running it would spend an entire conversation producing a failure that is already
+    # written, and then archive a duplicate initiative explaining it), and whoever closes those tasks has the
+    # case that tests them in front of them. It is the operator’s rule that use cases are the tip of the pyramid:
+    # first write what is expected, and development follows.
     #
-    # Deliberadamente MÁS ESTRECHO que el grupo `capability` entero: hay casos de ese grupo que ya se han
-    # medido y están en el marcador, y gatearlos por grupo encogería el paseo en silencio e invalidaría
-    # medidas que existen. Solo se gatea lo que lo declara.
+    # Deliberately NARROWER than the entire `capability` group: some cases in that group have already been
+    # measured and are on the scoreboard, and gating them by group would silently shrink the run and invalidate
+    # existing measurements. Only cases that declare it are gated.
     blocked_by: tuple[str, ...] = ()
 
 
@@ -93,11 +93,11 @@ def _cap(missing: str) -> Segment:
 
 
 def _future(missing: str, *refs: str) -> Segment:
-    """Un caso ESCRITO ANTES que el mecanismo que lo hace posible, con las tareas que lo desbloquean.
+    """A case WRITTEN BEFORE the mechanism that makes it possible, with the tasks that unblock it.
 
-    `grade` se queda VACÍO —no `no_account`— porque cuando estas tareas estén hechas el caso se juzga ENTERO:
-    no le falta una credencial del operador, le falta código nuestro. Poner una nota de rebaja aquí dejaría el
-    caso permanentemente juzgado a la baja el día que por fin funcione.
+    `grade` stays EMPTY —not `no_account`— because once these tasks are done the case is judged in FULL:
+    it is not missing an operator credential; it is missing our code. Putting a downgrade note here would leave
+    the case permanently judged down on the day it finally works.
     """
     return Segment(CAPABILITY, "", missing, tuple(refs))
 
@@ -107,55 +107,55 @@ SEGMENTS: dict[str, Segment] = {
     # Information, a comparison, a plan, a widget, a reminder: the deliverable IS the answer, so there is no
     # wall to stop at. These are graded on the FULL outcome and carry no real-data note.
     "quick-fact-opening-hours": _done(),
-    # Enseñar una foto se completa ENTERO: no hay muro, ni cuenta, ni nada que reservar — la entrega ES
-    # el resultado. Y por eso es el caso limpio para medir DÓNDE aparece y CUÁNDO (V2-457).
+    # Showing a photo is completed in FULL: there is no wall, account, or anything to reserve — the deliverable IS
+    # the result. That is why it is the clean case for measuring WHERE it appears and WHEN (V2-457).
     "show-real-photo-of-a-new-car": _done(),
     "remember-and-remind-deadline": _done(),
-    # INI-026 B1 (2026-08-29): agenda + aviso por defecto + manipulación por voz — todo dentro del motor,
-    # sin login, sin pago, sin tercero: completable de punta a punta.
+    # INI-026 B1 (2026-08-29): calendar + default alert + voice manipulation — all within the engine,
+    # with no login, payment, or third party: completable end to end.
     "dentist-appointment-into-agenda": _done(),
-    # INI-026 A8bis-A (2026-08-29): buscar un HECHO FUTURO fuera (fecha de estreno), decirlo con su fuente y
-    # dejar el aviso montado. Completable: la búsqueda es pública, no hay credencial, ni pago, ni tercero.
+    # INI-026 A8bis-A (2026-08-29): look up a FUTURE FACT externally (release date), state it with its source,
+    # and set up the alert. Completable: the search is public; there is no credential, payment, or third party.
     "find-a-future-release-and-remind-me": _done(),
-    # INI-026, el centro de v1 tras la directriz del 2026-08-29: que el agente recuerde quién eres. Todo
-    # dentro del motor (siembra + recall + una respuesta), sin credencial, sin pago y sin tercero.
+    # INI-026, the center of v1 after the 2026-08-29 directive: the agent should remember who you are. Everything
+    # is within the engine (seeding + recall + one response), with no credential, payment, or third party.
     "knows-who-i-am-without-being-told-again": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
-    # Música y vídeo (2026-08-26). `completable` según la ÚNICA pregunta de este módulo, hecha a la frase
-    # de apertura: «ponme música» y «pon el vídeo de X» NO piden credencial, tarjeta, llamada ni un objeto
-    # real que no exista. Que el plató no tenga Spotify conectado no los mueve a `credentials`, y ésa es la
-    # distinción que este fichero existe para no perder: el camino sin cuenta (audio oculto de YouTube) es
-    # un camino de PRODUCTO, no una versión degradada esperando a que el operador desbloquee algo. Si
-    # alguien conecta Spotify mañana, el caso mide la otra rama; no cambia de segmento.
+    # Music and video (2026-08-26). `completable` according to this module’s SINGLE question, asked of the opening
+    # line: “play me music” and “play video X” do NOT request a credential, card, call, or nonexistent real object.
+    # The fact that the studio has no Spotify connection does not move them to `credentials`; that is the
+    # distinction this file exists to preserve: the account-free path (hidden YouTube audio) is a PRODUCT path,
+    # not a degraded version waiting for the operator to unblock something. If someone connects Spotify tomorrow,
+    # the case measures the other branch; its segment does not change.
     "play-music-and-build-playlist": _done(),
     "watch-a-video-not-listen-to-it": _done(),
-    # Segunda tanda (2026-08-27). Misma pregunta a la frase de apertura y misma respuesta: pegar dos enlaces
-    # y pedir vídeos sobre un tema no exigen credencial, tarjeta, llamada ni un objeto real que no exista.
-    # `build-a-video-playlist-from-links` NO es «caso de futuro» — su mecanismo llegó con V2-366 (add /
-    # play_item / next / previous), así que se conduce ya; escribir un caso ANTES que su mecanismo es la
-    # norma de la casa, pero gatearlo cuando el mecanismo YA está sería medir de menos.
+    # Second batch (2026-08-27). Same question asked of the opening line and same answer: pasting two links
+    # and requesting videos about a topic do not require a credential, card, call, or nonexistent real object.
+    # `build-a-video-playlist-from-links` is NOT a “future case” — its mechanism arrived with V2-366 (add /
+    # play_item / next / previous), so it is run now; writing a case BEFORE its mechanism is the house rule,
+    # but gating it when the mechanism is ALREADY there would under-measure.
     "build-a-video-playlist-from-links": _done(),
     "find-videos-on-a-topic-no-ai-slop": _done(),
-    # Mensajería como widget principal + ciclo de vida de agenda (V2-521/V2-473, 2026-08-31). Los cinco son
-    # `completable` por la ÚNICA pregunta de este módulo, hecha a la frase de apertura: ninguno pide una
-    # credencial que falte para JUZGARLO — precisamente porque sus checks juzgan la conducta con el estado
-    # real del plató (WhatsApp sin vincular → la verdad con salida; el correo → el MONTAJE del panel, nunca
-    # la conexión). Es la misma distinción que dejó a `play-music-and-build-playlist` en completable: el
-    # camino sin cuenta es un camino de PRODUCTO, no una versión degradada esperando un desbloqueo.
+    # Messaging as the primary widget + calendar lifecycle (V2-521/V2-473, 2026-08-31). All five are
+    # `completable` under this module’s SINGLE question, asked of the opening line: none requests a credential
+    # missing to JUDGE IT — precisely because their checks judge behavior against the studio’s real state
+    # (unlinked WhatsApp → the truthful outcome; email → the panel SETUP, never the connection). It is the same
+    # distinction that left `play-music-and-build-playlist` completable: the account-free path is a PRODUCT path,
+    # not a degraded version waiting for an unblock.
     "show-my-messages": _done(),
     "connect-email-by-voice": _done(),
     "dictate-a-reply-honestly": _done(),
     "agenda-appointment-lifecycle": _done(),
     "what-does-my-week-look-like": _done(),
-    # ── CASOS DE FUTURO: escritos antes que su mecanismo, y GATEADOS por él ────────────────────────────
-    # No es «capability» en el sentido viejo (una capacidad que nadie ha planificado): es una capacidad con
-    # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
-    # conducirlos — el veredicto ya está escrito en la iniciativa, y gastar la conversación solo añadiría
-    # una ronda duplicada al paraguas.
-    # DESGATEADO 2026-08-21: V2-259 completa (F1+F2+F3+F4, `b8a1415` + `f3052f9`). El caso deja de ser de
-    # futuro y pasa a conducirse en cada paseo como cualquier otro — que es el punto entero de haberlo escrito
-    # antes que el mecanismo: el listón se fijó cuando todavía no se sabía qué iba a hacer el código.
+    # ── FUTURE CASES: written before their mechanism, and GATED by it ────────────────────────────
+    # This is not `capability` in the old sense (a capability nobody has planned): it is a capability with
+    # an open initiative and a concrete phase. That is why these have `blocked_by` and the harness refuses to
+    # run them — the verdict is already written in the initiative, and spending the conversation would only add
+    # a duplicate round to the umbrella.
+    # UNGATED 2026-08-21: V2-259 complete (F1+F2+F3+F4, `b8a1415` + `f3052f9`). The case is no longer future
+    # work and is run on every pass like any other — the whole point of writing it before the mechanism is that
+    # the bar was set when nobody yet knew what the code would do.
     "two-searches-two-sheets": _done(),
     "repeat-a-finished-search": _future(
         "los candidatos de una búsqueda terminada no sobreviven al encargo siguiente: la hoja se ESTRENA "
@@ -177,9 +177,9 @@ SEGMENTS: dict[str, Segment] = {
     "search-buy-guitar": _done(),
     "search-secondhand-monitor": _done(),
     "cheapest-monitor": _done(),
-    # Un dato del mundo con FUENTE: la entrega ES la respuesta (tiempo y distancia reales, con tráfico), así que
-    # no hay muro que la pare — ni cuenta, ni tarjeta, ni capacidad que falte. Se puntúa el resultado ENTERO, y
-    # ahí está su gracia: si el agente contesta «unas 2 horas» de memoria y la hoja está vacía, el caso FALLA.
+    # A sourced fact about the world: the deliverable IS the answer (real time and distance, with traffic), so
+    # there is no wall to stop it — no account, card, or missing capability. The FULL result is scored, and that
+    # is the point: if the agent answers “about 2 hours” from memory and the sheet is empty, the case FAILS.
     "driving-time-with-traffic": _done(),
     "find-best-hotel-city": _done(),
     "hotel-under-15-days": _done(),
@@ -246,7 +246,7 @@ SEGMENTS: dict[str, Segment] = {
     # ── CAPABILITY · no credential unblocks these; we have to build something ──────────────────────────────
     "negotiate-lower-phone-bill": _cap("la capacidad de LLAMAR por teléfono, que no existe en el motor"),
     "grocery-restock-reactive": _cap("una señal de consumo (nadie mide la leche que queda) y una cuenta de compra"),
-    # El canal de envío ya NO falta (V2-521, 2026-08-31); falta a quién mandarlo.
+    # The sending channel is NO LONGER missing (V2-521, 2026-08-31); what is missing is who to send it to.
     "split-dinner-bill-friends": _cap("resolución de contactos: a quién se le manda (V2-523, sin construir)"),
     # tier 6 — agent-to-agent over email: needs BOTH an email connector and a second agent to negotiate with.
     # The second agent is the harder half: the harness's DRIVE model plays the USER, and nothing in the suite
@@ -260,12 +260,12 @@ SEGMENTS: dict[str, Segment] = {
     "resolve-meetup-conflict": _cap("un agente PAR con el que negociar por email"),
     "split-airbnb-with-marta": _cap("un agente PAR con el que negociar por email"),
     "split-airbnb-with-jordan": _cap("un agente PAR con el que negociar por email"),
-    # tier 7 — WhatsApp/Telegram. Hasta el 2026-08-31 lo que faltaba aquí era ENVIAR, y ya no: V2-521 puso a
-    # los dos conectores a drenar `msg.reply` y entregar. Lo que sigue faltando es el paso SIGUIENTE, y hay
-    # que decirlo con precisión o quien coja esto construye lo que ya está: sabemos mandar un mensaje por
-    # WhatsApp, y no sabemos a QUIÉN — «el agente de Pedro» no resuelve a ningún handle porque no existe la
-    # agenda de contactos (V2-523). `missing` se cita literal en la nota del juez, así que una frase caduca
-    # ahí no es cosmética: rebaja el caso por un motivo que no es el suyo.
+    # tier 7 — WhatsApp/Telegram. Until 2026-08-31 what was missing here was SENDING, and no longer is: V2-521
+    # made both connectors drain `msg.reply` and deliver it. What is still missing is the NEXT step, and it must
+    # be stated precisely or whoever picks this up will build what already exists: we know how to send a message
+    # over WhatsApp, but not to WHOM — “Pedro’s agent” does not resolve to any handle because the contact book
+    # does not exist (V2-523). `missing` is quoted literally in the judge’s note, so an outdated sentence there
+    # is not cosmetic: it downgrades the case for the wrong reason.
     "coordinate-lunch-whatsapp": _cap("resolver «el agente de Pedro» a un contacto real (V2-523, sin construir)"),
     "coordinate-dinner-whatsapp": _cap("resolver «el agente de Alex» a un contacto real (V2-523, sin construir)"),
     "group-plan-three-friends": _cap("resolver tres contactos y sus canales (V2-523, sin construir)"),
@@ -294,7 +294,7 @@ def is_completable(scenario_id: str) -> bool:
 
 
 def blocked_by(scenario_id: str) -> tuple[str, ...]:
-    """Las tareas de roadmap pendientes que gatean este caso. Vacío = se puede conducir hoy."""
+    """The pending roadmap tasks that gate this case. Empty = it can be run today."""
     seg = segment_of(scenario_id)
     return seg.blocked_by if seg else ()
 
@@ -306,50 +306,50 @@ def blocked_by(scenario_id: str) -> tuple[str, ...]:
 #   · remember-and-remind-deadline → lands in memory + the scheduler, verified through `scheduled_jobs`.
 #   · build-workout-tracker-widget → the deliverable IS a new widget; here creating one is the point, not a bug.
 #   · three-tasks-at-once          → judged on COORDINATION, not on any one task finishing.
-#   · play-music-and-build-playlist → lo que se entrega es SONIDO y una lista en el store del widget; pedirle
-#                                     una hoja de resultados premiaría enseñar candidatos en vez de poner música.
-#   · watch-a-video-not-listen-to-it → lo que se entrega es un vídeo EN PANTALLA; el widget `youtube` ES la
-#                                     superficie, así que una hoja aparte sería una segunda pantalla de más.
+#   · play-music-and-build-playlist → what is delivered is SOUND and a list in the widget store; requesting a
+#                                     results sheet would reward showing candidates instead of playing music.
+#   · watch-a-video-not-listen-to-it → what is delivered is a video ON SCREEN; the `youtube` widget IS the
+#                                     surface, so a separate sheet would be an unnecessary second screen.
 FINDINGS_EXEMPT = {
     "quick-fact-opening-hours",
     "remember-and-remind-deadline",
-    # · dentist-appointment-into-agenda → lo entregado es una CITA en la agenda con su aviso, no una lista
-    #   de opciones: la superficie es el widget de agenda + scheduled_jobs, no la hoja de resultados.
+    # · dentist-appointment-into-agenda → what is delivered is an APPOINTMENT in the calendar with its alert,
+    #   not a list of options: the surface is the calendar widget + scheduled_jobs, not the results sheet.
     "dentist-appointment-into-agenda",
-    # · find-a-future-release-and-remind-me → lo entregado es UN hecho (una fecha) y su aviso, no una lista
-    #   de candidatos: el presupuesto de hallazgos no aplica.
+    # · find-a-future-release-and-remind-me → what is delivered is ONE fact (a date) and its alert, not a list
+    #   of candidates: the findings budget does not apply.
     "find-a-future-release-and-remind-me",
-    # · knows-who-i-am-without-being-told-again → lo entregado es una CONVERSACIÓN que aplica lo que ya sabía;
-    #   no hay hallazgos que presupuestar.
+    # · knows-who-i-am-without-being-told-again → what is delivered is a CONVERSATION that applies what it already
+    #   knew; there are no findings to budget.
     "knows-who-i-am-without-being-told-again",
     "build-workout-tracker-widget",
     "three-tasks-at-once",
     "play-music-and-build-playlist",
     "watch-a-video-not-listen-to-it",
-    # · build-a-video-playlist-from-links → lo entregado es una LISTA DENTRO del widget de vídeo, que ya es
-    #   la superficie; una hoja de resultados al lado sería una segunda pantalla contando lo mismo.
+    # · build-a-video-playlist-from-links → what is delivered is a LIST WITHIN the video widget, which is already
+    #   the surface; a results sheet beside it would be a second screen counting the same thing.
     "build-a-video-playlist-from-links",
-    # · show-real-photo-of-a-new-car → lo entregado es la FOTO, y su superficie es el visor `imagenes`. Es la
-    #   misma frontera que la línea de arriba, un medio más allá (V2-402 la fijó para el vídeo, V2-457 para la
-    #   imagen): lo que se VE tiene su widget, la hoja es para INFORMACIÓN. Darle el contrato de hallazgos le
-    #   diría al juez que espere una lista en la hoja — o sea, le pediría al agente exactamente el defecto que
-    #   este caso existe para medir.
+    # · show-real-photo-of-a-new-car → what is delivered is the PHOTO, and its surface is the `imagenes` viewer.
+    #   It is the same boundary as the line above, one medium further (V2-402 set it for video, V2-457 for the
+    #   image): what you SEE has its widget, while the sheet is for INFORMATION. Giving it the findings contract
+    #   would tell the judge to expect a list in the sheet — asking the agent for exactly the defect this case
+    #   exists to measure.
     "show-real-photo-of-a-new-car",
-    # · show-my-messages / connect-email-by-voice / dictate-a-reply-honestly → la superficie es el widget de
-    #   mensajería (su lista, su panel de canales, su confirm de reply); una hoja de resultados al lado sería
-    #   la misma segunda pantalla que ya se rechazó para música y vídeo.
+    # · show-my-messages / connect-email-by-voice / dictate-a-reply-honestly → the surface is the messaging
+    #   widget (its list, channel panel, and reply confirmation); a results sheet beside it would be the same
+    #   second screen already rejected for music and video.
     "show-my-messages",
     "connect-email-by-voice",
     "dictate-a-reply-honestly",
-    # · agenda-appointment-lifecycle / what-does-my-week-look-like → lo entregado son CITAS en la agenda (y
-    #   la lectura honesta de ellas), la misma frontera que dentist-appointment-into-agenda.
+    # · agenda-appointment-lifecycle / what-does-my-week-look-like → what is delivered is APPOINTMENTS in the
+    #   calendar (and an honest reading of them), the same boundary as dentist-appointment-into-agenda.
     "agenda-appointment-lifecycle",
     "what-does-my-week-look-like",
 }
-# Y el que SÍ entrega hallazgos, dicho para que no se arrastre por parecido temático: en
-# `find-videos-on-a-topic-no-ai-slop` el operador pidió ELEGIR ÉL entre 3 o 4 opciones con nombre. Eso es
-# exactamente una lista corta que mirar, así que le toca el contrato de hallazgos como a cualquier búsqueda
-# — que sea multimedia no lo exime. Poner un vídeo a reproducir ahí sería contestar otra pregunta.
+# And the one that DOES deliver findings, stated so it is not dragged along by thematic similarity: in
+# `find-videos-on-a-topic-no-ai-slop` the operator asked to CHOOSE among 3 or 4 named options. That is exactly
+# a shortlist to inspect, so it gets the findings contract like any search — being multimedia does not exempt it.
+# Playing a video there would answer a different question.
 
 
 def delivers_findings(scenario_id: str) -> bool:
