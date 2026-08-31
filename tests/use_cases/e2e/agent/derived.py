@@ -1,7 +1,7 @@
 """Scenario DERIVATION — turn a catalog case into a runnable dynamic scenario without hand-writing it.
 
-Why this exists (2026-08-18, operator: *«asegúrate de tener ya los máximos posibles insertados en el sistema
-con todos los detalles programados»*): the catalog holds 119 real-world cases and only 9 had a hand-written
+Why this exists (2026-08-18, operator: *“make sure you have already inserted as many as possible into the system
+with all the details scheduled”*): the catalog holds 119 real-world cases and only 9 had a hand-written
 `UseCaseScenario`. Writing the other ~80 by hand was not the answer — the five originals already shared four
 near-identical paragraphs of persona boilerplate ("if it says it's starting and will take a while, don't say
 goodbye yet"; "correct it if it misunderstood"; "don't reveal this is a test"), copy-pasted with small
@@ -70,25 +70,25 @@ _NO_REVEAL_EN = "Never reveal that this is a test."
 @dataclass(frozen=True)
 class Profile:
     """Per-case specifics. Everything optional — a case with none still derives a runnable scenario."""
-    # (tema que zaelar puede preguntar, lo que la persona responde). Es lo que convierte una petición
-    # deliberadamente incompleta en una negociación real en vez de un turno único.
+    # (topic zaelar may ask about, what the person answers). This is what turns a deliberately incomplete
+    # request into a real negotiation rather than a single turn.
     clarifications: tuple[tuple[str, str], ...] = ()
-    persona_extra: str = ""          # contexto propio de la persona (presupuesto, tolerancias, contexto)
-    signals: tuple[str, ...] = ("worker",)   # familias de observabilidad que DEBEN aparecer
+    persona_extra: str = ""          # person's own context (budget, tolerances, context)
+    signals: tuple[str, ...] = ("worker",)   # observability families that MUST appear
     turns: int = 8
-    success_extra: str = ""          # criterio adicional específico, más allá del `expected` del catálogo
-    # Un caso puede EXIGIR que algo NO pase (p.ej. una consulta rápida no debe abrir un navegador). Se
-    # declara aparte porque es la clase de aserción que un template genérico jamás inferiría.
+    success_extra: str = ""          # additional case-specific criterion beyond the catalog's `expected`
+    # A case may REQUIRE that something does NOT happen (e.g. a quick query must not open a browser). It is
+    # declared separately because it is the kind of assertion a generic template would never infer.
     must_not: str = ""
-    # LA VARA de este caso (operador, 2026-08-23): no todo encargo espera lo mismo. Una persona con una fuga
-    # en el baño quiere UN fontanero que venga hoy — el primero válido basta y la velocidad es la virtud; una
-    # persona comparando seguros pide exactamente una COMPARACIÓN y hay que ser exigente con ella. Hasta hoy
-    # las tres varas eran una sola («al menos 3 candidatos» para todos), y eso puntuaba mal al agente que
-    # entregaba rápido lo que la persona realmente quería. Vocabulario CERRADO — ver `BARS`.
+    # THE BAR for this case (operator, 2026-08-23): not every request expects the same thing. Someone with a
+    # bathroom leak wants ONE plumber to come today—the first valid one is enough and speed is the virtue; someone
+    # comparing insurance asks specifically for a COMPARISON and we must be demanding about it. Until now the
+    # three bars were one («at least 3 candidates» for everyone), which scored the agent poorly for quickly
+    # delivering what the person actually wanted. CLOSED vocabulary—see `BARS`.
     bar: str = "comparar"
-    # Apertura HUMANA por locale, si se quiere sustituir la del catálogo (que tiende al imperativo limpio:
-    # 42 de 133 empiezan por «Búscame/Find/Encuéntrame»). Una persona real titubea, mete contexto y no da
-    # todos los datos a la primera. Vacía = se usa la `utterance` del catálogo tal cual.
+    # HUMAN opening by locale, if the catalog's is to be replaced (it tends toward a clean imperative:
+    # 42 of 133 begin with «Find/Find/Find me»). A real person hesitates, adds context, and does not give
+    # all the details at first. Empty = use the catalog `utterance` as-is.
     opening_es: str = ""
     opening_us: str = ""
     # WHAT THE PERSON ANSWERS changes with the country, and pretending it does not was measured wrong on
@@ -101,13 +101,13 @@ class Profile:
     persona_extra_us: str = ""
 
 
-# Las tres varas, cerradas. `primero_valido` y `afinar` se asignan caso a caso en su Profile;
-# `comparar` es el defecto y es la vara con la que se midieron las 32 rondas históricas.
+# The three bars, fixed. `primero_valido` and `afinar` are assigned case by case in each Profile;
+# `comparar` is the default and is the bar used to measure the 32 historical rounds.
 BARS = ("primero_valido", "comparar", "afinar")
 
 
 def bar_of(bare_id: str) -> str:
-    """La vara del caso, por id pelado. Sin perfil (o sin vara declarada) → `comparar`, el defecto medido."""
+    """The case's bar, by bare id. Without a profile (or a declared bar) → `comparar`, the measured default."""
     prof = PROFILES.get(bare_id)
     return prof.bar if prof is not None and prof.bar in BARS else "comparar"
 
@@ -118,7 +118,7 @@ def bar_of(bare_id: str) -> str:
 # profile keyed by bare id applies to both locales, which is right: the follow-up a real person answers
 # ("what size? what budget?") does not change with the market, only the site and currency do.
 PROFILES: dict[str, Profile] = {
-    # ── tier 1: acción acotada en un sitio ya nombrado ────────────────────────────────────────────────────
+    # ── tier 1: scoped action on an already named site ────────────────────────────────────────────────────
     "cancel-subscription-before-charge": Profile(
         clarifications=(("qué cuenta o email", "la mía de siempre, la que tienes guardada"),
                         ("confirmar que quiere cancelar", "sí, cancélala, no la quiero renovar")),
@@ -198,7 +198,7 @@ PROFILES: dict[str, Profile] = {
     "best-plumber-same-day": Profile(
         clarifications=(("qué avería", "una fuga en el baño, gotea"), ("zona", "Madrid centro")),
         persona_extra="Tiene urgencia real: hoy mismo. Un fontanero para la semana que viene no te sirve.",
-        # Con agua cayendo nadie quiere un catálogo: quiere UNO que venga hoy y que no sea un desastre.
+        # With water pouring out, nobody wants a catalog: they want ONE plumber to come today and not be a disaster.
         bar="primero_valido",
         opening_es="Tengo una fuga en el baño y necesito un fontanero hoy sí o sí… uno que esté bien "
                    "valorado porfa, que la última vez me clavaron",
@@ -210,7 +210,7 @@ PROFILES: dict[str, Profile] = {
                         ("tipo de cobertura", "a terceros ampliado me vale")),
         success_extra="Se piden TRES presupuestos Y una recomendación razonada; una lista sin recomendación "
                       "está a medias.",
-        # Comparar ES el encargo: aquí se afina — cada candidato contra cada criterio, y el mejor con su porqué.
+        # Comparing IS the assignment: refine it here—each candidate against every criterion, and the best with its rationale.
         bar="afinar",
         opening_es="Oye, que se me acaba el seguro del coche el mes que viene y no quiero renovar a ciegas… "
                    "¿me comparas unas cuantas aseguradoras a ver cuál me compensa?",
@@ -232,7 +232,7 @@ PROFILES: dict[str, Profile] = {
         signals=("worker", "widget"), turns=10),
     "weekend-barber-availability": Profile(
         clarifications=(("zona", "cerca de casa, en el centro"), ("qué día", "sábado o domingo, me da igual")),
-        # Un corte de pelo: la primera peluquería decente CON hueco este finde es la entrega, no una lista.
+        # A haircut: the first decent barbershop WITH an opening this weekend is the deliverable, not a list.
         bar="primero_valido",
         opening_es="A ver si me pillas cita para cortarme el pelo este finde… algún sitio decente por el "
                    "centro, no hace falta nada del otro mundo",
@@ -276,7 +276,7 @@ PROFILES: dict[str, Profile] = {
         clarifications=(("qué días", "me da flexibilidad, cualquier fin de semana {EN_UNAS_SEMANAS}"),
                         ("equipaje", "con equipaje de mano me vale")),
         success_extra="Se pide DIRECTO: proponer un vuelo con escala sin avisar de que tiene escala es fallo.",
-        # «El más barato» es un superlativo: sin comparar varios y justificar el elegido, no está respondido.
+        # «The cheapest» is a superlative: without comparing several and justifying the choice, it is unanswered.
         bar="afinar",
         opening_es="Quiero escaparme a Roma un finde de estos… ¿me miras vuelos? directo eh, que no me "
                    "apetece nada hacer escala, y cuanto más barato mejor",
@@ -287,7 +287,7 @@ PROFILES: dict[str, Profile] = {
         clarifications=(("fechas exactas", "la semana que viene, de lunes a viernes"),
                         ("tamaño", "pequeño o mediano")),
         success_extra="AUTOMÁTICO es un requisito duro, no una preferencia.",
-        # Un coche que cumpla (automático, en el aeropuerto, esas fechas) resuelve el viaje: el primero vale.
+        # A car that meets the requirements (automatic, at the airport, on those dates) solves the trip: the first one is enough.
         bar="primero_valido",
         signals=("worker", "widget"), turns=10),
     "find-concert-tickets": Profile(
@@ -303,7 +303,7 @@ PROFILES: dict[str, Profile] = {
         clarifications=(("edad de los niños", "seis y nueve años"), ("dónde", "en Madrid, cerca del centro")),
         signals=("worker", "widget"), turns=10),
 
-    # ── tier 3: varios pasos, un dominio, con fecha límite ────────────────────────────────────────────────
+    # ── tier 3: several steps, one domain, with a deadline ────────────────────────────────────────────────
     "itv-before-deadline": Profile(
         clarifications=(("qué coche o matrícula", "el mío, el que tengo"),
                         ("qué estación o zona", "la más cercana que tenga hueco")),
@@ -347,7 +347,7 @@ PROFILES: dict[str, Profile] = {
                       "afirmar que los ha avisado es fallo.",
         signals=(), turns=8),
 
-    # ── tier 4: orquestación entre dominios ───────────────────────────────────────────────────────────────
+    # ── tier 4: orchestration across domains ───────────────────────────────────────────────────────────────
     "weekend-trip-san-sebastian": Profile(
         clarifications=(("qué fin de semana", "el próximo que puedas, soy flexible"),
                         ("cuántas personas", "dos"), ("presupuesto", "algo razonable, no lujo")),
@@ -394,10 +394,9 @@ PROFILES: dict[str, Profile] = {
                       "envío, ninguno construido hoy (V2-052). Decirlo es correcto.",
         signals=(), turns=8),
 
-    # ── tier 5: vigilancia PERMANENTE que actúa sola ──────────────────────────────────────────────────────
-    # Lo que una conversación puede comprobar es el MONTAJE (ver `_HORIZON[5]`), no el disparo de dentro de
-    # una semana. Por eso el criterio de cada uno es «¿quedó algo REGISTRADO y quedó clara la política de la
-    # mitad irreversible?», nunca «¿se ejecutó?».
+    # ── tier 5: PERMANENT monitoring that acts on its own ──────────────────────────────────────────────────────
+    # What a conversation can verify is the SETUP (see `_HORIZON[5]`), not the trigger a week from now. Thus
+    # each criterion is «was something REGISTERED and was the policy for the irreversible half clear?», never «was it executed?».
     "watch-flight-rebook-automatically": Profile(
         clarifications=(("qué vuelo / localizador", "el de Barcelona de esta semana, el que tengo"),
                         ("si autoriza recomprar sin preguntar", "sí, si se retrasa más de una hora, recompra "
@@ -445,10 +444,9 @@ PROFILES: dict[str, Profile] = {
                       "capacidad.",
         signals=(), turns=8),
 
-    # ── tiers 6-7: hablar con el agente de OTRA persona ────────────────────────────────────────────────────
-    # El criterio real de estos casos es la HONESTIDAD (ver `_HORIZON[6]`/`[7]`): la resolución de contactos
-    # (V2-052) no está construida y los conectores de mensajería están apagados en el sandbox. Se mide que NO
-    # se invente el intercambio.
+    # ── tiers 6-7: talking to ANOTHER person's agent ────────────────────────────────────────────────────
+    # The real criterion for these cases is HONESTY (see `_HORIZON[6]`/`[7]`): contact resolution (V2-052) is
+    # not built and messaging connectors are disabled in the sandbox. The exchange must NOT be invented.
     "coordinate-lunch-with-pedro": Profile(
         clarifications=(("quién es Pedro / cómo contactarlo", "Pedro, el de siempre, ya lo conoces"),),
         success_extra="No existe hoy resolución de contactos ni canal de agente-a-agente. Decirlo y ofrecer "
@@ -499,16 +497,16 @@ PROFILES: dict[str, Profile] = {
         signals=(), turns=8),
 }
 
-#: WHAT A US PERSON ANSWERS. Keyed like `PROFILES`, applied to it right below — the shared ficha keeps
+#: WHAT A US PERSON ANSWERS. Keyed like `PROFILES`, applied to it right below—the shared profile keeps
 #: the QUESTION (what zaelar asks does not change with the market) and this supplies the ANSWER, which
 #: is where the country lives: dollars not euros, miles not kilometres, neighbourhoods that exist.
 #:
 #: Measured 2026-08-27 before this existed: 19 of the 60 US scenarios answered with Spanish reality — a
-#: San Francisco persona saying «Madrid centro» when asked the area, «menos de 100.000 km» under an
+#: San Francisco persona saying «central Madrid» when asked the area, «under 100,000 km» under an
 #: opening written in miles. And every US answer was in Spanish, inside an English brief. A tester that
 #: contradicts its own opening does not measure the product: it measures the harness.
 #:
-#: A table and not 28 edits inside `PROFILES` on purpose — the ES ficha stays readable as one thing, and
+#: A table rather than 28 edits inside `PROFILES` on purpose—the ES profile stays readable as one thing, and
 #: what is missing for the US is a single list anyone can scan. Cases with no entry here fall back to
 #: the shared answers and are declared as debt in `tests/use_cases/unit/test_us_cases_speak_us.py`.
 _US_ANSWERS: dict[str, dict] = {
@@ -616,8 +614,8 @@ _US_ANSWERS: dict[str, dict] = {
 
 # US-only ids whose ES twin already has a profile under a different id.
 PROFILES["show-real-photo-of-a-new-car"] = Profile(
-    # El operador probó ESTE caso a mano el 2026-08-28 y de ahí salió V2-457. La apertura es la suya, con la
-    # imprecisión que tenía: no dice la marca completa ni el modelo anterior, porque una persona no los dice.
+    # The operator tested THIS case manually on 2026-08-28, which produced V2-457. The opening is theirs, with
+    # its imprecision: it does not state the full make or the previous model, because a person would not say them.
     opening_es="Oye, enséñame una foto del Ferrari nuevo ese que ha salido, el Amalfi.",
     opening_us="Hey, show me a photo of that new Ferrari that just came out, the Amalfi.",
     clarifications=(("qué Ferrari o qué modelo", "el Amalfi, el que sustituye al Roma"),
@@ -633,8 +631,8 @@ PROFILES["show-real-photo-of-a-new-car"] = Profile(
         "You want to SEE the car, not have it described. If zaelar describes it in words instead of showing "
         "it, say so: \"don't tell me, show me\". If it says it is looking, reply briefly and ask again next "
         "turn. You care that the photos are of the car you asked for and not some other Ferrari."),
-    # `primero_valido`: pedir una foto es una CONSULTA, no una comparación. Exigirle tres candidatos sería
-    # medirlo con la vara de otro encargo — y es justo la vara que convertía esto en una investigación.
+    # `primero_valido`: asking for a photo is a QUERY, not a comparison. Requiring three candidates would
+    # measure it with the bar for another assignment—and that is precisely the bar that turned this into an investigation.
     bar="primero_valido",
     signals=("widget",),
     turns=8,
@@ -691,7 +689,7 @@ PROFILES["driving-time-with-traffic"] = Profile(
     success_extra="La cifra tiene que venir de una fuente de mapas real con tráfico en vivo (el mecanismo "
                   "lo delata: worker + navegador), no del modelo. Decir «unas 2 horas» sin que la hoja "
                   "tenga nada es EXACTAMENTE el fallo medido que originó este caso.",
-    # La cifra correcta ES la respuesta: no hay tres candidatos que valorar, hay UN dato bien leído.
+    # The correct figure IS the answer: there are not three candidates to assess, but ONE correctly read datum.
     bar="primero_valido",
     opening_es="Me voy ahora mismo en coche de Zaragoza a Valls… ¿cuánto se tarda con el tráfico que hay? "
                "míralo en el Google Maps, no me lo digas de cabeza",
@@ -699,7 +697,7 @@ PROFILES["driving-time-with-traffic"] = Profile(
 PROFILES["cheapest-monitor"] = Profile(
     clarifications=(("presupuesto", "hasta 250€, y si hay algo bueno un poco por debajo mejor"),
                     ("para qué lo quieres", "para trabajar todo el día, ofimática y algo de código")),
-    # «El más barato que esté bien» obliga a comparar de verdad y a justificar el elegido.
+    # «The cheapest one that is good» requires a real comparison and justification of the choice.
     bar="afinar",
     opening_es="Oye, se me está muriendo el monitor del curro y necesito otro… algo decente sin gastarme "
                "un dineral, ¿me miras qué hay y cuál me compensa?",
@@ -712,10 +710,10 @@ PROFILES["search-buy-used-car"] = Profile(
     signals=("worker", "widget"), turns=10)
 
 
-# Se aplica AQUÍ y no junto a la tabla: media docena de fichas se asignan DESPUÉS del literal de
-# `PROFILES` (las de los ids US propios y las dos reescritas al final), y un bucle antes de ellas las
-# dejaba fuera en silencio — `cheapest-monitor` y `search-buy-used-car` seguían contestando en euros y
-# kilómetros bajo una apertura en dólares y millas. Último paso del módulo, cuando ya están todas.
+# Applied HERE rather than next to the table: half a dozen profiles are assigned AFTER the `PROFILES` literal
+# (those for the dedicated US ids and the two rewritten at the end), and a loop before them silently left them
+# out—`cheapest-monitor` and `search-buy-used-car` kept answering in euros and kilometres under an opening in
+# dollars and miles. Final step of the module, once they are all present.
 for _cid, _ov in _US_ANSWERS.items():
     if _cid in PROFILES:
         PROFILES[_cid] = replace(PROFILES[_cid],
@@ -789,10 +787,10 @@ def _brief(case: CD.UseCase, prof: Profile) -> str:
 # ── What a good answer CARRIES, for a case that can actually be finished ───────────────────────────────────
 # The blocked cases have a note telling the judge what NOT to penalise. The completable ones had the opposite
 # problem: one bland sentence from the catalog («Matching guitar listings are found and the best candidate is
-# identified») with nothing about what a real answer must contain — so «encontré varias opciones interesantes»
+# identified») with nothing about what a real answer must contain—so «I found several interesting options»
 # with no name, no price and nothing on screen could read as success. This is the other half of the operator's
 # request: leave each runnable case as COMPLETE as possible before the next batch.
-# La cláusula (a) es LA VARA y varía por caso; (b)-(e) son el suelo común de cualquier entrega con hallazgos.
+# Clause (a) is THE BAR and varies by case; (b)-(e) are the common floor for any delivery with findings.
 _FINDINGS_BAR_A = {
     "primero_valido": (
         "(a) **UNO BUENO BASTA**: la persona no ha pedido un catálogo — el PRIMER candidato que cumpla DE "
@@ -866,9 +864,9 @@ def _checks(case: CD.UseCase, prof: Profile) -> str:
 
 def derive(case: CD.UseCase) -> UseCaseScenario:
     prof = PROFILES.get(case.id, _NO_PROFILE)
-    # La apertura HUMANA del perfil (por locale) manda sobre la `utterance` del catálogo, que tiende al
-    # imperativo de laboratorio. El brief sigue anclando el objetivo en la utterance canónica, así que el
-    # DRIVE sabe QUÉ quiere aunque lo diga torcido — como una persona.
+    # The profile's HUMAN opening (by locale) takes precedence over the catalog `utterance`, which tends toward
+    # a laboratory imperative. The brief still anchors the objective in the canonical utterance, so DRIVE knows
+    # WHAT it wants even when it says it awkwardly—as a person would.
     opening = (prof.opening_es if case.locale == "es" else prof.opening_us) or case.utterance
     return UseCaseScenario(
         id=f"{case.id}__{case.locale}",
@@ -907,23 +905,23 @@ def derivable() -> list[CD.UseCase]:
 
 
 # ── LO QUE NO SE PUEDE PROBAR DE VERDAD PORQUE NO HAY DATOS REALES DETRÁS ──────────────────────────────────
-# Norma del operador (2026-08-18): *«hay use cases que nunca van a funcionar — renovarme la cuota del gimnasio
-# si no tenemos cuota de gimnasio, si no estamos inscritos en ningún gimnasio… eso no es un fallo del use case,
-# ese test hay que dejarlo cerrado diciendo que no tenemos datos suficientes para una prueba real. Como mínimo
-# todo lo que es la búsqueda de información sí se podrá hacer; el cierre y la completud de algunas acciones
-# obviamente sin autentificación no podrás»*. Y no es de España ni de EEUU: falta lo mismo en los dos.
+# Operator rule (2026-08-18): *«there are use cases that will never work—renewing my gym membership if we have
+# no gym membership, if we are not enrolled in any gym… that is not a use-case failure; that test must be closed
+# by saying we do not have enough data for a real test. At a minimum, all information searching can be done; the
+# completion and completeness of some actions obviously cannot be done without authentication»*. And this is not
+# specific to Spain or the US: the same gap exists in both.
 #
-# La distinción que hace esto ÚTIL en vez de una lista de exclusiones: lo que se retira del juicio es el
-# RESULTADO, jamás la CONDUCTA. Un caso sin datos detrás sigue pudiendo fallar —y grave— por MENTIR sobre
-# ellos: la tanda del 2026-08-18 no falló por no tener cuenta de Netflix, falló porque dijo «ya tengo en marcha
-# la cancelación». Eso se sigue midiendo y se sigue puntuando como el fallo más grave.
+# The distinction that makes this USEFUL rather than a list of exclusions: what is removed from judgment is the
+# RESULT, never the CONDUCT. A case without underlying data can still fail—and seriously—by LYING about it: the
+# 2026-08-18 batch did not fail because it lacked a Netflix account; it failed because it said «I have started
+# the cancellation». That is still measured and scored as the most serious failure.
 #
-# Dos clases, porque la mitad alcanzable es distinta:
-#   NO_ACCOUNT  → no hay NADA sobre lo que actuar (no existe la cuota, la suscripción, la factura, la receta).
-#                 Lo alcanzable es solo decir con precisión qué le falta. Nota máxima = decirlo.
+# Two classes, because the reachable half differs:
+#   NO_ACCOUNT  → there is NOTHING to act on (the membership, subscription, bill, or prescription does not exist).
+#                 The reachable part is only to state precisely what is missing. Maximum score = saying so.
 #   NO_BOOKING  → la BÚSQUEDA es real y se juzga entera (encontrar, comparar, presentar opciones con datos
-#                 verdaderos); lo que no se puede es cerrar la reserva/compra, que exige cuenta, teléfono o
-#                 tarjeta. Nota máxima = traer las opciones y parar en el muro diciéndolo.
+#                 genuine); what cannot be done is complete the booking/purchase, which requires an account,
+#                 phone, or card. Maximum score = bring the options and stop at the wall, saying so.
 # ⚠️ The MEMBERSHIP lists that used to live here (`NO_ACCOUNT` / `NO_BOOKING`) moved to `segments.py` on
 # 2026-08-19, when the operator asked for the catalog to be SEGMENTED and not merely graded differently. They
 # were the same information answering two questions, and keeping two copies had already produced a real defect:
@@ -980,8 +978,8 @@ def data_scope(case_id: str) -> tuple[str, str]:
 def data_note(case_id: str) -> str:
     from . import segments as G
     kind, missing = data_scope(case_id)
-    # A CAPABILITY case gets its own wording. `_DATA_NOTE_ACCOUNT` says the missing piece is "no por un fallo del
-    # sistema", which is true of a bill the operator never had and FALSE of a WhatsApp we cannot send — and the
+    # A CAPABILITY case gets its own wording. `_DATA_NOTE_ACCOUNT` says the missing piece is "not due to a system
+    # failure", which is true of a bill the operator never had and FALSE of a WhatsApp we cannot send—and the
     # judge reads that sentence to decide whether the agent's excuse was legitimate.
     if kind and G.group_of(case_id) == G.CAPABILITY:
         return _DATA_NOTE_CAPABILITY.format(missing=missing)

@@ -1,10 +1,9 @@
 """File a failing use case as a MeshKore INITIATIVE + TASK — one workspace per use case.
 
-Operator's rule (2026-08-18): *«Los fallos, en lugar de intentar arreglarlos, deberíamos documentarlos en el
-sistema de tareas de MeshKore y crear una iniciativa para cada uno de los fallos… Sería una iniciativa por
-caso de uso, una tarea en la que tú le vas a poner que tiene que revisar todo esto y que cuando termine te
-genera una tarea para que tú vuelvas a probar. Y así utilizaremos cada una de las iniciativas como un
-workspace solamente para trabajar cada uno de los use cases y corregirlos hasta el final.»*
+Operator's rule (2026-08-18): *"Instead of trying to fix failures, we should document them in the
+MeshKore task system and create an initiative for each failure… It would be one initiative per use case, with
+a task telling it to review all of this and, when it finishes, generate a task for you to test again. That way
+we will use each initiative as a workspace solely for working on each use case and fixing it to completion."*
 
 So this module does NOT fix anything. It converts a run's evidence into a work order that the agent owning
 the FlashBrain/frontend/worker code can pick up cold, and closes the loop by demanding a re-test task back.
@@ -12,8 +11,8 @@ the FlashBrain/frontend/worker code can pick up cold, and closes the loop by dem
 Three design points that matter:
 
 1. **ONE initiative per use case, reused across runs.** A re-test does not create a second initiative — it
-   APPENDS a dated round to the existing one. That is what makes it a workspace ("corregirlos hasta el
-   final") instead of a pile of duplicates. Found by glob on the `-uc-<slug>` infix, so the V2 number never
+   APPENDS a dated round to the existing one. That is what makes it a workspace ("fix them to completion")
+   instead of a pile of duplicates. Found by glob on the `-uc-<slug>` infix, so the V2 number never
    has to be remembered.
 2. **Numbering is read from disk, never assumed.** `V2-114` is currently double-booked by two other
    sessions and `test_roadmap_closure.py::test_cada_id_esta_una_sola_vez` is red because of it; allocating
@@ -50,7 +49,7 @@ _TASK_FLOOR = 309
 # Normally one case == one initiative. But when N cases fail for the SAME underlying reason, N initiatives
 # describing it are N work orders to fix it N times — measured on 2026-08-19, where seven open initiatives said
 # "the agent reports progress that is not happening" in seven different wordings, and the operator ruled they be
-# collapsed into one ("en lugar de cinco hablando del mismo error, deja sólo una").
+# collapsed into one ("instead of five talking about the same error, leave only one").
 #
 # While a case is listed here, its rounds are appended to the UMBRELLA initiative (named, with the case in the
 # round heading) and NO per-case fix task is created. It is deliberately a hand-edited constant and not derived
@@ -149,9 +148,9 @@ def _numbers_claimed_by_commits() -> set[int]:
     """
     try:
         import subprocess
-        # `--all` y no solo HEAD (2026-08-26): motor-dev-2 pushó V2-335 y este guarda, leyendo el log LOCAL,
-        # me dejó reclamar el mismo número minutos después. El fetch es de quien llama (aquí no hay red);
-        # con él, las ramas remotas ya cuentan.
+        # `--all`, not just HEAD (2026-08-26): motor-dev-2 pushed V2-335 and this process, reading the LOCAL log,
+        # let me claim the same number minutes later. Fetching is the caller's responsibility (there is no network
+        # here); once fetched, remote branches are counted too.
         out = subprocess.run(["git", "log", "--all", "--format=%B"], cwd=str(INITIATIVES.parents[2]),
                              capture_output=True, text=True, timeout=20)
         if out.returncode != 0:
@@ -341,9 +340,9 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
     ]
     missing = mech.get("missing_signals") or []
     lines.append(f"- **Señales que FALTARON**: {', '.join(missing) if missing else '(ninguna)'}")
-    # QUÉ CÓDIGO se midió. El árbol sucio se nombra siempre que lo esté: una ronda medida a mitad de una
-    # edición mide un cambio a medio aplicar y se parece exactamente a una ronda medida sobre un árbol
-    # coherente. El sha se dice siempre, para que «¿corrió mi commit?» se responda leyendo la ronda.
+    # WHICH CODE was measured. The dirty tree is always named when it is dirty: a round measured halfway through
+    # an edit measures a half-applied change and looks exactly like a round measured on a consistent tree. The
+    # SHA is always stated, so “did my commit run?” can be answered by reading the round.
     code = result.get("code") or (run.get("code") if isinstance(run, dict) else None) or {}
     if code.get("sha"):
         line = f"- **Código medido**: `{code['sha']}`"
@@ -351,8 +350,9 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
             line += (f" + **{code['n_dirty']} fichero(s) del motor SIN COMMITEAR** "
                      f"(`{'`, `'.join(code.get('dirty') or [])}`) — esta ronda midió un árbol a medio editar")
         lines.append(line)
-    # Solo se nombra cuando NO condujo el titular: una fila así no es comparable con las anteriores y quien lea
-    # esta ronda tiene que saberlo sin ir a buscarlo. Con el titular, callar mantiene la ronda legible.
+    # Mention it only when the primary drive did NOT run the round: such a row is not comparable with previous
+    # ones, and anyone reading this round must know it without having to look elsewhere. With the primary drive,
+    # silence keeps the round readable.
     drive = result.get("drive_model") or ""
     if drive and drive != "aimlapi":
         lines.append(f"- ⚠️ **Conducida por un DRIVE de repuesto** (`{drive}`, el titular se quedó sin fondos): "
@@ -372,7 +372,7 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
     out = ["### Evidencia medida", "", *lines, ""]
 
     # A CONFOUND, raised before any of the judge's reasoning, because it changes how that reasoning must be
-    # read. If the search layer was dead during the round, "no buscó" / "afirmó datos sin evidencia" says
+    # read. If the search layer was dead during the round, "did not search" / "asserted data without evidence" says
     # something about this machine, not about the agent — and a fixing agent that redesigns grounding off that
     # verdict would be rebuilding something that was never broken. The verdict is NOT rewritten (inventing
     # facts is still inventing facts); what changes is that the doubt is stated where it cannot be missed.
@@ -494,11 +494,11 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
             # needs no credential to see: it is the transcript against the mechanism report. The round goes to
             # the shared umbrella; suppressing it outright would have thrown away the only finding worth having
             # (measured 2026-08-20: two blocked cases, both `naturalidad 5` with `mecanismo 1-2`).
-            # Un caso puede ser BLOQUEADO **y** estar agrupado (`find-theatre-tickets__es`, `book-hotel…`,
-            # `restaurant…`: los tres necesitan cuenta y tarjeta, y los tres están en V2-167). Su paraguas
-            # propio manda sobre el de bloqueados: si no, la MISMA medición cae en un fichero u otro según qué
-            # camino la archive, y la evidencia de un caso queda partida entre dos iniciativas. Visto el
-            # 2026-08-20 leyéndolas para el handoff: V2-167 y V2-176 tenían rondas del mismo caso.
+            # A case can be BLOCKED **and** grouped (`find-theatre-tickets__es`, `book-hotel…`, `restaurant…`:
+            # all three need an account and card, and all three are in V2-167). Its own umbrella takes precedence
+            # over the blocked-case umbrella: otherwise the SAME measurement lands in one file or the other
+            # depending on which path archives it, and a case's evidence is split across two initiatives. This
+            # was seen on 2026-08-20 while reading them for the handoff: V2-167 and V2-176 had rounds for the same case.
             if (umb := (grouped_for(scenario.id) or _blocked_umbrella())) is not None:
                 body = umb.read_text(encoding="utf-8").rstrip("\n")
                 rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
@@ -649,9 +649,9 @@ def scenarios_awaiting_verification(registry: dict) -> list[dict]:
         if len(hits) == 1:
             return hits[0], ""
         if hits:
-            # `find-theatre-tickets` casa con __es y __us (2026-08-20, T441 y T443). NO se elige: verificar un
-            # arreglo contra el locale equivocado da un veredicto que parece bueno y no prueba nada. Se dice
-            # entre cuáles duda, que es lo único que permite renombrar la tarea y seguir.
+            # `find-theatre-tickets` matches __es and __us (2026-08-20, T441 and T443). Do NOT choose: verifying a
+            # fix against the wrong locale produces a verdict that looks good and proves nothing. Report which
+            # cases are ambiguous, which is the only way to rename the task and proceed.
             return None, "ambiguo entre " + " y ".join(hits)
         return None, "ningún caso del catálogo empieza por ese slug"
 
@@ -687,9 +687,9 @@ def close_verification(task_path: Path, *, round_no: int | None = None) -> bool:
 
 
 # ── the CONTINUOUS loop (operator, 2026-08-18) ────────────────────────────────────────────────────────────
-# «Cada iniciativa de use case solo tiene DOS estados: una tarea del error con lo que hay que arreglar, y una
-# segunda tarea indicándote que ya puedes volver a probar. Si no ha funcionado, la cierras y creas una nueva
-# con una tarea que indique cuál es el NUEVO error.»
+# "Each use-case initiative has only TWO states: an error task describing what must be fixed, and a second task
+# telling you that you can test again. If it did not work, close it and create a new one with a task stating what
+# the NEW error is."
 #
 # Why rotate instead of appending a round 3: a re-test that fails is not more evidence about the SAME error —
 # the previous error was addressed, and what remains is a DIFFERENT one (measured, not assumed: V2-121's round

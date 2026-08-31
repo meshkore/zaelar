@@ -1,33 +1,33 @@
-"""Casos de DESCUBRIMIENTO: «no sé qué hacer este fin de semana» — inferir, investigar y ofrecer catálogo.
+"""DISCOVERY cases: “I don't know what to do this weekend” — infer, research, and offer a catalogue.
 
-Encargo del operador (2026-08-19): *«esas tareas también son importantes: el ser capaz de investigar, saber un
-poquito qué le gusta al usuario a través de la memoria, y en ese momento intentar inferir y darle un catálogo
-de opciones»*. Y con una exigencia por disciplina: *«comprobar que es capaz de conectarse a diferentes páginas
-web relacionadas con esto»*.
+Operator's assignment (2026-08-19): *“those tasks are also important: being able to research, knowing a little
+about what the user likes through memory, and at that point trying to infer and give them a catalogue of
+options”*. And with a discipline-specific requirement: *“check that it is capable of connecting to different
+websites related to this”*.
 
-Lo que miden y NO miden los otros casos del arnés: el resto del catálogo son ENCARGOS (reserva esto, paga
-aquello, compárame lo otro) donde el usuario ya dijo lo que quiere. Aquí el usuario **no sabe lo que quiere**,
-así que la primera mitad del trabajo es adivinarlo bien, y eso solo se puede hacer con lo que el agente YA
-sabe de esa persona. De ahí que estos escenarios sean los primeros que SIEMBRAN MEMORIA
-(`memory_seed`): las preferencias se le cuentan al agente en una sesión ANTERIOR y distinta, se comprueba con
-un recall que aterrizaron, y solo entonces se abre la petición real en una ventana limpia. Si se dijeran en el
-mismo hilo, el caso mediría lectura de contexto y lo llamaríamos memoria.
+What the other harness cases do and do NOT measure: the rest of the catalogue consists of TASKS (book this,
+pay for that, compare the other thing) where the user has already said what they want. Here the user **does not
+know what they want**, so the first half of the work is guessing correctly, and that can only be done using
+what the agent ALREADY knows about that person. Hence these scenarios are the first to SEED MEMORY
+(`memory_seed`): the preferences are told to the agent in a separate, PRIOR session, a recall is used to check
+that they landed, and only then is the real request opened in a clean window. If they were stated in the same
+thread, the case would measure context reading and we would call it memory.
 
-Las CUATRO capacidades que se juzgan, en orden:
-  1. INFERIR de la memoria qué le puede gustar a ESTA persona (y no preguntar lo que ya tiene guardado).
-  2. Elegir las FUENTES adecuadas a la disciplina — una cartelera de teatro no se busca donde un track day.
-  3. Traer opciones REALES para la franja concreta, con su enlace.
-  4. Montar el catálogo en la HOJA DE RESULTADOS. Crear un widget nuevo para esto es un FALLO (V2-115: el
-     widget genérico de resultados es el primero a usar; un widget nuevo es para funcionalidad que no existe).
+The FOUR capabilities being judged, in order:
+  1. INFER from memory what THIS person might like (and do not ask what is already stored).
+  2. Choose the appropriate SOURCES for the discipline — a theatre listing is not searched in the same place as a track day.
+  3. Bring REAL options for the specific time window, with their link.
+  4. Assemble the catalogue in the RESULTS SHEET. Creating a new widget for this is a FAILURE (V2-115: the
+     generic results widget is the first one to use; a new widget is for functionality that does not exist).
 
-Las fechas van en TOKENS (`dates.py`) y se resuelven en cada corrida: un fin de semana escrito a mano caduca
-solo y convierte el caso en imposible sin que nadie se dé cuenta.
+Dates go in TOKENS (`dates.py`) and are resolved on each run: a hard-coded weekend expires on its own and turns
+the case into an impossibility without anyone noticing.
 """
 from __future__ import annotations
 
 from .scenarios import UseCaseScenario
 
-# Trozos comunes. Se repiten en los seis casos y tenerlos una vez evita que se vayan separando con los meses.
+# Common pieces. They are repeated in all six cases, and keeping them in one place prevents them from drifting apart over the months.
 _ESPERA_ES = (
     "IMPORTANTE: si zaelar dice que se pone a buscarlo, eso significa que ha EMPEZADO, no que haya acabado. "
     "Contesta algo breve ('vale, mira a ver') y en el turno siguiente pregunta si ya tiene algo. Solo te "
@@ -65,7 +65,7 @@ _CATALOGO_EN = (
 )
 
 SCENARIOS: list[UseCaseScenario] = [
-    # ── 1. Abierto de par en par: ninguna disciplina dicha. Todo el peso en inferir de la memoria. ────────
+    # ── 1. Wide open: no discipline specified. All the weight is on inferring from memory. ────────
     UseCaseScenario(
         id="weekend-plan-barcelona__es",
         locale="es", tier=3, turns=10,
@@ -95,7 +95,7 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
         expected_signals=["worker", "widget"],
     ),
-    # ── 2. Deportes de aventura: fuentes MUY distintas (escuelas, federaciones, turismo activo). ─────────
+    # ── 2. Adventure sports: VERY different sources (schools, federations, active-tourism providers). ─────────
     UseCaseScenario(
         id="weekend-adventure-sports-bilbao__es",
         locale="es", tier=3, turns=10,
@@ -126,7 +126,7 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
         expected_signals=["worker", "widget"],
     ),
-    # ── 3. Artes escénicas: la fuente correcta es una CARTELERA, y eso es lo que discrimina. ────────────
+    # ── 3. Performing arts: the correct source is a LISTING, and that is what distinguishes this case. ────────────
     UseCaseScenario(
         id="weekend-theatre-sevilla__es",
         locale="es", tier=3, turns=10,
@@ -156,7 +156,7 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
         expected_signals=["worker", "widget"],
     ),
-    # ── 4. Mundo del motor: fuentes de nicho (circuitos, clubes, calendarios de track day). ─────────────
+    # ── 4. Motoring: niche sources (circuits, clubs, track-day calendars). ─────────────
     UseCaseScenario(
         id="weekend-motor-events__es",
         locale="es", tier=3, turns=10,
@@ -187,7 +187,7 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
         expected_signals=["worker", "widget"],
     ),
-    # ── 5. La misma capacidad, en inglés y en la bahía de San Francisco. ────────────────────────────────
+    # ── 5. The same capability, in English and in the San Francisco Bay Area. ────────────────────────────────
     UseCaseScenario(
         id="bored-in-sf-this-weekend",
         locale="us", tier=3, turns=10,
@@ -215,7 +215,7 @@ SCENARIOS: list[UseCaseScenario] = [
         ),
         expected_signals=["worker", "widget"],
     ),
-    # ── 6. Aventura en la bahía: mismo eje que Bilbao, otro país y otras fuentes. ───────────────────────
+    # ── 6. Adventure in the Bay Area: same focus as Bilbao, another country and different sources. ───────────────────────
     UseCaseScenario(
         id="weekend-adventure-sports-bay-area",
         locale="us", tier=3, turns=10,

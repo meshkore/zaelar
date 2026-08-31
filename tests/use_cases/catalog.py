@@ -49,13 +49,13 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
                                    "watchdog", "judge"]
         entry["execution"] = {
             "kind": "command",
-            # `--sandbox` NO es opcional aquí. Sin él, `python -m tests run use_cases` —la entrada que el
-            # CLAUDE.md del proyecto le manda usar a CUALQUIER agente— conduce el caso primario contra el
-            # motor VIVO del operador: su memoria, sus widgets y sus tareas en marcha, gastando sus
-            # proveedores. Medido tropezando con ello el 2026-08-21 (16 turnos reales contra el 43917, y el
-            # veredicto escrito en el marcador compartido como si fuera una medida). Es la MISMA forma que el
-            # fallo del `--lab` que se arregló horas antes: el aislamiento no puede depender de que quien
-            # lanza se acuerde de pedirlo.
+            # `--sandbox` is NOT optional here. Without it, `python -m tests run use_cases` —the entry point
+            # that the project's CLAUDE.md instructs ANY agent to use— runs the primary case against the
+            # operator's LIVE engine: its memory, widgets, and tasks in progress, consuming its
+            # providers. Confirmed by stumbling into it on 2026-08-21 (16 real turns against 43917, with the
+            # verdict written to the shared scoreboard as if it were a measurement). It is the SAME pattern as the
+            # `--lab` failure that was fixed hours earlier: isolation cannot depend on whoever launches it
+            # remembering to request it.
             "argv": ["{python}", "-m", "tests.use_cases.e2e.agent.run", "--scenario", case.id, "--sandbox"],
             "nested_events": False,
             "requires_live": True,

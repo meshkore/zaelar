@@ -129,12 +129,12 @@ def engine_fingerprint() -> str:
 
     try:
         h = hashlib.sha256()
-        # EL ÁRBOL DEL MOTOR, no el sha. Usar `rev-parse HEAD` fue mi propio defecto y es el MISMO que este
-        # fichero vino a arreglar: allí «sucio» no era «movido», y aquí «hay un commit nuevo» tampoco lo es.
-        # Un commit que solo toca `tests/` deja el motor exactamente igual, y aun así paraba la tanda — la
-        # pagué dos veces la misma tarde, una por un commit mío del arnés y otra por uno de un agente. Se
-        # hashea la lista de blobs de HEAD sin `tests/`: dos commits distintos con el mismo motor dan la
-        # misma huella, que es justo lo que se quiere decir.
+        # THE ENGINE TREE, not the sha. Using `rev-parse HEAD` was my own defect and is the SAME one this
+        # file was created to fix: there, “dirty” did not mean “moved”, and here “there is a new commit” does
+        # not mean it either. A commit that only touches `tests/` leaves the engine exactly the same, yet it
+        # still stopped the batch — I paid for that twice the same afternoon, once for a commit of mine in the
+        # harness and once for an agent's. The list of blobs in HEAD excluding `tests/` is hashed: two different
+        # commits with the same engine produce the same fingerprint, which is precisely what is intended.
         h.update("".join(sorted(l for l in _git("ls-tree", "-r", "HEAD").splitlines()
                                 if l and "\ttests/" not in l)).encode())
         paths = sorted(l[2:].strip() for l in _git("status", "--porcelain").splitlines() if l[2:].strip())
@@ -203,14 +203,13 @@ def native_model(model: str) -> str:
     return model.split("/", 1)[-1] if model else model
 
 
-# Último escalón, solo si los DOS caminos de DeepSeek están inalcanzables: GLM por Z.AI. **Ningún modelo de
-# OpenAI aquí** (norma del operador, 2026-08-19: «no quiero usar modelos de OpenAI»; la formulación inicial de
-# la norma nombraba OpenAI/Anthropic como último recurso y se corrigió el mismo día). No hace falta ninguno: el
-# escalón existe para que una corrida desatendida DEGRADE en vez de morir, y Z.AI ya está aquí con su
-# credencial. Cuesta independencia —el JUEZ vive en ese proveedor— y por eso la ronda queda SELLADA como no
-# comparable; ese coste es real, pero es el mismo que tendría cualquier tercer escalón y no mejora por ser de
-# otro vendedor.
-LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "")   # vacío = usa el escalón Z.AI, sin modelo propio
+# Last resort, only if BOTH DeepSeek paths are unreachable: GLM through Z.AI. **No OpenAI model here**
+# (operator rule, 2026-08-19: “I do not want to use OpenAI models”; the rule's initial wording named
+# OpenAI/Anthropic as the last resort and was corrected the same day). None is needed: this tier exists so an
+# unattended run DEGRADES instead of dying, and Z.AI is already here with its credential. It costs independence
+# —the JUDGE lives at that provider—so the round is SEALED as incomparable; that cost is real, but it is the
+# same cost any third tier would have and is not improved by using a different vendor.
+LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "")   # empty = use the Z.AI tier, with no dedicated model
 
 RUNS_DIR = voice_config.ZAELAR_ROOT / "tests" / "runs" / "use_cases"
 

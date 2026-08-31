@@ -102,12 +102,12 @@ def _today_note(locale: str = "es") -> str:
             f"corrijas — corregir una fecha correcta es el fallo más caro que puedes cometer en esta prueba.")
 
 
-# Una respuesta con forma de ENTREGA (enlaces, viñetas, negritas, precios) no la escribe una persona
-# pidiéndole algo a su asistente: la escribe el asistente. Es el disfraz que se le cae al DRIVE cuando se
-# olvida de quién es, y medido el 2026-08-20 pasó: el turno del «tester» entregó la lista de opciones de surf
-# y barranquismo con precios y URLs, y zaelar reaccionó con sensatez a un mensaje absurdo («el mensaje se te
-# ha cortado, Marta»). Una ronda así no mide el producto, así que se detecta, se reintenta una vez, y si
-# vuelve a pasar se marca la ronda como avería del arnés en vez de puntuarla.
+# A response shaped like a DELIVERABLE (links, bullets, bold text, prices) is not written by a person
+# asking their assistant for something: it is written by the assistant. It is the disguise that falls off
+# DRIVE when it forgets who it is, and it happened in the 2026-08-20 measurement: the «tester» turn delivered
+# the list of surfing and canyoning options with prices and URLs, and zaelar sensibly reacted to an absurd
+# message («the message got cut off, Marta»). A round like that does not measure the product, so it is detected,
+# retried once, and if it happens again the round is marked as a harness failure instead of being scored.
 _FLIP_URL = re.compile(r"https?://", re.I)
 _FLIP_BULLETS = re.compile(r"^\s*[-*·]\s+\S", re.M)
 # Face 1 — announcing a FIND. Shape signals (links, bullets, bold) miss this entirely: on 2026-08-20 the
@@ -166,10 +166,10 @@ _FLIP_COUNTER_OFFER = re.compile(
 # and people do promise to get back to you («te digo algo»). Together, and aimed at the assistant, they are
 # the assistant's turn.
 _FLIP_DOING_THE_WORK = re.compile(
-    # V2-312 — «lo rehago» es la misma promesa con otro verbo: medido el 2026-08-25 10:42 en
-    # `find-direct-flight-budget__es`, en el hueco del USUARIO: «Ay, perdona, tienes toda la razón, me hice un
-    # lío con las fechas. Lo rehago ya para el finde del 15 de septiembre… Te aviso en cuanto lo tenga.» La
-    # mitad de la entrega («te aviso») sí casaba; la del trabajo no, porque solo conocía «sigo en ello».
+    # V2-312 — «lo rehago» is the same promise with another verb: measured on 2026-08-25 at 10:42 in
+    # `find-direct-flight-budget__es`, in the USER's slot: «Ay, perdona, tienes toda la razón, me hice un
+    # lío con las fechas. Lo rehago ya para el finde del 15 de septiembre… Te aviso en cuanto lo tenga.» The
+    # delivery half («te aviso») matched; the work half did not, because it only knew «sigo en ello».
     r"\b(sigo|estoy|seguimos)\s+(en\s+ello|con\s+ello|mir[aá]ndolo|buscando|revis[aá]ndolo)\b|"
     r"\b(lo|la)\s+(rehago|relanzo|repito|reharé|relanzaré)\b|"
     r"\b(i'?m\s+(on\s+it|looking\s+into\s+it|still\s+(on\s+it|looking)))\b", re.I)
@@ -289,12 +289,13 @@ _ANCHOR = (
     "una persona real: coloquial, a veces sin todos los datos (ya te los pedirán), con muletillas de vez en "
     "cuando («oye», «a ver», «porfa»), algún detalle que se te ocurre un turno tarde. Nunca listas ni "
     "redacción de robot. "
-    # LO QUE NO PUEDES SABER, que es más fuerte que otra prohibición de forma. Los TRES flips medidos en el
-    # corpus (guitarra 24-08 03:48, cámara 25-08 04:41, planes-de-finde 25-08 12:25) son el mismo movimiento:
-    # el conductor tiene una lista de candidatos delante y la reflex de un modelo con una lista delante es
-    # presentarla. Prohibir «listas» y «ofrecerte a hacer cosas» ya estaba escrito arriba y no lo paró, porque
-    # el modelo no lo lee como una lista sino como contestar bien. El hecho SÍ lo para: esos nombres los
-    # produjo nuestro worker leyendo una página y viven en NUESTRA hoja — la persona no los ha visto nunca.
+    # WHAT YOU CANNOT KNOW, which is stronger than another prohibition on form. The THREE flips measured in
+    # the corpus (guitar 24-08 03:48, camera 25-08 04:41, weekend-plans 25-08 12:25) are the same move:
+    # the driver has a list of candidates in front of it, and the reflex of a model with a list in front of it
+    # is to present it. Prohibiting «lists» and «offering to do things» was already written above and did not
+    # stop it, because the model does not read that as a list but as answering well. The fact DOES stop it:
+    # our worker produced those names by reading a page, and they live on OUR sheet — the person has never seen
+    # them.
     "NO TIENES NINGUNA LISTA DELANTE: los nombres de productos, los locales y los precios concretos solo "
     "existen del lado de zaelar. Nombra uno SOLO si zaelar te lo ha dicho antes en este mismo historial."
 )
@@ -327,11 +328,12 @@ class Driver:
         # vocative flip — see `_vocative_re`. Empty against a sandbox with no seeded identity, and then face 5
         # is simply off rather than guessing a name.
         self.persona_name = (persona_name or "").strip()
-        # QUIÉN ES esta persona, y por tanto qué puede el agente dar por sabido sin preguntar. Va ANTES del
-        # encargo a propósito: el conductor lee de arriba abajo, y la instrucción general de «corrige lo que
-        # entienda mal» está más abajo — sin este bloque delante, el conductor la aplica a un dato que el
-        # agente recordó y monta una discusión que no existe. Ver `LabProfile.persona_ground()` para la ronda
-        # que lo midió. Vacío fuera del plató: entonces no se dice nada de quién es y todo queda como estaba.
+        # WHO this person IS, and therefore what the agent may take as known without asking. It deliberately
+        # comes BEFORE the request: the driver reads from top to bottom, and the general instruction to
+        # «correct what it misunderstands» appears below — without this block first, the driver applies it to
+        # something the agent remembered and starts an argument that does not exist. See
+        # `LabProfile.persona_ground()` for the round that measured it. Empty outside the studio: then nothing
+        # is said about who the person is, and everything remains as it was.
         ground = (config.PERSONA_PROFILE or "").strip()
         _ground = f"{ground}\n\n" if ground else ""
         locale = getattr(scenario, "locale", "es") or "es"
@@ -372,7 +374,7 @@ class Driver:
             # An empty DRIVE completion is a provider hiccup, not a line the persona chose to say. Sent as-is
             # it burns TWO budgeted turns (tester «», zaelar «») and the judge reads the pair as product
             # silence — measured on `find-direct-flight-budget__es` (2026-08-24, three empty pairs in one
-            # round, eficiencia 1). One retry; if the provider is truly down the empty line still goes out,
+            # round, efficiency 1). One retry; if the provider is truly down the empty line still goes out,
             # and `mute_turns` on the engine side keeps the accounting honest.
             self.empty_retries += 1
             txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()

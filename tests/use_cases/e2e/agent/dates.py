@@ -1,16 +1,16 @@
-"""Fechas de los casos de uso: SIEMPRE futuras, SIEMPRE relativas a hoy.
+"""Use-case dates: ALWAYS in the future, ALWAYS relative to today.
 
-Norma del operador (2026-08-19): *«las fechas siempre tienen que ser fechas a futuro desde el día de hoy —
-esa es una variable que los tests tienen que tener, no puedes hardcodear las fechas»*.
+Operator rule (2026-08-19): *“dates must always be future dates from today —
+that is a variable the tests must have; you cannot hardcode dates.”*
 
-No es una preferencia de estilo, es corrección del test. Auditado el mismo día, el catálogo pedía «vuelos
-para el puente de mayo» y «el cumpleaños es el 14 de marzo» con el reloj en AGOSTO: esos casos eran
-**imposibles por construcción** —nadie puede reservar para una fecha que ya pasó— y el tablero los contaba
-como fallos del agente. Una fecha absoluta en un caso de uso caduca sola y envenena la medida en silencio.
+This is not a style preference; it is test correctness. When audited on the same day, the catalog asked for “flights
+for the May long weekend” and “the birthday is on March 14” with the clock in AUGUST: those cases were
+**impossible by construction**—no one can book a date that has already passed—and the dashboard counted them
+as agent failures. An absolute date in a use case expires on its own and silently poisons the measurement.
 
-Cómo se usa: el texto del caso lleva un TOKEN (`{FIN_DE_SEMANA}`, `{EN_UNAS_SEMANAS}`…) y `resolve()` lo
-sustituye al construir el escenario, o sea en cada corrida. Así el mismo caso pide «este sábado» en agosto y
-«este sábado» en diciembre, sin que nadie tenga que acordarse de editarlo.
+How it is used: the case text contains a TOKEN (`{FIN_DE_SEMANA}`, `{EN_UNAS_SEMANAS}`…) and `resolve()`
+replaces it when constructing the scenario, that is, on every run. Thus the same case asks for “this Saturday” in August and
+“this Saturday” in December, without anyone having to remember to edit it.
 """
 from __future__ import annotations
 
@@ -26,13 +26,13 @@ def today() -> _dt.date:
 
 
 def next_weekend(ref: _dt.date | None = None) -> tuple[_dt.date, _dt.date]:
-    """El PRÓXIMO sábado y domingo. Si hoy ES sábado o domingo, ese mismo fin de semana sigue siendo válido
-    («¿qué hago este fin de semana?» dicho un sábado va del sábado), y si hoy es domingo se toma el domingo de
-    hoy — nunca uno pasado."""
+    """The NEXT Saturday and Sunday. If today IS Saturday or Sunday, that same weekend remains valid
+    (a “what should I do this weekend?” request made on a Saturday refers to Saturday), and if today is Sunday, today’s
+    Sunday is used—never one in the past."""
     d = ref or today()
-    if d.weekday() == 5:                      # sábado
+    if d.weekday() == 5:                      # Saturday
         sat = d
-    elif d.weekday() == 6:                    # domingo: el sábado ya pasó, el finde es hoy
+    elif d.weekday() == 6:                    # Sunday: Saturday has already passed; the weekend is today
         sat = d - _dt.timedelta(days=1)
     else:
         sat = d + _dt.timedelta(days=(5 - d.weekday()))
@@ -56,7 +56,7 @@ def _tokens() -> dict[str, str]:
     sat, sun = next_weekend()
     in3w = days_ahead(21)
     return {
-        # ES
+        # Spanish
         "{FIN_DE_SEMANA}": f"este fin de semana ({es(sat)} y {es(sun)})",
         "{SABADO}": es(sat),
         "{DOMINGO}": es(sun),
@@ -74,7 +74,7 @@ def _tokens() -> dict[str, str]:
 
 
 def resolve(text: str) -> str:
-    """Sustituye los tokens de fecha por fechas reales futuras. Idempotente sobre texto sin tokens."""
+    """Replaces date tokens with actual future dates. Idempotent for text without tokens."""
     if not text or "{" not in text:
         return text
     for k, v in _tokens().items():
