@@ -16,10 +16,10 @@ DAY_SECONDS = 86400
 
 
 def _deterministic_hook(groups: list[dict]) -> list[dict]:
-    """V2-103 (2026-08-16): la síntesis de REM se probaba SIEMPRE apagada aquí (`rem.run(None)`) — el único run
-    largo/realista de toda la suite nunca ejercitó `synthesize()`/`demote_summarized()`. Este hook es Python
-    puro (sin red, sin LLM) — sigue cumpliendo "sin proveedor externo" (README) mientras ejercita el mecanismo
-    real en cada uno de los 180 sueños simulados, no solo en un puñado de filas de un test aislado."""
+    """V2-103 (2026-08-16): REM synthesis was ALWAYS tested turned off here (`rem.run(None)`) — the only long,
+    realistic run in the entire suite never exercised `synthesize()`/`demote_summarized()`. This hook is pure
+    Python (no network, no LLM) — it still complies with "no external provider" (README) while exercising the
+    real mechanism in each of the 180 simulated dreams, not just in a handful of rows from an isolated test."""
     out = []
     for g in groups:
         out.append({"concept": g["concept"],
@@ -29,9 +29,9 @@ def _deterministic_hook(groups: list[dict]) -> list[dict]:
 
 
 def _rem_hooks(real: bool):
-    """V2-105 (2026-08-17), norma del operador: "todas las validaciones tienen que ser reales". `--real` cablea
-    las funciones DE VERDAD de `nucleo/memllm.py` (DeepSeek V4 Flash) en vez del hook Python puro — coste real,
-    solo para invocación explícita, nunca en el run determinista por defecto (`--all`/`--target` sin `--real`)."""
+    """V2-105 (2026-08-17), operator's rule: "all validations must be real." `--real` wires up the ACTUAL
+    functions from `nucleo/memllm.py` (DeepSeek V4 Flash) instead of the pure-Python hook — real cost,
+    only for explicit invocation, never in the default deterministic run (`--all`/`--target` without `--real`)."""
     if not real:
         return _deterministic_hook, None, None
     from nucleo import memllm
@@ -123,13 +123,13 @@ def _execute(case: dict[str, Any], now: int, rem_hooks=None) -> tuple[bool, str,
 def run(until: int, real: bool = False) -> dict[str, Any]:
     os.environ["ZAELAR_DB"] = str(DB_PATH)
     if real:
-        # V2-105: "todas las pruebas tienen que ser reales... ollama en ninguna parte ahora" — fastembed
-        # (ONNX in-process, sin servidor) evita Ollama sin dejar la síntesis/verificación real sin vectores.
-        # `_semantic_dedup_on()` (writer.py) solo se calibró para 'ollama' — con fastembed el dedup semántico
-        # síncrono del writer sigue OFF (no depende de MEM_SEMANTIC_DEDUP, es el propio backend el que lo apaga);
-        # el dedup semántico de REM (`rem.semantic_dedup()`, nocturno) sí corre igual, backend-agnóstico.
+        # V2-105: "all tests must be real... no Ollama anywhere now" — fastembed
+        # (in-process ONNX, no server) avoids Ollama without leaving real synthesis/verification without vectors.
+        # `_semantic_dedup_on()` (writer.py) was calibrated only for 'ollama' — with fastembed, the writer's
+        # synchronous semantic dedup remains OFF (it does not depend on MEM_SEMANTIC_DEDUP; the backend itself disables it);
+        # REM's semantic dedup (`rem.semantic_dedup()`, nightly) still runs the same way, backend-agnostic.
         os.environ["ZAELAR_EMBED_BACKEND"] = "fastembed"
-        try:  # las credenciales (AIMLAPI_KEY/DEEPSEEK_API_KEY) no llegan solas al invocar el módulo a mano
+        try:  # credentials (AIMLAPI_KEY/DEEPSEEK_API_KEY) are not loaded automatically when invoking the module manually
             from dotenv import load_dotenv
             load_dotenv(ENGINE / ".env", override=False)
             load_dotenv(ENGINE / ".meshkore" / "credentials" / "zaelar.env", override=False)

@@ -1,4 +1,4 @@
-"""Tests de memory/server_api.py — subida → memoria episódica → búsqueda (V2-003 · T54)."""
+"""Tests for memory/server_api.py — upload → episodic memory → search (V2-003 · T54)."""
 import io
 
 import pytest
@@ -36,7 +36,7 @@ def test_upload_lands_in_episodic_and_is_searchable(client):
     assert r.status_code == 200
     body = r.json()
     assert body["name"] == "informe.txt" and body["episode_id"]
-    # el resumen del archivo es recuperable por memory.query (retriever)
+    # the file summary is retrievable through memory.query (retriever)
     res = memret.search("Wallapop", limit=5, expand=False)
     assert res, "el resumen del archivo subido debe ser buscable"
 
@@ -66,9 +66,9 @@ def test_memory_map_endpoint(client):
     body = r.json()
     assert set(body) >= {"state", "layers", "edges", "counts"}
     assert body["counts"]["short"] >= 1 and body["counts"]["long"] >= 1
-    # El mapa tiene que reflejar el idioma REAL del operador, no uno fijo. Este assert decía "es" de cuando el
-    # producto tenía el castellano por defecto; con el default en inglés (V2-089) fallaba sin que nada estuviera
-    # roto. Lo que se prueba aquí es que el endpoint no invente el idioma, y eso se comprueba contra la fuente.
+    # The map must reflect the operator's REAL language, not a fixed one. This assert used to say "es" when the
+    # product had Spanish as its default; with the default set to English (V2-089), it failed even though nothing
+    # was broken. What is tested here is that the endpoint does not invent the language, checked against the source.
     from voice.engine.core import langs
     assert body["state"]["language"] == langs.current_code(), (
         f"el mapa dice {body['state']['language']!r} y el idioma del operador es {langs.current_code()!r}")

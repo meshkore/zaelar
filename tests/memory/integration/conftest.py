@@ -1,7 +1,7 @@
-"""conftest de tests de memoria — el reranker (default `local` en producción, V2-030) se APAGA en los tests
-unitarios: aquí medimos la lógica del retriever (fusión/score/grafo), no el cross-encoder (que tiene sus propios
-tests en test_rerank.py y su medición a escala en tests/memory/e2e/bot/scale_eval.py). Además evita cargar un
-modelo ONNX de ~1 GB en CI. Los tests que quieran el reranker lo activan explícitamente."""
+"""Memory-test conftest — the reranker (default `local` in production, V2-030) is TURNED OFF in unit tests:
+here we measure the retriever's logic (fusion/score/graph), not the cross-encoder (which has its own tests in
+test_rerank.py and its scale evaluation in tests/memory/e2e/bot/scale_eval.py). It also avoids loading an
+~1 GB ONNX model in CI. Tests that want the reranker enable it explicitly."""
 import pytest
 
 

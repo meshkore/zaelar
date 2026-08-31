@@ -44,9 +44,9 @@ for day in range(DAYS + 1):
          level="short", kind="conv", importance=0.08, weight=0.12, ttl_days=2,
          expected="buffer operativo; expira en 2 días y nunca se promociona")
 
-    # A meaningful but non-permanent episode every two weeks. V2-103: etiquetado con `concepts` (antes no lo
-    # llevaba ninguna escritura de este corpus) — a día 180 quedan ~6 vigentes dentro del TTL de 90 días, por
-    # encima de `rem.MIN_GROUP=4`, así que este es el grupo que REM sintetiza/demota en los checkpoints finales.
+# A meaningful but non-permanent episode every two weeks. V2-103: tagged with `concepts` (previously no
+# write in this corpus carried it) — by day 180, ~6 remain current within the 90-day TTL, above
+# `rem.MIN_GROUP=4`, so this is the group that REM synthesizes/demotes at the final checkpoints.
     if day and day % 15 == 0:
         _add(day, "write", f"Día {day}: episodio relevante temporal",
              text=f"El día {day} terminé el capítulo {day // 15} del curso de estructuras ARQ-{day:03d}.",
@@ -104,31 +104,32 @@ for day in range(DAYS + 1):
              expected="peso/accesos de vivienda > estudios por mayor uso")
         _add(day, "valid_count", "Checkpoint final: memoria activa acotada", maximum=182,
              expected="la vida de seis meses no deja crecer sin límite el working memory")
-        # V2-103: tras 180 sueños con síntesis REM activada (antes se probaba SIEMPRE apagada aquí), el grupo
-        # "estudios" (episodios ARQ-* etiquetados arriba) debe haber producido un insight vigente, y las
-        # píldoras crudas que lo alimentaron deben estar demotadas (nunca invalidadas) — REM consolidando de
-        # verdad, no solo apilando encima.
+        # V2-103: after 180 sleeps with REM synthesis enabled (previously it was ALWAYS tested disabled here), the
+        # "estudios" group (the ARQ-* episodes tagged above) should have produced a current insight, and the
+        # raw pills that fed it should be demoted (never invalidated) — REM truly consolidating, rather than
+        # merely piling on top.
         _add(day, "insight_exists", "Checkpoint final: REM sintetizó un insight de estudios",
              concept="estudios", marker="estudios", expected="slot=insight:estudios vigente")
         _add(day, "pills_demoted", "Checkpoint final: REM demotó las píldoras que resumió",
              minimum=4, expected="≥4 píldoras con meta.summarized_by, todas siguen valid=1")
 
 
-# ── Tramo REAL, semilla-reproducible (V2-105, 2026-08-17) ──────────────────────────────────────────────────
-# El tramo de arriba (180 días) es un guion 100% fijo — perfecto para regresión, ciego a la PRÓXIMA clase de
-# bug: un usuario real de 20-30 días se corrige a destiempo, repite el mismo hecho con otras palabras semanas
-# después, o dice dos cosas casi-simultáneas que compiten por el mismo dato. Ninguna de las tres formas existía
-# aquí. Se AÑADE como tramo nuevo tras el día 180 (nunca sustituye el guion fijo — el replay-prefix del runner
-# ya reconstruye 0..N causalmente) usando `random.Random(SEED)`: reproducible para una seed dada (mismo run =
-# mismos casos siempre), variedad real si se cambia la seed — no aleatoriedad de verdad, aleatoriedad CONTROLADA.
-# Reutiliza el vocabulario de `op` YA existente (write/slot/recall/active) — no hace falta enseñarle ninguna
-# rama nueva a `runner.py::_execute()`, solo generar contenido variado con las piezas que ya hay.
-REAL_DAYS = 90              # días 181..270
+# ── REAL segment, seed-reproducible (V2-105, 2026-08-17) ────────────────────────────────────────────────
+# The segment above (180 days) is a 100% fixed script — perfect for regression, but blind to the NEXT class of
+# bug: a real user corrects themselves after 20–30 days, repeats the same fact in other words weeks later,
+# or says two nearly simultaneous things that compete for the same datum. None of the three patterns existed
+# here. It is ADDED as a new segment after day 180 (it never replaces the fixed script — the runner's
+# replay-prefix already reconstructs 0..N causally) using `random.Random(SEED)`: reproducible for a given seed
+# (same run = same cases every time), genuine variety if the seed changes — not true randomness, CONTROLLED
+# randomness.
+# It reuses the vocabulary of the EXISTING `op` (write/slot/recall/active) — there is no need to teach any new
+# branch to `runner.py::_execute()`, only to generate varied content with the pieces already available.
+REAL_DAYS = 90              # days 181..270
 TOTAL_DAYS = DAYS + REAL_DAYS
 SEED = 20260817
 _rng = random.Random(SEED)
 
-# (slot, plantilla, [valores]) — cada contradicción usa UN slot sintético con dos valores distintos.
+# (slot, template, [values]) — each contradiction uses ONE synthetic slot with two different values.
 _CONTRADICT_BANK = [
     ("goal.job", "Quiero dedicarme a {v}.", ["diseño de producto", "consultoría técnica", "docencia universitaria",
                                               "investigación aplicada"]),
@@ -139,9 +140,10 @@ _CONTRADICT_BANK = [
     ("goal.language", "Estoy aprendiendo {v} este año.", ["alemán", "portugués", "italiano", "japonés"]),
 ]
 
-# Mismo hecho, dos formas de decirlo — sin slot (el punto es probar dedup exacto/semántico, no supersede).
-# `query`/`marker`: verificación por RECALL tras la repetición — no se asume si el dedup fusiona o no (depende
-# del backend de embeddings activo, incierto de antemano), solo que el hecho SIGUE siendo recuperable.
+# Same fact, two ways of saying it — without a slot (the point is to test exact/semantic dedup, not supersede).
+# `query`/`marker`: verification by RECALL after the repetition — whether dedup merges it is not assumed
+# (it depends on the active embeddings backend and is uncertain in advance), only that the fact REMAINS
+# retrievable.
 _PARAPHRASE_BANK = [
     ("le encanta el senderismo de montaña los fines de semana", "los fines de semana disfruta caminando por la montaña",
      "¿qué le gusta hacer los fines de semana?", "montaña"),
@@ -155,7 +157,7 @@ _PARAPHRASE_BANK = [
      "¿qué está aprendiendo?", "python"),
 ]
 
-# Dos valores para el MISMO slot, escritos casi a la vez — supersede bajo ambigüedad real, no un caso limpio.
+# Two values for the SAME slot, written nearly simultaneously — supersede under real ambiguity, not a clean case.
 _COMPETING_BANK = [
     ("event.next_trip", "El próximo viaje que tiene planeado es a {v}.", ["Lisboa", "Roma", "Ámsterdam"]),
     ("pref.weekend_plan", "Este fin de semana tiene pensado {v}.", ["visitar a sus padres", "quedarse en casa",
@@ -164,9 +166,9 @@ _COMPETING_BANK = [
 
 
 def _real_tramo() -> None:
-    # Cada banco de días reserva margen suficiente para que start_day + su resolución diferida (gap/offset) NUNCA
-    # se salga de range(DAYS+1, DAYS+REAL_DAYS+1) — una resolución programada para un día que el bucle no
-    # itera se perdería en silencio (la escritura quedaría sin su comprobación). Márgenes: contradict gap≤35,
+    # Each day bank leaves enough margin so that start_day plus its deferred resolution (gap/offset) NEVER
+    # falls outside range(DAYS+1, DAYS+REAL_DAYS+1) — a resolution scheduled for a day the loop does not
+    # iterate would be silently lost (the write would have no verification). Margins: contradict gap≤35,
     # paraphrase gap≤55, competing offset+check≤6.
     contradict_days = sorted(_rng.sample(range(DAYS + 3, DAYS + REAL_DAYS - 40), 8))
     paraphrase_days = sorted(_rng.sample(range(DAYS + 3, DAYS + REAL_DAYS - 60), 5))
@@ -175,10 +177,10 @@ def _real_tramo() -> None:
     contradictions = {}
     for i, start_day in enumerate(contradict_days):
         slot, template, values = _CONTRADICT_BANK[i % len(_CONTRADICT_BANK)]
-        slot = f"{slot}.{i}"  # una instancia propia por caso, no comparten estado entre sí
-        a, b = _rng.sample(values, 2)  # a = primer valor escrito; b = la alternativa, nunca escrita si "confirma"
+        slot = f"{slot}.{i}"  # a separate instance per case; they do not share state
+        a, b = _rng.sample(values, 2)  # a = first value written; b = the alternative, never written if "confirms"
         gap = _rng.randint(5, 35)
-        agrees = _rng.random() < 0.3  # 30% de las veces "confirma" (mismo valor), 70% corrige (valor distinto)
+        agrees = _rng.random() < 0.3  # 30% of the time "confirms" (same value), 70% corrects (different value)
         contradictions[start_day] = (slot, template, a, b, gap, agrees)
 
     paraphrases = {}
@@ -192,10 +194,10 @@ def _real_tramo() -> None:
         slot, template, values = _COMPETING_BANK[i % len(_COMPETING_BANK)]
         slot = f"{slot}.{i}"
         a, b = _rng.sample(values, 2)
-        offset = _rng.randint(0, 2)  # 0-2 días de separación: "casi simultáneo", no el mismo instante
+        offset = _rng.randint(0, 2)  # 0–2 days apart: "nearly simultaneous," not the same instant
         competing[start_day] = (slot, template, a, b, offset)
 
-    resolve_at: dict[int, list[Any]] = {}  # día → lista de checkpoints diferidos a programar ese día
+    resolve_at: dict[int, list[Any]] = {}  # day → list of deferred checkpoints to schedule on that day
 
     for day in range(DAYS + 1, DAYS + REAL_DAYS + 1):
         _add(day, "advance", f"Día {day}: avanzar reloj (tramo real)", expected=f"reloj de memoria = día {day}")
@@ -226,10 +228,10 @@ def _real_tramo() -> None:
             kind = item[0]
             if kind == "contradict":
                 _, slot, template, (_slot2, _tmpl2, first_val, alt_val, _gap, agrees) = item
-                # confirma → reescribe el MISMO valor (first_val); corrige → escribe el ALTERNATIVO (alt_val).
-                # `not_marker` es SIEMPRE necesario aquí: la comprobación `slot` de `_execute()` trata un
-                # `not_marker` ausente como cadena vacía, y `"" in text` es SIEMPRE cierto en Python — sin él el
-                # checkpoint fallaría SIEMPRE pase lo que pase (encontrado en la primera corrida real de esto).
+                # confirms → rewrite the SAME value (first_val); corrects → write the ALTERNATIVE (alt_val).
+                # `not_marker` is ALWAYS required here: `_execute()`'s `slot` check treats a missing
+                # `not_marker` as an empty string, and `"" in text` is ALWAYS true in Python — without it the
+                # checkpoint would ALWAYS fail regardless of the outcome (found in the first real run of this).
                 second_val = first_val if agrees else alt_val
                 excluded_val = alt_val if agrees else first_val
                 verb = "confirma" if agrees else "corrige"

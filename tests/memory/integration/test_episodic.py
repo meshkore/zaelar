@@ -1,4 +1,4 @@
-"""Tests de memory/episodic.py (V2-002 · T51) — resumen buscable + carga lazy."""
+"""Tests for memory/episodic.py (V2-002 · T51) — searchable summary + lazy loading."""
 import pytest
 
 from memory import db as memdb
@@ -29,7 +29,7 @@ def test_register_creates_searchable_summary(fresh_db, tmp_path):
     f.write_text("contenido largo del informe sobre Wallapop y precios", encoding="utf-8")
     ref = memep.register(str(f), "resumen: informe de precios de Wallapop", mime="text/plain")
     assert ref["episode_id"] and ref["memory_id"]
-    # el resumen participa en la búsqueda
+    # the summary participates in the search
     res = memret.search("Wallapop", limit=5, expand=False)
     assert any(r["id"] == ref["memory_id"] for r in res)
 

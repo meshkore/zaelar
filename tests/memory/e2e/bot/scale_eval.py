@@ -1,29 +1,28 @@
-"""tests/memory/e2e/bot/scale_eval.py — harness de RECALL A ESCALA (reranker A/B) (V2-030).
+"""tests/memory/e2e/bot/scale_eval.py — SCALE RECALL harness (reranker A/B) (V2-030).
 
-Mide la CALIDAD del retriever LARGO (`memory/retriever.search`) sobre la BD **AISLADA** ya poblada con la persona
-del bot (cientos de recuerdos). Es el número que movemos con el reranker: para cada query de recall-largo del
-corpus (`t=query`, `via=long`, con `want`) calcula el RANGO del primer resultado que contiene el ancla esperada
-→ **recall@1/3/5/10**, **MRR** y **latencia**. No usa LLM en la lectura (invariante V2-013): mide el camino real.
+Measures the QUALITY of the LONG retriever (`memory/retriever.search`) over the **ISOLATED** DB already populated with the bot persona
+ (hundreds of memories). This is the number we move with the reranker: for each long-recall query in the
+corpus (`t=query`, `via=long`, with `want`), it calculates the RANK of the first result containing the expected anchor
+→ **recall@1/3/5/10**, **MRR**, and **latency**. It does not use an LLM during reading (V2-013 invariant): it measures the real path.
 
-A/B del reranker: **`--rerank off|local|openai`**, y NO por env. ⚠️ El ejemplo que este fichero traía —
-`MEMORY_RERANK=openai … --label openai` — no funcionaba: `rerank._cfg()` lee `config/v2.py`, donde **el store
-MANDA sobre el env** (invariante de producto: la config la gobierna la UI), así que la variable se ignoraba en
-silencio y el run medía el proveedor del store con la etiqueta del otro. Un interruptor de ablación que no
-conmuta produce un número MAL ETIQUETADO, que es peor que no tener el interruptor — misma familia que el
-confound de idioma del arnés LoCoMo (2026-08-19). `--rerank` override en PROCESO (parchea el único punto de
-lectura, `rerank._cfg`) y se IMPRIME con el resultado: nunca escribe `config/v2.json`, que es la config del
-operador y cambiaría el reranker del agente vivo.
+A/B of the reranker: **`--rerank off|local|openai`**, and NOT via env. ⚠️ The example this file used to contain —
+`MEMORY_RERANK=openai … --label openai` — did not work: `rerank._cfg()` reads `config/v2.py`, where **the store
+OVERRIDES the env** (product invariant: the UI governs the config), so the variable was silently ignored and the
+run measured the store's provider with the other one's label. An ablation switch that does not switch produces a
+MISLABELED number, worse than having no switch — the same family as the LoCoMo harness's language confound
+(2026-08-19). `--rerank` override IN PROCESS (patches the sole read point, `rerank._cfg`) and is PRINTED with the
+result: it never writes `config/v2.json`, which is the operator's config and would change the live agent's reranker.
 
-El harness NO reconstruye la persona por defecto (reutiliza `zaelar.membot.db` acumulada); `--fresh` la repuebla
-corriendo el runner de cero (lento: CORAZÓN LLM configurado por cada save).
+By default, the harness does NOT rebuild the persona (it reuses the accumulated `zaelar.membot.db`); `--fresh` repopulates it
+by running the runner from scratch (slow: the configured LLM CORE is used for every save).
 
-Uso:
-  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval                 # mide sobre la BD actual
+Usage:
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval                 # measures the current DB
   ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --rerank off --label sin_reranker
-  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --fresh         # repuebla y mide
-  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --ab            # corre off vs config actual y compara
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --fresh         # repopulates and measures
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --ab            # runs off vs current config and compares
 
-BD aislada: `ZAELAR_DB=memory/_data/zaelar.membot.db` (gitignored). El perfil REAL no se toca.
+Isolated DB: `ZAELAR_DB=memory/_data/zaelar.membot.db` (gitignored). The REAL profile is not touched.
 """
 from __future__ import annotations
 
@@ -107,10 +106,10 @@ def _embed_status() -> dict:
 def _setup_env():
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / "zaelar.membot.db"))
     os.environ.setdefault("MEM_PROCESSOR", "1")
-    # Ver la nota gemela en tests/memory/e2e/bot/runner.py::_setup_env — pinea el backend para que MEDIR (esta
-    # función) resuelva SIEMPRE al mismo espacio con el que se POBLÓ, en vez de re-sondear Ollama en caliente.
+    # See the companion note in tests/memory/e2e/bot/runner.py::_setup_env — pins the backend so that MEASURING (this
+    # function) ALWAYS resolves to the same space used for POPULATION, instead of probing Ollama again at runtime.
     os.environ.setdefault("ZAELAR_EMBED_BACKEND", "ollama")
-    # carga las keys (OPENAI_API_KEY para el reranker OpenAI) igual que server/common.py
+    # load the keys (OPENAI_API_KEY for the OpenAI reranker) the same way as server/common.py
     try:
         from dotenv import load_dotenv
         load_dotenv(REPO / ".env", override=False)
@@ -120,19 +119,19 @@ def _setup_env():
 
 
 def _long_queries() -> list[dict]:
-    """Queries de recall-largo del corpus. Excluye `stale_by_design` (V2-031, 2026-08-17): casos cuyo `want`
-    es correcto POSICIONALMENTE (justo tras escribirse, que es como los corre el bot suite normal) pero deja
-    de serlo contra el ESTADO FINAL — una batería POSTERIOR no relacionada supersede el mismo slot con otro
-    propósito (encontrado con teléfono/móvil: la GOLD reutiliza operator.phone/operator.hardware en más de un
-    sitio). No es un bug de memoria (el supersede "más reciente manda" es correcto); es un desajuste entre
-    cómo se autoraron esas dos aserciones y cómo mide scale_eval (contra el final, no contra el momento)."""
+    """Long-recall queries from the corpus. Excludes `stale_by_design` (V2-031, 2026-08-17): cases whose `want`
+    is POSITIONALLY correct (right after being written, which is how the normal bot suite runs them) but ceases
+    to be so against the FINAL STATE — a subsequent unrelated battery supersedes the same slot with another
+    purpose (found with phone/mobile: GOLD reuses operator.phone/operator.hardware in more than one
+    place). This is not a memory bug ("most recent wins" superseding is correct); it is a mismatch between
+    how those two assertions were authored and how scale_eval measures (against the final state, not the moment)."""
     from tests.memory.e2e.bot import cases as C
     return [c for c in C.CASES
             if c.get("t") == "query" and c.get("via") == "long" and c.get("want") and not c.get("stale_by_design")]
 
 
 def _rank_of(results: list[dict], wants: list[str]) -> int | None:
-    """Rango (1-indexado) del primer resultado cuyo texto contiene ALGUNA ancla esperada. None si no aparece."""
+    """Rank (1-indexed) of the first result whose text contains ANY expected anchor. None if it does not appear."""
     wants = [_norm(w) for w in wants]
     for i, m in enumerate(results, start=1):
         txt = _norm(m.get("text", ""))
@@ -142,22 +141,22 @@ def _rank_of(results: list[dict], wants: list[str]) -> int | None:
 
 
 def _durable_blob() -> str:
-    """Texto de TODOS los recuerdos durables válidos (mid/long), normalizado — para saber si un hecho ESTÁ
-    guardado (write-completeness) con independencia de si se recupera (retrieval)."""
+    """Text of ALL valid durable memories (mid/long), normalized — to determine whether a fact IS
+    stored (write-completeness), independently of whether it is retrieved (retrieval)."""
     from memory import db as _db
     rows = _db.get_db().query("SELECT text FROM memories WHERE valid=1 AND level IN ('mid','long')")
     return "\n".join(_norm(r["text"]) for r in rows)
 
 
 def _superseded_blob() -> str:
-    """Texto de recuerdos INVALIDADOS cuyo `slot` tiene HOY una fila VÁLIDA (V2-031, 2026-08-17): el writer
-    garantiza como mucho 1 fila válida por slot, así que si el slot sigue teniendo una fila válida, cualquier
-    fila inválida con ese MISMO slot fue una SUPERSESIÓN real (el "más reciente manda" del writer funcionando
-    correctamente), no una pérdida de datos. Corpus con slots como `operator.car`/`operator.job`/
-    `operator.hardware`/`operator.name`/`operator.phone` acumulan hasta 15 valores a lo largo de la batería
-    (baterías de sesiones distintas testeando "el valor actual" sin saber que otra sesión seguiría cambiándolo
-    después) — sin esto, cada valor intermedio se contaba como "write miss" contra el estado FINAL. Detectado a
-    mano varias veces (Toyota/Ford/Deloitte/profesor/Juncadella/Richi) antes de generalizarlo aquí."""
+    """Text of INVALIDATED memories whose `slot` has a VALID row TODAY (V2-031, 2026-08-17): the writer
+    guarantees at most 1 valid row per slot, so if the slot still has a valid row, any
+    invalid row with that SAME slot was a real SUPERSESSION (the writer's "most recent wins" behavior working
+    correctly), not data loss. A corpus with slots such as `operator.car`/`operator.job`/
+    `operator.hardware`/`operator.name`/`operator.phone` accumulates up to 15 values over the battery
+    (batteries from different sessions testing "the current value" without knowing that another session would keep changing it
+    afterward) — without this, every intermediate value was counted as a "write miss" against the FINAL state. Detected by
+    hand several times (Toyota/Ford/Deloitte/teacher/Juncadella/Richi) before generalizing it here."""
     from memory import db as _db
     d = _db.get_db()
     valid_slots = {r["slot"] for r in d.query(
@@ -174,12 +173,12 @@ def _is_stored(wants: list[str], blob: str) -> bool:
 
 
 def evaluate(limit: int = 10) -> dict:
-    """Corre todas las queries de recall-largo por `retriever.search` y agrega recall@k/MRR/latencia. Excluye,
-    ANTES de medir, las queries cuyo `want` solo aparece en un valor de slot ya legítimamente superado (ver
-    `_superseded_blob`) — no serían justas contra el estado final del corpus con ningún retriever."""
+    """Runs all long-recall queries through `retriever.search` and aggregates recall@k/MRR/latency. Before
+    BEFORE measuring, excludes queries whose `want` appears only in a legitimately superseded slot value (see
+    `_superseded_blob`) — they would not be fair against the corpus's final state with any retriever."""
     from memory import retriever
 
-    blob = _durable_blob()             # snapshot para clasificar write vs retrieval
+    blob = _durable_blob()             # snapshot for classifying write vs retrieval
     superseded = _superseded_blob()
     qs = []
     superseded_excluded = 0
@@ -229,8 +228,8 @@ def evaluate(limit: int = 10) -> dict:
         "recall@10": round(rec_at(10), 4),
         "mrr": round(mrr, 4),
         "found_rate": round(sum(1 for r in ranks if r is not None) / n, 4) if n else 0.0,
-        # DESCOMPOSICIÓN del techo (V2-031): cuánto es de ESCRITURA y cuánto de RECUPERACIÓN.
-        "write_completeness": round(stored / n, 4) if n else 0.0,                 # % de queries cuyo dato SÍ está guardado
+        # CEILING BREAKDOWN (V2-031): how much comes from WRITING and how much from RETRIEVAL.
+        "write_completeness": round(stored / n, 4) if n else 0.0,                 # % of queries whose data IS stored
         "retrieval_at10_given_stored": round(found_stored / stored, 4) if stored else 0.0,
         "write_miss": write_miss,
         "retrieval_miss": retrieval_miss,
@@ -266,8 +265,8 @@ def main():
     ap.add_argument("--label", default=None, help="etiqueta del run (p. ej. off/openai/local)")
     ap.add_argument("--rerank", choices=["off", "local", "openai"], default=None,
                     help="fuerza el proveedor de rerank EN ESTE PROCESO (no por env: el store lo pisaría)")
-    # V2-114 F1 — la cinta del destilador. `--record` graba lo que el CORAZÓN decide (una vez, ~90 min);
-    # `--replay` lo repite sin red en segundos. Ver `distiller_tape.py` para el porqué de la cinta secuencial.
+    # V2-114 F1 — the distiller tape. `--record` records what the CORE decides (once, ~90 min);
+    # `--replay` repeats it without the network in seconds. See `distiller_tape.py` for the rationale for the sequential tape.
     ap.add_argument("--record", metavar="PATH", default=None,
                     help="con --fresh: graba las decisiones del destilador a un fixture reutilizable")
     ap.add_argument("--replay", metavar="PATH", default=None,
@@ -290,7 +289,7 @@ def main():
         from tests.memory.e2e.bot import distiller_tape as _tape
 
         def _populate():
-            # fix 2026-07-20: la API real del runner es la corrutina run_range, no un run() síncrono inexistente.
+            # fix 2026-07-20: the runner's real API is the run_range coroutine, not a nonexistent synchronous run().
             _asyncio.run(runner.run_range(0, 10_000, fresh=True))
 
         if args.replay:
