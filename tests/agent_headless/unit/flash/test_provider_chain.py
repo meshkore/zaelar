@@ -1,10 +1,10 @@
-"""Cadena de proveedores del CEREBRO DE CLUSTER + relevo automático (2026-08-03).
+"""Provider chain for the CLUSTER BRAIN + automatic failover (2026-08-03).
 
-Hermano de tests/agent_headless/unit/workers/test_provider_failover.py: mismo incidente-clase (un 429 de Z.AI sin
-relevo), pero del lado del turno de cluster (`connectors/meshkore/brain.py` → `nucleo.flash.cluster.respond` →
-`FastClient`), no del CLI de los brain workers. Antes de esto el tier se fijaba UNA VEZ al arrancar el server y el
-heartbeat repetía la MISMA llamada rota en bucle — "cluster brain turn failed: 429" una y otra vez, sin relevo y
-sin que el panel dijera nada.
+Sibling of tests/agent_headless/unit/workers/test_provider_failover.py: same class of incident (a Z.AI 429 without
+failover), but on the cluster turn side (`connectors/meshkore/brain.py` → `nucleo.flash.cluster.respond` →
+`FastClient`), not the brain workers' CLI. Before this, the tier was fixed ONCE when the server started and the
+heartbeat repeated the SAME broken call in a loop — "cluster brain turn failed: 429" over and over, with no failover
+and without the panel saying anything.
 """
 import time
 
@@ -12,8 +12,8 @@ import pytest
 
 from nucleo.flash import provider_chain as pc
 
-# Fecha SIEMPRE 2 días por delante de "ahora" — nunca un literal absoluto (uno se quedó atrás: "2026-08-04" pasó
-# a estar en el pasado y un cooldown con reset ya vencido se considera disponible al instante, tumbando pick()).
+# ALWAYS 2 days ahead of "now" — never an absolute literal (one fell behind: "2026-08-04" became
+# past and a cooldown with an already-expired reset is considered available immediately, breaking pick()).
 RESET_DATE = time.strftime("%Y-%m-%d", time.localtime(time.time() + 2 * 86400))
 REAL_429_EXHAUSTED = ("429 Too Many Requests — {\"error\":{\"message\":"
                       f"\"[1310][Weekly/Monthly Limit Exhausted. Your limit will reset at {RESET_DATE} 00:00:00]\"}}}}")
@@ -23,13 +23,13 @@ BARE_429 = "429 Too Many Requests"
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     fresh = pc.CooldownStore(pc._KV)
-    fresh._loaded = True                              # sin tocar la memoria real
+    fresh._loaded = True                              # without touching real memory
     monkeypatch.setattr(fresh, "_save", lambda: None)
     monkeypatch.setattr(pc, "_store", fresh)
-    # `DEEPSEEK_API_KEY` entró en esta lista el 2026-08-30 y no es cosmético: al pasar el titular de la cadena
-    # a DeepSeek (V2-497), una clave del ENTORNO —la del operador, la de otra suite— compraba un escalón que
-    # estos casos dan por ausente. Pasaban en solitario y fallaban en el mapa entero, que es la forma de un
-    # test que mide su entorno.
+    # `DEEPSEEK_API_KEY` entered this list on 2026-08-30 and this is not cosmetic: when the chain's primary moved
+    # to DeepSeek (V2-497), an ENVIRONMENT key —the operator's or another suite's— bought a tier that these cases
+    # assume is absent. They passed alone and failed in the full map, which is what a test that measures its
+    # environment looks like.
     for _var in ("Z_AI_API_KEY", "DEEPSEEK_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY",
                  "XAI_API_KEY", "GROQ_API_KEY", "MOONSHOT_API_KEY",
                  "MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "MESHKORE_MISSION_MODEL_ZAI"):
@@ -42,40 +42,39 @@ def _cfg(monkeypatch, providers=None):
     monkeypatch.setattr(v2, "get", lambda k: {"providers": providers or []} if k == "cluster" else {})
 
 
-# ── zero-config: la cadena por defecto usa las credenciales presentes, en el MISMO orden que antes ──────────
+# ── zero-config: the default chain uses the credentials present, in the SAME order as before ──────────
 def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
-    """NORMA DEL OPERADOR (2026-08-30): «el proveedor de Z.AI solo sirve para el Brain Worker, para usarse
-    dentro de Claude Code; no sirve como failover de nada más y no se debe utilizar en ningún otro apartado
-    del agente».
+    """OPERATOR RULE (2026-08-30): «the Z.AI provider is only for the Brain Worker, to be used
+    inside Claude Code; it is not a failover for anything else and must not be used in any other part
+    of the agent».
 
     Esta cadena la usan el cerebro de VOZ, el compositor del brief y el cerebro de cluster — ninguno es un
-    worker. Hasta el 2026-08-30 llevaba las DOS carteras de Z.AI (plan por `api/anthropic` y créditos por
-    `paas/v4`, V2-462) y se gastaban solas por relevo: así fue como bajó el saldo de una cartera que el
-    operador no había autorizado para esto.
+    worker. Until 2026-08-30 it carried BOTH Z.AI wallets (plan via `api/anthropic` and credits via
+    `paas/v4`, V2-462) and they were consumed automatically by failover: that is how the balance of a wallet
+    the operator had not authorized for this was reduced.
 
-    La key va PUESTA a propósito: lo que se fija es que la ausencia es una DECISIÓN, no una credencial que
-    falte."""
+    The key is SET deliberately: what is being fixed is that the absence is a DECISION, not a missing
+    credential."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
     monkeypatch.setenv("AIMLAPI_KEY", "k3")
-    # UN SOLO FAILOVER (norma del operador, 2026-08-30): titular + suplente, y se acabó.
+    # ONE SINGLE FAILOVER (operator rule, 2026-08-30): primary + backup, and that's it.
     assert [t["name"] for t in pc.chain()] == ["deepseek-directo", "aimlapi-failover"]
     assert not any("z.ai" in (t.get("base_url") or "") for t in pc.chain())
 
 
 def test_a_tier_without_credentials_is_not_offered(monkeypatch):
-    """Sin credencial no es un escalón, es un espejismo. Y con la de Z.AI puesta y NINGUNA otra, la cadena de
-    voz se queda VACÍA — que es la norma de arriba vista desde el otro lado: esa key ya no compra un escalón
-    aquí."""
+    """Without a credential there is no tier, only a mirage. And with Z.AI set and NO other credential, the voice
+    chain stays EMPTY — the rule above viewed from the other side: that key no longer buys a tier here."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     assert [t["name"] for t in pc.chain()] == []
 
 
 def test_explicit_llm_override_sigue_mandando(monkeypatch):
-    """Un `LLM_BASE_URL`/`LLM_API_KEY` explícito —el operador pinchando un endpoint a mano— sigue yendo el
-    primero. Lo que cambia respecto de antes es a quién adelanta: ya no a Z.AI, que no está."""
+    """An explicit `LLM_BASE_URL`/`LLM_API_KEY` —the operator plugging in an endpoint by hand— still goes
+    first. What changes from before is whom it moves ahead of: no longer Z.AI, which is absent."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("LLM_API_KEY", "k2")
@@ -93,7 +92,7 @@ def test_operator_can_order_the_chain_by_hand(monkeypatch):
     assert [t["name"] for t in pc.chain()] == ["groq", "xai"]
 
 
-# ── clasificar la avería: agotado ≠ rate-limit pasajero (misma regla que el hermano de workers) ─────────────
+# ── classify the failure: exhausted ≠ transient rate limit (same rule as the worker sibling) ─────────────
 def test_a_passing_rate_limit_does_not_burn_a_provider(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -107,7 +106,7 @@ def test_a_task_failure_is_not_a_provider_failure():
     assert pc.note_failure("no encontré ningún parque acuático abierto hoy") is None
 
 
-# ── el relevo ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── failover ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -121,31 +120,31 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
-    """Una CUOTA que no dice cuándo vuelve: media hora y se reintenta.
+    """A QUOTA that does not say when it returns: retry after half an hour.
 
-    El ejemplo era «insufficient credit» y V2-243 lo convirtió en el OTRO caso —un saldo, que no vuelve solo—,
-    así que aquí va un agotamiento de cuota de verdad. La intención del test no cambia; lo que tenía dos
-    significados era el ejemplo."""
+    The example was «insufficient credit» and V2-243 turned it into the OTHER case —a balance, which does not
+    return on its own—, so this uses a genuine quota exhaustion. The test's intent does not change; the example
+    was what had two meanings."""
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     pc.note_failure("quota exceeded", {"name": "deepseek-directo", "base_url": "x"})
     assert time.time() < pc._store._cooldown["deepseek-directo"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
 
 
-# ── V2-243: un SALDO agotado no es una cuota ────────────────────────────────────────────────────────────────
-# Medido en producción el 2026-08-21: `Insufficient Balance` de DeepSeek (HTTP 402) dos veces, anunciado como
-# «sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible». A las 03:02 no iba a pasar nada — un saldo no se
-# repone solo—, y con la cadena entera seca el arnés tuvo que parar de medir. Una cuota le dice al operador
-# «espera»; un saldo le dice «recarga», y de eso depende lo que HAGA.
+# ── V2-243: an exhausted BALANCE is not a quota ────────────────────────────────────────────────────────────────
+# Measured in production on 2026-08-21: DeepSeek's `Insufficient Balance` (HTTP 402) twice, announced as
+# «no quota until 21 Aug 03:02 · NO FAILOVER available». At 03:02 nothing would happen — a balance does not
+# replenish itself—, and with the entire chain dry the harness had to stop measuring. A quota tells the operator
+# «wait»; a balance tells them «top up», and what it DOES depends on that distinction.
 
 def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
-    """Reescrito el 2026-08-27, NO volteado. Lo que protegía sigue en pie: un saldo agotado se castiga MÁS que
-    un fallo cualquiera, porque reintentar cada poco contra una cuenta vacía quema un turno por ronda. Lo que
-    cambia es el techo, y lo cambia una medida: con seis horas, el 402 de las 18:55 dejó al titular fuera hasta
-    pasada la medianoche; el operador recargó a las 19:40 y el motor no tenía forma de enterarse, así que
-    siguió mandándolo todo al relevo — y cuando ese relevo se cayó, el cerebro se quedó MUDO con el titular
-    sano al lado. Una recarga es invisible desde aquí: la única manera de verla es volver a probar. Ahora el
-    castigo sigue siendo mayor que el de una cuota sin fecha, pero cabe en una libertad condicional.
+    """Rewritten on 2026-08-27, NOT reverted. What it protected remains: an exhausted balance is penalized MORE than
+    an ordinary failure, because retrying frequently against an empty account burns one turn per round. What
+    changes is the ceiling, and one measurement changed it: with six hours, the 402 at 18:55 kept the primary out
+    past midnight; the operator topped up at 19:40 and the engine had no way to know, so it kept sending everything
+    to the failover — and when that failover went down, the brain went SILENT with a healthy primary beside it.
+    A top-up is invisible from here: the only way to see it is to try again. The penalty is still greater than
+    that for an undated quota, but fits within a probationary period.
     """
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -154,18 +153,17 @@ def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
     assert until > time.time(), "un saldo agotado tiene que castigar algo"
     assert until <= time.time() + pc._DEPLETED_COOLDOWN_S + 1
     assert pc._DEPLETED_COOLDOWN_S <= 30 * 60, \
-        "el castigo por saldo volvió a ser tan largo que una recarga no se nota"
+        "the balance penalty became so long again that a top-up is not noticed"
 
 
 def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
-    """Sensibilidad, y no es teórico: un plan con forfait puede decir «insufficient credit … reset at …». Si
-    anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
+    """Sensitivity, and not theoretical: a flat-rate plan may say «insufficient credit … reset at …». If
+    it announces when it returns, it returns on its own, and disabling it six hours too long loses the preferred tier."""
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    # La fecha se calcula, no se escribe: con "2026-08-30" literal este caso funcionó hasta las 23:33
-    # del 29 y a partir de ahí la fecha anunciada quedaba en el pasado, así que mandaba el suelo de
-    # cuarentena y el caso pasaba a medir lo contrario de lo que dice. Un test con una fecha dentro
-    # tiene una bomba de relojería dentro.
+    # The date is calculated, not written: with the literal "2026-08-30" this case worked until 23:33
+    # on the 29th, after which the announced date was in the past, so the quarantine floor took over and the case
+    # started measuring the opposite of what it says. A test with a date inside it contains a time bomb.
     _manana = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400))
     pc.note_failure(f"insufficient credit, quota will reset at {_manana}",
                     {"name": "deepseek-directo", "base_url": "x"})
@@ -174,7 +172,7 @@ def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
 
 
 def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch):
-    """Lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que haga."""
+    """What is written here is what the operator reads in the panel, and what they do depends on it."""
     from voice import health_state
     dichos = []
     monkeypatch.setattr(health_state, "record", lambda *a, **k: dichos.append(a), raising=False)
@@ -189,7 +187,7 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
 def test_no_tier_left_returns_none(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
-    # Una sola credencial = un solo escalón ofrecido; al secarlo no queda nadie a quien preguntar.
+    # One credential = one offered tier; once it is dried up, there is nobody left to ask.
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
     assert nxt is None
     assert pc.pick() is None
@@ -297,12 +295,12 @@ def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
     assert health_state.get("cluster_brain") is None
 
 
-# ── V2-243: quedarse sin proveedor no es un tropiezo ─────────────────────────────────────────────────────────
-# «Uf, se me ha ido un momento. ¿Me lo repites?» es la frase correcta ante un tropiezo: el siguiente intento
-# puede ir bien. Con la cadena entera seca el siguiente intento falla igual, y el operador se queda
-# repitiéndose a una máquina que no puede contestarle, sin enterarse de lo único que lo arregla — que es suyo y
-# no del motor. Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN
-# RELEVO disponible», y el canario del arnés MUDO en todos los turnos hasta que paró de medir.
+# ── V2-243: running out of providers is not a stumble ─────────────────────────────────────────────────────────
+# «Oops, I lost it for a moment. Could you repeat that?» is the right phrase for a stumble: the next attempt
+# may succeed. With the entire chain dry, the next attempt fails the same way, and the operator keeps repeating
+# themselves to a machine that cannot answer, unaware of the only thing that fixes it — something they own,
+# not the engine. Measured in production on 2026-08-21: `Insufficient Balance` (DeepSeek, 402) twice, «NO
+# FAILOVER available», and the harness canary SILENT on every turn until measurement stopped.
 
 def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     _cfg(monkeypatch)
@@ -312,9 +310,9 @@ def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     # El tier COMPLETO, como lo entrega `pick()` — URL real y `env` incluidos: el emparejamiento de V2-458 casa
     # por host + credencial RESUELTA, y sin eso el hermano queda en pie y el caso mide otra cosa.
     #
-    # Con UN SOLO failover (norma 2026-08-30) secar la cadena son dos golpes, no cuatro — y esa es media razón
-    # de la norma: una cadena de cinco escalones nunca llegaba a estar seca, así que el turno no podía decirle
-    # al operador «no queda nadie, esto lo arreglas tú recargando».
+    # With ONE SINGLE failover (2026-08-30 rule), drying the chain takes two blows, not four — and that is half
+    # the reason for the rule: a five-tier chain never became dry, so the turn could not tell the operator
+    # «nobody is left; you fix this by topping up».
     pc.note_failure("Insufficient Balance", {"name": "deepseek-directo",
                                              "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]})
     pc.note_failure("Insufficient Balance", {"name": "aimlapi-failover",
@@ -323,39 +321,42 @@ def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
 
 
 def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
-    """GUARDA DE CABLEADO (V2-199): el hecho puede estar perfecto y el turno seguir diciendo «¿me lo repites?».
-    Es lo que el operador OYE, así que es la parte que no puede quedarse sin probar."""
+    """WIRING GUARD (V2-199): the fact may be perfect while the turn keeps saying «could you repeat that?».
+    This is what the operator HEARS, so it is the part that cannot go untested."""
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     txt = src.read_text(encoding="utf-8")
-    # V2-252: el «¿queda alguien?» lo resuelve el módulo compartido y este turno LEE el veredicto.
+    # V2-252: the shared module resolves «is anyone left?» and this turn READS the verdict.
     assert '_dry = bool(_v.get("dry"))' in txt
     assert "sin proveedor de modelo" in txt
-    assert 'send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else' in txt
+    # Repointed 2026-08-31 (ratchet extraction): the wiring is unchanged — «¿me lo repites?» stays the
+    # NOT-dry line, and the dry branch swaps it for the chain's own sentence (dry_chain_line).
+    assert '_line = "Uf, se me ha ido un momento. ¿Me lo repites?"' in txt
+    assert "if _dry:" in txt and "_pchain2.dry_chain_line" in txt
     from nucleo.flash import provider_failure as _pf
     assert "pc.pick(role) is None" in inspect.getsource(_pf.handle)
 
 
-# ── V2-244: callar un escalón es legítimo; callar QUE LO CALLAS, no ──────────────────────────────────────────
-# El arnés lo aisló en dos líneas seguidas del log del 2026-08-21, con los proveedores reales:
+# ── V2-244: silencing a tier is legitimate; hiding THAT YOU SILENCE IT is not ──────────────────────────────────────────
+# The harness isolated it in two consecutive lines of the 2026-08-21 log, with the real providers:
 #
 #   02:39:41  memllm[i18n]: relevo a deepseek/deepseek-v4-pro @ aimlapi tras HTTP 402   ← i18n RELEVA y sigue
 #   02:39:42  cerebro de voz: «titular» … sin cuota … · SIN RELEVO disponible           ← el cerebro NO
 #
 # La regla es del operador y NO se toca: en self-host la cadena de voz es solo el titular, porque quien se
-# autohospeda paga sus APIs y no puede llevarse la sorpresa de que el agente se pase a un proveedor que él no
-# eligió. Pero esa regla se escribió sobre el relevo por LATENCIA —todo el docstring habla de TTFT y de coste— y
+# self-hosting means paying for its APIs, and the operator cannot be surprised by the agent switching to a provider
+# they did not choose. But that rule was written for LATENCY failover —the entire docstring discusses TTFT and cost— and
 # lo medido es otra cosa: el titular MUERTO deja el producto mudo con una clave viva sin usar. Esto no releva:
 # hace que se pueda NOMBRAR, que es la diferencia entre «no puedo seguir» y «no puedo seguir, y esto lo arregla».
 
 def _sin_lista_explicita(monkeypatch):
-    """Self-host y SIN `fast.providers` — o sea, una instalación recién clonada.
+    """Self-host and WITHOUT `fast.providers` — that is, a freshly cloned installation.
 
-    ⚠️ Sin este ayudante estos casos leen la config REAL de la máquina que corre la suite, y en la del operador
-    `fast.providers` SÍ está puesta (titular directo + failover a AIMLAPI): el resultado sería vacío y el test
-    verde por el motivo equivocado. Es la misma trampa que hizo leer como defecto de producto lo que era la
-    config vacía de un sandbox (2026-08-21)."""
+    ⚠️ Without this helper these cases read the REAL config of the machine running the suite, and on the operator's
+    machine `fast.providers` IS set (direct primary + AIMLAPI failover): the result would be empty and the test
+    green for the wrong reason. It is the same trap that made an empty sandbox config look like a product default
+    (2026-08-21)."""
     from config import v2
 
     from nucleo import cloud_account
@@ -380,7 +381,7 @@ def test_un_escalon_CALLADO_con_credencial_y_sano_se_puede_nombrar(monkeypatch):
 
 
 def test_un_escalon_SIN_credencial_no_esta_callado_sino_que_NO_EXISTE(monkeypatch):
-    """Nombrarlo mandaría al operador a activar algo para lo que no tiene cuenta."""
+    """Naming it would send the operator to activate something for which they have no account."""
     _sin_lista_explicita(monkeypatch)
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
@@ -390,8 +391,8 @@ def test_un_escalon_SIN_credencial_no_esta_callado_sino_que_NO_EXISTE(monkeypatc
 
 
 def test_un_escalon_YA_EN_COOLDOWN_no_se_ofrece_como_salida(monkeypatch):
-    """El caso REAL del 2026-08-21: `deepseek-directo` usa la MISMA cuenta que se quedó sin saldo. Ofrecerlo como
-    remedio manda al operador a mirar un proveedor que también está caído."""
+    """The REAL case from 2026-08-21: `deepseek-directo` uses the SAME account that ran out of balance. Offering it
+    as a remedy sends the operator to check a provider that is also down."""
     _sin_lista_explicita(monkeypatch)
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_cooldown", {"deepseek-directo": time.time() + 3600})
@@ -402,7 +403,7 @@ def test_un_escalon_YA_EN_COOLDOWN_no_se_ofrece_como_salida(monkeypatch):
 
 
 def test_en_la_NUBE_no_hay_nada_callado(monkeypatch):
-    """Allí la cadena sí trae relevos, así que un «escalón callado» sería una frase falsa."""
+    """There the chain does include failovers, so a «silent tier» would be a false statement."""
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True, raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -410,7 +411,7 @@ def test_en_la_NUBE_no_hay_nada_callado(monkeypatch):
 
 
 def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
-    """Con `fast.providers` explícito manda él: decirle que le callamos algo sería mentira."""
+    """With explicit `fast.providers`, the operator is in charge: telling them we silenced something would be a lie."""
     from config import v2
 
     from nucleo import cloud_account
@@ -421,23 +422,31 @@ def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
 
 
 def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
-    """GUARDA DE CABLEADO: es lo que el operador OYE. Sin esto, el hecho existe y no sale por ninguna boca."""
+    """GUARDA DE CABLEADO: es lo que el operador OYE. Sin esto, el hecho existe y no sale por ninguna boca.
+
+    Repunteada 2026-08-31 (trinquete de arquitectura): la COMPOSICIÓN del mensaje se extrajo a
+    `provider_chain.dry_chain_line` — la guarda sigue cubriendo las dos mitades, cada una donde vive ahora:
+    el turno de voz LLAMA (suppressed_relays + dry_chain_line en nucleo.py) y la frase NOMBRA la clave que
+    lo activa (`fast.providers`, ahora comprobada como CONDUCTA de la función, no como texto en un fichero)."""
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     txt = src.read_text(encoding="utf-8")
     assert "_pchain2.suppressed_relays()" in txt
-    assert "fast.providers" in txt
+    assert "_pchain2.dry_chain_line" in txt
+    line = pc.dry_chain_line(["deepseek-directo"])
+    assert "fast.providers" in line and "deepseek-directo" in line
+    assert "fast.providers" not in pc.dry_chain_line([])   # sin callados no se receta una clave que no aplica
 
 
-# ── V2-246: un escalón que se atasca SIEMPRE no se penalizaba nunca ──────────────────────────────────────────
-# `note_slow` vive en el camino de la RESPUESTA, así que solo ve turnos que acabaron; y `note_failure` se salta
-# cuando el turno se atascó, porque un atasco suele ser pasajero. Entre las dos, un escalón que se atasca siempre
-# no entraba nunca en cooldown y el turno siguiente volvía al MISMO sitio. Para siempre.
+# ── V2-246: a tier that ALWAYS stalls was never penalized ──────────────────────────────────────────
+# `note_slow` lives on the RESPONSE path, so it only sees turns that finished; and `note_failure` is skipped
+# when the turn stalls, because a stall is usually transient. Between the two, a tier that always stalls
+# never entered cooldown and the next turn returned to the SAME place. Forever.
 #
-# Medido por el arnés el 2026-08-21 contra AIMLAPI con la clave del operador, con la cadena real ya sembrada en
-# su sandbox: `deepseek/deepseek-v4-flash` —el modelo del escalón de failover— TIMEOUT a los 75 s, mientras
-# `deepseek/deepseek-v4-pro` contestaba en 18,3 s. El relevo existía, entró, y se quedó mudo igual.
+# Measured by the harness on 2026-08-21 against AIMLAPI with the operator's key, with the real chain already seeded
+# in its sandbox: `deepseek/deepseek-v4-flash` —the failover tier's model— TIMED OUT at 75 s, while
+# `deepseek/deepseek-v4-pro` responded in 18.3 s. The failover existed, was entered, and went silent too.
 
 _UNO = {"name": "xai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
 _DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
@@ -454,7 +463,7 @@ def _dos_escalones(monkeypatch):
 
 
 def test_UN_atasco_suelto_no_releva(monkeypatch):
-    """Relevar por una hipo de red sería cambiar de proveedor por ruido."""
+    """Failing over for a network hiccup would be switching providers because of noise."""
     _dos_escalones(monkeypatch)
     assert pc.note_stall(role=pc.ROLE_VOICE) is None
     assert pc.pick(pc.ROLE_VOICE)["name"] == "xai"
@@ -464,12 +473,12 @@ def test_DOS_atascos_seguidos_SI_relevan(monkeypatch):
     _dos_escalones(monkeypatch)
     pc.note_stall(role=pc.ROLE_VOICE)
     nxt = pc.note_stall(role=pc.ROLE_VOICE)
-    assert nxt and nxt["name"] == "aimlapi", "el escalón atascado se quedaba elegido para siempre"
+    assert nxt and nxt["name"] == "aimlapi", "the stalled tier remained selected forever"
     assert pc._store._cooldown.get("xai", 0) > time.time()
 
 
 def test_un_turno_BUENO_rompe_la_racha(monkeypatch):
-    """Comparte racha con `note_slow` a propósito: dos atascos con un turno sano en medio no son una racha."""
+    """It deliberately shares a streak with `note_slow`: two stalls with a healthy turn in between are not a streak."""
     _dos_escalones(monkeypatch)
     pc.note_stall(role=pc.ROLE_VOICE)
     pc.note_slow({"cause": "ok"}, role=pc.ROLE_VOICE)
@@ -477,7 +486,7 @@ def test_un_turno_BUENO_rompe_la_racha(monkeypatch):
 
 
 def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
-    """Castigarlo nos dejaría sin proveedor, que es peor que uno lento."""
+    """Penalizing it would leave us without a provider, which is worse than a slow one."""
     monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(_UNO)])
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
@@ -491,13 +500,13 @@ def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
 
 def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
     """GUARDA DE CABLEADO (V2-199): el predicado puede estar perfecto y el turno seguir sin llamarlo — que es
-    exactamente lo que pasaba, porque la rama del atasco se saltaba a propósito TODO el circuito de proveedores."""
+    exactly what happened, because the stall branch deliberately skipped the ENTIRE provider circuit."""
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     txt = src.read_text(encoding="utf-8")
-    # V2-252: el turno pasa el HECHO (`stalled=`) y el módulo compartido decide `note_stall` vs `note_failure`.
-    # Se comprueban las dos mitades: sin la primera el atasco no llega, sin la segunda no se penaliza.
+    # V2-252: the turn passes the FACT (`stalled=`) and the shared module decides `note_stall` vs `note_failure`.
+    # Both halves are checked: without the first the stall does not arrive; without the second it is not penalized.
     assert "stalled=bool(stalled)" in txt
     from nucleo.flash import provider_failure as _pf
     assert "pc.note_stall(role=role, tier=culpable)" in inspect.getsource(_pf.handle)

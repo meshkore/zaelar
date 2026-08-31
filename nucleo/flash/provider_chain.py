@@ -1,28 +1,28 @@
-"""nucleo/flash/provider_chain.py — CADENA de proveedores del CEREBRO DE CLUSTER, con relevo automático
-(2026-08-03). Hermano de `nucleo/workers/providers.py` (misma idea, mismo shape de datos) pero para el tier de
-MODELO del canal off-voz (V2-069 «una sola mente») en vez del CLI `claude` de los brain workers — de ahí un
-módulo separado en vez de forzar los dos casos en uno: aquí un escalón es un `ModelSpec` (base_url/api_key/model
-de `FastClient`), allí es un endpoint Anthropic-compatible para `ANTHROPIC_BASE_URL`.
+"""nucleo/flash/provider_chain.py — PROVIDER CHAIN for the CLUSTER BRAIN, with automatic failover
+(2026-08-03). Sibling of `nucleo/workers/providers.py` (same idea, same data shape), but for the
+MODEL tier of the off-voice channel (V2-069 “one mind”) instead of the `claude` CLI used by brain workers — hence
+a separate module rather than forcing both cases into one: here a tier is a `ModelSpec` (base_url/api_key/model
+from `FastClient`), while there it is an Anthropic-compatible endpoint for `ANTHROPIC_BASE_URL`.
 
-Incidente que lo motiva (2026-08-03): `connectors/meshkore/brain.py` resolvía el tier UNA VEZ al arrancar el
-server (`_resolve_endpoint()`, prioridad fija por env) y se lo pasaba fijo a `nucleo.flash.cluster.respond`. Con
-la cuota de Z.AI agotada, CADA turno de cluster (el heartbeat insistiendo en responder a un peer) repetía la
-MISMA llamada rota → 429 en bucle, sin relevo, sin aviso — el operador solo veía "cluster brain turn failed: 429"
-repetido. `nucleo.workers.providers` ya resolvía justo este problema para los workers; esto es el mismo mecanismo
-aplicado al otro consumidor de modelo.
+Incident motivating it (2026-08-03): `connectors/meshkore/brain.py` resolved the tier ONCE when the server started
+(`_resolve_endpoint()`, fixed priority by env) and passed it unchanged to `nucleo.flash.cluster.respond`. With
+the Z.AI quota exhausted, EVERY cluster turn (the heartbeat insisting on replying to a peer) repeated the SAME
+broken call → 429 in a loop, with no failover and no warning — the operator only saw repeated
+"cluster brain turn failed: 429". `nucleo.workers.providers` already solved this exact problem for workers; this is
+the same mechanism applied to the other model consumer.
 
-DISEÑO (igual que el hermano de workers)
+DESIGN (same as the workers sibling)
 -----------------------------------------
-- **Cadena ordenada de escalones**, cada uno con su(s) env var(es) de credencial — sin token resoluble, el
-  escalón ni aparece (fail-open: cero config = comportamiento de antes con UN tier).
-- **Agotado ≠ roto**: cooldown hasta la fecha de reset si el proveedor la dice, si no una ventana corta.
-- **Sticky**: `pick()` es una consulta O(1) contra un dict de cooldowns en memoria (persistido en `sys_kv`), NO
-  vuelve a probar la cadena en cada turno — una vez relevado, el relevo se queda hasta que el cooldown expire o
-  el operador lo limpie. El relevo dentro del MISMO turno que falla lo dispara `note_failure()` + un reintento
-  del llamador (ver `connectors/meshkore/brain.py::_brain`).
-- **Configurable**: `config/v2 cluster.providers` (lista ordenada, vacía por defecto) deja al operador fijar a
-  mano principal→failover→failover; vacío = cadena por defecto desde las credenciales presentes (Z.AI directo →
-  AIMLAPI/DeepSeek → xAI → Groq), el MISMO orden que tenía `brain.py._resolve_endpoint` antes de esto.
+- **Ordered chain of tiers**, each with its credential env var(s) — without a resolvable token, the tier does not
+  appear (fail-open: zero config = the previous behavior with ONE tier).
+- **Exhausted ≠ broken**: cooldown until the reset date if the provider gives one, otherwise a short window.
+- **Sticky**: `pick()` is an O(1) lookup against an in-memory cooldown dict (persisted in `sys_kv`); it does NOT
+  retry the chain on every turn — once failed over, the relay remains until cooldown expires or the operator clears it.
+  Failover within the SAME failed turn is triggered by `note_failure()` + a caller retry (see
+  `connectors/meshkore/brain.py::_brain`).
+- **Configurable**: `config/v2 cluster.providers` (ordered list, empty by default) lets the operator set
+  primary→failover→failover manually; empty = the default chain from present credentials (direct Z.AI →
+  AIMLAPI/DeepSeek → xAI → Groq), the SAME order used by `brain.py._resolve_endpoint` before this.
 """
 from __future__ import annotations
 
@@ -31,10 +31,10 @@ import time
 
 from loguru import logger
 
-# Clasificación y lectura de la hora de reset REUSADAS del hermano (puras, sin estado). No se copian a propósito:
-# este módulo tenía su propio `_RESET_RE` que solo leía la FECHA, así que un reset del mismo día («reset at
-# 23:15:37») se resolvía a medianoche pasada y el cooldown nacía vencido — el bug que el hermano ya arregló y que
-# aquí seguía vivo. Dos copias de la misma lectura garantizan que una de ellas se quede atrás.
+# Failure classification and reset-time reading REUSED from the sibling (pure, stateless). Deliberately not copied:
+# this module had its own `_RESET_RE` that read only the DATE, so a same-day reset (“reset at 23:15:37”) resolved to
+# the following midnight and the cooldown was born expired — the bug the sibling had already fixed but which remained
+# alive here. Two copies of the same parser guarantee that one of them falls behind.
 from nucleo.workers.providers import _reset_epoch, classify_failure, is_depleted
 # Cooldown mechanics shared with the sibling module (V2-098) — the STATE stays separate on purpose (its own KV
 # namespace: a MODEL tier being down says nothing about a CLI endpoint being down), only load/save/token/available.
@@ -42,41 +42,39 @@ from nucleo import provider_health as _health
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 
-_DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
-_DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 lo puso en 6 h («un saldo no se repone solo»). Cierto salvo en
-                                       # el ÚNICO caso que importa: que el operador RECARGUE — que es justo lo que
-                                       # la alerta existe para provocar. Medido el 2026-08-27: el 402 de las 18:55
-                                       # castigó al titular hasta pasada la medianoche, el operador recargó a las
-                                       # 19:40, y el motor siguió mandándolo todo al relevo. Cuando ese relevo se
-                                       # cayó a su vez, el cerebro se quedó MUDO con el titular sano al lado, y no
-                                       # había forma de decirle que ya había saldo. Una recarga es invisible desde
-                                       # aquí: la única manera de enterarse es volver a probar. El coste de la
-                                       # libertad condicional son ~3 llamadas fallidas por hora mientras de verdad
-                                       # no hay saldo; el coste de no tenerla fueron seis horas de silencio.
-_AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
-_KV = "cluster_provider_cooldown"      # nombre histórico: el cooldown es COMPARTIDO (ver `role` abajo)
+_DEFAULT_COOLDOWN_S = 30 * 60          # no explicit reset date: half an hour, then retry
+_DEPLETED_COOLDOWN_S = 20 * 60         # V2-243 set this to 6 h (“a balance does not replenish itself”). True except
+                                       # in the ONE case that matters: the operator TOPS UP — exactly what the alert
+                                       # exists to provoke. Measured 2026-08-27: the 18:55 402 punished the primary
+                                       # past midnight; the operator topped up at 19:40, but the engine kept sending
+                                       # everything to the relay. When that relay also fell, the brain went SILENT
+                                       # with a healthy primary beside it, and there was no way to tell it there was
+                                       # balance again. A top-up is invisible here: the only way to learn is to retry.
+                                       # The cost of probation is ~3 failed calls per hour while there truly is no
+                                       # balance; the cost of not having it was six hours of silence.
+_AUTH_COOLDOWN_S = 5 * 60              # bad credential: it may be a mistake; do not punish it for a week
+_KV = "cluster_provider_cooldown"      # historical name: cooldown is SHARED (see `role` below)
 
 _store = CooldownStore(_KV)
 
-# ── DOS CONSUMIDORES, UNA MECÁNICA (V2-094, 2026-08-14) ───────────────────────────────────────────────────────
-# Este módulo nació para el cerebro de CLUSTER. El de VOZ tenía el mismo problema y ningún relevo: un turno lento
-# o un proveedor sin cuota se repetía igual contra el mismo tier. Así que la mecánica se comparte y lo único que
-# cambia por consumidor es la CADENA:
+# ── TWO CONSUMERS, ONE MECHANISM (V2-094, 2026-08-14) ─────────────────────────────────────────────────────────
+# This module was born for the CLUSTER brain. VOICE had the same problem and no relay: a slow turn or a provider
+# without quota was repeated against the same tier. The mechanism is therefore shared; only the CHAIN changes:
 #   · `cluster` → arranca en Z.AI (su titular histórico);
 #   · `voice`   → arranca en lo que diga `config §fast` (el titular del FlashBrain, hoy DeepSeek V4 Flash vía
 #                 AIMLAPI) y sigue por los escalones RÁPIDOS Y BARATOS que tengan credencial.
-# El COOLDOWN sí es compartido a propósito: si a Z.AI se le acabó la cuota, se le acabó para todo el mundo — y
-# marcarlo dos veces sería tener dos verdades sobre el mismo proveedor.
+# The COOLDOWN is intentionally shared: if Z.AI ran out of quota, it ran out for everyone — marking it twice would
+# create two truths about the same provider.
 ROLE_CLUSTER = "cluster"
 ROLE_VOICE = "voice"
 
-# ── RELEVO POR LATENCIA (lo que no existía) ───────────────────────────────────────────────────────────────────
+# ── LATENCY FAILOVER (what did not exist before) ───────────────────────────────────────────────────────────────
 # `note_failure` cubre el proveedor ROTO (429/cuota/credencial). No cubría el proveedor LENTO, que es el fallo que
 # el operador vive de verdad: turnos de 20-25 s en los que «parece que se ha quedado tonto». Medido en la sesión
 # b70a45d0: TTFT p50 de 8.370 ms y máximo de 25.703 ms, con el prompt CONSTANTE (±9%) y 120 tok/s de generación —
 # o sea, todo el tiempo antes del primer token.
 #
-# Tres decisiones que importan:
+# Three decisions matter:
 # 1. **No se releva al primer turno lento.** Un pico aislado es ruido; hacen falta `_SLOW_STREAK` seguidos. Relevar
 #    por un pico cambiaría de modelo (y de precio) continuamente.
 # 2. **El cooldown de latencia es CORTO.** Lentitud es transitoria; quedarse media hora en un escalón más caro por
@@ -609,3 +607,18 @@ def status(role: str = ROLE_CLUSTER) -> list[dict]:
 def clear(name: str = "") -> None:
     """Levanta el cooldown (el operador recargó el plan y no quiere esperar al reset)."""
     _store.clear(name)
+
+
+def dry_chain_line(callados: list[str]) -> str:
+    """What the voice says when the WHOLE chain is dry. Extracted from the voice provider (2026-08-31,
+    architecture ratchet) — the composition is pure (callados → sentence) and belongs next to
+    `suppressed_relays()`, which produces its input. The two rules it carries are measured ones:
+    «¿me lo repites?» is a lie with no provider left (V2-243), and a healthy, credentialed rung that the
+    self-host rule is silencing must be NAMED, with the config key that enables it (V2-244)."""
+    if callados:
+        return (f"Me he quedado sin proveedor de modelo. Tengo credencial de {', '.join(callados)}, pero en "
+                "self-host mi cadena de voz es solo el titular y no me paso sola a un proveedor que no hayas "
+                "elegido. Si quieres que lo use, ponlo en `fast.providers`; si no, hay que recargar el titular.")
+    return ("Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
+            "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
+            "proveedor, y en cuanto lo hagas sigo.")

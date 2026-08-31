@@ -2329,22 +2329,16 @@ class NucleoLLMStream(llm.LLMStream):
             # contestarle — sin enterarse de lo único que lo arregla, que es suyo y no del motor.
             # Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN RELEVO
             # disponible», y el canario del arnés MUDO en todos los turnos hasta que él paró de medir.
-            _callados = []
+            # V2-244: la composición (nombrar lo callado + su clave) vive en provider_chain.dry_chain_line.
+            _line = "Uf, se me ha ido un momento. ¿Me lo repites?"
             if _dry:
                 try:
                     from nucleo.flash import provider_chain as _pchain2
-                    _callados = _pchain2.suppressed_relays()
+                    _line = _pchain2.dry_chain_line(_pchain2.suppressed_relays())
                 except Exception:
-                    _callados = []
-            # V2-244: si HAY escalones con credencial y sanos que la regla de self-host está callando, el operador
-            # tiene que oírlo — es la diferencia entre «no puedo seguir» y «no puedo seguir, y esto lo arregla».
-            send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else
-                 ("Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
-                  "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
-                  "proveedor, y en cuanto lo hagas sigo." if not _callados else
-                  f"Me he quedado sin proveedor de modelo. Tengo credencial de {', '.join(_callados)}, pero en "
-                  f"self-host mi cadena de voz es solo el titular y no me paso sola a un proveedor que no hayas "
-                  f"elegido. Si quieres que lo use, ponlo en `fast.providers`; si no, hay que recargar el titular."))
+                    _line = ("Me he quedado sin proveedor de modelo — hay que recargar o cambiar de "
+                             "proveedor; lo tienes en el panel de estado.")
+            send(_line)
             return
 
         # SEGUNDO VIAJE de la selección progresiva (V2-096 F2), y SOLO aquí: la recuperación se equivocó y el modelo
@@ -2368,12 +2362,9 @@ class NucleoLLMStream(llm.LLMStream):
                                                         on_tool_call=_on_tool_call, metrics=llm_metrics):
                     _again.append(_piece)
                 if _again:
-                    # Through the SAME buf/take seam as the primary stream — never `send()` raw model text.
-                    # Measured live (session acc5e85e, 2026-08-31): this retry sent the model's output verbatim,
-                    # so «Vale, quiero saber si tengo mensajes de WhatsApp» ended with the TTS *speaking*
-                    # «[[show:mensajeria]]» out loud and NO widget opening — the tag reached the operator's ears
-                    # instead of the dispatcher. `take(True)` runs strip_tags with `_tag_emit`, which is exactly
-                    # what executes the tag and removes it from speech; bypassing it turned an action into noise.
+                    # SAME buf/take seam as the primary stream — never send() raw model text. Measured live
+                    # (acc5e85e, 2026-08-31): this retry sent the reply verbatim, the TTS *spoke*
+                    # «[[show:mensajeria]]» aloud and no widget opened. take(True) executes+strips the tags.
                     buf = ""                       # discard any tag leftovers from the first pass
                     buf += "".join(_again)
                     _txt2 = take(True).strip()
