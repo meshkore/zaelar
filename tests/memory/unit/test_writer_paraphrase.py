@@ -1,4 +1,4 @@
-"""Tests de memory/writer.py::index_paraphrases (V2-031 T2) — índice de vectores de reformulación."""
+"""Tests for memory/writer.py::index_paraphrases (V2-031 T2) — paraphrase vector index."""
 import pytest
 
 from memory import db as memdb
@@ -39,7 +39,7 @@ def test_index_paraphrases_writes_rows(fresh_db):
 def test_index_paraphrases_caps_at_two_and_skips_empty(fresh_db):
     mid = memwriter.insert_memory("le gusta el senderismo", level="mid", kind="fact")
     done = memwriter.index_paraphrases(mid, ["camina por montaña", "  ", "disfruta de rutas al aire libre"])
-    assert done == 2  # el string vacío no cuenta, pero no rompe el resto
+    assert done == 2  # the empty string does not count, but does not disrupt the rest
 
 
 def test_index_paraphrases_noop_on_empty_input(fresh_db):

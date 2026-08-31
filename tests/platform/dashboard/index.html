@@ -81,11 +81,11 @@
     function suiteOf(testId){return state.suite==='all'?(state.catalogs.all?.test_suite?.[testId]||''):''}
     function suiteBadge(testId){const s=suiteOf(testId);return s?`<span class="suitetag">${esc(s)}</span>`:''}
     function glyph(e){if(e.status==='passed')return '✓';if(e.status==='failed'||e.type.includes('error'))return '×';if(e.type.endsWith('started'))return '▶';if(e.type==='interaction.input')return '→';if(e.type==='interaction.output')return '←';return '·'}
-    // PAYLOADS PLEGADOS (V2-085) — un `interaction.output` de journey puede traer la respuesta ENTERA del motor
-    // (decenas de KB). Volcarla inline hacía que UN caso llenara el timeline y tapara el resto del run: lo que se
-    // perdía no era el dato, era la vista. Ahora se muestra un RESUMEN (campos que se miran para decidir PASS/FAIL
-    // + tamaño) y el JSON íntegro queda en un <details> plegado. La evidencia NO se recorta — sigue completa en el
-    // DOM y en el fichero de eventos del run; solo deja de ser lo primero que ves.
+    // FOLDED PAYLOADS (V2-085) — a journey `interaction.output` can contain the engine's ENTIRE response
+    // (tens of KB). Rendering it inline caused ONE case to fill the timeline and obscure the rest of the run:
+    // what was lost was not the data, but the view. A SUMMARY is now shown (fields inspected to decide PASS/FAIL
+    // + size), while the complete JSON remains in a folded <details>. The evidence is NOT truncated — it remains
+    // complete in the DOM and in the run's event file; it simply stops being the first thing you see.
     const SUM_KEYS=['ok','status','action','reply','detail','error','open_widgets','tool_calls','tags','match'];
     const INLINE_MAX=400;
     function summarize(v){if(v==null)return '';if(typeof v!=='object')return String(v).slice(0,200);
@@ -101,9 +101,9 @@
     function renderStats(){let passed=0,failed=0,skipped=0;for(const v of state.tests.values()){if(v==='passed')passed++;else if(v==='failed')failed++;else if(v==='skipped')skipped++}const done=passed+failed+skipped;$('passedTop').textContent=passed;$('failedTop').textContent=failed;$('testsDone').textContent=`${done} / ${state.total??'?'}`;$('stepCount').textContent=`${done} / ${state.total??'?'}`;$('progress').style.width=state.total?`${Math.min(100,done/state.total*100)}%`:'0%';$('passRate').textContent=done?`${Math.round(passed/done*100)}%`:'—';$('quality').textContent=state.quality.length?`${(state.quality.reduce((a,b)=>a+b,0)/state.quality.length).toFixed(1)}/5`:'—'}
     function updatePlanTest(id,status,event){const row=[...$('testPlan').querySelectorAll('[data-test]')].find(node=>node.dataset.test===id);if(!row)return;row.classList.remove('pending','running','passed','failed');row.classList.add(status);if(row.classList.contains('case')){const badge=row.querySelector('.case-status');if(badge)badge.textContent=status==='passed'?'✓ PASS':status==='failed'?'× FAIL':status==='running'?'▶ RUN':'· PENDING';const actual=event?.output?.detail||event?.error||'';if(actual){const label=row.querySelector('.actual-label'),value=row.querySelector('.actual');label.hidden=false;value.hidden=false;value.textContent=actual}}else{const badge=row.firstElementChild;if(badge)badge.textContent=status==='passed'?'✓':status==='failed'?'×':status==='running'?'▶':'·'}}
     function obsRelevant(e){if(e.type==='test.discovered')return false;const agent=['brain','tool','metric','interaction','observer','voice','frontend'].some(k=>e.type.includes(k)||e.kind===k);const error=e.status==='failed'||e.type.includes('error')||e.kind==='error';return state.filter==='all'||(state.filter==='agent'&&agent)||(state.filter==='error'&&error)}
-    // La columna de señales es un SCANNER: una línea por evento. Un payload gigante aquí no es evidencia, es
-    // ruido que empuja fuera de pantalla las 79 señales restantes → resumen siempre, el JSON íntegro está en el
-    // timeline (plegado) y en el fichero de eventos.
+    // The signal column is a SCANNER: one line per event. A huge payload here is not evidence; it is noise that
+    // pushes the remaining 79 signals off-screen → always show a summary; the complete JSON is in the timeline
+    // (folded) and in the event file.
     function obsPayload(e){if(e.error)return e.error;if(e.text)return e.text;
       if(e.input!=null)return 'request: '+(typeof e.input==='string'?e.input:summarize(e.input));
       if(e.output!=null)return 'response: '+(typeof e.output==='string'?e.output:summarize(e.output));return ''}

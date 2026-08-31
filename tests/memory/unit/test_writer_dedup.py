@@ -1,8 +1,8 @@
 #
-# test_writer_dedup.py — dedup EXACTO síncrono en la escritura (V2-103, 2026-08-16): antes solo existía cada
-# hora en `consolidator.dedup()`, y esa ventana dejaba pasar duplicados literales del mismo hecho escritos
-# segundos aparte (auditoría en vivo: "Su suegro se llama Pedro." insertado dos veces, 3s de diferencia).
-# Sin red (embeddings hash). Ejecutar: .venv/bin/pytest tests/memory/unit/test_writer_dedup.py
+# test_writer_dedup.py — synchronous EXACT deduplication on write (V2-103, 2026-08-16): previously it only
+# existed hourly in `consolidator.dedup()`, and that window allowed literal duplicates of the same fact written
+# seconds apart (live audit: "Su suegro se llama Pedro." inserted twice, 3s apart).
+# No network (hash embeddings). Run: .venv/bin/pytest tests/memory/unit/test_writer_dedup.py
 #
 import pytest
 
@@ -50,14 +50,14 @@ def test_different_text_not_merged(fresh_db):
 
 
 def test_conv_kind_exempt_from_exact_dedup(fresh_db):
-    # el buffer conversacional debe poder repetir texto literal ("sí", "vale") sin colapsar
+    # the conversational buffer must be able to repeat literal text ("sí", "vale") without collapsing it
     a = writer.insert_memory("sí", level="short", kind="conv")
     b = writer.insert_memory("sí", level="short", kind="conv")
     assert a != b
 
 
 def test_slotted_write_untouched_by_exact_dedup(fresh_db):
-    # el supersede por slot sigue siendo el camino para hechos singulares — no debe pasar por este dedup
+    # slot supersession remains the path for singular facts — it must not go through this deduplication
     a = writer.insert_memory("Valencia", level="long", kind="profile", slot="operator.location")
     b = writer.insert_memory("Barcelona", level="long", kind="profile", slot="operator.location")
     assert a != b

@@ -28,7 +28,7 @@ OPERATOR = 43917
 SANDBOX_ES = 43921
 SANDBOX_US = 43922
 
-#: key → port. The key is what the operator says out loud ("el sandbox ES"), and what `--lab` takes.
+#: key → port. The key is what the operator says out loud ("the ES sandbox"), and what `--lab` takes.
 AGENTS: dict[str, int] = {"operator": OPERATOR, "es": SANDBOX_ES, "us": SANDBOX_US}
 
 NAMES: dict[int, str] = {
