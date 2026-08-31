@@ -49,9 +49,9 @@ def _probe_elevenlabs(key: str) -> dict | None:
         pct = (used / limit) if limit else None
         state = "ok"
         if pct is not None and pct >= 0.98:
-            state = "error"                       # agotado
+            state = "error"                       # exhausted
         elif pct is not None and pct >= 0.85:
-            state = "warn"                         # casi
+            state = "warn"                         # nearly exhausted
         return {"state": state, "used": used, "limit": limit, "remaining": remaining,
                 "unit": "caracteres", "tier": d.get("tier"),
                 "detail": (f"{used:,}/{limit:,} caracteres" if limit else f"{used:,} caracteres")}
@@ -214,7 +214,7 @@ def worker_providers() -> list[dict]:
         out.append({"key": f"worker:{t['name']}", "enables": f"procesos de fondo · {t.get('plan', '')}",
                     "set": True, "state": t["state"], "detail": mark + t.get("detail", "")})
     # V2-517 (operator, 2026-08-31): z.ai has TWO wallets — the coding-plan quota and the pay-per-use
-    # credits (paas/v4). A flat red "z.ai sin cuota" reads as "z.ai dead", which is false when the OTHER
+    # credits (paas/v4). A flat red "z.ai out of quota" reads as "z.ai dead", which is false when the OTHER
     # purse has balance: measured live, the plan was exhausted until 01 Sep while paas/v4 served a
     # completion. When the plan tier is down, measure the second wallet and SAY it, so the operator knows
     # whether this can still go well. (It is information, not a chain rung: the worker's relay stays

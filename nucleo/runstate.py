@@ -33,7 +33,7 @@ video.” What MUST continue is the WORK: a Brain Worker halfway through creatin
 complex search is frozen and continues exactly where it was. The difference is who owns the intent: the operator
 started the music for themselves; they commissioned the task and are waiting for its result.
 
-## Frontera
+## Boundary
 
 This module does NOT know how to pause anything: it knows WHO must be notified and in what order. The how lives in
 its owner (`dispatch.pause_all` for workers, `widgets/producers.py` for the canvas, `widgets/background.py` for the

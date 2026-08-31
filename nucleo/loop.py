@@ -77,8 +77,8 @@ class OrchestratorLoop:
         self._ticks = 0
         # V2-038 · Brain Worker supervisor (§v2·D §8): relay questions, detect stuck workers/timeouts.
         self._ask_relayed: set[str] = set()       # corr_id of asks already relayed by voice (once)
-        self._stuck_informed: set[str] = set()    # tid ya avisados de encallamiento
-        self._timeout_informed: set[str] = set()  # tid ya avisados de timeout
+        self._stuck_informed: set[str] = set()    # tids already notified of being stuck
+        self._timeout_informed: set[str] = set()  # tids already notified of timeout
         self._budget_nudged: set[str] = set()     # tids already urged to DELIVER (budget phase 1)
         # V2-227 scope B2: when each task last beat. The operator asked for «something every few seconds
         # while it is alive»; without the marker, this loop (~1 Hz) would emit one heartbeat per SECOND and drown

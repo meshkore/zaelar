@@ -1,9 +1,9 @@
-"""Veredicto de latencia del turno (`nucleo/flash/turn_perf.py`).
+"""Turn latency verdict (`nucleo/flash/turn_perf.py`).
 
-Premisa del operador (2026-08-02): «DeepSeek Flash es rápido; si un turno pasa de 1-2 s es porque el prompt es
-demasiado extenso o porque el proveedor ha fallado puntualmente». Estos tests fijan que el veredicto sepa
-DISTINGUIR esos dos casos —y no confunda con ellos ni el arranque en frío ni un turno que hace trabajo de verdad—,
-porque un diagnóstico que siempre dice "lento" no sirve para decidir nada.
+Operator premise (2026-08-02): “DeepSeek Flash is fast; if a turn takes more than 1–2 s, it is because the prompt is
+too long or because the provider has failed sporadically.” These tests ensure that the verdict can
+DISTINGUISH those two cases—and does not confuse either a cold start or a turn that does real work with them—,
+because a diagnosis that always says "slow" is not useful for making decisions.
 """
 from nucleo.flash import turn_perf as tp
 
@@ -14,7 +14,7 @@ def test_fast_turn_is_not_flagged():
 
 
 def test_big_prompt_is_named_with_its_worst_block():
-    """El caso REAL medido: 12.892 tokens para decir «hola», y el que más pesa es el catálogo de tools (31 KB)."""
+    """The REAL measured case: 12,892 tokens to say “hello,” with the tools catalog carrying the most weight (31 KB)."""
     v = tp.verdict({"total_ms": 4200, "prompt_tokens": 12892, "tools_chars": 31458,
                     "sz_resources": 8408, "sz_memory": 2569, "tok_per_s": 30})
     assert v["slow"] and v["cause"] == "prompt"
@@ -23,15 +23,15 @@ def test_big_prompt_is_named_with_its_worst_block():
 
 
 def test_generacion_lenta_de_verdad_si_es_del_proveedor():
-    """`proveedor` = ESCRIBE despacio: throughput bajo con el tiempo REPARTIDO (TTFT corto). Ese es el caso que
-    distingue «el proveedor va mal» de «el modelo está pensando»."""
+    """`proveedor` = WRITES slowly: low throughput with the time DISTRIBUTED (short TTFT). This is the case that
+    distinguishes “the provider is malfunctioning” from “the model is thinking.”"""
     v = tp.verdict({"total_ms": 6000, "prompt_tokens": 2500, "tok_per_s": 3.1, "ttft_ms": 900})
     assert v["cause"] == "proveedor"
 
 
 def test_casi_todo_antes_del_primer_token_es_pre_token_no_proveedor():
-    """Este caso decía `proveedor` por descarte. Con 5.800 de 6.000 ms antes del primer token no hay nada que
-    descartar: el tiempo se fue PENSANDO (o encolado), y el tok/s medido sobre 200 ms no significa nada."""
+    """This case used to say `proveedor` by elimination. With 5,800 of 6,000 ms before the first token, there is nothing to
+    eliminate: the time was spent THINKING (or queued), and tok/s measured over 200 ms means nothing."""
     v = tp.verdict({"total_ms": 6000, "prompt_tokens": 2500, "tok_per_s": 3.1, "ttft_ms": 5800})
     assert v["cause"] == "pre_token"
     assert "TTFT" in v["label"] and "96%" in v["label"]
@@ -43,7 +43,7 @@ def test_cold_start_is_not_blamed_on_the_provider():
 
 
 def test_cold_wins_over_a_big_prompt():
-    """Tras 5 min en silencio la 1ª llamada paga handshake: culpar al prompt mandaría a optimizar lo que no toca."""
+    """After 5 minutes of silence, the 1st call pays the handshake cost: blaming the prompt would lead us to optimize the wrong thing."""
     v = tp.verdict({"total_ms": 9000, "prompt_tokens": 12000, "gap_since_last_s": 300, "tok_per_s": 20})
     assert v["cause"] == "frio"
 
@@ -54,8 +54,8 @@ def test_a_turn_that_did_real_work_is_not_an_incident():
 
 
 def test_lento_y_sin_causa_dominante_lo_dice_en_vez_de_inventar_un_culpable():
-    """Antes se resolvía por descarte («apunta a un fallo del proveedor»). Un culpable inventado manda a optimizar
-    lo que no toca; los números desnudos, no."""
+    """Previously it was resolved by elimination (“points to a provider failure”). An invented culprit leads us to optimize
+    the wrong thing; bare numbers do not."""
     v = tp.verdict({"total_ms": 5000, "prompt_tokens": 2000, "tok_per_s": 30, "ttft_ms": 2000})
     assert v["cause"] == "reparto"
     assert "sin causa dominante" in v["label"]
@@ -71,14 +71,14 @@ def test_emit_verdict_never_raises_without_an_observer():
     assert tp.emit_verdict({"total_ms": 3000, "prompt_tokens": 9000})["cause"] == "prompt"
 
 
-# ── LA CEGUERA (2026-08-14): la rama `proveedor` era inalcanzable en el camino de VOZ ──────────────────────────
-# El orden era frío → prompt → proveedor, y `prompt` gana con `prompt_tokens >= 6000`. El prompt de voz es SIEMPRE
-# de 9-10k tokens, así que TODO turno lento se etiquetaba «PROMPT GRANDE» y nunca podía señalarse a nada más.
-# Consecuencia real: en la sesión b70a45d0 los 10 turnos lentos culpaban al prompt mientras el prompt era CONSTANTE
-# (9.363-10.314 tok, ±9%) y el TTFT iba de 0 a 25.703 ms. Un input plano no explica un factor 10 — y llevábamos
-# semanas mirando al sitio equivocado por culpa de una precedencia.
+# ── THE BLIND SPOT (2026-08-14): the `proveedor` branch was unreachable in the VOICE path ─────────────────────
+# The order was cold → prompt → provider, and `prompt` wins with `prompt_tokens >= 6000`. The voice prompt is ALWAYS
+# 9–10k tokens, so EVERY slow turn was labeled “LARGE PROMPT” and could never be attributed to anything else.
+# Real consequence: in session b70a45d0, all 10 slow turns blamed the prompt even though the prompt was CONSTANT
+# (9,363–10,314 tok, ±9%) and TTFT ranged from 0 to 25,703 ms. A flat input does not explain a factor of 10—and we spent
+# weeks looking in the wrong place because of a precedence rule.
 #
-# Los 11 turnos de esa sesión, con sus números REALES, son el caso de prueba.
+# The 11 turns from that session, with their REAL numbers, are the test case.
 _SESION_B70A45D0 = [
     # (total_ms, ttft_ms, gen_ms, prompt_tokens, tok_per_s)
     (2982, 2630, 2661, 9710, 77.4), (28624, 25595, 28212, 10271, 119.9), (16326, 13704, 16010, 10167, 134.4),
@@ -104,8 +104,8 @@ def test_los_turnos_reales_ya_no_culpan_todos_al_prompt():
 
 
 def test_los_dos_turnos_de_25_segundos_son_pre_token():
-    """Los dos peores de la sesión: 25.595 y 25.703 ms de TTFT, o sea el 89% y el 99% del turno. Eran los dos
-    turnos con la decisión más difícil, que es la firma del razonamiento oculto — no del tamaño del prompt."""
+    """The two worst in the session: 25,595 and 25,703 ms of TTFT, or 89% and 99% of the turn. They were the two
+    turns with the hardest decision, which is the signature of hidden reasoning—not of prompt size."""
     peores = [v for v in _verdicts_de_la_sesion() if v["total_ms"] > 25000]
     assert len(peores) == 2
     for v in peores:
@@ -114,16 +114,16 @@ def test_los_dos_turnos_de_25_segundos_son_pre_token():
 
 
 def test_el_prompt_solo_se_culpa_si_el_tiempo_se_reparte():
-    """Un prompt de 10k con el TTFT dominando NO es culpa del prompt; el mismo prompt con el tiempo repartido, sí.
-    Es exactamente el sesgo que se ha quitado."""
+    """A 10k prompt with TTFT dominating is NOT the prompt's fault; the same prompt with the time distributed is.
+    This is exactly the bias that has been removed."""
     dom = tp.verdict({"total_ms": 10000, "ttft_ms": 9500, "prompt_tokens": 10000, "tok_per_s": 120})
     rep = tp.verdict({"total_ms": 10000, "ttft_ms": 1500, "prompt_tokens": 10000, "tok_per_s": 120})
     assert dom["cause"] == "pre_token" and rep["cause"] == "prompt"
 
 
 def test_la_fraccion_de_ttft_viaja_en_el_veredicto():
-    """`ttft_frac` es la serie que gobierna el circuito de latencia del failover y la que permite ver la VARIANZA
-    del TTFT a prompt constante (2.492 → 25.703 ms con ±9% de input). Sin ella el disparo sería a ciegas."""
+    """`ttft_frac` is the series that governs the failover latency circuit and makes it possible to see the VARIANCE
+    of TTFT with a constant prompt (2,492 → 25,703 ms with ±9% input). Without it, the trigger would be blind."""
     v = tp.verdict({"total_ms": 10000, "ttft_ms": 9000, "prompt_tokens": 9500, "tok_per_s": 120})
     assert v["ttft_frac"] == 0.9
     assert tp.verdict({})["ttft_frac"] == 0.0, "sin datos no se afirma nada"

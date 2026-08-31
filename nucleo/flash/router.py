@@ -1,38 +1,38 @@
-"""nucleo/flash/router.py — router de input del FlashBrain (V2-004 · T61).
+"""nucleo/flash/router.py — FlashBrain input router (V2-004 · T61).
 
-Decide, POR FUNCTION-CALLING (no listas de palabras clave — agnóstico del idioma), qué hace la capa refleja
-con un turno: responder charla directa, fijar una preferencia de estilo, buscar un dato en la web, o **escalar**
-(delegar la tarea a un worker headless). El mecanismo es el estándar y probado para que un LLM dispare una acción
-de forma fiable: expone un catálogo de `TOOLS` OpenAI-compatible; cuando el modelo llama a una, `decide()` la
-traduce a una `Decision`. El control del canvas (`[[show]]`/`[[close]]`/`[[move]]`) NO va por aquí: son tags de
-texto que el modelo emite y que `frontend.py` + `voice.tag_protocol` procesan.
+Decides, THROUGH FUNCTION-CALLING (no keyword lists — language-agnostic), what the layer does
+with a turn: answer direct conversation, set a style preference, search for a fact on the web, or **escalate**
+(delegate the task to a headless worker). This is the standard, proven mechanism for an LLM to trigger an action
+reliably: it exposes an OpenAI-compatible `TOOLS` catalog; when the model calls one, `decide()`
+translates it into a `Decision`. Canvas control (`[[show]]`/`[[close]]`/`[[move]]`) does NOT go through here: these are
+text tags emitted by the model and processed by `frontend.py` + `voice.tag_protocol`.
 
-⚠️ **CATÁLOGO DE TOOLS = doc canónica** en `.meshkore/docs/architecture/zaelar-architecture.md §8 (FlashBrain
-tool catalog)`, con una versión pública/curada en `web/` bajo `/technology/flashbrain`. CUALQUIER cambio aquí
-(añadir/quitar una tool, renombrar, cambiar su descripción o su gating) DEBE actualizar esa doc + los tests
-(`test_router.py`) — ver `zaelar-docs-sync.md §Tools`. Toda tool tiene que estar JUSTIFICADA y encajar en el
-flujo del sistema (V2-036).
+⚠️ **TOOL CATALOG = canonical doc** in `.meshkore/docs/architecture/zaelar-architecture.md §8 (FlashBrain
+tool catalog)`, with a public/curated version in `web/` under `/technology/flashbrain`. ANY change here
+(adding/removing a tool, renaming it, changing its description or gating) MUST update that doc + the tests
+(`test_router.py`) — see `zaelar-docs-sync.md §Tools`. Every tool must be JUSTIFIED and fit the
+system flow (V2-036).
 
-Nota histórica de naming: la tool de delegación se llama `escalate_to_slowbrain` por LEGADO (V2-004, cuando el
-SlowBrain era un cerebro razonador aparte). En **V2-036 ese cerebro se DISOLVIÓ**: escalar hoy = `nucleo/dispatch.py`
-LANZA un **worker headless** (agente Claude Code, u otro configurado) que CONDUCE la tarea con su propia
-inteligencia (memoria/tools/navegador). El nombre se conserva como identificador estable del contrato con el
-modelo; su DESCRIPCIÓN sí refleja la realidad actual (no habla de "cerebro lento").
+Historical naming note: the delegation tool is called `escalate_to_slowbrain` for LEGACY reasons (V2-004, when
+SlowBrain was a separate reasoning brain). In **V2-036 that brain was DISSOLVED**: escalating today means
+`nucleo/dispatch.py` LAUNCHES a **headless worker** (a Claude Code agent, or another configured agent) that
+DRIVES the task with its own intelligence (memory/tools/browser). The name is retained as the stable identifier
+in the model contract; its DESCRIPTION reflects current reality (it does not mention a "slow brain").
 
-Por qué function-calling y no un tag de texto: un modelo pequeño/terso es poco fiable escribiendo un pseudo-tag
-en medio de prosa (confabula "voy a mirar los logs…" SIN escalar). Una tool call es el mecanismo ENTRENADO,
-model-agnóstico y multilenguaje. Ver la decisión clave del cerebro «Colmena» (V2-036) en CLAUDE.md.
+Why function-calling rather than a text tag: a small/terse model is unreliable at writing a pseudo-tag
+inside prose (it confabulates "I'll look at the logs…" WITHOUT escalating). A tool call is the TRAINED,
+model-agnostic, multilingual mechanism. See the key decision by the «Colmena» brain (V2-036) in CLAUDE.md.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from nucleo.flash import image_turn as _image_turn  # V2-457 (image_turn is a leaf)
-from nucleo.flash import tools_media as _tools_media  # V2-457: el literal de las tools de medios
+from nucleo.flash import tools_media as _tools_media  # V2-457: the literal media-tool definitions
 from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 (video_turn is a leaf)
 from typing import Any
 
-# ── vocabulario de kinds ────────────────────────────────────────────────────────────────────────────────
+# ── kind vocabulary ─────────────────────────────────────────────────────────────────────────────────────
 CHAT = "chat"          # lo atiende la propia capa rápida (charla, estado, canvas por tag)
 STYLE = "style"        # el operador fijó una preferencia de trato para la sesión
 SEARCH = "search"      # lookup factual rápido en la web (web_search) — ruta ligera, se resuelve en el turno
@@ -59,14 +59,14 @@ _PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO
 
 @dataclass
 class Decision:
-    """Qué decidió el router para un turno."""
+    """What the router decided for a turn."""
     kind: str                              # 'chat' | 'style' | 'escalate'
     payload: dict[str, Any] = field(default_factory=dict)
 
 
-# ── catálogo de funciones (OpenAI-compatible) que se ofrecen al modelo rápido ────────────────────────────
-# ⚠️ Doc canónica de este catálogo: zaelar-architecture.md §8. Mantener EN SINCRONÍA (descripción condensada
-# V2-035; gating contextual en `tools()`). `set_style_directive` fija una preferencia de sesión re-inyectada.
+# ── function catalog (OpenAI-compatible) offered to the fast model ─────────────────────────────────────
+# ⚠️ Canonical catalog doc: zaelar-architecture.md §8. Keep IN SYNC (condensed description
+# V2-035; contextual gating in `tools()`). `set_style_directive` sets a re-injected session preference.
 TOOLS: list[dict] = [
     {
         "type": "function",
@@ -184,10 +184,10 @@ TOOLS: list[dict] = [
         },
     },
     {
-        # V2-082: un widget tiene un NOMBRE + una lista de ALIAS por los que se abre. El operador puede EDITAR esa
-        # lista hablando ("añade el alias WhatsApp al widget de mensajería", "quítale el apodo X"). Es una escritura
-        # QUIRÚRGICA del manifest (widgets/aliases.py), NO regenerar el widget (no es escalate) NI cambiar sus datos
-        # (no es widget_data). Sinónimos del verbo en la DESCRIPCIÓN (el modelo mapea; nada de tabla hardcodeada).
+        # V2-082: a widget has a NAME + an ALIAS list used to open it. The operator can EDIT that
+        # list by speaking ("add the WhatsApp alias to the messaging widget", "remove nickname X"). This is a
+        # SURGICAL manifest write (widgets/aliases.py), NOT widget regeneration (not escalate) OR data changes
+        # (not widget_data). Verb synonyms belong in the DESCRIPTION (the model maps them; no hardcoded table).
         "type": "function",
         "function": {
             "name": "manage_widget_alias",
@@ -208,11 +208,11 @@ TOOLS: list[dict] = [
         },
     },
     {
-        # BUG real 2026-07-23: "ponme el vídeo a pantalla completa" no tenía NINGÚN camino (ni tag ni tool) → el
-        # modelo confabulaba éxito (decía "hecho" sin tocar nada) o, peor, inventaba una data-op falsa
-        # (`widget_data(youtube, set_volume, {fullscreen:true})`) porque la petición "suena" a control de vídeo.
-        # Con una tool DEDICADA (mismo remedio que show_widget: tool-vs-tool en vez de prosa/tag) se distingue de
-        # las acciones DECLARADAS del widget (play/pause/volumen) en vez de colar como una de ellas.
+        # REAL BUG 2026-07-23: "put the video in fullscreen" had NO path (neither tag nor tool) → the
+        # model confabulated success (said "done" without changing anything) or, worse, invented a fake data-op
+        # (`widget_data(youtube, set_volume, {fullscreen:true})`) because the request "sounds" like video control.
+        # A DEDICATED tool (same remedy as show_widget: tool-vs-tool instead of prose/tag) distinguishes it from
+        # the widget's DECLARED actions (play/pause/volume) instead of slipping in as one of them.
         "type": "function",
         "function": {
             "name": "fullscreen_widget",
@@ -235,8 +235,8 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "widget_data",
-            # Condensada (V2-035): se conservan las fronteras que fallaron en pruebas — NO show/close (son tags),
-            # add_meeting=evento con fecha vs recordatorio simple=sin tool, `item` en lenguaje natural (no inventar id).
+            # Condensed (V2-035): preserve boundaries that failed in tests — NOT show/close (they are tags),
+            # add_meeting=dated event vs simple reminder=no tool, `item` in natural language (do not invent an id).
             "description": (
                 "Ejecuta UNA acción declarada de un widget para cambiar sus DATOS (añadir cita, marcar, aplazar, "
                 "quitar, silenciar…). Úsala siempre que pidan cambiar algo de un widget en vez de solo decirlo. "
@@ -273,8 +273,8 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "web_search",
-            # Condensada (V2-035): se conserva "no dar dato a ojo y luego buscar" (contradicción, V2-029) y la
-            # frontera marketplace→escalate (bug de confundir buscar-dato con navegar-tienda).
+            # Condensed (V2-035): preserve "do not give a fact from memory and then search" (contradiction, V2-029)
+            # and the marketplace→escalate boundary (bug from confusing fact lookup with store navigation).
             "description": (
                 "Busca en la web un dato factual puntual del mundo que cambia con el tiempo y no tienes (un precio, "
                 "el tiempo, un resultado, una noticia, una cotización). Vuelve en este turno y lo dices tú, sin "
@@ -305,9 +305,9 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "recall",
-            # V2-056 (auditoría 2026-07-19): «quién decide buscar = el modelo» (V2-022) aplicado a la MEMORIA —
-            # la heurística needs_recall queda como prefetch optimista; esta tool cubre lo que el prefetch no cazó
-            # («quiero irme de vacaciones», «organízame un viaje» no disparaban recall → cerebro amnésico).
+            # V2-056 (audit 2026-07-19): «who decides to search = the model» (V2-022) applied to MEMORY —
+            # the needs_recall heuristic remains optimistic prefetch; this tool covers what prefetch missed
+            # ("I want to go on vacation", "organize a trip" did not trigger recall → amnesiac brain).
             "description": (
                 "Consulta tu memoria de largo plazo sobre el OPERADOR y su vida (gustos, familia, planes, "
                 "presupuesto, lo que te contó hace días, lo que habéis hecho juntos) cuando la necesitas para "
@@ -332,10 +332,10 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "reveal_secret",
-            # V2-060: el operador guarda secretos CIFRADOS (contraseñas, IBAN, private keys) y aquí los PIDE. El
-            # valor NUNCA pasa por ti: el sistema lo descifra y lo entrega aparte (voz/pantalla). Tú solo identificas
-            # CUÁL pide. Si la bóveda está bloqueada, el sistema pedirá la contraseña; si no hay bóveda, te dirá que
-            # se ofrezca crearla. No inventes NUNCA un secreto ni lo digas de memoria — llama a la tool.
+            # V2-060: the operator stores ENCRYPTED secrets (passwords, IBANs, private keys) and requests them here. The
+            # value NEVER passes through you: the system decrypts and delivers it separately (voice/screen). You only identify
+            # WHICH one is requested. If the vault is locked, the system asks for the password; if there is no vault, it will
+            # offer to create one. NEVER invent or recite a secret from memory — call the tool.
             "description": (
                 "Recupera un SECRETO que el operador guardó CIFRADO (una contraseña, un PIN, un IBAN, la clave de un "
                 "wallet). `label` = a cuál se refiere, en lenguaje natural. TÚ no ves ni dices el valor: el sistema "
@@ -354,9 +354,9 @@ TOOLS: list[dict] = [
     },
     *_tools_media.TOOLS,
     {
-        # V2-051: RESPONDER a un mensaje del buzón unificado (`mensajeria`). Function-calling (fiable, V2-026) en
-        # vez de un tag inline. El provider la enruta a la data-op `reply` (confirm:true) → el gate CONFIRM (V2-025)
-        # LEE el borrador y pide OK antes de ENVIAR. Hoy funciona para EMAIL (WhatsApp/Telegram lo heredarán).
+            # V2-051: REPLY to a message from the unified inbox (`mensajeria`). Function-calling (reliable, V2-026) instead of
+            # an inline tag. The provider routes it to the `reply` data-op (confirm:true) → the CONFIRM gate (V2-025)
+            # READS the draft and requests approval before SENDING. It currently works for EMAIL (WhatsApp/Telegram will inherit it).
         "type": "function",
         "function": {
             "name": "reply_message",
@@ -469,8 +469,8 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "authenticate_web",
-            # Condensada (V2-035): se conserva la REGLA DURA login-puro vs tarea (bug: tecleó credenciales / confundió
-            # login con tarea). Situacional → el set contextual la incluye solo cuando aplica.
+            # Condensed (V2-035): preserve the HARD login-only vs task RULE (bug: typed credentials / confused login with a task).
+            # Situational → the contextual set includes it only when applicable.
             "description": (
                 "Abre el navegador para INICIAR SESIÓN en un sitio web, y solo eso ('conéctame a Wallapop', 'inicia "
                 "sesión en mi Gmail'). Si hay además un verbo de TAREA ('entra en mi Gmail y bórrame los correos') "
@@ -666,10 +666,10 @@ TOOLS: list[dict] = [
 ]
 
 
-# ── FAMILIAS de tools + gating situacional ───────────────────────────────────────────────────────────────────
-# Cada tool pertenece a una FAMILIA (widgets, workers, cluster, mensajería, media, web, memoria, núcleo). La
-# familia es documentación viva y la unidad con la que se razona el presupuesto de tools de un turno: se ve de un
-# vistazo qué bloque entra y cuál se queda fuera, en vez de 22 gates sueltos. NO es un clasificador de intención.
+# ── tool FAMILIES + situational gating ─────────────────────────────────────────────────────────────────────
+# Each tool belongs to a FAMILY (widgets, workers, cluster, messaging, media, web, memory, core). The
+# family is living documentation and the unit used to reason about a turn's tool budget: it shows at a glance
+# which block enters and which stays out, instead of 22 separate gates. It is NOT an intent classifier.
 FAMILIES: dict[str, tuple[str, ...]] = {
     "core":      ("escalate_to_slowbrain", "set_style_directive"),
     "widgets":   ("show_widget", "widget_data", "delete_widget", "restore_widget", "confirm_widget_delete",
@@ -684,21 +684,21 @@ FAMILIES: dict[str, tuple[str, ...]] = {
 
 
 def family_of(name: str) -> str:
-    """La familia de una tool (o 'core' si no está clasificada — fail-safe: nunca se pierde una tool nueva)."""
+    """The family of a tool (or 'core' if unclassified — fail-safe: a new tool is never lost)."""
     for fam, names in FAMILIES.items():
         if name in names:
             return fam
     return "core"
 
 
-# Tools SITUACIONALES: solo tienen sentido en un estado concreto → fuera del prompt cuando no aplican (V2-035).
-# Ofrecerlas SIEMPRE malgastaba ~1.2k chars/turno y añadía ruido de decisión al modelo pequeño.
+# SITUATIONAL tools: meaningful only in a specific state → omitted from the prompt when inapplicable (V2-035).
+# Offering them ALWAYS wasted ~1.2k chars/turn and added decision noise for the small model.
 #
-# ⚠️ INVARIANTE (V2-085, `feedback_no_hardcoded_understand`): **un gate mira ESTADO, nunca las palabras del turno.**
-# «¿existe la bóveda?», «¿hay un worker vivo?», «¿está el conector de mensajería conectado?» son hechos del
-# sistema, verificables y agnósticos del idioma. «¿la frase contiene "recuérdame"?» sería una tabla de palabras
-# clave decidiendo el routing — justo lo que este cerebro rechaza: quien decide la intención es el modelo, por
-# function-calling. Si una tool no se puede apagar por estado, se OFRECE; no se adivina.
+# ⚠️ INVARIANT (V2-085, `feedback_no_hardcoded_understand`): **a gate checks STATE, never the turn's words.**
+# «does the vault exist?», «is a worker alive?», «is the messaging connector connected?» are system facts,
+# verifiable and language-agnostic. «does the phrase contain "remind me"?» would be a keyword table deciding
+# routing — exactly what this brain rejects: the model decides intent through function-calling.
+# If a tool cannot be disabled by state, it is OFFERED; it is not guessed.
 _SITUATIONAL = {
     "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que mostrar
     "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets con acciones
@@ -728,7 +728,7 @@ _SITUATIONAL = {
 
 
 def tools(context: dict | None = None) -> list[dict]:
-    """El catálogo de funciones a ofrecer al modelo rápido ESTE turno. Set CONTEXTUAL (V2-035): las tools
+    """The function catalog to offer the fast model THIS turn. CONTEXTUAL set (V2-035): tools
     situacionales (confirmar-borrado, login-hecho, y las de widget si no hay widgets) se OMITEN cuando su estado no
     aplica → prompt más corto, menos ruido de decisión, mismo comportamiento. `context` (best-effort, todo opcional):
       · has_widgets (def True) · confirm_pending (def False) · auth_pending (def False) · allow_auth (def True)
@@ -756,7 +756,7 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
                  cluster_widget_open: bool = True, messaging_on: bool = True,
                  has_vault: bool = True, has_video_widget: bool = True, has_image_widget: bool = True,
                  cluster_connected: bool = False) -> dict:
-    """Arma el `context` de `tools()` desde señales de estado baratas. `has_widgets` = hay catálogo de widgets
+    """Builds the `tools()` `context` from inexpensive state signals. `has_widgets` = a widget catalog exists
     (siempre lo hay hoy) O alguno abierto. `has_workers` = hay Brain Workers vivos (→ send/stop_worker). `ask_pending`
     = un worker espera respuesta (→ answer_worker). `messaging_on`/`has_vault`/`has_video_widget` (V2-085) =
     capacidades REALES del sistema; el default es True (fail-OPEN) para que un fallo al sondear una capacidad
@@ -773,7 +773,7 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
 
 
 def tools_report(offered: list[dict]) -> dict:
-    """Desglose OBSERVABLE del set de tools de un turno: cuántas, cuánto ocupan y qué familias entraron/quedaron
+    """OBSERVABLE breakdown of a turn's tool set: count, size, and which families entered/remained
     fuera. Alimenta `llm_metrics` (misma vía que `sz_*` del prompt) para poder atribuir coste y detectar que una
     familia se cuela en turnos donde no pinta nada."""
     import json as _json
@@ -788,7 +788,7 @@ def tools_report(offered: list[dict]) -> dict:
 
 
 def _canon_panel_action(v) -> str:
-    """'open' | 'close' del `action` de show_panel. Default ABRIR: es el caso mayoritario, y un modelo que se deja
+    """'open' | 'close' for the `show_panel` action. Default OPEN: it is the majority case, and a model that is
     el argumento no puede acabar cerrándole el panel al operador.
 
     Existe desde 2026-08-10 porque la tool solo sabía ABRIR: el operador pidió cerrar el chat cinco veces seguidas
@@ -802,7 +802,7 @@ def _canon_panel_action(v) -> str:
 
 
 def _canon_panel(v) -> str:
-    """Normaliza el `panel` de show_panel a una pestaña canónica del ChatWall (chat|procesos|crons|clusters).
+    """Normalizes the `show_panel` `panel` to a canonical ChatWall tab (chat|procesos|crons|clusters).
     Tolera sinónimos que el modelo pueda soltar en el argumento (workers→procesos, cron→crons, texto/muro→chat,
     red/malla/mesh→clusters). Es solo para el ARGUMENTO ya elegido por el modelo — el 'cuándo' (los sinónimos de
     la petición) vive en la descripción de la tool, no aquí. Default 'procesos' (el caso más pedido)."""
@@ -823,7 +823,7 @@ def _canon_panel(v) -> str:
 
 
 def decide(name: str, args: dict | None = None) -> Decision:
-    """Traduce UNA tool call (nombre + argumentos) a una `Decision`. Un nombre desconocido = charla (fail-safe:
+    """Translates ONE tool call (name + arguments) into a `Decision`. An unknown name = chat (fail-safe:
     la capa rápida no rompe por una función que no reconoce)."""
     args = args or {}
     name = (name or "").strip()
@@ -870,7 +870,7 @@ def decide(name: str, args: dict | None = None) -> Decision:
 
 
 def classify(tool_calls: list[tuple[str, dict]] | None) -> Decision:
-    """Colapsa las tool calls de un turno en UNA decisión (la de mayor prioridad). Sin tool calls = charla."""
+    """Collapses a turn's tool calls into ONE decision (the highest-priority one). No tool calls = chat."""
     best = Decision(CHAT, {})
     for name, args in (tool_calls or []):
         d = decide(name, args)

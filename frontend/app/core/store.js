@@ -35,16 +35,16 @@ export const [micMuted, setMicMuted]   = createSignal(localStorage.getItem("hb_m
 export const [camOff, setCamOff]       = createSignal(localStorage.getItem("hb_cam_off") === "1");
 export const [botMuted, setBotMuted]   = createSignal(localStorage.getItem("hb_bot_muted") === "1");  // silence zaelar's voice OUTPUT (agent keeps running)
 
-// ⏻ POWER (V2-039 «ojo»): apagado EXPLÍCITO de la sesión de voz por el operador — la única excepción al always-on.
-// Persistido: un apagado deliberado sobrevive al refresh; main.js NO auto-(re)conecta mientras esté apagado.
+// ⏻ POWER (V2-039 «ojo»): EXPLICIT shutdown of the voice session by the operator — the only exception to always-on.
+// Persisted: a deliberate shutdown survives refresh; main.js does NOT auto-(re)connect while it is off.
 //
-// V2-092: este signal ya NO es la verdad, es el ESPEJO LOCAL de una verdad que vive en el servidor
-// (`nucleo/runstate.py`, `GET /api/run`). El motivo es el fallo que lo destapó: parado el agente, un vídeo seguía
-// reproduciéndose y al recargar arrancaba solo. Con el interruptor únicamente aquí, el backend —widgets,
-// background, crons— no tenía a quién preguntar si el operador había parado, y este localStorage es per-navegador
-// y per-origen: el mismo zaelar por dos puertos eran dos agentes con opiniones distintas sobre si estaban vivos.
-// Ahora: el ⏻ ORDENA al servidor (POST /api/run/stop|start), y el servidor NOTIFICA (SSE `run`) → todas las
-// pestañas convergen. El localStorage se queda como arranque instantáneo sin esperar la red.
+// V2-092: this signal is NO LONGER the truth; it is the LOCAL MIRROR of a truth that lives on the server
+// (`nucleo/runstate.py`, `GET /api/run`). The reason was the failure that exposed it: with the agent stopped, a video kept
+// playing and restarting made it start on its own. With the switch only here, the backend —widgets,
+// background, crons— had no one to ask whether the operator had stopped it, and this localStorage is per-browser
+// and per-origin: the same zaelar on two ports were two agents with different opinions about whether they were alive.
+// Now: ⏻ COMMANDS the server (POST /api/run/stop|start), and the server NOTIFIES (SSE `run`) → all
+// tabs converge. localStorage remains for instant startup without waiting for the network.
 export const [powerOff, setPowerOffRaw] = createSignal(localStorage.getItem("hb_power_off") === "1");
 export const setPowerOff = (off) => { setPowerOffRaw(off); localStorage.setItem("hb_power_off", off ? "1" : "0"); };
 
@@ -69,15 +69,16 @@ export const [botSpeaking, setBotSpeaking] = createSignal(false);            // 
 export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });  // 🚫 ring over the orb
 export const [micLevel, setMicLevel]       = createSignal(0);               // true mic RMS (0..1) for the meter
 
-// ── ¿ESTÁ VIVO EL AGENTE? UNA sola respuesta, derivada — no un signal más que mantener ────────────────────────
-// Nace de un fallo real y caro (sesión del operador, 2026-08-10). Cada icono del orbe decidía su aspecto a partir
-// de una señal DISTINTA, y ninguna significaba «el agente está funcionando»:
-//   · `powerOff` es la INTENCIÓN persistida del operador, no la realidad;
-//   · `started` es la realidad, pero no lo miraba nadie para pintar.
-// Con `powerOff=false` y la sesión CAÍDA (micrófono denegado, sala perdida, un fallo de arranque) el micro, el
-// altavoz y el ⏻ seguían pintados en azul. El operador estuvo un buen rato hablándole a un agente muerto: «como
-// yo veía el micrófono encendido, el del altavoz encendido y el de la transcripción encendida, pensaba que estabas
-// operativo». No era un fallo de audio: era un estado invisible.
+// ── IS THE AGENT ALIVE? ONE single derived answer — not another signal to maintain ────────────────────────
+// It arose from a real and costly failure (operator session, 2026-08-10). Each orb icon decided its appearance from
+// a DIFFERENT signal, and none meant «the agent is running»:
+//   · `powerOff` is the operator's persisted INTENTION, not reality;
+//   · `started` is reality, but nobody checked it for rendering.
+// With `powerOff=false` and the session DOWN (microphone denied, room lost, a startup failure), the mic,
+// speaker, and ⏻ were still rendered blue. The operator spent quite a while talking to a dead agent: «because
+// I saw the microphone on, the speaker on, and the transcription on, so I thought you were
+// I saw the microphone on, the speaker on, and the transcription on, I thought you were operational». It was not
+// an audio failure: it was an invisible state.
 //
 // Five states — the fifth (V2-092 addenda, 2026-08-15) is ANOTHER transition, not a made-up state: a stop
 // requested with a turn in flight that the server defers until it ends on its own (see `pausing` above). It goes
@@ -92,14 +93,14 @@ export const agentState = () => {
   if (pausing()) return "pausing";
   if (powerOff()) return "off";
   if (started()) return "live";
-  // `!bootReady()` cubre el hueco del ARRANQUE: entre que la página carga y que `session.start()` marca
-  // `starting`, no hay nada puesto todavía — sin esto, cada carga abriría en «stalled» (todo en alarma) durante
-  // unos instantes. `bootReady` solo es falso en el primer arranque, así que una sesión que se cae DESPUÉS sí
-  // cae en «stalled», que es lo que se quiere ver.
+  // `!bootReady()` covers the STARTUP gap: between the page loading and `session.start()` setting
+  // `starting`, nothing has been set yet — without this, every load would open in «stalled» (everything in alarm)
+  // for a few moments. `bootReady` is false only on the first startup, so a session that goes down AFTERWARD does
+  // fall into «stalled», which is what should be shown.
   if (starting() || !bootReady()) return "starting";
   return "stalled";
 };
-// Único predicado que deben usar las vistas para decidir si algo puede leerse como «activo».
+// The only predicate views should use to decide whether something can be read as «active».
 export const agentLive = () => agentState() === "live";
 
 export const [voices, setVoices]       = createSignal([]);
@@ -148,33 +149,32 @@ export const startTask = (id, text) => setTasks(xs => {
   const side = onLeft <= onRight ? "l" : "r";             // fill the emptier side first (ties → left)
   const delay = -(Math.random() * 3).toFixed(2);          // desync the slow breathing so they don't pulse in unison
   const hue = Math.round((Math.random() * 2 - 1) * 38);   // ±38° hue-rotate → each blob a slightly different tint
-  return [...xs, { id, text: text || "Working…", done: false, side, delay, hue }];  // …same cool blue-teal gama
+  return [...xs, { id, text: text || "Working…", done: false, side, delay, hue }];  // …same cool blue-teal range
 });
 export const endTask = (id) => {
   setTasks(xs => xs.map(t => t.id === id ? { ...t, done: true } : t));   // settle to a solid teal dot…
   setTimeout(() => setTasks(xs => xs.filter(t => t.id !== id)), 1100);   // …then it clears
 };
-// V2-059: PROGRESO estructurado del brain worker → el chip muestra la nota + paso/% (el ring del hexágono queda
-// para después; lo que importa es el dato). pct −1 = desconocido. Crea el chip si aún no existe (idempotente).
+// V2-059: STRUCTURED progress from the brain worker → the chip shows the note + step/% (the hexagon ring comes
+// later; the data is what matters). pct −1 = unknown. Creates the chip if it does not yet exist (idempotent).
 export const setTaskProgress = (id, note, pct, done, total) => setTasks(xs => {
   const tag = (total ? ` ${Math.min(done || 0, total)}/${total}` : "") + (pct >= 0 ? ` · ${pct}%` : "");
   const text = ((note || "").trim() || "Working…") + tag;
   if (!xs.some(t => t.id === id)) return [...xs, { id, text, done: false, side: "l", delay: 0, hue: 0, pct }];
   return xs.map(t => t.id === id ? { ...t, text, pct } : t);
 });
-// V2-038: RECONCILIA los chips contra la VERDAD (GET /api/tasks lee el registro RAM del server). Al (re)conectar,
-// un reinicio/crash del server pudo dejar chips huérfanos (una tarea matada que nunca emitió `end`) → aquí se
-// dropan los que ya no existen y se marca `waiting` el que espera respuesta del operador. Fin de la pieza inconexa.
-// 2026-08-18: y se FILTRA por `status` en vez de dar por vivo todo lo que venga. El server ya no manda tareas
-// terminadas (`dispatch.active_sessions` las filtra), pero este lado no puede depender de eso: cada fila que
-// entra aquí se pinta «en curso», así que una `done` que se colara resucitaría el chip fantasma que veníamos de
-// arreglar — y encima TAPA su propia fila ✓ del histórico (ChatWall descarta del histórico los ids que están
-// vivos). Dos guardas para la misma verdad, en los dos lados de la costura.
+// V2-038: RECONCILE the chips against the TRUTH (GET /api/tasks reads the server's RAM record). Upon (re)connecting,
+// a server restart/crash may have left orphaned chips (a killed task that never emitted `end`) → here we
+// drop those that no longer exist and mark `waiting` for the one awaiting the operator's response. End of the disconnected piece.
+// 2026-08-18: also FILTER by `status` instead of assuming everything received is alive. The server no longer sends completed tasks
+// (`dispatch.active_sessions` filters them), but this side cannot depend on that: every row entering here is rendered «in progress»,
+// so a leaked `done` would resurrect the ghost chip we had just fixed — and would also COVER its own ✓ history row (ChatWall
+// discards from history the ids that are alive). Two guards for the same truth, on both sides of the seam.
 const _isLive = (s) => !s || !s.status || s.status === "queued" || s.status === "running";
 export const reconcileTasks = (sessions) => {
   const live = new Map((sessions || []).filter(_isLive).map(s => [String(s.id), s]));
   setTasks(xs => {
-    // conserva/actualiza los vivos; marca done (→ clear) los que ya no están en la verdad
+    // preserve/update the live ones; mark done (→ clear) those no longer in the truth
     const kept = xs.filter(t => t.done || live.has(String(t.id))).map(t => {
       const s = live.get(String(t.id));
       return s ? { ...t, text: (s.phase || t.text) + (s.paused ? " (paused)" : ""),
@@ -200,16 +200,16 @@ export const fetchTasks = async () => {
   } catch (_) {}
 };
 
-// V2-079: HISTÓRICO de Brain Workers TERMINADOS (ledger durable) — la pestaña «Procesos» del ChatWall lo pinta
-// bajo los vivos (store.tasks) para dar perspectiva de lo hecho hoy/ayer/hace días. Se refresca al abrir la
-// pestaña y cuando una tarea acaba (SSE task:end).
+// V2-079: HISTORY of COMPLETED Brain Workers (durable ledger) — the ChatWall «Processes» tab renders it
+// below the live ones (store.tasks) to provide perspective on what was done today/yesterday/days ago. It refreshes when the
+// tab opens and when a task ends (SSE task:end).
 export const [workerHistory, setWorkerHistory] = createSignal([]);  // [{id,kind,goal,status,finished_at,...}]
 
-// SESIÓN DE TRABAJO en curso (2026-08-10). Un Reset deliberado abre una sesión NUEVA en el backend
-// (voice/observer.py::rotate_session: id nuevo + observabilidad a cero). Este contador sube en cada RESET y es la
-// señal que usan las vistas IMPERATIVAS —la columna de observabilidad, que pinta sus filas a mano y no re-renderiza
-// por datos— para vaciarse. Sin él, tras un Reset el panel seguía mostrando las filas de la sesión anterior: el
-// backend había empezado en blanco y la pantalla no, que es la peor de las dos mentiras posibles.
+// CURRENT WORK SESSION (2026-08-10). A deliberate Reset opens a NEW session in the backend
+// (voice/observer.py::rotate_session: new id + observability reset to zero). This counter rises on every RESET and is the
+// signal used by IMPERATIVE views —the observability column, which renders its rows manually and does not re-render
+// from data— to clear themselves. Without it, after a Reset the panel kept showing rows from the previous session: the
+// backend had started blank while the screen had not, the worse of the two possible lies.
 export const [sessionEpoch, bumpSessionEpoch] = createSignal(0);
 export const newSession = () => bumpSessionEpoch(n => n + 1);
 export const fetchWorkerHistory = async () => {
@@ -220,10 +220,10 @@ export const fetchWorkerHistory = async () => {
   } catch (_) {}
 };
 
-// V2-086: CONEXIONES A CLUSTERS — nativo, 4ª pestaña del ChatWall. La red (hoy MeshKore; mañana quizá otros
-// proveedores) es infraestructura del sistema, no un widget de usuario: por eso vive junto a Procesos y Crons y
-// NO en el catálogo. Lista los clusters de los que hay CREDENCIALES (conectados o no) con su estado y tráfico.
-// Deliberadamente SIN conversación: los clusters tienen su propio monitor, aquí solo se administra la conexión.
+// V2-086: CLUSTER CONNECTIONS — native, ChatWall's 4th tab. The network (MeshKore today; perhaps other providers
+// tomorrow) is system infrastructure, not a user widget: that is why it lives alongside Processes and Crons and
+// NOT in the catalog. Lists clusters for which CREDENTIALS exist (connected or not), with their status and traffic.
+// Deliberately WITHOUT conversation: clusters have their own monitor; this only manages the connection.
 export const [clusters, setClusters] = createSignal([]);  // [{name,connected,handle,online[],public,msgs,...}]
 export const fetchClusters = async () => {
   try {
@@ -232,11 +232,11 @@ export const fetchClusters = async () => {
     setClusters(Array.isArray(d.clusters) ? d.clusters : []);
   } catch (_) { setClusters([]); }
 };
-// Confirmación Sí/No de CONECTAR a un cluster (V2-086). Vive aquí y se pinta en la pestaña «Clusters» porque la
-// red no es una tarjeta del canvas. El gate es determinista y NO se puede saltar: por muy convincente que sea un
-// bloque de texto pegado, sin un «sí» explícito del operador no se abre ningún socket.
+// Yes/No confirmation to CONNECT to a cluster (V2-086). It lives here and renders in the «Clusters» tab because the
+// network is not a canvas card. The gate is deterministic and CANNOT be bypassed: no matter how convincing a pasted
+// block of text is, no socket opens without an explicit «yes» from the operator.
 // V2-518 — pending WIDGET confirmation (delete / restore / irreversible data-op), mirrored into the chat
-// thread per the house norm: no popups — a question renders IN the conversation with Sí/No, answerable
+// thread per the house norm: no popups — a question renders IN the conversation with Yes/No, answerable
 // there or by voice. Fed by the same SSE "confirm"/"confirm-cancel" events that paint the card overlay.
 export const [widgetConfirm, setWidgetConfirm] = createSignal(null);     // {id, question, action} | null
 export const widgetConfirmResolve = async (ok) => {
@@ -267,11 +267,11 @@ export const clusterDisconnect = async (name) => {
 // ---- memory map (🧠 the "map of zaelar's memory": state + short/long term + concept graph, V2-014) ----
 // memOpen = the 🧠 icon in the orb bowl toggles the full-screen visualizer. memBump increments on every
 // `memory.updated` SSE push (bridged from the bus in server/__init__.py) so the map refetches LIVE, no polling.
-// Configuración full-screen (V2-043): elegir API/modelo por pieza + resumen de APIs con saldo. Abierta por el ⚙.
+// Full-screen configuration (V2-043): choose API/model per component + API balance summary. Opened by ⚙.
 export const [configOpen, setConfigOpen] = createSignal(false); // config area overlay visible?
 export const [benchmarksOpen, setBenchmarksOpen] = createSignal(false); // benchmarks screen (opened FROM config)
 export const [apiSummary, setApiSummary] = createSignal([]);     // [{key,enables,set,state,detail,balance?}] — saldos
-export const [apiAlerts, setApiAlerts]   = createSignal([]);     // subconjunto warn/error para el diálogo de estado
+export const [apiAlerts, setApiAlerts]   = createSignal([]);     // warn/error subset for the status dialog
 
 export const [memOpen, setMemOpen]     = createSignal(false);  // memory map overlay visible?
 export const [memBump, setMemBump]     = createSignal(0);      // ticks on each memory.updated (real-time refresh)
@@ -309,14 +309,14 @@ export const [mobileSettingsOpen, setMobileSettingsOpen] = createSignal(false); 
 // voice over. null = no conflict. See mobile/app/main.js.
 export const [mobileVoiceHeld, setMobileVoiceHeld]       = createSignal(false);
 
-// ---- bóveda de secretos (V2-060): modal NATIVO (crear/desbloquear por passphrase o passkey; mostrar el valor) ----
+// ---- secret vault (V2-060): NATIVE modal (create/unlock by passphrase or passkey; show the value) ----
 export const [vaultOpen, setVaultOpen]       = createSignal(false);
 export const [vaultMode, setVaultMode]       = createSignal("unlock");   // "create" | "unlock" | "reveal" | "manage"
 export const [vaultStatus, setVaultStatus]   = createSignal({ exists: false, unlocked: false, methods: [], secret_count: 0 });
-export const [vaultPendingMid, setVaultPendingMid] = createSignal(null); // secreto a mostrar tras desbloquear
-export const [vaultRevealed, setVaultRevealed] = createSignal(null);     // { label, value } tras revelar (efímero)
-export const [vaultMsg, setVaultMsg]         = createSignal("");         // mensaje/estado dentro del modal
-// abre el modal en un modo; opts.mid = secreto pendiente de mostrar tras desbloqueo
+export const [vaultPendingMid, setVaultPendingMid] = createSignal(null); // secret to show after unlocking
+export const [vaultRevealed, setVaultRevealed] = createSignal(null);     // { label, value } after revealing (ephemeral)
+export const [vaultMsg, setVaultMsg]         = createSignal("");         // message/status inside the modal
+// opens the modal in a mode; opts.mid = secret pending display after unlocking
 export const openVault = (mode, opts = {}) => {
   setVaultMode(mode || "unlock");
   setVaultPendingMid(opts.mid != null ? opts.mid : null);
@@ -325,36 +325,36 @@ export const openVault = (mode, opts = {}) => {
 };
 export const closeVault = () => { setVaultOpen(false); setVaultRevealed(null); setVaultPendingMid(null); setVaultMsg(""); };
 
-// ---- heartbeat / ECG (V2-039): el ELECTROCARDIOGRAMA del orbe. `pulse` late en cada beat que llega por SSE — un
-// `loop.tick` REAL del loop orquestador (~1 Hz en reposo = el latido propio del server, revisando crons/procesos)
-// o el cierre de un turno del FlashBrain (un pico QRS más alto). El componente Ecg lo lee + tasks()/botSpeaking()
-// para el RITMO (en reposo lento y regular; con tareas/turnos en marcha acelera). Fed por sse.js. seq fuerza la
-// reactividad en cada latido aunque el payload se repita.
+// ---- heartbeat / ECG (V2-039): the orb's ELECTROCARDIOGRAM. `pulse` beats on every beat arriving via SSE — a
+// `loop.tick` REAL from the orchestrator loop (~1 Hz at rest = the server's own heartbeat, checking crons/processes)
+// or the completion of a FlashBrain turn (a higher QRS spike). The Ecg component reads it + tasks()/botSpeaking()
+// for the RHYTHM (slow and regular at rest; faster with tasks/turns running). Fed by sse.js. seq forces
+// reactivity on every beat even when the payload repeats.
 export const [pulse, setPulse] = createSignal(null);
 let _pulseSeq = 0;
 export const pushPulse = (ev = {}) => setPulse({ ...ev, seq: ++_pulseSeq });
 
-// ---- HARD reset confirmation (botón Reset del TopBar) ----
-// El Reset es destructivo (para todos los procesos de fondo + congela el trabajo en curso en la memoria de estado),
-// así que pide confirmación antes de disparar session.resetHard(). true = diálogo visible.
+// ---- HARD reset confirmation (TopBar Reset button) ----
+// Reset is destructive (stops all background processes + freezes current work in the state memory),
+// so it requests confirmation before triggering session.resetHard(). true = dialog visible.
 export const [resetConfirmOpen, setResetConfirmOpen] = createSignal(false);
-// V2-063: reset con checkboxes (Memoria/Credenciales) — el server se reinicia solo; true mientras esperamos
-// que vuelva a responder, para pintar un overlay "reiniciando…" en vez de dejar la app en un estado roto.
+// V2-063: reset with checkboxes (Memory/Credentials) — the server restarts itself; true while we wait
+// for it to respond again, so we render a "restarting…" overlay instead of leaving the app in a broken state.
 export const [restarting, setRestarting] = createSignal(false);
 
-// ---- wizard de primer arranque (perfiles local/cloud + detector de capacidades, V2-040). Se auto-abre en el
-// primer arranque (config sin validar) y es reabrible desde el TopBar (🧭). ----
+// ---- first-start wizard (local/cloud profiles + capability detector, V2-040). It opens automatically on the
+// first startup (unvalidated config) and can be reopened from the TopBar (🧭). ----
 export const [wizardOpen, setWizardOpen] = createSignal(false);
 
-// ---- perfil CLOUD: en una cuenta de pago (cloud_profile del /api/config, = ZAELAR_USER_ID puesto) el header se
-// reduce a tema + perfil; en self-host es siempre false y el header no cambia (cero regresión). Lo siembra main.js
+// ---- CLOUD profile: in a paid account (cloud_profile from /api/config, = ZAELAR_USER_ID set), the header is
+// reduced to theme + profile; in self-host it is always false and the header does not change (zero regression). main.js seeds it
 // al arrancar desde /api/config. ----
-export const [cloudProfile, setCloudProfile] = createSignal(false);        // ¿cuenta cloud? (header reducido)
-export const [accountOpen, setAccountOpen]   = createSignal(false);        // panel de cuenta (icono perfil, solo cloud)
+export const [cloudProfile, setCloudProfile] = createSignal(false);        // cloud account? (reduced header)
+export const [accountOpen, setAccountOpen]   = createSignal(false);        // account panel (profile icon, cloud only)
 
-// ---- SALDO DE ENERGY (la PILA de la barra superior, solo cloud). `known:false` = todavía no sabemos el saldo, que
-// NO es lo mismo que cero: la pila se pinta apagada, nunca vacía. Lo siembra main.js desde /api/energy y lo refresca
-// el SSE (`kind:"energy"`) cada vez que el agente gasta, así baja EN VIVO sin que nadie pregunte. ----
+// ---- ENERGY BALANCE (the top-bar BATTERY, cloud only). `known:false` = we do not know the balance yet, which is
+// NOT the same as zero: the battery renders dimmed, never empty. main.js seeds it from /api/energy and SSE refreshes
+// it (`kind:"energy"`) whenever the agent spends, so it drops LIVE without anyone asking. ----
 export const [energy, setEnergy] = createSignal({ cloud: false, known: false, balance: null, capacity: null });
 
 // ---- system status (ⓘ panel: Hermes / voz / LLM / STT / TTS / cluster · credit + health) ----
@@ -369,25 +369,25 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
 export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086: "chat"|"procesos"|"crons"|"clusters"
 export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|"agent", text }]
-// TOPE (2026-07-23, petición del operador): sin límite, un hilo largo (p.ej. horas hablando con un agente de
-// cluster por WebSocket) crece sin fin — y ChatWall reconstruye TODO el DOM desde `chatMsgs()` en cada push
-// (`listEl.replaceChildren(...msgs.map(...))`), así que miles de líneas congelarían el frontend. Se recorta a
-// los últimos N en el store (una sola fuente de verdad) en vez de en el componente, para que ningún consumidor
-// futuro de `chatMsgs` pueda pasarse por alto el límite. Es solo el buffer de RENDER; la memoria real (corto/
-// largo plazo) sigue su propio camino en `memory/`, ya gestionado — este tope es un cinturón de seguridad del
-// frontend, no una capa de memoria.
+// CAP (2026-07-23, operator request): without a limit, a long thread (e.g. hours talking with a
+// cluster over WebSocket) grows without end — and ChatWall rebuilds the ENTIRE DOM from `chatMsgs()` on every push
+// (`listEl.replaceChildren(...msgs.map(...))`), so thousands of lines would freeze the frontend. It is trimmed to
+// the last N in the store (a single source of truth) rather than in the component, so no future consumer
+// of `chatMsgs` can overlook the limit. This is only the RENDER buffer; real memory (short-/
+// long-term) follows its own path in `memory/`, already managed — this cap is a frontend safety belt,
+// not a memory layer.
 const CHAT_CAP = 100;
 const _capChat = xs => xs.length > CHAT_CAP ? xs.slice(xs.length - CHAT_CAP) : xs;
 export const pushChat = (m) => setChatMsgs(xs => _capChat([...xs, m]));
 // Agent line for the history, DEDUPED: proactive pushes arrive on two channels (SSE "notify" + the agent's own
 // transcript when it speaks the same text) — collapse an immediate repeat (ignoring a leading 🔔).
-// 2026-08-18 (V2-116): el dedup compara por PREFIJO, no por igualdad exacta, y limpia también el marcador 💬.
-// Motivo: la respuesta se empuja al muro en cuanto el modelo la genera (fluidez — antes había que esperar a que
-// LiveKit cerrase el item de conversación, o sea a que el TTS TERMINARA de hablarla: 5-12 s medidos, y el
-// operador lo vivió como «la he oído por voz y el texto ha tardado un minuto»). El `transcript` de LiveKit llega
-// después con el MISMO texto y tiene que fundirse con el ya pintado; y si un barge-in cortó la locución a medias,
-// llega TRUNCADO — con igualdad exacta saldrían dos burbujas, una completa y una a medias. Se conserva la más
-// larga (lo que el agente quiso decir), que es la que sirve de historial.
+// 2026-08-18 (V2-116): dedup compares by PREFIX, not exact equality, and also removes the 💬 marker.
+// Reason: the response is pushed to the wall as soon as the model generates it (fluency — previously we had to wait for
+// LiveKit close the conversation item, that is, until TTS FINISHED speaking it: 5-12 seconds measured, and the
+// the operator experienced it as «I heard it by voice and the text took a minute»). LiveKit's `transcript` arrives
+// afterward with the SAME text and must merge with what is already rendered; and if a barge-in cut the speech short,
+// it arrives TRUNCATED — exact equality would produce two bubbles, one complete and one partial. The longer one
+// is kept (what the agent intended to say), as it is the useful history.
 const _CHAT_MARKERS = /^(?:🔔|💬)\s*/;
 export const pushAgentChat = (text) => {
   const norm = s => (s || "").replace(_CHAT_MARKERS, "").trim();
@@ -395,8 +395,8 @@ export const pushAgentChat = (text) => {
     const last = xs[xs.length - 1];
     if (last && last.role === "agent") {
       const a = norm(last.text), b = norm(text);
-      if (a && b && (a === b || a.startsWith(b))) return xs;          // ya está (o lo nuevo es una versión corta)
-      if (a && b && b.startsWith(a)) {                                 // lo nuevo AMPLÍA lo ya pintado → sustituye
+      if (a && b && (a === b || a.startsWith(b))) return xs;          // already present (or the new one is a shorter version)
+      if (a && b && b.startsWith(a)) {                                 // the new one EXTENDS what is rendered → replace
         return _capChat([...xs.slice(0, -1), { role: "agent", text }]);
       }
     }

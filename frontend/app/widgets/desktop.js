@@ -26,22 +26,21 @@ function injectStyles(){
   if(document.getElementById("hb-desk-css"))return;
   const s=document.createElement("style"); s.id="hb-desk-css"; s.textContent=`
   .hb-stage{position:fixed;inset:0;z-index:12;pointer-events:none}
-  /* La tarjeta es una COLUMNA FLEX con el cuerpo como único scroller (antes scrolleaba la tarjeta entera). El
-     cambio lo obliga el redimensionado: con la tarjeta scrolleando, los tiradores de borde —absolutos— se iban
-     con el contenido y no se podían agarrar. De paso, la cabecera y el overlay de confirmación dejan de
-     desplazarse fuera de la vista en un widget largo. */
+  /* The card is a FLEX COLUMN with the body as its only scroller (the whole card used to scroll). Resizing
+     requires this change: when the card scrolled, the absolutely positioned edge handles moved with the content
+     and could not be grabbed. It also keeps the header and confirmation overlay from scrolling out of view in a
+     long widget. */
   .hb-win{position:absolute;pointer-events:auto;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#e3e8f0);border-radius:16px;
     box-shadow:var(--hb-shadow-2,0 20px 60px rgba(13,22,34,.22));padding:30px 16px 16px;max-width:92vw;max-height:82vh;overflow:hidden;
     display:flex;flex-direction:column;
     opacity:0;transform:scale(.9) translateY(10px);transition:opacity .2s,transform .2s cubic-bezier(.2,.9,.3,1.2)}
   .hb-win.in{opacity:1;transform:none}
-  /* El SCROLLER es un envoltorio del canvas, NO el div del widget: un widget.js hace el.className="…" y se lleva
-     por delante cualquier clase que le pongamos a su raíz (así que una regla sobre .hb-body no aplicaba a nadie).
-     El widget sigue siendo dueño absoluto de su div; el scroll es chrome de la tarjeta, como el grip o la ×.
-     OJO al editar este bloque: es un template literal — nada de acentos graves aquí dentro. */
+  /* The SCROLLER wraps the canvas, NOT the widget div: widget.js sets el.className="…" and overwrites any class
+     placed on its root (so a rule for .hb-body applied to nothing). The widget remains the sole owner of its div;
+     scrolling is card chrome, like the grip or ×. NOTE: this is a template literal — no backticks inside. */
   .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}
-  /* Redimensionar SIN transición: con la de arriba puesta, arrastrar una esquina iba a tirones (cada frame
-     animaba 200ms hacia el tamaño nuevo). Se apaga mientras dura el gesto. */
+  /* Resize WITHOUT a transition: with the one above enabled, dragging a corner stuttered (each frame animated
+     for 200ms toward the new size). It is disabled while the gesture lasts. */
   .hb-win.rz{transition:none;user-select:none}
   .hb-grip{position:absolute;top:7px;left:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:grab;
     background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted-2,#9aa7b8);display:flex;align-items:center;justify-content:center;touch-action:none;z-index:3}
@@ -51,9 +50,9 @@ function injectStyles(){
   .hb-max{position:absolute;top:7px;right:38px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
     background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:12px;line-height:1;z-index:3}
   .hb-max:hover,.hb-x:hover{color:var(--hb-ink,#e8edf5)}
-  /* TIRADORES DE REDIMENSIÓN — cuatro esquinas y cuatro bordes. El operador pidió poder agarrar «las esquinas del
-     widget»: son invisibles hasta que pasas por encima (una tarjeta llena de asas es ruido) pero tienen 14px de
-     zona sensible, que es lo que hace que se puedan coger sin apuntar con precisión de cirujano. */
+  /* RESIZE HANDLES — four corners and four edges. The operator asked to be able to grab “the widget corners”:
+     they are invisible until hovered (a card full of handles is noise), but have a 14px hit area, making them
+     grabbable without surgical precision. */
   .hb-rz{position:absolute;z-index:4;touch-action:none}
   .hb-rz-n,.hb-rz-s{left:14px;right:14px;height:8px}
   .hb-rz-e,.hb-rz-w{top:14px;bottom:14px;width:8px}
@@ -70,16 +69,16 @@ function injectStyles(){
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
   .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-grip,.hb-win.loading .hb-scroll,
   .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
-  /* HEADER del widget (V2-082): el NOMBRE por el que se abre + un botón de config que despliega los ALIAS.
-     Vive en la franja superior de 30px, entre el grip (izq) y la × (der). Genérico para TODO widget — el
-     widget.js no lo toca. El nombre sale de _meta/registry (manifest.name|title). */
+  /* Widget HEADER (V2-082): the NAME used to open it + a config button that expands the ALIASES. It lives in the
+     30px top strip, between the grip (left) and × (right). Generic for EVERY widget — widget.js does not touch it.
+     The name comes from _meta/registry (manifest.name|title). */
   /* right:70px, no 40: los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a 64), así que la
      cabecera se le metía por debajo — invisible con un nombre corto y centrado, evidente con un título largo. */
   .hb-head{position:absolute;top:6px;left:40px;right:70px;height:24px;display:flex;align-items:center;justify-content:center;
     gap:5px;pointer-events:none}
-  /* TÍTULO VIVO (2026-08-12): cuando la cabecera lleva la TAREA en vez del nombre del widget, se alinea a la
-     izquierda y ocupa todo el hueco. Un rótulo corto se centra bien; una frase se lee desde el margen, y centrarla
-     desperdicia la mitad del ancho en aire simétrico que no hace falta. */
+  /* LIVE TITLE (2026-08-12): when the header carries the TASK instead of the widget name, it is left-aligned and
+     uses the full space. A short label centers well; a sentence reads from the margin, and centering it wastes
+     half the width on unnecessary symmetrical whitespace. */
   .hb-head.live{justify-content:flex-start}
   .hb-head.live .hb-name{max-width:100%;font-weight:600}
   .hb-name{pointer-events:auto;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
@@ -88,7 +87,7 @@ function injectStyles(){
   .hb-cfg{pointer-events:auto;border:none;border-radius:6px;cursor:pointer;width:20px;height:20px;padding:0;font-size:11px;
     background:transparent;color:var(--hb-muted-2,#9aa7b8)}
   .hb-cfg:hover{color:var(--hb-ink,#e8edf5);background:var(--hb-bubble,#f1f4f9)}
-  /* Desplegable de ALIAS (host-level, patrón de .hb-confirm): lista de chips editable + añadir. */
+  /* ALIAS dropdown (host-level, patterned after .hb-confirm): editable chip list + add. */
   .hb-aliases{position:absolute;top:30px;left:12px;right:12px;z-index:6;padding:12px;border-radius:12px;
     max-height:calc(100% - 44px);overflow-y:auto;
     background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
@@ -128,7 +127,7 @@ function injectStyles(){
   .hb-cap{font:12px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted-2,#7d8a9c);text-align:center;max-width:220px}
   .hb-cap.err{color:var(--hb-risk,#e5484d)}
   /* CONFIRM OVERLAY (host-level, generic for ANY widget — never touches its widget.js): irreversible action
-     (delete) asks Sí/No ON the card. Fed by the confirm SSE events; resolves via POST /widgets/{id}/confirm. */
+     (delete) asks Yes/No ON the card. Fed by the confirm SSE events; resolves via POST /widgets/{id}/confirm. */
   .hb-confirm{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
     padding:18px;text-align:center;border-radius:16px;background:color-mix(in srgb,var(--hb-bg,#141d29) 82%,transparent);
     backdrop-filter:blur(4px);opacity:0;transition:opacity .18s}
@@ -168,18 +167,17 @@ export class Desktop {
     this.restore();                                        // bring back the user's desktop (open widgets + positions)
   }
 
-  // Estado del agente → los widgets. Lo llama main.js reactivamente desde `store.powerOff()`.
+  // Agent state → widgets. main.js calls this reactively from `store.powerOff()`.
   setRunning(on){ this._running = !!on; }
 
   // ---- PERSISTENCE: the desktop is the user's state. Open widgets + their positions survive a refresh / reopen. ----
-  // Geometría restaurable del escritorio: qué tarjetas, con qué consulta y dónde. Las tarjetas de INSTANCIA
-  // (`navegador::t3` = una pestaña/tarea concreta) siguen siendo efímeras — su tarea muere con el proceso que la
-  // conducía, así que restaurarlas pintaría una pestaña que ya no existe. La tarjeta BASE del navegador SÍ se
-  // restaura desde 2026-08-12: era el único widget excluido por nombre, y como es justo el que está en pantalla
-  // durante una tarea web, recargar la página en mitad de una búsqueda dejaba el escritorio literalmente en blanco.
-  // El TAMAÑO viaja con la posición desde 2026-08-12. Antes solo se guardaba dónde estaba la tarjeta, así que
-  // agrandar la hoja de resultados para leerla a gusto y recargar la devolvía a su tamaño de fábrica — el
-  // esfuerzo del operador se perdía en cada refresco, que es la forma más rápida de que una función no se use.
+  // Restorable desktop geometry: which cards, with which query, and where. INSTANCE cards
+  // (`navegador::t3` = a specific tab/task) remain ephemeral — their task dies with the process that drove it,
+  // so restoring them would paint a tab that no longer exists. The browser BASE card IS restored since 2026-08-12:
+  // it was the only widget excluded by name, and since it is precisely what is on screen during a web task,
+  // reloading mid-search left the desktop literally blank. SIZE travels with position since 2026-08-12. Previously
+  // only the card position was saved, so enlarging the results sheet and reloading returned it to factory size —
+  // the operator’s effort was lost on every refresh, the fastest way to make a feature unused.
   _layout(){
     // V2-351 — INSTANCE cards persist too. This used to skip every `base::instance` id, so the desktop the
     // operator actually works on (the errand sheet `results::ece70b-1` with 12 real candidates, the browser
@@ -197,7 +195,7 @@ export class Desktop {
   _persist(){
     if(this._restoring) return;
     try{ localStorage.setItem("hb_desktop", JSON.stringify(this._layout())); }catch(_){}
-    this._reportOpen();     // ESTADO: el canvas es autoritativo → el servidor refleja qué hay abierto en el prompt
+    this._reportOpen();     // STATE: the canvas is authoritative → the server reflects what is open in the prompt
   }
   // Reporta los widgets ABIERTOS al ESTADO de la memoria (POST /api/canvas/state) para que viajen en el prompt del
   // cerebro ("modifica el widget de X" sin preguntar) y se vean en el mapa. Debounce ligero (los arrastres/moves
@@ -220,8 +218,8 @@ export class Desktop {
       if(epoch && localStorage.getItem("hb_wipe") !== String(epoch)){
         localStorage.removeItem("hb_desktop");
         localStorage.setItem("hb_wipe", String(epoch));
-        this._reportOpen();               // el ESTADO del servidor también a vacío
-        return;                           // arranca sin widgets
+        this._reportOpen();               // the server STATE is also cleared
+        return;                           // starts with no widgets
       }
     }catch(_){}
     let items=[]; try{ items=JSON.parse(localStorage.getItem("hb_desktop")||"[]"); }catch(_){ items=[]; }
@@ -238,7 +236,7 @@ export class Desktop {
     try{ srv = await fetch("/api/canvas/layout").then(r=>r.json()) || srv; }catch(_){}
     if(!items.length && Array.isArray(srv.items) && srv.items.length){
       items=srv.items;
-      console.info("desktop: restaurado del servidor (este navegador no tenía escritorio guardado)");
+      console.info("desktop: restored from server (this browser had no saved desktop)");
     }
     // V2-351 — THE FOSSIL SWEEP. A bare BASE card next to an instance of the same base is the ghost the round
     // report names («se abrió la pieza BASE encima de su propia instancia, vacía»): the pre-V2-261 echo used to
@@ -269,9 +267,10 @@ export class Desktop {
 
   // The brain doesn't always emit the EXACT catalog id (it said "agenda-today" for the "agenda" widget). Resolve
   // loosely against the live catalog so id drift never silently swallows a widget: exact → prefix → contains.
-  // V2-085: `GET /widgets` devuelve ahora el ÍNDICE COMPACTO (id/name/title/whenToUse/aliases/origin/transient),
-  // no los manifests completos — es todo lo que este resolver y `_meta` necesitan, y deja de ser O(N·manifest)
-  // (25 KB con 16 widgets, megas con miles). El manifest íntegro se pide por widget: /widgets/{id}/manifest.
+  // V2-085: `GET /widgets` now returns the COMPACT INDEX (id/name/title/whenToUse/aliases/origin/transient),
+  // not the full manifests — everything this resolver and `_meta` need, no longer O(N·manifest)
+  // (25 KB with 16 widgets, megabytes with thousands). The complete manifest is requested per widget:
+  // /widgets/{id}/manifest.
   async _resolve(id){
     if(!id) return id;
     try{
@@ -284,9 +283,9 @@ export class Desktop {
     }catch(_){ return id; }
   }
 
-  // ── NOMBRE + ALIAS del widget (V2-082) ───────────────────────────────────────────────────────────────────
-  // El header de cada tarjeta muestra el NOMBRE canónico y, tras el ⚙, la lista de ALIAS editable. Fuente: el
-  // registro unificado GET /widgets/registry (cacheado; se refresca por el evento SSE widget/alias).
+  // ── Widget NAME + ALIASES (V2-082) ───────────────────────────────────────────────────────────────────
+  // Each card header shows the canonical NAME and, behind ⚙, the editable ALIAS list. Source: the unified
+  // GET /widgets/registry registry (cached; refreshed by the widget/alias SSE event).
   async _ensureRegistry(force){
     if(this._registry && !force) return this._registry;
     try{
@@ -296,20 +295,18 @@ export class Desktop {
     return this._registry;
   }
   async _applyName(w){
-    if(w._liveTitle) return;                            // la TAREA manda sobre el nombre del catálogo (ver _liveTitle)
+    if(w._liveTitle) return;                            // the TASK takes precedence over the catalog name (see _liveTitle)
     const reg=await this._ensureRegistry(); const e=reg[w.base];
     if(e && w.nameBtn) w.nameBtn.textContent=e.name||w.base;
   }
 
-  // ---- TÍTULO VIVO: la cabecera dice QUÉ es esto, no CÓMO se llama la pieza ----
-  // Petición del operador (2026-08-12): «no hace falta que la gente sepa que eso es el visor o la muestra de
-  // resultados, sino lo que le hemos pedido puesto ahí». En una superficie genérica el nombre del catálogo
-  // («Resultados») no informa de nada: lo que identifica esa tarjeta es el ENCARGO que está mostrando. Así que un
-  // widget puede declarar `"live_title": true` en su manifest y entonces la cabecera de la tarjeta lleva su
-  // `data.title`.
-  // Es OPT-IN por widget, no global: la agenda o el reloj sí se identifican por su nombre, y cambiárselo a todos
-  // sería una regresión. Y el nombre POR EL QUE SE ABRE no se pierde — sigue en el tooltip y en el panel de alias
-  // (⚙), que es donde el operador va a buscar cómo llamarlo por voz.
+  // ---- LIVE TITLE: the header says WHAT this is, not WHAT the piece is called ----
+  // Operator request (2026-08-12): “people do not need to know this is the viewer or results display, but what we
+  // asked it to show.” On a generic surface the catalog name (“Results”) conveys nothing: the card is identified by
+  // the TASK it is displaying. A widget may therefore declare `"live_title": true` in its manifest, making the card
+  // header use its `data.title`. This is OPT-IN per widget, not global: the agenda or clock is identified by name,
+  // and changing all of them would be a regression. The name USED TO OPEN IT is not lost — it remains in the
+  // tooltip and alias panel (⚙), where the operator looks up what to call it by voice.
   _wantsLiveTitle(baseId){
     const meta = this._meta && this._meta[baseId];
     return !!(meta && meta.live_title);
@@ -321,10 +318,10 @@ export class Desktop {
     w._liveTitle = true;
     w.nameBtn.textContent = title;
     if(w.head) w.head.classList.add("live");
-    // El nombre canónico queda a un gesto de distancia, no borrado: es como se dirige la pieza por voz.
+    // The canonical name remains one gesture away, not deleted: it is how the piece is addressed by voice.
     const reg = await this._ensureRegistry();
     const name = (reg[baseId] && reg[baseId].name) || baseId;
-    w.nameBtn.title = `${title}\n(${name} — clic para ver/editar sus alias)`;
+    w.nameBtn.title = `${title}\n(${name} — click to view/edit its aliases)`;
   }
   async refreshRegistry(){                              // SSE widget/alias → repinta nombres + panel abierto
     await this._ensureRegistry(true);
@@ -408,9 +405,9 @@ export class Desktop {
   }
 
   async show(rawId, {q="", data:providedData=null, pos=null}={}){
-    // INSTANCIA por tarea: un id como `navegador::t3` = varias tarjetas del MISMO widget base. base = código+datos
-    // (`navegador`), q = id de la tarea (para /data?q= y ctx.action), y la tarjeta se indexa por el id COMPLETO
-    // (instancia) → N tarjetas independientes del navegador, una por pestaña/tarea. Un id normal se comporta igual.
+    // TASK INSTANCE: an id such as `navegador::t3` = multiple cards for the SAME base widget. base = code+data
+    // (`navegador`), q = task id (for /data?q= and ctx.action), and the card is indexed by the COMPLETE id
+    // (instance) → N independent browser cards, one per tab/task. A normal id behaves the same way.
     let baseId, id, wq;
     if(rawId && rawId.includes("::")){ const p=rawId.split("::"); baseId=p[0]; id=rawId; wq=p[1]||q; }
     else { baseId = await this._resolve(rawId); id = baseId; wq = q; }
@@ -424,7 +421,7 @@ export class Desktop {
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
       const mx=document.createElement("button"); mx.className="hb-max"; mx.textContent="⤢"; mx.title=tr("desktop.maximize_tooltip");
       mx.onclick=()=>this.maximize(id);
-      // HEADER (V2-082): botón-NOMBRE + config para ver/editar los ALIAS. El nombre se rellena desde el registro.
+      // HEADER (V2-082): NAME button + config to view/edit ALIASES. The name is populated from the registry.
       const head=document.createElement("div"); head.className="hb-head";
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
       nameBtn.title=tr("desktop.name_tooltip");
@@ -444,21 +441,21 @@ export class Desktop {
       this._wireDrag(card, grip);
       this._wireResize(card, id);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
-      // el drag (grip) ya no engulle clicks del header; el header ignora pointerdown para no arrastrar la tarjeta.
+      // Dragging (grip) no longer swallows header clicks; the header ignores pointerdown so it does not drag the card.
       head.addEventListener("pointerdown",e=>e.stopPropagation());
       requestAnimationFrame(()=>card.classList.add("in"));
       card._long=setTimeout(()=>card.classList.add("long"),3500);
       w={card, body, q, id, base:baseId, nameBtn, head}; this.wins.set(id, w);
       nameBtn.onclick=()=>this._toggleAliases(w); cfg.onclick=()=>this._toggleAliases(w);
-      this._applyName(w);                               // rellena el nombre desde el registro (async, best-effort)
+      this._applyName(w);                               // populate the name from the registry (async, best-effort)
     } else {
       this._bringFront(w.card);
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
       if(providedData === null && q === w.q) return;
     }
     w.q = q;                                            // remember the query so a refresh reloads the same content
-    // `desk` (NO `self`: en un navegador `self` es `window`, así que un getter que lo usara leería `window._running`
-    // = undefined y TODO widget creería que el agente está parado — un fallo silencioso y difícil de ver).
+    // `desk` (NOT `self`: in a browser `self` is `window`, so a getter using it would read `window._running`
+    // = undefined and EVERY widget would believe the agent was stopped — a silent, hard-to-see failure).
     const desk = this;
     // async load — never blocks the voice loop; other widgets load in parallel
     try{
@@ -474,17 +471,17 @@ export class Desktop {
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${baseId}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
         close:()=>this.close(id),
-        // «Vuelve arriba»: el widget pide, el canvas decide cómo (el scroller es chrome de la tarjeta, no suyo).
-        // Lo llama SOLO al NAVEGAR — abrir una ficha, cambiar de pestaña, volver a la lista —, nunca en un
-        // refresco de datos: resetear el scroll cada vez que llegan resultados nuevos le arrancaría de las manos
-        // al operador lo que está leyendo, justo mientras la hoja se llena en vivo.
+        // “Back to top”: the widget requests it; the canvas decides how (the scroller is card chrome, not the widget’s).
+        // Called ONLY when NAVIGATING — opening a record, changing tabs, returning to the list — never on a data
+        // refresh: resetting scroll whenever new results arrive would take what the operator is reading out of
+        // their hands, precisely while the sheet is filling live.
         top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; },
-        // V2-092 — ¿está el agente en marcha? GETTER a propósito: el `ctx` se crea una vez por montaje y se guarda
-        // (`w._ctx`) para los re-renders, así que una copia del valor se quedaría rancia. Un widget que REPRODUCE
-        // algo debe consultarlo antes de arrancar solo (ver widgets/AGENTS.md, «producir»).
+        // V2-092 — is the agent running? DELIBERATELY A GETTER: `ctx` is created once at mount and saved
+        // (`w._ctx`) for re-renders, so a copied value would become stale. A widget that PLAYS something must check
+        // it before starting on its own (see widgets/AGENTS.md, “produce”).
         get running(){ return desk._running; } };
-      // La marca va ANTES de pintar: así el widget sabe en su PRIMERA pasada que la cabecera de la tarjeta ya lleva
-      // el título y no lo repite. Puesta después, la primera pintada saldría con el título duplicado.
+      // The marker goes BEFORE rendering: on its FIRST pass the widget then knows the card header already has the
+      // title and does not repeat it. If set afterward, the first render would show the title twice.
       if(this._wantsLiveTitle(baseId)) w.body.dataset.hostTitle = "1";
       mod.render(w.body, data, ctx);
       this._applyLiveTitle(w, baseId, data);            // …y el texto, que sale de los datos recién cargados
@@ -499,11 +496,11 @@ export class Desktop {
     }catch(e){ console.error("widget mount failed", id, e); this._mountError(w, baseId, String(e&&e.message||e)); }
   }
 
-  // Un widget que falla al montar/renderizar YA NO desaparece en silencio (bug 2026-07-13: el operador pedía la
-  // agenda 4 veces y "no la veía" — la tarjeta se creaba y se auto-cerraba en el catch, sin dejar rastro). Ahora
-  // muestra un estado de ERROR VISIBLE en la tarjeta Y lo REPORTA a la observabilidad (evento client en /debug) →
-  // el fallo real de render deja de ser invisible. Invariante: un widget roto = estado de error aislado, nunca
-  // tumba el resto ni se esfuma.
+  // A widget that fails to mount/render NO LONGER disappears silently (bug 2026-07-13: the operator requested the
+  // agenda four times and “could not see it” — the card was created and auto-closed in the catch, leaving no trace).
+  // It now shows a VISIBLE ERROR state in the card AND REPORTS it to observability (client event at /debug) → the
+  // actual render failure is no longer invisible. Invariant: a broken widget = isolated error state, never harms the
+  // rest or vanishes.
   _mountError(w, baseId, msg){
     try{
       if(w && w.card){
@@ -523,7 +520,7 @@ export class Desktop {
   // One at a time (re-showing replaces it). Renders the widget's own UI but chrome-free, anchored to the orb.
   async _showActivity(id, q, providedData=null){
     const rail=this.activity; if(!rail) return;
-    const desk = this;                                       // ver la nota de `show()` sobre por qué no `self`
+    const desk = this;                                       // see the `show()` note explaining why not `self`
     clearTimeout(this._actTimer);
     rail.innerHTML="";
     const item=document.createElement("div"); item.className="hb-act"; rail.appendChild(item);
@@ -538,7 +535,7 @@ export class Desktop {
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${id}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
         close:()=>{ clearTimeout(this._actTimer); rail.innerHTML=""; this._actId=null; },
-        get running(){ return desk._running; } };            // V2-092: mismo contrato que en una tarjeta normal
+        get running(){ return desk._running; } };            // V2-092: same contract as on a normal card
       mod.render(mount, data, ctx);
       this._actTimer=setTimeout(()=>{                     // transient: let it linger, then fade and clear the rail
         item.style.transition="opacity .6s"; item.style.opacity="0";
@@ -780,7 +777,7 @@ export class Desktop {
     return true;
   }
 
-  // ---- redimensionado A MANO: ocho tiradores (cuatro esquinas + cuatro bordes) ----
+  // ---- MANUAL resizing: eight handles (four corners + four edges) ----
   _addHandles(card){
     for(const dir of ["n","s","e","w","ne","nw","se","sw"]){
       const h=document.createElement("div"); h.className="hb-rz hb-rz-"+dir; h.dataset.dir=dir;
@@ -791,7 +788,7 @@ export class Desktop {
     if(w){ card.style.width = w; card.style.maxWidth="none"; }
     if(h){ card.style.height = h; card.style.maxHeight="none"; }
   }
-  // Tamaño preferido declarado por el widget (`manifest.size`), aplicado solo si la tarjeta no trae uno guardado.
+  // Preferred size declared by the widget (`manifest.size`), applied only if the card has no saved size.
   _applyPreferred(card, baseId){
     const size = this._meta && this._meta[baseId] && this._meta[baseId].size;
     if(!size) return;
@@ -799,7 +796,7 @@ export class Desktop {
     if(size.w) card.style.width  = Math.min(Number(size.w), maxW) + "px";
     if(size.h) card.style.height = Math.min(Number(size.h), maxH) + "px";
     if(size.w || size.h){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
-    // Recolocar: la tarjeta se ubicó con el tamaño por defecto (400×340) y puede haber crecido fuera del lienzo.
+    // Reposition: the card was placed at the default size (400×340) and may have grown beyond the canvas.
     const L=parseInt(card.style.left)||this.tile.pad, T=parseInt(card.style.top)||this.tile.top;
     card.style.left = Math.max(this.tile.pad, Math.min(L, innerWidth - card.offsetWidth - this.tile.pad)) + "px";
     card.style.top  = Math.max(this.tile.top, Math.min(T, innerHeight - card.offsetHeight - this.tile.pad)) + "px";
@@ -924,10 +921,10 @@ export class Desktop {
 
   _bringFront(card){ card.style.zIndex = Math.min(8000, ++this.z); }   // stay BELOW the camera (9000) and orb (100000)
 
-  // reverse lookup: which widget id owns this card? (para atribuir una acción de UI al widget correcto)
+  // reverse lookup: which widget id owns this card? (to attribute a UI action to the correct widget)
   _idOf(card){ for(const [id,w] of this.wins){ if(w && w.card===card) return id; } return ""; }
-  // V2-039 — AUDITORÍA del frontend: registra en la línea de tiempo una acción que hace el OPERADOR sobre un widget
-  // a mano (mover/redimensionar). El server la estampa con src="user". Fire-and-forget; nunca rompe el canvas.
+  // V2-039 — FRONTEND AUDIT: records on the timeline an action the OPERATOR performs manually on a widget
+  // (move/resize). The server stamps it with src="user". Fire-and-forget; never breaks the canvas.
   _uiAudit(action, id){ try{ fetch("/api/ui-event",{method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({kind:"widget",action,id})}); }catch(_){} }
 

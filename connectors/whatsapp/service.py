@@ -97,7 +97,7 @@ async def _drain_replies() -> None:
     """Drain dictated replies (V2-521 — the email connector had this since V2-051; WhatsApp only ever read).
     The widget's reply action already enqueued mark-read for the original, so this only SENDS. A failure is
     TOLD to the operator through brain_notes and not requeued: a bad send retried forever is worse than one
-    honest "no pude enviarlo"."""
+    honest "I couldn't send it."""
     if not ingest.v2_enabled() or _reply_inbox is None:
         return
     for r in _reply_inbox.drain():

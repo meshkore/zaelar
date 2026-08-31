@@ -54,12 +54,12 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
      background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
      box-shadow:var(--hb-shadow-2);display:none;flex-direction:column;overflow:hidden}
 .chatwall.open{display:flex}
-/* DOCK a columna lateral full-height (arrastrar el header al borde izq/der). El resto = canvas vacío.
-   top/bottom:0 (no height:100vh) = full-height ROBUSTO en cualquier navegador; !important gana a los inline flotantes. */
+/* DOCK as a full-height side column (drag the header to the left/right edge). The rest = empty canvas.
+   top/bottom:0 (not height:100vh) = ROBUST full height in any browser; !important wins over floating inline styles. */
 .chatwall.docked{top:0!important;bottom:0!important;height:auto!important;max-height:none!important;border-radius:0}
 .chatwall.docked.dock-left{border-radius:0 16px 16px 0;border-left:none}
 .chatwall.docked.dock-right{border-radius:16px 0 0 16px;border-right:none}
-/* handles de redimensionado (8: bordes + esquinas), reutilizables (lib/resizable.js) */
+/* resize handles (8: edges + corners), reusable (lib/resizable.js) */
 .hb-rz{position:absolute;z-index:6}
 .hb-rz-n{top:0;left:12px;right:12px;height:7px;cursor:ns-resize}
 .hb-rz-s{bottom:0;left:12px;right:12px;height:7px;cursor:ns-resize}
@@ -69,24 +69,24 @@ canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;disp
 .hb-rz-nw{top:0;left:0;width:14px;height:14px;cursor:nwse-resize}
 .hb-rz-se{bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize}
 .hb-rz-sw{bottom:0;left:0;width:14px;height:14px;cursor:nesw-resize}
-/* docked → solo el borde INTERIOR redimensiona (el ancho de la columna); ocultar el resto */
+/* docked → only the INNER edge resizes (the column width); hide the rest */
 .chatwall.docked .hb-rz{display:none}
 .chatwall.docked.dock-left .hb-rz-e{display:block}
 .chatwall.docked.dock-right .hb-rz-w{display:block}
-/* previsualización del dock mientras arrastras al borde */
+/* dock preview while dragging to the edge */
 .hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
      background:linear-gradient(var(--hb-accent),var(--hb-accent2));opacity:.16;border:2px dashed var(--hb-accent)}
 .hb-dock-preview.left{left:0;border-left:none} .hb-dock-preview.right{right:0;border-right:none}
-/* RESERVA DE ESPACIO del chat acoplado (V2-062): el escritorio (canvas, widgets, cámara, orbe, paneles) se DESPLAZA
-   a la zona libre en vez de quedar tapado — mismo patrón que --dbg-w del DebugPanel. Solo activo con el chat ABIERTO
-   y acoplado (las clases las pone/quita ChatWall). */
+/* SPACE RESERVATION for docked chat (V2-062): the desktop (canvas, widgets, camera, orb, panels) MOVES
+   into the free area instead of being covered — same pattern as DebugPanel's --dbg-w. Active only when chat is OPEN
+   and docked (ChatWall adds/removes the classes). */
 :root{ --chatdock-l:0px; --chatdock-r:0px; }
 /* #desk = TODO el escritorio como una unidad (fondo, widgets, cámara, orbe, TopBar, estado). El `transform` lo hace
    BLOQUE CONTENEDOR → sus hijos position:fixed se recolocan relativos a #desk y se desplazan JUNTOS al encogerlo
    (incluidos orbe/cámara con posición inline arrastrada, que el offset por-elemento NO podía mover). left/right =
-   la reserva del chat acoplado. Undocked (0/0) = idéntico a pantalla completa. */
+   the docked chat reservation. Undocked (0/0) = identical to full screen. */
 #desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r);transform:translate3d(0,0,0)}
-/* los paneles/overlays van FUERA de #desk (top-right) → apártalos del dock derecho a mano */
+/* panels/overlays live OUTSIDE #desk (top-right) → move them away from the right dock manually */
 body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--chatdock-r))}
 .cw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line);cursor:grab;touch-action:none;user-select:none}
 .cw-head:active{cursor:grabbing}
@@ -111,13 +111,13 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-input textarea:focus{border-color:var(--hb-accent)}
 .cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
      background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
-/* V2-079 — pestañas del ChatWall (Chat / Procesos / Crons) + visibilidad de paneles por la clase tab-* del root */
+/* V2-079 — ChatWall tabs (Chat / Processes / Crons) + panel visibility via the root's tab-* class */
 .cw-tabs{display:flex;gap:2px;background:var(--hb-hover);border-radius:9px;padding:2px}
 .cw-tab{flex:0 0 auto;border:none;background:transparent;color:var(--hb-muted-2);font-size:12px;font-weight:600;
      padding:4px 10px;border-radius:7px;cursor:pointer;font-family:var(--sans);line-height:1.4}
 .cw-tab.on{background:var(--hb-bg);color:var(--hb-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .cw-proc,.cw-crons,.cw-clusters{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
-/* solo el panel de la pestaña activa se muestra (por defecto todos ocultos) */
+/* only the active tab's panel is shown (all hidden by default) */
 .chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-clusters,.chatwall .cw-input{display:none}
 .chatwall .cw-wconfirm{display:none}
 .chatwall.tab-chat .cw-wconfirm{display:block}
@@ -127,7 +127,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .chatwall.tab-crons .cw-crons{display:flex}
 .chatwall.tab-clusters .cw-clusters{display:flex}
 .cw-crons .cron-list{flex:1 1 auto;min-height:0}
-/* pestaña Clusters (V2-086): la RED. Estado de conexión + peers + tráfico; sin conversación. */
+/* Clusters tab (V2-086): the NETWORK. Connection status + peers + traffic; no conversation. */
 .cw-clusters .cl-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
 .cl-row{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:11px;padding:9px 10px}
 .cl-main{min-width:0;flex:1 1 auto}
@@ -147,7 +147,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
   background:color-mix(in srgb, var(--hb-accent) 7%, transparent)}
 .cl-q{font-size:12.5px;color:var(--hb-ink);line-height:1.35}
 .cl-cbtns{display:flex;gap:7px;margin-top:9px}
-/* pestaña Procesos: vivos + histórico */
+/* Processes tab: live + history */
 .cw-proc{overflow-y:auto;padding:10px 12px;gap:7px}
 .cw-proc-sec{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:6px 2px 2px}
 .cw-proc-sec:first-child{margin-top:0}
@@ -156,7 +156,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-proc-row.run .cw-proc-dot,.cw-proc-row.done .cw-proc-dot{color:var(--hb-accent)}
 .cw-proc-row.error .cw-proc-dot{color:var(--hb-risk,#e5484d)}
 .cw-proc-row.waiting .cw-proc-dot,.cw-proc-row.paused .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}
-.cw-proc-row.cut .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}   /* cortada por un reinicio: ni éxito ni error */
+.cw-proc-row.cut .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}   /* cut short by a restart: neither success nor error */
 .cw-proc-row.hist{opacity:.82}
 .cw-proc-main{min-width:0;flex:1 1 auto}
 .cw-proc-goal{font-size:13px;color:var(--hb-ink);line-height:1.3;word-break:break-word}
@@ -170,37 +170,37 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .ic svg{width:19px;height:19px}
 .ic:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .ic{position:relative}
-/* Badge de alerta sobre un botón `.ic` (2026-08-03): un proveedor (LLM/voz/cerebro de cluster/brain workers) sin
-   saldo/cuota — mismo dato que ya pinta rojo el ◉ de estado (store.apiAlerts), pero visible TAMBIÉN en ⚙ porque
-   ahí es donde el operador va a mirar "qué proveedor está tocado y a cuál hemos relevado". */
+/* Alert badge over an `.ic` button (2026-08-03): a provider (LLM/voice/cluster brain/brain workers) without
+   balance/quota — the same data that already turns the status ◉ red (store.apiAlerts), but ALSO visible in ⚙ because
+   that is where the operator will look to see “which provider is affected and which one we have switched to”. */
 .ic-badge{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
   background:var(--hb-risk);border:2px solid var(--hb-bg)}
-/* LA PILA de Energy (EnergyGauge.js, 2026-08-13) — a la izquierda del 👤, SOLO en cuenta cloud.
-   Rayitas verticales: las que quedan a color, las gastadas en gris pálido, para que se lea como una pila que se
-   agota y no como un número de rayitas que va cambiando. El COLOR dice cuánto vale cada rayita (ver la tabla en
-   EnergyGauge.js) y plata/oro son MÁS ANCHAS a propósito: quien ha pagado más lo tiene que ver.
-   `max-width` + `flex-shrink` en la rayita: en una ventana estrecha la pila se comprime en vez de empujar los
-   iconos fuera de la barra — 50 rayitas de oro son 300px y no siempre hay 300px. */
+/* Energy STACK (EnergyGauge.js, 2026-08-13) — to the left of 👤, ONLY on a cloud account.
+   Vertical bars: remaining ones in color, spent ones in pale gray, so it reads as a stack that is
+   running down rather than a changing number of bars. COLOR indicates the value of each bar (see the table in
+   EnergyGauge.js), and silver/gold are intentionally WIDER: someone who paid more must be able to see it.
+   `max-width` + `flex-shrink` on each bar: in a narrow window the stack compresses instead of pushing icons
+   outside the bar — 50 gold bars are 300px, and 300px is not always available. */
 .eg{display:flex;align-items:flex-end;gap:1px;height:18px;max-width:min(300px,32vw);overflow:hidden;
     padding:0 4px;cursor:default}
 .eg-t{display:block;width:3px;flex:0 1 3px;min-width:1px;height:12px;border-radius:1px;background:var(--eg-c,var(--hb-ok));
       transition:background .25s,height .25s}
-/* GASTADA: gris pálido y un poco más baja — el hueco sigue ahí (es una pila, no una lista) pero no compite. */
+/* SPENT: pale gray and slightly shorter — the gap remains (it is a stack, not a list) but does not compete. */
 .eg-t.eg-spent{background:var(--hb-neutral);opacity:.45;height:9px}
 .eg-t.eg-off{background:var(--hb-neutral);opacity:.25;height:9px}
-/* Los tramos. Ámbar = demo; luego verde (sano) → naranja → bronce → plata → oro. */
+/* Tiers. Amber = demo; then green (healthy) → orange → bronze → silver → gold. */
 .eg-demo{--eg-c:#d99a2b}
 .eg-u1{--eg-c:#2fbf6b}
 .eg-u2{--eg-c:#e8873a}
 .eg-u3{--eg-c:#b06a34}
 .eg-u4{--eg-c:#c9d2dc}
 .eg-u5{--eg-c:#e3b341}
-/* PLATA y ORO: rayita más ancha + brillo, para que un lote grande se PERCIBA como más (petición del operador). */
+/* SILVER and GOLD: wider bar + glow, so a large allotment is PERCEIVED as more (operator request). */
 .eg-u4 .eg-t,.eg-u5 .eg-t{width:5px;flex:0 1 5px;height:14px}
 .eg-u4 .eg-t:not(.eg-spent){box-shadow:0 0 3px rgba(201,210,220,.55)}
 .eg-u5 .eg-t:not(.eg-spent){box-shadow:0 0 4px rgba(227,179,65,.6)}
-/* AGOTADA: la pila entera late en rojo. El cartel de «se ha agotado tu energía» ya existía; esto es lo que faltaba
-   para que no llegue de sorpresa. */
+/* DEPLETED: the entire stack pulses red. The “your energy has run out” notice already existed; this is what was
+   missing so it does not come as a surprise. */
 .eg-dead .eg-t{background:var(--hb-risk);opacity:.9;animation:eg-pulse 1.6s ease-in-out infinite}
 @keyframes eg-pulse{0%,100%{opacity:.9}50%{opacity:.35}}
 
@@ -225,7 +225,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 /* ⚙ settings modal — follows the app theme (dark by default, [data-theme="light"] overrides) */
 .ovl{position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);z-index:100001;display:none;align-items:flex-start;justify-content:center;padding:70px 16px}
 .ovl.on{display:flex}
-/* HARD reset confirmation dialog (V2, botón Reset) — modal deliberado, tema --hb-* */
+/* HARD reset confirmation dialog (V2, Reset button) — deliberate modal, --hb-* theme */
 .rc-ovl{align-items:center}
 .rc-box{width:min(420px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
   padding:20px 20px 16px;box-shadow:var(--hb-shadow-2)}
@@ -237,7 +237,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .rc-no:hover{border-color:var(--hb-accent);color:var(--hb-ink)}
 .rc-yes{background:var(--hb-risk);border-color:var(--hb-risk);color:#fff}
 .rc-yes:hover{filter:brightness(1.08)}
-/* Reset con checkboxes (V2-063) */
+/* Reset with checkboxes (V2-063) */
 .rc-check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4;color:var(--hb-muted);
   margin:0 0 10px;cursor:pointer}
 .rc-check input{margin-top:2px;flex:none;cursor:pointer}
@@ -262,7 +262,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cfgm .updrow .note{margin:0;color:var(--hb-warn-ink)}
 .cfgm .updrow-btn{flex:0 0 auto;background:linear-gradient(135deg,var(--hb-update),var(--hb-update2));border:none;color:#fff;font-weight:700;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
 
-/* ── Wizard de primer arranque (V2-040): perfil local/cloud + huecos + credenciales. Tema --hb-* ── */
+/* ── First-start wizard (V2-040): local/cloud profile + gaps + credentials. Theme --hb-* ── */
 .wizm{width:min(560px,100%)}
 .wiz-body{max-height:min(62vh,560px);overflow:auto}
 .wiz-hint{color:var(--hb-muted);font-size:12.5px;line-height:1.5;margin:0 0 12px}
@@ -298,10 +298,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 /* OVAL VEIL behind the WHOLE eye cluster (icons + orb + ECG) — not just behind the orb canvas. Over a busy/bright
    background (a video playing in a widget, e.g.) the frameless icons and the thin ECG line were themselves
    nearly invisible, no matter how opaque the orb's own canvas fill was (operator 2026-07-22, 3rd pass: "no se ven
-   los iconos... la sombra tiene que ser mucho más grande, ovalada, más opaca"; 4th pass: the oval from that pass
+   the icons... the shadow has to be much larger, oval, more opaque"; 4th pass: the oval from that pass
    was its own hard-edged shape, visibly bigger than the eye and with a crisp boundary right past the icons/pulse
    — "tiene que ocupar EXACTAMENTE la forma del ojo... todos los bordes tienen que estar difuminados, no puedes
-   cerrar una línea perfecta por debajo de los iconos o del pulso"). Fix: sized to HUG the actual icon+orb+ECG
+   close a perfect line below the icons or pulse"). Fix: sized to HUG the actual icon+orb+ECG
    footprint (not oversized padding), and blurred with a real `filter` on the shape itself — not just a manually
    -tuned gradient fade — so there is categorically no crisp edge anywhere along the perimeter (a Gaussian blur
    has none by construction); `backdrop-filter` additionally blurs whatever peeks through the translucent rim.
@@ -340,8 +340,8 @@ canvas#orb:active{cursor:grabbing}
 .vlabel.show{opacity:1}
 /* BOT MUTED: zaelar's voice output silenced (agent still running). Dim the orb — the 🔊/🔇 control lives below. */
 canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
-/* AGENTE PARADO (2026-08-10): el orbe se apaga del todo. `muted` es «no te hablo» (sigo aquí); `frozen` es «no
-   estoy». Más gris y más tenue que el mute, y sin movimiento — el visualizador congela también su fase. */
+/* AGENT STOPPED (2026-08-10): the orb turns fully off. `muted` means “I am not talking to you” (I am still here);
+   `frozen` means “I am not here”. Grayer and dimmer than mute, and motionless — the visualizer also freezes its phase. */
 canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 
 /* orb core: RELATIVE anchor for the orb + its overlays. The orb sits here; the caption/mic-block float over it
@@ -350,7 +350,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 
 /* LIVE CAPTIONS — zaelar's speech CRAWLS up from the orb (teleprompter, Star-Wars style) over a blurred dark
    scrim. ABSOLUTE + bottom anchored ABOVE the whole icon crown (not just the orb) so it never steps on it — the
-   margin-bottom clears the tallest icon dive (operator 2026-07-22: "el texto me está pisando el ojo"). Grows
+   margin-bottom clears the tallest icon dive (operator 2026-07-22: "the text is covering the eye"). Grows
    UPWARD: the newest line sits near the orb (biggest/clearest), each new line pushes the stack up and the older
    ones shrink + fade as if receding into the distance, the top line fading out last. Max 3 lines. LIVE only. */
 .orbcap{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:64px;
@@ -391,16 +391,16 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .orbic:hover{color:var(--hb-accent)}
 .orbic.on{color:var(--hb-accent)}
 .orbic.off{color:var(--hb-muted-2);opacity:.5}
-/* ⏻ ESTADOS REALES del agente (2026-08-10). El ⏻ es el icono que el operador mira para saber si hay alguien al
-   otro lado, así que es el único que no puede mentir. `stalled` = «debería estar encendido y NO lo está» (sesión
-   caída, micrófono denegado, sala perdida): late en ámbar para que no vuelva a pasar por operativo — el operador
-   estuvo un buen rato hablándole a un agente muerto porque los iconos seguían azules. `starting` respira mientras
-   se levanta, así que «tarda» no se confunde con «no va». */
-/* VÚMETRO del icono del micro (2026-08-10, petición del operador): el icono ES el medidor — crece y se aviva con
-   la voz detectada, igual que el orbe cuando habla zaelar, para que el operador SEPA que se le está escuchando sin
-   necesidad de un medidor aparte en pantalla. `--vu` (0..1) lo pone Orb.js desde el nivel REAL del micro; sin
-   nivel, la variable es 0 y el icono se queda exactamente como estaba: si no se escucha, no se mueve. Se anima
-   `transform`/`opacity` por variable CSS (compositor), sin re-render por frame. */
+/* ⏻ REAL agent STATES (2026-08-10). ⏻ is the icon the operator checks to know whether someone is on the other
+   side, so it is the only one that cannot lie. `stalled` = “should be on but is NOT” (dropped session, denied
+   microphone, lost room): pulses amber so it is not mistaken for operational — the operator spent quite a while
+   talking to a dead agent because the icons stayed blue. `starting` breathes while it comes up, so “taking time”
+   is not confused with “not working”. */
+/* MIC VU METER (2026-08-10, operator request): the icon IS the meter — it grows and brightens with detected
+   voice, just like the orb when zaelar speaks, so the operator KNOWS they are being heard without a separate
+   on-screen meter. Orb.js sets `--vu` (0..1) from the mic's REAL level; without a level, the variable is 0 and
+   the icon stays exactly as it was: if nothing is heard, it does not move. `transform`/`opacity` animate via a
+   CSS variable (compositor), without a per-frame re-render. */
 .orbic.vu{transform-origin:50% 50%}
 .orbic.vu svg{transform:scale(calc(1 + var(--vu, 0) * .28));opacity:calc(.72 + var(--vu, 0) * .28);
   transition:transform .07s linear,opacity .07s linear}
@@ -458,9 +458,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .activity:empty{display:none}
 .hb-act{background:var(--hb-bg-a);backdrop-filter:blur(6px);border-radius:14px;padding:12px 14px;
   box-shadow:var(--hb-shadow-1)}
-/* El PANAL DE ACTIVIDAD (hexágonos de fondo, V2-039) se RETIRÓ el 2026-08-20 — decisión del operador,
-   V2-233 D. El relato de una tarea vive en UN sitio: la pestaña «Proceso» de la superficie donde va a
-   aterrizar su resultado, o la pestaña «Procesos» del chat cuando no hay ninguna. Ver system-surfaces.js. */
+/* The ACTIVITY HONEYCOMB (background hexagons, V2-039) was REMOVED on 2026-08-20 — operator decision,
+   V2-233 D. A task's story lives in ONE place: the “Process” tab of the surface where its result will
+   land, or the chat's “Processes” tab when there is none. See system-surfaces.js. */
 /* widget desktop styling lives in app/widgets/desktop.js (the independent canvas module) */
 .conn{position:fixed;left:20px;bottom:14px;z-index:20;font-family:var(--mono);font-size:11px;color:var(--hb-muted-2)}
 .conn b{color:var(--hb-muted)}
@@ -492,7 +492,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .statusBtn.st-unknown{color:var(--hb-muted-2)}
 @keyframes stblink{50%{color:#fff;background:var(--hb-risk);border-color:var(--hb-risk)}}
 /* STATUS PANEL — per-subsystem health, compact so the whole thing fits in one glance (no scroll). Two sections:
-   NÚCLEO (what you boot from the terminal) on top, SECUNDARIO (crons/widgets/cluster) below in a quieter style. */
+   CORE (what you boot from the terminal) on top, SECONDARY (crons/widgets/cluster) below in a quieter style. */
 .statuspanel{position:fixed;top:94px;right:18px;z-index:9001;width:400px;max-width:94vw;height:auto;max-height:min(90vh,760px);
   background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;box-shadow:var(--hb-shadow-2);
   display:none;flex-direction:column;overflow:hidden}
@@ -536,8 +536,8 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .memmap{position:fixed;inset:0;z-index:9500;background:var(--hb-bg);display:none;flex-direction:column}
 .memmap.open{display:flex}
 
-/* ── Área de configuración full-screen (⚙, V2-043) — menú lateral estilo Ajustes/Chrome: una sección
-   visible a la vez, panel de formulario fino a la derecha con filas agrupadas + botón de guardar. ── */
+/* ── Full-screen settings area (⚙, V2-043) — Settings/Chrome-style side menu: one section
+   visible at a time, a slim form panel on the right with grouped rows + save button. ── */
 .cfgfull{position:fixed;inset:0;z-index:9600;background:var(--hb-bg);display:none;flex-direction:column}
 .cfgfull.open{display:flex}
 .cf-shell{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
@@ -548,26 +548,26 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-x:hover{background:var(--hb-hover)}
 .cf-loading{color:var(--hb-muted);padding:20px}
 
-/* body = barra de pestañas (arriba) + panel de la pestaña (abajo) — V2-083 */
+/* body = tab bar (top) + tab panel (bottom) — V2-083 */
 .cf-body{flex:1 1 auto;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-/* pestañas principales (Ajustes/Conectores/Widgets) — pastilla segmentada como el ChatWall */
+/* main tabs (Settings/Connectors/Widgets) — segmented pill like ChatWall */
 .cf-tabs{flex:0 0 auto;display:flex;gap:3px;padding:10px 20px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
 .cf-tab{border:none;background:transparent;color:var(--hb-muted-2);font-size:13px;font-weight:700;padding:7px 16px;
   border-radius:9px;cursor:pointer;font-family:var(--sans);line-height:1.4}
 .cf-tab.on{background:var(--hb-bubble);color:var(--hb-accent)}
 .cf-tab:hover:not(.on){background:var(--hb-hover);color:var(--hb-ink)}
-/* panel de la pestaña: para Ajustes lleva nav lateral + scroll; para Conectores/Widgets solo scroll */
+/* tab panel: Settings has side navigation + scroll; Connectors/Widgets only scroll */
 .cf-tabpane{flex:1 1 auto;display:flex;min-height:0;overflow:hidden}
-/* botón genérico dentro de un grupo (Conectores) */
+/* generic button inside a group (Connectors) */
 .cf-btn{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;
   padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;margin:10px 0 2px;transition:filter .15s ease}
 .cf-btn:hover{filter:brightness(1.08)}
 .cf-btn:disabled{opacity:.5;cursor:default}
-/* pestaña Conectores */
+/* Connectors tab */
 .cf-fam{margin:20px 0 8px;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--hb-muted)}
 .cf-fam:first-child{margin-top:0}
 .cf-cx-cluster{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--hb-line);font-size:13px;color:var(--hb-ink)}
-/* pestaña Widgets — lista alfabética con badge de-serie/tuyo */
+/* Widgets tab — alphabetical list with built-in/yours badge */
 .cf-wrow{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--hb-line)}
 .cf-wrow:last-child{border-bottom:none}
 .cf-wname{font-size:14px;font-weight:600;color:var(--hb-ink)}
@@ -586,13 +586,13 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-scroll{flex:1 1 auto;overflow-y:auto;padding:32px 36px}
 .cf-panel{max-width:640px;margin:0 auto}
 
-/* sección = título+subtítulo suelto encima de un grupo (tarjeta) con filas separadas por línea */
+/* section = standalone title+subtitle above a group (card) with line-separated rows */
 .cf-panel-sec{display:flex;flex-direction:column;gap:14px}
 .cf-panel-head h4{margin:0 0 4px;font-size:19px;font-weight:700;color:var(--hb-ink)}
 .cf-panel-head p{margin:0;font-size:13px;color:var(--hb-muted-2);line-height:1.5}
 .cf-group{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:14px;padding:4px 18px}
 
-/* fila de ajuste: etiqueta a la izquierda, control a la derecha (patrón Ajustes/Chrome) */
+/* setting row: label on the left, control on the right (Settings/Chrome pattern) */
 .cf-row2{display:flex;align-items:center;gap:22px;padding:14px 0;border-bottom:1px solid var(--hb-line)}
 .cf-row2:last-of-type{border-bottom:none}
 .cf-row2-label{flex:1 1 auto;font-size:13px;font-weight:600;color:var(--hb-ink);min-width:0}
@@ -625,7 +625,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
   padding:8px 14px;font-size:12px;cursor:pointer;text-align:left;transition:border-color .15s ease,color .15s ease}
 .cf-benchmarks-btn:hover{border-color:var(--hb-accent);color:var(--hb-ink)}
 
-/* Benchmarks panel (V2-077) — informativo, reusa el shell/panel de cf- pero más ancho (lleva tablas) */
+/* Benchmarks panel (V2-077) — informational, reuses the cf- shell/panel but wider (contains tables) */
 .bp-panel{max-width:860px}
 .bp-intro{font-size:13px;color:var(--hb-muted-2);line-height:1.6;margin:0 0 22px}
 .bp-intro code{background:var(--hb-bg-soft);padding:1px 6px;border-radius:5px;font-size:12px}
@@ -657,7 +657,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .mm-brand svg{width:22px;height:22px}
 .mm-brand b{color:var(--hb-ink);font-size:16px;font-weight:800;letter-spacing:.01em}
 .mm-counts{font-family:var(--mono);font-size:11.5px;color:var(--hb-muted)}
-/* view toggle: SLOTS (contenido tal como se guarda) ↔ CONCEPTOS (cómo se organiza) */
+/* view toggle: SLOTS (content as stored) ↔ CONCEPTS (how it is organized) */
 .mm-modes{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--hb-line);border-radius:10px;background:var(--hb-bg)}
 .mm-mode{border:0;background:transparent;color:var(--hb-muted);font-size:12px;font-weight:700;letter-spacing:.02em;
   padding:5px 12px;border-radius:8px;cursor:pointer;transition:background .18s ease,color .18s ease}
@@ -802,12 +802,12 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-resize:hover,body.dbg-resizing .dbg-resize{background:linear-gradient(90deg,transparent,rgba(61,111,224,.5))}
 .dbg-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--hb-line)}
 .dbg-title{font-weight:700;font-size:14px;color:var(--hb-ink);white-space:nowrap}
-/* Buscador a MEDIA anchura (2026-08-09): el sitio que deja se lo lleva el botón de Filtros, que es lo que se
-   toca a diario. `flex:0 1 …` en vez de `flex:1` — ya no se come todo el hueco libre. */
+/* MEDIUM-width search field (2026-08-09): the space it gives up goes to the Filters button, which is used daily.
+   `flex:0 1 …` instead of `flex:1` — it no longer consumes all available space. */
 .dbg-filter{flex:0 1 42%;min-width:90px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);
   border-radius:8px;padding:6px 9px;font-size:12px;font-family:var(--sans)}
-/* Botón FILTROS (n) ▾ — el único mando del panel plegable. Ámbar mientras haya algún tipo apagado: un hilo
-   recortado no debe parecer completo. */
+/* FILTERS button (n) ▾ — the only control for the collapsible panel. Amber while any type is off: a truncated
+   thread must not look complete. */
 .dbg-fbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:8px;
   border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;
   font-family:var(--sans);font-size:11.5px;white-space:nowrap}
@@ -816,12 +816,12 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-fbtn.muted{border-color:var(--hb-warn-border);color:var(--hb-warn-ink)}
 .dbg-fcar{font-size:9px;line-height:1;transition:transform .12s ease}
 .dbg-fbtn.on .dbg-fcar{transform:rotate(180deg)}
-/* El panel entero: familias + tipos + condensar. Cerrado no deja NADA en pantalla. */
+/* The entire panel: families + types + compact. When closed, it leaves NOTHING on screen. */
 .dbg-filters{flex:0 0 auto;display:flex;flex-direction:column;max-height:46vh;overflow-y:auto;
   border-bottom:1px solid var(--hb-line);background:color-mix(in srgb,var(--hb-ink) 3%,transparent)}
 .dbg-filters[hidden]{display:none}
-/* «Condensar» PEGADO al fondo del panel: con el mapa completo la tabla puede pasar del alto máximo y hacer
-   scroll, y el botón de cerrar no puede quedarse fuera de pantalla justo cuando hace falta. */
+/* “Compact” STUCK to the panel bottom: with the full map, the table can exceed the maximum height and scroll,
+   and the close button must not end up off-screen just when it is needed. */
 .dbg-fbar{position:sticky;bottom:0;display:flex;justify-content:flex-end;padding:4px 12px 8px;
   background:linear-gradient(transparent,var(--hb-bg) 40%)}
 .dbg-fclose{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;
@@ -830,18 +830,18 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-filter:focus{outline:none;border-color:var(--hb-accent)}
 .dbg-count{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted-2);white-space:nowrap}
 .dbg-btn{flex:0 0 auto}
-/* V2-037: 2ª barra de filtros por categoría (chips toggle). System/Code se resalta como "amenaza de ruido". */
+/* V2-037: 2nd category filter bar (toggle chips). System/Code is highlighted as a “noise threat”. */
 .dbg-cats{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px}
 .dbg-cat{padding:3px 10px;border-radius:999px;border:1px solid var(--hb-line);background:var(--hb-bg);
   color:var(--hb-muted);cursor:pointer;font-size:11px;line-height:1.4;white-space:nowrap}
 .dbg-cat:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .dbg-cat.on{border-color:var(--hb-accent);color:var(--hb-accent);background:color-mix(in srgb,var(--hb-accent) 14%,transparent)}
-/* El chip «Kinds» avisa en ámbar mientras haya algún tipo apagado: un hilo recortado nunca debe parecer completo. */
+/* The “Kinds” chip warns in amber while any type is off: a truncated thread must never look complete. */
 .dbg-cat.muted{border-color:var(--hb-warn-border);color:var(--hb-warn-ink)}
 /* 3ª barra: desglose por KIND (2026-08-09). Chips más pequeños y monoespaciados — son nombres de evento, no
-   familias; el contador dice cuánto pesa cada tipo, que es lo que decide qué callar. */
+   families; the counter shows each type's weight, which determines what to silence. */
 /* Los tipos van AGRUPADOS BAJO SU FAMILIA: una línea por familia activa, con su nombre a la izquierda. Apagar
-   la familia se lleva su línea (sus filas ya no están en pantalla, sus chips solo estorbarían). */
+   disabling a family removes its line (its rows are no longer on screen, and its chips would only get in the way). */
 .dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;padding:8px 12px 4px}
 .dbg-kinds[hidden]{display:none}
 .dbg-kgroup{display:flex;align-items:baseline;gap:6px;min-width:0}
@@ -873,7 +873,7 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
    exactamente desde su borde inferior hasta el fondo del panel. Su wrapper es un query-container propio (la
    query `dbg` pertenece a `.dbg-list`, que es otro elemento) para poder ocultarla en el mismo breakpoint en el
    que las filas dejan de ser columnas. Los rótulos heredan la clase de su columna solo para POSICIONARSE: aquí
-   se les quita el aspecto de chip/píldora y se pintan todos iguales. */
+   their chip/pill appearance is removed and they are all rendered alike. */
 .dbg-hdrwrap{flex:0 0 auto;container-type:inline-size;container-name:dbgh}
 .dbg-hdr{display:grid;grid-template-columns:80px 58px 52px 78px 46px 80px 96px 1fr;gap:8px;padding:5px 12px 5px 9px;
   border-bottom:1px solid var(--hb-line);border-left:3px solid transparent;align-items:baseline;
@@ -992,7 +992,7 @@ body.dbg-open .tr{right:calc(18px + var(--dbg-w))}
 body.dbg-open .statuspanel,body.dbg-open .cronpanel{right:calc(18px + var(--dbg-w))}
 body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 
-/* ── Bóveda de secretos (V2-060): modal NATIVO centrado con backdrop ─────────────────────────────────────── */
+/* ── Secret vault (V2-060): centered NATIVE modal with backdrop ─────────────────────────────────────── */
 .vault-modal{position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
 .vault-modal.open{display:flex}
@@ -1021,9 +1021,9 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .vault-msg{max-height:0;overflow:hidden;transition:max-height .2s;padding:0 16px;color:var(--hb-muted);font-size:13px}
 .vault-msg.show{max-height:60px;padding:0 16px 14px}
 
-/* Presets de Brain Workers (2026-08-13): tarjetas de una LÍNEA con el nombre, el coste y, si no puede funcionar,
-   el motivo. Un preset bloqueado se ve apagado pero SIGUE clicable a propósito — el operador puede querer dejarlo
-   elegido y poner la clave después; lo que no puede es elegirlo creyendo que está listo. */
+/* Brain Workers presets (2026-08-13): ONE-LINE cards with the name, cost, and, if it cannot run, the reason.
+   A locked preset looks dimmed but remains clickable deliberately — the operator may want to leave it selected
+   and add the key later; what they cannot do is select it believing it is ready. */
 .cf-presets { display: flex; flex-direction: column; gap: 6px; width: 100%; }
 .cf-preset { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
   padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent;

@@ -1,18 +1,18 @@
-"""V2-227 ámbito A — DÓNDE va a mirar el operador, decidido al ENCARGAR y no al entregar.
+"""V2-227 scope A — WHERE the operator will look, decided when COMMISSIONED and not when delivered.
 
-Operator, 2026-08-20: «si el worker tarda, el usuario se aburre y la experiencia es mala. Necesita ver EN TIEMPO
-REAL lo que está pasando». Un worker puede tardar siete minutos y hoy la superficie donde caerá la respuesta solo
-se elige cuando la respuesta YA existe — que es exactamente demasiado tarde para abrirla antes y verter progreso
-dentro. Sin este campo, la pestaña de proceso es una pestaña vacía.
+Operator, 2026-08-20: «if the worker takes a long time, the user gets bored and the experience is bad. They need to see IN REAL
+TIME what is happening». A worker can take seven minutes, and today the surface where the response will land is only
+chosen when the response ALREADY exists — which is exactly too late to open it beforehand and pour progress into it.
+Without this field, the process tab is an empty tab.
 
-Tres reglas, y cada una está por su fallo contrario:
-  1. se decide al ENCARGAR (si no, no hay nada que abrir mientras se trabaja);
-  2. vocabulario CERRADO de cinco valores (una cadena libre deriva en una taxonomía que nadie mantiene y el
-     frontend acaba adivinando);
-  3. se decide UNA vez (cambiar de superficie a mitad mueve lo que el operador YA está mirando).
+Three rules, each one enforced because of its opposite failure:
+  1. it is decided when COMMISSIONED (otherwise there is nothing to open while work is in progress);
+  2. CLOSED vocabulary of five values (a free-form string leads to a taxonomy nobody maintains, and the
+     frontend ends up guessing);
+  3. it is decided ONCE (changing surfaces halfway through moves what the operator is ALREADY looking at).
 
-Y por la doctrina de los Brain Workers esto es un RECURSO: no puede saber de hoteles, ni de coches, ni de casas.
-Nada de este módulo conoce un dominio y nada puede aprenderlo.
+And under the Brain Workers doctrine this is a RESOURCE: it cannot know about hotels, cars, or houses.
+Nothing in this module knows a domain, and nothing can learn one.
 """
 import json
 
@@ -22,7 +22,7 @@ from nucleo import surfaces
 from nucleo.flash import router
 
 
-# ── el vocabulario, que es lo que impide que esto derive ─────────────────────────────────────────────────────
+# ── the vocabulary, which is what prevents this from drifting ─────────────────────────────────────────────────
 def test_there_are_exactly_five_and_no_more():
     assert surfaces.SURFACES == ("lista", "item", "widget", "voz", "silenciosa")
 
@@ -39,27 +39,27 @@ def test_the_wording_maps_onto_the_same_five(said, expected):
 
 
 def test_something_outside_the_vocabulary_is_NOT_invented_as_a_sixth():
-    """Devuelve "" y no el valor por defecto: el llamante tiene que poder distinguir «no dijo nada» de «dijo algo
-    que no entendemos», porque solo lo segundo merece un aviso."""
+    """Returns "" rather than the default value: the caller must be able to distinguish «said nothing» from «said something
+    we do not understand», because only the latter warrants a warning."""
     assert surfaces.normalize("pantalla completa en 3D") == ""
     assert surfaces.normalize(None) == ""
 
 
-# ── la resolución, que es el respaldo para las puertas donde nadie declaró nada ───────────────────────────────
+# ── resolution, which is the fallback for entry points where nobody declared anything ─────────────────────────
 def test_what_the_brain_declared_wins():
     assert surfaces.resolve("item", kind="web") == "item"
 
 
 @pytest.mark.parametrize("kind,expected", [
-    ("web", "lista"),          # navegar acaba en algo que se mira
+    ("web", "lista"),          # browsing ends up in something you look at
     ("research", "lista"),
-    ("code", "widget"),        # el generador de widgets: su desenlace ES un widget
+    ("code", "widget"),        # the widget generator: its outcome IS a widget
     ("generic", "voz"),
     ("", "voz"),
 ])
 def test_and_if_nobody_said_anything_it_comes_from_the_KIND(kind, expected):
-    """Auto-resume, confirm-gate, peers de cluster y el Susurro entran por la misma puerta sin declarar nada.
-    Un encargo sin superficie no puede quedarse sin pantalla."""
+    """Auto-resume, confirm-gate, cluster peers, and the Whisper enter through the same door without declaring anything.
+    A commission without a surface cannot be left without a screen."""
     assert surfaces.resolve(None, kind=kind) == expected
 
 
@@ -67,7 +67,7 @@ def test_an_UNKNOWN_word_falls_back_instead_of_breaking():
     assert surfaces.resolve("pantalla completa en 3D", kind="web") == "lista"
 
 
-# ── la regla 3, que es la que protege al operador que ya está mirando ─────────────────────────────────────────
+# ── rule 3, which protects the operator who is already looking ───────────────────────────────────────────────
 class _Rec:
     def __init__(self, kind="generic", surface=""):
         self.kind, self.surface = kind, surface
@@ -79,8 +79,8 @@ def test_it_is_stamped_the_first_time():
 
 
 def test_and_NEVER_re_decided():
-    """Cambiar de superficie a mitad no es una corrección: mueve lo que el operador ya tiene delante. Si un paso
-    posterior no está de acuerdo, lo que hay que arreglar es la decisión del encargo."""
+    """Changing surfaces halfway through is not a correction: it moves what the operator already has in front of them. If a later step
+    disagrees, the commission decision is what needs fixing."""
     r = _Rec(kind="web", surface="lista")
     assert surfaces.set_once(r, "widget") == "lista" and r.surface == "lista"
 
@@ -94,7 +94,7 @@ def test_the_sheet_opens_only_for_the_two_that_show_things():
     assert [s for s in surfaces.SURFACES if surfaces.opens_sheet(s)] == ["lista", "item"]
 
 
-# ── el cableado: declararlo y no llevarlo es no haberlo declarado ─────────────────────────────────────────────
+# ── the wiring: declaring it and not carrying it means it was not declared ─────────────────────────────────
 def _escalate_tool():
     return next(t for t in router.TOOLS if t["function"]["name"] == "escalate_to_slowbrain")
 
@@ -104,12 +104,12 @@ def test_the_tool_ASKS_for_it_and_offers_only_the_five():
     par = fn["parameters"]["properties"]["surface"]
     assert par["enum"] == list(surfaces.SURFACES)
     assert "surface" in fn["parameters"]["required"], (
-        "opcional = el modelo la omite y todo cae al respaldo por kind, que es adivinar la pantalla")
+        "optional = the model omits it and everything falls back by kind, which means guessing the screen")
 
 
 def test_the_tool_did_not_GROW_to_fit_it():
-    """Se pagó por SUSTITUCIÓN: la frase en prosa sobre dónde se enseñan los hallazgos pasó a ser este campo. El
-    catálogo se paga en CADA turno de voz, y esta tool ya iba a 1979 de 2000."""
+    """It was paid for by SUBSTITUTION: the prose phrase about where findings are shown became this field. The
+    catalog is paid for on EVERY voice turn, and this tool was already at 1979 out of 2000."""
     assert len(json.dumps(_escalate_tool(), ensure_ascii=False)) <= 2_000
 
 
@@ -119,15 +119,15 @@ def test_the_router_carries_it():
 
 
 def test_the_router_does_not_normalize_it_here():
-    """A propósito: `resolve()` necesita el `kind`, que este punto no conoce. Normalizar dos veces borra la
-    diferencia entre «no dijo nada» y «dijo algo raro», que es la que decide si hay que avisar."""
+    """Deliberately: `resolve()` needs the `kind`, which this point does not know. Normalizing twice erases the
+    difference between «said nothing» and «said something strange», which determines whether a warning is needed."""
     assert router.decide("escalate_to_slowbrain", {"request": "x", "surface": "inventada"}).payload["surface"] == "inventada"
 
 
 def test_a_turn_with_THREE_errands_keeps_three_surfaces():
-    """Un turno puede encargar una lista, una ficha y un widget (V2-118). Quedarse con la primera superficie le
-    daría a las otras dos la pantalla equivocada desde el segundo cero — por eso viaja por petición y no en una
-    variable suelta. Asserted on the source: el alternativo es una llamada a un modelo real."""
+    """A turn can commission a list, a detail view, and a widget (V2-118). Keeping the first surface would
+    give the other two the wrong screen from the very first second — that is why it travels per request and not in a
+    loose variable. Asserted on the source: the alternative is a call to a real model."""
     import inspect
 
     from nucleo.flash import probe
@@ -137,8 +137,8 @@ def test_a_turn_with_THREE_errands_keeps_three_surfaces():
 
 
 def test_BOTH_channels_carry_it():
-    """`probe` y el provider de voz son implementaciones PARALELAS del turno: cablear una sola es el fallo que
-    esta base de código ha cometido tantas veces que tiene nombre propio en varios docstrings."""
+    """`probe` and the voice provider are PARALLEL implementations of the turn: wiring only one is the failure this
+    codebase has committed so many times that it has its own name in several docstrings."""
     import inspect
 
     from nucleo.flash import probe
@@ -156,8 +156,8 @@ def test_the_dispatcher_stamps_it_at_the_ONLY_door_they_all_pass_through():
 
 
 def test_and_the_live_projection_publishes_it():
-    """El frontend abre la hoja ANTES de que haya un resultado, así que la superficie tiene que viajar en la
-    proyección VIVA (`/api/tasks`), no en la entrega."""
+    """The frontend opens the sheet BEFORE there is a result, so the surface has to travel in the
+    LIVE projection (`/api/tasks`), not in the delivery."""
     import inspect
 
     from nucleo import dispatch
@@ -165,11 +165,11 @@ def test_and_the_live_projection_publishes_it():
 
 
 def test_the_module_knows_NOTHING_about_any_domain():
-    """La doctrina, hecha test: esto es un RECURSO. Si algún día aparece aquí «hotel», «coche» o «casa», alguien
-    convirtió una pantalla general en un atajo para un caso de uso."""
+    """The doctrine, turned into a test: this is a RESOURCE. If «hotel», «car», or «house» ever appears here, someone
+    turned a general screen into a shortcut for a use case."""
     import inspect
-    # Solo el CÓDIGO: el docstring del módulo cita a propósito los ejemplos del operador (hoteles, Wallapop,
-    # casas en Los Ángeles) para decir que NINGUNO de ellos puede aparecer debajo.
+    # CODE only: the module docstring deliberately cites the operator's examples (hotels, Wallapop,
+    # houses in Los Angeles) to say that NONE of them may appear below.
     body = inspect.getsource(surfaces).split('"""', 2)[-1].lower()
     for domain in ("hotel", "restaurante", "coche", "casa", "vuelo", "wallapop", "booking", "sevilla"):
         assert domain not in body, f"«{domain}» en el código de surfaces.py: una pantalla general convertida en atajo"

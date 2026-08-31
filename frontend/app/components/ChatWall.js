@@ -1,9 +1,9 @@
-// ChatWall — panel vertical of the agente with TRES pestañas (V2-079): “Chat” (escribir al agente), “Procesos”
-// (Brain Workers vivos + histórico of lo ejecutado hoy/ayer/hace días) and “Crons” (tareas programadas). Toggled by
-// store.chatOpen; the pestaña activa vive en store.chatTab (así the button ⏰ of the orbe puede abrirlo directo en “Crons”).
-// The chat va by session.sendText → data channel → ClientTextInjector (turno of user normal, the agente responde
-// by voz). Antes esto era only the muro of chat; “Procesos” and “Crons” le dan al operador PERSPECTIVA of lo that el
-// system está haciendo and ha hecho (los hexágonos son the "ahora"; this pestaña es "ahora + histórico").
+// ChatWall — vertical agent panel with THREE tabs (V2-079): “Chat” (write to the agent), “Processes”
+// (live Brain Workers + history of what ran today/yesterday/a few days ago), and “Crons” (scheduled tasks). Toggled by
+// store.chatOpen; the active tab lives in store.chatTab (so the orb’s ⏰ button can open it directly on “Crons”).
+// Chat goes through session.sendText → data channel → ClientTextInjector (normal user turn; the agent responds
+// by voice). Previously this was only the chat wall; “Processes” and “Crons” give the operator PERSPECTIVE on what the
+// system is doing and has done (the hexagons are the "now"; this tab is "now + history").
 //
 // WINDOW BEHAVIOUR (V2-062): MOVABLE (drag by the header) + RESIZABLE from ANAnd edge/corner (8 handles, lib/
 // resizable.js) + DOCKABLE: drag it to the far left/right edge and it snaps to a FULL-HEIGHT side column. Floating
@@ -53,7 +53,7 @@ function placeWall(el) {
   set(Math.min(r.left, innerWidth - w - pad), r.top);                                 // 3) no room → on top
 }
 
-// tiempo relativo compacto for the histórico of procesos (finished_at en epoch segundos, as Python time.time()).
+// Compact relative time for process history (finished_at in epoch seconds, like Python time.time()).
 function ago(ts) {
   if (!ts) return "";
   const s = Math.max(0, Date.now() / 1000 - Number(ts));
@@ -66,13 +66,13 @@ function ago(ts) {
 
 export function ChatWall() {
   let listEl, inputEl, headEl, wallEl, previewEl = null;
-  let schedEl, cnameEl, cpromptEl;             // refs of the formulario of create cron (pestaña Crons)
+  let schedEl, cnameEl, cpromptEl;             // refs for the create-cron form (Crons tab)
   let dockSide = null;                         // null | "left" | "right"
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
 
   const send = () => { if (!inputEl) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
 
-  // ── Pestaña PROCESOS: vivos (store.tasks, SSE) arriba + histórico (store.workerHistory, ledger) debajo ──────
+  // ── PROCESSES tab: live items (store.tasks, SSE) above + history (store.workerHistory, ledger) below ──────
   const liveRow = (task) => {
     const icon = task.waiting ? "waiting" : task.paused ? "paused" : "run";
     const gl = task.waiting ? "⏳" : task.paused ? "⏸" : "●";
@@ -85,9 +85,9 @@ export function ChatWall() {
     );
   };
   const histRow = (e) => {
-    // `interrumpido` = se the llevó by delante un reinicio (rehidratación, nucleo/rehydrate.py). Tiene su propio
-    // glifo porque antes CUALQUIER state desconocido caía a "done" with un ✓: a tarea that murió a medias se
-    // pintaba as terminada with éxito. Un registro that miente es peor that no tenerlo.
+    // `interrumpido` = a restart terminated it (rehydration, nucleo/rehydrate.py). It has its own
+    // glyph because previously ANY unknown state fell through to "done" with a ✓: a task that died halfway was
+    // painted as successfully completed. A record that lies is worse than having no record.
     const st = e.status === "error" ? "error" : e.status === "cancelled" ? "cancelled"
              : e.status === "interrumpido" ? "cut" : (e.ok || e.status === "done") ? "done" : "done";
     const gl = st === "error" ? "✕" : st === "cancelled" ? "⊘" : st === "cut" ? "✂" : "✓";
@@ -112,7 +112,7 @@ export function ChatWall() {
     return out;
   };
 
-  // ── Pestaña CRONS: lista + crear/borrar (funde the antiguo CronPanel; misma API /api/cron) ───────────────────
+  // ── CRONS tab: list + create/delete (merges the former CronPanel; same /api/cron API) ───────────────────
   const refreshCrons = async () => { const r = await api.cronList(); store.setCronJobs(r.jobs || []); };
   const cronRemove = async (ref) => { await api.cronAction("remove", ref); await refreshCrons(); };
   const cronAdd = async () => {
@@ -133,9 +133,9 @@ export function ChatWall() {
     ),
   );
 
-  // A row of the pestaña CLUSTERS (V2-086). Muestra lo that the operador pidió and nada más: nombre, si estamos
-  // dentro, quién hay, and cuánto se ha hablado. The cluster_id se enseña porque NO es secreto (viaja en the propia
-  // URL of invitación) and es lo that permite reconocer of cuál se trata; the token nunca sale of the backend.
+  // A row in the CLUSTERS tab (V2-086). Shows only what the operator asked for: name, whether we are
+  // inside, who is there, and how much has been said. cluster_id is shown because it is NOT secret (it travels in the
+  // invitation URL) and is what identifies which cluster this is; the token never leaves the backend.
   const clusterRow = (c) => h("div", { class: "cl-row" },
     h("div", { class: "cl-main" },
       h("div", { class: "cl-name" },
@@ -173,9 +173,9 @@ export function ChatWall() {
     ),
     // CHAT
     h("div", { class: "cw-list", ref: el => (listEl = el) }),
-    // Confirmación de WIDGET (V2-518) — la norma de la casa: sin popups; una pregunta pendiente (borrar /
-    // restaurar / data-op irreversible) se pinta EN la conversación con Sí/No, y se contesta aquí o por voz.
-    // Espejo del gate de clusters de más abajo; mismo registro backend (widgets/confirm.py), una a la vez.
+    // WIDGET confirmation (V2-518) — house rule: no popups; a pending question (delete /
+    // restore / irreversible data operation) is shown IN the conversation with Yes/No, and answered here or by voice.
+    // Mirror of the cluster gate below; same backend record (widgets/confirm.py), one at a time.
     () => (store.widgetConfirm()
       ? h("div", { class: "cl-confirm cw-wconfirm" },
           h("div", { class: "cl-q" }, store.widgetConfirm().question || t("chat.widgetConfirmQ")),
@@ -201,11 +201,11 @@ export function ChatWall() {
         h("button", { class: "cron-create", onClick: cronAdd }, () => t("chat.scheduleBtn")),
       ),
     ),
-    // CLUSTERS (V2-086) — the RED, nativa. Administración of conexiones, no conversación: the clusters tienen su
-    // propio monitor, así that here only se ve a qué red estamos enganchados, with quién and cuánto tráfico ha habido.
+    // CLUSTERS (V2-086) — the native NETWORK. Connection administration, not conversation: clusters have their
+    // own monitor, so here we only show which network we are connected to, with whom, and how much traffic there has been.
     h("div", { class: "cw-clusters" },
-      // Confirmación of CONECTAR: gate determinista. Without un “sí” explícito here no se abre ningún socket, por
-      // convincente that outside the texto that lo pidió (V2-064 → V2-086: cambia dónde se pinta, no the garantía).
+      // CONNECT confirmation: deterministic gate. Without an explicit “yes” here no socket is opened, no matter
+      // how convincing the text that requested it is (V2-064 → V2-086: changes where it is shown, not the guarantee).
       () => (store.clusterConfirm()
         ? h("div", { class: "cl-confirm" },
             h("div", { class: "cl-q" }, store.clusterConfirm().question || t("chat.clusterConfirmQ")),
@@ -220,7 +220,7 @@ export function ChatWall() {
           : h("div", { class: "cw-empty" }, () => t("chat.clustersEmpty"))),
       ),
     ),
-    // INPUT (solo Chat — CSS lo oculta en the otras pestañas)
+    // INPUT (Chat only — CSS hides it in the other tabs)
     h("div", { class: "cw-input" },
       h("textarea", {
         ref: el => (inputEl = el), rows: 1, placeholder: () => t("chat.messagePlaceholder"),
@@ -230,7 +230,7 @@ export function ChatWall() {
     ),
   );
 
-  // Al ENTRAR en a pestaña, refreshes sus data (los vivos ya llegan by SSE; the histórico/crons se piden aquí).
+  // When ENTERING a tab, refresh its data (live items already arrive via SSE; history/crons are requested here).
   createEffect(() => {
     const t = store.chatTab();
     if (!store.chatOpen()) return;
@@ -238,28 +238,28 @@ export function ChatWall() {
     else if (t === "crons") refreshCrons();
     else if (t === "clusters") store.fetchClusters();
   });
-  // When cambian the procesos vivos (una tarea acaba) and estamos mirando “Procesos”, refreshes the histórico para
-  // that the that acaba of terminar baje of the bloque "en marcha" al "histórico".
+  // When live processes change (a task finishes) while we are viewing “Processes”, refresh the history so
+  // the task that just finished moves from the "running" block to "history".
   createEffect(() => {
     store.tasks();
     if (store.chatOpen() && store.chatTab() === "procesos") store.fetchWorkerHistory();
   });
 
-  // CHAT and VOZ son INDEPENDIENTES (V2-088). Abrir this panel NO toca the altavoz, and silenciar the altavoz no toca
-  // this panel. Se retira the “modo chat = voz off” of V2-054: partía of that abrir the chat significaba “quiero
-  // leer en vez of escuchar”, and es FALSO — the panel tiene cuatro pestañas and the operador entra a mirar PROCESOS,
-  // CRONS or CLUSTERS without querer callar a nadie. Cortarle the voz by asomarse a a lista es a decisión that el
-  // system no tiene by qué tomar by él, and encima le costó a sesión entera creyendo that the TTS estaba roto.
+  // CHAT and VOICE are INDEPENDENT (V2-088). Opening this panel does NOT affect the speaker, and muting the speaker does not affect
+  // this panel. The “chat mode = voice off” behavior from V2-054 is removed: it assumed opening chat meant “I want to
+  // read instead of listen”, and that is FALSE — the panel has four tabs, and the operator may inspect PROCESSES,
+  // CRONS, or CLUSTERS without wanting to silence anyone. Cutting off the voice merely by looking at a list is a decision the
+  // system has no reason to make on its own, and it even cost an entire session that thought TTS was broken.
   //
-  // Quién silencia: SOLO the icono 🔊 (`session.toggleBotMute`, that avisa al server). Un interruptor, un dueño.
-  // The chat NO es un modo, es a VISTA MÁS: the respuesta aparece ahí igual that en the subtítulos and en the voz,
-  // the tres a the vez — `pushAgentChat` cuelga of the transcript of the asistente, that es independiente of the audio.
+  // Who mutes: ONLY the 🔊 icon (`session.toggleBotMute`, which notifies the server). One switch, one owner.
+  // Chat is NOT a mode; it is an ADDITIONAL VIEW: the response appears there just as in subtitles and voice,
+  // all three at once — `pushAgentChat` hangs off the assistant transcript, which is independent of the audio.
   createEffect(() => {
-    store.chatOpen();      // única dependencia: the geometría reservada depende of si está abierto
+    store.chatOpen();      // sole dependency: reserved geometry depends on whether it is open
     setReserve();          // closing releases the reserved strip; reopening while docked re-applies it
   });
 
-  // ── geometría: flotante ↔ dock ────────────────────────────────────────────────────────────────────────────
+  // ── geometry: floating ↔ dock ────────────────────────────────────────────────────────────────────────────
   function defaultFloat() { return { left: 18, top: 232, w: 320, h: Math.min(Math.round(innerHeight * 0.6), 520) }; }
 
   function applyFloat(geo) {
@@ -307,7 +307,7 @@ export function ChatWall() {
   }
   function hidePreview() { if (previewEl) previewEl.style.display = "none"; }
 
-  // RESERVA of espacio: when the chat está OPEN and acoplado, the escritorio se desplaza a the zona libre.
+  // SPACE RESERVATION: when chat is OPEN and docked, the desktop shifts into the free area.
   function setReserve() {
     const root = document.documentElement, body = document.body;
     body.classList.remove("chatdock-l", "chatdock-r");
@@ -326,7 +326,7 @@ export function ChatWall() {
   headEl.style.touchAction = "none";
   let drag = false, moved = false, sx = 0, sy = 0, ox = 0, oy = 0, pid = null, preview = null;
   headEl.addEventListener("pointerdown", e => {
-    if (e.target.closest(".cw-x") || e.target.closest(".cw-tab")) return;   // botones (cerrar/pestañas) no arrastran
+    if (e.target.closest(".cw-x") || e.target.closest(".cw-tab")) return;   // buttons (close/tabs) do not drag
     drag = true; moved = false; pid = e.pointerId; sx = e.clientX; sy = e.clientY;
   });
   headEl.addEventListener("pointermove", e => {
@@ -385,9 +385,9 @@ export function ChatWall() {
 
   // ── restore geometry ────────────────────────────────────────────────────────────────────────────────────
   let placed = false;
-  // V2-464 — modo ESCAPARATE (?showcase=1): the chat arranca OPEN and ACOPLADO a the izquierda, for that una
-  // grabación desatendida enseñe the conversación without that nadie toque nada. Antes that the float guardado: en
-  // the plató the geometría persistida es of otra sesión and un chat flotante a medias tapa the tarjetas.
+  // V2-464 — SHOWCASE mode (?showcase=1): chat starts OPEN and DOCKED on the left, so an unattended
+  // recording shows the conversation without anyone touching anything. Before the saved float: in the studio,
+  // persisted geometry belongs to another session and a half-positioned floating chat covers the cards.
   const _showcase = new URLSearchParams(location.search).has("showcase");
   if (_showcase) {
     applyDock("left", (loadDock() || {}).w || DOCK_DEF_W);
@@ -416,7 +416,7 @@ export function ChatWall() {
     listEl.scrollTop = listEl.scrollHeight;
   });
 
-  // on first open with NO saved geometry: auto-place like a widget, then focus the input (solo en Chat)
+  // on first open with NO saved geometry: auto-place like a widget, then focus the input (Chat only)
   createEffect(() => {
     if (!store.chatOpen()) return;
     if (!placed) requestAnimationFrame(() => { placeWall(wallEl); placed = true; });
