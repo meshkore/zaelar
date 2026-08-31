@@ -57,7 +57,7 @@ def setup_console_logging(level: int = logging.INFO) -> None:
     )
     root.addHandler(handler)
     root.setLevel(level)
-    # The still-open "2º fallo de dispatch" (INI-013, 2026-07-07: worker registers fine but LiveKit sometimes never
+    # The still-open "second dispatch failure" (INI-013, 2026-07-07: worker registers fine but LiveKit sometimes never
     # offers it a job for a new room — root cause unconfirmed, needs the actual availability-request → accept →
     # job → entrypoint handshake) can ONLY be root-caused with the SDK's own protocol-level logs, which INFO hides.
     # ZAELAR_LIVEKIT_LOG_LEVEL=DEBUG (env, read at boot) flips this on for the next live reproduction — leave unset

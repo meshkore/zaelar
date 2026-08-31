@@ -34,46 +34,46 @@ class LangSpec:
     warm: str                      # short warm phrase for the Metal TTS model
     filler_holding: str            # neutral "I'm on it" line — used when the fast brain escalates to Hermes
                                     # with no spoken content of its own (see duo.py's escalate_to_hermes tool)
-    mission: str = ""              # MISIÓN/identidad de zaelar (3-4 frases) EN EL IDIOMA DEL OPERADOR — la sección A
-                                    # del ESTADO compuesto (memory.compose_state). Vive aquí (single source de idioma)
-                                    # y se SIEMBRA en la memoria (state.mission) al arrancar; el prompt NUNCA la
-                                    # hardcodea en inglés. La usan AMBOS cerebros como parte del estado compartido.
+    mission: str = ""              # Zaelar's MISSION/identity (3-4 sentences) IN THE OPERATOR'S LANGUAGE — section A
+                                    # of the composite STATE (memory.compose_state). It lives here (the single language source)
+                                    # and is SEEDED into memory (state.mission) at startup; the prompt NEVER
+                                    # hardcodes it in English. BOTH brains use it as part of the shared state.
     show_ack: str = "Aquí lo tienes."  # short "here you go" when opening a widget with no spoken content of its own
     # V2-209: the SAME act over a surface with nothing in it. «Aquí lo tienes» asserts a delivery, and
     # opening a card is not one — measured on `book-hotel-night-known__es` (2026-08-20 13:49), where the
     # judge called it «alucinación de éxito» over a browser task that had brought nothing back.
-    # ⚠️ NO AFIRMA TRABAJO EN CURSO. La primera versión acababa en «sigo con ello» y eso fue una REGRESIÓN
-    # medida (V2-209 addenda): en `cancel-subscription-before-charge__es` —el único caso 5/5 del tablero,
-    # que vivía justo de NO afirmar nada— pasó a 2/5 con el veredicto «narró que seguía cancelando en la
-    # cuenta del usuario sin que el mecanismo lo respaldara». Cambié una afirmación falsa («aquí lo tienes»)
-    # por otra más pequeña y por eso más fácil de colar. Este ack solo dice lo que PASÓ: se abrió, y está
-    # vacío.
+    # ⚠️ DOES NOT CLAIM ONGOING WORK. The first version ended with “I'm still on it,” and that was a measured
+    # REGRESSION (V2-209 addendum): in `cancel-subscription-before-charge__es` —the board's only 5/5 case,
+    # which succeeded precisely by asserting NOTHING— it dropped to 2/5 with the verdict “said it was still
+    # canceling on the user's account without the mechanism supporting it.” I changed one false claim (“here you go”)
+    # to another, smaller one and therefore one easier to sneak through. This ack only says what HAPPENED: it opened,
+    # and it is empty.
     show_ack_empty: str = "Te lo abro, aunque de momento está vacío."
-    # V2-210: cuando el turno tenía que consultar una fuente y no se pudo. Peor respuesta, mejor información.
+    # V2-210: when the turn had to consult a source and could not. Worse response, better information.
     unverified_fact: str = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
-    # variantes del ack de data-op (V2-038, test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban
-    # el loop-detector (LOOP×2) → un funcional consecutivo se dice distinto. El provider elige una que NO repita la
-    # anterior. Copy localizado (vive en el catálogo de idioma, no es dato de un test).
+    # data-op ack variants (V2-038, post-P1/P2 test): two consecutive data-ops with the SAME "Done." triggered
+    # the loop detector (LOOP×2) → consecutive functional responses are phrased differently. The provider chooses one
+    # that does NOT repeat the previous one. Localized copy (lives in the language catalog, not test data).
     data_acks: tuple = ("Hecho.", "Listo.", "Ya está.", "Vale, hecho.", "Apuntado.")
-    filler_still_working: str = "Sigo con ello; te aviso en cuanto lo tenga."  # V2-029: variación cuando YA había
-                                    # una tarea de fondo en curso al empezar el turno — NO repetir el mismo
-                                    # filler_holding turno a turno (el operador insiste mientras el SlowBrain trabaja)
-    # V2-189: el mismo tratamiento que `data_acks`, que existe desde V2-038 porque dos «Hecho.» seguidos
-    # disparaban el detector de bucles — y que al relleno de espera nunca se le aplicó. Medido en
-    # `cheapest-monitor` (2026-08-20 01:21): «Vale, dame un momento que lo miro.» CUATRO veces palabra por
-    # palabra, con el operador contestando «vale, quedo atento» cada vez. El juez lo marcó grave en dos casos
-    # distintos. Ninguna de estas afirma un PASO — esa es la línea que V2-133 dejó dicha y no se cruza.
+    filler_still_working: str = "Sigo con ello; te aviso en cuanto lo tenga."  # V2-029: variation when a background task was ALREADY
+                                    # a background task was already in progress when the turn began — do NOT repeat the same
+                                    # filler_holding from turn to turn (the operator keeps insisting while the SlowBrain works)
+    # V2-189: the same treatment as `data_acks`, which has existed since V2-038 because two consecutive «Done.» lines
+    # triggered the loop detector — a treatment never applied to the waiting filler. Measured in
+    # `cheapest-monitor` (2026-08-20 01:21): «Alright, give me a moment to look into that.» FOUR times word for
+    # word, with the operator replying «okay, I'll wait» each time. The judge marked it serious in two different
+    # cases. None of these asserts a STEP — that is the line V2-133 established and does not cross.
     holding_lines: tuple = ("Vale, dame un momento que lo miro.", "Sigo con ello; te aviso en cuanto lo tenga.",
                             "Sigue en marcha; en cuanto tenga algo te lo digo.")
-    # Y a partir de la tercera espera seguida, el único hecho honesto que hay: cuánto lleva. Sin inventar en qué
-    # punto va, y con una salida — que es lo que el operador puede hacer con ese dato.
+    # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
+    # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("Lleva {min} min y todavía no me ha dado nada. ¿La dejo seguir o la paro y "
                           "probamos de otra forma?")
-    # ENTREGA PROACTIVA (hallazgo 2026-07-23: nucleo/loop.py, nucleo/sparks.py y connectors/messaging/notify.py
-    # hablaban con f-strings en español fijo, sin pasar por este catálogo — sordos a un cambio de idioma). Son
-    # frases HABLADAS por iniciativa PROPIA de zaelar (el operador no las pidió en este turno): preguntas de un
-    # worker, timeouts de presupuesto, chispas espontáneas, avisos de mensajería. Placeholders con `.format(...)`.
+    # PROACTIVE DELIVERY (finding 2026-07-23: nucleo/loop.py, nucleo/sparks.py, and connectors/messaging/notify.py
+    # spoke with fixed Spanish f-strings without going through this catalog — deaf to a language change). These are
+    # SPOKEN phrases initiated by zaelar itself (the operator did not request them in this turn): worker questions,
+    # budget timeouts, spontaneous sparks, and messaging notices. Placeholders use `.format(...)`.
     worker_ask_named: str = "Oye, el proceso «{goal}» pregunta: {question}"
     worker_ask_generic: str = "Oye, uno de los procesos en marcha pregunta: {question}"
     worker_budget_killed: str = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
@@ -86,32 +86,32 @@ class LangSpec:
     confirm_expired: str = ("Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres que lo "
                             "haga.")
     spark_pending: str = "Sigo con una cosa pendiente: {title}. ¿Lo retomamos?"
-    generic_task: str = "la tarea"        # fallback de {goal} cuando el worker no tiene título propio
-    someone: str = "alguien"              # fallback de {sender} cuando el conector no trae remitente
+    generic_task: str = "la tarea"        # fallback for {goal} when the worker has no title of its own
+    someone: str = "alguien"              # fallback for {sender} when the connector provides no sender
     msg_notice_single: str = "Tienes un mensaje en {platform} de {sender}."
     msg_notice_single_urgent: str = "Tienes un mensaje urgente en {platform} de {sender}."
     msg_notice_multi: str = "Tienes {count} mensajes en {platform} que quizá quieras ver, de {sender} entre otros."
-    # LEAD-IN FILLERS (2026-07-19): sonidos de PENSAR neutros y variados para rellenar el silencio del TTFT (~1.1s
-    # medido) SOLO cuando el turno tarda de verdad (timer, `pick_filler`). NUNCA comprometen ni contradicen la
-    # respuesta real (son neutros, no "hecho/vale"): la locución real los continúa. Naturalidad, no relleno de todo.
+    # LEAD-IN FILLERS (2026-07-19): neutral, varied THINKING sounds to fill TTFT silence (~1.1s measured) ONLY when
+    # the turn genuinely takes time (timer, `pick_filler`). They NEVER commit to or contradict the real response
+    # (they are neutral, not "done/okay"): the actual utterance continues them. Naturalness, not filler everywhere.
     fillers: tuple = (
         "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "Un segundo…", "Espera…",
         "Vale, a ver…", "Pues…", "A ver qué tenemos…", "Déjame que mire…", "Un momentito…",
     )
-    # BÓVEDA DE SECRETOS (V2-060) — líneas HABLADAS deterministas. El valor del secreto se inserta OUT-OF-BAND
-    # (nunca pasa por el modelo): `secret_reveal.format(label=…, value=…)`. Las demás no llevan el valor.
-    secret_reveal: str = "Tu {label}: {value}"           # (F2: lectura por voz con redacción de logs)
-    secret_shown: str = "Aquí tienes tu {label}, te lo muestro en pantalla."   # F1b: valor por la UI, no por voz
+    # SECRETS VAULT (V2-060) — deterministic SPOKEN lines. The secret's value is inserted OUT-OF-BAND
+    # (it never passes through the model): `secret_reveal.format(label=…, value=…)`. The others do not contain the value.
+    secret_reveal: str = "Tu {label}: {value}"           # (F2: voice reading with log redaction)
+    secret_shown: str = "Aquí tienes tu {label}, te lo muestro en pantalla."   # F1b: value through the UI, not by voice
     secret_locked: str = ("Necesito tu contraseña de la bóveda para dártelo. Ponla y te lo muestro.")
     secret_no_vault: str = ("Todavía no tienes una bóveda de secretos. ¿Quieres que la creemos para guardar tus "
                             "contraseñas cifradas?")
     secret_not_found: str = "No tengo guardado ese secreto."
     secret_screen_only: str = "Por seguridad no lo digo en voz alta; te lo muestro en pantalla."
-    secret_saved: str = "Hecho, la he guardado cifrada en tu bóveda de secretos."   # tras cifrar un secreto nuevo
+    secret_saved: str = "Hecho, la he guardado cifrada en tu bóveda de secretos."   # after encrypting a new secret
     secret_need_vault: str = ("Puedo guardártela cifrada, pero primero necesito que crees una contraseña maestra "
-                              "para tu bóveda. Te la abro.")                        # querer guardar sin bóveda aún
+                              "para tu bóveda. Te la abro.")                        # attempting to save without a vault yet
     energy_exhausted: str = ("Se ha agotado tu Energía. Paga una cuota o compra más para seguir usando tu "
-                             "agente.")                                             # 2026-08-09, solo cuentas reales
+                             "agente.")                                             # 2026-08-09, real accounts only
     # SPLIT-FRAGMENT ACCUMULATOR (V2-096, fix 2026-08-15): two SPOKEN lines, delivered out of band
     # (`voice/proactive.speaker()`, same channel as V2-093's lead-in filler), that only exist because staying
     # completely silent left the operator with no way to tell "still listening" from "hung".
@@ -238,12 +238,12 @@ LANGUAGES: dict[str, LangSpec] = {
     ),
 }
 
-# El DEFECTO del producto es INGLÉS (norma del operador 2026-08-09; antes era castellano). Un zaelar recién
-# instalado, sin idioma elegido, arranca en inglés — igual que el frontend (`store.lang()` ya caía a "en") y que
-# el manifiesto de i18n. Deja de haber una instalación limpia con la UI en inglés y la VOZ en castellano.
-# Esto NO es "zaelar habla inglés": es solo el punto de partida hasta que la AUTODETECCIÓN de la primera frase
-# fija el idioma real del operador (`i18n/init/detect.py`) o hasta que este lo elija en ⚙. Ninguna instalación
-# existente cambia: en cuanto hay `stt_language` persistido, este valor no se mira.
+# The product DEFAULT is ENGLISH (operator policy 2026-08-09; it used to be Spanish). A newly
+# installed zaelar with no language selected starts in English — like the frontend (`store.lang()` already fell back to "en") and
+# the i18n manifest. A clean installation therefore no longer has an English UI and Spanish VOICE.
+# This does NOT mean "zaelar speaks English": it is only the starting point until AUTODETECTION of the first phrase
+# sets the operator's actual language (`i18n/init/detect.py`) or until they choose it in ⚙. No existing installation
+# changes: once `stt_language` is persisted, this value is not consulted.
 DEFAULT_LANG = "en"
 
 
@@ -254,18 +254,18 @@ def _default_code() -> str:
 
 
 def first_run_auto() -> bool:
-    """¿Seguimos en primera ejecución, SIN idioma elegido todavía? Entonces el STT debe transcribir en AUTO en vez
-    de fijar un idioma: es lo único que permite que un operador árabe o chino sea transcrito CORRECTAMENTE en su
-    primera frase — y ese texto limpio es justo lo que `i18n.init.detect` clasifica para fijar el idioma.
+    """Are we still on the first run, with NO language selected yet? Then STT must transcribe in AUTO instead
+    of fixing a language: it is the only way for an Arabic- or Chinese-speaking operator to be transcribed CORRECTLY in their
+    first phrase — and that clean text is exactly what `i18n.init.detect` classifies to set the language.
 
-    Vive AQUÍ (una sola respuesta para los tres backends de STT) porque si no cada adaptador se inventa la suya:
-    `whisper_local` ya lo hacía por su cuenta y los REMOTOS (deepgram/voxtral) no — o sea que en el perfil de nube,
-    que es el de producción, la autodetección arrancaba con el STT clavado al idioma por defecto y no podía
-    funcionar. Defensivo a propósito (fail-closed): si i18n no está disponible, se comporta como siempre.
+    It lives HERE (one answer for all three STT backends) because otherwise each adapter invents its own:
+    `whisper_local` already did this on its own while the REMOTE backends (deepgram/voxtral) did not — meaning that in the cloud
+    profile, which is the production one, autodetection started with STT pinned to the default language and could not
+    work. Defensive by design (fail-closed): if i18n is unavailable, it behaves as before.
 
-    Cada backend traduce esto a SU forma de decir «auto» — no hay un token común: Whisper quiere `language=None`,
-    Voxtral quiere que se OMITA el parámetro, y Deepgram necesita `"multi"` explícito (omitirlo cae a en-US en el
-    servidor, que NO es auto)."""
+    Each backend translates this into ITS way of saying «auto» — there is no common token: Whisper wants `language=None`,
+    Voxtral wants the parameter OMITTED, and Deepgram needs explicit `"multi"` (omitting it falls back to en-US on the
+    server, which is NOT auto)."""
     try:
         from i18n.init import detect as _detect
         return bool(_detect.should_detect())
@@ -293,7 +293,7 @@ def spec(code: str | None = None) -> LangSpec:
 
 
 def supported() -> list[LangSpec]:
-    """Catalog for the ⚙ UI, Spanish first."""
+    """Catalog for the ⚙ UI, with Spanish first."""
     return [LANGUAGES[c] for c in sorted(LANGUAGES, key=lambda c: (c != DEFAULT_LANG, c))]
 
 
@@ -318,8 +318,8 @@ def _generated_fillers(code: str) -> list[str]:
 
 
 def pick_filler(last: str = "", code: str | None = None) -> str:
-    """Un sonido de PENSAR neutro y variado (lead-in) en el idioma activo, distinto del último (anti-repetición).
-    Determinista-agnóstico: si no hay pool, cadena vacía → el caller no dice nada."""
+    """A neutral, varied THINKING sound (lead-in) in the active language, different from the last one (anti-repetition).
+    Deterministic-agnostic: if there is no pool, return an empty string → the caller says nothing."""
     pool = _generated_fillers(code or current_code())
     if not pool:
         pool = list(getattr(spec(code), "fillers", ()) or ())

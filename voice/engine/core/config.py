@@ -6,8 +6,8 @@ Reads the environment via ``core.env`` and the profile defaults via
 zaelar adaptations (INI-012):
   * env knob prefix ``VL2_`` -> ``ZAELAR_``; provider API keys keep zaelar's
     existing standard names (OPENAI_API_KEY, AIMLAPI_KEY, CARTESIA_API_KEY,
-    MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY). Z.AI NO: es solo del Brain Worker
-    (dentro de Claude Code), norma del operador 2026-08-30 — su catálogo vive en nucleo/workers/providers.py.
+    MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY). Z.AI NO: it is only for the Brain Worker
+    (inside Claude Code), per the operator's 2026-08-30 rule — its catalog lives in nucleo/workers/providers.py.
   * web_port 43917, room "zaelar", English prompt/greeting.
   * llm_provider defaults to the ``BRAIN`` env (hermes|duo|direct) when set — the
     hermes/duo/direct LLM providers are added later by another change; this only
@@ -87,11 +87,11 @@ class Settings:
     # high confidence on low-energy/short blips (no_speech_prob can't catch it).
     # Don't transcribe a segment below this energy / duration — energy separates
     # cleanly (noise rms ~0.002 vs speech ~0.05).
-    # PROXIMITY gate (2026-07-12): subido 0.012→0.02 para RECHAZAR voz/ruido LEJANO. El operador habla a ~60 cm
-    # (rms alto ~0.05-0.1); un grito/TV/tráfico a varios metros llega ATENUADO (~0.005-0.018) → cae bajo el umbral
-    # y no se transcribe (así una voz de fondo no "dispara" un turno fantasma que gasta STT+memoria). El VAD Silero
-    # (activation 0.55) filtra lo no-humano; este gate filtra lo humano-pero-lejano (que el VAD sí dejaría pasar por
-    # ser "voz"). Es el knob PRINCIPAL de robustez al ruido — súbelo si aún se cuela ruido, bájalo si pierde tu voz.
+    # PROXIMITY gate (2026-07-12): raised 0.012→0.02 to REJECT DISTANT voice/noise. The operator speaks at ~60 cm
+    # (high rms ~0.05-0.1); a shout/TV/traffic several meters away arrives ATTENUATED (~0.005-0.018) → falls below the threshold
+    # and is not transcribed (so a background voice does not "trigger" a phantom turn that consumes STT+memory). Silero VAD
+    # (activation 0.55) filters non-human sound; this gate filters human-but-distant sound (which VAD would let through because it
+    # is "voice"). It is the PRIMARY noise-robustness knob — raise it if noise still gets through, lower it if it loses your voice.
     stt_rms_gate: float = float(env("ZAELAR_STT_RMS_GATE", "0.02"))
     stt_min_sec: float = float(env("ZAELAR_STT_MIN_SEC", "0.25"))
 
@@ -103,7 +103,7 @@ class Settings:
     # Default INTERFACE language. zaelar is MULTILINGUAL (see core/langs.py): this is only the
     # import-time default (Spanish); the operator switches from the ⚙ or by voice and STT/TTS/voice/reply
     # move together. The engine reads the LIVE language via ``core.langs.current_code()``, not this frozen field.
-    language: str = env("ZAELAR_LANGUAGE", "en")   # producto en INGLÉS por defecto; la autodetección lo cambia
+    language: str = env("ZAELAR_LANGUAGE", "en")   # product is in ENGLISH by default; autodetection changes it
     # Language-NEUTRAL persona; the reply LANGUAGE is appended per session from the active language
     # (core.langs reply_directive), so switching language re-languages the assistant coherently.
     system_prompt: str = env(
@@ -118,11 +118,11 @@ class Settings:
     aimlapi_api_key: str = env("AIMLAPI_KEY")
     aimlapi_base_url: str = env("AIMLAPI_BASE_URL", "https://api.aimlapi.com/v1")
     cartesia_api_key: str = env("CARTESIA_API_KEY")
-    elevenlabs_api_key: str = env("ELEVENLABS_API_KEY")    # TTS cloud fiable (V2-035) — clave en el credential store
-    # 2026-07-13: turbo_v2_5 (más ESTABLE de acento que flash) + voz CASTELLANA nativa (Sara Martin, es/peninsular).
-    # Con el tier CREATOR (créditos + library voices desbloqueadas) esta es la voz titular: acento castellano estable,
-    # sin el drift inglés/portugués que daba la voz premade anglo del free. El `language` lock (es) va en el provider.
-    elevenlabs_model: str = env("ELEVENLABS_MODEL", "eleven_turbo_v2_5")  # turbo = baja latencia y acento estable
+    elevenlabs_api_key: str = env("ELEVENLABS_API_KEY")    # reliable cloud TTS (V2-035) — key in the credential store
+    # 2026-07-13: turbo_v2_5 (more ACCENT-STABLE than flash) + native CASTILIAN voice (Sara Martin, es/peninsular).
+    # With the CREATOR tier (credits + unlocked library voices), this is the primary voice: stable Castilian accent,
+    # without the English/Portuguese drift produced by the free tier's Anglo premade voice. The `language` lock (es) is set in the provider.
+    elevenlabs_model: str = env("ELEVENLABS_MODEL", "eleven_turbo_v2_5")  # turbo = low latency and stable accent
     elevenlabs_voice_id: str = env("ELEVENLABS_VOICE_ID", "KHCvMklQZZo0O30ERnVn")  # Sara Martin (es, peninsular)
     mistral_api_key: str = env("MISTRAL_API_KEY")
     deepgram_api_key: str = env("DEEPGRAM_API_KEY")
