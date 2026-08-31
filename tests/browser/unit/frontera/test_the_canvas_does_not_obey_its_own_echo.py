@@ -1,4 +1,4 @@
-"""Expone a pytest el filtro del eco del canvas (V2-261). El porqué está en el .mjs, que MONTA el manejador."""
+"""Exposes the canvas echo filter to pytest (V2-261). The reason is in the .mjs, which MOUNTS the handler."""
 
 import shutil
 import subprocess

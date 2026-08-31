@@ -1,8 +1,8 @@
-// Monta renderTask() de widget.js en un DOM mínimo y comprueba QUÉ pinta con datos reales de la vista nueva.
+// Mounts renderTask() from widget.js in a minimal DOM and checks WHAT it renders with real data from the new view.
 import { readFileSync } from "node:fs";
 const SRC = readFileSync(process.argv[2], "utf8");
 
-// DOM de juguete suficiente para este render (textContent + appendChild + className + style + onclick).
+// Toy DOM sufficient for this render (textContent + appendChild + className + style + onclick).
 class N {
   constructor(tag){ this.tag=tag; this.children=[]; this.className=""; this.style={cssText:""}; this._text=""; }
   set textContent(v){ this._text = String(v); this.children = []; }
@@ -11,7 +11,7 @@ class N {
   get classes(){ return [this.className, ...this.children.flatMap(c=>c.classes)]; }
 }
 globalThis.document = {
-  getElementById: () => ({}),          // los estilos ya están "inyectados"
+  getElementById: () => ({}),          // the styles are already "injected"
   createElement: (t) => new N(t),
   head: { appendChild(){} },
 };
@@ -42,7 +42,7 @@ ok("no queda ni una fila de resultados", !cls.some(c=>c.includes("hb-navt-item")
 ok("no queda el feed de eventos", !cls.some(c=>c.includes("hb-navt-feed")||c.includes("hb-navt-ev")));
 ok("sigue enseñando qué página está mirando", txt.includes("Buscar con Google"));
 
-// …y con resultados en los datos (worker viejo, payload rancio) la tarjeta NO los pinta.
+// …and with results in the data (old worker, stale payload), the card does NOT render them.
 const root2 = new N("div");
 mod.render(root2, { kind:"task", id:"t2", status:"done", state:["listo"],
                     results:{conclusion:"NO DEBE SALIR", items:[{title:"Cómo llegar"},{title:"Sitio web"}]},

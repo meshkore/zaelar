@@ -1,4 +1,4 @@
-"""Expone a pytest el render REAL de la tarjeta del navegador (V2-257). El porqué está en el .mjs."""
+"""Exposes the REAL rendering of the browser card to pytest (V2-257). The reason is in the .mjs."""
 
 import shutil
 import subprocess

@@ -1,23 +1,23 @@
-"""V2-259 F3 — «cierra los resultados» con dos abiertas es una PREGUNTA, no una apuesta.
+"""V2-259 F3 — “close the results” with two open is a QUESTION, not a guess.
 
-Petición del operador, literal: «si hay 2 widgets de results y el usuario dice "cierra los resultados", la orden
-debería generar una pregunta de: ¿cuál de las 2 búsquedas cierro, la del coche o la del fontanero?».
+Literal operator request: “if there are 2 results widgets and the user says ‘close the results’, the command
+should generate a question: which of the 2 searches should I close, the car search or the plumber search?”.
 
-Es una ambigüedad de OTRO EJE que la que ya resolvía `runtime.identify()`. Aquella decide QUÉ PIEZA
-(«resultados» → `results`) y pregunta cuando no hay match de nombre o alias (V2-082); ésta llega después, con la
-pieza ya clara, y lo que no se sabe es CUÁL DE SUS TARJETAS. Antes no podía existir: la única pieza instanciada
-era el navegador, y sus tarjetas se cierran solas al acabar la tarea. Desde V2-259 el operador tiene dos cajas
-delante que se llaman igual.
+This is an ambiguity along a DIFFERENT AXIS from the one already handled by `runtime.identify()`. That one decides WHICH PIECE
+(“results” → `results`) and asks when there is no name or alias match (V2-082); this one comes later, with the
+piece already clear, and what is unknown is WHICH OF ITS CARDS. It could not exist before: the only instantiated piece
+was the browser, and its cards close on their own when the task ends. Since V2-259 the operator has two boxes
+in front of them with the same name.
 
-Lo que se fija:
+What is being established:
 
-  · con una, cerrar sigue siendo cerrar — una pregunta espuria en cada cierre sería peor que el fallo que esto
-    quita, así que la duda cae siempre hacia el comportamiento de siempre;
-  · con dos, se pregunta nombrando los ENCARGOS y no los ids («¿results::t1 o results::t2?» no es una pregunta,
-    es un volcado);
-  · una pregunta que no distingue nada tampoco es una pregunta: dos hojas sin título no pueden acabar en «¿cuál
-    cierro, «Resultados» o «Resultados»?»;
-  · y la regla vive UNA vez, aunque este cierre se emita desde tres sitios distintos.
+  · with one, closing remains closing — a spurious question on every close would be worse than the bug this
+    removes, so uncertainty always falls back to the usual behavior;
+  · with two, the question names the ERRANDS and not the ids (“results::t1 or results::t2?” is not a question,
+    it is a dump);
+  · a question that distinguishes nothing is not a question either: two untitled sheets cannot end up with “which
+    one should I close, “Results” or “Results”?”;
+  · and the rule lives ONCE, even though this close is emitted from three different places.
 """
 import re
 from pathlib import Path
@@ -39,7 +39,7 @@ def _aislado(tmp_path, monkeypatch):
     store._last_hash.clear()
 
 
-# ── 1) con una, cerrar es cerrar ─────────────────────────────────────────────────────────────────────────────
+# ── 1) with one, closing is closing ───────────────────────────────────────────────────────────────────────────
 
 def test_one_card_closes_without_asking():
     r = instances.resolve_close("results", ["results::t1"])
@@ -47,8 +47,8 @@ def test_one_card_closes_without_asking():
 
 
 def test_none_open_still_closes_like_it_always_did():
-    """Cerrar una tarjeta que ya no está es un no-op inofensivo, y era el comportamiento de siempre: el valor
-    real de ese emit es cancelar la escalada espuria, no la tarjeta."""
+    """Closing a card that is no longer there is a harmless no-op, and this was always the behavior: the real
+    purpose of that emit is to cancel the spurious escalation, not the card."""
     r = instances.resolve_close("results", [])
     assert r["id"] == "results" and not r["ask"]
 
@@ -63,7 +63,7 @@ def test_an_instance_named_out_loud_is_not_a_question():
     assert r["id"] == "results::t9" and not r["ask"]
 
 
-# ── 2) con dos, se pregunta — y nombrando los encargos ───────────────────────────────────────────────────────
+# ── 2) with two, ask — naming the errands ─────────────────────────────────────────────────────────────────────
 
 def test_two_cards_ask_which_one():
     sheet.apply_action("present", {"sheet": "t1", "title": "Fontaneros en Madrid centro",
@@ -85,8 +85,8 @@ def test_three_cards_read_as_a_list_and_not_as_a_dump():
 
 
 def test_a_question_that_cannot_be_answered_is_not_a_question():
-    """Dos hojas sin encargo detrás se titulan las dos con el relleno «Resultados». Preguntar «¿«Resultados» o
-    «Resultados»?» obliga al operador a contestar algo que no distingue nada — peor que no preguntar."""
+    """Two sheets with no errand behind them are both given the placeholder title “Results”. Asking ““Results” or
+    “Results”?” forces the operator to answer something that distinguishes nothing — worse than not asking."""
     ask = instances.resolve_close("results", ["results::t1", "results::t2"])["ask"]
     assert "«t1»" in ask and "«t2»" in ask
     assert ask.count("Resultados") == 0
@@ -99,12 +99,12 @@ def test_colliding_titles_get_disambiguated_instead_of_repeated():
     assert "Coches (t1)" in ask and "Coches (t2)" in ask
 
 
-# ── 3) la regla vive UNA vez ─────────────────────────────────────────────────────────────────────────────────
+# ── 3) the rule lives ONCE ─────────────────────────────────────────────────────────────────────────────────────
 
 def test_every_close_path_goes_through_the_one_decision():
-    """`nucleo.py` emite `widget/close` con id desde TRES puntos (el guard cerrar≠borrar, el backstop del turno y
-    el fallback de canvas). El guardarraíl de cableado de V2-199: una decisión que no llama nadie prueba que el
-    código compila. Cuarta vez esta semana que la regla estaba —o iba a quedar— repetida."""
+    """`nucleo.py` emits `widget/close` with an id from THREE points (the close≠delete guard, the turn backstop, and
+    the canvas fallback). The V2-199 wiring guardrail: a decision that nobody calls only proves that the
+    code compiles. The fourth time this week that the rule had been — or was about to be — duplicated."""
     src = NUCLEO.read_text(encoding="utf-8", errors="replace")
     con_id = [ln for ln in src.splitlines()
               if 'emit("widget", "close"' in ln and '"id"' in ln]
@@ -115,8 +115,8 @@ def test_every_close_path_goes_through_the_one_decision():
 
 
 def test_the_ambiguity_is_answered_by_ASKING_and_not_by_staying_silent():
-    """Preguntar TAMBIÉN es haber actuado: si el fallback devolviera False, el login-fallback se llevaría el
-    turno como si nadie hubiera hecho nada — el fallo que V2-023 dejó documentado."""
+    """Asking ALSO counts as having acted: if the fallback returned False, the login fallback would take the
+    turn as if nobody had done anything — the bug documented by V2-023."""
     src = NUCLEO.read_text(encoding="utf-8", errors="replace")
     i = src.index("def _widget_fallback(")
     cuerpo = src[i:i + 3000]
@@ -127,9 +127,9 @@ def test_the_ambiguity_is_answered_by_ASKING_and_not_by_staying_silent():
 
 
 def test_the_raw_instances_are_readable_because_the_state_normalizes_them_away():
-    """`memory.state()['open_widgets']` guarda las BASES, que es lo correcto para lo que hace: el estado del
-    cerebro habla de piezas. Pero esta pregunta es sobre TARJETAS, y ahí la normalización borra justo el dato —
-    el mismo colapso que V2-047 F9 anotó y nunca se cerró."""
+    """`memory.state()['open_widgets']` stores the BASES, which is correct for what it does: the brain's state
+    speaks about pieces. But this question is about CARDS, and normalization erases exactly that data there —
+    the same collapse noted by V2-047 F9 and never closed out."""
     from server import voice_api
     voice_api.canvas_state._last_inst = None
     assert voice_api.open_instances() == [], "sin informe del canvas es «no lo sé», no una ambigüedad inventada"
@@ -137,12 +137,12 @@ def test_the_raw_instances_are_readable_because_the_state_normalizes_them_away()
     assert instances.instances_of("results", voice_api.open_instances()) == ["results::t1", "results::t2"]
 
 
-# ── V2-300: el ESPEJO — «enséñamelo» tampoco abre la caja pelada teniendo la hoja del encargo delante ────────
+# ── V2-300: the MIRROR — “show it to me” does not open the bare box when the errand sheet is in front either ─
 #
-# Ronda 24 de `search-buy-guitar__es` (2026-08-24): la hoja del encargo (`results::58c1af-1`) ABIERTA con 20
-# filas, el operador pide ver un resultado, el modelo muestra `results` a secas y el canvas abre la caja
-# PELADA — «Te lo abro, aunque de momento está vacío» con la entrega al lado. El guard de V2-209 dijo la
-# verdad sobre la caja equivocada; lo que faltaba era abrir la correcta.
+# Round 24 of `search-buy-guitar__es` (2026-08-24): the errand sheet (`results::58c1af-1`) OPEN with 20
+# rows, the operator asks to see a result, the model shows `results` by itself, and the canvas opens the
+# BARE box — “I’ll open it for you, although it is empty for now” with the deliverable beside it. The V2-209
+# guard told the truth about the wrong box; what was missing was opening the correct one.
 
 def test_showing_the_base_with_ONE_instance_open_resolves_to_the_instance():
     out = instances.resolve_show("results", ["results::58c1af-1", "agenda"])
@@ -155,7 +155,7 @@ def test_showing_with_TWO_instances_open_asks_naming_the_errands():
 
 
 def test_showing_with_NO_instance_open_keeps_the_base_as_always():
-    """Sensibilidad: sin hojas de encargo delante, la base es la única que hay y abrirla es lo de siempre."""
+    """Sensitivity: with no errand sheets in front, the base is the only one there and opening it is the usual behavior."""
     out = instances.resolve_show("results", ["agenda"])
     assert out["id"] == "results" and not out["ask"]
 
@@ -166,9 +166,9 @@ def test_a_named_instance_passes_through_untouched():
 
 
 def test_the_show_decision_is_wired_in_BOTH_channels():
-    """La decisión vive UNA vez (`instances.resolve_show`) y la llaman los dos canales — la clase de fallo que
-    sobrevive divergiendo entre voz y probe (V2-252, tres veces). Se comprueba sobre el fuente SIN comentarios:
-    dos guardas de esta suite ya pasaron con la llamada borrada porque el comentario la nombraba."""
+    """The decision lives ONCE (`instances.resolve_show`) and both channels call it — the kind of bug that
+    survives by diverging between voice and probe (V2-252, three times). It is checked against the source WITHOUT comments:
+    two guards in this suite already passed with the call deleted because the comment named it."""
     def _code(p):
         lines = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
         return "\n".join(ln for ln in lines if not ln.strip().startswith("#"))

@@ -1,7 +1,7 @@
-"""Una pestaña, un conductor — medido EN VIVO el 2026-08-21 (`search-secondhand-monitor`, plató del arnés).
+"""One tab, one driver — measured LIVE on 2026-08-21 (`search-secondhand-monitor`, harness test set).
 
-Tres workers del mismo encargo recibieron cada uno la MISMA tarea de navegador (`t6`) y la condujeron a la vez:
-46, 27 y 7 acciones entrelazadas sobre una sola página. La traza, verbatim:
+Three workers for the same request each received the SAME browser task (`t6`) and drove it at the same time:
+46, 27, and 7 interleaved actions on a single page. The trace, verbatim:
 
     15:43:43  worker:1  navigate → es.wallapop.com
     15:43:57  worker:2  navigate → es.wallapop.com          ← pisa al 1
@@ -9,24 +9,24 @@ Tres workers del mismo encargo recibieron cada uno la MISMA tarea de navegador (
     15:44:43  worker:1  click [29]
     15:44:49  worker:2  click [29]                          ← misma ref, página ya cambiada por el otro
 
-Lo de los clics es el daño de verdad, y V2-248 ya lo dejó escrito: las referencias de elemento se REPARTEN al
-mirar, así que el mismo número es otro elemento en cuanto la página cambia. `worker:2` pulsó el «29» de un
-vistazo que `worker:1` acababa de invalidar. En una página con botón de pagar eso no es un resultado sucio: es
-una ACCIÓN equivocada, y por eso esto se trata como contención y no como higiene.
+The clicks are the real harm, and V2-248 already documented it: element references are assigned when observing,
+so the same number refers to another element as soon as the page changes. `worker:2` pressed the «29» from a
+snapshot that `worker:1` had just invalidated. On a page with a payment button, that is not a dirty result: it is
+a WRONG ACTION, which is why this is treated as contention rather than hygiene.
 
-LA CAUSA es que hay DOS jueces de parecido y se contradicen sobre el MISMO par de textos:
+THE CAUSE is that there are TWO similarity judges and they disagree about the SAME pair of texts:
 
     dispatch.find_duplicate      Jaccard ≥ 0.60 sobre palabras de ≥4 letras   → «encargos distintos»  → 3 workers
     navegador.tasks._similar     ≥2 raíces compartidas O Jaccard ≥ 0.40       → «misma navegación»    → 1 pestaña
 
-Medido por el arnés sobre esos textos: Jaccard 0.333-0.375 — cae en el hueco EXACTO entre las dos varas. Cada
-predicado se defiende solo; lo que no se defiende es la combinación, y por eso la contradicción se resuelve donde
-se vuelve física: al repartir la pestaña. Unificar la vara es otro trabajo (la contención separa las dos
-poblaciones donde el Jaccard no puede) y NO es lo que arregla este fichero: aunque los dos jueces coincidieran,
-dos conductores en una pestaña seguiría siendo indefendible.
+Measured by the harness on those texts: Jaccard 0.333-0.375 — it falls in the EXACT gap between the two bars. Each
+predicate stands on its own; what does not stand is the combination, so the contradiction is resolved where it
+becomes physical: when assigning the tab. Unifying the bar is a separate task (contention separates the two
+populations where Jaccard cannot) and is NOT what fixes this file: even if the two judges agreed, two drivers on
+one tab would still be indefensible.
 
-Lo que NO se toca: la continuación para lo que se escribió — el operador aclarando un encargo cuyo worker ya no
-está («no, de enduro»). Eso sigue reabriendo su tarjeta.
+What is NOT touched: the continuation for what was written — the operator clarifying a request whose worker is no
+longer there («no, de enduro»). That still reopens its card.
 """
 import asyncio
 
@@ -39,7 +39,7 @@ from widgets.navegador import tasks as nt
 
 @pytest.fixture(autouse=True)
 def _aislado(monkeypatch):
-    """Un test unitario no toca artefactos vivos: registro de sesiones y de pestañas, propios y vacíos."""
+    """A unit test does not touch live artifacts: its own, empty session and tab registries."""
     monkeypatch.setattr(dispatch, "_SESSIONS", {})
     with nt._lock:
         nt._tasks.clear()
@@ -50,8 +50,8 @@ def _aislado(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _sin_modelo(monkeypatch):
-    """`_prepare_web` pide al modelo la esencia del objetivo para la cabecera. Aquí no: un test que dependa de un
-    LLM mide la red, no la decisión."""
+    """`_prepare_web` asks the model for the gist of the goal for the header. Not here: a test that depends on an
+    LLM measures the network, not the decision."""
     async def _fake(_req):
         return ""
     import nucleo.agentes.web as _web
@@ -72,13 +72,13 @@ _REFORMULADO = "mira monitores de segunda mano de 27 pulgadas en Wallapop y comp
 
 
 def test_a_second_worker_never_inherits_a_tab_someone_is_driving():
-    """El caso medido: el segundo worker del mismo encargo NO puede heredar la pestaña del primero."""
+    """The measured case: the second worker for the same request MUST NOT inherit the first worker's tab."""
     primero = _rec("1", _ENCARGO)
     t1 = asyncio.run(dispatch._prepare_web(primero, _ENCARGO))
     assert t1, "el primer worker tiene que conseguir su pestaña"
     assert primero.nav_task == t1
 
-    # El juez del navegador SÍ diría que es la misma navegación — ese es justo el punto de partida del fallo.
+    # The browser judge WOULD say it is the same navigation — that is precisely the starting point of the failure.
     assert nt.find_continuation(_REFORMULADO) is not None, \
         "si esto deja de casar, el test ya no está midiendo la contradicción que existe"
 
@@ -88,7 +88,7 @@ def test_a_second_worker_never_inherits_a_tab_someone_is_driving():
 
 
 def test_three_live_workers_are_three_tabs():
-    """Los tres del plató. El invariante es de CONTEO: tantas pestañas como conductores vivos."""
+    """The three from the test set. The invariant is about COUNT: as many tabs as live drivers."""
     tabs = []
     for i, texto in enumerate((_ENCARGO, _REFORMULADO, "busca monitores 27\" segunda mano baratos en Wallapop"), 1):
         rec = _rec(str(i), texto)
@@ -98,8 +98,8 @@ def test_three_live_workers_are_three_tabs():
 
 
 def test_a_finished_worker_still_hands_its_tab_over():
-    """La continuación NO se rompe: si quien tenía la pestaña ya terminó, el siguiente la reabre — que es para
-    lo que se escribió («no, de enduro» sobre una búsqueda recién acabada)."""
+    """The continuation is NOT broken: if whoever had the tab has already finished, the next one reopens it — that
+    is what it was written for («no, de enduro» about a just-completed search)."""
     primero = _rec("1", _ENCARGO)
     t1 = asyncio.run(dispatch._prepare_web(primero, _ENCARGO))
     primero.status = "done"
@@ -111,8 +111,8 @@ def test_a_finished_worker_still_hands_its_tab_over():
 
 
 def test_the_worker_that_owns_the_tab_keeps_it():
-    """Un mismo record que vuelve a pasar por aquí (reanudación) conserva SU pestaña: el guarda mira si la
-    conduce OTRO, no si está ocupada."""
+    """The same record coming through here again (resumption) keeps ITS tab: the guard checks whether SOMEONE ELSE
+    is driving it, not whether it is occupied."""
     rec = _rec("1", _ENCARGO)
     t1 = asyncio.run(dispatch._prepare_web(rec, _ENCARGO))
     t2 = asyncio.run(dispatch._prepare_web(rec, _REFORMULADO))
