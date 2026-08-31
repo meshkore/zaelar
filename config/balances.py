@@ -59,9 +59,39 @@ def _probe_elevenlabs(key: str) -> dict | None:
         return None                                # fail-open → unknown
 
 
+def _zai_credits_verdict(status_code: int, body: str) -> dict:
+    """Map the 1-token probe's answer to a wallet state. Pure, so the mapping is testable without a network."""
+    if status_code == 200:
+        return {"state": "ok", "detail": "con saldo · MEDIDO: sirve completions (cartera de PAGO POR USO)"}
+    low = (body or "").lower()
+    if "1113" in low or "insufficient" in low:
+        return {"state": "error", "detail": "sin saldo (1113) · cartera de pago por uso"}
+    if status_code in (401, 403):
+        return {"state": "error", "detail": "credencial inválida para paas/v4"}
+    return {"state": "unknown", "detail": f"no se pudo medir (HTTP {status_code})"}
+
+
+def _probe_zai_credits(key: str) -> dict | None:
+    """Z.ai's SECOND wallet — pay-per-use credits at `paas/v4`, a different purse from the coding plan
+    (V2-462 tells them apart by URL segment; V2-517 makes the panel tell them apart too). Z.ai exposes no
+    public balance endpoint (404 on every candidate, measured 2026-08-31), so the only honest reading is a
+    1-token completion: HTTP 200 = the wallet serves, error 1113 = out of balance. Costs ~1 token of
+    glm-4.6, cached by `balance()`'s 5-min TTL, and only ever queried when the plan tier is down."""
+    try:
+        r = httpx.post("https://api.z.ai/api/paas/v4/chat/completions",
+                       headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                       json={"model": "glm-4.6", "messages": [{"role": "user", "content": "hi"}],
+                             "max_tokens": 1},
+                       timeout=max(_TIMEOUT, 12.0))
+        return _zai_credits_verdict(r.status_code, r.text or "")
+    except Exception:
+        return None                                # fail-open → unknown
+
+
 # service -> (env vars that provide the key, probe). Only services with queryable balance.
 _PROBES = {
     "elevenlabs": (["ELEVENLABS_API_KEY"], _probe_elevenlabs),
+    "z.ai-creditos": (["Z_AI_API_KEY"], _probe_zai_credits),
 }
 
 
@@ -183,6 +213,17 @@ def worker_providers() -> list[dict]:
         mark = "EN USO · " if t.get("serving") else ("PRÓXIMO · " if t.get("active") else "")
         out.append({"key": f"worker:{t['name']}", "enables": f"procesos de fondo · {t.get('plan', '')}",
                     "set": True, "state": t["state"], "detail": mark + t.get("detail", "")})
+    # V2-517 (operator, 2026-08-31): z.ai has TWO wallets — the coding-plan quota and the pay-per-use
+    # credits (paas/v4). A flat red "z.ai sin cuota" reads as "z.ai dead", which is false when the OTHER
+    # purse has balance: measured live, the plan was exhausted until 01 Sep while paas/v4 served a
+    # completion. When the plan tier is down, measure the second wallet and SAY it, so the operator knows
+    # whether this can still go well. (It is information, not a chain rung: the worker's relay stays
+    # plan → DeepSeek → license.)
+    if any(t["name"] == "z.ai" and t["state"] != "ok" for t in tiers):
+        bal = balance("z.ai-creditos")
+        if bal.get("state") not in (None, "no_key"):
+            out.append({"key": "worker:z.ai-creditos", "enables": "la SEGUNDA cartera de z.ai (paas/v4)",
+                        "set": True, "state": bal.get("state", "unknown"), "detail": bal.get("detail", "")})
     if tiers and all(t["state"] != "ok" for t in tiers):
         out.append({"key": "worker:sin-relevo", "enables": "procesos de fondo", "set": True, "state": "error",
                     "detail": "NINGÚN proveedor con cuota — los procesos de fondo no pueden correr"})
