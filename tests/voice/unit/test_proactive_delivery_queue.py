@@ -1,13 +1,13 @@
 """Proactive messages leave ONE AT A TIME, in arrival order — the operator's spec, verbatim (2026-08-31):
 
-    «tiene que tener un buffer de un mensaje que le quiere lanzar y cuando ya se lo ha explicado le manda
-     otro … si hay dos tareas a la vez y terminan simultáneamente, primero se informará al usuario de una
-     tarea y después de la segunda.»
+    “it has to have a buffer for one message it wants to deliver, and once it has explained it, it sends
+     another … if there are two tasks at the same time and they finish simultaneously, the user will first
+     be informed about one task and then the second.”
 
 Until this queue, NOTHING serialized concurrent notifies: each waited for quiet on its own, two workers
 finishing in the same instant both saw silence, and both called `session.say` — order and overlap were
 LiveKit's internal scheduling, not a decision of ours. The V2-047 F7 instrumentation had already named the fix
-(«el fix es SERIALIZAR») and stayed telemetry-only.
+(“the fix is to SERIALIZE”) and stayed telemetry-only.
 
 The queue is cross-LOOP on purpose (tickets + threading.Condition, entered via `asyncio.to_thread`): notifies
 arrive from whatever loop their caller runs on — uvicorn workers, the orchestrator, messaging — and an

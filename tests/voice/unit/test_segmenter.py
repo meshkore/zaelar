@@ -1,18 +1,18 @@
 """
-TURNOS POR SENTIDO (V2-095, 2026-08-14) — el límite del turno deja de ser solo acústico.
+TURN-TAKING BY MEANING (V2-095, 2026-08-14) — the turn boundary is no longer merely acoustic.
 
-El operador dictaba una petición larga y cada pausa para pensar abría un turno que el fragmento siguiente
-cancelaba. Sesión b70a45d0, tramo de dictado:
+The operator dictated a long request, and every pause to think opened a turn that the next fragment
+cancelled. Session b70a45d0, dictation segment:
 
-    465s → 626s (161 s):  22 prompts · 18 cancelados · 20 rellenos de espera · CERO respuestas
+    465s → 626s (161 s):  22 prompts · 18 cancelled · 20 waiting fillers · ZERO responses
 
-…con prompts montados sobre «del», «del software,», «a», «para que», «Un un superplanning». En toda la sesión: 89
-transcripciones finales, 33 seguidas de cancelación, 53 prompts para 11 respuestas (79% del gasto tirado) y una
-escalada a worker lanzada sobre una petición truncada que el operador tuvo que cancelar.
+…with prompts built on «del», «del software,», «a», «para que», «Un un superplanning». Across the entire session: 89
+final transcriptions, 33 followed by cancellation, 53 prompts for 11 responses (79% of the spend wasted), and an
+escalation to a worker launched on a truncated request that the operator had to cancel.
 
-Los casos de este fichero son los 89 fragmentos REALES. El corpus manda sobre cualquier intuición gramatical: la
-primera versión de la regla («corta y sin cerrar») retenía TODAS las órdenes cortas del operador —«pon música»,
-«abre la agenda»— y se cazó midiendo, no leyendo.
+The cases in this file are the 89 REAL fragments. The corpus takes precedence over any grammatical intuition: the
+first version of the rule («short and unfinished») held ALL of the operator's short commands —«pon música»,
+«abre la agenda»— and this was caught by measuring, not reading.
 """
 from __future__ import annotations
 
@@ -23,17 +23,17 @@ import pytest
 from nucleo.flash import segmenter as sg
 
 
-# ── LO QUE NO SE PUEDE RETENER NUNCA ───────────────────────────────────────────────────────────────────────────
-# Un falso positivo aquí es peor que el bug original: el operador da una orden y el agente se queda 6 s callado.
-# Las órdenes cortas son lo más frecuente que dice, y «sí» es cómo autoriza algo irreversible.
+# ── WHAT MUST NEVER BE HELD ───────────────────────────────────────────────────────────────────────────────────
+# A false positive here is worse than the original bug: the operator gives a command and the agent stays silent for 6 s.
+# Short commands are what the operator says most often, and «sí» is how they authorize something irreversible.
 @pytest.mark.parametrize("orden", [
     "abre la agenda", "sube el volumen", "pon música", "cierra eso", "enséñame la agenda",
     "siguiente canción", "vacía la agenda", "ponme el vídeo de Messi", "deja de buscar",
-    # «para» a secas es una ORDEN de parar, aunque también sea preposición.
+    # «para» by itself is a STOP command, even though it is also a preposition.
     "para", "para la música", "párala", "cancélalo", "sigue",
-    # respuestas y confirmaciones: cómo el operador contesta a una pregunta del agente.
+    # replies and confirmations: how the operator answers a question from the agent.
     "sí", "no", "vale", "gracias",
-    # LA FRASE DEL INCIDENTE: con esto autorizó al worker. Retenerla habría sido el mismo fallo por el otro lado.
+    # THE INCIDENT PHRASE: this is how they authorized the worker. Holding it would have been the same failure in reverse.
     "sí, te autorizo a borrar toda la agenda",
 ])
 def test_las_ordenes_y_respuestas_nunca_se_retienen(orden):
@@ -41,7 +41,7 @@ def test_las_ordenes_y_respuestas_nunca_se_retienen(orden):
     assert hold is False, f"«{orden}» se retendría por «{why}» — eso deja al operador esperando por nada"
 
 
-# ── LOS FRAGMENTOS REALES QUE SÍ IBAN A MEDIAS ────────────────────────────────────────────────────────────────
+# ── THE REAL FRAGMENTS THAT WERE INDEED INCOMPLETE ───────────────────────────────────────────────────────────
 @pytest.mark.parametrize("frag,motivo", [
     ("Bueno, si no me equivoco,", "coma"),
     ("del", "palabra función"),
@@ -59,10 +59,10 @@ def test_las_ordenes_y_respuestas_nunca_se_retienen(orden):
     ("Siguen quedando cuatro ítems en", "preposición colgada"),
     ("Y tiene que haber", "verbo sin complemento"),
     ("Cierra todos los", "artículo colgado"),
-    # El STT pone puntos donde le parece: llevar punto NO significa estar acabada.
+    # STT inserts periods wherever it wants: ending in a period does NOT mean the request is finished.
     ("No el widget, los datos de la.", "acaba en «la» AUNQUE lleve punto"),
     ("planning de...", "acaba en «de» con puntos suspensivos"),
-    # Continuaciones que EMPIEZAN por palabra función.
+    # Continuations that BEGIN with a function word.
     ("de framework y y cómo hacer una auditoría", "empieza por «de»"),
 ])
 def test_los_fragmentos_reales_a_medias_se_retienen(frag, motivo):
@@ -71,7 +71,7 @@ def test_los_fragmentos_reales_a_medias_se_retienen(frag, motivo):
     assert why, "una retención sin motivo es un turno que no llega y nadie sabe por qué"
 
 
-# ── LO QUE SÍ ES UNA PETICIÓN COMPLETA (de la misma sesión) ───────────────────────────────────────────────────
+# ── WHAT IS A COMPLETE REQUEST (from the same session) ──────────────────────────────────────────────────────
 @pytest.mark.parametrize("frase", [
     "Enséñame ahora mi agenda.",
     "Calendarios, tareas predeterminadas, déjamela vacía por completo.",
@@ -91,19 +91,19 @@ def test_las_peticiones_completas_pasan(frase):
     assert hold is False, f"«{frase}» está completa y se retendría por «{why}»"
 
 
-# ── «mi»/«mí» — el detector ignoraba al operador de verdad (2026-08-16, sesión 1021eeee) ─────────────────────────
-# «dame los datos personales que conoces de mi» se retuvo TRES veces seguidas sin generar ni voz ni acción — el
-# accumulator (V2-096) no tiene válvula de tiempo por diseño, así que una frase mal clasificada como incompleta se
-# queda sin respuesta PARA SIEMPRE, no solo retrasada. Causa: «mí» (pronombre, «de mí»/«sobre mí»/«para mí») es
-# fonéticamente IDÉNTICO a la posesiva «mi» sin tilde, y el STT rara vez conserva la tilde en un monosílabo — la
-# excepción por acento (`_ACCENTED_NOT_FUNCTION`) solo protegía el caso raro en que SÍ la conservaba.
+# ── «mi»/«mí» — the detector ignored the actual operator (2026-08-16, session 1021eeee) ─────────────────────
+# «dame los datos personales que conoces de mi» was held THREE times in a row without generating speech or an action — the
+# accumulator (V2-096) has no time-based safety valve by design, so a sentence misclassified as incomplete
+# remains unanswered FOREVER, not merely delayed. Cause: «mí» (pronoun, «de mí»/«sobre mí»/«para mí») is
+# phonetically IDENTICAL to possessive «mi» without an accent, and STT rarely preserves the accent in a monosyllable — the
+# accent exception (`_ACCENTED_NOT_FUNCTION`) only protected the rare case in which it DID preserve it.
 @pytest.mark.parametrize("frase", [
     "dame los datos personales que conoces de mi",
     "cuéntame lo que sabes de mi",
     "¿qué opinas de mi?",
     "esto es para mi",
     "habla de mi",
-    "dame los datos personales que conoces de mí",   # con tilde: ya funcionaba, no debe regresar
+    "dame los datos personales que conoces de mí",   # with accent: already worked, must not regress
 ])
 def test_terminar_en_mi_sin_tilde_no_se_retiene_para_siempre(frase):
     hold, why = sg.should_hold(frase)
@@ -111,32 +111,32 @@ def test_terminar_en_mi_sin_tilde_no_se_retiene_para_siempre(frase):
 
 
 def test_mi_posesiva_sigue_incompleta_como_palabra_suelta():
-    """El fix es SOLO para «mi» al final de la frase — como palabra suelta («mi» a secas) sigue sin ser un turno,
-    y «mi» posesiva seguida de sustantivo («mi coche…») nunca llega a este caso porque no termina en «mi»."""
+    """The fix is ONLY for «mi» at the end of a sentence — as a standalone word («mi» by itself) it remains ambiguous,
+    and possessive «mi» followed by a noun («mi coche…») never reaches this case because it does not end in «mi»."""
     hold, why = sg.should_hold("mi")
     assert hold is True, "una «mi» suelta sigue siendo ambigua, no una petición"
 
 
-# ── LOS INVARIANTES ────────────────────────────────────────────────────────────────────────────────────────────
+# ── INVARIANTS ────────────────────────────────────────────────────────────────────────────────────────────────
 def test_el_techo_de_retencion_entrega_siempre():
-    """La capa semántica puede RETRASAR un turno, nunca perderlo. Un operador que se corta a mitad («…y ponerlo
-    en la») no puede quedarse sin respuesta para siempre por una coma."""
+    """The semantic layer may DELAY a turn, but never lose it. An operator who stops halfway («…y ponerlo
+    en la») must not remain unanswered forever because of a comma."""
     frag = "y ponerlo en la"
     assert sg.should_hold(frag, held_s=0.0)[0] is True
     assert sg.should_hold(frag, held_s=sg.MAX_HOLD_S + 0.1) == (False, "techo de retención")
 
 
 def test_fail_open_ante_cualquier_cosa_rara():
-    """Retener de más convierte un agente lento en un agente mudo: ante la duda, PASA."""
+    """Holding too much turns a slow agent into a mute agent: when in doubt, PASS."""
     for raro in ["", "   ", "…", "!!!", "🙂", None]:
         assert sg.should_hold(raro)[0] is False, repr(raro)
 
 
 def test_el_juez_esta_ENCENDIDO_por_defecto(monkeypatch):
-    """V2-102: ya no es opt-in (`ZAELAR_SEGMENTER_MODEL`, que nadie llegó a leer nunca — un hueco declarado y
-    jamás cableado). Este codebase ya se ha encontrado tres veces con "una capacidad cuyo defecto está apagado es
-    una capacidad que nadie tiene" (Susurro, REM, el propio segmentador) — la cuarta no iba a ser esta. Sigue
-    habiendo un escape manual, `ZAELAR_TURN_JUDGE=0`, para emergencias."""
+    """V2-102: it is no longer opt-in (`ZAELAR_SEGMENTER_MODEL`, which nobody ever got around to reading — a declared
+    but never wired gap). This codebase has already encountered "a capability whose default is off is a capability
+    nobody has" three times (Whisper, REM, the segmenter itself) — this was not going to be the fourth. There is still
+    a manual escape hatch, `ZAELAR_TURN_JUDGE=0`, for emergencies."""
     monkeypatch.delenv("ZAELAR_TURN_JUDGE", raising=False)
     assert sg.judge_enabled() is True
     monkeypatch.setenv("ZAELAR_TURN_JUDGE", "0")
@@ -152,7 +152,7 @@ def test_parse_judge_lee_los_tres_veredictos():
 
 
 def test_parse_judge_ASK_sin_pregunta_hace_fail_open():
-    """Un ASK sin texto de pregunta no es accionable — no hay nada que decir en voz alta."""
+    """An ASK without question text is not actionable — there is nothing to say aloud."""
     assert sg._parse_judge('{"verdict": "ASK", "question": null}') == ("incomplete", "")
 
 
@@ -183,8 +183,8 @@ def test_judge_texto_vacio_no_llama_a_nadie(monkeypatch):
 
 
 def test_judge_llama_al_modelo_y_parsea_su_respuesta(monkeypatch):
-    """El caso real que motivó todo esto: la capa léxica ya dijo incompleta (ver test_segmenter.py de arriba),
-    el juez la corrige."""
+    """The real case that motivated all this: the lexical layer already said incomplete (see test_segmenter.py above),
+    and the judge corrects it."""
     captured = {}
 
     async def _fake_to_thread(fn, *args, **kwargs):
@@ -206,7 +206,7 @@ def test_judge_fail_open_si_el_modelo_revienta(monkeypatch):
     assert asyncio.run(sg.judge("Ahora vamos a")) == ("incomplete", "")
 
 
-# ── EL DETECTOR DE LIVEKIT ────────────────────────────────────────────────────────────────────────────────────
+# ── THE LIVEKIT DETECTOR ─────────────────────────────────────────────────────────────────────────────────────
 class _Msg:
     def __init__(self, text, role="user"):
         self.role = role
@@ -232,8 +232,8 @@ def test_el_detector_veta_lo_incompleto_y_deja_pasar_lo_completo():
 
 
 def test_se_queda_con_la_probabilidad_MAS_BAJA_de_las_dos():
-    """Compone con el detector local de LiveKit, no lo sustituye: cualquiera de los dos que diga «aún no» manda.
-    Nuestra capa no sabe de prosodia; la suya no sabe de palabras colgadas."""
+    """It composes with LiveKit's local detector rather than replacing it: whichever of the two says «not yet» wins.
+    Our layer knows nothing about prosody; theirs knows nothing about dangling words."""
     class _Inner:
         model = "inner"
         async def unlikely_threshold(self, language=None): return 0.2
@@ -255,8 +255,8 @@ def test_un_detector_interior_roto_no_tumba_el_turno():
 
 
 def test_declara_soporte_para_cualquier_idioma():
-    """Decir que no soportamos un idioma apagaría TAMBIÉN al detector interior. Si el idioma no es es/en, el
-    análisis léxico no encuentra nada colgado y devuelve «completo» — el comportamiento de antes."""
+    """Saying that we do not support a language would ALSO disable the inner detector. If the language is not es/en,
+    lexical analysis finds nothing dangling and returns «complete» — the previous behavior."""
     import asyncio
     from voice.engine.speech.turn.semantic import SemanticTurnDetector
     d = SemanticTurnDetector(None)
@@ -266,7 +266,7 @@ def test_declara_soporte_para_cualquier_idioma():
 
 def test_esta_registrado_como_proveedor():
     from voice.engine.speech.turn import registry
-    import voice.engine.speech.turn.semantic  # noqa: F401  (el registro ocurre al importar)
+    import voice.engine.speech.turn.semantic  # noqa: F401  (registration occurs on import)
     assert registry.create("semantic") is not None
 
 
@@ -280,17 +280,17 @@ def test_esta_ENCENDIDO_por_defecto(monkeypatch):
     """
     import importlib
     monkeypatch.delenv("ZAELAR_TURN", raising=False)
-    # Se recarga SOLO `config` (recalcula el defecto leyendo el entorno). Recargar el paquete `turn` NO vale: crea un
-    # `Registry` nuevo y vacío, porque los `@registry.register` viven en módulos ya cacheados que no se re-ejecutan.
+    # Reload ONLY `config` (it recalculates the default by reading the environment). Reloading the `turn` package does NOT work:
+    # it creates a new, empty `Registry`, because the `@registry.register` decorators live in cached modules that are not re-executed.
     cfg = importlib.reload(importlib.import_module("voice.engine.core.config"))
     assert cfg.SETTINGS.turn_provider == "semantic", (
         f"el defecto de turn_provider es {cfg.SETTINGS.turn_provider!r}: con «disabled» el fin de turno vuelve a "
         f"ser silencio puro y toda V2-095 queda muerta sin que ningún test se entere")
 
-    # Y el ensamblado tiene que devolver un detector de verdad con ese valor (no `None`, que es lo que devuelve la
-    # rama «disabled» y lo que el motor traduce a `turn_detection="vad"`).
-    # `SETTINGS` es un dataclass CONGELADO (no se le asigna un campo): se sustituye el objeto del módulo por una
-    # copia con el valor puesto, así el test no depende de que el entorno del operador tenga `ZAELAR_TURN` a mano.
+    # Assembly must also return a real detector with that value (not `None`, which the «disabled» branch returns and
+    # which the engine translates to `turn_detection="vad"`).
+    # `SETTINGS` is a FROZEN dataclass (a field cannot be assigned): the module object is replaced with a copy carrying
+    # the value, so the test does not depend on the operator's environment having `ZAELAR_TURN` set.
     import dataclasses
     from voice.engine.speech import turn as turn_mod
     monkeypatch.setattr(turn_mod, "SETTINGS",
@@ -300,9 +300,8 @@ def test_esta_ENCENDIDO_por_defecto(monkeypatch):
 
 
 def test_sin_modelo_ONNX_la_capa_lexica_sigue_decidiendo():
-    """El ONNX no puede cargar aquí (el job corre en un HILO y su `InferenceRunner` exige el principal), así que el
-    camino REAL de producción es `inner=None`. Ese camino tiene que decidir igual, o el detector sería un envoltorio
-    que no hace nada."""
+    """ONNX cannot load here (the job runs in a THREAD and its `InferenceRunner` requires the main thread), so the
+    REAL production path is `inner=None`. That path must decide as well, or the detector would be a wrapper that does nothing."""
     from voice.engine.speech.turn.semantic import SemanticTurnDetector
     det = SemanticTurnDetector(inner=None)
 
@@ -314,11 +313,11 @@ def test_sin_modelo_ONNX_la_capa_lexica_sigue_decidiendo():
         def __init__(self, c): self.items = [_M(c)]
 
     assert asyncio.run(det.predict_end_of_turn(_Ctx("y ponerlo en la"))) < 0.5      # retiene
-    assert asyncio.run(det.predict_end_of_turn(_Ctx("páralo todo."))) > 0.5         # orden de parar: pasa
+    assert asyncio.run(det.predict_end_of_turn(_Ctx("páralo todo."))) > 0.5         # stop command: passes
     assert asyncio.run(det.predict_end_of_turn(_Ctx("pon música"))) > 0.5           # orden corta: pasa
 
 
-# ── LA MEDICIÓN, como test ────────────────────────────────────────────────────────────────────────────────────
+# ── THE MEASUREMENT, as a test ───────────────────────────────────────────────────────────────────────────────
 _SESION = [
     "Bueno, si no me equivoco,", "esta es nuestra instalación local, ¿verdad? Cierra todos los", "widgets,",
     "Enséñame ahora mi agenda.", "Vale,", "todos los datos de la agenda", "absolutamente.",
@@ -357,17 +356,17 @@ _SESION = [
 
 
 def test_sobre_la_sesion_real_evita_al_menos_un_tercio_de_las_llamadas():
-    """El número que justifica todo esto. No es una estimación: son las transcripciones de la sesión.
-    Medido hoy: 43 de 89 = 48%. El listón se pone en 1/3 para que un ajuste fino de la regla no rompa el test,
-    pero una caída por debajo de eso significa que la regla se ha quedado sin fuerza."""
+    """The number that justifies all this. It is not an estimate: these are the session transcriptions.
+    Measured today: 43 of 89 = 48%. The threshold is set at 1/3 so that fine-tuning the rule does not break the test,
+    but a drop below that means the rule has lost its strength."""
     retenidos = [t for t in _SESION if sg.should_hold(t)[0]]
     assert len(retenidos) >= len(_SESION) // 3, (
         f"solo retiene {len(retenidos)}/{len(_SESION)}; el tramo de dictado volvería a costar 22 prompts")
 
 
 def test_ninguna_frase_terminada_en_punto_con_verbo_se_retiene_por_error():
-    """Control de daños: de los 89, las que acaban en punto y NO acaban en palabra función tienen que pasar todas.
-    Es la forma normal de una petición acabada, y retenerla sería el falso positivo caro."""
+    """Damage control: of the 89, every item that ends in a period and does NOT end in a function word must pass.
+    This is the normal form of a finished request, and holding it would be the costly false positive."""
     import re
     for t in _SESION:
         if re.search(r"[.!?]\s*$", t) and not sg.looks_incomplete(t)[0]:

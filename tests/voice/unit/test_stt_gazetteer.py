@@ -1,9 +1,9 @@
-"""voice/engine/speech/stt/gazetteer.py — el refuerzo de términos del STT remoto.
+"""voice/engine/speech/stt/gazetteer.py — reinforcement of terms for the remote STT.
 
-El caso que lo motivó es real y está medido: Deepgram partió «Calatayud» en «cal»+«a», el segmentador pegó 23
-fragmentos y el destilador acabó escribiendo que el operador vive en un sitio donde no vive. Estos tests cubren
-las dos mitades que importan: que los nombres que fallaron ESTÁN, y que la lista no puede crecer hasta dejar
-el motor sordo — pasarse del tope de Deepgram es un 400 en la petición de escucha, o sea ningún STT.
+The incident that motivated it is real and measured: Deepgram split «Calatayud» into «cal»+«a», the segmenter joined 23
+fragments, and the distiller ended up writing that the operator lives somewhere he does not. These tests cover
+the two halves that matter: that the names that failed ARE present, and that the list cannot grow until it leaves
+the engine deaf — exceeding Deepgram’s limit produces a 400 on the listening request, meaning no STT.
 """
 from __future__ import annotations
 
@@ -21,22 +21,22 @@ def _sin_cache():
     gz._load.cache_clear()
 
 
-# ── el sobre medido: pasarse es quedarse SORDO ──────────────────────────────────────────────────────────────
+# ── the measured envelope: exceeding it means going DEAF ─────────────────────────────────────────────────────
 
 def test_la_lista_que_se_publica_cabe_en_el_tope_de_deepgram():
-    """El trinquete de verdad. Deepgram cuenta SUB-TOKENS, no entradas, así que no hay forma de contarlo desde
-    aquí: lo que se guarda es el sobre que se midió contra la API viva (114 nombres reales / 1221 chars el
-    2026-08-23) con margen, porque estos nombres son más raros que los que se bisectaron y cuestan más tokens
-    cada uno. Si alguien añade veinte pueblos, este test se pone rojo ANTES de que el operador se quede sin voz."""
+    """The real ratchet. Deepgram counts SUB-TOKENS, not entries, so there is no way to count them from here:
+what is stored is the envelope measured against the live API (114 real names / 1221 chars on 2026-08-23) with
+headroom, because these names are rarer than the ones that were bisected and cost more tokens each. If someone
+adds twenty towns, this test turns red BEFORE the operator loses their voice."""
     shipped = gz._load("es")
-    assert shipped, "sin lista no hay refuerzo — el fichero de datos no se está publicando"
-    assert len(shipped) <= gz.MAX_TERMS, f"{len(shipped)} términos supera el tope medido ({gz.MAX_TERMS})"
+    assert shipped, "without a list there is no reinforcement — the data file is not being published"
+    assert len(shipped) <= gz.MAX_TERMS, f"{len(shipped)} terms exceed the measured limit ({gz.MAX_TERMS})"
     assert sum(len(t) for t in shipped) <= gz.MAX_CHARS
 
 
 def test_el_clamp_recorta_aunque_el_fichero_crezca():
-    """Cinturón además de tirantes: el test de arriba guarda el fichero, esto guarda la llamada. Uno de más no
-    es un pueblo mal transcrito, es la sesión entera sin transcribir."""
+    """Belt as well as braces: the test above guards the file; this one guards the call. One too many is not a
+town transcribed incorrectly; it is the entire session left untranscribed."""
     assert len(gz._clamp([f"Pueblo{i}" for i in range(500)])) <= gz.MAX_TERMS
     assert sum(len(t) for t in gz._clamp(["x" * 100] * 50)) <= gz.MAX_CHARS
 
@@ -46,65 +46,65 @@ def test_un_idioma_sin_lista_no_refuerza_nada():
     assert gz.terms("") == []
 
 
-# ── que el arreglo LLEGUE al caso que lo motivó ─────────────────────────────────────────────────────────────
+# ── make the fix REACH the incident that motivated it ─────────────────────────────────────────────────────────
 
 def test_los_nombres_que_fallaron_estan_en_la_lista():
-    """Sin esto el módulo puede estar perfecto y no servir de nada. Estos dos son los del incidente del
-    operador, y son justo los que un criterio por POBLACIÓN habría dejado fuera: Calatayud es el #429 y Valls
-    el #321, así que con 114 huecos ninguno entra. Por eso el criterio es el riesgo medido, no el tamaño."""
+    """Without this, the module can be perfect and still be useless. These two are from the operator’s incident,
+and they are exactly the ones a POPULATION-based criterion would have left out: Calatayud is #429 and Valls
+is #321, so neither would fit among 114 slots. That is why the criterion is measured risk, not size."""
     shipped = {t.lower() for t in gz._load("es")}
     for nombre in ("calatayud", "valls"):
         assert nombre in shipped, f"«{nombre}» se cayó de la lista — es uno de los que rompieron en vivo"
 
 
 def test_la_lista_no_gasta_huecos_en_los_que_deepgram_ya_acierta():
-    """El defecto simétrico, y el que tendría una lista ordenada por población: quemar el presupuesto en
-    Madrid y Barcelona, que nova-3 transcribe bien, y no llegar a los que fallan."""
+    """The symmetrical defect, and the one a population-ordered list would have: burning the budget on Madrid
+and Barcelona, which nova-3 transcribes correctly, and never reaching the ones that fail."""
     shipped = {t.lower() for t in gz._load("es")}
     for nombre in ("madrid", "barcelona", "sevilla", "bilbao"):
         assert nombre not in shipped, f"«{nombre}» no falla; ocupa un hueco que necesita otro"
 
 
-# ── el cableado: mandar la lista, y NO mandarla cuando mandarla rompe ───────────────────────────────────────
+# ── the wiring: send the list, and DO NOT send it when doing so breaks things ───────────────────────────────
 
 def test_una_sesion_en_castellano_manda_los_terminos(monkeypatch):
     monkeypatch.setattr(langs, "first_run_auto", lambda: False)
     monkeypatch.setattr(langs, "current_code", lambda: "es")
     stt = dg.build()
-    assert stt._opts.keyterm, "la sesión del operador no lleva refuerzo: el gazetteer no está cableado"
+    assert stt._opts.keyterm, "the operator’s session has no reinforcement: the gazetteer is not wired in"
     assert "Calatayud" in stt._opts.keyterm
 
 
 def test_la_primera_ejecucion_NO_manda_terminos(monkeypatch):
-    """Con el idioma sin elegir el STT va en `multi` para que `i18n.init.detect` clasifique la primera frase.
-    Sembrarla de topónimos españoles sesga justo esa decisión."""
+    """When no language has been selected, the STT runs in `multi` so that `i18n.init.detect` can classify the
+first sentence. Seeding it with Spanish place names biases exactly that decision."""
     monkeypatch.setattr(langs, "first_run_auto", lambda: True)
     stt = dg.build()
     assert not stt._opts.keyterm
 
 
 def test_un_modelo_que_no_es_nova3_NO_manda_terminos(monkeypatch):
-    """Guarda de CABLEADO y el más caro de todos: el plugin LANZA con `keyterm` fuera de nova-3, y lo hace
-    mientras se construye la sesión — o sea que un `ZAELAR_STT_MODEL_DG=nova-2` se llevaría por delante el STT
-    entero. Aquí se comprueba que se construye, no que la condición esté escrita."""
+    """Wiring safeguard and the most costly one: the plugin CRASHES with `keyterm` outside nova-3, and it does so
+while the session is being built — meaning a `ZAELAR_STT_MODEL_DG=nova-2` would bring down the entire STT.
+This checks that it builds, not that the condition is written."""
     import dataclasses
 
     from voice.engine.core.config import SETTINGS
     monkeypatch.setattr(langs, "first_run_auto", lambda: False)
     monkeypatch.setattr(langs, "current_code", lambda: "es")
-    # `SETTINGS` es un dataclass CONGELADO, así que no se le puede asignar el campo: se sustituye el objeto que
-    # ve el módulo. Vale la pena dejarlo escrito porque la primera versión de este test falló por eso y no por
-    # el código que mide.
+    # `SETTINGS` is a FROZEN dataclass, so its field cannot be assigned: the object seen by the module is replaced.
+    # It is worth documenting this because the first version of this test failed for that reason, not because of
+    # the code under test.
     monkeypatch.setattr(dg, "SETTINGS", dataclasses.replace(SETTINGS, stt_model_deepgram="nova-2"))
-    stt = dg.build()                       # si el guarda no está, esto es un ValueError y no un assert
+    stt = dg.build()                       # without the safeguard, this is a ValueError, not an assertion failure
     assert not stt._opts.keyterm
 
 
-# ── el enganche a la memoria: PREPARADO Y APAGADO ───────────────────────────────────────────────────────────
+# ── the memory hook: READY AND OFF ──────────────────────────────────────────────────────────────────────────
 
 def test_la_memoria_esta_apagada_por_defecto(monkeypatch):
-    """Encenderlo manda a un tercero los nombres de la gente que conoce y los sitios donde ha estado. Es una
-    decisión del operador con su coste dicho, no un defecto que se cuela."""
+    """Turning it on sends a third party the names of people it knows and the places it has been. It is an
+operator decision with its cost stated, not a defect that slips in unnoticed."""
     monkeypatch.delenv(gz.MEMORY_ENV, raising=False)
     assert gz.memory_terms() == []
 

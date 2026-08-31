@@ -79,7 +79,7 @@ def test_a_broken_mailbox_never_raises_into_the_caller():
     real = bn.push
     bn.push = lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom"))
     try:
-        asyncio.run(proactive.notify("Navegador", "algo"))   # no debe lanzar
+        asyncio.run(proactive.notify("Navegador", "algo"))   # must not raise
     finally:
         bn.push = real
 

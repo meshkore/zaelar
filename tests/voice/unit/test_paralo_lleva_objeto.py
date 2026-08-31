@@ -1,11 +1,11 @@
-"""V2-393 — «páralo» habla de una COSA, y el barge-in se lo comía.
+"""V2-393 — «páralo» refers to a THING, and the barge-in was swallowing it.
 
-Un stop duro salta el gate de atención y **no genera respuesta**: es para callar a zaelar cuando está hablando
-encima. El clítico entró en esa regla a propósito, con este razonamiento escrito: «con pronombre pegado ya NO es
-la preposición para, así que es inequívoco». Cierto — y confunde *inequívoco COMO VERBO* con *inequívoco SOBRE
-QUÉ*.
+A hard stop skips the attention gate and **does not generate a response**: it is for silencing zaelar when it is speaking
+over someone. The clitic was deliberately included in that rule, with this reasoning written down: «with a pronoun
+attached, it is NO LONGER the preposition para, so it is unambiguous». True — and it confuses *unambiguous AS A VERB*
+with *unambiguous ABOUT WHAT*.
 
-Medido en `watch-a-video-not-listen-to-it` (2026-08-27 14:04), que había pasado **5/5 dos horas antes**:
+Measured in `watch-a-video-not-listen-to-it` (2026-08-27 14:04), which had passed **5/5 two hours earlier**:
 
     tester  Pon el vídeo del tráiler de la última de Dune.
     zaelar  Ya lo tienes en pantalla: «Dune: Parte Tres | Tráiler Oficial».
@@ -14,12 +14,12 @@ Medido en `watch-a-video-not-listen-to-it` (2026-08-27 14:04), que había pasado
     tester  Ahora páralo, porfa.
     zaelar  Perdona, ¿me lo repites?
 
-El turno entero desapareció. Y la prueba de que la orden era clara la dio el propio tester: la repitió con otras
-palabras —«Que pares el vídeo, porfa»— y funcionó **a la primera**. El guarda era nuestro.
+The entire turn disappeared. And the tester themselves proved that the command was clear: they repeated it in other
+words —«Que pares el vídeo, porfa»— and it worked **the first time**. The guard was ours.
 
-La regla que queda: un barge-in **no tiene objeto**, es callar. El reflexivo/dativo («párate», «detente») habla
-de zaelar; el acusativo de tercera («páralo», «detenla») lleva objeto directo, o sea que va sobre una cosa — y
-eso lo resuelve el router, que para eso tiene las data-ops del widget.
+The remaining rule: a barge-in **has no object**; it is for silencing. The reflexive/dative («párate», «detente»)
+refers to zaelar; the third-person accusative («páralo», «detenla») takes a direct object, meaning it refers to a
+thing — and the router resolves that, since it has the widget's data ops for that purpose.
 """
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ import pytest
 from voice import attention as A
 
 
-# ── lo que va sobre una COSA ya NO calla el turno ───────────────────────────────────────────────────────────
+# ── something referring to a THING no longer silences the turn ────────────────────────────────────────────────
 
 @pytest.mark.parametrize("frase", [
-    "Ahora páralo, porfa",          # la frase REAL de la ronda
+    "Ahora páralo, porfa",          # the REAL phrase from the run
     "páralo",
     "párala",
     "páralos",
@@ -42,13 +42,13 @@ def test_el_acusativo_lleva_OBJETO_y_no_es_un_barge_in(frase):
     assert A.hard_interrupt(frase) is None, "lleva objeto directo: es una orden sobre una cosa, no callarse"
 
 
-# ── y lo que va sobre ZAELAR sigue callándolo ───────────────────────────────────────────────────────────────
+# ── and something referring to ZAELAR still silences it ───────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("frase", [
-    "para",                          # la preposición ambigua, resuelta por la regla BLANDA (turno corto)
-    "párate",                        # reflexivo → es él
+    "para",                          # the ambiguous preposition, resolved by the SOFT rule (short turn)
+    "párate",                        # reflexive → it is him
     "detente",
-    "páreme",                        # dativo → es a mí a quien deja de hablar
+    "páreme",                        # dative → I am the one it stops speaking to
     "cállate",
     "basta",
     "silencio",
@@ -60,28 +60,28 @@ def test_lo_que_habla_de_ZAELAR_sigue_siendo_un_stop_duro(frase):
 
 
 def test_pararlo_TODO_sigue_siendo_global():
-    """«todo» no es una cosa concreta: ahí el objeto no acota, abarca."""
+    """«todo» is not a specific thing: there, the object does not narrow the scope; it encompasses everything."""
     assert A.hard_interrupt("páralo todo") == "stop"
     assert A.hard_interrupt("páralas todas") == "stop"
 
 
 def test_cerrar_TODO_no_se_toca():
-    """La otra mitad de la función, que este cambio no roza."""
+    """The other half of the function, which this change does not touch."""
     assert A.hard_interrupt("cierra todo") == "close"
 
 
-# ── lo que este arreglo NO cierra, dicho en vez de descubierto ─────────────────────────────────────────────
+# ── what this fix does NOT close, stated rather than discovered ──────────────────────────────────────────────
 
 def test_PREEXISTENTE_una_preposicion_en_turno_corto_sigue_callando_el_turno():
-    """`_STOP_SOFT_RE` + «≤4 palabras» dispara con «para la cena» (3 palabras) — y su propio comentario dice que
-    existe para evitarlo. Comprobado contra el código ANTERIOR a este cambio: ya era así, no lo introduce esto.
+    """`_STOP_SOFT_RE` + «≤4 words» triggers on «para la cena» (3 words) — and its own comment says it exists to
+    prevent this. Checked against the code BEFORE this change: it was already like this; this does not introduce it.
 
-    No se toca aquí porque es OTRA regla (la blanda, la de la preposición ambigua) y su arreglo es mover un
-    umbral que protege el barge-in de verdad: pide su propia medida, no ir de paso.
+    It is not touched here because it is a DIFFERENT rule (the soft one, for the ambiguous preposition), and fixing it
+    means moving a threshold that genuinely protects the barge-in: it requires its own measurement, not a quick pass.
     """
     assert A.hard_interrupt("para la cena") == "stop"
 
 
 def test_PREEXISTENTE_el_imperativo_plural_nunca_estuvo_en_la_lista():
-    """«parad»/«paradme» no está entre los verbos del patrón, ni antes ni ahora. Hueco conocido, no regresión."""
+    """«parad»/«paradme» is not among the verbs in the pattern, either before or now. Known gap, not a regression."""
     assert A.hard_interrupt("paradme") is None

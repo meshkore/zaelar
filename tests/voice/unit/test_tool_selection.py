@@ -1,16 +1,16 @@
-"""Selección PROGRESIVA de tools — V2-096 Fase 2, nodo 3.10.
+"""PROGRESSIVE tool selection — V2-096 Phase 2, node 3.10.
 
-Peticón del operador: «cuando alguien dice "hola, ¿qué tal?" no le vamos a mandar todos los widgets, todas las
-tools… ir encaminando la dirección».
+Operator request: «when someone says "hello, how are you?" we are not going to send them every widget, every
+tool… gradually steer the direction».
 
-Lo que estos tests protegen, por orden de importancia:
-  1. **Que recortar no deje un turno sin salida.** Medido sobre los 14 casos del nodo 2.13: cero casos se quedan sin
-     ninguna tool aceptable, y el catálogo baja un 51,4% de chars.
-  2. **Que exista la escotilla.** Recuperar no es comprender: cuando se recorta, el modelo tiene que poder pedir la
-     familia que le falta (`need_capability`) y provocar UN segundo viaje medible. Sin ella, una recuperación
-     equivocada es una capacidad negada en silencio — el fallo que de verdad rompe una conversación.
-  3. **Que las familias imprescindibles no se toquen nunca**: `core`, `web` y `memory` sirven turnos que no se
-     anuncian ni en el estado ni en las palabras («¿cuánto cuesta la entrada?»).
+What these tests protect, in order of importance:
+  1. **That trimming does not leave a turn with no way forward.** Measured across the 14 cases from node 2.13: zero
+     cases are left without any acceptable tool, and the catalog drops by 51.4% of its characters.
+  2. **That the escape hatch exists.** Recovery is not understanding: when trimming occurs, the model must be able to
+     request the missing family (`need_capability`) and trigger ONE measurable second trip. Without it, an incorrect
+     recovery is a capability silently denied — the failure that truly breaks a conversation.
+  3. **That essential families are never touched**: `core`, `web`, and `memory` serve turns that are announced
+     neither by the state nor by the words («how much does the ticket cost?»).
 """
 from __future__ import annotations
 
@@ -29,8 +29,8 @@ def _names(tools):
 
 
 def test_ningun_caso_real_se_queda_sin_tool_aceptable():
-    """El invariante que decide si esto se puede desplegar. Semántica del banco: basta con que quede ALGUNA de las
-    aceptadas (y si el caso no espera ninguna, no hace falta ninguna)."""
+    """The invariant that determines whether this can be deployed. Test-bank semantics: it is enough for ANY of the
+    accepted tools to remain (and if the case expects none, none is needed)."""
     malos = []
     for name, text, expect, _forbid in CASES:
         got = _names(ts.select(FULL, turn_text=text)[0])
@@ -40,7 +40,7 @@ def test_ningun_caso_real_se_queda_sin_tool_aceptable():
 
 
 def test_el_recorte_ahorra_de_verdad():
-    """Si no ahorra, todo este riesgo no se paga. Medido: −51,4% sobre los 14 casos."""
+    """If it does not save anything, all this risk is not worth taking. Measured: −51.4% across the 14 cases."""
     antes = sum(len(json.dumps(FULL)) for _ in CASES)
     despues = sum(len(json.dumps(ts.select(FULL, turn_text=t)[0])) for _, t, _, _ in CASES)
     ahorro = (antes - despues) / antes
@@ -56,7 +56,7 @@ def test_las_familias_imprescindibles_nunca_se_recortan(fam):
 
 
 def test_charla_no_arrastra_widgets_ni_media():
-    """El caso literal del operador."""
+    """The operator's literal case."""
     sel, rep = ts.select(FULL, turn_text="hola, ¿qué tal todo?")
     got = _names(sel)
     assert "widget_data" not in got and "play_music" not in got
@@ -73,27 +73,27 @@ def test_la_escotilla_aparece_SOLO_si_se_recorto():
 
 
 def test_lo_que_el_operador_tiene_DELANTE_entra_sin_mirar_palabras():
-    """Capa de ESTADO (V2-085): con un widget abierto, su familia entra aunque el turno no la nombre."""
+    """STATE layer (V2-085): with an open widget, its family is included even if the turn does not name it."""
     got = _names(ts.select(FULL, turn_text="y eso qué es", open_widgets=["agenda"])[0])
     assert "widget_data" in got and "show_widget" in got
 
 
 def test_la_familia_reciente_mantiene_el_hilo():
-    """Una conversación que ya iba de música no debería perderla porque el turno siguiente no la nombre
-    («la siguiente», «más alto»)."""
+    """A conversation that was already about music should not lose it because the next turn does not name it
+    («the next one», «louder»)."""
     got = _names(ts.select(FULL, turn_text="la siguiente", recent_families=["media"])[0])
     assert "play_music" in got
 
 
 def test_una_orden_de_parar_conserva_las_tools_de_worker():
-    """«para» con un worker vivo es PARAR UN WORKER (precedencia de V2-038). Si el recorte se llevara
-    `stop_worker`, el operador no podría parar lo que ha lanzado."""
+    """«stop» with a live worker means STOP A WORKER (V2-038 precedence). If trimming removed
+    `stop_worker`, the operator would not be able to stop what they launched."""
     got = _names(ts.select(FULL, turn_text="para eso")[0])
     assert "stop_worker" in got
 
 
 def test_el_kill_switch_devuelve_el_catalogo_entero(monkeypatch):
-    """Un cambio que toca el ENRUTADO tiene que poder apagarse sin desplegar código."""
+    """A change that affects ROUTING must be able to be switched off without deploying code."""
     monkeypatch.setenv("ZAELAR_TOOL_SELECTION", "0")
     sel, rep = ts.select(FULL, turn_text="hola")
     assert len(sel) == len(FULL) and rep["selection"] == "off"
@@ -106,7 +106,7 @@ def test_families_used_alimenta_la_capa_reciente():
 
 
 def test_toda_tool_del_catalogo_tiene_familia():
-    """Una tool sin familia se colaría SIEMPRE (el selector la deja pasar por defecto, que es el lado seguro) y
-    nunca se podría recortar. Es deuda silenciosa: mejor que salte aquí."""
+    """A tool without a family would ALWAYS slip through (the selector lets it pass by default, which is the safe
+    side) and could never be trimmed. It is silent debt: better for it to be caught here."""
     huerfanas = _names(FULL) - set(ts._family_of)
     assert not huerfanas, f"tools sin familia en router.FAMILIES: {sorted(huerfanas)}"

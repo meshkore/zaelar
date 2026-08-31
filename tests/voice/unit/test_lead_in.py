@@ -1,26 +1,26 @@
 """
-test_lead_in.py — el RELLENO DE ESPERA tiene que SONAR mientras se espera (V2-093, 2026-08-14).
+test_lead_in.py — the WAIT FILLER must SOUND while waiting (V2-093, 2026-08-14).
 
-El relleno existe desde 2026-07-19 para tapar el TTFT del modelo con un «Mmm…» / «A ver…». Auditando la sesión
-b70a45d0 salió que **no había sonado ni una vez**: 48 rellenos generados, 0 oídos a tiempo, 50 segundos de
-`bot_speech: idle` con TRES pendientes, y las 11 respuestas habladas empezando TODAS por su relleno («Déjame que
-mire… Sí, te he oído»). El operador, mientras, decía «¿me has oído?» y «parece que te has quedado tonto» — a un
-agente que estaba trabajando y tenía tres frases de espera generadas y mudas.
+The filler has existed since 2026-07-19 to cover the model's TTFT with a “Mmm…” / “Let me see…”. Auditing session
+b70a45d0 showed that **it had not played even once**: 48 fillers generated, 0 heard in time, 50 seconds of
+`bot_speech: idle` with THREE pending, and all 11 spoken responses starting with their filler (“Let me see… Yes,
+I heard you”). Meanwhile, the operator said “did you hear me?” and “it seems you've gone stupid” — to an agent
+that was working and had three generated, silent waiting phrases.
 
-La causa no era el relleno: era POR DÓNDE viajaba. Se empujaba como un `ChatChunk` al stream de la respuesta, y ese
-stream pasa por el tokenizador de frases de LiveKit (`BufferedSentenceStream`), que **solo entrega un segmento
-cuando tiene DOS**: emite el primero y se queda el último como contexto. Un relleno suelto no llega ni a ser
-segmento (acaba en «…», que no está en el regex de fin de frase `[.!?。！？]`, y no pasa de `min_sentence_len=20`),
-así que se queda en el buffer hasta que llega la respuesta real — y entonces sale PEGADO a ella.
+The cause was not the filler: it was HOW it traveled. It was pushed as a `ChatChunk` into the response stream, and
+that stream passes through LiveKit's sentence tokenizer (`BufferedSentenceStream`), which **only delivers a segment
+when it has TWO**: it emits the first and keeps the last as context. A standalone filler does not even become a
+segment (it ends in “…” which is not in the sentence-end regex `[.!?。！？]`, and does not pass `min_sentence_len=20`),
+so it remains in the buffer until the real response arrives — and then comes out STUCK to it.
 
-Los tests de abajo (1) reproducen exactamente ese pegado, que es lo que no puede volver a pasar, y (2) fijan la
-costura fuera de banda del canal proactivo.
+The tests below (1) reproduce that exact sticking, which must never happen again, and (2) pin down the
+out-of-band seam of the proactive channel.
 
-V2-529 (2026-08-31): el RELLENO ya no usa el `say` fuera de banda — el planificador de LiveKit lo autorizaba
-DETRÁS de la respuesta en curso (siempre tarde, medido en vivo). Hoy es audio DENTRO de la locución de la
-respuesta (`voice/engine/speech/filler_audio.py`, tests en `test_filler_audio.py`). La costura efímera de
-proactive se conserva como seam; los tests del tokenizador de arriba siguen documentando por qué el TEXTO del
-relleno tampoco puede viajar por el stream.
+V2-529 (2026-08-31): the FILLER no longer uses out-of-band `say` — LiveKit's scheduler authorized it
+BEHIND the response in progress (always late, as measured live). Today it is audio INSIDE the response's
+speech (`voice/engine/speech/filler_audio.py`, tests in `test_filler_audio.py`). The ephemeral seam of
+proactive is retained as a seam; the tokenizer tests above still document why the filler's TEXT cannot travel
+through the stream either.
 """
 from __future__ import annotations
 
@@ -30,12 +30,12 @@ from voice.engine.core import langs
 
 
 def _pushed(*chunks: str) -> list[str]:
-    """Segmentos que el tokenizador de LiveKit ENTREGA A TTS tras empujar `chunks`, SIN cerrar el stream — que es
-    la única situación que importa: mientras el turno sigue vivo, nadie hace flush.
+    """Segments that LiveKit's tokenizer DELIVERS TO TTS after pushing `chunks`, WITHOUT closing the stream — which is
+    the only situation that matters: while the turn is still alive, nobody flushes.
 
-    Va DENTRO de un `asyncio.run`: el canal de LiveKit se construye con `asyncio.get_event_loop()`, que revienta si
-    el hilo no tiene loop actual — y basta con que otro test de la suite haya cerrado el suyo para que esto falle
-    solo al correr en conjunto (pasó al añadirlo: verde en solitario, rojo en suite)."""
+    It runs INSIDE an `asyncio.run`: the LiveKit channel is built with `asyncio.get_event_loop()`, which crashes if
+    the thread has no current loop — and it is enough for another suite test to have closed its loop for this to fail
+    only when run together (that happened when it was added: green alone, red in the suite)."""
     import asyncio
 
     async def _go():
@@ -59,9 +59,9 @@ REPLY = "Sí, te he oído y vacío la agenda entera. Ya está todo limpio del to
 
 @pytest.mark.parametrize("code", ["es", "en"])
 def test_ningun_relleno_sale_solo_por_el_stream(code):
-    """Ningún relleno de ningún idioma se entrega por sí mismo: es LA razón de que haga falta el camino fuera de
-    banda. Si esto empieza a fallar (LiveKit cambia el tokenizador, o alguien añade un relleno con punto y de más
-    de 20 chars) el say deja de ser obligatorio — hasta entonces, meterlo en el stream es garantizar que no suene."""
+    """No filler in any language is delivered by itself: this is THE reason the out-of-band path is needed. If this
+    starts failing (LiveKit changes the tokenizer, or someone adds a filler with a period and more than 20 chars),
+    `say` is no longer mandatory — until then, putting it in the stream guarantees that it will not play."""
     fillers = langs.spec(code).fillers
     assert fillers, f"el idioma {code} no tiene rellenos"
     for f in fillers:
@@ -69,8 +69,8 @@ def test_ningun_relleno_sale_solo_por_el_stream(code):
 
 
 def test_por_el_stream_el_relleno_sale_PEGADO_a_la_respuesta():
-    """EL SÍNTOMA EXACTO de la sesión b70a45d0, reproducido. Lo que el operador oyó a los 98,8 s fue una sola
-    locución: «Déjame que mire… Sí, te he oído». El relleno no tapó nada — viajó 56 segundos en un buffer."""
+    """The EXACT SYMPTOM from session b70a45d0, reproduced. What the operator heard at 98.8 s was a single
+    utterance: “Let me see… Yes, I heard you”. The filler covered nothing — it traveled in a buffer for 56 seconds."""
     segs = _pushed("Déjame que mire… ", REPLY)
     assert segs, "el arnés no mide nada: revísalo antes de fiarte del resto"
     assert segs[0].startswith("Déjame que mire…"), segs[0]
@@ -78,14 +78,14 @@ def test_por_el_stream_el_relleno_sale_PEGADO_a_la_respuesta():
 
 
 def test_la_respuesta_sola_si_se_entrega():
-    """Control positivo: el arnés mide algo real. Una respuesta de dos frases sí suelta la primera."""
+    """Positive control: the harness measures something real. A two-sentence response does release the first one."""
     segs = _pushed(REPLY)
     assert segs and "te he oído" in segs[0]
 
 
 def test_hay_costura_fuera_de_banda_y_dice_la_verdad():
-    """`proactive.speaker()` es por donde el relleno alcanza el TTS sin pasar por el agregador. None cuando no hay
-    sesión viva — ahí el proveedor conserva el camino antiguo, porque sin TTS no hay nada que tapar."""
+    """`proactive.speaker()` is how the filler reaches TTS without going through the aggregator. None when there is no
+    live session — in that case the provider retains the old path, because without TTS there is nothing to cover."""
     from voice import proactive
 
     assert proactive.speaker() is None, "sin sesión registrada no puede haber hablador"
@@ -103,16 +103,16 @@ def test_hay_costura_fuera_de_banda_y_dice_la_verdad():
     assert proactive.speaker() is None, "al cerrar la sesión el hablador se suelta"
 
 
-# ── EFÍMERO — el relleno no puede colgar del historial de conversación (V2-122, 2026-08-17) ──────────────────
-# Bug real: `¡Hola! ¿Cómo va todo?…` seguido de `Déjame que mire…` en el muro de chat — el relleno colgando
-# DESPUÉS de una respuesta que ya no necesitaba tapar nada. Causa: el relleno salía por `proactive.speaker()`,
-# que en LiveKit es `session.say(..., add_to_chat_ctx=True)` por defecto — SÍ entra al historial de conversación
-# y de ahí, vía `conversation_item_added`, al muro de chat. `ephemeral_speaker()` es la misma vía con
-# `add_to_chat_ctx=False`: nunca se registra como item, así que nunca puede llegar al chat.
+# ── EPHEMERAL — the filler must not hang from the conversation history (V2-122, 2026-08-17) ──────────────────
+# Real bug: `¡Hola! ¿Cómo va todo?…` followed by `Déjame que mire…` on the chat wall — the filler hanging
+# AFTER a response that no longer needed to cover anything. Cause: the filler went through `proactive.speaker()`,
+# which in LiveKit defaults to `session.say(..., add_to_chat_ctx=True)` — it DOES enter the conversation history
+# and from there, via `conversation_item_added`, the chat wall. `ephemeral_speaker()` is the same path with
+# `add_to_chat_ctx=False`: it is never recorded as an item, so it can never reach the chat.
 def test_hay_una_costura_efimera_separada_del_hablador_normal():
-    """`speaker()` y `ephemeral_speaker()` son DOS registros independientes — un contenido con sentido propio
-    (V2-102/V2-096/notify) usa el primero (SÍ debe quedar en el historial); el relleno neutro usa el segundo
-    (NUNCA debe quedar). Verifica que están desacoplados: registrar uno no afecta al otro."""
+    """`speaker()` and `ephemeral_speaker()` are TWO independent registrations — content with meaning of its own
+    (V2-102/V2-096/notify) uses the first (it MUST remain in the history); neutral filler uses the second
+    (it must NEVER remain). Verifies that they are decoupled: registering one does not affect the other."""
     from voice import proactive
 
     assert proactive.ephemeral_speaker() is None, "sin sesión registrada no puede haber hablador efímero"
@@ -136,8 +136,8 @@ def test_hay_una_costura_efimera_separada_del_hablador_normal():
 
 
 def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
-    """La guarda de identidad (`_speaker is fn`) protege contra una sesión VIEJA cerrando el hablador de una
-    NUEVA — el mismo cuidado tiene que cubrir el efímero, que no participa en la comparación por sí mismo."""
+    """The identity guard (`_speaker is fn`) protects against an OLD session closing a NEW session's speaker —
+    the same protection must cover the ephemeral speaker, which does not participate in the comparison by itself."""
     from voice import proactive
 
     async def _old(text):
@@ -150,7 +150,7 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
         pass
 
     proactive.register_speaker(_old)
-    proactive.register_speaker(_new)                 # una sesión nueva ya tomó el slot
+    proactive.register_speaker(_new)                 # a new session has already taken the slot
     proactive.register_ephemeral_speaker(_new_eph)
     proactive.clear_speaker(_old)                     # teardown de la VIEJA, con su propio fn
     try:
@@ -161,10 +161,10 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
 
 
 def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARMA():
-    """Guarda de CÓDIGO sobre el cableado V2-529 (montar el proveedor entero exige media sesión de LiveKit):
-    (1) nucleo.py ya no construye ningún LeadInFiller ni habla por `say` — solo ARMA el filler de audio;
-    (2) agent.py sobreescribe `llm_node` delegando en `filler_audio.llm_node_with_filler`, que es el único
-    sitio donde el relleno puede sonar ANTES de la respuesta (como su primer SEGMENTO)."""
+    """CODE GUARD on the V2-529 wiring (mounting the full provider requires half a LiveKit session):
+    (1) nucleo.py no longer constructs any LeadInFiller or speaks through `say` — it only ARMS the audio filler;
+    (2) agent.py overrides `llm_node` by delegating to `filler_audio.llm_node_with_filler`, which is the only
+    place where the filler can play BEFORE the response (as its first SEGMENT)."""
     from pathlib import Path
 
     nucleo_body = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text()
@@ -179,8 +179,8 @@ def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARM
 
 
 def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
-    """Guarda de CÓDIGO sobre `agent.py`: el `session.say()` registrado como hablador EFÍMERO tiene que llevar
-    `add_to_chat_ctx=False` — sin esto, `ephemeral_speaker()` no cumple lo que promete su nombre."""
+    """CODE GUARD on `agent.py`: the `session.say()` registered as the EPHEMERAL speaker must include
+    `add_to_chat_ctx=False` — without this, `ephemeral_speaker()` does not fulfill what its name promises."""
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
@@ -192,17 +192,17 @@ def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
         "el hablador efímero debe llamar a session.say(..., add_to_chat_ctx=False)"
 
 
-# ── AL OPERADOR NO SE LE HABLA ENCIMA (2026-08-15, sesión 319252e7) ───────────────────────────────────────────
-# El operador: *«el audio se corta bastante, se cortan las frases antes de terminarse… creo que aquí se está
-# interrumpiendo la voz por procesos internos o por el propio agente, pero eso no debería ser así»*.
+# ── DO NOT TALK OVER THE OPERATOR (2026-08-15, session 319252e7) ───────────────────────────────────────────
+# The operator: *“the audio cuts out quite a bit, phrases are cut off before they finish… I think the voice is being
+# interrupted by internal processes or by the agent itself, but that should not be happening”.*
 #
-# No era el TTS cortándose: era el AGENTE arrancando a hablar encima de él. Medido sobre esa sesión, contando el
-# evento `say (entrega proactiva)` que la instrumentación de V2-047 F7 ya registraba: **2 de 10 rellenos salieron
-# con `user_in_flight: true`**, y el barge-in resultante dejó 3 turnos cancelados por «overlap». Aquella
-# instrumentación decía literalmente «solo telemetría; no cambia el comportamiento todavía» — ya hay datos.
+# It was not TTS cutting out: it was the AGENT starting to talk over him. Measured on that session, counting the
+# `say (proactive delivery)` event already recorded by the V2-047 F7 instrumentation: **2 of 10 fillers came out
+# with `user_in_flight: true`**, and the resulting barge-in left 3 turns canceled due to “overlap”. That
+# instrumentation literally said “telemetry only; does not change behavior yet” — there is data now.
 def test_hay_una_sonda_de_si_el_operador_esta_hablando():
-    """Separada del busy-probe a propósito: aquél es «hay algo en vuelo» y sirve para ESPERAR hueco; el relleno se
-    salta esa espera por diseño, así que necesita la mitad que no admite excepción."""
+    """Deliberately separate from the busy probe: that one means “something is in flight” and is used to WAIT for an
+    opening; the filler skips that wait by design, so it needs the half that allows no exception."""
     from voice import proactive
 
     assert proactive.user_speaking() is False, "sin sonda registrada, no se asume que habla (dejaría mudo al agente)"
@@ -227,10 +227,10 @@ def test_una_sonda_que_revienta_no_deja_mudo_al_agente():
         proactive.clear_speaker()
 
 
-# ── Sonda de "el BOT está hablando" (2026-08-16) ────────────────────────────────────────────────────────────────
-# Distinta de la del operador: `nucleo.py::_maybe_close_flow` la usa para no cerrar el flujo de observabilidad de
-# un turno mientras su propia respuesta todavía se está narrando en TTS (el turno desaparecía del master board en
-# pleno habla — ver drain_pending_flow_closes en nucleo.py y el hook en agent.py::on_state_change).
+# ── “THE BOT IS SPEAKING” PROBE (2026-08-16) ────────────────────────────────────────────────────────────────
+# Different from the operator probe: `nucleo.py::_maybe_close_flow` uses it to avoid closing a turn's observability
+# flow while its own response is still being narrated in TTS (the turn disappeared from the master board mid-speech
+# — see drain_pending_flow_closes in nucleo.py and the hook in agent.py::on_state_change).
 def test_hay_una_sonda_de_si_el_bot_esta_hablando():
     from voice import proactive
 
@@ -244,9 +244,9 @@ def test_hay_una_sonda_de_si_el_bot_esta_hablando():
 
 
 def test_el_relleno_de_audio_consulta_la_sonda_del_operador():
-    """La mitad que sobrevive de la guarda vieja: el relleno jamás habla ENCIMA del operador. La otra mitad
-    (morir con el turno cancelado) ya no necesita lifecycle: el relleno es audio DENTRO de la locución de la
-    respuesta (V2-529), así que el barge-in que corta el turno lo corta también, estructuralmente."""
+    """The surviving half of the old guard: the filler never talks OVER the operator. The other half
+    (dying with the canceled turn) no longer needs lifecycle: the filler is audio INSIDE the response's
+    utterance (V2-529), so the barge-in that cuts the turn cuts it too, structurally."""
     from pathlib import Path
 
     body = (Path(__file__).resolve().parents[3] / "voice/engine/speech/filler_audio.py").read_text()
