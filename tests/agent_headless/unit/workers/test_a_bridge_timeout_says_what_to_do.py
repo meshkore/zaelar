@@ -1,21 +1,21 @@
-"""`ERROR: timed out` decía QUÉ pasó y nada de qué hacer — y el worker se quedó ahí (V2-274).
+"""`ERROR: timed out` said WHAT happened and nothing about what to do — and the worker got stuck there (V2-274).
 
-Medido en `search-secondhand-monitor__es` (2026-08-24 00:56), con la ronda entregando CERO resultados después
-de haber llegado a la página correcta:
+Measured in `search-secondhand-monitor__es` (2026-08-24 00:56), with the round returning ZERO results after
+reaching the correct page:
 
     navegador  🧭 navegador ⚠️ error   Exit code 1 ERROR: timed out      (+266,9 s)
     navegador  🧭 navegador ⚠️ error   Exit code 1 ERROR: timed out      (+358,7 s)
 
-`str(socket.timeout())` son literalmente esas dos palabras. `_act` las envolvía en `{"ok": False, "error":
-str(e)}` y `_print_state` las imprimía tal cual, así que lo ÚNICO que el worker sabía de este lado era que algo
-había fallado. Misma familia que V2-186 (el muro y el atasco anotados y nunca impresos), V2-203 (el OSError
-pelado del puente de payload), V2-212 (`usage` sin decir el error) y V2-248 (el `ref` caducado), y el mismo
-contrato del nodo 4.20: **lo que el puente sabe, lo DICE, y un fallo dice además cómo se sale de él.**
+`str(socket.timeout())` is literally those two words. `_act` wrapped them in `{"ok": False, "error":
+str(e)}` and `_print_state` printed them as-is, so the ONLY thing the worker knew on this side was that something
+had failed. Same family as V2-186 (the wall and the jam recorded but never printed), V2-203 (the bare OSError
+from the payload bridge), V2-212 (`usage` without stating the error), and V2-248 (the expired `ref`), and the same
+contract as node 4.20: **what the bridge knows, it SAYS, and a failure also says how to get out of it.**
 
-Lo que hace este caso distinto de sus hermanos es que la reacción natural es la ÚNICA que no puede funcionar.
-Un timeout aquí es nuestro plazo de espera agotándose, no la acción cancelándose: la pestaña puede seguir
-trabajando. Repetir el comando encola una segunda acción encima de un navegador ocupado — y el worker no tiene
-forma de deducirlo, porque «timed out» no dice de quién es el plazo.
+What makes this case different from its siblings is that the natural reaction is the ONLY one that cannot work.
+A timeout here is our wait period expiring, not the action being cancelled: the tab may still be
+working. Repeating the command queues a second action on top of a busy browser — and the worker has no
+way to infer that, because «timed out» does not say whose deadline expired.
 """
 from nucleo import nav_cli
 
@@ -33,13 +33,13 @@ def test_y_PROHIBE_repetir_nombrando_la_salida():
 
 
 def test_nombra_el_comando_que_se_quedo_colgado():
-    """Con varias acciones en vuelo, «algo no contestó» no le dice cuál reanudar."""
+    """With several actions in flight, «something did not respond» does not tell it which one to resume."""
     assert "«navigate»" in nav_cli._transport_error(TimeoutError("timed out"), "navigate")
     assert "«click_at»" in nav_cli._transport_error(TimeoutError("timed out"), "click_at")
 
 
 def test_el_plazo_QUE_SE_DICE_es_el_que_de_verdad_se_espera():
-    """Un aviso que nombra un número tiene que leerlo de donde se aplica: dos literales derivan y miente."""
+    """A notice that names a number must read it from where it is applied: two literals drift and lie."""
     out = nav_cli._transport_error(TimeoutError("timed out"), "extract")
     assert f"{nav_cli._ACT_TIMEOUT_S}s" in out
     src = __import__("inspect").getsource(nav_cli._act)
@@ -47,7 +47,7 @@ def test_el_plazo_QUE_SE_DICE_es_el_que_de_verdad_se_espera():
 
 
 def test_el_motor_INALCANZABLE_no_se_confunde_con_una_espera():
-    """Son dos sitios distintos a los que mandar al worker: uno espera, el otro entrega y lo dice."""
+    """These are two different places to send the worker: one waits, the other delivers and says so."""
     out = nav_cli._transport_error(ConnectionRefusedError("[Errno 61] Connection refused"), "look")
     assert "no puedo hablar con el motor" in out
     assert "entrega lo que ya tengas" in out
@@ -55,15 +55,15 @@ def test_el_motor_INALCANZABLE_no_se_confunde_con_una_espera():
 
 
 def test_un_fallo_QUE_NO_CONOCEMOS_conserva_su_texto():
-    """Inventar un diagnóstico para lo no previsto es cómo una pista deja de ser información (V2-248)."""
+    """Inventing a diagnosis for the unforeseen is how a clue stops being information (V2-248)."""
     assert nav_cli._transport_error(ValueError("algo que no habíamos visto"), "click") == (
         "algo que no habíamos visto")
 
 
 def test_la_pista_LLEGA_a_la_pantalla_del_worker():
-    """La mitad que ninguna medición ve: `_print_state` es el único sitio por el que el worker mira.
+    """The half that no measurement sees: `_print_state` is the only place through which the worker looks.
 
-    V2-186 se pagó entera por esto — dos arreglos que viajaban por HTTP y morían a una línea de su lector.
+    V2-186 was paid for entirely because of this — two fixes that traveled over HTTP and died one line away from their reader.
     """
     printed = []
     _real = print

@@ -1,14 +1,14 @@
-"""F1 — la precedencia entre las TRES puertas de confirmación, decidida en un solo sitio.
+"""F1 — precedence among the THREE confirmation gates, decided in one place.
 
-De dónde sale: buscando espejos se midió que el canal de VOZ resolvía la puerta de TAREA y la del NAVEGADOR
-con el MISMO guarda (`if not had_pending_confirm and not worker_acted["v"]`, dos veces). `had_pending_confirm`
-es la puerta de WIDGET, así que nada registraba que la de tarea acabara de resolverse: con una tarea irreversible
-parada y un clic del navegador esperando, UN «sí» hablado autorizaba LAS DOS. El comentario de ese mismo bloque
-afirmaba «solo si el sí no ha resuelto ya otra cosa», y eso es lo que hizo que nadie mirara — un invariante
-escrito en prosa y ni un test detrás. El `probe` lo tenía bien, o sea que el espejo derivó.
+Where it comes from: while looking for mirrors, it was measured that the VOICE channel resolved the TASK gate and the BROWSER gate
+with the SAME guard (`if not had_pending_confirm and not worker_acted["v"]`, twice). `had_pending_confirm`
+is the WIDGET gate, so nothing recorded that the task gate had just been resolved: with an irreversible task
+stopped and a browser click waiting, ONE spoken «yes» authorized BOTH. The comment in that same block
+said «only if the yes has not already resolved something else», and that is what made nobody look — an invariant
+written in prose with no test behind it. The `probe` had it right, meaning the mirror drifted.
 
-Dos de las tres puertas arman algo irreversible (pagar, comprar, cancelar). Una respuesta contada dos veces
-autoriza un pago que nadie autorizó, así que esto no es una preferencia de estilo.
+Two of the three gates trigger something irreversible (paying, buying, canceling). A response counted twice
+authorizes a payment that nobody authorized, so this is not a matter of style.
 """
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from nucleo.turn import confirm_gates as gates
 
 
 def _puerta(abierta: bool, devuelve, registro: list, nombre: str):
-    """Una puerta espía: apunta si le PREGUNTAN y si le mandan resolver."""
+    """A spy gate: records whether it is QUERIED and whether it is told to resolve."""
     def _is_open():
         registro.append(f"{nombre}:preguntada")
         return abierta
@@ -29,10 +29,10 @@ def _puerta(abierta: bool, devuelve, registro: list, nombre: str):
     return (_is_open, _resolve)
 
 
-# ── lo que el defecto dejaba pasar ───────────────────────────────────────────────────────────────────────────
+# ── what the defect allowed through ───────────────────────────────────────────────────────────────────────────
 
 def test_un_si_con_DOS_puertas_abiertas_resuelve_UNA():
-    """El caso medido. Sin esto, un «sí» relanza la tarea irreversible Y suelta el clic del navegador."""
+    """The measured case. Without this, a «yes» relaunches the irreversible task AND releases the browser click."""
     visto = []
     r = gates.resolve("sí",
                       task=_puerta(True, {"ok": True}, visto, "task"),
@@ -43,8 +43,8 @@ def test_un_si_con_DOS_puertas_abiertas_resuelve_UNA():
 
 
 def test_la_puerta_que_no_contesta_ni_se_entera():
-    """No basta con ignorar su respuesta: no se la puede ni PREGUNTAR. Varias de estas puertas consumen el
-    estado al resolverlo, así que llamarlas «solo para ver» ya lo gasta."""
+    """It is not enough to ignore its response: it must not even be QUERIED. Several of these gates consume the
+    state when resolving it, so calling them «just to see» already spends it."""
     visto = []
     gates.resolve("sí",
                   task=_puerta(True, {"ok": True}, visto, "task"),
@@ -52,11 +52,11 @@ def test_la_puerta_que_no_contesta_ni_se_entera():
     assert not [x for x in visto if x.startswith("browser")], f"se tocó la puerta de después: {visto}"
 
 
-# ── el orden, y que sea el orden y no la suerte ──────────────────────────────────────────────────────────────
+# ── the order, and ensuring it is order rather than luck ────────────────────────────────────────────────────
 
 def test_el_widget_va_ANTES_que_la_tarea():
-    """El widget primero porque es de lo que se le habló al modelo en el estado vivo de ESTE turno
-    (`confirm.pending_line`), así que es lo que el operador estaba contestando con más probabilidad."""
+    """The widget comes first because it is what was discussed with the model in the live state of THIS turn
+    (`confirm.pending_line`), so it is what the operator was most likely answering."""
     visto = []
     r = gates.resolve("sí",
                       widget=_puerta(True, "yes", visto, "widget"),
@@ -78,11 +78,11 @@ def test_sin_ninguna_abierta_no_resuelve_nada():
     assert not r and r.gate == ""
 
 
-# ── lo ambiguo no es una autorización ────────────────────────────────────────────────────────────────────────
+# ── ambiguity is not authorization ──────────────────────────────────────────────────────────────────────────
 
 def test_una_respuesta_que_no_es_si_ni_no_NO_cae_a_la_siguiente_puerta():
-    """«¿y cuánto cuestan?» con una confirmación abierta no es un sí. Y sobre todo: no puede colarse como
-    respuesta a la puerta de detrás, que es donde una palabra ambigua se convertiría en una autorización."""
+    """«¿y cuánto cuestan?» with an open confirmation is not a yes. Above all, it must not slip through as a
+    response to the gate behind it, where an ambiguous word would become an authorization."""
     visto = []
     r = gates.resolve("¿y cuánto cuestan?",
                       task=_puerta(True, None, visto, "task"),
@@ -91,11 +91,11 @@ def test_una_respuesta_que_no_es_si_ni_no_NO_cae_a_la_siguiente_puerta():
     assert "browser:resuelta" not in visto
 
 
-# ── un fallo en una puerta no se lleva el turno por delante ──────────────────────────────────────────────────
+# ── a failure in one gate must not take down the turn ────────────────────────────────────────────────────────
 
 def test_una_puerta_que_revienta_se_salta_y_las_demas_siguen():
-    """Perder una confirmación es malo; que una excepción en la puerta del navegador tumbe el turno que estaba
-    resolviendo un pago es peor."""
+    """Losing a confirmation is bad; having an exception in the browser gate take down the turn that was
+    resolving a payment is worse."""
     def _revienta():
         raise RuntimeError("boom")
 
@@ -106,7 +106,7 @@ def test_una_puerta_que_revienta_se_salta_y_las_demas_siguen():
     assert r.gate == "task"
 
 
-# ── cada puerta dice «sí» a su manera, y eso lo sabe UN solo sitio ────────────────────────────────────────────
+# ── each gate says «yes» in its own way, and ONE place knows that ────────────────────────────────────────────
 
 @pytest.mark.parametrize("devuelve, esperado", [
     ({"ok": True}, True), ({"ok": False}, False),      # dispatch / navegador
@@ -127,15 +127,15 @@ def test_un_NO_tambien_consume_la_respuesta():
     assert "browser:resuelta" not in visto
 
 
-# ── el CABLEADO: que los canales lo USEN, que es la mitad que se rompió ──────────────────────────────────────
+# ── the WIRING: make the channels USE it, which is half of what broke ───────────────────────────────────────
 #
-# El test de arriba prueba la REGLA. La avería no estaba en la regla —no existía— sino en que cada canal se
-# escribía la suya, así que un guarda que solo mire el módulo daría verde sobre el defecto original. Se comprueba
-# por AST y no por texto: contar una cadena cuenta también la prosa que habla de ella, y este fichero está lleno
-# de prosa que la nombra.
+# The test above checks the RULE. The failure was not in the rule — it did not exist — but in each channel
+# writing its own, so a guard that only checked the module would pass despite the original defect. This is checked
+# by AST rather than text: counting a string also counts prose that discusses it, and this file is full
+# of prose that names it.
 
 def _llamadas(path, dentro_de=None):
-    """Nombres de función llamados dentro de `dentro_de`."""
+    """Function names called inside `dentro_de`."""
     import ast
     árbol = ast.parse(open(path, encoding="utf8").read())
     if dentro_de:
@@ -151,16 +151,16 @@ def _llamadas(path, dentro_de=None):
 
 
 def test_resolve_all_decide_TODAS_las_puertas_en_UNA_llamada():
-    """EL invariante, y ahora es cierto POR CONSTRUCCIÓN en vez de por que el llamante se acuerde.
+    """THE invariant, now true BY CONSTRUCTION rather than because the caller remembers.
 
-    Costó dar con la forma de comprobarlo. La primera versión del guarda contaba llamadas sueltas a
-    `answer_from_turn` en el canal de voz — y se quedó VERDE al reintroducir el defecto original, porque el
-    defecto no llama a esa función por su nombre: llama al adaptador. Contar llamadas describía mi arreglo, no
-    la propiedad que hacía falta.
+    It took some effort to find a way to check it. The first version of the guard counted standalone calls to
+    `answer_from_turn` in the voice channel — and stayed GREEN when the original defect was reintroduced, because the
+    defect does not call that function by name: it calls the adapter. Counting calls described my fix, not
+    the required property.
 
-    La propiedad es que una sola llamada consulte las puertas EN ORDEN y pare en la primera que conteste. Aquí
-    se comprueba sobre `resolve_all`, que es la puerta que usan los canales: con tarea y navegador abiertos, el
-    navegador no llega ni a que le pregunten.
+    The property is that one call queries the gates IN ORDER and stops at the first one that responds. Here
+    it is checked on `resolve_all`, which is the gate used by the channels: with task and browser open, the
+    browser is not even queried.
     """
     import nucleo.turn.confirm_gates as g
 
@@ -192,15 +192,15 @@ import pytest as _pt
 
 @_pt.mark.parametrize("ruta, funcion", [
     ("voice/engine/llm/providers/nucleo.py", "_run_inner"),
-    # F1 (2026-08-24): el probe era las dos copias hermanas de las de la voz — la voz derivó, el probe no, y
-    # aun así las dos se retiran: dos implementaciones correctas hoy son la deriva de mañana con la nota de
-    # paridad encima tapándola. Desde aquí los DOS canales pasan por la misma llamada.
+    # F1 (2026-08-24): the probe was the two sibling copies of the voice ones — voice drifted, probe did not, and
+    # even so both are being removed: two correct implementations today are tomorrow's drift with the parity note
+    # covering it. From here, BOTH channels go through the same call.
     ("nucleo/flash/probe.py", "run_turn"),
 ])
 def test_ningun_canal_se_escribe_su_propia_precedencia(ruta, funcion):
-    """Guarda de CABLEADO por AST (no por texto: contar una cadena cuenta también la prosa que la nombra, y este
-    fichero está lleno de prosa que la nombra). Dos formas de volver al defecto, las dos vetadas: dejar de usar
-    la puerta compartida, o llamar a una puerta concreta por libre al lado."""
+    """WIRING guard using AST (not text: counting a string also counts prose that names it, and this
+    file is full of prose that names it). Two ways to return to the defect, both forbidden: stop using
+    the shared gate, or call a specific gate independently alongside it."""
     llamadas = _llamadas(ruta, funcion)
     assert "resolve_all" in llamadas, \
         f"{ruta} dejó de usar la puerta compartida: la precedencia vuelve a ser suya y vuelve a poder derivar"

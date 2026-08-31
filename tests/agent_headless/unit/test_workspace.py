@@ -46,10 +46,10 @@ def test_widgets_store_data_dir_moves_with_workspace(monkeypatch, tmp_path):
 
     from widgets import store as _store
 
-    # V2-194: el aislamiento de sesión (`conftest.py` apunta `DATA_DIR` a un temporal, para que ningún test
-    # escriba en los datos REALES del operador) vive en una variable de MÓDULO, y un `reload` la recomputa
-    # desde el workspace de verdad. O sea que el `reload` de abajo —puesto para «restaurar el estado del
-    # módulo»— era justo lo que reabría la fuga para todo lo que corriera después. Se guarda y se devuelve.
+    # V2-194: session isolation (`conftest.py` points `DATA_DIR` to a temporary directory so that no test
+    # writes to the operator's REAL data) lives in a MODULE variable, and a `reload` recomputes it
+    # from the actual workspace. In other words, the `reload` below—added to “restore the module's
+    # state”—was exactly what reopened the leak for everything that ran afterward. It is saved and restored.
     _isolated = _store.DATA_DIR
     importlib.reload(_store)
     try:
@@ -57,7 +57,7 @@ def test_widgets_store_data_dir_moves_with_workspace(monkeypatch, tmp_path):
     finally:
         monkeypatch.delenv("ZAELAR_WORKSPACE", raising=False)
         importlib.reload(_store)  # restore module state for any test that runs after this one
-        _store.DATA_DIR = _isolated          # …incluido el aislamiento, que el reload se lleva por delante
+        _store.DATA_DIR = _isolated          # …including the isolation, which the reload wipes out
 
 
 def test_credentials_store_unchanged_when_workspace_unset(monkeypatch):

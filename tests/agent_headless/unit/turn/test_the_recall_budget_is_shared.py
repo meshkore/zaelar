@@ -1,15 +1,15 @@
-"""El recall durable se compone FUERA del event loop y acotado — en LOS DOS canales (F1, 2026-08-23).
+"""Durable recall is composed OUTSIDE the event loop and bounded — in BOTH channels (F1, 2026-08-23).
 
-Lo reportó el arnés con el coste medido: con la memoria lenta (una descarga de 1,1 GB) `probe.py` bloqueaba el
-motor ENTERO — todos los endpoints en timeout y la tanda muerta como «INFRA: timed out», sin nombrar a la
-memoria por ningún lado. El camino de VOZ ya sobrevivía.
+The harness reported it with the measured cost: with slow memory (a 1.1 GB download), `probe.py` blocked the
+ENTIRE engine — every endpoint timed out and the batch died as «INFRA: timed out», without mentioning
+memory anywhere. The VOICE path already survived.
 
-Y el defecto lo dice el docstring de `prompt.build_flash_system`: el parámetro de verdad es `recall_block` (el
-llamante lo compone fuera del loop, bajo demanda) y **`recall_query` es la ruta de COMPATIBILIDAD PARA TESTS**,
-que compone en línea. El canal de texto usaba la ruta de tests en producción.
+And the defect is stated by the docstring of `prompt.build_flash_system`: the real parameter is `recall_block` (the
+caller composes it outside the loop, on demand), and **`recall_query` is the TEST COMPATIBILITY path**,
+which composes inline. The text channel used the test path in production.
 
-Lo que estos casos fijan es la clase entera, no la instancia: una PROTECCIÓN que existe en un canal y no en el
-otro no se distingue de no tenerla — el fallo sale por el canal que nadie recordó, en el peor momento.
+What these cases pin down is the entire class, not the instance: a PROTECTION that exists in one channel and not in
+the other is indistinguishable from having none — the failure emerges through the channel nobody remembered, at the worst moment.
 """
 import asyncio
 import inspect
@@ -23,14 +23,14 @@ def test_nothing_to_ask_costs_nothing():
 
 
 def test_a_slow_retriever_does_NOT_take_the_turn_down(monkeypatch):
-    """El caso medido. Degradar es el PUNTO, no un apaño: un turno con menos memoria es peor respuesta; un
-    turno que no llega es un agente muerto.
+    """The measured case. Degrading is the POINT, not a workaround: a turn with less memory is a worse response; a
+    turn that never arrives is a dead agent.
 
-    Se cronometra DENTRO del loop a propósito. `wait_for` cancela la espera, no el HILO — `to_thread` corre en
-    el executor y nadie puede interrumpirlo desde fuera — así que un `asyncio.run()` alrededor se bloquea al
-    cerrar esperando a ese hilo y mediría 2 s con la guarda funcionando perfectamente. Lo que este caso afirma
-    es lo que de verdad importa en un servidor vivo: que el TURNO queda libre en su presupuesto. El hilo lento
-    termina solo, a su ritmo, sin nadie esperándole."""
+    It is timed deliberately INSIDE the loop. `wait_for` cancels the wait, not the THREAD — `to_thread` runs in
+    the executor and nobody can interrupt it from outside — so an enclosing `asyncio.run()` blocks while closing,
+    waiting for that thread, and would measure 2 s with the guard working perfectly. What this case asserts is what
+    actually matters on a live server: that the TURN remains free within its budget. The slow thread finishes alone,
+    at its own pace, with nobody waiting for it."""
     import time as _t
     from nucleo.flash import prompt as prompt_mod
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
@@ -58,15 +58,14 @@ def test_a_broken_retriever_degrades_instead_of_raising(monkeypatch):
 
 
 def test_a_recall_within_budget_arrives_whole(monkeypatch):
-    """La contrapartida, sin la cual «no se cuelga» se satisface no recordando nunca."""
+    """The counterpart, without which «does not hang» could be satisfied by never remembering anything."""
     from nucleo.flash import prompt as prompt_mod
     monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (f"RECUERDO: {q}", [7]))
     assert asyncio.run(recall_budget.compose("los hijos")) == ("RECUERDO: los hijos", [7])
 
 
 def test_one_knob_moves_both_channels(monkeypatch):
-    """Dos presupuestos que derivan es cómo «en voz va» y «en texto se cuelga» se convierten en dos informes de
-    fallo distintos para una sola causa."""
+    """Two diverging budgets are how «voice works» and «text hangs» become two distinct failure reports for a single cause."""
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "1500")
     assert abs(recall_budget.budget_s() - 1.5) < 1e-9
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "no-es-un-numero")
@@ -74,8 +73,8 @@ def test_one_knob_moves_both_channels(monkeypatch):
 
 
 def test_no_channel_composes_the_recall_inside_the_loop():
-    """El guarda de la clase. `recall_query=` es la ruta de tests: en producción compone EN LÍNEA, y usarla es
-    exactamente el fallo que tumbó el motor. Los tres puntos de entrada del turno pasan por la guarda."""
+    """The class guard. `recall_query=` is the test path: in production it composes INLINE, and using it is
+    exactly the failure that brought down the engine. All three turn entry points pass through the guard."""
     from nucleo.flash import probe, probe_api
     from voice.engine.llm.providers import nucleo as voice_provider
 
@@ -85,9 +84,9 @@ def test_no_channel_composes_the_recall_inside_the_loop():
                       (voice_provider, "el provider de voz")):
         src = inspect.getsource(mod)
         assert "recall_budget" in src, f"{name} no pasa por la guarda con presupuesto"
-        # Se mira el CÓDIGO, no el texto. Buscar la cadena `recall_query=` la encuentra también en un
-        # comentario que EXPLICA por qué no se usa — pasó al escribir este mismo guarda, y es la segunda vez
-        # en el día que la prosa sobre un patrón derriba un guarda que casa por cadena.
+        # Inspect the CODE, not the text. Searching for the string `recall_query=` also finds it in a
+        # comment that EXPLAINS why it is not used — this happened while writing this very guard, and it is the second time
+        # today that prose about a pattern has brought down a string-matching guard.
         usados = [k.arg for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call) for k in n.keywords]
         assert "recall_query" not in usados, \
             f"{name} volvió a la ruta de compatibilidad (compone el recall dentro del loop)"
@@ -139,7 +138,7 @@ def test_a_recall_over_budget_leaves_a_row_in_the_timeline(monkeypatch):
 
 
 def test_a_recall_over_budget_turns_the_status_light_amber(monkeypatch):
-    """La fila cuenta lo que pasó DESPUÉS; la luz es lo único que se ve MIENTRAS pasa."""
+    """The row records what happened AFTERWARD; the light is the only thing visible WHILE it happens."""
     from nucleo.flash import prompt as prompt_mod
     from voice import health_state
     _capture(monkeypatch)
@@ -153,7 +152,7 @@ def test_a_recall_over_budget_turns_the_status_light_amber(monkeypatch):
 
 
 def test_a_recall_INSIDE_budget_says_nothing(monkeypatch):
-    """La contrapartida. Un aviso que sale siempre no es un aviso: es ruido, y se aprende a ignorarlo."""
+    """The counterpart. A warning that always appears is not a warning: it is noise, and people learn to ignore it."""
     from nucleo.flash import prompt as prompt_mod
     from voice import health_state
     filas = _capture(monkeypatch)
@@ -166,10 +165,10 @@ def test_a_recall_INSIDE_budget_says_nothing(monkeypatch):
 
 
 def test_it_does_NOT_wipe_an_unrelated_memory_warning(monkeypatch):
-    """La clave `memory` es COMPARTIDA con `memory/` (espacio vectorial descuadrado, embeddings degradados).
+    """The `memory` key is SHARED with `memory/` (misaligned vector space, degraded embeddings).
 
-    Limpiarla al salir —el gesto reflejo de «servicio sano otra vez»— borraría un aviso que este módulo no
-    puso y no puede juzgar. Se deja envejecer con su TTL, igual que hace el resto de `memory/`."""
+    Clearing it on exit — the reflexive «service healthy again» gesture — would erase a warning this module did not
+    set and cannot judge. It is allowed to age out with its TTL, just as the rest of `memory/` does."""
     from nucleo.flash import prompt as prompt_mod
     from voice import health_state
     _capture(monkeypatch)
@@ -190,8 +189,8 @@ def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
     latency — which is the very question V2-311 set out to answer. The number was not merely late, it was
     ATTRIBUTED to a turn that had already given up.
 
-    Se espera al hilo a propósito: el fallo solo existe DESPUÉS de que termine, así que un caso que no le da
-    tiempo a terminar pasa siempre, con arreglo y sin él."""
+    The thread is deliberately awaited: the failure exists only AFTER it finishes, so a case that does not give it
+    time to finish always passes, with or without the fix."""
     import time as _t
     from nucleo.flash import prompt as prompt_mod
     _capture(monkeypatch)
@@ -206,7 +205,7 @@ def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
 
     timings: dict = {}
     asyncio.run(recall_budget.compose("qué sabes de mí", timings))
-    _t.sleep(0.5)                                     # el hilo abandonado termina AHORA y escribe lo suyo
+    _t.sleep(0.5)                                     # the abandoned thread finishes NOW and writes its data
 
     assert timings.get("recall_timeout") is True
     assert "mem_query_ms" not in timings, (
@@ -214,7 +213,7 @@ def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
 
 
 def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
-    """La contrapartida: aislar al hilo abandonado no puede costarnos la métrica buena."""
+    """The counterpart: isolating the abandoned thread must not cost us the valid metric."""
     from nucleo.flash import prompt as prompt_mod
     _capture(monkeypatch)
 
@@ -229,19 +228,19 @@ def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
     assert timings.get("mem_query_ms") == 42.0, "se perdió el coste de un recall que SÍ llegó"
 
 
-# ── V2-311 paso 2: un recall que llega TARDE es la memoria del turno siguiente — o de nadie ─────────────────
+# ── V2-311 step 2: a recall that arrives LATE is the next turn's memory — or nobody's ─────────────────
 #
-# El 77% de los recalls vivos (21/27, medido por memoria-dev sobre 223 sesiones) se abandonaban al vencer el
-# presupuesto — y TODOS terminaban igualmente: el hilo corre hasta el final y el bloque compuesto moría en un
-# futuro que nadie miraba. El turno pagaba el coste completo el 100% de las veces y recibía el resultado el 22%.
+# 77% of live recalls (21/27, measured by memory-dev across 223 sessions) were abandoned when the budget expired
+# — and ALL still finished: the thread ran to completion and the composed block died in a future nobody inspected.
+# The turn paid the full cost 100% of the time and received the result 22% of the time.
 #
-# La cola de producción (2,1 s / 3,5 s / 21 s) es la razón del corte de frescura, y el corte NO es un reloj:
-# es «ningún turno ha preguntado desde entonces». Si la generación avanzó, la conversación avanzó — y V2-254
-# midió lo que la memoria rancia le hace a una conversación que ya se movió (meteo en Soria → fontanero en
-# Soria). Los segundos serían un proxy de eso; los turnos SON eso.
+# The production queue (2.1 s / 3.5 s / 21 s) is why there is a freshness cutoff, and the cutoff is NOT a clock:
+# it is «no turn has asked since then». If generation advanced, the conversation advanced — and V2-254
+# measured what stale memory does to a conversation that has already moved (weather in Soria → plumber in
+# Soria). Seconds would be a proxy for that; turns ARE that.
 
 def _con_notas(monkeypatch):
-    """El buzón real, aislado: lo que se mide es que la nota LLEGUE al buzón que drena el turno siguiente."""
+    """The real mailbox, isolated: what is measured is that the note REACHES the mailbox drained by the next turn."""
     from voice import brain_notes
     monkeypatch.setattr(brain_notes, "_pending", [])
     return brain_notes
@@ -260,22 +259,22 @@ def test_a_late_recall_becomes_the_next_turns_note(monkeypatch):
     monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
 
     out = asyncio.run(recall_budget.compose("qué sabes de mí"))
-    assert out == ("", [])                       # ESTE turno sigue sin memoria: el contrato no cambia
-    _t.sleep(0.45)                               # el hilo termina y el callback corre
+    assert out == ("", [])                       # THIS turn still has no memory: the contract does not change
+    _t.sleep(0.45)                               # the thread finishes and the callback runs
 
     got = notas.drain()
     assert len(got) == 1, "el bloque compuesto murió en un futuro que nadie miraba — otra vez"
     nota = got[0]
     assert "Marc vive en Soria" in nota and "qué sabes de mí" in nota
-    # findings.py: la nota no ORDENA anunciar — dice lo que llegó y permite ignorarlo; el juicio es del cerebro
+    # findings.py: the note does not ORDER an announcement — it states what arrived and allows it to be ignored; the brain judges
     assert "ignóralo" in nota
-    # solo TEXTO: los ids alimentan el refuerzo al usarse, y un turno que no vio el bloque no refuerza nada
+    # TEXT only: the ids feed reinforcement when used, and a turn that did not see the block reinforces nothing
     assert "7" not in nota.split("«")[0] and "[7, 9]" not in nota
 
 
 def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
-    """El corte de frescura. Sin esto, el recall de 21 s aterriza cinco turnos tarde en una conversación que
-    ya va por otro sitio — el secuestro de V2-254 con uniforme de mejora."""
+    """The freshness cutoff. Without this, the 21-second recall lands five turns late in a conversation that
+    has already moved elsewhere — V2-254's hijacking dressed up as an improvement."""
     import time as _t
 
     from nucleo.flash import prompt as prompt_mod
@@ -290,11 +289,11 @@ def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
     monkeypatch.setattr(prompt_mod, "compose_recall", _variable)
 
     async def _dos_turnos():
-        await recall_budget.compose("el encargo viejo")      # turno N: se abandona a los 50 ms
+        await recall_budget.compose("el encargo viejo")      # turn N: abandoned after 50 ms
         lentitud["s"] = 0.0
-        await recall_budget.compose("otro tema distinto")     # turno N+1 pregunta ANTES de que N termine
+        await recall_budget.compose("otro tema distinto")     # turn N+1 asks BEFORE N finishes
     asyncio.run(_dos_turnos())
-    _t.sleep(0.5)                                             # ahora sí termina el hilo del turno N
+    _t.sleep(0.5)                                             # now turn N's thread finishes
 
     for nota in notas.drain():
         assert "memoria del encargo viejo" not in nota, \
@@ -302,7 +301,7 @@ def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
 
 
 def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
-    """Un bloque vacío que llega tarde no es una nota: sería avisar de que no había nada, dos veces."""
+    """An empty block that arrives late is not a note: it would report that there was nothing, twice."""
     import time as _t
 
     from nucleo.flash import prompt as prompt_mod
@@ -315,18 +314,18 @@ def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
     assert notas.drain() == []
 
 
-# ── El refuerzo sigue a la ENTREGA, no al cálculo (V2-311 paso 3, 2026-08-25) ──────────────────────────────────
+# ── Reinforcement follows DELIVERY, not computation (V2-311 step 3, 2026-08-25) ──────────────────────────────────
 #
-# `memory.query` reforzaba al COMPONER el bloque, y componer no es usar: de los 27 recalls vivos medidos, 21 se
-# abandonaban al vencer el presupuesto y el hilo terminaba igualmente, así que subían el peso y reseteaban la
-# caducidad (escritura durable) de píldoras por preguntas que nunca se contestaron con ellas. La señal de «esto
-# se usa» la alimentaba justo el trabajo que se tiraba.
+# `memory.query` reinforced when COMPOSING the block, and composing is not using it: of the 27 live recalls measured, 21
+# were abandoned when the budget expired and the thread still finished, so they increased the weight and reset the
+# expiry (durable write) of pills for questions that were never answered with them. The «this is used» signal was
+# fed by the very work that was discarded.
 #
-# Las tres salidas del módulo se reparten limpias — entregado en presupuesto, entregado tarde, descartado por
-# rancio — y solo las DOS entregas refuerzan.
+# The module's three outcomes are cleanly divided — delivered within budget, delivered late, discarded as stale —
+# and only the TWO deliveries reinforce.
 
 def _con_refuerzo(monkeypatch, ids_seleccionados=(7,)):
-    """Sustituye el escritor y devuelve la lista de lo que se reforzó de verdad."""
+    """Replace the writer and return the list of what was actually reinforced."""
     from memory import api as memory_api
     reforzado: list = []
     monkeypatch.setattr(memory_api, "reinforce", lambda ids: reforzado.extend(ids))
@@ -334,7 +333,7 @@ def _con_refuerzo(monkeypatch, ids_seleccionados=(7,)):
     def _compose(q, t=None):
         if t is not None:
             t["recall_reinforce_ids"] = list(ids_seleccionados)
-        return "RECUERDO", [1, 2, 3, 4, 5]        # `ids` del paquete entero: NUNCA es lo que se refuerza
+        return "RECUERDO", [1, 2, 3, 4, 5]        # `ids` of the entire package: NEVER what gets reinforced
     return reforzado, _compose
 
 
@@ -351,7 +350,7 @@ def test_a_delivered_recall_reinforces_and_only_the_selected_pills(monkeypatch):
 
 
 def test_an_ABANDONED_recall_reinforces_NOTHING(monkeypatch):
-    """El defecto medido: el hilo termina igual, y hasta hoy su refuerzo se aplicaba a un turno que no lo vio."""
+    """The measured defect: the thread still finishes, and until now its reinforcement was applied to a turn that did not see it."""
     import time as _t
     from nucleo.flash import prompt as prompt_mod
     _capture(monkeypatch)
@@ -362,16 +361,16 @@ def test_an_ABANDONED_recall_reinforces_NOTHING(monkeypatch):
         _t.sleep(0.3)
         return _compose(q, t)
     monkeypatch.setattr(prompt_mod, "compose_recall", _tarde)
-    monkeypatch.setattr(recall_budget, "_salvage", lambda *a, **k: None)   # aislar: aquí NO se rescata
+    monkeypatch.setattr(recall_budget, "_salvage", lambda *a, **k: None)   # isolate: nothing is salvaged here
 
     asyncio.run(recall_budget.compose("qué sabes de mí", {}))
-    _t.sleep(0.5)                                     # el hilo abandonado termina AHORA
+    _t.sleep(0.5)                                     # the abandoned thread finishes NOW
 
     assert reforzado == [], f"un recall que nadie recibió subió el peso y reseteó la caducidad: {reforzado}"
 
 
 def test_a_STALE_late_recall_reinforces_NOTHING(monkeypatch):
-    """Si la conversación ya avanzó, el bloque se descarta — y descartar no es entregar."""
+    """If the conversation has already moved on, the block is discarded — and discarding is not delivery."""
     _capture(monkeypatch)
     reforzado, _ = _con_refuerzo(monkeypatch)
 
@@ -380,17 +379,17 @@ def test_a_STALE_late_recall_reinforces_NOTHING(monkeypatch):
         def exception(self): return None
         def result(self): return ("RECUERDO", [1, 2, 3])
 
-    recall_budget._salvage(_Fut(), "una pregunta vieja", asked_gen=-1,   # generación que ya no es la actual
+    recall_budget._salvage(_Fut(), "una pregunta vieja", asked_gen=-1,   # generation that is no longer current
                            propias={"recall_reinforce_ids": [7]})
 
     assert reforzado == [], "un bloque descartado por rancio reforzó igualmente"
 
 
 def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
-    """El matiz que puso `motor-dev-2`: si el turno siguiente SÍ se lleva el bloque, eso es un uso.
+    """The nuance added by `motor-dev-2`: if the next turn DOES take the block, that is use.
 
-    Es la contrapartida sin la cual «no reforzar lo que no se entregó» se satisface no reforzando nunca — y el
-    decay acabaría enterrando justo las píldoras que el agente usa a través del rescate."""
+    It is the counterpart without which «do not reinforce what was not delivered» could be satisfied by never
+    reinforcing anything — and decay would eventually bury exactly the pills the agent uses through salvage."""
     from voice import brain_notes
     _capture(monkeypatch)
     reforzado, _ = _con_refuerzo(monkeypatch)
@@ -403,7 +402,7 @@ def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
         def result(self): return ("RECUERDO", [1, 2, 3])
 
     with recall_budget._GEN_LOCK:
-        gen_actual = recall_budget._GEN                # nadie ha preguntado desde entonces → fresco
+        gen_actual = recall_budget._GEN                # nobody has asked since then → fresh
 
     recall_budget._salvage(_Fut(), "la pregunta del turno anterior", asked_gen=gen_actual,
                            propias={"recall_reinforce_ids": [7]})
@@ -413,12 +412,12 @@ def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
 
 
 def test_composing_the_recall_does_NOT_count_as_using_the_memory():
-    """Guarda de cableado, por AST y no por texto: el defecto vuelve con UN literal.
+    """Wiring guard, using the AST rather than text: the defect returns with ONE literal.
 
-    Los casos de arriba prueban el trigger nuevo, no impiden que alguien devuelva `reinforce_used=True` a su
-    sitio — y si vuelve, todo sigue verde: la memoria se refuerza dos veces cuando llega y una vez cuando no
-    llega, sin que falle nada. Se mira el CÓDIGO porque un comentario que explica el cambio contiene la cadena
-    prohibida (ya derribó dos guardas por cadena en esta casa)."""
+    The cases above test the new trigger, but do not prevent someone from returning `reinforce_used=True` to its
+    place — and if it returns, everything stays green: memory is reinforced twice when it arrives and once when it
+    does not, without anything failing. We inspect the CODE because a comment explaining the change contains the
+    forbidden string (it has already brought down two string-based guards in this codebase)."""
     import ast
     import inspect
     from nucleo.flash import prompt as prompt_mod
