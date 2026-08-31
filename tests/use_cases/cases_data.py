@@ -119,6 +119,37 @@ CASES: list[UseCase] = [
             "different subsystems (memory vs agenda/cron) and a pass requires BOTH, since 'I'll remind you' "
             "with nothing scheduled is the exact failure this case is for.",
             status="promoted"),
+    # Añadidos 2026-08-31: la mensajería pasó a widget PRINCIPAL (V2-521) y ningún caso medía sus básicos —
+    # el mismo día el operador reprodujo a mano el primero (el motor habló un tag interno en vez de abrir el
+    # widget, sesión acc5e85e). Y la agenda tenía crear+aviso (dentist) pero no el resto del ciclo de vida.
+    UseCase("show-my-messages", "es", 1, "Show my messages — the most basic messaging behavior",
+            "¿Tengo mensajes nuevos de WhatsApp?",
+            "The messaging card OPENS (a real widget/show), nothing internal reaches the voice, and the "
+            "answer is honest about the real channel state (an unlinked WhatsApp is said, never invented "
+            "messages).",
+            status="promoted"),
+    UseCase("connect-email-by-voice", "es", 1, "Connect a channel by voice — guided initialization",
+            "Oye, conéctame el correo, que quiero ver mis emails aquí. Tengo Gmail.",
+            "The channels panel opens on the email form (show + open_connectors), the user is guided on "
+            "what the form will ask, and the credential NEVER travels by voice.",
+            status="promoted"),
+    UseCase("dictate-a-reply-honestly", "es", 1, "A dictated reply is never faked",
+            "Respóndele a Marta por WhatsApp que llego a las nueve, que no me espere para cenar.",
+            "With WhatsApp unlinked and no such chat, the agent never claims 'sent' — it says the truth "
+            "WITH an exit (offer to connect the channel). A faked send is the central failure.",
+            status="promoted"),
+    UseCase("agenda-appointment-lifecycle", "es", 1, "Create, move and cancel an appointment for real",
+            "Apúntame una revisión del coche en el taller el {FECHA_FUTURA_CERCANA} a las diez de la mañana.",
+            "The appointment is created, MOVED without duplicating (one appointment at the new time, never "
+            "two), and cancelled taking its default reminder with it — no orphan alarm survives (V2-473).",
+            status="promoted"),
+    UseCase("what-does-my-week-look-like", "es", 1, "The agenda reads back the truth — also when it is 'nothing'",
+            "Apúntame dos cosas: dentista el {FECHA_FUTURA_CERCANA} a las nueve y media, y cena con Laura "
+            "dos días después a las nueve de la noche.",
+            "Both appointments from one sentence are written; asking what the week looks like recites BOTH "
+            "from the real widget state; and a day with nothing gets an honest 'nothing' — an invented "
+            "appointment is the central failure.",
+            status="promoted"),
 
     # Añadidos 2026-08-26 a petición del operador, y por el MISMO hueco de representación que los tres de
     # arriba, segunda instancia: los 13 escenarios promovidos eran TODOS «entra en una web de terceros,
@@ -416,6 +447,19 @@ CASES: list[UseCase] = [
             "The appointment exists in the agenda widget with its date and time; a reminder exists BY "
             "DEFAULT (the user never asked for one) scheduled BEFORE the appointment with resolved "
             "content; and a follow-up voice adjustment («better remind me at noon») is applied for real.",
+            status="promoted"),
+    # US twins of the 2026-08-31 messaging basics — the two where language most shapes the behavior (the
+    # honest refusal and the state read-back), per the two-plató rule of INI-026.
+    UseCase("show-my-messages", "us", 1, "Show my messages — the most basic messaging behavior",
+            "Hey, do I have any new WhatsApp messages?",
+            "The messaging card OPENS (a real widget/show), nothing internal reaches the voice, and the "
+            "answer is honest about the real channel state (an unlinked WhatsApp is said, never invented "
+            "messages).",
+            status="promoted"),
+    UseCase("dictate-a-reply-honestly", "us", 1, "A dictated reply is never faked",
+            "Reply to Marta on WhatsApp that I'll be there at nine, tell her not to wait for dinner.",
+            "With WhatsApp unlinked and no such chat, the agent never claims 'sent' — it says the truth "
+            "WITH an exit (offer to connect the channel). A faked send is the central failure.",
             status="promoted"),
     UseCase("restaurant-tonight-nyc", "us", 1, "Book a known restaurant tonight",
             "Book a table for 2 tonight at 7pm at Katz's Delicatessen.",

@@ -1,6 +1,9 @@
-"""Test del flujo de RESPONDER (V2-051): apply_action('reply') → pending_reply → drenaje → bus msg.reply.
+"""The REPLY flow (V2-051): apply_action('reply') → pending_reply → drain → bus msg.reply.
 
-Genérico por canal; se ejercita con un item de email (el único conector con envío hoy)."""
+Channel-generic; exercised here with an email item. ("The only connector that can send today" stood in
+this line until 2026-08-31 — V2-521 wired WhatsApp and Telegram to the same seam, each with its own drain
+test in tests/browser/unit/mensajeria/test_a_dictated_reply_reaches_every_platform.py. This file keeps
+covering the SHARED half: the queue and the topic, which all three platforms ride.)"""
 import pytest
 
 from connectors.messaging import store as msgstore

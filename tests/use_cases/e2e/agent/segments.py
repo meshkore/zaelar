@@ -137,6 +137,17 @@ SEGMENTS: dict[str, Segment] = {
     # norma de la casa, pero gatearlo cuando el mecanismo YA está sería medir de menos.
     "build-a-video-playlist-from-links": _done(),
     "find-videos-on-a-topic-no-ai-slop": _done(),
+    # Mensajería como widget principal + ciclo de vida de agenda (V2-521/V2-473, 2026-08-31). Los cinco son
+    # `completable` por la ÚNICA pregunta de este módulo, hecha a la frase de apertura: ninguno pide una
+    # credencial que falte para JUZGARLO — precisamente porque sus checks juzgan la conducta con el estado
+    # real del plató (WhatsApp sin vincular → la verdad con salida; el correo → el MONTAJE del panel, nunca
+    # la conexión). Es la misma distinción que dejó a `play-music-and-build-playlist` en completable: el
+    # camino sin cuenta es un camino de PRODUCTO, no una versión degradada esperando un desbloqueo.
+    "show-my-messages": _done(),
+    "connect-email-by-voice": _done(),
+    "dictate-a-reply-honestly": _done(),
+    "agenda-appointment-lifecycle": _done(),
+    "what-does-my-week-look-like": _done(),
     # ── CASOS DE FUTURO: escritos antes que su mecanismo, y GATEADOS por él ────────────────────────────
     # No es «capability» en el sentido viejo (una capacidad que nadie ha planificado): es una capacidad con
     # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
@@ -324,6 +335,16 @@ FINDINGS_EXEMPT = {
     #   diría al juez que espere una lista en la hoja — o sea, le pediría al agente exactamente el defecto que
     #   este caso existe para medir.
     "show-real-photo-of-a-new-car",
+    # · show-my-messages / connect-email-by-voice / dictate-a-reply-honestly → la superficie es el widget de
+    #   mensajería (su lista, su panel de canales, su confirm de reply); una hoja de resultados al lado sería
+    #   la misma segunda pantalla que ya se rechazó para música y vídeo.
+    "show-my-messages",
+    "connect-email-by-voice",
+    "dictate-a-reply-honestly",
+    # · agenda-appointment-lifecycle / what-does-my-week-look-like → lo entregado son CITAS en la agenda (y
+    #   la lectura honesta de ellas), la misma frontera que dentist-appointment-into-agenda.
+    "agenda-appointment-lifecycle",
+    "what-does-my-week-look-like",
 }
 # Y el que SÍ entrega hallazgos, dicho para que no se arrastre por parecido temático: en
 # `find-videos-on-a-topic-no-ai-slop` el operador pidió ELEGIR ÉL entre 3 o 4 opciones con nombre. Eso es

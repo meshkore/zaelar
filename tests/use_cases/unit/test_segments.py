@@ -127,7 +127,12 @@ def test_a_findings_case_must_require_the_results_SHEET():
     exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline",
               "find-a-future-release-and-remind-me",
               # Recordar quién eres se entrega hablando: no hay hoja de resultados que exigir.
-              "knows-who-i-am-without-being-told-again"}
+              "knows-who-i-am-without-being-told-again",
+              # La respuesta dictada con WhatsApp SIN vincular se entrega hablando la verdad con salida
+              # (V2-521): exigir un widget aquí suspendería a una negativa honesta perfecta, que es
+              # exactamente la conducta que el caso existe para premiar. Abrir el panel de canales suma,
+              # pero es la salida, no la entrega.
+              "dictate-a-reply-honestly"}
     for scn in SC.all_scenarios():
         if not G.is_completable(scn.id) or G.bare(scn.id) in exempt:
             continue
