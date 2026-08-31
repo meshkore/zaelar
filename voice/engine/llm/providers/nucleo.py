@@ -2465,9 +2465,10 @@ class NucleoLLMStream(llm.LLMStream):
 
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)
+        _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
         if _no_tool and spoken_text and _router.promises_action(spoken_text):
             _win_goal = ""
-            if not (_router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text)):
+            if not (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)):
                 # V2-132 — la petición puede ser de HACE UNOS TURNOS: zaelar pidió el dato que faltaba (correcto),
                 # el operador se lo dio, y la promesa cayó en un turno cuyo texto por sí solo no describe tarea
                 # ninguna («vale, avísame»). El backstop miraba solo ESTE turno, así que no podía dispararse — y
@@ -2482,27 +2483,27 @@ class NucleoLLMStream(llm.LLMStream):
                 # como antes.
                 try:
                     from nucleo import dispatch as _disp_wg
-                    _cand = _router.escalate_goal_from_window(brain._window, text)
+                    _cand = _router.escalate_goal_from_window(brain._window, _op_text)
                     if _cand:
                         _live = [str(r.get("request") or "") for r in _disp_wg.pending_summaries()]
                         if not _disp_wg.has_active() or _router.nothing_running_for(_cand, _live):
                             _win_goal = _cand
                 except Exception:
                     _win_goal = ""
-            if _router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text) or _win_goal:
+            if _router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text) or _win_goal:
                 # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
-                escalate_req["v"] = _win_goal or text
+                escalate_req["v"] = _win_goal or _op_text
                 emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
-                     text=(_win_goal or text)[:80], role="system")
-            elif _router.looks_like_show_strict(text):    # abrir/mostrar/enseñar un widget existente → show
-                _pw = _identify(text)
+                     text=(_win_goal or _op_text)[:80], role="system")
+            elif _router.looks_like_show_strict(_op_text):    # abrir/mostrar/enseñar un widget existente → show
+                _pw = _identify(_op_text)
                 if _pw:
                     acted["widget"] = True
                     emit("widget", "show", extra={"id": _pw, "src": "flash"})
                     emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
-                music_req["v"] = {"query": text, "action": "play"}
-                emit("brain", "🎵 música por backstop de promesa (prometió poner música sin tool)", text=text[:80], role="system")
+                music_req["v"] = {"query": _op_text, "action": "play"}
+                emit("brain", "🎵 música por backstop (prometió poner música sin tool)", text=_op_text[:80], role="system")
 
         # BACKSTOP DE TRABAJO DEVUELTO (V2-142). Distinto del de promesa: aquí el modelo no promete nada, MANDA
         # AL OPERADOR a buscar en Google/Maps lo que él acaba de pedir. Medido en `reorder-prescription`: «¿puedes
@@ -2518,9 +2519,8 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 _busy = False
             if not _busy:
-                escalate_req["v"] = _router.escalate_goal_from_window(brain._window, text) or text
-                emit("brain", "🧭 escalada por backstop (devolvió la búsqueda al operador)",
-                     text=text[:80], role="system")
+                escalate_req["v"] = _router.escalate_goal_from_window(brain._window, _op_text) or _op_text
+                emit("brain", "🧭 escalada por backstop (devolvió la búsqueda al operador)", text=_op_text[:80], role="system")
 
         # BACKSTOP DETERMINISTA de CIERRE corto (sesión 22:40 2026-07-16): «Vale, ciérralo» → el modelo respondió
         # "Listo, cerrado" SIN emitir [[close]] ni tool alguna — la tarjeta quedó abierta y el operador tuvo que

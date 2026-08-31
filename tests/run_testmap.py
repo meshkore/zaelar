@@ -947,6 +947,20 @@ DOMAINS: list[dict] = [
             # de DeepSeek; GLM vacío se devolvía como respuesta y el relevo (que salta por excepción) no corría.
             "tests/voice/unit/test_an_empty_judge_body_is_not_an_answer.py", "tests/voice/unit/test_endpointing.py",
             "tests/voice/unit/test_turn_boundaries.py"]},
+        # 2026-08-31, sesión c480413b del operador, en vivo. Pidió cita con un TRAUMATÓLOGO y le salió un
+        # FONTANERO en pantalla, en los títulos y en voz alta: un recall tardío llegó como nota [SISTEMA], la
+        # nota se pega delante del turno (como CONTEXTO, dice su propio comentario) y el backstop de promesa
+        # leía ese texto pegado en vez de `operator_text` — que existe justo para esto. Nació un Brain Worker
+        # con una línea de memoria vieja como encargo, corriendo nueve minutos contra el encargo real.
+        {"id": "3.15", "title": "Una nota [SISTEMA] es CONTEXTO, nunca el encargo (backstop de promesa)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_system_note_is_never_the_errand.py"]},
+        # La misma sesión, el otro defecto: «dice una palabra, se corta». `session.say()` construye sus futuros
+        # de reproducción en el bucle del job de LiveKit, y CADA entrega proactiva se esperaba desde el bucle
+        # del que llama (uvicorn: un worker que acaba, el conector de mensajería). Cinco entregas, cinco
+        # RuntimeError «got Future attached to a different loop» ~2s después, 1:1 sin excepciones — y ninguno
+        # se veía, porque morían en una tarea que nadie recoge.
+        {"id": "3.16", "title": "La voz proactiva habla en el bucle de SU sesión (o se corta a media frase)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_proactive_speech_runs_on_the_sessions_loop.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en

@@ -506,6 +506,32 @@ async def entrypoint(ctx: JobContext) -> None:
     # Registered while the session is live, cleared on close. If no session is live, delivery still reaches the UI (SSE).
     from voice import proactive as _proactive
 
+    # THE LOOP MATTERS (2026-08-31, measured live). `session.say()` builds its playout futures on the loop that
+    # runs the LiveKit job — a thread of its own. But every proactive delivery is awaited from the CALLER's loop
+    # (uvicorn: a worker finishing, the messaging connector, the orchestrator's scheduled tasks), and crossing
+    # that boundary makes LiveKit await a future born on the other loop:
+    #
+    #   RuntimeError: Task <…_wait_buffered_audio…> got Future <…> attached to a different loop
+    #
+    # raised INSIDE a task nobody retrieves — so `proactive.notify`'s own try/except never saw it and the only
+    # trace in the log was asyncio's garbage-collector complaint, which names neither the voice nor the delivery.
+    # What the operator saw: zaelar says a word or two and cuts, sometimes for good. Session c480413b: FIVE
+    # proactive deliveries, five of those RuntimeErrors ~2 s later, one-to-one with no exceptions.
+    #
+    # Hopping onto the session's own loop is the whole fix. It is a no-op for a caller already on it (the voice
+    # turn itself), so the hot path pays nothing.
+    _session_loop = asyncio.get_running_loop()
+
+    async def _on_session_loop(make_coro) -> None:
+        try:
+            here = asyncio.get_running_loop()
+        except RuntimeError:
+            here = None
+        if here is _session_loop:
+            await make_coro()
+            return
+        await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(make_coro(), _session_loop))
+
     async def _speak(text: str) -> None:
         # INSTRUMENTACIÓN (V2-047 F7): el operador reporta que a media locución zaelar se corta, pausa y suelta el
         # SIGUIENTE mensaje. Sospecha: una entrega proactiva (session.say) que entra mientras el bot AÚN habla y
@@ -518,14 +544,15 @@ async def entrypoint(ctx: JobContext) -> None:
                   extra={"bot_in_flight": bool(_bot0), "user_in_flight": bool(_usr0)})
         except Exception:
             pass
-        await session.say((text or "").strip(), allow_interruptions=True)
+        await _on_session_loop(lambda: session.say((text or "").strip(), allow_interruptions=True))
 
     async def _speak_ephemeral(text: str) -> None:
         # V2-122: same TTS, but `add_to_chat_ctx=False` — LiveKit never registers a conversation item for this,
         # so `conversation_item_added` (→ `_on_item` below → the chat wall) never sees it. Exclusively for the
         # FlashBrain's neutral lead-in filler (V2-093) — see `voice.proactive.ephemeral_speaker()`'s docstring
         # for the bug this fixes (a filler landing AFTER the real reply in the chat wall, reported live).
-        await session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False)
+        await _on_session_loop(
+            lambda: session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False))
 
     _proactive.register_speaker(_speak)
     _proactive.register_ephemeral_speaker(_speak_ephemeral)
@@ -548,7 +575,9 @@ async def entrypoint(ctx: JobContext) -> None:
     async def _close_account_session(reason: str) -> None:
         _emit("session", f"account energy exhausted ({reason}) — closing", role="system")
         try:
-            await session.say(langs.current_language().energy_exhausted, allow_interruptions=True)
+            # Same loop hop: this closer fires from `energy_meter`'s fire-and-forget report, i.e. off this loop.
+            await _on_session_loop(
+                lambda: session.say(langs.current_language().energy_exhausted, allow_interruptions=True))
         except Exception:
             pass
         for _ in range(50):  # ~10s hard cap so a stuck busy-probe can never wedge the close forever

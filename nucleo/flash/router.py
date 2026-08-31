@@ -49,9 +49,9 @@ INJECT = "inject"      # V2-038: refina/amplía un Brain Worker EN MARCHA (send_
 STOP = "stop"          # V2-038: mata un Brain Worker EN MARCHA (stop_worker)
 ANSWER = "answer"      # V2-038: responde la pregunta de un Brain Worker que espera (answer_worker)
 
-# Prioridad al colapsar varias tool calls de un mismo turno en una decisión (mayor = manda). STOP manda sobre todo
-# (si el operador pide parar Y otra cosa, primero para); ANSWER/INJECT por encima de ESCALATE (refinar/responder un
-# worker vivo antes que abrir otro). MUSIC va con las rutas ligeras (SEARCH), por debajo de las de worker.
+# Priority when collapsing multiple tool calls from one turn into a decision (higher = wins). STOP overrides everything
+# (if the operator asks to stop AND something else, stop first); ANSWER/INJECT outrank ESCALATE (refine/respond to a
+# live worker before opening another). MUSIC follows the lightweight routes (SEARCH), below worker routes.
 _PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
              PANEL: 3, ALIAS: 3,
              ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
@@ -72,20 +72,20 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "escalate_to_slowbrain",
-            # NOTA: reglas condensadas (V2-035) — se conservan las nacidas de bugs reales ("no duplicar tarea en
-            # curso" V2-029, "llámala YA en el turno"); fuera ejemplos y descripciones de OTRAS tools.
-            # TRES cambios medidos por los casos de uso del 2026-08-18, todos por SUSTITUCIÓN (techo del catálogo,
+            # NOTE: condensed rules (V2-035) — those born from real bugs are retained ("do not duplicate an ongoing
+            # task" V2-029, "call it NOW in the turn"); examples and descriptions of OTHER tools are excluded.
+            # THREE changes measured by the 2026-08-18 use cases, all by REPLACEMENT (catalog ceiling,
             # `test_router.py::test_tool_catalog_stays_compact`):
-            #  · V2-121 — fuera «un recordatorio simple (reconócelo sin tool)»: ENSEÑABA la alucinación de
-            #    cumplimiento («Done» sin disparar nada); el destino correcto era `[[cron.create]]` y se nombra.
-            #  · V2-119 — HACER un compromiso real estaba implícito y solo se nombraban los de DESHACER; la
-            #    reserva de mesa es el caso más común (`restaurant-tonight-madrid` acabó sin intento real).
-            #  · V2-118 — «VARIAS tareas = una llamada por cada una»: de tres encargos arrancó uno (la otra mitad
-            #    era del provider, que solo ejecutaba la PRIMERA escalada); y «no está en el catálogo» no es
-            #    motivo: un widget que no existe es justo el que se construye.
-            # V2-402 — el NO-list manda poner/BUSCAR vídeo/música/podcast a play_video/play_music, no a la hoja.
-            # V2-457 — y ENSEÑAR fotos sale del SÍ-list: era un encargo de worker (355 s y $1,96 medidos el
-            # 2026-08-28) y ahora es un turno de 3 s por `show_images`. Lo que se queda aquí es CURAR fotos.
+            #  · V2-121 — removed “a simple reminder (acknowledge it without a tool)”: it TAUGHT compliance
+            #    hallucination (“Done” without triggering anything); the correct destination was `[[cron.create]]` and is named.
+            #  · V2-119 — MAKING a real commitment was implicit and only UNDO actions were named; booking a
+            #    table is the most common case (`restaurant-tonight-madrid` ended without a real attempt).
+            #  · V2-118 — “SEVERAL tasks = one call for each”: one of three requests started (the other half was
+            #    the provider's fault, as it executed only the FIRST escalation); and “not in the catalog” is not
+            #    a reason: a widget that does not exist is exactly what gets built.
+            # V2-402 — the NO-list directs video/music/podcast play/search to play_video/play_music, not the worker.
+            # V2-457 — showing photos is also removed from the YES-list: it was a worker request (355 s and $1.96 measured
+            # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
                 "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
                 "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace; "
@@ -134,11 +134,11 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "show_widget",
-            # MOSTRAR un widget como TOOL de 1ª clase (no solo el tag [[show]]). Batería e2e 2026-07-17: abrir un
-            # JUEGO ('juega al snake') se secuestraba a play_music/play_video porque un tag de texto NO le gana a una
-            # tool de function-calling cuando la palabra colisiona ('jugar'≈play). Con una tool DEDICADA la decisión
-            # es tool-vs-tool (como play_video vs play_music) y el modelo discrimina. El provider la ejecuta →
-            # converge en [[show:id]] (dedup/idempotente); resuelve el id fuzzy con runtime.identify si no es exacto.
+            # SHOW a widget as a first-class TOOL (not only the [[show]] tag). E2E suite 2026-07-17: opening a
+            # GAME ('play snake') was hijacked by play_music/play_video because a text tag does NOT beat a
+            # function-calling tool when the word collides ('jugar'≈play). With a DEDICATED tool the decision
+            # is tool-vs-tool (like play_video vs play_music) and the model discriminates. The provider executes it →
+            # converges on [[show:id]] (deduplicated/idempotent); resolves the fuzzy id with runtime.identify if not exact.
             "description": (
                 "ABRE/MUESTRA un widget del canvas, incluidos los JUEGOS ('juega al snake'). `widget_id` = id exacto "
                 "del catálogo de RECURSOS, o el nombre natural si no lo sabes. No reproduce (play_music/play_video) "
@@ -156,10 +156,10 @@ TOOLS: list[dict] = [
         },
     },
     {
-        # V2-079: el PANEL nativo lateral del operador (muro de chat + Procesos + Crons, con pestañas) es UI nativa
-        # INTOCABLE (no un widget del canvas): abrirlo por voz necesita su propia tool (tool-vs-tool, como
-        # show_widget/fullscreen_widget). Los SINÓNIMOS viven en la DESCRIPCIÓN (el modelo mapea; nada de tabla de
-        # verbos hardcodeada, doctrina V2-046). El provider la ejecuta emitiendo un evento `panel` al frontend.
+        # V2-079: the operator's native side PANEL (chat wall + Processes + Crons, with tabs) is native UI
+        # UNTOUCHABLE (not a canvas widget): opening it by voice needs its own tool (tool-vs-tool, like
+        # show_widget/fullscreen_widget). The SYNONYMS live in the DESCRIPTION (the model maps them; no hardcoded
+        # verb table, V2-046 doctrine). The provider executes it by emitting a `panel` event to the frontend.
         "type": "function",
         "function": {
             "name": "show_panel",
@@ -505,12 +505,12 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "connect_cluster",
-            # V2-064 (2026-07-23, petición del operador): el canal de cluster MeshKore (connectors/meshkore/) ya
-            # tenía TODA la tubería lista (bridge.dispatch/dispatch_tag) desde antes, pero el FlashBrain nunca
-            # sabía que existía — quedó documentado como "para el futuro" en prompt.py y nunca se activó. Sin
-            # esta tool, "conéctate a este cluster"/"cambia el token" solo producía CONFABULACIÓN (zaelar decía
-            # "hecho" sin hacer nada real). V2-086: se ofrece SIEMPRE — el gate por widget la volvía
-            # indescubrible y ese widget ya no existe; la protección es el confirm Sí/No determinista.
+            # V2-064 (2026-07-23, operator request): the MeshKore cluster channel (connectors/meshkore/) already
+            # had the ENTIRE pipeline ready (bridge.dispatch/dispatch_tag), but FlashBrain never knew it existed —
+            # it was documented as "for the future" in prompt.py and never activated. Without this tool,
+            # "connect to this cluster"/"change the token" only produced HALLUCINATION (zaelar said "done" without
+            # doing anything real). V2-086: it is ALWAYS offered — the widget gate made it UNDISCOVERABLE, and that
+            # widget no longer exists; protection is the deterministic Yes/No confirmation.
             "description": "Alias corto de ESTE cluster. Si el operador le da un nombre, usa el suyo; no reutilices el de otro.",
             "parameters": {
                 "type": "object",
@@ -539,8 +539,8 @@ TOOLS: list[dict] = [
                     "repo": {"type": "string",
                              "description": "Repo autorizado para git push si code=true. Solo el que diga el operador."},
                 },
-                # V2-086: `token` ya NO es obligatorio — MeshKore tiene clusters PÚBLICOS sin token (Commons), y
-                # exigirlo hacía IMPOSIBLE expresar ese caso: el modelo o se inventaba un token o no llamaba.
+                # V2-086: `token` is NO LONGER required — MeshKore has PUBLIC clusters without a token (Commons), and
+                # requiring it made that case IMPOSSIBLE to express: the model either invented a token or did not call.
                 "required": ["cluster_id"],
             },
         },
@@ -548,11 +548,11 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            # V2-086: ENVIAR al cluster pasa a ser una tool de 1ª clase. Antes se hacía con
-            # `widget_data(widget_id='cluster-registro', action='send', …)`, pero ese widget se retiró (la red es
-            # superficie NATIVA, no un widget de usuario). Además el tag `[[cluster.send:…]]` NO sirve como camino
-            # principal aquí: su protocolo vive en el brief de MeshKore, que está FUERA del prompt caliente del
-            # FlashBrain — sin esta tool, "mándale un mensaje a zalo" se quedaba sin ninguna vía real.
+            # V2-086: SENDING to the cluster becomes a first-class tool. Previously it used
+            # `widget_data(widget_id='cluster-registro', action='send', …)`, but that widget was removed (the network is
+            # a NATIVE surface, not a user widget). Also, the `[[cluster.send:…]]` tag is NOT a primary path here:
+            # its protocol lives in the MeshKore brief, OUTSIDE FlashBrain's hot prompt — without this tool,
+            # "send zalo a message" had no real route.
             "name": "cluster_send",
             "description": (
                 "ENVÍA un mensaje a un cluster de MeshKore al que YA estás conectado (mira tu ESTADO): 'dile a zalo "
@@ -824,12 +824,12 @@ def _canon_panel(v) -> str:
 
 def decide(name: str, args: dict | None = None) -> Decision:
     """Translates ONE tool call (name + arguments) into a `Decision`. An unknown name = chat (fail-safe:
-    la capa rápida no rompe por una función que no reconoce)."""
+    the fast layer does not break because of an unrecognized function)."""
     args = args or {}
     name = (name or "").strip()
     if name == "escalate_to_slowbrain":
-        # V2-227: la SUPERFICIE viaja con el encargo desde aquí. Se pasa CRUDA a propósito: `surfaces.resolve()`
-        # necesita el `kind`, que este punto no conoce, y normalizar dos veces borra el «no dijo nada».
+        # V2-227: the SURFACE travels with the request from here. It is deliberately passed RAW: `surfaces.resolve()`
+        # needs the `kind`, which this point does not know, and normalizing twice erases the “said nothing” case.
         return Decision(ESCALATE, {"request": (args.get("request") or "").strip(),
                                    "surface": (args.get("surface") or "").strip()})
     if name == "web_search":
@@ -895,3 +895,25 @@ from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a loca
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_rule_removal, looks_like_bare_ref,
     is_messaging_service, looks_like_stop_work, login_site, nothing_running_for,
 )
+
+
+def operator_words(operator_text: str, turn_text: str) -> str:
+    """WHAT THE OPERATOR ACTUALLY ASKED, for the backstops that turn a promise into an errand.
+
+    The turn's text is not it. `[SISTEMA]` notes (`voice/brain_notes.py` — a widget that finished building, a
+    worker's result, a recall that arrived late) are glued to the front of the turn so the brain sees them as
+    CONTEXT; the seam that does it says in its own comment that they are «NUNCA como parte de lo que el
+    operador pidió», and keeps `operator_text` for precisely that. The backstops read the glued text anyway, so
+    a note could BECOME the errand.
+
+    Measured live, session c480413b (2026-08-31): a late recall arrived as a note carrying an old memory line,
+    the promise-backstop fired on that turn, and a Brain Worker was born with the goal «· [tarea web] un
+    fontanero que pueda venir hoy → …». The operator had asked for an appointment with a traumatologist. He got
+    a PLUMBER — in the widget titles, on screen, and out loud («el proceso "· [tarea web] un fontanero que pueda
+    ven" pregunta:») — plus a second browser tab, a second results card and a second worker racing the real one
+    for nine minutes.
+
+    The rule, which is not only about this one note: **a system note is context; it can never be the thing to go
+    and do.** Falls back to the turn's text when there is no operator text, so a caller that never separated the
+    two behaves exactly as before."""
+    return (operator_text or "").strip() or (turn_text or "")
