@@ -101,11 +101,11 @@ def test_the_hint_lands_BETWEEN_the_complaint_and_the_usage():
     assert err.index("required") < err.index("use_tool") < err.index("usage:")
 
 
-# ── V2-306: `open`/`goto` son ALIAS de navigate — y el equivocado era el CLI, no el worker (la regla de
-# V2-219). Medido en `find-best-hotel-city__es` (2026-08-25 02:22): DOS workers seguidos escribieron
-# `nav_cli open <url>` — el verbo natural, y el que nuestra propia receta enseña en prosa («para ABRIR una
-# página usa…»)— y quemaron sus turnos en «invalid choice: 'open'» mientras la ronda acababa con la hoja
-# vacía. Un alias conserva la semántica idéntica; una pista sobre el error seguiría costando la llamada.
+# ── V2-306: `open`/`goto` are ALIASES for navigate — and the CLI was at fault, not the worker (the rule from
+# V2-219). Measured in `find-best-hotel-city__es` (2026-08-25 02:22): TWO workers in a row wrote
+# `nav_cli open <url>` — the natural verb, and the one our own recipe teaches in prose (“to OPEN a
+# page, use…”)— and spent their turns on «invalid choice: 'open'» while the round ended with the sheet
+# empty. An alias preserves identical semantics; a hint about the error would still cost the call.
 
 @pytest.mark.parametrize("alias", ["open", "goto"])
 def test_open_and_goto_navigate_exactly_like_navigate(alias, monkeypatch):
@@ -117,12 +117,12 @@ def test_open_and_goto_navigate_exactly_like_navigate(alias, monkeypatch):
         "el alias tiene que llegar al MISMO handler — un alias que parsea y no despacha es el peor de los dos"
 
 
-# ── V2-341: dos formas MÁS que el CLI rechazaba y el worker escribe solo. Medido sobre TODOS los logs de
-# sesión del plató — 41 errores de contrato con `nav_cli`, de los que 18 son el `open` que V2-306 ya cerró,
-# 5 una URL suelta sin verbo y 5 un `type_at` con la aridad de `type`. En la ronda del coche
-# (`search-buy-used-car`, 2026-08-26) cinco errores encadenados dejaron la hoja a CERO mientras el turno
-# contaba que seguía navegando. Misma regla que V2-306 y V2-219: cuando el uso natural es inequívoco, el
-# equivocado es el CLI.
+# ── V2-341: TWO MORE forms that the CLI rejected and the worker writes on its own. Measured across ALL the
+# session logs from the set — 41 contract errors with `nav_cli`, of which 18 are the `open` that V2-306 already
+# fixed, 5 are a bare URL without a verb, and 5 are a `type_at` with `type`'s arity. In the car round
+# (`search-buy-used-car`, 2026-08-26), five chained errors left the sheet at ZERO while the turn
+# claimed it was still navigating. Same rule as V2-306 and V2-219: when natural usage is unambiguous, the
+# CLI is at fault.
 
 @pytest.mark.parametrize("url", ["https://es.wallapop.com/coches", "http://coches.net"])
 def test_a_bare_url_can_only_mean_navigate(url, monkeypatch):
@@ -135,9 +135,9 @@ def test_a_bare_url_can_only_mean_navigate(url, monkeypatch):
 
 
 def test_type_at_with_a_ref_and_a_text_is_the_plain_type(monkeypatch):
-    """`type` va con [ref] del snapshot y `type_at` con COORDENADAS de la captura: el fallo natural entre dos
-    comandos hermanos. Medido cinco veces, una de ellas con el texto de búsqueda entero metido donde va la `y`
-    («invalid int value: 'diésel menos 100000km madrid'»)."""
+    """`type` takes [ref] from the snapshot and `type_at` takes COORDINATES from the capture: the natural mistake
+    between two sibling commands. Measured five times, once with the entire search text entered where the `y`
+    belongs («invalid int value: 'diésel menos 100000km madrid'»)."""
     calls = []
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
     monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
@@ -146,8 +146,8 @@ def test_type_at_with_a_ref_and_a_text_is_the_plain_type(monkeypatch):
 
 
 def test_a_real_type_at_with_coordinates_is_left_alone(monkeypatch):
-    """SENSIBILIDAD: el camino de VISIÓN no se toca. Sin esto, «acepta la aridad de type» y «rompe type_at»
-    pasarían el mismo test."""
+    """SENSITIVITY: the VISION path is untouched. Without this, “accepts type's arity” and “breaks type_at”
+    would pass the same test."""
     calls = []
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
     monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
@@ -156,19 +156,19 @@ def test_a_real_type_at_with_coordinates_is_left_alone(monkeypatch):
 
 
 def test_a_half_written_type_at_still_fails_instead_of_being_guessed(monkeypatch):
-    """SENSIBILIDAD la otra dirección: `type_at 410 260` (falta el texto) son coordenadas legítimas a medias.
-    Convertirlo en un `type` escribiría «260» en el elemento 410 — actuar sobre una página real con un
-    argumento inventado, que es justo lo que V2-253 cerró en el otro extremo. Que lo diga argparse."""
+    """SENSITIVITY in the other direction: `type_at 410 260` (missing the text) is a partially valid coordinate
+    pair. Turning it into a `type` would write “260” into element 410 — acting on a real page with an
+    invented argument, which is exactly what V2-253 closed off at the other end. Let argparse say so."""
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: pytest.fail("no debería despachar nada"))
     with pytest.raises(SystemExit):
         nav_cli.main(["type_at", "410", "260"])
 
 
 def test_the_verb_is_read_from_the_right_position_when_argv_is_none(monkeypatch):
-    """GUARDA DEL ÍNDICE, y no es hipotética: la primera versión de este arreglo leía `argv[1]`.
-    `main(argv=None)` deja que argparse lea `sys.argv[1:]`, así que el VERBO está en la posición 0 — pero
-    todos los tests de arriba pasan una lista, donde `argv[1]` es el primer ARGUMENTO. O sea que el fallo
-    salía verde en la suite entera y reventaba con TypeError en cada invocación real del worker."""
+    """INDEX GUARD, and it is not hypothetical: the first version of this fix read `argv[1]`.
+    `main(argv=None)` lets argparse read `sys.argv[1:]`, so the VERB is at position 0 — but
+    all the tests above pass a list, where `argv[1]` is the first ARGUMENT. In other words, the bug
+    passed in the entire suite and blew up with TypeError on every real worker invocation."""
     calls = []
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
     monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
@@ -179,9 +179,9 @@ def test_the_verb_is_read_from_the_right_position_when_argv_is_none(monkeypatch)
 
 @pytest.mark.parametrize("verb,extra", [("click", []), ("type", ["hola"])])
 def test_a_ref_with_the_brackets_we_print_is_still_a_ref(verb, extra, monkeypatch):
-    """La más nuestra de las tres formas: `dom.py` pinta cada elemento como `[2] button "Buscar"` y el
-    encabezado de `_print_state` dice «usa el número [ref] con click/type». Copiar LITERALMENTE lo que le
-    enseñamos devolvía «invalid int value: '[2]'» y le costaba el turno."""
+    """The most ours of the three forms: `dom.py` renders each element as `[2] button "Buscar"`, and the
+    `_print_state` header says “use the number [ref] with click/type”. Copying exactly what we
+    teach returned «invalid int value: '[2]'» and cost the worker its turn."""
     calls = []
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: calls.append((cmd, args)) or {"ok": True, "msg": ""})
     monkeypatch.setattr(nav_cli, "_print_state", lambda r: None)
@@ -190,8 +190,8 @@ def test_a_ref_with_the_brackets_we_print_is_still_a_ref(verb, extra, monkeypatc
 
 
 def test_a_ref_that_is_not_a_number_still_fails(monkeypatch):
-    """SENSIBILIDAD: quitar corchetes no puede volverse «acepta cualquier cosa como ref». Un ref inventado
-    haría clic en el elemento equivocado de una página real — el fallo que V2-248 y V2-253 ya pagaron."""
+    """SENSITIVITY: removing brackets must not become “accept anything as ref”. An invented ref
+    would click the wrong element on a real page — the failure that V2-248 and V2-253 already paid for."""
     monkeypatch.setattr(nav_cli, "_act", lambda cmd, args: pytest.fail("no debería despachar nada"))
     with pytest.raises(SystemExit):
         nav_cli.main(["click", "[el botón de buscar]"])

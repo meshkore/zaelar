@@ -5,19 +5,19 @@ Two surfaces with DIFFERENT permissions, and the difference matters:
 
 **OPEN** — used by this installation's own interface from the operator's browser, which in a remote deployment
 is NOT loopback. It does not expose content:
-  GET  /api/observability/identity          → quién es esta instalación y qué sesión hay abierta
-  GET  /api/observability/catalog           → el mapa de familias/tipos que pinta el filtro del visor
+  GET  /api/observability/identity          → which installation this is and which session is open
+  GET  /api/observability/catalog           → the family/type map rendered by the viewer's filter
   POST /api/observability/session/start     → work-session lifecycle: only the frontend knows when the
   POST /api/observability/session/end         operator actually starts and stops the agent (tab, ⏻ button)
 
 **PROTECTED** — returns CONTENT (operator utterances, prompts, search results, whatever a
 worker brought back). Anyone who can read this can read the entire conversation, so it goes through `_allowed()`:
-  GET  /api/observability/flows             → últimos flujos con su resumen (duración, piezas, tokens, errores)
-  GET  /api/observability/flow/{corr_id}    → un flujo completo, en orden
-  GET  /api/observability/sessions          → últimas sesiones de trabajo
-  GET  /api/observability/session/{sid}     → UNA sesión con su forma (para abrirla y auditarla)
-  GET  /api/observability/events            → eventos en crudo con cursor `since_id` (seguir una sesión viva)
-  GET  /api/observability/stats             → cobertura de los ejes
+  GET  /api/observability/flows             → latest flows with their summary (duration, pieces, tokens, errors)
+  GET  /api/observability/flow/{corr_id}    → one complete flow, in order
+  GET  /api/observability/sessions          → latest work sessions
+  GET  /api/observability/session/{sid}     → ONE session with its shape (to open and audit it)
+  GET  /api/observability/events            → raw events with `since_id` cursor (follow a live session)
+  GET  /api/observability/stats             → axis coverage
 
 `session/end` intentionally accepts an empty body: `sendBeacon` triggers it when closing the tab, and it cannot
 negotiate anything.

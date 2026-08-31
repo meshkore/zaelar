@@ -2,7 +2,7 @@
 
 Measured on `cheapest-monitor` (round 21, 2026-08-20 14:57):
 
-    worker/task   Exit code 2 no puedo leer el payload de informe.json:
+    worker/task   Exit code 2 I cannot read the payload of informe.json:
                   [Errno 2] No such file or directory: 'informe.json'
 
 Nothing delivered, ten turns, and the turn kept saying the task was «en marcha». The message says WHAT failed
@@ -54,7 +54,7 @@ def test_an_empty_directory_says_so_POSITIVELY_rather_than_going_blank(capsys, t
     Rewritten 2026-08-28, NOT flipped: the property is unchanged — an empty directory must produce a POSITIVE
     statement. What changed is that both bridges now compose it in one shared place
     (`bridge_usage.what_is_here`, node 4.65) after they were found answering the same question differently,
-    and its wording is «el directorio está VACÍO: el fichero no llegó a escribirse» instead of «NINGUNO». The
+    and its wording is «the directory is EMPTY: the file was never written» instead of «NONE». The
     old assertion pinned the word, not the fact.
     """
     assert _present(tmp_path) == 2
@@ -88,7 +88,7 @@ def test_an_unreadable_directory_still_reports_instead_of_raising(capsys, tmp_pa
     assert "no puedo leer el payload" in out
     # Rewritten 2026-08-28, NOT flipped. It used to also demand the word «NINGUNO» here, and that was wrong on
     # its own terms: with `listdir` failing we did not look, so claiming the directory holds no json asserts a
-    # fact we do not have — the exact shape of «una ausencia en el sitio plausible no es una ausencia». The
+    # fact we do not have — the exact shape of «an absence in the plausible location is not an absence». The
     # property that matters, and the one this test is named after, is that the bridge REPORTS instead of
     # raising; the line about what is there is simply omitted when it could not be read.
     assert "VAC" not in out and "SÍ hay aquí" not in out

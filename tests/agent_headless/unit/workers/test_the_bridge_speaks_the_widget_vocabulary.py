@@ -1,16 +1,16 @@
-"""El puente del worker no hablaba el vocabulario de widgets que el resto del sistema ya tiene.
+"""The worker bridge did not speak the widget vocabulary that the rest of the system already has.
 
-Cada widget lleva su identidad —id, nombre y alias— y `widgets/registry.py` la construye normalizada para los
-26. Lo que no existía era nadie USÁNDOLA desde el lado del worker: `paths.dir_for` casa con la carpeta y nada
-más, así que el puente contestaba «el widget «music» no existe» a un nombre que el resto del sistema resuelve
-sin pestañear.
+Each widget carries its identity—ID, name, and aliases—and `widgets/registry.py` builds it in normalized form for
+the 26. What did not exist was anything USING IT from the worker side: `paths.dir_for` matches the folder and
+nothing more, so the bridge replied “the widget «music» does not exist” to a name that the rest of the system
+resolves without hesitation.
 
-Medido el 2026-08-28 en `build-a-video-playlist-from-links` (plató 24/7). El worker pidió `music`; la carpeta
-es `musica`. **Y no es solo cosa del inglés**: la misma búsqueda rechazaba `reloj`, que es el nombre castellano
-del widget cuya carpeta se llama `clock`.
+Measured on 2026-08-28 in `build-a-video-playlist-from-links` (24/7 studio). The worker requested `music`; the
+folder is `musica`. **And it is not just an English issue**: the same lookup rejected `reloj`, which is the
+Spanish name of the widget whose folder is called `clock`.
 
-Importa el doble ahora mismo: el plató US conduce todas sus rondas en inglés, y en inglés es como se está
-vendiendo el producto.
+It matters twice over right now: the US studio runs all its rounds in English, and English is how the product is
+currently being sold.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ def test_el_caso_MEDIDO_resuelve():
 
 
 def test_y_no_era_solo_el_ingles():
-    """`reloj` es castellano y también fallaba: el puente no hablaba el vocabulario en NINGÚN idioma."""
+    """`reloj` is Spanish and also failed: the bridge did not speak the vocabulary in ANY language."""
     assert naming.resolve("reloj")[0] == "clock"
 
 
@@ -31,20 +31,20 @@ def test_un_ALIAS_cualquiera_vale():
 
 
 def test_el_id_exacto_gana_sobre_cualquier_alias():
-    """Si alguien escribe el id, eso es lo que quiere: un alias de otro widget no puede secuestrarlo."""
+    """If someone enters the ID, that is what they want: an alias of another widget cannot hijack it."""
     assert naming.resolve("agenda") == ("agenda", [])
 
 
 def test_lo_que_NO_existe_sigue_sin_existir():
-    """La mitad de sensibilidad: un resolutor que encuentra algo siempre es peor que ninguno, porque el
-    llamante está a punto de ESCRIBIR en lo que le devuelva."""
+    """The half of the sensitivity: a resolver that always finds something is worse than finding nothing, because
+    the caller is about to WRITE to whatever it returns."""
     ident, varios = naming.resolve("no-existe-esto-xyz")
     assert ident == "" and varios == []
 
 
 def test_una_COLISIÓN_es_una_negativa_y_no_una_apuesta():
-    """`widgets/aliases.py` garantiza que un alias es de una sola pieza, pero un manifiesto editado a mano
-    puede romperlo — y elegir uno de dos widgets donde se va a escribir es peor que decir que no."""
+    """`widgets/aliases.py` guarantees that an alias belongs to only one widget, but a manually edited manifest
+    can break that—and choosing one of two widgets to write to is worse than saying no."""
     import widgets.registry as R
     orig = R.registry
     try:
@@ -58,8 +58,8 @@ def test_una_COLISIÓN_es_una_negativa_y_no_una_apuesta():
 
 
 def test_el_no_existe_DICE_los_que_hay():
-    """Un nombre rechazado a secas deja al worker adivinando, y lo que hace entonces es reintentar el mismo —
-    medido esta misma noche en otras tres puertas del sistema."""
+    """A name rejected without further information leaves the worker guessing, and what it then does is retry the
+    same one—measured that very night at three other entry points in the system."""
     msg = naming.not_found("calendar")
     assert "no existe" in msg and "los que hay" in msg and "agenda" in msg
 
@@ -76,8 +76,8 @@ def test_un_registro_ILEGIBLE_no_tumba_al_llamante():
 
 
 def test_las_DOS_puertas_del_worker_lo_usan():
-    """La fontanería: `read_widget` y la de datos son dos sitios distintos, y arreglar uno solo deja al worker
-    resolviendo un nombre para leer y fallando con el mismo para escribir."""
+    """The plumbing: `read_widget` and the data path are two different places, and fixing only one leaves the
+    worker resolving a name for reading and failing with the same name when writing."""
     from pathlib import Path
     src = Path("nucleo/worker_api.py").read_text(encoding="utf-8")
     assert src.count("from widgets import naming as _nm") == 2

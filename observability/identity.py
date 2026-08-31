@@ -1,24 +1,24 @@
 """
-observability.identity — QUIÉN y CUÁNDO: el usuario de esta instalación y la sesión de trabajo en curso.
+observability.identity — WHO and WHEN: the user of this installation and the current work session.
 
-Los eventos ya sabían QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO (`trace`/correlation id). Les
-faltaban los dos ejes que permiten analizar el uso REAL:
+Events already knew WHAT happened (`kind`), which COMPONENT (`cat`), and which FLOW (`trace`/correlation id).
+They were missing the two axes that make it possible to analyze REAL usage:
 
-- **`user_id`** — estable de por vida para esta instalación. Se genera un **UUID4 aleatorio** la primera vez y se
-  persiste. Aleatorio y no correlativo a propósito: no identifica a nadie por sí mismo y no puede colisionar con
-  el de otra instalación. Si el entorno ya trae uno (`ZAELAR_USER_ID`), manda ese — la identidad la puede fijar
-  quien despliega, y este módulo no necesita saber por qué.
-- **`session_id`** — un UUID4 por SESIÓN DE TRABAJO: desde que el operador arranca el agente hasta que cierra el
-  navegador o le da al botón de parar. No es el proceso (el server puede vivir semanas) ni el turno (dura
-  segundos): es el tramo de trabajo que el operador reconocería como «lo de esta tarde».
+- **`user_id`** — stable for the lifetime of this installation. A **random UUID4** is generated the first time and
+  persisted. Random and non-sequential by design: it does not identify anyone by itself and cannot collide with
+  that of another installation. If the environment already provides one (`ZAELAR_USER_ID`), it takes precedence —
+  whoever deploys it can set the identity, and this module does not need to know why.
+- **`session_id`** — one UUID4 per WORK SESSION: from when the operator starts the agent until they close the
+  browser or press the stop button. It is neither the process (the server can run for weeks) nor the turn (which
+  lasts seconds): it is the stretch of work the operator would recognize as “this afternoon’s work.”
 
-**Dónde vive cada cosa, y por qué:** el `user_id` va a un JSON en `config/` (gitignored) y NO a la base de
-datos, a propósito — un `reset` con «borrar memoria» destruye `zaelar.db`, y perder la identidad de la
-instalación cada vez que alguien limpia su memoria haría inútil cualquier análisis longitudinal. La sesión, al
-revés, es efímera por definición y vive en RAM.
+**Where each thing lives, and why:** `user_id` goes into a JSON file in `config/` (gitignored), deliberately NOT
+into the database — a `reset` with “delete memory” destroys `zaelar.db`, and losing the installation’s identity
+every time someone clears its memory would make any longitudinal analysis useless. The session, by contrast, is
+ephemeral by definition and lives in RAM.
 
-Todo es defensivo: si el fichero no se puede leer o escribir, se devuelve un id de proceso en memoria. Un fallo
-de observabilidad NUNCA puede tumbar un turno.
+Everything is defensive: if the file cannot be read or written, an in-memory process id is returned. An
+observability failure must NEVER bring down a work session.
 """
 from __future__ import annotations
 
@@ -37,10 +37,10 @@ _lock = threading.Lock()
 _user: dict = {"id": None}
 _session: dict = {"id": None, "started_ms": None, "source": ""}
 
-# Techo de INACTIVIDAD REAL (operador, 2026-08-13): sin esto una sesión vive en RAM hasta que ⏻/pestaña la
-# cierren EXPLÍCITAMENTE, y si esa señal no llega (red cortada, pestaña matada sin `pagehide`) sigue viva para
-# siempre, acumulando eventos de tramos de trabajo que no tienen nada que ver entre sí. Red de seguridad, no
-# sustituye al cierre explícito — solo actúa cuando ese cierre no llegó.
+# REAL INACTIVITY ceiling (operator, 2026-08-13): without this, a session lives in RAM until ⏻/the tab
+# EXPLICITLY closes it, and if that signal never arrives (network cut, tab killed without `pagehide`) it stays alive
+# forever, accumulating events from work segments that have nothing to do with each other. Safety net; it does not
+# replace explicit closing — it only acts when that closing did not arrive.
 IDLE_TIMEOUT_MS = int(os.getenv("ZAELAR_SESSION_IDLE_MIN", "5")) * 60_000
 _last_real_activity_ms: dict = {"v": None}
 
@@ -65,7 +65,7 @@ def _identity_file() -> Path:
 
 
 def user_id() -> str:
-    """El id ESTABLE de esta instalación: el que traiga el entorno si lo hay, o un UUID4 propio persistido."""
+    """The STABLE id of this installation: the one supplied by the environment, if any, or a persisted UUID4 of our own."""
     from nucleo import cloud_account
 
     provided = cloud_account.my_user_id()
@@ -89,15 +89,15 @@ def user_id() -> str:
                 tmp = p.with_suffix(".json.tmp")
                 tmp.write_text(json.dumps({"user_id": uid, "created_ms": round(time.time() * 1000)},
                                           ensure_ascii=False, indent=2), encoding="utf-8")
-                os.replace(tmp, p)          # atómico: un corte a media escritura no deja un fichero corrupto
+                os.replace(tmp, p)          # atomic: an interruption during writing does not leave a corrupt file
             except Exception:
-                pass                        # sin disco escribible seguimos con un id de proceso, no rompemos nada
+                pass                        # without a writable disk we continue with a process id and break nothing
         _user["id"] = uid
         return uid
 
 
 def session_id() -> str:
-    """La sesión de trabajo EN CURSO. Se abre sola en el primer uso — un evento nunca queda sin sesión."""
+    """The CURRENT work session. It opens automatically on first use — an event is never left without a session."""
     if _session["id"]:
         return _session["id"]
     with _lock:
@@ -109,17 +109,17 @@ def session_id() -> str:
 
 
 def begin_session(source: str = "frontend", force: bool = False) -> dict:
-    """Abre la sesión de trabajo. **Reutiliza la que ya esté abierta** salvo `force`: el frontend llama a esto
-    cada vez que conecta, y una reconexión por un bache de red o un `/reset` ligero NO es una sesión nueva —
-    partirla en dos falsearía cualquier análisis de «cuánto duró y qué hizo». Una sesión nueva nace solo cuando
-    la anterior se CERRÓ de verdad (⏻ o pestaña cerrada), que es justo cuando no hay ninguna abierta.
+    """Opens the work session. **Reuses the one already open** unless `force`: the frontend calls this every time
+    it connects, and a reconnection after a network hiccup or a light `/reset` is NOT a new session — splitting it
+    in two would distort any analysis of “how long it lasted and what it did.” A new session is born only when the
+    previous one was truly CLOSED (⏻ or tab closed), precisely when none is open.
 
     **A STOPPED agent has no work session at all**: with ⏻ off this opens nothing and returns `{}`. Measured on
     the operator's engine 2026-08-31 — with the agent stopped, pressing Reset minted a brand-new session that
     then sat "EN CURSO" in the master indefinitely, holding nothing but the browser tab's own background noise
     (7 events, 0 flows, no work). `voice/observer.py::stamp_identity` has refused to let an EVENT self-open a
     session while stopped since 2026-08-16; this closes the OTHER door, the explicit `begin_session` calls (the
-    reset, the frontend endpoint), which walked straight past that guard. «Parar es parar» (V2-092): the session
+    reset, the frontend endpoint), which walked straight past that guard. “Stopping means stopped” (V2-092): the session
     that groups the work reopens when the work can happen again — ⏻ ON (`nucleo/runstate.py::start`) — never as
     a side effect of a gesture made in front of a stopped agent."""
     if _agent_stopped():
@@ -138,8 +138,8 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
 
 
 def end_session(reason: str = "frontend") -> dict:
-    """Cierra la sesión en curso (botón de parar, pestaña cerrada). El siguiente evento abrirá una nueva sola:
-    preferimos una sesión huérfana bien marcada a un evento sin sesión."""
+    """Closes the current session (stop button, tab closed). The next event will open a new one automatically:
+    we prefer a clearly marked orphaned session to an event without a session."""
     with _lock:
         info = dict(_session)
         _session["id"] = None
@@ -177,12 +177,12 @@ def _bill_transport(duration_ms: int) -> None:
 
 
 def note_real_activity() -> None:
-    """Marca que ha habido actividad REAL (voz/worker/memoria/widget — nunca ruido de fondo como homeostasis/
-    pulso/cron). Si la sesión abierta lleva más de `IDLE_TIMEOUT_MS` sin ninguna, la CIERRA (mismo camino que ⏻,
-    reporta `end_session('idle_timeout')` al timeline y al control-plane) y la deja cerrada: el siguiente
-    `session_id()` abrirá una nueva sola. Solo la actividad REAL cuenta para el reloj — si el pulso lo extendiera,
-    una máquina viva pero sin uso jamás rotaría; si el pulso pudiera disparar la rotación, una máquina inactiva
-    rotaría en cada tick del pulso. Con este filtro: ni una cosa ni la otra — solo el hueco real importa."""
+    """Marks that REAL activity has occurred (voice/worker/memory/widget — never background noise such as
+    homeostasis/pulse/cron). If the open session has gone longer than `IDLE_TIMEOUT_MS` without any, it CLOSES it
+    (same path as ⏻, reports `end_session('idle_timeout')` to the timeline and control plane) and leaves it closed:
+    the next `session_id()` will open a new one automatically. Only REAL activity counts for the clock — if the
+    pulse extended it, a live but unused machine would never rotate; if the pulse could trigger rotation, an idle
+    machine would rotate on every pulse tick. With this filter: neither one nor the other — only the real gap matters."""
     now = round(time.time() * 1000)
     with _lock:
         last = _last_real_activity_ms["v"]
@@ -231,12 +231,12 @@ def session_info() -> dict:
 
 
 def _report_to_control_plane(label: str, info: dict) -> None:
-    """Aviso opcional a un servicio de registro externo de que una sesión empieza o acaba, cuando el despliegue
-    tiene uno configurado (`CONTROL_PLANE_URL` + un `ZAELAR_USER_ID`). **En una instalación normal esto es un
-    no-op**: sin esas variables no se contacta con nada y no sale un solo byte de la máquina.
+    """Optional notice to an external logging service that a session is starting or ending, when the deployment
+    has one configured (`CONTROL_PLANE_URL` + a `ZAELAR_USER_ID`). **In a normal installation this is a no-op**:
+    without those variables nothing is contacted and not a single byte leaves the machine.
 
-    Mismo contrato guarded-until-configured que `nucleo/energy_meter.py`: fire-and-forget, y un fallo NUNCA puede
-    tumbar el arranque ni el cierre de una sesión. No viaja ningún evento ni ninguna transcripción — solo
+    Same guarded-until-configured contract as `nucleo/energy_meter.py`: fire-and-forget, and a failure can NEVER
+    bring down starting or closing a session. No event or transcription is sent — only
     `(user_id, session_id, start|end)`."""
 
     try:
@@ -264,7 +264,7 @@ def _report_to_control_plane(label: str, info: dict) -> None:
         asyncio.get_running_loop()
         asyncio.create_task(_post())
     except RuntimeError:
-        pass          # sin loop (arranque, test) — el registro de actividad no vale una excepción
+        pass          # no loop (startup, test) — activity logging is not worth an exception
     except Exception:
         pass
 
@@ -300,7 +300,7 @@ def _stop_heartbeat() -> None:
 
 
 def _emit_session(label: str, info: dict, extra: dict | None = None) -> None:
-    """Marca de sesión en el propio hilo de eventos. Import perezoso: `voice.observer` importa este módulo.
+    """Session marker in the event thread itself. Lazy import: `voice.observer` imports this module.
 
     `sid` is stamped EXPLICITLY here, and that one word is the whole point of the line. By the time the CLOSING
     event is emitted `_session["id"]` is already `None`, and `stamp_identity` — correctly, since 2026-08-15 —
