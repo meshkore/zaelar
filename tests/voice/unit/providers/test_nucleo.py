@@ -1,4 +1,4 @@
-"""Tests del provider nucleo (V2-004 · T65) — registro, build, superficie testeable sin arrancar un stream real."""
+"""Tests for the nucleo provider (V2-004 · T65) — registration, build, and testable surface without starting a real stream."""
 from voice.engine.llm import build_llm
 from voice.engine.llm.providers import nucleo
 
@@ -12,7 +12,7 @@ def test_registered_and_builds():
 
 def test_set_briefing_is_noop():
     obj = nucleo.NucleoLLM()
-    # duo usa set_briefing; en nucleo la memoria de arranque sale del prompt → aquí es no-op, no debe lanzar
+    # duo uses set_briefing; in nucleo, the startup memory comes from the prompt → this is a no-op and must not raise
     assert obj.set_briefing("cualquier cosa") is None
 
 
@@ -31,7 +31,7 @@ def test_widget_fallback_emits_show(monkeypatch):
     monkeypatch.setattr(rt, "identify", lambda text, **context: {"match": "agenda"})
     events = []
     nucleo._widget_fallback("enséñame la agenda", lambda kind, action, extra=None: events.append((action, extra)))
-    # V2-039: los eventos de widget llevan procedencia (`src`) — el fallback del provider marca 'flash'.
+    # V2-039: widget events carry provenance (`src`) — the provider fallback marks them as 'flash'.
     assert ("show", {"id": "agenda", "src": "flash"}) in events
 
 

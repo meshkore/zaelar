@@ -90,11 +90,11 @@ def test_unrelated_new_utterance_after_the_chain_resolves_gets_its_own_trace():
     trace.adopt("")
 
 
-# ── Cierre EXPLÍCITO de un flujo conversacional (V2-090 addenda, 2026-08-15) ─────────────────────────────────────
-# Real: el operador reinició el sistema y el master seguía mostrando "7 activos" — un turno normal (o el kickoff)
-# no tenía NINGUNA forma de decir "ya terminé", así que el master solo podía ADIVINAR por RECENCIA (< 60s), y
-# adivinaba mal en cuanto el turno acababa de completarse. `_flow_should_close` es la decisión pura; la envoltura
-# real (`_maybe_close_flow`) la llama `_run` solo en el camino LIMPIO (nunca tras una cancelación por barge-in).
+# ── EXPLICIT closing of a conversational flow (V2-090 addendum, 2026-08-15) ─────────────────────────────────────
+# Real case: the operator restarted the system and the master still showed "7 active" — a normal turn (or kickoff)
+# had NO way to say "I'm done", so the master could only GUESS from RECENCY (< 60s), and
+# guessed wrong as soon as the turn had just completed. `_flow_should_close` is the pure decision; the real wrapper
+# (`_maybe_close_flow`) calls it from `_run` only on the CLEAN path (never after a barge-in cancellation).
 def test_flow_should_close_a_plain_finished_turn():
     assert _flow_should_close("T1·aaaa", "", set(), False) is True
 
@@ -169,7 +169,7 @@ def test_close_flow_now_closes_once_a_different_traces_escalation_is_pending():
 
 
 # ── _release_acc_trace_if_fresh (2026-08-16) — the real bug diagnosed live ──────────────────────────────────────
-# "Necesito que cierres todos los widgets..." sat "EN CURSO" in the master forever despite doing its job (closing
+# "Necesito que cierres todos los widgets..." remained "EN CURSO" in the master forever despite doing its job (closing
 # the widgets) correctly: `_begin_or_adopt_trace` sets `_acc_trace_id` for a fresh turn on the assumption that
 # the accumulator's `offer()` a few lines below will clear it once resolved — but the hard-interrupt/echo/ambient
 # early-return branches `return` BEFORE ever reaching `offer()`, so `_acc_trace_id` stays pinned to that trace
@@ -209,9 +209,9 @@ def test_release_does_not_end_a_genuinely_pending_chain_it_only_adopted():
     trace.adopt("")
 
 
-# ── Cierre APLAZADO mientras el bot sigue hablando (2026-08-16, real: el turno desapareció del master mientras
-# zaelar todavía narraba la respuesta) — `_maybe_close_flow` ahora encola en vez de cerrar si `proactive.
-# bot_speaking()` es True; `drain_pending_flow_closes` (llamado por agent.py al volver a idle) resuelve la cola.
+# ── DEFERRED closing while the bot is still speaking (2026-08-16, real case: the turn disappeared from the master
+# while zaelar was still narrating the response) — `_maybe_close_flow` now queues instead of closing when `proactive.
+# bot_speaking()` is True; `drain_pending_flow_closes` (called by agent.py on returning to idle) drains the queue.
 def test_maybe_close_flow_queues_instead_of_closing_while_the_bot_is_still_speaking(monkeypatch):
     from voice import proactive
     from voice.engine.llm.providers import nucleo as nucleo_mod
@@ -291,11 +291,11 @@ def test_drain_still_respects_flow_should_close_conditions(monkeypatch):
     trace.adopt("")
 
 
-# ── CASO DE USO REAL: una frase titubeante = UN flujo (V2-116, sesión b403c979) ────────────────────────────────
-# Los cinco finales de STT que LiveKit entregó, verbatim y en orden, de una sola frase hablada sin parar:
+# ── REAL USE CASE: a hesitant sentence = ONE flow (V2-116, session b403c979) ────────────────────────────────
+# The five STT finals that LiveKit delivered, verbatim and in order, from one uninterrupted spoken sentence:
 # «Mira, lo que quiero es que me digas cuál es el último Ferrari que ha salido al mercado, entonces quiero que me
-# muestres…». En producción salieron CUATRO corr_ids (T2·73cc, T3·0a2e, T4·075a, T5·ae59), cada uno cancelando al
-# anterior por barge-in, con dos prompts completos de ~5.800 tokens tirados a la basura.
+# muestres…». In production, FOUR corr_ids appeared (T2·73cc, T3·0a2e, T4·075a, T5·ae59), each cancelling the
+# previous one due to barge-in, with two complete prompts of ~5,800 tokens thrown away.
 _REAL_FRAGMENTS = [
     "Mira, lo que quiero es",
     "que me digas cuál es el",
@@ -306,9 +306,9 @@ _REAL_FRAGMENTS = [
 
 
 def _simulate_utterance(fragments, *, brain=None):
-    """Simula los turnos de voz que LiveKit dispararía para estos fragmentos, sobre una instancia de agente
-    LIMPIA, ejercitando EL MISMO código que corre en producción (`_begin_or_adopt_trace` + `Accumulator.offer` +
-    `_resolve_acc_chain`). Devuelve la lista de (fragmento, trace, acción) por turno."""
+    """Simulate the voice turns that LiveKit would trigger for these fragments on a CLEAN agent instance,
+    exercising THE SAME code that runs in production (`_begin_or_adopt_trace` + `Accumulator.offer` +
+    `_resolve_acc_chain`). Return the list of (fragment, trace, action) tuples for each turn."""
     from voice.engine.llm.providers.nucleo import _resolve_acc_chain
     b = brain if brain is not None else _fresh_brain()
     if getattr(b, "_acc", None) is None:
@@ -325,35 +325,35 @@ def _simulate_utterance(fragments, *, brain=None):
 
 
 def test_use_case_una_frase_titubeante_es_UN_solo_flujo():
-    """EL CASO DEL OPERADOR, reproducido desde una instancia vacía: «en mitad de una frase se abren varios flujos».
+    """THE OPERATOR'S CASE, reproduced from an empty instance: "several flows open in the middle of a sentence."
 
-    Los flujos son el esqueleto del sistema — toda acción continua que dure minutos se asocia a su corr_id—, así
-    que partir una frase en cuatro rompe la garantía entera. La causa medida NO es el merge de V2-096 (que
-    funciona) sino que la continuidad del flujo COLGABA de acertar la completitud léxica: `looks_incomplete("Mira,
-    lo que quiero es")` devuelve False —cláusula colgada de la cópula «es»— así que el acumulador suelta la
-    cadena, se limpia `_acc_trace_id` y el trozo siguiente abre flujo nuevo. Verificado que este test falla sin
-    la ventana de gracia de `_begin_or_adopt_trace`."""
+    Flows are the system's skeleton — every continuous action lasting minutes is associated with its corr_id—, so
+    splitting a sentence into four breaks the entire guarantee. The measured cause is NOT the V2-096 merge (which
+    works), but that flow continuity DEPENDED on correctly identifying lexical completeness: `looks_incomplete("Mira,
+    lo que quiero es")` returns False — a clause dangling from the copula «es»— so the accumulator releases the
+    chain, `_acc_trace_id` is cleared, and the next fragment opens a new flow. Verified that this test fails without
+    `_begin_or_adopt_trace`'s grace window."""
     turns = _simulate_utterance(_REAL_FRAGMENTS)
     tids = {tid for _, tid, _ in turns}
     assert len(tids) == 1, (
         "una sola frase tiene que ser UN solo flujo; salieron "
         f"{len(tids)}: " + " · ".join(f"{f!r}→{t}" for f, t, _ in turns))
-    # …y la premisa que hace falso-negativo el arreglo: el primer trozo SIGUE juzgándose «completo» por el léxico.
-    # Si algún día deja de serlo, este caso ya no probaría lo que cree probar.
-    assert turns[0][2] == "act", "la premisa del caso (falso «completo» en el 1er trozo) ha cambiado"
+    # …and the premise that makes the fix a false negative: the first fragment is STILL judged "complete" lexically.
+    # If that ever changes, this case will no longer test what it claims to test.
+    assert turns[0][2] == "act", "case premise (false 'complete' on the 1st fragment) has changed"
     trace.adopt("")
 
 
 def test_use_case_dos_peticiones_separadas_en_el_tiempo_siguen_siendo_dos_flujos():
-    """El contrapeso: la ventana de gracia no puede pegar TODO. Pasados los segundos de gracia, un tema nuevo abre
-    su propio flujo — si no, el arreglo cambiaría partir frases por fundir tareas distintas, que es igual de malo
-    para un esqueleto que existe para separar trabajos."""
+    """The counterbalance: the grace window cannot glue EVERYTHING together. Once the grace seconds have passed, a new
+    topic opens its own flow — otherwise the fix would turn splitting sentences into merging different tasks, which is
+    just as bad for a skeleton whose purpose is to separate jobs."""
     import voice.engine.llm.providers.nucleo as _nuc
     brain = _fresh_brain()
     brain._acc = Accumulator()
     first = _simulate_utterance(["¿Qué hora es?"], brain=brain)
     assert first[0][2] == "act", "premisa: una frase completa se resuelve en el acto"
-    # el reloj avanza más allá de la gracia (sin dormir: se envejece la marca a mano)
+    # Advance the clock beyond the grace period (without sleeping: age the marker manually).
     tid_grace, _ts = brain._chain_grace
     brain._chain_grace = (tid_grace, 0.0)
     second = _simulate_utterance(["Ponme música"], brain=brain)
@@ -361,10 +361,10 @@ def test_use_case_dos_peticiones_separadas_en_el_tiempo_siguen_siendo_dos_flujos
     trace.adopt("")
 
 
-# ── V2-123: un turno SOBRE una tarea viva se funde en su flujo, no abre columna aparte ────────────────────────────
-# El agujero que cierra, reportado con captura: mientras un worker buscaba una guitarra, «sí, muéstramelo todo en
-# tiempo real» y la respuesta del agente abrieron un flujo SEPARADO — la fusión de V2-090 solo salta si el modelo
-# llama a `send_to_worker`, y un seguimiento que el modelo contesta charlando no casa con nada.
+# ── V2-123: a turn ABOUT a live task merges into its flow; it does not open a separate column ────────────────────────────
+# The gap it closes, reported with a screenshot: while a worker was searching for a guitar, "yes, show me everything in
+# real time" and the agent's response opened a SEPARATE flow — the V2-090 merge only kicks in if the model
+# calls `send_to_worker`, and a follow-up that the model answers conversationally matches nothing.
 
 def test_merge_target_absorbe_un_turno_conversacional_mientras_una_tarea_corre():
     assert _merge_target("T9·bbbb", ["T5·aaaa"], set()) == "T5·aaaa"
@@ -376,13 +376,13 @@ def test_merge_target_acepta_las_tools_que_solo_CONDUCEN_la_tarea_viva():
 
 
 def test_merge_target_no_absorbe_un_turno_que_hizo_otra_cosa():
-    """Poner música mientras corre una búsqueda es un turno sobre otra cosa, corra lo que corra."""
+    """Playing music while a search is running is a turn about something else, whatever is running."""
     assert _merge_target("T9·bbbb", ["T5·aaaa"], {"play_music"}) == ""
     assert _merge_target("T9·bbbb", ["T5·aaaa"], {"send_to_worker", "show_widget"}) == ""
 
 
 def test_merge_target_no_adivina_entre_varias_tareas_vivas():
-    """La norma desde V2-090: un flujo suelto de más es mejor que adivinar a cuál de dos pertenece un «¿cómo va?»."""
+    """The rule since V2-090: one extra unattached flow is better than guessing which of two a "how's it going?" belongs to."""
     assert _merge_target("T9·bbbb", ["T5·aaaa", "T7·cccc"], set()) == ""
 
 
@@ -391,7 +391,7 @@ def test_merge_target_no_toca_un_turno_que_ACABA_de_lanzar_su_propia_tarea():
 
 
 def test_merge_target_no_absorbe_un_trace_que_YA_es_una_tarea():
-    """Si este trace tiene su propio worker vivo no es un turno buscando dónde colgarse: es una tarea."""
+    """If this trace has its own live worker, it is not a turn looking for somewhere to attach: it is a task."""
     assert _merge_target("T5·aaaa", ["T5·aaaa"], set()) == ""
     assert _merge_target("T5·aaaa", ["T5·aaaa", "T7·cccc"], set()) == ""
 
@@ -402,16 +402,16 @@ def test_merge_target_sin_nada_vivo_no_funde_nada():
 
 
 def test_merge_target_el_titular_es_el_mas_antiguo_via_trace_merge():
-    """`_merge_target` elige el DESTINO; quién queda como titular lo decide `trace.merge` (el seq más bajo), así
-    que una tarea larga con varias fusiones converge siempre al primer id en vez de saltar de titular."""
+    """`_merge_target` chooses the DESTINATION; `trace.merge` decides which remains canonical (the lowest seq), so
+    a long-running task with multiple merges always converges on the first id instead of changing canonical traces."""
     assert trace.merge(_merge_target("T9·bbbb", ["T5·aaaa"], set()), "T9·bbbb") == "T5·aaaa"
 
 
 def test_use_case_seguimiento_mientras_el_worker_busca_es_UN_solo_hilo(monkeypatch):
-    """CASO DE USO del reporte, con los eventos reales: el operador pide una búsqueda (worker vivo en su trace), y
-    acto seguido dice «sí, muéstramelo todo en tiempo real» — que el modelo contesta hablando, sin tool. Antes eran
-    DOS corr_ids; ahora el segundo se funde y el marcador queda emitido bajo el trace NUEVO (para que el lector lo
-    resuelva) apuntando al titular."""
+    """USE CASE from the report, with the real events: the operator requests a search (a live worker on its trace), and
+    immediately says "yes, show me everything in real time" — which the model answers conversationally, without a tool.
+    There used to be TWO corr_ids; now the second merges and the marker is emitted under the NEW trace (so the reader
+    can resolve it) while pointing to the canonical trace."""
     from nucleo import dispatch
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
@@ -430,8 +430,8 @@ def test_use_case_seguimiento_mientras_el_worker_busca_es_UN_solo_hilo(monkeypat
 
 
 def test_una_tarea_terminada_ya_no_absorbe_nada(monkeypatch):
-    """`live_traces()` filtra por estado igual que `_live_keys`. Sin ese filtro, una tarea acabada seguiría
-    absorbiendo conversación posterior para siempre — la misma clase de fallo que arrastraba `active_sessions()`."""
+    """`live_traces()` filters by status just like `_live_keys`. Without that filter, a completed task would keep
+    absorbing subsequent conversation forever — the same kind of failure that `active_sessions()` used to carry."""
     from nucleo import dispatch
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)

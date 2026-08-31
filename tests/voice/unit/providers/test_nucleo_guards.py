@@ -1,8 +1,8 @@
-"""Guards deterministas de canvas del FlashBrain (V2-034, sesión manual 2026-07-12).
+"""Deterministic FlashBrain canvas guards (V2-034, manual session 2026-07-12).
 
-Bug: el operador PREGUNTANDO por un widget ("¿por qué has abierto el de proyectos?") hacía que zaelar ABRIERA un
-widget espurio (el modelo emitía [[show]] y/o el fallback disparaba). Una pregunta/queja META sobre una acción
-pasada NUNCA es una orden de mostrar. Ejecutar: .venv/bin/pytest tests/voice/unit/providers/test_nucleo_guards.py
+Bug: the operator ASKING about a widget ("¿por qué has abierto el de proyectos?") caused zaelar to OPEN a
+spurious widget (the model emitted [[show]] and/or the fallback triggered). A META question/complaint about a past
+action is NEVER a command to show something. Run: .venv/bin/pytest tests/voice/unit/providers/test_nucleo_guards.py
 """
 from voice.engine.llm.providers.nucleo import _is_meta_widget_question as meta, _norm_nfkd as norm
 
@@ -20,7 +20,7 @@ def test_meta_questions_are_not_commands():
 
 def test_real_commands_still_pass():
     assert _q("muéstrame la agenda") is False
-    assert _q("¿me muestras la agenda?") is False        # orden educada en forma de pregunta
+    assert _q("¿me muestras la agenda?") is False        # polite command phrased as a question
     assert _q("abre el navegador") is False
     assert _q("enséñame el reloj") is False
     assert _q("ponme el tiempo en pantalla") is False
