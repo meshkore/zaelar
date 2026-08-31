@@ -1,15 +1,15 @@
-"""La pestaña DICE de qué hoja es — si no, dos diagnósticos opuestos se leen igual (2026-08-24).
+"""The tab SAYS which sheet it belongs to — otherwise, two opposite diagnoses read the same (2026-08-24).
 
-`create()` sella la hoja del encargo en la pestaña desde V2-281, y ese sello es por donde
-`nucleo/flash/live_blocks.py::_sheet_has_rows` resuelve si el encargo ya tiene filas. Sin sello contesta
-False por muchas filas que haya, y el turno sigue diciendo «todavía no tengo nada» mientras el operador ve
-caer los resultados — medido hoy en tres casos: la hoja se llenó 42, 49 y 113 s ANTES del último turno.
+`create()` has sealed the task's sheet in the tab since V2-281, and that seal is how
+`nucleo/flash/live_blocks.py::_sheet_has_rows` determines whether the task already has rows. Without a seal it answers
+False no matter how many rows there are, and the turn keeps saying «todavía no tengo nada» while the operator sees
+the results arrive — measured today in three cases: the sheet filled up 42, 49, and 113 s BEFORE the last turn.
 
-El sello vivía solo dentro del proceso. Desde fuera, «la pestaña nunca se selló» y «se selló y algo río
-abajo lo ignoró» daban EXACTAMENTE la misma lectura, y elegir mal cuesta una tanda entera midiendo la mitad
-equivocada. Es el mismo hueco que V2-207 cerró con `wall`/`walls_hit`, por la misma razón.
+The seal lived only inside the process. From outside, «la pestaña nunca se selló» and «se selló y algo río
+abajo lo ignoró» gave EXACTLY the same reading, and choosing incorrectly costs an entire batch measuring the wrong
+half. It is the same gap that V2-207 closed with `wall`/`walls_hit`, for the same reason.
 
-Esto NO arregla la entrega: hace que la pregunta se pueda contestar desde cualquier informe.
+This does NOT fix delivery: it makes the question answerable from any report.
 """
 from widgets.navegador import data as navdata
 from widgets.navegador import tasks as navtasks
@@ -24,8 +24,8 @@ def test_la_vista_dice_de_que_hoja_es_la_pestana():
 
 
 def test_una_pestana_SIN_encargo_dice_que_no_tiene_hoja():
-    """Vacío es la respuesta correcta, no un fallo: una pestaña que abre el operador a mano no tiene encargo
-    detrás, así que no tiene hoja propia. Lo que no puede es ser indistinguible de una que sí lo tenía."""
+    """Empty is the correct answer, not a failure: a tab that the operator opens manually has no task
+    behind it, so it has no sheet of its own. It simply cannot be indistinguishable from one that did have one."""
     tid = navtasks.create("el operador navegando a mano")
     try:
         assert navdata._task_view(navtasks.get(tid))["sheet"] == ""
@@ -34,8 +34,8 @@ def test_una_pestana_SIN_encargo_dice_que_no_tiene_hoja():
 
 
 def test_el_sello_lo_pone_QUIEN_abre_el_encargo():
-    """Guarda de cableado. `_prepare_web` es el único que lo pasa hoy, y si deja de hacerlo `_sheet_has_rows`
-    se queda ciega sin que falle nada — el modo de fallo que este campo existe para hacer visible."""
+    """Wiring guard. `_prepare_web` is the only one that passes it today, and if it stops doing so `_sheet_has_rows`
+    becomes blind without anything failing — the failure mode this field exists to make visible."""
     import inspect
     from nucleo import dispatch
     src = "\n".join(l for l in inspect.getsource(dispatch._prepare_web).splitlines()

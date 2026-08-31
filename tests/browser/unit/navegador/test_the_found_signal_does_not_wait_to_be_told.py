@@ -1,22 +1,22 @@
-"""La señal de «ya encontró algo» era un REPORTE VOLUNTARIO, y el worker no siempre lo hace (V2-284).
+"""The «found something» signal was a VOLUNTARY REPORT, and the worker does not always make it (V2-284).
 
-Medido en la tanda del 2026-08-24 03:02, leyendo los prompts de los DIEZ turnos de
-`search-secondhand-monitor__es`: la cara no salió ni una sola vez. La línea del navegador decía
+Measured in the 2026-08-24 03:02 batch, reading the prompts from the TEN turns of
+`search-secondhand-monitor__es`: the face did not appear even once. The browser line said
 
     «Busca en marketplaces de segunda mano (Wallapop, etc.) un monitor de a» — en es.wallapop.com, 1 pasos dados
 
-y nada más, en los diez, mientras el mecanismo de esa misma ronda registraba **11 navegaciones, 5
-extracciones** y monitores reales con precio y enlace (MSI MAG 70 €, Dell P2714H 60 €, BenQ 60 €). El mismo
-silencio en TRES de los cuatro casos de la tanda, y el veredicto de los tres fue el mismo: «tuvo resultados
-reales del worker y no los entregó». El juez tenía razón en el hecho y se equivocaba de culpable: al prompt
-del turno no llegó nunca que hubiera algo.
+and nothing else, in all ten, while the mechanism from that same round recorded **11 navigations, 5
+extractions** and real monitors with a price and link (MSI MAG 70 €, Dell P2714H 60 €, BenQ 60 €). The same
+silence in THREE of the four cases in the batch, and the verdict in all three was the same: «it had real
+results from the worker and did not deliver them». The judge was right about the fact and wrong about the
+culprit: the turn's prompt never received any indication that there was something.
 
-La causa: `_found_candidates` leía SOLO `rec.kept`, que existe si el worker se acordó de llamar a
-`hbnote considered --kept N`. Un reporte que hay que acordarse de hacer no es una señal, es una cortesía.
+The cause: `_found_candidates` read ONLY `rec.kept`, which exists if the worker remembered to call
+`hbnote considered --kept N`. A report that someone has to remember to make is not a signal, it is a courtesy.
 
-Las filas de la hoja son un hecho que no depende de que nadie se acuerde: las escribe `intake.push` cuando el
-navegador extrae (V2-257). Y se leen por la PESTAÑA, no por el registro de sesiones vivas, porque el momento
-en que esto más falta hace es justo cuando el worker ya no está (V2-281).
+The sheet rows are a fact that does not depend on anyone remembering: `intake.push` writes them when the
+browser extracts (V2-257). And they are read by the TAB, not from the live-session registry, because the
+moment this is most needed is precisely when the worker is no longer there (V2-281).
 """
 import pytest
 
@@ -44,18 +44,18 @@ def test_la_cara_dispara_con_las_filas_de_la_hoja_sin_que_el_worker_avise():
 
 
 def test_y_ese_era_el_agujero_sin_hoja_no_hay_nada_que_leer():
-    """Sensibilidad: con la hoja vacía la cara sigue callada, que es lo correcto."""
+    """Regression check: with the sheet empty, the face remains silent, as it should."""
     tid = T.create("Busca un monitor de segunda mano", sheet="v284-vacia")
     assert LB._found_candidates(tid) is False
 
 
 def test_una_fila_SIN_nombre_no_es_un_resultado():
-    """Misma regla que la nota del navegador (V2-234): un enlace que estaba en la página no es un hallazgo.
+    """Same rule as the browser note (V2-234): a link that was on the page is not a finding.
 
-    ⚠️ Y quien la aplica de verdad es LA HOJA, no este predicado: `apply_action` descarta la fila sin título
-    al entrar — medido aquí abajo. O sea que el filtro de `_sheet_has_rows` es hoy un cinturón sobre unos
-    tirantes, y se dice porque un test que afirma cubrir algo que la capa de al lado ya garantiza es un test
-    que MIENTE sobre su cobertura (el desarme lo enseñó: quitar el filtro no ponía rojo nada).
+    ⚠️ And the thing that actually enforces it is THE SHEET, not this predicate: `apply_action` discards the
+    untitled row on entry — measured below. So the `_sheet_has_rows` filter is currently a belt over suspenders,
+    and this is stated because a test that claims to cover something already guaranteed by the adjacent layer
+    LIES about its coverage (the teardown showed it: removing the filter did not make anything fail).
     """
     tid = T.create("Busca un monitor", sheet="v284-2")
     SHEET.apply_action("present", {"sheet": "v284-2", "title": "Resultados",
@@ -66,11 +66,11 @@ def test_una_fila_SIN_nombre_no_es_un_resultado():
 
 
 def test_una_pestana_SIN_encargo_detras_no_mira_ninguna_hoja():
-    """El operador conduciendo el navegador a mano: sin sello, no hay hoja del encargo que consultar.
+    """The operator driving the browser manually: without a stamp, there is no task sheet to consult.
 
-    La caja PELADA se llena a propósito en este caso, que es lo que lo hace morder: sin la guarda,
-    `view_data("")` la lee y la cara dispararía con los restos de OTRA ronda — 38 filas acumuladas medidas en
-    la tanda del 2026-08-24. Un fantasma con forma de hallazgo.
+    The BARE box is deliberately filled in this case, which is what makes it bite: without the guard,
+    `view_data("")` reads it and the face would trigger on leftovers from ANOTHER round — 38 accumulated rows
+    measured in the 2026-08-24 batch. A ghost shaped like a finding.
     """
     SHEET.apply_action("present", {"sheet": "", "title": "Resultados",
                                    "items": [{"title": "Guitarra de otra ronda", "price": "100 €"}]})
@@ -79,7 +79,7 @@ def test_una_pestana_SIN_encargo_detras_no_mira_ninguna_hoja():
 
 
 def test_el_reporte_del_worker_SIGUE_valiendo():
-    """No se sustituye una señal por otra: `kept` llega antes que la hoja cuando el worker sí avisa."""
+    """One signal is not substituted for another: `kept` arrives before the sheet when the worker does report."""
     from nucleo import dispatch as D
     from nucleo.workers.session import SessionRecord
     tid = T.create("Busca un monitor", sheet="v284-3")
@@ -88,24 +88,24 @@ def test_el_reporte_del_worker_SIGUE_valiendo():
     D._SESSIONS.clear()
     D._SESSIONS["w1"] = rec
     try:
-        assert LB._found_candidates(tid) is True      # con la hoja todavía vacía
+        assert LB._found_candidates(tid) is True      # with the sheet still empty
     finally:
         D._SESSIONS.clear()
 
 
 def test_y_la_cara_LLEGA_al_estado_cuando_la_hoja_tiene_filas():
-    """La mitad de cableado: que el hecho salga en el bloque que el turno lee, no solo en el predicado.
+    """The wiring half: the fact must appear in the block the turn reads, not only in the predicate.
 
-    Un arreglo cuyo predicado acierta y cuyo bloque no lo enseña pasa sus tests y no cambia nada (V2-199).
+    A fix whose predicate is correct but whose block does not show it passes its tests and changes nothing (V2-199).
     """
     tid = T.create("Busca un monitor de segunda mano", sheet="v284-4")
     T.set_status(tid, "working")
     _sheet_with("v284-4", ["Monitor Dell 27 P2714H LED"])
     state = "\n".join(LB.navegador_lines())
     assert "YA HA ENCONTRADO ALGO" in state
-    # V2-330: sin filas escritas, la orden es decir la verdad de lo que hay, no recitar lo que no tiene.
-    # V2-443 — la rama SIN filas cambió de texto (ahora marca la cuenta como del worker), así que la
-    # alternativa se actualiza: dejarla apuntando a una frase que ya no existe la vuelve inalcanzable y el
-    # `or` pasaría a comprobar una sola cosa sin que nada fallara.
+    # V2-330: without written rows, the instruction is to tell the truth about what exists, not recite what it lacks.
+    # V2-443 — the NO-ROWS branch changed its text (it now marks the count as coming from the worker), so the
+    # alternative is updated: leaving it pointing to a phrase that no longer exists makes it unreachable, and the
+    # `or` would end up checking only one thing without anything failing.
     assert ("CUÉNTALE en este turno LO QUE ENCAJE" in state
             or "DICE QUE YA TIENE CANDIDATOS" in state)

@@ -1,11 +1,11 @@
 """V2-205 — we told the worker to read a screenshot that was not on disk.
 
 `_shot_path()` returned the PNG's path whether or not the file existed, and `nav_cli` turns any non-empty value
-into an INSTRUCTION: «VISTA (captura … — MÍRALA con Read "<path>" …)». So every action before the first
+into an INSTRUCTION: «VISTA (capture … — MÍRALA con Read "<path>" …)». So every action before the first
 successful capture — or after one that failed — sent the worker to read nothing. Measured on
 `find-theatre-tickets__es` (2026-08-20 15:06):
 
-    worker/task «📄 archivo ⚠️ error»: File does not exist.
+    worker/task «📄 file ⚠️ error»: File does not exist.
     Note: your current working directory is /private/var/.../T/zaelar-workers/2
 
 The cwd note in that message is what made it look like a path problem, and it is not: the path is ABSOLUTE, and

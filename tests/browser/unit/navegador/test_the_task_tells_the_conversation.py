@@ -57,7 +57,7 @@ def test_a_wall_reaches_the_conversation():
 
 
 def test_the_wall_note_carries_the_REASON_and_a_way_out():
-    """«Está bloqueada» is a diagnosis. What the operator can act on is WHY and WHAT NOW — the same lesson the
+    """“It is blocked” is a diagnosis. What the operator can act on is WHY and WHAT NOW — the same lesson the
     four bridges learned today, applied to the one reader who is a person."""
     _wall()
     n = brain_notes.drain()[0]

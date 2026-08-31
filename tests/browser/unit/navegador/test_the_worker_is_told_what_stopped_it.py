@@ -1,19 +1,19 @@
-"""nucleo/nav_cli.py — lo que el puente ANOTA para el worker tiene que IMPRIMIRSE (V2-167 · V2-186).
+"""nucleo/nav_cli.py — what the bridge ANNOTATES for the worker must be PRINTED (V2-167 · V2-186).
 
-Dos arreglos viajaron por HTTP y murieron a una línea de su lector:
+Two fixes traveled over HTTP and died one line short of their reader:
 
-  · **V2-167** puso `wall` en cada respuesta de `/api/navegador/act` — la página nos PARÓ (anti-bot, CAPTCHA,
-    error de carga, «Access Denied» en el cuerpo). Se puso ahí precisamente para que el WORKER pudiera actuar.
-  · **V2-186** puso `hint`/`stalled_s` — esta página no se mueve desde hace minutos.
+  · **V2-167** put `wall` in every response from `/api/navegador/act` — the page STOPPED us (anti-bot, CAPTCHA,
+    loading error, «Access Denied» in the body). It was put there precisely so the WORKER could act.
+  · **V2-186** put `hint`/`stalled_s` there — this page has not moved for minutes.
 
-Y `_print_state`, que es la ÚNICA vista que el worker tiene de la página (el prompt del worker web solo le da
-`nucleo.nav_cli`), imprimía `msg`, URL, TÍTULO, VISTA y ELEMENTOS. Ni uno de los dos campos. Medido en cuatro
-rondas: catorce capturas de la misma página en veinte minutos, una corrida entera contra el muro de Booking, y
-una tarea en `done` mientras el operador oía «aún no ha dado señal».
+And `_print_state`, which is the ONLY view the worker has of the page (the web worker's prompt only gives it
+`nucleo.nav_cli`), printed `msg`, URL, TITLE, VIEW, and ELEMENTS. Neither of the two fields. Measured over four
+rounds: fourteen captures of the same page in twenty minutes, a full run against Booking's wall, and
+a task in `done` while the operator heard «it still hasn't signaled».
 
-La lección, que es la del fichero entero: **anotar una respuesta no sirve de nada si nadie la imprime.** Por eso
-el último test no comprueba un campo concreto sino el contrato: lo que el puente añade para el worker, el CLI lo
-dice.
+The lesson, which is the lesson of the entire file: **annotating a response is useless if nobody prints it.** That is why
+the last test checks the contract rather than a specific field: whatever the bridge adds for the worker, the CLI
+says it.
 """
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ def test_the_wall_reaches_the_worker():
 
 
 def test_and_it_says_what_to_do_instead_of_only_naming_it():
-    """Un muro sin salida es un dato; con salida es una instrucción. El worker está en un bucle, así que lo que
-    necesita es la alternativa, no el diagnóstico."""
+    """A wall with no way out is data; with a way out it is an instruction. The worker is in a loop, so what it
+    needs is the alternative, not the diagnosis."""
     out = _printed({"ok": True, "url": "https://x.test/", "title": "t",
                     "wall": "el sitio pidió verificación anti-robot"})
     assert "otro sitio" in out.lower()
@@ -55,8 +55,8 @@ def test_the_stall_hint_reaches_the_worker():
 
 
 def test_the_wall_is_said_BEFORE_the_page_it_is_about():
-    """El worker lee de arriba abajo y decide. Un muro anunciado después de los elementos interactivos es una
-    invitación a seguir clicando."""
+    """The worker reads from top to bottom and decides. A wall announced after the interactive elements is an
+    invitation to keep clicking."""
     out = _printed({"ok": True, "url": "https://x.test/", "title": "Access Denied",
                     "wall": "el sitio bloqueó el acceso (te tomó por un robot)",
                     "elements": "[1] botón Buscar"})
@@ -64,16 +64,16 @@ def test_the_wall_is_said_BEFORE_the_page_it_is_about():
 
 
 def test_an_ordinary_page_says_neither(bare=None):
-    """La otra mitad: sin esto, «avisar del muro» y «avisar siempre» pasan el mismo test."""
+    """The other half: without this, «warn about the wall» and «always warn» pass the same test."""
     out = _printed({"ok": True, "url": "https://www.thefork.es/restaurant/casa-lucio-madrid/r146247",
                     "title": "Casa Lucio", "elements": "[1] Reservar"})
     assert "MURO" not in out and "AVISO" not in out
 
 
 def test_everything_the_bridge_ANNOTATES_for_the_worker_gets_printed():
-    """EL CONTRATO, y la guarda contra repetir el fallo: cada campo que `act_api` añade pensando en el worker
-    tiene que salir por aquí. Añadir el campo y no imprimirlo no falla con ruido — falla en silencio, y ya ha
-    costado dos arreglos muertos."""
+    """THE CONTRACT, and the safeguard against repeating the failure: every field that `act_api` adds with the worker
+    in mind has to come out here. Adding the field without printing it does not fail noisily — it fails silently, and it has already
+    cost two dead fixes."""
     import inspect
 
     from widgets.navegador import act_api
@@ -86,10 +86,10 @@ def test_everything_the_bridge_ANNOTATES_for_the_worker_gets_printed():
                 annotated.add(line.split("[", 1)[1].split("]", 1)[0].strip().strip("\"'"))
     assert annotated, "no se pudo leer qué anota el puente: ¿cambió la forma de las anotaciones?"
 
-    # Un campo puede llegar al worker de dos maneras: IMPRESO tal cual, o RENDERIZADO por otro que sí se
-    # imprime. `stalled_s` es el número y `hint` es la frase que lo dice con palabras («llevas 5 min…»), así que
-    # su lector es `hint` — y `hint` tiene su propio test arriba. Esto no es una excepción a dedo: es el
-    # invariante escrito bien. Lo que no se admite es un campo sin ninguna de las dos cosas.
+    # A field can reach the worker in two ways: PRINTED as-is, or RENDERED by another field that is
+    # printed. `stalled_s` is the number and `hint` is the phrase that expresses it in words («llevas 5 min…»), so
+    # its reader is `hint` — and `hint` has its own test above. This is not a hand-picked exception: it is the
+    # invariant written out correctly. What is not allowed is a field with neither of the two.
     RENDERED_BY = {"stalled_s": "hint"}
 
     printer = inspect.getsource(nav_cli._print_state)
@@ -107,12 +107,12 @@ def test_everything_the_bridge_ANNOTATES_for_the_worker_gets_printed():
         f"que sí lo dice, o quítalo de `act_api`.")
 
 
-# ── V2-212: un `usage` dice la FORMA, no el ERROR ─────────────────────────────────────────────────────────────
-# Medido en `book-hotel-night-known__es` (2026-08-20 15:29):
+# ── V2-212: a `usage` states the FORM, not the ERROR ──────────────────────────────────────────────────────────
+# Measured in `book-hotel-night-known__es` (2026-08-20 15:29):
 #     Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text
 #     nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
-# `type` toma un [ref] y `type_at` toma COORDENADAS: el worker usó la aridad de uno con el nombre del otro. El
-# mensaje de argparse dice qué falló y nada de qué hacer — la misma clase de fallo mudo que el `informe.json`.
+# `type` takes a [ref] and `type_at` takes COORDINATES: the worker used one command's arity with the other command's name. The
+# argparse message says what failed and nothing about what to do — the same kind of silent failure as `informe.json`.
 def _nav_cli_stderr(argv):
     import contextlib
     import io
@@ -130,8 +130,8 @@ def _nav_cli_stderr(argv):
 def test_type_at_con_el_texto_en_la_coordenada_explica_la_confusion():
     err = _nav_cli_stderr(["type_at", "3", "Hotel Palacio de la Merced Burgos reservas", "x"])
     assert "COORDENADAS" in err
-    assert "`type <ref>" in err          # nombra el comando que SÍ era
-    assert "usage:" in err               # y no se pierde la forma
+    assert "`type <ref>" in err          # names the command that it actually was
+    assert "usage:" in err               # and the form is not lost
 
 
 def test_click_at_tambien_lo_explica():
@@ -140,7 +140,7 @@ def test_click_at_tambien_lo_explica():
 
 
 def test_un_comando_bien_escrito_no_recibe_ninguna_pista():
-    """Sensibilidad: la pista es para el error, no para el uso normal. Si saliera siempre, sería ruido en cada
-    llamada y el worker aprendería a ignorarla."""
-    err = _nav_cli_stderr(["navigate"])          # falta el argumento: error, pero de OTRO comando
+    """Sensitivity: the hint is for the error, not for normal usage. If it appeared every time, it would be noise on every
+    call and the worker would learn to ignore it."""
+    err = _nav_cli_stderr(["navigate"])          # the argument is missing: an error, but from ANOTHER command
     assert "COORDENADAS" not in err

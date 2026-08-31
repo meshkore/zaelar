@@ -1,24 +1,25 @@
-"""V2-293 — el worker puso un filtro, la página aplicó OTRO, y nada se lo dijo.
+"""V2-293 — the worker set one filter, the page applied ANOTHER, and nothing told it so.
 
-Medido en la tanda del 2026-08-24 13:42, `search-buy-guitar__es`, con el escalón que servía la sesión conduciendo
-a ciegas (no lee imágenes, V2-289). Los eventos, en orden:
+Measured in the run on 2026-08-24 13:42, `search-buy-guitar__es`, with the step that served the session driving
+blindly (it does not read images, V2-289). The events, in order:
 
     🧭 navegador | type «guitarra acústica»   → …/search?keywords=guitarra+acústica&order_by=most_relevance
     🧭 navegador | click [29]                 (el filtro de precio)
     🧭 navegador | click [29]
     🧭 navegador | type «150»                 → …/search?**min_sale_price=750**&keywords=guitarra+acústica
 
-Quería precio MÁXIMO 150 € y la página se fue a precio MÍNIMO 750. La ronda acabó ahí con **CERO extracciones**.
-Y la respuesta del puente no ocultaba nada —la URL entera venía— pero un parámetro nuevo dentro de una línea
-larga, entre el título y los elementos, no se ve.
+It wanted a MAXIMUM price of €150 and the page went to a MINIMUM price of 750. The run ended there with **ZERO extractions**.
+And the bridge response hid nothing—the entire URL was present—but a new parameter inside a long line,
+between the title and the elements, cannot be seen.
 
-Lo que se añade es el DELTA, que es lo único que el worker no puede deducir por su cuenta: la dirección de ahora
-la tiene, la de antes no (`nav_cli` es un proceso por acción, no recuerda nada).
+What is added is the DELTA, which is the only thing the worker cannot deduce on its own: it has the current
+address, but not the previous one (`nav_cli` is a process per action and remembers nothing).
 
-**Genérico por construcción**, que es lo que lo separa de adaptarse al caso: se comparan los parámetros que haya,
-sin saber de qué sitio son ni qué significan. Sirve igual para un filtro de precio, uno de talla, un orden o una
-página siguiente — y para el listado que nadie ha escrito todavía. Y NO juzga si el cambio es el que se pedía:
-eso lo sabe el worker, que es quien pidió. Aquí se dice lo que la página afirma de sí misma.
+**Generic by construction**, which is what distinguishes it from adapting to the case: whatever parameters exist
+are compared, without knowing which site they belong to or what they mean. It works equally for a price filter, a
+size filter, a sort order, or a next page—and for the listing that no one has written yet. And it does NOT judge
+whether the change is the one requested: the worker knows that, since it is the one that made the request. Here,
+we state what the page says about itself.
 """
 from nucleo import nav_cli
 from widgets.navegador.act_api import _with_url_change
@@ -31,46 +32,46 @@ def _snap(url):
 
 
 def test_the_measured_case_is_named():
-    """EL CASO: pidió máximo 150 y la página aplicó mínimo 750."""
+    """THE CASE: it requested a maximum of 150 and the page applied a minimum of 750."""
     got = _with_url_change(_ANTES, _snap(_ANTES.replace("?", "?min_sale_price=750&")))
     assert got["url_change"] == "min_sale_price=750 (nuevo)"
 
 
 def test_a_changed_value_is_shown_with_both_sides():
-    """«cambió el precio» no sirve: hace falta de qué a qué para saber si es el que se pidió."""
+    """“the price changed” is not enough: we need the change from and to in order to know whether it is the requested one."""
     got = _with_url_change("https://x/s?max=400", _snap("https://x/s?max=150"))
     assert got["url_change"] == "max: 400 → 150"
 
 
 def test_a_filter_that_disappeared_is_named_too():
-    """Perder un filtro cambia los resultados tanto como ganarlo, y en silencio se lee como que sigue puesto."""
+    """Losing a filter changes the results just as much as gaining one, and silently it reads as though it were still set."""
     got = _with_url_change("https://x/s?max=150&q=a", _snap("https://x/s?q=a"))
     assert got["url_change"] == "max ya no está"
 
 
 def test_an_action_that_changed_nothing_says_nothing():
-    """Una línea que sale en cada acción deja de leerse — y la mayoría de acciones no tocan la dirección."""
+    """A line that appears on every action stops being read—and most actions do not touch the address."""
     assert "url_change" not in _with_url_change("https://x/s?q=a", _snap("https://x/s?q=a"))
 
 
 def test_the_first_action_of_a_tab_says_nothing():
-    """Sin dirección anterior no hay delta, y «todo es nuevo» sería ruido en la primera navegación."""
+    """Without a previous address there is no delta, and “everything is new” would be noise on the first navigation."""
     assert "url_change" not in _with_url_change("", _snap("https://x/s?q=a"))
 
 
 def test_a_different_page_with_the_same_query_says_nothing():
-    """Se comparan PARÁMETROS, no direcciones: entrar en la ficha de un anuncio no es cambiar un filtro."""
+    """PARAMETERS are compared, not addresses: entering an item's detail page is not changing a filter."""
     assert "url_change" not in _with_url_change("https://x/s?q=a", _snap("https://x/item/123?q=a"))
 
 
 def test_it_is_not_tied_to_any_site_or_parameter():
-    """La prueba de la norma del operador: cambia el sitio y el nombre del filtro, ¿sigue en pie?"""
+    """The operator rule test: change the site and the filter name—does it still hold?"""
     got = _with_url_change("https://otra-tienda.example/buscar?talla=M",
                            _snap("https://otra-tienda.example/buscar?talla=XL&pagina=2"))
     assert "talla: M → XL" in got["url_change"] and "pagina=2 (nuevo)" in got["url_change"]
 
 
-# ── y el puente lo DICE, que es la mitad que hace falta (contrato del nodo 4.20) ───────────────────────────
+# ── and the bridge SAYS it, which is half of what is needed (node 4.20 contract) ───────────────────────────
 def test_the_bridge_prints_the_delta_next_to_the_url(capsys):
     nav_cli._print_state({"ok": True, "url": "https://x/s?min=750", "title": "W",
                           "url_change": "min=750 (nuevo)", "elements": "[29] Precio"})
@@ -81,8 +82,8 @@ def test_the_bridge_prints_the_delta_next_to_the_url(capsys):
 
 
 def test_the_bridge_says_what_to_do_with_it(capsys):
-    """Un dato sin salida es un diagnóstico. Lo que hacía falta no era saber la URL —ya venía— sino que el
-    filtro que cuenta es el aplicado, no el pedido."""
+    """A fact without an outcome is a diagnosis. What was needed was not knowing the URL—it was already there—but
+    knowing that the filter that counts is the applied one, not the requested one."""
     nav_cli._print_state({"ok": True, "url": "https://x/s?min=750", "title": "W",
                           "url_change": "min=750 (nuevo)", "elements": ""})
     out = capsys.readouterr().out

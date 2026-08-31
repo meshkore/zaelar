@@ -1,19 +1,19 @@
-"""Una PESTAÑA sobrevive al worker que la abrió, y su hoja se resolvía por el registro de los vivos (V2-281).
+"""A TAB survives the worker that opened it, and its sheet was resolved through the registry of live sessions (V2-281).
 
-Medido en `search-secondhand-monitor__es` (2026-08-24 01:47), la ronda que aprobó:
+Measured in `search-secondhand-monitor__es` (2026-08-24 01:47), the run that passed:
 
-    por encargo: results: 24 fila(s) «Resultados» · results::9fc24a-1: 12 fila(s) «Busca un monitor…»
+    by task: results: 24 row(s) «Resultados» · results::9fc24a-1: 12 row(s) «Busca un monitor…»
 
-UN encargo, y sus hallazgos partidos en dos cajas — con la MAYORÍA en la hoja PELADA, que desde V2-259 no es
-de nadie. Y esa caja huérfana es además la «TARJETA FANTASMA» que el canvas lleva rondas reportando.
+ONE task, and its findings split between two boxes — with the MAJORITY in the BARE sheet, which since V2-259 belongs
+to no one. And that orphaned box is also the «GHOST CARD» that the canvas has been reporting for several runs.
 
-La causa: `act_api._sheet_of` resolvía con `dispatch.sheet_for_nav_task`, que recorre `_SESSIONS` — el
-registro de sesiones VIVAS. Pero una pestaña dura más que su worker: el record se saca en el `finally` de
-`_run_session`, y un relevo de proveedor (V2-238) abre un worker nuevo. Así que todo hallazgo que llegue
-después de esa muerte resolvía a "" y caía en la hoja de siempre.
+The cause: `act_api._sheet_of` resolved through `dispatch.sheet_for_nav_task`, which walks `_SESSIONS` — the
+registry of LIVE sessions. But a tab outlives its worker: the record is removed in `_run_session`'s `finally`,
+and a provider handoff (V2-238) opens a new worker. Thus every finding that arrived after that death resolved
+to "" and fell into the default sheet.
 
-Es la MISMA forma que V2-108 con el `trace`: un hecho que el llamante tiene al crear la pestaña y que el
-registro no puede contestar más tarde. Mismo remedio: se sella al nacer.
+It is the SAME pattern as V2-108 with the `trace`: a fact the caller has when creating the tab and that the
+registry can no longer answer later. Same remedy: seal it at birth.
 """
 import pytest
 
@@ -35,29 +35,29 @@ def test_la_pestana_guarda_la_hoja_de_su_encargo():
 
 
 def test_y_la_conserva_cuando_su_worker_YA_NO_ESTA():
-    """El caso medido: el record murió (relevo) y el hallazgo llega después."""
+    """The measured case: the record died (handoff) and the finding arrives afterward."""
     from nucleo import dispatch as D
     tid = T.create("Busca un monitor de segunda mano", sheet="9fc24a-1")
-    D._SESSIONS.clear()                       # el worker se murió y `_run_session` sacó su record
+    D._SESSIONS.clear()                       # the worker died and `_run_session` removed its record
     assert D.sheet_for_nav_task(tid) == "", "el registro de vivos ya no puede contestar — ése era el agujero"
     assert act_api._sheet_of(tid) == "9fc24a-1", "el hallazgo tardío vuelve a caer en la hoja de nadie"
 
 
 def test_una_pestana_SIN_encargo_sigue_entregando_en_la_hoja_de_siempre():
-    """El operador conduciendo el navegador a mano: no hay encargo, así que no hay instancia. Es lo correcto,
-    y convertirlo en un id inventado sería peor que el defecto."""
+    """The operator driving the browser manually: there is no task, so there is no instance. That is correct,
+    and turning it into an invented ID would be worse than the defect."""
     assert act_api._sheet_of(T.create("el operador abre una web")) == ""
 
 
 def test_el_registro_de_sesiones_sigue_siendo_el_RESPALDO():
-    """Una pestaña creada ANTES de este cambio no lleva sello, y mientras su worker viva el registro sí sabe.
+    """A tab created BEFORE this change has no seal, and while its worker is alive the registry does know.
 
-    Sin esta mitad, «arreglar» la resolución la rompería para todo lo que ya estaba abierto.
+    Without this half, «fixing» resolution would break it for everything that was already open.
     """
     from nucleo import dispatch as D
     from nucleo import surfaces
     from nucleo.workers.session import SessionRecord
-    tid = T.create("Busca un monitor")                    # sin sello, como las de antes
+    tid = T.create("Busca un monitor")                    # without a seal, like the old ones
     rec = SessionRecord(task_id="w9", goal="Busca un monitor", kind="web")
     surfaces.set_once(rec, "lista")
     rec.status, rec.nav_task, rec.sheet = "running", tid, "viejo-1"
@@ -70,9 +70,9 @@ def test_el_registro_de_sesiones_sigue_siendo_el_RESPALDO():
 
 
 def test_el_sello_lo_PONE_quien_prepara_la_pestana():
-    """La mitad que ninguna medición del módulo ve: que `_prepare_web` se lo pase de verdad.
+    """The half that no measurement of the module sees: that `_prepare_web` actually passes it along.
 
-    Es la lección de V2-199 — un arreglo cuyo dato nunca se escribe pasa sus tests y no hace nada.
+    It is the lesson of V2-199 — a fix whose data is never written passes its tests and does nothing.
     """
     import inspect
 
