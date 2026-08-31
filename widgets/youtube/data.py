@@ -29,7 +29,7 @@ _SEED = {
     "cmd_seq": 0,
     "loading": False,     # V2-062 fix: "load" search takes a few seconds (network); without this, the card looked
     "loading_query": "",  # COMPLETELY empty with no signal that something was happening (real bug 2026-07-23).
-    # V2-366 — the PLAYLIST: linear queue of videos played one after another (operator asked for musica-level lists).
+    # V2-366 — the PLAYLIST: linear queue of videos played one after another (operator asked for music-level lists).
     "list": [],           # [{videoId, title, channel, published, url, added_at}]
     # V2-401 — the player's own last error (IFrame API onError: 101/150 = embedding disabled). "" = healthy.
     # Written back by widget.js so "is it producing?" answers the player's reported reality, not our intent:
@@ -38,9 +38,9 @@ _SEED = {
     "pos": -1,            # index in `list` of the item playing (or last played); -1 = current video is not from the list
     "adding": "",         # an `add` by name is searching the network right now (visible state, like `loading` for load)
     "list_filter": "",    # display-only filter over the list (filter_list); never touches the list itself
-    # V2-467 — the list's NAME. `musica` has named playlists and this player did not, so «llámala la de la
-    # tarde» had nowhere to land: the model found no action, and the escalate catalogue's own «no estar en
-    # el catálogo NO es motivo para negarte» sent a two-link queue to a Brain Worker (measured, and the
+    # V2-467 — the list's NAME. `musica` has named playlists and this player did not, so «call it the afternoon
+    # one» had nowhere to land: the model found no action, and the escalate catalogue's own «not being in
+    # the catalogue is NOT a reason to refuse» sent a two-link queue to a Brain Worker (measured, and the
     # scenario calls escalating this a FAILURE — it is a rail, V2-042). "" = the card shows its generic title.
     "list_name": "",
 }
@@ -160,8 +160,8 @@ def _search_many(q: str, n: int = 5) -> list:
             # V2-469 — a hit the parser cannot NAME is not a candidate. Shorts blocks repeat "videoId"
             # but carry reelPlayerOverlayRenderer instead of "title":{"runs":…}; a query whose results
             # page led with them returned 5 hits, all untitled, and every one became a bare
-            # «youtu.be/<id>» row the operator could not choose from («no me has puesto ningún título.
-            # Así me es imposible elegir»). Skip and keep walking: named hits further down fill n, and
+            # «youtu.be/<id>» row the operator could not choose from («you have not given me a title.
+            # That makes it impossible for me to choose»). Skip and keep walking: named hits further down fill n, and
             # a page with none returns [] — the `search` action already says that honestly.
             continue
         ch = re.search(r'"(?:ownerText|longBylineText)":\{"runs":\[\{"text":"([^"]{1,80})"', blk)
@@ -217,12 +217,12 @@ def ref_index() -> list:
 
     The only member of the media family that did not publish its items — measured 2026-08-28 comparing the
     three: `musica` and `imagenes` answer, this one returned "". Two consequences, and the second is the
-    expensive one: «pon la tercera» / «quita la de los Beatles» had nothing to resolve against (and the
+    expensive one: «play the third one» / «remove the Beatles one» had nothing to resolve against (and the
     model must never invent an id, V2-026); and with the card OPEN AND EMPTY the brief could not say so,
-    which is exactly the «doy por entregado lo que no está» that V2-377/380/383 each paid for once.
+    which is exactly the «I consider what is missing delivered» that V2-377/380/383 each paid for once.
 
     `field: "item"` matches `play_item`/`remove`/`move`'s own payload key, and the label is the title the
-    operator would actually say. The CURRENT one is marked in the hint: «la que suena» is a real way to
+    operator would actually say. The CURRENT one is marked in the hint: «the one that is playing» is a real way to
     refer to a video, and without it the brain cannot tell which of twelve is playing."""
     try:
         db = _load()
@@ -231,8 +231,8 @@ def ref_index() -> list:
     # `db.get("pos") or -1` was a falsy-zero bug (V2-469): with the FIRST video playing (pos=0, the most
     # common case) the `or` turned it into -1 and no item was ever marked as playing.
     cur = int(db.get("pos", -1))
-    # «la que suena» over a broken player is a lie (V2-469, measured: play → player_error ×2, embedding
-    # disabled, and the model answered «¿qué está sonando?» with evasions for four turns — nothing it READS
+    # «the one that is playing» over a broken player is a lie (V2-469, measured: play → player_error ×2, embedding
+    # disabled, and the model answered «what is playing?» with evasions for four turns — nothing it READS
     # carried the fact). V2-401 fixed the producing predicate; this is the hint's half.
     roto = bool(str(db.get("player_error") or "").strip())
     out = []
@@ -472,7 +472,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
 
     if action == "name_list":
         # Naming is not renaming ANOTHER list: this player has exactly ONE queue, so the name is a field of
-        # the card, not an entity. Empty clears it back to the generic title — the same «vacío = quitar» that
+        # the card, not an entity. Empty clears it back to the generic title — the same «empty = remove» that
         # `filter_list` already uses, so two list actions do not disagree about what an empty payload means.
         nombre = str(p.get("name") or p.get("title") or p.get("item") or "").strip()[:80]
         db["list_name"] = nombre
@@ -480,7 +480,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return {"ok": True, "name": nombre, "count": len(db.get("list") or [])}
 
     if action == "clear_list":
-        # Empties the LIST only: whatever is playing keeps playing (voice «vacía la lista» must not cut the
+        # Empties the LIST only: whatever is playing keeps playing (voice «empty the list» must not cut the
         # video — close is the action that stops playback).
         db["list"] = []
         db["pos"] = -1

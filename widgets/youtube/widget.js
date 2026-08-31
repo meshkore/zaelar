@@ -282,8 +282,8 @@ export function render(root, data, ctx){
     E.listBox.textContent = "";
     const lst = Array.isArray(data.list) ? data.list : [];
     const filt = String(data.list_filter || "").trim().toLowerCase();
-    // V2-467 — el NOMBRE de la lista manda sobre el rótulo genérico: si el operador la llamó «la de la
-    // tarde», eso es lo que tiene que leer en la tarjeta para verificar de un vistazo que se le hizo caso.
+    // V2-467 — the list NAME takes precedence over the generic label: if the operator called it “the afternoon
+    // one,” that is what must be shown on the card so they can verify at a glance that their request was followed.
     const _nom = String(data.list_name || "").trim();
     const _rot = _nom || "Lista";
     const head = el("div", "hb-yt-listh", lst.length ? (_rot + " · " + lst.length) : _rot);
