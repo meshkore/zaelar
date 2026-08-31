@@ -86,7 +86,7 @@ NATIVE_CLUSTERS = "clusters"
 
 
 def ui_paints(widget_id: str) -> bool:
-    """Whether a confirmation on this widget should paint the card's visual Sí/No overlay. Default True.
+    """Whether a confirmation on this widget should paint the card's visual Yes/No overlay. Default True.
     A widget opts out via `"confirm_ui": false` in its manifest (2026-08-15, operator request: the agenda
     is voice-only — no button/overlay). Voice resolution (`classify_reply`) never depended on the overlay,
     so opting out changes only whether a card gets a button. Moved here from the provider (V2-515): it is
@@ -126,7 +126,7 @@ def request(action: str, widget_id: str, question: str = "", op: dict | None = N
     For `"data"`, `op` carries the real mutation ({"action": <name>, "payload": {...}}) that the resolver dispatches
     through `apply_action` on confirmation; it never escalates to code.
 
-    `notify_ui=False` (2026-08-15, operator request): some widgets are voice-only by DESIGN — a visual Sí/No
+    `notify_ui=False` (2026-08-15, operator request): some widgets are voice-only by DESIGN — a visual Yes/No
     overlay pinned on the card is unwanted "chrome" for them. The confirmation itself is UNCHANGED (still
     registered, still expires, still resolved the exact same way): this only skips the SSE emit that paints the
     overlay, so voice ("sí"/"no") is the ONLY way to answer. The caller (`nucleo.py`) decides this per widget by

@@ -41,7 +41,7 @@ _lock = threading.Lock()                                   # one agent at a time
 
 # In-flight generation journal — a server restart kills the headless agent mid-build with no trace. Each job is
 # recorded here when it starts and removed when it ends, so on boot resume_interrupted_generations() (server_api)
-# can relaunch creates / report broken modifies instead of leaving the operator with a silent "hecho" that never
+# can relaunch creates / report broken modifies instead of leaving the operator with a silent "done" that never
 # landed. NOT a widget store: it's the generator's own journal, hence the underscore name no safe_id() can take.
 # Same `<workspace>/widgets/_data` root as `store.DATA_DIR` — unset ZAELAR_WORKSPACE = byte-identical
 # to the old `HERE/_data` path (workspace.root() falls back to the engine repo root).
@@ -288,7 +288,7 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
 
 def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") -> dict:
     """Build a NEW widget folder with the atomic agent. Returns {ok, id, existed?, error?}. `token` (V2-038) =
-    id del Brain Worker → el subproceso queda MATABLE con generator.kill(token)."""
+    Brain Worker ID → the subprocess can be TERMINATED with generator.kill(token)."""
     wid = safe_id(wid) or safe_id(title) or _concise_id(spec)
     if not wid:
         return {"ok": False, "error": "could not derive a widget id"}
@@ -377,7 +377,7 @@ def _discard(wid: str) -> None:
 def modify_widget(wid: str, change: str, token: str = "") -> dict:
     """Modify an EXISTING widget with the atomic agent (e.g. 'add a column with price + seller'). BACKS UP the
     working version first and RESTORES it if the edit doesn't validate — so an iteration can't break a good widget.
-    `token` (V2-038) hace el subproceso MATABLE (generator.kill(token))."""
+    `token` (V2-038) makes the subprocess TERMINABLE (generator.kill(token))."""
     import shutil
     import tempfile
     wid = safe_id(wid)

@@ -1,6 +1,6 @@
 """A viewer, not an editor (V2-457).
 
-The operator asked for "un previsualizador, sin edición, sin funciones extrañas": one picture large, the set as
+The operator asked for "a previewer, with no editing and no strange functions": one picture large, the set as
 thumbnails underneath, arrows, a title and its source on top, all of it drivable by voice. Everything here
 serves that and stops there — no crop, no filters, no export.
 
@@ -96,7 +96,7 @@ def view_data(q: str = "") -> dict:
 def _resolve(items: list, item) -> "int | None":
     """A spoken reference to one picture → its index. A number is 1-based; text matches the title or the site.
 
-    The operator says "la tercera" or "la de Ferrari", never an array offset — and the model must never guess an
+    The operator says "the third one" or "the one from Ferrari", never an array offset — and the model must never guess an
     index either (V2-026), which is why this resolution lives in the widget beside the data it resolves against.
     """
     if item is None:
@@ -111,10 +111,10 @@ def _resolve(items: list, item) -> "int | None":
     for k, it in enumerate(items):
         if low in str(it.get("title") or "").lower() or low in str(it.get("site") or "").lower():
             return k
-    # The model rarely hands over a clean fragment: it says «la que sea claramente del Amalfi» (measured
+    # The model rarely hands over a clean fragment: it says «whichever one is clearly from Amalfi» (measured
     # 2026-08-28, three failed selects in one round). A whole-phrase substring cannot match that, but its one
     # meaningful TOKEN can. Longest tokens first so «ferrari amalfi» prefers the more specific word; short
-    # tokens (articles, «la», «del») never match anything by construction (>3 chars).
+    # tokens (articles, «the», «from») never match anything by construction (>3 chars).
     for tok in sorted((t for t in low.split() if len(t) > 3), key=len, reverse=True):
         for k, it in enumerate(items):
             if tok in str(it.get("title") or "").lower() or tok in str(it.get("site") or "").lower():
@@ -195,7 +195,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             if k is None:
                 # The refusal NAMES what is on screen (V2-463). «no encuentro esa imagen (None)» was measured
                 # verbatim in a round: the model had called select with NO item, got told nothing usable, and
-                # answered the operator «te la dejo puesta» over a failure — three times. With the choices in
+                # answered the operator «I’ll leave it displayed» over a failure — three times. With the choices in
                 # the error, the next model turn can actually pick one.
                 menu = " · ".join(f"{i}: {str(it.get('title') or it.get('site') or '?')[:40]}"
                                   for i, it in enumerate(items[:6], 1))

@@ -1,10 +1,10 @@
 // Image viewer: one picture large, the set as thumbnails underneath, arrows, title + source on top.
 //
-// Deliberately a viewer and nothing else (operator, 2026-08-28: "sin grandes virguerías... solamente para que
-// la gente pueda ver las imágenes"). No crop, no filters, no download button.
+// Deliberately a viewer and nothing else (operator, 2026-08-28: "nothing fancy... just so people can
+// see the images"). No crop, no filters, no download button.
 //
 // Every mutation goes through ctx.action(), never local state: the same viewer is driven by voice, and a local
-// "current index" would drift from the server's the moment the operator says "la siguiente" instead of clicking.
+// "current index" would drift from the server's the moment the operator says "next one" instead of clicking.
 // The server saves, the canvas re-renders over SSE — so this file only ever paints what it was handed.
 
 function injectStyles(){
@@ -64,7 +64,7 @@ export function render(el, data, ctx){
   el.appendChild(hd);
 
   // ── source line: where this exact picture came from ───────────────────────────────────────────
-  // The operator asked for the source to be visible ("incluso con la fuente de la misma"). It names the SITE
+  // The operator asked for the source to be visible ("including the source itself"). It names the SITE
   // and links the PAGE, because a bare image URL tells you a CDN hostname and not who published it.
   const src = txt("div","imgsrc");
   if(cur.site){
@@ -116,22 +116,22 @@ export function render(el, data, ctx){
       t.onerror=()=>{ b.style.display="none"; };
       b.appendChild(t);
       // Selecting by NUMBER, not by URL: `select` resolves 1-N in the widget, which is the same path voice
-      // takes ("la tercera"), so clicking and speaking cannot diverge.
+      // takes ("the third"), so clicking and speaking cannot diverge.
       b.onclick=()=>{ try{ctx.action("select",{item:String(k+1)});}catch(_){} };
       strip.appendChild(b);
     });
     el.appendChild(strip);
   }
 
-  // ── TECLADO: ← → para pasar fotos (V2-465) ─────────────────────────────────────────────────────
-  // El tercero de la familia sin teclas: `musica` y `youtube` ya las tenían. En un visor de fotos las
-  // flechas son lo PRIMERO que la gente prueba, y sin ellas hay que ir al ratón para algo que el widget
-  // ya sabe hacer. Se escucha en la TARJETA (no en document) para que dos visores abiertos no se peleen
-  // por la misma tecla, y `tabIndex` es lo que hace que la tarjeta pueda tener el foco.
+  // ── KEYBOARD: ← → to move through photos (V2-465) ───────────────────────────────────────────────
+  // The third of the family without keys: `musica` and `youtube` already had them. In a photo viewer the
+  // arrows are the FIRST thing people try, and without them they have to reach for the mouse for something
+  // the widget already knows how to do. Listen on the CARD (not on document) so that two open viewers do not
+  // fight over the same key, and `tabIndex` is what lets the card receive focus.
   if(items.length>1){
     el.tabIndex = 0;
     el.onkeydown = (e)=>{
-      // Nunca robar las flechas mientras alguien escribe (el chat, un campo de otro widget encima).
+      // Never steal the arrows while someone is typing (the chat, a field in another widget above it).
       const a = document.activeElement;
       if(a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA" || a.isContentEditable)) return;
       let act = "";
