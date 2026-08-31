@@ -1,28 +1,28 @@
-"""V2-328 — «motor limpio» miraba dos señales de tres, y afirmaba lo contrario de lo que pasaba.
+"""V2-328 — “clean engine” checked two of three signals and claimed the opposite of what was happening.
 
-`probe_client.settle_after_reset()` comprueba las sesiones de worker (`/api/tasks`) y las tarjetas del canvas.
-Le faltaba la tercera: **una pestaña del NAVEGADOR es un registro distinto**, y puede seguir conduciendo sin
-sesión de worker viva y sin tarjeta abierta.
+`probe_client.settle_after_reset()` checks worker sessions (`/api/tasks`) and canvas cards.
+It was missing the third: **a BROWSER tab is a separate record**, and it can continue driving without
+a live worker session and without an open card.
 
-MEDIDO EL 2026-08-25, y lo causé yo. Maté una tanda con `hotel-under-15-days` a medias; la siguiente arrancó en
-`search-buy-motorcycle__es` y su log dice, literal:
+MEASURED ON 2026-08-25, and I caused it. I killed a batch with `hotel-under-15-days` halfway through; the next one started at
+`search-buy-motorcycle__es` and its log says, literally:
 
     ▸ motor limpio en 0.0s: sin trabajo vivo ni tarjetas (memoria y estado intactos)
 
-Mientras tanto, entre las 21:06 y las 21:09, el navegador abría `booking.com/hotel/es/eurostars-regina`,
+Meanwhile, between 21:06 and 21:09, the browser was opening `booking.com/hotel/es/eurostars-regina`,
 `booking.com/searchresults?ss=Sevilla` y `google.com/travel/search`, y el prompt de esa ronda llevaba
 «ibis Budget Sevilla Aeropuerto — 48 €»; «Eurostars Al-Andalus Palace — 55 €».
 
-Los veredictos culparon al PRODUCTO:
-  · moto (mecanismo 2): «incapacidad para filtrar ruido estructural (hoteles/recambios)»
-  · bici (adaptación 2): «distracción con resultados de otros contextos (hoteles)»
+The verdicts blamed the PRODUCT:
+  · motorcycle (mechanism 2): “inability to filter structural noise (hotels/spare parts)”
+  · bicycle (adaptation 2): “distraction by results from other contexts (hotels)”
 
-No era el producto perdiendo el foco. Era trabajo nuestro de la tanda anterior, con el arnés afirmando lo
-contrario justo en la línea que el operador lee para fiarse de que el caso siguiente se mide solo.
+It was not the product losing focus. It was our work from the previous batch, with the harness claiming the
+opposite precisely on the line the operator reads to trust that the next case is measured on its own.
 
-SE MIDE POR ACTIVIDAD, NO POR ESTADO, y eso es deliberado: el estado ya falló una vez de esta forma exacta
-(`active_sessions()` sin filtrar antes de V2-115). Un registro con un hueco dice «nada vivo» con la misma cara
-que un registro correcto; un hito emitido hace tres segundos no admite interpretación.
+IT IS MEASURED BY ACTIVITY, NOT STATE, and that is deliberate: state already failed once in this exact way
+(`active_sessions()` without filtering before V2-115). A record with a gap says “nothing alive” with the same face
+as a correct record; a milestone emitted three seconds ago admits no interpretation.
 """
 import json
 import sqlite3
@@ -35,7 +35,7 @@ from tests.use_cases.e2e.agent import verify as V
 
 @pytest.fixture
 def db(tmp_path):
-    """Un test unitario nunca mira el plató vivo."""
+    """A unit test never looks at the live set."""
     p = tmp_path / "obs.db"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms INTEGER, topic TEXT, payload TEXT, "
@@ -64,7 +64,7 @@ def test_un_hito_RECIENTE_dice_que_sigue_conduciendo(db):
 
 
 def test_un_hito_VIEJO_no_lo_dice(db):
-    """La sensibilidad: si cualquier rastro antiguo contara, ninguna tanda arrancaría nunca."""
+    """Sensitivity: if any old trace counted, no batch would ever start."""
     p, add = db
     add(hace_s=60)
     r = V.browser_still_driving(str(p))
@@ -80,20 +80,20 @@ def test_el_umbral_de_silencio_se_puede_ajustar_y_MUERDE(db):
 
 
 def test_una_db_ilegible_no_tumba_la_tanda(tmp_path):
-    """Fail-soft: no poder mirar no es «está sucio». Bloquear una tanda por una lectura fallida costaría más
-    que medir un caso con una advertencia."""
+    """Fail-soft: being unable to look is not “it is dirty.” Blocking a batch because of a failed read would cost more
+    than measuring a case with a warning."""
     assert V.browser_still_driving(str(tmp_path / "no-existe.db"))["driving"] is False
 
 
 def test_el_arranque_del_caso_LO_CONSULTA_y_PISA_el_veredicto_limpio():
-    """La mitad de cableado, y aquí es la que importa: la señal puede ser perfecta y la línea seguir mintiendo.
-    Se comprueba que además de consultarse, MARCA `clean = False` — que es lo que el operador lee."""
+    """Half the wiring, and this is the part that matters: the signal can be perfect and the line can still lie.
+    It checks that, in addition to being queried, it MARKS `clean = False` — which is what the operator reads."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
-    # `_run_batch`, no `_run_scenario`: el reset vive en el bucle del LOTE, antes de cada caso. El primer
-    # intento de este test apuntó al sitio equivocado y salió rojo — que es exactamente lo que tiene que hacer
-    # un guarda de cableado cuando el cableado no está donde uno cree.
+    # `_run_batch`, not `_run_scenario`: the reset lives in the BATCH loop, before each case. This test’s first
+    # attempt pointed at the wrong place and went red — exactly what a wiring guard must do when the wiring is
+    # not where one thinks it is.
     src = "\n".join(ln for ln in inspect.getsource(R._run_batch).splitlines()
                     if not ln.strip().startswith("#"))
     i = src.find("verifymod.browser_still_driving(")
@@ -105,7 +105,7 @@ def test_el_arranque_del_caso_LO_CONSULTA_y_PISA_el_veredicto_limpio():
 
 
 def test_y_el_aviso_NOMBRA_lo_que_quedó_vivo():
-    """Un «no está limpio» sin decir qué quedó vivo obliga a investigar desde cero cada vez."""
+    """A “not clean” message without saying what remained alive forces an investigation from scratch every time."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R

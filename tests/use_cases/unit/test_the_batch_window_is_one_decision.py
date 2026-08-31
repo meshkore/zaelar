@@ -1,21 +1,21 @@
-"""`--start-at` y `--limit` acotan la tanda, y estaban en dos sitios con dos comportamientos (V2-280).
+"""`--start-at` and `--limit` bound the batch, and were implemented in two places with two behaviors (V2-280).
 
-Medido el 2026-08-24 intentando arrancar la tanda de `search-buy`, que es literalmente lo que estos dos flags
-existen para hacer. Las dos mitades del mismo fallo:
+Measured on 2026-08-24 while trying to start the `search-buy` batch, which is literally what these two flags
+exist to do. The two halves of the same bug:
 
-  · **El ORDEN de aplicación estaba invertido en el camino de correr.** `--limit` recortaba a los N PRIMEROS y
-    LUEGO se buscaba el `--start-at` ahí dentro, así que la composición natural —«cuatro casos empezando por
-    la bicicleta»— no seleccionaba nada y salía con «--start-at 'search-buy-bicycle__es' is not in the
-    selected set». El mensaje apunta a la SELECCIÓN, que estaba bien; el problema era la aridad.
-  · **Y `--list` ignoraba los dos.** Se usó para comprobar qué iba a correr la tanda y contestó por la
-    selección entera: 19 casos donde iban a correr 4. Su propio comentario ya arreglaba esto mismo para
-    `--segment` («un listado que contradice la corrida que pretende previsualizar es peor que no tener
-    listado»), y la lección no se había aplicado a estos dos.
+  · **The application ORDER was reversed on the execution path.** `--limit` truncated to the first N and
+    THEN searched for `--start-at` within that subset, so the natural composition —“four cases starting with
+    the bicycle”— selected nothing and exited with “--start-at 'search-buy-bicycle__es' is not in the
+    selected set”. The message points to SELECTION, which was correct; the problem was the arity.
+  · **And `--list` ignored both.** It was used to check what the batch was going to run and reported the
+    entire selection: 19 cases where 4 were going to run. Its own comment had already fixed this same issue
+    for `--segment` (“a listing that contradicts the run it is meant to preview is worse than having no
+    listing”), and the lesson had not been applied to these two.
 
-Y la parte que hace de esto una función compartida y no dos arreglos: **arreglar `--list` por su cuenta habría
-sido PEOR que el fallo.** Ese camino ordenaba por (tier, locale, id) y el de correr respeta el orden de
-`all_scenarios()`, que no es el mismo — comprobado, difieren desde el primer elemento. Un `--list` «arreglado»
-habría previsualizado una tanda DISTINTA de la que corre, con toda la seguridad de un listado correcto.
+And the part that makes this a shared function rather than two fixes: **fixing `--list` on its own would have
+been WORSE than the bug.** That path sorted by (tier, locale, id), while the execution path respects the order
+of `all_scenarios()`, which is not the same — verified, they differ from the first element. A “fixed” `--list`
+would have previewed a DIFFERENT batch from the one that runs, with all the confidence of a correct listing.
 """
 from tests.use_cases.e2e.agent import run as runmod
 from tests.use_cases.e2e.agent import scenarios as SC
@@ -36,8 +36,8 @@ def test_la_composicion_NATURAL_es_N_casos_DESDE_ese_id():
 
 
 def test_y_ese_era_el_agujero_al_reves_no_selecciona_nada():
-    """Sensibilidad: el orden invertido, hecho a mano, sobre los mismos datos."""
-    recortado = _ROWS[:2]                              # lo que hacía `--limit` primero
+    """Sensitivity: the reversed order, reproduced manually, on the same data."""
+    recortado = _ROWS[:2]                              # what `--limit` did first
     assert "c" not in [s.id for s in recortado], "por aquí salía «is not in the selected set»"
 
 
@@ -48,7 +48,7 @@ def test_cada_flag_por_su_cuenta_sigue_haciendo_lo_suyo():
 
 
 def test_un_id_que_no_esta_es_un_ERROR_no_una_tanda_vacia():
-    """Una tanda que no selecciona nada tiene que DECIRLO: correr cero casos en silencio se lee como éxito."""
+    """A batch that selects nothing has to SAY SO: silently running zero cases reads as success."""
     rows, err = runmod.window_of(_ROWS, "zzz", 2)
     assert "is not in the selected set" in err
     assert rows == _ROWS, "sin ventana válida no se recorta a ciegas"
@@ -58,12 +58,12 @@ def test_el_limite_MAYOR_que_la_lista_no_recorta():
     assert len(runmod.window_of(_ROWS, "", 99)[0]) == 5
 
 
-# ── lo que obligó a compartir la función: los dos caminos NO ven el mismo orden ────────────────────────
+# ── what required sharing the function: the two paths do NOT see the same order ────────────────────────
 def test_el_catalogo_NO_viene_ordenado_por_tier_locale_id():
-    """La premisa del arreglo, afirmada aquí para que se entere quien la cambie.
+    """The premise of the fix, stated here so that anyone changing it is aware.
 
-    Si algún día `all_scenarios()` devolviera ya ordenado, este test se pone rojo y quien lo lea sabrá que
-    `--list` puede volver a ordenar por su cuenta sin mentir. Mientras sea falso, no puede.
+    If `all_scenarios()` ever returned an already sorted result, this test would turn red and anyone reading it
+    would know that `--list` could sort again on its own without lying. While that is false, it cannot.
     """
     crudo = [s.id for s in SC.all_scenarios()]
     ordenado = sorted(crudo, key=lambda i: i)
@@ -72,10 +72,10 @@ def test_el_catalogo_NO_viene_ordenado_por_tier_locale_id():
 
 
 def test_la_ventana_vive_UNA_vez():
-    """Dos copias de esta decisión se separan sin avisar — es cómo nació este defecto."""
+    """Two copies of this decision drift apart without warning — that is how this defect originated."""
     import inspect
     src = inspect.getsource(runmod)
-    # Se cuenta el `return` que lo PRODUCE, no la cadena: la docstring de `window_of` la cita al contar el
-    # fallo medido, y un guarda que confundiera la explicación con una copia obligaría a borrar el porqué.
+    # Count the `return` that PRODUCES it, not the string: the `window_of` docstring quotes it when counting the
+    # measured failure, and a guard that mistook the explanation for a copy would require deleting the rationale.
     assert src.count('return rows, f"--start-at') == 1, "el error volvió a construirse en dos sitios"
     assert src.count("window_of(") >= 3, "alguno de los dos caminos dejó de usar la función compartida"

@@ -1,7 +1,7 @@
 """The BAR is per case, and the opening line sounds like a person (operator, 2026-08-23).
 
-Two changes, one request: «en alguno igual nos vale el primer resultado, en otros querremos ser mas
-estrictos y afinar mas» and «mas pareceidos a como lo haria un humano, con sus imperfecciones».
+Two changes, one request: “for some, the first result may be enough, while for others we will want to be
+stricter and refine further” and “more like how a human would do it, with their imperfections”.
 
 WHY A SINGLE BAR WAS WRONG. Every completable findings case was graded on one clause: «al menos 3
 candidatos». A person with water coming through the bathroom ceiling wants ONE plumber who can come today
@@ -72,7 +72,7 @@ def test_every_bar_keeps_the_floor_that_is_not_negotiable():
 
 
 def test_the_relaxed_bar_still_demands_a_real_source():
-    """`primero_valido` lowers the COUNT, never the evidence. «Uno basta» must not read as «uno de memoria»."""
+    """`primero_valido` lowers the COUNT, never the evidence. “One is enough” must not read as “one from memory”."""
     text = D.deliverable_findings("primero_valido")
     assert "LEÍDO de la página real" in text
     assert "de dónde sale" in text
@@ -169,8 +169,8 @@ def test_a_case_with_no_human_opening_keeps_the_catalog_utterance():
         case = by_id.get((bare, scn.locale))
         if case is None:
             continue                       # no catalog row to compare against
-        # Contra el texto RESUELTO: las fechas son relativas a hoy (norma del operador 2026-08-19) y el
-        # registro sustituye sus tokens, igual que en `test_handwritten_scenarios_are_never_shadowed…`.
+        # Contrary to the RESOLVED text: dates are relative to today (operator rule 2026-08-19), and the
+        # record replaces its tokens, just as in `test_handwritten_scenarios_are_never_shadowed…`.
         assert scn.opening_line == DT.resolve(case.utterance), scn.id
         untouched += 1
     assert untouched > 50, "el fallback dejó de cubrir el grueso del catálogo"

@@ -1,21 +1,22 @@
-"""Una nota del marcador es una nota SOBRE algo, y ese algo es el cerebro que hizo el trabajo.
+"""A board note is a note ABOUT something, and that something is the brain that did the work.
 
-Cada fila ya sellaba qué JUEZ la calificó (`status.record`'s `judge`), por una medición del 2026-08-20: la
-cadena del juez cae a otro proveedor cuando al titular se le acaba la cuota, y un caso que «bajó de 3 a 2»
-puede haber cambiado solo de regla de medir. Un piso más abajo pasa lo mismo y pesa más: el juez es el
-instrumento, el cerebro ES el producto.
+Each row already sealed which JUDGE scored it (`status.record`'s `judge`), based on a measurement from
+2026-08-20: the judge's chain falls back to another provider when the primary runs out of quota, and a case
+that «dropped from 3 to 2» may have changed only its measuring rule. One floor lower, the same thing happens
+and matters more: the judge is the instrument; the brain IS the product.
 
-Medido el 2026-08-27: una tanda de casos US corrió con z.ai sin cuota de 5 horas, así que sus Brain Workers
-los sirvió el escalón de RELEVO (`deepseek-v4-flash`) en vez del titular que la nube contrata (`glm-5.3`).
-Cinco filas con nota 1-2 iban a quedarse al lado de filas medidas con el titular, idénticas a la vista y
-sobre otro producto. Lo cacé leyendo el log a mano; ni el tablero ni el registro lo guardaban en ningún sitio.
+Measured on 2026-08-27: a batch of US cases ran with z.ai without a 5-hour quota, so their Brain Workers
+were served by the RELAY tier (`deepseek-v4-flash`) instead of the primary that the cloud contracts
+(`glm-5.3`). Five rows scored 1–2 would have remained beside rows measured with the primary, identical in
+appearance and about a different product. I caught it by reading the log manually; neither the board nor
+the ledger stored it anywhere.
 
-Los tests fijan la FORMA REAL del flujo, que es donde esto no hace ruido al romperse:
-  · `observer.emit` hace `ev.update(extra)`, así que el modelo llega APLANADO y el payload es un STRING JSON.
-  · `worker_start` lo reusa el ARRANQUE del motor de voz («motor de voz arriba»), que no tiene worker detrás
-    y llama a su modelo `llm_model`.
-  · una fila de relevo NO tiene `kind == "perf"`: el `extra={"kind": "exhausted"}` de la cadena pisa el kind
-    del evento al guardarse.
+The tests pin down the REAL SHAPE of the flow, which is where this makes no noise when it breaks:
+  · `observer.emit` does `ev.update(extra)`, so the model arrives FLATTENED and the payload is a JSON STRING.
+  · `worker_start` is reused by the voice engine's BOOT («motor de voz arriba»), which has no worker behind it
+    and calls its model `llm_model`.
+  · a relay row does NOT have `kind == "perf"`: the chain's `extra={"kind": "exhausted"}` overwrites the
+    event's kind when it is stored.
 """
 from __future__ import annotations
 
@@ -26,21 +27,21 @@ from tests.use_cases.e2e.agent import verify as V
 
 
 def _worker_row(model: str, backend: str = "claude_code") -> dict:
-    """Un `worker_start` tal y como lo devuelve `/api/observability/events`, no como se emite en proceso."""
+    """A `worker_start` exactly as returned by `/api/observability/events`, not as emitted in-process."""
     return {"kind": "worker_start", "cat": "worker",
             "payload": json.dumps({"kind": "worker_start", "label": f"worker · {backend}",
                                    "cat": "worker", "id": "1", "model": model, "layer": "web"})}
 
 
 def _boot_row() -> dict:
-    """El arranque del motor de voz: MISMO kind, ningún worker detrás, y su modelo se llama `llm_model`."""
+    """The voice engine boot: SAME kind, no worker behind it, and its model is called `llm_model`."""
     return {"kind": "worker_start", "cat": "worker",
             "payload": json.dumps({"kind": "worker_start", "label": "motor de voz arriba", "role": "system",
                                    "cat": "worker", "profile": "remote", "llm_model": "(default)"})}
 
 
 def _relay_row(frm: str = "z.ai", to: str = "deepseek", why: str = "exhausted") -> dict:
-    """Un relevo REAL: el `kind` guardado es el motivo, no `perf` — por el `ev.update(extra)` de `emit`."""
+    """A REAL relay: the stored `kind` is the reason, not `perf` — because of `emit`'s `ev.update(extra)`."""
     return {"kind": why, "cat": "system",
             "payload": json.dumps({"kind": why, "cat": "system", "role": "cluster_brain",
                                    "label": f"\U0001f50c cerebro de cluster: «{frm}» sin crédito",
@@ -54,7 +55,7 @@ def test_reads_the_model_from_the_shape_the_api_returns():
 
 
 def test_the_voice_engine_booting_is_not_a_brain_worker():
-    """Sin esta línea toda ronda queda sellada con un cerebro que no corrió."""
+    """Without this line, every round is sealed with a brain that did not run."""
     assert V.brains_that_ran([_boot_row()])["n_by_worker"] == {}
     got = V.brains_that_ran([_boot_row(), _worker_row("glm-5.3")])
     assert got["n_by_worker"] == {"claude_code/glm-5.3": 1}
@@ -62,7 +63,7 @@ def test_the_voice_engine_booting_is_not_a_brain_worker():
 
 
 def test_a_chain_that_moved_mid_round_is_loud():
-    """La mitad de la ronda es un producto y la mitad otro: ningún sello único sería honesto."""
+    """Half the round is one product and the other half another: no single stamp would be honest."""
     got = V.brains_that_ran([_worker_row("glm-5.3"), _worker_row("deepseek-v4-flash"),
                              _worker_row("deepseek-v4-flash")])
     assert got["mixed"] is True
@@ -70,13 +71,13 @@ def test_a_chain_that_moved_mid_round_is_loud():
 
 
 def test_the_relay_is_read_by_its_label_not_by_its_kind():
-    """Filtrar por `kind == 'perf'` encuentra CERO relevos en una ronda llena de ellos."""
+    """Filtering by `kind == 'perf'` finds ZERO relays in a round full of them."""
     relays = V.brains_that_ran([_relay_row()])["relays"]
     assert relays == [{"role": "cluster_brain", "from": "z.ai", "to": "deepseek", "why": "exhausted"}]
 
 
 def test_the_two_other_event_shapes_read_the_same():
-    """Anidada bajo `extra` y leída directa del sqlite: el mismo hecho no depende de por dónde entró."""
+    """Nested under `extra` and read directly from sqlite: the same fact does not depend on how it entered."""
     nested = [{"kind": "worker_start", "payload": {"extra": {"model": "glm-5.3", "label": "worker · cc"}}}]
     flat = [json.loads(_worker_row("glm-5.3")["payload"])]
     assert V.brains_that_ran(nested)["n_by_worker"] == {"cc/glm-5.3": 1}
@@ -84,8 +85,8 @@ def test_the_two_other_event_shapes_read_the_same():
 
 
 def test_a_round_with_no_worker_is_not_an_unstamped_round():
-    """`—` es una ausencia MEDIDA (caso conversacional); `?` es una fila anterior a que esto existiera.
-    Confundirlas dejaría leer cada fila vieja como si nadie hubiera trabajado en ella."""
+    """`—` is a MEASURED absence (a conversational case); `?` is a row from before this existed.
+    Confusing them would make every old row read as if nobody had worked on it."""
     assert S._brain_stamp({"brains": {"n_by_worker": {}}}) == ""
     assert S._brain_cell({"brain": ""}) == "—"
     assert S._brain_cell({"overall": 4}) == "?"
@@ -93,7 +94,7 @@ def test_a_round_with_no_worker_is_not_an_unstamped_round():
 
 
 def test_the_stamp_travels_from_the_mechanism_report_to_the_ledger_row(tmp_path, monkeypatch):
-    """La cadena entera: eventos → informe de mecanismo → fila del registro → columna del tablero."""
+    """The entire chain: events → mechanism report → ledger row → board column."""
     monkeypatch.setattr(S, "LEDGER_PATH", tmp_path / "status.json")
     monkeypatch.setattr(S, "BOARD_PATH", tmp_path / "STATUS.md")
     mech = {"brains": V.brains_that_ran([_worker_row("glm-5.3")]), "families_observed": ["worker"]}
