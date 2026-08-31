@@ -1,16 +1,16 @@
-"""V2-050 — PRECISIÓN de escritura (continuación de V2-033): la identidad/largo plazo no se ensucia con garble.
+"""V2-050 — WRITE PRECISION (continuation of V2-033): identity/long-term memory is not contaminated by garble.
 
-Reproduce los fallos encontrados tras la reserva de la ITV (2026-07-17), donde la memoria se construía MAL:
-  [P0c·A] slot TIPADO con VALOR malformado ('mi email es rjj.com' → 'rjj.com' sin @) → NO durable (ensuciaba y
-          competía con el email bueno rjj@proars.com).
-  [P0c·B] petición reificada mis-asignada a un slot de IDENTIDAD ('quiere que entre en la web y reserve' →
-          operator.treatment) → NO es ese atributo → rechazo. Un atributo estable jamás es "quiere que…".
-  [P0c·C] petición VAGA reificada ('quiere que repitan algo', objeto indefinido) → NO durable; una tarea CONCRETA
-          ('quiere que le reserve la cita') SÍ se conserva.
+Reproduces the failures found after booking the vehicle inspection (2026-07-17), where memory was built INCORRECTLY:
+  [P0c·A] TYPED slot with malformed VALUE ('mi email es rjj.com' → 'rjj.com' without @) → NOT durable (it contaminated and
+          competed with the valid email rjj@proars.com).
+  [P0c·B] reified request misassigned to an IDENTITY slot ('quiere que entre en la web y reserve' →
+          operator.treatment) → it is NOT that attribute → rejection. A stable attribute is never "quiere que…".
+  [P0c·C] VAGUE reified request ('quiere que repitan algo', undefined object) → NOT durable; a CONCRETE task
+          ('quiere que le reserve la cita') IS preserved.
 
-Dos niveles: (1) el GATE determinista `_precision_reject_atom` directo (sin LLM ni BD, precisión exacta);
-(2) la RUTA REAL de escritura con `mem_processor.process` mockeado para inyectar el átomo exacto que el LLM produjo
-en producción → verifica que un átomo rechazado NO llega al largo plazo y uno válido SÍ. BD aislada (tmp_path).
+Two levels: (1) the direct deterministic GATE `_precision_reject_atom` (without an LLM or DB, exact precision);
+(2) the REAL write PATH with `mem_processor.process` mocked to inject the exact atom produced by the LLM
+in production → verifies that a rejected atom does NOT reach long-term memory and a valid one DOES. Isolated DB (tmp_path).
 """
 import asyncio
 
@@ -24,7 +24,7 @@ from nucleo import memory_agent
 from nucleo import mem_processor
 
 
-# ── (1) GATE determinista directo — la precisión exacta de cada regla ────────────────────────────────────────
+# ── (1) Direct deterministic GATE — the exact precision of each rule ────────────────────────────────────────
 @pytest.mark.parametrize("atom, expect, label", [
     ({"slot": "operator.email", "value": "rjj.com", "text": "Su correo electrónico es rjj.com."},
      True, "A: email sin @"),
@@ -61,27 +61,27 @@ def test_malformed_email_value(label="unidad _atom_value_invalid"):
 
 
 def test_double_namespaced_slot_canonicalizes():
-    """El CORAZÓN doble-namespacea ('operator.goal.current','operator.objetivo') → deben colapsar a goal.current
-    (state_field objetivo). Los slots REALES no se tocan; un 'operator.<desconocido>' no se inventa. bot v1 #20/#28."""
+    """The CORE double-namespaces ('operator.goal.current','operator.objetivo') → they must collapse to goal.current
+    (state_field objetivo). REAL slots are untouched; an 'operator.<unknown>' is not invented. bot v1 #20/#28."""
     from memory import slots
     assert slots.canonical("operator.goal.current") == "goal.current"
     assert slots.state_field("operator.goal.current") == "objetivo"
     assert slots.canonical("operator.project.current") == "project.current"
-    assert slots.canonical("operator.name") == "operator.name"          # slot real: intacto
+    assert slots.canonical("operator.name") == "operator.name"          # real slot: unchanged
     assert slots.canonical("operator.car") == "operator.car"
-    assert slots.canonical("operator.foo") == "operator.foo"            # desconocido: no se inventa
+    assert slots.canonical("operator.foo") == "operator.foo"            # unknown: not invented
 
 
 def test_incoming_msg_regex_excludes_identity():
-    """El backstop de mensaje entrante NO debe confundir 'me llamo X' (IDENTIDAD) con 'me llamó X' (me llamó)."""
+    """The incoming-message backstop must NOT confuse 'me llamo X' (IDENTITY) with 'me llamó X' (was called)."""
     fires = lambda t: bool(memory_agent._INCOMING_MSG_RE.search(t) and not memory_agent._EMPTY_MSG_RE.search(t))
     assert fires("Me escribió Carlos: la reunión se mueve.") is True
     assert fires("Me llamó Carlos ayer por teléfono.") is True
-    assert fires("Me llamo Ramón y juego a pádel.") is False       # IDENTIDAD, sin acento
+    assert fires("Me llamo Ramón y juego a pádel.") is False       # IDENTITY, without accent
     assert fires("No me dijo nada.") is False
 
 
-# ── (2) RUTA REAL de escritura con el átomo del LLM mockeado ─────────────────────────────────────────────────
+# ── (2) REAL write PATH with the LLM atom mocked ─────────────────────────────────────────────────
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
@@ -107,7 +107,7 @@ def _durables() -> list[str]:
 
 
 def _run_with_atoms(monkeypatch, utterance, atoms):
-    """Ingesta un turno por la ruta REAL, con el procesador LLM devolviendo `atoms` (átomos exactos de producción)."""
+    """Ingests one turn through the REAL path, with the LLM processor returning `atoms` (the exact production atoms)."""
     async def _fake_process(text, *, state=None):
         return atoms
     monkeypatch.setattr(mem_processor, "enabled", lambda: True)
@@ -123,7 +123,7 @@ def _run_with_atoms(monkeypatch, utterance, atoms):
 
 
 def test_malformed_email_not_durable_e2e(fresh_db, monkeypatch):
-    """El átomo que el LLM produjo en producción para 'mi email es rjj.com' NO debe llegar al largo plazo."""
+    """The atom produced by the LLM in production for 'mi email es rjj.com' must NOT reach long-term memory."""
     _run_with_atoms(monkeypatch, "Y mi email es rjj.com.", [
         {"text": "Su correo electrónico es rjj.com.", "dest": "long", "slot": "operator.email",
          "kind": "fact", "value": "rjj.com", "change": "none"},
@@ -132,7 +132,7 @@ def test_malformed_email_not_durable_e2e(fresh_db, monkeypatch):
 
 
 def test_valid_email_is_durable_e2e(fresh_db, monkeypatch):
-    """Control: un email BIEN formado SÍ se guarda (no sobre-rechazar)."""
+    """Control: a WELL-FORMED email IS stored (do not over-reject)."""
     _run_with_atoms(monkeypatch, "Mi correo es rjj@proars.com.", [
         {"text": "Su correo electrónico es rjj@proars.com.", "dest": "long", "slot": "operator.email",
          "kind": "fact", "value": "rjj@proars.com", "change": "none"},
@@ -141,15 +141,15 @@ def test_valid_email_is_durable_e2e(fresh_db, monkeypatch):
 
 
 def test_namespaced_goal_slot_canonicalizes_e2e(fresh_db, monkeypatch):
-    """El CORAZÓN a veces namespacea 'operator.goal' (por analogía con operator.name). Debe COLAPSAR a goal.current
-    → fija el estado 'objetivo' Y no crea un linaje paralelo (bot v2 #25/#26). Alias en memory/slots.py."""
+    """The CORE sometimes namespaces 'operator.goal' (by analogy with operator.name). It must COLLAPSE to goal.current
+    → sets the 'objetivo' state AND does not create a parallel lineage (bot v2 #25/#26). Alias in memory/slots.py."""
     _run_with_atoms(monkeypatch, "Mi gran meta es terminar una maratón.", [
         {"text": "Su objetivo vital actual es terminar una maratón.", "dest": "state", "slot": "operator.goal",
          "kind": "profile", "value": "terminar una maratón", "change": "none"},
     ])
     obj = (memapi.state().get("objetivo") or "").lower()
     assert "marat" in obj, f"el objetivo namespaced debe fijar el estado: {memapi.state()}"
-    # una sola vigente bajo el slot canónico goal.current (no linaje paralelo operator.goal)
+    # exactly one current entry under the canonical goal.current slot (no parallel operator.goal lineage)
     from memory import slots as _sl
     rows = memdb.get_db().query("SELECT slot FROM memories WHERE valid=1 AND slot IS NOT NULL AND slot != ''")
     goal_slots = [r["slot"] for r in rows if _sl.canonical(r["slot"]) == "goal.current"]
@@ -157,8 +157,8 @@ def test_namespaced_goal_slot_canonicalizes_e2e(fresh_db, monkeypatch):
 
 
 def test_same_entity_refinement_collapses_e2e(fresh_db, monkeypatch):
-    """El mismo coche en 3 fraseos ('Dacia Duster'/'Duster gris'/'Duster de Dacia') comparte «duster» → refinamiento,
-    no garble → el slot superseda a ≤2 (no 3 cuarentenados sin slot). bot v2 #21."""
+    """The same car in 3 phrasings ('Dacia Duster'/'Duster gris'/'Duster de Dacia') shares «duster» → refinement,
+    not garble → the slot supersedes down to ≤2 (not 3 quarantined entries without a slot). bot v2 #21."""
     calls = iter([
         [{"text": "Conduce un Dacia Duster.", "dest": "long", "slot": "operator.car", "kind": "fact",
           "value": "Dacia Duster", "change": "none"}],
@@ -185,8 +185,8 @@ def test_same_entity_refinement_collapses_e2e(fresh_db, monkeypatch):
 
 
 def test_name_garble_sharing_first_name_still_quarantined_e2e(fresh_db, monkeypatch):
-    """CONTROL de que el refinamiento NO afloja el anti-garble de identidad: 'Ana García' → 'Ana Pérez' comparte
-    solo 'Ana' (<4) y el apellido difiere → sigue siendo garble → NO sobrescribe el nombre establecido."""
+    """CONTROL that refinement does NOT loosen the identity anti-garble check: 'Ana García' → 'Ana Pérez' shares
+    only 'Ana' (<4) and the surname differs → it remains garble → does NOT overwrite the established name."""
     _run_with_atoms(monkeypatch, "Me llamo Ana García.", [
         {"text": "El operador se llama Ana García.", "dest": "state", "slot": "operator.name",
          "kind": "profile", "value": "Ana García", "change": "none"}])
@@ -198,8 +198,8 @@ def test_name_garble_sharing_first_name_still_quarantined_e2e(fresh_db, monkeypa
 
 
 def test_incoming_message_preserved_when_llm_hallucinates_e2e(fresh_db, monkeypatch):
-    """Un mensaje entrante ('Me escribió Carlos... la reunión se mueve al viernes') debe quedar durable AUNQUE el
-    CORAZÓN alucine un placeholder de fewshot → el backstop guarda el TEXTO CRUDO (con carlos+viernes). bot v1 #24/#29."""
+    """An incoming message ('Me escribió Carlos... la reunión se mueve al viernes') must remain durable EVEN IF the
+    CORE hallucinates a few-shot placeholder → the backstop stores the RAW TEXT (with carlos+viernes). bot v1 #24/#29."""
     _run_with_atoms(monkeypatch, "Me escribió Carlos por WhatsApp: la reunión del jueves se mueve al viernes.", [
         {"text": "X me pidió Y para el día Z.", "dest": "long", "slot": None, "kind": "event",
          "value": "Carlos", "change": "none"},   # átomo BASURA que produce el LLM (placeholder)
@@ -209,14 +209,14 @@ def test_incoming_message_preserved_when_llm_hallucinates_e2e(fresh_db, monkeypa
 
 
 def test_own_task_not_treated_as_incoming_e2e(fresh_db, monkeypatch):
-    """CONTROL: una negación vacía ('no me dijo nada') NO dispara el backstop de mensaje entrante."""
+    """CONTROL: an empty negation ('no me dijo nada') does NOT trigger the incoming-message backstop."""
     res = _run_with_atoms(monkeypatch, "No me dijo nada.", [])
     assert not any("no me dijo nada" in t.lower() for t in _durables()), f"negación vacía no debe persistir: {_durables()}"
 
 
 def test_state_patch_slotname_key_renamed_and_superseded_e2e(fresh_db, monkeypatch):
-    """El CORAZÓN mete 'goal.current' como CLAVE del estado (nombre del slot, no el campo 'objetivo') → debe
-    renombrarse a 'objetivo' y un objetivo NUEVO debe superseder al viejo, sin clave stray (bot v1 #20/#28)."""
+    """The CORE inserts 'goal.current' as a state KEY (the slot name, not the 'objetivo' field) → it must be
+    renamed to 'objetivo' and a NEW goal must supersede the old one, with no stray key (bot v1 #20/#28)."""
     _run_with_atoms(monkeypatch, "Mi objetivo es lanzar en septiembre.", [
         {"text": "Su objetivo actual es lanzar en septiembre.", "dest": "state", "slot": "operator.goal.current",
          "kind": "profile", "value": "lanzar en septiembre",
@@ -234,7 +234,7 @@ def test_state_patch_slotname_key_renamed_and_superseded_e2e(fresh_db, monkeypat
 
 
 def test_request_not_slotted_to_identity_e2e(fresh_db, monkeypatch):
-    """Una orden reificada a operator.treatment NO ensucia la identidad ni el estado."""
+    """A reified request assigned to operator.treatment does NOT contaminate identity or state."""
     _run_with_atoms(monkeypatch, "Entra en la web y resérvame la cita directamente.", [
         {"text": "El operador quiere que entre en la web y reserve cita directamente.", "dest": "state",
          "slot": "operator.treatment", "kind": "pref", "value": "entrar en la web, reservar cita", "change": "none"},
@@ -244,7 +244,7 @@ def test_request_not_slotted_to_identity_e2e(fresh_db, monkeypatch):
     assert not any("quiere que entre" in t.lower() for t in _durables()), f"petición quedó durable: {_durables()}"
 
 
-# ── Olvido: la coletilla de DECISIÓN no es parte del objeto (bot v2 #65, 2026-07-17) ──────────────────────────
+# ── Forgetting: the DECISION tail is not part of the object (bot v2 #65, 2026-07-17) ──────────────────────────
 def _forget_obj(t: str):
     fm = memory_agent._FORGET_RE.match(t)
     if not fm:
@@ -259,7 +259,7 @@ def _forget_obj(t: str):
     ("Olvida lo del gimnasio, al final no voy.", "gimnasio", "al final no voy"),
     ("Olvida lo del regalo, mejor no.", "regalo", "mejor no"),
     ("Olvida mi contraseña vieja, que ya no la uso.", "contraseña vieja", "que ya no (ya funcionaba)"),
-    # CONTROLES — el objeto NO debe perder contenido legítimo:
+    # CONTROLS — the object must NOT lose legitimate content:
     ("Olvida lo del total de la factura.", "total de la factura", "control: 'total' es objeto, no coletilla"),
     ("Olvida la reunión del jueves.", "reunión del jueves", "control: sin coletilla"),
     ("Olvida lo de la cena, mejor dicho la comida.", "cena, mejor dicho la comida",
@@ -270,9 +270,9 @@ def test_forget_object_strips_decision_tail(phrase, expected, label):
 
 
 def test_forget_with_decision_tail_invalidates_target_e2e(fresh_db, monkeypatch):
-    """bot v2 #65 end-to-end: la coletilla 'al final no' hacía que el AND-match del writer exigiera 'final' →
-    0 recuerdos invalidados → el ancla seguía en el largo plazo. Verifica que el olvido SÍ invalida la píldora
-    objetivo y que otra píldora con 'jueves' (rocódromo) SOBREVIVE (no sobre-borra)."""
+    """bot v2 #65 end-to-end: the 'al final no' tail made the writer's AND match require 'final' →
+    0 memories invalidated → the anchor remained in long-term memory. Verifies that forgetting DOES invalidate the
+    target entry and that another entry with 'jueves' (rocódromo) SURVIVES (does not over-delete)."""
     async def scenario():
         await memapi.start()
         memapi.write_now("Quiere apuntarse a clases de cerámica los jueves.", level="long", kind="fact")
@@ -292,10 +292,10 @@ def test_forget_with_decision_tail_invalidates_target_e2e(fresh_db, monkeypatch)
 
 
 def test_family_slot_projects_to_state_e2e(fresh_db, monkeypatch):
-    """Hallazgo 3 (auditoría en vivo 2026-08-17): no existía NINGÚN slot para familiares — solo píldoras
-    `long/fact` sueltas (slot=None), alcanzables nada más que por recall semántico probabilístico. Verifica que
-    el nuevo `operator.family` se refleja en el ESTADO fijo (state.familia), igual que operator.car/hardware,
-    por la MISMA proyección mecánica slot+value (memory_agent.py) — sin código nuevo de proyección."""
+    """Finding 3 (live audit 2026-08-17): there was NO slot for family members — only loose
+    `long/fact` entries (slot=None), reachable only through probabilistic semantic recall. Verifies that
+    the new `operator.family` is reflected in the fixed STATE (state.familia), just like operator.car/hardware,
+    through the SAME mechanical slot+value projection (memory_agent.py) — with no new projection code."""
     _run_with_atoms(monkeypatch, "Tengo dos hijos de 9 y 11 años.", [
         {"text": "Tiene dos hijos de 9 y 11 años.", "dest": "long", "slot": "operator.family",
          "kind": "fact", "value": "dos hijos de 9 y 11 años", "change": "none"},

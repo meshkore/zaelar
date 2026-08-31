@@ -1,8 +1,8 @@
 #
-# test_vault_api.py — ciclo completo de la bóveda por HTTP (V2-060): crear → guardar → bloqueada pide passphrase →
-# desbloquear/revelar. Es el camino que conduce el TESTER (dominio «seguridad de datos», sin biometría) y el modal
-# nativo del frontend. Router aislado (sin lifespan pesado). Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/memory/integration/test_vault_api.py
+# test_vault_api.py — complete vault cycle over HTTP (V2-060): create → store → locked requests passphrase →
+# unlock/reveal. This is the path followed by the TESTER ("data security" domain, without biometrics) and the
+# frontend's native modal. Isolated router (without a heavy lifespan). No network (hash embeddings).
+# Run: .venv/bin/pytest tests/memory/integration/test_vault_api.py
 #
 import pytest
 from fastapi import FastAPI
@@ -35,27 +35,27 @@ def client(tmp_path, monkeypatch):
 
 
 def test_full_cycle(client):
-    # 1) al principio no hay bóveda
+    # 1) there is no vault initially
     assert client.get("/api/vault/status").json()["exists"] is False
 
-    # 2) crear
+    # 2) create
     r = client.post("/api/vault/create", json={"passphrase": "clave-maestra"})
     assert r.status_code == 200 and r.json()["exists"] is True
 
-    # 3) guardar un secreto (por la vía directa del vault; el auto-vaulting conversacional es F1)
+    # 3) store a secret (through the vault's direct path; conversational auto-vaulting is F1)
     mid = vault.store_secret("contraseña de Netflix", "Perrito123", slot="secret:netflix:password")
 
-    # 4) el listado da la etiqueta, nunca el valor
+    # 4) the listing provides the label, never the value
     secs = client.get("/api/vault/secrets").json()["secrets"]
     assert any(s["label"] == "contraseña de Netflix" for s in secs)
     assert all("value" not in s for s in secs)
 
-    # 5) bloqueada → revelar responde 423 (el frontend abre el modal)
+    # 5) locked → reveal responds with 423 (the frontend opens the modal)
     vault.lock()
     r = client.post("/api/vault/reveal", json={"memory_id": mid})
     assert r.status_code == 423
 
-    # 6) desbloquear con passphrase → revelar da el valor
+    # 6) unlock with passphrase → reveal returns the value
     r = client.post("/api/vault/unlock", json={"passphrase": "clave-maestra"})
     assert r.json()["ok"] is True and r.json()["unlocked"] is True
     r = client.post("/api/vault/reveal", json={"memory_id": mid})
@@ -72,7 +72,7 @@ def test_reveal_transient_strict_mode(client):
     client.post("/api/vault/create", json={"passphrase": "maestra"})
     mid = vault.store_secret("clave wifi", "RouterCasa2024", slot="secret:wifi:password")
     vault.lock()
-    # modo estricto: passphrase en la propia petición, no cachea
+    # strict mode: passphrase in the request itself; it is not cached
     r = client.post("/api/vault/reveal", json={"memory_id": mid, "passphrase": "maestra"})
     assert r.status_code == 200 and r.json()["value"] == "RouterCasa2024"
     assert client.get("/api/vault/status").json()["unlocked"] is False
@@ -84,9 +84,9 @@ def test_passkey_enroll_and_unlock_over_http(client):
     client.post("/api/vault/create", json={"passphrase": "maestra"})
     mid = vault.store_secret("clave", "ValorPasskey", slot="secret:x:password")
     prf = b64encode(os.urandom(32)).decode()
-    # enrolar sin desbloquear → 423
+    # enroll without unlocking → 423
     assert client.post("/api/vault/passkey/enroll", json={"cred_id": "c1", "prf_secret": prf}).status_code == 423
-    # desbloquea (passphrase), enrola el aparato, bloquea, desbloquea SOLO con el PRF
+    # unlock (passphrase), enroll the device, lock, unlock ONLY with the PRF
     client.post("/api/vault/unlock", json={"passphrase": "maestra"})
     assert client.post("/api/vault/passkey/enroll", json={"cred_id": "c1", "prf_secret": prf}).status_code == 200
     ch = client.get("/api/vault/passkey/challenge").json()

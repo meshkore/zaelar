@@ -1,9 +1,9 @@
-"""ESTADO — contexto de UI vivo (widgets abiertos + tareas en marcha).
+"""STATE — live UI context (open widgets + tasks in progress).
 
-El ESTADO es la parte VARIABLE del contexto que viaja SIEMPRE en el prompt del cerebro y se ve en el mapa de la
-memoria. Aquí se cubren los cuatro eslabones de "lo que el operador tiene delante": (1) el esquema del estado,
-(2) el reporte del canvas → estado, (3) la composición del bloque de memoria del FlashBrain, (4) el desempate de
-`identify` por el widget abierto.
+STATE is the VARIABLE part of the context that ALWAYS travels in the brain's prompt and is shown on the memory
+map. This covers the four links in "what the operator has in front of them": (1) the state schema,
+(2) the canvas → state report, (3) the composition of the FlashBrain memory block, (4) breaking an `identify` tie
+in favor of the open widget.
 """
 import asyncio
 
@@ -32,37 +32,37 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── 1. esquema del ESTADO ────────────────────────────────────────────────────────────────────────────────
+# ── 1. STATE schema ────────────────────────────────────────────────────────────────────────────────
 def test_state_exposes_ui_context_fields(fresh_db):
     st = memapi.state()
-    assert st["open_widgets"] == [] and st["activity"] == []      # presentes por defecto
+    assert st["open_widgets"] == [] and st["activity"] == []      # present by default
 
 
 def test_set_state_ui_context_no_clobber(fresh_db):
     memapi.set_state({"operator_name": "Ricart"})
-    memapi.set_state({"open_widgets": ["mensajeria", "agenda"]})   # patch superficial: no pisa el nombre
+    memapi.set_state({"open_widgets": ["mensajeria", "agenda"]})   # shallow patch: does not overwrite the name
     st = memapi.state()
     assert st["operator_name"] == "Ricart"
     assert st["open_widgets"] == ["mensajeria", "agenda"]
 
 
-# ── 2. reporte del canvas → ESTADO (endpoint) ────────────────────────────────────────────────────────────
+# ── 2. canvas → STATE report (endpoint) ────────────────────────────────────────────────────────────
 def test_canvas_state_endpoint_normalizes_and_writes(fresh_db):
     seen = []
     sink = lambda rec: seen.append(rec["topic"]) if rec["topic"] == "memory.updated" else None
     bus.add_sink(sink)
     try:
         from server.voice_api import canvas_state
-        # ids de instancia del navegador (navegador::t3) → base; duplicados colapsados; orden preservado
+        # browser instance IDs (navegador::t3) → base; duplicates collapsed; order preserved
         out = asyncio.run(canvas_state({"open": ["mensajeria", "navegador::t3", "navegador::t7", "mensajeria"]}))
         assert out.status_code == 200
         assert memapi.state()["open_widgets"] == ["mensajeria", "navegador"]
-        assert "memory.updated" in seen                            # el mapa/prompt se enteran en vivo
+        assert "memory.updated" in seen                            # the map/prompt are updated live
     finally:
         bus.remove_sink(sink)
 
 
-# ── 3. composición del bloque de memoria del FlashBrain ──────────────────────────────────────────────────
+# ── 3. composition of the FlashBrain memory block ──────────────────────────────────────────────────
 def test_compose_block_lists_open_widgets_and_activity(fresh_db):
     from nucleo.flash import memory_cache
     memory_cache.reset()
@@ -72,10 +72,10 @@ def test_compose_block_lists_open_widgets_and_activity(fresh_db):
     assert "Tareas en marcha" in block and "agenda" in block
 
 
-# ── 4. desempate de identify por el widget ABIERTO ───────────────────────────────────────────────────────
+# ── 4. breaking an identify tie in favor of the OPEN widget ───────────────────────────────────────────────────────
 def test_identify_prefers_open_widget_on_tie(monkeypatch):
     from widgets import runtime
-    # dos widgets que EMPATAN para la misma query (mismo score por título)
+    # two widgets tied for the same query (same score by title)
     rows = [
         {"w": {"id": "agenda", "title": "agenda"},
          "aliases": ["agenda"], "alias_tokens": {"agenda"}},
@@ -83,9 +83,9 @@ def test_identify_prefers_open_widget_on_tie(monkeypatch):
          "aliases": ["agenda"], "alias_tokens": {"agenda"}},
     ]
     monkeypatch.setattr(runtime, "_identify_index", lambda: rows)
-    # sin contexto → ambiguo, sin match
+    # without context → ambiguous, no match
     amb = runtime.identify("abre la agenda")
     assert amb["ambiguous"] is True and amb["match"] is None
-    # con el widget abierto → desempata a su favor, sin preguntar
+    # with the widget open → breaks the tie in its favor, without asking
     resolved = runtime.identify("abre la agenda", open_ids=["agenda-pro::x", "otro"])
     assert resolved["ambiguous"] is False and resolved["match"] == "agenda-pro"

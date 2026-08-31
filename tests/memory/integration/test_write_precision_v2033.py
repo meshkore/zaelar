@@ -1,15 +1,15 @@
-"""V2-033 — PRECISIÓN de escritura del CORAZÓN: el largo plazo no se ensucia.
+"""V2-033 — CORE write precision: long-term memory does not get polluted.
 
-Verifica los 3 fallos medidos (informe 2026-07-12) por el CAMINO REAL de escritura (`memory_agent.ingest_utterance`
-→ misma ruta que la voz), con el procesador LLM DESACTIVADO (`MEM_PROCESSOR=0`) para que la prueba sea DETERMINISTA
-y sin GPU: así aísla los GATES deterministas (que es donde vive el arreglo — el modelo pequeño no obedece por prompt).
-Los mismos gates se aplican también a la salida del LLM en producción.
+Verifies the 3 measured failures (2026-07-12 report) through the REAL write path (`memory_agent.ingest_utterance`
+→ the same path used by voice), with the LLM processor DISABLED (`MEM_PROCESSOR=0`) so the test is DETERMINISTIC
+and GPU-free: this isolates the deterministic GATES (where the fix lives—the small model does not obey prompts).
+The same gates also apply to LLM output in production.
 
-BD aislada (tmp_path) — NUNCA toca el perfil real.
+Isolated DB (tmp_path)—NEVER touches the real profile.
 
-  [P0a] peticiones/preguntas/ack → DESCARTE (no durable), SIN perder afirmaciones envueltas ("recuérdame que…").
-  [P0b] un nombre propio que CONTRADICE la identidad establecida no sobrescribe el `state` (garble del STT).
-  [P1]  una preferencia EFÍMERA ("no me muestres") no se hace durable global.
+  [P0a] requests/questions/ack → DISCARD (not durable), WITHOUT losing wrapped assertions ("remind me that…").
+  [P0b] a proper name that CONTRADICTS the established identity does not overwrite `state` (STT garble).
+  [P1]  an EPHEMERAL preference ("don't show me") does not become globally durable.
 """
 import asyncio
 
@@ -25,7 +25,7 @@ from nucleo import memory_agent
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    monkeypatch.setenv("MEM_PROCESSOR", "0")      # heurística determinista, sin Ollama/GPU
+    monkeypatch.setenv("MEM_PROCESSOR", "0")      # deterministic heuristic, no Ollama/GPU
     monkeypatch.setenv("MEMORY_RERANK", "off")
     mememb.reset()
     yield
@@ -42,7 +42,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def _run(*utterances) -> list[dict]:
-    """Ingesta cada turno por la ruta REAL (start→ingest→join→stop, un solo loop). Devuelve los res-dict."""
+    """Ingests each turn through the REAL path (start→ingest→join→stop, a single loop). Returns the result dicts."""
     async def scenario():
         await memapi.start()
         out = []
@@ -55,8 +55,8 @@ def _run(*utterances) -> list[dict]:
 
 
 def _durables() -> list[str]:
-    # Excluye los NODOS-CONCEPTO (kind='concept', T126): son infraestructura del grafo (categorías como "salud"),
-    # no píldoras de hechos. Aquí medimos qué HECHOS entraron al largo plazo.
+    # Excludes CONCEPT NODES (kind='concept', T126): they are graph infrastructure (categories such as "salud"),
+    # not fact pills. Here we measure which FACTS entered long-term memory.
     rows = memdb.get_db().query(
         "SELECT text FROM memories WHERE valid=1 AND level IN ('mid','long') AND kind != 'concept'")
     return [r["text"] for r in rows]
@@ -70,7 +70,7 @@ def _state_blob() -> str:
     return " ".join(str(v) for v in memapi.state().values()).lower()
 
 
-# ── [P0a] peticiones / preguntas / ack → NO durable ──────────────────────────────────────────────────────────
+# ── [P0a] requests / questions / ack → NOT durable ──────────────────────────────────────────────────────────
 @pytest.mark.parametrize("text", [
     "¿puedes mirar eso por mí?",
     "sí, búscame algo con más detalle",
@@ -87,7 +87,7 @@ def test_noise_is_not_persisted(fresh_db, text):
     assert _durables() == [], f"{text!r} dejó basura durable: {_durables()}"
 
 
-# ── control: AFIRMACIONES con dato → SÍ durable (no sobre-descartar) ──────────────────────────────────────────
+# ── control: ASSERTIONS with data → durable (do not over-discard) ──────────────────────────────────────────
 def test_assertion_with_data_is_kept(fresh_db):
     res = _run("soy alérgico al marisco")[0]
     assert res["source"] != "discard", f"una afirmación con dato no debe descartarse: {res}"
@@ -95,18 +95,18 @@ def test_assertion_with_data_is_kept(fresh_db):
 
 
 def test_concrete_task_is_kept(fresh_db):
-    """Una TAREA CONCRETA con dato sí se recuerda ('¿qué te pedí?') — no se confunde con ruido vago."""
+    """A CONCRETE TASK with data is remembered ('what did I ask you to do?')—it is not confused with vague noise."""
     _run("búscame vuelos a Tokio para agosto")
     assert _contains("tokio"), f"la tarea concreta debe recordarse: {_durables()}"
 
 
 def test_wrapped_assertion_survives(fresh_db):
-    """La afirmación ENVUELTA en petición ('recuérdame que…') NO se pierde (aviso del brief)."""
+    """The assertion WRAPPED in a request ('remind me that…') is NOT lost (brief warning)."""
     _run("recuérdame que soy alérgico a la penicilina")
     assert _contains("penicilina"), f"el hecho envuelto debe quedar: {_durables()}"
 
 
-# ── [P1] preferencia EFÍMERA no se hace durable global ───────────────────────────────────────────────────────
+# ── [P1] EPHEMERAL preference does not become globally durable ──────────────────────────────────────────────
 def test_ephemeral_pref_not_durable(fresh_db):
     res = _run("no me muestres nada ahora")[0]
     assert res.get("reason") == "ephemeral_directive", res
@@ -115,53 +115,53 @@ def test_ephemeral_pref_not_durable(fresh_db):
 
 
 def test_durable_pref_is_kept(fresh_db):
-    """Control: una preferencia CON marca de durabilidad ('prefiero…') SÍ se guarda."""
+    """Control: a preference MARKED as durable ('I prefer…') IS saved."""
     res = _run("prefiero que me hables directo, sin rodeos")[0]
     assert res["source"] != "discard", f"una preferencia durable no debe descartarse: {res}"
 
 
-# ── [P0b] identidad establecida NO se sobrescribe por un nombre en conflicto (garble) ────────────────────────
+# ── [P0b] established identity is NOT overwritten by a conflicting name (garble) ───────────────────────────
 def test_established_identity_not_overwritten_by_conflict(fresh_db):
     _run("me llamo Ricard", "me llamo Alex Teigano")
     assert memapi.state().get("operator_name") == "Ricard", \
-        f"la identidad se corrompió con el garble: {memapi.state().get('operator_name')!r}"
-    # el garble queda en CUARENTENA (trust=untrusted): NO aflora en el recall/prompt del cerebro
+        f"identity was corrupted by the garble: {memapi.state().get('operator_name')!r}"
+    # the garble remains in QUARANTINE (trust=untrusted): it does NOT surface in the brain's recall/prompt
     out = memapi.query("¿cómo me llamo?", reinforce_used=False)
     assert not any("teigano" in m["text"].lower() for m in out["memories"]), \
         f"el nombre garbleado NO debe aflorar en recall: {[m['text'] for m in out['memories']]}"
 
 
 def test_first_name_on_empty_profile_is_set(fresh_db):
-    """Control: en un perfil VACÍO, el primer nombre SÍ se fija (no hay conflicto)."""
+    """Control: in an EMPTY profile, the first name IS set (there is no conflict)."""
     _run("me llamo Ricard")
     assert memapi.state().get("operator_name") == "Ricard"
 
 
-# ── objetivo integrado del brief: los 3 turnos, largo = SOLO el alérgeno ─────────────────────────────────────
+# ── integrated brief objective: the 3 turns, long-term = ONLY the allergen ──────────────────────────────────
 def test_brief_three_turns_only_allergen(fresh_db):
-    _run("¿puedes mirar eso por mí?",      # petición → nada
-         "soy alérgico al marisco",         # afirmación → durable
-         "no me muestres nada ahora")       # pref efímera → nada global
+    _run("¿puedes mirar eso por mí?",      # request → nothing
+         "soy alérgico al marisco",         # assertion → durable
+         "no me muestres nada ahora")       # ephemeral pref → nothing global
     dur = _durables()
     assert any("marisco" in t.lower() for t in dur), f"falta el alérgeno: {dur}"
     assert all("marisco" in t.lower() for t in dur), f"hay basura además del alérgeno: {dur}"
     assert "mostr" not in _state_blob() and "muestr" not in _state_blob(), f"state con pref 'sin mostrar': {memapi.state()}"
 
 
-# ── [P0b·2026-08-21] el `change` que el MODELO SE FIRMA SOLO no basta para pisar una identidad ────────────────
+# ── [P0b·2026-08-21] a `change` SELF-SIGNED BY THE MODEL is not enough to overwrite an identity ─────────────
 #
-# El incidente, en la máquina del operador y no en un laboratorio: Deepgram destrozó «Calatayud» (`cal a`,
-# `Kalatayut`, `valch`), zaelar no entendía y preguntaba, y el operador aclaró el nombre — «que se llama
-# Calatayut,, ciudad de Calatayut», dentro de un encargo de RUTAS. El destilador escribió `operator.location` =
-# «Vive en Calatayud.» con importancia 0,95 e invalidó la anterior. `state.location` se quedó en Calatayud.
+# The incident, on the operator's machine and not in a lab: Deepgram mangled «Calatayud» (`cal a`,
+# `Kalatayut`, `valch`), zaelar did not understand and asked, and the operator clarified the name—«which is called
+# Calatayut,, city of Calatayut», within a ROUTES request. The distiller wrote `operator.location` =
+# «Lives in Calatayud.» with importance 0.95 and invalidated the previous value. `state.location` remained Calatayud.
 #
-# Lo que hace este caso digno de un guarda propio es que la puerta EXISTÍA: P0b se construyó, literalmente, para
-# el «típico garble del STT». Reproducida con los valores reales, cierra con `is_correction=False` y deja pasar
-# con `True` — y a `True` no lo puso ninguno de los detectores deterministas (los tres dan `False` sobre esa
-# frase, y aciertan), sino el propio destilador declarando `change=update`. La guarda anti-garble la apagaba una
-# señal que firma quien la provoca.
+# What makes this case deserving of its own guard is that the door EXISTED: P0b was literally built for the
+# «typical STT garble». Reproduced with the real values, it ends with `is_correction=False` and lets it through
+# with `True`—and no deterministic detector set `True` (all three return `False` for that phrase, correctly),
+# but the distiller itself, declaring `change=update`. The anti-garble guard was disabled by a signal signed by
+# the very party causing it.
 def _atom_processor(monkeypatch, atom: dict):
-    """Suplanta al CORAZÓN para ejercitar la ruta del ÁTOMO LLM (la heurística de MEM_PROCESSOR=0 no la toca)."""
+    """Replaces the CORE to exercise the LLM ATOM path (the MEM_PROCESSOR=0 heuristic does not touch it)."""
     from nucleo import mem_processor as mp
 
     async def _process(_t, state=None):
@@ -174,13 +174,13 @@ def _atom_processor(monkeypatch, atom: dict):
 _CALATAYUD_ATOM = {
     "text": "Vive en Calatayud.", "level": "long", "kind": "profile", "importance": 0.95, "pinned": True,
     "dest": "state", "slot": "operator.location", "state_patch": {"location": "Calatayud"},
-    "value": "Calatayud", "change": "update",       # ← la autodeclaración, tal como vino
+    "value": "Calatayud", "change": "update",       # ← the self-declaration, as received
 }
 
 
 def test_a_self_declared_update_cannot_overwrite_identity_when_the_turn_is_not_about_the_operator(
         fresh_db, monkeypatch):
-    """El turno REAL que corrompió el perfil. La frase nombra un sitio, no dice nada del operador."""
+    """The REAL turn that corrupted the profile. The sentence names a place; it says nothing about the operator."""
     _run("me he mudado a Soria")
     assert memapi.state().get("location") == "Soria", "el montaje falla: la identidad de partida no quedó puesta"
 
@@ -192,14 +192,14 @@ def test_a_self_declared_update_cannot_overwrite_identity_when_the_turn_is_not_a
 
 
 def test_and_the_garbled_value_is_QUARANTINED_not_just_kept_out_of_state(fresh_db, monkeypatch):
-    """No basta con salvar el `state`: la píldora sigue en la BD y el cerebro la leería igual. Se comprueba lo
-    que P0b promete — cuarentena (`meta.trust='untrusted'`), NO borrado: fuera del bloque pasivo que se pinta
-    cada turno, y todavía alcanzable por una pregunta explícita.
+    """Saving `state` is not enough: the pill remains in the DB and the brain would read it anyway. We verify what
+    P0b promises—quarantine (`meta.trust='untrusted'`), NOT deletion: outside the passive block shown every turn,
+    while still reachable through an explicit question.
 
-    Se afirma por SQL y por `salient_long` (lectura directa) a propósito, sin pasar por el retriever: `_cfg()` de
-    `memory/rerank.py` da prioridad a `config/v2.json` sobre `MEMORY_RERANK`, y ese fichero está GITIGNOREADO —
-    en la máquina del operador el reranker local se pone a DESCARGAR de HuggingFace y este test dejaría de ser
-    determinista sin decirlo. Misma familia que el suelo absoluto contra un corpus vivo."""
+    We assert this through SQL and `salient_long` (direct reading) deliberately, without going through the
+    retriever: `_cfg()` in `memory/rerank.py` gives `config/v2.json` priority over `MEMORY_RERANK`, and that file
+    is GITIGNORED—in the operator's machine, the local reranker starts DOWNLOADING from HuggingFace and this test
+    would silently cease to be deterministic. Same family as the absolute floor against a live corpus."""
     _run("me he mudado a Soria")
     _atom_processor(monkeypatch, _CALATAYUD_ATOM)
     _run("que se llama Calatayut,, ciudad de Calatayut.")
@@ -218,10 +218,10 @@ def test_and_the_garbled_value_is_QUARANTINED_not_just_kept_out_of_state(fresh_d
 
 
 def test_a_REAL_move_still_goes_through_on_the_self_declared_signal(fresh_db, monkeypatch):
-    """El control que impide que el arreglo sea un candado. Una mudanza dicha en primera persona SIGUE pasando
-    por `change`, que es exactamente lo que el comentario anti-inyección protege para los demás idiomas: aquí la
-    frase es catalana, así que las expresiones deterministas (castellanas) NO la ven y el único apoyo es la
-    autodeclaración. Si este caso se pusiera rojo, el arreglo habría roto las mudanzas multilingües."""
+    """The control ensuring the fix is not a lock. A move stated in the first person STILL passes through
+    `change`, exactly what the anti-injection guard protects for other languages: here the sentence is Catalan,
+    so the deterministic (Spanish) expressions do NOT see it and the only support is the self-declaration. If
+    this case turned red, the fix would have broken multilingual moves."""
     _run("me he mudado a Soria")
     _atom_processor(monkeypatch, dict(
         _CALATAYUD_ATOM, text="Viu a Girona.", state_patch={"location": "Girona"}, value="Girona"))
@@ -245,9 +245,9 @@ def test_a_REAL_move_still_goes_through_on_the_self_declared_signal(fresh_db, mo
     ("a mi casa en Soria",                            True,  "el que SÍ era legítimo (id=95 del operador)"),
 ])
 def test_the_discriminator_separates_talking_about_oneself_from_naming_a_place(frase, habla_del_operador, por_que):
-    """La tabla del discriminador, explícita. Es una ENUMERACIÓN y conviene que se lea como tal: no pretende ser
-    una gramática, y su hueco lo encontró un contrato que ya existía — `m'acabo de traslladar` (catalán, clítico
-    elidido con apóstrofo) caía fuera porque un `\\b` delante de `m'` no casa. Por eso los elididos se buscan
-    aparte: es una CATEGORÍA románica, no un caso suelto. Lo que la lista no cubra deja rastro en observabilidad
-    (`_report_self_declared_change_ignored`) en vez de perderse en silencio."""
+    """The discriminator table, explicitly. It is an ENUMERATION and should be read as such: it is not intended
+    to be a grammar, and its gap was found by an existing contract—`m'acabo de traslladar` (Catalan, a clitic
+    elided with an apostrophe) fell outside because a `\\b` before `m'` does not match. That is why elided forms
+    are searched separately: this is a Romance-language CATEGORY, not an isolated case. Anything not covered by
+    the list leaves an observability trace (`_report_self_declared_change_ignored`) instead of being lost silently."""
     assert memory_agent._talks_about_the_operator(frase) is habla_del_operador, por_que

@@ -1,14 +1,14 @@
-"""Regresión de los cambios de ESCRITURA/CONSOLIDACIÓN del 2026-07-12 (buffer conv sin vector + trivia ampliada).
+"""Regression coverage for the 2026-07-12 WRITE/CONSOLIDATION changes (conv buffer without vector + expanded trivia).
 
-Cambios que blindan estos tests (pedidos por el operador):
-  (a) el buffer conversacional (`kind='conv'`) se sigue LEYENDO por recencia (`recent_short`) — el último turno
-      siempre visible aunque ya no se embeba.
-  (b) un hecho DURABLE se sigue EMBEBIENDO (tiene fila en `vec_memories`) y es recuperable por vector; un `conv`
-      NO se embebe (sin fila vec) — a propósito (memory/writer.py, 2026-07-12).
-  (c) muletillas ("ah/eh/mmm/vale/ya está/bueno/…") se clasifican como DESCARTE (`classify.level is None`) → no
-      generan escritura durable ni corren el procesador LLM.
+Changes that these tests lock down (requested by the operator):
+  (a) the conversational buffer (`kind='conv'`) continues to be READ by recency (`recent_short`) — the latest turn
+      is always visible even when it is no longer embedded.
+  (b) a DURABLE fact continues to be EMBEDDED (it has a row in `vec_memories`) and is retrievable by vector; a `conv`
+      is NOT embedded (no vec row) — intentionally (memory/writer.py, 2026-07-12).
+  (c) filler words ("ah/eh/mmm/vale/ya está/bueno/…") are classified as DISCARD (`classify.level is None`) → they do not
+      generate durable writes or run the LLM processor.
 
-BD aislada por test (tmp_path + backend hash) — NUNCA toca el perfil real.
+Database isolated per test (tmp_path + hash backend) — NEVER touches the real profile.
 """
 import pytest
 
@@ -42,7 +42,7 @@ def _vec_has(mid: int) -> bool:
     return db.query_one("SELECT COUNT(*) c FROM vec_memories WHERE memory_id=?", (mid,))["c"] > 0
 
 
-# ── (a) recencia ve el último turno conv ─────────────────────────────────────────────────────────────────────
+# ── (a) recency sees the latest conv turn ─────────────────────────────────────────────────────────────────────
 def test_recent_short_sees_last_conv_turn(fresh_db):
     memapi.write_now("Operador: qué tiempo hace · zaelar: soleado", level="short", kind="conv")
     last = memapi.write_now("Operador: pon música · zaelar: vale", level="short", kind="conv")
@@ -51,7 +51,7 @@ def test_recent_short_sees_last_conv_turn(fresh_db):
     assert last is not None
 
 
-# ── (b) durable SÍ se embebe (vector) · conv NO ──────────────────────────────────────────────────────────────
+# ── (b) durable IS embedded (vector) · conv is NOT ──────────────────────────────────────────────────────────
 def test_durable_embedded_and_retrievable_conv_not(fresh_db):
     durable = memapi.write_now("El perro del operador se llama Toby.", level="long", kind="fact")
     conv = memapi.write_now("Operador: hola · zaelar: hola", level="short", kind="conv")
@@ -59,18 +59,18 @@ def test_durable_embedded_and_retrievable_conv_not(fresh_db):
     assert _vec_has(durable), "un hecho durable DEBE tener embedding (fila en vec_memories)"
     assert not _vec_has(conv), "un turno conv NO debe embeberse (sin fila en vec_memories) — cambio 2026-07-12"
 
-    # y el durable se recupera por el retriever (canal vector+FTS)
+    # and the durable item is retrieved by the retriever (vector+FTS channel)
     res = retriever.search("¿cómo se llama el perro?", limit=10)
     assert any("Toby" in m["text"] for m in res), "el hecho durable debe seguir siendo recuperable"
 
 
 def test_conv_never_promoted_to_durable(fresh_db):
-    """consolidator.promote excluye kind='conv' → un conv jamás sube a mid/long (evita durable sin vector)."""
+    """consolidator.promote excludes kind='conv' → a conv never advances to mid/long (avoids a durable item without a vector)."""
     from memory import consolidator
     import time
     conv = memapi.write_now("Operador: charla efímera · zaelar: ok", level="short", kind="conv")
     fact = memapi.write_now("El operador vive en Girona.", level="short", kind="fact")
-    # fuerza la promoción por edad: crea muy antiguo (created lejano)
+    # force age-based promotion: make it very old (distant created timestamp)
     old = int(time.time()) - 10 * 86400
     db = memdb.get_db()
     db.execute("UPDATE memories SET created=? WHERE id IN (?, ?)", (old, conv, fact))
@@ -81,7 +81,7 @@ def test_conv_never_promoted_to_durable(fresh_db):
     assert lvl_fact in ("mid", "long"), "un hecho normal SÍ se promociona por edad"
 
 
-# ── (c) muletillas no generan escritura ──────────────────────────────────────────────────────────────────────
+# ── (c) filler words do not generate writes ─────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("phrase", [
     "ah", "eh", "mmm", "hmm", "vale", "ya está", "bueno", "venga", "nada", "okey", "claro", "ajá",
 ])
@@ -97,7 +97,7 @@ def test_trivia_is_discarded(phrase):
     "Trabajo en un proyecto que se llama zaelar",
 ])
 def test_real_fact_is_not_discarded(phrase):
-    """Control: un HECHO real no debe caer en el descarte de trivia."""
+    """Control: a real FACT must not be discarded as trivia."""
     from nucleo import memory_agent
     res = memory_agent.classify(phrase)
     assert res.get("level") is not None, f"{phrase!r} es un hecho, NO debe descartarse"

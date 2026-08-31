@@ -1,4 +1,4 @@
-"""Tests de memory/episodic.py — bytes en el data-dir + resumen buscable + migración (V2-003 · T53)."""
+"""Tests for memory/episodic.py — bytes in the data directory + searchable summary + migration (V2-003 · T53)."""
 import pytest
 
 from memory import db as memdb
@@ -27,7 +27,7 @@ def fresh_db(tmp_path, monkeypatch):
 def test_write_episode_stores_bytes_in_memory_datadir(fresh_db):
     ref = memep.write_episode(b"hola mundo", filename="nota.txt", mime="text/plain")
     assert ref["episode_id"] and ref["memory_id"]
-    # el binario vive bajo el data-dir de la memoria, no en files/uploads/
+    # the binary lives under the memory data directory, not in files/uploads/
     assert "episodic" in ref["path"]
     assert memep.load_bytes(ref["episode_id"]) == b"hola mundo"
 
@@ -43,10 +43,10 @@ def test_write_episode_summary_is_searchable(fresh_db):
 
 def test_write_episode_binary_summary_by_name(fresh_db):
     ref = memep.write_episode(b"\x89PNG\r\n\x1a\n\x00\x01", filename="captura.png", mime="image/png")
-    # binario → el resumen se apoya en el nombre; buscable por él
+    # binary → the summary relies on the name; searchable by that name
     res = memret.search("captura", limit=5, expand=False)
     assert any(r["id"] == ref["memory_id"] for r in res)
-    # el binario carga lazy y coincide byte a byte
+    # the binary loads lazily and matches byte for byte
     assert memep.load_bytes(ref["episode_id"]) == b"\x89PNG\r\n\x1a\n\x00\x01"
 
 
@@ -64,12 +64,12 @@ def test_migrate_inbox_idempotent_and_non_destructive(fresh_db, tmp_path):
     (inbox / "viejo.txt").write_text("contenido de Wallapop antiguo", encoding="utf-8")
     rep1 = memep.migrate_inbox(str(inbox))
     assert rep1["migrated"] == ["viejo.txt"]
-    # NO destructiva: el origen sigue existiendo
+    # NON-destructive: the source still exists
     assert (inbox / "viejo.txt").is_file()
-    # idempotente: una segunda pasada no re-importa
+    # idempotent: a second pass does not re-import
     rep2 = memep.migrate_inbox(str(inbox))
     assert rep2["migrated"] == [] and rep2["skipped"] == 1
-    # y el episodio migrado es buscable
+    # and the migrated episode is searchable
     assert any("viejo" in e["name"] for e in memep.list_episodes())
 
 

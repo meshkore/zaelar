@@ -1,4 +1,4 @@
-"""Tests de memory/seed_from_hermes.py — siembra idempotente y solo-lectura (V2-003 · T56)."""
+"""Tests for memory/seed_from_hermes.py — idempotent, read-only seeding (V2-003 · T56)."""
 import pytest
 
 from memory import db as memdb
@@ -57,7 +57,7 @@ def test_seed_is_idempotent(fresh_db, tmp_path):
     r2 = seeder.seed(str(d))
     assert r1["seeded"] == 4
     assert r2["seeded"] == 0 and r2["skipped"] == 4
-    # el estado tampoco se re-escribe (nada nuevo que aportar)
+    # The state is not rewritten either (there is nothing new to add).
     assert r2["state_updated"] is False
 
 
