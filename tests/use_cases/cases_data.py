@@ -16,10 +16,11 @@ Tiers (easy -> hard):
   3 = multi-step single-domain task with a real deadline/follow-up
   4 = cross-domain orchestration (multiple providers/domains in one ask)
   5 = standing/reactive task (proactive, memory-triggered, no single turn completes it)
-  6 = multi-agent coordination over email (the only connector that can send today)
-  7 = multi-agent coordination over WhatsApp/Telegram (BLOCKED: neither
-      connector can send yet, and contact resolution is only designed, not
-      built — see V2-052-contactos-red-canales.md)
+  6 = multi-agent coordination over email
+  7 = multi-agent coordination over WhatsApp/Telegram (BLOCKED, but no longer
+      for the reason written here until 2026-08-31: SENDING is built on all
+      three connectors since V2-521. What is missing now is knowing WHO to
+      send to — see `_BLOCKED_DEPENDENCIES`)
 """
 from __future__ import annotations
 
@@ -39,10 +40,16 @@ class UseCase:
     notes: str = ""
 
 
+# Retired 2026-08-31: "connectors/whatsapp and connectors/telegram send capability (both are read-only
+# today)". It stopped being true with V2-521 — both connectors now drain `msg.reply` and deliver, so a
+# dictated reply reaches WhatsApp and Telegram, not just email. Leaving it here would have been the
+# expensive kind of stale: it sends whoever picks up tier 7 to build a capability that already exists,
+# and it made these cases look further away than they are. What actually blocks them is one step later.
 _BLOCKED_DEPENDENCIES = (
-    "connectors/whatsapp and connectors/telegram send capability (both are read-only today)",
-    "V2-052 contact resolution (.meshkore/roadmap/initiatives/V2-052-contactos-red-canales.md, "
-    "design closed, not built)",
+    "the contacts agenda — resolving «Pedro» to a real handle on some channel (V2-523, PLAN: written, "
+    "not built)",
+    "write permissions per platform, so an unprompted outbound message has a rule behind it (V2-522, "
+    "PLAN: written, not built)",
     "Z∴ agent-message tagging convention (recorded in CASES.md, not implemented)",
 )
 

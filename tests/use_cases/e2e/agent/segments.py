@@ -32,9 +32,10 @@ worth the extra name:
   · `completable` — runnable start to finish today. Nothing is missing. This is the list to test.
   · `credentials` — the OPERATOR unblocks it, by providing an account, a card, a phone, or a real bill /
     subscription / prescription / flight to act on.
-  · `capability`  — WE unblock it, by building something: sending on WhatsApp/Telegram, resolving a contact
-    (V2-052, designed and not built), placing a phone call, a second agent to negotiate with, or a signal
-    nobody measures. No credential the operator could hand over would help.
+  · `capability`  — WE unblock it, by building something: resolving a contact (V2-523, written and not
+    built), placing a phone call, a second agent to negotiate with, or a signal nobody measures. No
+    credential the operator could hand over would help. (Sending on WhatsApp/Telegram was on this list
+    until 2026-08-31 and came off it: V2-521 built it.)
 
 Closed inventory ON PURPOSE, and hand-edited: `tests/use_cases/unit/test_segments.py` fails if a scenario in
 `scenarios.all_scenarios()` is not classified here, so a case added tomorrow cannot silently land in no group
@@ -234,7 +235,8 @@ SEGMENTS: dict[str, Segment] = {
     # ── CAPABILITY · no credential unblocks these; we have to build something ──────────────────────────────
     "negotiate-lower-phone-bill": _cap("la capacidad de LLAMAR por teléfono, que no existe en el motor"),
     "grocery-restock-reactive": _cap("una señal de consumo (nadie mide la leche que queda) y una cuenta de compra"),
-    "split-dinner-bill-friends": _cap("resolución de contactos y un canal de envío (V2-052, diseñado sin construir)"),
+    # El canal de envío ya NO falta (V2-521, 2026-08-31); falta a quién mandarlo.
+    "split-dinner-bill-friends": _cap("resolución de contactos: a quién se le manda (V2-523, sin construir)"),
     # tier 6 — agent-to-agent over email: needs BOTH an email connector and a second agent to negotiate with.
     # The second agent is the harder half: the harness's DRIVE model plays the USER, and nothing in the suite
     # can stand in for a peer's agent, so these cannot be exercised even with the connector configured.
@@ -247,13 +249,17 @@ SEGMENTS: dict[str, Segment] = {
     "resolve-meetup-conflict": _cap("un agente PAR con el que negociar por email"),
     "split-airbnb-with-marta": _cap("un agente PAR con el que negociar por email"),
     "split-airbnb-with-jordan": _cap("un agente PAR con el que negociar por email"),
-    # tier 7 — WhatsApp/Telegram: both connectors are READ-ONLY today (see cases_data.py's tier list), so the
-    # very first step of the case is impossible, before contacts or peers even come up.
-    "coordinate-lunch-whatsapp": _cap("ENVIAR por WhatsApp (el conector es de solo lectura hoy)"),
-    "coordinate-dinner-whatsapp": _cap("ENVIAR por WhatsApp (el conector es de solo lectura hoy)"),
-    "group-plan-three-friends": _cap("ENVIAR por WhatsApp (el conector es de solo lectura hoy)"),
-    "realtime-eta-share": _cap("ENVIAR por WhatsApp (el conector es de solo lectura hoy)"),
-    "split-trip-telegram": _cap("ENVIAR por Telegram (el conector es de solo lectura hoy)"),
+    # tier 7 — WhatsApp/Telegram. Hasta el 2026-08-31 lo que faltaba aquí era ENVIAR, y ya no: V2-521 puso a
+    # los dos conectores a drenar `msg.reply` y entregar. Lo que sigue faltando es el paso SIGUIENTE, y hay
+    # que decirlo con precisión o quien coja esto construye lo que ya está: sabemos mandar un mensaje por
+    # WhatsApp, y no sabemos a QUIÉN — «el agente de Pedro» no resuelve a ningún handle porque no existe la
+    # agenda de contactos (V2-523). `missing` se cita literal en la nota del juez, así que una frase caduca
+    # ahí no es cosmética: rebaja el caso por un motivo que no es el suyo.
+    "coordinate-lunch-whatsapp": _cap("resolver «el agente de Pedro» a un contacto real (V2-523, sin construir)"),
+    "coordinate-dinner-whatsapp": _cap("resolver «el agente de Alex» a un contacto real (V2-523, sin construir)"),
+    "group-plan-three-friends": _cap("resolver tres contactos y sus canales (V2-523, sin construir)"),
+    "realtime-eta-share": _cap("resolver el contacto y una señal de «he salido de casa» que nadie mide"),
+    "split-trip-telegram": _cap("resolver el contacto en Telegram (V2-523, sin construir)"),
 }
 
 

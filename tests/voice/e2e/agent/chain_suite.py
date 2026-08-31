@@ -378,18 +378,24 @@ CATALOG = [
      "head": lambda r: r.get("ok") and not escal(r) and not search(r),
      "chain": "responde del estado del conector (ya triado) o abre el widget mensajeria",
      "note": "mensajería → estado/abre widget; NO escala NI busca en web"},
-    {"id": "MSG-03", "domain": "messaging", "intent": "enviar respuesta (LIMITACIÓN: read-only)",
-     "defer": "zaelar NO envía mensajes (read-only + mark-read, CLAUDE.md). El modelo intenta widget_data para un "
-              "'send' inexistente en vez de declinar con honestidad. Causa: el brief de mensajería (que dice "
-              "'solo lectura') NO va en el prompt cuando el widget está CERRADO (prompt lean V2-027) → sin contexto. "
-              "Fix developer: honest-decline (guard o guía siempre-on ligera) o implementar envío (feature futura).",
+    # REWRITTEN 2026-08-31 (V2-521): until then this scenario asserted the OPPOSITE of today's contract.
+    # Messaging was read-only, so the honest reply was "I can only read" and the head check FAILED any
+    # `widget_data` — correct then. Since V2-521 all three connectors send (email threads over SMTP, the
+    # WhatsApp bridge's POST /send, Telethon), and the correct chain for a dictated reply IS a `reply`
+    # data-op with its confirm gate reading the draft before anything leaves. Keeping the old check would
+    # have graded the fixed product as broken. What is STILL not built: resolving a person to a chat when
+    # they are not in the widget's live items ("mi madre" with no such chat) — there the honest move is to
+    # ask, never to invent a recipient (V2-523, the contacts agenda).
+    {"id": "MSG-03", "domain": "messaging", "intent": "dictar una respuesta (envío real con confirmación)",
      "phrasings": ["Responde a mi madre que llego tarde.", "Contéstale a Juan que vale.",
                    "Mándale un mensaje a Ana diciéndole que sí."],
-     # la mensajería es READ-ONLY + mark-read (CLAUDE.md): NO se envían respuestas. El invariante: NO fingir un
-     # envío (no escalar a un worker a 'enviar', no data-op de send inexistente); lo honesto es decir que no puede.
-     "head": lambda r: not escal(r) and not tool(r, "widget_data"),
-     "chain": "honesto: 'solo puedo leer, no enviar' — NO hay envío en zaelar (read-only + mark-read)",
-     "note": "enviar mensaje → LIMITACIÓN read-only; no fingir envío ni escalar a enviar"},
+     # El invariante nuevo: la respuesta va por la data-op `reply` (confirm-gate delante) — NUNCA se escala
+     # a un worker a "enviar", y NUNCA se afirma enviado sin la data-op. Si el destinatario no resuelve
+     # contra los chats vivos del widget, preguntar es conducta correcta (sin tool también vale).
+     "head": lambda r: not escal(r),
+     "chain": "reply data-op sobre el chat resuelto + confirmación leyendo el borrador; destinatario no "
+              "resoluble → pregunta, jamás inventa",
+     "note": "dictar respuesta → data-op reply con confirm (V2-521); no escalar a worker; no fingir envío"},
     {"id": "MSG-02", "domain": "messaging", "intent": "abrir mensajería (show puro)",
      "defer": "Referencias INDIRECTAS al widget de mensajería ('enséñame los mensajes' → escala; 'abre WhatsApp' → "
               "widget_data) no mapean a [[show:mensajeria]]: runtime.identify no resuelve 'WhatsApp'/'los mensajes' "
