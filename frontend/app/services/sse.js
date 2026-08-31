@@ -62,13 +62,20 @@ export function openSSE(desktop) {
       }
       else if (d.label === "create" && d.id) desktop.createWidget(d.id, d.spec);  // brain asked to BUILD a new widget
       else if (d.label === "modify" && d.id) desktop.modifyWidget(d.id, d.change);// brain asked to EDIT an existing widget
-      else if (d.label === "delete" && d.id) desktop.onDeleted(d.id);             // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
+      else if (d.label === "delete" && d.id) { desktop.onDeleted(d.id); store.setWidgetConfirm(null); }   // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
+      else if (d.label === "restore" && d.id) store.setWidgetConfirm(null);       // restore executed (V2-518 audit event; the paired "delete" closes the card)
       // V2-086: el id RESERVADO "clusters" no es una tarjeta sino la pestaña NATIVA — su Sí/No se pinta ahí
       // (conectarse a una red no es una acción de canvas, y ese widget ya no existe).
       else if (d.label === "confirm" && d.id === "clusters") { store.setClusterConfirm({ question: d.question }); store.setChatTab("clusters"); store.setChatOpen(true); }
       else if (d.label === "confirm-cancel" && d.id === "clusters") store.setClusterConfirm(null);
-      else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question, action: d.action });      // irreversible action (delete/data) → Sí/No overlay ON the card
-      else if (d.label === "confirm-cancel" && d.id) desktop.hideConfirm(d.id);   // confirmation resolved/cancelled elsewhere (voice/timeout)
+      else if (d.label === "confirm" && d.id) {                                   // irreversible action (delete/restore/data)
+        desktop.showConfirm(d.id, { question: d.question, action: d.action });    // Sí/No overlay ON the card…
+        // …and the SAME question in the chat thread (V2-518, house norm: no popups — questions live in the
+        // conversation). One pending at a time, like the backend registry.
+        store.setWidgetConfirm({ id: d.id, question: d.question || "", action: d.action || "" });
+        store.setChatTab("chat"); store.setChatOpen(true);
+      }
+      else if (d.label === "confirm-cancel" && d.id) { desktop.hideConfirm(d.id); store.setWidgetConfirm(null); }   // resolved/cancelled elsewhere (voice/timeout)
       else if (d.label === "close" && !_eco) d.id ? desktop.close(d.id) : desktop.closeAll();
       else if (d.label === "arrange") desktop.arrange && desktop.arrange();       // V2-464: rejilla alineada (showcase/API)
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (izquierda/derecha/…)

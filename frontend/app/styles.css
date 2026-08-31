@@ -119,6 +119,8 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-proc,.cw-crons,.cw-clusters{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
 /* solo el panel de la pestaña activa se muestra (por defecto todos ocultos) */
 .chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-clusters,.chatwall .cw-input{display:none}
+.chatwall .cw-wconfirm{display:none}
+.chatwall.tab-chat .cw-wconfirm{display:block}
 .chatwall.tab-chat .cw-list{display:flex}
 .chatwall.tab-chat .cw-input{display:flex}
 .chatwall.tab-procesos .cw-proc{display:flex}

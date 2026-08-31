@@ -92,6 +92,21 @@ def test_the_registry_flags_a_fork_so_the_ui_can_offer_restore(lab):
     assert row["forked"] is True and row["origin"] == "user"
 
 
+def test_the_gear_buttons_ask_endpoint_opens_the_confirmation(lab):
+    """V2-518: the gear panel's Restore button never executes directly — POST /widgets/{id}/restore/ask
+    only OPENS the confirmation (the question then lands in the chat and on the card). Nothing restorable
+    → 404, and no pending is registered."""
+    from widgets import server_api
+    resp = asyncio.run(server_api.widget_restore_ask("clock"))
+    assert resp.status_code == 404 and not confirm.pending()
+    _fork_clock(lab)
+    resp = asyncio.run(server_api.widget_restore_ask("clock"))
+    body = json.loads(bytes(resp.body))
+    assert resp.status_code == 200 and body["wid"] == "clock"
+    p = confirm.pending().get("clock")
+    assert p and p["action"] == "restore"
+
+
 def test_the_yes_button_executes_a_restore_confirmation(lab):
     """The 2026-08-15 class-gap rule: a confirmation class the button endpoint does not dispatch consumes
     the pending and executes NOTHING. The restore class must execute from the card's Yes button."""

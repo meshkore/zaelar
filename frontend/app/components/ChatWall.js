@@ -1,11 +1,11 @@
-// ChatWall — panel vertical del agente con TRES pestañas (V2-079): «Chat» (escribir al agente), «Procesos»
-// (Brain Workers vivos + histórico de lo ejecutado hoy/ayer/hace días) y «Crons» (tareas programadas). Toggled by
-// store.chatOpen; la pestaña activa vive en store.chatTab (así el botón ⏰ del orbe puede abrirlo directo en «Crons»).
-// El chat va por session.sendText → data channel → ClientTextInjector (turno de usuario normal, el agente responde
-// por voz). Antes esto era solo el muro de chat; «Procesos» y «Crons» le dan al operador PERSPECTIVA de lo que el
-// sistema está haciendo y ha hecho (los hexágonos son el "ahora"; esta pestaña es "ahora + histórico").
+// ChatWall — panel vertical of the agente with TRES pestañas (V2-079): “Chat” (escribir al agente), “Procesos”
+// (Brain Workers vivos + histórico of lo ejecutado hoy/ayer/hace días) and “Crons” (tareas programadas). Toggled by
+// store.chatOpen; the pestaña activa vive en store.chatTab (así the button ⏰ of the orbe puede abrirlo directo en “Crons”).
+// The chat va by session.sendText → data channel → ClientTextInjector (turno of user normal, the agente responde
+// by voz). Antes esto era only the muro of chat; “Procesos” and “Crons” le dan al operador PERSPECTIVA of lo that el
+// system está haciendo and ha hecho (los hexágonos son the "ahora"; this pestaña es "ahora + histórico").
 //
-// WINDOW BEHAVIOUR (V2-062): MOVABLE (drag by the header) + RESIZABLE from ANY edge/corner (8 handles, lib/
+// WINDOW BEHAVIOUR (V2-062): MOVABLE (drag by the header) + RESIZABLE from ANAnd edge/corner (8 handles, lib/
 // resizable.js) + DOCKABLE: drag it to the far left/right edge and it snaps to a FULL-HEIGHT side column. Floating
 // geometry persists under FLOAT_KEY; the docked side+width under DOCK_KEY.
 //
@@ -53,7 +53,7 @@ function placeWall(el) {
   set(Math.min(r.left, innerWidth - w - pad), r.top);                                 // 3) no room → on top
 }
 
-// tiempo relativo compacto para el histórico de procesos (finished_at en epoch segundos, como Python time.time()).
+// tiempo relativo compacto for the histórico of procesos (finished_at en epoch segundos, as Python time.time()).
 function ago(ts) {
   if (!ts) return "";
   const s = Math.max(0, Date.now() / 1000 - Number(ts));
@@ -66,7 +66,7 @@ function ago(ts) {
 
 export function ChatWall() {
   let listEl, inputEl, headEl, wallEl, previewEl = null;
-  let schedEl, cnameEl, cpromptEl;             // refs del formulario de crear cron (pestaña Crons)
+  let schedEl, cnameEl, cpromptEl;             // refs of the formulario of create cron (pestaña Crons)
   let dockSide = null;                         // null | "left" | "right"
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
 
@@ -85,9 +85,9 @@ export function ChatWall() {
     );
   };
   const histRow = (e) => {
-    // `interrumpido` = se la llevó por delante un reinicio (rehidratación, nucleo/rehydrate.py). Tiene su propio
-    // glifo porque antes CUALQUIER estado desconocido caía a "done" con un ✓: una tarea que murió a medias se
-    // pintaba como terminada con éxito. Un registro que miente es peor que no tenerlo.
+    // `interrumpido` = se the llevó by delante un reinicio (rehidratación, nucleo/rehydrate.py). Tiene su propio
+    // glifo porque antes CUALQUIER state desconocido caía a "done" with un ✓: a tarea that murió a medias se
+    // pintaba as terminada with éxito. Un registro that miente es peor that no tenerlo.
     const st = e.status === "error" ? "error" : e.status === "cancelled" ? "cancelled"
              : e.status === "interrumpido" ? "cut" : (e.ok || e.status === "done") ? "done" : "done";
     const gl = st === "error" ? "✕" : st === "cancelled" ? "⊘" : st === "cut" ? "✂" : "✓";
@@ -112,7 +112,7 @@ export function ChatWall() {
     return out;
   };
 
-  // ── Pestaña CRONS: lista + crear/borrar (funde el antiguo CronPanel; misma API /api/cron) ───────────────────
+  // ── Pestaña CRONS: lista + crear/borrar (funde the antiguo CronPanel; misma API /api/cron) ───────────────────
   const refreshCrons = async () => { const r = await api.cronList(); store.setCronJobs(r.jobs || []); };
   const cronRemove = async (ref) => { await api.cronAction("remove", ref); await refreshCrons(); };
   const cronAdd = async () => {
@@ -133,9 +133,9 @@ export function ChatWall() {
     ),
   );
 
-  // Una fila de la pestaña CLUSTERS (V2-086). Muestra lo que el operador pidió y nada más: nombre, si estamos
-  // dentro, quién hay, y cuánto se ha hablado. El cluster_id se enseña porque NO es secreto (viaja en la propia
-  // URL de invitación) y es lo que permite reconocer de cuál se trata; el token nunca sale del backend.
+  // A row of the pestaña CLUSTERS (V2-086). Muestra lo that the operador pidió and nada más: nombre, si estamos
+  // dentro, quién hay, and cuánto se ha hablado. The cluster_id se enseña porque NO es secreto (viaja en the propia
+  // URL of invitación) and es lo that permite reconocer of cuál se trata; the token nunca sale of the backend.
   const clusterRow = (c) => h("div", { class: "cl-row" },
     h("div", { class: "cl-main" },
       h("div", { class: "cl-name" },
@@ -173,6 +173,17 @@ export function ChatWall() {
     ),
     // CHAT
     h("div", { class: "cw-list", ref: el => (listEl = el) }),
+    // Confirmación de WIDGET (V2-518) — la norma de la casa: sin popups; una pregunta pendiente (borrar /
+    // restaurar / data-op irreversible) se pinta EN la conversación con Sí/No, y se contesta aquí o por voz.
+    // Espejo del gate de clusters de más abajo; mismo registro backend (widgets/confirm.py), una a la vez.
+    () => (store.widgetConfirm()
+      ? h("div", { class: "cl-confirm cw-wconfirm" },
+          h("div", { class: "cl-q" }, store.widgetConfirm().question || t("chat.widgetConfirmQ")),
+          h("div", { class: "cl-cbtns" },
+            h("button", { class: "cl-b on", onClick: () => store.widgetConfirmResolve(true) }, () => t("chat.yes")),
+            h("button", { class: "cl-b", onClick: () => store.widgetConfirmResolve(false) }, () => t("chat.no")),
+          ))
+      : null),
     // PROCESOS
     h("div", { class: "cw-proc" }, procBody),
     // CRONS
@@ -190,11 +201,11 @@ export function ChatWall() {
         h("button", { class: "cron-create", onClick: cronAdd }, () => t("chat.scheduleBtn")),
       ),
     ),
-    // CLUSTERS (V2-086) — la RED, nativa. Administración de conexiones, no conversación: los clusters tienen su
-    // propio monitor, así que aquí solo se ve a qué red estamos enganchados, con quién y cuánto tráfico ha habido.
+    // CLUSTERS (V2-086) — the RED, nativa. Administración of conexiones, no conversación: the clusters tienen su
+    // propio monitor, así that here only se ve a qué red estamos enganchados, with quién and cuánto tráfico ha habido.
     h("div", { class: "cw-clusters" },
-      // Confirmación de CONECTAR: gate determinista. Sin un «sí» explícito aquí no se abre ningún socket, por
-      // convincente que fuera el texto que lo pidió (V2-064 → V2-086: cambia dónde se pinta, no la garantía).
+      // Confirmación of CONECTAR: gate determinista. Without un “sí” explícito here no se abre ningún socket, por
+      // convincente that outside the texto that lo pidió (V2-064 → V2-086: cambia dónde se pinta, no the garantía).
       () => (store.clusterConfirm()
         ? h("div", { class: "cl-confirm" },
             h("div", { class: "cl-q" }, store.clusterConfirm().question || t("chat.clusterConfirmQ")),
@@ -209,7 +220,7 @@ export function ChatWall() {
           : h("div", { class: "cw-empty" }, () => t("chat.clustersEmpty"))),
       ),
     ),
-    // INPUT (solo Chat — CSS lo oculta en las otras pestañas)
+    // INPUT (solo Chat — CSS lo oculta en the otras pestañas)
     h("div", { class: "cw-input" },
       h("textarea", {
         ref: el => (inputEl = el), rows: 1, placeholder: () => t("chat.messagePlaceholder"),
@@ -219,7 +230,7 @@ export function ChatWall() {
     ),
   );
 
-  // Al ENTRAR en una pestaña, refresca sus datos (los vivos ya llegan por SSE; el histórico/crons se piden aquí).
+  // Al ENTRAR en a pestaña, refreshes sus data (los vivos ya llegan by SSE; the histórico/crons se piden aquí).
   createEffect(() => {
     const t = store.chatTab();
     if (!store.chatOpen()) return;
@@ -227,24 +238,24 @@ export function ChatWall() {
     else if (t === "crons") refreshCrons();
     else if (t === "clusters") store.fetchClusters();
   });
-  // Cuando cambian los procesos vivos (una tarea acaba) y estamos mirando «Procesos», refresca el histórico para
-  // que la que acaba de terminar baje del bloque "en marcha" al "histórico".
+  // When cambian the procesos vivos (una tarea acaba) and estamos mirando “Procesos”, refreshes the histórico para
+  // that the that acaba of terminar baje of the bloque "en marcha" al "histórico".
   createEffect(() => {
     store.tasks();
     if (store.chatOpen() && store.chatTab() === "procesos") store.fetchWorkerHistory();
   });
 
-  // CHAT y VOZ son INDEPENDIENTES (V2-088). Abrir este panel NO toca el altavoz, y silenciar el altavoz no toca
-  // este panel. Se retira el «modo chat = voz off» de V2-054: partía de que abrir el chat significaba «quiero
-  // leer en vez de escuchar», y es FALSO — el panel tiene cuatro pestañas y el operador entra a mirar PROCESOS,
-  // CRONS o CLUSTERS sin querer callar a nadie. Cortarle la voz por asomarse a una lista es una decisión que el
-  // sistema no tiene por qué tomar por él, y encima le costó una sesión entera creyendo que el TTS estaba roto.
+  // CHAT and VOZ son INDEPENDIENTES (V2-088). Abrir this panel NO toca the altavoz, and silenciar the altavoz no toca
+  // this panel. Se retira the “modo chat = voz off” of V2-054: partía of that abrir the chat significaba “quiero
+  // leer en vez of escuchar”, and es FALSO — the panel tiene cuatro pestañas and the operador entra a mirar PROCESOS,
+  // CRONS or CLUSTERS without querer callar a nadie. Cortarle the voz by asomarse a a lista es a decisión that el
+  // system no tiene by qué tomar by él, and encima le costó a sesión entera creyendo that the TTS estaba roto.
   //
-  // Quién silencia: SOLO el icono 🔊 (`session.toggleBotMute`, que avisa al server). Un interruptor, un dueño.
-  // El chat NO es un modo, es una VISTA MÁS: la respuesta aparece ahí igual que en los subtítulos y en la voz,
-  // las tres a la vez — `pushAgentChat` cuelga del transcript del asistente, que es independiente del audio.
+  // Quién silencia: SOLO the icono 🔊 (`session.toggleBotMute`, that avisa al server). Un interruptor, un dueño.
+  // The chat NO es un modo, es a VISTA MÁS: the respuesta aparece ahí igual that en the subtítulos and en the voz,
+  // the tres a the vez — `pushAgentChat` cuelga of the transcript of the asistente, that es independiente of the audio.
   createEffect(() => {
-    store.chatOpen();      // única dependencia: la geometría reservada depende de si está abierto
+    store.chatOpen();      // única dependencia: the geometría reservada depende of si está abierto
     setReserve();          // closing releases the reserved strip; reopening while docked re-applies it
   });
 
@@ -296,7 +307,7 @@ export function ChatWall() {
   }
   function hidePreview() { if (previewEl) previewEl.style.display = "none"; }
 
-  // RESERVA de espacio: cuando el chat está ABIERTO y acoplado, el escritorio se desplaza a la zona libre.
+  // RESERVA of espacio: when the chat está OPEN and acoplado, the escritorio se desplaza a the zona libre.
   function setReserve() {
     const root = document.documentElement, body = document.body;
     body.classList.remove("chatdock-l", "chatdock-r");
@@ -374,9 +385,9 @@ export function ChatWall() {
 
   // ── restore geometry ────────────────────────────────────────────────────────────────────────────────────
   let placed = false;
-  // V2-464 — modo ESCAPARATE (?showcase=1): el chat arranca ABIERTO y ACOPLADO a la izquierda, para que una
-  // grabación desatendida enseñe la conversación sin que nadie toque nada. Antes que el float guardado: en
-  // el plató la geometría persistida es de otra sesión y un chat flotante a medias tapa las tarjetas.
+  // V2-464 — modo ESCAPARATE (?showcase=1): the chat arranca OPEN and ACOPLADO a the izquierda, for that una
+  // grabación desatendida enseñe the conversación without that nadie toque nada. Antes that the float guardado: en
+  // the plató the geometría persistida es of otra sesión and un chat flotante a medias tapa the tarjetas.
   const _showcase = new URLSearchParams(location.search).has("showcase");
   if (_showcase) {
     applyDock("left", (loadDock() || {}).w || DOCK_DEF_W);

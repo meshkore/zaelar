@@ -235,6 +235,17 @@ export const fetchClusters = async () => {
 // Confirmación Sí/No de CONECTAR a un cluster (V2-086). Vive aquí y se pinta en la pestaña «Clusters» porque la
 // red no es una tarjeta del canvas. El gate es determinista y NO se puede saltar: por muy convincente que sea un
 // bloque de texto pegado, sin un «sí» explícito del operador no se abre ningún socket.
+// V2-518 — pending WIDGET confirmation (delete / restore / irreversible data-op), mirrored into the chat
+// thread per the house norm: no popups — a question renders IN the conversation with Sí/No, answerable
+// there or by voice. Fed by the same SSE "confirm"/"confirm-cancel" events that paint the card overlay.
+export const [widgetConfirm, setWidgetConfirm] = createSignal(null);     // {id, question, action} | null
+export const widgetConfirmResolve = async (ok) => {
+  const c = widgetConfirm(); setWidgetConfirm(null);
+  if (!c) return;
+  try { await fetch(`/widgets/${c.id}/confirm`, { method: "POST", headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ ok: !!ok }) }); } catch (_) {}
+};
+
 export const [clusterConfirm, setClusterConfirm] = createSignal(null);   // {question} | null
 export const clusterConfirmResolve = async (ok) => {
   setClusterConfirm(null);

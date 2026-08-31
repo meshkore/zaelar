@@ -444,6 +444,18 @@ async def widget_restore(wid: str):
     return JSONResponse(res, status_code=200 if res.get("ok") else 404)
 
 
+@router.post("/widgets/{wid}/restore/ask")
+async def widget_restore_ask(wid: str):
+    """OPEN the restore confirmation (V2-518): the gear panel's button never executes directly — discarding
+    the operator's fork gets the same Si/No gate as the voice path. The question is emitted over SSE, lands
+    on the card AND in the chat thread, and resolves via /widgets/{id}/confirm (button) or voice."""
+    from . import confirm
+    r = confirm.request_restore(_safe(wid))
+    if not r:
+        return JSONResponse({"ok": False, "error": "nothing to restore"}, status_code=404)
+    return JSONResponse({"ok": True, **r})
+
+
 def _emit_confirmed(wid: str, action: str) -> None:
     """El operador tiene que VER que su «Sí» ejecutó algo. Sin esta traza, el bucle de arriba era invisible en el
     visor: se veía la confirmación pedida una y otra vez y nunca una ejecución ([[feedback_visible_state_over_silent_state]])."""

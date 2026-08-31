@@ -90,6 +90,7 @@ function injectStyles(){
   .hb-cfg:hover{color:var(--hb-ink,#e8edf5);background:var(--hb-bubble,#f1f4f9)}
   /* Desplegable de ALIAS (host-level, patrón de .hb-confirm): lista de chips editable + añadir. */
   .hb-aliases{position:absolute;top:30px;left:12px;right:12px;z-index:6;padding:12px;border-radius:12px;
+    max-height:calc(100% - 44px);overflow-y:auto;
     background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
     max-height:60%;overflow:auto;opacity:0;transform:translateY(-6px);transition:opacity .16s,transform .16s}
   .hb-aliases.in{opacity:1;transform:none}
@@ -107,6 +108,13 @@ function injectStyles(){
   .hb-al-add button{border:none;border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--hb-accent,#3D6FE0);color:#fff;
     font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-al-err{color:var(--hb-risk,#e5484d);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin-top:7px}
+  .hb-al-origin{margin-top:10px;padding-top:8px;border-top:1px solid var(--hb-line,#232e3d);}
+  .hb-al-origin.top{margin:0 0 10px;padding:0 0 8px;border-top:none;border-bottom:1px solid var(--hb-line,#232e3d)}
+  .hb-al-origin{
+    color:var(--hb-muted,#9aa7b8);font:11.5px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-restore{margin-top:7px;border:1px solid var(--hb-accent,#3D6FE0);border-radius:8px;padding:6px 12px;cursor:pointer;
+    background:transparent;color:var(--hb-accent,#3D6FE0);font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-restore:hover{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 14%,transparent)}
   .hb-load{width:72px;height:72px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6),rgba(61,111,224,0) 78%);
     -webkit-mask:radial-gradient(farthest-side,transparent 58%,#000 60%);mask:radial-gradient(farthest-side,transparent 58%,#000 60%);
@@ -340,6 +348,25 @@ export class Desktop {
     const name=e.name||w.base, aliases=e.aliases||[name];
     panel.innerHTML="";
     const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=tr("desktop.aliases_title", { name }); panel.appendChild(t);
+    // V2-518: the ⚙ panel is the widget's CONFIG corner — it says where the piece comes from, and a FORK
+    // carries the RESTORE affordance here (never on the widget's face, per the operator). It sits right
+    // under the title so a SHORT card never scrolls it out of sight. The click only OPENS the confirmation:
+    // the question lands in the chat thread and on the card (house norm — no popups), answerable by voice
+    // or by button; a system widget keeps its reference id visible instead.
+    const org=document.createElement("div"); org.className="hb-al-origin top";
+    if(e.forked){
+      org.textContent=tr("desktop.origin_fork",{id:w.base});
+      const rb=document.createElement("button"); rb.className="hb-al-restore";
+      rb.textContent=tr("desktop.restore_btn");
+      rb.onclick=async()=>{ this._closeAliases(w);
+        try{ await fetch(`/widgets/${w.base}/restore/ask`,{method:"POST"}); }catch(_){ } };
+      org.appendChild(document.createElement("br")); org.appendChild(rb);
+    } else if((e.origin||"user")==="builtin"){
+      org.textContent=tr("desktop.origin_system",{id:w.base});
+    } else {
+      org.textContent=tr("desktop.origin_yours");
+    }
+    panel.appendChild(org);
     const chips=document.createElement("div"); chips.className="hb-al-chips";
     aliases.forEach(a=>{
       const isName=a.toLowerCase()===name.toLowerCase();
