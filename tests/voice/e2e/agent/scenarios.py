@@ -33,7 +33,7 @@ SCENARIOS: list[Scenario] = [
              "zaelar performs a LIGHT web search (V2-022 web_search) and answers IN THE SAME TURN with a concrete, "
              "relevant fact, spoken naturally (no URLs, no raw JSON, no heavy browser card). If it truly can't, it "
              "says so and offers to look deeper.", turns=5),
-    # V2-022 web-search, factual+synthesis modality (resolved in-turn, ~1-2s, no browser). Current-info query.
+    # V2-022 web-search, factual+synthesis modality (resolved in-turn, ~1-2s, no browser). Current-information query.
     Scenario("busqueda_web", "voice",
              "Pregúntale a zaelar, hablando, qué tiempo hará mañana en tu ciudad (di una ciudad concreta, p. ej. "
              "Tarragona), o el resultado de algo de actualidad. Quieres un dato concreto, rápido, dicho de viva voz.",
@@ -41,8 +41,8 @@ SCENARIOS: list[Scenario] = [
              "sintetizado, hablado natural (sin leer URLs ni números de fuente, sin abrir el navegador pesado). "
              "Latencia razonable (unos segundos). Si no encuentra el dato, lo dice y se ofrece a mirarlo a fondo.",
              turns=4),
-    # V2-022 navegador modality: marketplace que hay que NAVEGAR (no un buscador) → automate_web (SlowBrain +
-    # navegador backed, en 2º plano). Caso de uso REAL del operador ("búscame una moto…").
+    # V2-022 browser modality: a marketplace that must be NAVIGATED (not a search engine) → automate_web (SlowBrain +
+    # browser-backed, in the background). REAL operator use case ("find me a motorcycle…").
     Scenario("navegador_moto", "voice",
              "Pídele a zaelar, hablando, que te busque en un marketplace (Wallapop o similar) una moto de segunda "
              "mano con criterios concretos: tipo naked, menos de 3000 euros, cerca de ti. Quieres que te dé las "
@@ -52,9 +52,9 @@ SCENARIOS: list[Scenario] = [
              "crea un widget nuevo ni responde de memoria. Confirma por voz que se pone a ello; el resultado "
              "(listado/top-3) llega después de forma asíncrona. Verifica por la traza: evento de escalada + tarea de "
              "navegador, no un [[show]] de otra cosa.", turns=5),
-    # V2-022 navegador — CASO REAL del operador: coche en Wallapop con criterios de precio Y kilómetros → automate_web
-    # que arranca Chromium (headless, sin autenticar de momento; si no es Wallapop vale coches.net). Prueba la
-    # búsqueda web COMPLEJA que hay que NAVEGAR (no un buscador).
+    # V2-022 browser — REAL operator use case: car on Wallapop with price AND mileage criteria → automate_web
+    # that starts Chromium (headless, not authenticated for now; coches.net is fine if it is not Wallapop). Tests the
+    # COMPLEX web search that must be NAVIGATED (not a search engine).
     Scenario("navegador_coche", "voice",
              "Pídele a zaelar, hablando, que te busque un coche de segunda mano en Wallapop (o coches.net) por menos "
              "de 5000 euros y con menos de 250.000 kilómetros, cerca de ti. Quieres las mejores opciones. Dale una "
@@ -63,9 +63,9 @@ SCENARIOS: list[Scenario] = [
              "EN 2º PLANO con una tarjeta de tarea (automate_web); NO crea un widget nuevo ni responde de memoria ni "
              "abre un login sin pedírselo. Confirma por voz que se pone a ello; el resultado (listado/top-3 con precio "
              "y km) llega asíncrono. Verifica por la traza: escalada + tarea de navegador arrancada.", turns=5),
-    # CONTROL DE ESTADO del navegador — REGRESIÓN de la sesión del 2026-07-12 (una búsqueda de moto abrió DOS-TRES
-    # navegadores + ignoró las aclaraciones). Es la prueba MANUAL del operador. Verifica: 1 tarea = 1 navegador,
-    # el agente es CONSCIENTE de la tarea en curso, y una ACLARACIÓN MODIFICA la tarea actual en vez de abrir otra.
+    # BROWSER STATE CONTROL — REGRESSION from the 2026-07-12 session (a motorcycle search opened TWO-THREE
+    # browsers + ignored clarifications). This is the operator's MANUAL test. Verify: 1 task = 1 browser,
+    # the agent is AWARE of the task in progress, and a CLARIFICATION MODIFIES the current task instead of opening another.
     Scenario("navegador_una_tarea", "voice",
              "Pídele a zaelar, hablando, que te busque una moto en Wallapop. En cuanto se ponga (o te dé algo), "
              "ACLÁRALE en turnos siguientes que en realidad la querías de ENDURO, 300-400 cc 4 tiempos, para "
@@ -79,12 +79,13 @@ SCENARIOS: list[Scenario] = [
              "zaelar reconoce por voz que ajusta la búsqueda en curso ('sigo con ello, lo tengo en cuenta'), sin "
              "preguntar de cero como si no supiera qué está haciendo. FALLA si abre >1 navegador o si pierde las "
              "aclaraciones y busca algo genérico.", turns=8),
-    # ACCIÓN WEB TRANSACCIONAL — REGRESIÓN del bug ITV 2026-07-15: una petición de EJECUTAR una gestión en un sitio
-    # (reservar/pedir cita) se trató como web_search (dato) → zaelar daba consejos ("entra en itevelesa.com…") en
-    # BUCLE 5 turnos en vez de HACERLO; al escalar, el worker se atascó en el muro de cookies sin completar NI pedir
-    # datos. Fix por COMPRENSIÓN (no listas de verbos): descripción de web_search (dato vs acción→escalate) + prompt
-    # del worker (entiende la página, acepta cookies, PIDE los datos que falten, no da vueltas). Sin comparación
-    # humana de resultados: aquí importa el ROUTING + que PREGUNTE lo que falta, no cerrar una reserva real.
+    # TRANSACTIONAL WEB ACTION — REGRESSION from the 2026-07-15 ITV bug: a request to EXECUTE an operation on a site
+    # (booking/requesting an appointment) was treated as web_search (information) → zaelar gave advice ("go to
+    # itevelesa.com…") in a 5-turn LOOP instead of DOING IT; after escalation, the worker got stuck at the cookie
+    # wall without completing OR requesting data. Fix through UNDERSTANDING (not verb lists): web_search description
+    # (information vs action→escalate) + worker prompt (understands the page, accepts cookies, ASKS for missing data,
+    # does not go in circles). No human comparison of results: what matters here is ROUTING + ASKING what is missing,
+    # not completing a real booking.
     Scenario("reserva_web", "voice",
              "Pídele a zaelar, hablando, que te RESERVE/pida cita para pasar la ITV de tu coche, cuanto antes, en tu "
              "ciudad. Deja claro que quieres que lo HAGA ÉL en la web, no que te explique cómo. Si en algún turno te "
@@ -98,8 +99,8 @@ SCENARIOS: list[Scenario] = [
              "en bucle) o inventar. Verifica por la traza: evento de escalada + tarea de navegador + (si procede) un "
              "worker_bridge ask; FALLA con consejos repetidos sin acción, widget navegador en blanco, o bucle mudo.",
              turns=6),
-    # Mensajería unificada — REGRESIÓN del bug V2-023: "abre el de mensajería" DEBE mostrar el widget `mensajeria`
-    # EXISTENTE, jamás crear uno nuevo. Además lee el store unificado + estado de conectores.
+    # Unified messaging — REGRESSION from the V2-023 bug: "open the messaging one" MUST show the existing `mensajeria` widget
+    # and never create a new one. It also reads the unified store + connector status.
     Scenario("mensajeria", "voice",
              "Pídele a zaelar, hablando, que te abra el widget de mensajería y te diga cuántos mensajes importantes "
              "tienes y si WhatsApp, Telegram y el correo (email) están conectados.",
@@ -107,8 +108,8 @@ SCENARIOS: list[Scenario] = [
              "widget nuevo (nada de ids tipo 'el-operador-...'/'mensajes-pendientes'; si aparece un CREATE de widget "
              "es un FALLO GRAVE, es el bug V2-023). Dice el estado de WhatsApp/Telegram/Email en lenguaje natural. Un "
              "solo widget de mensajería, no duplicados.", turns=4),
-    # Responder un email por voz (V2-051) — la tool reply_message + confirm-gate. Requiere un email en el buzón; si
-    # no hay ninguno conectado, zaelar lo dice con naturalidad (no inventa) — no es un fallo.
+    # Reply to an email by voice (V2-051) — the reply_message tool + confirmation gate. Requires an email in the inbox; if
+    # none is connected, zaelar says so naturally (does not invent anything) — this is not a failure.
     Scenario("email_reply", "voice",
              "Si tienes algún email en el buzón de mensajería, pídele a zaelar que responda al primero diciendo algo "
              "breve (p.ej. «respóndele que me va bien y confirmo»). Cuando te lea el borrador y te pregunte, di que sí.",
@@ -116,7 +117,7 @@ SCENARIOS: list[Scenario] = [
              "de enviar (nunca manda sin confirmar); al decir «sí» envía por email (SMTP). Si NO hay email conectado o "
              "sin correos, lo dice con naturalidad sin inventar. Nunca expone jerga interna (pending_reply, SMTP).",
              turns=5),
-    # Salud de conectores + comprensión — "veo si todos los conectores están en marcha y me entiende".
+    # Connector health + understanding — "I check whether all connectors are running and whether it understands me".
     Scenario("conectores", "voice",
              "Pregúntale a zaelar, hablando, qué conectores tiene activos y si están funcionando (WhatsApp, Telegram, "
              "el correo/email, el canal del cluster). Quieres saber si todo está en marcha.",
@@ -132,8 +133,8 @@ SCENARIOS: list[Scenario] = [
     Scenario("paste", "paste",
              "Paste a longer block of text (as if Ctrl+V on screen) and ask zaelar to summarize it in one line.",
              "zaelar ingests pasted text and summarizes; the paste path works.", turns=2),
-    # Archivos / memoria EPISÓDICA: pega un documento con un DATO concreto enterrado y luego, en otro turno,
-    # pregunta por ese dato → prueba la vía episódica (paste/drop → memory.write_episode → recall buscable).
+    # Files / EPISODIC memory: paste a document with a concrete FACT buried in it and then, in another turn,
+    # ask about that fact → tests the episodic path (paste/drop → memory.write_episode → searchable recall).
     Scenario("archivos", "paste",
              "Pega un documento de varias líneas que incluya un dato concreto y poco obvio (p. ej. 'el número de "
              "pedido es 48213' o 'la reunión con Marta es el jueves 17 a las 11:30'). Deja que zaelar lo procese y "
@@ -146,11 +147,11 @@ SCENARIOS: list[Scenario] = [
              "alguien conectado. Que te lo diga hablando, con palabras naturales.",
              "zaelar responde el estado del canal cluster EN LENGUAJE NATURAL hablado (NUNCA JSON crudo ni {llaves}); "
              "dice si está conectado/abierto o no. (Antes había un bug de 'hablar JSON' — verifícalo.)", turns=3),
-    # RE-SIMULACIÓN de la sesión de voz REAL 2026-07-15 (widget YouTube por voz) que destapó un racimo de fallos,
-    # arreglados en P0 (d78d457: un worker por objetivo + modify≠create + naming) y P1 (dc436cc: comentario≠orden,
-    # cerrar-resto uno-a-uno, hecho-conocido→buscar; 5367200: estado de tarea con paso+tiempo). El micro sigue
-    # SIEMPRE abierto (attention=always) → parte de la prueba es que la voz AMBIENTE no dispare acciones. Objetivo
-    # del DRIVE: reproducir el flujo con naturalidad (no literal). El JUEZ verifica el checklist de abajo por la TRAZA.
+    # RE-SIMULATION of the REAL 2026-07-15 voice session (YouTube widget by voice) that exposed a cluster of failures,
+    # fixed in P0 (d78d457: one worker per objective + modify≠create + naming) and P1 (dc436cc: comment≠command,
+    # close-the-rest one-by-one, known-fact→search; 5367200: task status with step+time). The microphone remains
+    # ALWAYS open (attention=always) → part of the test is that AMBIENT voice does not trigger actions. DRIVE objective:
+    # reproduce the flow naturally (not literally). The JUDGE verifies the checklist below from the TRACE.
     Scenario("youtube_voice", "voice",
              "Monta por voz, de forma natural y a lo largo de la conversación, un widget que reproduzca un vídeo de "
              "YouTube y luego lo mejoras. Sigue este arco (no lo leas literal, habla como una persona): (1) pídele "
@@ -180,9 +181,9 @@ SCENARIOS: list[Scenario] = [
              "el tiempo, NUNCA repite la misma frase vaga ('sigue en desarrollo continuo').\n"
              "  7. Observabilidad forense: cada turno deja un `perf func=turn` (categoría system) con prompt + "
              "ventana + tools + decisión — úsalo para explicar cualquier misroute.", turns=10),
-    # ── MÚSICA (V2-041 conector) + RAILS (V2-042 patrón) ────────────────────────────────────────────────────
-    # Rail de música, camino GRATIS (sin Spotify): "pon música" SIEMPRE debe sonar algo (YouTube-audio oculto en el
-    # widget `musica`, NO el widget de vídeo `youtube`). Prueba play_music + control + apertura del widget correcto.
+    # ── MUSIC (V2-041 connector) + RAILS (V2-042 pattern) ────────────────────────────────────────────────────
+    # Music rail, FREE path (without Spotify): "play music" must ALWAYS play something (hidden YouTube audio in the
+    # widget `musica`, NOT the `youtube` video widget). Tests play_music + control + opening the correct widget.
     Scenario("musica", "voice",
              "Pídele a zaelar, hablando, que te ponga música — primero algo genérico ('pon música') y luego un "
              "artista concreto ('ponme a Frank Sinatra'). Después contrólala por voz: 'sube la música', 'siguiente "
@@ -192,9 +193,9 @@ SCENARIOS: list[Scenario] = [
              "se ABRE). Confirma por voz qué pone en 1 frase. Los controles (sube/siguiente/pausa) actúan. Verifica "
              "por la traza: evento `music` (provider + action + surface=widget) + un `rail` (music.playing) + el "
              "widget que se abre es `musica`, no `youtube`.", turns=6),
-    # Rail difuso: el operador NO da el nombre exacto → cadena resolver→validar→actuar (music_flow). Si falla, el run
-    # queda AISLADO `sin_resolver` en el ESTADO; al aportar un dato en el turno siguiente, zaelar lo RETOMA (no
-    # empieza de cero). Prueba lo nuclear del patrón RAILS.
+    # Fuzzy rail: the operator does NOT give the exact name → resolve→validate→act chain (music_flow). If it fails, the run
+    # remains ISOLATED as `sin_resolver` in STATE; when a detail is provided in the next turn, zaelar RESUMES it (does not
+    # start from scratch). Tests the core of the RAILS pattern.
     Scenario("musica_difusa", "voice",
              "Pídele música SIN dar el nombre exacto: describe una canción por una frase de su letra o una pista "
              "vaga (p. ej. 'ponme esa que dice volare, oh oh' o 'esa de vuela conmigo, creo'). Si no acierta a la "
@@ -205,8 +206,8 @@ SCENARIOS: list[Scenario] = [
              "esa búsqueda (no arranca de cero) y reproduce. Verifica por la traza: un `rail` music.search "
              "(searching→sin_resolver→resuelto) y que el 2º intento usa la pista ENRIQUECIDA. En el prompt del turno "
              "siguiente debe verse «Rails en curso … SIN RESOLVER».", turns=6),
-    # Flujo de CONEXIÓN guiada de Spotify (como los QR de mensajería): por voz "conéctame Spotify" → aparece el
-    # widget `musica` con su tarjeta de conexión. (No completamos el OAuth real en el test; se verifica la GUÍA.)
+    # Guided Spotify CONNECTION flow (like messaging QR codes): by voice "connect me to Spotify" → the
+    # widget `musica` with its connection card. (The real OAuth is not completed in the test; the GUIDE is verified.)
     Scenario("musica_spotify_connect", "voice",
              "Dile a zaelar, hablando, que quieres conectar tu cuenta de Spotify ('conéctame Spotify' / 'quiero "
              "vincular mi Spotify').",
@@ -214,8 +215,8 @@ SCENARIOS: list[Scenario] = [
              "avanzado, pegar tu client_id con los pasos), y lo explica en 1-2 frases naturales. NO abre el navegador "
              "para loguearse en spotify.com por su cuenta, NO inventa credenciales, NO escala a un worker. Verifica "
              "por la traza: se muestra el widget `musica`.", turns=4),
-    # WIDGETS — las TRES conducciones separadas (V2-042 rail fundacional): OPERAR datos ≠ CREAR/MODIFICAR código ≠
-    # ABRIR/CERRAR canvas. El operador cambió el acceso/creación/manipulación de widgets; hay que verificar cada vía.
+    # WIDGETS — the THREE separate paths (V2-042 foundational rail): OPERATE data ≠ CREATE/MODIFY code ≠
+    # OPEN/CLOSE canvas. The operator changed widget access/creation/manipulation; each path must be verified.
     Scenario("widget_conducciones", "voice",
              "En una sola conversación por voz: (1) pide MOSTRAR un widget que ya suele existir (la agenda o un "
              "reloj); (2) OPERA con sus datos sin crear nada nuevo (p. ej. en la agenda: 'añade una cita mañana a "
@@ -227,9 +228,9 @@ SCENARIOS: list[Scenario] = [
              "(generator_session) UNA sola vez, con id sensato; CERRAR = `[[close:ID]]` del widget correcto. Verifica "
              "por la traza que operar datos NO abrió un worker y que crear NO se resolvió de memoria; sin widgets "
              "basura ni dobles workers.", turns=8),
-    # SUSURRO (V2-053): auditor conversacional — la QUEJA del operador debe disparar la auto-auditoría y, si el
-    # auditor decide una reparación, zaelar la dice con naturalidad. Grupo especial de MEJORA CONTINUA: además de
-    # este escenario de voz, existe la suite headless tests/agent_headless/e2e/susurro/run_probe_suite.py (histórico longitudinal).
+    # WHISPER (V2-053): conversational auditor — the operator's COMPLAINT must trigger self-auditing and, if the
+    # auditor decides on a repair, zaelar says it naturally. Special CONTINUOUS IMPROVEMENT group: in addition to
+    # this voice scenario, the headless suite tests/agent_headless/e2e/susurro/run_probe_suite.py exists (longitudinal history).
     Scenario("susurro_reparacion", "voice",
              "Pide a zaelar que abra un widget concreto (p. ej. el reloj). En el SIGUIENTE turno, quéjate como si "
              "lo hubiera hecho mal («te he dicho que abrieras la agenda, no el reloj — no me haces caso») y sigue "
@@ -239,11 +240,11 @@ SCENARIOS: list[Scenario] = [
              "repair_say, zaelar lo dice con naturalidad en un turno posterior (sin jerga interna). zaelar no se "
              "descompone ante la queja (no re-escala en bucle, no se disculpa en párrafos). La maquinaria del "
              "Susurro fallando en silencio (queja sin NINGÚN evento susurro) = FAIL.", turns=6),
-    # SEGURIDAD DE DATOS (V2-060): bóveda de secretos cifrados. El tester NO puede usar biometría (passkeys) → el
-    # desbloqueo va por PASSPHRASE (el modal nativo / la API /api/vault/*). Flujo: GUARDAR un secreto → PEDIRLO
-    # (bóveda bloqueada → zaelar pide la contraseña) → DESBLOQUEAR → SERVIR. El JUEZ verifica por la traza que el
-    # VALOR del secreto NUNCA aparece en claro en un evento/log ni lo dice zaelar de memoria. La suite headless
-    # scriptada (crear+unlock por API) es el camino robusto; este escenario cubre el comportamiento conversacional.
+    # DATA SECURITY (V2-060): encrypted secrets vault. The tester CANNOT use biometrics (passkeys) → unlocking
+    # uses a PASSPHRASE (the native modal / the /api/vault/* API). Flow: SAVE a secret → REQUEST it
+    # (locked vault → zaelar asks for the password) → UNLOCK → SERVE. The JUDGE verifies from the trace that the
+    # the secret's VALUE NEVER appears in plaintext in an event/log, nor does zaelar say it from memory. The scripted
+    # headless suite (create+unlock via API) is the robust path; this scenario covers conversational behavior.
     Scenario("seguridad_datos", "voice",
              "Dile a zaelar que te guarde una contraseña (p. ej. «guárdame la contraseña de Netflix, es Perrito123»). "
              "Luego, en el mismo chat, pídele esa contraseña («dame la contraseña de Netflix»). Cuando te pida la "
@@ -254,9 +255,9 @@ SCENARIOS: list[Scenario] = [
              "(no inventa ni recita el valor de memoria); una vez desbloqueada, sirve el dato de forma segura (por la "
              "UI/API, no soltándolo en un log). Un secreto que aparezca en claro en cualquier evento = FAIL DURO.",
              turns=6),
-    # V2-061: acción ENCADENADA realidad↔widget↔memoria. Cancelar una cita real NO es borrar su reflejo en la agenda:
-    # hay que ejecutarla en la realidad y LUEGO actualizar el espejo. El fallo detonante (chat 2026-07-21): «hay que
-    # cancelarlo» tras preguntar por la ITV → el rápido hizo un drop de agenda + «Hecho» falso, sin cancelar nada real.
+    # V2-061: CHAINED action reality↔widget↔memory. Canceling a real appointment is NOT deleting its reflection in the agenda:
+    # it must be executed in reality and THEN the mirror updated. Triggering failure (2026-07-21 chat): «we need to
+    # cancel it» after asking about the ITV → the fast path dropped the agenda item + falsely said «Done», without canceling anything real.
     Scenario("accion_real_encadenada", "chat",
              "Pregunta a zaelar qué día tienes una cita/gestión que ya tenías reservada (p. ej. la ITV o el médico). "
              "En cuanto te dé la fecha, dile en el MISMO chat, corto: «hay que cancelarlo» (o «cancélala»). Observa si "
@@ -269,7 +270,7 @@ SCENARIOS: list[Scenario] = [
              "responde «hecho», hace solo un widget_data/drop de agenda, pide «¿cuál de estos items?» listando cosas "
              "ajenas, o pierde el hilo de que hablabais de la cita.",
              turns=5),
-    # V2-079: la skill de VOZ para abrir el panel nativo lateral (ChatWall) en sus 3 pestañas (chat/procesos/crons).
+    # V2-079: the VOICE skill for opening the native side panel (ChatWall) in its 3 tabs (chat/processes/crons).
     Scenario("panels", "voice",
              "Pídele por voz, en turnos separados y con palabras VARIADAS (no las literales de ningún menú): primero "
              "«enséñame los procesos que tienes en marcha» (o «qué estás haciendo», «los brain workers», «las cosas "

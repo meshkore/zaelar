@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# run_battery.sh — corre TODO el catálogo de escenarios (tests/voice/e2e/agent/scenarios.py) contra un zaelar VIVO, uno por uno,
-# con watchdog por escenario (macOS no tiene `timeout`), e imprime una línea de resumen por escenario + una tabla
-# final. Para la prueba completa que pide el operador. Requiere zaelar UP. Exit 0 siempre (se lee la salida).
+# run_battery.sh — runs the ENTIRE scenario catalog (tests/voice/e2e/agent/scenarios.py) against a LIVE zaelar, one by one,
+# with a watchdog for each scenario (macOS does not have `timeout`), and prints one summary line per scenario + a final
+# table. For the full test requested by the operator. Requires zaelar UP. Always exits 0 (the output is read).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 PY="$HERE/.venv/bin/python"
@@ -9,7 +9,7 @@ RUNS="$HERE/tests/runs/agent"; mkdir -p "$RUNS"
 MAX_RUN=${BATTERY_MAX_RUN:-360}
 URL="http://127.0.0.1:43917"
 
-# orden: casos rápidos primero, tareas de navegador (lentas) al final
+# order: quick cases first, browser tasks (slow) last
 SCENARIOS=(${BATTERY_SCENARIOS:-conversation agenda memory widget search busqueda_web mensajeria conectores complex_idea chat paste archivos websocket navegador_moto navegador_coche youtube_voice reserva_web musica musica_difusa musica_spotify_connect})
 
 if ! curl -sf -m 4 "$URL/api/livekit" >/dev/null 2>&1; then echo "zaelar NO responde /api/livekit — abortando"; exit 0; fi
@@ -18,12 +18,12 @@ echo "=== BATTERY START $(date +%H:%M:%S) · ${#SCENARIOS[@]} escenarios ==="
 SUMMARY="$RUNS/battery_summary_$(date +%H%M%S).tsv"
 echo -e "scenario\tstatus\toverall\tnat\tcoh\tuti\tacc\tlat\trob\tveredicto" > "$SUMMARY"
 
-SETTLE=${BATTERY_SETTLE:-12}   # pausa entre escenarios: deja al worker THREAD liberar la sala anterior (evita
-                               # mutes/timeouts falsos por contención — la causa de los all-1s de la 1ª batería)
+SETTLE=${BATTERY_SETTLE:-12}   # pause between scenarios: lets the THREAD worker release the previous room (avoids
+                               # false mutes/timeouts due to contention — the cause of the first battery's all-1s)
 first=1
 for S in "${SCENARIOS[@]}"; do
   if [ "$first" = "1" ]; then first=0; else
-    # readiness + settle antes del siguiente escenario
+    # readiness + settle before the next scenario
     for _ in $(seq 1 20); do curl -sf -m 3 "$URL/api/livekit" >/dev/null 2>&1 && break; sleep 2; done
     sleep "$SETTLE"
   fi
@@ -60,12 +60,12 @@ echo "=== BATTERY DONE $(date +%H:%M:%S) ==="
 echo "=== SUMMARY ==="; column -t -s$'\t' "$SUMMARY" 2>/dev/null || cat "$SUMMARY"
 echo "summary → $SUMMARY"
 
-# Archivo del día (histórico consultable): tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/ — ver zaelar-testing.md §archiva.
+# File of the day (browsable history): tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/ — see zaelar-testing.md §archiva.
 DESC=${BATTERY_DESC:-bateria}
 ARCH="$HERE/tests/voice/e2e/agent/reports/$(date +%Y%m%d)-$DESC"
 mkdir -p "$ARCH"
 cp "$SUMMARY" "$ARCH/" 2>/dev/null || true
-# copia los informes de esta tanda (los más recientes, uno por escenario corrido)
+# copy the reports from this batch (the most recent ones, one per scenario run)
 ls -t "$RUNS"/report_*.json "$RUNS"/report_*.md 2>/dev/null | head -$(( ${#SCENARIOS[@]} * 2 )) | while read f; do cp "$f" "$ARCH/" 2>/dev/null || true; done
 if [ ! -f "$ARCH/INFORME.md" ]; then
   { echo "# Informe de test — $(date +%Y-%m-%d) · $DESC"; echo;

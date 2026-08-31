@@ -172,7 +172,7 @@ async def run(args) -> None:
             # but never gets OFFERED the job for a specific new room (a still-open dispatch race, distinct from the
             # earlier "worker never registers" bug scripts/run-livekit.sh's settle-wait already covers) — the room
             # sits open with zaelar's agent never joining at all, so EVERY turn times out and the report reads
-            # "sistema completamente mudo" for what's actually a transient per-room dispatch miss, not a real
+            # "completely silent" for what's actually a transient per-room dispatch miss, not a real
             # regression. A fresh room+token is a new dispatch attempt; if THAT also comes back silent, it's very
             # likely a real problem and we report it as such (with a note distinguishing the two).
             for attempt in (1, 2):

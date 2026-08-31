@@ -11,7 +11,7 @@ PY="$HERE/.venv/bin/python"
 LOG="$HERE/tests/runs/agent/overnight.log"
 mkdir -p "$HERE/tests/runs/agent"
 
-# rotating menu: the scenarios (incl. V2-022 web-search, navegador/moto, mensajería, conectores) + creative
+# rotating menu: the scenarios (incl. V2-022 web-search, browser/motorcycle, messaging, connectors) + creative
 # free-form goals (a personal assistant — invent realistic asks). Kept in sync with tests/voice/e2e/agent/scenarios.py.
 SCENARIOS=(conversation agenda memory widget search busqueda_web navegador_moto mensajeria conectores complex_idea chat paste websocket)
 GOALS=(
@@ -28,8 +28,8 @@ GOALS=(
 echo "=== overnight loop start $(date) ===" >> "$LOG"
 i=0
 while true; do
-  # zaelar debe estar DEL TODO arriba (no solo el puerto): /api/livekit responde. Evita ciclos falsos-all-1s
-  # cuando pillan a zaelar a medio reiniciar (una iteración del cron acaba de reiniciarlo). Espera hasta 40s.
+  # zaelar must be fully up (not just the port): /api/livekit responds. Avoid false all-1s cycles
+  # when zaelar is caught halfway through a restart (a cron iteration has just restarted it). Wait up to 40s.
   ready=0
   for _ in $(seq 1 20); do
     if curl -sf -m 3 http://127.0.0.1:43917/api/livekit >/dev/null 2>&1; then ready=1; break; fi
@@ -39,7 +39,7 @@ while true; do
     echo "[$(date +%H:%M:%S)] zaelar no responde /api/livekit — salto ciclo (guard lo levantará)" >> "$LOG"
     sleep 30; continue
   fi
-  sleep 3  # estabilización tras confirmar readiness
+  sleep 3  # stabilization after confirming readiness
   if (( i % 2 == 0 )); then
     S="${SCENARIOS[$(( (i/2) % ${#SCENARIOS[@]} ))]}"
     echo "[$(date +%H:%M:%S)] cycle $i → scenario=$S" >> "$LOG"
