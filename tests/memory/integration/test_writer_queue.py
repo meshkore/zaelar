@@ -1,4 +1,4 @@
-"""Tests de memory/writer.py + memory/queue.py (V2-002 · T45)."""
+"""Tests for memory/writer.py + memory/queue.py (V2-002 · T45)."""
 import asyncio
 
 import pytest
@@ -11,7 +11,7 @@ from memory.queue import MemoryQueue
 
 @pytest.fixture(autouse=True)
 def _hash_backend(monkeypatch):
-    # backend determinista → tests rápidos y sin red (no dependen de Ollama).
+    # deterministic backend → fast tests with no network (they do not depend on Ollama).
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     mememb.reset()
     yield
@@ -31,9 +31,9 @@ def test_insert_syncs_all_three(fresh_db):
     mid = memwriter.insert_memory("el operador vive en Barcelona", level="long", kind="fact")
     db = memdb.get_db()
     assert db.query_one("SELECT text FROM memories WHERE id=?", (mid,))["text"].startswith("el operador")
-    # vector presente
+    # vector present
     assert db.query_one("SELECT COUNT(*) c FROM vec_memories WHERE memory_id=?", (mid,))["c"] == 1
-    # fts encuentra por keyword
+    # FTS finds it by keyword
     hit = db.query_one("SELECT rowid FROM fts_memories WHERE fts_memories MATCH 'Barcelona'")
     assert hit is not None and hit["rowid"] == mid
 
@@ -75,7 +75,7 @@ def test_link_is_idempotent(fresh_db):
     a = memwriter.insert_memory("a")
     b = memwriter.insert_memory("b")
     memwriter.link(a, b, "about", 1.0)
-    memwriter.link(a, b, "about", 2.0)  # mismo (from,to,type) → reemplaza, no duplica
+    memwriter.link(a, b, "about", 2.0)  # same (from,to,type) → replaces, does not duplicate
     rows = memdb.get_db().query("SELECT weight FROM edges WHERE from_id=? AND to_id=? AND type='about'", (a, b))
     assert len(rows) == 1 and rows[0]["weight"] == pytest.approx(2.0)
 
@@ -97,7 +97,7 @@ def test_queue_single_writer_roundtrip(fresh_db):
 
 
 def test_queue_inline_when_not_started(fresh_db):
-    # submit sin start() → aplica en línea, no se pierde la escritura.
+    # submit without start() → applies inline; the write is not lost.
     q = MemoryQueue()
     q.submit("write", "escritura en linea", kind="event")
     assert memdb.get_db().query_one("SELECT COUNT(*) c FROM memories")["c"] == 1
@@ -146,7 +146,7 @@ def test_queue_bad_op_does_not_kill_consumer(fresh_db):
         q.submit("no_such_op", 1, future=badfut)
         with pytest.raises(ValueError):
             await asyncio.wait_for(badfut, timeout=5)
-        # el consumidor sigue vivo → una escritura buena después funciona
+        # the consumer remains alive → a subsequent valid write works
         okfut = asyncio.get_running_loop().create_future()
         q.submit("write", "tras el fallo", future=okfut)
         mid = await asyncio.wait_for(okfut, timeout=5)

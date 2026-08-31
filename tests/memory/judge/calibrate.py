@@ -1,15 +1,15 @@
-"""tests/memory/judge/calibrate.py — tanda pequeña de calibración del juez (V2-105, 2026-08-17).
+"""tests/memory/judge/calibrate.py — small judge calibration run (V2-105, 2026-08-17).
 
-Norma del operador: antes de comprometerse a un corpus completo con el juez (coste real por checkpoint),
-correr una tanda pequeña primero. Este script toma los checkpoints REALES del tramo longitudinal
-(`tests/memory/e2e/timeline/cases.py::_real_tramo`, ya poblado en `zaelar.timeline.db` por un `--all`
-determinista previo) — contradicción/paráfrasis/competencia — pregunta al RETRIEVER real y pide al juez un
-veredicto, comparándolo con la comprobación determinista por substring que YA pasa. El valor del juez no está
-en duplicar lo que el substring ya cubre bien (marker/not_marker limpios) — está en las paráfrasis, donde el
-substring por diseño no puede afirmar nada sobre si el hecho sigue vigente.
+Operator rule: before committing to a full corpus with the judge (actual cost per checkpoint),
+run a small batch first. This script takes the REAL checkpoints from the longitudinal segment
+(`tests/memory/e2e/timeline/cases.py::_real_tramo`, already populated in `zaelar.timeline.db` by a prior
+deterministic `--all`) — contradiction/paraphrase/competition — queries the real RETRIEVER and asks the judge for a
+verdict, comparing it with the deterministic substring check that ALREADY passes. The judge's value is not
+in duplicating what the substring already covers well (clean marker/not_marker cases) — it is in paraphrases, where the
+substring cannot, by design, assert anything about whether the fact remains current.
 
-Uso: ./.venv/bin/python -m tests.memory.judge.calibrate
-Requiere que `zaelar.timeline.db` ya esté poblado (`python -m tests.memory.e2e.timeline.runner --all`).
+Usage: ./.venv/bin/python -m tests.memory.judge.calibrate
+Requires `zaelar.timeline.db` to already be populated (`python -m tests.memory.e2e.timeline.runner --all`).
 """
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 DB_PATH = REPO / "memory" / "_data" / "zaelar.timeline.db"
 
 
-# slot sintético (sin el sufijo `.N`) → pregunta en LENGUAJE NATURAL — la clave interna (`goal.job.0`) no
-# comparte vocabulario con el texto guardado ("Quiero dedicarme a consultoría técnica"); preguntarle eso
-# literalmente al retriever no encuentra nada, no porque el retriever falle sino porque la pregunta está mal
-# planteada (hallazgo de la primera corrida de este script — el 4/6 "determinista: FALLO" de entonces era un
-# bug de ESTE calibrador, no de la memoria).
+# synthetic slot (without the `.N` suffix) → NATURAL-LANGUAGE question — the internal key (`goal.job.0`) does not
+# share vocabulary with the stored text ("Quiero dedicarme a consultoría técnica"); asking the retriever that
+# literally finds nothing, not because the retriever fails but because the question is badly
+# formulated (a finding from the script's first run — the 4/6 "determinista: FALLO" at the time was a
+# bug in THIS calibrator, not in the memory).
 _TOPIC_QUESTIONS = {
     "goal.job": "¿A qué quiere dedicarse profesionalmente?",
     "pref.transport": "¿Cómo prefiere moverse por la ciudad?",
@@ -43,7 +43,7 @@ def _natural_question(slot: str) -> str:
 
 def _setup_env():
     os.environ["ZAELAR_DB"] = str(DB_PATH)
-    os.environ["ZAELAR_EMBED_BACKEND"] = "hash"  # misma BD/backend con la que el --all determinista la pobló
+    os.environ["ZAELAR_EMBED_BACKEND"] = "hash"  # same DB/backend with which deterministic --all populated it
     try:
         from dotenv import load_dotenv
         load_dotenv(REPO / ".env", override=False)

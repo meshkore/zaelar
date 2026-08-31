@@ -1,10 +1,10 @@
-"""Tests de memory.compose_state() — el ESTADO COMPARTIDO por los dos cerebros (V2-027).
+"""Tests for memory.compose_state() — the SHARED STATE used by both brains (V2-027).
 
-Ubicación canónica: tests/memory/unit/.
+Canonical location: tests/memory/unit/.
 
-Contrato: A (misión) + B (situacional) + C (síntesis TENSA del corto plazo), pequeño y ordenado, LECTURA DIRECTA
-(sin LLM ni retriever). La misión sale de state.mission o, si no se sembró, del `mission_fallback` que pasa el
-llamador (nucleo/flash) — así no se invierte la dependencia memoria→voz.
+Contract: A (mission) + B (situational) + C (TIGHT synthesis of the short-term context), small and orderly, DIRECT READ
+(no LLM or retriever). The mission comes from state.mission or, if it was not seeded, from the `mission_fallback` passed by
+the caller (nucleo/flash) — this keeps the memory→voice dependency in the right direction.
 """
 import pytest
 
@@ -52,18 +52,18 @@ def test_compose_empty_with_no_fallback_is_blank(fresh_db):
 
 
 def test_compose_short_is_synthesized_not_full_dump(fresh_db):
-    # Escribe muchas líneas de corto plazo; la sección C debe RECORTAR (no volcar las 30 crudas de antes).
+    # Write many short-term lines; section C must TRIM them (not dump the 30 raw lines from before).
     for i in range(12):
         memapi.write_now(f"Operador: mensaje corto número {i} con algo de relleno para ocupar caracteres",
                          kind="conv", level="short", importance=0.2)
     block, _op, stats = memapi.compose_state(mission_fallback="m")
     assert "DE QUÉ ÍBAIS HABLANDO" in block
-    assert stats["short_count"] <= 5              # cap agresivo (V2-027): a lo sumo las últimas 5
-    assert block.count("· ") <= 12                 # no vuelca las 12 líneas
+    assert stats["short_count"] <= 5              # aggressive cap (V2-027): at most the last 5
+    assert block.count("· ") <= 12                 # does not dump all 12 lines
 
 
 def test_compose_state_is_direct_no_retriever(fresh_db, monkeypatch):
-    """compose_state NUNCA dispara el retriever (memory.query) — sería meter embeddings en la ruta cacheable."""
+    """compose_state NEVER triggers the retriever (memory.query) — that would put embeddings in the cacheable path."""
     calls = {"n": 0}
     real = memapi.query
 
@@ -77,17 +77,17 @@ def test_compose_state_is_direct_no_retriever(fresh_db, monkeypatch):
     assert calls["n"] == 0
 
 
-# ── USER RULES (V2-046 A1): reglas del operador en el ESTADO — persistentes, cap, dedup, render ────────────
+# ── USER RULES (V2-046 A1): operator rules in STATE — persistent, capped, deduplicated, rendered ────────────
 
 def test_user_rules_render_and_empty_is_byte_identical(fresh_db):
-    """Con rules vacío el bloque es BYTE-idéntico (ni una línea extra); con reglas, línea REGLAS DEL OPERADOR."""
+    """With empty rules the block is BYTE-identical (not one extra line); with rules, add a REGLAS DEL OPERADOR line."""
     memapi.set_state({"operator_name": "Ricart"})
     before, _, _ = memapi.compose_state(mission_fallback="m")
     assert "REGLAS DEL OPERADOR" not in before
     memapi.add_user_rule("Sé más directo, responde en una frase")
     after, _, _ = memapi.compose_state(mission_fallback="m")
     assert "REGLAS DEL OPERADOR" in after and "Sé más directo" in after
-    # quitarla devuelve el bloque original exacto
+    # removing it returns the exact original block
     _, gone = memapi.remove_user_rule("esa regla de ser directo")
     assert gone
     again, _, _ = memapi.compose_state(mission_fallback="m")
@@ -95,39 +95,39 @@ def test_user_rules_render_and_empty_is_byte_identical(fresh_db):
 
 
 def test_user_rules_dedup_and_cap(fresh_db):
-    """Re-decir una regla no duplica (la sube a la más reciente); el cap deja fuera la más antigua."""
+    """Repeating a rule does not duplicate it (it moves it to the most recent position); the cap drops the oldest one."""
     memapi.add_user_rule("Responde solo sí o no")
-    memapi.add_user_rule("responde solo si o no.")          # misma regla, otra grafía → dedup
+    memapi.add_user_rule("responde solo si o no.")          # same rule, different spelling → dedup
     assert len(memapi.state()["rules"]) == 1
     for i in range(10):
         memapi.add_user_rule(f"Regla número {i}")
     rules = memapi.state()["rules"]
     assert len(rules) == 8                                   # cap
-    assert "Regla número 9" in rules[-1]                     # la más reciente manda
+    assert "Regla número 9" in rules[-1]                     # the most recent one wins
 
 
 def test_user_rules_remove_fuzzy_and_no_false_removal(fresh_db):
-    """La retirada casa por referencia difusa; sin señal suficiente NO retira la regla equivocada."""
+    """Removal matches by fuzzy reference; without a strong enough signal it does NOT remove the wrong rule."""
     memapi.add_user_rule("Cuando te pida una acción hazla sin responder")
     memapi.add_user_rule("Trátame de usted")
     _, gone = memapi.remove_user_rule("olvida lo de tratarme de usted")
     assert gone == "Trátame de usted"
-    _, gone2 = memapi.remove_user_rule("olvida esa regla del parchís")   # no existe → no toca nada
+    _, gone2 = memapi.remove_user_rule("olvida esa regla del parchís")   # it does not exist → changes nothing
     assert gone2 == "" and len(memapi.state()["rules"]) == 1
 
 
-# ── Un ENCARGO no es un hecho sobre la persona (V2-337, 2026-08-26) ───────────────────────────────────────────
+# ── An ERRAND is not a fact about the person (V2-337, 2026-08-26) ───────────────────────────────────────────
 #
-# Los dos iban en la MISMA lista y bajo la MISMA orden — «dalo por sabido sin buscar» — así que «Vive en Madrid»
-# y «Tarea pendiente para el asistente: buscarle un coche de segunda mano» se leían como la misma clase de dato.
-# Medido por el arnés en `cheapest-monitor`: el agente arrancó hablando de COCHES, arrastrando el encargo del
-# caso anterior. Y no es cosa del plató: en la memoria VIVA del operador, **3 de las 5 plazas eran encargos**
-# (un vuelo a Londres, un fontanero que se quedó sin cuota, una prueba de worker), desplazando a la persona.
+# Both were in the SAME list and under the SAME instruction — «take it as known without searching» — so «Vive en Madrid»
+# and «Tarea pendiente para el asistente: buscarle un coche de segunda mano» were read as the same kind of data.
+# Measured by the harness in `cheapest-monitor`: the agent started by talking about CARS, carrying over the errand from the
+# previous case. And it is not a staging issue: in the operator's LIVE memory, **3 of the 5 slots were errands**
+# (a flight to London, a plumber who ran out of quota, a worker test), displacing the person.
 #
-# La clase ya estaba en el dato y se tiraba: `mem_processor` es explícito en que una tarea delegada es
-# `kind="result"`, y `salient_long` devuelve `kind`. Aquí se comprueban las DOS direcciones, porque cada una
-# sola se satisface trivialmente: bajar todo a encargos deja al agente sin saber quién es su operador, y no
-# bajar nada es el fallo medido.
+# The class was already present in the data and was being discarded: `mem_processor` explicitly states that a delegated task is
+# `kind="result"`, and `salient_long` returns `kind`. Both directions are checked here because either one alone is
+# trivially satisfied: sending everything to errands leaves the agent unable to know who its operator is, while sending
+# nothing there is the measured failure.
 
 def _pon(texto, kind, importancia=0.9):
     from memory import writer as memwriter
@@ -149,8 +149,8 @@ def test_un_encargo_NO_se_presenta_bajo_dalo_por_sabido(fresh_db):
 
 
 def test_un_HECHO_de_la_persona_NO_baja_a_la_lista_de_encargos(fresh_db):
-    """La otra dirección. Sin esto, «los encargos no van con los hechos» se cumple mandándolo TODO a encargos —
-    y el agente deja de saber dónde vive su operador, que es un fallo peor y más silencioso."""
+    """The other direction. Without this, «errands do not belong with facts» is satisfied by sending EVERYTHING to errands —
+    and the agent stops knowing where its operator lives, which is a worse and quieter failure."""
     for texto, kind in (("Vive en Madrid, España.", "fact"),
                         ("Prefiere trato directo.", "pref"),
                         ("Quiere comprar un monitor de 27 pulgadas.", "intent"),
@@ -160,9 +160,9 @@ def test_un_HECHO_de_la_persona_NO_baja_a_la_lista_de_encargos(fresh_db):
     bloque, _op, stats = memapi.compose_state()
 
     assert "[Encargos" not in bloque, f"sin un solo encargo no puede aparecer la sección: {bloque}"
-    # `salient_count` no se fija a 4: el escritor crea NODOS-CONCEPTO («viajes») que también entran en el
-    # perfil saliente, y clavar el número mediría el andamio en vez del contrato. Lo que se afirma es que
-    # ninguno de los cuatro se fue a encargos y que todos siguen visibles.
+    # `salient_count` is not fixed at 4: the writer creates CONCEPT NODES («viajes») that also enter the
+    # salient profile, and hard-coding the number would measure the scaffolding instead of the contract. The claim is that
+    # none of the four went to errands and that all remain visible.
     assert stats["errand_count"] == 0
     assert stats["salient_count"] >= 4
     for esperado in ("Vive en Madrid", "trato directo", "monitor de 27", "Oporto"):
@@ -170,8 +170,8 @@ def test_un_HECHO_de_la_persona_NO_baja_a_la_lista_de_encargos(fresh_db):
 
 
 def test_el_encargo_sigue_VISIBLE_y_legible_como_pendiente(fresh_db):
-    """La condición de seguridad que puso el propio arnés: un encargo sin respuesta tiene que seguir leyéndose
-    como pendiente. Taparlo cambiaría este fallo por el contrario — un agente que olvida lo que le pidieron."""
+    """The safety condition imposed by the harness itself: an unanswered errand must still read as pending.
+    Hiding it would replace this failure with the opposite one — an agent that forgets what it was asked to do."""
     _pon("Tarea pendiente para el asistente: buscarle un coche de segunda mano.", "result")
 
     bloque, _op, _stats = memapi.compose_state()
@@ -182,11 +182,11 @@ def test_el_encargo_sigue_VISIBLE_y_legible_como_pendiente(fresh_db):
 
 
 def test_la_linea_de_encargos_no_ORDENA_ejecutarlos(fresh_db):
-    """Doctrina de `workers/findings.py`: se entrega el dato y se nombra su clase; el juicio se queda en el
-    cerebro. Una orden de «ocúpate de esto» es exactamente lo que produjo el defecto medido."""
+    """Doctrine from `workers/findings.py`: provide the data and name its class; the judgment stays in the
+    brain. An instruction to «take care of this» is exactly what produced the measured defect."""
     _pon("Tarea pendiente para el asistente: buscarle un coche.", "result")
 
     cabecera = memapi.compose_state()[0].split("[Encargos")[1].split("]")[0].lower()
 
     assert "no empieces a trabajar" in cabecera
-    assert "salvo que él lo saque" in cabecera, "sin la excepción, un encargo que SÍ trae el operador se ignora"
+    assert "salvo que él lo saque" in cabecera, "without the exception, an errand that the operator DOES bring up is ignored"

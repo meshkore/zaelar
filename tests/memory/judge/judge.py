@@ -1,18 +1,18 @@
-"""tests/memory/judge/judge.py — juez de corrección TEMPORAL de la memoria (V2-105, 2026-08-17).
+"""tests/memory/judge/judge.py — TEMPORAL memory-correction judge (V2-105, 2026-08-17).
 
-Ni `tests/memory/e2e/bot/` ni `tests/memory/e2e/timeline/` tienen esta pieza: sus comprobaciones son
-SUBSTRING determinista (`marker in texto`) — coinciden en TEXTO, nunca preguntan si el HECHO recuperado sigue
-siendo el vigente. Es la clase de fallo que el corpus longitudinal (V2-105) fue construido para poder detectar
-(contradicción diferida, paráfrasis, hecho en competencia): una respuesta puede contener el marcador de texto
-correcto y aun así estar OBSOLETA, o viceversa.
+Neither `tests/memory/e2e/bot/` nor `tests/memory/e2e/timeline/` has this piece: their checks are deterministic
+SUBSTRING checks (`marker in text`) — they match TEXT, never asking whether the retrieved FACT is still the
+current one. This is the kind of failure that the longitudinal corpus (V2-105) was built to detect
+(delayed contradiction, paraphrase, competing fact): a response may contain the correct text marker and still
+be OBSOLETE, or vice versa.
 
-Patrón adaptado de `tests/voice/e2e/agent/judge/judge.py` (mismo espíritu — evaluador independiente, JSON
-cerrado, veredicto accionable) pero por la costura de MEMORIA (`nucleo/memllm.py`, no la del tester de voz):
-memoria y voz son subsistemas separados con sus propios catálogos de modelo (`zaelar-modularity.md`).
+Pattern adapted from `tests/voice/e2e/agent/judge/judge.py` (same spirit — independent evaluator, closed JSON,
+actionable verdict) but for the MEMORY seam (`nucleo/memllm.py`, not the voice tester's): memory and voice are
+separate subsystems with their own model catalogs (`zaelar-modularity.md`).
 
-Coste REAL por invocación (norma del operador, 2026-08-17: "todas las validaciones tienen que ser reales... no
-nos importa el coste") — se usa a demanda/calibración, NUNCA en el pytest rápido de cada commit (mismo patrón
-que `distiller_bench.py`/`scale_eval.py`).
+REAL cost per invocation (operator policy, 2026-08-17: "all validations have to be real... we do not care
+about the cost") — used on demand/for calibration, NEVER in the fast pytest run for each commit (same pattern
+as `distiller_bench.py`/`scale_eval.py`).
 """
 from __future__ import annotations
 
@@ -44,9 +44,9 @@ _SCHEMA = (
 
 def judge_recall(question: str, retrieved: str, ground_truth: str, *, model_override: str | None = None,
                  url_override: str | None = None) -> dict:
-    """Juicio REAL (llamada a DeepSeek vía `nucleo/memllm.chat_sync`, task `"rem"` — mismo perfil de coste que
-    el resto de tareas off-hot-path de memoria). Fail-open estructurado: si el modelo no responde o la
-    respuesta no parsea, veredicto `"absent"` con `_error` — nunca revienta la corrida del calibrador."""
+    """REAL judgment (call to DeepSeek via `nucleo/memllm.chat_sync`, task `"rem"` — same cost profile as
+    the rest of memory's off-hot-path tasks). Structured fail-open: if the model does not respond or the
+    response cannot be parsed, verdict `"absent"` with `_error` — the calibrator run never crashes."""
     user = json.dumps({
         "pregunta": question,
         "recuperado_por_el_retriever": retrieved or "(nada — el retriever no devolvió resultados)",

@@ -1,29 +1,29 @@
-"""tests/memory/e2e/bot/runner.py — dos bugs reales del arnés de `scale_eval`, cazados repoblando el corpus
-(V2-031, 2026-08-17) tras cerrar la inestabilidad del backend de embedding: la medición seguía sin ser fiable
-por dos motivos completamente distintos, los dos en el setup del arnés, ninguno en el retriever.
+"""tests/memory/e2e/bot/runner.py — two real bugs in the `scale_eval` harness, caught while repopulating the corpus
+(V2-031, 2026-08-17) after resolving the embedding backend instability: the measurement was still unreliable
+for two completely different reasons, both in the harness setup and neither in the retriever.
 
-1. `_setup_env()` nunca cargaba `.meshkore/credentials/zaelar.env` (solo `.env`) — `scale_eval.py` sí lo hacía
-   (código gemelo, nunca espejado). `DEEPSEEK_API_KEY` solo vive en el credential store → sin resolver →
-   `nucleo/provider_keys.py::key_for_endpoint` cae a su centinela `"local"` → DeepSeek 401ea cada llamada del
-   CORAZÓN → heurística silenciosa. Reproducido en vivo invocando este runner por su propia CLI documentada.
-2. Una BD fresca no fijaba `state.language` — hereda el default de producto `"en"` (85b4922, arranque
-   idiomático 2026-08-14) y `mem_processor._render` lo lee para decidir en qué idioma destila. El corpus está
-   escrito en español; sin este seed, `--fresh` escribía la memoria entera en inglés y el harness veía
-   "write miss" en case tras caso porque el `want` español nunca casaba con texto en inglés.
+1. `_setup_env()` never loaded `.meshkore/credentials/zaelar.env` (only `.env`) — `scale_eval.py` did
+   (twin code, never mirrored). `DEEPSEEK_API_KEY` exists only in the credential store → unresolved →
+   `nucleo/provider_keys.py::key_for_endpoint` falls back to its `"local"` sentinel → DeepSeek returned 401 on every
+   CORE call → silent heuristic fallback. Reproduced live by invoking this runner through its documented CLI.
+2. A fresh database did not set `state.language` — it inherited the product default `"en"` (85b4922, language
+   startup 2026-08-14), and `mem_processor._render` reads it to decide which language to distill into. The corpus is
+   written in Spanish; without this seed, `--fresh` wrote the entire memory in English and the harness saw
+   "write miss" case after case because the Spanish `want` never matched English text.
 
-Un tercer bug, distinto y más grave, se encontró después midiendo `scale_eval` ya con los dos anteriores
-arreglados (V2-031, 2026-08-17, dimensión C — retención profunda): `_do_consolidate()` (BATCH_45, dim L,
-"poda AGRESIVA keep=120") corría `memory.consolidate(limit=120)` DIRECTAMENTE sobre `zaelar.membot.db`, el
-corpus COMPARTIDO y acumulativo, en el case ~382 de 579. Con cientos de hechos ya escritos por baterías
-anteriores (BATCH_9 "tareas encargadas" entre ellas), `evict()` hacía HARD DELETE de todo lo no-pinned por
-debajo del límite — daño colateral real, verificado en vivo: "Búscame vuelos a Tokio…" y otras 4 tareas
-encargadas de BATCH_9 desaparecían SIN DEJAR RASTRO (ni siquiera `valid=0` — filas borradas de verdad). El
-propio `keep` de la prueba (un pinned) sobrevivía siempre, así que nada en la aserción local delataba el
-destrozo — solo `dimension C`, medida MUCHOS casos después contra el estado FINAL del corpus, lo veía como
-"write miss". Fix: `_do_consolidate` ahora aísla la poda con snapshot-and-restore (checkpoint WAL → copia el
-fichero → poda de verdad, la aserción sigue siendo real → restaura el snapshot). Orden crítico verificado en
-vivo: la conexión SQLite debe CERRARSE antes de sobreescribir el fichero — hacerlo con la conexión abierta
-dejaba el restore a medias (el `close()` posterior volcaba su propia caché encima).
+ A third, distinct, and more serious bug was found later while measuring `scale_eval` with the previous two
+fixed (V2-031, 2026-08-17, dimension C — deep retention): `_do_consolidate()` (BATCH_45, dim L,
+"AGGRESSIVE pruning keep=120") ran `memory.consolidate(limit=120)` DIRECTLY on `zaelar.membot.db`, the
+SHARED and cumulative corpus, at case ~382 of 579. With hundreds of facts already written by previous batches
+ (including BATCH_9 "tareas encargadas"), `evict()` performed a HARD DELETE of everything not pinned below
+the limit — real collateral damage, verified live: "Búscame vuelos a Tokio…" and 4 other BATCH_9 commissioned
+tasks disappeared WITHOUT A TRACE (not even `valid=0` — the rows were actually deleted). The test's own
+`keep` item (a pinned one) always survived, so nothing in the local assertion revealed the destruction — only
+`dimension C`, measured MANY cases later against the corpus's FINAL state, saw it as a "write miss". Fix:
+`_do_consolidate` now isolates pruning with snapshot-and-restore (WAL checkpoint → copy the
+file → actual pruning, the assertion remains real → restore the snapshot). Critical ordering verified live:
+the SQLite connection must be CLOSED before overwriting the file — doing so with the connection open
+left the restore incomplete (the subsequent `close()` flushed its own cache over it).
 """
 from __future__ import annotations
 
@@ -61,15 +61,15 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def test_run_range_seeds_spanish_before_any_case(fresh_db, monkeypatch):
-    monkeypatch.setattr("nucleo.mem_processor.enabled", lambda: False)  # heurística, cero red
+    monkeypatch.setattr("nucleo.mem_processor.enabled", lambda: False)  # heuristic, no network
     asyncio.run(runner.run_range(0, 1, fresh=True))
     assert memapi.state().get("language") == "es", \
         f"una BD fresca del bot debe nacer en español (corpus español), no en el default de producto: {memapi.state().get('language')!r}"
 
 
 def test_do_consolidate_isolates_the_shared_corpus(fresh_db):
-    """Reproduce el daño colateral real: un hecho AJENO al test de consolidación (equivalente a BATCH_9)
-    debe sobrevivir intacto a una poda agresiva ejecutada para una batería DISTINTA (BATCH_45)."""
+    """Reproduce real collateral damage: a fact UNRELATED to the consolidation test (equivalent to BATCH_9)
+    must survive intact through aggressive pruning run for a DIFFERENT batch (BATCH_45)."""
     unrelated = memapi.write_now("Búscame vuelos a Tokio para agosto, los más baratos que encuentres.",
                                  level="long", kind="event", importance=0.55)
     for j in range(20):
@@ -92,9 +92,9 @@ def test_do_consolidate_isolates_the_shared_corpus(fresh_db):
 
 
 def test_do_consolidate_still_evicts_for_real_inside_the_isolated_snapshot(fresh_db):
-    """La aserción de `keep`/pinned sigue siendo REAL (no un no-op): con presión real de poda, el propio
-    informe (`detail`, calculado DENTRO del snapshot aislado antes de restaurar) debe mostrar que el número
-    de válidos bajó de verdad hasta el límite — si no evictara nada, "pinned sobrevive" no probaría nada."""
+    """The `keep`/pinned assertion remains REAL (not a no-op): under real pruning pressure, the
+    report (`detail`, calculated WITHIN the isolated snapshot before restoration) must show that the number
+    of valid entries genuinely dropped to the limit — if it evicted nothing, "pinned survives" would prove nothing."""
     for j in range(20):
         memapi.write_now(f"nota de relleno {j}: detalle rutinario e irrelevante", level="long", kind="event",
                          importance=0.3)
@@ -107,9 +107,9 @@ def test_do_consolidate_still_evicts_for_real_inside_the_isolated_snapshot(fresh
 
 
 def test_superseded_blob_excludes_legitimately_replaced_slot_values(fresh_db):
-    """scale_eval._superseded_blob() debe capturar un valor de slot INVALIDADO por una escritura POSTERIOR del
-    mismo slot (writer supersede real) — no un valor perdido por un bug, sino el "más reciente manda" de
-    siempre. Reproduce el patrón real (operator.car/job/hardware/name con hasta 15 valores en el corpus)."""
+    """scale_eval._superseded_blob() must capture a slot value INVALIDATED by a LATER write to the
+    same slot (real writer supersede) — not a value lost because of a bug, but the usual "latest wins" rule.
+    Reproduces the real pattern (operator.car/job/hardware/name with up to 15 values in the corpus)."""
     memapi.write_now("Tiene un coche Toyota híbrido.", level="long", kind="fact", slot="operator.car")
     memapi.write_now("Tiene una moto como vehículo actual.", level="long", kind="fact", slot="operator.car")
     blob = scale_eval._superseded_blob()
@@ -135,9 +135,9 @@ def test_evaluate_excludes_superseded_queries_from_n(fresh_db, monkeypatch):
 
 
 def test_long_queries_excludes_stale_by_design_cases():
-    """`scale_eval._long_queries()` mide contra el ESTADO FINAL del corpus — un `want` correcto solo
-    POSICIONALMENTE (una batería posterior supersede el mismo slot con otro propósito, p. ej.
-    operator.phone/operator.hardware reutilizados) debe quedar fuera, o el número reporta un falso miss."""
+    """`scale_eval._long_queries()` measures against the corpus's FINAL STATE — a `want` that is correct only
+    POSITIONALLY (a later batch supersedes the same slot for another purpose, e.g.
+    reused operator.phone/operator.hardware) must be excluded, or the count reports a false miss."""
     qs = scale_eval._long_queries()
     assert all(not c.get("stale_by_design") for c in qs)
     phone = [c for c in qs if c.get("q") == "¿Cuál es mi número de teléfono?"]
@@ -147,8 +147,8 @@ def test_long_queries_excludes_stale_by_design_cases():
     ssn = [c for c in qs if c.get("q") in
            ("¿cuál es mi número de la seguridad social?", "¿sigues teniendo mi número de la seguridad social?")]
     assert ssn == [], "los cases de la seguridad social (colisión con el forget genérico de dim N) se colaron"
-    # V2-031 (2026-08-17): cadena de supersede masiva de operator.car/operator.job (12/15 mutaciones cada uno)
-    # + los dos cases vaulteados (PIN, código de alarma) — todos deben quedar fuera de _long_queries().
+    # V2-031 (2026-08-17): massive supersede chain for operator.car/operator.job (12/15 mutations each)
+    # + the two vaulted cases (PIN, alarm code) — all must be excluded from _long_queries().
     chain_and_vault = [c for c in qs if c.get("q") in (
         "¿qué sabes de mi coche?", "¿qué coche tengo?", "¿en qué empresa trabajo?",
         "¿en qué trabajo ahora mismo?", "¿cuál es el PIN de mi tarjeta nueva?",

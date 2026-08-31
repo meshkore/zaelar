@@ -1,8 +1,8 @@
 #
-# test_bitemporal.py — valid_at/invalidated_at (V2-111 §9.2, 2026-08-17). `updated` no sirve como "cuándo se
-# invalidó": lo toca también el refuerzo y la promoción de nivel del consolidador. Estas dos columnas nuevas
-# + `memory/api.py::as_of()` reconstruyen "qué estaba vigente en la fecha X" sin adivinar nada del histórico
-# ya conservado. Sin red (embeddings hash). Ejecutar: .venv/bin/pytest tests/memory/unit/test_bitemporal.py
+# test_bitemporal.py — valid_at/invalidated_at (V2-111 §9.2, 2026-08-17). `updated` does not indicate "when it
+# was invalidated": reinforcement and the consolidator's level promotion also update it. These two new columns
+# + `memory/api.py::as_of()` reconstruct "what was valid on date X" without guessing anything about the history
+# already preserved. No network (hash embeddings). Run: .venv/bin/pytest tests/memory/unit/test_bitemporal.py
 #
 import pytest
 
@@ -59,13 +59,13 @@ def test_reinforcing_same_value_never_sets_invalidated_at(fresh_db):
     with memclock.travel(1_700_000_000):
         mid = writer.insert_memory("Vive en Bilbao.", level="long", kind="fact", slot="operator.location")
     with memclock.travel(1_700_050_000):
-        # mismo texto normalizado → reinforce, NO supersede (mismo dato repetido).
+        # same normalized text → reinforce, NOT supersede (same repeated data).
         again = writer.insert_memory("Vive en Bilbao.", level="long", kind="fact", slot="operator.location")
     assert again == mid
     db = memdb.get_db()
     row = db.query_one("SELECT valid, invalidated_at FROM memories WHERE id=?", (mid,))
     assert row["valid"] == 1
-    assert row["invalidated_at"] is None      # el refuerzo NUNCA es una invalidación
+    assert row["invalidated_at"] is None      # reinforcement is NEVER an invalidation
 
 
 def test_forget_sets_invalidated_at_and_unforget_clears_it(fresh_db):
@@ -84,7 +84,7 @@ def test_forget_sets_invalidated_at_and_unforget_clears_it(fresh_db):
     assert restored == 1
     row = db.query_one("SELECT valid, invalidated_at FROM memories WHERE id=?", (mid,))
     assert row["valid"] == 1
-    assert row["invalidated_at"] is None      # restaurado: ya no está "cerrado" en una fecha pasada
+    assert row["invalidated_at"] is None      # restored: it is no longer "closed" at a past date
 
 
 def test_as_of_reconstructs_past_value_across_a_supersede_chain(fresh_db):
@@ -95,15 +95,15 @@ def test_as_of_reconstructs_past_value_across_a_supersede_chain(fresh_db):
     with memclock.travel(1_700_200_000):
         writer.insert_memory("Vive en Valencia.", level="long", kind="fact", slot="operator.location")
 
-    # antes de la primera escritura: no había nada vigente todavía.
+    # before the first write: nothing was valid yet.
     assert memapi.as_of("operator.location", 1_699_999_999) is None
-    # justo tras la primera, antes de la segunda: Bilbao.
+    # just after the first, before the second: Bilbao.
     row = memapi.as_of("operator.location", 1_700_050_000)
     assert row is not None and "Bilbao" in row["text"]
-    # entre la segunda y la tercera: Barcelona.
+    # between the second and third: Barcelona.
     row = memapi.as_of("operator.location", 1_700_150_000)
     assert row is not None and "Barcelona" in row["text"]
-    # hoy (tras la tercera): Valencia — coincide con lo vigente ahora mismo.
+    # today (after the third): Valencia — matches what is valid right now.
     row = memapi.as_of("operator.location", 1_700_300_000)
     assert row is not None and "Valencia" in row["text"]
 
