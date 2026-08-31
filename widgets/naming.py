@@ -27,14 +27,14 @@ def _norm(s: str) -> str:
 
 
 def resolve(name: str) -> tuple[str, list[str]]:
-    """`(id, candidatos)`. Con un id resuelto, `candidatos` está vacío; con varios, el id lo está."""
+    """`(id, candidatos)`. With a resolved id, `candidatos` is empty; with multiple candidates, the id is."""
     n = _norm(name)
     if not n:
         return "", []
     try:
         from widgets import registry
         entradas = registry.registry() or []
-    except Exception:  # noqa: BLE001 — un registro ilegible no puede tumbar al llamante
+    except Exception:  # noqa: BLE001 — an unreadable registry must not bring down the caller
         return "", []
     exactos = [w for w in entradas if _norm(w.get("id")) == n]
     if exactos:
@@ -51,8 +51,8 @@ def resolve(name: str) -> tuple[str, list[str]]:
 
 
 def not_found(name: str, varios: list[str] | None = None) -> str:
-    """El «no existe», diciendo lo que SÍ hay. Un nombre rechazado a secas deja al worker adivinando, y lo que
-    hace entonces es reintentar el mismo — medido toda la noche en otras tres puertas."""
+    """The «does not exist» response, stating what IS available. A rejected name on its own leaves the worker guessing, and what it
+    then does is retry the same one — measured all night at three other gateways."""
     if varios:
         return (f"«{name}» vale para varios widgets ({', '.join(varios)}): dilo por su id exacto")
     try:

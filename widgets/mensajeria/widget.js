@@ -80,7 +80,7 @@ let _focusDone = 0;
 let _platFilter = null;
 const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
-const _expanded = new Set();   // claves de mensajes con el cuerpo desplegado
+const _expanded = new Set();   // message keys with the body expanded
 
 function injectStyles(){
   if(document.getElementById("hb-msg-css"))return;
@@ -752,7 +752,7 @@ export function render(root, data, ctx){
   const connectedCount = ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").length;
 
   // The brain was asked to connect a channel (V2-520): open this panel and expand that channel's form, so
-  // "conéctame el correo" lands ON the form instead of on the message list. Honoured once per request.
+  // "connect my email" lands ON the form instead of on the message list. Honoured once per request.
   const focus = data.connect_focus || null;
   if(focus && Number(focus.ts||0) > _focusDone){
     _focusDone = Number(focus.ts||0);

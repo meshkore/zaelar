@@ -169,19 +169,19 @@ def _current_track(db: dict) -> "dict | None":
 
 
 def _find_playlist(db: dict, ref) -> "dict | None":
-    """Resuelve una referencia (id exacto o nombre en lenguaje natural) a la lista real. Nunca inventa."""
+    """Resolves a reference (exact ID or natural-language name) to the actual list. Never invents one."""
     ref = str(ref or "")
     pls = db.get("playlists") or []
-    for pl in pls:                                    # id exacto
+    for pl in pls:                                    # exact ID
         if pl.get("id") == ref:
             return pl
     nref = _norm(ref)
     if not nref:
         return None
-    for pl in pls:                                    # nombre exacto
+    for pl in pls:                                    # exact name
         if _norm(pl.get("name")) == nref:
             return pl
-    for pl in pls:                                    # contiene / contenido
+    for pl in pls:                                    # contains / contained in
         nn = _norm(pl.get("name"))
         if nn and (nref in nn or nn in nref):
             return pl
@@ -199,10 +199,10 @@ def _resolve_track_index(tracks: list, item) -> "int | None":
     nitem = _norm(s)
     if not nitem:
         return None
-    for i, t in enumerate(tracks):                    # exacto
+    for i, t in enumerate(tracks):                    # exact match
         if nitem == _norm(t.get("title")) or nitem == _norm(t.get("query")):
             return i
-    for i, t in enumerate(tracks):                    # contiene
+    for i, t in enumerate(tracks):                    # contains
         hay = _norm(" ".join([t.get("title") or "", t.get("artist") or "", t.get("query") or ""]))
         if nitem in hay:
             return i
@@ -230,7 +230,7 @@ def _push_recent(db: dict, t: dict) -> None:
 
 
 def _play_track(track: dict) -> "dict":
-    """Reproduce UN track por el seam del conector (Spotify si hay cuenta, si no YouTube-audio). Fail-safe."""
+    """Plays ONE track through the connector seam (Spotify if there is an account, otherwise YouTube-audio). Fail-safe."""
     from connectors import music
     r = music.control("play", query=_track_query(track), uri=track.get("uri") or "")
     return {"ok": bool(getattr(r, "ok", False)), "message": getattr(r, "message", ""),
@@ -239,7 +239,7 @@ def _play_track(track: dict) -> "dict":
 
 def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     """Resolve a spoken list name to the real playlist, CREATING it when it does not exist (V2-384).
-    Measured live: «guárdamelo en una lista que se llame Curro» answered «Hecho.» with nothing behind —
+    Measured live: «save it in a list called Curro» answered «Done.» with nothing behind —
     the model gets ONE call, and demanding create_playlist + add_to_playlist as two is how that call
     resolves to nothing. Returns (playlist, created)."""
     pl = _find_playlist(db, name)
@@ -315,7 +315,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["view"] = {"kind": "playlist", "id": pid}          # screen adapts to the new playlist
         _persist(db)
         out = {"ok": True, "playlist": pid, "name": name, "empty": True}
-        # Teach through the seam (measured 2026-08-27: «guárdame LO QUE SUENA en una lista Curro» ended as an
+        # Teach through the seam (measured 2026-08-27: «save WHAT IS PLAYING in a list called Curro» ended as an
         # EMPTY list — the model picks create_playlist by lexical match and stops). The model reads this
         # result and the channel runs several data-ops per turn, so the hint lets it finish the job; with
         # nothing playing, an empty list is the whole request and no hint is added.
@@ -331,7 +331,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "playlist_not_found", "playlist": ref}
         tr = _track_from_payload(p)
         if not tr:
-            # No explicit track → the one PLAYING NOW («guárdame esta en…»), which is what the spoken form
+            # No explicit track → the one PLAYING NOW («save this one in…»), which is what the spoken form
             # almost always means. Resolved BEFORE creating anything: with nothing playing and no track,
             # creating an empty list here would turn a failed save into silent clutter.
             tr = _current_track(db)
@@ -370,7 +370,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # Plain "Favoritos": the old hardcoded "Favoritos de Manolo" was a demo leftover shipped to every
         # operator. No dual lineage on upgrade: _find_playlist matches by containment, so an existing
         # "Favoritos de Manolo" list keeps receiving the favorites under its old name. And since V2-384 the
-        # target can be a NAMED list («guárdamela en Curro») — found or created, same seam as add_to_playlist.
+        # target can be a NAMED list («save it in Curro») — found or created, same seam as add_to_playlist.
         fav_name = (p.get("playlist") or p.get("name") or "").strip() or "Favoritos"
         pl, _created = _find_or_create_playlist(db, fav_name)
         tracks = pl.setdefault("tracks", [])
@@ -411,7 +411,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db = _load_db()
         vid = str(p.get("id") or "").strip()
         if kind == "playlist" and vid:
-            pl = _find_playlist(db, vid)                        # name -> real id
+            pl = _find_playlist(db, vid)                        # name -> actual ID
             vid = pl["id"] if pl else vid
         db["view"] = {"kind": kind, "id": vid}
         _persist(db)
