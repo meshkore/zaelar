@@ -38,6 +38,9 @@ def test_a_downed_plan_row_brings_the_second_wallet_row(monkeypatch):
     wallet = [r for r in rows if r["key"] == "worker:z.ai-creditos"]
     assert len(wallet) == 1
     assert wallet[0]["state"] == "ok" and "MEDIDO" in wallet[0]["detail"]
+    # the good news must survive the alerts() warn/error filter: it rides ON the plan's red row
+    plan = next(r for r in rows if r["key"] == "worker:z.ai")
+    assert "CON saldo" in plan["detail"]
 
 
 def test_a_healthy_plan_needs_no_second_row(monkeypatch):

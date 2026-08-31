@@ -222,6 +222,14 @@ def worker_providers() -> list[dict]:
     if any(t["name"] == "z.ai" and t["state"] != "ok" for t in tiers):
         bal = balance("z.ai-creditos")
         if bal.get("state") not in (None, "no_key"):
+            # The good news must survive the alerts() filter (the panel only shows warn/error rows), so it
+            # rides ON the plan's red row — one row, the complete truth — besides its own summary row.
+            note = {"ok": " · la 2ª cartera (pago por uso) CON saldo ✓ — medido",
+                    "error": " · la 2ª cartera (pago por uso) también sin saldo"}.get(bal.get("state"), "")
+            if note:
+                for r in out:
+                    if r["key"] == "worker:z.ai":
+                        r["detail"] += note
             out.append({"key": "worker:z.ai-creditos", "enables": "la SEGUNDA cartera de z.ai (paas/v4)",
                         "set": True, "state": bal.get("state", "unknown"), "detail": bal.get("detail", "")})
     if tiers and all(t["state"] != "ok" for t in tiers):
