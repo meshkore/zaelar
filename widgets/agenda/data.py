@@ -324,8 +324,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
             end = f"{eh:02d}:{start[3:5]}"
         _new = {"title": title, "date": date, "startTime": start, "endTime": end}
-        # V2-208: la MISMA cita dos veces (ver `_is_same_meeting`). Un aviso duplicado se oye una vez; una cita
-        # duplicada se VE, y se queda ahí hasta que alguien la borra a mano.
+        # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a duplicate
+        # meeting is SEEN, and remains there until someone deletes it manually.
         if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
             # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
             # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a WORKER
@@ -381,23 +381,23 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": f"no pude programar el aviso: {_disp}"}
         m["reminder_id"], m["remindAt"] = _jid, _disp
     elif action == "clear_all":
-        # VACIAR LA AGENDA ENTERA, en UNA acción (2026-08-14, sesión b70a45d0).
+        # EMPTY THE ENTIRE AGENDA in ONE action (2026-08-14, session b70a45d0).
         #
-        # El operador pidió «vacía la agenda por completo, hoy y siempre» SEIS veces en cuatro minutos y no se
-        # vació. No era un fallo del modelo: es que esta API **no sabía expresar esa intención**. Solo había
-        # acciones de UN elemento (`drop` una tarea, `cancel_meeting` una cita, `drop_project` un proyecto), así
-        # que el FlashBrain solo podía tirar una cosa por turno — y cada turno decía «hecho», que era verdad de la
-        # acción que había disparado y mentira de lo que le habían pedido. Al 4º intento acabó escalando a un
-        # worker, que murió con la autorización en la mano por otro fallo distinto.
+        # The operator asked «vacía la agenda por completo, hoy y siempre» SIX times in four minutes and it was not
+        # emptied. It was not a model failure: this API simply **could not express that intention**. There were only
+        # single-item actions (`drop` one task, `cancel_meeting` one meeting, `drop_project` one project), so the
+        # FlashBrain could only remove one thing per turn — and each turn said «hecho», which was true of the action
+        # it had triggered and false of what it had been asked to do. On the 4th attempt it escalated to a worker,
+        # which died holding the authorization because of another, separate failure.
         #
-        # Cuando una intención frecuente no cabe en el vocabulario declarado, el modelo no tiene forma de acertar:
-        # la respuesta es ampliar el vocabulario, no afinar el prompt. Los dos turnos más lentos de la sesión
-        # (25,6 s de TTFT cada uno) fueron precisamente los de esta decisión imposible.
+        # When a frequent intention does not fit in the declared vocabulary, the model has no way to get it right:
+        # the answer is to expand the vocabulary, not fine-tune the prompt. The two slowest turns of the session
+        # (25.6 s of TTFT each) were precisely the ones spent on this impossible decision.
         #
-        # IRREVERSIBLE → el manifest la marca `confirm:true` y el gate de `widgets/confirm.py` pide un sí/no antes.
-        # Se vacían las TRES listas: sin ellas «por completo» seguiría siendo mentira. Los proyectos se CONGELAN
-        # (`frozen`, el mismo estado que `drop_project`) en vez de borrarse: son la memoria de trabajo del
-        # operador, y él pidió una agenda vacía, no perder de qué iba cada proyecto.
+        # IRREVERSIBLE → the manifest marks it `confirm:true`, and the gate in `widgets/confirm.py` asks for yes/no first.
+        # All THREE lists are emptied: without them, «por completo» would still be false. Projects are FROZEN
+        # (`frozen`, the same state as `drop_project`) instead of being deleted: they are the operator's working
+        # memory, and they asked for an empty agenda, not to lose what each project was about.
         for t in db.get("tasks", []):
             if t.get("status") in (None, "todo", "in_progress"):
                 t["status"] = "dropped"
@@ -408,9 +408,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             _cancel_reminder(m)                        # V2-473: emptied appointments take their alarms along
         db["meetings"] = []
         db["blocks"] = []
-        # NO se toca el MARCO del día (horario laboral, hora de comer): eso sale de su configuración
-        # (`lunchStart`/`lunchEnd`), no de nada que él haya agendado. Borrárselo por pedir una agenda vacía le
-        # dejaría el horario roto mañana sin saber por qué. Cambiar el marco es «cambia mi horario».
+        # The day's FRAME (working hours, lunch time) is NOT touched: it comes from its configuration
+        # (`lunchStart`/`lunchEnd`), not from anything the operator scheduled. Deleting it when asking for an empty
+        # agenda would leave the schedule broken tomorrow without explaining why. Changing the frame is «cambia mi horario».
 
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation

@@ -95,11 +95,11 @@ class TickCtx:
         (`operator.location`), a namespace for background (`<widget>:<key>`); the passive block has excluded the
         namespaced ones since the 2026-07-14 audit, and the worker dossier since `memory_agent` (2026-08-21). That
         convention was a PROMISE with no lock: nothing stopped a tick from writing `operator.location` and minting
-        a fact about the person, and nothing stopped an unslotted note from landing under the header «LO QUE SABES
-        DEL OPERADOR». Here the lock is put on the write side, which is the only place that KNOWS a background job
+        a fact about the person, and nothing stopped an unslotted note from landing under the header «WHAT YOU KNOW
+        ABOUT THE OPERATOR». Here the lock is put on the write side, which is the only place that KNOWS a background job
         is the author.
 
-        It is not a blanket ban: a namespaced pill still reaches the reader when the task names it («el tiempo en
+        It is not a blanket ban: a namespaced pill still reaches the reader when the task names it («the weather in
         Soria»), which is the promise the 2026-07-14 note made and this keeps.
         """
         try:
@@ -111,9 +111,9 @@ class TickCtx:
             logger.warning(f"background[{self.widget_id}] ctx.remember failed: {e}")
 
     def _own_slot(self, slot) -> str:
-        """`<widget-id>:<lo que pidiera>`. Sin slot, `<widget-id>:note` — porque una nota SIN slot tampoco la
-        filtra nadie: la convención se lee en la clave, así que una píldora sin clave entra en el dosier del
-        operador como si fuera suya, y encima se acumula sin sustituir a la anterior."""
+        """`<widget-id>:<whatever was requested>`. Without a slot, `<widget-id>:note` — because nobody filters a
+        note WITHOUT a slot either: the convention is read from the key, so a pill without a key enters the
+        operator's dossier as if it were theirs, and on top of that accumulates without replacing the previous one."""
         raw = " ".join(str(slot or "").split()).strip()
         base = str(self.widget_id or "widget").strip()
         if not raw:
