@@ -1,16 +1,16 @@
 #
 # NUCLEO brain (zaelar v2 «Colmena») as a LiveKit LLM provider (EPIC-v2-colmena, V2-004).
 #
-# El FlashBrain (código PROPIO, `nucleo/flash/`) enchufado al motor de voz por la MISMA costura que `duo`: el
-# LLMStream lee el último turno del ChatContext, corre el FlashBrain y emite ChatChunk YA LIMPIADOS (pasan por
-# strip_tags→side-effects→speech). El contrato agnóstico del motor se conserva.
+# FlashBrain (the OWN implementation, `nucleo/flash/`) is plugged into the voice engine through the SAME seam as
+# `duo`: LLMStream reads the latest turn from ChatContext, runs FlashBrain, and emits ALREADY CLEANED ChatChunks
+# (they pass through strip_tags→side-effects→speech). The engine-agnostic contract is preserved.
 #
-# Diferencia con `duo`: NO hay Hermes. La memoria de arranque y el contexto salen de la memoria central propia
-# (`memory/`, inyectada en el prompt por `nucleo/flash/prompt.py`). El escalado va a `nucleo/flash/escalate.py`
-# (STUB en V2-004: registra + publica en el bus; el SlowBrain real llega en V2-006/V2-007). La degradación NO
-# cae a Hermes — habla una frase de reserva.
+# Difference from `duo`: there is NO Hermes. Startup memory and context come from the application's own central
+# memory (`memory/`, injected into the prompt by `nucleo/flash/prompt.py`). Escalation goes to
+# `nucleo/flash/escalate.py` (STUB in V2-004: records + publishes on the bus; the real SlowBrain arrives in
+# V2-006/V2-007). Degradation does NOT fall back to Hermes—it speaks a fallback phrase.
 #
-# Se activa con BRAIN=nucleo (opt-in, en paralelo a duo/hermes; cero regresión hasta el cutover de V2-009).
+# Enabled with BRAIN=nucleo (opt-in, alongside duo/hermes; zero regression until the V2-009 cutover).
 #
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _TAG_TASKS: set = set()
 
 
 def _last_user_text(chat_ctx) -> str:
-    """Último turno de usuario del ChatContext (el FlashBrain compone su propia ventana + memoria)."""
+    """Last user turn from ChatContext (FlashBrain composes its own window + memory)."""
     try:
         items = list(chat_ctx.items)
     except Exception:
@@ -51,11 +51,11 @@ def _last_user_text(chat_ctx) -> str:
 
 
 def _turn_budget_ms() -> int:
-    """Cuánto SILENCIO se le tolera al modelo dentro de un turno de voz antes de darlo por atascado.
+    """How much SILENCE the model is allowed within a voice turn before it is considered stuck.
 
-    No es la duración máxima del turno: se renueva con cada trozo hablable (ver el bucle de streaming), así que una
-    respuesta larga sale entera. Es el plazo para que ALGO empiece a salir. 9 s ya es mucho hablando en voz alta;
-    el único límite que había antes era el timeout de red de httpx, 60 s. Ajustable en caliente; 0 lo desactiva.
+    This is not the maximum turn duration: it renews with every speakable chunk (see the streaming loop), so a long
+    response is delivered in full. It is the deadline for SOMETHING to begin coming out. 9 s is already a long time
+    to speak aloud; the only previous limit was httpx's 60 s network timeout. Hot-adjustable; 0 disables it.
     """
     try:
         v = int(os.getenv("ZAELAR_TURN_QUIET_MS", "9000"))
@@ -65,17 +65,18 @@ def _turn_budget_ms() -> int:
 
 
 def stream_advancing(metrics: dict, quiet_ms: int, now: float | None = None) -> bool:
-    """¿El stream del modelo AVANZA aunque no salga nada hablable?
+    """Is the model stream ADVANCING even when no speakable content is emitted?
 
-    Es la corrección de 2026-08-12, y viene de matar tres turnos SANOS en dos minutos. `fast_client.stream()` solo
+    This is the 2026-08-12 fix, prompted by killing three HEALTHY turns in two minutes. `fast_client.stream()` only
     yieldea chunks CON TEXTO: los de una tool-call (argumentos goteando, `content` vacío) se consumen dentro y no
     salen. O sea que un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados», «cierra eso»— se ve, desde
     el bucle del turno, exactamente igual que un modelo colgado. Medido en el corte de las 13:49: `ttft=1.50s` (el
     modelo había contestado en segundo y medio) con cero caracteres hablables; el plazo lo guillotinaba a los 9 s y
     el operador oía «se me ha ido un momento» sin llegar a ver sus resultados.
 
-    Así que el plazo pregunta por el LATIDO del stream (`last_chunk_ts`, que sella quien sí ve cada chunk) y no por
-    la voz. Sin sello todavía → False: nada ha llegado, es un atasco de verdad. Pura y sin IO a propósito."""
+    Therefore the deadline checks the stream's HEARTBEAT (`last_chunk_ts`, stamped by the code that sees each chunk),
+    not the voice. Without a stamp yet → False: nothing has arrived, so it is genuinely stuck. Pure and deliberately
+    free of I/O."""
     last = float((metrics or {}).get("last_chunk_ts") or 0)
     if not last:
         return False
@@ -87,9 +88,9 @@ def _norm_utt(s: str) -> str:
 
 
 def _extends(prev: str, cur: str) -> bool:
-    """¿`cur` es LA MISMA frase que `prev`, solo más larga?
+    """Is `cur` THE SAME phrase as `prev`, only longer?
 
-    Señal puramente ESTRUCTURAL, no semántica: el STT entrega la transcripción ACUMULADA de la frase en curso, así
+    A purely STRUCTURAL, not semantic, signal: STT provides the ACCUMULATED transcription of the current phrase, so
     que un fragmento de algo que el operador sigue diciendo es un PREFIJO del turno siguiente. Detectarlo así no
     necesita tablas de verbos ni heurísticas de idioma — vale igual en castellano, en japonés o dictando código.
     """

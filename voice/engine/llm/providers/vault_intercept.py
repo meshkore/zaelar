@@ -35,7 +35,7 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> tuple[
     if v.kind in ("saved", "carried"):
         emit("secret", "saved", role="system", extra={"n": len(v.labels), "labels": v.labels})
     elif v.kind == "need_vault":
-        emit("secret", "no_vault", role="system")       # el frontend abre el modal de crear bóveda
+        emit("secret", "no_vault", role="system")       # the frontend opens the create-vault modal
 
     if v.consumed:
         send(speech.sanitize(v.line, drop_metadata=False))
