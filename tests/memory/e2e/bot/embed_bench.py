@@ -1,10 +1,10 @@
-"""tests/memory/e2e/bot/embed_bench.py — benchmark de EMBEDDINGS locales a escala (V2-031 T1).
+"""tests/memory/e2e/bot/embed_bench.py — benchmark of local EMBEDDINGS at scale (V2-031 T1).
 
-Copia la BD del bot, la RE-EMBEBE con un modelo candidato (`memory/reembed.py`) y corre `scale_eval` → compara
-`found@10`/recall@k contra embeddinggemma (768). El embedding fija el TECHO del retriever (found@10): un modelo
-más fuerte sube ese techo, que ni el reranker ni el grafo pueden superar. No toca la BD de producción del bot.
+Copies the bot's DB, RE-EMBEDS it with a candidate model (`memory/reembed.py`), and runs `scale_eval` → compares
+`found@10`/recall@k against embeddinggemma (768). The embedding sets the retriever's CEILING (found@10): a stronger
+model raises that ceiling, which neither the reranker nor the graph can surpass. It does not touch the bot's production DB.
 
-Uso:
+Usage:
   ./.venv/bin/python -m tests.memory.e2e.bot.embed_bench --model bge-m3 --provider ollama
   ./.venv/bin/python -m tests.memory.e2e.bot.embed_bench --model intfloat/multilingual-e5-large --provider fastembed
 """
@@ -35,7 +35,7 @@ def main():
         p = pathlib.Path(str(SRC_DB) + suf)
         if p.exists():
             shutil.copy(p, str(dst) + suf)
-    # sidecar de firma: se re-sella tras el reembed
+    # signature sidecar: resealed after re-embedding
     pathlib.Path(str(dst) + ".embedsig").unlink(missing_ok=True)
 
     os.environ["ZAELAR_DB"] = str(dst)

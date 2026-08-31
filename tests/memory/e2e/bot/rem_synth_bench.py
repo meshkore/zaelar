@@ -1,31 +1,31 @@
-"""rem_synth_bench.py — bench del modelo de SÍNTESIS del sueño REM (V2-056 · ronda 2026-08-09).
+"""rem_synth_bench.py — REM sleep SYNTHESIS model benchmark (V2-056 · 2026-08-09 round).
 
-Pasa a cada candidato la tarea REAL (`nucleo/memllm.synthesize_concept_groups`, mismo prompt/parseo que usa el
-sueño) sobre 8 grupos-fixture con hechos conocidos, 3 pasadas, y puntúa MECÁNICAMENTE.
+Passes each candidate the REAL task (`nucleo/memllm.synthesize_concept_groups`, using the same prompt/parsing as
+sleep) over 8 fixture groups with known facts, 3 runs, and scores it MECHANICALLY.
 
-**Aquí manda la CALIDAD, no el precio — al revés que en el CORAZÓN** (§12.3). Motivo estructural, no opinión:
-`memory/rem.py` manda TODOS los grupos en **UNA sola llamada** (`memllm.synthesize_concept_groups`), con
-`MAX_GROUPS=8` grupos × `pills[:12]` píldoras, **una vez al día** (`rem_every_hours=24`). O sea ~365 llamadas al
-año por usuario con la entrada ACOTADA por diseño: **el coste NO escala con el tamaño de la memoria**. Un modelo
-10× más caro sigue costando céntimos al año, mientras que un insight malo contamina la memoria de largo plazo
-(se escribe con `slot=insight:<concepto>`, que el retriever puede devolver como si fuera un hecho del operador).
-El $/sueño se reporta igualmente, para que la decisión sea informada y no un acto de fe.
+**QUALITY matters here, not price — the opposite of the HEART benchmark** (§12.3). Structural reason, not opinion:
+`memory/rem.py` sends ALL groups in **A single call** (`memllm.synthesize_concept_groups`), with
+`MAX_GROUPS=8` groups × `pills[:12]` pills, **once a day** (`rem_every_hours=24`). That is about 365 calls per
+year per user with the input bounded by design: **cost does NOT scale with memory size**. A model that costs 10×
+more still costs cents per year, while a bad insight contaminates long-term memory (it is written with
+`slot=insight:<concept>`, which the retriever may return as if it were an operator fact).
+$/sleep is reported as well, so the decision is informed rather than an act of faith.
 
-SEIS ejes:
-  1. VALIDEZ        — devuelve un item por grupo, bien formado.
-  2. CLAVES         — nombres propios / cifras / fechas SOBREVIVEN a la síntesis (regla anti-T181: generalizar
-                      «tiene dos hijos» donde ponía «Pau y Nil» destruye el dato).
-  3. FORMA          — castellano (regla monolingüe), ≤260 chars, y NO copiar una píldora verbatim (es síntesis,
-                      no resumen-lista).
-  4. DISCIPLINA DE NULL — un grupo FLOJO debe volver con `insight: null` (lo pide el prompt). Inventar un insight
-                      de tres trivialidades es peor que no dar ninguno. El bench viejo NO medía esto.
-  5. NO-INVENCIÓN   — el insight no puede afirmar nada que NO esté en las píldoras (lista de términos prohibidos
-                      por grupo, plausibles pero ausentes). Es el fallo MÁS caro: una alucinación consolidada
-                      entra en la memoria durable con apariencia de hecho.
-  6. $/SUEÑO y $/AÑO — con tokens REALES (`memllm.last_usage()`) × tarifa publicada (`prices.json`).
+SIX axes:
+  1. VALIDITY       — returns one well-formed item per group.
+  2. KEYS           — proper names / figures / dates SURVIVE synthesis (anti-T181 rule: generalizing
+                      “has two children” where it said “Pau and Nil” destroys the data).
+  3. FORM           — Spanish (monolingual rule), ≤260 chars, and do NOT copy a pill verbatim (it is synthesis,
+                      not a list-summary).
+  4. NULL DISCIPLINE — a WEAK group must return `insight: null` (the prompt requires it). Inventing an insight
+                      from three trivialities is worse than giving none. The old benchmark did NOT measure this.
+  5. NON-INVENTION  — the insight cannot assert anything NOT present in the pills (a list of forbidden terms per
+                      group, plausible but absent). This is the MOST costly failure: a consolidated hallucination
+                      enters durable memory appearing to be a fact.
+  6. $/SLEEP and $/YEAR — using REAL tokens (`memllm.last_usage()`) × published rates (`prices.json`).
 
-Uso: PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py [--models a,b] [--runs 3] [--preflight]
-Veredictos → zaelar-model-benchmarks.md §12.4.
+Usage: PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py [--models a,b] [--runs 3] [--preflight]
+Verdicts → zaelar-model-benchmarks.md §12.4.
 """
 from __future__ import annotations
 
@@ -49,29 +49,29 @@ from nucleo import memllm  # noqa: E402
 AIML = "https://api.aimlapi.com/v1"
 OPENAI = "https://api.openai.com/v1"
 
-# Candidatos COMERCIALES de API. Como el coste es despreciable (1 llamada/día), el barrido incluye modelos
-# POTENTES y RAZONADORES que en el CORAZÓN quedaron descartados por precio o por ensuciar descartes — aquí no
-# hay descartes que ensuciar y sí una tarea de abstracción, que es donde un razonador podría aportar de verdad.
+# COMMERCIAL API candidates. Since the cost is negligible (1 call/day), the sweep includes
+# POWERFUL and REASONING models that were rejected in the HEART benchmark due to price or polluting discards — here
+# there are no discards to pollute, and there is an abstraction task where a reasoning model could genuinely help.
 CANDIDATES: dict[str, tuple[str, str]] = {
-    "gpt-4.1-mini":          (AIML, "openai/gpt-4.1-mini"),        # TITULAR actual (heredado de §12.2)
-    "deepseek-v4-flash":     (AIML, "deepseek/deepseek-v4-flash"),  # empataba al titular en §12.2; el del CORAZÓN
-    "deepseek-v4-pro":       (AIML, "deepseek/deepseek-v4-pro"),    # el DeepSeek POTENTE
-    "deepseek-thinking":     (AIML, "deepseek/deepseek-thinking-v3.2-exp"),   # razonador DeepSeek
+    "gpt-4.1-mini":          (AIML, "openai/gpt-4.1-mini"),        # current LEADER (inherited from §12.2)
+    "deepseek-v4-flash":     (AIML, "deepseek/deepseek-v4-flash"),  # tied the leader in §12.2; the HEART one
+    "deepseek-v4-pro":       (AIML, "deepseek/deepseek-v4-pro"),    # the POWERFUL DeepSeek
+    "deepseek-thinking":     (AIML, "deepseek/deepseek-thinking-v3.2-exp"),   # DeepSeek reasoning model
     "deepseek-reasoner":     (AIML, "deepseek/deepseek-reasoner"),
-    "gemini-2.5-flash":      (AIML, "google/gemini-2.5-flash"),     # 50% en §12.2 — control
+    "gemini-2.5-flash":      (AIML, "google/gemini-2.5-flash"),     # 50% in §12.2 — control
     "gemini-2.5-pro":        (AIML, "google/gemini-2.5-pro"),
-    "gpt-5-mini":            (AIML, "openai/gpt-5-mini"),           # razonador
+    "gpt-5-mini":            (AIML, "openai/gpt-5-mini"),           # reasoning model
     "gpt-4.1":               (AIML, "openai/gpt-4.1"),
     "kimi-k2-6":             (AIML, "moonshot/kimi-k2-6"),
     "glm-4.7":               (AIML, "zhipu/glm-4.7"),
     "grok-4-fast-nonreason": (AIML, "x-ai/grok-4-fast-non-reasoning"),
-    "gpt-4.1-mini@openai":   (OPENAI, "gpt-4.1-mini"),              # el camino que tenía antes del 2026-08-09
+    "gpt-4.1-mini@openai":   (OPENAI, "gpt-4.1-mini"),              # the path used before 2026-08-09
 }
 
 PRICES: dict[str, tuple[float, float]] = {}
 
-# Grupos-fixture. `keys` = datos que DEBEN sobrevivir; `forbidden` = términos plausibles pero AUSENTES de las
-# píldoras (si aparecen, el modelo se lo ha inventado); `want_null` = grupo flojo que NO merece insight.
+# Fixture groups. `keys` = data that MUST survive; `forbidden` = plausible terms ABSENT from the
+# pills (if they appear, the model invented them); `want_null` = weak group that does NOT deserve an insight.
 GROUPS_SPEC: list[dict] = [
     {"concept": "musica", "want_null": False,
      "pills": [
@@ -103,7 +103,7 @@ GROUPS_SPEC: list[dict] = [
      ],
      "keys": [["marta"], ["pau"], ["nil"]],
      "forbidden": ["divorci", "hermano", "perro", "gato"]},
-    # NUEVO — EVOLUCIÓN/contradicción: el insight debe reflejar el estado ACTUAL, no promediar ni contradecirse.
+    # NEW — EVOLUTION/contradiction: the insight must reflect the CURRENT state, without averaging or contradicting itself.
     {"concept": "vivienda", "want_null": False,
      "pills": [
          "Antes vivía en Madrid.",
@@ -114,7 +114,7 @@ GROUPS_SPEC: list[dict] = [
      ],
      "keys": [["valencia"], ["250.000", "250000"], ["hipoteca"]],
      "forbidden": ["barcelona", "sevilla", "alquilado en valencia", "vuelve a madrid"]},
-    # NUEVO — CIFRAS y FECHAS densas (anti-T181 duro).
+    # NEW — dense FIGURES and DATES (strict anti-T181).
     {"concept": "trabajo", "want_null": False,
      "pills": [
          "Es coordinador de emergencias desde marzo.",
@@ -126,7 +126,7 @@ GROUPS_SPEC: list[dict] = [
      ],
      "keys": [["coordinador"], ["12"], ["marta ruiz", "ruiz"], ["2.400", "2400"]],
      "forbidden": ["director", "despedido", "jubila", "ascenso"]},
-    # NUEVO — GRUPO GRANDE (12 píldoras, el tope real de `pills[:12]`): no debe perder los datos clave.
+    # NEW — LARGE GROUP (12 pills, the actual `pills[:12]` limit): it must not lose key data.
     {"concept": "viajes", "want_null": False,
      "pills": [
          "El mes pasado viajó a Oporto y le encantó.",
@@ -144,7 +144,7 @@ GROUPS_SPEC: list[dict] = [
      ],
      "keys": [["oporto"], ["buceo"], ["3.000", "3000"], ["pasaporte"]],
      "forbidden": ["japón", "crucero", "caravana", "esquí"]},
-    # NUEVO — MULTILINGÜE: píldoras en otro idioma, el insight SIEMPRE en castellano (regla monolingüe).
+    # NEW — MULTILINGUAL: pills in another language, insight ALWAYS in Spanish (monolingual rule).
     {"concept": "estudios", "want_null": False,
      "pills": [
          "Le interesa cada vez más la arquitectura.",
@@ -154,7 +154,7 @@ GROUPS_SPEC: list[dict] = [
      ],
      "keys": [["arquitectura"]],
      "forbidden": ["medicina", "derecho", "máster en harvard"]},
-    # NUEVO — DISCIPLINA DE NULL: trivialidades sin patrón. El prompt PIDE insight null aquí.
+    # NEW — NULL DISCIPLINE: trivialities without a pattern. The prompt REQUIRES a null insight here.
     {"concept": "cotidiano", "want_null": True,
      "pills": [
          "Esta mañana tomó un café.",
@@ -176,24 +176,24 @@ def _norm(s: str) -> str:
 
 
 def score(results: list[dict]) -> tuple[dict, list[str]]:
-    """Devuelve (puntos por eje, notas). Cada eje se agrega por separado (no se funden en un %)."""
+    """Returns (points by axis, notes). Each axis is aggregated separately (they are not merged into a %)."""
     ax = {k: [0, 0] for k in ("validez", "claves", "forma", "null", "no_invencion")}   # [got, total]
     notes: list[str] = []
     by_c = {r["concept"]: r.get("insight") for r in results}
-    # ARTEFACTO a evitar (visto en la ronda 2026-08-09): un modelo que NO devuelve NADA aprobaba el eje `null`
-    # al 100% —el grupo flojo "salió null", claro, como todos— y se llevaba un 20% de calidad en vez de un 0%.
-    # Un no-resultado no es disciplina. Si no hay un solo insight en los grupos con sustancia, `null` no puntúa.
+    # ARTIFACT to avoid (seen in the 2026-08-09 round): a model that returns NOTHING passed the `null` axis
+    # at 100% —the weak group “came out null,” of course, like all of them— and earned 20% quality instead of 0%.
+    # A no-result is not discipline. If there is not a single insight in substantive groups, `null` does not score.
     produjo_algo = any((by_c.get(g["concept"]) or "") for g in GROUPS_SPEC if not g["want_null"])
     for g in GROUPS_SPEC:
         c = g["concept"]
         ins = by_c.get(c) or ""
         n = _norm(ins)
         if g["want_null"]:
-            if produjo_algo:                       # ver `produjo_algo`: callarse del todo no es disciplina
+            if produjo_algo:                       # see `produjo_algo`: saying nothing at all is not discipline
                 ax["null"][1] += 1
                 if not ins:
                     ax["null"][0] += 1
-            # un grupo que debía ser null no puntúa en los demás ejes, pero SÍ en no-invención si habló
+            # A group that should be null does not score on the other axes, but DOES score on non-invention if it spoke.
             if ins:
                 notes.append(f"{c}: DEBÍA ser null y sintetizó → «{ins[:90]}»")
                 ax["no_invencion"][1] += 1
@@ -210,14 +210,14 @@ def score(results: list[dict]) -> tuple[dict, list[str]]:
             ax["no_invencion"][1] += 1
             continue
         ax["validez"][0] += 1
-        # claves
+        # keys
         for grp in g["keys"]:
             ax["claves"][1] += 1
             if any(_norm(k) in n for k in grp):
                 ax["claves"][0] += 1
             else:
                 notes.append(f"{c}: PERDIÓ la clave {grp[0]!r}")
-        # forma
+        # form
         ax["forma"][1] += 1
         es_ok = any(h in " " + n for h in _ES_HINTS)
         brief_ok = len(ins) <= 260
@@ -227,7 +227,7 @@ def score(results: list[dict]) -> tuple[dict, list[str]]:
         else:
             why = [w for w, ok in (("no-es", es_ok), ("largo", brief_ok), ("verbatim", not_verbatim)) if not ok]
             notes.append(f"{c}: FORMA {why} ({len(ins)} chars) «{ins[:90]}»")
-        # no-invención
+        # non-invention
         ax["no_invencion"][1] += 1
         bad = [f for f in g["forbidden"] if _norm(f) in n]
         ax["no_invencion"][0] += 0 if bad else 1
@@ -237,8 +237,8 @@ def score(results: list[dict]) -> tuple[dict, list[str]]:
 
 
 def _pct(pair) -> float | None:
-    """None = eje NO APLICABLE en esta corrida (p.ej. `null` cuando el modelo no produjo nada). Devolver 100.0
-    ahí sería mentir: un no-resultado se leería como disciplina perfecta."""
+    """None = axis NOT APPLICABLE in this run (e.g. `null` when the model produced nothing). Returning 100.0
+    there would be misleading: a no-result would be read as perfect discipline."""
     return round(100 * pair[0] / pair[1], 1) if pair[1] else None
 
 
@@ -295,7 +295,7 @@ def main() -> None:
                "usd_per_year": round(per_sleep * 365, 3) if per_sleep is not None else None,
                "avg_in_tok": avg_in, "avg_out_tok": avg_out,
                "p50_ms": int(statistics.median(lats)), "runs": len(axes), "notes": notes}
-        # media de los CINCO ejes de calidad — resumen, no sustituto de mirarlos por separado
+        # Average of the FIVE quality axes — a summary, not a substitute for examining them separately.
         _ejes = [row[k] for k in ("validez", "claves", "forma", "null", "no_invencion") if row[k] is not None]
         row["calidad_pct"] = round(statistics.mean(_ejes), 1) if _ejes else 0.0
         out_rows.append(row)

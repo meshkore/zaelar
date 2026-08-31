@@ -1,40 +1,40 @@
-"""distiller_bench.py — bench de CALIDAD-vs-PRECIO del CORAZÓN de escritura, por modelo (V2-056 · ronda 2026-08-09).
+"""distiller_bench.py — QUALITY-vs-PRICE benchmark of the writing CORE, by model (V2-056 · 2026-08-09 round).
 
-Elige el modelo del destilador (`config §memory.mem_processor_*`) CON DATOS, no especulando (regla del operador:
-"más que especular, PRUEBAS", benchmarks §9). Pasa a cada candidato los MISMOS 34 casos por el CAMINO REAL
-(`mem_processor.process`, mismo prompt/parseo/contrato v2).
+Choose the distiller model (`config §memory.mem_processor_*`) WITH DATA, not speculation (operator rule:
+"rather than speculate, TEST", benchmarks §9). It sends the SAME 34 cases to each candidate through the REAL PATH
+(`mem_processor.process`, same prompt/parsing/v2 contract).
 
-**El eje es calidad-vs-PRECIO, no velocidad.** Escribir va OFF-HOT-PATH (cola async, fire-and-forget): la latencia
-del destilador NO la paga el turno de voz — la lectura, que sí la paga, no usa ningún LLM (retriever sqlite-vec +
-FTS5 + reranker). Por eso `p50` se reporta como dato de cordura y NO puntúa: un modelo lento y barato es
-perfectamente válido aquí. Lo que NO es tolerable es perder un hecho durable (write-completeness es la palanca nº1
-del recall, V2-031: la mayoría de los "no recuperados" ni siquiera están GUARDADOS).
+**The axis is quality-vs-PRICE, not speed.** Writing runs OFF-HOT-PATH (async queue, fire-and-forget): the distiller's
+latency is NOT paid by the voice turn — reading, which is paid by it, uses no LLM (sqlite-vec retriever + FTS5 +
+reranker). Therefore `p50` is reported as a sanity-check datum and does NOT score: a slow, cheap model is perfectly
+valid here. What is NOT tolerable is losing a durable fact (write-completeness is the #1 recall lever, V2-031: most
+"not retrieved" items are not even SAVED).
 
-CUATRO ejes SEPARADOS (antes iban fundidos en un solo %, que escondía de qué flojeaba un modelo):
+FOUR SEPARATE axes (previously merged into a single %, which hid where a model was weak):
 
-  1. WRITE-COMPLETENESS (24 casos) — % de HECHOS ESPERADOS capturados en los átomos (substring acento-insensible
+  1. WRITE-COMPLETENESS (24 cases) — % of EXPECTED FACTS captured in atoms (accent-insensitive substring
      sobre text+slot+value). Multi-hecho médico, precio, mudanza, corrección de identidad, compromisos propios y
      ajenos, rutina, reversión, observación, nombre propio en PARRAFADA (T181), telegráfico, EN→es, CA→es, familia
      con nombres, secreto que el operador PIDE guardar, importes, garble de STT con dato bueno, evento médico.
-  2. PRECISIÓN / no-pollution (10 casos) — % de DESCARTES limpios: preguntas al asistente, órdenes, acks, ruido de
+  2. PRECISION / no-pollution (10 cases) — % of clean DISCARDS: questions to the assistant, commands, acks, STT
      STT, meta-preguntas sobre la propia memoria. Puntúan SOLO si el modelo devuelve []. NO se penalizan píldoras
      EXTRA en los casos KEEP: el prompt PIDE inferir intereses/intenciones (kind pref/intent), así que contarlas
      como ruido sería medir justo al revés de lo que se le pide al modelo.
-  3. CAPA/SLOT (16 comprobaciones) — el metadato, que es lo que hace que la píldora se pueda corregir y recuperar:
+  3. LAYER/SLOT (16 checks) — metadata, which is what makes a pill correctable and retrievable:
      `dest` correcto (state/short/long), `slot` canónico correcto Y —el error caro— `slot=None` en los hechos
      ADITIVOS (una alergia NO es `operator.diet`: si lo fuera, un cambio de dieta borraría la alergia), `change`
      (update/correction) y `kind` (intent) donde toca.
-  4. $/1k TURNOS — con tokens REALES del proveedor (`mem_processor.last_usage()`, capturado por el propio módulo
+  4. $/1k TURNS — with REAL provider tokens (`mem_processor.last_usage()`, captured by the module itself
      desde 2026-08-09) × tarifa publicada. NO estimados: el prompt del CORAZÓN son ~3.700 tokens de input FIJOS
      (system + 8 pares de few-shot), así que el coste lo domina el input y una estimación por chars se desvía.
 
-  + Penalización de IDIOMA: átomo durable no-castellano = -0.5 sobre completeness (regla monolingüe: la memoria vive
+  + LANGUAGE penalty: non-Spanish durable atom = -0.5 on completeness (monolingual rule: memory lives
     en el idioma del operador, se TRADUCE lo que venga en otro y nunca se descarta un durable por su idioma).
 
-Uso:  PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py [--models a,b] [--runs 1] [--preflight]
-      --preflight   solo comprueba que cada candidato responde (1 llamada corta), sin correr el corpus.
-Requiere .env / .meshkore/credentials/zaelar.env con las keys de los endpoints a barrer.
-Resultados → tests/memory/e2e/bot/resultados/<fecha>-distiller-bench/report.md (+ .json). Veredictos → benchmarks §12.
+Usage:  PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py [--models a,b] [--runs 1] [--preflight]
+      --preflight   only checks that each candidate responds (1 short call), without running the corpus.
+Requires .env / .meshkore/credentials/zaelar.env with the keys for the endpoints to scan.
+Results → tests/memory/e2e/bot/resultados/<date>-distiller-bench/report.md (+ .json). Verdicts → benchmarks §12.
 """
 from __future__ import annotations
 
@@ -55,33 +55,33 @@ sys.path.insert(0, str(REPO))
 load_dotenv(REPO / ".env")
 load_dotenv(REPO / ".meshkore/credentials/zaelar.env", override=True)
 
-# El cap de concurrencia del CORAZÓN (def 1) existe para NO apilar en la GPU Metal cuando corre en Ollama local;
-# contra una API remota no aplica y serializar 34 casos × N modelos costaría media hora de reloj sin ganar nada.
-# Se sube ANTES de importar el módulo (el semáforo se crea al importar). No cambia el código de producción.
+# The CORE concurrency cap (default 1) exists to avoid queueing on the Metal GPU when running in local Ollama;
+# it does not apply to a remote API, and serializing 34 cases × N models would cost half an hour of wall time with no gain.
+# It is raised BEFORE importing the module (the semaphore is created on import). It does not change production code.
 os.environ.setdefault("MEM_PROCESSOR_CONCURRENCY", "6")
 os.environ.setdefault("MEM_PROCESSOR_QUEUE_MAX", "64")
 os.environ.setdefault("MEM_PROCESSOR_QUEUE_WAIT", "600")
-os.environ.setdefault("MEM_PROCESSOR_TIMEOUT", "90")     # timeout de CORDURA, no de latencia (ver docstring)
+os.environ.setdefault("MEM_PROCESSOR_TIMEOUT", "90")     # SANITY timeout, not latency (see docstring)
 os.environ.setdefault("MEM_PROCESSOR_RETRIES", "1")
-# Este banco mide MODELOS, así que corre SIN failover: con la cadena puesta (norma de proveedores 2026-08-19) un
-# candidato que falla se releva al siguiente y su fila reporta el trabajo de OTRO modelo como si fuera suyo.
-# Medido el mismo día: `qwen3.6-27b@ollama` salió «OK 143000ms, 2 píldoras» y esas píldoras eran de DeepSeek.
+# This benchmark measures MODELS, so it runs WITHOUT failover: with the chain enabled (provider policy 2026-08-19), a
+# a failing candidate is replaced by the next one and its row reports ANOTHER model's work as its own.
+# Measured the same day: `qwen3.6-27b@ollama` returned «OK 143000ms, 2 pills», and those pills were from DeepSeek.
 os.environ["MEM_PROCESSOR_PIN_TITULAR"] = "1"
 
 from nucleo import mem_processor as mp  # noqa: E402
 
 # ── candidatos ──────────────────────────────────────────────────────────────────────────────────────────────
-# El broker AIMLAPI es el endpoint que la nube YA usa (fly.accounts.toml + provisioner), así que un ganador que viva
-# ahí no exige endpoint ni secret nuevos; los DIRECTOS se miden para saber cuánto se paga por el hop del broker.
+# The AIMLAPI broker is the endpoint the cloud ALREADY uses (fly.accounts.toml + provisioner), so a winner living
+# there requires no new endpoint or secret; DIRECT endpoints are measured to determine the cost of the broker hop.
 #
-# ⚠️ **LA VÍA LOCAL VUELVE (2026-08-19, decisión del operador)**, y esto es una REVERSIÓN explícita, no un despiste:
-# el 2026-08-09 se retiró («UN solo modelo que sirva igual en self-host y en cloud», porque obligaba a dos ganadores
-# distintos). La norma nueva acepta justamente eso: en LOCAL, Ollama de titular si está disponible, con DeepSeek V4
-# Flash directo de failover. Así que ahora hay DOS ganadores por diseño y hacen falta DOS columnas de resultados —
-# **un modelo local y uno de nube NO se pueden comparar por el ranking global**: el local puntúa gratis en $/1k y
-# paga en latencia y en GPU compartida con STT/TTS, el de nube al contrario. Por eso el informe se guarda POR
-# MODELO (petición del operador: «los tests por modelos son importantes»), y el veredicto de un local se lee contra
-# otros locales, nunca contra la tabla de nube.
+# ⚠️ **THE LOCAL PATH RETURNS (2026-08-19, operator decision)**, and this is an explicit REVERSAL, not an oversight:
+# on 2026-08-09 it was removed («ONE model that works equally in self-host and cloud», because it required two different
+# winners). The new policy explicitly accepts that: locally, primary Ollama when available, with DeepSeek V4
+# Flash as direct failover. So there are now TWO winners by design and TWO result columns are needed —
+# **a local model and a cloud model CANNOT be compared in the global ranking**: the local scores zero in $/1k and
+# pays in latency and shared GPU with STT/TTS, while the cloud model is the opposite. Therefore the report is saved PER
+# MODEL (operator request: «per-model tests are important»), and a local verdict is read against other locals, never
+# against the cloud table.
 AIML = "https://api.aimlapi.com/v1"
 OLLAMA = "http://localhost:11434/v1"
 OPENAI = "https://api.openai.com/v1"
@@ -91,19 +91,19 @@ ZAI = "https://api.z.ai/api/paas/v4"
 MISTRAL = "https://api.mistral.ai/v1"
 
 CANDIDATES: dict[str, tuple[str, str]] = {
-    # titular actual, por los DOS caminos (self-host apunta a OpenAI directo; la nube al broker)
+# current primary, through BOTH paths (self-host points directly to OpenAI; cloud points to the broker)
     "gpt-4.1-mini@openai":      (OPENAI, "gpt-4.1-mini"),
     "gpt-4.1-mini@aimlapi":     (AIML, "openai/gpt-4.1-mini"),
-    # OpenAI más baratos
+    # Cheaper OpenAI models
     "gpt-4.1-nano":             (AIML, "openai/gpt-4.1-nano"),
     "gpt-5-nano":               (AIML, "openai/gpt-5-nano"),
     "gpt-5-mini":               (AIML, "openai/gpt-5-mini"),
     "gpt-4o-mini":              (OPENAI, "gpt-4o-mini"),          # CONTROL negativo: §9.2 lo vio comerse la alergia
-    # OJO al medir por OpenAI DIRECTO: esa cuenta va muy limitada de tasa — con 6 llamadas en vuelo devuelve
-    # HTTP 429 en ~1 de cada 5 (21 muertas de 102 en la Fase 2) y hunde el score por una razón que NO es el
-    # modelo. Por el broker sale limpio, y además es el camino que usa la nube de verdad.
+    # NOTE when measuring through DIRECT OpenAI: that account is heavily rate-limited — with 6 calls in flight it returns
+    # HTTP 429 roughly 1 in 5 times (21 dead out of 102 in Phase 2) and sinks the score for a reason that is NOT the
+    # model. Through the broker it is clean, and that is also the path the cloud actually uses.
     "gpt-4o-mini@aimlapi":      (AIML, "openai/gpt-4o-mini"),
-    # el tramo barato del broker
+    # The broker's cheap tier
     "deepseek-v4-flash":        (AIML, "deepseek/deepseek-v4-flash"),
     "deepseek-chat":            (AIML, "deepseek/deepseek-chat"),
     "gemini-2.5-flash":         (AIML, "google/gemini-2.5-flash"),
@@ -114,42 +114,42 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "ministral-8b":             (AIML, "mistralai/ministral-8b-2512"),
     "llama-3.3-70b":            (AIML, "meta-llama/llama-3.3-70b-versatile"),
     "qwen2.5-7b-turbo":         (AIML, "Qwen/Qwen2.5-7B-Instruct-Turbo"),
-    # DIRECTOS (sin el hop del broker; keys propias)
+    # DIRECT (without the broker hop; own keys)
     "llama-3.3-70b@groq":       (GROQ, "llama-3.3-70b-versatile"),
     "grok-4.20-nonreason@xai":  (XAI, "grok-4.20-0309-non-reasoning"),
     "glm-4.7@zai":              (ZAI, "glm-4.7"),
     "glm-4.7-flash@zai":        (ZAI, "glm-4.7-flash"),
     "ministral-8b@mistral":     (MISTRAL, "ministral-8b-latest"),
-    # LOCALES (Ollama). No llevan key y su $/1k es 0 — un cero LEGÍTIMO, no un hueco: el coste marginal de un
-    # modelo local es cero de verdad, y lo que se paga está en las otras dos columnas (latencia y GPU). Un
-    # candidato que no esté `pull`eado en la máquina se salta con un aviso en vez de puntuar 0 —- un modelo ausente
-    # no es un modelo malo, y contarlo como tal ensuciaría el informe de quien no lo tenga.
+    # LOCAL (Ollama). They need no key and their $/1k is 0 — a LEGITIMATE zero, not a gap: the marginal cost of a
+    # local model is genuinely zero, and payment is reflected in the other two columns (latency and GPU). A
+    # candidate not `pull`ed on the machine is skipped with a warning instead of scoring 0 — an absent model
+    # is not a bad model, and counting it as such would dirty the report for anyone who lacks it.
     "qwen3.6-27b@ollama":       (OLLAMA, "qwen3.6:27b-mlx"),
     "qwen2.5-7b@ollama":        (OLLAMA, "qwen2.5:7b-instruct"),
     "qwen2.5-14b@ollama":       (OLLAMA, "qwen2.5:14b-instruct"),
 }
 
-# $ por 1M tokens (input, output). Tarifa PUBLICADA del proveedor que sirve ese id — verificada por web el
-# 2026-08-09 (ver §12.3 del doc de benchmarks). RE-VERIFICAR periódicamente: los precios cambian sin aviso.
-# Se usan aquí y, para el ganador, se replican en `nucleo/energy_meter.py`.
+# $ per 1M tokens (input, output). PUBLISHED rate from the provider serving that id — web-verified on
+# 2026-08-09 (see §12.3 of the benchmark doc). RE-VERIFY periodically: prices change without notice.
+# Used here and, for the winner, duplicated in `nucleo/energy_meter.py`.
 PRICES: dict[str, tuple[float, float]] = {}   # se rellena desde prices.json si existe (ver _load_prices)
 
 STATE = {"operator_name": "Ricart", "location": "Soria", "language": "es"}
 
 # ── corpus ──────────────────────────────────────────────────────────────────────────────────────────────────
-# Cada caso: id, texto, hechos esperados (lista de GRUPOS de alternativas — un grupo = un hecho, capta si aparece
-# CUALQUIERA de sus formas), must_discard, y `layer` = comprobaciones de metadato (eje 3). Claves de `layer`:
-#   dest_all   — TODOS los átomos deben tener este dest
-#   dest_any   — AL MENOS un átomo con este dest
-#   slot       — (substring del hecho, slot esperado) — `None` = el hecho NO debe llevar slot (regla aditiva)
-#   change_any — al menos un átomo con esta señal de cambio
-#   kind_any   — al menos un átomo de este kind
+# Each case: id, text, expected facts (list of GROUPS of alternatives — one group = one fact, matched if any
+# ANY of their forms), must_discard, and `layer` = metadata checks (axis 3). `layer` keys:
+#   dest_all   — ALL atoms must have this dest
+#   dest_any   — AT LEAST one atom with this dest
+#   slot       — (fact substring, expected slot) — `None` = the fact must NOT have a slot (additive rule)
+#   change_any — at least one atom with this change signal
+#   kind_any   — at least one atom of this kind
 CASES: list[dict] = [
     # ── KEEP · write-completeness ───────────────────────────────────────────────────────────────────────────
     {"id": "medico-multi", "text": "Soy alérgico a la penicilina y también al marisco, que no se te olvide",
      "expect": [["penicilina"], ["marisco"]],
-     # el error CARO: una alergia es ADITIVA (se puede ser alérgico a varias cosas) → slot=None. Si fuera
-     # operator.diet, un cambio de dieta invalidaría la alergia.
+     # the COSTLY error: an allergy is ADDITIVE (one can be allergic to several things) → slot=None. If it were
+     # operator.diet, a diet change would invalidate the allergy.
      "layer": {"slot": [("penicilina", None), ("marisco", None)], "dest_any": "long"}},
     {"id": "compra-precio", "text": "Me he comprado una bici eléctrica para ir al trabajo, me costó 1.800 euros",
      "expect": [["bici"], ["1800", "1.800"]]},
@@ -181,9 +181,9 @@ CASES: list[dict] = [
      "text": "En casa somos cinco: mi mujer Marta, los gemelos Pau y Nil, y mi madre que vive con nosotros",
      "expect": [["marta"], ["pau"], ["nil"], ["cinco", "5"]],
      "layer": {"slot": [("marta", None)]}},
-    # ── KEEP nuevos (ronda 2026-08-09) — los que de verdad separan modelos ──────────────────────────────────
+    # ── KEEP new (2026-08-09 round) — the cases that truly distinguish models ──────────────────────────────────
     {"id": "alergia-ingles", "text": "I'm severely allergic to shellfish, please don't ever forget that",
-     # regla monolingüe: el dato NO se descarta por venir en inglés, se TRADUCE a castellano
+    # monolingual rule: the fact is NOT discarded for being in English; it is TRANSLATED into Spanish
      "expect": [["marisco"]],
      "layer": {"slot": [("marisco", None)]}},
     {"id": "catalan-mudanza", "text": "Doncs res, que ara visc a Girona i treballo de fuster",
@@ -191,7 +191,7 @@ CASES: list[dict] = [
      "layer": {"slot": [("girona", "operator.location")]}},
     {"id": "secreto-pedido",
      "text": "Apúntate esto que siempre lo pierdo: la contraseña del router es Zx9tormenta",
-     # el prompt es explícito: un secreto que el operador PIDE recordar SÍ se guarda (es su memoria personal)
+     # the prompt is explicit: a secret the operator ASKS to remember IS saved (it is their personal memory)
      "expect": [["zx9tormenta", "zx9"]]},
     {"id": "compromiso-ajeno", "text": "Mi madre me ha pedido que la llame el domingo por la tarde",
      "expect": [["madre"], ["domingo"]]},
@@ -200,12 +200,12 @@ CASES: list[dict] = [
      "expect": [["notario"], ["jueves"]]},
     {"id": "interes-intent", "text": "Estoy mirando cursos de buceo para el año que viene",
      "expect": [["buceo"]],
-     # el prompt pide INFERIR interés + intención como píldoras extra
+     # the prompt asks to INFER interest + intent as extra pills
      "layer": {"kind_any": "intent"}},
     {"id": "cotidiano-short",
      "text": "Hoy he comido un bocadillo en el bar de abajo y estoy reventado, pero mañana ya estaré bien",
      "expect": [["bocadillo", "cansad", "revent", "comi"]],
-     # cotidianeidad efímera: NO promocionar a durable ni fabricar un objetivo de "mañana estaré bien"
+     # ephemeral everyday matter: do NOT promote to durable or fabricate a goal of "I will be fine tomorrow"
      "layer": {"dest_all": "short"}},
     {"id": "multi-profesional",
      "text": "Soy arquitecto, trabajo en un estudio en Bilbao y tengo dos hijas, Nora y Vega",
@@ -254,12 +254,12 @@ def _looks_spanish(text: str) -> bool:
 
 
 def _score_layer(case: dict, atoms: list[dict]) -> tuple[float, int, list[str]]:
-    """Eje 3 — metadato (dest/slot/change/kind). Devuelve (aciertos, total, fallos legibles)."""
+    """Axis 3 — metadata (dest/slot/change/kind). Returns (hits, total, readable failures)."""
     exp = case.get("layer") or {}
     hits = total = 0
     misses: list[str] = []
     if not atoms:
-        # sin átomos no hay metadato que juzgar; el fallo ya lo captura completeness (no se penaliza dos veces)
+        # with no atoms there is no metadata to judge; completeness already captures the failure (no double penalty)
         n = len(exp.get("slot", [])) + sum(1 for k in ("dest_all", "dest_any", "change_any", "kind_any") if k in exp)
         return 0, n, [f"{case['id']}: sin átomos"]
     if "dest_all" in exp:
@@ -312,11 +312,11 @@ async def _one_case(case: dict, sem: asyncio.Semaphore) -> dict:
 
 
 async def run_model(name: str, url: str, model: str) -> dict:
-    # override del routing del procesador (mismo camino real, otro modelo)
+    # Override processor routing (same real path, different model)
     mp._config_url = lambda: url                     # type: ignore[assignment]
     mp._model = lambda: model                        # type: ignore[assignment]
 
-    # captura EXACTA del usage por llamada (last_usage() es un global y con concurrencia se pisaría)
+    # Capture EXACT usage per call (last_usage() is global and would be overwritten under concurrency)
     usages: list[dict] = []
     _orig_record = mp._record_usage
 
@@ -394,7 +394,7 @@ async def run_model(name: str, url: str, model: str) -> dict:
 
 
 def _cost_per_1k(res: dict) -> float | None:
-    """$ por 1.000 turnos destilados, con tokens MEDIDOS × tarifa publicada. None si no hay tarifa cargada."""
+    """$ per 1,000 distilled turns, with MEASURED tokens × published rate. None if no rate is loaded."""
     rate = PRICES.get(res["model"])
     if not rate or not res.get("avg_in_tok"):
         return None
@@ -403,15 +403,15 @@ def _cost_per_1k(res: dict) -> float | None:
 
 
 def _load_prices() -> None:
-    """Tarifas desde `prices.json` (junto a este script) — se mantienen FUERA del código para poder re-verificarlas
-    por web sin tocar el arnés (norma del repo: los precios cambian sin aviso, se re-verifican periódicamente)."""
+    """Rates from `prices.json` (next to this script) — kept OUTSIDE the code so they can be re-verified
+    on the web without touching the harness (repo rule: prices change without notice and are periodically re-verified)."""
     p = Path(__file__).parent / "prices.json"
     if p.exists():
         PRICES.update({k: tuple(v) for k, v in json.loads(p.read_text()).items()})
 
 
 async def _preflight(names: list[str]) -> None:
-    """1 llamada CORTA por candidato: separa «el modelo no vale» de «el id/endpoint/contrato no responde»."""
+    """1 SHORT call per candidate: distinguishes «the model is unsuitable» from «the id/endpoint/contract does not respond»."""
     for name in names:
         url, model = CANDIDATES[name]
         mp._config_url = lambda u=url: u              # type: ignore[assignment]
@@ -440,11 +440,11 @@ async def main() -> None:
         print(f"?? candidato desconocido: {n}", file=sys.stderr)
     names = [n for n in names if n in CANDIDATES]
 
-    # Un candidato LOCAL que no está `pull`eado en esta máquina se SALTA con aviso, nunca puntúa 0: un modelo
-    # ausente no es un modelo malo, y dejarlo correr le daría un 0% de completeness que ensucia el informe de
-    # cualquiera que no lo tenga instalado. Reutiliza la MISMA sonda que usa producción para decidir si el titular
-    # local está disponible (`nucleo/memllm.local_titular_ready`) — así el banco y el motor no pueden discrepar
-    # sobre qué significa «está el modelo».
+    # A LOCAL candidate not `pull`ed on this machine is SKIPPED with a warning and never scores 0: an absent model
+    # is not a bad model, and running it would give it 0% completeness, dirtying the report for anyone without it
+    # installed. Reuse the SAME probe production uses to decide whether the local primary is available
+    # (`nucleo/memllm.local_titular_ready`) — so the benchmark and engine cannot disagree about what «the model is
+    # available» means.
     from nucleo import memllm as _memllm
     _kept: list[str] = []
     for n in names:

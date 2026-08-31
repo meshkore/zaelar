@@ -1,20 +1,20 @@
-"""tests/memory/e2e/bot/runner.py — el MOTOR del test bot de memoria (V2-013 · V2-019).
+"""tests/memory/e2e/bot/runner.py — the memory-test bot ENGINE (V2-013 · V2-019).
 
-Ejecuta el guion de `cases.py` contra una BD **AISLADA** (nunca el perfil real) y por CADA paso verifica:
-  - **save/extract**: tras `memory_agent.ingest_utterance` (ruta real de escritura, con el CORAZÓN LLM configurado) drena la
-    cola y comprueba que el dato quedó en la(s) capa(s) esperada(s) — o en NINGUNA si es descarte.
-  - **query**: por la ruta de lectura DIRECTA (state/recent_short/query, SIN LLM) comprueba que devuelve los datos.
+Runs the `cases.py` script against an **ISOLATED** DB (never the real profile) and verifies EACH step:
+  - **save/extract**: after `memory_agent.ingest_utterance` (the real write path, with the configured LLM CORE), drains the
+    queue and checks that the data landed in the expected layer(s) — or NONE if discarded.
+  - **query**: through the DIRECT read path (state/recent_short/query, WITHOUT LLM), checks that it returns the data.
 
-Resumible y por TANDAS: guarda el progreso en `.meshkore/logs/membot/progress.json` y un informe por tanda. Diseñado
-para correr en bucle (cada iteración = 10 pasos), iterar el módulo entre tandas y crecer hasta 1000.
+Resumable and batch-based: saves progress in `.meshkore/logs/membot/progress.json` and one report per batch. Designed
+to run in a loop (each iteration = 10 steps), reload the module between batches, and grow to 1000.
 
-Uso:
+Usage:
   ./.venv/bin/python -m tests.memory.e2e.bot.runner --next 10        # siguiente tanda de 10 (desde el progreso)
   ./.venv/bin/python -m tests.memory.e2e.bot.runner --fresh --next 10  # reinicia la BD del bot y arranca de cero
   ./.venv/bin/python -m tests.memory.e2e.bot.runner --range 0 10      # una tanda concreta
 
-Env: BD aislada por corpus (gitignored) · `MEM_PROCESSOR=1` (LLM configurado real) — se
-fijan aquí si no vienen del entorno. La memoria del operador REAL (zaelar.db) NO se toca.
+Env: DB isolated per corpus (gitignored) · `MEM_PROCESSOR=1` (real configured LLM) — set
+here if absent from the environment. The REAL operator memory (zaelar.db) is NOT touched.
 """
 from __future__ import annotations
 
@@ -29,9 +29,9 @@ import unicodedata
 REPO = pathlib.Path(__file__).resolve().parents[4]
 LOGDIR = REPO / ".meshkore" / "logs" / "membot"
 
-# ── CORPUS seleccionable (V2-038 auditoría 2026-07-14) ──────────────────────────────────────────────────────
-# `v1` = `cases.py`, la GOLD histórica de 1032 (persona Ricart/Barcelona) — INTACTA y reproducible.
-# `v2` = `cases2.py`, corpus NUEVO (persona distinta, más original) que estresa la genericidad/multiidioma y las
+# ── Selectable CORPUS (V2-038 audit 2026-07-14) ─────────────────────────────────────────────────────────────
+# `v1` = `cases.py`, the historical GOLD set of 1032 (Ricart/Barcelona person) — INTACT and reproducible.
+# `v2` = `cases2.py`, NEW corpus (different, more original person) that stresses genericity/multilingual behavior and the
 # capacidades de la auditoría (señal `change`, colapso de linajes por alias de slot, escritura externa de workers,
 # heal_slots). Cada corpus tiene su BD, progreso y catálogo AISLADOS → correr uno no pisa al otro.
 CORPORA = {
@@ -42,7 +42,7 @@ CORPORA = {
     # AGUJAS enterradas entre ese pajar, midiendo acierto Y latencia. Persona Amaia (continuidad). BD/progreso/
     # catálogo AISLADOS. Repetible para verificar refactors: `python -m …runner --corpus v3 --fresh --range 0 N`.
     "v3": {"module": "cases3", "db": "zaelar.membot3.db", "progress": "progress-v3.json", "catalog": "CATALOG3.md"},
-    # Gateway conversacional focalizado: turnos ambiguos pasan por el CORAZÓN real y se validan por píldoras,
+# Focused conversational gateway: ambiguous turns pass through the real CORE and are validated by pills,
     # slots, state, capa/importancia y recall. No inyecta hechos preestructurados directamente en el writer.
     "v4": {"module": "cases4", "db": "zaelar.membot4.db", "progress": "progress-v4.json", "catalog": "CATALOG4.md"},
 }
@@ -73,14 +73,14 @@ def _norm(s: str) -> str:
 
 
 def _setup_env():
-    # Los runners E2E son procesos nuevos lanzados por CLI/Observatory. Cargan el
+    # E2E runners are new processes launched by the CLI/Observatory. They load the
     # mismo credential store local que el engine sin imprimirlo ni copiarlo a
     # eventos; antes OpenAI recibía el fallback literal "local" y toda la batería
     # degradaba silenciosamente a heurística.
     try:
         from dotenv import load_dotenv
         load_dotenv(REPO / ".env", override=False)
-        # V2-031 (2026-08-17): faltaba esta línea aquí — `scale_eval.py::_setup_env` ya la tenía (código gemelo,
+        # V2-031 (2026-08-17): this line was missing here — `scale_eval.py::_setup_env` already had it (twin code,
         # nunca espejado). Sin ella, `DEEPSEEK_API_KEY` (solo vive en el credential store, no en `.env`) queda
         # sin resolver → `nucleo/provider_keys.py::key_for_endpoint` cae a su centinela `"local"` → DeepSeek
         # 401ea CADA llamada del CORAZÓN → fallback silencioso a la heurística, exactamente la clase de bug que
@@ -90,7 +90,7 @@ def _setup_env():
     except Exception:
         pass
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / _corpus()["db"]))
-    os.environ.setdefault("MEM_PROCESSOR", "1")   # CORAZÓN LLM configurado real — el sistema que evolucionamos
+    os.environ.setdefault("MEM_PROCESSOR", "1")   # Real configured LLM CORE — the system under evolution
     # Backend de embedding PINEADO explícito (no "auto") — V2-103 (2026-08-16) añadió un re-chequeo por TTL que
     # re-sondea Ollama cada 300s cuando el backend resuelto está degradado, y nada en este arnés vuelve a llamar
     # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/loop.py`, que este runner no
@@ -103,7 +103,7 @@ def _setup_env():
     os.environ.setdefault("ZAELAR_EMBED_BACKEND", "ollama")
 
 
-# ── sondas de capa (lectura DIRECTA, sin LLM) ───────────────────────────────────────────────────────────────
+# ── layer probes (DIRECT reading, without LLM) ──────────────────────────────────────────────────────────────
 def _state_blob(memory) -> str:
     try:
         return _norm(json.dumps(memory.state(), ensure_ascii=False))
@@ -119,7 +119,7 @@ def _short_blob(memory) -> str:
 
 
 def _in_long(memory, marker: str, probe: str) -> bool:
-    """¿El ancla aparece en el LARGO PLAZO? Consulta el retriever con el probe y mira los resultados (mid/long)."""
+    """Does the marker appear in LONG-TERM memory? Query the retriever with the probe and inspect the results (mid/long)."""
     try:
         res = memory.query(probe or marker, reinforce_used=False)
         for m in res.get("memories") or []:
@@ -131,7 +131,7 @@ def _in_long(memory, marker: str, probe: str) -> bool:
 
 
 def _layers_with(memory, marker: str, probe: str) -> list[str]:
-    """Capas DURABLES donde aparece el ancla ahora mismo."""
+    """DURABLE layers where the marker appears right now."""
     found = []
     if marker in _state_blob(memory):
         found.append("state")
@@ -142,7 +142,7 @@ def _layers_with(memory, marker: str, probe: str) -> list[str]:
     return found
 
 
-# ── verificación por paso ───────────────────────────────────────────────────────────────────────────────────
+# ── per-step verification ─────────────────────────────────────────────────────────────────────────────────
 def _verify_save(memory, step: dict) -> tuple[bool, str]:
     marker = _norm(step["marker"])
     probe = step.get("text", "")
