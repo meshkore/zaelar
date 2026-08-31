@@ -1,13 +1,13 @@
-"""V2-314 — una ronda cuyos workers murieron por falta de CUOTA no ha medido al producto: es INFRA.
+"""V2-314 — a round whose workers died due to a lack of QUOTA did not measure the product: it is INFRA.
 
-Medido en `find-concert-tickets__es` (2026-08-25 10:53-10:56): tres workers, 1,8 s / 3,9 s / 1,9 s de vida, los
-tres contra «licencia-claude · sin relevo» (el plan de Claude había agotado su ventana y la cadena no tenía
-sucesor; DeepSeek directo respondía 402 en su propia cuenta). La hoja volvió vacía, el juez leyó la hoja vacía, y
-la ronda salió `resultado 1 · mecanismo 2` contra un motor al que no se le dejó arrancar.
+Measured in `find-concert-tickets__es` (2026-08-25 10:53-10:56): three workers, with lifetimes of 1.8 s / 3.9 s / 1.9 s,
+all three against «licencia-claude · sin relevo» (Claude's plan had exhausted its window and the chain had no
+successor; direct DeepSeek returned 402 on its own account). The sheet came back empty, the judge read the empty
+sheet, and the round produced `resultado 1 · mecanismo 2` against an engine that was never allowed to start.
 
-Es la misma clase de avería que el conductor fuera de papel, vista desde el otro lado: allí el arnés contaminaba
-la medida, aquí la contamina el mundo — nuestra factura. La regla es la misma, INFRA, porque una ronda declarada
-INFRA se vuelve a correr y una nota falsa se queda en el tablero para siempre.
+It is the same kind of failure as the out-of-paper driver, seen from the other side: there the harness contaminated
+the measurement; here the world—our bill—contaminates it. The rule is the same, INFRA, because a round declared
+INFRA is rerun, while a false result remains on the board forever.
 """
 import json
 import sqlite3
@@ -19,7 +19,7 @@ from tests.use_cases.e2e.agent import verify as V
 
 @pytest.fixture
 def db(tmp_path):
-    """Un test unitario NUNCA toca el sandbox vivo: se fabrica el suyo con el esquema mínimo que se lee."""
+    """A unit test NEVER touches the live sandbox: it creates its own with the minimum schema that is read."""
     p = tmp_path / "obs.db"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms INTEGER, topic TEXT, payload TEXT, "
@@ -41,7 +41,7 @@ def test_sin_muertes_por_cuota_no_dice_nada(db):
 
 
 def test_cuenta_las_muertes_y_NOMBRA_al_proveedor(db):
-    """El nombre importa: «sin cuota» sin decir de quién no le dice al operador qué recargar."""
+    """The name matters: «sin cuota» without saying whose does not tell the operator what to replenish."""
     p, con, add = db
     for _ in range(3):
         add("proveedor sin cuota", {"text": "licencia-claude · sin relevo", "ok": False})
@@ -52,7 +52,7 @@ def test_cuenta_las_muertes_y_NOMBRA_al_proveedor(db):
 
 
 def test_la_negativa_a_LANZAR_tambien_cuenta_y_trae_la_hora(db):
-    """Las dos mitades del mismo hecho: la muerte, y nosotros habiendo aprendido de ella (V2-314)."""
+    """The two halves of the same fact: the death, and us having learned from it (V2-314)."""
     p, con, add = db
     add("provider_asleep", {"until": 1787660400.0, "ok": False}, kind="provider_asleep")
     con.commit()
@@ -62,7 +62,7 @@ def test_la_negativa_a_LANZAR_tambien_cuenta_y_trae_la_hora(db):
 
 
 def test_lo_de_ANTES_de_la_ronda_no_se_cuenta(db):
-    """`since` es lo que separa esta ronda de la anterior; sin él, una cuota agotada ayer marca la de hoy."""
+    """`since` is what separates this round from the previous one; without it, a quota exhausted yesterday marks today's."""
     p, con, add = db
     add("proveedor sin cuota", {"text": "licencia-claude · sin relevo"}, ts=500)
     con.commit()
@@ -70,8 +70,8 @@ def test_lo_de_ANTES_de_la_ronda_no_se_cuenta(db):
 
 
 def test_la_regla_pide_las_DOS_mitades():
-    """Sensibilidad: «hubo una muerte por cuota» a secas declararía INFRA una ronda que luego se relevó y
-    entregó — el relevo existe justo para eso (V2-238) — y taparía defectos reales tras un escalón agotado."""
+    """Sensitivity: «hubo una muerte por cuota» alone would declare INFRA a round that was subsequently handed over and
+    completed — handover exists precisely for that (V2-238) — and would hide real defects behind an exhausted step."""
     murio = {"deaths": 3, "asleep": 0, "providers": ["licencia-claude"], "reset_at": 0.0}
     assert V.no_quota_infra(murio, {"ok": 0, "spawned": 3}), "tres muertes por cuota y nadie terminó: es INFRA"
     assert V.no_quota_infra(murio, {"ok": 1, "spawned": 4}) == "", "hubo relevo y ALGUIEN terminó: sí midió"
@@ -80,7 +80,7 @@ def test_la_regla_pide_las_DOS_mitades():
 
 
 def test_la_frase_NOMBRA_al_proveedor_y_la_hora():
-    """Lo accionable de un INFRA por cuota es qué recargar y cuándo vuelve; sin eso solo dice «no midió»."""
+    """The actionable information in quota-related INFRA is what to replenish and when it returns; without that it only says «no midió»."""
     import time
     vuelve = time.time() + 3600
     frase = V.no_quota_infra({"deaths": 3, "asleep": 1, "providers": ["licencia-claude"], "reset_at": vuelve},
@@ -90,13 +90,13 @@ def test_la_frase_NOMBRA_al_proveedor_y_la_hora():
 
 
 def test_negarse_a_LANZAR_basta_aunque_no_muera_nadie():
-    """Desde V2-314 el dispatcher no lanza cuando la cadena duerme: cero muertes y cero rondas medidas."""
+    """Since V2-314, the dispatcher does not launch when the chain is asleep: zero deaths and zero measured rounds."""
     assert V.no_quota_infra({"deaths": 0, "asleep": 2, "providers": []}, {"ok": 0})
 
 
 def test_el_barrido_LO_USA_y_no_pisa_una_averia_ya_declarada():
-    """La mitad de cableado (V2-199) — y el orden importa: un conductor fuera de papel manda sobre la cuota,
-    porque esa avería es NUESTRA y se arregla, y la cuota solo se espera."""
+    """The wiring half (V2-199) — and order matters: an out-of-paper driver takes precedence over quota,
+    because that failure is OURS and can be fixed, while quota can only be waited out."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
@@ -108,7 +108,7 @@ def test_el_barrido_LO_USA_y_no_pisa_una_averia_ya_declarada():
 
 
 def test_y_el_informe_LO_LLEVA():
-    """La lectura puede acertar y no llegar al informe."""
+    """The reading can be correct and still fail to reach the report."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R

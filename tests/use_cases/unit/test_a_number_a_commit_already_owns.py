@@ -1,13 +1,13 @@
-"""V2-316 — un número que ya reclamó un COMMIT no se reparte otra vez, aunque no exista su fichero.
+"""V2-316 — a number already claimed by a COMMIT is not assigned again, even if its file does not exist.
 
-`_next_initiative_number` leía UN registro —los ficheros— y hay dos. El agente que arregla deja su decisión en
-`engine/CLAUDE.md` y en el asunto del commit, y escribe la iniciativa después (o, en una tanda larga, en el
-cierre). Entre esos dos momentos el número parece libre y esta función lo entrega.
+`_next_initiative_number` read ONE record —the files— and there are two. The agent making the fix leaves its decision in
+`engine/CLAUDE.md` and in the commit subject, and writes the initiative afterward (or, in a long batch, at
+the end). Between those two moments the number appears free and this function assigns it.
 
-Medido el 2026-08-25: aquí se acuñó `V2-312` para `things-to-do-nearby-weekend__es` mientras V2-312 era ya el
-trabajo de role-flip, commiteado una hora antes. No falló nada, que es justo el problema: dos trozos de historia
-sin relación responden al mismo nombre. Es la misma avería que la nota de «archivado sigue siendo dueño de su
-número» previene por la otra puerta.
+Measured on 2026-08-25: here, `V2-312` was coined for `things-to-do-nearby-weekend__es` while V2-312 was already the
+role-flip work, committed an hour earlier. Nothing failed, which is precisely the problem: two unrelated pieces of
+history answer to the same name. It is the same failure that the note “archived items still own their number”
+prevents through the other route.
 """
 import re
 
@@ -21,21 +21,21 @@ def test_lee_los_numeros_del_LOG_no_solo_los_del_disco():
 
 
 def test_los_numeros_MEDIDOS_estan_reclamados():
-    """314 y 315 se commitearon sin fichero de iniciativa: son exactamente el caso que abre este agujero."""
+    """314 and 315 were committed without an initiative file: they are exactly the case that creates this loophole."""
     n = I._numbers_claimed_by_commits()
     assert 314 in n and 315 in n
 
 
 def test_el_siguiente_numero_los_RESPETA():
-    """La mitad de cableado: la lectura puede acertar y no llegar a quien reparte (V2-199)."""
+    """Half the wiring: the read can be correct and fail to reach the code that assigns numbers (V2-199)."""
     n = I._next_initiative_number()
     assert n not in I._numbers_claimed_by_commits()
     assert not list(I.INITIATIVES.rglob(f"V2-{n:03d}-*.md"))
 
 
 def test_falla_ABIERTO_sin_git(monkeypatch):
-    """Sin git no se deja de archivar: perder una reclamación cuesta una colisión que se renumera a mano;
-    negarse a archivar cuesta un defecto medido que no queda registrado en ninguna parte."""
+    """Without git, archiving does not stop: losing a claim costs a collision that can be renumbered by hand;
+    refusing to archive costs a measured defect that is not recorded anywhere."""
     def _boom(*a, **k):
         raise OSError("no git here")
     import subprocess
@@ -54,7 +54,7 @@ def test_un_log_sin_numeros_no_inventa_ninguno(monkeypatch):
 
 
 def test_solo_casa_el_formato_de_TRES_digitos(monkeypatch):
-    """`V2-9` o `V2-1234` no son iniciativas; contarlas envenenaría el reparto con números que no existen."""
+    """`V2-9` or `V2-1234` are not initiatives; counting them would pollute the assignment with numbers that do not exist."""
     class _R:
         returncode = 0
         stdout = "toca V2-042 y V2-9 y V2-12345 y v2-077"

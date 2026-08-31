@@ -1,21 +1,23 @@
-"""Un escenario que nunca ha corrido no puede correr nunca (V2-367).
+"""A scenario that has never run can never run (V2-367).
 
-La rotación del supervisor salía del MARCADOR (`status.json`), y el marcador solo lista lo que ya corrió
-alguna vez. El bucle es cerrado y no tiene salida: nadie lo corre → nunca entra en el marcador → nadie lo
-corre. Un escenario nuevo no entra al bucle de mejora JAMÁS, y no por un fallo: por la forma del dato.
+The supervisor rotation came from the MARKER (`status.json`), and the marker only lists what has already run
+at least once. The loop is closed and has no exit: nobody runs it → it never enters the marker → nobody
+runs it. A new scenario NEVER enters the improvement loop, and not because of a bug: because of the shape of
+the data.
 
-Medido el 2026-08-27, con el operador pidiendo que el sistema «contribuya a la prueba de todos los casos de
-uso que tenemos programados»: **135 escenarios con runner, 32 en el marcador — 103 fuera del bucle.** Entre
-ellos los DOS de multimedia, o sea dos superficies enteras del producto (poner música, ver un vídeo) sin una
-sola medida, con sus escenarios escritos y listos desde el 2026-08-26.
+Measured on 2026-08-27, with the operator asking that the system “contribute to testing all the use cases we
+have scheduled”: **135 scenarios with a runner, 32 in the marker — 103 outside the loop.** Among them were
+the TWO multimedia scenarios, meaning two entire product surfaces (play music, watch a video) without a
+single measurement, with their scenarios written and ready since 2026-08-26.
 
-Lo que lo hace difícil de ver es que **desde fuera no parece un hueco**: el escenario EXISTE, el catálogo lo
-lista, `scenarios.py` lo define, y el marcador —que es donde se mira para saber cómo va todo— no dice que
-falte. Es la familia de «un test fuera del mapa AFIRMA que corrió»: la ausencia se presenta como cobertura.
+What makes it hard to see is that **from the outside it does not look like a gap**: the scenario EXISTS, the
+catalog lists it, `scenarios.py` defines it, and the marker —which is where one looks to see how everything is
+going— does not say it is missing. It is the family of “a test outside the map CLAIMS to have run”: absence is
+presented as coverage.
 
-El orden es una decisión, no un detalle: rotos primero (donde ya sabemos qué mirar), NUNCA MEDIDOS después
-(traen información nueva, pero cada uno cuesta una ronda entera de plató), y los que pasan al final para que
-una regresión se vea sin comerse el turno de los rotos.
+The order is a decision, not a detail: broken first (where we already know what to look at), NEVER MEASURED
+next (they bring new information, but each one costs an entire studio round), and passing ones last so that a
+regression is visible without taking the broken ones' turn.
 """
 import json
 
@@ -26,7 +28,7 @@ from tests.use_cases.e2e.agent import supervisor as S
 
 @pytest.fixture
 def marcador(tmp_path, monkeypatch):
-    """Un `status.json` de mentira, para no leer el del operador ni depender de qué corrió hoy."""
+    """A fake `status.json`, so we do not read the operator's or depend on what ran today."""
     def _poner(scenarios: dict):
         raiz = tmp_path
         (raiz / "tests" / "use_cases").mkdir(parents=True, exist_ok=True)
@@ -42,7 +44,7 @@ def _con_runner(monkeypatch, ids):
 
 
 def test_el_caso_medido_multimedia_entra_en_la_rotacion(marcador, monkeypatch):
-    """La forma exacta del 2026-08-27: dos superficies del producto con runner y sin una sola medida."""
+    """The exact state on 2026-08-27: two product surfaces with a runner and without a single measurement."""
     marcador({"search-buy-used-car": {"state": "FAIL"}})
     _con_runner(monkeypatch, ["search-buy-used-car",
                               "play-music-and-build-playlist",
@@ -59,16 +61,16 @@ def test_el_orden_es_rotos_nunca_buenos(marcador, monkeypatch):
 
 
 def test_un_capped_sigue_FUERA_aunque_tenga_runner(marcador, monkeypatch):
-    """El operador los excluyó del bucle en 2026-08-20: les falta una credencial suya y no hay forma de
-    llegar, así que darían trabajo que nadie puede cerrar. Un `capped` YA ESTÁ en el marcador, así que la
-    rama de nunca-medidos no debe rescatarlo por la puerta de atrás."""
+    """The operator excluded them from the loop on 2026-08-20: one of their credentials is missing and there
+is no way to reach them, so they would create work that nobody can close. A `capped` is ALREADY in the marker,
+so the never-measured branch must not rescue it through the back door."""
     marcador({"capado": {"state": "capped"}})
     _con_runner(monkeypatch, ["capado", "nuevo"])
     assert S.rotacion() == ["nuevo"]
 
 
 def test_UC_ROTACION_sigue_mandando(marcador, monkeypatch):
-    """El mando para clavar el foco en un caso mientras se itera sobre él no lo toca esto."""
+    """This does not affect the control that pins the focus on one case while iterating on it."""
     marcador({"roto": {"state": "FAIL"}})
     _con_runner(monkeypatch, ["roto", "nuevo"])
     monkeypatch.setenv("UC_ROTACION", "solo-este")
@@ -76,8 +78,8 @@ def test_UC_ROTACION_sigue_mandando(marcador, monkeypatch):
 
 
 def test_sin_catalogo_legible_la_rotacion_de_siempre_SIGUE(marcador, monkeypatch):
-    """La dirección segura: quedarse sin los nunca-medidos es un hueco; quedarse sin rotación para el
-    supervisor, que existe para no parar nunca."""
+    """The safe direction: running out of never-measured cases is a gap; running out of rotation for the
+supervisor, which exists to never stop, is not."""
     marcador({"roto": {"state": "FAIL"}, "bueno": {"state": "PASS"}})
     monkeypatch.setattr(S, "_con_runner", lambda: (_ for _ in ()).throw(RuntimeError("catálogo roto")))
     assert S.rotacion() == ["roto", "bueno"]
@@ -90,16 +92,16 @@ def test_un_catalogo_que_revienta_no_tumba_a__con_runner(monkeypatch):
 
 
 def test_con_marcador_VACIO_los_nunca_medidos_bastan(marcador, monkeypatch):
-    """Un plató recién estrenado: nada ha corrido todavía. Sin esta rama caería al escenario de reserva y el
-    bucle mediría UNO solo para siempre."""
+    """A newly opened studio: nothing has run yet. Without this branch it would fall back to the reserve
+scenario and the loop would measure only ONE forever."""
     marcador({})
     _con_runner(monkeypatch, ["uno", "dos"])
     assert S.rotacion() == ["uno", "dos"]
 
 
 def test_el_catalogo_REAL_trae_los_dos_de_multimedia():
-    """Guarda de premisa: si mañana alguien renombra esos escenarios, este fichero deja de medir lo que dice
-    medir y hay que enterarse aquí, no en una tanda."""
+    """Premise guard: if someone renames those scenarios tomorrow, this file stops measuring what it claims to
+measure, and we need to find out here, not in a batch."""
     ids = {x.id for x in S._con_runner()}
     assert "play-music-and-build-playlist" in ids
     assert "watch-a-video-not-listen-to-it" in ids

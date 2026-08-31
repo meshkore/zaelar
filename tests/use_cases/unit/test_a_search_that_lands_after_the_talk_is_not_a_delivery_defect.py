@@ -1,21 +1,21 @@
-"""Una vuelta de búsqueda que llega con la conversación cerrada no prueba un fallo de entrega (V2-378).
+"""A search round that arrives with the conversation closed does not prove a delivery failure (V2-378).
 
-Medido en `compare-insurance-quotes__es` (2026-08-27, 2/5). El informe avisó «⚠️ y NINGUNA se le empujó al
-cerebro» y el juez lo convirtió en un [media] y en la mejora nº5: *«Es un fallo de ENTREGA del mecanismo que
-deja al cerebro sin datos»*. Leídos los relojes de esa sesión:
+Measured in `compare-insurance-quotes__es` (2026-08-27, 2/5). The report warned «⚠️ y NINGUNA se le empujó al
+cerebro» and the judge turned it into a [media] and improvement no. 5: *«Es un fallo de ENTREGA del mecanismo que
+deja al cerebro sin datos»*. Reading that session's timestamps:
 
     último turno del operador   298,0 s
     vueltas de búsqueda         472,9 s … 520,8 s   ← las OCHO
 
-La conversación llevaba casi tres minutos cerrada. Las notas se empujan a un buzón que nadie iba a vaciar, y
-el contador lee el DRENAJE (el evento que emite el canal al entregar la nota en un turno), no el empujón —
-así que marcaba cero. No había mecanismo que arreglar: no había a quién entregar.
+The conversation had been closed for almost three minutes. Notes are pushed into a mailbox that nobody was going
+to empty, and the counter reads the DRAIN (the event the channel emits when delivering the note during a turn), not
+the push — so it showed zero. There was no mechanism to fix: there was nobody to deliver to.
 
-De paso corrige una cifra del propio informe: decía «2 consulta(s), 1 respuesta(s)» y en el registro hay
-OCHO idas y OCHO vueltas, todas del `WebSearch` NATIVO del worker.
+It also corrects a figure in the report itself: it said «2 consulta(s), 1 respuesta(s)», while the log contains
+EIGHT searches and EIGHT results, all from the worker's NATIVE `WebSearch`.
 
-Es la misma familia que la línea que ese informe ya imprime para los workers —«el motor SEGUÍA trabajando al
-medir: lo que falte puede ser todavía no, no nunca»—: este canal no participaba de ese cuidado.
+It belongs to the same family as the line that report already prints for workers —«el motor SEGUÍA trabajando al
+medir: lo que falte puede ser todavía no, no nunca»—: this channel did not receive that safeguard.
 """
 import pytest
 
@@ -23,9 +23,9 @@ from tests.use_cases.e2e.agent import judge as J, report as R
 
 
 def _texto(x) -> str:
-    """`mechanism_facts` devuelve una CADENA y `_mechanism_numbers` una lista. Unir una cadena con «\n» mete
-    un salto entre cada carácter, así que la primera versión de este fichero no encontraba nada y daba rojo
-    por el motivo equivocado."""
+    """`mechanism_facts` returns a STRING and `_mechanism_numbers` a list. Joining a string with «\n» inserts
+    a separator between every character, so the first version of this file found nothing and failed
+    for the wrong reason."""
     return x if isinstance(x, str) else "\n".join(x)
 
 
@@ -35,7 +35,7 @@ def _sr(returns, tarde, notas=0):
                                "sample": ["Web search results for query: precio medio seguro"]}}
 
 
-# ── el juez ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── the judge ────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_la_ronda_medida_ya_no_se_puntua_como_fallo_de_mecanismo():
     txt = _texto(J.mechanism_facts(_sr(8, 8)))
@@ -44,8 +44,8 @@ def test_la_ronda_medida_ya_no_se_puntua_como_fallo_de_mecanismo():
 
 
 def test_una_vuelta_A_TIEMPO_sin_nota_SIGUE_siendo_un_fallo():
-    """La sensibilidad que sostiene el arreglo: V2-236 existe porque la búsqueda contestaba bien y moría
-    dentro del worker. Eso no se puede dejar de ver."""
+    """The regression guard that supports the fix: V2-236 exists because the search responded correctly and died
+    inside the worker. That must not go unnoticed."""
     txt = _texto(J.mechanism_facts(_sr(8, 0)))
     assert "fallo de ENTREGA del mecanismo" in txt
     assert "CON LA CONVERSACIÓN ABIERTA" in txt
@@ -61,7 +61,7 @@ def test_si_HUBO_notas_no_se_dice_nada():
     assert "empujó al cerebro" not in txt
 
 
-# ── el informe ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── the report ─────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_informe_explica_la_llegada_tardia_en_vez_de_avisar():
     txt = _texto(R._mechanism_numbers(_sr(8, 8)))
@@ -74,10 +74,10 @@ def test_el_informe_SIGUE_avisando_cuando_toca():
     assert "⚠️ y NINGUNA se le empujó al cerebro" in txt
 
 
-# ── el contador ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the counter ────────────────────────────────────────────────────────────────────────────────────────────
 
 def _db(tmp_path, vueltas_ms):
-    """Un almacén de eventos mínimo con una ida y N vueltas de búsqueda en los instantes dados."""
+    """A minimal event store with one search request and N search results at the given times."""
     import json as _j
     import sqlite3
     p = tmp_path / "e.db"
@@ -94,7 +94,7 @@ def _db(tmp_path, vueltas_ms):
 
 
 def test_el_contador_separa_las_tardias_de_las_de_a_tiempo(tmp_path):
-    """La ronda medida, en miniatura: último turno a los 298 s, las ocho vueltas entre 473 y 521."""
+    """The measured round, in miniature: last turn at 298 s, the eight results between 473 and 521."""
     from tests.use_cases.e2e.agent import verify as V
     db = _db(tmp_path, [473_000, 480_000, 500_000, 521_000])
     out = V.search_returns(db, since=0, last_turn_ms=298_000)
@@ -108,15 +108,15 @@ def test_el_contador_no_llama_tardia_a_una_de_a_tiempo(tmp_path):
 
 
 def test_sin_saber_el_ultimo_turno_no_se_inventa_nada(tmp_path):
-    """`last_turn_ms` puede faltar (una ronda sin transcript). Contar esas vueltas como tardías silenciaría un
-    fallo real; contarlas como a tiempo conserva el aviso de siempre, que es la dirección segura."""
+    """`last_turn_ms` may be missing (a round without a transcript). Counting those results as late would silence a
+    real failure; counting them as on time preserves the usual warning, which is the safe direction."""
     from tests.use_cases.e2e.agent import verify as V
     out = V.search_returns(_db(tmp_path, [473_000, 521_000]), since=0)
     assert out["returns"] == 2 and out["returns_after_last_turn"] == 0
 
 
 def test_el_arnes_PASA_el_instante_del_ultimo_turno():
-    """El cableado: el contador puede estar perfecto y no recibir el dato."""
+    """The wiring: the counter can be perfect and still not receive the data."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/run.py").read_text()
     assert 'last_turn_ms=(mech.get("sheet_timing") or {}).get("last_turn_ms")' in src
