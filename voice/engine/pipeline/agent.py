@@ -705,9 +705,26 @@ async def entrypoint(ctx: JobContext) -> None:
     # Reply LANGUAGE = the active interface language (⚙/voice, live). Appended to the persona so
     # direct/duo reply in it; Hermes also gets it in the kickoff brief below (memory still wins for names).
     _lang = langs.current_language()
-    agent = Agent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
+
+    class ZaelarAgent(Agent):
+        # V2-529: the lead-in filler is AUDIO INSIDE the reply's own speech. A `say()`-based filler is
+        # structurally late — the reply is already the scheduler's current speech, so the say only gets
+        # authorized when the reply FINISHES playing (measured live: «Vale, empiezo» … «Espera, espera»).
+        # The wrapper yields pre-synthesized filler frames first, only when the turn armed one and the
+        # model's first token is late; everything else passes through byte-identical. See
+        # `voice/engine/speech/filler_audio.py` for the full history and the arm/consume contract.
+        def tts_node(self, text, model_settings):
+            from voice.engine.speech import filler_audio as _fa
+            return _fa.tts_node_with_filler(self, Agent.default.tts_node, text, model_settings)
+
+    agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
     logger.info("Session started.")
+    try:
+        from voice.engine.speech import filler_audio as _fa
+        _fa.prime_soon(tts)   # pre-synthesize the filler pool so the first one doesn't pay a cold synthesis
+    except Exception:
+        pass
 
     # BOOT SEQUENCE — INIT then PROCESS. The voice must NOT run under the splash: we report the ordered backend
     # milestones over the "vl2" channel (the frontend's «Colmena» splash lights one cluster per phase), emit the

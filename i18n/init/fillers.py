@@ -2,7 +2,7 @@
 
 Same shape and rationale as `i18n.init.aliases` (V2-101): the hardcoded es/en filler pool in
 `voice/engine/core/langs.py::LangSpec.fillers` is a fast, verified-native accelerator, not a hard requirement —
-`voice.engine.llm.providers.lead_in_filler`/`langs.pick_filler()` check THIS generated store first, per language,
+`voice/engine/speech/filler_audio.py` (via `langs.pick_filler()`) checks THIS generated store first, per language,
 and only fall back to the hardcoded pool (today: only present for es/en, itself falling back to English for any
 other onboarded language — see `voice/engine/core/langs.py::current_code()`) when nothing was generated.
 

@@ -14,7 +14,13 @@ segmento (acaba en «…», que no está en el regex de fin de frase `[.!?。！
 así que se queda en el buffer hasta que llega la respuesta real — y entonces sale PEGADO a ella.
 
 Los tests de abajo (1) reproducen exactamente ese pegado, que es lo que no puede volver a pasar, y (2) fijan la
-costura fuera de banda por la que ahora sale.
+costura fuera de banda del canal proactivo.
+
+V2-529 (2026-08-31): el RELLENO ya no usa el `say` fuera de banda — el planificador de LiveKit lo autorizaba
+DETRÁS de la respuesta en curso (siempre tarde, medido en vivo). Hoy es audio DENTRO de la locución de la
+respuesta (`voice/engine/speech/filler_audio.py`, tests en `test_filler_audio.py`). La costura efímera de
+proactive se conserva como seam; los tests del tokenizador de arriba siguen documentando por qué el TEXTO del
+relleno tampoco puede viajar por el stream.
 """
 from __future__ import annotations
 
@@ -154,71 +160,22 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
         proactive.clear_speaker(_new)
 
 
-def test_el_proveedor_manda_el_relleno_FUERA_DE_BANDA_Y_EFIMERO():
-    """Guarda de CÓDIGO sobre el camino elegido: el relleno se habla por `proactive.ephemeral_speaker()` (nunca
-    `speaker()`) y el `ChatChunk` queda como respaldo para cuando no hay sesión. Guarda textual a propósito —
-    montar el proveedor entero exige media sesión de LiveKit, y lo que de verdad puede regresar aquí es que
-    alguien «simplifique» quitando el say o volviendo al hablador que sí deja rastro en el chat."""
+def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARMA():
+    """Guarda de CÓDIGO sobre el cableado V2-529 (montar el proveedor entero exige media sesión de LiveKit):
+    (1) nucleo.py ya no construye ningún LeadInFiller ni habla por `say` — solo ARMA el filler de audio;
+    (2) agent.py sobreescribe `tts_node` delegando en `filler_audio.tts_node_with_filler`, que es el único
+    sitio donde el relleno puede sonar ANTES de la respuesta (dentro de su misma locución)."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/lead_in_filler.py"
-    body = src.read_text(encoding="utf-8")
-    i = body.index("async def _run")
-    block = body[i:]
-    assert "proactive.ephemeral_speaker()" in block, \
-        "el relleno tiene que salir por el hablador EFÍMERO — con el normal volvería a colgar del chat"
-    assert "proactive.speaker()" not in block, \
-        "el relleno NUNCA usa el hablador normal — eso es justo el bug que reabre el chat colgando"
-    assert "create_task(_spk(" in block, "el say tiene que dispararse sin bloquear el turno"
-    # El ChatChunk sigue existiendo, pero SOLO como respaldo: dentro de un `else`.
-    j = block.index("ChatChunk", block.index("create_task(_spk("))
-    assert "else:" in block[block.index("create_task(_spk("):j], \
-        "el ChatChunk tiene que quedar en la rama de respaldo, no en el camino normal"
+    nucleo_body = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text()
+    assert "filler_audio.arm(" in nucleo_body or "_filler_audio.arm(" in nucleo_body, \
+        "el proveedor tiene que ARMAR el relleno por turno — sin arm, ningún turno puede sonar uno"
+    assert "lead_in_filler import" not in nucleo_body and "LeadInFiller(" not in nucleo_body, \
+        "el camino say del relleno volvió — ese say se autoriza DETRÁS de la respuesta y suena tarde SIEMPRE"
 
-
-# ── EL RELLENO SÍ VA AL MURO DE CHAT — pero EXPLÍCITO y MARCADO (2026-08-18) ───────────────────────────────
-# El relleno «no debe colgar del historial de LiveKit» (arriba) no significa «no debe verse»: sigue siendo una
-# frase real que el agente dijo. La fuga original (LiveKit decidiendo el orden) se sustituye por un `emit`
-# PROPIO, síncrono, con un `kind` dedicado — así el frontend lo marca como relleno y nunca lo confunde con una
-# respuesta generada por el modelo, y el orden queda garantizado (se dispara ANTES de que exista texto real).
-def test_leadinfiller_empuja_su_propio_evento_de_chat_marcado():
-    import asyncio
-
-    from voice.engine.llm.providers.lead_in_filler import LeadInFiller
-
-    class _Brain:
-        _last_filler = ""
-
-    events = []
-
-    def _emit(kind, label, text="", role="", extra=None):
-        events.append({"kind": kind, "label": label, "text": text, "role": role, "extra": extra or {}})
-
-    async def _stub_speak(text):
-        pass
-
-    import voice.proactive as proactive
-    monkeypatch_targets = [
-        (proactive, "ephemeral_speaker", lambda: _stub_speak),
-        (proactive, "user_speaking", lambda: False),
-    ]
-    originals = [(obj, name, getattr(obj, name)) for obj, name, _ in monkeypatch_targets]
-    for obj, name, fn in monkeypatch_targets:
-        setattr(obj, name, fn)
-    try:
-        f = LeadInFiller(delay_ms=1, brain=_Brain(), superseded=lambda: False, event_ch=None, emit=_emit)
-        asyncio.run(f._run())
-    finally:
-        for obj, name, orig in originals:
-            setattr(obj, name, orig)
-
-    filler_events = [e for e in events if e["kind"] == "filler"]
-    assert filler_events, "el relleno tiene que empujar su propio evento marcado, dedicado (kind='filler')"
-    assert filler_events[0]["role"] == "assistant", "es una frase que el agente DIJO — role=assistant"
-    assert filler_events[0]["text"], "tiene que llevar la frase real que se dijo"
-    # …y el rastro de depuración de siempre se mantiene intacto, sin duplicar el kind.
-    debug_events = [e for e in events if e["kind"] == "brain"]
-    assert debug_events, "el rastro de observabilidad/depuración original no puede desaparecer"
+    agent_body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    assert "tts_node_with_filler" in agent_body, \
+        "sin el override de tts_node, el relleno no tiene por dónde entrar a la locución de la respuesta"
 
 
 def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
@@ -286,27 +243,11 @@ def test_hay_una_sonda_de_si_el_bot_esta_hablando():
     assert proactive.bot_speaking() is False, "al cerrar la sesión la sonda se suelta"
 
 
-def test_el_relleno_consulta_la_sonda_y_muere_con_su_turno():
-    """Guarda de CÓDIGO, por el mismo motivo que la de arriba (montar el proveedor exige media sesión LiveKit).
-    Vigila las dos mitades del arreglo: (1) no arrancar si el operador habla, y (2) que la locución ya lanzada se
-    cancele con el turno — era fire-and-forget, así que cancelar el TEMPORIZADOR no paraba nada y el relleno de un
-    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa. V2-122: el mecanismo vive en
-    `lead_in_filler.py`; nucleo.py solo tiene que LLAMAR a `cancel_for_barge_in()` en el barge-in."""
+def test_el_relleno_de_audio_consulta_la_sonda_del_operador():
+    """La mitad que sobrevive de la guarda vieja: el relleno jamás habla ENCIMA del operador. La otra mitad
+    (morir con el turno cancelado) ya no necesita lifecycle: el relleno es audio DENTRO de la locución de la
+    respuesta (V2-529), así que el barge-in que corta el turno lo corta también, estructuralmente."""
     from pathlib import Path
 
-    filler_src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/lead_in_filler.py"
-    body = filler_src.read_text(encoding="utf-8")
-    i = body.index("async def _run")
-    block = body[i:]
-    assert "user_speaking()" in block, "el relleno volvería a hablar encima del operador"
-    assert "self._superseded()" in block, "un turno superado no puede soltar su relleno"
-    assert 'self._say_task = asyncio.create_task(_spk(' in block, \
-        "sin guardar el handle, la locución sobrevive a la cancelación del turno"
-    assert "def cancel_for_barge_in" in body and "_say_task.cancel()" in body, \
-        "el relleno de un turno cancelado por barge-in tiene que poder morir con él"
-
-    nucleo_src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
-    nucleo_body = nucleo_src.read_text(encoding="utf-8")
-    cancel = nucleo_body.index("✂️ turno cancelado (barge-in/overlap)")
-    assert "_filler.cancel_for_barge_in()" in nucleo_body[cancel - 400:cancel], \
-        "el turno manager tiene que avisar al relleno en el barge-in, no solo tenerlo definido"
+    body = (Path(__file__).resolve().parents[3] / "voice/engine/speech/filler_audio.py").read_text()
+    assert "user_speaking()" in body, "el relleno volvería a hablar encima del operador"

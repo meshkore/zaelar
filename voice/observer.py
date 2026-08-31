@@ -36,7 +36,7 @@ _CAT = {
     "brain": "flash", "transcript": "flash", "ambient": "flash", "search": "flash",
     "susurro": "flash", "rail": "flash", "trace": "flash",
     # `filler` (V2-122 addenda, 2026-08-18): the lead-in wait-filler ("Un segundo…"), explicitly PUSHED to the
-    # chat wall (see `lead_in_filler.py`) — same family as the turn that spoke it, but its own kind so the
+    # chat wall (see `voice/engine/speech/filler_audio.py`) — same family as the turn that spoke it, but its own kind so the
     # frontend can mark it distinctly (never confused with a real LLM-generated reply).
     "filler": "flash",
     # `cron` (V2-121, 2026-08-18): programar/cancelar un aviso. Familia `flash` porque la DECISIÓN es del turno,

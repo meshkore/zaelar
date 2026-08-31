@@ -1062,8 +1062,8 @@ class NucleoLLMStream(llm.LLMStream):
             # recaptura como turno del operador. Se actualiza en CADA salida de voz (respuesta, filler, degradado).
             brain._last_spoken = "".join(spoken)
             brain._last_spoke_at = time.time()
-            # `_last_reply` es el mismo texto pero SOLO pasa por aquí (nunca por el camino del filler, ver
-            # `_lead_in_filler` más abajo) — es el contexto que `evaluate_content()` necesita para juzgar si el
+            # `_last_reply` es el mismo texto pero SOLO pasa por aquí (nunca por el camino del filler, hoy
+            # `voice/engine/speech/filler_audio.py`) — es el contexto que `evaluate_content()` necesita para juzgar si el
             # siguiente turno va dirigido. Un filler ("Pues…", "Mmm…") no lleva ningún tema: si se dejaba pisar
             # `_last_spoken` con él, el juez recibía "Se estaba haciendo: Pues…" justo tras una pregunta real y
             # clasificaba el siguiente turno del operador como ambiente (bug real, sesión 2026-08-17: 4 preguntas
@@ -2158,17 +2158,6 @@ class NucleoLLMStream(llm.LLMStream):
             llm_metrics.update(_router.tools_report(_turn_tools))
         except Exception:
             llm_metrics["n_tools_offered"] = len(_turn_tools)
-        # LEAD-IN FILLER (naturalidad, 2026-07-19; extraído a su propio módulo V2-114, 2026-08-17): el TTFT del
-        # modelo (~1.1s medido) deja un silencio que no parece charla. Si a los ~ZAELAR_FILLER_MS ms NO ha
-        # empezado la respuesta REAL, `LeadInFiller` suelta UN sonido de pensar neutro y variado ("a ver…",
-        # "mmm…") en paralelo — rellena SOLO los turnos que tardan de verdad; las respuestas rápidas salen
-        # limpias. Voz-only (el probe no monta esto). Kill-switch ZAELAR_FILLER_MS=0. Ver
-        # `voice/engine/llm/providers/lead_in_filler.py` para el mecanismo completo.
-        try:
-            _filler_ms = int(os.getenv("ZAELAR_FILLER_MS", "600"))
-        except Exception:
-            _filler_ms = 600
-
         # NO en el kickoff: el saludo lo inicia zaelar (nadie espera) → un "Pues…" antes de saludar suena raro.
         # Último corte ANTES de pagar el modelo: si la frase ya creció, este fragmento no tiene nada que decir.
         if self._superseded():
@@ -2177,12 +2166,19 @@ class NucleoLLMStream(llm.LLMStream):
                  extra={"cat": "flash", "phase": self._phase, "spent_model": False})
             return
 
-        from voice.engine.llm.providers.lead_in_filler import LeadInFiller
-        _filler = (LeadInFiller(delay_ms=_filler_ms, brain=brain, superseded=self._superseded,
-                                 event_ch=self._event_ch, emit=emit)
-                   if (_filler_ms > 0 and not first_turn) else None)
-        if _filler is not None:
-            _filler.start()
+        # LEAD-IN FILLER (V2-529, 2026-08-31 — replaces the say-path `LeadInFiller`, V2-093/V2-114/V2-122):
+        # the filler is now pre-synthesized AUDIO yielded as the first frames of the reply's OWN speech, by
+        # the tts_node wrapper in `voice/engine/pipeline/agent.py`. Here we only ARM it: the wrapper fires
+        # only when the model's first token is later than ZAELAR_FILLER_MS (default 1100 ms — a reply within
+        # ~a second gets no filler, operator's rule), and a turn that never armed (kickoff, probe, a `say`)
+        # can never sound one. The old timer/cancel lifecycle is gone: a barge-in interrupts the reply speech
+        # and the filler dies with it, because it IS part of that speech.
+        try:
+            from voice.engine.speech import filler_audio as _filler_audio
+            if _filler_audio.enabled() and not first_turn:
+                _filler_audio.arm(brain)
+        except Exception:
+            pass
         self._phase = "generando la respuesta"
         try:
             # PLAZO DE SILENCIO — el FlashBrain NUNCA se queda parado (2026-08-10, regla dura del operador).
@@ -2248,8 +2244,6 @@ class NucleoLLMStream(llm.LLMStream):
                     if _kind == "end":
                         break
                     delta = _val
-                    if delta and _filler is not None:
-                        _filler.mark_real_started()         # primer token REAL → corta el timer del filler
                     buf += delta
                     if delta:
                         _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
@@ -2268,10 +2262,8 @@ class NucleoLLMStream(llm.LLMStream):
             # trozos acumulativos del STT no duplican la frase.
             _dialog.push_user(brain._window, text)
             del brain._window[:-_WINDOW_MAX]
-            # El relleno de ESTE turno se va con él. Un turno cancelado por barge-in es el operador tomando la
-            # palabra, y seguir soltando su «a ver…» encima es precisamente hablarle encima.
-            if _filler is not None:
-                _filler.cancel_for_barge_in()
+            # El relleno de ESTE turno se va con él: es audio DENTRO de la locución de la respuesta (V2-529),
+            # así que el barge-in que cancela el turno lo corta también — sin lifecycle propio que cancelar.
             self._death_logged = True   # ya se relata aquí, con métricas; la envoltura de `_run` no duplica
             emit("brain", "✂️ turno cancelado (barge-in/overlap)", role="system",
                  extra={"cat": "flash", "partial_chars": len("".join(spoken)),
@@ -2281,11 +2273,6 @@ class NucleoLLMStream(llm.LLMStream):
             errored = True
             err_text = str(e)
             logger.warning(f"nucleo fast brain error (not spoken raw): {e}")
-        finally:
-            # el stream terminó (ok/tool-only/error): corta el timer del filler para que no suelte uno tardío
-            if _filler is not None:
-                _filler.stop()
-
         if errored:
             # DEGRADED: sin Hermes al que caer — frase de reserva segura (nunca el error crudo, nunca mudo).
             # CLASIFICA el error (V2-043): SIN SALDO/cuota (credit) · credencial (auth) · caída (outage) — así el

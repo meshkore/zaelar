@@ -6631,6 +6631,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
+- **The lead-in filler sounds BEFORE the reply — audio inside the reply's own speech (V2-529, 2026-08-31)**:
+  operator's report, verbatim: «la voz lo hace al revés: primero reproduce la respuesta y después el nexo …
+  "Vale, empiezo con la tarea" y luego "Espera, espera"». Both defects measured. (1) The reversal was
+  STRUCTURAL: the filler spoke via `session.say()`, and when it fires the reply is already the scheduler's
+  CURRENT speech — LiveKit strictly serializes, so the say is only authorized when the reply FINISHES playing.
+  Proof in the live timeline (session e081f343): the filler's synthesis fired at the exact millisecond the
+  reply's playout ended. Via `say`, the filler could NEVER sound first — v1 (ChatChunk into the stream) died
+  on the tokenizer's retention, v2 (`say`) fixed that and inherited the serialization; each fix correct
+  against the previous failure, blind to the next. (2) It fired on nearly every turn: timer at 600 ms vs
+  measured TTFT of 1.9-2.8 s.
+  - **v3** (`voice/engine/speech/filler_audio.py` + a `ZaelarAgent.tts_node` override): the filler is
+    PRE-SYNTHESIZED AUDIO FRAMES yielded as the first audio of the reply's OWN speech. Inside the current
+    speech there is no scheduler to fight: it plays during the model's silence, always before the reply, and
+    a barge-in kills it WITH the turn — no lifecycle left to cancel. The wrapper watches the reply's TEXT
+    stream and only fires when no text arrived within `ZAELAR_FILLER_MS` (default **600 → 1100 ms** — a reply
+    within ~a second gets no filler, the operator's rule; 0 stays the kill-switch).
+  - **ARM/CONSUME**: only a brain turn arms one (never kickoff/probe); `say` speeches (greeting, proactive)
+    never arm and their text is instant anyway. Consumed AT FIRE TIME (the tts_node can start before the
+    brain arms), TTL 20 s, once. Old guards travel: never over the operator's voice, varied phrase,
+    anti-echo updated (never the directed-judge's reply-context field — source guard). Frames come from the
+    session's own TTS (same voice/sample rate), cached per (provider, voice, lang, phrase); `prime_soon()`
+    pre-synthesizes the pool at session start; a cold synthesis slower than 2.5 s skips the turn and fills
+    the cache for the next. The V2-122-addenda visibility contract is intact (marked `filler` chat event +
+    `brain` trail, synchronous at the decision).
+  - `lead_in_filler.py` DELETED; nucleo only ARMS now. Node **3.19**, 10 cases, four disarms verified red —
+    one came back green at first because the fake impl yielded frames before the timer and masked the
+    mutation: the fast-reply test must model synthesis latency (first FRAME lags first TEXT) or the
+    first-text gate is untestable. **Live listen pending** — the timeline signature: `filler` (path `audio`)
+    → `speaking` → reply, and never a filler event after the reply's playout.
+
 - **The proactive delivery QUEUE — one message at a time (V2-527, 2026-08-31)**: the operator's spec, dictated
   after session c480413b: «tiene que tener un buffer … cuando ya se lo ha explicado le manda otro; si dos
   tareas terminan simultáneamente, primero se informa de una y después de la segunda». What existed: nothing

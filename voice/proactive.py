@@ -104,8 +104,8 @@ def speaker():
     o el "sigo aquí" del acumulador (V2-096). Cada llamada AÑADE un item a la conversación de LiveKit
     (`session.say(..., add_to_chat_ctx=True)`, el default) — correcto aquí: esto SÍ es algo que decir de verdad.
 
-    Para el LEAD-IN neutro del FlashBrain (V2-093, «Mmm…», «A ver…») usa `ephemeral_speaker()`, no este —
-    ver su docstring para el porqué exacto (V2-114, 2026-08-17)."""
+    El LEAD-IN neutro del FlashBrain ya NO pasa por aquí: desde V2-529 (2026-08-31) es audio dentro de la
+    locución de la respuesta (`voice/engine/speech/filler_audio.py`)."""
     return _speaker
 
 
@@ -117,8 +117,12 @@ def ephemeral_speaker():
     apareciendo DESPUÉS de una respuesta que ya había resuelto («¡Hola! ¿Cómo va todo?»), porque el orden de
     `conversation_item_added` no es el orden en que se decidió cada cosa. `None` si no hay sesión viva.
 
+    Desde V2-529 (2026-08-31) su ÚNICO consumidor histórico —el lead-in filler— dejó de usar `say` del todo
+    (el planificador de LiveKit lo autorizaba DETRÁS de la respuesta en curso, o sea siempre tarde); la
+    costura se conserva como seam registrado para locuciones efímeras futuras.
+
     Esto NO significa que el relleno sea invisible — SÍ pertenece al muro de chat y a la observabilidad (es una
-    frase real que el agente dijo), solo que su visibilidad la empuja el propio `lead_in_filler.py` de forma
+    frase real que el agente dijo), solo que su visibilidad la empuja el propio camino del filler (hoy `voice/engine/speech/filler_audio.py`, V2-529) de forma
     EXPLÍCITA (`kind="filler"`, síncrono, en el momento exacto en que se decide — SIEMPRE antes de que exista
     texto de respuesta real), no delegada en el mecanismo de LiveKit que causó el desorden. `speaker()` sigue
     siendo el correcto para cualquier locución fuera de banda que SÍ pueda depender del orden natural de
