@@ -9,8 +9,8 @@
 #   [[show:ID]]                       — show a widget (loads its own data)
 #   [[close:ID]] / [[close]]          — hide a widget / hide all widgets
 #   [[fullscreen:ID]]                 — toggle TRUE OS-level fullscreen for a widget's card (native Fullscreen
-#       API; Escape exits it natively). Bug real 2026-07-23: no había NINGÚN camino para "ponlo a pantalla
-#       completa" — el modelo confabulaba éxito sin tocar nada. Espejo self-closing de show/close (same TAG_RE).
+#       API; Escape exits it natively). Real bug 2026-07-23: there was NO path for "put it in fullscreen" — the
+#       model fabricated success without touching anything. Self-closing counterpart of show/close (same TAG_RE).
 #   [[push:ID]]{json}[[/push]]        — hand data from the brain to a widget
 #   [[create:ID]]<spec>[[/create]]    — build a new widget on demand
 #   [[modify:ID]]<change>[[/modify]]  — edit an existing widget live
@@ -48,11 +48,11 @@ import json
 import re
 
 TAG_RE    = re.compile(r"\[\[\s*(show|close|delete|fullscreen)\s*(?::\s*([a-zA-Z0-9_-]+))?\s*\]\]", re.I)
-# [[move:ID:where]] — reposiciona un widget en el canvas (pura UI, como show/close). where ∈ left|right|center|
-# top|bottom (+ combos tipo top-left) o sus sinónimos en castellano (izquierda/derecha/centro/arriba/abajo).
+# [[move:ID:where]] — reposition a widget on the canvas (pure UI, like show/close). where ∈ left|right|center|
+# top|bottom (+ combinations such as top-left) or their Spanish synonyms (izquierda/derecha/centro/arriba/abajo).
 MOVE_RE   = re.compile(r"\[\[\s*move\s*:\s*([a-zA-Z0-9_-]+)\s*:\s*([a-zA-Záéíóúñ -]+?)\s*\]\]", re.I)
-# [[resize:ID]]{"width":200,"height":340}[[/resize]] — redimensiona un widget (ancho/alto en píxeles). El body
-# es JSON con width y/o height opcionales. HERMES-ONLY (no safe). Se emite en fragmento aparte (nunca se habla).
+# [[resize:ID]]{"width":200,"height":340}[[/resize]] — resize a widget (width/height in pixels). The body
+# is JSON with optional width and/or height. HERMES-ONLY (not safe). Emitted in a separate fragment (never spoken).
 RESIZE_RE = re.compile(r"\[\[\s*resize\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](.*?)\[\[\s*/?\s*resize\s*\]\]", re.S | re.I)
 PUSH_RE   = re.compile(r"\[\[\s*push\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](.*?)\[\[\s*/\s*push\s*\]\]", re.S | re.I)
 CREATE_RE = re.compile(r"\[\[\s*create\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](.*?)\[\[\s*/\s*create\s*\]\]", re.S | re.I)
@@ -71,8 +71,8 @@ CRON_CANCEL_RE = re.compile(r"\[\[\s*cron\.cancel\s*(?::\s*([a-zA-Z0-9_-]+))?\s*
 DEEP_RE = re.compile(r"\[\[\s*deep\s*\]\](.*?)\[\[\s*/\s*deep\s*\]\]", re.S | re.I)
 # Safety net: a fast/non-reasoning brain can answer a data question with raw JSON(-ish) prose instead of wrapping
 # it in a proper tag (seen live: BRAIN=duo describing the widget catalog as spoken JSON — INI-008 follow-up
-# 2026-07-05; a botched tool-call attempt writing `{q: "..."}` with an UNQUOTED key — INI-013 2026-07-08 madrugada,
-# oleada A en profundidad). Never speak that. Matches the OPENING of an object with a key (quoted `{"title":` or
+# 2026-07-05; a botched tool-call attempt writing `{q: "..."}` with an UNQUOTED key — INI-013 2026-07-08 early morning,
+# deep-dive wave A). Never speak that. Matches the OPENING of an object with a key (quoted `{"title":` or
 # a bare identifier `{q:`) — a pattern that's essentially never legitimate prose in any of our target languages.
 JSON_LEAK_RE = re.compile(r'\{\s*(?:"[^"{}]{1,60}"|[A-Za-z_][A-Za-z0-9_]{0,30})\s*:')
 # Same idea for our OWN bracket-tag syntax: a model can invent a tag name that doesn't exist in the vocabulary
@@ -178,7 +178,7 @@ def strip_tags(buf: str, emit_fn, final: bool):
             break
         emit_fn("cluster.send", {"name": m.group(1).lower(), "data": parse_json(m.group(2)), "raw": (m.group(2) or "").strip()})
         buf = buf[:m.start()] + buf[m.end():]
-    # cluster.pact (V2-072): reglas NEGOCIADAS de esta conversación agente-agente ({to?,cadence_s?,medium?,scope?,note?}).
+    # cluster.pact (V2-072): NEGOTIATED rules for this agent-to-agent conversation ({to?,cadence_s?,medium?,scope?,note?}).
     while True:
         m = CX_PACT_RE.search(buf)
         if not m:

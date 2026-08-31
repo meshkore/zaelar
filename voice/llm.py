@@ -1,8 +1,8 @@
 #
-# Cliente LLM compartido (OpenAI-compatible vía router AI/ML API).
+# Shared LLM client (OpenAI-compatible via the AI/ML API router).
 #
-# Pieza pequeña y autocontenida que usan las ramas async del cerebro (evaluator_rt, planner).
-# NO es el hot-path de voz (eso va por Pipecat). Aquí solo peticiones de razonamiento/evaluación.
+# Small, self-contained component used by the brain's async branches (evaluator_rt, planner).
+# It is NOT the voice hot path (that goes through Pipecat). Only reasoning/evaluation requests go here.
 #
 import json
 import os
@@ -10,10 +10,10 @@ import re
 import urllib.request
 
 API_URL = os.environ.get("LLM_API_URL", "https://api.aimlapi.com/v1/chat/completions")
-UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"  # Cloudflare 1010 bloquea el UA de urllib
+UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"  # Cloudflare 1010 blocks urllib's UA
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)  # repo root (zaelar/)
-NO_TEMP = ("opus", "claude", "sonnet")  # rechazan 'temperature'
+NO_TEMP = ("opus", "claude", "sonnet")  # reject 'temperature'
 
 
 def load_key() -> str | None:

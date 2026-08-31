@@ -1,7 +1,7 @@
 #
 # LLM HEALTH / CREDIT GUARD — a small, brain-agnostic custom piece whose ONLY job is to catch a language-model
 # PROVIDER failure (no credit/quota, bad key, outage) and turn it into a CLEAN signal, so zaelar NEVER reads a raw
-# "HTTP 429 RESOURCE_EXHAUSTED…" out loud. This is intentionally OUTSIDE the brain: a saldo/credit problem is
+# "HTTP 429 RESOURCE_EXHAUSTED…" out loud. This is intentionally OUTSIDE the brain: a balance/credit problem is
 # infrastructure, not thinking, so it can be handled with zero LLM.
 #
 # Reactive by necessity: AIMLAPI exposes no balance/usage endpoint (all 404), so we can't poll a number ahead of
@@ -10,7 +10,7 @@
 #
 # UNAMBIGUOUS provider-error signatures ONLY. NOT plain words like "quota"/"credit"/"billing"/"rate limit" —
 # zaelar debates AI models, pricing and quotas with peers, so those words appear in NORMAL replies and must never
-# trigger a false "sin saldo". Hermes surfaces a real provider failure with one of these exact error tokens.
+# trigger a false "no balance". Hermes surfaces a real provider failure with one of these exact error tokens.
 _ERR_MARKERS = (
     "api call failed", "error code:", "http 429", "http 401", "http 403", "http 400",
     "http 500", "http 502", "http 503", "http 504", "resource_exhausted", "insufficient_quota",
@@ -27,7 +27,7 @@ def looks_like_error(text: str) -> bool:
 
 
 def classify(text: str) -> str:
-    """'credit' (no saldo/quota) · 'auth' (bad key) · 'outage' (everything else). Only called on real errors."""
+    """'credit' (no balance/quota) · 'auth' (bad key) · 'outage' (everything else). Only called on real errors."""
     t = (text or "").lower()
     if any(x in t for x in ("429", "resource_exhausted", "insufficient_quota", "exceeded your current quota",
                             "too many requests", "rate limit exceeded")):

@@ -1,23 +1,23 @@
-"""voice/trace.py — TRAZABILIDAD texto → acción → rail → sesión → eventos (V2-044).
+"""voice/trace.py — TRACEABILITY text → action → rail → session → events (V2-044).
 
-Cada ESTÍMULO que entra al sistema (una frase del operador por voz/chat, un turno del probe, un disparo de cron,
-un aviso proactivo) nace con un **trace id**; todo lo que derive de él —tool calls, tags de canvas, runs de rail,
-sesiones de worker, pasos del navegador, escrituras de memoria, notify— queda sellado con ese id en cada evento
-del observador (`voice/observer.py::emit` lo adjunta solo). Con eso la observabilidad puede responder la pregunta
-de calidad del sistema: ¿esta frase cayó en el rail correcto y desembocó en el set de eventos que corresponde?
+Every STIMULUS entering the system (an operator phrase via voice/chat, a probe turn, a cron trigger,
+a proactive notice) starts with a **trace id**; everything derived from it—tool calls, canvas tags, rail runs,
+worker sessions, browser steps, memory writes, notify—is sealed with that id in every observer event
+(`voice/observer.py::emit` attaches it automatically). This lets observability answer the system-quality
+question: did this phrase enter the correct rail and result in the corresponding set of events?
 
-Diseño (iniciativa `.meshkore/roadmap/initiatives/V2-044-trazabilidad-texto-accion-rail.md`):
+Design (initiative `.meshkore/roadmap/initiatives/V2-044-trazabilidad-texto-accion-rail.md`):
 
-- **ContextVar** `(trace_id, span)`: viaja SOLO por `asyncio.create_task` y `asyncio.to_thread` (ambos copian el
-  contexto) → el grueso del turno se traza GRATIS. Los cruces de loop/hilo que NO copian contexto
-  (`run_coroutine_threadsafe`, `call_soon_threadsafe`, hilos propios como el writer de memoria, el mailbox de un
-  owner backed) se cosen a mano: capturan `current()` al encolar y `adopt()` al ejecutar.
-- **`span`** = ACTOR de nivel 2 del árbol de la vista Trazas (`worker:<id>`, `web:<task>`, `rail:<kind>`,
-  `gen:<widget>`, `memoria`). La raíz (nivel 1) es la frase; los eventos (nivel 3) cuelgan de su span.
-- **Coste**: leer un ctxvar son nanosegundos; el único evento nuevo por estímulo es la raíz (`kind="trace"`).
-  El hot path de voz (V2-011) queda intacto.
+- **ContextVar** `(trace_id, span)`: travels ONLY through `asyncio.create_task` and `asyncio.to_thread` (both copy the
+  context) → most of the turn is traced for FREE. Loop/thread crossings that do NOT copy context
+  (`run_coroutine_threadsafe`, `call_soon_threadsafe`, dedicated threads such as the memory writer, an owner-backed
+  mailbox) are stitched manually: capture `current()` when enqueuing and `adopt()` when executing.
+- **`span`** = level-2 ACTOR in the Traces view tree (`worker:<id>`, `web:<task>`, `rail:<kind>`,
+  `gen:<widget>`, `memoria`). The root (level 1) is the phrase; events (level 3) hang from its span.
+- **Cost**: reading a ctxvar takes nanoseconds; the only new event per stimulus is the root (`kind="trace"`).
+  The voice hot path (V2-011) remains intact.
 
-Sin dependencias (solo stdlib) — lo importa `voice/observer.py`, que a su vez lo importa todo el mundo.
+No dependencies (stdlib only) — imported by `voice/observer.py`, which in turn is imported by everything.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import time
 import uuid
 from contextlib import contextmanager
 
-# (trace_id, span) del contexto de ejecución actual. "" = sin traza (eventos de arranque, ruido de fondo).
+# (trace_id, span) of the current execution context. "" = no trace (startup events, background noise).
 _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_trace", default=("", ""))
 
 # The counter is routed through the process-identity owner (F5, 2026-08-23) but keeps THIS module's contract
@@ -35,8 +35,8 @@ _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_t
 # T1 never collide. No boot stamp composed on purpose — the suffix already carries the uniqueness.
 from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_seq
 
-# ── `active()` — el trace vigente para quien NO PUEDE heredarlo del ContextVar (2026-08-16) ──────────────────────
-# Auditoría de fuente (operador: "arréglalo en el flash brain... donde se generan los eventos"): varios handlers
+# ── `active()` — the current trace for callers that CANNOT inherit it from the ContextVar (2026-08-16) ───────────
+# Source audit (operator: "fix it in the flash brain... where events are generated"): several handlers
 # de `voice/engine/pipeline/agent.py` (el estado del pipeline, el VAD, las métricas de TTS/STT, el transcript del
 # propio zaelar) corren en tareas de LiveKit que son HERMANAS —nunca DESCENDIENTES— de la tarea donde
 # `NucleoLLMStream._run_inner` fija el trace del turno (confirmado contra el código fuente de livekit-agents
@@ -46,8 +46,8 @@ from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_
 # funciona `contextvars` por diseño. La sesión real que lo probó: de 17 transcripciones, 13 llegaban con
 # `corr_id: null`; VAD, nunca ninguna.
 #
-# `active()` es la respuesta: un puntero EXPLÍCITO (no ContextVar), que `begin()`/`adopt()` mantienen al día, y
-# que esos handlers leen a propósito en vez de fiarse del ContextVar ambiente. Caduca solo (`max_age_s`, por
+# `active()` is the answer: an EXPLICIT pointer (not a ContextVar), kept current by `begin()`/`adopt()`, and
+# deliberately read by those handlers instead of trusting the ambient ContextVar. It expires (`max_age_s`, by
 # defecto 3s): un evento que llega mucho después de que el último trace se fijara no se le cuelga a un turno que
 # probablemente ya cerró —eso reabriría en el master un flujo "cerrado" con actividad fantasma, justo el bug que
 # `_maybe_close_flow`/`drain_pending_flow_closes` (mismo día) arreglaron por el otro lado— y cae al trace GENERAL
@@ -55,7 +55,7 @@ from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_
 # es literalmente lo que pidió el operador para lo que no tiene tarea propia, no un cajón sin fondo — sigue
 # acotado en el tiempo y sigue siendo un flujo normal que algún día cierra.
 #
-# Deliberadamente NO se usa para el transcript FINAL del operador ni para sus fragmentos: ese texto es la causa
+# Deliberately NOT used for the operator's FINAL transcript or fragments: that text causes
 # de que el turno empiece, así que en el instante en que se emite el trace del turno TODAVÍA no existe —
 # adjuntarle `active()` ahí le pegaría el trace del turno ANTERIOR, que es peor que no llevar ninguno. Ese caso
 # se resuelve en el master, en lectura (`cloud/backoffice/src/flowAttribution.js::attributeOrphans`), que sí
@@ -66,8 +66,8 @@ _general: str = ""   # el trace de "charla general" (el kickoff) — suelo de ac
 
 
 def active(max_age_s: float = 3.0) -> str:
-    """El trace vigente para un lector que no puede heredarlo del ContextVar. Nunca inventa uno si la sesión
-    todavía no ha arrancado (kickoff no ha corrido) — devuelve "", igual que `current()` sin traza."""
+    """The current trace for a reader that cannot inherit it from the ContextVar. Never invents one if the session
+    has not started yet (the kickoff has not run) — returns "", like `current()` without a trace."""
     if _active and (time.monotonic() - _active_at) <= max_age_s:
         return _active
     return _general
@@ -151,7 +151,7 @@ def merge(a: str, b: str) -> str:
 
 
 def current() -> str:
-    """Trace id del contexto actual ("" si no hay). Lo lee `observer.emit` en cada evento — debe ser barato."""
+    """Trace id of the current context ("" if none). `observer.emit` reads it on every event — it must be cheap."""
     return _ctx.get()[0]
 
 
@@ -160,8 +160,8 @@ def current_span() -> str:
 
 
 def adopt(tid: str, span: str = "") -> None:
-    """Re-unirse a un trace desde OTRO contexto (loop del server, hilo del writer, handler HTTP de un CLI puente).
-    `span` etiqueta el ACTOR ('worker:5', 'web:t2', 'memoria'…) para el nivel 2 del árbol. Best-effort."""
+    """Rejoin a trace from ANOTHER context (server loop, writer thread, HTTP handler of a bridge CLI).
+    `span` labels the ACTOR ('worker:5', 'web:t2', 'memoria'…) for level 2 of the tree. Best-effort."""
     tid = (tid or "").strip()
     _ctx.set((tid, (span or "").strip()))
     if tid:
@@ -171,8 +171,8 @@ def adopt(tid: str, span: str = "") -> None:
 
 @contextmanager
 def scope(tid: str, span: str = ""):
-    """`with trace.scope(tid, 'memoria'): …` — adopta el trace SOLO durante el bloque (hilos que procesan items
-    de distintas trazas en bucle, como el writer de la cola de memoria)."""
+    """`with trace.scope(tid, 'memoria'): …` — adopts the trace ONLY during the block (threads that process items
+    from different traces in a loop, such as the memory-queue writer)."""
     tid = (tid or "").strip()
     if tid:
         global _active, _active_at

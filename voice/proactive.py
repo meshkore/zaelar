@@ -43,19 +43,19 @@ def register_busy_probe(fn) -> None:
 
 
 def register_user_probe(fn) -> None:
-    """La sesión viva registra si el OPERADOR está hablando AHORA MISMO.
+    """The live session registers whether the OPERATOR is speaking RIGHT NOW.
 
-    Distinto del busy-probe a propósito: aquél es «hay algo en vuelo» (bot O usuario) y sirve para que una entrega
-    proactiva espere hueco. Éste separa la mitad que NO admite excepción — al operador **no se le habla encima
-    nunca**, ni siquiera con un relleno de espera, que es justo el caso que el busy-probe no cubría porque el
-    relleno se salta la espera de hueco por diseño (`speaker()`)."""
+    Deliberately distinct from the busy probe: that one means “something is in flight” (bot OR user) and lets a
+    proactive delivery wait for an opening. This one isolates the half that admits NO exception — **never talk over
+    the operator**, not even with a waiting filler, which is precisely the case the busy probe did not cover because
+    the filler deliberately skips waiting for an opening (`speaker()`)."""
     global _user_probe
     _user_probe = fn
 
 
 def user_speaking() -> bool:
-    """True si el operador está hablando ahora. Sin probe (sesión sin instrumentar, tests) → False: asumir que
-    habla y callarse dejaría mudo al agente en cualquier entorno sin instrumentar, que es peor."""
+    """True if the operator is speaking now. Without a probe (uninstrumented session, tests) → False: assuming they
+    are speaking and staying silent would leave the agent mute in any uninstrumented environment, which is worse."""
     try:
         return bool(_user_probe()) if _user_probe is not None else False
     except Exception:
@@ -63,16 +63,16 @@ def user_speaking() -> bool:
 
 
 def register_bot_probe(fn) -> None:
-    """La sesión viva registra si el BOT está hablando (TTS en curso) AHORA MISMO — distinto del busy-probe (bot
-    O usuario) porque `nucleo.py::_maybe_close_flow` (2026-08-16) necesita saber específicamente si SU PROPIA
-    locución sigue sonando antes de cerrar el flujo, no si hay cualquier cosa en vuelo."""
+    """The live session registers whether the BOT is speaking (TTS in progress) RIGHT NOW — distinct from the busy
+    probe (bot OR user) because `nucleo.py::_maybe_close_flow` (2026-08-16) specifically needs to know whether ITS
+    OWN utterance is still playing before closing the flow, not whether anything is in flight."""
     global _bot_probe
     _bot_probe = fn
 
 
 def bot_speaking() -> bool:
-    """True si el bot está hablando ahora. Sin probe (sesión sin instrumentar, tests) → False: cerrar el flujo de
-    inmediato es el comportamiento de siempre en un entorno sin pipeline de voz real."""
+    """True if the bot is speaking now. Without a probe (uninstrumented session, tests) → False: closing the flow
+    immediately is the long-standing behavior in an environment without a real voice pipeline."""
     try:
         return bool(_bot_probe()) if _bot_probe is not None else False
     except Exception:
@@ -97,36 +97,36 @@ def has_voice() -> bool:
 
 
 def speaker():
-    """El hablador FUERA DE BANDA de la sesión viva (`session.say`), o None si no hay sesión.
+    """The live session's OUT-OF-BAND speaker (`session.say`), or None if there is no session.
 
-    Existe para contenido con SENTIDO propio que debe sonar YA y no puede esperar al agregador de frases del
-    stream del modelo — la pregunta aclaratoria del juez de completitud (V2-102), el aviso de fragmento perdido
-    o el "sigo aquí" del acumulador (V2-096). Cada llamada AÑADE un item a la conversación de LiveKit
-    (`session.say(..., add_to_chat_ctx=True)`, el default) — correcto aquí: esto SÍ es algo que decir de verdad.
+    It exists for content with its own MEANING that must be spoken NOW and cannot wait for the model stream's phrase
+    aggregator — the completeness judge's clarification question (V2-102), the missing-fragment notice, or the
+    accumulator's "sigo aquí" (V2-096). Each call ADDS an item to the LiveKit conversation
+    (`session.say(..., add_to_chat_ctx=True)`, the default) — correct here: this IS something genuinely to say.
 
-    El LEAD-IN neutro del FlashBrain ya NO pasa por aquí: desde V2-529 (2026-08-31) es audio dentro de la
-    locución de la respuesta (`voice/engine/speech/filler_audio.py`)."""
+    FlashBrain's neutral LEAD-IN no longer passes through here: since V2-529 (2026-08-31), it is audio within the
+    response utterance (`voice/engine/speech/filler_audio.py`)."""
     return _speaker
 
 
 def ephemeral_speaker():
-    """La mitad EFÍMERA del mismo canal fuera de banda: suena igual (`session.say`) pero con
-    `add_to_chat_ctx=False`, así que NUNCA entra en el historial de conversación de LiveKit ni dispara
-    `conversation_item_added` — el orden en que LiveKit decide disparar ese evento es lo que causó el bug
-    original (V2-093, 2026-08-17): un filler dicho por `speaker()` normal («Déjame que mire…») acababa
-    apareciendo DESPUÉS de una respuesta que ya había resuelto («¡Hola! ¿Cómo va todo?»), porque el orden de
-    `conversation_item_added` no es el orden en que se decidió cada cosa. `None` si no hay sesión viva.
+    """The EPHEMERAL half of the same out-of-band channel: it sounds the same (`session.say`) but with
+    `add_to_chat_ctx=False`, so it NEVER enters LiveKit's conversation history or triggers
+    `conversation_item_added` — the order in which LiveKit chose to trigger that event caused the original bug
+    (V2-093, 2026-08-17): a filler spoken by normal `speaker()` («Déjame que mire…») ended up appearing AFTER an
+    already-resolved response («¡Hola! ¿Cómo va todo?»), because the order of `conversation_item_added` is not the
+    order in which each thing was decided. `None` if there is no live session.
 
-    Desde V2-529 (2026-08-31) su ÚNICO consumidor histórico —el lead-in filler— dejó de usar `say` del todo
-    (el planificador de LiveKit lo autorizaba DETRÁS de la respuesta en curso, o sea siempre tarde); la
-    costura se conserva como seam registrado para locuciones efímeras futuras.
+    Since V2-529 (2026-08-31), its ONLY historical consumer —the lead-in filler— stopped using `say` altogether
+    (LiveKit's scheduler authorized it BEHIND the response in progress, meaning always too late); the seam is
+    retained as a registered seam for future ephemeral utterances.
 
-    Esto NO significa que el relleno sea invisible — SÍ pertenece al muro de chat y a la observabilidad (es una
-    frase real que el agente dijo), solo que su visibilidad la empuja el propio camino del filler (hoy `voice/engine/speech/filler_audio.py`, V2-529) de forma
-    EXPLÍCITA (`kind="filler"`, síncrono, en el momento exacto en que se decide — SIEMPRE antes de que exista
-    texto de respuesta real), no delegada en el mecanismo de LiveKit que causó el desorden. `speaker()` sigue
-    siendo el correcto para cualquier locución fuera de banda que SÍ pueda depender del orden natural de
-    LiveKit porque no compite con una respuesta en curso (V2-102, V2-096, `notify()`)."""
+    This does NOT mean the filler is invisible — it DOES belong in the chat wall and observability (it is a real
+    phrase the agent said); its visibility is simply pushed by the filler path itself (currently
+    `voice/engine/speech/filler_audio.py`, V2-529) EXPLICITLY (`kind="filler"`, synchronously, at the exact moment
+    it is decided — ALWAYS before any real response text exists), rather than delegated to the LiveKit mechanism
+    that caused the disorder. `speaker()` remains correct for any out-of-band utterance that CAN depend on LiveKit's
+    natural ordering because it does not compete with a response in progress (V2-102, V2-096, `notify()`)."""
     return _ephemeral_speaker
 
 
@@ -165,10 +165,10 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     spoken = speech.sanitize(text)
     if not spoken:
         return
-    # PREEMPCIÓN (INI-008 F2) + COLA (2026-08-31): la voz del OPERADOR manda, y los mensajes proactivos salen
-    # DE UNO EN UNO y en orden de llegada — ver la cola de tickets de abajo. Cada mensaje espera su turno, y ya
-    # con el turno espera un hueco de silencio; si el total no da tregua, el mensaje NO se pierde: entra como
-    # nota [SISTEMA] al siguiente turno (el cerebro lo dirá él mismo, en contexto). La UI ya lo mostró arriba.
+    # PREEMPTION (INI-008 F2) + QUEUE (2026-08-31): the OPERATOR's voice takes precedence, and proactive messages
+    # go ONE AT A TIME and in arrival order — see the ticket queue below. Each message waits for its turn, and then
+    # waits for a silent opening; if the total allows no respite, the message is NOT lost: it becomes a [SISTEMA]
+    # note for the next turn (the brain will say it itself, in context). The UI already showed it above.
     def _degrade(reason: str) -> None:
         try:
             from voice import brain_notes
@@ -204,8 +204,8 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             _last_spoke[0] = time.monotonic()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"proactive notify (voice) failed: {e}")
-        # VISIBLE, not just logged (operator, 2026-08-31: «si necesitas más observabilidad en la gestión de la
-        # voz, añádela»). A delivery that died mid-say was a WARNING line in server.log and nothing anywhere the
+        # VISIBLE, not just logged (operator, 2026-08-31: “if you need more observability into voice handling, add
+        # it”). A delivery that died mid-say was a WARNING line in server.log and nothing anywhere the
         # operator looks — today's cut («A coroutine object is required») sat there for an hour while the session
         # timeline showed a normal-looking say. An error event lands in the session file and the master.
         try:
@@ -218,20 +218,20 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
 
 
-# Cuánto esperamos un hueco de silencio antes de degradar a nota [SISTEMA]; y el respiro tras la voz del bot.
+# How long to wait for a silent opening before degrading to a [SISTEMA] note; and the pause after the bot's voice.
 PROACTIVE_MAX_WAIT = float(os.getenv("PROACTIVE_MAX_WAIT", "45"))
 _BOT_GRACE_SECS = 1.2
 
 # ── ONE MESSAGE AT A TIME: the delivery queue (operator's spec, 2026-08-31) ─────────────────────────────────
-# «El propio FlashBrain es quien se encarga de comunicarse con el usuario … tiene que tener un buffer: cuando ya
-# se lo ha explicado, le manda otro. Si hay dos tareas a la vez y terminan simultáneamente, primero se informará
-# de una y después de la segunda.»
+# “FlashBrain itself is responsible for communicating with the user … it needs a buffer: once it has explained one
+# thing, it sends another. If two tasks run at the same time and finish simultaneously, it will report one first and
+# then the second.”
 #
 # Until now NOTHING serialized concurrent notifies. Each one waited for quiet on its own, and two workers
 # finishing in the same instant both saw silence and both called `session.say` — whatever order and overlap came
 # out was LiveKit's internal scheduling, not a decision of ours. The V2-047 F7 instrumentation in
-# `voice/engine/pipeline/agent.py` had already named the fix («el fix es SERIALIZAR: encolar el say hasta que el
-# handle vivo acabe») and stayed telemetry-only. This is that queue.
+# `voice/engine/pipeline/agent.py` had already named the fix (“the fix is to SERIALIZE: enqueue the say until the
+# live handle finishes”) and stayed telemetry-only. This is that queue.
 #
 # Strict ARRIVAL order, guaranteed by ticket — not by lock-acquisition luck. Cross-LOOP on purpose: notifies are
 # awaited from whatever loop their caller runs on (uvicorn workers, the orchestrator, the messaging connector),
@@ -295,10 +295,10 @@ def _reset_queue_for_tests() -> None:
 
 
 async def _wait_for_quiet(timeout: float | None = None) -> bool:
-    """Espera (polling suave) a que NO haya turno en vuelo (bot hablando o usuario hablando), consultando el
-    busy-probe que registró la sesión viva. True = hay hueco, habla ya. False = timeout, la conversación no dio
-    tregua. Sin probe registrado (sesión sin instrumentar) → asumimos hueco: LiveKit gestiona el barge-in del
-    operador vía session.say(allow_interruptions=True), así que hablar no lo pisa de forma dura."""
+    """Wait (gentle polling) until there is NO turn in flight (bot speaking or user speaking), querying the busy
+    probe registered by the live session. True = there is an opening, speak now. False = timeout, the conversation
+    gave no respite. Without a registered probe (uninstrumented session) → assume an opening: LiveKit handles the
+    operator's barge-in via session.say(allow_interruptions=True), so speaking does not hard-interrupt it."""
     timeout = PROACTIVE_MAX_WAIT if timeout is None else timeout
     t0 = time.time()
     saw_busy = False
@@ -308,11 +308,11 @@ async def _wait_for_quiet(timeout: float | None = None) -> bool:
         except Exception:
             busy = False
         if not busy:
-            # El RESPIRO (2026-08-31): `_BOT_GRACE_SECS` llevaba definido desde INI-008 y no lo usaba NADIE —
-            # el «respiro tras la voz del bot» del comentario de arriba era letra muerta. Con la cola en serie
-            # se notaría de verdad: el mensaje B arrancaría en el MISMO instante en que acaba la locución de A,
-            # dos avisos en ráfaga que suenan a uno solo. Solo se paga cuando venimos de una locución viva
-            # (saw_busy); un hueco que ya estaba en silencio habla al momento, como siempre.
+            # THE BREATH (2026-08-31): `_BOT_GRACE_SECS` had been defined since INI-008 and NOBODY used it —
+            # the “pause after the bot's voice” mentioned above was dead text. With the serialized queue it would
+            # matter in practice: message B would start at the EXACT instant utterance A ends, two burst notices
+            # that sound like one. It is paid only when coming from a live utterance (saw_busy); an opening that
+            # was already silent speaks immediately, as always.
             if saw_busy:
                 await asyncio.sleep(_BOT_GRACE_SECS)
                 saw_busy = False
