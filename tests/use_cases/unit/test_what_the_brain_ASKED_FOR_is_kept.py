@@ -1,20 +1,20 @@
-"""El arnés tiraba a la basura lo que el cerebro PIDIÓ en cada turno (V2-398).
+"""The harness threw away what the brain ASKED FOR on each turn (V2-398).
 
-`POST /api/flash/say` devuelve, medido contra la forma real del `return` de `nucleo/flash/probe.py`:
+`POST /api/flash/say` returns, measured against the actual shape of the `return` from `nucleo/flash/probe.py`:
 
     {"reply": …, "action": "…", "tool_calls": [{"name": …, "args": …}], "executed": …, "trace": …}
 
-y `run.py` se quedaba **solo con `reply`**. Todo lo demás se perdía en el mismo instante en que llegaba.
+and `run.py` kept **only `reply`**. Everything else was lost the instant it arrived.
 
-Lo que eso cuesta se vio en `play-music-and-build-playlist` (2026-08-27 15:23). El usuario pidió DOS cosas
-en una frase —«ponla de verdad **y** guárdala en una lista que se llame Curro»— y zaelar contestó «Volumen
-al 85 por ciento». El juez escribió el hallazgo «subió el volumen **en vez de** guardar la canción»
-**deduciéndolo del texto de la respuesta**, porque no había otra cosa que mirar: `audit.tools_run` venía
-`{}` y `widget_ops` solo trae el AGREGADO de la ronda entera.
+The cost of that was seen in `play-music-and-build-playlist` (2026-08-27 15:23). The user asked for TWO things
+in one sentence —«actually play it **and** save it to a playlist called Curro»— and zaelar replied «Volume
+at 85 percent». The judge wrote the finding «increased the volume **instead of** saving the song»,
+**deducing it from the response text**, because there was nothing else to inspect: `audit.tools_run` was
+`{}` and `widget_ops` only contains the AGGREGATE for the entire round.
 
-Y esa deducción es justo la que V2-394 demostró que no se puede hacer: «pidió A en vez de B» y «pidió A y B,
-y B lo rechazó el widget en silencio» se leen igual en el transcript y son dos dueños distintos. El dato que
-los separa lo tenía el arnés en la mano y lo tiraba.
+And that deduction is precisely what V2-394 showed cannot be done: «asked for A instead of B» and «asked for A and B,
+and the widget silently rejected B» read the same in the transcript and have two different owners. The data that
+distinguishes them was in the harness's hand, and it threw it away.
 """
 from tests.use_cases.e2e.agent import judge as J
 
@@ -33,16 +33,16 @@ def test_el_juez_ve_lo_que_pidio_el_cerebro_turno_a_turno():
 
 
 def test_un_turno_que_no_pidio_NADA_se_ve_como_tal():
-    """«No pidió herramienta ninguna» y «pidió una que falló» son dos hechos opuestos."""
+    """«Asked for no tool at all» and «asked for one that failed» are two opposite facts."""
     txt = _texto(J.mechanism_facts({"turn_actions": [{"turn": 0, "pedido": [], "action": "chat"}]}))
     assert "PIDIÓ EL CEREBRO" in txt
-    # La marca va PEGADA al turno. Buscar «(ninguna)» suelto no valía: otra sección del mismo parte ya la
-    # imprime, así que el guarda pasaba en verde con la marca borrada de esta línea.
+    # The marker is ATTACHED to the turn. Searching for a standalone «(ninguna)» was not enough: another section
+    # of the same report already prints it, so the guard passed in green with the marker removed from this line.
     assert "t0→(ninguna)" in txt
 
 
 def test_lo_que_se_EJECUTO_se_dice_aparte_de_lo_que_se_pidio():
-    """Pedir no es hacer: es la frontera entera de V2-394."""
+    """Asking is not doing: that is the entire boundary of V2-394."""
     txt = _texto(J.mechanism_facts({"turn_actions": [
         {"turn": 0, "pedido": ["widget_data"], "action": "widget_data", "ejecutado": "musica"}]}))
     assert "ejecutó" in txt and "musica" in txt
@@ -54,17 +54,17 @@ def test_sin_el_dato_el_juez_no_se_lo_inventa():
 
 
 def test_run_py_GUARDA_el_dato_que_ya_tenia_en_la_mano():
-    """El arnés recibía `tool_calls` en la respuesta del probe y lo descartaba en la misma línea."""
+    """The harness received `tool_calls` in the probe response and discarded it on the same line."""
     import ast
     from pathlib import Path
     tree = ast.parse(Path("tests/use_cases/e2e/agent/run.py").read_text())
     fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_run_scenario")
-    # se lee `tool_calls` de la respuesta del turno en algún sitio de la función
+    # `tool_calls` is read from the turn response somewhere in the function
     leidos = {n.args[0].value for n in ast.walk(fn)
               if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "get"
               and n.args and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str)}
     assert "tool_calls" in leidos, "la respuesta del probe trae tool_calls y nadie los mira"
-    # y acaba en el informe
+    # and ends up in the report
     asigna = [n for n in ast.walk(fn) if isinstance(n, ast.Subscript)
               and isinstance(n.slice, ast.Constant) and n.slice.value == "turn_actions"]
     assert asigna, "lo que pidió el cerebro no llega al informe de mecanismo"

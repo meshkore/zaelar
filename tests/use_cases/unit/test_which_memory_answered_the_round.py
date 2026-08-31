@@ -1,7 +1,7 @@
 """A round whose recalls were served by a degraded embeddings backend was not measured.
 
-Established with the memory agent on 2026-08-21. A sandbox boot can log BOTH «embeddings en 'hash' —
-recall SEMÁNTICO prácticamente DESACTIVADO» and, fifteen seconds later, «prewarm embeddings OK (ollama)».
+Established with the memory agent on 2026-08-21. A sandbox boot can log BOTH «embeddings in 'hash' —
+SEMANTIC recall practically DISABLED» and, fifteen seconds later, «prewarm embeddings OK (ollama)».
 Inside ONE process a degraded backend stays pinned for 300 s and nothing calls `reset()`, so a process
 reporting `ollama` at prewarm cannot have resolved `hash` before it: the two lines are different
 processes. The prewarm is the one that describes the process answering the turns — so the guard is to

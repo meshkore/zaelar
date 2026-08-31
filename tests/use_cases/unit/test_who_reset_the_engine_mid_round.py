@@ -1,13 +1,13 @@
-"""¿Reseteó alguien el motor mientras se medía esta ronda? Un hecho de ATRIBUCIÓN, no un veredicto.
+"""Did someone reset the engine while this round was being measured? An ATTRIBUTION fact, not a verdict.
 
-`started_at` se sella DENTRO de `_run_scenario`, después del `hard_reset()` de la propia tanda, así que un
-`session/RESET` posterior vino de otro sitio — una segunda tanda, o el operador tocando el plató.
+`started_at` is sealed INSIDE `_run_scenario`, after the round's own `hard_reset()`, so a subsequent
+`session/RESET` came from somewhere else — a second round, or the operator touching the set.
 
-Importa porque un reset cierra TODAS las tarjetas (`emit("widget","close")` → `owner._close_task`), y cerrar una
-tarjeta con su tarea viva deja la pestaña en `cancelled` SIN tocar al worker. Que es exactamente la firma de la
-familia archivada como «cancelación a mitad con el navegador en la página buena» (3 de 28 rondas, 2026-08-25):
-`navegador_task.status == 'cancelled'` con `worker_health.cancelled == 0`. La pregunta nunca fue «qué cancela
-pestañas» sino «quién reseteó el motor», y el informe no tenía con qué contestarla.
+It matters because a reset closes ALL cards (`emit("widget","close")` → `owner._close_task`), and closing a
+card with its task still alive leaves the tab `cancelled` WITHOUT touching the worker. Which is exactly the
+signature of the family archived as “mid-round cancellation with the browser on the right page” (3 of 28 rounds, 2026-08-25):
+`navegador_task.status == 'cancelled'` with `worker_health.cancelled == 0`. The question was never “what cancels
+tabs” but “who reset the engine,” and the report had no way to answer it.
 """
 import json
 import sqlite3
@@ -19,7 +19,7 @@ from tests.use_cases.e2e.agent import verify as V
 
 @pytest.fixture
 def db(tmp_path):
-    """Un test unitario nunca toca el sandbox vivo."""
+    """A unit test never touches the live sandbox."""
     p = tmp_path / "obs.db"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms INTEGER, topic TEXT, payload TEXT, "
@@ -40,17 +40,17 @@ def test_una_ronda_limpia_no_acusa_a_nadie(db):
 
 
 def test_el_reset_de_la_PROPIA_tanda_queda_fuera(db):
-    """La sensibilidad que hace útil al instrumento: `hard_reset()` corre ANTES de sellar `started_at`, así que
-    contarlo marcaría todas las rondas y el hecho no distinguiría nada."""
+    """The sensitivity that makes the instrument useful: `hard_reset()` runs BEFORE sealing `started_at`, so
+    counting it would mark every round and the fact would distinguish nothing."""
     p, con, add = db
-    add(ts=990.0)            # el reset del propio caso, justo antes de empezar
+    add(ts=990.0)            # the case's own reset, just before starting
     con.commit()
     assert V.resets_during_round(str(p), since=1000.0)["n"] == 0
 
 
 def test_un_reset_AJENO_se_ve_y_dice_CUÁNDO(db):
-    """El segundo es tan importante como el primero: un reset a los 12 s tira la ronda entera; uno a los 400 s
-    puede haber caído después de la entrega que importaba."""
+    """The second is as important as the first: a reset at 12 s takes down the entire round; one at 400 s
+    may have occurred after the delivery that mattered."""
     p, con, add = db
     add(ts=1012.5)
     con.commit()
@@ -68,8 +68,8 @@ def test_cuenta_TODOS_los_ajenos(db):
 
 
 def test_lo_encuentra_aunque_la_FAMILIA_cambie_de_nombre(db):
-    """Una señal buscada por el campo equivocado vuelve a CERO, y un cero se lee como «esto no pasó» — la forma
-    más silenciosa que tiene un instrumento de mentir."""
+    """A signal searched for under the wrong field returns ZERO, and a zero is read as “this did not happen” —
+    the quietest way an instrument can lie."""
     p, con, add = db
     add(ts=1050.0, cat="otra-cosa", kind="lo-que-sea")
     con.commit()
@@ -81,7 +81,7 @@ def test_una_db_que_no_existe_no_revienta_la_ronda():
 
 
 def test_el_informe_LO_LLEVA():
-    """La mitad de cableado (V2-199): el hecho puede leerse bien y no llegar a quien lo necesita."""
+    """Half the wiring (V2-199): the fact can be read correctly and still fail to reach whoever needs it."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R

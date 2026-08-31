@@ -1,4 +1,4 @@
-"""«No encontró» y «encontró y no lo entregó» son dos fallos distintos, y solo uno era verdad.
+"""“Didn’t find it” and “found it and didn’t deliver it” are two distinct failures, and only one was true.
 
 Three rounds of `hotel-under-15-days` all scored 2/5 with three different stories underneath: one where the
 worker probed its own CLI and never searched, one where it navigated Booking with perfect parameters and

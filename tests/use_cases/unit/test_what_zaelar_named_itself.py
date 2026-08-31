@@ -1,11 +1,11 @@
-"""V2-329 — el informe dice qué candidatos nombró ZAELAR con sus propias palabras, y en qué turno.
+"""V2-329 — the report says which candidates ZAELAR named in its own words, and on which turn.
 
-El informe ya decía lo que el SISTEMA le puso delante al cerebro (`offered`), y eso responde a «¿se lo
-inventó?». No respondía a la otra pregunta, que es la que ha decidido mal tres veredictos el 2026-08-25:
-**¿lo dijo?**
+The report already said what the SYSTEM put in front of its mind (`offered`), which answers “did it make
+it up?”. It did not answer the other question, the one that led to three incorrect verdicts on 2026-08-25:
+**did it say it?**
 
-Las tres veces con la misma forma — el juez confundió «sigue trabajando en los detalles» con «oculta lo que
-tiene»:
+All three times had the same pattern — the judge confused “it is still working on the details” with “it is
+hiding what it has”:
 
   · `search-secondhand-monitor` (21:35) bajó de PASS a FAIL con «tiene los datos y decide no mostrarlos para
     mantener una ficción de búsqueda activa». Turno a turno había entregado CINCO candidatos con nombre y
@@ -15,17 +15,18 @@ tiene»:
     fue detectar que «Buen precio» y «Contado» no eran coches, DECIRLO, y mandar abrir las fichas.
   · `search-buy-bicycle` (21:25): dos bloqueadores que eran contaminación nuestra (V2-328).
 
-NO se reutiliza `recites_our_candidates`, y la razón es la ASIMETRÍA DE COSTE. Aquel caza al conductor fuera de
-papel, donde un falso positivo TIRA una ronda buena: por eso exige código de modelo o mucha materia, y por eso
-descarta «Pantalla HP 27 HDMI». Medido: sobre los turnos del monitor cazaba 1 de 3. Aquí quien habla TIENE la
-lista delante, no hay que protegerse de «no podía saberlo», y el casador puede ser —y es— más ancho.
+`recites_our_candidates` is not reused, and the reason is COST ASYMMETRY. That one catches the driver off the
+record, where a false positive WASTES a good round: that is why it requires a model code or substantial
+content, and why it discards “Pantalla HP 27 HDMI”. Measured: across the monitor turns it caught 1 of 3. Here
+the speaker HAS the list in front of it, there is no need to guard against “it could not have known”, and the
+catcher can be —and is— broader.
 """
 from tests.use_cases.e2e.agent import verify as V
 
-# Los títulos reales de la hoja de aquella ronda.
+# The actual titles from that round's sheet.
 _HOJA = ["Pantalla HP 27 HDMI", 'Monitor Curvo Samsung 27"', "Monitor AOC 27 Curvo 144Hz",
          "ViewSonic 27 IPS FullHD", "Pantalla Gaming MSI Curva 27 pulgadas", "Monitor Dell que nadie mencionó"]
-# Y lo que zaelar dijo, en la forma en que lo dijo.
+# And what zaelar said, in the form in which it said it.
 _TR = [
     {"who": "zaelar", "text": "Marc, ya tengo cosas: destacan la pantalla HP 27 HDMI por 35 € y el "
                               'Monitor Curvo Samsung 27" por 50 €'},
@@ -43,14 +44,14 @@ def test_recoge_lo_que_NOMBRÓ_y_su_turno():
 
 
 def test_lo_que_NO_mencionó_no_aparece():
-    """La sensibilidad: si contara todo lo de la hoja, el hecho no distinguiría entregar de no entregar."""
+    """Sensitivity: if it counted everything on the sheet, the fact would not distinguish delivery from non-delivery."""
     r = V.delivered_by_name(_TR, _HOJA)
     assert not any("Dell" in n for n in r["names"])
     assert not any("MSI" in n for n in r["names"])
 
 
 def test_los_turnos_del_TESTER_no_cuentan():
-    """Que la persona diga un nombre no es que zaelar lo entregara — al revés, eso es un role-flip (V2-285)."""
+    """The person saying a name does not mean zaelar delivered it — on the contrary, that is a role flip (V2-285)."""
     tr = [{"who": "tester", "text": "yo he visto el Monitor AOC 27 Curvo 144Hz por 60 €"}]
     assert V.delivered_by_name(tr, _HOJA)["n"] == 0
 
@@ -65,15 +66,15 @@ def test_sin_hoja_no_se_inventa_nada():
 
 
 def test_no_cuenta_DOS_veces_el_mismo_candidato():
-    """Repetir un candidato es normal en una conversación; contarlo dos veces inflaría el hecho."""
+    """Repeating a candidate is normal in a conversation; counting it twice would inflate the fact."""
     tr = [{"who": "zaelar", "text": "la pantalla HP 27 HDMI por 35 €"},
           {"who": "zaelar", "text": "te decía, la pantalla HP 27 HDMI sigue siendo la más barata"}]
     assert V.delivered_by_name(tr, _HOJA)["n"] == 1
 
 
 def test_es_MÁS_ANCHO_que_el_cazador_de_role_flips_y_eso_es_deliberado():
-    """La asimetría de coste, fijada: allí un falso positivo tira una ronda; aquí solo debilita un bloqueador.
-    Si algún día se unifican los dos casadores, este test dice qué se pierde."""
+    """The cost asymmetry, made explicit: there a false positive wastes a round; here it only weakens a blocker.
+    If the two catchers are ever unified, this test says what is lost."""
     linea = "destacan la pantalla HP 27 HDMI por 35 €"
     assert V.recites_our_candidates(linea, ["Pantalla HP 27 HDMI"]) == [], (
         "si el estricto empieza a cazar esto, revisar su tasa de falsos positivos sobre el corpus")
@@ -81,7 +82,7 @@ def test_es_MÁS_ANCHO_que_el_cazador_de_role_flips_y_eso_es_deliberado():
 
 
 def test_el_informe_LO_LLEVA_y_el_JUEZ_lo_recibe():
-    """Las dos mitades de cableado: leerlo bien y que llegue a quien decide."""
+    """The two halves of the wiring: read it correctly and get it to the decision-maker."""
     import inspect
 
     from tests.use_cases.e2e.agent import judge as J
@@ -103,15 +104,15 @@ def test_y_le_dice_al_juez_que_ese_bloqueador_TIENE_QUE_EXPLICARSE():
     assert "eficiencia" in low, "seguir trabajando tras entregar tiene que quedar nombrado como lo que es"
 
 
-# ── V2-331 · el PRECIO confirma de qué fila habla ─────────────────────────────────────────────────────────
-# Exigir los tres primeros tokens del título fallaba contra cómo se nombra una cosa AL HABLAR: la hoja dice
-# «Brixton Crossfire 125 XS» y zaelar dice «la Brixton a 1.200 €».
+# ── V2-331 · the PRICE confirms which row is being discussed ─────────────────────────────────────────────────
+# Requiring the first three title tokens failed against how a thing is named IN SPEECH: the sheet says
+# “Brixton Crossfire 125 XS” and zaelar says “la Brixton a 1.200 €”.
 #
-# MEDIDO en el turno de las 21:12 del 2026-08-25 —«me centro solo en las tres motos: la Yamaha R125 a 500 €, la
-# Brixton a 1.200 € y la Honda Varadero a 2.400 €»— donde el casador de V2-329 devolvía CERO. O sea que el
-# hecho construido para contradecir un «retuvo» estaba infra-detectando entregas: hacía justo lo contrario de
-# para lo que existe. Lo encontré midiendo mal el defecto hermano y revisando turno a turno lo que mi propia
-# regex había contado como «espera».
+# MEASURED in the 21:12 turn on 2026-08-25 —“I will focus only on the three motorcycles: the Yamaha R125 at
+# 500 €, the Brixton at 1.200 € and the Honda Varadero at 2.400 €”— where the V2-329 catcher returned ZERO. In
+# other words, the fact built to contradict a “retained” finding was under-detecting deliveries: it was doing
+# the exact opposite of what it exists for. I found it by measuring the related defect incorrectly and reviewing
+# turn by turn what my own regex had counted as “waiting”.
 
 _MOTOS = [("Moto Yamaha R125 2020 pocos km", "500 €"), ("Brixton Crossfire 125 XS", "1.200 €"),
           ("Honda Varadero 125 revisada", "2.400 €"), ("Casco integral MT sin usar", "40 €"),
@@ -127,21 +128,21 @@ def test_nombrar_por_la_MARCA_con_su_precio_cuenta_como_entrega():
 
 
 def test_y_NO_arrastra_a_la_que_comparte_marca():
-    """La sensibilidad del precio: «Yamaha XSR 700» está en la hoja y NO se mencionó. Sin el precio como
-    confirmación, cualquier «Yamaha» las contaría las dos."""
+    """Price sensitivity: “Yamaha XSR 700” is on the sheet and was NOT mentioned. Without the price as
+    confirmation, any “Yamaha” would count both of them."""
     r = V.delivered_by_name([{"who": "zaelar", "text": _TURNO}], _MOTOS)
     assert not any("XSR" in n for n in r["names"])
     assert not any("Casco" in n for n in r["names"])
 
 
 def test_la_marca_SOLA_sin_precio_no_basta():
-    """Decir «he mirado varias Yamaha» no es entregar una fila concreta."""
+    """Saying “I have looked at several Yamahas” is not delivering a specific row."""
     r = V.delivered_by_name([{"who": "zaelar", "text": "he mirado varias Yamaha por ahí"}], _MOTOS)
     assert r["n"] == 0
 
 
 def test_el_formato_VIEJO_sigue_funcionando():
-    """Compatibilidad: quien pase títulos sueltos sin precio sigue midiendo por los dos primeros tokens."""
+    """Compatibility: callers passing standalone titles without prices are still measured by the first two tokens."""
     r = V.delivered_by_name([{"who": "zaelar", "text": "la pantalla HP 27 HDMI por 35 €"}],
                             ["Pantalla HP 27 HDMI"])
     assert r["n"] == 1
