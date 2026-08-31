@@ -1794,7 +1794,10 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_generator_energy.py",
             "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_account_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
         {"id": "8.1b", "title": "Cobertura de Energy: nadie gasta fuera del contador", "ch": UNIT, "paths": [
-            "tests/infrastructure/unit/core/test_energy_coverage.py"]},
+            "tests/infrastructure/unit/core/test_energy_coverage.py",
+            # V2-517 — z.ai has TWO wallets (coding-plan quota · pay-per-use credits): a flat red "sin
+            # cuota" read as "z.ai dead" while the credits purse served completions. Measured, not read.
+            "tests/infrastructure/unit/core/test_zai_has_two_wallets.py"]},
         {"id": "8.1c", "title": "Arriendo de energía: techo local y fusible", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_lease.py"]},
         {"id": "8.1d", "title": "Egress de modelos: un código, dos despliegues", "ch": UNIT, "paths": [
