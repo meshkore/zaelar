@@ -1,19 +1,20 @@
 """
-`clear_all` — vaciar la agenda en UNA acción (2026-08-14, sesión b70a45d0).
+`clear_all` — empty the agenda in ONE action (2026-08-14, session b70a45d0).
 
-El operador pidió «vacía la agenda por completo, hoy y siempre» SEIS veces en cuatro minutos, y no se vació. No
-era un fallo del modelo: **esta API no sabía expresar esa intención**. Solo había acciones de un elemento (`drop`
-una tarea, `cancel_meeting` una cita, `drop_project` un proyecto), así que el FlashBrain solo podía tirar UNA cosa
-por turno — y cada turno decía «hecho», que era verdad de la acción disparada y mentira de lo pedido:
+The operator asked «empty the agenda completely, today and forever» SIX times in four minutes, and it was not
+emptied. It was not a model failure: **this API did not know how to express that intent**. There were only
+single-item actions (`drop` a task, `cancel_meeting` an appointment, `drop_project` a project), so FlashBrain
+could only throw away ONE thing per turn — and each turn said «done», which was true of the action it triggered
+and false of what was requested:
 
-    95,1s  data:drop            «Vacío la agenda entera: hoy y todo lo programado»   ← tiró 1 tarea
-   125,4s  data:cancel_meeting  «Ya, ahora mismo lo dejo todo limpio de verdad»      ← tiró 1 cita
-   191,8s  data:drop            «Hecho»                                              ← tiró 1 tarea
-   230,7s  data:cancel_meeting  «Hecho»                                              ← tiró 1 cita
-   238,2s  operador: «No, no está hecho, no estás comprobando que hagas las cosas»
+    95,1s  data:drop            «I'm emptying the entire agenda: today and everything scheduled»   ← removed 1 task
+   125,4s  data:cancel_meeting  «There, I'm leaving everything truly clean right now»              ← removed 1 appointment
+   191,8s  data:drop            «Done»                                                              ← removed 1 task
+   230,7s  data:cancel_meeting  «Done»                                                              ← removed 1 appointment
+   238,2s  operator: «No, it's not done; you're not checking that you're doing things»
 
-Cuando una intención frecuente no cabe en el vocabulario declarado, el modelo no tiene forma de acertar. Estos
-tests fijan que ya cabe, y que sigue exigiendo confirmación (es irreversible).
+When a frequent intent does not fit in the declared vocabulary, the model has no way to get it right. These
+tests establish that it now fits, and that it still requires confirmation (it is irreversible).
 """
 from __future__ import annotations
 
@@ -27,8 +28,8 @@ ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 @pytest.fixture
 def agenda(tmp_path, monkeypatch):
-    """Store AISLADO: sin esto el test le vacía la agenda REAL al operador (ver el `_DATA_DIR` inexistente del
-    test de youtube, que llevaba meses escribiendo en su store de verdad)."""
+    """ISOLATED store: without this, the test empties the operator's REAL agenda (see the nonexistent
+    `_DATA_DIR` in the YouTube test, which had been writing to its real store for months)."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     from widgets.agenda import data as ag
@@ -62,7 +63,7 @@ def test_clear_all_deja_la_agenda_vacia_de_verdad(agenda):
 
 
 def test_clear_all_no_resucita_ni_pisa_lo_ya_hecho(agenda):
-    """Una tarea `done` es historia del operador, no algo pendiente: se queda como estaba."""
+    """A `done` task is part of the operator's history, not something pending: it remains as it was."""
     _poblar(agenda)
     agenda.apply_action("clear_all", {})
     hecha = next(t for t in agenda.load_db()["tasks"] if t["id"] == "t3")
@@ -70,8 +71,8 @@ def test_clear_all_no_resucita_ni_pisa_lo_ya_hecho(agenda):
 
 
 def test_clear_all_congela_los_proyectos_en_vez_de_borrarlos(agenda):
-    """Los proyectos son la memoria de trabajo del operador. Pidió una agenda vacía, no perder de qué iba cada
-    proyecto — y `frozen` es el mismo estado que ya usaba `drop_project`."""
+    """Projects are the operator's working memory. They asked for an empty agenda, not to lose what each project
+    was about — and `frozen` is the same state that `drop_project` already used."""
     _poblar(agenda)
     agenda.apply_action("clear_all", {})
     db = agenda.load_db()
@@ -93,12 +94,12 @@ def test_clear_all_sobre_una_agenda_ya_vacia_no_revienta(agenda):
 
 
 def test_la_vista_refleja_el_vaciado(agenda):
-    """Lo que se le prometió al operador es que el WIDGET se viera vacío. `view_data` es lo que pinta la tarjeta.
+    """What was promised to the operator is that the WIDGET would look empty. `view_data` is what renders the card.
 
-    FRONTERA explícita: se vacía el CONTENIDO (tareas, citas, bloques, proyectos), no el MARCO del día. La hora de
-    comer sale de su horario configurado (`lunchStart`/`lunchEnd`), no de nada que él haya agendado; borrársela por
-    pedir una agenda vacía le dejaría el horario roto mañana sin saber por qué. Cambiar el marco es «cambia mi
-    horario», no «vacía la agenda»."""
+    Explicit BOUNDARY: the CONTENT (tasks, appointments, blocks, projects) is emptied, not the day's FRAME. Lunch
+    time comes from the configured schedule (`lunchStart`/`lunchEnd`), not from anything he scheduled; deleting it
+    because he asked for an empty agenda would leave his schedule broken tomorrow without him knowing why. Changing
+    the frame is «change my schedule», not «empty the agenda»."""
     _poblar(agenda)
     agenda.apply_action("clear_all", {})
     d = agenda.view_data()
@@ -107,8 +108,8 @@ def test_la_vista_refleja_el_vaciado(agenda):
 
 
 def test_esta_declarada_y_pide_confirmacion():
-    """Vaciar es IRREVERSIBLE. Y una acción que `apply_action` atiende pero el manifest no declara es INVISIBLE
-    para el cerebro — o sea, no habría servido de nada."""
+    """Emptying is IRREVERSIBLE. And an action handled by `apply_action` but not declared in the manifest is INVISIBLE
+    to the brain — in other words, it would have been useless."""
     from widgets import actions
 
     man = json.loads((ENGINE / "widgets/agenda/manifest.json").read_text(encoding="utf-8"))
@@ -120,10 +121,10 @@ def test_esta_declarada_y_pide_confirmacion():
 
 
 # ── V2-473: the write does not invent — measured in `dentist-appointment-into-agenda`, round 1 ──────────────
-# Four rows told the story (2026-08-29 14:19): an empty payload wrote «Cita, today, 17:00» (every field a
+    # Four rows told the story (2026-08-29 14:19): an empty payload wrote «Appointment, today, 17:00» (every field a
 # DEFAULT wearing the face of success), and «date: 2026-09-08 15:00» — the model's natural datetime shape —
-# kept the date but silently DROPPED the 15:00, defaulting startTime to 17:00. The operator's «a las tres de
-# la tarde» never survived the write, twice, and the reply said «Hecho.» both times.
+# kept the date but silently DROPPED the 15:00, defaulting startTime to 17:00. The operator's «at three in
+# the afternoon» never survived the write, twice, and the reply said «Done.» both times.
 
 
 def test_a_datetime_glued_in_date_keeps_its_hour(agenda):
@@ -159,8 +160,8 @@ def test_an_empty_payload_writes_nothing_and_says_why(agenda):
 
 
 # ── V2-473 (b): the default reminder is the AGENDA's job, not the model's conduct ───────────────────────────
-# Round 2 measured the alternative: to create the asked reminder the model escalated to a WORKER that died on
-# Google's login screen, said «Hecho», and `scheduled_jobs.created` stayed empty. The operator's mandate
+    # Round 2 measured the alternative: to create the requested reminder the model escalated to a WORKER that died on
+# Google's login screen, said «Done», and `scheduled_jobs.created` stayed empty. The operator's mandate
 # (INI-026 A2) is literal: telling the agent an appointment schedules default notice (~2h before) with no one
 # asking — so the write itself schedules it, and moving it is vocabulary (`set_reminder`), the clear_all
 # lesson: when a frequent intention has no action, the model cannot get it right.
@@ -241,7 +242,7 @@ def test_the_models_natural_time_key_is_read(agenda, sched_log):
 
 
 def test_agenda_errors_are_speakable():
-    """Round 3 [media]: the model parroted «set_reminder: no encuentro esa cita…» verbatim to the user.
+    """Round 3 [media]: the model parroted «set_reminder: I can't find that appointment…» verbatim to the user.
     The message is for the model, but it ends up in a mouth — it must survive being spoken."""
     import inspect
     import re as _re

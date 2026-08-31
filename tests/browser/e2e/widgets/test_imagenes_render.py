@@ -1,12 +1,13 @@
-"""V2-457 — el visor de imágenes RENDERIZADO, no leído.
+"""V2-457 — the image viewer RENDERED, rather than merely read.
 
-Existe por lo que encontró: `flechas: 0`. El manejador de `onerror` —el que dice «esta imagen ya no carga desde
-su origen, prueba con la siguiente»— vaciaba el ESCENARIO entero, y con él las flechas ‹ ›. O sea que en el
-único caso donde de verdad hacen falta, el aviso te decía que pasaras a la siguiente **y te quitaba la forma de
-llegar**. Una foto colgada de un CDN ajeno se cae a menudo, así que no es un borde raro.
+It exists because of what it found: `flechas: 0`. The `onerror` handler —the one that says “this image no longer
+loads from its source, try the next one”— emptied the entire STAGE, and with it the ‹ › arrows. So in the one
+case where they are genuinely needed, the notice told you to move to the next one **and took away your way to
+get there**. A photo hosted on someone else’s CDN often goes down, so this is not an unusual edge case.
 
-Nada de eso da error en consola ni rompe un test que lea el fuente: es la lección del nodo 4.19 (un canvas que
-no pinta, sin un solo error) aplicada a otro widget. Se mide con píxeles y con el DOM montado.
+None of that produces a console error or breaks a test that reads the source: it is the lesson from node 4.19 (a
+canvas that does not paint, without a single error) applied to another widget. It is measured with pixels and the
+mounted DOM.
 """
 from __future__ import annotations
 
@@ -72,7 +73,7 @@ def _pintar(datos):
             await pg.add_script_tag(
                 content=src.replace("export function render", "window.render = function render"))
             await pg.evaluate("d => window.render(document.getElementById('host'), d, {action: () => {}})", datos)
-            await pg.wait_for_timeout(500)          # deja que fallen las imágenes y corra `onerror`
+            await pg.wait_for_timeout(500)          # let the images fail and let `onerror` run
             m = await pg.evaluate(_MEDIR)
             m["errores"] = errores
             await b.close()
@@ -95,24 +96,24 @@ def test_se_monta_y_sin_un_solo_error(visto):
 
 
 def test_las_flechas_SOBREVIVEN_a_una_imagen_que_no_carga(visto):
-    """EL defecto que este fichero existe para cazar. Con las tres fotos caídas (dominio inexistente), el aviso
-    tiene que estar Y las flechas también: decirle al operador «prueba con la siguiente» quitándole el botón de
-    pasar a la siguiente es peor que no decir nada."""
+    """THE defect this file exists to catch. With all three photos down (nonexistent domain), the notice
+    must be present AND so must the arrows: telling the operator “try the next one” while removing the button to
+    move to the next one is worse than saying nothing."""
     assert visto["aviso"], "una imagen caída tiene que DECIRSE, no dejar el hueco roto del navegador"
     assert visto["flechas"] == 2, (
         f"flechas={visto['flechas']} — el manejador de error se llevó por delante la navegación")
 
 
 def test_la_fuente_se_ve_y_lleva_a_su_pagina(visto):
-    """Lo que el operador pidió explícitamente: «incluso con la fuente de la misma». El SITIO se nombra y la
-    PÁGINA se enlaza — una URL de CDN dice `cdn.ferrari.com` y no quién lo publicó."""
+    """What the operator explicitly requested: “even with the source shown”. The SITE is named and the
+    PAGE is linked — a CDN URL says `cdn.ferrari.com`, not who published it."""
     assert "ferrari.com" in visto["sitio"]
     assert "1080×565" in visto["sitio"], "las dimensiones ayudan a elegir y son gratis"
     assert visto["enlace_a_la_pagina"]
 
 
 def test_la_foto_manda_en_la_pantalla(visto):
-    """Un visor cuya imagen grande es una franja no es un visor. El escenario se lleva la mayor parte del alto."""
+    """A viewer whose large image is a strip is not a viewer. The stage occupies most of the height."""
     assert visto["alto_escenario"] >= 260, visto["alto_escenario"]
 
 
@@ -123,7 +124,7 @@ def test_la_tira_esta_entera_y_marca_la_que_se_esta_viendo(visto):
 
 
 def test_con_UNA_sola_foto_no_hay_ni_flechas_ni_tira():
-    """La mitad simétrica: unas flechas que no llevan a ninguna parte y una tira de un elemento son ruido."""
+    """The symmetrical half: arrows that lead nowhere and a one-item strip are noise."""
     uno = {**_DATOS, "n": 1, "items": _DATOS["items"][:1]}
     uno["current"] = uno["items"][0]
     m = _pintar(uno)

@@ -1,4 +1,4 @@
-"""EXECUTABLE SPEC for V2-227 ámbito C — the results sheet as the live progress surface.
+"""EXECUTABLE SPEC for V2-227 scope C — the results sheet as the live progress surface.
 
 WHY A BROWSER AND NOT A UNIT TEST: the requirement is what a waiting person SEES. A source-level test
 can prove a tab exists and still ship a panel that renders nothing, a spinner that is in the DOM but
@@ -125,9 +125,9 @@ def _run(port):
         active2 = page.evaluate("""() => {
             const on = document.querySelector('.hr-tab.on');
             return on ? (on.dataset.tab || on.textContent.trim()) : null; }""")
-        # NO SE PUEDE LEER EN VERDE MIENTRAS 1 FALLE: hoy la hoja ya nace en «results», así que esto pasa
-        # sin que nadie haya saltado a ningún sitio. Sólo prueba el AUTO-SALTO cuando la comprobación 1
-        # cumple y el punto de partida es la pestaña de proceso.
+        # IT CANNOT BE READ AS PASSING WHILE 1 FAILS: today the sheet already starts on «results», so this passes
+        # without anyone having jumped anywhere. It only tests the AUTO-JUMP when check 1
+        # passes and the starting point is the process tab.
         moved = (active2 or "") == "results" and (active or "").lower().startswith(("proc", "process"))
         check("4 · al PRIMER resultado la hoja salta sola a resultados",
               moved, f"pestaña activa: {active2!r} (venía de {active!r}; sin la 1 en verde esto no prueba nada)")

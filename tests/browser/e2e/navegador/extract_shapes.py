@@ -1,28 +1,27 @@
-"""El extractor contra las FORMAS reales de un listado, en un navegador de verdad (V2-235).
+"""The extractor against the real SHAPES of a listing, in a real browser (V2-235).
 
-POR QUÉ RENDERIZA: `_JS_EXTRACT` corre dentro de la página y lee `innerText`, que **no es el HTML**. El fallo
-que este fichero fija solo existe cuando el navegador compone el texto: un precio partido en varios `<span>`
-—entero, coma, céntimos, símbolo— más una copia del importe en un nodo fuera de pantalla. Leyendo el fuente del
-selector no se ve; ejecutándolo, sale a la primera.
+WHY IT RENDERS: `_JS_EXTRACT` runs inside the page and reads `innerText`, which **is not the HTML**. The bug
+fixed by this file exists only when the browser composes the text: a price split across several `<span>` elements
+—integer, comma, cents, symbol— plus a copy of the amount in an off-screen node. Reading the selector's source
+does not reveal it; running it does, immediately.
 
-Lo medido por el arnés (2026-08-21, `cheapest-monitor`), notas crudas que llegaron al cerebro:
+Measured by the harness (2026-08-21, `cheapest-monitor`), raw notes that reached the brain:
 
     «169 — 00 € — .../LG-27US500-W-.../dp/B0DH51BPZD»      → era 169,00 €
     «284 — 87 € — .../Dell-Plus-Monitor-.../dp/B0F29RH4RY» → era 284,87 €
 
-Dos averías en la misma fila, y ninguna es del modelo — zaelar reconstruyó «LG 27US500-W 4K por 169 €» sacando
-el modelo DE LA URL, que es lo correcto con lo poco que le dimos:
+Two failures in the same row, and neither is in the model — zaelar reconstructed “LG 27US500-W 4K for €169” by
+taking the model FROM THE URL, which is the right thing to do with the little information we gave it:
 
-  1. **la COMA faltaba de la clase de caracteres del precio** (`[\\d.]`, solo punto de millares), así que sobre
-     «169,00 €» el patrón empezaba a casar en «00» → «00 €». Un monitor de 169 € anunciado como de 0 €.
-  2. **el NOMBRE no estaba en el enlace del precio.** En una rejilla el importe vive en su propio `<a>` y el
-     nombre en el encabezado de la tarjeta, así que el enlace que trae el precio no tiene nombre dentro.
+  1. **the COMMA was missing from the price character class** (`[\\d.]`, thousands separator only), so for
+     “169,00 €” the pattern started matching at “00” → “00 €”. A €169 monitor advertised as costing €0.
+  2. **the NAME was not in the price link.** In a grid the amount lives in its own `<a>` and the name in the
+     card heading, so the link carrying the price has no name inside it.
 
-El arreglo del nombre es estructural y no nombra ningún sitio: **un listado es una rejilla de TARJETAS y el
-nombre de cada cosa es el encabezado de su tarjeta**. Vale para un producto, un piso, un hotel o una entrada.
-Con dos frenos, los dos probados aquí abajo: se sube como mucho cinco niveles, y se para en cuanto el ancestro
-deja de ser una tarjeta y pasa a ser la rejilla — si no, el «Resultados» de la sección nombraría a todas las
-filas, y un nombre que vale para todo no nombra nada.
+The name fix is structural and does not name any site: **a listing is a grid of CARDS and each thing's name is
+the heading of its card**. It works for a product, an apartment, a hotel, or a ticket. With two safeguards, both
+tested below: it climbs at most five levels, and stops as soon as the ancestor ceases to be a card and becomes the
+grid — otherwise the section's “Results” would name every row, and a name that applies to everything names nothing.
 
 Run:  ./.venv/bin/python tests/browser/e2e/navegador/extract_shapes.py
 """
@@ -36,20 +35,20 @@ sys.path.insert(0, ENGINE)
 
 from widgets.navegador.dom import _JS_EXTRACT  # noqa: E402
 
-# ── las formas ───────────────────────────────────────────────────────────────────────────────────────────────
+# ── the shapes ───────────────────────────────────────────────────────────────────────────────────────────────
 
-# 1 · precio partido en spans + importe repetido fuera de pantalla, y el nombre en el h2 de la tarjeta.
+# 1 · price split across spans + amount repeated off-screen, and the name in the card's h2.
 PARTIDO = """<div data-component-type="s-search-result">
   <h2><a href="https://tienda.invalid/LG-27US500-W/dp/B0DH51BPZD">LG 27US500-W Monitor 27" 4K UHD IPS</a></h2>
   <a class="p" href="https://tienda.invalid/LG-27US500-W/dp/B0DH51BPZD">
     <span><span class="off">169,00&nbsp;€</span><span aria-hidden="true"><span>€</span><span>169<span>,</span></span><span>00</span></span></span>
   </a></div>"""
 
-# 2 · el enlace SÍ lleva el nombre dentro (la forma clásica: Wallapop, Idealista).
+# 2 · the link DOES contain the name (the classic shape: Wallapop, Idealista).
 CLASICA = """<div class="card"><a href="https://otra.invalid/item/12345">
   <img alt="" src="/x.jpg"><div>Silla de oficina ergonómica</div><div>129 €</div></a></div>"""
 
-# 3 · la trampa: la tarjeta NO tiene encabezado, pero la SECCIÓN sí. Nadie puede llamarse «Resultados».
+# 3 · the trap: the card has NO heading, but the SECTION does. Nobody can be called “Results”.
 SIN_NOMBRE = """<section><h1>Resultados de la búsqueda</h1>
   <ul>
     <li><a href="https://gris.invalid/p/aaa"><span>75,50 €</span></a></li>
@@ -59,39 +58,39 @@ SIN_NOMBRE = """<section><h1>Resultados de la búsqueda</h1>
     <li><a href="https://gris.invalid/p/eee"><span>44,00 €</span></a></li>
   </ul></section>"""
 
-# 4 · miles y decimales juntos, que es donde un patrón mal puesto se lleva el orden de magnitud por delante.
+# 4 · thousands and decimals together, where a misplaced pattern loses the order of magnitude.
 MILES = """<div class="card"><h3><a href="https://coches.invalid/anuncio/9">Peugeot 407 SW 2.0 HDi</a></h3>
   <a href="https://coches.invalid/anuncio/9"><span>3.500,00 €</span></a></div>"""
 
-# 5 · el entero y los céntimos en LÍNEAS distintas (sin copia fuera de pantalla). Aquí «169» es una línea
-# propia, así que sin exigir una letra pasaba por NOMBRE del monitor — es literalmente el «169 — 00 € — …» que
-# el arnés leyó en la nota cruda.
+# 5 · the integer and cents on separate LINES (without an off-screen copy). Here “169” is its own line,
+# so without requiring a letter it passed as the monitor's NAME — it is literally the “169 — 00 € — …” that
+# the harness read in the raw note.
 PARTIDO_EN_LINEAS = """<div class="card"><h3><a href="https://otra2.invalid/p/mon">Monitor Alurin CoreVision 24"</a></h3>
   <a href="https://otra2.invalid/p/mon"><div>169</div><div>00 €</div></a></div>"""
 
-# ── V2-240: un resultado es un NOMBRE y una forma de ACTUAR, no un precio ───────────────────────────────────
-# El filtro exigía precio porque «un anuncio tiene precio». Eso es verdad de UNA clase de encargo —la compra— y
-# de ninguna otra: un fontanero, un barbero o un cerrajero no publican precio. Medido por el arnés:
-# `best-plumber-same-day` y `weekend-barber`, los dos 1/5, con **0 filas extraídas** y el turno quedándose con lo
-# único que le llegaba, el enlace del directorio. La forma de abajo es la de cualquier directorio de servicios.
+# ── V2-240: a result is a NAME and a way to ACT, not a price ───────────────────────────────────
+# The filter required a price because “an ad has a price”. That is true of ONE kind of job —a purchase— and
+# no other: a plumber, barber, or locksmith does not publish a price. Measured by the harness:
+# `best-plumber-same-day` and `weekend-barber`, both 1/5, with **0 rows extracted** and the run retaining the only
+# thing it received, the directory link. The shape below is that of any services directory.
 
-# 6 · fichas de negocio SIN precio, con el teléfono en un `tel:` (la forma de las páginas amarillas de cualquier país).
+# 6 · business listings WITHOUT a price, with the phone number in a `tel:` (the shape of yellow pages in any country).
 SERVICIOS = """<div class="res"><h3><a href="https://guia.invalid/fontaneros/madrid/aqua-24h">Fontanería Aqua 24h</a></h3>
   <p>Urgencias 24 horas · Centro</p><a class="t" href="tel:+34910123456">910 12 34 56</a></div>
 <div class="res"><h3><a href="https://guia.invalid/fontaneros/madrid/reparalia">Reparalia Fontaneros</a></h3>
   <p>Desatascos y fugas</p><a class="t" href="tel:+34915559988">915 55 99 88</a></div>"""
 
-# 7 · el mismo caso pero el teléfono es TEXTO dentro de la tarjeta, sin `tel:` (más común de lo que parece).
+# 7 · the same case, but the phone number is TEXT inside the card, without `tel:` (more common than it seems).
 SERVICIOS_TEXTO = """<div class="res"><h3><a href="https://guia2.invalid/b/barberia-lolo">Barbería Lolo</a></h3>
   <p>Abierto sábados · Tel. 622 41 88 03</p></div>"""
 
-# 8 · la dirección CONTRARIA: sin precio y sin número no hay ficha. Si esto pasa, el arreglo convierte el menú
-# de navegación de cualquier página en «resultados» y el extractor deja de servir para nada.
+# 8 · the OPPOSITE direction: without a price and without a number there is no listing. If this happens, the fix
+# turns any page's navigation menu into “results” and the extractor becomes useless.
 SOLO_NAVEGACION = """<nav><a href="https://guia.invalid/madrid">Madrid</a>
   <a href="https://guia.invalid/barcelona">Barcelona</a>
   <a href="https://guia.invalid/quienes-somos">Quiénes somos</a></nav>"""
 
-# 9 · un código de barras y una fecha no son un teléfono (lo que se cuela si se cuenta dígitos y ya está).
+# 9 · a barcode and a date are not a phone number (what slips through if digits alone are counted).
 FALSOS_NUMEROS = """<div class="card"><h3><a href="https://tienda.invalid/p/ean">Cable HDMI 2.1</a></h3>
   <p>EAN 8412345678905 · publicado 21/08/2026</p></div>"""
 
@@ -129,12 +128,12 @@ SOLO_CROMO = """<div class="carousel">
   <a href="https://tienda.invalid/sspa/aaa"><div>Mediano:</div><div>379,99 €</div></a>
   <a href="https://tienda.invalid/sspa/bbb"><div>Mediano:</div><div>289,99 €</div></a></div>"""
 
-# ── 12 · EL PRECIO VIVE EN LA TARJETA, NO EN EL ENLACE ────────────────────────────────────────────────────
+# ── 12 · THE PRICE LIVES IN THE CARD, NOT IN THE LINK ────────────────────────────────────────────────────
 # Verbatim from `es.wallapop.com/search?keywords=monitor`, measured 2026-08-23: 78 real listing anchors on
 # screen and the extractor returned ZERO rows. Every listing is TWO anchors at the SAME item — one wrapping the
 # photo, one wrapping the `<h3>` — and neither carries the price; it is a sibling inside the card. The
-# price-or-phone gate therefore dropped all 78, which is the shape behind several rounds reporting «0 filas
-# extraídas» on second-hand marketplaces.
+# price-or-phone gate therefore dropped all 78, which is the shape behind several rounds reporting “0 rows
+# extracted” on second-hand marketplaces.
 #
 # Rendered rather than parsed, for the reason at the top of this file: the price is read off `innerText`, which
 # is what the BROWSER composes, not the HTML. Two cards on purpose — one card alone cannot show that the walk
@@ -151,14 +150,14 @@ TARJETA_CON_PRECIO_FUERA = """<div class="grid">
     <div class="precio">50 €</div>
   </div></div>"""
 
-# ── 13 · EL PRECIO DE LA VECINA ───────────────────────────────────────────────────────────────────────────
-# La otra mitad de la 12, y la que de verdad puede hacer daño. Una ficha SIN precio publicado junto a una que sí
-# lo lleva: si el paseo se sube a la rejilla se trae el importe de al lado. Medido mientras se construía la 12 —
-# con el margen que usan el nombre y el teléfono (4 listados) las DOS filas salían con «24 50 €», o sea el precio
-# de la vecina Y mal leído (el grupo de céntimos saltó de «Samsung 24» a «50 €»).
+# ── 13 · THE NEIGHBOUR'S PRICE ───────────────────────────────────────────────────────────────────────────
+# The other half of 12, and the one that can really cause harm. A listing WITHOUT a published price next to one
+# that has one: if the walk climbs to the grid, it brings back the amount from the one next to it. Measured while
+# building 12 — with the margin used for the name and phone number (4 listings), BOTH rows came out as “24 50 €”,
+# namely the neighbour's price AND misread (the cents group jumped from “Samsung 24” to “50 €”).
 #
-# Un nombre equivocado se ve; un precio equivocado se lee como un hallazgo. Así que sin precio propio la ficha se
-# queda fuera, que es lo que ya dice el contrato de V2-240: hace falta un nombre y algo con lo que actuar.
+# A wrong name is visible; a wrong price reads like a discovery. So without its own price the listing is left out,
+# as the V2-240 contract already says: a name and something to act on are required.
 PRECIO_DE_LA_VECINA = """<div class="grid">
   <div class="card">
     <a href="https://2mano.invalid/item/sin-precio-1"><h3>Monitor sin precio publicado</h3></a>
@@ -169,15 +168,15 @@ PRECIO_DE_LA_VECINA = """<div class="grid">
     <div class="precio">50 €</div>
   </div></div>"""
 
-# ── 14 · EL NOMBRE Y EL PRECIO EN EL MISMO NODO ───────────────────────────────────────────────────────────
-# El tercer modo de fabricar un precio, y el más caro de los tres. Con el nombre y el importe dentro del mismo
-# elemento —separados solo por un `<br>`— el texto del nodo es «Monitor Samsung 2450 €» sin separador ninguno,
-# porque `textContent` no inserta el salto que el navegador PINTA. Medido: sin la guarda de longitud, un monitor
-# de 50 € se entrega como **2450 €**, 49 veces su precio, con su nombre y su enlace correctos al lado.
+# ── 14 · THE NAME AND PRICE IN THE SAME NODE ───────────────────────────────────────────────────────────
+# The third way of fabricating a price, and the most expensive of the three. With the name and amount inside the
+# same element —separated only by a `<br>`— the node's text is “Monitor Samsung 2450 €” with no separator,
+# because `textContent` does not insert the line break that the browser RENDERS. Measured: without the length guard,
+# a €50 monitor is returned as **€2450**, 49 times its price, with its correct name and link alongside it.
 #
-# La guarda exige que el texto del nodo sea CASI SOLO el importe, así que aquí no encuentra precio y la ficha se
-# cae — se pierde un anuncio real, y esa es la dirección segura: una fila de menos se nota, un precio inventado
-# con nombre y enlace de verdad no.
+# The guard requires the node's text to be ALMOST ONLY the amount, so it finds no price here and the listing drops
+# out — a real ad is lost, and that is the safe direction: one fewer row is noticeable, while an invented price
+# with a real name and link is not.
 NOMBRE_Y_PRECIO_JUNTOS = """<div class="card">
   <a href="https://2mano.invalid/item/samsung-24-9"><img src="x.jpg" alt="Monitor Samsung 24"></a>
   <div class="info">Monitor Samsung 24<br>50 €</div></div>"""
@@ -201,7 +200,7 @@ def main():
         browser = pw.chromium.launch()
         page = browser.new_page()
 
-        # ── 1 · el precio partido ──
+        # ── 1 · the split price ──
         got = extract(page, PARTIDO)
         check("1 · una fila por ficha", len(got) == 1, str(got))
         if got:
@@ -210,13 +209,13 @@ def main():
             check("1b · el nombre sale del encabezado de la tarjeta",
                   got[0]["title"].startswith("LG 27US500-W"), f"title={got[0]['title']!r} (era «»)")
 
-        # ── 2 · la forma clásica no cambia ──
+        # ── 2 · the classic shape does not change ──
         got = extract(page, CLASICA)
         check("2 · con el nombre DENTRO del enlace, se sigue cogiendo de ahí",
               len(got) == 1 and got[0]["title"] == "Silla de oficina ergonómica" and got[0]["price"] == "129 €",
               str(got))
 
-        # ── 3 · la trampa de la rejilla ──
+        # ── 3 · the grid trap ──
         got = extract(page, SIN_NOMBRE)
         check("3 · cinco fichas, cinco filas", len(got) == 5, str(len(got)))
         malos = [i for i in got if "Resultados" in (i.get("title") or "")]
@@ -225,7 +224,7 @@ def main():
         check("3b · sin nombre se queda SIN nombre, no se inventa",
               all(not (i.get("title") or "") for i in got), str([i.get("title") for i in got]))
 
-        # ── 5 · el entero y los céntimos en líneas distintas ──
+        # ── 5 · the integer and cents on separate lines ──
         got = extract(page, PARTIDO_EN_LINEAS)
         check("5 · un trozo de precio NO pasa por nombre",
               len(got) == 1 and not (got[0]["title"] or "").strip().isdigit(),
@@ -235,7 +234,7 @@ def main():
                   got[0]["title"].startswith("Monitor Alurin") and "169" in got[0]["price"],
                   str(got[0]))
 
-        # ── 4 · miles y decimales ──
+        # ── 4 · thousands and decimals ──
         got = extract(page, MILES)
         check("4 · «3.500,00 €» se lee entero (un patrón mal puesto se come el orden de magnitud)",
               len(got) == 1 and got[0]["price"].startswith("3.500,00"), str(got))
@@ -243,7 +242,7 @@ def main():
             check("4a · y el nombre es el del anuncio",
                   got[0]["title"].startswith("Peugeot 407"), f"title={got[0]['title']!r}")
 
-        # ── 6 · fichas de servicio con `tel:` ──
+        # ── 6 · service listings with `tel:` ──
         got = extract(page, SERVICIOS)
         check("6 · un listado SIN precios devuelve fichas (antes: 0 filas)", len(got) == 2, str(got))
         if len(got) == 2:
@@ -252,16 +251,16 @@ def main():
             check("6c · sin inventar un precio que la página no da",
                   all(not (i.get("price") or "") for i in got), str([i.get("price") for i in got]))
 
-        # ── 7 · el teléfono en texto ──
+        # ── 7 · the phone number in text ──
         got = extract(page, SERVICIOS_TEXTO)
         check("7 · el teléfono en TEXTO también hace ficha",
               len(got) == 1 and "622" in (got[0].get("tel") or ""), str(got))
 
-        # ── 8 · la dirección contraria ──
+        # ── 8 · the opposite direction ──
         got = extract(page, SOLO_NAVEGACION)
         check("8 · un menú de navegación NO son resultados", not got, str(got))
 
-        # ── 9 · números que no son teléfonos ──
+        # ── 9 · numbers that are not phone numbers ──
         got = extract(page, FALSOS_NUMEROS)
         check("9 · un EAN y una fecha no son un número al que llamar", not got, str(got))
 
@@ -288,7 +287,7 @@ def main():
         check("11b · and the price is still there to describe them by",
               all((i.get("price") or "") for i in got), str([i.get("price") for i in got]))
 
-        # ── 12 · el precio vive en la TARJETA, no en el enlace ──
+        # ── 12 · the price lives in the CARD, not in the link ──
         got = extract(page, TARJETA_CON_PRECIO_FUERA)
         check("12 · dos fichas, dos filas (los dos enlaces de una ficha colapsan en una)", len(got) == 2, str(got))
         by_title = {(i.get("title") or ""): (i.get("price") or "") for i in got}
@@ -299,7 +298,7 @@ def main():
         check("12b · y conserva su nombre y su enlace",
               all((i.get("title") or "") and "/item/" in (i.get("url") or "") for i in got), str(got))
 
-        # ── 13 · el precio de la vecina ──
+        # ── 13 · the neighbour's price ──
         got = extract(page, PRECIO_DE_LA_VECINA)
         check("13 · la ficha sin precio propio no se queda con el de al lado", len(got) == 1, str(got))
         if got:
@@ -307,7 +306,7 @@ def main():
                   got[0]["title"] == "Monitor Samsung 24" and got[0]["price"] == "50 €",
                   f"{got[0]['title']!r} / {got[0]['price']!r} (era «24 50 €» en las dos filas)")
 
-        # ── 14 · el nombre y el precio en el mismo nodo ──
+        # ── 14 · the name and price in the same node ──
         got = extract(page, NOMBRE_Y_PRECIO_JUNTOS)
         malos = [i for i in got if (i.get("price") or "") and "2450" in i["price"]]
         check("14 · un nombre acabado en número no se pega al importe", not malos,
