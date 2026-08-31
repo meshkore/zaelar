@@ -5,21 +5,21 @@ response WITHOUT voice, the interface, or a LiveKit room — so real examples co
 and evaluated immediately. The other two channels (memory tests; the INI-013 end-to-end voice tester) are slower
 and include STT noise.
 
-Este canal corre DENTRO del proceso vivo del server (que ya tiene memoria/bus/estado/widgets inicializados por el
-lifespan), así que la fidelidad es máxima: reproduce el NÚCLEO del turno del FlashBrain — el MISMO prompt
+This channel runs INSIDE the server's live process (which already has memory/bus/state/widgets initialized by the
+lifespan), so fidelity is maximal: it reproduces the CORE of the FlashBrain turn — the SAME prompt
 (`build_flash_system` con estado+memoria+recall), el MISMO modelo (`FastClient`), las MISMAS tools (`router.TOOLS`)
 and the SAME dialogue safeguards (`dialog.py`) as the voice turn (`nucleo.py::_run`) — but without audio transport
 or real widget execution: instead of ACTING, it REPORTS what it would do (selected tool/tag), the text, and
 latencies. This makes it possible to evaluate the failures from the report (loops, degeneration, loss of thread,
 and which state/memory the model saw).
 
-Uso (con el server arrancado, memoria reseteada con `make reset`):
+Usage (with the server running and memory reset with `make reset`):
     curl -s localhost:43917/api/flash/say -H 'content-type: application/json' -d '{"text":"hola, ¿cómo te llamas?"}'
     python -m nucleo.flash.probe "hola"          # one-shot
-    python -m nucleo.flash.probe                 # REPL interactivo
+    python -m nucleo.flash.probe                 # interactive REPL
     python -m nucleo.flash.probe --reset          # clears the probe conversation window
-    make flash T="me llamo Alex"                  # atajo one-shot
-    make flash-repl                               # atajo REPL
+    make flash T="me llamo Alex"                  # one-shot shortcut
+    make flash-repl                               # REPL shortcut
 
 It does NOT touch the voice session (it uses its own `_SESSIONS` window). By default it INGESTS into memory like
 the real turn (`ingest=true`) so state/memory tests are faithful; pass false for isolated conversation.
@@ -99,12 +99,12 @@ def _remember_what_was_said(sess, text: str) -> None:
 
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
                    execute: bool = False) -> dict:
-    """Corre UN turno del FlashBrain headless y devuelve un dict evaluable. Reproduce el núcleo de
-    `nucleo.py::_run` (prompt real + modelo real + tools reales + defensas de diálogo) sin voz ni ejecución.
-    `model` (opcional) fuerza otro modelo rápido para el turno (A/B de modelos, mismo proveedor/base/key).
-    `execute` (V2-049, canal de PRUEBA e2e de tareas web): ADEMÁS de reportar, EJECUTA de verdad las acciones de
-    worker (escalada→Brain Worker real que conduce el navegador; inyección/respuesta/stop a un worker vivo) — así
-    se puede conducir por TEXTO todo el ciclo de una gestión (reservar una cita) sin voz ni ruido de STT."""
+    """Run ONE headless FlashBrain turn and return an evaluable dict. Reproduces the core of
+    `nucleo.py::_run` (real prompt + real model + real tools + dialogue safeguards) without voice or execution.
+    `model` (optional) forces another fast model for the turn (A/B model testing, same provider/base/key).
+    `execute` (V2-049, end-to-end TEST channel for web tasks): IN ADDITION to reporting, actually EXECUTES worker
+    actions (escalation→real Brain Worker that drives the browser; injection/response/stop to a live worker) — this
+    makes it possible to drive the entire lifecycle of a task (booking an appointment) by TEXT, without voice or STT noise."""
     from voice import speech
     from voice.tag_protocol import strip_tags
 
@@ -432,7 +432,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 try:
                     from server.voice_api import open_instances as _oi
                     from widgets import instances as _inst2
-                    _r2 = _inst2.resolve_show(_rid, _oi())
+                    _r2 = _inst2.resolve_show(_rid, _oi(), text)
                     if _r2.get("ask"):
                         _show_ask, _rid = _r2["ask"], ""
                     else:

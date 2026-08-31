@@ -1,9 +1,10 @@
-"""Trinquete de FECHAS FUTURAS + contrato de los casos de descubrimiento.
+"""Future-date ratchet + contract for discovery cases.
 
-Norma del operador (2026-08-19): las fechas de un caso de uso son SIEMPRE relativas a hoy. Este test existe
-porque el defecto no se ve al leer: el catálogo pedía «vuelos para el puente de mayo» y «el cumpleaños es el 14
-de marzo» con el reloj en AGOSTO — casos imposibles por construcción que el tablero contaba como fallos del
-agente. Una fecha absoluta caduca sola y envenena la medida en silencio, así que la prohibición va en un test.
+Operator rule (2026-08-19): dates in a use case are ALWAYS relative to today. This test exists because the defect
+is not visible when reading: the catalog asked for «flights for the May holiday weekend» and «the birthday is on
+March 14» with the clock in AUGUST — cases impossible by construction that the dashboard counted as agent
+failures. An absolute date expires on its own and silently poisons the measurement, so the prohibition belongs in
+a test.
 """
 from __future__ import annotations
 
@@ -14,13 +15,13 @@ from tests.use_cases.e2e.agent import dates as DT, discovery as DISC, scenarios 
 
 _MESES = ("enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|"
           "january|february|march|april|may|june|july|august|september|october|november|december")
-# «14 de marzo», «September 20th», «puente de mayo»: un mes NOMBRADO en el texto FUENTE es el patrón prohibido.
+# «14 de marzo», «September 20th», «puente de mayo»: a NAMED month in the SOURCE text is the forbidden pattern.
 _ABS = re.compile(rf"\b(?:\d{{1,2}}\s+de\s+(?:{_MESES})|(?:{_MESES})\s+\d{{1,2}}|puente de (?:{_MESES}))\b",
                   re.I)
 
 
 def _sources() -> dict[str, str]:
-    """El texto FUENTE, no el resuelto: tras `resolve()` toda fecha es un mes nombrado y legítimo."""
+    """The SOURCE text, not the resolved text: after `resolve()`, every date is a named and legitimate month."""
     import inspect
 
     from tests.use_cases import cases_data
@@ -55,7 +56,7 @@ def test_los_tokens_de_fecha_se_resuelven_en_todo_escenario():
 
 
 def test_toda_fecha_resuelta_cae_en_el_futuro():
-    """El fin de semana propuesto nunca puede ser pasado — ni un sábado, corrido en domingo."""
+    """The proposed weekend can never be in the past — not even a Saturday shifted to Sunday."""
     for ref, expect_sat in ((dt.date(2026, 8, 19), dt.date(2026, 8, 22)),   # miércoles
                             (dt.date(2026, 8, 22), dt.date(2026, 8, 22)),   # sábado: hoy vale
                             (dt.date(2026, 8, 23), dt.date(2026, 8, 22))):  # domingo: el finde es el de hoy
@@ -67,20 +68,20 @@ def test_toda_fecha_resuelta_cae_en_el_futuro():
 
 
 def test_los_casos_de_descubrimiento_traen_su_contrato_completo():
-    """Cada caso de descubrimiento SIEMBRA memoria y declara con qué comprobar que aterrizó.
+    """Each discovery case SEEDS memory and declares how to verify that it landed.
 
-    Sin `seed_probe_query` la siembra no se puede verificar, y sin verificación el caso mediría el destilador
-    de memoria mientras reporta un fallo del agente — el error que estos casos existen para no cometer.
+    Without `seed_probe_query`, the seeding cannot be verified, and without verification the case would measure
+    the memory distiller while reporting an agent failure — the error these cases exist to prevent.
     """
     assert DISC.SCENARIOS, "no hay casos de descubrimiento"
     for s in DISC.SCENARIOS:
         assert s.memory_seed, f"{s.id} no siembra memoria"
         assert s.seed_probe_query, f"{s.id} no dice cómo comprobar la siembra"
-        # `worker`/`widget`, NO «Brain Workers»/«Widgets»: lo que se compara contra el informe de mecanismo
-        # es el `cat` CRUDO del evento, no la etiqueta que lee el humano en el visor. Estos dos asserts
-        # nombraban la etiqueta, así que CONFIRMABAN el bug en vez de cazarlo — test y código escritos a la
-        # vez desde la misma creencia equivocada. El trinquete que sí lo caza (`test_segments.py`) lee las
-        # familias de `voice.observer._CAT` en vez de repetir lo que yo creía.
+        # `worker`/`widget`, NOT «Brain Workers»/«Widgets»: what is compared against the mechanism report
+        # is the event's RAW `cat`, not the label a human reads in the viewer. These two asserts named the
+        # label, so they CONFIRMED the bug instead of catching it — test and code written at the same time
+        # from the same mistaken belief. The ratchet that does catch it (`test_segments.py`) reads the
+        # families from `voice.observer._CAT` instead of repeating what I believed.
         assert "worker" in s.expected_signals, f"{s.id} debería exigir un worker real"
         assert "widget" in s.expected_signals, f"{s.id} debería exigir el widget de resultados"
         low = s.success_checks.lower()
@@ -90,12 +91,13 @@ def test_los_casos_de_descubrimiento_traen_su_contrato_completo():
 
 
 def test_un_pass_no_puede_tapar_un_mecanismo_roto():
-    """Overall alto + mecanismo 1-2 = FAIL, no PASS.
+    """High overall score + mechanism 1–2 = FAIL, not PASS.
 
-    Caso REAL que lo motivó (2026-08-19, `reorder-prescription__es`): conducta impecable —5 en naturalidad,
-    adaptación y resultado— con **mecanismo 1**, y el juez escribiendo «desincronización crítica: reporta
-    estado 'working' con cero actividad de fondo». El umbral agregado lo cerró como PASADO y tiró ese hallazgo.
-    La regla fundacional del arnés es que el mecanismo manda sobre el texto; esto la aplica al marcador.
+    REAL case that motivated it (2026-08-19, `reorder-prescription__es`): impeccable behavior —5 in naturalness,
+    adaptation, and outcome—with **mechanism 1**, and the judge writing «critical desynchronization: reports
+    'working' status with zero background activity». The aggregate threshold marked it as PASSED and discarded
+    that finding. The harness's foundational rule is that mechanism takes precedence over text; this applies it to
+    the marker.
     """
     from tests.use_cases.e2e.agent import status as S
 
@@ -105,8 +107,8 @@ def test_un_pass_no_puede_tapar_un_mecanismo_roto():
     assert S._state(4, roto) == "FAIL", "un mecanismo roto no puede salir en verde"
     assert S._state(4, sano) == "PASS"
     assert S._state(5, {**base, "verdict": {"veredicto": "ok", "scores": {"mecanismo": 2}}}) == "FAIL"
-    # Sin nota de mecanismo (casos puramente conversacionales) el umbral sigue mandando: la guarda no puede
-    # convertir "no medido" en "roto".
+    # Without a mechanism score (purely conversational cases), the threshold still governs: the guard cannot
+    # turn "not measured" into "broken".
     assert S._state(4, {**base, "verdict": {"veredicto": "ok", "scores": {"naturalidad": 4}}}) == "PASS"
-    # Y un INFRA sigue siendo INFRA, nunca FAIL — eso ya era la regla y no debe romperse por este cambio.
+    # And INFRA remains INFRA, never FAIL — that was already the rule and must not be broken by this change.
     assert S._state(None, base) == "INFRA"

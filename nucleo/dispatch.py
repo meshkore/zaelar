@@ -1,15 +1,15 @@
-"""nucleo/dispatch.py — GESTOR of sessions of Brain Workers (V2-038; reencuadra the dispatcher V2-006/V2-036).
+"""nucleo/dispatch.py — Manager of Brain Worker sessions (V2-038; reframes dispatcher V2-006/V2-036).
 
-Recibe the escaladas of the FlashBrain (`bus:escalate.requested`) and the convierte in **Brain Workers** live
-(`nucleo/workers/`): backend agnostico (`get_backend`) conducido by a `WorkerSession`. Mantiene the **ÚNICO
-REGISTRO EN RAM** of sessions live (`_SESSIONS`), that es the **FUENTE DE VERDAD** (§v2·C) — absorbe and reemplaza the
-three registros parciales of before (`escalate._tasks`, `_INFLIGHT`, `_SESSIONS` viejos, §v3·G). Expone:
-  · `active_sessions()`/`has_active()`/`pending_summaries()` — proyeccion for ESTADO/prompt/`/api/tasks`.
-  · `inject(which, msg)` — inyecta a a session live (↓, refinamiento; reemplaza the dedup-descartar of V2-029).
-  · `cancel_session(tid)`/`cancel_all()` — MATAR with cortesia (kill of grupo via the backend).
-  · `resolve_sessions(query)` — "for ese proceso" → tid(s) deterministas.
+Receives escalations from FlashBrain (`bus:escalate.requested`) and converts them into live **Brain Workers**
+(`nucleo/workers/`): an agnostic backend (`get_backend`) driven by a `WorkerSession`. Maintains the **SINGLE
+IN-MEMORY REGISTRY** of live sessions (`_SESSIONS`), which is the **SOURCE OF TRUTH** (§v2·C) — absorbs and replaces
+the three partial registries from before (`escalate._tasks`, `_INFLIGHT`, old `_SESSIONS`, §v3·G). Exposes:
+  · `active_sessions()`/`has_active()`/`pending_summaries()` — projection for STATE/prompt/`/api/tasks`.
+  · `inject(which, msg)` — injects into a live session (refinement; replaces V2-029's deduplicate-and-discard).
+  · `cancel_session(tid)`/`cancel_all()` — terminate politely (terminate the process group through the backend).
+  · `resolve_sessions(query)` — “for that process” → deterministic tid(s).
 
-Confirm-gate of irreversibles (V2-007) and clasificacion of kind is conservan. Diseno:
+The confirmation gate for irreversible actions (V2-007) and kind classification are retained. Design:
 initiatives/V2-038-brain-workers-interactivos.md.
 """
 from __future__ import annotations
@@ -39,11 +39,11 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
 from nucleo.dispatch_prompts import _build_prompt, _web_prompt  # noqa: F401
 
-# Heuristica of clasificacion (only when the escalado no fija `kind`). Conservadora.
-# kind="web" = there is that ENTRAR a a site concreto and operarlo with a browser real (modalidad 2 of the decision
-# «search web» of CLAUDE.md: marketplaces, login, automatizar a operation). NO es «the dato esta in internet» —
-# eso es INVESTIGACIÓN (modalidad 3) and the does a worker generico with WebSearch/WebFetch, that es muchisimo mas
-# fast and no is pelea with banners of cookies.
+# Classification heuristic (only when the escalation does not set `kind`). Conservative.
+# kind="web" = the task requires ENTERING a specific site and operating it with a real browser (mode 2 of the decision
+# «search web» in CLAUDE.md: marketplaces, login, automating an operation). It is NOT «the data is on the internet» —
+# that is RESEARCH (mode 3), handled by a generic worker with WebSearch/WebFetch, which is much faster
+# and does not fight cookie banners.
 #
 # Se quitan of here «in the web» and «in internet» (2026-08-02): «investiga EN INTERNET and preparame a informe»
 # casaba and mandaba the task al browser. Observado in live with the narracion of the worker: 7 minutos peleandose with
@@ -60,7 +60,7 @@ from nucleo.errand_kind import (  # noqa: E402,F401 — re-export
 
 @dataclass
 class Task:
-    """Una escalada entrante of the FlashBrain."""
+    """An incoming FlashBrain escalation."""
     id: str
     request: str
     kind: str = "generic"
@@ -95,9 +95,9 @@ _find_resume = _wres._find_resume
 
 
 def _schedule_auto_resume(req: str) -> None:
-    """V2-049: resumes SOLA a operation web incompleta tras a breve pausa (without empujon of the operator). Emite another
-    escalada of the MISMA request; the listener the casara with the entrada of `_WEB_RESUME` recien grabada and CONTINUARÁ
-    (same tab + `--resume`). El cap of `_WEB_RESUME[count]` the corta if something esta roto of truth."""
+    """V2-049: automatically resumes an incomplete web operation after a brief pause (without an operator nudge).
+    Emits another escalation for the SAME request; the listener matches it to the newly recorded `_WEB_RESUME` entry
+    and CONTINUES (same tab + `--resume`). The `_WEB_RESUME[count]` cap stops it if something is genuinely broken."""
     async def _later() -> None:
         try:
             await asyncio.sleep(5.0)
@@ -122,7 +122,7 @@ def set_loop(loop) -> None:
 
 
 def _model_for(kind: str) -> str:
-    """Modelo of the worker — PEGADO AL ESCALÓN DE PROVEEDOR that is vaya a usar, no al config global.
+    """Worker model — TIED TO THE PROVIDER TIER that will be used, not to the global configuration.
 
     `code_agent.model` (p.ej. `glm-5.2`) only exists in SU proveedor. Al relevar a another escalon there is that relevar
     also the name of the model: with the cuota of Z.AI agotada, the relevo a the licencia local seguia pidiendo
@@ -159,7 +159,7 @@ def _model_for(kind: str) -> str:
 
 
 def _tools_for(kind: str, trusted: bool) -> list[str] | None:
-    """Allowlist of tools of the worker by tipo. Un turn no confiable no arrives here (deny_tools in the spec).
+    """Allowlist of worker tools by type. An untrusted turn never reaches here (deny_tools in the spec).
 
     NUNCA a `"Bash"` pelado (auditoria 2026-07-14): the Bash of the worker queda acotado a the CLIs bridge
     (`_BRIDGE_TOOLS` of `claude_session`, that is anaden solos) — a Bash abierto permitiria a a worker
@@ -208,7 +208,7 @@ def _pool():
 
 # ── proyeccion for ESTADO / prompt / /api/tasks (the sincroniza the LOOP ~1 Hz, §v2·C) ───────────────────────
 def active_sessions() -> list[dict]:
-    """Snapshot serializable of the sessions VIVAS (without handles). Fuente of truth for ESTADO and /api/tasks.
+    """Serializable snapshot of LIVE sessions (without handles). Source of truth for STATE and /api/tasks.
 
     ⚠️ «VIVAS» it decia the docstring and NO it hacia the code (arreglado 2026-08-18): esto devolvia **todo**
     `_SESSIONS`, incluidas the `done`/`cancelled` that aun no is habian sacado of the record. Era the only of the
@@ -227,6 +227,10 @@ def active_sessions() -> list[dict]:
             continue
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
+            # V2-530 — the NAME, beside the brief and never instead of it: `goal` still carries the
+            # operator's own words (dedup compares them, the Master audits them) and `title` is what a
+            # human reads or hears. Falls back to the brief, so a consumer can use it unconditionally.
+            "title": _sheets.title_of(r),
             "phase": r.phase, "status": r.status, "age_s": int(now - r.started), "paused": r.paused,
             # V2-227: where mira the operator. El frontend opens the sheet with esto ANTES of that haya a result,
             # so that viaja in the proyeccion live and no in the entrega.
@@ -427,7 +431,7 @@ def record_by_nav_task(nav_tid) -> "SessionRecord | None":
 # that it importan by name from here — es a mudanza, no a cambio of interfaz.
 from nucleo.turn_marks import mark_stall_offered, stall_offered  # noqa: F401 — re-export
 from nucleo.sheets import (  # noqa: F401 — re-export
-    PHASES_KEPT, _phrases, _sheet_close, _sheet_open, sheet_id_for, sheet_of,
+    PHASES_KEPT, _phrases, _sheet_close, _sheet_open, retitle as _sheet_retitle, sheet_id_for, sheet_of,
 )
 from nucleo import sheets as _sheets
 
@@ -992,6 +996,48 @@ async def _compose_brief(request: str, context: str, trusted: bool, resume: dict
                     f"(≥{(nxt.get('breadth') or {}).get('min_candidates')} candidatos): {request[:60]}")
         return nxt
     return await research.compose(request, context)
+
+
+#: Live references to the errand NAMERS (V2-530), for the same reason the brief composers below need one: a
+#: bare `Task` can be garbage-collected mid-flight and die in silence.
+_TITLE_BG_TASKS: set = set()
+
+
+def _name_errand(rec) -> None:
+    """Give this errand its NAME, without anybody waiting for it (V2-530).
+
+    Fire-and-forget on purpose. The sheet is already on screen under the brief, the worker is already spawning,
+    and the voice already answered — so the only thing a slow or dead provider can cost here is a box that
+    keeps the name it already had. That is why nothing upstream checks the result.
+    """
+    try:
+        from nucleo import errand_title as _et
+        if not _et.enabled() or not (rec.goal or "").strip():
+            return
+
+        async def _go():
+            try:
+                t = await _et.compose(rec.goal)
+            except Exception:  # noqa: BLE001
+                return
+            if not t or t == (getattr(rec, "title", "") or ""):
+                return
+            rec.title = t
+            try:
+                from voice.observer import emit
+                emit("task", "🏷️ encargo nombrado", text=t, role="system",
+                     extra={"id": rec.task_id, "goal": (rec.goal or "")[:120]})
+            except Exception:
+                pass
+            if surfaces.opens_sheet(getattr(rec, "surface", "")):
+                _sheet_retitle(rec)
+            sync_state()
+
+        _t = asyncio.ensure_future(_go())
+        _TITLE_BG_TASKS.add(_t)
+        _t.add_done_callback(_TITLE_BG_TASKS.discard)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 #: Referencias live a compositores in second plano (V2-301): a Task without referencia can ser recolectado a
@@ -1765,6 +1811,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             if surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_open(rec)
             _SESSIONS[key] = rec
+            _name_errand(rec)          # V2-530 — asynchronous; the sheet is already open under its brief
+
             rec.task = asyncio.create_task(_run_session(task), name=f"worker-session-{key}")
             sync_state()
     finally:

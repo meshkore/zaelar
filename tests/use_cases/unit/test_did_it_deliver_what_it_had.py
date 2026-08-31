@@ -1,22 +1,22 @@
-"""V2-332 — de las filas que el sistema le puso delante, ¿cuántas llegó a nombrar?
+"""V2-332 — of the rows the system put in front of it, how many did it actually name?
 
-El informe ya sabía qué le dieron (`results_sheet`) y qué dijo (`delivered_by_name`, V2-329/331). Faltaba el
-CRUCE, que es la pregunta del operador: no «¿entregó algo?» sino **«¿entregó lo que tenía?»**.
+The report already knew what it was given (`results_sheet`) and what it said (`delivered_by_name`, V2-329/331). What was
+missing was the CROSS-CHECK, which is the operator's question: not “did it deliver anything?” but **“did it deliver what it had?”**.
 
-Medido en `search-buy-used-car__es` (2026-08-26 01:14) — la primera ronda del caso con la cadena de extracción
-ya arreglada, y por eso la primera en la que esta pregunta tiene sentido. La hoja llevaba cinco coches reales,
-todos por debajo del tope de 12.000 €:
+Measured in `search-buy-used-car__es` (2026-08-26 01:14) — the first round of the case with the extraction chain
+fixed, and therefore the first one in which this question makes sense. The sheet contained five real cars,
+all below the €12,000 limit:
 
     MINI Cooper F55 2016 — 11.700 €   ·   Audi Q5 2015 2.0TDI — 11.990 €
     FIAT Panda 4x4 diesel — 6.900 €   ·   Peugeot 5008 2.0HDI — 6.990 €
     Peugeot 3008 2010 — 3.490 €
 
-y zaelar nombró TRES. El juez lo vio —«ignorar opciones válidas mejores (Audi Q5) ya capturadas en el
-sistema»— y el informe no tenía con qué respaldarlo NI contradecirlo.
+and zaelar named THREE. The judge saw it —“ignore better valid options (Audi Q5) already captured in the
+system”— and the report had no way to support OR contradict it.
 
-⚠️ NO ES UN VEREDICTO. Nombrar tres de cinco en una frase puede ser conversación sensata, y soltar cinco coches
-de golpe puede ser peor. Esto da el NÚMERO para que el patrón se vea a lo largo de muchas rondas en vez de
-discutirse sobre una — la lección que costó dos equivocaciones el día anterior.
+⚠️ THIS IS NOT A VERDICT. Naming three out of five in one sentence may be sensible conversation, and rattling off five cars
+at once may be worse. This provides the NUMBER so the pattern can be seen across many rounds instead of
+being debated over a single one — the lesson that cost two mistakes the previous day.
 """
 from tests.use_cases.e2e.agent import verify as V
 
@@ -27,11 +27,11 @@ _DICHO = {"n": 3, "names": ["MINI Cooper F55 5p 2016", "FIAT Panda 4x4 diesel", 
 
 
 def test_el_caso_MEDIDO_sale_con_su_numero():
-    """Reescrito 2026-08-28, NO volteado: el número medido (3 de 5 = 60 %) y las dos que se dejó son los
-    mismos: en aquella ronda la hoja tenía cinco filas y el prompt las llevaba las cinco, así que las dos
-    denominaciones coinciden y la medida no se mueve. Lo que cambió es que el dict trae ahora `in_sheet` y
-    `shown_to_model` (nodo 10.105), y una igualdad EXACTA de diccionario tumba el test cada vez que se añade
-    un campo — sin decir nada sobre lo que este test protege. Se comprueba lo medido, campo a campo."""
+    """Rewritten 2026-08-28, NOT flipped: the measured number (3 out of 5 = 60%) and the two it missed are the
+    same: in that round the sheet had five rows and the prompt included all five, so the two
+    names match and the measurement does not change. What changed is that the dict now contains `in_sheet` and
+    `shown_to_model` (node 10.105), and EXACT dictionary equality breaks the test every time a field is added
+    — without saying anything about what this test protects. The measured values are checked, field by field."""
     r = V.delivery_completeness(_DICHO, _HOJA)
     assert r["named"] == 3 and r["available"] == 5 and r["pct"] == 60
     assert r["missed"] == ["Audi Q5 2015 ETIQUETA C 2.0TDI MANUAL", "Peugeot 5008 2.0HDI"]
@@ -39,7 +39,7 @@ def test_el_caso_MEDIDO_sale_con_su_numero():
 
 
 def test_NOMBRA_las_que_se_dejó():
-    """Un porcentaje sin decir CUÁLES obliga a reconstruir la ronda entera para poder discutirlo."""
+    """A percentage without saying WHICH ONES forces the entire round to be reconstructed in order to discuss it."""
     assert "Audi Q5" in V.delivery_completeness(_DICHO, _HOJA)["missed"][0]
 
 
@@ -49,14 +49,14 @@ def test_entregarlo_todo_da_cien():
 
 
 def test_sin_hoja_no_hay_porcentaje_que_calcular():
-    """Y `pct=None`, no 0: no es que entregara nada de lo que tenía, es que no tenía nada. Un cero aquí
-    acusaría al producto de una ronda en la que la hoja nunca se llenó."""
+    """And `pct=None`, not 0: it is not that it delivered none of what it had; it had nothing. A zero here
+    would accuse the product over a round in which the sheet was never populated."""
     r = V.delivery_completeness({"n": 0, "names": []}, {"n_named": 0, "titles": []})
     assert r["pct"] is None and r["available"] == 0
 
 
 def test_no_pasa_del_cien_por_ciento():
-    """Las notas pueden aportar nombres que no están en la hoja; el porcentaje se acota."""
+    """The notes may provide names that are not in the sheet; the percentage is capped."""
     r = V.delivery_completeness({"n": 9, "names": ["x"] * 9}, _HOJA)
     assert r["pct"] == 100
 
