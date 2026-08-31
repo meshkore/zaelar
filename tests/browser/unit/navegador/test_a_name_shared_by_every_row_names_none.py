@@ -1,8 +1,9 @@
-"""Nueve filas con el MISMO nombre de plantilla, y el turno las anunció como coches (V2-346).
+"""Nine rows with the SAME template name, and the run announced them as cars (V2-346).
 
-Medido en vivo el 2026-08-26, `search-buy-used-car__es`, sesión `faadd628` del plató ES. El worker llegó bien a
-AutoScout24 —coches.net se cayó y cambió de sitio él solo—, aplicó los filtros y los verificó en la URL (Madrid
-200 km, diésel, desde 2016, ≤ 12.000 €, 2.922 coches) y extrajo. Esto es lo que devolvió la extracción, entero:
+Measured live on 2026-08-26, `search-buy-used-car__es`, session `faadd628` from the ES set. The worker reached
+AutoScout24 successfully —coches.net went down and it switched sites on its own—, applied the filters and verified
+them in the URL (Madrid 200 km, diesel, from 2016, ≤ 12,000 €, 2,922 cars) and extracted. This is what the full
+extraction returned:
 
     {"title": "",                                                    "price": "€ 10.475", "url": ""}
     {"title": "+ Vehículos del profesional (FLEXICAR SAN SEBASTIAN)", "price": "€ 11.990", "url": ""}
@@ -10,26 +11,26 @@ AutoScout24 —coches.net se cayó y cambió de sitio él solo—, aplicó los f
     {"title": "+ Vehículos del profesional (OCASIONPLUS ARGANDA)",    "price": "€ 11.565", "url": ""}
     … nueve así, y tres con el título en blanco.
 
-`by_identity` contó NUEVE con nombre, porque «+ Vehículos del profesional (FLEXICAR…)» tiene letras. Con eso la
-extracción se dio por buena, las filas entraron en la hoja y el turno le dijo al operador, literal: «en
-OcasionPlus Arganda hay uno por 11.565 euros». El tester —una persona— contestó lo que contestaría cualquiera:
-«¿Y qué coches son exactamente? No me has dicho ni marca ni modelo ni el año ni los kilómetros». No son coches:
-son el enlace «ver todos los vehículos de este concesionario» que cada tarjeta lleva dentro.
+`by_identity` counted NINE as named, because «+ Vehículos del profesional (FLEXICAR…)» contains letters. As a
+result, the extraction was accepted, the rows entered the sheet, and the run told the operator, literally: «there
+is one for 11,565 euros at OcasionPlus Arganda». The tester —a person— replied as anyone would:
+«And what cars exactly? You haven't told me the make, model, year, or mileage». They are not cars:
+they are the «see all vehicles from this dealer» link contained in each card.
 
-El criterio NO es una lista negra de patrones («vehículos del profesional», «ver más», «patrocinado»): mañana es
-otra tienda y otro idioma. Es la regla ESTRUCTURAL que este código ya aplica dentro del DOM, en `cardWalk` —«un
-dato que nombra a todas no nombra a ninguna»— subida un nivel, de los nodos a las filas: **un nombre que varias
-filas comparten como plantilla no es la identidad de ninguna de ellas**. La plantilla se detecta por prefijo
-común porque así es como viene (los nueve difieren solo en el paréntesis final), no por igualdad exacta.
+The criterion is NOT a blacklist of patterns («vehículos del profesional», «ver más», «patrocinado»): tomorrow it
+will be another store and another language. It is the STRUCTURAL rule this code already applies inside the DOM, in
+`cardWalk` —«data that names all of them names none of them»— raised one level, from nodes to rows: **a name that
+several rows share as a template is not the identity of any of them**. The template is detected by common prefix
+because that is how it appears (the nine differ only in the final parenthesis), not by exact equality.
 
-Con la guarda puesta, esas nueve dejan de contar como nombradas → `found(0)` → «sin resultados en esta página»,
-que es justo la señal que hace al worker cambiar de sitio en vez de anunciar concesionarios como si fueran
-coches. Perder una fila legítima es barato; anunciar una falsa se la cree el operador.
+With the guard in place, those nine stop counting as named → `found(0)` → «no results on this page»,
+which is exactly the signal that makes the worker switch sites instead of announcing dealers as if they were
+cars. Losing a legitimate row is cheap; the operator believes a false announcement.
 """
 from widgets.navegador import act_api
 
-# La extracción CRUDA de la ronda, en su orden exacto (12 filas, todas sin url — venían del respaldo por
-# hojas de precio, que el contrato permite: `dom.py` deja pasar filas con nombre y precio sin enlace).
+# The RAW extraction from the run, in its exact order (12 rows, all without a URL — they came from the fallback by
+# price sheets, which the contract allows: `dom.py` lets rows with a name and price but no link through).
 CRUDO = [
     {"title": "", "price": "€ 10.475", "tel": "", "url": "", "image": ""},
     {"title": "+ Vehículos del profesional (FLEXICAR SAN SEBASTIAN DE LOS REYES)", "price": "€ 11.990",
@@ -62,8 +63,8 @@ def test_the_dealer_boilerplate_stops_counting_as_nine_cars():
 
 
 def test_a_listing_of_real_cars_is_untouched():
-    """El lado contrario, y es el que importa: la guarda no puede comerse un listado bueno. Coches reales del
-    mismo sitio — comparten la palabra de la categoría, que es lo normal, y NO comparten plantilla."""
+    """The opposite case, and the one that matters: the guard must not eat a good listing. Real cars from the
+    same site — they share the category word, as is normal, and do NOT share a template."""
     reales = [
         {"title": "BMW Serie 3 320d Touring", "price": "€ 11.900", "url": "https://a.invalid/of/1"},
         {"title": "Volkswagen Golf 1.6 TDI Advance", "price": "€ 10.500", "url": "https://a.invalid/of/2"},
@@ -75,9 +76,9 @@ def test_a_listing_of_real_cars_is_untouched():
 
 
 def test_the_same_product_sold_by_four_shops_is_not_boilerplate():
-    """Trampa real de un comparador: cuatro filas con el título IDÉNTICO son cuatro ofertas del mismo producto,
-    no plantilla. La plantilla se reconoce porque cada fila añade lo suyo detrás del prefijo compartido; aquí no
-    hay «lo suyo», así que el nombre SÍ identifica la cosa (una por vendedor)."""
+    """A real comparison-site trap: four rows with the IDENTICAL title are four offers for the same product,
+    not a template. The template is recognized because each row adds its own text after the shared prefix; here
+    there is no «its own text», so the name DOES identify the item (one per seller)."""
     ofertas = [{"title": "Apple iPhone 13 128GB", "price": f"€ {p}", "url": f"https://c.invalid/{i}"}
                for i, p in enumerate(("529", "545", "559", "570"))]
     named, _ = act_api.by_identity(ofertas)
@@ -85,8 +86,8 @@ def test_the_same_product_sold_by_four_shops_is_not_boilerplate():
 
 
 def test_two_rows_are_never_a_template():
-    """Por debajo de tres filas no se juzga plantilla: dos coches de la misma marca comparten prefijo largo
-    («Mercedes-Benz Clase A …») sin que eso los convierta en cromo."""
+    """Fewer than three rows are not judged to be a template: two cars of the same make share a long prefix
+    («Mercedes-Benz Clase A …») without that turning them into chrome."""
     dos = [{"title": "Mercedes-Benz Clase A 180 d Style", "price": "€ 11.500", "url": "https://a.invalid/1"},
            {"title": "Mercedes-Benz Clase A 200 d Urban", "price": "€ 11.900", "url": "https://a.invalid/2"}]
     named, _ = act_api.by_identity(dos)
@@ -94,9 +95,9 @@ def test_two_rows_are_never_a_template():
 
 
 def test_a_minority_sharing_a_prefix_does_not_condemn_the_listing():
-    """La plantilla es de la PÁGINA, no de tres filas sueltas: si la mayoría de las nombradas trae nombre propio,
-    lo que comparten unas pocas es coincidencia y el listado se queda entero. Si no, un listado con tres Ford
-    Focus perdería tres coches buenos."""
+    """The template belongs to the PAGE, not to three isolated rows: if most named rows have their own name,
+    what a few share is coincidence and the listing remains intact. Otherwise, a listing with three Ford
+    Focus cars would lose three good cars."""
     mezcla = [{"title": "Ford Focus 1.5 TDCi Trend", "price": "€ 9.000", "url": "https://a.invalid/1"},
               {"title": "Ford Focus 1.5 TDCi Titanium", "price": "€ 9.500", "url": "https://a.invalid/2"},
               {"title": "Ford Focus 1.5 TDCi ST-Line", "price": "€ 9.900", "url": "https://a.invalid/3"},
@@ -109,8 +110,8 @@ def test_a_minority_sharing_a_prefix_does_not_condemn_the_listing():
 
 
 def test_a_short_shared_prefix_is_not_a_template():
-    """El prefijo tiene que ser LARGO para ser plantilla. «Bici » son cinco letras y las comparten tres bicis
-    legítimas; una plantilla de navegación arrastra una frase entera."""
+    """The prefix has to be LONG to be a template. «Bici » is five letters and three legitimate bikes share it;
+    a navigation template carries along an entire phrase."""
     bicis = [{"title": "Bici de montaña Orbea MX 50", "price": "€ 190", "url": "https://b.invalid/1"},
              {"title": "Bici de carretera Trek Domane", "price": "€ 180", "url": "https://b.invalid/2"},
              {"title": "Bici urbana Decathlon Elops", "price": "€ 150", "url": "https://b.invalid/3"}]

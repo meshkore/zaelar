@@ -1,40 +1,40 @@
-"""V2-334 — una ruta que comparten decenas de anclas no es la ficha de nada.
+"""V2-334 — a route shared by dozens of anchors is not the listing for anything.
 
-Es la regla que este fichero ya aplica al ANCESTRO —«un dato que nombra a todas no nombra a ninguna», ver
-`cardWalk`— llevada a la URL: si veintiséis botones apuntan al mismo `/redirigir`, ese destino es la ACCIÓN de
-la página, no un anuncio.
+This is the rule that this file already applies to the ANCESTOR —“data that names all of them names none of them,” see
+`cardWalk`— applied to the URL: if twenty-six buttons point to the same `/redirigir`, that destination is the page's
+ACTION, not a listing.
 
-MEDIDO el 2026-08-26 sobre las páginas que condujeron las rondas:
+MEASURED on 2026-08-26 on the pages that drove the rounds:
 
     ficha real (autoscout24)   : 2 anclas por ruta — min 2, max 2, mediana 2
     «IR A LA OFERTA» (kelisto) : /redirigir       ×26
     política de privacidad     : /privacy-policy  ×297
     enlace a la propia página  : /internet-movil  ×2083
 
-Ese hueco es lo que hace legítimo el corte: **8** está cuatro veces por encima de una ficha real y tres por
-debajo de la basura observada — la misma forma de elegir umbral que V2-323 (2× frente a 11,5× y 0,2×).
+That gap is what makes the cutoff legitimate: **8** is four times above a real listing and three times below
+the observed junk — the same way of choosing a threshold as V2-323 (2× versus 11.5× and 0.2×).
 
-Sin él entraban en la hoja «IR A LA OFERTA — 27,90 €» y «Mostrar detalles» (que apunta a `#`), junto a avisos
-legales sin título: los «datos basura (disclaimers)» que el juez nombró en `best-rated-rental-car__es`
-(mecanismo 1) y la fila-botón ya vista en coches.net («Buen precio — 9.450 €») y en kayak.
+Without it, «IR A LA OFERTA — 27,90 €» and «Mostrar detalles» (which points to `#`) entered the sheet, along with
+untitled legal notices: the «datos basura (disclaimers)» that the judge identified in `best-rated-rental-car__es`
+(mechanism 1) and the button row already seen on coches.net («Buen precio — 9.450 €») and on kayak.
 
-⚠️ NO ES UNA LISTA DE TEXTOS, que es lo que se rechazó en V2-324: el texto del botón lo inventa cada sitio,
-pero «esta URL la comparten veintiséis anclas» es un hecho de la página.
+⚠️ THIS IS NOT A LIST OF TEXTS, which is what was rejected in V2-324: each site invents the button text,
+but «this URL is shared by twenty-six anchors» is a fact about the page.
 
-Comprobado en vivo, misma página y mismo instante: en el comparador las dos filas-botón desaparecen; en el
-marketplace la extracción sale IDÉNTICA (20 filas, 13 con nombre).
+Verified live, on the same page and at the same instant: in the comparison site the two button rows disappear; in the
+marketplace the extraction is IDENTICAL (20 rows, 13 with names).
 
-Y HAY UN EFECTO QUE NO ESPERABA, visible en el fixture de abajo: al cortar los botones compartidos, `cands`
-queda vacío y entra el RECOLECTOR SIN ANCLAS (V2-320-A), que sube desde el precio y encuentra los nombres
-reales. El corte no solo quita basura — desbloquea la maquinaria que ya existía. Sin él, una página de diez
-ofertas colapsa en UNA fila llamada «IR A LA OFERTA», porque las diez comparten destino y el dedup las funde.
+AND THERE IS AN EFFECT I DID NOT EXPECT, visible in the fixture below: when the shared buttons are cut, `cands`
+becomes empty and the ANCHORLESS COLLECTOR (V2-320-A) runs, moving up from the price and finding the real names.
+The cutoff does not merely remove junk — it unlocks machinery that already existed. Without it, a page with ten
+offers collapses into ONE row called «IR A LA OFERTA», because all ten share a destination and deduplication merges them.
 
-⚠️ EL FIXTURE COSTÓ TRES INTENTOS, y las tres formas de no reproducir quedan aquí para el siguiente:
-  · `set_content` sin `<base href>` deja las URLs relativas SIN origen: `new URL()` falla, el dedup no funde
-    nada y el corte no puede dispararse. El test pasaba con y sin el arreglo.
-  · con el botón DENTRO del mismo `<article>` que la ficha, `cardPrice` (que exige `maxPaths=1`) no sube y el
-    botón se queda sin precio, así que lo descarta la regla de siempre antes de llegar al corte.
-  · la forma que SÍ reproduce es la medida: el botón en su propio bloque, con el precio al lado.
+⚠️ THE FIXTURE TOOK THREE ATTEMPTS, and the three ways not to reproduce it are left here for the next person:
+  · `set_content` without `<base href>` leaves relative URLs WITHOUT an origin: `new URL()` fails, deduplication
+    merges nothing, and the cutoff cannot trigger. The test passed both with and without the fix.
+  · with the button INSIDE the same `<article>` as the listing, `cardPrice` (which requires `maxPaths=1`) does not
+    move up and the button has no price, so the usual rule discards it before the cutoff is reached.
+  · the form that DOES reproduce it is the measured one: the button in its own block, with the price beside it.
 """
 from __future__ import annotations
 
@@ -56,8 +56,8 @@ def page():
 
 
 def _oferta(i: int) -> str:
-    """La forma MEDIDA en un comparador: el nombre en un encabezado sin enlace, y el botón —que apunta al
-    destino compartido— en su propio bloque con el precio al lado."""
+    """The MEASURED form on a comparison site: the name in an unlinked heading, and the button —which points to the
+    shared destination— in its own block with the price beside it."""
     return (f'<article><h3>Fibra 600 Mb operador {i}</h3>'
             f'<div class="cta"><span>{25 + i},90 €</span>'
             f'<a href="/redirigir?to={i}">IR A LA OFERTA</a></div></article>')
@@ -79,22 +79,22 @@ def test_el_boton_COMPARTIDO_no_entra(page):
 
 
 def test_y_APARECEN_las_ofertas_reales_que_el_boton_tapaba(page):
-    """El efecto que no esperaba: sin los botones, `cands` queda vacío y entra el recolector sin anclas, que
-    saca los nombres. Sin el corte, las diez ofertas colapsan en UNA fila basura."""
+    """The effect I did not expect: without the buttons, `cands` becomes empty and the anchorless collector runs,
+    extracting the names. Without the cutoff, the ten offers collapse into ONE junk row."""
     filas = _filas(page, _COMPARADOR)
     nombres = [str(f.get("title") or "") for f in filas]
     assert sum(1 for n in nombres if n.startswith("Fibra 600 Mb")) >= 8, nombres
 
 
 def test_una_ficha_con_DOS_anclas_sobrevive_CON_SU_ENLACE(page):
-    """Medido: un marketplace real da exactamente 2 anclas por ficha (foto y título), y el umbral es 8 para que
-    ese caso no roce el corte.
+    """Measured: a real marketplace gives exactly 2 anchors per listing (photo and title), and the threshold is 8 so
+    that case does not come close to the cutoff.
 
-    ⚠️ Se comprueba el ENLACE y no solo el nombre, y eso lo enseñó el desarme: con un umbral demasiado bajo las
-    fichas SÍ se cortan, pero entonces `cands` queda vacío y el recolector sin anclas las rescata por el
-    precio… **sin url**, porque ese camino no la tiene (su propio contrato lo dice). O sea que el coste de
-    pasarse no es perder la fila: es perder la forma de ACTUAR sobre ella, que es justo lo que V2-240 exige de
-    un resultado. Una aserción sobre el título habría pasado con el umbral en 1."""
+    ⚠️ The LINK is checked, not just the name, and the teardown demonstrated why: with a threshold that is too low the
+    listings ARE cut, but then `cands` becomes empty and the anchorless collector rescues them from the
+    price… **without a url**, because that path does not have one (its own contract says so). In other words, the cost
+    of overshooting is not losing the row: it is losing the ability to ACT on it, which is exactly what V2-240 requires
+    of a result. An assertion on the title would have passed with the threshold set to 1."""
     html = ('<html><head><base href="https://ejemplo.test/"></head><body>' + "".join(
         f'<article><a href="/anuncios/coche-{i}"><img></a>'
         f'<a href="/anuncios/coche-{i}"><h3>Skoda Octavia {i}</h3></a>'
@@ -107,7 +107,7 @@ def test_una_ficha_con_DOS_anclas_sobrevive_CON_SU_ENLACE(page):
 
 
 def test_TRES_anclas_al_mismo_anuncio_tampoco_se_cortan(page):
-    """Sensibilidad por el otro lado: foto, título y vendedor apuntando al mismo anuncio son normales."""
+    """Sensitivity in the other direction: photo, title, and seller pointing to the same listing are normal."""
     html = ('<html><head><base href="https://ejemplo.test/"></head><body><article>'
             '<a href="/anuncios/uno"><img></a><a href="/anuncios/uno"><h3>Audi A3 Sportback</h3></a>'
             '<a href="/anuncios/uno">ver vendedor</a><span>11.990 €</span></article></body></html>')

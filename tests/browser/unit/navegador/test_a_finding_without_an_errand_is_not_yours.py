@@ -1,25 +1,25 @@
-"""Un hallazgo SIN ENCARGO no puede presentarse como si fuera del que se está atendiendo (V2-377).
+"""A finding WITHOUT AN ERRAND cannot be presented as though it belonged to the one being handled (V2-377).
 
-Medido en `best-plumber-same-day__es` (2026-08-27, 2/5). Mientras el operador pedía un fontanero de urgencias
-en Madrid, entraron por la puerta de hallazgos estas notas:
+Measured in `best-plumber-same-day__es` (2026-08-27, 2/5). While the operator was asking for an emergency plumber
+in Madrid, these notes came in through the findings channel:
 
     [SISTEMA] El navegador ha SACADO esto de la página, trabajando en «la tarea del navegador»:
               Audi A3 2004 — 1500 € — https://es.wallapop.com/...
     [SISTEMA] El navegador ha SACADO esto de la página, trabajando en «la tarea del navegador»:
               SEAT Leon — € 15.000 — https://www.autoscout24.es/...
 
-Eran de la búsqueda de COCHES anterior, cuya pestaña seguía viva sobre autoscout24 (el log lo enseña: «🧭
-página · SEAT Leon … AutoScout24» en mitad de la ronda del fontanero). El turno los ofreció como fontaneros
-DOS veces, y el operador contestó «Perdona, yo no he pedido coches ni de coña jajaja».
+They came from the previous CAR search, whose tab was still active on autoscout24 (the log shows it: «🧭
+page · SEAT Leon … AutoScout24» in the middle of the plumber round). The turn offered them as plumbers
+TWICE, and the operator replied «Sorry, I didn't ask for cars at all haha».
 
-El juez lo archivó como que zaelar «ignora la línea del prompt» y «presentó coches como candidatos». No los
-ignoraba: **le dimos coches etiquetados como hallazgos de su encargo**. La frase «la tarea del navegador» se
-lee como LA tarea, la de ahora, y ahí está el daño — un relleno nuestro afirmando una pertenencia que nadie
-comprobó. Tercera vez en la tanda que una frase enlatada nuestra es la que miente (V2-176 «Hecho.», V2-209
-«Aquí lo tienes»).
+The judge filed it as zaelar «ignores the prompt line» and «presented cars as candidates». It was not ignoring
+them: **we gave it cars labeled as findings from its errand**. The phrase «the browser task» is read as THE task,
+the current one, and that is where the harm lies — boilerplate from us asserting a belonging that nobody checked.
+Third time in the batch that one of our canned phrases is the thing that lies (V2-176 «Done.», V2-209
+«Here you go»).
 
-Y NO se calla el hallazgo: puede ser justo lo que el operador pidió hace un rato, y tirarlo sería V2-223 otra
-vez. Se dice el hecho y se nombra el hueco (V2-127/V2-133).
+And the finding is NOT silenced: it may be exactly what the operator asked for a little while ago, and throwing it
+away would be V2-223 all over again. State the fact and name the gap (V2-127/V2-133).
 """
 import pytest
 
@@ -49,39 +49,39 @@ def _nota(tid) -> str:
     return " ".join(notas)
 
 
-# ── la ronda medida ────────────────────────────────────────────────────────────────────────────────────────
+# ── the measured round ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_una_pestaña_SIN_encargo_ya_no_dice_que_es_la_tuya():
-    tid = tasks.create("")                      # la pestaña huérfana de la ronda anterior
+    tid = tasks.create("")                      # the orphaned tab from the previous round
     n = _nota(tid)
     assert "la tarea del navegador" not in n, "la etiqueta que se leía como «lo tuyo»"
     assert "NO dice a qué encargo pertenece" in n
 
 
 def test_y_PROHIBE_ofrecerlo_como_resultado_de_lo_pedido():
-    """El daño no fue no saberlo: fue ofrecer un Audi a quien pedía un fontanero, dos veces."""
+    """The harm was not failing to know it: it was offering an Audi twice to someone asking for a plumber."""
     n = _nota(tasks.create(""))
     assert "NO se lo ofrezcas como resultado de lo que ha pedido" in n
     assert "búsqueda ANTERIOR" in n
 
 
 def test_el_HALLAZGO_no_se_tira():
-    """V2-223: lo que el navegador encuentra tiene que llegar a alguien. Puede ser lo que pidió hace un rato."""
+    """V2-223: what the browser finds has to reach someone. It may be what they asked for a little while ago."""
     n = _nota(tasks.create(""))
     assert "Audi A3 2004" in n and "1500 €" in n
 
 
 def test_le_dice_QUE_hacer_en_los_dos_casos():
-    """Un dato sin lectura se vuelve a leer como candidato (doctrina de V2-240/V2-360)."""
+    """A piece of data without context gets read again as a candidate (the doctrine of V2-240/V2-360)."""
     n = _nota(tasks.create(""))
     assert "nómbralo diciendo de dónde sale" in n
     assert "cállatelo y sigue con lo suyo" in n
 
 
-# ── lo que NO cambia ───────────────────────────────────────────────────────────────────────────────────────
+# ── what does NOT change ───────────────────────────────────────────────────────────────────────────────────
 
 def test_una_tarea_CON_encargo_conserva_su_nota_de_siempre():
-    """La sensibilidad que importa: el camino bueno es el 99 % de las veces y no puede tocarse."""
+    """The sensitivity that matters: the good path is the case 99% of the time and cannot be touched."""
     tid = tasks.create("Busca un fontanero de urgencias en Madrid centro")
     n = _nota(tid)
     assert "ha SACADO esto de la página, trabajando en «Busca un fontanero" in n
@@ -90,13 +90,13 @@ def test_una_tarea_CON_encargo_conserva_su_nota_de_siempre():
 
 
 def test_un_encargo_de_SOLO_espacios_cuenta_como_sin_encargo():
-    """`or` no basta: una cadena de espacios es verdadera y produciría una etiqueta VACÍA entre comillas
-    —«trabajando en «»»— que es aún menos informativa que la vieja.
+    """`or` is not enough: a string of spaces is truthy and would produce an EMPTY label in quotation marks
+    —«working on «»»— which is even less informative than the old one.
 
-    ⚠️ La primera versión pasaba `tasks.create("   ")` y el desarme salió VERDE: `create` ya recorta, así que
-    por ese camino el espacio nunca llega. El caso pasaba por el aseo del vecino, no por el guarda que dice
-    medir. Se escribe en el registro DIRECTAMENTE, que es lo que `_hand_over` lee — y lo que otro camino
-    podría dejar ahí mañana."""
+    ⚠️ The first version passed `tasks.create("   ")` and the teardown came out GREEN: `create` already trims, so
+    the space never arrives by that route. The case went through the neighbor's cleanup, not the guard that claims
+    to measure. Write DIRECTLY to the record, which is what `_hand_over` reads — and what another route could leave
+    there tomorrow."""
     tid = tasks.create("un encargo cualquiera")
     tasks._tasks[tid]["goal"] = "   "
     assert (tasks.get(tid) or {}).get("goal") == "   ", "premisa: el espacio tiene que llegar al lector"
@@ -105,7 +105,7 @@ def test_un_encargo_de_SOLO_espacios_cuenta_como_sin_encargo():
 
 
 def test_sin_ninguna_fila_con_nombre_manda_la_rama_de_pagina_vacia():
-    """Las tres ramas conviven; la de la página que no da nada (V2-234) sigue siendo la suya."""
+    """The three branches coexist; the one for a page that gives nothing (V2-234) remains its own."""
     tid = tasks.create("Busca un fontanero de urgencias en Madrid centro")
     act_api._HANDED.pop(tid, None)
     brain_notes.drain()

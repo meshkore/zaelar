@@ -1,20 +1,20 @@
-"""V2-294 — una página a medio cargar devuelve filas HUECAS, y eso no es «sin resultados».
+"""V2-294 — a half-loaded page returns HOLLOW rows, and that is not “no results”.
 
-Medido en la tanda del 2026-08-24 13:57, `search-secondhand-monitor__es`. Tres segundos después de navegar al
-listado con el filtro ya puesto, la extracción devolvió:
+Measured in the 2026-08-24 13:57 batch, `search-secondhand-monitor__es`. Three seconds after navigating to the
+listing with the filter already applied, extraction returned:
 
     [ { "title": "", "price": "0 €", "tel": "", "url": "https://es.wallapop.com/item/monitor-1043173153", … } … ]
 
-Son las tarjetas ESQUELETO que un listado pinta mientras hidrata: el enlace ya está, el resto en blanco. El
-worker lo diagnosticó él solo —«la extracción devuelve datos pobres (títulos vacíos, precios en 0)»— y gastó dos
-vueltas en recuperarse; la siguiente extracción, **sobre la misma página**, trajo monitores reales con precio. En
-`search-buy-bicycle__es` y `search-buy-guitar__es` la ronda se acabó antes de que se recuperara: `extr=0` tres
-tandas seguidas.
+These are the SKELETON cards that a listing renders while hydrating: the link is already there, the rest blank. The
+worker diagnosed it on its own —“extraction returns poor data (empty titles, prices at 0)”— and spent two
+rounds recovering; the next extraction, **on the same page**, returned real monitors with prices. In
+`search-buy-bicycle__es` and `search-buy-guitar__es` the round ended before it recovered: `extr=0` for three
+consecutive batches.
 
-La señal para mirar otra vez es inequívoca y no necesita saber de qué sitio se trata: **hay filas y NINGUNA tiene
-identidad**. Con CERO filas no se reintenta —eso sí puede ser una página sin resultados, y hacer esperar dos
-segundos a cada búsqueda vacía es que paguen todas para arreglar unas pocas— y solo UNA vez, porque a la segunda
-ya no es que esté cargando.
+The signal to look again is unambiguous and does not need to know which site it is: **there are rows and NONE has
+an identity**. With ZERO rows, there is no retry —that can indeed be a page with no results, and making every empty
+search wait two seconds would make all of them pay to fix a few— and only ONCE, because on the second attempt it is
+no longer merely loading.
 """
 import asyncio
 
@@ -29,7 +29,7 @@ _REALES = [{"title": "Monitor MSI MAG 276CXF 27 LED Curvo 280Hz", "price": "100 
 
 
 class _Tab:
-    """Una pestaña que devuelve una lista distinta en cada extracción, como hace una que está hidratando."""
+    """A tab that returns a different list on each extraction, as one that is hydrating does."""
     def __init__(self, *rondas):
         self.rondas, self.n = list(rondas), 0
 
@@ -41,22 +41,22 @@ class _Tab:
         self.n += 1
         return out
 
-    #: V2-323 añadió una SEGUNDA mirada, la de las páginas que pintan al acercarse, y necesita la página real.
-    #: Aquí se declara APAGADA a propósito: estos tests miden la mirada de V2-294 (la hidratación) y sólo esa.
-    #: Dejar el atributo fuera no habría sido «no participar» — habría sido un `AttributeError` convertido en
-    #: respuesta de error, que es como se descubrió que el contrato de la pestaña había crecido.
+    #: V2-323 added a SECOND look, for pages that render as you approach, and it needs the real page.
+    #: It is deliberately declared OFF here: these tests measure the V2-294 look (hydration), and only that.
+    #: Leaving the attribute out would not have meant “not participating” — it would have been an `AttributeError`
+    #: converted into an error response, which is how we discovered that the tab contract had grown.
     page = None
 
 
 @pytest.fixture(autouse=True)
 def _quiet(monkeypatch):
-    """Sin espera real (el test no mide segundos) y sin tocar hoja, bus ni conversación."""
+    """No real waiting (the test does not measure seconds) and no touching the sheet, bus, or conversation."""
     monkeypatch.setattr(act_api, "_HYDRATE_WAIT_S", 0)
     monkeypatch.setattr(act_api, "_emit_nav", lambda *a, **k: None)
     monkeypatch.setattr(act_api, "_say_phase", lambda *a, **k: None)
     monkeypatch.setattr(act_api, "_hand_over", lambda *a, **k: None)
-    # El empujón de V2-323 se apaga aquí: con una página falsa no hay nada que recorrer, y estos tests miden
-    # la mirada de la HIDRATACIÓN. Apagarlo explícitamente es lo que mantiene a cada test midiendo UNA cosa.
+    # The V2-323 nudge is turned off here: with a fake page there is nothing to traverse, and these tests measure
+    # the HYDRATION look. Turning it off explicitly is what keeps each test measuring ONE thing.
     async def _sin_empujon(_page):
         return False
     monkeypatch.setattr(act_api._lazy, "materialise_below_the_fold", _sin_empujon)
@@ -64,17 +64,17 @@ def _quiet(monkeypatch):
 
 
 def _run(tab, monkeypatch):
-    """Por el camino REAL del puente (`navegador_act`), no llamando al predicado a mano: la lección de V2-199 es
-    que un test que no recorre el camino prueba que el código compila. Se sustituye SOLO el registro de pestañas,
-    que es la frontera con Chromium."""
+    """Through the REAL bridge path (`navegador_act`), not by calling the predicate directly: the lesson from V2-199 is
+    that a test that does not traverse the path only proves that the code compiles. ONLY the tab registry is replaced,
+    as it is the boundary with Chromium."""
     from widgets.navegador import owner
     monkeypatch.setitem(owner._task_browsers, "t1", tab)
     return asyncio.run(act_api.navegador_act(task_id="t1", action="extract", args={"limit": 14}))
 
 
-# ── el predicado, que es donde vive la decisión ───────────────────────────────────────────────────────────
+# ── the predicate, where the decision lives ────────────────────────────────────────────────────────────────
 def test_hollow_rows_have_no_identity():
-    """La señal: filas con enlace y nada más. `by_identity` ya sabe contestarlo — no hace falta un criterio nuevo."""
+    """The signal: rows with a link and nothing else. `by_identity` already knows how to answer it — no new criterion is needed."""
     named, unnamed = act_api.by_identity(_HUECAS)
     assert named == [] and len(unnamed) == 2
 
@@ -83,9 +83,9 @@ def test_real_rows_do_have_identity():
     assert len(act_api.by_identity(_REALES)[0]) == 2
 
 
-# ── y el REINTENTO, por el camino real del puente ─────────────────────────────────────────────────────────
+# ── and the RETRY, through the real bridge path ───────────────────────────────────────────────────────────
 def test_a_hollow_page_is_looked_at_once_more(monkeypatch):
-    """EL CASO MEDIDO: primera extracción hueca, segunda con monitores reales."""
+    """THE MEASURED CASE: first extraction hollow, second with real monitors."""
     tab = _Tab(_HUECAS, _REALES)
     out = _run(tab, monkeypatch)
     assert tab.n == 2, "no volvió a mirar"
@@ -93,7 +93,7 @@ def test_a_hollow_page_is_looked_at_once_more(monkeypatch):
 
 
 def test_a_page_that_is_really_empty_is_not_retried(monkeypatch):
-    """Cero filas SÍ puede ser una página sin resultados. Reintentar ahí hace esperar a toda búsqueda vacía."""
+    """Zero rows CAN be a page with no results. Retrying there makes every empty search wait."""
     tab = _Tab([], [])
     out = _run(tab, monkeypatch)
     assert tab.n == 1
@@ -101,7 +101,7 @@ def test_a_page_that_is_really_empty_is_not_retried(monkeypatch):
 
 
 def test_a_good_page_is_not_looked_at_twice(monkeypatch):
-    """Sin esta, «mira otra vez» se satisface mirando siempre dos veces, que dobla el coste de cada extracción."""
+    """Without this, “look again” is satisfied by always looking twice, which doubles the cost of every extraction."""
     tab = _Tab(_REALES, _REALES)
     out = _run(tab, monkeypatch)
     assert tab.n == 1
@@ -109,8 +109,8 @@ def test_a_good_page_is_not_looked_at_twice(monkeypatch):
 
 
 def test_it_gives_up_after_one_more_look(monkeypatch):
-    """Una página que sigue hueca no está cargando: se entrega lo que hay y el worker decide (cambiar de búsqueda
-    o de sitio). Insistir aquí es el bucle que V2-186 vino a cortar."""
+    """A page that remains hollow is not loading: what is there is delivered and the worker decides (change the search
+or the site). Persisting here is the loop that V2-186 was introduced to cut."""
     tab = _Tab(_HUECAS, _HUECAS, _REALES)
     out = _run(tab, monkeypatch)
     assert tab.n == 2
@@ -118,7 +118,7 @@ def test_it_gives_up_after_one_more_look(monkeypatch):
 
 
 def test_the_retry_result_is_only_kept_when_it_is_better(monkeypatch):
-    """Si la segunda mirada trae MENOS, quedarse con ella sería empeorar por reintentar."""
+    """If the second look brings LESS, keeping it would make things worse because of retrying."""
     tab = _Tab(_HUECAS, [])
     out = _run(tab, monkeypatch)
     assert out["n"] == 2, "se quedó con la segunda, que traía menos que la primera"

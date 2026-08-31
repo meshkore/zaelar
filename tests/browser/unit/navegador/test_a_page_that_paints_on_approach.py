@@ -1,31 +1,31 @@
-"""V2-323 — un listado VIRTUALIZADO no tiene sus fichas hasta que te acercas, y «cero filas» no es «sin resultados».
+"""V2-323 — a VIRTUALIZED listing has no cards until you approach it, and “zero rows” is not “no results”.
 
-V2-294 enseñó a la extracción a mirar dos veces cuando las filas venían HUECAS (las tarjetas esqueleto que pinta
-un listado mientras hidrata) y decidió A PROPÓSITO no reintentar con cero filas:
+V2-294 taught extraction to look twice when rows were EMPTY (the skeleton cards a listing paints
+while hydrating) and deliberately decided not to retry with zero rows:
 
-    «esa sí puede ser una página sin resultados, y hacerle esperar dos segundos a cada búsqueda vacía es pagar
-     por todas para arreglar unas pocas»
+    “that may indeed be a page with no results, and making every empty search wait two seconds means paying
+     for all of them to fix a few”
 
-Razonamiento bueno, con un punto ciego. Medido el 2026-08-25 contra la URL exacta que acababa de conducir un
-worker (`autoscout24.es/lst/cit_madrid/ft_diesel?…`):
+Sound reasoning, with one blind spot. Measured on 2026-08-25 against the exact URL that a worker had just navigated
+to (`autoscout24.es/lst/cit_madrid/ft_diesel?…`):
 
-    sin desplazarse : 0 anclas de anuncio en el DOM · 1 fila (mobiliario)
-    tras desplazarse: 40 anclas                     · 19 filas
+    without scrolling: 0 listing anchors in the DOM · 1 row (furniture)
+    after scrolling  : 40 anchors                  · 19 rows
 
-HTTP 200, título correcto, y el texto de la propia página decía «16.752 coches de segunda mano diésel». La
-ronda (`search-buy-used-car__es`, 19:11) reportó **hoja vacía tras cuatro minutos de navegación real** — que es
-indistinguible de «la página no tenía nada», y por eso nadie podía arreglarlo mirando el informe.
+HTTP 200, correct title, and the page’s own text said “16,752 used diesel cars”. The
+run (`search-buy-used-car__es`, 19:11) reported **empty sheet after four minutes of real navigation** — which is
+indistinguishable from “the page had nothing”, so nobody could fix it by looking at the report.
 
-EL DISCRIMINADOR ES EL ALTO DE LA PÁGINA, y no invalida el argumento de coste de V2-294: lo respeta. Medido:
+THE DISCRIMINATOR IS PAGE HEIGHT, and this does not invalidate V2-294’s cost argument: it respects it. Measured:
 
-    autoscout24 (perezosa, CON resultados) : alto/viewport = 11,5×
-    wallapop, búsqueda imposible (vacía)   : alto/viewport =  0,2×
+    autoscout24 (lazy, WITH results) : height/viewport = 11.5×
+    wallapop, impossible search (empty): height/viewport =  0.2×
 
-Una página de resultados sin nada no llega ni a una pantalla, así que nunca paga por esto.
+A results page with nothing does not even reach one screen, so it never pays for this.
 
-⚠️ Y HAY UN SEGUNDO REQUISITO que no es de limpieza: la vista tiene que VOLVER. El siguiente `click_at` del
-worker lleva coordenadas de una foto tomada ANTES, y una herramienta que mueve la página por debajo rompería el
-clicar para arreglar el extraer. Comprobado en vivo: las fichas materializadas SOBREVIVEN a la vuelta arriba.
+⚠️ AND THERE IS A SECOND REQUIREMENT that is not about cleanup: the view must RETURN. The worker’s next `click_at`
+uses coordinates from a photo taken BEFORE, and a tool that moves the page underneath would break
+clicking to fix extraction. Verified live: materialized cards SURVIVE the return to the top.
 """
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ from playwright.async_api import async_playwright
 from widgets.navegador import lazy
 from widgets.navegador.dom import _JS_EXTRACT
 
-# Un listado que pinta sus fichas AL ACERCARSE, que es la forma medida. Alto real reservado desde el principio
-# (como hace un listado virtualizado), fichas creadas cuando el scroll pasa del umbral.
+# A listing that paints its cards WHEN APPROACHED, which is the measured behavior. Actual height reserved from the start
+# (as a virtualized listing does), cards created when scrolling passes the threshold.
 _PEREZOSA = """
 <html><body style="margin:0">
   <div style="height:6000px" id="relleno">
@@ -60,12 +60,12 @@ _PEREZOSA = """
   </script>
 </body></html>"""
 
-# Una búsqueda de verdad vacía: MÁS CORTA que una pantalla. Es la que no debe pagar nada.
+# A genuinely empty search: SHORTER than one screen. This one must pay nothing.
 _VACIA = '<html><body style="margin:0"><p>No hemos encontrado resultados.</p></body></html>'
 
 
 class _Tab:
-    """Lo mínimo que hace falta: una página. Se prueba la función REAL, no una copia."""
+    """The minimum required: a page. The REAL function is tested, not a copy."""
     def __init__(self, page):
         self.page = page
 
@@ -100,15 +100,15 @@ def test_una_pagina_que_pinta_al_acercarse_pasa_de_CERO_a_filas():
 
 
 def test_una_busqueda_de_VERDAD_vacia_no_paga_nada():
-    """La sensibilidad que hace legítimo el cambio: si esto se rompe, V2-323 ha pisado el argumento de coste de
-    V2-294 en vez de respetarlo, y toda búsqueda vacía del catálogo empieza a pagar un recorrido."""
+    """The sensitivity that makes the change legitimate: if this breaks, V2-323 has overridden V2-294’s cost
+    argument instead of respecting it, and every empty catalog search starts paying for a traversal."""
     async def caso(tab, page):
         return await tab.materialise_below_the_fold()
     assert asyncio.run(_con_pagina(_VACIA, caso)) is False
 
 
 def test_la_VISTA_vuelve_a_su_sitio():
-    """No es limpieza: el `click_at` siguiente del worker lleva coordenadas de una foto anterior."""
+    """This is not cleanup: the worker’s next `click_at` uses coordinates from an earlier photo."""
     async def caso(tab, page):
         await page.evaluate("() => window.scrollTo(0, 300)")
         antes = await page.evaluate("() => window.scrollY")
@@ -120,21 +120,21 @@ def test_la_VISTA_vuelve_a_su_sitio():
 
 
 def test_falla_BLANDO_y_nunca_tumba_la_extraccion():
-    """Fail-soft como todo este módulo: si la página se muere, se devuelve False y la extracción sigue."""
+    """Fail-soft like this entire module: if the page dies, False is returned and extraction continues."""
     rota = type("P", (), {"evaluate": staticmethod(
         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("página cerrada")))})()
     assert asyncio.run(lazy.materialise_below_the_fold(rota)) is False
 
 
 def test_el_umbral_deja_HUECO_entre_los_dos_casos_medidos():
-    """11,5× frente a 0,2×: el 2 está lejos de ambos. Si alguien lo sube a 12 o lo baja a 0,5, este test lo dice
-    antes de que lo diga una ronda."""
+    """11.5× versus 0.2×: 2 is far from both. If someone raises it to 12 or lowers it to 0.5, this test says so
+    before a run does."""
     assert 0.5 < lazy.FOLD_RATIO < 11.0
 
 
 def test_la_EXTRACCION_lo_consulta_y_solo_cuando_no_hay_nada_con_nombre():
-    """La mitad de cableado (V2-199) — y el orden importa: si se empujara SIEMPRE, cada extracción con
-    resultados pagaría un recorrido de página que no necesita."""
+    """Half of the wiring (V2-199) — and order matters: if it were ALWAYS pushed, every extraction with
+    results would pay for a page traversal it does not need."""
     import inspect
 
     from widgets.navegador import act_api

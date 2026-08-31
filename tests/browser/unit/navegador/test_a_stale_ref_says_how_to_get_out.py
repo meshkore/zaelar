@@ -1,16 +1,16 @@
-"""Un `ref` caducado decía QUÉ pasaba y no CÓMO salir (V2-248).
+"""A stale `ref` said WHAT was happening, but not HOW to get out (V2-248).
 
-Tercera y última de las causas por las que un worker se moría por su cuenta, de las que V2-236 dejó abiertas
-(las otras dos: la puerta de permiso → V2-241, y `scroll_into_view_if_needed` → V2-247). Medido por el arnés el
-2026-08-21: `ref 26 no existe`, la forma de V2-212.
+The third and last of the causes of a worker dying on its own, among those V2-236 left open
+(the other two: the permission gate → V2-241, and `scroll_into_view_if_needed` → V2-247). Measured by the harness on
+2026-08-21: `ref 26 no existe`, the V2-212 form.
 
-El mensaje era `ref 26 no existe en el snapshot actual`. Es verdad y no sirve: no dice cuántos refs hay, ni que
-la página haya cambiado, ni —sobre todo— que la salida está a un comando (`look`). Es el mismo contrato del nodo
-4.20 y de V2-203: **lo que el puente sabe, lo DICE, y un fallo dice además cómo se sale de él.**
+The message was `ref 26 no existe en el snapshot actual`. It is true and useless: it does not say how many refs there are, or whether
+the page has changed, or —above all— that the way out is one command away (`look`). It is the same contract as node
+4.20 and V2-203: **what the bridge knows, it SAYS, and a failure also says how to get out of it.**
 
-Y lo que NO se hace, a propósito: **reintentar solo con la mirada nueva**. Los números de ref se REPARTEN al
-mirar, así que el 26 de la mirada nueva es otro elemento. Reintentar sería clicar otra cosa — y en una página con
-un botón de pagar, clicar otra cosa es exactamente lo que el confirm-gate existe para impedir.
+And what is deliberately NOT done: **retrying with only the new view**. Ref numbers are ASSIGNED when looking,
+so 26 in the new view is a different element. Retrying would mean clicking something else — and on a page with
+a pay button, clicking something else is exactly what the confirm gate exists to prevent.
 """
 import pytest
 
@@ -39,7 +39,7 @@ def test_sin_haber_mirado_NUNCA_se_dice_eso_y_no_un_rango_vacio():
 
 
 def test_prohibe_EXPRESAMENTE_reintentar_el_mismo():
-    """La reacción natural del modelo ante un fallo es repetir. Aquí repetir no puede funcionar nunca."""
+    """The model's natural reaction to a failure is to repeat. Here, repeating can never work."""
     out = _stale_ref_reason(26, {1: 1, 9: 1}, URL, URL)
     assert "no inventes refs" in out and "reintentes" in out
 
@@ -49,9 +49,9 @@ def test_un_solo_ref_no_se_anuncia_como_rango():
 
 
 def test_no_se_reintenta_SOLO_con_la_mirada_nueva():
-    """GUARDA DE FUENTE, y aquí importa más que de costumbre: reintentar con el snapshot nuevo parece la mejora
-    obvia y es un fallo de SEGURIDAD — los números se reparten al mirar, así que el mismo número es otro
-    elemento. En una página con botón de pagar, eso es clicar otra cosa."""
+    """SOURCE GUARD, and it matters more than usual here: retrying with the new snapshot seems like the obvious
+    improvement and is a SECURITY failure — numbers are assigned when looking, so the same number is a different
+    element. On a page with a pay button, that means clicking something else."""
     import inspect
 
     from widgets.navegador import owner
