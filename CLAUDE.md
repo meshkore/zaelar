@@ -6671,10 +6671,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     checked that `title_of` EXISTS (V2-199 again — the wiring test is what makes it bite), and commenting out
     `_name_errand(rec)` left the source guard green because a substring scan cannot tell a live call from its
     own citation **and** `def _name_errand(rec)` matches the same substring.
-  - **Not verified live**: the engine is serving an older build with a live voice session and a running errand,
-    so it was not restarted. Still open: the frontend task card paints `goal`, not `title`; and the worker's own
-    restatement of the errand («Recibido el nuevo encargo: cita de traumatología en el Centro Médico Pama…») is
-    a better name than anything a titler composes, and nothing reads it.
+  - **VERIFIED LIVE on the operator's engine** (`3.16+de38413`, agent stopped, no session — safe to restart):
+    «Me parece bien. Oye, una cosita, estabas buscándome un médico. ¿Eres capaz de pedir cita tú solo?» →
+    **«Pedir cita con el médico»** in 1.55 s; «…Búscame el traumatólogo, y creo que era en el centro PAMA» →
+    **«Cita traumatólogo en centro PAMA»**; the English errand stayed in English. **Two things only the live run
+    could show.** (1) **WHO names it** — the reasoning chain (the research composer's own) has one reachable rung
+    on this machine and answered NOTHING in 20 s, while the voice tier composed every title in ~1.5 s; so the
+    voice tier goes first, which is also the right SHAPE (naming is one line, not deliberation, so a
+    non-reasoning model is what this wants) and the reasoning chain stays as the fallback. (2) asked for the `-`
+    sentinel on «mmm, no sé, déjalo» the model answered **«No encargo»** — a paraphrase of the instruction that
+    `clean()` would have handed over as a sheet title. The guard is STRUCTURAL, `names_the_errand()`: a name
+    that shares NO content word with the brief is not naming it, whatever it says — never a list of refusal
+    phrases, which is the treadmill this repo keeps paying (V2-151). Ambiguity costs only the provisional title,
+    the safe direction; a language that does not separate words never overlaps and always keeps it, stated
+    rather than papered over.
+  - Still open: the frontend task card paints `goal`, not `title`; and the worker's own restatement of the
+    errand («Recibido el nuevo encargo: cita de traumatología en el Centro Médico Pama…») is a better name than
+    anything a titler composes, and nothing reads it.
 
 - **The lead-in filler sounds BEFORE the reply — it IS the reply's first segment (V2-529, 2026-08-31)**:
   operator's report, verbatim: «la voz lo hace al revés: primero reproduce la respuesta y después el nexo …

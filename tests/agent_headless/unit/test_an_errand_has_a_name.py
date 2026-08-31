@@ -138,6 +138,65 @@ def test_no_provider_available_is_not_an_error(monkeypatch):
     assert _run(et.compose("Pedir cita")) == ""
 
 
+# ── a name that names nothing ─────────────────────────────────────────────────────────────────────────────
+
+def test_a_name_that_shares_no_word_with_the_brief_is_not_naming_it():
+    """Measured against the live model: asked for the `-` sentinel on «mmm, no sé, déjalo» it answered «No
+    encargo» — a paraphrase of the instruction, which `clean()` would have handed over as a sheet title. The
+    guard is STRUCTURAL, not a list of refusal phrases: that list is the treadmill this repo keeps paying."""
+    assert not et.names_the_errand("No encargo", "mmm, no sé, déjalo")
+    assert not et.names_the_errand("Sorry, I cannot help with that", "Búscame un digestólogo en Soria")
+
+
+@pytest.mark.parametrize("title,goal", [
+    ("Pedir cita con médico", "Me parece bien. Oye, una cosita, estabas buscándome un médico. ¿Eres capaz?"),
+    ("Cita traumatólogo en centro PAMA", "Búscame el traumatólogo, y creo que era en el centro PAMA."),
+    ("Cheap 27-inch 4K monitor", "Find me a cheap 27 inch 4k monitor in San Francisco"),
+    ("Digestologo en Soria", "Búscame un digestólogo en Soria"),           # accents must not break the match
+])
+def test_but_a_real_name_passes(title, goal):
+    assert et.names_the_errand(title, goal)
+
+
+def test_a_goal_with_nothing_to_check_against_does_not_reject():
+    """Ambiguity costs the provisional title, which is safe — but rejecting because WE could not check is
+    a different thing, and it would silently disable the composer for short goals."""
+    assert et.names_the_errand("Cita", "ok")
+
+
+def test_a_composed_title_that_names_nothing_keeps_the_provisional(monkeypatch):
+    monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
+
+    class _Fake:
+        async def complete(self, msgs, **k):
+            return "No encargo"
+
+    monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
+    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda: _Fake())
+    assert _run(et.compose("mmm, no sé, déjalo")) == ""
+
+
+def test_the_namer_asks_the_VOICE_tier_first(monkeypatch):
+    """Measured 2026-08-31: the reasoning chain's only reachable rung answered nothing in 20 s while the voice
+    tier composed every title in ~1.5 s. It is also the right SHAPE — naming is one line, not deliberation, so
+    a non-reasoning model is what this wants. The reasoning chain stays as the fallback."""
+    from nucleo.flash import provider_chain as pc
+
+    sentinel = object()
+    monkeypatch.setattr(pc, "pick", lambda role=None: "voice-tier" if role == pc.ROLE_VOICE else None)
+    monkeypatch.setattr(pc, "spec_for", lambda t: sentinel)
+    assert et._spec_for_naming() is sentinel
+
+
+def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypatch):
+    from nucleo.flash import provider_chain as pc
+
+    other = object()
+    monkeypatch.setattr(pc, "pick", lambda role=None: None)
+    monkeypatch.setattr("nucleo.research._spec", lambda: (other, None))
+    assert et._spec_for_naming() is other
+
+
 # ── the seam ──────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_the_sheet_the_task_and_the_voice_all_read_the_SAME_name():

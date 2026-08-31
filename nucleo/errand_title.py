@@ -33,11 +33,12 @@ from __future__ import annotations
 import logging
 import os
 import re
+import unicodedata
 
 logger = logging.getLogger("zaelar.errand_title")
 
 TITLE_MAX = 56          # what fits on the sheet's header and in a spoken «el proceso "…" pregunta»
-_TIMEOUT_S = float(os.environ.get("ZAELAR_TITLE_TIMEOUT_S", "20") or 20)
+_TIMEOUT_S = float(os.environ.get("ZAELAR_TITLE_TIMEOUT_S", "12") or 12)
 
 # A model that answers with «Título: Pedir cita» or «"Pedir cita"» has still answered; this is about reading it,
 # not about rejecting it. Anything longer than one line is a refusal to be brief and IS rejected below.
@@ -83,6 +84,47 @@ def clean(raw: str, limit: int = TITLE_MAX) -> str:
     return t[:limit].rstrip(" ,.;:—-")
 
 
+def _fold(text: str) -> str:
+    t = unicodedata.normalize("NFKD", str(text or "").lower())
+    return "".join(c for c in t if not unicodedata.combining(c))
+
+
+def names_the_errand(title: str, goal: str) -> bool:
+    """Does this name actually name THAT errand?
+
+    Measured against the live model: asked for the `-` sentinel on «mmm, no sé, déjalo» it answered «No encargo»
+    — a paraphrase of the instruction, which `clean()` would happily hand over as a sheet title. The guard is
+    STRUCTURAL rather than a list of refusal phrases (that list is the treadmill this repo keeps paying, V2-151):
+    a name that shares NO content word with the brief is not naming it, whatever it says. Ambiguity costs only
+    the provisional title, which is the safe direction.
+
+    Known limit, stated instead of hidden: a language that does not separate words (CJK) never overlaps, so it
+    always keeps the provisional. Better than inventing a rule for a case nobody has measured.
+    """
+    words = {w for w in re.findall(r"\w+", _fold(goal)) if len(w) >= 4}
+    if not words:
+        return True                      # nothing to check against: do not reject on our own inability
+    return any(w in words for w in re.findall(r"\w+", _fold(title)) if len(w) >= 4)
+
+
+def _spec_for_naming():
+    """WHO names it. The voice tier first, and that order is measured, not a preference: on 2026-08-31 the
+    reasoning chain's only reachable rung answered nothing in 20 s while the voice tier composed every title in
+    ~1.5 s. It is also the right shape for the job — naming is one line, not deliberation, so a non-reasoning
+    model is what this wants; the reasoning chain stays as the fallback for a machine wired the other way."""
+    from nucleo.flash import provider_chain as _pc
+    try:
+        tier = _pc.pick(_pc.ROLE_VOICE)
+        if tier:
+            spec = _pc.spec_for(tier)
+            if spec is not None:
+                return spec
+    except Exception:  # noqa: BLE001
+        pass
+    from nucleo.research import _spec as _research_spec
+    return _research_spec()[0]
+
+
 def _messages(goal: str) -> list[dict]:
     """One instruction per block, and the fork inside the imperative — two orders in one sentence come out as a
     coin flip (the lesson of V2-226, written into the prompt rules)."""
@@ -116,8 +158,7 @@ async def compose(goal: str, *, timeout: float = _TIMEOUT_S) -> str:
         import asyncio
 
         from nucleo.flash.fast_client import FastClient
-        from nucleo.research import _spec as _research_spec
-        spec, _tier = _research_spec()
+        spec = _spec_for_naming()
         if spec is None:
             return ""
         out = await asyncio.wait_for(
@@ -128,5 +169,8 @@ async def compose(goal: str, *, timeout: float = _TIMEOUT_S) -> str:
         return ""
     t = clean(out)
     if t == "-" or t.lower() in ("-", "n/a", "ninguno", "none"):
+        return ""
+    if not names_the_errand(t, req):
+        logger.info(f"errand_title: «{t}» no nombra el encargo — se queda el provisional")
         return ""
     return t
