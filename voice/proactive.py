@@ -200,6 +200,16 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             _last_spoke[0] = time.monotonic()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"proactive notify (voice) failed: {e}")
+        # VISIBLE, not just logged (operator, 2026-08-31: «si necesitas más observabilidad en la gestión de la
+        # voz, añádela»). A delivery that died mid-say was a WARNING line in server.log and nothing anywhere the
+        # operator looks — today's cut («A coroutine object is required») sat there for an hour while the session
+        # timeline showed a normal-looking say. An error event lands in the session file and the master.
+        try:
+            from voice.observer import emit as _emit_err
+            _emit_err("error", "⚠️ entrega proactiva por VOZ falló a media locución", text=str(e)[:200],
+                      role="system", extra={"spoken": spoken[:120]})
+        except Exception:
+            pass
     finally:
         _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
 

@@ -47,74 +47,116 @@ def test_every_proactive_say_hops_to_that_loop():
     says = [i for i, l in enumerate(lines) if "session.say(" in l]
     assert says, "no `session.say(` left: this guard would be watching nothing"
     for i in says:
-        # the call may be wrapped, so the hop can legitimately sit on the line above
-        window = "\n".join(lines[max(0, i - 1):i + 1])
+        # since the second cut, the say lives inside an `async def _do_say():` body and the hop call sits a
+        # couple of lines below — the pair must stay within one small window, or the say has gone bare again
+        window = "\n".join(lines[max(0, i - 3):i + 4])
         assert "_on_session_loop" in window, \
             f"a bare `session.say(` awaited from the caller's loop cuts the voice mid-sentence: {lines[i].strip()}"
 
 
-# ── and the hop itself has to WORK, not just be written ───────────────────────────────────────────────────
+# ── and the hop itself has to WORK, against the REAL shape of `say` ───────────────────────────────────────
+# The SECOND cut (session f5e833f7, 2026-08-31) got past the first version of these tests because the fake
+# speaker here was an `async def` — a coroutine function — while the real `AgentSession.say` is a SYNC method
+# that schedules the speech on whatever loop is CURRENT and returns an awaitable SpeechHandle
+# (`inspect.iscoroutinefunction(AgentSession.say)` is False, checked against livekit-agents 1.6.6). Fed a
+# lambda, the hop ran `say` on the caller's loop (disease intact) and `run_coroutine_threadsafe` rejected the
+# handle: «A coroutine object is required», playout dead at 3 s with 99 s synthesized. A test double that does
+# not match the seam's real shape verifies the harness, not the product — so the fake below has say's exact
+# shape, and the property asserted is WHERE THE SYNC CALL RAN.
+
+
+class _FakeSession:
+    """`say`'s real shape: sync, notes the loop it was CALLED on (that is where LiveKit builds the playout
+    futures), returns an awaitable handle."""
+
+    def __init__(self):
+        self.called_on = []
+
+    def say(self, text, **kw):
+        self.called_on.append(asyncio.get_running_loop())
+
+        async def _handle():
+            await asyncio.sleep(0)          # a real suspension point, like a playout wait
+        return _handle()
+
+
 def _make_hop(session_loop):
     """The same shape as `_on_session_loop` in agent.py, exercised against two real loops."""
-    async def _on_session_loop(make_coro):
+    async def _on_session_loop(coro_fn):
         try:
             here = asyncio.get_running_loop()
         except RuntimeError:
             here = None
         if here is session_loop:
-            await make_coro()
+            await coro_fn()
             return
-        await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(make_coro(), session_loop))
+        await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(coro_fn(), session_loop))
     return _on_session_loop
 
 
-def test_a_say_from_another_loop_reaches_the_sessions_loop():
-    """The regression, reproduced: the coroutine must RUN on the session's loop even though it was awaited from
-    a different one. Two real event loops in two real threads — the exact shape of the live failure."""
+def _drive_from_another_loop(session_loop, hop, fake):
+    async def _do_say():
+        await fake.say("hola")
+
+    async def _caller():                    # this is uvicorn's loop: a worker delivering its result
+        await hop(_do_say)
+
+    asyncio.run(_caller())
+
+
+def test_the_sync_say_call_itself_runs_on_the_sessions_loop():
+    """THE property (the second cut's lesson): not just the await — the CALL. `say` schedules its playout
+    futures on whatever loop is current when the sync method executes."""
     session_loop = asyncio.new_event_loop()
-    ran_on = {}
     t = threading.Thread(target=session_loop.run_forever, daemon=True)
     t.start()
     try:
-        hop = _make_hop(session_loop)
-
-        async def _say():
-            ran_on["loop"] = asyncio.get_running_loop()
-            await asyncio.sleep(0)          # a real suspension point, like a playout wait
-
-        async def _caller():                # this is uvicorn's loop: a worker delivering its result
-            await hop(_say)
-
-        asyncio.run(_caller())
-        assert ran_on["loop"] is session_loop, \
-            "the say ran on the caller's loop — that is where `got Future attached to a different loop` comes from"
+        fake = _FakeSession()
+        _drive_from_another_loop(session_loop, _make_hop(session_loop), fake)
+        assert fake.called_on == [session_loop], \
+            "say() executed on the caller's loop — that schedules the playout cross-loop and it dies in seconds"
     finally:
         session_loop.call_soon_threadsafe(session_loop.stop)
         t.join(timeout=5)
         session_loop.close()
 
 
+def test_the_hop_is_handed_coroutines_not_speech_handles():
+    """`run_coroutine_threadsafe(SpeechHandle)` raises «A coroutine object is required» — the say has already
+    been scheduled (wrongly) by then, so the error arrives AFTER the damage. The agent.py callers must wrap the
+    call in an `async def` body, never a bare lambda around `session.say`."""
+    src = "\n".join(l for l in AGENT.read_text(encoding="utf-8").splitlines()
+                    if not l.strip().startswith("#"))
+    assert "_on_session_loop(lambda" not in src, \
+        "a lambda around session.say CALLS it on the caller's loop and hands the hop a SpeechHandle — the " \
+        "exact «A coroutine object is required» failure of session f5e833f7"
+    for l in src.splitlines():
+        if "session.say(" in l:
+            assert "await session.say(" in l, \
+                f"every say must be awaited inside an async body that the hop runs on the session loop: {l.strip()}"
+
+
 def test_the_hop_is_a_no_op_on_the_sessions_own_loop():
     """The voice turn itself already runs there and must pay nothing — no thread hop, no extra future."""
-    ran_on = {}
+    fake = _FakeSession()
 
     async def _main():
         loop = asyncio.get_running_loop()
         hop = _make_hop(loop)
 
-        async def _say():
-            ran_on["loop"] = asyncio.get_running_loop()
+        async def _do_say():
+            await fake.say("hola")
 
-        await hop(_say)
+        await hop(_do_say)
         return loop
 
     loop = asyncio.run(_main())
-    assert ran_on["loop"] is loop
+    assert fake.called_on == [loop]
 
 
 def test_a_failure_inside_the_say_reaches_the_caller():
-    """The reason this went unseen for so long: the error died in a task nobody retrieved. Whatever else the
-    hop does, it must hand an exception BACK, so `proactive.notify`'s except can log it."""
+    """The reason the FIRST cut went unseen: the error died in a task nobody retrieved. Whatever else the hop
+    does, it must hand an exception BACK, so `proactive.notify`'s except can log AND emit it."""
     session_loop = asyncio.new_event_loop()
     t = threading.Thread(target=session_loop.run_forever, daemon=True)
     t.start()
@@ -137,3 +179,17 @@ def test_a_failure_inside_the_say_reaches_the_caller():
         session_loop.call_soon_threadsafe(session_loop.stop)
         t.join(timeout=5)
         session_loop.close()
+
+
+def test_a_failed_voice_delivery_is_a_VISIBLE_error_event():
+    """The operator's ask, verbatim: more observability in the voice management. A delivery that dies mid-say
+    was a WARNING in server.log and nothing in the session timeline — today's «A coroutine object is required»
+    sat invisible for an hour. The except in `proactive.notify` must emit an error event, not just log."""
+    from voice import proactive as _p
+    src = "\n".join(l for l in (Path(_p.__file__)).read_text(encoding="utf-8").splitlines()
+                    if not l.strip().startswith("#"))
+    i = src.find("proactive notify (voice) failed")
+    assert i > 0, "the failure branch moved: this guard would be watching nothing"
+    window = src[i:i + 500]
+    assert '_emit_err("error"' in window or 'emit("error"' in window, \
+        "a failed voice delivery has to land in the session timeline as an ERROR the operator can see"

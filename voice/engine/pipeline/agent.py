@@ -520,17 +520,27 @@ async def entrypoint(ctx: JobContext) -> None:
     #
     # Hopping onto the session's own loop is the whole fix. It is a no-op for a caller already on it (the voice
     # turn itself), so the hot path pays nothing.
+    #
+    # CALL SHAPE MATTERS (2026-08-31, the SECOND cut, measured live in session f5e833f7): `AgentSession.say` is
+    # NOT a coroutine function — it is a SYNC method that schedules the speech on whatever loop is current and
+    # returns an awaitable SpeechHandle. The first version of this hop took `lambda: session.say(...)`: calling
+    # the lambda ran `say` on the CALLER's loop (the disease this hop exists to cure, alive and well), and
+    # `run_coroutine_threadsafe` then rejected the returned handle — the log said, verbatim,
+    # «proactive notify (voice) failed: A coroutine object is required», the buffered-audio task died cross-loop
+    # three seconds in, and TTSMetrics recorded `dur=3.02s audio=99.34s`: ninety-nine seconds synthesized, three
+    # spoken. `coro_fn` MUST be an `async def` whose BODY makes the call: creating the coroutine object is free
+    # anywhere, but its body — the `say` call included — executes on the session's loop.
     _session_loop = asyncio.get_running_loop()
 
-    async def _on_session_loop(make_coro) -> None:
+    async def _on_session_loop(coro_fn) -> None:
         try:
             here = asyncio.get_running_loop()
         except RuntimeError:
             here = None
         if here is _session_loop:
-            await make_coro()
+            await coro_fn()
             return
-        await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(make_coro(), _session_loop))
+        await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(coro_fn(), _session_loop))
 
     async def _speak(text: str) -> None:
         # INSTRUMENTACIÓN (V2-047 F7): registramos `say` con si había locución/turno vivo al empezar → medible
@@ -544,15 +554,27 @@ async def entrypoint(ctx: JobContext) -> None:
                   extra={"bot_in_flight": bool(_bot0), "user_in_flight": bool(_usr0)})
         except Exception:
             pass
-        await _on_session_loop(lambda: session.say((text or "").strip(), allow_interruptions=True))
+        async def _do_say():
+            await session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
+        _t0 = time.perf_counter()
+        await _on_session_loop(_do_say)
+        # OBSERVABILITY the operator asked for (2026-08-31): the delivery's REAL playout time, next to the
+        # synthesized audio length TTSMetrics already reports. `playout_ms` ≪ the audio duration is the
+        # one-glance tell of a cut — exactly the comparison that took a log dig to make today.
+        try:
+            _emit("tts", "say (entrega proactiva) COMPLETADA", role="assistant",
+                  extra={"playout_ms": round((time.perf_counter() - _t0) * 1000)})
+        except Exception:
+            pass
 
     async def _speak_ephemeral(text: str) -> None:
         # V2-122: same TTS, but `add_to_chat_ctx=False` — LiveKit never registers a conversation item for this,
         # so `conversation_item_added` (→ `_on_item` below → the chat wall) never sees it. Exclusively for the
         # FlashBrain's neutral lead-in filler (V2-093) — see `voice.proactive.ephemeral_speaker()`'s docstring
         # for the bug this fixes (a filler landing AFTER the real reply in the chat wall, reported live).
-        await _on_session_loop(
-            lambda: session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False))
+        async def _do_say():
+            await session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False)
+        await _on_session_loop(_do_say)
 
     _proactive.register_speaker(_speak)
     _proactive.register_ephemeral_speaker(_speak_ephemeral)
@@ -576,8 +598,9 @@ async def entrypoint(ctx: JobContext) -> None:
         _emit("session", f"account energy exhausted ({reason}) — closing", role="system")
         try:
             # Same loop hop: this closer fires from `energy_meter`'s fire-and-forget report, i.e. off this loop.
-            await _on_session_loop(
-                lambda: session.say(langs.current_language().energy_exhausted, allow_interruptions=True))
+            async def _do_say():
+                await session.say(langs.current_language().energy_exhausted, allow_interruptions=True)
+            await _on_session_loop(_do_say)
         except Exception:
             pass
         for _ in range(50):  # ~10s hard cap so a stuck busy-probe can never wedge the close forever
