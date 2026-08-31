@@ -128,3 +128,6 @@ tester/reports/
 .meshkore/roadmap/
 # Roles internos de los agentes del equipo.
 .meshkore/team/
+
+# render-check screenshots (V2-520 and friends) — evidence of a run, never repo content
+tests/browser/e2e/*/_out/
