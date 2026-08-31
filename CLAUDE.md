@@ -6581,6 +6581,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **Connecting a channel can be ASKED FOR (V2-520, 2026-08-31)**: "conéctame el correo" opened the messaging
+  card on the MESSAGE list and nothing else — no dialog, no question about which provider. Everything the
+  operator asked for already existed (`connectors/email/providers.py` ships Gmail and Outlook/Hotmail with
+  OAuth, and the connect form has a provider picker); it was UNREACHABLE, for two reasons that compound:
+  - the channels panel is local `widget.js` state (`_connectorsOpen`) that only the header 🔌 button could
+    flip, and `showChannels = _connectorsOpen || connectedCount===0` — so with WhatsApp/Telegram already
+    connected, the card renders the message list forever;
+  - `apply_action` had handled `connect` since V2-051 but **the manifest never declared it**, and the widget
+    contract is explicit: an action `apply_action` handles and the manifest does not declare is INVISIBLE to
+    the brain. A capability nobody declared is a capability nobody has.
+  - Fix: a declared `open_connectors` data-op (+ a manifest `usage` telling the brain WHEN) that stores a
+    timestamped `connect_focus` in the widget's own data; the widget opens the panel and expands that
+    channel's form, **once per request** (`_focusDone` — otherwise the next message arriving would re-open a
+    panel the operator had just closed). It carries INTENT only, never a credential: a password or an OAuth
+    round-trip is not something to conduct by voice, and a test pins that.
+  - Nodes 4.88 (data + wiring) and **4.89, which RENDERS** — and the render is the half that matters here:
+    neutering the branch to `if(false && focus …)` left every source-level assertion green, because the
+    string being grepped was still in the file. The render check looks at pixels: panel open, form with real
+    height, picker offering Gmail and Outlook.
+  - Also: email now wears an **envelope**, not the letter "E" the icon fallback drew next to two real brand
+    logos. Deliberately not a Gmail logo — the same connector serves Outlook and any IMAP host.
+
 - **The attachment can never swallow the message (V2-519, 2026-08-31)**: feedback with "incluir lo que ha
   pasado en esta sesión" ticked always failed with a flat `400`, and the operator's written text was lost
   with it — a report about the mail wizard, gone. TWO causes stacked, and the second is the interesting one:

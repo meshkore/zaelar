@@ -139,6 +139,11 @@ def view_data(q: str = "") -> dict:
              "platform": m.get("platform"), "chatId": m.get("chatId")}
             for m in muted_channels
         ],
+        # V2-520 — the brain asking to CONNECT a channel. The channels panel is local widget.js state that only
+        # the header button could ever flip, so "conéctame el correo" opened the card on the MESSAGES view and
+        # the operator saw no form at all (measured 2026-08-31). Carried with a timestamp, not consumed on read:
+        # view_data runs on every render, and clearing it here would lose the request on the first repaint.
+        "connect_focus": db.get("connect_focus") or None,
     }
 
 
@@ -149,6 +154,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
       supervisor drains it and performs the real connect/disconnect (config/connectors.py + start/stop). This lets
       the user connect Telegram/WhatsApp from the UI without touching .env. data.py remains stdlib-only."""
     payload = payload or {}
+
+    # OPEN the channels panel (V2-520). Intent only — it stores no credential and starts no connection: the
+    # form does that, because a password or an OAuth round-trip is never something to conduct by voice.
+    if action == "open_connectors":
+        import time as _time
+        platform = (payload.get("platform") or "").lower()
+        if platform not in _PLATFORMS:
+            platform = ""                       # unknown/absent → open the panel, expand nothing
+        db = load_db()
+        db["connect_focus"] = {"platform": platform, "ts": int(_time.time() * 1000)}
+        store.save(WIDGET_ID, db)
+        return view_data()
 
     # Connection control, executed by the supervisor, not the widget.
     if action in ("connect", "disconnect"):

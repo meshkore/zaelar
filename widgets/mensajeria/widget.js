@@ -29,7 +29,7 @@ const PLAT = {
     credLink: "https://my.telegram.org",
     qrSteps: ["Abre Telegram en tu móvil → ", "Ajustes → Dispositivos", " → ", "Vincular dispositivo de escritorio", " y escanea este código."],
   },
-  email: {label: "Email", bg: "var(--hb-muted,#6b7b92)", requiresCreds: true},
+  email: {label: "Email", bg: "var(--hb-accent,#3D6FE0)", requiresCreds: true},
 };
 const ORDER = ["whatsapp", "telegram", "email"];
 
@@ -45,6 +45,13 @@ const BRAND_SVG = {
   telegram: {
     viewBox: "0 0 24 24",
     path: "M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z",
+  },
+  // Email is the ONE channel that is not a brand: the same connector serves Gmail, Outlook/Hotmail and any
+  // IMAP host, so it wears an envelope. Painting a Gmail logo here would be a lie for an Outlook account —
+  // and the letter "E" the fallback used to draw read as a glyph nobody recognises next to two real logos.
+  email: {
+    viewBox: "0 0 24 24",
+    path: "M20 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 4.24-7.47 4.67a1 1 0 0 1-1.06 0L4 8.24V6.4l8 5 8-5v1.84z",
   },
 };
 
@@ -62,6 +69,11 @@ let _profile = "simple";
 try { _profile = localStorage.getItem("hb-msg-profile") || "simple"; } catch { /* storage blocked: use "simple" */ }
 let _settingsOpen = false;
 let _connectorsOpen = false;         // "Available channels" panel opened from the header
+// V2-520 — the last `connect_focus` request already honoured. The brain asking to connect a channel is the
+// ONLY way into this panel from outside (it is local state the header button owns), and the request travels
+// in the DATA with a timestamp. Remembering which one we acted on is what lets the operator close the panel
+// again: without it, the next repaint — a new message arriving — would re-open it forever.
+let _focusDone = 0;
 const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
 const _expanded = new Set();   // claves de mensajes con el cuerpo desplegado
@@ -710,6 +722,15 @@ export function render(root, data, ctx){
   const items=data.items||[];
   const rerender=()=>render(root, data, ctx);
   const connectedCount = ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").length;
+
+  // The brain was asked to connect a channel (V2-520): open this panel and expand that channel's form, so
+  // "conéctame el correo" lands ON the form instead of on the message list. Honoured once per request.
+  const focus = data.connect_focus || null;
+  if(focus && Number(focus.ts||0) > _focusDone){
+    _focusDone = Number(focus.ts||0);
+    _connectorsOpen = true;
+    if(focus.platform && PLAT[focus.platform]) _expandConnect.add(focus.platform);
+  }
 
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");

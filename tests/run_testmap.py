@@ -1582,6 +1582,23 @@ DOMAINS: list[dict] = [
                                 "nombrando el 401 · y el gracias visible en la pestaña a la que se salta",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/feedback/render_send_failure.py"},
+        # V2-520 — pedir «conéctame el correo» abría la tarjeta en la lista de MENSAJES y nada más: el panel
+        # de canales es estado local de widget.js que solo el botón 🔌 podía abrir, y `connect` llevaba años
+        # en apply_action SIN declarar en el manifest (una acción no declarada es invisible para el cerebro).
+        # Todo lo que el operador pedía ya existía —Gmail y Outlook con OAuth, y el formulario con su
+        # selector de proveedor—: era inalcanzable.
+        {"id": "4.88", "title": "Conectar un canal se puede pedir por voz: la data-op declarada abre el panel "
+                                "y despliega su formulario",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_connecting_a_channel_is_reachable_by_voice.py"]},
+        # RENDERIZA a propósito, por lo mismo que el 4.34: el 4.35 prueba el dato y el cableado, y seguiría
+        # verde con la rama del render desactivada — medido mientras se construía (`if(false && focus …)`
+        # dejó todas las aserciones de fuente en verde). Esto mira los píxeles: panel abierto, formulario
+        # con altura real y el selector ofreciendo Gmail y Outlook.
+        {"id": "4.89", "title": "El panel de conectores RENDERIZADO: el formulario de email desplegado y su "
+                                "selector con Gmail y Outlook",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_connect_panel.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
