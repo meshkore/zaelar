@@ -1,21 +1,21 @@
-"""V2-392 — «suena algo de verdad» era incomprobable desde el informe.
+"""V2-392 — «suena algo de verdad» could not be verified from the report.
 
-`widget_ops` dice qué se TOCÓ. No es lo mismo que si algo acabó pasando, y en los casos de medios la
-diferencia es el criterio entero: «SUENA ALGO DE VERDAD» es literalmente la primera mitad de
+`widget_ops` says what was TOUCHED. That is not the same as whether something actually happened, and in media
+cases the distinction is the entire criterion: «SUENA ALGO DE VERDAD» is literally the first half of
 `play-music-and-build-playlist`.
 
-Medido el 2026-08-27 a las 14:02, comprobado a mano contra el plató con la ronda recién terminada:
+Measured on 2026-08-27 at 14:02, manually checked against the studio with the round just completed:
 
     yt        → {"videoId": "263Vb6xiifo", "title": "MUSICA ZEN ULTRA RELAJANTE…", "paused": false}
     playlists → [{"name": "Curro", "tracks": [{"title": "MUSICA ZEN ULTRA RELAJANTE…"}]}]
 
-Sonaba, y la lista tenía DENTRO esa misma canción: las dos mitades del caso, cumplidas. Veredicto: **3/5**,
-«el asistente miente al afirmar que reproduce música sin tener la confirmación técnica necesaria (evidencia
-cero)». El producto lo había hecho y nada podía decirlo.
+It was playing, and the list had that same song INSIDE it: both halves of the case were fulfilled. Verdict: **3/5**,
+«the assistant lies when claiming that it is playing music without the necessary technical confirmation (zero
+evidence)». The product had done it, and nothing could say so.
 
-El motor YA lo sabía —`widgets/producers.py` evalúa `active_when` contra el `view_data()` del widget— y lo que
-faltaba era poder PREGUNTÁRSELO desde fuera del proceso. Se pregunta, no se deduce: reimplementar `active_when`
-en el arnés sería una segunda verdad, capaz de divergir justo de la que usa el producto.
+The engine ALREADY knew —`widgets/producers.py` evaluates `active_when` against the widget's `view_data()`— and
+what was missing was the ability to ASK it from outside the process. It is queried, not inferred: reimplementing
+`active_when` in the harness would be a second truth, capable of diverging precisely from the one the product uses.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def _cuerpo(resp) -> dict:
     return json.loads(bytes(resp.body).decode("utf-8"))
 
 
-# ── el motor contesta ───────────────────────────────────────────────────────────────────────────────────────
+# ── the engine answers ───────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_endpoint_devuelve_lo_que_dice_el_MOTOR(monkeypatch):
     import widgets.producers as P
@@ -44,7 +44,7 @@ def test_el_endpoint_devuelve_lo_que_dice_el_MOTOR(monkeypatch):
 
 
 def test_si_el_motor_no_sabe_responder_NO_revienta(monkeypatch):
-    """Es un dato de diagnóstico: tumbar una lectura del informe costaría la ronda entera."""
+    """This is diagnostic data: bringing down one report read would cost the entire round."""
     import widgets.producers as P
     import widgets.server_api as SA
 
@@ -55,7 +55,7 @@ def test_si_el_motor_no_sabe_responder_NO_revienta(monkeypatch):
     assert cuerpo["producing"] == [] and "no está listo" in cuerpo["error"]
 
 
-# ── el arnés lo lee ─────────────────────────────────────────────────────────────────────────────────────────
+# ── the harness reads it ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_cliente_lee_la_lista(monkeypatch):
     monkeypatch.setattr(PC, "_get", lambda path, timeout=15.0: {"producing": ["musica", "youtube"]})
@@ -70,27 +70,27 @@ def test_el_cliente_pregunta_a_la_RUTA_correcta(monkeypatch):
 
 
 def test_un_motor_mudo_dice_NO_PUDE_PREGUNTAR_y_no_lanza(monkeypatch):
-    """Reescrito por V2-396, no volteado. Lo que protegía —que un motor mudo NO reviente la ronda— sigue
-    intacto; lo que devolvía era el defecto: `[]` es la rama que este mismo fichero le enseñó al juez a leer
-    como «no sonaba nada», así que un motor inalcanzable acusaba al producto de no reproducir."""
+    """Rewritten by V2-396, not reverted. What it protected —that a silent engine does NOT crash the round— remains
+    intact; what it returned was the defect: `[]` is the branch that this same file taught the judge to read
+    as «nothing was playing», so an unreachable engine accused the product of not playing anything."""
     def _boom(path, timeout=15.0):
         raise OSError("conexión rechazada")
     monkeypatch.setattr(PC, "_get", _boom)
-    assert PC.widgets_producing() is None       # y sobre todo: no lanza
+    assert PC.widgets_producing() is None       # and above all: it does not throw
 
 
 def test_una_respuesta_SIN_el_campo_no_inventa_nada(monkeypatch):
-    """Igual: `{"error": "404"}` es una lectura FALLIDA, no un motor en silencio."""
+    """Likewise: `{"error": "404"}` is a FAILED read, not a silent engine."""
     monkeypatch.setattr(PC, "_get", lambda path, timeout=15.0: {"error": "404"})
     assert PC.widgets_producing() is None
 
 
-# ── la dirección del dato se DICE (V2-401) ──────────────────────────────────────────────────────────────────
+# ── the direction of the data is STATED (V2-401) ──────────────────────────────────────────────────────────────
 
 def test_el_juez_sabe_que_producing_es_el_estado_DECLARADO():
-    """La captura del operador (2026-08-27): «This video is unavailable» en pantalla con el estado declarado
-    diciendo `paused: false`. El dato es asimétrico — «nada sonando» declarado es fiable, «sonando» declarado
-    puede fallar en el navegador — y el juez tiene que conocer la dirección para no puntuar con él al revés."""
+    """The operator's capture (2026-08-27): «This video is unavailable» on screen with the declared state
+    saying `paused: false`. The data is asymmetric — declared «nothing playing» is reliable, declared «playing»
+    can fail in the browser — and the judge has to know the direction so as not to score with it backwards."""
     from tests.use_cases.e2e.agent import judge as J
     txt = J.mechanism_facts({"widgets_producing": []})
     txt = txt if isinstance(txt, str) else "\n".join(txt)
@@ -98,29 +98,29 @@ def test_el_juez_sabe_que_producing_es_el_estado_DECLARADO():
     assert "sí es fiable" in txt
 
 
-# ── y llega al informe ──────────────────────────────────────────────────────────────────────────────────────
+# ── and it reaches the report ─────────────────────────────────────────────────────────────────────────────────
 
 def test_el_informe_de_mecanismo_LLEVA_lo_que_suena(monkeypatch):
-    """El guarda que habría bastado: el criterio pedía `yt.videoId` y el informe no traía nada de eso."""
+    """The guard that would have been enough: the criterion required `yt.videoId`, and the report contained none of it."""
     monkeypatch.setattr(V.probe_client, "widgets_producing", lambda: ["musica"])
     mech = V.mechanism_report([], [])
     assert mech["widgets_producing"] == ["musica"]
 
 
 def test_el_arnes_NO_reimplementa_active_when():
-    """Se PREGUNTA al motor. Una copia de `active_when` aquí es una segunda verdad que puede divergir de la que
-    usa el producto — y la que decide qué se ve en pantalla es la del producto.
+    """The engine is QUERIED. A copy of `active_when` here is a second truth that can diverge from the one the
+    product uses — and the one that decides what appears on screen is the product's.
 
-    ⚠️ Sobre el CÓDIGO, no sobre el comentario: la primera versión casaba la cadena a secas y salía ROJA porque
-    el propio docstring de `widgets_producing` explica por qué NO se reimplementa. Un guarda que lee la
-    explicación en vez del código es el mismo fallo que ya se pagó con `extract=None` en V2-380, del revés.
+    ⚠️ About the CODE, not the comment: the first version matched the bare string and came out RED because
+    the `widgets_producing` docstring itself explains why it is NOT reimplemented. A guard that reads the
+    explanation instead of the code is the same failure already paid for with `extract=None` in V2-380, in reverse.
     """
     import ast
     for f in ("tests/use_cases/e2e/agent/verify.py", "tests/use_cases/e2e/agent/probe_client.py"):
         arbol = ast.parse(Path(f).read_text(encoding="utf-8"))
-        # Un literal `"active_when"` en el arnés solo puede ser el principio de una copia de la regla; el
-        # docstring que EXPLICA por qué no se copia es prosa y no cuenta (ast.Constant no ve un docstring
-        # suelto de módulo/función como este literal, porque se compara por igualdad exacta).
+        # A literal `"active_when"` in the harness can only be the beginning of a copy of the rule; the
+        # docstring that EXPLAINS why it is not copied is prose and does not count (ast.Constant does not see a
+        # standalone module/function docstring as this literal, because it is compared for exact equality).
         for nodo in ast.walk(arbol):
             if isinstance(nodo, ast.Constant) and nodo.value == "active_when":
                 assert False, f"{f} nombra `active_when` como dato: se PREGUNTA al motor, no se copia"

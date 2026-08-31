@@ -1,14 +1,15 @@
-"""V2-453 · «pregunta lo que ya sabe» tiene DOS causas, y el informe no distinguía.
+"""V2-453 · «asks what it already knows» has TWO causes, and the report did not distinguish them.
 
-O el recall NO LLEGÓ —el presupuesto de 800 ms vence y el turno sigue sin memoria durable, avería nuestra— o
-llegó y el modelo lo ignoró —conducta—. Desde fuera se ven idénticas: el turno pregunta algo que el operador
-ya contó. Es la misma forma del confundido que V2-432 cerró para la hoja, en otro subsistema.
+Either the recall DID NOT ARRIVE—the 800 ms budget expires and the turn still has no durable memory, our
+failure—or it arrived and the model ignored it—behavior. From the outside they look identical: the turn asks
+something the operator already mentioned. It is the same form of confusion that V2-432 closed for the sheet,
+in another subsystem.
 
-El motor lo dice desde V2-311 —fila `memory` «recall sin entregar», con motivo y consulta— y **el informe no
-lo leía**. Medido el 2026-08-28: `weekend-motor-events__es` se archivó como fallo de ADAPTACIÓN [alta]
-(«pregunta ¿qué te gusta? cuando las preferencias ya estaban en su memoria, sembradas y verificadas») sin
-nada en el informe que dijera si esas preferencias llegaron al prompt. Y V2-311 midió que **21 de 27 recalls
-vivos se abandonaban al vencer el presupuesto**, así que la causa nuestra no es rara: es la mayoritaria.
+The engine has said so since V2-311—`memory` row «recall not delivered», with reason and query—and **the
+report did not read it**. Measured on 2026-08-28: `weekend-motor-events__es` was filed as an ADAPTATION [high]
+failure («asks “what do you like?” when the preferences were already in its memory, seeded and verified»),
+with nothing in the report saying whether those preferences reached the prompt. And V2-311 measured that
+**21 of 27 live recalls were abandoned when the budget expired**, so our cause is not rare: it is the majority.
 """
 import json
 
@@ -28,14 +29,14 @@ def test_se_cuentan_los_recalls_que_no_llegaron_y_su_MOTIVO():
 
 
 def test_una_ronda_SIN_la_señal_sale_a_cero_y_LEIDA():
-    """«Cero» y «no miré» no son lo mismo, y el cero es el que tranquiliza: la señal se lee siempre, así que
-    aquí el cero SÍ significa que ningún recall se perdió."""
+    """«Zero» and «I did not look» are not the same, and zero is the reassuring one: the signal is always read,
+    so here zero DOES mean that no recall was lost."""
     out = verify.recall_not_delivered([{"kind": "flash", "payload": "{}"}])
     assert out["n"] == 0 and out["read"] is True
 
 
 def test_no_se_confunde_con_otro_evento_de_memoria():
-    """El canal `memory` lleva muchas cosas; contar cualquiera inflaría la avería con actividad sana."""
+    """The `memory` channel carries many things; counting any of them would inflate the failure with healthy activity."""
     otro = {"kind": "memory", "payload": json.dumps({"label": "píldora escrita", "reason": "x"})}
     assert verify.recall_not_delivered([otro])["n"] == 0
 
@@ -49,7 +50,7 @@ def test_al_juez_se_le_dice_que_NO_lo_puntue_como_fallo_de_memoria():
 
 
 def test_y_si_no_se_perdio_ninguno_no_se_le_dice_nada():
-    """Una línea que sale siempre deja de leerse — y aquí diría que hay una avería donde no la hay."""
+    """A line that is always emitted stops being read—and here it would say there is a failure where there is none."""
     txt = judge.mechanism_facts({"recall_not_delivered": {"n": 0, "read": True, "reasons": {}, "queries": []}})
     assert "MEMORIA QUE NO LLEGÓ" not in txt
 

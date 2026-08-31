@@ -1,13 +1,13 @@
-"""V2-382 — el proveedor DICE que cortó, y el juez lo adivinaba.
+"""V2-382 — the provider SAYS it cut off, and the judge guessed it.
 
-Las tres patas del juez parsean `choices[0]` (o el sobre de Anthropic) y **tiraban el campo que dice cómo
-terminó la respuesta**: `finish_reason="length"` en las compatibles con OpenAI, `stop_reason="max_tokens"` en
-la de Z.AI. Sin ese dato, `_judge_with_retry` deducía «esto se cortó» de DÓNDE reventó el parseo, y al deducirlo
-pedía «lo mismo más breve» **con el mismo techo**.
+The judge's three branches parse `choices[0]` (or the Anthropic envelope) and **discarded the field that says how
+the response ended**: `finish_reason="length"` for the OpenAI-compatible ones, `stop_reason="max_tokens"` for
+Z.AI. Without that data, `_judge_with_retry` inferred “this was cut off” from WHERE parsing broke, and after
+that inference it asked for “the same thing but shorter” **with the same ceiling**.
 
-Medido en `things-to-do-nearby-weekend__es` (2026-08-27 11:00): 519 s de conversación real, el veredicto
-cortado a mitad de una clave (`"cambio`, char 6688 de 6750), tres intentos idénticos contra el mismo techo y la
-ronda aparcada sin juzgar. La respuesta no venía mal formada: NO CABÍA, y el proveedor lo decía.
+Measured in `things-to-do-nearby-weekend__es` (2026-08-27 11:00): 519 s of real conversation, the verdict
+cut off halfway through a key (`"cambio`, char 6688 of 6750), three identical attempts against the same ceiling,
+and the round left parked without a judgment. The response was not malformed: it DID NOT FIT, and the provider said so.
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ class _Resp(io.BytesIO):
 
 @pytest.mark.parametrize("motivo, esperado", [("length", True), ("stop", False)])
 def test_la_pata_directa_de_deepseek_apunta_lo_que_dijo_el_proveedor(monkeypatch, motivo, esperado):
-    """`length` es un corte; `stop` es una respuesta entera. La pata tiene que distinguirlos, no suponerlos."""
+    """`length` is a cutoff; `stop` is a complete response. The branch must distinguish them, not assume them."""
     monkeypatch.setattr(VL.config, "DEEPSEEK_KEY", "k")
     monkeypatch.setattr(VL.urllib.request, "urlopen",
                         lambda *a, **k: _Resp(_respuesta_openai("{}", motivo)))
@@ -46,10 +46,10 @@ def test_la_pata_directa_de_deepseek_apunta_lo_que_dijo_el_proveedor(monkeypatch
 
 @pytest.mark.parametrize("motivo, esperado", [("max_tokens", True), ("end_turn", False)])
 def test_la_pata_de_glm_habla_anthropic_y_el_campo_se_llama_distinto(monkeypatch, motivo, esperado):
-    """Z.AI no dice `finish_reason` sino `stop_reason`, y no dice `length` sino `max_tokens`.
+    """Z.AI uses `stop_reason` instead of `finish_reason`, and `max_tokens` instead of `length`.
 
-    Es el motivo de normalizar en la pata y no en quien llama: si cada uno lee su propio campo, el que se
-    olvide de uno no falla — se queda callado, que es exactamente lo que pasaba.
+    That is why normalization belongs in the branch rather than in the caller: if each one reads its own field, the one
+    that forgets one does not fail — it stays silent, which is exactly what used to happen.
     """
     monkeypatch.setattr(VL.config, "ZAI_KEY", "k")
     monkeypatch.setattr(VL.urllib.request, "urlopen",
@@ -60,12 +60,12 @@ def test_la_pata_de_glm_habla_anthropic_y_el_campo_se_llama_distinto(monkeypatch
 
 
 def test_una_pata_que_NO_habla_no_hereda_la_palabra_de_la_anterior(monkeypatch):
-    """GLM dice «max_tokens» y se cae; contesta una pata que NO apunta nada → no puede quedar «cortada».
+    """GLM says “max_tokens” and crashes; a branch that answers but points to NOTHING follows → it cannot remain “cut off”.
 
-    Al escribir esto la primera vez el desarme (quitar el borrado de `judge_call`) se aplicó y NO mordió: la
-    pata que contestaba apuntaba su propio motivo y pisaba el anterior, así que el borrado no sostenía nada y
-    el guarda no medía nada. Lo que el borrado protege de verdad es la pata que se OLVIDA de hablar —hoy
-    ninguna, mañana la siguiente que se añada—: sin él lee «cortada» de una respuesta que ni miró.
+    When this was first written, the dismantling (removing the clearing in `judge_call`) was applied and did NOT bite: the
+    branch that answered pointed to its own reason and overwrote the previous one, so the clearing was supporting nothing and
+    the guard measured nothing. What the clearing really protects is the branch that FORGETS to speak — none today, the
+    next one added tomorrow—: without it, it reads “cut off” from a response it did not even inspect.
     """
     monkeypatch.setattr(VL.config, "JUDGE_PROVIDER", "zai")
     monkeypatch.setattr(VL.config, "ZAI_KEY", "k")
@@ -73,17 +73,17 @@ def test_una_pata_que_NO_habla_no_hereda_la_palabra_de_la_anterior(monkeypatch):
 
     def _glm(msgs, **kw):
         VL._anota_corte(kw.get("out"), "max_tokens")
-        return ""                      # cuerpo VACÍO → esta pata se cae
+        return ""                      # EMPTY body → this branch crashes
 
     monkeypatch.setattr(VL, "glm_call", _glm)
-    monkeypatch.setattr(VL, "deepseek_direct_call", lambda msgs, **kw: "{}")   # contesta y NO apunta nada
+    monkeypatch.setattr(VL, "deepseek_direct_call", lambda msgs, **kw: "{}")   # answers and points to NOTHING
     out: dict = {}
     VL.judge_call([{"role": "user", "content": "x"}], out=out)
     assert out["cortada"] is False, "la lectura tiene que ser del que contestó, no del que se cayó"
 
 
 def _falso_juez(monkeypatch, guion: list[tuple[str, str]]) -> list[int]:
-    """Encadena respuestas `(cuerpo, finish_reason)` y devuelve la lista de techos con que se pidió cada una."""
+    """Chains `(body, finish_reason)` responses and returns the list of ceilings used to request each one."""
     techos: list[int] = []
     pasos = iter(guion)
 
@@ -99,8 +99,8 @@ def _falso_juez(monkeypatch, guion: list[tuple[str, str]]) -> list[int]:
     return techos
 
 
-# Un JSON que revienta MUY LEJOS del final: la heurística de V2-373 lo daría por NO cortado, así que si el
-# techo sube tiene que ser porque el proveedor lo dijo — no porque la heurística lo dedujera.
+# A JSON that breaks VERY FAR from the end: the V2-373 heuristic would deem it NOT cut off, so if the
+# ceiling increases it must be because the provider said so — not because the heuristic inferred it.
 _CORTADO_PERO_NO_PARECE = '{"a": "' + "x" * 4000 + '", "b" }' + "y" * 4000
 
 
@@ -113,10 +113,10 @@ def test_si_el_proveedor_dice_que_no_cupo_el_reintento_pide_MAS_SITIO(monkeypatc
 
 
 def test_un_json_MAL_FORMADO_no_sube_el_techo(monkeypatch):
-    """La bifurcación tiene que ir en los DOS sentidos: más sitio no arregla una coma de más.
+    """The branching must work in BOTH directions: more room does not fix an extra comma.
 
-    Si subiera el techo también aquí, el guarda de arriba pasaría sin probar nada — mediría que el techo sube
-    siempre, no que sube CUANDO no cupo.
+    If the ceiling also increased here, the guard above would pass without testing anything — it would measure that the
+    ceiling always increases, not that it increases WHEN the response did not fit.
     """
     techos = _falso_juez(monkeypatch, [('{"a": 1,, }', "stop"), ('{"ok": 1}', "stop")])
     J._judge_with_retry([{"role": "user", "content": "x"}])
@@ -125,7 +125,7 @@ def test_un_json_MAL_FORMADO_no_sube_el_techo(monkeypatch):
 
 
 def test_el_error_final_dice_lo_que_dijo_el_proveedor(monkeypatch):
-    """Un fallo del instrumento que no deja ver su causa se repite entero cada vez (V2-363)."""
+    """A tool failure that does not reveal its cause is repeated in full each time (V2-363)."""
     _falso_juez(monkeypatch, [(_CORTADO_PERO_NO_PARECE, "length")] * 3)
     with pytest.raises(RuntimeError) as ei:
         J._judge_with_retry([{"role": "user", "content": "x"}])

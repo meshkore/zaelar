@@ -1,9 +1,9 @@
-"""V2-469 · a watchdog verdict is another model's OPINION, and the judge amplified a false one as [alta].
+"""V2-469 · a watchdog verdict is another model's OPINION, and the judge amplified a false one as [high].
 
 Measured in `cheapest-monitor__us` (23:53): the tester said, verbatim, «and honestly a bit cheaper than
-$250 would be great if it's still good» — and the live watchdog filed «Zaelar inventó un límite de $250
-que el usuario no dio», which the judge then amplified into the round's [alta] blocker, citing «el perro
-guardián detectó esta desviación» as its backing. The transcript was in front of both. The watchdog is a
+$250 would be great if it's still good» — and the live watchdog filed «Zaelar invented a $250 limit that
+the user did not give», which the judge then amplified into the round's [high] blocker, citing «the watchdog
+detected this deviation» as its backing. The transcript was in front of both. The watchdog is a
 hot-path nudger and it errs; the judge's prompt now says so where the verdicts are handed over: contrast
 each one against the transcript before adopting it, and never cite the watchdog itself as evidence.
 """

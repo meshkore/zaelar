@@ -49,9 +49,9 @@ def test_an_unreadable_engine_reads_as_not_live(monkeypatch):
 
 
 def test_a_farewell_does_not_outrun_a_live_browser_either():
-    """V2-304 — la despedida era el punto ciego de la gracia: `driver.done` rompía el bucle ANTES del chequeo
-    del último turno. Ronda 32 (2026-08-25): el tester dio las gracias en el turno 4 y la hoja se llenó 0,9
-    SEGUNDOS después del adiós — la ronda midió el reloj. Guarda de cableado sobre fuente sin comentarios."""
+    """V2-304 — the farewell was the grace period's blind spot: `driver.done` broke the loop BEFORE checking
+    the last turn. Round 32 (2026-08-25): the tester said thank you on turn 4, and the sheet filled up 0.9
+    SECONDS after the farewell — the round measured the clock. Wiring guard on the source without comments."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as runmod

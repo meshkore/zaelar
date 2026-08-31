@@ -1,17 +1,16 @@
-"""Un caso no se cierra por sacar buena nota: hay que haber leído la auditoría ENTERA.
+"""A case is not closed merely for receiving a good score: the ENTIRE audit must have been read.
 
-Regla del operador, 2026-08-20: *«no las vayas dando por cerradas hasta que se completen con éxito y
-compruebes cada uno de los pasos, de los eventos, de los procesos internos, leyendo toda su auditoría de
-observabilidad»*.
+Operator rule, 2026-08-20: *“do not go marking them as closed until they complete successfully and you
+check every step, event, and internal process, reading their entire observability audit”*.
 
-Lo que había medía FAMILIAS: ¿apareció `worker`, apareció `widget`? Esa no es la misma pregunta. La corrida
-real del 2026-08-20 10:00 tenía las dos familias esperadas presentes **y** un evento con `is_error: true` en
-un paso del worker —*«Exit code 2, no puedo leer el payload de sources.json»*— que no aparecía en el informe
-de mecanismo, ni en el prompt del juez, ni en el informe del operador. Por el criterio viejo, mecanismo
-correcto.
+What existed measured FAMILIES: did `worker` appear, did `widget` appear? That is not the same question. The
+real run on 2026-08-20 at 10:00 had both expected families present **and** an event with `is_error: true` in
+a worker step —*“Exit code 2, I cannot read the sources.json payload”*— that did not appear in the mechanism
+report, the judge's prompt, or the operator's report. By the old criterion, the mechanism was
+correct.
 
-El fallo que esto guarda es el caro: cerrar un caso archiva un defecto MEDIDO como si no existiera, y nada
-sale en rojo.
+The failure preserved here is the costly one: closing a case archives a MEASURED defect as though it did not
+exist, and nothing turns red.
 """
 from __future__ import annotations
 
@@ -35,14 +34,14 @@ def test_an_internal_error_is_surfaced_as_a_fact():
 
 
 def test_a_run_with_no_internal_error_is_clean():
-    """La mitad de sensibilidad: sin esto, «audita» y «siempre encuentra algo» pasan igual, y una auditoría
-    que nunca sale limpia bloquea todos los casos para siempre."""
+    """Half of the sensitivity check: without this, “audits” and “always finds something” pass alike, and an audit
+    that never comes back clean blocks every case forever."""
     a = V.audit([_ev(evidence=True), _ev(rel_ms=2000, evidence=True)], ["worker"])
     assert a["clean"], a["anomalies"]
 
 
 def test_evidence_and_the_tools_that_really_ran_are_counted():
-    """Lo único que puede hacer verdadera una afirmación sobre el mundo es que el mundo haya contestado."""
+    """The only thing that can make a claim about the world true is the world having answered."""
     a = V.audit([_ev(evidence=True, tool="WebFetch"), _ev(evidence=True, tool="WebFetch"),
                  _ev(tool="Bash")])
     assert a["n_evidence"] == 2
@@ -67,12 +66,12 @@ def test_a_long_silence_is_measured_not_judged():
 
 
 def test_the_anomalies_travel_in_the_LEDGER_so_the_tick_can_act_on_them(tmp_path, monkeypatch):
-    """El tick decide el cierre en el proceso PADRE, donde el run dict ya no existe. Si esto no viaja en el
-    marcador, la puerta de cierre no tiene con qué decidir y todo pasa igual que antes.
+    """The tick decides closure in the PARENT process, where the run dict no longer exists. If this does not travel in the
+    marker, the closure gate has nothing to decide with and everything passes just as before.
 
-    ⚠️ Contra un marcador TEMPORAL. La primera versión llamaba a `record` a pelo y escribió un escenario
-    falso («x») en el marcador REAL de la campaña: un test unitario no puede tocar el tablero que el bucle
-    está usando para decidir qué re-probar.
+    ⚠️ Against a TEMPORARY marker. The first version called `record` directly and wrote a fake scenario
+    (“x”) to the campaign's REAL marker: a unit test cannot touch the board that the loop is using to decide
+    what to re-test.
     """
     monkeypatch.setattr(ST, "LEDGER_PATH", tmp_path / "status.json")
     monkeypatch.setattr(ST, "BOARD_PATH", tmp_path / "STATUS.md")
@@ -86,20 +85,20 @@ def test_the_anomalies_travel_in_the_LEDGER_so_the_tick_can_act_on_them(tmp_path
 
 
 def test_the_audit_reads_the_shape_the_API_actually_serves():
-    """El fallo más caro que ha tenido esta auditoría, y duró una hora.
+    """The most costly failure this audit has had, and it lasted an hour.
 
-    `observer.emit` hace `ev.update(extra)`, así que los campos caen PLANOS en el payload — y el payload llega
-    de la API de observabilidad como una CADENA JSON. La primera versión de `audit` leía `e.get("evidence")`
-    directamente, así que devolvía CERO evidencia siempre, y de ahí `sin_evidencia_externa` en todos los casos
-    con worker esperado.
+    `observer.emit` does `ev.update(extra)`, so the fields land FLAT in the payload — and the payload arrives
+    from the observability API as a JSON STRING. The first version of `audit` read `e.get("evidence")`
+    directly, so it always returned ZERO evidence, hence `sin_evidencia_externa` in every case
+    with an expected worker.
 
-    El 2026-08-20 12:2x eso le puso a TRES casos distintos (`find-theatre`, `restaurant`, `cheapest-monitor`)
-    la anomalía «el mundo exterior no trajo nada» — mientras el timeline de esa misma tanda llevaba **60
-    eventos con `evidence`, 26 de ellos del navegador**. Estaba a punto de entregarse al agente que arregla
-    como hecho medido. Una auditoría que INVENTA una anomalía es peor que no tenerla: manda a alguien a buscar
-    un defecto que es mío.
+    On 2026-08-20 at 12:2x that assigned the anomaly “the outside world brought nothing” to THREE different
+    cases (`find-theatre`, `restaurant`, `cheapest-monitor`) — while the timeline for that same batch had **60
+    events with `evidence`, 26 of them from the browser**. It was about to be handed to the fixing agent
+    as a measured fact. An audit that INVENTS an anomaly is worse than having none: it sends someone to look for
+    a defect that is mine.
 
-    Y el aviso estaba escrito: el docstring de `_fields` lo dice literalmente. No basta con documentarlo.
+    And the warning was written down: the docstring of `_fields` says it literally. Documenting it is not enough.
     """
     import json
 
@@ -123,16 +122,16 @@ def test_the_audit_reads_the_shape_the_API_actually_serves():
 
 
 def test_an_agenda_write_is_VISIBLE_in_the_mechanism_report():
-    """Devuelto por el agente que arregla el 2026-08-20, y tenía razón.
+    """Returned by the fixing agent on 2026-08-20, and it was right.
 
-    El criterio de `remember-and-remind-deadline` dice literalmente «juzga por … data-ops de agenda», y el
-    informe de mecanismo NO traía ninguna: solo familias (`widget` aparece, pero no QUÉ widget ni qué se hizo)
-    y el bloque `scheduled_jobs`, que es de CRONS. Así que un hallazgo como «no existe ni el evento de agenda
-    ni el trigger» se apoyaba, para la mitad de la agenda, en un lector que no cubre agendas. En su
-    reproducción la cita SÍ se escribía.
+    The criterion for `remember-and-remind-deadline` literally says “judge by … calendar data-ops”, and the
+    mechanism report contained NONE: only families (`widget` appears, but not WHICH widget or what was done)
+    and the `scheduled_jobs` block, which is for CRONS. Thus a finding such as “neither the calendar event
+    nor the trigger exists” relied, for half of the calendar behavior, on a reader that does not cover calendars.
+    In its reproduction, the appointment WAS written.
 
-    Misma clase que el fallo de `evidence` unas horas antes: un lector que mira donde no está no falla,
-    RESPONDE — y responde una ausencia, que es la respuesta más creíble y más dañina.
+    Same class as the `evidence` failure a few hours earlier: a reader that looks where it is not does not fail;
+    it ANSWERS — and answers with an absence, which is the most credible and damaging answer.
     """
     from tests.use_cases.e2e.agent import verify as V
 
@@ -147,8 +146,8 @@ def test_an_agenda_write_is_VISIBLE_in_the_mechanism_report():
 
 
 def test_the_judge_is_told_not_to_infer_a_missing_appointment_from_the_crons():
-    """La mitad que evita el hallazgo falso: los disparadores durables son CRONS, la cita es un data-op. Sin
-    decírselo, el juez vuelve a concluir «no hay cita» leyendo un bloque que no habla de citas."""
+    """The half that prevents the false finding: durable triggers are CRONS; the appointment is a data-op. Without
+    being told this, the judge again concludes “there is no appointment” by reading a block that does not discuss appointments."""
     from tests.use_cases.e2e.agent import judge as J
 
     prose = J.mechanism_facts({"families_observed": ["widget"], "expected_signals": ["memory"],
@@ -159,10 +158,10 @@ def test_the_judge_is_told_not_to_infer_a_missing_appointment_from_the_crons():
 
 
 def test_and_the_report_actually_WIRES_it():
-    """La mitad que faltaba, y el mismo hueco que ya me comí con la auditoría: los dos tests de arriba llaman a
-    `widget_ops` a pelo o le pasan el dict al juez ya hecho, así que los dos PASAN aunque
-    `mechanism_report` deje de incluirlo (comprobado: sustituir la llamada por `{}` no los pone rojos).
-    Una constante puede quedarse sin cablear; lo que hay que afirmar es lo que RECIBE el consumidor.
+    """The missing half, and the same gap I already made with the audit: the two tests above call
+    `widget_ops` directly or pass the already-built dict to the judge, so both PASS even if
+    `mechanism_report` stops including it (confirmed: replacing the call with `{}` does not make them red).
+    A constant can remain unwired; what must be asserted is what the consumer RECEIVES.
     """
     from tests.use_cases.e2e.agent import verify as V
 
