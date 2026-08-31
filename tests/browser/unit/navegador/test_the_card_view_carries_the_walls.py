@@ -48,8 +48,8 @@ def test_the_history_SURVIVES_moving_on_to_another_page(tasks):
     tasks.update_view(tid, url="https://www.entradas.com/e", page_title="", page_text="Access Denied.")
     tasks.update_view(tid, url="https://www.elcorteingles.es/entradas/", page_title="", page_text="Resultados")
     v = _view(tid)
-    assert v["wall"] == ""              # ya no está encima del muro
-    assert v["walls_hit"] == 1          # …y aun así se lo comió
+    assert v["wall"] == ""              # it is no longer on top of the wall
+    assert v["walls_hit"] == 1          # …and yet it still swallowed it
 
 
 def test_a_clean_task_reports_ZERO_and_not_nothing(tasks):

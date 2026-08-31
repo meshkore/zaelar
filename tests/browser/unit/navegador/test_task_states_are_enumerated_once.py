@@ -1,17 +1,17 @@
-"""Todo estado de una tarea de navegador pertenece a UN conjunto: viva o terminada (V2-197).
+"""Every browser task state belongs to ONE set: live or ended (V2-197).
 
-`active_summaries()` filtraba por `("queued","working","needs_input")` y `recently_finished()` por
-`("done","failed")`, cada uno con su lista a mano. **Un estado que no está en ninguna de las dos es una tarea
-que el estado vivo no menciona EN ABSOLUTO** — ni viva ni terminada— y entonces el modelo sigue con lo último
-que sabía, que es lo correcto cuando nadie le dice otra cosa.
+`active_summaries()` used to filter by `("queued","working","needs_input")` and `recently_finished()` by
+`("done","failed")`, each with its own hand-maintained list. **A state that is in neither of the two is a task
+that the live state does not mention AT ALL** — neither live nor ended— and so the model continues with the last
+thing it knew, which is correct when nobody tells it otherwise.
 
-Ese hueco costó `cancelled` (V2-196, medido en `find-theatre-tickets__es`: «bucle de espera infinito sobre una
-tarea que ya falló»). Y en cuanto la enumeración pasó a estar en un solo sitio apareció que **`open` llevaba
-en el mismo hueco desde siempre**, puesto por `owner.py` cada vez que se abre una página PARA el operador: le
-abres Booking, luego pregunta «¿lo tienes?», y el estado no dice nada de esa pestaña.
+That gap cost us `cancelled` (V2-196, measured in `find-theatre-tickets__es`: “infinite wait loop on a task
+that has already failed”). And as soon as the enumeration moved to one place, it became apparent that **`open`
+had always been in the same gap**, set by `owner.py` every time a page is opened FOR the operator: you open
+Booking for them, then they ask “do you have it?”, and the state says nothing about that tab.
 
-Dos listas que hay que mantener sincronizadas son dos listas que no lo van a estar. Este test es el que lo
-impide, y no mira las listas: mira el CÓDIGO, y falla si alguien estrena un estado sin clasificarlo.
+Two lists that have to be kept in sync are two lists that will not stay in sync. This test prevents that, and it
+does not inspect the lists: it inspects the CODE, and fails if someone introduces a state without classifying it.
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def test_every_status_the_code_writes_is_classified():
 
 
 def test_open_is_an_ENDED_state_and_says_what_it_is():
-    """El que estaba en el hueco. No es un fracaso ni un resultado: es una pestaña que sigue delante suyo."""
+    """The one that was in the gap. It is neither a failure nor a result: it is a tab that remains in front of them."""
     from nucleo.flash import prompt as _p
 
     assert "open" in tasks.ENDED_STATES
@@ -70,8 +70,8 @@ def test_open_is_an_ENDED_state_and_says_what_it_is():
 
 
 def test_entering_ANY_ended_state_stamps_when_it_ended():
-    """`recently_finished()` filtra por una ventana de tiempo, así que un final sin hora es un final que nadie
-    puede fechar — y desaparece igual. El sello lo pone ENTRAR en un final, no cada función por su cuenta."""
+    """`recently_finished()` filters by a time window, so an ending without a timestamp is an ending that nobody
+    can date — and it disappears anyway. The stamp is applied when ENTERING an ending, not by each function separately."""
     for st in sorted(tasks.ENDED_STATES):
         tasks._tasks.clear()
         tid = tasks.create("x")

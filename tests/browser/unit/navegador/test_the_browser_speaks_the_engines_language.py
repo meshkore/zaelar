@@ -1,7 +1,7 @@
 """V2-469 · the task browser presented es-ES to every site the US engine visited.
 
 Measured in `cheapest-monitor__us` (23:43, worker session 79bfd2ce): Amazon.com product pages came back
-in SPANISH («KOORUI 27 Pulgadas… Monitor de Computadora») and Best Buy answered «Select your Country» —
+in SPANISH («KOORUI 27 Inches… Computer Monitor») and Best Buy answered «Select your Country» —
 `launch_persistent_context` pinned `locale="es-ES"` + `timezone_id="Europe/Madrid"` for every engine.
 V2-411 already fixed the SEARCH header for the same reason (a US search priced hotels in euros); the
 browser the worker actually drives kept the pin. Locale and timezone follow the engine's language, paired

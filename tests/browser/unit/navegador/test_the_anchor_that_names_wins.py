@@ -1,25 +1,25 @@
-"""V2-324 — cuando varias anclas apuntan al MISMO anuncio, gana la que lo NOMBRA, no la primera del DOM.
+"""V2-324 — when several anchors point to the SAME listing, the one that NAMES it wins, not the first in the DOM.
 
-Los 19 coches de un listado salían SIN nombre, y lo llamativo es que **ningún mecanismo estaba roto**:
+The 19 cars in a listing appeared WITHOUT names, and remarkably **no mechanism was broken**:
 
-  1. Cada anuncio tiene dos anclas a la misma ruta. En orden de DOM:
-         [0] «Abrir detalles del anuncio»            ← enlace de accesibilidad, MUDO
-         [1] «Skoda Octavia / 2.0TDI Selection 85kW» ← el nombre REAL
-  2. El bucle de candidatos deduplica por `origin+pathname`, así que se quedaba con la PRIMERA y tiraba la
-     que nombra.
-  3. El bloque final «una etiqueta no es un nombre» borraba los 19 «Abrir detalles» repetidos (`times[t]>1`)
-     — **y hacía bien**: «un dato que nombra a todas no nombra a ninguna».
+  1. Each listing has two anchors to the same path. In DOM order:
+         [0] «Abrir detalles del anuncio»            ← accessibility link, SILENT
+         [1] «Skoda Octavia / 2.0TDI Selection 85kW» ← the REAL name
+  2. The candidate loop deduplicated by `origin+pathname`, so it kept the FIRST one and discarded the
+     one that names it.
+  3. The final «a label is not a name» block removed the 19 repeated «Abrir detalles» entries (`times[t]>1`)
+     — **and correctly so**: «data that names everything names nothing».
 
-O sea que el borrado era correcto y llegaba TARDE. El fallo estaba en elegir la peor de las dos anclas antes
-de llegar a él: el nombre estaba en la página y lo tirábamos nosotros.
+In other words, the removal was correct and came TOO LATE. The failure was choosing the worse of the two anchors
+before reaching it: the name was on the page, and we were throwing it away ourselves.
 
-POR ESO EL ARREGLO NO ES UNA REGLA NUEVA sobre qué textos parecen nombres (esa es la cinta de correr, y era el
-camino que estaba a punto de tomarse). Es dejar de descartar el dato que ya teníamos: las alternativas se
-guardan y **decide el bloque que ya sabe cuál es genérica**, porque eso solo se puede saber al final, cuando se
-ha contado qué texto se repite entre fichas.
+THAT IS WHY THE FIX IS NOT A NEW RULE about which texts look like names (that is the treadmill, and it was the
+path about to be taken). It is to stop discarding data we already had: the alternatives are saved and **the block
+that already knows which one is generic decides**, because that can only be known at the end, after counting which
+text is repeated across listings.
 
-⚠️ LA GARANTÍA QUE NO PODÍA ROMPERSE: el dedup existe para que «30 enlaces al mismo anuncio = 1 fila». Cambiar
-QUIÉN gana no puede convertirse en cambiar CUÁNTAS filas salen — el primer test de abajo es ese contrato.
+⚠️ THE GUARANTEE THAT COULD NOT BE BROKEN: deduplication exists so that «30 links to the same listing = 1 row».
+Changing WHO wins cannot turn into changing HOW MANY rows come out — the first test below is that contract.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def page():
 
 
 def _ficha(ruta: str, nombre: str, precio: str) -> str:
-    """La forma MEDIDA en autoscout24: dos anclas a la misma ruta, la muda primero."""
+    """The MEASURED pattern on autoscout24: two anchors to the same path, the silent one first."""
     return (f'<article><a href="{ruta}">Abrir detalles del anuncio</a>'
             f'<a href="{ruta}"><h3>{nombre}</h3></a><span>{precio}</span></article>')
 
@@ -59,7 +59,7 @@ def _filas(page, html):
 
 
 def test_UNA_fila_por_anuncio_aunque_haya_varias_anclas(page):
-    """El contrato del dedup, primero: si esto se rompe, el arreglo ha convertido «quién gana» en «cuántas»."""
+    """The deduplication contract comes first: if this breaks, the fix has turned «who wins» into «how many»."""
     filas = _filas(page, _LISTADO)
     assert len(filas) == 3, f"tres anuncios, seis anclas → deben salir 3 filas, salieron {len(filas)}"
     assert len({f["url"] for f in filas}) == 3
@@ -74,8 +74,8 @@ def test_gana_el_ancla_que_NOMBRA_no_la_primera(page):
 
 
 def test_y_ANTES_del_arreglo_esas_filas_salian_MUDAS(page):
-    """La sensibilidad del fixture: si el genérico no se repitiera entre fichas, el caso no probaría nada —
-    el borrado de V2-234 no entraría y cualquier implementación pasaría."""
+    """The fixture's sensitivity: if the generic value were not repeated across listings, the case would prove nothing —
+    the V2-234 removal would not kick in, and any implementation would pass."""
     page.set_content(_LISTADO)
     repetido = page.evaluate("""() => {
         const t=[...document.querySelectorAll('article > a:first-child')].map(a=>(a.innerText||'').trim());
@@ -85,7 +85,7 @@ def test_y_ANTES_del_arreglo_esas_filas_salian_MUDAS(page):
 
 
 def test_un_titulo_BUENO_no_se_pisa_con_la_alternativa(page):
-    """Solo se recurre a la alternativa cuando el título elegido es genérico. Un nombre propio se queda."""
+    """The alternative is used only when the selected title is generic. A proper name stays."""
     html = ('<html><body><article>'
             '<a href="/anuncios/x-1"><h3>Seat Ibiza 1.0 TSI</h3></a>'
             '<a href="/anuncios/x-1">Ver ficha</a><span>7.500 €</span></article></body></html>')
@@ -95,8 +95,8 @@ def test_un_titulo_BUENO_no_se_pisa_con_la_alternativa(page):
 
 
 def test_sin_alternativa_buena_la_fila_se_queda_SIN_nombre(page):
-    """La regla de V2-234 se respeta entera: con nada que sirva, sigue vacío. «Blanked rather than guessed» —
-    un título vacío es una fila que el cerebro describe por su enlace; uno equivocado la describe con aplomo."""
+    """The V2-234 rule is fully preserved: with nothing useful, it remains empty. «Blanked rather than guessed» —
+    an empty title is a row the brain describes by its link; a wrong one describes it with confidence."""
     html = "<html><body>" + "".join(
         f'<article><a href="/anuncios/z-{i}">Abrir detalles del anuncio</a>'
         f'<a href="/anuncios/z-{i}">Abrir detalles del anuncio</a><span>{100+i} €</span></article>'
@@ -107,13 +107,13 @@ def test_sin_alternativa_buena_la_fila_se_queda_SIN_nombre(page):
 
 
 def test_la_ALTERNATIVA_no_se_escapa_al_contrato(page):
-    """`_alts` es andamiaje interno. El esquema de la fila es cerrado, y una clave de más viaja hasta la hoja."""
+    """`_alts` is internal scaffolding. The row schema is closed, and an extra key travels all the way to the sheet."""
     for f in _filas(page, _LISTADO):
         assert "_alts" not in f and "_item" not in f, sorted(f)
 
 
 def test_la_regla_del_DOS_PUNTOS_sigue_en_pie(page):
-    """«Recomendado:» era la otra mitad de V2-234 y no la toca este cambio."""
+    """«Recomendado:» was the other half of V2-234, and this change does not touch it."""
     html = ('<html><body><article><a href="/anuncios/y-1">Recomendado:</a>'
             '<span>379,99 €</span></article></body></html>')
     filas = _filas(page, html)

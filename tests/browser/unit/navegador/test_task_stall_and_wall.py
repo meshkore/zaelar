@@ -32,8 +32,8 @@ def _clean_registry():
     tasks._tasks.clear()
 
 
-# ── el muro ───────────────────────────────────────────────────────────────────────────────────────────────
-# Las tres URLs son VERBATIM de los informes de mecanismo, no inventadas para el test.
+# ── the wall ───────────────────────────────────────────────────────────────────────────────────────────────
+# The three URLs are VERBATIM from the mechanism reports, not invented for the test.
 BOOKING_WALL = ("https://www.booking.com/index.es.html?aid=304142&label=x&chal_t=1787158378677"
                 "&force_referer=")
 GOOGLE_WALL = "https://www.google.com/sorry/index?continue=https://www.google.com/search%3Fq%3Del%2Brey%2Bleon"
@@ -48,15 +48,15 @@ def test_the_three_walls_that_were_measured_are_recognised():
 
 
 def test_and_an_ordinary_page_is_not_a_wall():
-    """La otra mitad: sin esto, «detectar muros» y «declarar muro siempre» pasan el mismo test. La ficha del
-    restaurante es justo la página donde la tarea SÍ había llegado a su destino."""
+    """The other half: without this, “detect walls” and “always declare a wall” pass the same test. The
+    restaurant page is exactly where the task HAD reached its destination."""
     assert tasks.wall_reason(REAL_PAGE) == ""
     assert tasks.wall_reason("https://www.thefork.es/search/madrid/Casa%20Lucio") == ""
     assert tasks.wall_reason("") == ""
 
 
 def test_the_reason_is_said_in_words_the_operator_can_hear():
-    """El campo se lee en voz alta: no puede devolver el token que lo delató."""
+    """The field is read aloud: it cannot return the token that gave it away."""
     for url in (BOOKING_WALL, GOOGLE_WALL, LOAD_ERROR):
         reason = tasks.wall_reason(url)
         assert "chal_t" not in reason and "sorry" not in reason and "chrome-error" not in reason
@@ -72,17 +72,17 @@ def test_the_task_carries_its_wall_and_drops_it_when_it_moves_on():
     assert tasks.active_progress()[0]["wall"] == ""
 
 
-# ── el atasco ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── the stall ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_recapturing_the_same_page_is_not_progress():
-    """La corrida del restaurante en miniatura: cuatro páginas y luego seis capturas de la última. Si una
-    captura contara como avance, la tarea se declararía sana justo mientras se moría."""
+    """The miniature restaurant run: four pages and then six captures of the last one. If a capture counted
+    as progress, the task would be declared healthy exactly while it was dying."""
     tid = tasks.create("Reservar mesa en Casa Lucio")
     tasks.set_status(tid, "working")
     for url in ("https://www.thefork.es/", "https://www.thefork.es/restaurante/madrid",
                 "https://www.thefork.es/search/madrid/Casa%20Lucio", REAL_PAGE):
         tasks.update_view(tid, url=url, page_title="thefork.es")
-    tasks._tasks[tid]["last_progress"] = time.time() - 673      # los 11 minutos medidos
-    for rev in range(5, 11):                                    # shot_rev 5..10, misma página
+    tasks._tasks[tid]["last_progress"] = time.time() - 673      # the measured 11 minutes
+    for rev in range(5, 11):                                    # shot_rev 5..10, same page
         tasks.update_view(tid, url=REAL_PAGE, shot_rev=rev)
     assert tasks.active_progress()[0]["stalled_s"] >= 600
 
@@ -97,7 +97,7 @@ def test_but_a_new_page_clears_it():
 
 
 def test_and_so_does_a_reported_step():
-    """Un hito es trabajo reportado, aunque la URL no cambie (rellenar un formulario, abrir un desplegable)."""
+    """A milestone is reported work, even if the URL does not change (filling in a form, opening a dropdown)."""
     tid = tasks.create("reservar mesa")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url=REAL_PAGE)
@@ -107,24 +107,24 @@ def test_and_so_does_a_reported_step():
 
 
 def test_a_task_that_just_started_is_not_stalled():
-    """El límite que impide que esto degenere en «todo está atascado»: una tarea recién creada lleva 0."""
+    """The limit that prevents this from degenerating into “everything is stalled”: a newly created task is at 0."""
     tid = tasks.create("buscar hotel")
     tasks.set_status(tid, "working")
     assert tasks.active_progress()[0]["stalled_s"] < 5
 
 
-# ── y lo que el cerebro ve ────────────────────────────────────────────────────────────────────────────────
+# ── and what the brain sees ────────────────────────────────────────────────────────────────────────────────
 def test_the_brain_is_told_about_the_wall():
-    """La prueba de que el hecho LLEGA al prompt: V2-145/V2-150 ya establecieron que en esta casa la verdad suele
-    existir en la tarea y no llegar nunca al sitio donde se decide, que es el fallo que se repite."""
+    """Proof that the fact REACHES the prompt: V2-145/V2-150 already established that in this system the truth
+    usually exists in the task and never reaches the place where decisions are made, which is the recurring bug."""
     from nucleo.flash import prompt as _p
 
     tid = tasks.create("Reservar habitación en el hotel")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url=BOOKING_WALL, page_title="Booking.com")
     state = _p.live_state()
-    # «· MURO:» con su viñeta es el HECHO de ESTA tarea; la palabra suelta también aparece en la directiva que
-    # dice qué hacer con él, así que comprobarla sin la viñeta pasaría siempre.
+    # “· MURO:” with its bullet is the FACT for THIS task; the standalone word also appears in the directive that
+    # says what to do with it, so checking it without the bullet would always pass.
     assert "· MURO: " in state
     assert "anti-robot" in state
     assert "Nunca esperes callado sobre un muro." in state
@@ -140,15 +140,15 @@ def test_and_about_the_stall_when_there_is_no_wall():
 
 
 def test_but_a_task_that_is_simply_working_says_nothing_of_the_sort():
-    """La sensibilidad del hecho anterior: sin esto, «avisa del atasco» y «avisa siempre» pasan igual — y avisar
-    siempre reabre justo lo que arregló V2-152, que el turno empuje a parar una tarea que va bien."""
+    """The sensitivity check for the preceding fact: without this, “report the stall” and “always report it” pass
+    equally—and always reporting it would reintroduce exactly what V2-152 fixed: the turn pushing to stop a healthy task."""
     tid = tasks.create("Reservar mesa en Casa Lucio")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url=REAL_PAGE, page_title="thefork.es")
     state = _live()
     assert "SIN MOVERSE" not in state.split("AHORA BIEN")[0]
     assert "· MURO: " not in state
-    # y la regla de V2-152 sigue entera: la falta de novedades no es una parada
+    # and the V2-152 rule remains intact: a lack of updates is not a stop
     assert "la falta de parte no significa que esté parada" in state
 
 
@@ -157,12 +157,12 @@ def _live() -> str:
     return _p.live_state()
 
 
-# ── el muro se VE en pantalla ─────────────────────────────────────────────────────────────────────────────
+# ── the wall is SEEN on screen ─────────────────────────────────────────────────────────────────────────────
 #
-# Petición del operador (2026-08-19): «ya que tenemos un frontend gráfico… podríamos mostrar la imagen del
-# navegador en pantalla y decir "Booking me ha bloqueado" y poner una captura de lo que ha pasado y decirle
-# que tú ya no puedes seguir». Un campo que solo existe en el registro no es eso: la captura ya está en disco
-# desde el primer momento, lo que faltaba era decirlo y abrir la tarjeta que la enseña.
+# Operator request (2026-08-19): “since we have a graphical frontend… we could show the browser image
+# on screen and say “Booking has blocked me” and show a capture of what happened and tell it that you can’t
+# continue.” A field that exists only in the registry is not that: the capture has been on disk from the start;
+# what was missing was saying so and opening the card that displays it.
 def test_hitting_a_wall_says_it_in_the_feed():
     tid = tasks.create("Reservar habitación")
     tasks.set_status(tid, "working")
@@ -217,7 +217,7 @@ def test_and_an_ordinary_page_announces_nothing():
     assert tasks.get(tid)["phase_active"] is True
 
 
-# ── el puente tiene que seguir siendo el puente ────────────────────────────────────────────────────────────
+# ── the bridge must remain the bridge ─────────────────────────────────────────────────────────────────────
 def test_the_bridge_route_still_points_at_the_bridge():
     """Caught in a live run, one day after `_with_wall` was added: the helper had been inserted BETWEEN
     `@router.post("/api/navegador/act")` and `navegador_act`, so FastAPI registered the annotator as the
@@ -233,17 +233,17 @@ def test_the_bridge_route_still_points_at_the_bridge():
     assert {"task_id", "action", "args"} <= set(hit[0].endpoint.__annotations__)
 
 
-# ── V2-185: la promesa tranquilizadora no puede ser incondicional ─────────────────────────────────────────
+# ── V2-185: the reassuring promise cannot be unconditional ───────────────────────────────────────────────
 #
-# Corrida real de `book-hotel-night-known__es`, 2026-08-20 01:01. El muro SÍ llegó al turno —zaelar dijo
-# «Booking me ha puesto una verificación anti-robot», que es el arreglo de V2-167 funcionando— y acto seguido
-# volvió a «sigo con ello» durante CUATRO turnos más mientras la tarea seguía en `chrome-error://chromewebdata/`.
-# Diez turnos, cero datos, y el operador esperando: «Vale, espero» · «Vale, sin prisa» · «Vale, me avisas».
+# Real run of `book-hotel-night-known__es`, 2026-08-20 01:01. The wall DID reach the turn—zaelar said
+# «Booking me ha puesto una verificación anti-robot», which is V2-167’s fix working—and immediately afterward
+# returned to «sigo con ello» for FOUR more turns while the task remained at `chrome-error://chromewebdata/`.
+# Ten turns, zero data, and the operator waiting: «Vale, espero» · «Vale, sin prisa» · «Vale, me avisas».
 #
-# No era el modelo siendo perezoso. Este bloque le decía, en cuatro frases ANTES de la salvedad, que «esa tarea
-# sigue viva y te dará el resultado sola» y que no empujara al operador a pararla. Las dos son FALSAS delante de
-# un muro, iban primero y eran mucho más largas — y el modelo creyó a la mitad larga. La salvedad («AHORA BIEN…»)
-# no compite con eso: lo que había que quitar era la afirmación falsa, no añadirle un pero.
+# The model was not being lazy. In four sentences BEFORE the qualification, this block told it that «esa tarea
+# sigue viva y te dará el resultado sola» and not to push the operator to stop it. Both are FALSE in front of
+# a wall; they came first and were much longer—and the model believed the longer half. The qualification («AHORA BIEN…»)
+# cannot compete with that: what had to be removed was the false claim, not a “but” added afterward.
 def test_a_walled_task_is_not_promised_to_finish_on_its_own():
     tid = tasks.create("Reservar noche en el hotel")
     tasks.set_status(tid, "working")
@@ -265,8 +265,8 @@ def test_and_neither_is_one_that_stopped_moving():
 
 
 def test_but_a_healthy_task_keeps_the_promise_AND_the_rule_of_V2_152():
-    """La sensibilidad, y no es teórica: V2-152 existe porque empujar a parar una tarea sana por falta de
-    novedades es un daño REAL y medido. Esa regla no se toca — solo deja de aplicarse donde es mentira."""
+    """The sensitivity check, and it is not theoretical: V2-152 exists because pushing to stop a healthy task for
+    lack of updates is REAL, measured harm. That rule is untouched—it simply stops applying where it is false."""
     tid = tasks.create("Buscar hotel en Burgos")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.booking.com/searchresults.html?ss=Burgos")
@@ -277,8 +277,8 @@ def test_but_a_healthy_task_keeps_the_promise_AND_the_rule_of_V2_152():
 
 
 def test_and_the_shared_rules_survive_in_BOTH_states():
-    """Lo que es cierto en los dos casos tiene que estar en los dos: un solo navegador, y nunca describir lo que
-    la tarea «estaría haciendo». Partir un bloque en dos es justo como se pierde una regla por el camino."""
+    """What is true in both cases must be present in both: one browser, and never describe what the task
+    «estaría haciendo». Splitting one block in two is exactly how a rule gets lost along the way."""
     for url, walled in ((LOAD_ERROR, True), ("https://www.booking.com/searchresults.html?ss=Burgos", False)):
         tasks._tasks.clear()
         tid = tasks.create("Buscar hotel")
@@ -290,17 +290,16 @@ def test_and_the_shared_rules_survive_in_BOTH_states():
         assert "rellenando el formulario" in state
 
 
-# ── V2-186: el atasco también tiene que llegar al WORKER ──────────────────────────────────────────────────
+# ── V2-186: the stall must reach the WORKER too ───────────────────────────────────────────────────────────
 #
-# El muro viajaba al worker (`_with_wall`) y el atasco no, así que las dos mitades del mismo hecho acababan en
-# sitios distintos: el turno del FlashBrain se enteraba de que una tarea había dejado de moverse, y la única
-# parte que podía hacer algo al respecto no.
+# The wall traveled to the worker (`_with_wall`) but the stall did not, so the two halves of the same fact ended up
+# in different places: the FlashBrain turn learned that a task had stopped moving, but the only part that could
+# do anything about it did not.
 #
-# Medido en `find-theatre-tickets__es` (2026-08-20 01:01): el worker navegó SIETE veces, llegó a la página
-# correcta del evento a las 00:40:32, y a partir de ahí hizo CATORCE revisiones de captura de esa misma página
-# sin una sola navegación más, durante unos veinte minutos. No estaba bloqueado ni parado: estaba mirando la
-# misma página una y otra vez. Nada de lo que le volvía del puente decía «llevas un rato aquí», así que desde
-# dentro del bucle cada `look` era tan bueno como el primero.
+# Measured in `find-theatre-tickets__es` (2026-08-20 01:01): the worker navigated SEVEN times, reached the
+# event’s correct page at 00:40:32, then made FOURTEEN capture reviews of that same page with no further
+# navigation for about twenty minutes. It was not blocked or stopped: it was looking at the same page repeatedly.
+# Nothing returned from the bridge said «llevas un rato aquí», so inside the loop each `look` was as good as the first.
 def test_the_worker_is_told_when_its_own_task_stopped_moving():
     from widgets.navegador import act_api
 
@@ -314,8 +313,8 @@ def test_the_worker_is_told_when_its_own_task_stopped_moving():
 
 
 def test_but_a_task_that_just_arrived_is_told_nothing():
-    """La sensibilidad: sin esto, «avisa del atasco» y «avisa siempre» pasan igual — y un aviso en cada `look`
-    sería ruido en el contexto del worker en cada paso de una navegación normal."""
+    """The sensitivity check: without this, “report the stall” and “always report it” pass equally—and a warning
+    on every `look` would be noise in the worker’s context at every step of normal navigation."""
     from widgets.navegador import act_api
 
     tid = tasks.create("Entradas El Rey León")
@@ -326,8 +325,8 @@ def test_but_a_task_that_just_arrived_is_told_nothing():
 
 
 def test_and_a_WALL_wins_over_the_stall():
-    """Un muro ya trae su propia salida y es más específico; decir las dos cosas a la vez le da al worker dos
-    consejos distintos sobre la misma pantalla."""
+    """A wall already has its own way out and is more specific; saying both at once gives the worker two different
+    pieces of advice about the same screen."""
     from widgets.navegador import act_api
 
     tid = tasks.create("Reservar hotel")
@@ -339,15 +338,15 @@ def test_and_a_WALL_wins_over_the_stall():
 
 
 def test_the_two_halves_share_ONE_threshold():
-    """El fallo que este motor repite: dos copias del mismo umbral que derivan. Los dos lados leen la misma
-    variable de entorno."""
+    """The failure this engine keeps repeating: two copies of the same threshold drifting apart. Both sides read
+    the same environment variable."""
     from widgets.navegador import act_api
     from nucleo.flash import prompt as _p
 
     assert act_api._STALL_HINT_S == _p._STALLED_S
 
 
-# ── V2-187: un hecho que no se puede decir en voz alta es un hecho que no llega ───────────────────────────
+# ── V2-187: a fact that cannot be said aloud is a fact that does not arrive ────────────────────────────────
 #
 # `restaurant-tonight-madrid`, 2026-08-20 01:01 (3/5, subió desde 1/5). Lo que quedaba, y el juez lo marcó como
 # grave: CINCO turnos de «Sigo en ello» seguidos sin una sola información intermedia. El mecanismo dice que la
@@ -367,20 +366,20 @@ def test_the_state_names_the_site_not_the_url():
 
 
 def test_and_says_out_loud_that_naming_it_is_allowed():
-    """La otra mitad, y la que faltaba: el bloque solo PROHIBÍA. Un permiso explícito es lo que separa «no
-    inventes» de «no digas nada»."""
+    """The other half, and the missing one: the block only PROHIBITED. Explicit permission is what separates
+    “do not invent” from “say nothing”."""
     tid = tasks.create("Reservar mesa")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.thefork.es/")
     state = _live()
     assert "eso es un HECHO y se DICE" in state
-    # y la prohibición de V2-145 sigue intacta
+    # and the V2-145 prohibition remains intact
     assert "NO describas lo que estaría haciendo" in state
 
 
 def test_a_bare_navigation_milestone_is_not_repeated_as_the_last_step():
-    """«último: 🌐 abrió https://www.thefork.es/…» sobre el sitio que se acaba de nombrar no añade nada y mete
-    una segunda URL impronunciable delante del turno."""
+    """“last: 🌐 opened https://www.thefork.es/…” about the site just named adds nothing and puts a second
+    unpronounceable URL in front of the turn."""
     tid = tasks.create("Reservar mesa")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.thefork.es/restaurantes/madrid")
@@ -389,9 +388,8 @@ def test_a_bare_navigation_milestone_is_not_repeated_as_the_last_step():
 
 
 def test_but_a_REAL_milestone_survives():
-    """La sensibilidad, y no es teórica: V2-150 existe porque «Casa Lucio solo acepta reservas por teléfono»
-    estaba en la tarea desde el principio y al cerebro le llegaba un contador de pasos. Un número no se puede
-    decir en voz alta; eso sí."""
+    """The sensitivity check, and it is not theoretical: V2-150 exists because «Casa Lucio solo acepta reservas por teléfono»
+    was in the task from the start and the brain received a step counter. A number cannot be said aloud; that is the point."""
     tid = tasks.create("Reservar mesa")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.thefork.es/restaurantes/madrid")
@@ -401,8 +399,8 @@ def test_but_a_REAL_milestone_survives():
 
 
 def test_and_a_navigation_to_a_DIFFERENT_site_still_counts():
-    """Un salto de sitio sí es novedad: es justo el dato con el que el turno puede decir «he pasado a la web
-    oficial» en vez de «sigo en ello»."""
+    """A site change is news: it is exactly the fact the turn can use to say «he pasado a la web oficial» instead
+    of «sigo en ello»."""
     tid = tasks.create("Reservar mesa")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://casalucio.es/reservas/")
@@ -410,7 +408,7 @@ def test_and_a_navigation_to_a_DIFFERENT_site_still_counts():
     assert "· último: 🌐" in _live()
 
 
-# ── V2-188: la página de error del PROPIO sitio también es un muro ────────────────────────────────────────
+# ── V2-188: the site’s OWN error page is also a wall ───────────────────────────────────────────────────────
 #
 # `cancel-subscription-before-charge__es`, V2-176 ronda 3. La tarea acabó en
 # `https://www.netflix.com/NotFound?prev=https%3A%2F%2Fwww.netflix.com%2Fes-es%2FContactUs` y zaelar le dijo al
@@ -430,17 +428,17 @@ def test_a_sites_own_error_page_is_a_wall():
 
 
 def test_but_matched_as_a_whole_path_SEGMENT_and_never_as_a_substring():
-    """«/notfound» es una página de error; «404 formas de cocinar huevos» no. Y la query se excluye a
-    propósito: la URL medida arrastra `?prev=https://www.netflix.com/es-es/ContactUs`, así que buscar en la URL
-    entera dispararía sobre la página BUENA de la que venía."""
+    """“/notfound” is an error page; “404 ways to cook eggs” is not. The query is deliberately excluded: the
+    measured URL carries `?prev=https://www.netflix.com/es-es/ContactUs`, so searching the full URL would trigger
+    on the GOOD page it came from."""
     assert tasks.wall_reason("https://www.recetas.com/articles/404-ways-to-cook-eggs") == ""
     assert tasks.wall_reason("https://www.netflix.com/es-es/ContactUs") == ""
     assert tasks.wall_reason("https://www.thefork.es/restaurantes/madrid") == ""
 
 
 def test_and_it_reaches_the_turn_as_a_BLOCKED_task():
-    """Lo que de verdad cambia la conversación: con el hecho delante, el bloque deja de prometer que la tarea
-    terminará sola (V2-185) — que es lo que sostenía «la página no se ha abierto del todo»."""
+    """What actually changes the conversation: with the fact in front of it, the block stops promising that the
+    task will finish on its own (V2-185)—which is what sustained «la página no se ha abierto del todo»."""
     tid = tasks.create("Cancelar la suscripción a Netflix")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url=NETFLIX_404)
@@ -450,7 +448,7 @@ def test_and_it_reaches_the_turn_as_a_BLOCKED_task():
     assert "te dará el resultado sola" not in state
 
 
-# ── V2-176 frente 3: esperar a que entre ÉL es lo más parecido a un muro que hay ──────────────────────────
+# ── V2-176 round 3: waiting for HIM to sign in is the closest thing to a wall ─────────────────────────────
 #
 # El paraguas lo nombra como el frente más prometedor: «esto necesita tu cuenta, no puedo seguir» es una
 # respuesta EXCELENTE, y hoy el agente prefiere inventarse el login. La pieza que faltaba no era detectarlo
@@ -475,21 +473,21 @@ def test_a_task_waiting_for_the_operator_to_sign_in_is_not_promised_to_finish_al
 
 
 def test_and_its_way_out_is_that_HE_signs_in_not_that_we_give_up():
-    """La salida de un muro es «otro sitio, que entre él, o dejarlo». La de un login es UNA sola cosa, y decir
-    «lo dejamos» sobre algo que solo falta que él teclee sería el consejo equivocado."""
+    """A wall’s way out is «otro sitio, que entre él, o dejarlo». A login has ONE possible action, and saying
+    «lo dejamos» about something that only needs his keystrokes would be the wrong advice."""
     tid = tasks.create("Cancelar la suscripción")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.netflix.com/login")
     _awaiting(tid)
     state = _live()
     assert "SOLO LA DESBLOQUEA ÉL" in state
-    assert "NO es un fracaso" in state              # pararse en su login es la conducta CORRECTA
-    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state       # y no se le da la salida genérica del muro
+    assert "NO es un fracaso" in state              # stopping at his login is the CORRECT behavior
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state       # and do not give it the wall’s generic way out
 
 
 def test_and_it_is_said_even_if_the_operator_just_said_he_would_wait():
-    """El patrón medido en dos casos: «vale, espero» → «sigo con ello». Esperar es justo lo que hará si te
-    callas, y aquí la espera no se resuelve sola NUNCA."""
+    """The pattern measured in two cases: «vale, espero» → «sigo con ello». Waiting is exactly what he will do if
+    you stay silent, and here the wait NEVER resolves itself."""
     tid = tasks.create("Renovar la cuota del gimnasio")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://basic-fit.com/login")
@@ -507,8 +505,8 @@ def test_but_a_task_that_is_NOT_waiting_on_him_keeps_the_promise():
 
 
 def test_and_a_login_wait_wins_over_a_wall_on_the_same_task():
-    """Si además la URL parece un muro, lo que falta sigue siendo que entre él: darle dos salidas distintas
-    para la misma pantalla es lo que hace que no tome ninguna."""
+    """If the URL also looks like a wall, what is still missing is his sign-in: giving two different ways out for
+    the same screen is what makes him take neither."""
     tid = tasks.create("Cancelar la suscripción")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.netflix.com/NotFound")

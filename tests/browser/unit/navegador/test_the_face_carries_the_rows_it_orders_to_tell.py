@@ -44,33 +44,33 @@ def test_las_filas_salen_con_nombre_y_precio():
 
 
 def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
-    """INVERTIDO por V2-360, y se conserva aquí para que el cambio de decisión quede donde estaba la anterior.
+    """REVERSED by V2-360, and preserved here so that the decision change remains where the previous one was.
 
-    Decía: «una fila sin precio sale solo con su nombre — inventar una puntuación « — » alrededor de nada se
-    leería como un dato ausente mal dicho». La primera mitad sigue siendo cierta (la fila NO se descarta: sin
-    precio también es un hallazgo); la segunda resultó ser justo al revés.
+    It said: «una fila sin precio sale solo con su nombre — inventar una puntuación « — » alrededor de nada se
+    leería como un dato ausente mal dicho». The first half remains true (the row is NOT discarded: without a
+    price it is still a finding); the second turned out to be exactly backwards.
 
-    Medido en `compare-insurance-quotes__es` (2026-08-27): de cuatro filas solo una traía importe, y el turno
-    ofreció las otras tres como presupuestos comparables —«estas tres primeras ya te sirven»—. Con el título a
-    secas, la falta de precio solo se puede deducir del SILENCIO, y un modelo pequeño no la deduce: la rellena.
-    Decirlo cuesta una palabra, que es el remedio de V2-127 y V2-133."""
+    Measured in `compare-insurance-quotes__es` (2026-08-27): only one of four rows had an amount, and the turn
+    offered the other three as comparable quotes —«estas tres primeras ya te sirven»—. With only the title,
+    the lack of a price can only be inferred from SILENCE, and a small model does not infer it: it fills it in.
+    Saying it costs one word, which is the remedy from V2-127 and V2-133."""
     tid = T.create("Busca una guitarra", sheet="v298-2")
     _sheet_with("v298-2", [{"title": "Guitarra Acústica Crafter FX 550 EQ"}])
     assert LB._sheet_top_rows(tid) == ["«Guitarra Acústica Crafter FX 550 EQ — SIN PRECIO»"]
-    # …y lo que NO cambió: la fila sigue estando. Descartarla escondería un hallazgo real.
+    # …and what did NOT change: the row is still present. Discarding it would hide a real finding.
 
 
 def test_acotado_por_TAMANO_esto_va_a_un_prompt_no_a_una_pantalla():
-    """V2-479 — el tope pasa de CINCO a DOCE, y el bound real deja de ser un conteo.
+    """V2-479 — the cap changes from FIVE to TWELVE, and the real bound is no longer a count.
 
-    Cinco era conservador y costó dos rondas medidas: `search-buy-camera__es` con catorce candidatos (cuatro
-    de las cinco mostradas eran accesorios, V2-374) y `find-best-hotel-city__us` ronda 6 con doce hoteles, dos
-    por debajo del tope del operador, mostrando las caras — el turno concluyó «all well above your $150» sobre
-    un conjunto que no había visto entero. La segunda es la que decide: **V2-374 ya avisaba de las escondidas y
-    concluyó igual**, o sea que decirle que hay más no es enseñárselas.
+    Five was conservative and cost two measured rounds: `search-buy-camera__es` with fourteen candidates (four
+    of the five shown were accessories, V2-374) and `find-best-hotel-city__us` round 6 with twelve hotels, two
+    below the operator's cap, showing the faces — the turn concluded «all well above your $150» about a set it
+    had not seen in full. The latter is decisive: **V2-374 already warned about the hidden ones and reached the
+    same conclusion**, meaning that telling it there are more is not showing them.
 
-    La línea que cuenta el resto SIGUE — cortar y callarse es el defecto de V2-374 — y el techo de TAMAÑO
-    (`_SHEET_ROWS_BUDGET`) es el bound real: un cap por unidades no acota nada sobre títulos larguísimos.
+    The line that counts the remainder STAYS — cutting off and staying silent is V2-374's defect — and the SIZE
+    ceiling (`_SHEET_ROWS_BUDGET`) is the real bound: a cap by units places no limit on very long titles.
     """
     tid = T.create("Busca monitores", sheet="v298-3")
     _sheet_with("v298-3", [{"title": f"Monitor candidato {i}", "price": "60 €"} for i in range(20)])
@@ -141,25 +141,24 @@ def test_la_frontera_de_V278_sigue_la_cara_no_afirma_la_pantalla():
     assert "NO digas que «lo tiene en pantalla»" in state
 
 
-# ── V2-360: y la AUSENCIA de importe también se dice ────────────────────────────────────────────────────
+# ── V2-360: and the ABSENCE of an amount is also stated ─────────────────────────────────────────────────
 #
-# Medido en `compare-insurance-quotes__es` (2026-08-27, ronda del supervisor, 2/5). De las cuatro filas de la
-# hoja **solo una traía importe**, y el turno anunció:
+# Measured in `compare-insurance-quotes__es` (2026-08-27, supervisor round, 2/5). Of the sheet's four rows,
+# **only one had an amount**, and the turn announced:
 #
 #     «Direct Seguros, Allianz Direct, Génesis, MAPFRE y Pelayo… estas tres primeras ya te sirven»
 #
-# El juez, [alta]: «solo Direct tenía precio y las demás no tenían ni precio ni cobertura. Presentó como
+# The judge, [alta]: «solo Direct tenía precio y las demás no tenían ni precio ni cobertura. Presentó como
 # candidatos comparables lo que eran nombres sin datos».
 #
-# La cara YA ordenaba lo correcto —«si pregunta por un dato que estas líneas no traen, di que aún no ha
-# llegado»— pero eso cubre la rama en que el operador PREGUNTA, y aquí el modelo lo ofreció sin que nadie
-# preguntara. Y sobre todo: una fila sin importe se renderizaba como un título A SECAS, así que el modelo
-# tenía que deducir la falta del SILENCIO.
+# The face ALREADY ordered the correct behavior —«si pregunta por un dato que estas líneas no traen, di que aún no ha
+# llegado»— but that covers the branch where the operator ASKS, whereas here the model offered it without anyone
+# asking. Above all, a row without an amount was rendered as a title ALONE, so the model had to infer the lack from
+# SILENCE.
 #
-# Nombrar el hueco cuesta una palabra y cierra la sustitución — es el mismo remedio que V2-127 («AUSENCIA de
-# ubicación, dicha con todas las letras») y V2-133 («SIN paso reportado aún»). Un teléfono cuenta como dato
-# accionable, misma regla que `by_amount`: un resultado es un nombre y una forma de actuar sobre él, nunca un
-# precio (V2-240).
+# Naming the gap costs one word and closes the substitution — it is the same remedy as V2-127 («AUSENCIA de
+# ubicación, dicha con todas las letras») and V2-133 («SIN paso reportado aún»). A phone number counts as actionable
+# data, the same rule as `by_amount`: a result is a name and a way to act on it, never a price (V2-240).
 
 def _rows(monkeypatch, items):
     from nucleo.flash import live_blocks as LB
@@ -181,14 +180,14 @@ def test_una_fila_CON_importe_no_cambia(monkeypatch):
 
 
 def test_un_TELEFONO_cuenta_como_dato_accionable(monkeypatch):
-    """V2-240: un resultado es un nombre y una forma de actuar sobre él, nunca un precio. Marcar «SIN PRECIO»
-    un fontanero con teléfono sería llamar hueco a lo que sí se puede usar."""
+    """V2-240: a result is a name and a way to act on it, never a price. Marking a plumber with a phone number
+    «SIN PRECIO» would call empty something that can in fact be used."""
     out = _rows(monkeypatch, [{"title": "Fontaneros 24H Madrid", "price": "", "tel": "612345678"}])
     assert out == ["«Fontaneros 24H Madrid — 612345678»"]
 
 
 def test_la_mezcla_de_la_ronda_medida(monkeypatch):
-    """Una con precio y tres sin él: exactamente lo que el turno presentó como comparable."""
+    """One with a price and three without: exactly what the turn presented as comparable."""
     out = _rows(monkeypatch, [{"title": "Direct Seguros", "price": "152 €"},
                               {"title": "Allianz Direct", "price": ""},
                               {"title": "Génesis", "price": ""},
@@ -198,8 +197,8 @@ def test_la_mezcla_de_la_ronda_medida(monkeypatch):
 
 
 def test_la_cara_dice_QUE_HACER_con_una_linea_sin_precio(monkeypatch):
-    """El dato solo, sin la lectura, se vuelve a leer como candidato. La regla va DENTRO del mismo bloque de
-    filas que ya ordena «di solo lo que RESPONDE a lo que pidió» (V2-348: la bifurcación va dentro)."""
+    """The data alone, without the interpretation, is read again as a candidate. The rule goes INSIDE the same
+    row block that already orders «di solo lo que RESPONDE a lo que pidió» (V2-348: the branch goes inside)."""
     from pathlib import Path
     src = Path("nucleo/flash/live_blocks.py").read_text()
     assert "marcada SIN PRECIO no es una opción" in src

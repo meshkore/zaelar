@@ -76,7 +76,7 @@ def test_the_spoken_yes_reaches_the_waiting_click(tasks):
     got = tasks.answer_from_turn("sí, dale")
     assert got == {"task_id": tid, "ok": True}
     assert tasks.take_answer(tid) == "sí, dale"
-    assert tasks.get(tid)["status"] == "working"          # ya no espera: el gate puede seguir
+    assert tasks.get(tid)["status"] == "working"          # no longer waiting: the gate can continue
 
 
 def test_a_no_is_also_an_answer(tasks):
@@ -98,7 +98,7 @@ def test_conversation_is_not_an_answer(tasks):
 
     assert tasks.answer_from_turn("¿y cuánto cuestan?") is None
     assert tasks.take_answer(tid) == ""
-    assert tasks.get(tid)["status"] == "needs_input"       # sigue esperando, que es la verdad
+    assert tasks.get(tid)["status"] == "needs_input"       # it is still waiting, which is the truth
 
 
 def test_nothing_waiting_means_nothing_answered(tasks):
@@ -119,23 +119,23 @@ def test_the_deadline_outlives_a_conversational_round_trip():
 
 
 def test_a_login_handoff_does_NOT_swallow_the_operators_words(tasks):
-    """REGRESIÓN MEDIDA, y mía. `needs_input` no significa «hay una pregunta»: el traspaso de LOGIN lo pone, y
-    también las tareas que ese traspaso pausa — las dos SIN pregunta. Sin comprobarlo, un turno que llevara un
-    «vale» («Vale, abre la web de Netflix y me dices cuando esté en el login») se leía como la respuesta a un
-    confirm-gate que nadie había abierto, y se comía la acción real de ese turno.
+    """MEASURED REGRESSION, and mine. `needs_input` does not mean «there is a question»: the LOGIN handoff sets it,
+    as do the tasks that handoff pauses — both WITHOUT a question. Without checking this, a turn containing a
+    «vale» («Vale, abre la web de Netflix y me dices cuando esté en el login») was read as the answer to a
+    confirm-gate that nobody had opened, and it swallowed that turn's actual action.
 
-    `cancel-subscription-before-charge__es` era el único 5/5 del tablero y cayó a 2/5 el mismo día. La pregunta
-    es lo único que distingue «te estoy esperando a TI» de «espero a que tú hagas algo en otra ventana»."""
+    `cancel-subscription-before-charge__es` was the only 5/5 on the board and fell to 2/5 that same day. The question
+    is the only thing that distinguishes «I am waiting for YOU» from «I am waiting for you to do something in another window»."""
     tid = tasks.create("cancelar la suscripción de Netflix")
-    tasks.set_status(tid, "needs_input")          # login handoff: mismo estado, ninguna pregunta
+    tasks.set_status(tid, "needs_input")          # login handoff: same state, no question
     tasks.set_login_wait(tid, True)
 
     assert tasks.answer_from_turn("Vale, abre la web de Netflix y me dices cuando esté en el login.") is None
-    assert tasks.get(tid)["status"] == "needs_input"      # sigue esperándole a él, que es la verdad
+    assert tasks.get(tid)["status"] == "needs_input"      # it is still waiting for him, which is the truth
 
 
 def test_a_real_question_is_still_answered(tasks):
-    """Sensibilidad: el arreglo no puede apagar el camino que V2-202 abrió."""
+    """Regression sensitivity: the fix must not disable the path that V2-202 opened."""
     tid = tasks.create("comprar entradas del teatro")
     tasks.ask(tid, "¿Lo confirmo?")
     assert tasks.answer_from_turn("sí, dale") == {"task_id": tid, "ok": True}

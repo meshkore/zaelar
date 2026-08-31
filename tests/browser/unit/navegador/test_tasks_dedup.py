@@ -1,8 +1,8 @@
-"""Dedup de tareas de navegador (control de estado, 2026-07-12).
+"""Browser task deduplication (state control, 2026-07-12).
 
-Invariante: una MISMA búsqueda NO abre un segundo navegador aunque el operador la refine MINUTOS después, mientras
-la primera tarea sigue viva. Antes la dedup caducaba a los 45-90 s desde la creación y un refinamiento tardío
-spawneaba un navegador gemelo (bug de la sesión de la moto: t1 + t2 en paralelo).
+Invariant: the SAME search does NOT open a second browser even if the operator refines it MINUTES later, while
+the first task is still alive. Previously, deduplication expired 45–90 s after creation and a late refinement
+spawned a twin browser (the motorcycle session bug: t1 + t2 in parallel).
 """
 import time
 
@@ -18,10 +18,10 @@ def test_active_task_dedups_regardless_of_age():
     _reset()
     tid = nt.create("Busca una moto enduro 300 cc 4T por menos de 5000 euros en Wallapop cerca de Soria")
     nt.set_status(tid, "working")
-    # Simula que la tarea lleva ACTIVA 5 minutos (300 s) — muy por encima de los viejos 45-90 s.
+    # Simulate the task having been ACTIVE for 5 minutes (300 s) — well beyond the old 45–90 s.
     with nt._lock:
         nt._tasks[tid]["created"] = time.time() - 300.0
-    # Refinamiento tardío del operador ("sube el precio, analízalas una por una") → MISMA búsqueda.
+    # Late operator refinement ("raise the price, analyze them one by one") → SAME search.
     dup = nt.similar_active("mira en Wallapop motos enduro 250-350 4T y analízalas una por una, sube el precio")
     assert dup == tid, "una tarea ACTIVA debe deduplicar aunque lleve minutos corriendo"
 
@@ -46,7 +46,7 @@ def test_zombie_task_stops_deduping():
     _reset()
     tid = nt.create("Busca una moto enduro 300 cc 4T en Wallapop")
     nt.set_status(tid, "working")
-    with nt._lock:  # colgada > 30 min
+    with nt._lock:  # hung for > 30 min
         nt._tasks[tid]["created"] = time.time() - (nt._ZOMBIE_MAX + 60.0)
     dup = nt.similar_active("busca una moto enduro 300 4T en Wallapop")
     assert dup is None, "una tarea colgada (zombie) no debe bloquear búsquedas nuevas para siempre"
@@ -60,7 +60,7 @@ def test_active_summaries_reports_goals():
     assert act and act[0][0] == tid and "moto" in act[0][1]
 
 
-# ── CONTINUIDAD: las aclaraciones modifican la MISMA tarea, no abren un segundo navegador ──────────────────
+# ── CONTINUITY: clarifications modify the SAME task; they do not open a second browser ──────────────────
 def test_continuation_active_refines_same_task():
     _reset()
     tid = nt.create("busca una moto para principiantes en Wallapop")
@@ -75,7 +75,7 @@ def test_continuation_finished_task_reopens():
     _reset()
     tid = nt.create("busca una moto para principiantes en Wallapop")
     nt.set_status(tid, "working")
-    nt.set_status(tid, "done")            # terminó hace un momento
+    nt.set_status(tid, "done")            # finished a moment ago
     cont = nt.find_continuation("las motos no eran de enduro, quiero enduro 300 4T")
     assert cont == (tid, "done"), "un follow-up del mismo tema re-lanza la tarea recién terminada en su tarjeta"
 
@@ -84,7 +84,7 @@ def test_continuation_expired_does_not_reopen():
     _reset()
     tid = nt.create("busca una moto de enduro en Wallapop")
     nt.set_status(tid, "done")
-    with nt._lock:                        # terminó hace mucho (> ventana de continuidad)
+    with nt._lock:                        # finished long ago (> continuity window)
         nt._tasks[tid]["finished"] = time.time() - (nt._CONTINUATION_MAX + 60.0)
     cont = nt.find_continuation("busca una moto de enduro en Wallapop")
     assert cont is None, "pasada la ventana, es una búsqueda NUEVA"
