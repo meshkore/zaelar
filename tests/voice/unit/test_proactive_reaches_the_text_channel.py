@@ -90,7 +90,11 @@ def test_the_busy_conversation_fallback_is_UNTOUCHED():
     said = []
     proactive.register_speaker(lambda t: said.append(t))
     real = proactive._wait_for_quiet
-    proactive._wait_for_quiet = lambda: asyncio.sleep(0, result=False)
+    # `timeout=None` since the delivery queue (2026-08-31): notify passes the REMAINING budget explicitly, so a
+    # replacement that takes no argument raises TypeError inside the try and the note never gets pushed — this
+    # guard would then fail for plumbing reasons while the behaviour it protects (busy → note, never speak over)
+    # is intact.
+    proactive._wait_for_quiet = lambda timeout=None: asyncio.sleep(0, result=False)
     try:
         notes = _notify()
     finally:

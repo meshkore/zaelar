@@ -10,6 +10,8 @@
 #
 import asyncio
 import os
+import threading
+import time
 
 from loguru import logger
 
@@ -159,29 +161,123 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     spoken = speech.sanitize(text)
     if not spoken:
         return
-    # PREEMPCIÓN (INI-008 F2): la voz del OPERADOR manda. No se le habla encima — ni con un turno de usuario
-    # abierto ni pisando la cola del TTS del bot. Esperamos un hueco de silencio; si la conversación no da
-    # tregua en PROACTIVE_MAX_WAIT, el mensaje NO se pierde: entra como nota [SISTEMA] al siguiente turno
-    # (el cerebro lo dirá él mismo, en contexto). La UI ya lo mostró arriba en cualquier caso.
-    if not await _wait_for_quiet():
+    # PREEMPCIÓN (INI-008 F2) + COLA (2026-08-31): la voz del OPERADOR manda, y los mensajes proactivos salen
+    # DE UNO EN UNO y en orden de llegada — ver la cola de tickets de abajo. Cada mensaje espera su turno, y ya
+    # con el turno espera un hueco de silencio; si el total no da tregua, el mensaje NO se pierde: entra como
+    # nota [SISTEMA] al siguiente turno (el cerebro lo dirá él mismo, en contexto). La UI ya lo mostró arriba.
+    def _degrade(reason: str) -> None:
         try:
             from voice import brain_notes
-            brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente (no hubo silencio para hablarla): {spoken}")
-            logger.info("proactive: conversation busy → delivered as a [SISTEMA] note instead of talking over")
-        except Exception as e:
+            brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente ({reason}): {spoken}", key=key)
+            logger.info(f"proactive: {reason} → delivered as a [SISTEMA] note instead of talking over")
+        except Exception as e:  # noqa: BLE001
             logger.warning(f"proactive fallback note failed: {e}")
+
+    t_arrival = time.monotonic()
+    ticket = _take_ticket()
+    if not await asyncio.to_thread(_wait_turn, ticket, _QUEUE_MAX_WAIT):
+        _degrade("la cola de entregas no avanzó a tiempo")
         return
     try:
-        r = _speaker(spoken)
-        if asyncio.iscoroutine(r):
-            await r
-    except Exception as e:
+        # The budget counts from ARRIVAL: a message that already queued behind a long explanation gets the
+        # remainder, not a fresh 45 s — otherwise a burst of finishes could hold the floor for minutes.
+        left = PROACTIVE_MAX_WAIT - (time.monotonic() - t_arrival)
+        if not await _wait_for_quiet(max(0.0, left)):
+            _degrade("no hubo silencio para hablarla")
+            return
+        # THE BREATH between two queued deliveries (`_BOT_GRACE_SECS` — defined since INI-008, used by nobody
+        # until 2026-08-31). Back-to-back, message B would start the very instant A's playout ends: two notices
+        # in a burst that sound like one. Only paid when the previous delivery just ended; a floor that has
+        # been quiet for a while speaks immediately.
+        pause = _BOT_GRACE_SECS - (time.monotonic() - _last_spoke[0])
+        if pause > 0:
+            await asyncio.sleep(pause)
+        try:
+            r = _speaker(spoken)
+            if asyncio.iscoroutine(r):
+                await r
+        finally:
+            _last_spoke[0] = time.monotonic()
+    except Exception as e:  # noqa: BLE001
         logger.warning(f"proactive notify (voice) failed: {e}")
+    finally:
+        _release(ticket)   # always: a held ticket after a crash would mute every delivery that follows
 
 
 # Cuánto esperamos un hueco de silencio antes de degradar a nota [SISTEMA]; y el respiro tras la voz del bot.
 PROACTIVE_MAX_WAIT = float(os.getenv("PROACTIVE_MAX_WAIT", "45"))
 _BOT_GRACE_SECS = 1.2
+
+# ── ONE MESSAGE AT A TIME: the delivery queue (operator's spec, 2026-08-31) ─────────────────────────────────
+# «El propio FlashBrain es quien se encarga de comunicarse con el usuario … tiene que tener un buffer: cuando ya
+# se lo ha explicado, le manda otro. Si hay dos tareas a la vez y terminan simultáneamente, primero se informará
+# de una y después de la segunda.»
+#
+# Until now NOTHING serialized concurrent notifies. Each one waited for quiet on its own, and two workers
+# finishing in the same instant both saw silence and both called `session.say` — whatever order and overlap came
+# out was LiveKit's internal scheduling, not a decision of ours. The V2-047 F7 instrumentation in
+# `voice/engine/pipeline/agent.py` had already named the fix («el fix es SERIALIZAR: encolar el say hasta que el
+# handle vivo acabe») and stayed telemetry-only. This is that queue.
+#
+# Strict ARRIVAL order, guaranteed by ticket — not by lock-acquisition luck. Cross-LOOP on purpose: notifies are
+# awaited from whatever loop their caller runs on (uvicorn workers, the orchestrator, the messaging connector),
+# so an `asyncio.Lock` — which binds to one loop — would be exactly the «attached to a different loop» class of
+# bug this file just got cured of. Plain threading primitives, entered via `asyncio.to_thread`, care about none
+# of that.
+#
+# A message NEVER dies in the queue: whoever cannot speak in time degrades to the same `[SISTEMA]` note as
+# always (the brain says it itself, in context, next turn) and ABANDONS its ticket, so the queue cannot wedge
+# behind a slot nobody will ever fill. And the busy re-check runs AFTER winning the turn — the silence that let
+# the previous message start says nothing about the moment this one gets to speak.
+_QUEUE_MAX_WAIT = float(os.getenv("PROACTIVE_QUEUE_MAX_WAIT", "180"))   # cap on waiting for the turn itself
+_queue_cv = threading.Condition()
+_next_ticket = [0]      # next ticket to hand out
+_serving = [0]          # ticket allowed to speak right now
+_abandoned: set = set()  # tickets that gave up while waiting (their turn is skipped, never held)
+_last_spoke = [0.0]     # monotonic end of the last spoken delivery — the breath between two queued messages
+#                         cannot come from OBSERVING busy (the next in line is blocked in `_wait_turn` while the
+#                         previous one speaks, so its quiet-poll starts after the voice already ended)
+
+
+def _take_ticket() -> int:
+    with _queue_cv:
+        t = _next_ticket[0]
+        _next_ticket[0] += 1
+        return t
+
+
+def _wait_turn(ticket: int, timeout: float) -> bool:
+    """BLOCKING (run via asyncio.to_thread): wait until it is this ticket's turn. False = timed out — the
+    ticket is marked abandoned under the same lock, so the advance in `_release` skips it atomically."""
+    deadline = time.monotonic() + max(0.0, timeout)
+    with _queue_cv:
+        while _serving[0] != ticket:
+            left = deadline - time.monotonic()
+            if left <= 0:
+                _abandoned.add(ticket)
+                return False
+            _queue_cv.wait(timeout=min(left, 1.0))
+        return True
+
+
+def _release(ticket: int) -> None:
+    """The ticket holder is done (spoke, degraded, or blew up — `finally` calls this always): pass the turn,
+    skipping any ticket that abandoned while waiting."""
+    with _queue_cv:
+        _serving[0] = ticket + 1
+        while _serving[0] in _abandoned:
+            _abandoned.discard(_serving[0])
+            _serving[0] += 1
+        _queue_cv.notify_all()
+
+
+def _reset_queue_for_tests() -> None:
+    with _queue_cv:
+        _next_ticket[0] = 0
+        _serving[0] = 0
+        _abandoned.clear()
+        _last_spoke[0] = 0.0
+        _queue_cv.notify_all()
 
 
 async def _wait_for_quiet(timeout: float | None = None) -> bool:
@@ -189,15 +285,25 @@ async def _wait_for_quiet(timeout: float | None = None) -> bool:
     busy-probe que registró la sesión viva. True = hay hueco, habla ya. False = timeout, la conversación no dio
     tregua. Sin probe registrado (sesión sin instrumentar) → asumimos hueco: LiveKit gestiona el barge-in del
     operador vía session.say(allow_interruptions=True), así que hablar no lo pisa de forma dura."""
-    import time as _t
     timeout = PROACTIVE_MAX_WAIT if timeout is None else timeout
-    t0 = _t.time()
-    while _t.time() - t0 < timeout:
+    t0 = time.time()
+    saw_busy = False
+    while time.time() - t0 < timeout:
         try:
             busy = bool(_busy_probe()) if _busy_probe is not None else False
         except Exception:
             busy = False
         if not busy:
+            # El RESPIRO (2026-08-31): `_BOT_GRACE_SECS` llevaba definido desde INI-008 y no lo usaba NADIE —
+            # el «respiro tras la voz del bot» del comentario de arriba era letra muerta. Con la cola en serie
+            # se notaría de verdad: el mensaje B arrancaría en el MISMO instante en que acaba la locución de A,
+            # dos avisos en ráfaga que suenan a uno solo. Solo se paga cuando venimos de una locución viva
+            # (saw_busy); un hueco que ya estaba en silencio habla al momento, como siempre.
+            if saw_busy:
+                await asyncio.sleep(_BOT_GRACE_SECS)
+                saw_busy = False
+                continue          # re-check: the operator may have started talking during the breath
             return True
+        saw_busy = True
         await asyncio.sleep(0.3)
     return False

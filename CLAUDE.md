@@ -6610,6 +6610,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `planned` manifests → **byte-identical**. It must fail loudly the first time someone helpfully adds "just a
     short list of names".
 
+- **The proactive delivery QUEUE — one message at a time (V2-527, 2026-08-31)**: the operator's spec, dictated
+  after session c480413b: «tiene que tener un buffer … cuando ya se lo ha explicado le manda otro; si dos
+  tareas terminan simultáneamente, primero se informa de una y después de la segunda». What existed: nothing
+  serialized concurrent notifies — each waited for quiet on its own, two workers finishing at once both saw
+  silence and both called `session.say`, and order/overlap were LiveKit's internal scheduling, not ours. The
+  V2-047 F7 instrumentation had already named the fix («el fix es SERIALIZAR») and stayed telemetry-only.
+  - **Ticket queue in `voice/proactive.py::notify`**, strict arrival order, cross-LOOP by construction
+    (threading.Condition entered via `asyncio.to_thread`) — an `asyncio.Lock` binds to one loop, and notifies
+    arrive from uvicorn while the voice lives on the LiveKit job loop: the exact «attached to a different
+    loop» family V2-525's sibling fix just cured. The ticket is held through the whole playout («cuando ya se
+    lo ha explicado»), and the quiet re-check runs AFTER winning the turn.
+  - **A message never dies in the queue**: out of budget (arrival-clocked) or turn never comes → the same
+    `[SISTEMA]` note as always, and the ticket is ABANDONED so `_release` skips it — a wedged queue would mute
+    every delivery forever. A crashing speaker releases via `finally`.
+  - **`_BOT_GRACE_SECS` was letra muerta** — defined since INI-008, used by nobody. Wired now as the breath
+    between deliveries, clocked from the last delivery's END (`_last_spoke`), not from observing busy: the next
+    in line is blocked in `_wait_turn` while the previous speaks, so its quiet-poll starts after the voice
+    already ended and would never see it.
+  - Barge-in is unchanged: `allow_interruptions=True` and the operator-first gate stay; interrupting stops the
+    current message and the queue waits for quiet before the next. Node 3.17, disarm verified (4 of 7 red).
+
 - **⏻ ON has to START it — the reload was the tell (V2-525, 2026-08-31)**: «al darle al botón de arranque se me
   queda en amarillo parpadeando y creo que al cabo de un minuto o dos sí que arranca. Pero si hago un refresh de
   la página, automáticamente ya se pone en marcha todo.» Two faults stacked:

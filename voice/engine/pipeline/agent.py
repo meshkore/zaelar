@@ -533,11 +533,11 @@ async def entrypoint(ctx: JobContext) -> None:
         await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(make_coro(), _session_loop))
 
     async def _speak(text: str) -> None:
-        # INSTRUMENTACIÓN (V2-047 F7): el operador reporta que a media locución zaelar se corta, pausa y suelta el
-        # SIGUIENTE mensaje. Sospecha: una entrega proactiva (session.say) que entra mientras el bot AÚN habla y
-        # corta el TTS en vuelo. Registramos `say` con si había locución/turno vivo al empezar → medible en /debug
-        # (si `bot_in_flight` sale True a menudo, el fix es SERIALIZAR: encolar el say hasta que el handle vivo
-        # acabe, en vez de solaparlo). Solo telemetría; no cambia el comportamiento todavía.
+        # INSTRUMENTACIÓN (V2-047 F7): registramos `say` con si había locución/turno vivo al empezar → medible
+        # en /debug. La SERIALIZACIÓN que este comentario pedía («encolar el say hasta que el handle vivo
+        # acabe») existe desde 2026-08-31: `voice/proactive.py` mete cada notify en una cola FIFO de tickets y
+        # habla DE UNO EN UNO, así que `bot_in_flight=True` aquí ya no es «va a cortar», es la vara de medir de
+        # que la cola hace su trabajo — si vuelve a salir True a menudo, lo roto está en la cola, no aquí.
         _bot0, _usr0 = _busy["bot"], _busy["user"]
         try:
             _emit("tts", "say (entrega proactiva)", text=(text or "")[:120], role="assistant",

@@ -961,6 +961,13 @@ DOMAINS: list[dict] = [
         # se veía, porque morían en una tarea que nadie recoge.
         {"id": "3.16", "title": "La voz proactiva habla en el bucle de SU sesión (o se corta a media frase)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_proactive_speech_runs_on_the_sessions_loop.py"]},
+        # 2026-08-31, dictado del operador tras la sesión c480413b: «tiene que tener un buffer … cuando ya se lo
+        # ha explicado le manda otro; si dos tareas terminan simultáneamente, primero se informa de una y después
+        # de la segunda». Hasta hoy NADA serializaba dos notifies concurrentes (cada uno esperaba silencio por su
+        # cuenta y los dos veían hueco a la vez); la cola de tickets es cross-loop a propósito y un mensaje que
+        # no alcanza el turno degrada a nota [SISTEMA] y abandona el ticket — la cola no se puede atascar.
+        {"id": "3.17", "title": "Cola de entregas proactivas: de una en una, en orden, con respiro y sin perder ninguna",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_proactive_delivery_queue.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en
