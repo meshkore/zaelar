@@ -1,5 +1,5 @@
 #
-# Per-widget isolated store (HANDOFF §3.4 — "memoria complementaria por widget", recommended for isolation and
+# Per-widget isolated store (HANDOFF §3.4 — "supplementary memory per widget", recommended for isolation and
 # scale). CODE (widgets/<id>/) and DATA (widgets/_data/<id>/) are deliberately separate directories: [[modify]]/
 # [[delete]]/regeneration rewrite the CODE folder — if data lived there too, an edit would wipe it. Each widget
 # gets its OWN data directory (widgets/_data/<id>/), not a shared blob and not a bare file: `state.json` is the
@@ -16,7 +16,7 @@ from nucleo import workspace as _workspace
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # `<workspace>/widgets/_data` — `<workspace>` is the repo root unless `ZAELAR_WORKSPACE` points at a
-# mounted volume (Fase 3, real paid accounts). Unset (self-host, today's behavior) this is BYTE
+# mounted volume (Phase 3, real paid accounts). Unset (self-host, today's behavior) this is BYTE
 # IDENTICAL to the old `HERE/_data` (workspace.root() falls back to the engine repo root, and `HERE`
 # already lives one level inside it at `widgets/`).
 DATA_DIR = os.path.join(str(_workspace.root()), "widgets", "_data")
@@ -88,7 +88,7 @@ def load(widget_id: str, default: dict | None = None, *, version: int | None = N
 def save(widget_id: str, data: dict) -> dict:
     p = _path(widget_id)
     # CHANGE-GATED: a connector's poll loop (e.g. messaging, _POLL=1s) re-saves the SAME content constantly. Writing
-    # + emitting on every idempotent save floods the SSE observer (seen: 1495 `widget/data mensajeria` events in one
+    # + emitting on every idempotent save floods the SSE observer (seen: 1495 `widget/data messaging` events in one
     # session) → drowns the debug column and the canvas refresh. So serialize once, and if the content is byte-for-byte
     # identical to what we last wrote, do NOTHING (no disk write, no SSE emit). Only a REAL change touches the canvas.
     body = json.dumps(data, ensure_ascii=False, indent=2)

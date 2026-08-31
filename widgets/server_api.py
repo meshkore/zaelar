@@ -165,7 +165,7 @@ async def producing_endpoint():
 
     Measured on `play-music-and-build-playlist` (2026-08-27 14:02): `yt.videoId` set and `yt.paused` false,
     the «Curro» list holding the very track that was sounding, and the verdict 3/5 for lying about playing
-    music «sin la confirmación técnica necesaria (evidencia cero)». The product had done it; nothing could
+    music «without the necessary technical confirmation (zero evidence)». The product had done it; nothing could
     say so.
 
     Read-only and cheap: no mutation, no side effect on what is playing.
@@ -173,7 +173,7 @@ async def producing_endpoint():
     from . import producers
     try:
         return JSONResponse({"producing": await producers.producing()})
-    except Exception as e:  # noqa: BLE001 — nunca tumbar una lectura de diagnóstico
+    except Exception as e:  # noqa: BLE001 — never bring down a diagnostic read
         return JSONResponse({"producing": [], "error": str(e)[:200]})
 
 
@@ -342,9 +342,9 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     `widget/action` with the action in it; the BRAIN's ops emitted only the anonymous `widget/data` that
     `store.save` fires, so from outside every brain-driven op looked the same. Measured on
     `play-music-and-build-playlist` (2026-08-27 13:29): the music was really playing (`yt.videoId` set,
-    `paused: false`) and the list «Curro» really existed, and the round scored **1/5 for "alucinación de
-    éxito"** — the judge wrote that the mechanism proves neither happened, citing "solo operaciones genéricas
-    de datos". It could not tell `add_to_playlist` from `set_volume`, so it read the ops as nothing.
+    `paused: false`) and the list «Curro» really existed, and the round scored **1/5 for "success
+    hallucination"** — the judge wrote that the mechanism proves neither happened, citing "only generic data
+    operations". It could not tell `add_to_playlist` from `set_volume`, so it read the ops as nothing.
 
     An op that FAILED gets its own event instead of being folded into the same line: a refusal the widget
     reported (`nothing_playing`) and a change that went through are opposite facts, and collapsing them is how
@@ -362,10 +362,10 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     try:
         if isinstance(res, dict) and (res.get("error") or res.get("ok") is False):
             from voice.observer import emit as _emit2
-            # `is_error` va DENTRO de `extra`: `emit` no lo acepta como kwarg y los extras se aplanan al
-            # evento. Con el kwarg suelto salta un TypeError que este mismo `except` se traga, así que el
-            # evento de fallo no se emitiría NUNCA y nadie se enteraría — el defecto que estoy cerrando,
-            # cometido al cerrarlo.
+            # `is_error` goes INSIDE `extra`: `emit` does not accept it as a kwarg and extras are flattened into the
+            # event. With the loose kwarg it raises a TypeError that this same `except` swallows, so the failure
+            # event would NEVER be emitted and nobody would know — the defect I am closing, introduced while
+            # closing it.
             _emit2("widget", "action_failed", text=str(res.get("message") or res.get("error") or "")[:160],
                    extra={"id": wid, "action": str(action), "error": str(res.get("error") or ""),
                           "is_error": True})
@@ -394,16 +394,17 @@ async def confirm_widget(wid: str, payload: dict):
     to execute here (`widgets/confirm.py`): `delete` (the whole widget) and `data` (an irreversible data-op
     declared `confirm:true` in the manifest, V2-025).
 
-    ⚠️ **`data` no se ejecutaba desde el BOTÓN, y era peor que no hacer nada** (encontrado en la sesión
-    319252e7, 2026-08-15). Este endpoint solo sabía de `delete`; con una data-op devolvía `400 acción no
-    soportada: data` — pero `confirm.resolve()` ya había CONSUMIDO la confirmación pendiente. O sea que pulsar
-    «Sí» destruía la mutación guardada y no ejecutaba nada: la única salida era volver a pedirlo, que abría otra
-    confirmación, y así en bucle. El operador dijo «Lo he confirmado yo con el botón» y la agenda seguía llena;
-    el Susurro lo diagnosticó bien («el sistema no ejecutó la acción real tras la confirmación, repitiendo la
-    pregunta sin avanzar») y escaló a un worker, que chocó con el MISMO gate.
+    ⚠️ **`data` was not executed from the BUTTON, and that was worse than doing nothing** (found in session
+    319252e7, 2026-08-15). This endpoint only knew about `delete`; with a data-op it returned `400 unsupported
+    action: data` — but `confirm.resolve()` had already CONSUMED the pending confirmation. In other words,
+    pressing «Yes» destroyed the saved mutation and executed nothing: the only way out was to ask for it again,
+    which opened another confirmation, and so on in a loop. The operator said «I confirmed it myself with the
+    button» and the schedule remained full; Susurro diagnosed it correctly («the system did not execute the real
+    action after confirmation, repeating the question without making progress») and escalated to a worker, which
+    hit the SAME gate.
 
-    La mitad por VOZ sí estaba completa (`providers/nucleo.py::_resolve_confirm`), y esa asimetría es lo que
-    hizo el fallo difícil de ver: la misma acción funcionaba diciendo «sí» y no funcionaba pulsando «Sí».
+    The VOICE half was complete (`providers/nucleo.py::_resolve_confirm`), and that asymmetry is what made the
+    failure difficult to see: the same action worked when saying «yes» and did not work when pressing «Yes».
     """
     from . import confirm, lifecycle
     wid = _safe(wid)
@@ -426,7 +427,7 @@ async def confirm_widget(wid: str, payload: dict):
         name = str(op.get("action") or "").strip()
         if not name:
             return JSONResponse({"ok": False, "error": "confirmación sin acción guardada"}, status_code=400)
-        # Mismo despacho que la rama de voz: la mutación va por `apply_action` del propio widget, JAMÁS a código.
+        # Same dispatch as the voice branch: the mutation goes through the widget's own `apply_action`, NEVER to code.
         res = await brain_action(p["widget_id"], name, op.get("payload") or {})
         _emit_confirmed(p["widget_id"], name)
         return JSONResponse({"ok": not (isinstance(res, dict) and res.get("error")),
@@ -457,8 +458,9 @@ async def widget_restore_ask(wid: str):
 
 
 def _emit_confirmed(wid: str, action: str) -> None:
-    """El operador tiene que VER que su «Sí» ejecutó algo. Sin esta traza, el bucle de arriba era invisible en el
-    visor: se veía la confirmación pedida una y otra vez y nunca una ejecución ([[feedback_visible_state_over_silent_state]])."""
+    """The operator has to SEE that their «Yes» executed something. Without this trace, the loop above was invisible
+    in the viewer: the requested confirmation appeared again and again, but never an execution
+    ([[feedback_visible_state_over_silent_state]])."""
     try:
         from voice.observer import emit
         emit("brain", "✅ acción irreversible confirmada (botón)", role="system", text=f"{wid}:{action}")
@@ -477,9 +479,9 @@ async def widget_context(wid: str):
 
 async def _report_to_brain(kind: str, res: dict) -> None:
     """Close the fire-and-forget loop: generation is slow (~1-2 min) and the brain already moved on. Tell it the
-    REAL outcome so it stops claiming "hecho" blind and never references a widget id that didn't get built.
+    REAL outcome so it stops blindly claiming "done" and never references a widget id that didn't get built.
       • success → a SILENT one-shot note for the brain's next turn (the widget already popped onto the canvas).
-      • failure → the note AND a spoken/UI alert, because the brain likely said "hecho" and that was wrong.
+      • failure → the note AND a spoken/UI alert, because the brain likely said "done" and that was wrong.
     Best-effort — a feedback hiccup must never break the (already-completed) generation response."""
     wid = res.get("id") or "?"
     ok = bool(res.get("ok"))

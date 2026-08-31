@@ -74,8 +74,8 @@ SYSTEM_SURFACES: dict[str, dict] = {
 
 
 def surfaces() -> list[dict]:
-    """Lista de superficies de sistema dirigibles por voz, en la forma del registro unificado:
-    `{id, name, aliases, surface: "system"}`. Consumida por `widgets/registry.py` y el resolver.
+    """List of voice-addressable system surfaces, in the unified registry format:
+    `{id, name, aliases, surface: "system"}`. Consumed by `widgets/registry.py` and the resolver.
 
     For a non-preset active language (V2-101), the ~50ms hardcoded es/en aliases above are extended
     ADDITIVELY with a generated alias pack (`i18n/init/aliases.py`) — never replaced, and the resolver's

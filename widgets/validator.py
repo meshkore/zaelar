@@ -107,7 +107,7 @@ _FULL_LINE_COMMENT_RE = re.compile(r"^\s*//.*$", re.M)
 
 
 def _scan_widget_js(js: str) -> str | None:
-    # False positive found in the marathon 2026-07-22/23: a full-line comment DESCRIBING the contract ("NADA de
+    # False positive found in the marathon 2026-07-22/23: a full-line comment DESCRIBING the contract ("NO
     # fetch") tripped the ban on its own prose. Strip whole-line `//` comments before matching the banned sinks —
     # trailing same-line comments are left alone (lower risk, not the shape that caused this).
     banned_scan = _FULL_LINE_COMMENT_RE.sub("", js)
@@ -298,7 +298,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
         logger.warning(f"widget-agent: '{wid}' keyword collisions (identify() will disambiguate): {coll}")
     # Folder name is authoritative. `origin:"user"` is stamped ONLY when the caller is the generator, i.e. when
     # this widget was JUST created by the operator (V2-083) — that is what the Config Widgets tab reads for its
-    # "de serie"/"tuyo" badge, and built-ins resolve through the curated `registry._BUILTINS` list instead.
+    # "built-in"/"yours" badge, and built-ins resolve through the curated `registry._BUILTINS` list instead.
     #
     # ⚠️ `stamp_origin` exists because this same validator is ALSO the contract check `make test-widgets` runs over
     # the WHOLE catalog, and there the stamp is plain wrong: measured 2026-08-28, one harness run relabelled 15
