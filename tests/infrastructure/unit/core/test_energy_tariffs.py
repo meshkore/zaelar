@@ -21,13 +21,12 @@ _MACHINE_CONFIG = Path(__file__).resolve().parents[5] / "cloud" / "provisioner" 
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    """Cache en blanco Y `sys_kv` AISLADO.
+    """Blank cache AND ISOLATED `sys_kv`.
 
-    Limpiar solo la caché de proceso no basta y se comprobó de la peor forma: `update()` PERSISTE, así
-    que los primeros tests escribieron en el `zaelar.db` real del operador y el siguiente los leyó de
-    vuelta — dos rojos que no eran del código sino de que la prueba se contaminaba a sí misma… y de
-    paso ensuciaba la memoria de producción. Un test no puede depender de un almacén compartido ni
-    escribir en él.
+    Clearing only the process cache is not enough, as was discovered in the worst possible way:
+    `update()` PERSISTS, so the first tests wrote to the operator's real `zaelar.db` and the next one
+    read it back — two failures that were not caused by the code but by the test contaminating itself…
+    and, incidentally, dirtying production's memory. A test cannot depend on or write to a shared store.
     """
     store: dict[str, str] = {}
     from memory import api as memory
@@ -51,11 +50,11 @@ def _cloud_provider(var: str) -> str | None:
 
 @pytest.mark.parametrize("var,family", [("ZAELAR_STT", "stt"), ("ZAELAR_TTS", "tts")])
 def test_every_provider_the_cloud_actually_runs_has_its_own_rate(var, family):
-    """EL TRINQUETE. Cambiar el proveedor de voz en el provisioner sin darle tarifa rompe aquí, en el
-    momento del cambio — no tres semanas después mirando una factura que no cuadra.
+    """THE RATCHET. Changing the voice provider in the provisioner without giving it a rate breaks here,
+    at the moment of the change — not three weeks later while looking at an invoice that does not add up.
 
-    Sin esto, un proveedor nuevo cae en el catch-all: cobra, pero a un precio que no es el suyo, y el
-    único síntoma es un número plausible."""
+    Without this, a new provider falls into the catch-all: it charges, but at a price that is not its own,
+    and the only symptom is a plausible number."""
     provider = _cloud_provider(var)
     if provider is None:
         pytest.skip(f"{_MACHINE_CONFIG.name} no está disponible (repo cloud aparte)")
@@ -68,16 +67,16 @@ def test_every_provider_the_cloud_actually_runs_has_its_own_rate(var, family):
 
 
 def test_an_unknown_provider_is_never_free():
-    """Sub-cobrar en silencio pierde dinero de verdad; sobre-cobrar a un proveedor raro se ve en la
-    siguiente factura y se corrige. El fallo por defecto va hacia el lado visible."""
+    """Undercharging silently loses real money; overcharging a rare provider is visible on the next
+    invoice and can be corrected. The default failure mode goes toward the visible side."""
     rate = energy_tariffs.rate_for("stt", "un-proveedor-que-no-existe")
     assert rate > 0
     assert rate == max(energy_tariffs.DEFAULT_STT_USD_PER_MIN.values())
 
 
 def test_local_backends_are_absent_from_the_tables_on_purpose():
-    """Gratis es una PROPIEDAD del proveedor, no una tarifa de cero. Una fila `whisper_local: 0.0`
-    sería indistinguible de un precio que alguien olvidó rellenar."""
+    """Free is a PROPERTY of the provider, not a zero rate. A `whisper_local: 0.0` row would be
+    indistinguishable from a price that someone forgot to fill in."""
     assert "whisper_local" not in energy_tariffs.DEFAULT_STT_USD_PER_MIN
     assert "kokoro_local" not in energy_tariffs.DEFAULT_TTS_USD_PER_1K_CHARS
 
@@ -88,17 +87,17 @@ def test_central_rates_win_over_the_bundled_defaults():
 
 
 def test_a_partial_central_table_does_not_erase_what_it_does_not_mention():
-    """El operador solo edita lo que quiere cambiar, así que la tabla central llega incompleta por
-    diseño. Un proveedor que no menciona no es desconocido para NOSOTROS — sigue teniendo su default,
-    y no debe caer al catch-all (que le pondría el precio más caro sin motivo)."""
+    """The operator edits only what they want to change, so the central table arrives incomplete by
+    design. A provider it does not mention is not unknown to US — it still has its default, and must
+    not fall into the catch-all (which would assign it the most expensive price for no reason)."""
     energy_tariffs.update({"stt": {"voxtral": 0.010}})
     assert energy_tariffs.rate_for("stt", "deepgram") == pytest.approx(
         energy_tariffs.DEFAULT_STT_USD_PER_MIN["deepgram"])
 
 
 def test_an_empty_payload_is_refused_instead_of_wiping_the_rates():
-    """Un control-plane a medio migrar, mal configurado o con un bug puede contestar `{}`. Adoptarlo
-    dejaría a la Machine facturando TODO al catch-all. Ausencia no es una instrucción."""
+    """A half-migrated, misconfigured, or buggy control plane may return `{}`. Adopting it would leave
+    the Machine billing EVERYTHING at the catch-all rate. Absence is not an instruction."""
     energy_tariffs.update({"stt": {"voxtral": 0.010}})
     assert energy_tariffs.update({}) is False
     assert energy_tariffs.update(None) is False
@@ -106,15 +105,16 @@ def test_an_empty_payload_is_refused_instead_of_wiping_the_rates():
 
 
 def test_zero_is_a_legitimate_rate_not_a_missing_one():
-    """Un proveedor dentro de su cuota incluida (LiveKit trae 5.000 min WebRTC al mes) tiene coste
-    marginal cero DE VERDAD, y cobrarlo sería inventar un gasto. Poner 0 tiene que poder decirse."""
+    """A provider within its included quota (LiveKit includes 5,000 WebRTC minutes per month) has a
+    marginal cost that is genuinely zero, and charging for it would invent an expense. It must be
+    possible to specify 0."""
     energy_tariffs.update({"transport": {"livekit": 0.0}})
     assert energy_tariffs.rate_for("transport", "livekit") == 0.0
 
 
 def test_a_negative_rate_is_dropped():
-    """Una tarifa negativa REGALARÍA Energy con cada llamada. El endpoint ya lo valida; esto es la
-    segunda cerradura, porque el payload viaja por la red."""
+    """A negative rate would GIVE Energy away with every call. The endpoint already validates this;
+    this is the second lock because the payload travels over the network."""
     energy_tariffs.update({"stt": {"voxtral": 0.010}})
     energy_tariffs.update({"stt": {"voxtral": -5.0}})
     assert energy_tariffs.rate_for("stt", "voxtral") == pytest.approx(0.010)
@@ -127,9 +127,9 @@ def test_snapshot_says_where_the_rates_came_from():
 
 
 def test_the_lease_carries_the_tariffs(monkeypatch):
-    """El acoplamiento que sostiene todo: las tarifas llegan piggyback en el arriendo, la única
-    llamada periódica que el motor ya hace. Si alguien deja de leerlas ahí, los precios centrales
-    dejan de llegar y nadie se entera — la Machine sigue facturando, con los de hace meses."""
+    """The coupling that holds everything together: the rates arrive piggybacked on the lease, the only
+    periodic call the engine already makes. If someone stops reading them there, the central prices stop
+    arriving and nobody notices — the Machine keeps billing, using those from months ago."""
     import nucleo.energy_lease as lease
     src = Path(lease.__file__).read_text(encoding="utf-8")
     assert "energy_tariffs.update(" in src, (

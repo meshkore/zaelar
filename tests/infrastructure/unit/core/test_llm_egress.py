@@ -1,7 +1,7 @@
-"""EGRESS DE MODELOS (T303). Un solo código, dos despliegues.
+"""MODEL EGRESS (T303). One codebase, two deployments.
 
-Lo que se prueba: que self-host no cambie NADA, que con salida mediada la clave del proveedor deje de
-usarse, y que un despliegue incompleto rompa en vez de colarse por la puerta de atrás.
+What is tested: that self-host changes NOTHING, that with mediated egress the provider key stops being
+used, and that an incomplete deployment fails instead of slipping through the back door.
 """
 import pytest
 
@@ -31,9 +31,9 @@ def test_self_host_no_cambia_ni_un_byte(monkeypatch):
 def test_con_salida_mediada_la_clave_del_proveedor_ya_no_viaja(monkeypatch):
     _mediado(monkeypatch)
     base, key, headers = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
-    # El SDK compone `<base>/chat/completions`: la base tiene que acabar en /v1 igual que la del
-    # proveedor. Sin esto la llamada sale a `<egress>/chat/completions` y devuelve 404 — pasó en el
-    # primer arranque real y el síntoma no apuntaba a la causa.
+    # The SDK builds `<base>/chat/completions`: the base must end in /v1, just like the provider's.
+    # Without this, the call goes to `<egress>/chat/completions` and returns 404 — this happened on
+    # the first real startup, and the symptom did not point to the cause.
     assert base == "https://egress.example/v1"
     assert key == "tok-de-workload"
     assert "CLAVE-MAESTRA" not in (base + key + str(headers))
@@ -41,8 +41,8 @@ def test_con_salida_mediada_la_clave_del_proveedor_ya_no_viaja(monkeypatch):
 
 
 def test_la_familia_de_destino_va_en_CABECERA_no_en_el_cuerpo(monkeypatch):
-    """El cuerpo lo compone un modelo. Si el enrutado dependiera del cuerpo, lo que un modelo escriba
-    podría cambiar a qué proveedor se factura."""
+    """The body is composed by a model. If routing depended on the body, what a model writes
+    could change which provider is billed."""
     _mediado(monkeypatch)
     for url, esperado in [("https://api.x.ai/v1", "xai"), ("https://api.z.ai/api/paas/v4", "zai"),
                           ("https://api.mistral.ai/v1", "mistral")]:
@@ -50,17 +50,17 @@ def test_la_familia_de_destino_va_en_CABECERA_no_en_el_cuerpo(monkeypatch):
 
 
 def test_un_endpoint_LOCAL_nunca_se_media(monkeypatch):
-    """Ollama no cuesta dinero y no hay nada que custodiar. Mediarlo sería mandar a la nube algo que
-    el usuario puso en su máquina justamente para que no saliera."""
+    """Ollama costs no money and there is nothing to safeguard. Mediating it would send to the cloud
+    something the user put on their machine specifically so it would not leave it."""
     _mediado(monkeypatch)
     assert llm_egress.route("http://localhost:11434/v1", "ollama") == \
         ("http://localhost:11434/v1", "ollama", {})
 
 
 def test_sin_credencial_NO_se_cae_hacia_atras_al_proveedor(monkeypatch, caplog):
-    """El fallo que esto impide: un despliegue mediado a medias que «funciona» saliendo directo con la
-    clave del proveedor. Eso no es degradar con elegancia, es una fuga que pasa desapercibida porque
-    todo responde bien."""
+    """The failure this prevents: a half-mediated deployment that "works" by going direct with the
+    provider key. That is not graceful degradation; it is a leak that goes unnoticed because
+    everything responds correctly."""
     _mediado(monkeypatch, token=None)
     base, key, _ = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
     assert base.startswith("https://egress.example"), "se cayó al proveedor directo"
@@ -68,8 +68,8 @@ def test_sin_credencial_NO_se_cae_hacia_atras_al_proveedor(monkeypatch, caplog):
 
 
 def test_quien_factura_es_quien_llama(monkeypatch):
-    """Con salida mediada el ledger lo apunta el otro extremo, con los tokens que vio ÉL. Contarlo
-    también aquí cobraría dos veces el mismo turno."""
+    """With mediated egress, the other end records the ledger entry, using the tokens that IT saw.
+    Recording it here too would charge twice for the same turn."""
     monkeypatch.setattr(llm_egress, "mediated", lambda: False)
     assert llm_egress.bills_upstream() is False
     _mediado(monkeypatch)

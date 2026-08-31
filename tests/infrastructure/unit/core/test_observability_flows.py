@@ -1,12 +1,12 @@
 """
-CORRELATION ID + identidad + sesión (2026-08-09).
+CORRELATION ID + identity + session (2026-08-09).
 
-Lo que se prueba es el contrato que hace ANALIZABLE la observabilidad: que un estímulo del operador y todo lo que
-desencadena compartan un mismo identificador de flujo, que cada evento diga de qué instalación y de qué sesión de
-trabajo salió, y que eso sea CONSULTABLE por columnas indexadas en vez de escaneando JSON.
+What is tested is the contract that makes observability ANALYZABLE: an operator stimulus and everything it
+triggers share the same flow identifier, each event states which installation and work session it came from,
+and that this is QUERYABLE through indexed columns instead of scanning JSON.
 
-El caso de referencia es el que puso el operador: «enséñame el tiempo en Soria» → decisión del FlashBrain →
-búsqueda web → apertura del widget. Cuatro eventos, cuatro piezas, UN flujo.
+The reference case is the one provided by the operator: «show me the weather in Soria» → FlashBrain decision →
+web search → widget opening. Four events, four pieces, ONE flow.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ import pytest
 
 @pytest.fixture()
 def wired(tmp_path, monkeypatch):
-    """Una BD limpia por test + el sink del bus enganchado. `ZAELAR_DB` es el mismo knob de aislamiento que ya
-    usan los tests de memoria: nunca se escribe en la base real del operador."""
+    """A clean DB per test + the bus sink connected. `ZAELAR_DB` is the same isolation knob that the in-memory
+    tests already use: the operator's real database is never written to."""
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "t.db"))
     monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
     import bus
@@ -37,7 +37,7 @@ def wired(tmp_path, monkeypatch):
 
 
 def _settle():
-    time.sleep(0.25)      # el sink del bus escribe en el hilo que publica; damos margen a la entrega cross-loop
+    time.sleep(0.25)      # the bus sink writes on the publishing thread; allow time for cross-loop delivery
 
 
 def test_a_whole_flow_shares_one_correlation_id(wired):
@@ -68,8 +68,8 @@ def test_a_whole_flow_shares_one_correlation_id(wired):
 
 
 def test_a_new_request_is_a_new_flow(wired):
-    """Una petición nueva del operador —aunque MODIFIQUE el resultado anterior— abre su propio flujo: es lo que
-    permite comparar «la primera búsqueda» con «la corrección» en vez de verlas como una masa."""
+    """A new operator request—even if it MODIFIES the previous result—opens its own flow: this makes it possible
+    to compare «the first search» with «the correction» instead of seeing them as one mass."""
     from observability import flows
     from voice import trace
     from voice.observer import emit
@@ -100,16 +100,16 @@ def test_every_event_carries_installation_and_session(wired):
 
 
 def test_local_user_id_is_a_random_uuid_and_persists(wired, tmp_path):
-    """UUID4 aleatorio y no correlativo: no identifica a nadie por sí mismo y no puede chocar con el de otra
-    instalación."""
+    """Random, non-sequential UUID4: it does not identify anyone by itself and cannot collide with that of another
+    installation."""
     import uuid
 
     from observability import identity
 
     uid = identity.user_id()
-    uuid.UUID(uid)                                   # lanza si no es un UUID válido
+    uuid.UUID(uid)                                   # raises if it is not a valid UUID
     assert uuid.UUID(uid).version == 4
-    identity._user["id"] = None                      # simula un reinicio del proceso
+    identity._user["id"] = None                      # simulates a process restart
     assert identity.user_id() == uid, "la identidad de la instalación debe sobrevivir al reinicio"
 
 
@@ -122,8 +122,8 @@ def test_an_environment_provided_user_id_wins(wired, monkeypatch):
 
 
 def test_reconnecting_does_not_split_the_work_session(wired):
-    """Un `start` repetido (reconexión, reset ligero) REUTILIZA la sesión: partirla en dos falsearía cualquier
-    medida de «cuánto duró la sesión y qué hizo»."""
+    """A repeated `start` (reconnection, light reset) REUSES the session: splitting it in two would invalidate any
+    measurement of «how long the session lasted and what it did»."""
     from observability import identity
 
     a = identity.begin_session("voice")["id"]
@@ -136,27 +136,28 @@ def test_reconnecting_does_not_split_the_work_session(wired):
 
 
 def test_hand_published_events_are_stamped_too(wired):
-    """`observer.emit` NO es la única puerta: el latido del loop y el puente de `memory.updated` construyen su
-    dict a mano y lo publican directos al topic. Se saltaban el sello —50 de 66 filas del primer arranque real
-    salieron sin sesión— y un evento sin sesión ya no se puede atribuir después. El sello vive en
-    `bus/sse.py::publish`, que sí es la puerta única."""
+    """`observer.emit` is NOT the only gateway: the loop heartbeat and the `memory.updated` bridge build their
+    dict manually and publish it directly to the topic. They were skipping the stamp—50 of 66 rows from the first
+    real startup had no session—and an event without a session can no longer be attributed afterward. The stamp
+    lives in `bus/sse.py::publish`, which is the single gateway."""
     from bus import sse as _sse
     from observability import identity
 
     identity.begin_session("test")
-    ev = {"kind": "memory", "label": "updated"}     # dict construido a mano, como el puente de memory.updated
+    ev = {"kind": "memory", "label": "updated"}     # dict built manually, like the memory.updated bridge
     _sse.publish(ev)
-    # Se comprueba sobre el evento PUBLICADO, no sobre la fila: el sello ocurre al publicar, y así el test no
-    # depende de si ese kind concreto llega a persistirse (el latido, por ejemplo, se descarta a propósito).
+    # Check the PUBLISHED event, not the row: the stamp occurs on publication, so the test does not depend on
+    # whether that specific kind is persisted (the heartbeat, for example, is deliberately discarded).
     assert ev["sid"] == identity.session_id()
     assert ev["uid"] == identity.user_id()
     assert ev["cat"] == "memory", "la familia también se deriva: sin ella la fila cae en «Sin clasificar»"
 
 
-# ── LA EVIDENCIA: qué trajo el mundo exterior (2026-08-10) ────────────────────────────────────────────────────
-# Hasta hoy se registraba la PREGUNTA y la DECISIÓN, no la PRUEBA: de una búsqueda quedaba «7 resultados» y se
-# perdía lo que el modelo leyó de verdad. Con eso se puede auditar que el sistema BUSCÓ, nunca si buscó BIEN — la
-# pregunta que importa («¿los resultados sostienen lo que respondió?») era inverificable a posteriori.
+# ── THE EVIDENCE: what the outside world brought (2026-08-10) ─────────────────────────────────────────────────
+# Until now, the QUESTION and DECISION were recorded, not the PROOF: a search was reduced to «7 results» and
+# what the model actually read was lost. This makes it possible to audit that the system SEARCHED, but never
+# whether it searched WELL—the question that matters («do the results support what it answered?») was
+# unverifiable afterward.
 def test_the_evidence_of_a_search_is_kept_with_its_sources():
     from observability import evidence
 
@@ -170,8 +171,8 @@ def test_the_evidence_of_a_search_is_kept_with_its_sources():
 
 
 def test_the_evidence_has_a_budget_and_says_what_it_left_out():
-    """Sin tope, una búsqueda con snippets largos pesaría más que el resto del turno junto. Y un recorte SILENCIOSO
-    sería peor que el recorte: quien audita creería que eso era todo lo que había."""
+    """Without a limit, a search with long snippets would weigh more than the rest of the turn combined. And a
+    SILENT truncation would be worse than truncation: an auditor would believe that was all there was."""
     from observability import evidence
 
     many = [{"title": f"r{i}", "url": f"https://e/{i}", "snippet": "x" * 400} for i in range(30)]
@@ -187,30 +188,31 @@ def test_clipping_marks_the_cut():
 
     assert evidence.clip("abcdefghij", 5).endswith("…"), "un texto recortado tiene que PARECER recortado"
     assert evidence.clip("abc", 50) == "abc"
-    assert evidence.clip(None, 10) == ""            # best-effort: la evidencia nunca puede tumbar al emisor
+    assert evidence.clip(None, 10) == ""            # best-effort: evidence must never bring down the emitter
 
 
 def test_a_worker_tool_result_is_recorded(wired):
-    """Los `tool_result` del stream del CLI se descartaban como «ruido interno», y con ellos lo único que permite
-    auditar a un worker: se veía qué pidió, nunca qué le contestaron. Un worker que trae basura y otro que trae el
-    dato exacto dejaban EL MISMO rastro."""
+    """The CLI stream's `tool_result` entries were discarded as «ruido interno», along with the only thing that
+    makes it possible to audit a worker: what it requested was visible, never what it was told. A worker bringing
+    junk and another bringing the exact data left THE SAME trace."""
     from observability import flows
     from voice.observer import emit
 
     emit("task", "web ↩", text="Tour 2026: ganó Vingegaard", extra={"id": "7", "evidence": True,
                                                                     "span": "worker:7"})
     _settle()
-    # Se busca EL EVENTO PROPIO, no «el último de la tabla». `rows[-1]` ataba esta prueba a que nadie más
-    # emitiera un `task` después, y el almacén es COMPARTIDO: el 2026-08-25 falló una vez en la corrida
-    # completa y pasó sola y al repetir la suite. Un test que depende del orden en que corren los demás no
-    # mide lo que dice medir, y su rojo no distingue una regresión de una coincidencia.
+    # Find THE EVENT ITSELF, not «the last one in the table». `rows[-1]` tied this test to nobody else
+    # emitting a `task` afterward, and the store is SHARED: on 2026-08-25 it failed once in the full run
+    # and passed on its own and when the suite was repeated. A test that depends on the order in which the
+    # others run does not measure what it claims to measure, and its failure cannot distinguish a regression
+    # from a coincidence.
     rows = [e for e in flows.events(limit=50) if e["kind"] == "task"]
     assert rows, "el resultado de una tool tiene que quedar registrado"
     mio = [e for e in rows if e.get("span") == "worker:7"]
     assert mio, "…y atribuido a SU actor, o no se puede agrupar por quién lo hizo"
 
 
-# ── LEER UNA SESIÓN: resumen, cursor y por qué NO una ventana de tiempo ───────────────────────────────────────
+# ── READING A SESSION: summary, cursor, and why NOT a time window ─────────────────────────────────────────────
 def test_one_session_can_be_opened_and_summarised(wired):
     from observability import flows, identity
     from voice import trace
@@ -228,8 +230,8 @@ def test_one_session_can_be_opened_and_summarised(wired):
 
 
 def test_the_cursor_never_repeats_nor_skips_an_event(wired):
-    """`since_id` sobre una clave monótona, no una ventana de tiempo: dos eventos en el MISMO milisegundo son un
-    caso normal (el bus reparte rápido), y una ventana temporal los duplicaría o se comería uno."""
+    """`since_id` uses a monotonic key, not a time window: two events in the SAME millisecond are normal (the bus
+    distributes quickly), and a time window would duplicate them or swallow one."""
     from observability import flows, identity
     from voice.observer import emit
 
@@ -247,8 +249,8 @@ def test_the_cursor_never_repeats_nor_skips_an_event(wired):
 
 
 def test_raw_events_carry_the_payload_untouched(wired):
-    """Quien audita necesita el original, no nuestra proyección: la evidencia y todo lo que no sube a columnas
-    viven en el payload."""
+    """An auditor needs the original, not our projection: evidence and everything that does not make it into
+    columns lives in the payload."""
     import json
 
     from observability import flows, identity
@@ -263,10 +265,10 @@ def test_raw_events_carry_the_payload_untouched(wired):
     assert payload["evidence"]["items"][0]["u"] == "https://aemet.es"
 
 
-# ── EL CANDADO: quién puede leer el CONTENIDO ────────────────────────────────────────────────────────────────
-# Estas rutas nacieron para el visor local y eran abiertas. En casa da igual; el MISMO código corre en
-# despliegues donde el puerto es alcanzable, y ahí «abierto» significa que quien dé con la URL se lleva las
-# conversaciones.
+# ── THE LOCK: who can read the CONTENT ───────────────────────────────────────────────────────────────────────
+# These routes were created for the local viewer and were open. At home it makes no difference; the SAME code
+# runs in deployments where the port is reachable, and there «open» means that whoever finds the URL gets the
+# conversations.
 class _Req:
     def __init__(self, host="1.2.3.4", token=None):
         self.client = type("C", (), {"host": host})()
@@ -293,7 +295,7 @@ def test_with_a_token_it_must_match(monkeypatch):
 
 
 def test_a_request_without_a_known_origin_is_denied(monkeypatch):
-    """Fail-closed: si no se puede saber de dónde viene, no se sirve."""
+    """Fail-closed: if its origin cannot be determined, it is not served."""
     from observability import api
 
     monkeypatch.delenv("ZAELAR_OBS_TOKEN", raising=False)

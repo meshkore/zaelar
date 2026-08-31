@@ -41,14 +41,14 @@ def test_llm_cost_to_energy_aimlapi_uses_per_model_rate(monkeypatch):
         prompt_tokens=1_000_000,
         completion_tokens=1_000_000,
     )
-    # $0.14 + $0.28 = $0.42 NATIVOS, × el margen ×1,30 del broker = $0.546 · × 4 de margen comercial = €2,184
+    # $0.14 + $0.28 = $0.42 NATIVE, × the broker's ×1.30 markup = $0.546 · × 4 commercial margin = €2.184
     # / €0,01 = 218,4 Energy — NOT None, NOT zero.
     #
-    # Los 168 de antes (2026-08-05 → 2026-08-15) eran la tarifa NATIVA de DeepSeek cobrada a una llamada que se
-    # le compró a AIMLAPI. La tabla es del proveedor porque así se comparan los candidatos entre sí en los
-    # benchmarks; la FACTURA tiene que llevar además lo que el revendedor cobra encima (medido el 2026-08-09:
-    # 0,14 → 0,182). Esta línea es la que hacía invisible el agujero, porque afirmaba como correcto exactamente
-    # el número que sub-cobraba un 30% en la llamada más frecuente del producto.
+    # The previous 168 (2026-08-05 → 2026-08-15) was DeepSeek's NATIVE rate charged for a call purchased
+    # through AIMLAPI. The table is from the provider so candidates can be compared with one another in the
+    # benchmarks; the INVOICE must also include what the reseller charges on top (measured on 2026-08-09:
+    # 0.14 → 0.182). This line made the gap invisible because it declared as correct exactly the number
+    # that undercharged by 30% on the product's most frequent call.
     assert energy == pytest.approx(218.4)
 
 
@@ -112,18 +112,18 @@ def test_stt_cost_to_energy_handles_none_seconds():
 
 
 def test_the_stt_rate_FOLLOWS_the_provider_instead_of_being_one_flat_number():
-    """El defecto que motivó todo esto: había UNA tarifa plana de STT y era la de Deepgram, así que
-    producción facturó meses Voxtral al precio de otro — el 80% del coste, sin que fallara nada.
+    """The defect that prompted all this: there was ONE flat STT rate, and it was Deepgram's, so
+    production billed Voxtral for months at another provider's price — 80% of the cost, without anything failing.
 
-    Dos proveedores con precios distintos tienen que dar números distintos. Si este test empieza a
-    ver lo mismo para los dos, alguien ha vuelto a colapsar la tabla en una constante."""
+    Two providers with different prices must produce different numbers. If this test starts to
+    see the same result for both, someone has collapsed the table back into a constant."""
     voxtral = energy_meter.stt_cost_to_energy(audio_seconds=600, provider="voxtral")
     deepgram = energy_meter.stt_cost_to_energy(audio_seconds=600, provider="deepgram")
     assert voxtral > deepgram, "Voxtral ($0.006/min) es más caro que Deepgram ($0.0048/min)"
 
 
 def test_transport_is_billed_per_participant_minute():
-    # 10 min de sesión × 2 participantes = 20 participant-min @ $0.0004 = $0.008, *4 = €0.032 = 3.2 Energy.
+    # 10 min of session × 2 participants = 20 participant-min @ $0.0004 = $0.008, *4 = €0.032 = 3.2 Energy.
     energy = energy_meter.transport_cost_to_energy(participant_seconds=1200, provider="livekit")
     assert energy == pytest.approx(3.2)
 
@@ -250,9 +250,9 @@ async def test_post_usage_routes_cloud_account_to_control_plane(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
     await energy_meter._post_usage(12.5, "worker")
     assert captured["url"] == "https://zaelar-control-plane.example.workers.dev/usage"
-    # `session_id` (2026-08-09, INI-021): los EVENTOS no salen de la máquina del usuario, pero el registro de
-    # ACTIVIDAD central (quién usa el sistema, cuándo y cuánto gasta) necesita saber a qué sesión de trabajo
-    # pertenece cada consumo. Viaja por ESTE mismo reporte para no abrir una vía de ingesta nueva.
+    # `session_id` (2026-08-09, INI-021): EVENTS do not leave the user's machine, but the central ACTIVITY
+    # record (who uses the system, when, and how much they spend) needs to know which work session each
+    # charge belongs to. It travels in THIS same report so we do not open a new ingestion path.
     from observability import identity as _ident
     assert captured["json"] == {"user_id": "did:key:z6MkExample", "energy": 12.5, "kind": "worker",
                                 "session_id": _ident.session_id()}
@@ -274,8 +274,8 @@ async def test_post_usage_cloud_account_noop_without_control_plane_url(monkeypat
 @pytest.mark.anyio
 async def test_post_usage_cloud_account_requests_close_when_balance_depleted(monkeypatch):
     """2026-08-09: the /usage response's `balance` used to be discarded — now a depleted balance
-    (<=0) must request the session close via nucleo.account_limits, the operator's "cuando se gasta,
-    se acabó" rule."""
+    (<=0) must request the session close via nucleo.account_limits, following the operator's
+    "when it is spent, it is over" rule."""
     monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
     monkeypatch.setenv("CONTROL_PLANE_URL", "https://zaelar-control-plane.example.workers.dev")
 
@@ -373,14 +373,14 @@ def test_the_most_specific_model_pattern_wins():
     assert energy_meter._rate_for("", "grok-4.5") == (2.00, 6.00)
 
 
-# ── El margen del BROKER (2026-08-15) ────────────────────────────────────────────────────────────────────────
-# Las tablas de tarifas son del proveedor NATIVO, porque eso es lo que hace comparables a los candidatos en los
-# benchmarks. Pero producción no le compra al proveedor: el titular del FlashBrain va por AIMLAPI, que revende con
-# margen. Las dos rutas caían en la misma fila, así que el mismo modelo se facturaba igual viniera de donde
-# viniera — una sub-cobranza de ~30% en la llamada más frecuente del producto, y en el sentido PROHIBIDO por la
-# política de 2026-08-13 (sobre-cobrar un poco antes que sub-cobrar).
+# ── The BROKER markup (2026-08-15) ───────────────────────────────────────────────────────────────────────────
+# The rate tables are from the NATIVE provider, because that makes candidates comparable in the benchmarks.
+# But production does not buy from the provider: the FlashBrain account holder goes through AIMLAPI, which resells
+# with a markup. Both routes fell into the same row, so the same model was billed identically regardless of its
+# source — an undercharge of ~30% on the product's most frequent call, in the direction PROHIBITED by the
+# 2026-08-13 policy (overcharging slightly is preferable to undercharging).
 def test_el_broker_cobra_su_margen_y_el_directo_no():
-    """El MISMO modelo por dos rutas ya no cuesta lo mismo, que es justo el hecho que hacía invisible el agujero."""
+    """The SAME model through two routes no longer costs the same, which is precisely what made the gap invisible."""
     directo = energy_meter._rate_for("https://api.deepseek.com", "deepseek-v4-flash")
     broker = energy_meter._rate_for("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash")
     assert directo == (0.14, 0.28)
@@ -389,19 +389,19 @@ def test_el_broker_cobra_su_margen_y_el_directo_no():
 
 
 def test_el_margen_del_broker_es_POR_MODELO_no_una_constante():
-    """Medido el 2026-08-09 (`tests/memory/e2e/bot/prices.json`): el broker no cobra lo mismo por todo. Aplicar
-    un ×1,3 plano sobre-cobraría un 30% a gemini, que el broker sirve SIN margen."""
+    """Measured on 2026-08-09 (`tests/memory/e2e/bot/prices.json`): the broker does not charge the same markup for everything. Applying
+    a flat ×1.3 would overcharge gemini by 30%, even though the broker serves it WITHOUT a markup."""
     assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "deepseek-v4-flash") == 1.30
     assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "x-ai/grok-4-fast") == 1.05
     assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "google/gemini-2.5-flash") == 1.00
-    # un modelo del broker que no está medido toma el PEOR margen visto, no el mejor
+    # an unmeasured broker model takes the WORST observed markup, not the best
     assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "loquesea/modelo-nuevo") == 1.30
-    # y fuera del broker no hay margen que aplicar
+    # and outside the broker there is no markup to apply
     assert energy_meter._broker_markup("https://api.deepseek.com", "deepseek-v4-flash") == 1.0
 
 
 def test_el_fallback_no_acumula_el_margen_encima():
-    """Dos rellenos de seguridad multiplicándose dejan de ser «un poco por el lado seguro»."""
+    """Two safety fallbacks multiplying each other stop being "slightly on the safe side."""
     assert energy_meter._rate_for("https://api.aimlapi.com/v1", "modelo-desconocido-del-todo") == \
         energy_meter._FALLBACK_RATE_USD
 
@@ -411,7 +411,7 @@ def test_an_unknown_model_still_costs_something_and_says_so(caplog):
     energy_meter._warned_unmapped.clear()
     assert energy_meter._rate_for("https://api.nuevo-proveedor.com", "modelo-que-no-conocemos") == \
         energy_meter._FALLBACK_RATE_USD
-    assert any("no rate row" in r.message for r in caplog.records) or True   # el log va por loguru, no por caplog
+    assert any("no rate row" in r.message for r in caplog.records) or True   # the log goes through loguru, not caplog
 
 
 def test_one_energy_unit_is_a_quarter_of_a_cent_of_raw_compute():
@@ -438,13 +438,13 @@ def test_the_cost_model_matches_what_the_provider_itself_charges():
         base_url="", model="grok-4.5", prompt_tokens=i, completion_tokens=o, cached_tokens=c) / 400.0
     assert usd(2414, 11, 384) == pytest.approx(0.005009, abs=1e-6)
     assert usd(62096, 133, 62720) == pytest.approx(0.143806, abs=1e-6)
-    # …y sin la línea de caché se cobra de MENOS, que es el fallo que esto cierra
+    # …and without the cache line the charge is TOO LOW, which is the bug this closes
     assert usd(62096, 133, 0) < 0.143806 * 0.90
 
 
 def test_cached_tokens_are_optional_so_existing_callers_are_untouched():
-    """El turno de voz (`report_llm_usage`) no tiene cifra de caché; omitir el argumento tiene que dar el MISMO
-    número que antes de este cambio."""
+    """The voice turn (`report_llm_usage`) has no cache figure; omitting the argument must produce the SAME
+    number as before this change."""
     e = energy_meter.llm_cost_to_energy
     sin = e(base_url="", model="grok-4.5", prompt_tokens=1000, completion_tokens=100)
     cero = e(base_url="", model="grok-4.5", prompt_tokens=1000, completion_tokens=100, cached_tokens=0)
@@ -452,17 +452,17 @@ def test_cached_tokens_are_optional_so_existing_callers_are_untouched():
 
 
 def test_an_unmeasured_cache_rate_is_never_free():
-    """Misma postura que `_FALLBACK_RATE_USD`: un modelo sin fila de caché se cobra a una fracción del input y se
-    avisa — nunca a cero, que es perder dinero en silencio."""
+    """Same stance as `_FALLBACK_RATE_USD`: a model without a cache row is charged a fraction of the input and a
+    warning is issued — never zero, which would mean silently losing money."""
     energy_meter._warned_unmapped.clear()
     r = energy_meter._cached_rate_for("", "modelo-nuevo-sin-medir", in_rate=4.00)
-    assert r == pytest.approx(1.00)                                  # 25% de 4.00
+    assert r == pytest.approx(1.00)                                  # 25% of 4.00
     assert r > 0
 
 
 # ── usage AUSENTE (2026-08-13, T299) ────────────────────────────────────────────────────────────────
-# La tarifa de seguridad cubría «no sé el PRECIO». Nada cubría «no sé el VOLUMEN», y ese era peor: un
-# precio desconocido se busca, un volumen ausente multiplica a exactamente cero y reporta éxito.
+# The safety rate covered "I do not know the PRICE." Nothing covered "I do not know the VOLUME," and that was worse:
+# an unknown price can be looked up, while missing volume multiplies to exactly zero and reports success.
 
 def test_missing_usage_is_charged_a_floor_not_zero(monkeypatch):
     monkeypatch.setenv("ZAELAR_USER_ID", "u-test")
@@ -477,15 +477,15 @@ def test_missing_usage_is_charged_a_floor_not_zero(monkeypatch):
 
 
 def test_an_explicit_zero_is_an_answer_and_a_none_is_not():
-    """Conflar los dos es lo que hizo el agujero invisible: un proveedor que dice «0 tokens» ha
-    contestado; uno que no dice nada, no. Solo el segundo se estima."""
+    """Treating the two alike is what made the gap invisible: a provider that says "0 tokens" has
+    answered; one that says nothing has not. Only the latter is estimated."""
     assert energy_meter._resolve_tokens("https://api.x.ai/v1", "grok-4.5", 0, 0) == (0, 0, False)
     assert energy_meter._resolve_tokens("https://api.x.ai/v1", "grok-4.5", None, None)[2] is True
 
 
 def test_a_local_endpoint_without_usage_stays_free():
-    """Ollama no factura. El suelo existe para lo que cuesta dinero, y aplicarlo aquí cobraría a un
-    self-hoster por su propia GPU."""
+    """Ollama does not bill. The floor exists for things that cost money, and applying it here would charge a
+    self-hoster for their own GPU."""
     assert energy_meter._resolve_tokens("http://localhost:11434/v1", "qwen", None, None) == (0, 0, False)
 
 
@@ -496,7 +496,7 @@ def test_the_floor_is_warned_once_per_endpoint_and_model(caplog):
     assert len(energy_meter._warned_missing_usage) == 1
 
 
-# ── búsqueda de pago (T299) ─────────────────────────────────────────────────────────────────────────
+# ── paid search (T299) ───────────────────────────────────────────────────────────────────────────────────────
 
 def test_paid_search_is_charged_per_request_with_margin():
     e = energy_meter.search_cost_to_energy(provider="perplexity")
@@ -508,25 +508,25 @@ def test_an_unknown_search_provider_is_never_free():
     assert energy_meter.search_cost_to_energy(provider="buscador-que-no-existe") > 0
 
 
-# ── LOS DOS CONTADORES DE CACHÉ TIENEN ARITMÉTICA OPUESTA (2026-08-14) ──────────────────────────────────────────
+# ── THE TWO CACHE COUNTERS HAVE OPPOSITE ARITHMETIC (2026-08-14) ───────────────────────────────────────────────
 def test_el_hit_de_cache_de_DEEPSEEK_se_DESCUENTA_no_se_suma():
-    """`prompt_cache_hit_tokens` (forma OpenAI/DeepSeek) va DENTRO de `prompt_tokens` — verificado contra la API
-    viva: `prompt_tokens = hit + miss`. Así que re-tarifica hacia ABAJO esa parte; sumarla la cobraría dos veces.
+    """`prompt_cache_hit_tokens` (OpenAI/DeepSeek form) is INCLUDED in `prompt_tokens` — verified against the live
+    API: `prompt_tokens = hit + miss`. So it re-prices that portion DOWNWARD; adding it would charge it twice.
 
-    Importa más aquí que en cualquier otro sitio: el system prompt de voz son ~10k tokens CONSTANTES, así que en
-    una conversación real casi todo el input es un hit, y el input domina 14:1 en este cerebro.
+    This matters more here than anywhere else: the voice system prompt is ~10k CONSTANT tokens, so in
+    a real conversation almost all input is a hit, and input dominates 14:1 in this brain.
     """
     kw = dict(base_url="https://api.deepseek.com", model="deepseek-v4-flash", completion_tokens=100)
     sin_cache = energy_meter.llm_cost_to_energy(prompt_tokens=10_000, **kw)
     con_cache = energy_meter.llm_cost_to_energy(prompt_tokens=10_000, cache_hit_tokens=9_000, **kw)
     assert con_cache < sin_cache, "un hit de caché tiene que ABARATAR la llamada, no encarecerla"
-    # y NUNCA puede salir gratis: el hit se factura, solo más barato
+    # and it can NEVER be free: the hit is billed, just more cheaply
     solo_output = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, **kw)
     assert con_cache > 0 and con_cache >= solo_output * 0.5
 
 
 def test_el_hit_no_puede_dejar_tokens_frescos_NEGATIVOS():
-    """Un contador raro de un proveedor no puede restar de la factura. Acotado a `prompt_tokens`."""
+    """An unusual provider counter must not subtract from the bill. Clamped to `prompt_tokens`."""
     kw = dict(base_url="https://api.deepseek.com", model="deepseek-v4-flash", completion_tokens=10)
     absurdo = energy_meter.llm_cost_to_energy(prompt_tokens=100, cache_hit_tokens=999_999, **kw)
     todo_hit = energy_meter.llm_cost_to_energy(prompt_tokens=100, cache_hit_tokens=100, **kw)
@@ -534,8 +534,8 @@ def test_el_hit_no_puede_dejar_tokens_frescos_NEGATIVOS():
 
 
 def test_el_cache_de_ANTHROPIC_sigue_SUMANDOSE():
-    """La otra forma (`cache_read_input_tokens`) es un contador APARTE de `prompt_tokens`, así que su coste se
-    AÑADE. Se comprueba que el cambio de arriba no invirtió esta rama, que es la que usan los Brain Workers."""
+    """The other form (`cache_read_input_tokens`) is a counter SEPARATE from `prompt_tokens`, so its cost is
+    ADDED. Verify that the change above did not reverse this branch, which is the one Brain Workers use."""
     kw = dict(base_url="https://api.z.ai/api/anthropic", model="glm-5.3", completion_tokens=100)
     sin = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, **kw)
     con = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, cached_tokens=50_000, **kw)
@@ -543,8 +543,8 @@ def test_el_cache_de_ANTHROPIC_sigue_SUMANDOSE():
 
 
 def test_el_estimado_no_se_beneficia_del_descuento_de_cache():
-    """Con tokens ESTIMADOS por chars no se sabe qué parte se cacheó, así que aplicar el descuento sería rebajar la
-    factura con un dato inventado. Se comprueba en el reporter, que es quien tiene el flag `estimated`."""
+    """With tokens ESTIMATED from chars, there is no way to know which part was cached, so applying the discount would lower the
+    bill using an invented datum. This is checked in the reporter, which is where the `estimated` flag is set."""
     seen = []
     import nucleo.energy_meter as em
     orig = em.llm_cost_to_energy
@@ -554,5 +554,5 @@ def test_el_estimado_no_se_beneficia_del_descuento_de_cache():
                             prompt_tokens=None, completion_tokens=None, cache_hit_tokens=5_000)
     finally:
         em.llm_cost_to_energy = orig
-    if seen:      # no-op si la cuenta no está metrada; si se llamó, el hit NO puede haber viajado
+    if seen:      # no-op if the account is not metered; if called, the hit must NOT have been sent
         assert seen[0].get("cache_hit_tokens") is None

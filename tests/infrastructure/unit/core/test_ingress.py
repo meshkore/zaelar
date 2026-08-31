@@ -1,12 +1,12 @@
-"""Nodo 7.11 — ADMISIÓN de peticiones (server/ingress.py).
+"""Node 7.11 — REQUEST ADMISSION (server/ingress.py).
 
-Estos casos existen por un fallo REAL, no por completar una matriz: hasta el 2026-08-13 el middleware
-de routing llamaba a `call_next()` en las CUATRO ramas de rechazo, así que una petición anónima al
-hostname compartido recibía datos de un inquilino. Cada test de abajo fija una de esas cuatro ramas
-cerrada, y los dos últimos fijan lo que NO puede cerrarse (el shell, los assets, la sonda de vida) —
-porque cerrar la sonda deja al proceso sin tráfico y "seguro pero apagado" no es el objetivo.
+These cases exist because of a REAL bug, not to complete a matrix: until 2026-08-13, the routing
+middleware called `call_next()` in all FOUR rejection branches, so an anonymous request to the shared
+hostname received a tenant's data. Each test below locks one of those four branches closed, and the
+last two lock down what CANNOT be closed (the shell, the assets, the liveness probe) — because closing
+the probe leaves the process without traffic, and "secure but turned off" is not the objective.
 
-`decide` es pura: sin servidor, sin red y sin reloj.
+`decide` is pure: no server, no network, and no clock.
 """
 import pytest
 
@@ -31,7 +31,7 @@ def _decide(**over):
     return ingress.decide(**base)
 
 
-# --- lo que se sirve ---------------------------------------------------------------------------
+# --- what is served -----------------------------------------------------------------------------
 
 
 def test_a_session_that_resolves_here_is_served():
@@ -40,8 +40,8 @@ def test_a_session_that_resolves_here_is_served():
 
 @pytest.mark.parametrize("path", ["/", "/healthz", "/favicon.ico", "/static/app/main.js"])
 def test_the_shell_assets_and_the_liveness_probe_answer_without_a_session(path):
-    """El shell y los assets son idénticos en todo proceso y no son de nadie; `/healthz` tiene que
-    contestar o el supervisor deja de mandar tráfico a un proceso perfectamente sano."""
+    """The shell and assets are identical in every process and belong to no one; `/healthz` must
+    respond or the supervisor stops sending traffic to a perfectly healthy process."""
     assert _decide(path=path, has_cookie=False, outcome=None, target=None) == (
         ingress.SERVE,
         "public_path",
@@ -49,13 +49,13 @@ def test_the_shell_assets_and_the_liveness_probe_answer_without_a_session(path):
 
 
 def test_the_allowlist_is_not_fooled_by_a_prefix_that_merely_starts_the_same():
-    """`/staticky` no es `/static/`: el prefijo se comprueba con la barra dentro."""
+    """`/staticky` is not `/static/`: the prefix is checked with the slash included."""
     assert ingress.is_public_path("/static/x.js") is True
     assert ingress.is_public_path("/staticky") is False
     assert ingress.is_public_path("/healthz/../api/memory/map") is False
 
 
-# --- las cuatro ramas que antes servían ---------------------------------------------------------
+# --- the four branches that previously served --------------------------------------------------
 
 
 def test_no_cookie_is_refused_instead_of_served_locally():
@@ -77,12 +77,12 @@ def test_a_session_the_resolver_does_not_recognise_is_refused():
 
 
 def test_a_process_that_cannot_ask_serves_nothing():
-    """Una variable de entorno ausente era la configuración MÁS permisiva del sistema. Ya no."""
+    """A missing environment variable used to be the system's MOST permissive configuration. Not anymore."""
     assert _decide(resolver_configured=False) == (ingress.UNAVAILABLE, "resolver_not_configured")
     assert _decide(mine=None) == (ingress.UNAVAILABLE, "resolver_not_configured")
 
 
-# --- el reparto entre procesos -----------------------------------------------------------------
+# --- distribution among processes ---------------------------------------------------------------
 
 
 def test_a_session_owned_elsewhere_is_handed_over_not_answered_here():
@@ -93,12 +93,12 @@ def test_resolved_without_a_target_is_closed_not_guessed():
     assert _decide(target=None) == (ingress.UNAVAILABLE, "session_unverifiable")
 
 
-# --- lo que las razones NO pueden llevar --------------------------------------------------------
+# --- what the reasons MUST NOT carry ------------------------------------------------------------
 
 
 def test_reasons_are_stable_slugs_and_never_echo_the_request():
-    """La razón viaja al cliente y al log: un token, una ruta o una URL interna dentro sería una fuga
-    en el sitio más copiado del sistema."""
+    """The reason travels to the client and the log: including a token, path, or internal URL would be
+    a leak in the most copied place in the system."""
     secret_ish = "/api/vault/reveal?token=abc123"
     for kw in (
         dict(has_cookie=False, outcome=None, target=None),

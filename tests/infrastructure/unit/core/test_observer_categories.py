@@ -1,17 +1,17 @@
 """
-INVENTARIO de categorías del visor (2026-08-09, norma del operador: «si tenemos N familias, TODOS los eventos
-tienen que estar asociados a una de ellas»).
+INVENTORY of viewer categories (2026-08-09, operator rule: “if we have N families, ALL events
+must be associated with one of them”).
 
-El filtro superior del visor solo puede ser fiable si cada `kind` que el sistema emite pertenece a una familia
-conocida. Cuando no es así pasa lo que el operador vio: filas `SESSION` y `BACKGROUND` cayendo por el hilo sin
-que ningún chip las gobierne — no se pueden apagar, y peor, no se sabe a qué pieza pertenecen.
+The viewer's top filter can only be reliable if every `kind` emitted by the system belongs to a known family.
+When that is not the case, what the operator saw happens: `SESSION` and `BACKGROUND` rows slip through without
+any chip governing them — they cannot be turned off, and worse, it is not known which component they belong to.
 
-Este test NO mantiene una lista a mano: RECORRE el código, saca los `kind` literales de cada llamada real a
-`voice.observer.emit` (siguiendo también los wrappers locales `def _emit(kind, ...)`, que son legión) y exige
-que todos estén en `_CAT`. Añadir una capacidad nueva con su propio kind y olvidarse de clasificarlo falla aquí,
-no en la cara del operador tres semanas después.
+This test does NOT maintain a hard-coded list: it TRAVERSES the code, extracts the literal `kind` values from each
+real call to `voice.observer.emit` (also following the local wrappers `def _emit(kind, ...)`, which are legion),
+and requires all of them to be in `_CAT`. Adding a new capability with its own kind and forgetting to classify it
+fails here, rather than in front of the operator three weeks later.
 
-Se ignora a propósito `tests/`: los tests inventan kinds sintéticos («boom», «oops») que no son del producto.
+`tests/` is intentionally ignored: the tests invent synthetic kinds (“boom”, “oops”) that are not part of the product.
 """
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ from voice import observer
 ENGINE = Path(__file__).resolve().parents[4]
 _SKIP = (".venv", "node_modules", "__pycache__", "TMP")
 
-# Familias que el visor pinta como chip (frontend/app/components/DebugPanel.js::CATS). El backend no puede
-# inventarse una familia que la UI no ofrece: sería un evento inalcanzable desde el filtro.
+# Families that the viewer renders as chips (frontend/app/components/DebugPanel.js::CATS). The backend cannot
+# invent a family that the UI does not offer: it would be an event unreachable from the filter.
 CATS = {"flash", "worker", "memory", "widget", "system", "pulse"}
 
 
 def _emitted_kinds() -> dict[str, set[str]]:
-    """{kind: {ficheros}} de cada `emit("<kind>", …)` del PRODUCTO."""
+    """{kind: {files}} for each `emit("<kind>", …)` in the PRODUCT."""
     found: dict[str, set[str]] = {}
     for f in ENGINE.rglob("*.py"):
         rel = f.relative_to(ENGINE).as_posix()
@@ -43,9 +43,9 @@ def _emitted_kinds() -> dict[str, set[str]]:
         if "observer" not in src:
             continue
 
-        # Nombres que EN ESTE fichero son el emit del observer: el import directo (con o sin alias) y los
-        # wrappers locales cuyo PRIMER parámetro se llama `kind` (los que se llaman `label` reciben otra cosa
-        # — p.ej. widgets/navegador/owner.py — y colarlos daría kinds falsos).
+        # Names that are the observer emit in THIS file: the direct import (with or without an alias) and the
+        # local wrappers whose FIRST parameter is called `kind` (those called `label` receive something else
+        # — e.g. widgets/navegador/owner.py — and including them would produce false kinds).
         names: set[str] = set()
         for n in ast.walk(tree):
             if isinstance(n, ast.ImportFrom) and n.module and "observer" in n.module:
@@ -68,7 +68,7 @@ def _emitted_kinds() -> dict[str, set[str]]:
 
 
 def test_the_scan_finds_the_real_kinds():
-    """Guarda del propio guard: si el escaneo dejara de encontrar nada, el test de abajo pasaría en vacío."""
+    """Guard for the guard itself: if the scan stopped finding anything, the test below would pass vacuously."""
     kinds = _emitted_kinds()
     assert {"brain", "widget", "memory", "task"} <= set(kinds), f"escaneo sospechoso: {sorted(kinds)}"
 
