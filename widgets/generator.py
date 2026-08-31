@@ -328,6 +328,38 @@ def _folder_ref(d: str) -> str:
     return d if rel.startswith("..") else rel
 
 
+def _fork_shipped(wid: str, src: str) -> str:
+    """A SHIPPED widget is never edited in place (V2-515): copy it into the generated root and hand the
+    edit THAT folder. The copy shadows the original everywhere (catalog, identify, widget.js serving,
+    python imports), so from here on "the user's musica" IS this fork — while the shipped folder keeps
+    receiving engine updates untouched underneath, which is exactly what makes `restore` meaningful."""
+    import time
+    dst = paths.new_dir(wid)
+    shutil.rmtree(dst, ignore_errors=True)                 # debris of a half-built fork never survives
+    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__"))
+    man_p = os.path.join(dst, "manifest.json")
+    try:
+        man = json.load(open(man_p, encoding="utf-8"))
+    except Exception:
+        man = {"id": wid}
+    man["origin"] = "user"
+    try:
+        import version as _v
+        engine = str(getattr(_v, "VERSION", "") or "")
+    except Exception:
+        engine = ""
+    man["forked_from"] = {"origin": "builtin", "engine": engine, "date": time.strftime("%Y-%m-%d")}
+    json.dump(man, open(man_p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
+    # The import shadow needs a REGULAR package: a namespace portion loses to a regular one later in the
+    # search path, and the shipped folder always has __init__.py.
+    open(os.path.join(dst, "__init__.py"), "a").close()
+    paths.forget_modules(wid)
+    from . import runtime as _runtime
+    _runtime.invalidate()
+    logger.info(f"widget-agent: '{wid}' FORKED from shipped source → {dst}")
+    return dst
+
+
 def _discard(wid: str) -> None:
     """Remove a freshly-CREATED widget folder that failed to build/validate, so a partial (e.g. manifest but no
     widget.js) never lingers in the catalog. Only ever called on the create path — modify has its own rollback."""
@@ -354,11 +386,20 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
     if not (change or "").strip():
         return {"ok": False, "id": wid, "error": "empty change"}
     d = paths.dir_for(wid) or paths.new_dir(wid)
-    bak = tempfile.mkdtemp(prefix=f"wbak_{wid}_")
-    try:
-        shutil.copytree(d, os.path.join(bak, wid))
-    except Exception:
-        bak = None
+    forked = False
+    if paths.is_repo_source(d):
+        try:
+            d = _fork_shipped(wid, d)
+            forked = True
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "id": wid, "error": f"could not fork the shipped widget: {e}"}
+    bak = None
+    if not forked:                                         # a fresh fork needs no backup: its rollback is deletion
+        bak = tempfile.mkdtemp(prefix=f"wbak_{wid}_")
+        try:
+            shutil.copytree(d, os.path.join(bak, wid))
+        except Exception:
+            bak = None
     logger.info(f"widget-agent: MODIFY '{wid}' (atomic, headless)…")
     _job_start("modify", wid, {"change": change.strip()})
     try:
@@ -366,14 +407,18 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
             ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip(), folder=_folder_ref(d)),
                                   token=token)
         ok, verr = (_validate(wid, stamp_origin=True) if ran else (False, err))
+        if not ok and forked:                           # failed FIRST edit → discard the fork, the shipped one resurfaces
+            shutil.rmtree(d, ignore_errors=True)
+            paths.forget_modules(wid)
+            logger.warning(f"widget-agent: '{wid}' edit invalid → fork discarded, shipped version stands. ({verr})")
         if not ok and bak:                              # bad edit → roll back to the version that worked
             shutil.rmtree(d, ignore_errors=True)
             shutil.move(os.path.join(bak, wid), d)
-            logger.warning(f"widget-agent: '{wid}' edit invalid → restaurado. ({verr})")
+            logger.warning(f"widget-agent: '{wid}' edit invalid → restored. ({verr})")
         if bak:
             shutil.rmtree(bak, ignore_errors=True)
         if not ok:
-            return {"ok": False, "id": wid, "error": f"edición no válida (restaurado): {verr}"}
+            return {"ok": False, "id": wid, "error": f"invalid edit (previous version stands): {verr}"}
         logger.info(f"widget-agent: '{wid}' modified + validated ✓")
         return {"ok": True, "id": wid, "modified": True}
     finally:

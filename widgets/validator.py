@@ -309,7 +309,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
     if man.get("id") != wid:
         man["id"] = wid
         _dirty = True
-    if stamp_origin and man.get("origin") != "user":
+    if stamp_origin and man.get("origin") != "user" and not paths.is_repo_source(d):
         man["origin"] = "user"
         _dirty = True
     if _dirty:
