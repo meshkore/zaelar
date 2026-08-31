@@ -117,8 +117,8 @@ def _metric_line(m) -> str:
     return f"{type(m).__name__}: " + " ".join(parts) if parts else type(m).__name__
 
 
-# GUARD kickoff único por sala (V2-047 F8): sala → timestamp del último saludo. Un 2º job de la MISMA sala en una
-# ventana corta no re-saluda (doble dispatch de LiveKit / reconexión rápida del frontend).
+# GUARD: one kickoff per room (V2-047 F8): room → timestamp of the last greeting. A 2nd job for the SAME room in a
+# short window does not greet again (LiveKit double dispatch / rapid frontend reconnection).
 _KICKOFF_SEEN: dict = {}
 _KICKOFF_WINDOW_S = 8.0
 
@@ -131,14 +131,14 @@ def _kickoff_recent(room: str) -> bool:
 def _mark_kickoff(room: str) -> None:
     now = time.time()
     _KICKOFF_SEEN[room or ""] = now
-    for k in [k for k, v in _KICKOFF_SEEN.items() if now - v > 300]:   # poda entradas viejas
+    for k in [k for k, v in _KICKOFF_SEEN.items() if now - v > 300]:   # prune old entries
         _KICKOFF_SEEN.pop(k, None)
 
 
 def _endpointing_opts() -> dict:
-    """Cuánto silencio cierra un turno. Los valores viven en `voice/endpointing.py` — la fuente de verdad ÚNICA de
-    esta decisión, escrita a partir de sesiones reales (INI-009) y hasta hoy huérfana. Overrides por env para poder
-    ajustarlo en caliente sin tocar código."""
+    """How much silence closes a turn. The values live in `voice/endpointing.py` — the SINGLE source of truth for
+    this decision, written from real sessions (INI-009) and orphaned until now. Env overrides allow hot adjustment
+    without touching code."""
     from voice import endpointing as _ep
 
     def _f(name: str, default: float) -> float:
@@ -160,15 +160,15 @@ async def entrypoint(ctx: JobContext) -> None:
     session_id = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     boot = BootChannel(ctx.room, session_id)   # boot handshake (topic vl2) + optional mic recording; NOT the log
 
-    # ÚNICO sistema de registro: voice.observer.emit() (anillo + fichero por sesión + timeline + SSE). Todo
-    # evento de voz se registra aquí y de aquí lo consumen /debug, /events y el tester. Se adquiere pronto para
-    # que hasta el worker_start pase por el observador (antes se partía en dos: DebugBus + observer).
+    # SINGLE logging system: voice.observer.emit() (ring + per-session file + timeline + SSE). Every voice
+    # event is logged here and consumed from here by /debug, /events, and the tester. Acquire it early so even
+    # worker_start passes through the observer (previously it was split in two: DebugBus + observer).
     try:
         from voice.observer import emit as _emit
     except Exception:
         _emit = lambda *a, **k: None
 
-    # Gate de atención (V2-015): sesión nueva → ventana de conversación cerrada (no heredar un estado viejo).
+    # Attention gate (V2-015): new session → conversation window closed (do not inherit an old state).
     try:
         from voice import attention
         attention.reset()
@@ -186,11 +186,11 @@ async def entrypoint(ctx: JobContext) -> None:
     stt = ctx.proc.userdata.get("stt") or build_stt(vad=vad_plain)  # reuse warm STT
     llm = build_llm(SETTINGS.llm_provider, SETTINGS.llm_model)
 
-    # MEMORIA DE ARRANQUE: el «Colmena» FlashBrain (nucleo) NO tira de un briefing pre-arranque — su memoria de
-    # arranque sale de la memoria central propia (`memory.state()`). Desde V2-011 (latencia) ese bloque se
-    # CACHEA fuera del turno (`nucleo/flash/memory_cache.py`): se PRECOMPONE aquí, una vez, para que el PRIMER
-    # turno (saludo por nombre) ya lo tenga sin disparar el retriever en el camino caliente. Best-effort — nunca
-    # rompe ni retrasa el arranque de la voz. `set_briefing()` se conserva como no-op de compat (ver nucleo.py).
+    # STARTUP MEMORY: the «Colmena» FlashBrain (nucleo) does NOT use a pre-startup briefing — its startup memory
+    # comes from its own central memory (`memory.state()`). Since V2-011 (latency), that block is CACHED outside
+    # the turn (`nucleo/flash/memory_cache.py`): it is PRECOMPOSED here once so the FIRST turn (name greeting)
+    # already has it without triggering the retriever on the hot path. Best-effort — it never breaks or delays
+    # voice startup. `set_briefing()` is retained as a compatibility no-op (see nucleo.py).
     if SETTINGS.llm_provider == "nucleo":
         try:
             from nucleo.flash import memory_cache
@@ -215,37 +215,37 @@ async def entrypoint(ctx: JobContext) -> None:
 
     tts = ctx.proc.userdata.get("tts") or build_tts()  # reuse warm TTS (Metal Kokoro loaded in prewarm)
     turn_detection = build_turn_detection() or "vad"   # None (disabled) → VAD-based EOU (no ML InferenceRunner)
-    # tapea el VAD de la sesión SOLO para grabar el mic (ZAELAR_RECORD_MIC); si no, el VAD pelado directo.
+    # tap the session VAD ONLY to record the mic (ZAELAR_RECORD_MIC); otherwise use the bare VAD directly.
     vad_session = tapped_vad(vad_plain, boot) if boot.recording else vad_plain
 
     _busy = {"bot": False, "user": False}   # feeds the proactive busy-probe (don't talk over a live turn)
 
-    # Estados cuyo trace es SEGURO leer de active() (2026-08-16, auditoría de fuente): "speaking"/"listening"/
-    # "interrupted" describen algo sobre un turno que YA tiene trace (TTS solo arranca una vez hay texto que
-    # generó ESE turno; "listening" es su cola natural; "interrupted" es el barge-in QUE INTERRUMPE esa locución).
-    # "thinking"/"idle" pueden disparar ANTES de que el turno tenga trace (LiveKit los emite desde su propia tarea
-    # de orquestación, antes de invocar el LLM) — colgarles active() les pegaría el trace del turno ANTERIOR más
-    # a menudo que el correcto, así que se dejan SIN forzar (el mismo criterio que el transcript del operador,
-    # ver el comentario de active() en voice/trace.py).
+    # States whose trace is SAFE to read from active() (2026-08-16, source audit): "speaking"/"listening"/
+    # "interrupted" describe something about a turn that ALREADY has a trace (TTS starts only once there is text
+    # generated by THAT turn; "listening" is its natural tail; "interrupted" is the barge-in that INTERRUPTS that speech).
+    # "thinking"/"idle" can fire BEFORE the turn has a trace (LiveKit emits them from its own orchestration task,
+    # before invoking the LLM) — attaching active() to them would assign the PREVIOUS turn's trace more often than
+    # the correct one, so they are left UNFORCED (the same criterion as the operator transcript; see active()'s
+    # comment in voice/trace.py).
     _STATE_TRACE_SAFE = {"speaking", "listening", "interrupted"}
 
     def on_state_change(state: State) -> None:
         logger.info("STATE -> %s", state.value)
         speaking = (getattr(state, "value", state) == "speaking")
         _busy["bot"] = speaking
-        # Este handler corre en la tarea de LiveKit del pipeline, HERMANA de la que fija el trace del turno — el
-        # ContextVar ambiente nunca lo ve (auditoría de fuente 2026-08-16, ver voice/trace.py::active()).
+        # This handler runs in the pipeline's LiveKit task, a SIBLING of the one that sets the turn trace — the
+        # ambient ContextVar never sees it (source audit 2026-08-16, see voice/trace.py::active()).
         _tid = ""
         if state.value in _STATE_TRACE_SAFE:
             from voice import trace as _trace
             _tid = _trace.active()
-        # estado completo (initializing/thinking/listening/speaking) al log unificado + bot_speech para el orbe.
+        # full state (initializing/thinking/listening/speaking) to the unified log + bot_speech for the orb.
         _emit("state", state.value, role="system", extra={"state": state.value, **({"trace": _tid} if _tid else {})})
         _emit("bot_speech", "speaking" if speaking else "idle",
               extra={"speaking": speaking, **({"trace": _tid} if _tid else {})})
-        # Nada queda sonando en este instante — es el punto seguro para cerrar cualquier flujo que terminó de
-        # generar texto MIENTRAS el bot todavía narraba la respuesta (operator report, 2026-08-16: el turno
-        # desaparecía del master en pleno TTS). Ver `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
+        # Nothing is still sounding at this instant — this is the safe point to close any flow that finished
+        # generate text WHILE the bot was still narrating the response (operator report, 2026-08-16: the turn
+        # disappeared from the master during TTS). See `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
         if not speaking:
             try:
                 from voice.engine.llm.providers.nucleo import drain_pending_flow_closes
@@ -255,17 +255,17 @@ async def entrypoint(ctx: JobContext) -> None:
 
     sm = StateMachine(on_change=on_state_change)
 
-    # BARGE-IN / INTERRUPCIÓN — TUNEABLE por env (fallback a los defaults de LiveKit; config UI-managed es follow-up).
-    # Un ruido/chasquido corto NO debería cortar la locución (queja del operador). Palancas:
-    #   · ZAELAR_MIN_INTERRUPTION_SEC  — voz mínima (s) para contar como interrupción (LiveKit def 0.5; subimos a
-    #     0.6 para filtrar transitorios sin dañar mucho la latencia del barge-in real).
-    #   · ZAELAR_MIN_INTERRUPTION_WORDS — nº mínimo de palabras del STT para confirmar la interrupción (def 0 = off).
-    #   · ZAELAR_FALSE_INTERRUPTION_TIMEOUT — silencio (s) tras cortar antes de declararla FALSA (LiveKit def 2.0).
-    #   · ZAELAR_RESUME_FALSE_INTERRUPTION — reanudar la locución tras una falsa interrupción (LiveKit def True; la
-    #     salida de audio de la sala soporta pause, así que aplica). Un ruido corta ~<timeout> y luego RETOMA.
+    # BARGE-IN / INTERRUPTION — TUNABLE via env (fallback to LiveKit defaults; UI-managed config is follow-up).
+    # A short noise/click should NOT cut speech (operator complaint). Controls:
+    #   · ZAELAR_MIN_INTERRUPTION_SEC — minimum voice duration (s) to count as an interruption (LiveKit def 0.5; raised to
+    #     0.6 to filter transients without greatly harming real barge-in latency).
+    #   · ZAELAR_MIN_INTERRUPTION_WORDS — minimum STT word count to confirm interruption (def 0 = off).
+    #   · ZAELAR_FALSE_INTERRUPTION_TIMEOUT — silence (s) after cutting before declaring it FALSE (LiveKit def 2.0).
+    #   · ZAELAR_RESUME_FALSE_INTERRUPTION — resume speech after a false interruption (LiveKit def True; the room's
+    #     audio output supports pause, so it applies). Noise cuts it for ~<timeout> and then RESUMES.
     # 2026-08-10: estos ajustes se pasaban como argumentos SUELTOS de `AgentSession`, que LiveKit 1.6 ya declara
     # deprecados («use turn_handling=TurnHandlingOptions(...) instead») y retira en la 2.0. Al cablear el
-    # endpointing —que solo existe en la forma nueva— habrían quedado DOS formas conviviendo en la misma llamada,
+    # endpointing —which exists only in the new form— would have left TWO forms coexisting in the same call,
     # justo el tipo de costura a medias que cuesta una tarde dentro de seis meses. Se migran los tres a la vez.
     def _int_kwargs() -> dict:
         out: dict = {}
@@ -298,19 +298,19 @@ async def entrypoint(ctx: JobContext) -> None:
     _interruption = _int_kwargs()
     logger.info("barge-in tuning: %s (resume needs room audio pause=True)", _interruption)
 
-    # ENDPOINTING — cuánto silencio cierra un turno (2026-08-10). LiveKit cierra a los **0,5 s** por defecto, y con
-    # el detector ML de turno desactivado (`turn_provider="disabled"`, ver core/config.py) el EOU es VAD puro. Una
-    # frase dictada con las pausas naturales de quien piensa mientras habla se parte en varios turnos, y el agente
-    # contesta a medias frases: en la sesión 13:20:50 una sola petición de ferry produjo 8 transcripciones finales,
+    # ENDPOINTING — how much silence closes a turn (2026-08-10). LiveKit closes after **0.5 s** by default, and with
+    # with the ML turn detector disabled (`turn_provider="disabled"`, see core/config.py), EOU is pure VAD. A
+    # dictated sentence with the natural pauses of someone thinking while speaking gets split into several turns, and the agent
+    # answers half-sentences: in the 13:20:50 session, a single ferry request produced 8 final transcriptions,
     # y una de ellas —«…de Denia a»— preguntó por el destino que el operador estaba diciendo.
-    # Los valores NO son inventados: salen de `voice/endpointing.py`, escrito para ESTE bug (INI-009) a partir de
-    # las sesiones reales en coche… y que llevaba desde entonces HUÉRFANO — el motor pasó a LiveKit y nadie lo
-    # cableó, así que su única referencia en todo el repo era su propio test. Ahora es su fuente de verdad, y
-    # `mode:"dynamic"` (media móvil de las pausas observadas, entre min y max) hace nativo lo que `hold_secs()`
-    # calculaba a mano: pausa corta → respuesta rápida; hablante que se toma su tiempo → más margen.
-    # OJO con la expectativa: esto cose los cortes de ~1 s, no los de 5 s. Un silencio largo en mitad de una frase
-    # SEGUIRÁ cerrando el turno (subir el hold a 5 s dejaría muerto cualquier comando corto). Lo que evita el daño
-    # es la GUARDA DE FRAGMENTOS del cerebro (`nucleo.py::_superseded`): un trozo superado no habla ni actúa.
+    # The values are NOT invented: they come from `voice/endpointing.py`, written for THIS bug (INI-009) from
+    # real in-car sessions… and ORPHANED since then — the engine moved to LiveKit and nobody wired it,
+    # so its only reference in the repo was its own test. Now it is the source of truth, and
+    # `mode:"dynamic"` (moving average of observed pauses, between min and max) makes native what `hold_secs()`
+    # calculated manually: short pause → quick response; speaker taking their time → more margin.
+    # NOTE the expectation: this fixes ~1 s cuts, not 5 s cuts. A long silence in the middle of a sentence
+    # will STILL close the turn (raising hold to 5 s would kill any short command). The brain's FRAGMENT GUARD
+    # (`nucleo.py::_superseded`) prevents the damage: an superseded fragment neither speaks nor acts.
     _endpointing = _endpointing_opts()
     logger.info("endpointing: %s (turn_detection=%s)", _endpointing, turn_detection)
 
@@ -320,9 +320,9 @@ async def entrypoint(ctx: JobContext) -> None:
         llm=llm,
         tts=tts,
         turn_handling={
-            "turn_detection": turn_detection,       # None (ML desactivado) → EOU por VAD
-            "endpointing": _endpointing,            # cuánto silencio cierra el turno (ver arriba)
-            "interruption": _interruption,          # barge-in: la voz del operador corta el TTS
+            "turn_detection": turn_detection,       # None (ML disabled) → EOU by VAD
+            "endpointing": _endpointing,            # how much silence closes the turn (see above)
+            "interruption": _interruption,          # barge-in: the operator's voice cuts TTS
             "preemptive_generation": {"enabled": True},   # latencia: empieza a generar antes de confirmar el EOU
         },
     )
@@ -337,16 +337,16 @@ async def entrypoint(ctx: JobContext) -> None:
         new = getattr(ev.new_state, "value", ev.new_state)
         was_bot_speaking = _busy["bot"]
         _busy["user"] = (new == "speaking")
-        # OBSERVABILIDAD DE VOZ: hasta ahora el observador (/events, la lista de /debug) NO veía el borde de VAD
-        # del usuario ni el instante en que su voz PISA la locución de zaelar (barge-in). Sin esto era imposible
-        # diagnosticar "un ruido cortó la locución". Ahora se ve: voz detectada · barge-in · fin de voz.
+        # VOICE OBSERVABILITY: until now the observer (/events, the /debug list) did NOT see the user's VAD edge
+        # of the user or the instant when their voice OVERLAPS zaelar's speech (barge-in). Without this it was impossible
+        # to diagnose "noise cut speech". Now it is visible: voice detected · barge-in · end of voice.
         if new == "speaking":
             if was_bot_speaking:
-                # SOLO este caso es seguro de etiquetar con active() (auditoría de fuente 2026-08-16): un barge-in
-                # interrumpe una locución que YA tiene trace — es EL MISMO turno, no uno por nacer. "voz
-                # detectada"/"fin de voz" (abajo) preceden SIEMPRE al trace del turno que van a disparar —
-                # colgarles active() les pegaría el de la conversación ANTERIOR más a menudo que el correcto; se
-                # dejan sin forzar, igual que el transcript del operador (mismo criterio, ver voice/trace.py).
+                # ONLY this case is safe to label with active() (source audit 2026-08-16): a barge-in interrupts
+                # speech that ALREADY has a trace — it is THE SAME turn, not one about to begin. "voice
+                # detected"/"end of voice" (below) ALWAYS precede the trace of the turn they will trigger —
+                # attaching active() would assign the PREVIOUS conversation's trace more often than the correct one;
+                # leave them unforced, like the operator transcript (same criterion, see voice/trace.py).
                 from voice import trace as _trace
                 _tid = _trace.active()
                 _emit("vad", "✂️ barge-in — voz pisa la locución (LiveKit corta el TTS)",
@@ -422,9 +422,9 @@ async def entrypoint(ctx: JobContext) -> None:
         item = ev.item
         role, text = getattr(item, "role", None), getattr(item, "text_content", None)
         if role == "assistant" and text:
-            # SEGURO de etiquetar con active() (auditoría de fuente 2026-08-16, a diferencia del transcript del
-            # OPERADOR más abajo en _on_transcript): el item del asistente se añade DESPUÉS de que la cadena
-            # LLM+TTS del turno ya corrió — su trace ya existe, no está por nacer.
+            # SAFE to label with active() (source audit 2026-08-16, unlike the OPERATOR transcript below in
+            # _on_transcript): the assistant item is added AFTER the turn's LLM+TTS chain has run — its trace
+            # already exists; it is not about to begin.
             from voice import trace as _trace
             _tid = _trace.active()
             _emit("transcript", "zaelar", text=text, role="assistant",
@@ -432,11 +432,11 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @session.on("agent_false_interruption")
     def _on_false_interrupt(ev) -> None:
-        # Un ruido/backchannel cortó la locución pero NO era una interrupción real (ni transcripción dirigida).
-        # `resumed` dice si LiveKit reanudó la locución (necesita que la salida de audio soporte pause; la sala sí).
-        # Si aparece `resumed=False` de forma sistemática, ESE es el bug de "se paró todo y no siguió".
-        # SEGURO de etiquetar con active() (mismo caso que el barge-in de _on_user_state): describe algo sobre
-        # una locución que YA estaba sonando, no un turno por nacer.
+        # Noise/backchannel cut speech but was NOT a real interruption (nor directed transcription).
+        # `resumed` says whether LiveKit resumed speech (the audio output must support pause; the room does).
+        # If `resumed=False` appears systematically, THAT is the bug where "everything stopped and did not continue".
+        # SAFE to label with active() (same case as _on_user_state's barge-in): it describes speech that was
+        # ALREADY playing, not a turn about to begin.
         from voice import trace as _trace
         _tid = _trace.active()
         resumed = bool(getattr(ev, "resumed", False))
@@ -446,9 +446,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @session.on("overlapping_speech")
     def _on_overlap(ev) -> None:
-        # Voz solapada mientras zaelar habla; el detector la clasifica interrupción vs backchannel (charla de fondo).
-        # Solo dispara con el detector ML de interrupción activo; inofensivo si el turno va por VAD puro.
-        # SEGURO de etiquetar con active(), mismo motivo que arriba.
+        # Overlapping voice while zaelar speaks; the detector classifies it as interruption vs backchannel (background talk).
+        # Fires only with the ML interruption detector active; harmless when the turn uses pure VAD.
+        # SAFE to label with active(), for the same reason as above.
         from voice import trace as _trace
         _tid = _trace.active()
         is_int = bool(getattr(ev, "is_interruption", False))
@@ -458,10 +458,10 @@ async def entrypoint(ctx: JobContext) -> None:
 
     @session.on("metrics_collected")
     def _on_metrics(ev) -> None:
-        # ANTI-FLOOD (2026-07-12): las métricas SIN latencias reales (sobre todo VADMetrics, ~2/s de forma
-        # continua — más con ruido de fondo) NO se registran: no aportan dato útil y cada evento hacía 2
-        # escrituras de fichero SÍNCRONAS en el hilo de voz + floodeaba el SSE. `_metric_line` solo mete un
-        # "=" cuando hay números (ttft/dur/ttfb/eou/audio) → si no hay "=", es un nombre pelado y se descarta.
+        # ANTI-FLOOD (2026-07-12): metrics WITHOUT real latencies (especially VADMetrics, ~2/s continuously
+        # continuously — more with background noise) are NOT logged: they provide no useful data and each event caused 2
+        # SYNCHRONOUS file writes in the voice thread + flooded SSE. `_metric_line` adds "=" only when there are numbers
+        # (ttft/dur/ttfb/eou/audio) → without "=", it is a bare name and is discarded.
         line = _metric_line(ev.metrics)
         if "=" in line:
             _emit("metric", line, role="system")
@@ -475,10 +475,10 @@ async def entrypoint(ctx: JobContext) -> None:
         if kind == "TTSMetrics" and SETTINGS.tts_provider != "kokoro_local":
             dur = getattr(m, "duration", None)
             if dur:
-                # SEGURO de etiquetar con active() (auditoría de fuente 2026-08-16): una métrica de TTS describe
-                # audio que se sintetiza para un texto que YA generó el turno — su trace ya existe. Distinto de
-                # STTMetrics (abajo, sin tocar): esa describe reconocimiento de lo que el operador está diciendo
-                # AHORA, que casi siempre precede al trace del turno que va a disparar.
+                # SAFE to label with active() (source audit 2026-08-16): a TTS metric describes audio synthesized
+                # for text the turn ALREADY generated — its trace exists. Unlike STTMetrics (below, untouched):
+                # that describes recognition of what the operator is saying NOW, which almost always precedes the
+                # trace of the turn it will trigger.
                 from voice import trace as _trace
                 _tid = _trace.active()
                 _emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000),
@@ -550,11 +550,11 @@ async def entrypoint(ctx: JobContext) -> None:
         await asyncio.wrap_future(asyncio.run_coroutine_threadsafe(coro_fn(), _session_loop))
 
     async def _speak(text: str) -> None:
-        # INSTRUMENTACIÓN (V2-047 F7): registramos `say` con si había locución/turno vivo al empezar → medible
-        # en /debug. La SERIALIZACIÓN que este comentario pedía («encolar el say hasta que el handle vivo
-        # acabe») existe desde 2026-08-31: `voice/proactive.py` mete cada notify en una cola FIFO de tickets y
-        # habla DE UNO EN UNO, así que `bot_in_flight=True` aquí ya no es «va a cortar», es la vara de medir de
-        # que la cola hace su trabajo — si vuelve a salir True a menudo, lo roto está en la cola, no aquí.
+        # INSTRUMENTATION (V2-047 F7): record `say` with whether speech/a live turn existed at start → measurable
+        # in /debug. The SERIALIZATION requested by this comment (queue `say` until the live handle finishes)
+        # has existed since 2026-08-31: `voice/proactive.py` puts each notify into a FIFO ticket queue and
+        # speaks ONE AT A TIME, so `bot_in_flight=True` here no longer means «it will cut»; it measures whether
+        # the queue is doing its job — if it is often True again, the queue is broken, not this code.
         _bot0, _usr0 = _busy["bot"], _busy["user"]
         try:
             _emit("tts", "say (entrega proactiva)", text=(text or "")[:120], role="assistant",
@@ -586,11 +586,11 @@ async def entrypoint(ctx: JobContext) -> None:
     _proactive.register_speaker(_speak)
     _proactive.register_ephemeral_speaker(_speak_ephemeral)
     _proactive.register_busy_probe(lambda: _busy["bot"] or _busy["user"])   # don't talk over a live turn
-    # …y la mitad que no admite excepción, por separado: al OPERADOR no se le habla encima ni con un relleno de
-    # espera (2026-08-15). El relleno se salta la espera de hueco por diseño, así que necesita esta señal propia.
+    # …and the half that admits no exception, separately: do not speak over the OPERATOR, even with a waiting
+    # filler (2026-08-15). The filler intentionally skips the gap wait, so it needs this dedicated signal.
     _proactive.register_user_probe(lambda: bool(_busy["user"]))
-    # Igual, pero SOLO el bot (2026-08-16): `nucleo.py::_maybe_close_flow` la usa para no cerrar el flujo de
-    # observabilidad mientras la respuesta todavía se está narrando (ver el drain en `on_state_change` abajo).
+    # Same, but ONLY for the bot (2026-08-16): `nucleo.py::_maybe_close_flow` uses it to avoid closing the
+    # observability flow while the response is still being narrated (see the drain in `on_state_change` below).
     _proactive.register_bot_probe(lambda: bool(_busy["bot"]))
 
     # ACCOUNT ENERGY CAP (2026-08-09): closer registry, same shape as the proactive speaker above.
@@ -628,8 +628,8 @@ async def entrypoint(ctx: JobContext) -> None:
     def _on_data(packet) -> None:
         try:
             topic = getattr(packet, "topic", None)
-            # PTT (V2-015): el frontend publica el estado del push-to-talk en el topic `zaelar-ptt`; en modo
-            # ZAELAR_ATTENTION=ptt es la señal que marca un turno como dirigido (ver voice/attention.py).
+            # PTT (V2-015): the frontend publishes push-to-talk state on topic `zaelar-ptt`; in
+            # ZAELAR_ATTENTION=ptt this is the signal marking a turn as directed (see voice/attention.py).
             if topic == "zaelar-ptt":
                 try:
                     from voice import attention
@@ -637,10 +637,10 @@ async def entrypoint(ctx: JobContext) -> None:
                 except Exception:
                     pass
                 return
-            # SILENCIO = decisión del OPERADOR (V2-054 · redefinido en V2-088). El frontend publica {audio:false}
-            # cuando el operador SILENCIA con el icono 🔊, y {audio:true} cuando lo reactiva. Con audio_enabled=False
-            # el pipeline de LiveKit NO invoca el TTS (agent_activity: audio_output=None → rama text-only) → CERO
-            # síntesis: ahorra latencia y coste, y es la diferencia entre «silenciado» y «bajar el volumen».
+            # SILENCE = OPERATOR decision (V2-054 · redefined in V2-088). The frontend publishes {audio:false}
+            # when the operator MUTES with the 🔊 icon, and {audio:true} when re-enabled. With audio_enabled=False
+            # the LiveKit pipeline does NOT invoke TTS (agent_activity: audio_output=None → text-only branch) → ZERO
+            # synthesis: saves latency and cost, and is the difference between «muted» and «turning down the volume».
             #
             # Ya NO lo dispara abrir el chat. Eso era V2-054 («modo chat = voz off») y partía de una premisa falsa:
             # que abrir el panel significaba «prefiero leer». El panel tiene cuatro pestañas y se entra a mirar
@@ -668,8 +668,8 @@ async def entrypoint(ctx: JobContext) -> None:
                 return
             txt = (payload.get("text") or "").strip()
             if txt:
-                # El chat/paste escrito SIEMPRE va dirigido a zaelar → abre la ventana de atención antes de
-                # generar la respuesta (así el gate del provider lo trata como turno atendido, no ambiente).
+                # Written chat/paste is ALWAYS directed to zaelar → open the attention window before generating
+                # the response (so the provider gate treats it as an attended turn, not ambient speech).
                 try:
                     from voice import attention
                     attention.note_directed()
@@ -743,11 +743,11 @@ async def entrypoint(ctx: JobContext) -> None:
     # Room-scoped signal (not the global /events SSE) so it ties to exactly the room this browser just joined.
     boot.ready()
 
-    # KICKOFF — only AFTER `ready`. V2-027: NO re-inyectamos aquí el brief verboso de capacidades (widgets/
+    # KICKOFF — only AFTER `ready`. V2-027: we do NOT re-inject the verbose capabilities brief here (widgets/
     # meshkore/cron/architect/messaging). El system prompt POR TURNO ya lleva el ESTADO + los recursos TERSOS
-    # (`build_flash_system` → `_flash_layer`), así que volcarlo otra vez en el kickoff era el volcado VIEJO que
-    # bloateaba justo el PRIMER turno (el más sensible a latencia). El saludo solo necesita la instrucción de
-    # primer turno memory-aware: el cerebro ya saluda por nombre desde la memoria central.
+    # (`build_flash_system` → `_flash_layer`), so dumping it again in the kickoff was the OLD dump that bloated
+    # the FIRST turn (the most latency-sensitive). The greeting only needs the memory-aware first-turn instruction:
+    # the brain already greets by name from central memory.
     # FIRST-RUN LANGUAGE ONBOARDING (V2-101): before anything else — no name, no capabilities — a brand-new
     # install must be asked what language to use. The frontend already blocks its whole UI behind a modal for
     # exactly this turn (gated on the SAME `should_detect()`, via GET /api/i18n/state's `chosen` field), so the

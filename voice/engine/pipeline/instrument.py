@@ -1,20 +1,20 @@
 """Voice-session side-channels that are NOT the event log.
 
-**Único sistema de registro = `voice.observer.emit()`** (anillo en memoria + fichero por sesión +
-`timeline-latest.jsonl` + fan-out SSE por el bus). TODO evento discreto de voz (transcript, state, vad,
-barge-in, métricas, errores…) se registra por ahí y de ahí lo consume la lista de /debug, el /events SSE
-y el tester. Este módulo NO registra eventos: guarda solo las dos cosas que no son "logging discreto":
+**Single logging system = `voice.observer.emit()`** (in-memory ring + per-session file +
+`timeline-latest.jsonl` + SSE fan-out through the bus). EVERY discrete voice event (transcript, state, vad,
+barge-in, metrics, errors…) is logged there and consumed from there by the /debug list, the /events SSE
+and the tester. This module does NOT log events: it stores only the two things that are not "discrete logging":
 
-  * ``BootChannel`` — publica el HANDSHAKE de arranque ({type:"boot",phase} + {type:"ready"}) al canal de
-    datos de la sala (topic "vl2"). Es un transporte de UI, no un log: el frontend abre el SSE SOLO tras
-    ``room.connect()`` (session-lk.js), así que el boot llegaría tarde por SSE (carrera). Por eso viaja por
-    el data-channel de la sala, atado a la conexión de ESTE navegador.
-  * grabación ``mic_raw.wav`` — grabadora de audio OPCIONAL para depurar (gate ``ZAELAR_RECORD_MIC``), que
-    tapea el stream del VAD de la sesión. Son bytes de audio, no eventos; por defecto OFF (privacidad+disco).
+  * ``BootChannel`` — publishes the startup HANDSHAKE ({type:"boot",phase} + {type:"ready"}) to the room's
+    data channel (topic "vl2"). It is UI transport, not a log: the frontend opens the SSE ONLY after
+    ``room.connect()`` (session-lk.js), so the boot would arrive too late via SSE (race condition). That is
+    why it travels through the room's data channel, tied to the connection of THIS browser.
+  * ``mic_raw.wav`` recording — OPTIONAL audio recorder for debugging (``ZAELAR_RECORD_MIC`` gate), which
+    taps the session's VAD stream. They are audio bytes, not events; OFF by default (privacy+disk).
 
-Antes esto era ``DebugBus``, un 2º sistema de logging paralelo al observador (su propio ``events.jsonl`` +
-topic ``vl2`` con niveles/parciales que el frontend ya no consume, y doble-emisión de transcript/state). Se
-unificó: el log es uno solo (observer); aquí solo queda el handshake de boot + la grabadora opcional.
+Previously this was ``DebugBus``, a 2nd logging system parallel to the observer (its own ``events.jsonl`` +
+topic ``vl2`` with levels/partials that the frontend no longer consumes, and double emission of transcript/state).
+It was unified: there is only one log (observer); only the boot handshake + optional recorder remain here.
 """
 from __future__ import annotations
 
@@ -36,23 +36,23 @@ def _record_enabled() -> bool:
 
 
 class BootChannel:
-    """Handshake de arranque a la sala + grabación opcional de mic. NO es el log de eventos."""
+    """Startup handshake to the room + optional mic recording. NOT the event log."""
 
     def __init__(self, room, session_id: str) -> None:
         self._room = room
         self.dir = SETTINGS.log_dir / session_id
         self.dir.mkdir(parents=True, exist_ok=True)
         self.recording = _record_enabled()
-        self._wav = None  # abierto perezosamente al primer frame (para casar su sample rate)
+        self._wav = None  # opened lazily on the first frame (to match its sample rate)
         self._closed = False
 
-    # --- boot handshake (topic vl2, canal de datos de la sala) --------------
+    # --- boot handshake (topic vl2, room data channel) ----------------------
     def boot(self, phase: str) -> None:
-        """Hito de arranque ordenado; el splash «Colmena» enciende un clúster por fase."""
+        """Ordered startup milestone; the «Colmena» splash lights up a cluster per phase."""
         self._publish({"type": "boot", "phase": phase})
 
     def ready(self) -> None:
-        """BARRERA de init: voz viva + memoria compuesta + warm → el splash implota en el orbe."""
+        """Init BARRIER: live voice + composed memory + warm → the splash implodes into the orb."""
         self._publish({"type": "ready"})
 
     def _publish(self, msg: dict) -> None:
@@ -61,13 +61,13 @@ class BootChannel:
             task = asyncio.get_running_loop().create_task(
                 self._room.local_participant.publish_data(payload, reliable=True, topic=_TOPIC)
             )
-            # Consumir errores (p. ej. un publish tardío tras cerrar el motor) para que no salten como
+            # Consume errors (e.g. a late publish after closing the engine) so they do not appear as
             # "Task exception was never retrieved".
             task.add_done_callback(lambda t: t.cancelled() or t.exception())
         except Exception:
             pass
 
-    # --- grabación de mic (opcional, ZAELAR_RECORD_MIC) ---------------------
+    # --- mic recording (optional, ZAELAR_RECORD_MIC) ------------------------
     def write_audio(self, frames) -> None:
         if not self.recording:
             return
@@ -103,11 +103,11 @@ def _rms(frames) -> float:
 
 
 def tapped_vad(inner: vadmod.VAD, boot: BootChannel) -> vadmod.VAD:
-    """VAD que delega en ``inner`` pero tapea su stream para grabar el mic (solo si ZAELAR_RECORD_MIC).
+    """VAD that delegates to ``inner`` but taps its stream to record the mic (only if ZAELAR_RECORD_MIC).
 
-    Solo se envuelve el VAD de la sesión (el STT mantiene el suyo), así que no añade un 2º consumidor de
-    audio ni altera la detección de turno. Si la grabación está OFF, agent.py usa el VAD pelado directamente
-    y este wrapper ni se instancia.
+    Only the session's VAD is wrapped (STT keeps its own), so this adds no 2nd audio consumer
+    and does not alter turn detection. If recording is OFF, agent.py uses the bare VAD directly
+    and this wrapper is not instantiated.
     """
 
     class _TappedStream:

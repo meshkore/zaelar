@@ -10,7 +10,7 @@ replaces `voice/engine/llm/providers/lead_in_filler.py`, V2-093/V2-114/V2-122):
     reply is already the scheduler's CURRENT speech, and `AgentActivity._scheduling_task` serializes on
     GENERATION — which for a reply includes waiting for its playout. Measured live (session e081f343):
     the filler's synthesis fired at the exact millisecond the reply's playout ended, and the operator
-    heard «Vale, empiezo con la tarea» … «Espera, espera».
+    heard “Okay, I’ll start the task” … “Wait, wait”.
   · v2.5 (same day) tried pre-synthesized frames from a `tts_node` wrapper. It cannot work either, and the
     reason is worth keeping: in this livekit-agents the reply is SEGMENTED, and `perform_tts_inference` —
     hence `tts_node` — is only called from `_start_segment()`, which runs when the FIRST TEXT CHUNK
@@ -30,7 +30,8 @@ replaces `voice/engine/llm/providers/lead_in_filler.py`, V2-093/V2-114/V2-122):
     `chat_ctx` (`forwarded_text`, not the LLM's raw `generated_text`). Its chat-wall visibility is pushed
     by us explicitly, marked (`kind="filler"`), exactly as V2-122's addenda decided.
 
-The other half of the operator's request — «si vamos a contestar en un segundo o menos, no metas nexo» —
+The other half of the operator's request — “if we are going to answer in one second or less, do not add a
+filler” —
 falls out of the same seam: the wrapper races the model's first chunk against the delay (default 1100 ms,
 `ZAELAR_FILLER_MS`; 0 disables). A fast reply never gets one.
 

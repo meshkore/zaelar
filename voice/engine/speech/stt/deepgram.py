@@ -29,11 +29,11 @@ def build(vad=None):
     return _deepgram.STT(
         model=model,
         api_key=SETTINGS.deepgram_api_key or None,
-        # PRIMERA EJECUCIÓN → `"multi"` (nova-3 multilingüe, con code-switching): sin idioma elegido todavía no
-        # podemos clavar uno, o la autodetección de `i18n.init.detect` recibiría la frase del operador transcrita
-        # a través del modelo equivocado y no habría nada que clasificar. OJO: aquí no vale omitir el parámetro
-        # —el servidor de Deepgram cae a en-US, que no es auto—; hay que pedir "multi" explícitamente.
-        # Con idioma ya elegido, el de siempre: LIVE, y el cambio aplica al reconectar.
+        # FIRST RUN → `"multi"` (multilingual nova-3, with code-switching): with no language chosen yet, we cannot
+        # pin one down, or `i18n.init.detect`'s auto-detection would receive the operator's sentence transcribed
+        # through the wrong model and there would be nothing left to classify. NOTE: omitting the parameter does not
+        # work here —the Deepgram server falls back to en-US, which is not auto—; we must explicitly request "multi".
+        # Once a language has been chosen, use the usual one: LIVE, and the change applies on reconnection.
         language="multi" if first_run else langs.current_code(),
         interim_results=True,
         **opts,

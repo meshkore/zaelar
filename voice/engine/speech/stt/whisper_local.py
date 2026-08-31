@@ -60,9 +60,9 @@ _DECODE = dict(
     compression_ratio_threshold=2.4,
 )
 
-# Frases-alucinación conocidas de Whisper (aparecen en silencios/ruido pese al gate de energía; el modelo las
-# "aprendió" de subtítulos de YouTube). Si la transcripción ES SOLO una de estas, es ruido → se descarta. Evita
-# que zaelar responda a turnos fantasma ("Gracias por ver el video") y deraile la conversación. Vale para uso real.
+# Known Whisper hallucination phrases (they appear during silence/noise despite the energy gate; the model
+# "learned" them from YouTube subtitles). If the transcription IS ONLY one of these, it is noise → discard it. This prevents
+# zaelar from responding to phantom turns ("Gracias por ver el video") and derailing the conversation. Suitable for real use.
 _HALLUCINATIONS = {
     "gracias.", "¡gracias!", "gracias", "gracias por ver el video.", "gracias por ver el vídeo.",
     "gracias por ver el video", "gracias por ver el vídeo", "gracias por su atención.",
@@ -73,7 +73,7 @@ _HALLUCINATIONS = {
 
 
 # Non-speech vocalizations: Whisper annotates a cough/sneeze/sigh/laugh either as a bracketed tag ("[cough]",
-# "(sneezes)", "[música]") or as a bare onomatopoeia word. zaelar must NOT treat these as a turn (the operator
+# "(sneezes)", "[music]") or as a bare onomatopoeia word. zaelar must NOT treat these as a turn (the operator
 # coughs → zaelar should stay quiet, not answer "Cough."). Kept NARROW on purpose: real short replies (sí, no,
 # vale, ya, ok, hola…) are NEVER here, so a genuine one-word answer is never dropped.
 _NONSPEECH_WORDS = {
@@ -131,7 +131,7 @@ class _WhisperSTT(stt_module.STT):
         if isinstance(language, str) and language:
             lang = language
         else:
-            auto = langs.first_run_auto()      # misma respuesta que dan deepgram/voxtral (una sola fuente)
+            auto = langs.first_run_auto()      # same behavior as deepgram/voxtral (a single source)
             lang = None if auto else langs.current_code()
         prompt = "" if auto else langs.spec(lang or langs.current_code()).whisper_prompt
 
@@ -151,7 +151,7 @@ class _WhisperSTT(stt_module.STT):
                 emit("stt", f"👂 Whisper ({RESOLVED_DEVICE})", extra={"stt_ms": round((time.time() - t0) * 1000)})
             except Exception:
                 pass
-            if _is_hallucination(text):   # frase-alucinación conocida ("Gracias por ver el video") → ruido
+            if _is_hallucination(text):   # known hallucination phrase ("Gracias por ver el video") → noise
                 logger.info("descartada alucinación de Whisper: %r", text)
                 text = ""
         return SpeechEvent(
