@@ -1059,7 +1059,14 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_a_background_pill_is_not_an_operator_fact.py",
             "tests/browser/unit/widgets/test_aliases.py", "tests/browser/unit/widgets/test_identify_context.py",
             "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py",
-            "tests/browser/unit/widgets/test_paths_workspace.py"]},
+            "tests/browser/unit/widgets/test_paths_workspace.py",
+            # V2-515 — a SHIPPED widget is never edited in place nor deleted from disk: modify FORKS it into
+            # the generated root (which no longer collapses onto the repo on self-host), delete HIDES it, and
+            # restore discards the fork / unhides — always landing on the NEWEST shipped version. The lab
+            # incident this guards: a delete rmtree'd widgets/clock and widgets/musica out of the git tree.
+            "tests/browser/unit/widgets/test_a_system_widget_is_never_deleted_from_disk.py",
+            "tests/browser/unit/widgets/test_a_shipped_widget_is_forked_never_edited_in_place.py",
+            "tests/browser/unit/widgets/test_restore_returns_the_newest_shipped_version.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
             # V2-247: traer el elemento a la vista es una CORTESÍA, no el clic. Iba SIN proteger, así que un
             # elemento tapado o despegado tumbaba la acción entera — tres `scroll_into_view_if_needed` con Exit

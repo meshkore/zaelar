@@ -6542,6 +6542,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     engine composes. This makes the brief harmless for the lookup case, which is the measured one; it does not
     answer the general question.
 
+- **A SHIPPED widget is forked, never edited in place — and never deleted from disk (V2-515, 2026-08-31)**:
+  the operator's design decision for system widgets, four phases, each with its verified disarm.
+  - **The ground**: `paths.generated_root()` never collapses onto the repo again — self-host gets
+    `widgets/_user/` (gitignored); a mounted workspace keeps `<workspace>/widgets`. The collapse was why a
+    lab's delete could rmtree `widgets/clock` and `widgets/musica` out of the git tree (2026-08-30), and why
+    a fork had nowhere to live.
+  - **Imports follow the catalog**: `roots()` keeps `widgets.__path__` in step, so `import widgets.<id>.data`
+    resolves through the same two roots in the same order — before, every widget outside the repo folder
+    (every cloud-generated one) ran with silently dead python hooks. `paths.forget_modules(id)` evicts on
+    every transition that moves which folder owns the id; `importlib.reload` does NOT re-resolve.
+  - **Fork-on-modify**: a modify whose target is repo source (`paths.is_repo_source` — the FOLDER is the
+    criterion, never the manifest: a harness run once relabelled 15 shipped manifests `origin:"user"`) copies
+    it into the generated root and edits the COPY; the fork shadows the original everywhere while the shipped
+    folder keeps receiving engine updates untouched. A failed FIRST edit discards the fork. The generator
+    prompts now receive the resolved target folder — they hardcoded `widgets/<id>/`, which in the cloud
+    landed every generated widget in the ephemeral checkout instead of the Volume.
+  - **Delete hides**: engine source never leaves the disk. The id goes to
+    `widgets/_data/_system/hidden.json` (per-tenant; filtered inside the catalog signature, so hiding
+    invalidates the cache like an mtime change). Deleting a fork removes the fork's files AND hides the
+    shipped counterpart — "delete" means GONE, never "back to stock".
+  - **Restore** (`lifecycle.restore_widget`): rmtree the fork + unhide → always the NEWEST shipped version.
+    Data survives on purpose (it lives in `widgets/_data/<id>/`, outside the code folder). Three doors:
+    the `restore_widget` tool (a `restore` confirmation class — discarding the fork is destructive for the
+    OPERATOR's work; resolves via `lifecycle.restorable_id`, because a hidden widget is out of the catalog
+    and identify cannot see it), the card's Yes button (the confirm endpoint dispatches the new class — the
+    2026-08-15 rule: a class that endpoint does not know consumes the pending and executes nothing), and
+    `POST /widgets/{wid}/restore` keyed on the registry's new `forked` flag. Workers are denied the tool.
+  - Node 4.1 (the three `test_a_system_widget…`/`test_a_shipped_widget…`/`test_restore…` files) + the
+    rewritten contract in `test_paths_workspace.py`. Tool catalog ceiling 21200→21800 (one genuinely new
+    tool, description pre-compacted).
+  - **Open (operator's call, not code)**: seven personal widgets are still TRACKED in the public repo
+    (`inversiones`, `meteo-soria`, `meteo-tarragona-grafico`, `futbol-champions`, `juego-serpiente-snake`,
+    `personalizado-reproduzca-video`, `temporizador-pomodoro-ayudar`) — move them out under `_user/` (repo
+    privacy procedure applies) or bless them in `registry._BUILTINS` as shipped examples. And the frontend
+    still lacks the visual "restore" affordance the `forked` flag exists for.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

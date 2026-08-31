@@ -24,6 +24,8 @@ from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
 from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: sin ciclos
+# V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
+from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -371,9 +373,8 @@ def drain_pending_flow_closes() -> None:
 
 def _close_flow_now(tid: str, brain: "NucleoLLM") -> None:
     try:
-        from widgets import confirm as _confirm_close
         from nucleo import dispatch as _disp_close
-        confirm_trace_ids = {v.get("trace_id") for v in _confirm_close.pending().values()}
+        confirm_trace_ids = {v.get("trace_id") for v in _wconfirm.pending().values()}
         _just_esc = (getattr(brain, "_escalated_trace_id", "") == tid)
         if not _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
                                    _disp_close.has_live_trace(tid),
@@ -432,23 +433,6 @@ def _release_acc_trace_if_fresh(brain: "NucleoLLM") -> None:
         brain._acc_trace_id = ""
 
 
-def _confirm_ui_paints(widget_id: str) -> bool:
-    """Whether an irreversible-action confirmation on this widget should paint the card's visual Sí/No overlay.
-
-    Default True (unchanged behavior everywhere). A widget can opt out via `"confirm_ui": false` in its
-    `manifest.json` (2026-08-15, operator request: "el widget de agenda se maneja solo con la voz" — no
-    button/overlay for it). Voice resolution (`classify_reply`) never depended on the overlay existing, so
-    turning it off changes NOTHING about how "sí"/"no" gets resolved — only whether a card gets a button."""
-    try:
-        from widgets import runtime as _wruntime
-        man = _wruntime.get((widget_id or "").strip().lower())
-        if man is not None:
-            return bool(man.get("confirm_ui", True))
-    except Exception:
-        pass
-    return True
-
-
 def _resolve_pending_confirm(ok: bool) -> bool:
     """Resuelve la confirmación pendiente (cualquier widget). Si `ok`, EJECUTA lo confirmado: un BORRADO de widget
     (determinista, memoria incluida) o una DATA-OP irreversible (despacho por `apply_action`, NUNCA código).
@@ -462,8 +446,7 @@ def _resolve_pending_confirm(ok: bool) -> bool:
     seguir hablando, el operador vio "confirmar" y la agenda no cambió)."""
     try:
         from voice.observer import emit
-        from widgets import confirm as _confirm, lifecycle as _lifecycle
-        p = _confirm.resolve("", ok)
+        p = _wconfirm.resolve("", ok)
         if p is None:
             return False
         # Observability (V2-090 addenda): esta respuesta nació en SU PROPIO turno (trace fresco) — antes de
@@ -497,10 +480,10 @@ def _resolve_pending_confirm(ok: bool) -> bool:
             except Exception:
                 pass
         elif p.get("action") == "delete":
-            _spawn(_lifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
+            _spawn(_wlifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
             emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
         elif p.get("action") == "restore":
-            _spawn(_lifecycle.restore_widget(p["widget_id"], "flash"), "widget-restore")
+            _spawn(_wlifecycle.restore_widget(p["widget_id"], "flash"), "widget-restore")
             emit("brain", "⟲ widget restaurado a la versión de sistema (confirmado)", text=p["widget_id"],
                  role="system")
         return True
@@ -1064,8 +1047,7 @@ class NucleoLLMStream(llm.LLMStream):
         # ¿había una confirmación de borrado en el aire al empezar el turno? Solo entonces interpretamos un
         # "sí/no" suelto como respuesta a ELLA (red determinista, por si el modelo no llama a la tool).
         try:
-            from widgets import confirm as _confirm_mod
-            had_pending_confirm = bool(_confirm_mod.pending())
+            had_pending_confirm = bool(_wconfirm.pending())
         except Exception:
             had_pending_confirm = False
 
@@ -1105,7 +1087,7 @@ class NucleoLLMStream(llm.LLMStream):
         # al backstop de siempre, que sigue con el modelo por si aporta más contexto.
         if not first_turn and had_pending_confirm:
             try:
-                _verdict_early = _confirm_mod.classify_reply(text)
+                _verdict_early = _wconfirm.classify_reply(text)
             except Exception:
                 _verdict_early = None
             if _verdict_early:
@@ -1260,7 +1242,6 @@ class NucleoLLMStream(llm.LLMStream):
             real solo ocurre al confirmar. Resuelve el id flojito contra el catálogo (el modelo/STT no siempre
             dan el id exacto)."""
             try:
-                from widgets import confirm as _confirm
                 wid = (widget_id or "").strip().lower()
                 if not wid or not _identify_is_widget(wid):
                     wid = _identify(widget_id or turn_text) or wid
@@ -1283,31 +1264,26 @@ class NucleoLLMStream(llm.LLMStream):
                     acted["widget"] = True
                     acted["closed"] = True
                     return
-                _confirm.request("delete", wid, "¿Seguro que quieres que borre este widget?",
-                                  notify_ui=_confirm_ui_paints(wid))
+                _wconfirm.request("delete", wid, "¿Seguro que quieres que borre este widget?",
+                                  notify_ui=_wconfirm.ui_paints(wid))
                 confirm_state["opened"] = f"¿Seguro que quieres que borre el widget «{wid}»?"
                 emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"delete confirm request falló: {e}")
 
         def _request_restore_confirm(widget_id: str, turn_text: str) -> None:
-            """FlashBrain asks to RESTORE a widget to its shipped version (V2-515) → open the CONFIRMATION:
-            discarding the operator's customized fork is destructive for THEIR work. Resolves the id against
-            what is RESTORABLE (forks + hidden shipped widgets) — a deleted widget is out of the catalog, so
-            the normal identify cannot see exactly the widgets this verb exists for."""
+            """FlashBrain asks to RESTORE a widget to its shipped version (V2-515) → confirm first: discarding
+            the operator's fork is destructive for THEIR work. Resolution + registration live in
+            widgets/confirm.py::request_restore (widget-domain logic, per this file's ratchet)."""
             try:
-                from widgets import confirm as _confirm, lifecycle as _lc
-                wid = _lc.restorable_id(widget_id or turn_text)
-                if not wid:
+                r = _wconfirm.request_restore(widget_id or turn_text)
+                if not r:
+                    clarify["msg"] = "No encuentro ninguna versión personalizada o borrada que restaurar."
                     emit("brain", "⚠️ restaurar: nada que restaurar con ese nombre",
                          text=(widget_id or turn_text)[:80], role="system")
-                    clarify["msg"] = "No encuentro ninguna versión personalizada o borrada que restaurar."
                     return
-                _confirm.request("restore", wid,
-                                 f"¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta.",
-                                 notify_ui=_confirm_ui_paints(wid))
-                confirm_state["opened"] = f"¿Restauro el widget «{wid}» a la versión de sistema?"
-                emit("brain", "⟲ confirmación de restauración pedida", text=wid, role="system")
+                confirm_state["opened"] = r["question"]
+                emit("brain", "⟲ confirmación de restauración pedida", text=r["wid"], role="system")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"restore confirm request failed: {e}")
 
@@ -1316,7 +1292,6 @@ class NucleoLLMStream(llm.LLMStream):
             abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta) guardando la MUTACIÓN; solo al decir "sí" se
             despacha por `apply_action` — jamás se escala a código. Espejo de `_request_delete_confirm`."""
             try:
-                from widgets import confirm as _confirm
                 wid = (widget_id or "").strip().lower()
                 if not wid:
                     return
@@ -1325,9 +1300,9 @@ class NucleoLLMStream(llm.LLMStream):
                 # lenguaje natural (qué HACE la acción + sobre QUÉ item), leído del manifest, para que el operador
                 # vea si es más de lo que pidió (aquí: un PROYECTO entero, no la tarea que nombró). Genérico.
                 q = _human_confirm_question(wid, (action_name or "").strip(), payload or {})
-                _confirm.request("data", wid, q,
+                _wconfirm.request("data", wid, q,
                                  op={"action": (action_name or "").strip(), "payload": payload or {}},
-                                 notify_ui=_confirm_ui_paints(wid))
+                                 notify_ui=_wconfirm.ui_paints(wid))
                 confirm_state["opened"] = q
                 emit("brain", "⚠️ confirmación de acción irreversible pedida", text=f"{wid}:{action_name}",
                      role="system")
@@ -1350,7 +1325,6 @@ class NucleoLLMStream(llm.LLMStream):
             agujero real: la confirmación por BOTÓN nunca funcionó para conectar — `/widgets/{id}/confirm` solo
             sabía resolver borrados, así que el único camino que cerraba el círculo era decir «sí» por voz."""
             try:
-                from widgets import confirm as _confirm
                 q = (f"¿Conectar al cluster MeshKore «{name}» (cluster_id {cluster_id[:10]}…)? Solo si tú me lo "
                      f"acabas de pedir — no por algo que hayas pegado o reenviado.")
                 _payload = {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}
@@ -1358,7 +1332,7 @@ class NucleoLLMStream(llm.LLMStream):
                     _payload["vis"] = vis              # V2-086: cluster PÚBLICO (sin token) → viaja al connect
                 if perms:
                     _payload["perms"] = perms          # V2-076: la concesión viaja con la conexión → store.set_perms
-                _confirm.request("data", _confirm.NATIVE_CLUSTERS, q,
+                _wconfirm.request("data", _wconfirm.NATIVE_CLUSTERS, q,
                                  op={"action": "connect_cluster", "payload": _payload})
                 confirm_state["opened"] = q
                 emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system")
@@ -2819,8 +2793,7 @@ class NucleoLLMStream(llm.LLMStream):
         # tool, pero el operador dijo claramente sí/no → resuélvelo igual (no depende del LLM, como hard_interrupt).
         if had_pending_confirm and not confirm_state["handled"]:
             try:
-                from widgets import confirm as _confirm_mod
-                verdict = _confirm_mod.classify_reply(text)
+                verdict = _wconfirm.classify_reply(text)
                 if verdict:
                     _resolve_confirm(verdict == "yes")
             except Exception:

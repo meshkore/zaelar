@@ -154,7 +154,7 @@ def test_confirm_ui_false_no_pinta_overlay_pero_la_confirmacion_sigue_pendiente(
     """`agenda/manifest.json` declara `confirm_ui: false` — "el widget de agenda se maneja solo con la voz". El
     registro de la confirmación (para que "sí"/"no" hablado la resuelva) tiene que ser IDÉNTICO; lo único que
     cambia es que no sale el evento `widget/confirm` que la UI usa para pintar el botón."""
-    from voice.engine.llm.providers.nucleo import _confirm_ui_paints
+    from widgets.confirm import ui_paints as _confirm_ui_paints   # moved out of the provider (V2-515 ratchet)
     from voice import observer
     from widgets import confirm
 
@@ -169,7 +169,7 @@ def test_confirm_ui_false_no_pinta_overlay_pero_la_confirmacion_sigue_pendiente(
 
 
 def test_confirm_ui_defaults_true_para_widgets_sin_el_flag():
-    from voice.engine.llm.providers.nucleo import _confirm_ui_paints
+    from widgets.confirm import ui_paints as _confirm_ui_paints   # moved out of the provider (V2-515 ratchet)
 
     assert _confirm_ui_paints("meteo-soria") is True
     assert _confirm_ui_paints("no-existe-este-widget") is True

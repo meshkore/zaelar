@@ -85,6 +85,38 @@ def drain_expired_notices() -> list[dict]:
 NATIVE_CLUSTERS = "clusters"
 
 
+def ui_paints(widget_id: str) -> bool:
+    """Whether a confirmation on this widget should paint the card's visual Sí/No overlay. Default True.
+    A widget opts out via `"confirm_ui": false` in its manifest (2026-08-15, operator request: the agenda
+    is voice-only — no button/overlay). Voice resolution (`classify_reply`) never depended on the overlay,
+    so opting out changes only whether a card gets a button. Moved here from the provider (V2-515): it is
+    widget-domain logic — it reads the manifest — and the provider's ratchet is right that it never
+    belonged there."""
+    try:
+        from . import runtime as _runtime
+        man = _runtime.get((widget_id or "").strip().lower())
+        if man is not None:
+            return bool(man.get("confirm_ui", True))
+    except Exception:
+        pass
+    return True
+
+
+def request_restore(spoken: str) -> dict:
+    """Resolve + register a `restore` confirmation in ONE step (V2-515): match the operator's words against
+    what is RESTORABLE (forks + hidden shipped widgets — `lifecycle.restorable_id`; a hidden widget is out
+    of the catalog, so the normal identify cannot see it), then open the pending. Returns
+    `{"wid", "question"}`, or `{}` when nothing restorable matches. Lives here, not in the provider: the
+    resolution is widget-domain, and the confirmation seam is this module's whole job."""
+    from . import lifecycle
+    wid = lifecycle.restorable_id(spoken)
+    if not wid:
+        return {}
+    question = f"¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta."
+    request("restore", wid, question, notify_ui=ui_paints(wid))
+    return {"wid": wid, "question": question}
+
+
 def request(action: str, widget_id: str, question: str = "", op: dict | None = None,
             notify_ui: bool = True) -> str | None:
     """Register a pending confirmation for `widget_id` and (unless `notify_ui=False`) request the card overlay
