@@ -1,14 +1,14 @@
-"""`query()` decide QUÉ píldoras cuentan como usadas; ya no decide CUÁNDO (V2-311, 2026-08-25).
+"""`query()` decides WHICH pills count as used; it no longer decides WHEN (V2-311, 2026-08-25).
 
-El refuerzo (`access_count++`, `last_access=now`, `weight+step` — escritura durable) se disparaba al COMPONER el
-paquete. Componer no es usar: medido sobre 223 sesiones vivas, 21 de 27 recalls se abandonaban al vencer el
-presupuesto de 800 ms del turno **y su hilo terminaba igualmente**, así que el refuerzo se aplicaba a píldoras
-por preguntas que nunca se contestaron con ellas. La señal de «esto se usa» la alimentaba el trabajo tirado.
+Reinforcement (`access_count++`, `last_access=now`, `weight+step` — durable write) was triggered when COMPOSING the
+bundle. Composing is not using: measured across 223 live sessions, 21 of 27 recalls were abandoned when the turn's
+800 ms budget expired **and its thread still terminated**, so reinforcement was applied to pills for questions that
+were never answered with them. The signal that «this is used» was being fed by discarded work.
 
-Lo que se mueve fuera es el MOMENTO. Lo que se queda dentro —y esto es lo que estos casos clavan— es la
-POLÍTICA: cuál es la selección. Si el disparador se hubiera llevado consigo la selección, el llamante habría
-reforzado `ids` entero (el paquete: conceptos, vecinos de grafo, resultados laterales) y el refuerzo selectivo
-habría desaparecido sin que fallara nada.
+What moves outside is the TIMING. What stays inside —and this is what these cases pin down— is the
+POLICY: which selection is made. If the trigger had taken the selection with it, the caller would have
+reinforced all of `ids` (the bundle: concepts, graph neighbors, side results), and selective reinforcement
+would have disappeared without anything failing.
 """
 from __future__ import annotations
 
@@ -28,19 +28,19 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def test_la_seleccion_es_UNA_pildora_de_contenido_y_no_el_paquete():
-    """El paquete lleva contexto; reforzarlo entero convierte una consulta de vivienda en «uso» de la alergia."""
+    """The bundle carries context; reinforcing it wholesale turns a housing query into «use» of the allergy."""
     paquete = [{"id": 1, "kind": "concept"}, {"id": 2, "kind": "fact"}, {"id": 3, "kind": "fact"}]
     assert memory_api.reinforce_ids_for(paquete) == [2]
 
 
 def test_los_nodos_CONCEPTO_no_cuentan_como_recuerdo_usado():
-    """Son índices, no recuerdos vividos: reforzarlos infla el grafo por el hecho de haber navegado por él."""
+    """They are indexes, not lived memories: reinforcing them inflates the graph merely because it was navigated."""
     assert memory_api.reinforce_ids_for([{"id": 9, "kind": "concept"}]) == []
     assert memory_api.reinforce_ids_for([]) == []
 
 
 def test_query_REPORTA_lo_reforzable_sin_escribir_cuando_no_se_le_pide(fresh_db, monkeypatch):
-    """La pieza que hace posible mover el disparador: informar sin actuar."""
+    """The piece that makes moving the trigger possible: report without acting."""
     escrituras: list = []
     monkeypatch.setattr(memory_api, "reinforce", lambda ids: escrituras.extend(ids))
 
@@ -56,8 +56,8 @@ def test_query_REPORTA_lo_reforzable_sin_escribir_cuando_no_se_le_pide(fresh_db,
 
 
 def test_query_SIGUE_reforzando_cuando_se_le_pide(fresh_db, monkeypatch):
-    """Otros llamantes (el dossier del worker) siguen entregando en el acto: mover el disparador no puede
-    apagarles el refuerzo por la puerta de atrás."""
+    """Other callers (the worker's dossier) still deliver immediately: moving the trigger cannot
+    silently turn off their reinforcement."""
     escrituras: list = []
     monkeypatch.setattr(memory_api, "reinforce", lambda ids: escrituras.extend(ids))
 

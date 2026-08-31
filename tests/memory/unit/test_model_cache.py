@@ -23,7 +23,7 @@ from memory import model_cache
 
 
 def test_por_defecto_NO_cae_en_el_temp_del_sistema(monkeypatch, tmp_path):
-    """La propiedad que importa: sea cual sea la casa, no puede ser un directorio que el sistema barre."""
+    """The property that matters: whatever the home directory is, it cannot be a directory the system sweeps."""
     monkeypatch.delenv("ZAELAR_MODEL_CACHE", raising=False)
     monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
     monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: tmp_path))
@@ -32,23 +32,23 @@ def test_por_defecto_NO_cae_en_el_temp_del_sistema(monkeypatch, tmp_path):
 
     assert d is not None
     p = pathlib.Path(d)
-    assert p.is_dir(), "tiene que existir ya: crearla al vuelo es parte del contrato"
+    assert p.is_dir(), "it must already exist: creating it on the fly is part of the contract"
     assert "zaelar" in p.parts and "models" in p.parts
-    # Sigue al HOME del usuario, que es lo que lo separa del temp del sistema. No se comprueba con una lista
-    # de prefijos («/var/folders», «/tmp»): el tmp_path de pytest vive JUSTO ahí, así que esa comprobación se
-    # ponía roja sobre el home falso del propio test — midiendo el andamio en vez del producto.
-    assert str(p).startswith(str(tmp_path)), f"{p} no cuelga del HOME del usuario"
+    # It follows the user's HOME, which is what separates it from the system temp directory. We do not check
+    # against a list of prefixes ("/var/folders", "/tmp"): pytest's tmp_path lives RIGHT there, so that check
+    # turned red for the test's own fake home—measuring the scaffolding instead of the product.
+    assert str(p).startswith(str(tmp_path)), f"{p} is not under the user's HOME"
 
 
 def test_la_casa_no_se_pide_al_modulo_de_temporales(monkeypatch, tmp_path):
-    """Guarda de fuente, porque el defecto que se arregla es exactamente «usar el temp del sistema».
+    """Source-level guard, because the defect being fixed is exactly “use the system temp directory.”
 
-    El comportamiento no lo puede distinguir un test: con el HOME falsificado, `tempfile.gettempdir()` y un
-    home real dan los dos una ruta plausible. Lo que se prohíbe es la FUENTE."""
+    A test cannot distinguish the behavior: with the HOME falsified, `tempfile.gettempdir()` and a real home
+    both produce a plausible path. What is prohibited is the SOURCE."""
     src = pathlib.Path(__import__("memory.model_cache", fromlist=["x"]).__file__).read_text(encoding="utf-8")
-    codigo = src.split('"""', 2)[-1]        # fuera el docstring, que SÍ habla del temp para explicar el porqué
+    codigo = src.split('"""', 2)[-1]        # exclude the docstring, which DOES mention temp to explain why
     for prohibido in ("tempfile", "gettempdir", "TMPDIR"):
-        assert prohibido not in codigo, f"el cache de modelos volvió a resolverse por {prohibido}"
+        assert prohibido not in codigo, f"the model cache started resolving through {prohibido} again"
 
 
 def test_respeta_XDG_CACHE_HOME(monkeypatch, tmp_path):
@@ -62,11 +62,11 @@ def test_la_override_explicita_MANDA(monkeypatch, tmp_path):
     monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     monkeypatch.setenv("ZAELAR_MODEL_CACHE", str(tmp_path / "mio"))
     d = model_cache.models_dir()
-    assert d == str(tmp_path / "mio"), "quien la fija a mano tiene un motivo; nada la debe pisar"
+    assert d == str(tmp_path / "mio"), "whoever sets it manually has a reason; nothing should override it"
 
 
 def test_si_no_se_puede_crear_devuelve_None_y_no_LANZA(monkeypatch, tmp_path):
-    """`None` es «sin opinión»: la librería usa su default. Lanzar aquí tumbaría el recall por un directorio."""
+    """`None` means “no opinion”: the library uses its default. Raising here would break recall because of a directory."""
     choque = tmp_path / "es-un-fichero"
     choque.write_text("no soy un directorio")
     monkeypatch.setenv("ZAELAR_MODEL_CACHE", str(choque / "dentro"))
@@ -74,25 +74,26 @@ def test_si_no_se_puede_crear_devuelve_None_y_no_LANZA(monkeypatch, tmp_path):
 
 
 def test_los_DOS_consumidores_pasan_el_cache_y_ninguno_se_queda_con_el_default(monkeypatch):
-    """Guarda de cableado: la mitad cara de este arreglo es que lo usen los DOS que descargan.
+    """Wiring guard: the expensive half of this fix is making sure that BOTH downloaders use it.
 
-    Se comprueba en el CÓDIGO y no llamando: construir cualquiera de los dos baja gigabytes. Y son dos módulos
-    distintos a propósito — arreglar solo el reranker deja el fallback de embeddings volviendo a frío, que es
-    el mismo fallo con la mitad del tamaño y ninguna pista."""
+    This is checked in the CODE rather than by calling it: constructing either one downloads gigabytes. They are
+    deliberately two different modules—fixing only the reranker leaves the embedding fallback going cold again,
+    which is the same failure at half the size and with no clue."""
     import ast
 
     raiz = pathlib.Path(__file__).resolve().parents[3]
     for fichero, ctor in (("memory/rerank_local.py", "TextCrossEncoder"),
                           ("memory/embeddings.py", "TextEmbedding")):
         src = (raiz / fichero).read_text(encoding="utf-8")
-        # Por AST y NO buscando el texto: la primera vez este test buscó `"TextCrossEncoder("` con `.index()`
-        # y encontró el DOCSTRING del módulo, que nombra el constructor para explicar el fallo. Salió rojo con
-        # el arreglo puesto; podría igual de bien haber salido verde sin él.
+        # Use the AST and do NOT search the text: the first version of this test searched for
+        # `"TextCrossEncoder("` with `.index()` and found the module DOCSTRING, which names the constructor to
+        # explain the failure. It turned red with the fix in place; it could just as easily have turned green
+        # without it.
         llamadas = [n for n in ast.walk(ast.parse(src))
                     if isinstance(n, ast.Call) and getattr(n.func, "id", None) == ctor]
-        assert llamadas, f"{fichero} ya no construye {ctor}: este guarda mira al vacío"
+        assert llamadas, f"{fichero} no longer constructs {ctor}: this guard is looking at nothing"
         for c in llamadas:
             claves = {k.arg for k in c.keywords}
             assert "cache_dir" in claves or any(k.arg is None for k in c.keywords), (
-                f"{fichero} construye {ctor} sin `cache_dir`: vuelve al TEMP del sistema y la purga se lo lleva")
-        assert "model_cache" in src, f"{fichero} no resuelve la casa por `memory.model_cache`"
+                f"{fichero} constructs {ctor} without `cache_dir`: it falls back to the system TEMP and the purge takes it away")
+        assert "model_cache" in src, f"{fichero} does not resolve the home through `memory.model_cache`"

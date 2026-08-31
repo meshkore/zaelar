@@ -37,13 +37,13 @@ def test_a_cloud_endpoint_resolving_to_the_sentinel_has_NO_credential():
 
 # ── the order, and who gets dropped ───────────────────────────────────────────────────────────────────────────
 def test_the_chain_is_titular_then_broker(monkeypatch):
-    """El ORDEN es lo que se fija aquí: primero el endpoint directo (titular) y detrás el broker.
+    """The ORDER fixed here is: first the direct endpoint (titular), followed by the broker.
 
-    Se llamaba `..._then_openai` y afirmaba `models[-1] == "openai/gpt-4.1-mini"`. El 2026-08-21 la norma del
-    operador —ningún modelo de OpenAI puede ser lo que CORRE sin que nadie lo elija; en el catálogo sí— sacó ese
-    escalón, así que la aserción pasó a fijar una política derogada. Se cambia por lo que la norma sí garantiza y
-    por lo que este fichero existe para vigilar: que el último recurso NO sea de OpenAI. Fijar el nombre exacto
-    del último modelo volvería a atar el test a una elección de catálogo que puede cambiar mañana."""
+    It was called `..._then_openai` and asserted `models[-1] == "openai/gpt-4.1-mini"`. On 2026-08-21, the
+    operator's rule —no OpenAI model may be what RUNS unless someone chooses it; it may be in the catalog—removed
+    that rung, so the assertion had become a statement of a deprecated policy. It was changed to assert what the
+    rule does guarantee and what this file exists to monitor: that the last resort is NOT OpenAI. Pinning the exact
+    name of the last model would tie the test again to a catalog choice that may change tomorrow."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
     hosts = [u for u, _m, _k, _dt in memllm.chain("rem")]
@@ -164,7 +164,7 @@ def test_a_PINNED_model_never_relays(monkeypatch):
     assert seen == ["openai/gpt-4.1-mini"], f"no debió tocar ningún otro escalón: {seen}"
 
 
-# ── the CORAZÓN resolves its own titular, and only borrows the ORDER ───────────────────────────────────────────
+# ── the HEART resolves its own titular, and only borrows the ORDER ─────────────────────────────────────────────
 def test_the_heart_keeps_its_own_titular_at_the_front(monkeypatch):
     """`distill`'s config keys are the historical `mem_processor_*` (with env fallbacks, synchronized across three
     deploy sites), so `memllm.resolve("distill")` does NOT know its endpoint — it would silently fall through to
@@ -387,7 +387,7 @@ def test_the_HEART_skips_the_impossible_pair_instead_of_paying_the_404(monkeypat
 
 def test_the_impossible_pair_is_KEPT_when_there_is_nowhere_to_relay(monkeypatch):
     """Same asymmetry as the local gate: skipping is only right when there is somewhere to skip TO. With no
-    credentialed fallback, keeping it is what makes the real 404 reach the log and the ◉ instead of «0 escalones»."""
+    credentialed fallback, keeping it is what makes the real 404 reach the log and the ◉ instead of «0 rungs»."""
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")   # no cloud credential anywhere
     monkeypatch.setattr(MP, "_url", lambda: _AIML)

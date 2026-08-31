@@ -1,6 +1,6 @@
 #
-# test_pill_slot.py — la memoria como PÍLDORA (V2-013): columnas `slot`/`meta`, supersede/dedup EXACTO por slot,
-# y migración idempotente v1→v2. Sin red (embeddings hash). Ejecutar: .venv/bin/pytest memory/test_pill_slot.py
+# test_pill_slot.py — memory as a PILL (V2-013): `slot`/`meta` columns, EXACT supersede/dedup by slot,
+# and idempotent v1→v2 migration. No network (hash embeddings). Run: .venv/bin/pytest memory/test_pill_slot.py
 #
 import json
 
@@ -31,7 +31,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 def test_schema_v2_has_slot_and_meta(fresh_db):
     d = memdb.get_db()
-    assert d.schema_version() >= 2         # v2 = píldora (slot/meta); v3 = bóveda (V2-060) — no reabre v2
+    assert d.schema_version() >= 2         # v2 = pill (slot/meta); v3 = vault (V2-060) — does not reopen v2
     cols = {r[1] for r in d.conn.execute("PRAGMA table_info(memories)").fetchall()}
     assert "slot" in cols and "meta" in cols
 
@@ -51,22 +51,22 @@ def test_slot_supersede_on_value_change(fresh_db):
     assert a != b
     d = memdb.get_db()
     old = d.query_one("SELECT valid, superseded_by FROM memories WHERE id=?", (a,))
-    assert old["valid"] == 0 and old["superseded_by"] == b       # el viejo queda superseded
+    assert old["valid"] == 0 and old["superseded_by"] == b       # the old one remains superseded
     valid = d.query("SELECT COUNT(*) c FROM memories WHERE slot=? AND valid=1", ("operator.location",))
-    assert valid[0]["c"] == 1                                     # solo UN valor vigente por slot
+    assert valid[0]["c"] == 1                                     # only ONE current value per slot
 
 
 def test_slot_dedup_reinforces_on_identical_text(fresh_db):
     a = writer.insert_memory("El operador se llama Ramón.", level="long", kind="profile",
                              slot="operator.name")
     b = writer.insert_memory("  el operador se llama ramón.  ", level="long", kind="profile",
-                             slot="operator.name")            # mismo dato (normalizado) → refuerza, no duplica
+                             slot="operator.name")            # same data (normalized) → reinforces, does not duplicate
     assert a == b
     d = memdb.get_db()
     n = d.query("SELECT COUNT(*) c FROM memories WHERE slot=?", ("operator.name",))[0]["c"]
-    assert n == 1                                             # NO se duplicó
+    assert n == 1                                             # It was NOT duplicated
     w = d.query_one("SELECT weight FROM memories WHERE id=?", (a,))["weight"]
-    assert w > 0.5                                            # se reforzó (peso subió)
+    assert w > 0.5                                            # it was reinforced (weight increased)
 
 
 def test_no_slot_never_supersedes(fresh_db):
@@ -74,7 +74,7 @@ def test_no_slot_never_supersedes(fresh_db):
     b = writer.insert_memory("Comió pasta el martes.", level="short", kind="event")
     assert a != b
     valid = memdb.get_db().query("SELECT COUNT(*) c FROM memories WHERE valid=1")[0]["c"]
-    assert valid == 2                                         # sin slot, ambos conviven
+    assert valid == 2                                         # without a slot, both coexist
 
 
 def test_map_exposes_slot_and_meta(fresh_db):

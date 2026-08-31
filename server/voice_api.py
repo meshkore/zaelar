@@ -321,7 +321,7 @@ async def status():
 
 @router.get("/api/settings")
 async def get_settings():
-    """The ⚙ config panel: current values + option lists for the swappable knobs (STT/TTS/voice/idioma/cerebro)."""
+    """The ⚙ config panel: current values + option lists for the swappable knobs (STT/TTS/voice/language/brain)."""
     from config.settings import effective
     return JSONResponse(effective())
 
@@ -487,7 +487,7 @@ def _live_canvas_instances() -> list:
     """The instance cards of work running RIGHT NOW (V2-351): the sheet of every live errand whose surface is
     the results sheet, plus every browser-tab card the server holds. This is what a refresh must put back even
     when the saved desktop never knew them — the card opened while the page was closed, or another browser did
-    the work. Best-effort by construction: an empty list means «no sé», and the restore falls back to the saved
+    the work. Best-effort by construction: an empty list means «I don't know», and the restore falls back to the saved
     desktop alone."""
     out: list = []
     try:

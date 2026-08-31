@@ -59,18 +59,19 @@ def test_hard_delete_takes_the_paraphrase_text_with_it(fresh_db):
 
 
 def test_pruning_a_superseded_shell_also_de_indexes_its_paraphrases(fresh_db):
-    """`prune_invalid` es el OTRO camino, y no borra la fila: la saca de los ÍNDICES (el histórico se conserva a
-    propósito). Es literalmente el defecto que P2-6 arregló para vec+FTS en 2026-07-19, una tabla más tarde —
-    la cáscara muerta sigue ganando huecos del KNN y apunta a una fila `valid=0` que el lector descarta, o sea
-    presupuesto de pool gastado en muertos. No se ve al leer; se ve meses después como «el recall ha empeorado»."""
+    """`prune_invalid` is the OTHER path, and it does not delete the row: it removes it from the INDEXES (the
+    history is intentionally preserved). It is literally the defect that P2-6 fixed for vec+FTS on 2026-07-19,
+    one table later—the dead shell keeps winning KNN slots and points to a `valid=0` row that the reader discards,
+    i.e. pool budget spent on dead entries. It is not visible when reading; it appears months later as “recall has
+    worsened.”"""
     mid = memwriter.insert_memory("dato prescindible", level="long", kind="fact", weight=0.01)
     memwriter.index_paraphrases(mid, ["otra forma de decir el dato prescindible"])
     assert _counts() == (1, 1)
 
-    # invalidar + pasar la poda de inválidos, que es el camino de borrado duro del sueño
-    memwriter.supersede(mid, mid)          # marca valid=0 (supersede a sí mismo: solo queremos invalidar)
-    # `now` en el futuro en vez de `after_days=0`: el corte es `updated < now - after_days*86400`, y la fila
-    # acaba de actualizarse, así que con 0 días no entra en su propia poda.
+    # invalidate + run invalid-entry pruning, which is the dream's hard-delete path
+    memwriter.supersede(mid, mid)          # marks valid=0 (supersede itself: we only want to invalidate)
+    # `now` in the future instead of `after_days=0`: the cutoff is `updated < now - after_days*86400`, and the row
+    # was just updated, so with 0 days it does not fall into its own pruning.
     from memory.clock import now as _now
     memcons.prune_invalid(now=_now() + 3600, after_days=0)
 

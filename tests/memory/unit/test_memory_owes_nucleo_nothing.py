@@ -102,9 +102,9 @@ DECLARED_SURFACE = {
     "start", "stop",
     "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget",
-    # 2026-08-31 (V2-528, parar es descartar): el reset invalida el buffer conversacional («el chat se borra»
-    # incluye la SIEMBRA de la ventana) y los slots `task.*` (las píldoras de «estamos haciendo X»). Suaves
-    # (`valid=0`), doctrina forget: fuera de toda lectura, conservadas para auditoría.
+    # 2026-08-31 (V2-528, stopping means discarding): the reset invalidates the conversational buffer ("the chat
+    # is erased" includes the SEEDING of the window) and the `task.*` slots (the "we are doing X" pills). Soft
+    # (`valid=0`), forget doctrine: excluded from all reads, retained for auditing.
     "clear_conversation", "clear_slot_prefix",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
