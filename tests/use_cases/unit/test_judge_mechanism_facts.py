@@ -1,13 +1,13 @@
-"""El juez no puede contradecir su propia evidencia.
+"""The judge cannot contradict its own evidence.
 
-Medido el 2026-08-20 en `cheapest-monitor`: veredicto 1/5 por «alucinación de inventario … sin trazas de
-worker que validen una búsqueda real», citando `missing_signals` — mientras el informe de mecanismo de la
-MISMA corrida decía `families_observed: [flash, memory, system, widget, worker]` y `missing_signals: []`. El
-worker había arrancado y había terminado con datos reales.
+Measured on 2026-08-20 in `cheapest-monitor`: score 1/5 for «inventory hallucination … with no worker traces
+validating a real search», citing `missing_signals` — while the mechanism report from the SAME run said
+`families_observed: [flash, memory, system, widget, worker]` and `missing_signals: []`. The worker had started
+and had finished with real data.
 
-Un veredicto así no es solo ruido: manda al equipo del motor a arreglar algo que no ocurrió, y en un bucle
-desatendido de doce horas eso llena el tablero de trabajo inventado. El informe se entrega ahora con sus
-hechos en PROSA antes del JSON, porque una lista vacía (`"missing_signals": []`) no dice nada en voz alta.
+Such a verdict is not merely noise: it sends the engine team to fix something that did not happen, and in a
+twelve-hour unattended loop that fills the work board with invented work. The report is now delivered with
+its facts in PROSE before the JSON, because an empty list (`"missing_signals": []`) says nothing out loud.
 """
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def test_when_nothing_is_missing_it_says_so_out_loud():
 
 
 def test_and_when_something_IS_missing_it_says_to_penalise_it():
-    """La otra mitad: sin esto, «cierra la puerta a inventar señales ausentes» y «nunca penalices el
-    mecanismo» son indistinguibles, y el juez dejaría pasar el fallo que este arnés existe para cazar."""
+    """The other half: without this, «close the door on inventing absent signals» and «never penalize the
+    mechanism» are indistinguishable, and the judge would let through the failure this harness exists to catch."""
     mech = dict(FULL, families_observed=["flash", "memory"], missing_signals=["worker", "widget"])
     txt = mechanism_facts(mech)
     assert "FALTÓ: worker, widget" in txt
@@ -42,8 +42,8 @@ def test_and_when_something_IS_missing_it_says_to_penalise_it():
 
 
 def test_a_worker_that_started_is_not_a_worker_that_delivered():
-    """El matiz que impide el error OPUESTO: sin él, cerrar la puerta a «faltó una señal» invita a dar por
-    bueno un resultado solo porque la familia aparece en la lista."""
+    """The nuance that prevents the OPPOSITE error: without it, closing the door on «a signal was missing»
+    invites accepting a result merely because the family appears in the list."""
     txt = mechanism_facts(FULL)
     assert "ARRANCÓ" in txt
     assert "NO prueba que devolviera nada aprovechable" in txt
@@ -58,8 +58,8 @@ def test_an_empty_scheduler_is_said_to_be_unsupported_but_only_when_it_is_readab
 
 
 def test_no_browser_task_is_not_automatically_a_failure():
-    """Un caso de buscar-y-comparar puede resolverse sin abrir el navegador. Decirlo evita el 1/5 automático
-    que se midió, sin dar barra libre: se nombra la condición en la que sí es un fallo."""
+    """A search-and-compare case can be resolved without opening the browser. Saying so avoids the automatic
+    1/5 that was measured, without giving free rein: the condition under which it is a failure is named."""
     txt = mechanism_facts(FULL)
     assert "NO es automáticamente un fallo" in txt
     assert "exigía entrar en un sitio concreto" in txt
@@ -68,14 +68,15 @@ def test_no_browser_task_is_not_automatically_a_failure():
 
 
 def test_no_report_at_all_proves_nothing():
-    """Fail-open: si la verificación no se pudo hacer, la ausencia de señales no es evidencia de nada. Lo
-    contrario convertiría cada fallo de arnés en un bug del producto."""
+    """Fail-open: if verification could not be performed, the absence of signals is evidence of nothing. The
+    opposite would turn every harness failure into a product bug."""
     assert "la AUSENCIA no prueba nada" in mechanism_facts({})
 
 
 def test_the_prose_reaches_the_prompt_the_judge_actually_reads():
-    """Que el helper exista no sirve de nada si el prompt sigue llevando solo el JSON: es justo el fallo de
-    «la verdad existe en la tarea y no llega al sitio donde se decide» que ya se repitió en V2-145/V2-150."""
+    """The helper's existence is useless if the prompt still carries only the JSON: that is precisely the
+    failure of «the truth exists in the task and does not reach the place where the decision is made» that has
+    already recurred in V2-145/V2-150."""
     import inspect
 
     from tests.use_cases.e2e.agent import judge as J
@@ -86,10 +87,10 @@ def test_the_prose_reaches_the_prompt_the_judge_actually_reads():
 
 
 def test_the_judge_is_told_to_answer_in_SPANISH_only():
-    """El juez por defecto es glm-4.6, un modelo chino, y el 2026-08-20 escribió media frase de un hallazgo en
-    chino (ronda 16 de V2-176: «sin提供一个具体的输出或障碍说明»). El hallazgo era CORRECTO —el sistema admitía
-    no tener candidatos e inducía a esperar— y quedó ilegible para su único destinatario, el agente que
-    arregla. Una evidencia que no se puede leer vale lo mismo que no haberla medido.
+    """The default judge is glm-4.6, a Chinese model, and on 2026-08-20 it wrote half a finding in Chinese
+    (round 16 of V2-176: «sin提供一个具体的输出或障碍说明»). The finding was CORRECT —the system admitted
+    having no candidates and prompted waiting— and was unreadable to its sole recipient, the agent that fixes
+    things. Evidence that cannot be read is worth the same as not having measured it.
     """
     from tests.use_cases.e2e.agent import judge as J
 
@@ -98,9 +99,9 @@ def test_the_judge_is_told_to_answer_in_SPANISH_only():
 
 
 def test_and_the_system_prompt_is_what_actually_reaches_the_model(monkeypatch):
-    """La mitad de sensibilidad: una constante puede quedarse sin cablear. Se comprueba lo que RECIBE la
-    llamada, no lo que hay escrito en el módulo — que es el error que este mismo test cometía antes,
-    afirmando sobre `inspect.getsource` (donde un comentario cuenta igual que el prompt)."""
+    """The other half of sensitivity: a constant can remain unwired. What the call RECEIVES is checked,
+    not what is written in the module — which is the error this same test used to make,
+    asserting based on `inspect.getsource` (where a comment counts the same as the prompt)."""
     from types import SimpleNamespace
 
     from tests.use_cases.e2e.agent import judge as J

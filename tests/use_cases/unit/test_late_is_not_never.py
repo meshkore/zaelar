@@ -1,21 +1,21 @@
-"""«No entregó nunca» y «llegó tarde» mandan a arreglar cosas distintas, y el juez no sabía cuál era (V2-286).
+"""“Never delivered” and “delivered late” call for fixing different things, and the judge did not know which one it was (V2-286).
 
-`sheet_timing` mide desde V2-227 cuándo se abrió la hoja y cuándo se escribió la primera fila con nombre. En
-todo ese tiempo **no lo ha leído nadie**: ni el juez ni el informe. Un número medido que nadie consume no es
-una medida, es un fichero.
+`sheet_timing` has measured since V2-227 when the sheet was opened and when the first named row was written. During
+all that time **nobody has read it**: neither the judge nor the report. A measured number that nobody consumes is not
+a measurement; it is a file.
 
-Y es justo el que separa las dos lecturas. Su ausencia se ve en el propio bloque del juez sobre la hoja, que
-dice «Ojo con el MOMENTO: puede haberse llenado DESPUÉS del último turno» — se le advierte de la posibilidad y
-nunca se le da el HECHO. Medido en la tanda del 2026-08-24 03:48, con los cuatro casos:
+And it is precisely what separates the two readings. Its absence can be seen in the judge’s own sheet section, which
+says “Watch the TIMING: it may have been filled in AFTER the last turn” — the possibility is pointed out to it, but
+it is never given the FACT. Measured in the 2026-08-24 03:48 batch, with the four cases:
 
     monitor  4/5   primera fila 13,2 s ANTES del último turno   → había qué entregar, y entregó
     camera   2/5   primera fila 37,1 s ANTES                    → había qué entregar (falló la conducta)
     guitar   3/5   primera fila  1,6 s DESPUÉS                  → en la conversación no había nada
     bicycle  2/5   sin primera fila                             → no se encontró nada
 
-⚠️ Y corrige una lectura mía: al ver que los tres entregaban en el turno 9 de 10 escribí que el problema
-dominante era la LATENCIA. El número dice que no — en dos de los cuatro la hoja llevaba medio minuto llena
-cuando se habló. La sospecha era razonable y el dato la desmiente, que es para lo que se mide.
+⚠️ And it corrects one of my readings: when I saw that all three delivered on turn 9 of 10, I wrote that the dominant
+problem was LATENCY. The number says no — in two of the four cases, the sheet had been full for half a minute when
+they spoke. The suspicion was reasonable, and the data disproves it, which is what measurement is for.
 """
 from tests.use_cases.e2e.agent import judge as J
 
@@ -40,8 +40,8 @@ def test_llegar_DESPUES_del_ultimo_turno_se_llama_latencia_y_no_ocultacion():
 
 
 def test_llegar_ANTES_deja_el_fallo_donde_estaba_la_conducta():
-    """La otra mitad, y es la que impide que esto se convierta en una amnistía: con la hoja llena mientras se
-    habla, no entregar SÍ es conducta."""
+    """The other half, and the one that prevents this from becoming an amnesty: with the sheet full while they
+    speak, failing to deliver IS behavior."""
     f = _facts(-37.1)
     assert "ANTES del último" in f
     assert "fallo de conducta" in f
@@ -49,7 +49,7 @@ def test_llegar_ANTES_deja_el_fallo_donde_estaba_la_conducta():
 
 
 def test_sin_el_dato_no_se_afirma_ninguna_de_las_dos():
-    """`None` es «no lo medí». Rellenarlo con un cero diría «llegó justo a tiempo», que es una afirmación."""
+    """`None` means “I did not measure it.” Filling it with zero would say “it arrived exactly on time,” which is a claim."""
     m = dict(_BASE)
     m["sheet_timing"] = {"first_result_ms": None, "last_turn_ms": None, "after_last_turn_s": None}
     f = J.mechanism_facts(m)
@@ -57,7 +57,7 @@ def test_sin_el_dato_no_se_afirma_ninguna_de_las_dos():
 
 
 def test_el_numero_se_CALCULA_en_la_ronda():
-    """La mitad de cableado: el juez puede saber leerlo y la ronda no ponerlo (V2-199)."""
+    """The wiring half: the judge may know how to read it while the round fails to provide it (V2-199)."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R

@@ -1,17 +1,17 @@
-"""V2-445 · un encargo de vídeo o música entrega en la LISTA del reproductor, no en la hoja.
+"""V2-445 · a video or music request delivers in the player's LIST, not in the sheet.
 
-V2-402 fijó la frontera: lo que se VE u OYE se canaliza por su widget dedicado —buscarlo incluido— y la hoja
-de resultados es para INFORMACIÓN. El arnés nunca se enteró y siguió midiendo la entrega contra
-`results_sheet`, que para esa familia está vacía POR DISEÑO.
+V2-402 set the boundary: what is SEEN or HEARD is routed through its dedicated widget—including searching for
+it—and the results sheet is for INFORMATION. The harness never learned this and kept measuring delivery against
+`results_sheet`, which is empty BY DESIGN for that family.
 
-Medido en `find-videos-on-a-topic-no-ai-slop` (2026-08-28, plató 24/7): `widget_ops` registra
-`youtube.search ×4` —o sea que el enrutado de V2-402 funcionó— y el informe publicó `results_sheet: 0 items`.
-El juez concluyó que zaelar «anunció 2 vídeos sin respaldo en el sistema» y puntuó resultado 1. La afirmación
-podía ser cierta y el informe no tenía dónde comprobarlo.
+Measured in `find-videos-on-a-topic-no-ai-slop` (2026-08-28, 24/7 studio): `widget_ops` records
+`youtube.search ×4`—meaning V2-402's routing worked—and the report published `results_sheet: 0 items`.
+The judge concluded that zaelar “announced 2 videos without support in the system” and scored result 1. The
+claim could have been true, and the report had nowhere to verify it.
 
-No es una ronda: es una CLASE de escenario (`find-videos-*`, `build-a-video-playlist-*`,
-`play-music-and-build-playlist`) midiéndose contra la superficie que deliberadamente no usa. Quinto caso de
-un instrumento acusando al producto en la misma noche.
+This is not one round: it is a CLASS of scenario (`find-videos-*`, `build-a-video-playlist-*`,
+`play-music-and-build-playlist`) being measured against the surface it deliberately does not use. The fifth case
+of an instrument accusing the product on the same night.
 """
 from tests.use_cases.e2e.agent import judge, verify
 
@@ -32,14 +32,14 @@ def test_con_lista_llena_se_le_dice_al_juez_que_ahi_esta_la_entrega():
 
 
 def test_con_lista_VACIA_se_dice_que_eso_SI_es_no_entregar():
-    """La mitad que impide que el arreglo sea una amnistía: en un encargo multimedia la lista vacía es
-    exactamente el fallo, y sin decirlo el juez se queda sin poder puntuar la familia entera."""
+    """The half that keeps the fix from being an amnesty: in a multimedia request, an empty list is
+    exactly the failure, and without saying so the judge is unable to score the entire family."""
     l = _linea({"media_list": {"read": True, "n_items": 0, "widgets": {}, "titles": []}})
     assert "VACÍA" in l and "sí es no haber" in l
 
 
 def test_si_no_se_pudo_LEER_no_se_dice_nada():
-    """«No pude mirar» no es «no había nada»: publicar un cero ahí es la respuesta tranquilizadora."""
+    """“I couldn't look” is not “there was nothing”: publishing a zero there is the reassuring answer."""
     assert _linea({"media_list": {"read": False, "n_items": 0}}) == ""
 
 
@@ -54,10 +54,10 @@ def test_el_lector_distingue_VACIO_de_NADIE_MIRO(monkeypatch):
 
 
 def test_el_lector_cuenta_las_filas_de_los_DOS_reproductores():
-    """Los dos tienen lista desde V2-366; mirar solo uno deja media familia sin medir.
+    """Both have a list since V2-366; looking at only one leaves half the family unmeasured.
 
-    Cada uno con SU forma real (V2-468): este test daba `{"list": …}` a los dos, y `musica` no tiene esa
-    clave — pasaba en verde certificando una ficción, que es exactamente cómo el defecto llegó a producción.
+    Each with its OWN real shape (V2-468): this test gave `{"list": …}` to both, and `musica` does not have that
+    key—it passed in green while certifying a fiction, which is exactly how the defect reached production.
     """
     from tests.use_cases.e2e.agent import probe_client
     orig = probe_client.widget_data
@@ -72,7 +72,7 @@ def test_el_lector_cuenta_las_filas_de_los_DOS_reproductores():
 
 
 def test_run_lo_CALCULA_o_el_campo_no_existe():
-    """Guarda de cableado: los cinco de arriba pasan enteros con la línea de `run.py` borrada."""
+    """Wiring guard: the five above pass intact with the line from `run.py` deleted."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
     assert 'mech["media_list"] = verifymod.media_list()' in src
@@ -80,10 +80,10 @@ def test_run_lo_CALCULA_o_el_campo_no_existe():
 
 def test_con_el_reproductor_LLENO_la_hoja_vacia_no_acusa_entrega_ausente():
     """V2-469 · the prompt contradicted itself and the judge picked the wrong half (measured, round 8 of
-    `find-videos`, 22:47): «hoja SIN candidatos → entrega ausente en la única superficie que la guarda»
-    stated flatly, four lines above a player list holding 5 named videos — and the judge invented «un
-    mandato explícito de usar la HOJA DE RESULTADOS», the exact opposite of V2-402's design. When the
-    player has items, the empty-sheet line DEFERS to it instead of accusing."""
+    `find-videos`, 22:47): “sheet WITHOUT candidates → absent delivery on the only surface that stores it”
+    stated flatly, four lines above a player list holding 5 named videos—and the judge invented “an explicit
+    mandate to use the RESULTS SHEET,” the exact opposite of V2-402's design. When the player has items, the
+    empty-sheet line DEFERS to it instead of accusing."""
     out = judge.mechanism_facts({
         "results_sheet": {"read": True, "n_items": 0, "n_named": 0, "titles": []},
         "media_list": {"read": True, "n_items": 5,
