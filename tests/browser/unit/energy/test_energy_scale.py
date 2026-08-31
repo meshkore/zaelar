@@ -1,4 +1,4 @@
-"""Expone a pytest/Test Observatory el contrato de la escala de la PILA de Energy (ver el .mjs para el porqué)."""
+"""Exposes the contract of Energy's BATTERY scale to pytest/Test Observatory (see the .mjs file for why)."""
 
 import shutil
 import subprocess

@@ -1,16 +1,16 @@
-// EL MURO DE CHAT NO PUEDE LLEGAR TARDE (V2-116, sesión b403c979 del 2026-08-18).
+// THE CHAT WALL MUST NOT ARRIVE LATE (V2-116, session b403c979 from 2026-08-18).
 //
-// Reporte del operador: «el agente me está hablando, no aparece en los subtítulos, no aparece el texto en el chat
-// de su respuesta … la respuesta ha tardado más de un minuto desde que yo la he oído por voz hasta que me la has
-// colocado en el muro del chat».
+// Operator report: “the agent is talking to me, it does not appear in the subtitles, the text does not appear in the chat
+// for its response … the response has taken more than a minute from when I heard it by voice until you put it
+// on the chat wall”.
 //
-// Medido en el log durable de esa sesión: la respuesta se GENERA y se pinta en el muro cuando llega el
-// `transcript` de LiveKit, que no se emite hasta que el item de conversación se cierra — o sea hasta que el TTS
-// ha terminado de hablar la respuesta ENTERA:
+// Measured in that session’s durable log: the response is GENERATED and rendered on the wall when the
+// LiveKit `transcript` arrives, which is not emitted until the conversation item closes—in other words, until TTS
+// has finished speaking the ENTIRE response:
 //     reply 12:32:13.844 → transcript 12:32:19.267   (5,4 s)
 //     reply 12:33:11.376 → transcript 12:33:23.611   (12,2 s)
-// El arreglo empuja el texto al muro en cuanto el modelo lo genera, y funde el `transcript` posterior por
-// PREFIJO. Esto prueba la pieza pura donde puede fallar sola: el dedup de `pushAgentChat`.
+// The fix pushes the text to the wall as soon as the model generates it, and merges the subsequent `transcript` by
+// PREFIX. This tests the pure component where it can fail on its own: `pushAgentChat` deduplication.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -19,25 +19,25 @@ import path from "node:path";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "../../../..");
 
-// ── 1) la costura: sse.js empuja la respuesta al muro en el evento `reply`, sin esperar al transcript ──────────
+// ── 1) the seam: sse.js pushes the response to the wall on the `reply` event, without waiting for the transcript ──────────
 const sse = readFileSync(path.join(root, "frontend/app/services/sse.js"), "utf8");
 const replyBranch = sse.slice(sse.indexOf('/reply/.test'), sse.indexOf('/reply/.test') + 1400);
 assert.ok(replyBranch.includes("pushAgentChat"),
-  "la rama del `reply` del FlashBrain tiene que empujar el texto al muro YA; si no, el muro vuelve a depender de " +
-  "que el TTS acabe de hablar (5-12 s medidos)");
+  "the FlashBrain `reply` branch must push the text to the wall NOW; otherwise, the wall depends again on " +
+  "TTS finishing speaking (5-12 s measured)");
 assert.ok(/d\.role === "assistant"/.test(replyBranch),
   "…y solo la del asistente (un `reply` sin role de asistente no es texto que el agente haya dicho)");
-// y los SUBTÍTULOS siguen siendo los sincronizados con el audio, no esto
+// and the SUBTITLES remain synchronized with the audio, not this
 assert.ok(!replyBranch.includes("captionSeg"),
-  "los subtítulos NO se alimentan de aquí: van sincronizados con el audio (session-lk.js)");
+  "the subtitles are NOT fed from here: they are synchronized with the audio (session-lk.js)");
 
-// ── 2) el dedup por prefijo de pushAgentChat, recortado del store (misma técnica que test_energy_scale.mjs) ────
+// ── 2) pushAgentChat prefix deduplication, excerpted from the store (same technique as test_energy_scale.mjs) ────
 const store = readFileSync(path.join(root, "frontend/app/core/store.js"), "utf8");
 const i = store.indexOf("const _CHAT_MARKERS");
 const j = store.indexOf("// Convenience helpers used across services");
-assert.ok(i > 0 && j > i, "no encuentro pushAgentChat en store.js — ¿se renombró?");
+assert.ok(i > 0 && j > i, "pushAgentChat not found in store.js—was it renamed?");
 
-// se sustituyen las dependencias reactivas por un array plano: lo que se prueba es la REGLA de fusión
+// reactive dependencies are replaced with a plain array: what is tested is the merge RULE
 const shim = `
 let msgs = [];
 const setChatMsgs = (fn) => { msgs = fn(msgs); };
@@ -49,40 +49,40 @@ export const dump = () => msgs;
 `;
 const mod = await import("data:text/javascript," + encodeURIComponent(shim));
 
-// (a) el caso REAL: se pinta al generar, y el transcript idéntico que llega 12 s después NO duplica
+// (a) the REAL case: it is rendered on generation, and the identical transcript arriving 12 s later does NOT duplicate
 mod.reset();
 const reply = "Según los resultados, el lanzamiento más destacado de Ferrari en 2026 es el Ferrari F80.";
 mod.pushAgentChat(reply);
 mod.pushAgentChat(reply);
 assert.equal(mod.dump().length, 1, "el transcript posterior no puede duplicar la burbuja");
 
-// (b) barge-in: el transcript llega TRUNCADO → se conserva el texto completo, no dos burbujas
+// (b) barge-in: the transcript arrives TRUNCATED → the complete text is preserved, not two bubbles
 mod.reset();
 mod.pushAgentChat(reply);
 mod.pushAgentChat("Según los resultados, el lanzamiento");
 assert.equal(mod.dump().length, 1, "una locución cortada no puede dejar dos burbujas");
 assert.equal(mod.dump()[0].text, reply, "gana el texto COMPLETO (lo que el agente quiso decir)");
 
-// (c) al revés: primero llega un trozo y luego el texto entero → se AMPLÍA en el sitio
+// (c) the reverse: a fragment arrives first and then the full text → it is EXPANDED in place
 mod.reset();
 mod.pushAgentChat("Según los resultados");
 mod.pushAgentChat(reply);
 assert.equal(mod.dump().length, 1);
 assert.equal(mod.dump()[0].text, reply, "el texto entero sustituye al parcial ya pintado");
 
-// (d) el relleno de espera (💬, V2-114) NO se funde con la respuesta: son dos cosas dichas de verdad
+// (d) the waiting filler (💬, V2-114) does NOT merge with the response: they are two genuinely spoken things
 mod.reset();
 mod.pushAgentChat("💬 Espera…");
 mod.pushAgentChat(reply);
 assert.equal(mod.dump().length, 2, "el relleno y la respuesta son burbujas distintas");
 
-// (e) dos respuestas distintas siguen siendo dos
+// (e) two different responses remain two
 mod.reset();
 mod.pushAgentChat("Son las tres.");
 mod.pushAgentChat("Ya te he puesto la música.");
 assert.equal(mod.dump().length, 2);
 
-// (f) el marcador 🔔 de notify se sigue normalizando (comportamiento previo, no se rompe)
+// (f) the 🔔 notify marker continues to be normalized (previous behavior, not broken)
 mod.reset();
 mod.pushAgentChat("He creado el widget «X».");
 mod.pushAgentChat("🔔 He creado el widget «X».");

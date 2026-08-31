@@ -1,4 +1,4 @@
-"""Expone a pytest/Test Observatory el contrato de PRONTITUD del muro de chat (ver el .mjs para el porqué)."""
+"""Exposes the chat wall PROMPTNESS contract to pytest/Test Observatory (see the .mjs for why)."""
 
 import shutil
 import subprocess
