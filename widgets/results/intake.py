@@ -66,9 +66,9 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
     items = [i for i in (_to_item(r) for r in (rows or [])) if i][:_MAX_PER_PUSH]
     if not items:
         return 0
-    # V2-259 — a qué hoja. Es el ENCARGO, no el navegador: dos navegadores del mismo encargo entregan en la
-    # misma hoja (V2-257), dos encargos son dos hojas. Sin `sheet` esto entrega en la hoja de siempre, que es lo
-    # correcto para un navegador que el operador conduce a mano, sin encargo detrás.
+    # V2-259 — which sheet. It is the ERRAND, not the browser: two browsers on the same errand deliver to the
+    # same sheet (V2-257), while two errands mean two sheets. Without `sheet`, this delivers to the usual sheet,
+    # which is correct for a browser the operator is driving manually, with no errand behind it.
     payload: dict = {"items": items}
     if str(sheet or "").strip():
         payload["sheet"] = str(sheet).strip()
@@ -85,8 +85,8 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
         logger.warning("results.intake: no pude entregar a la hoja (%s)", e)
         return 0
     try:
-        # El aviso de repintado va a SU tarjeta: con varias hojas abiertas, avisar a «results» a pelo despierta
-        # a la que no ha cambiado y deja quieta a la que sí.
+        # The repaint notification goes to ITS card: with several sheets open, notifying «results» directly wakes
+        # the one that did not change and leaves the one that did unchanged.
         from voice.observer import emit
         from widgets.results import data as _d
         emit("widget", "data", extra={"id": _d.instance_id(str(sheet or "")), "src": "navegador"})

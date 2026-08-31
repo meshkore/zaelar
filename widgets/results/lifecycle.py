@@ -39,21 +39,23 @@ def _clip(text, key: str) -> str:
     return _d._clip(text, key)
 
 
-# ── EL ENCARGO ABRE Y CIERRA LA HOJA (V2-227 ámbito C) ───────────────────────────────────────────────────────
-# Las dos únicas puertas que el dispatcher usa para que el operador VEA el trabajo mientras pasa. No son acciones
-# del vocabulario de `apply_action`: nadie las pide desde un prompt, las dispara el ciclo de vida del encargo —
-# meterlas ahí las pondría al alcance de un worker, que es justo quien no debe decidir cuándo se estrena la hoja.
+# ── THE ERRAND OPENS AND CLOSES THE SHEET (V2-227 scope C) ───────────────────────────────────────────────────
+# The only two gates the dispatcher uses so the operator can SEE the work as it happens. They are not actions
+# in `apply_action`'s vocabulary: nobody asks for them from a prompt; the errand's lifecycle triggers them —
+# putting them there would place them within a worker's reach, and that is exactly who must not decide when the
+# sheet is opened.
 
 def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
-    """El encargo acaba de salir: la hoja se abre en PROCESO, sin nada dentro todavía.
+    """The errand has just started: the sheet opens in PROCESS, with nothing inside yet.
 
-    `fresh` ESTRENA la hoja (título = lo que pidió el operador, sin resultados ni historial de la búsqueda
-    anterior). Se apaga cuando otro encargo sigue escribiendo aquí: vaciarla entonces le borraría a ése lo que ya
-    había entregado, y la hoja es única mientras C4 («dos búsquedas = dos hojas») no exista.
+    `fresh` OPENS the sheet (title = what the operator requested, with no results or history from the previous
+    search). It is turned off when another errand is still writing here: clearing it then would erase what that
+    errand had already delivered, and the sheet is unique until C4 ("two searches = two sheets") exists.
 
-    En los dos casos se quita la pestaña PERSISTIDA. Es lo que hace que la hoja se abra en Proceso: `data.tab`
-    manda sobre el derivado —y debe mandar, es donde el operador decidió mirar— pero esa decisión era del encargo
-    ANTERIOR, y arrastrarla dejaría al operador mirando una lista vacía mientras el relato pasa en la de al lado.
+    In both cases the PERSISTED tab is removed. That is what makes the sheet open in Process: `data.tab` takes
+    precedence over the derived state —and it should, since it is where the operator chose to look— but that
+    decision belonged to the PREVIOUS errand, and carrying it over would leave the operator looking at an empty
+    list while the story unfolds in the one next to it.
     """
     data = _empty() if fresh else view_data(sheet)
     if fresh:
@@ -63,10 +65,10 @@ def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
     else:
         data = {k: v for k, v in data.items() if k not in ("counts", "progress")}
     data.pop("tab", None)
-    data.pop("view", None)                   # el detalle abierto era de un resultado del encargo anterior
+    data.pop("view", None)                   # the open detail belonged to a result from the previous errand
     data.pop("focus", None)
-    data.pop("process", None)                # el relato que viene es el de ESTE encargo
-    data.pop("harvest", None)                # …y sus números también (V2-296)
+    data.pop("process", None)                # the story that follows belongs to THIS errand
+    data.pop("harvest", None)                # …and so do its numbers (V2-296)
     _save(data, sheet)
     return {"ok": True, "fresh": bool(fresh), "title": data.get("title", "")}
 
@@ -74,7 +76,7 @@ def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
 def rename_task(title: str, sheet: str = "") -> dict:
     """Change ONLY this sheet's name, leaving everything it holds alone (V2-530).
 
-    Separate from `begin_task` because that one ESTRENA — it is the errand's opening gesture and it wipes items,
+    Separate from `begin_task` because that one OPENS the sheet — it is the errand's opening gesture and it wipes items,
     tabs and process. Renaming happens later, on a sheet the operator is already looking at, once the errand's
     title has been composed; reusing `begin_task(fresh=True)` for it would erase the very results it is naming.
     """
@@ -88,22 +90,21 @@ def rename_task(title: str, sheet: str = "") -> dict:
 
 
 def end_task(phases, sheet: str = "") -> dict:
-    """El encargo terminó: se guarda su relato con el informe y se para el loader.
+    """The errand is over: its story is saved with the report and the loader is stopped.
 
-    Se PERSISTE porque la hoja lo es: un informe sobrevive a un reinicio y su explicación de cómo se llegó a él
-    tiene que sobrevivir con él. Y la escritura es además lo que APAGA el loader — el emisor de fases solo dispara
-    al CAMBIAR una fase, así que sin este guardado la tarjeta seguiría diciendo «Trabajando…» sobre un worker que
-    ya no existe.
+    It is PERSISTED because the sheet is: a report survives a restart, and its explanation of how it was reached
+    has to survive with it. The write is also what TURNS OFF the loader — the phase emitter only fires when a phase
+    CHANGES, so without this save the card would keep saying «Trabajando…» about a worker that no longer exists.
     """
     lines = _clean_phases(phases)
     data = {k: v for k, v in view_data(sheet).items() if k not in ("counts", "progress")}
     if lines:
         data["process"] = lines
     else:
-        data.pop("process", None)            # sin una sola fase no hay historia que contar; no se inventa una
-    # …y sus NÚMEROS con él (V2-296). `view_data` acaba de derivarlos del registro vivo, que en un instante deja de
-    # existir: si no se guardan aquí, el informe queda sin la cuenta de lo que costó llegar a él.
+        data.pop("process", None)            # without a single phase there is no story to tell; none is invented
+    # …and its NUMBERS with it (V2-296). `view_data` has just derived them from the live record, which will cease to
+    # exist in an instant: if they are not saved here, the report is left without the tally of what it took to reach it.
     if not isinstance(data.get("harvest"), dict) or not any((data.get("harvest") or {}).values()):
-        data.pop("harvest", None)            # sin un solo número no hay cuenta que dar; no se guardan ceros
+        data.pop("harvest", None)            # without a single number there is no tally to give; zeros are not saved
     _save(data, sheet)
     return {"ok": True, "phases": len(lines)}

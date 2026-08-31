@@ -173,7 +173,7 @@ _THRESHOLD = 2.0            # below 2, open nothing → ask (certainty, V2-082)
 
 def _tiebreak_by_context(scored, top_score, ids, key: str):
     """Return the ONLY tied item (score == top_score) whose id is in `ids`, or None if there are 0 or >1. `key` only
-    documents the layer (open/recent) for the caller. Normalizes instance ids (navegador::t1 → navegador)."""
+    documents the layer (open/recent) for the caller. Normalizes instance ids (browser::t1 → browser)."""
     ctx = {str(i).split("::", 1)[0].strip().lower() for i in (ids or []) if str(i).strip()}
     if not ctx:
         return None

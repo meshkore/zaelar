@@ -1,6 +1,6 @@
 #
 # results widget — backend. INTENTIONALLY does no searching of its own: it is the GENERIC PRESENTATION SURFACE of
-# zaelar. Whoever DID the work (a Brain Worker that searched the web, the navegador, the FlashBrain) hands it a
+# zaelar. Whoever DID the work (a Brain Worker that searched the web, the browser, the FlashBrain) hands it a
 # finished result set and this widget just PERSISTS and RENDERS it. Works the same for pools, cars, holidays,
 # open-source projects, emails, files — it never knows nor cares what the items are about.
 #
@@ -52,22 +52,22 @@ from .. import store
 
 WIDGET_ID = "results"
 
-# ── UNA HOJA POR ENCARGO (V2-259) ─────────────────────────────────────────────────────────────────────────────
-# Petición del operador, literal: «si tenemos un widget de results abierto, búsqueda terminada, y lanzamos otra,
-# se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas». El borrado que teme estaba
-# EN EL CÓDIGO: `begin_task(fresh=True)` estrenaba la hoja —título nuevo, sin resultados ni historial— en cuanto
-# llegaba el encargo siguiente. Con instancias, ESTRENAR deja de significar BORRAR: una hoja nueva es una clave
-# nueva y la anterior sigue donde estaba.
+# ── ONE SHEET PER TASK (V2-259) ──────────────────────────────────────────────────────────────────────────────
+# The operator's literal request: «si tenemos un widget de results abierto, búsqueda terminada, y lanzamos otra,
+# se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas». The deletion they feared was
+# IN THE CODE: `begin_task(fresh=True)` opened a new sheet —new title, without results or history— as soon as the
+# next task arrived. With instances, OPENING no longer means DELETING: a new sheet is a new key and the previous one
+# remains where it was.
 #
-# La instancia es el ENCARGO, no el navegador. Dos navegadores del mismo encargo caen en la misma hoja (V2-257:
-# la hoja guarda los hallazgos vengan del navegador que vengan); dos encargos son dos hojas.
+# The instance is the TASK, not the browser. Two browsers for the same task land on the same sheet (V2-257:
+# the sheet stores findings regardless of which browser they came from); two tasks are two sheets.
 #
-# La clave VACÍA sigue siendo `results` a pelo, y eso es deliberado: es la hoja que ya existe en disco, así que no
-# hay que migrar nada ni queda un linaje huérfano compitiendo con otro (la trampa de V2-242, donde `weather:soria`
-# y `meteo-soria:weather:soria` convivieron los dos con `valid=1`). Lo que sí hay que vigilar —y tiene su test— es
-# que ningún ESCRITOR se quede sin saber su hoja: escribiría en la de nadie mientras el operador mira la suya.
-_INSTANCE_SEP = "--"          # `widgets/store._safe_id` solo deja [A-Za-z0-9_-]: «::» no sobreviviría al disco
-_MAX_SHEETS = 8               # techo de hojas instanciadas guardadas; ver `prune_sheets()`
+# The EMPTY key remains plain `results`, deliberately: it is the sheet already on disk, so nothing needs migrating
+# and no orphan lineage competes with another (the V2-242 trap, where `weather:soria` and
+# `meteo-soria:weather:soria` coexisted with `valid=1`). What must be watched —and has a test— is that no WRITER
+# remains unaware of its sheet: it would write to nobody's while the operator watches theirs.
+_INSTANCE_SEP = "--"          # `widgets/store._safe_id` allows only [A-Za-z0-9_-]: «::» would not survive on disk
+_MAX_SHEETS = 8               # limit on stored instantiated sheets; see `prune_sheets()`
 
 
 def _safe_sheet(sheet) -> str:
@@ -75,15 +75,15 @@ def _safe_sheet(sheet) -> str:
 
 
 def sheet_key(sheet: str = "") -> str:
-    """Clave de almacén de UNA hoja. Sin instancia → la de siempre, byte por byte. `results::X` ES `X`."""
+    """Storage key for ONE sheet. Without an instance → the default one, byte for byte. `results::X` IS `X`."""
     s = _safe_sheet(str(sheet or "").removeprefix(f"{WIDGET_ID}::"))   # V2-439: sin esto la clave NO existe
     return WIDGET_ID if not s else f"{WIDGET_ID}{_INSTANCE_SEP}{s}"
 
 
 def sheets() -> list[str]:
-    """Las hojas que EXISTEN en disco, la de siempre primero y las instanciadas por orden de escritura (la más
-    reciente al final). Se lee del almacén y no de una lista en memoria a propósito: la hoja persiste entre
-    reinicios (V2-233) y una lista en RAM diría «no hay ninguna» justo después de arrancar."""
+    """The sheets that EXIST on disk, the default first and instantiated ones in write order (the most recent last).
+    This deliberately reads from storage rather than an in-memory list: the sheet persists across restarts (V2-233),
+    while a RAM list would say «there are none» immediately after startup."""
     out: list[str] = []
     try:
         import os
@@ -106,9 +106,9 @@ def sheets() -> list[str]:
 
 
 def prune_sheets(keep: int = _MAX_SHEETS) -> int:
-    """Techo de hojas guardadas. La hoja PERSISTE a propósito, así que N instancias crecen sin fin; se conservan
-    las `keep` más recientes y la de siempre (que no es de ningún encargo y no le toca a nadie borrarla).
-    Devuelve cuántas se tiraron, para que el recorte se pueda CONTAR en vez de descubrirse."""
+    """Limit on stored sheets. The sheet PERSISTS deliberately, so N instances would grow without end; the `keep`
+    most recent and the default sheet are retained (it belongs to no task, so nobody should delete it).
+    Returns how many were discarded, so pruning can be COUNTED instead of discovered later."""
     inst = [s for s in sheets() if s]
     dropped = 0
     for sid in inst[:max(0, len(inst) - max(1, keep))]:
@@ -121,7 +121,7 @@ def prune_sheets(keep: int = _MAX_SHEETS) -> int:
 
 
 def instance_id(sheet: str = "") -> str:
-    """Id de TARJETA en el canvas (`results::<corr>`), que usa «::» — el separador del canvas, no el del disco."""
+    """CARD ID on the canvas (`results::<corr>`), which uses «::» —the canvas separator, not the disk separator."""
     s = _safe_sheet(sheet)
     return WIDGET_ID if not s else f"{WIDGET_ID}::{s}"
 
@@ -159,11 +159,11 @@ _MAX_FACTS = 30          # label→value sheet (check-in, port, cancellation pol
 _MAX_FACT_CHARS = 200
 
 # ── THE TABS THAT ARE NOT THE LIST ───────────────────────────────────────────────────────────────────────────
-# «process» ES una pestaña como las demás: si el operador la elige, su elección se PERSISTE igual que las
-# otras. Faltaba de esta tupla y el clic volvía `{"ok": false, "error": "pestaña «process» desconocida"}` —
-# la pestaña se pintaba (el widget la conmuta en el acto) y al siguiente refresco de datos, que durante un
-# encargo vivo llega con cada fase, el derivado se lo llevaba de vuelta a Resultados. Un clic que no se
-# guarda no falla con ruido: falla arrancándole al operador de donde había decidido mirar (V2-227 C).
+# «process» IS a tab like the others: if the operator selects it, the choice PERSISTS just like the others. It was
+# missing from this tuple and the click returned `{"ok": false, "error": "pestaña «process» desconocida"}` —the tab
+# was rendered (the widget switches it immediately), and on the next data refresh, which arrives with each phase
+# during a live task, the derived state carried it back to Results. An unsaved click does not fail noisily: it fails
+# by pulling the operator away from where they chose to look (V2-227 C).
 _TABS = ("process", "results", "summary", "sources", "criteria")
 
 # A SOURCE is a website/origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because
@@ -565,9 +565,9 @@ def _empty() -> dict:
     return {"title": "Resultados", "subtitle": "", "items": []}
 
 
-# El PROCESO en vivo vive en `widgets/results/live.py` (V2-296): todo lo de allí es derivado del registro del
-# dispatcher, y lo de aquí es el contenido que la hoja posee. Se re-exporta porque es una mudanza, no un cambio
-# de interfaz — los tests y `view_data` siguen llamándolos por su nombre de siempre.
+# The live PROCESS lives in `widgets/results/live.py` (V2-296): everything there is derived from the dispatcher's
+# record, while this module contains the sheet's content. It is re-exported because this is a move, not an interface
+# change —the tests and `view_data` continue calling these names as before.
 from widgets.results.live import (  # noqa: E402,F401 — re-export
     _MAX_PHASES, _MAX_PHASE_CHARS, _clean_phases, _harvest, _progress)
 
@@ -618,7 +618,7 @@ def view_data(q: str = "") -> dict:
     if stored:
         data["process"] = stored
     else:
-        data.pop("process", None)            # sin historial, la hoja en blanco sigue en blanco
+        data.pop("process", None)            # without history, the blank sheet remains blank
     data["counts"] = _counts(data)
     data["progress"] = _progress(data, _safe_sheet(q))
     data["harvest"] = _harvest(data, _safe_sheet(q))
@@ -630,7 +630,7 @@ def _save(data: dict, sheet: str = "") -> None:
     anything else changes (an old number on screen is worse than no number)."""
     d = dict(data)
     d.pop("counts", None)
-    d.pop("progress", None)                  # derivado del registro vivo: guardarlo es congelar un «Trabajando…»
+    d.pop("progress", None)                  # derived from the live record: storing it would freeze a «Trabajando…»
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
             d.pop(k, None)                       # remove empty sections: the blank sheet remains blank
@@ -657,23 +657,23 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     return None
 
 
-# ── EL ENCARGO ABRE Y CIERRA LA HOJA (V2-227 ámbito C · extraído a `widgets/results/lifecycle.py`, V2-530) ────
-# Las tres puertas que el dispatcher usa para que el operador VEA el trabajo mientras pasa. No son acciones del
-# vocabulario de `apply_action`: nadie las pide desde un prompt, las dispara el ciclo de vida del encargo —
-# meterlas ahí las pondría al alcance de un worker, que es justo quien no debe decidir cuándo se estrena la hoja.
-# Se re-exportan aquí —misma mudanza y mismo gesto que `live.py` (V2-296)— porque este módulo ES el contrato de
-# la hoja para todo el que la usa: los llamantes siguen diciendo `data.begin_task`.
+# ── THE TASK OPENS AND CLOSES THE SHEET (V2-227 scope C · extracted to `widgets/results/lifecycle.py`, V2-530) ─
+# The three gateways the dispatcher uses so the operator can SEE the work as it proceeds. They are not actions in
+# `apply_action`'s vocabulary: no prompt requests them; the task lifecycle triggers them —putting them there would
+# expose them to a worker, which is precisely who must not decide when the sheet is opened.
+# They are re-exported here —the same move and gesture as `live.py` (V2-296)— because this module IS the sheet's
+# contract for everyone using it: callers continue saying `data.begin_task`.
 from widgets.results.lifecycle import (  # noqa: E402,F401 — re-export
     begin_task, end_task, rename_task)
 
 
 def _sheets_for_brain(sheet) -> list[str]:
-    """QUÉ hojas ve el cerebro. Con `sheet` dado, esa; sin él, TODAS las que existen.
+    """WHICH sheets the brain sees. With `sheet` given, that one; without it, ALL that exist.
 
-    Que el defecto sea «todas» es la decisión, y su contraria es la que falla callando: con dos encargos vivos,
-    leer solo una dejaría al turno contestando con seguridad sobre la hoja equivocada —«¿el hotel de la
-    propuesta 2 tiene wifi?» resuelto contra la búsqueda del fontanero— sin que nada indicara que había otra.
-    Es la misma clase de mentira que V2-257 quitó de la tarjeta: no una verdad más pequeña, otra y falsa.
+    Making the default «all» is deliberate, and the opposite fails silently: with two live tasks, reading only one
+    would leave the turn answering confidently about the wrong sheet —«¿el hotel de la propuesta 2 tiene wifi?»
+    resolved against the plumber's search— with nothing indicating another existed. It is the same kind of lie that
+    V2-257 removed from the card: not a smaller truth, but a different and false one.
     """
     if sheet is not None and _safe_sheet(sheet):
         return [_safe_sheet(sheet)]
@@ -692,9 +692,9 @@ def ref_index(sheet=None) -> list[dict]:
     The hint leads with the ORDINAL because that is how the operator refers to a proposal out loud ("number two");
     without it the brain had to guess which card "the second one" was.
 
-    V2-259 — con varias hojas abiertas cada referencia dice DE CUÁL es. El ordinal solo desambigua dentro de una
-    hoja: «la número dos» con dos búsquedas en pantalla son dos cosas distintas, y sin el encargo delante el turno
-    elegiría una en silencio.
+    V2-259 — with several sheets open, each reference says WHICH ONE it belongs to. The ordinal only disambiguates
+    within a sheet: «number two» with two searches on screen refers to two different things, and without the task
+    in front of it the turn would silently choose one.
     """
     out = []
     todas = _sheets_for_brain(sheet)
@@ -717,10 +717,9 @@ def ref_index(sheet=None) -> list[dict]:
     return out
 
 
-# V2-287 — el digest del prompt vive en su propio módulo (`digest.py`): son funciones puras de un dict de
-# hoja, sin store y sin escrituras. Aquí se quedan los dos nombres que SÍ necesitan el almacén —qué hojas
-# existen y qué hay dentro—, y `_digest_head`/`_digest_one` siguen re-exportados porque son el contrato que
-# ya usan los tests de la superficie.
+# V2-287 — the prompt digest lives in its own module (`digest.py`): pure functions over a sheet dict, with no store
+# and no writes. The two names that DO need storage remain here —which sheets exist and what is inside them—, and
+# `_digest_head`/`_digest_one` remain re-exported because they are the contract already used by the surface tests.
 from . import digest as _digest                                                              # noqa: E402
 from .digest import head as _digest_head, one as _digest_one, _MAX_HEAD_CHARS, _MAX_HEAD_ITEM  # noqa: E402,F401
 
@@ -734,9 +733,9 @@ def prompt_digest(sheet=None) -> str:
     is the difference between a screen the agent can SEE and one it merely painted. Bounded on purpose: this is
     a digest for reasoning over, not the full dossier (that lives in the detail view).
 
-    V2-259 — con varias hojas se recorren TODAS y cada bloque se abre con el encargo al que pertenece. La
-    alternativa (quedarse con una) no avisa de nada: el turno contestaría con seguridad sobre la búsqueda que no
-    era, que es la misma clase de mentira que V2-257 quitó de la tarjeta. El techo de items es POR HOJA.
+    V2-259 — with several sheets, ALL are traversed and each block opens with the task it belongs to. The alternative
+    (keeping one) gives no warning: the turn would confidently answer about the wrong search, the same kind of lie
+    that V2-257 removed from the card. The item limit is PER SHEET.
     """
     todas = _sheets_for_brain(sheet)
     if len(todas) > 1:
@@ -799,9 +798,9 @@ def _merge_sections(data: dict, payload: dict) -> None:
 # the persisted payload (not in the browser) so the operator's voice drives it: the widget has no state of its own.
 def apply_action(action: str, payload: dict | None = None) -> dict:
     payload = payload or {}
-    # V2-259 — a QUÉ hoja. Viaja en el payload y no en la URL por la misma razón que `task_id` en el navegador:
-    # el canvas manda las acciones al widget BASE y mete la instancia dentro (`desktop.js`). Sin `sheet` esto
-    # sigue operando la hoja de siempre, que es lo que hace que el cambio no rompa a nadie.
+    # V2-259 — WHICH sheet. It travels in the payload rather than the URL for the same reason as `task_id` in the
+    # browser: the canvas sends actions to the BASE widget and puts the instance inside (`desktop.js`). Without
+    # `sheet`, this continues operating on the default sheet, which keeps the change from breaking anyone.
     sheet = _safe_sheet(payload.get("sheet"))
 
     if action == "present":

@@ -23,10 +23,10 @@
 //
 // SECURITY: item text is web/3rd-party-sourced → built with textContent ONLY (never innerHTML).
 
-// V2-227 ámbito C — PROCESO va PRIMERO, y no es una preferencia de orden: la hoja se abre ANTES de que haya un
-// solo resultado, así que la primera pestaña es la única que tiene algo que enseñar durante los primeros minutos.
-// La petición del operador era literal: «si el worker tarda, el usuario se aburre y la experiencia es mala.
-// Necesita ver EN TIEMPO REAL lo que está pasando».
+// V2-227 scope C — PROCESS comes FIRST, and this is not a preference about ordering: the sheet opens BEFORE there is a
+// single result, so the first tab is the only one that has anything to show during the first few minutes.
+// The operator's request was literal: "if the worker takes a while, the user gets bored and the experience is poor.
+// They need to see IN REAL TIME what is happening."
 const TABS = [
   {id: "process",  label: "Proceso"},
   {id: "results",  label: "Resultados"},
@@ -73,8 +73,8 @@ function injectStyles(){
     --f-sm:13px;                                              /* metadata, states (+1.5px) */
     --f-body:14.5px;                                          /* body for everything (+2px, readability) */
     --f-md:16px;                                              /* record title (+2px) */
-    --f-lg:19px; --f-xl:23px;                                 /* expediente y cifras del sumario */
-    --r-sm:7px; --r-md:10px; --r-lg:13px; --r-pill:99px;       /* radios */
+    --f-lg:19px; --f-xl:23px;                                 /* record and summary figures */
+    --r-sm:7px; --r-md:10px; --r-lg:13px; --r-pill:99px;       /* radii */
     --line:1px solid var(--hb-line,#e3e8f0);
     font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
     color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.62;
@@ -143,7 +143,7 @@ function injectStyles(){
     color:var(--hb-accent,#3D6FE0)}
   .hb-results .hr-tab .hr-n.bad{background:color-mix(in srgb,var(--hb-risk,#e5484d) 15%,transparent);
     color:var(--hb-risk,#e5484d)}
-  /* el loader de la PESTAÑA: algo más pequeño que el del panel, porque acompaña a una etiqueta, no la encabeza */
+  /* the TAB loader: slightly smaller than the panel's, because it accompanies a label rather than heading it */
   .hb-results .hr-tab .hr-tspin{width:.8em;height:.8em;border-width:1.5px}
 
   /* ── GRID AND RECORDS ──────────────────────────────────────────────────────────────────────────────────────
@@ -285,7 +285,7 @@ function injectStyles(){
     color:var(--hb-accent,#3D6FE0);text-decoration:none;word-break:break-all}
   .hb-results .hr-link:hover{text-decoration:underline}
 
-  /* ── SUMARIO ── */
+  /* ── SUMMARY ── */
   .hb-results .hr-state{display:inline-flex;align-items:center;gap:var(--s2);font-size:var(--f-body);
     font-weight:600;margin-bottom:var(--s3)}
   .hb-results .hr-dot{width:7px;height:7px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:none}
@@ -294,11 +294,11 @@ function injectStyles(){
   .hb-results .hr-dot.bad{background:var(--hb-risk,#e5484d)}
   .hb-results .hr-dot.idle{background:var(--hb-accent,#3D6FE0);animation:hrpulse 1.8s ease-in-out infinite}
   @keyframes hrpulse{0%,100%{opacity:1}50%{opacity:.3}}
-  /* ── PROCESO (V2-227 C) ── el loader anima por CSS, NUNCA por temporizador de JS: un intervalo se congela con
-     la pestaña en segundo plano y sobrevive a un render que lo desconecte, y las dos cosas dejan un loader que
-     está en el DOM y miente. La clase hr-spin gira de verdad mientras exista. */
-  /* Tamaños en em y no en px: escalan con la tipografía de la fila, y así el loader no se queda pequeño si la
-     escala cambia — que es exactamente lo que vigila el trinquete de magnitudes crudas. */
+  /* ── PROCESS (V2-227 C) ── the loader animates via CSS, NEVER via a JS timer: an interval freezes with
+     the tab in the background and survives a render that disconnects it, and both things leave a loader that
+     is in the DOM and lies. The hr-spin class genuinely spins while it exists. */
+  /* Sizes in em rather than px: they scale with the row's typography, so the loader does not become too small if the
+     scale changes — which is exactly what the raw-magnitude ratchet monitors. */
   .hb-results .hr-spin{width:1em;height:1em;flex:none;border-radius:50%;
     border:2px solid var(--hb-neutral,#c2ccda);border-top-color:var(--hb-accent,#3D6FE0);
     animation:hrspin .8s linear infinite}
@@ -306,7 +306,7 @@ function injectStyles(){
   .hb-results .hr-steps{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
   .hb-results .hr-step{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--f-body);
     color:var(--hb-muted,#5f6b7c);line-height:1.45}
-  /* La ÚLTIMA línea con el worker vivo es la que está pasando AHORA: se lee primero sin tener que contar filas. */
+  /* The LAST line with the worker alive is what is happening NOW: it is read first without having to count rows. */
   .hb-results .hr-step.now{color:var(--hb-ink,#16202c);font-weight:500}
   .hb-results .hr-bullet{width:.42em;height:.42em;flex:none;border-radius:50%;
     background:var(--hb-neutral,#c2ccda);transform:translateY(-2px)}
@@ -337,7 +337,7 @@ function injectStyles(){
   .hb-results .hr-steps li:last-child::before{background:var(--hb-accent,#3D6FE0);
     box-shadow:0 0 0 3px color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
 
-  /* ── FUENTES ── el punto de color da el veredicto antes de leer; el recuento va a la derecha, alineado. */
+  /* ── SOURCES ── the colored dot gives the verdict before reading; the count is aligned on the right. */
   .hb-results .hr-srcs{display:grid;gap:var(--s2)}
   .hb-results .hr-src{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;
     gap:var(--s2) var(--s3);padding:var(--s3) var(--s4);border:var(--line);border-radius:var(--r-md);
@@ -361,7 +361,7 @@ function injectStyles(){
   .hb-results .hr-sn small{display:block;font-size:var(--f-micro);font-weight:500;
     color:var(--hb-muted-2,#9aa7b8);margin-top:1px}
 
-  /* ── CRITERIOS ── */
+  /* ── CRITERIA ── */
   .hb-results .hr-goal{font-size:var(--f-body);line-height:1.55;padding:var(--s3) var(--s4);
     border-radius:var(--r-md);background:var(--hb-bg-soft,#fbfdff);border:var(--line);
     border-left:2px solid var(--hb-accent,#3D6FE0);margin-bottom:var(--s3);word-break:break-word}
@@ -913,31 +913,31 @@ function paintCriteria(panel, data){
   });
 }
 
-// ── PROCESO ── lo que está pasando, mientras pasa (V2-227 ámbito C).
+// ── PROCESS ── what is happening while it happens (V2-227 scope C).
 //
-// Es una VISTA del registro vivo, no un dato de la hoja: `progress` llega derivado en cada `view_data` y nadie lo
-// guarda. Las frases ya vienen listas para leer desde el ámbito B («entrando en booking.com…»), así que aquí no se
-// interpreta nada — se pintan en ORDEN, la más nueva abajo, que es como se lee una cosa que avanza.
+// It is a VIEW of the live log, not sheet data: `progress` arrives derived in each `view_data` and nobody stores it.
+// The phrases already arrive ready to read from scope B ("entering booking.com…"), so nothing is interpreted here —
+// they are painted in ORDER, newest at the bottom, which is how something advancing is read.
 //
-// El loader ANIMA por CSS y no por JS a propósito: una animación por temporizador se congela con la pestaña en
-// segundo plano y sobrevive a un render que la desconecte, y las dos cosas dejan un loader que está en el DOM y
-// miente. Es la lección del orbe del móvil (18/08): 741 frames dentro de un canvas desconectado, cero píxeles, y
-// un test verde que solo contaba que el elemento existiera.
-// LA COSECHA en números (V2-296). El relato de abajo cuenta QUÉ está haciendo; esto, CUÁNTO lleva hecho — y era
-// lo único que la pestaña no podía decir. Todas estas cifras las calcula ya el navegador en cada extracción
-// (`widgets/navegador/act_api._hand_over`) y se gastaban en una frase.
+// The loader ANIMATES via CSS rather than JS on purpose: a timer-based animation freezes with the tab in the
+// background and survives a render that disconnects it, and both things leave a loader in the DOM that lies.
+// This is the lesson of the mobile orb (18/08): 741 frames inside a disconnected canvas, zero pixels, and
+// a green test that only counted that the element existed.
+// THE HARVEST in numbers (V2-296). The account below says WHAT it is doing; this says HOW MUCH it has done — and it was
+// the one thing the tab could not say. The browser now calculates all these figures on each extraction
+// (`widgets/browser/act_api._hand_over`) and they were wasted in a sentence.
 //
-// Es un EMBUDO y se lee en ese orden: cuánto se ha mirado → qué se recogió → qué se cayó en cada corte → qué queda
-// → qué llegó a la conversación. Los tres pilares (páginas, fichas, candidatos) se pintan SIEMPRE, cero incluido,
-// porque «0 fichas leídas» es información y es justo lo que distingue una página que no dio nada de una que nadie
-// leyó — la misma razón por la que `progress.found(0)` no se calla. Los descartes solo aparecen cuando los hay:
-// una fila «0 repetidas» ocupa el mismo sitio que una que dice algo.
+// It is a FUNNEL and is read in that order: how much was examined → what was collected → what fell out at each cut → what remains
+// → what reached the conversation. The three pillars (pages, records, candidates) are ALWAYS painted, including zero,
+// because "0 records read" is information and precisely distinguishes a page that yielded nothing from one that nobody
+// read — the same reason `progress.found(0)` does not stay silent. Rejections appear only when there are any:
+// a row "0 repeated" takes up the same space as one that says something.
 // `sub` = this one SUBTRACTS. Found by RENDERING it (2026-08-24), which is the only way it was going to show
 // up: every geometry check passed — nothing clipped, nothing overflowing, clean reflow 6→3→2 columns — and the
 // screenshot still read wrong. Seven identical boxes turn one subtraction into five independent-looking stats:
-// «40 fichas · 9 repetidas · 4 sin nombre · 5 sin precio · 22 candidatos» gives no hint that the last number is
+// "40 records · 9 repeated · 4 unnamed · 5 without a price · 22 candidates" gives no hint that the last number is
 // what the others left behind. The ORDER was carrying that meaning, and the order does not survive the reflow —
-// at 360px the grid wraps to two columns and «22 candidatos» lands beside «5 sin precio» looking like its peer.
+// at 360px the grid wraps to two columns and "22 candidates" lands beside "5 without a price" looking like its peer.
 // A leading minus restores the arithmetic in one character, whatever the grid does with the boxes.
 const TALLY = [
   {k:"pages",    label:"páginas miradas", always:true},
@@ -950,7 +950,7 @@ const TALLY = [
 ];
 
 function paintHarvest(panel, harvest){
-  // `{}` es «no lo sabemos» y no se pinta nada: una rejilla de ceros afirmaría que se miró y no había.
+  // `{}` means "we do not know" and nothing is painted: a grid of zeroes would claim that it was examined and empty.
   if(!harvest || !Object.keys(harvest).length) return;
   const grid = elem("div","hr-stats");
   TALLY.forEach(({k, label, always, sub})=>{
@@ -994,8 +994,8 @@ function paintProcess(panel, data){
   });
   panel.appendChild(list);
 
-  // Al ACABAR la pestaña no se vacía: se queda como historial de lo que pasó (C5). Vaciarla borraría la única
-  // explicación de por qué el resultado es el que es.
+  // When it FINISHES, the tab is not emptied: it remains as a history of what happened (C5). Emptying it would erase the only
+  // explanation of why the result is what it is.
   if(!alive && lines.length){
     panel.appendChild(elem("div","hr-note","Esto es lo que hizo para llegar aquí."));
   }
@@ -1030,10 +1030,11 @@ function tabCount(id, data){
   }
   if(id === "summary") return s.explored ? {n: s.explored} : null;
   if(id === "process"){
-    // Con la tarea VIVA la pestaña lleva un LOADER en vez de un número (operador, 2026-08-20): al llegar el primer
-    // resultado la hoja salta sola a la lista, y desde ahí lo único que dice «sigo trabajando» es este botón — un
-    // contador de fases ahí no distingue «va por doce» de «se quedó en doce». El número vuelve al acabar, que es
-    // cuando SÍ informa: cuántos pasos costó llegar. Gira por CSS (`hr-spin`), nunca por temporizador de JS.
+    // With the task ALIVE, the tab shows a LOADER instead of a number (operator, 2026-08-20): when the first
+    // result arrives, the sheet jumps automatically to the list, and from there the only thing saying "I am still working"
+    // is this button — a phase counter cannot distinguish "it is at twelve" from "it got stuck at twelve". The number returns
+    // when it finishes, which is when it DOES provide information: how many steps it took to get there. It spins via CSS
+    // (`hr-spin`), never via a JS timer.
     const pr = data.progress || {};
     if(pr.alive) return {spin: true};
     const n = (pr.phases||[]).length;
@@ -1070,11 +1071,11 @@ export function render(el, data, ctx){
   // User/session identifiers + Copy: to pass them to an agent auditing this session.
   top.appendChild(identityStrip());
 
-  // PESTAÑA ACTIVA — derivada cuando el operador no ha elegido, y de ahí salen las dos mitades que pidió:
-  //   · la hoja se abre en PROCESO mientras hay una tarea viva y todavía no hay nada que poner en la lista;
-  //   · en cuanto entra el primer resultado, el derivado pasa a «results» y la hoja SALTA SOLA (C3).
-  // Si el operador clicó una pestaña, `data.tab` está persistido y MANDA: el salto automático no puede
-  // arrancarle de donde ha decidido mirar.
+  // ACTIVE TAB — derived when the operator has not chosen one, yielding the two halves they requested:
+  //   · the sheet opens in PROCESS while a task is alive and there is still nothing to put in the list;
+  //   · as soon as the first result arrives, the derived value switches to "results" and the sheet JUMPS AUTOMATICALLY (C3).
+  // If the operator clicked a tab, `data.tab` is persisted and RULES: the automatic jump cannot
+  // pull them away from what they decided to look at.
   const _hasItems = ((data.items || []).length > 0);
   const _live = !!(data.progress && data.progress.alive);
   let cur = TABS.some(t=>t.id===data.tab) ? data.tab

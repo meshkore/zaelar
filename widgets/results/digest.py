@@ -19,7 +19,7 @@ _STATUS_ES = {"ok": "entró", "partial": "entró con límite", "auth": "pedía a
               "blocked": "bloqueó el acceso", "error": "dio error", "pending": "pendiente"}
 
 
-_MAX_HEAD_CHARS = 620      # techo del encabezado: los RESULTADOS no pueden quedarse sin sitio (ver _digest_head)
+_MAX_HEAD_CHARS = 620      # header ceiling: the RESULTS must not be left without room (see _digest_head)
 _MAX_HEAD_LIST = 4         # criterios/fuentes que se enumeran; el resto se cuenta
 _MAX_HEAD_ITEM = 90
 
@@ -99,7 +99,7 @@ def head(data: dict) -> str:
 
 
 def one(data: dict) -> str:
-    """El digest de UNA hoja. Extraído tal cual para que N hojas no signifiquen N copias de estas reglas."""
+    """The digest of ONE sheet. Extracted as-is so that N sheets do not mean N copies of these rules."""
     items = data.get("items") or []
     cabecera = head(data)
     if not items:
