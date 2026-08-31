@@ -1,19 +1,19 @@
-"""Al worker le decían «HTTP Error 422» y el servidor SÍ decía por qué.
+"""The worker was told «HTTP Error 422», and the server DID say why.
 
-Medido el 2026-08-28 sobre las rondas del plató 24/7: **cinco** intentos del worker de guardar hallazgos
-operativos murieron con «HTTP Error 422: Unprocessable Entity» y nada más —
+Measured on 2026-08-28 during the 24/7 set's rounds: **five** attempts by the worker to save operational
+findings died with «HTTP Error 422: Unprocessable Entity» and nothing else —
 
     Wallapop filtro que funciona: es.wallapop.com/search?category_id=100&max_sale_price=8000&order_b…
     Milanuncios bloqueado por anti-bot; Wallapop ok co…
     coches.net da error persistente («Ups! Algo no va bien») en cualquier…
     Facebook Marketplace requiere login en el navegador del operador…
 
-— que es exactamente el conocimiento que evita que el siguiente worker repita el trabajo. El servidor
-responde `descartado por el gate de precisión (<razón>)` en el CUERPO, y `urllib.error.HTTPError` solo trae el
-número: el worker reintenta o se rinde a ciegas.
+— which is exactly the knowledge that keeps the next worker from repeating the work. The server responds
+`descartado por el gate de precisión (<razón>)` in the BODY, while `urllib.error.HTTPError` only carries the
+number: the worker retries or gives up blindly.
 
-Esto NO afloja el gate. Aflojarlo es una decisión sobre la calidad de la memoria y necesita saber primero QUÉ
-está rechazando — que es lo que esto hace posible.
+This does NOT loosen the gate. Loosening it is a decision about memory quality and first requires knowing WHAT
+it is rejecting — which is what this makes possible.
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def test_el_MOTIVO_del_servidor_llega_al_worker(monkeypatch):
 
 
 def test_sin_cuerpo_se_dice_al_menos_el_QUÉ(monkeypatch):
-    """Un servidor que no explica no puede dejar al worker peor que antes."""
+    """A server that does not explain cannot leave the worker worse off than before."""
     _falla(500, None, monkeypatch)
     with pytest.raises(RuntimeError) as e:
         mem_cli._post("/api/memory/remember", {"text": "x"})
@@ -51,7 +51,7 @@ def test_sin_cuerpo_se_dice_al_menos_el_QUÉ(monkeypatch):
 
 
 def test_una_respuesta_BUENA_sigue_pasando(monkeypatch):
-    """La mitad de sensibilidad: envolver los errores no puede romper el camino sano."""
+    """The sensitivity half: wrapping errors must not break the healthy path."""
     class _R:
         def __enter__(self): return self
         def __exit__(self, *a): return False
@@ -61,17 +61,17 @@ def test_una_respuesta_BUENA_sigue_pasando(monkeypatch):
 
 
 def test_NO_afloja_el_gate():
-    """La decisión de qué entra en memoria no cambia aquí. Esto solo hace legible el rechazo — y aflojar el
-    gate sin saber qué rechaza sería exactamente el error que este repo lleva toda la noche pagando."""
+    """The decision about what enters memory does not change here. This only makes the rejection readable — and
+    loosening the gate without knowing what it rejects would be exactly the mistake this repo has been paying for all night."""
     from pathlib import Path
     src = Path("server/memory_routes.py").read_text(encoding="utf-8")
     assert 'raise HTTPException(422, f"descartado por el gate de precisión' in src
 
 
 def test_un_cuerpo_ILEGIBLE_no_empeora_el_error(monkeypatch):
-    """Leer el cuerpo es un extra: si falla, el worker tiene que seguir recibiendo el código y no una
-    excepción distinta encima. Un fallo al EXPLICAR un fallo deja al que lee peor que si no se hubiera
-    intentado."""
+    """Reading the body is an extra: if it fails, the worker must continue receiving the code and not a different
+    exception on top of it. A failure to EXPLAIN a failure leaves the reader worse off than if it had not been
+    attempted."""
     class _Rota(urllib.error.HTTPError):
         def __init__(self):
             super().__init__("http://x", 422, "Unprocessable Entity", {}, None)

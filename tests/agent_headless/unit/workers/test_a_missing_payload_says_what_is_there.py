@@ -1,18 +1,19 @@
-"""«No such file or directory: progreso.json» es verdad y no sirve para nada.
+"""«No such file or directory: progreso.json» is true and completely useless.
 
-Deja al worker sin saber si escribió el fichero **en otro sitio**, si lo escribió **con otro nombre**, o si
-**no llegó a escribirlo**. Las tres salidas piden acciones distintas y desde ese mensaje se ven iguales, así
-que el modelo elige a ciegas. Medido en `best-plumber-same-day__es` (2026-08-28, cerebro
-deepseek-v4-flash+glm-5.3): el paso murió ahí y la ronda se fue en ocho minutos sin entregar lo que el
-operador había pedido explícitamente tres veces.
+It leaves the worker unable to tell whether it wrote the file **somewhere else**, wrote it **under a different
+name**, or **never managed to write it**. The three outcomes call for different actions, and from that message
+they look identical, so the model chooses blindly. Measured in `best-plumber-same-day__es` (2026-08-28, brain
+deepseek-v4-flash+glm-5.3): the step died there and the run took eight minutes without delivering what the
+operator had explicitly requested three times.
 
-Es la norma de «si tienes la respuesta, imprímela»: el puente está PARADO en ese directorio y sabe
-perfectamente lo que hay dentro. La vez que un preflight sostuvo un 402 diciendo «mira el log» costó ocho
-horas y cuarenta y seis reintentos.
+It is the rule of «if you have the answer, print it»: the bridge is STOPPED in that directory and knows
+perfectly well what is inside. The time a preflight held a 402 while saying «check the log» cost eight hours
+and forty-six retries.
 
-Y el mecanismo se COMPARTE: `widget_cli` ya listaba los `.json` presentes y `worker_bridge` no, o sea que los
-dos puentes contestaban distinto a la misma pregunta. Esa divergencia es exactamente de la que salió V2-379
-(un puente aceptaba `@fichero` y el otro no). El mensaje lo pone cada puente; lo que se mira es uno solo.
+And the mechanism is SHARED: `widget_cli` already listed the `.json` files present and `worker_bridge` did
+not, meaning the two bridges answered the same question differently. That divergence is exactly what led to
+V2-379 (one bridge accepted `@fichero` and the other did not). Each bridge produces the message; only one is
+being inspected.
 """
 from __future__ import annotations
 
@@ -32,14 +33,14 @@ def test_dice_los_json_que_SI_hay(tmp_path, monkeypatch):
 
 
 def test_un_directorio_VACIO_es_una_respuesta_distinta(tmp_path, monkeypatch):
-    """«No lo escribiste» y «lo escribiste en otro sitio» llevan a acciones opuestas."""
+    """«You did not write it» and «you wrote it somewhere else» lead to opposite actions."""
     monkeypatch.chdir(tmp_path)
     assert "VACÍO" in BU.what_is_here()
     assert "no llegó a escribirse" in BU.what_is_here()
 
 
 def test_sin_ningun_json_se_enseña_lo_que_haya(tmp_path, monkeypatch):
-    """Que haya ficheros pero ninguno `.json` es la firma de «lo escribió con otra extensión»."""
+    """Having files but none of them `.json` is the signature of «you wrote it with another extension»."""
     (tmp_path / "salida.txt").write_text("x", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     dicho = BU.what_is_here()
@@ -47,7 +48,7 @@ def test_sin_ningun_json_se_enseña_lo_que_haya(tmp_path, monkeypatch):
 
 
 def test_esta_acotado(tmp_path, monkeypatch):
-    """Va a stderr de un puente, no es un explorador de ficheros."""
+    """It goes to a bridge's stderr; it is not a file explorer."""
     for i in range(30):
         (tmp_path / f"f{i:02d}.json").write_text("{}", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
@@ -63,7 +64,7 @@ def test_un_directorio_ILEGIBLE_no_convierte_un_error_claro_en_una_excepcion(mon
 
 
 def test_los_DOS_puentes_miran_el_mismo_sitio():
-    """El fallo no fue que faltara el listado: fue tenerlo en un puente y no en el otro."""
+    """The failure was not that the listing was missing; it was having it in one bridge and not the other."""
     from pathlib import Path
     for f in ("nucleo/worker_bridge.py", "nucleo/widget_cli.py"):
         src = Path(f).read_text(encoding="utf-8")

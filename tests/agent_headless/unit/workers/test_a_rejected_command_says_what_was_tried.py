@@ -1,19 +1,19 @@
-"""Cuando la puerta de permisos rechaza un comando, el rastro guardaba el motivo y NO lo que se intentó.
+"""When the permission gate rejects a command, the trace stored the reason and NOT what was attempted.
 
-«Contains simple_expansion», «Contains brace with quote character», «uses the `&` background operator», «cd
-in '…' was blocked» — cuatro rechazos distintos la noche del 2026-08-28, y en los cuatro el evento decía qué
-regla se había roto **y nada del comando**. Desde fuera eso no distingue las dos causas, que piden acciones
-opuestas:
+“Contains simple_expansion,” “Contains brace with quote character,” “uses the `&` background operator,” “cd
+in '…' was blocked”—four different rejections on the night of 2026-08-28, and in all four the event said which
+rule had been broken **and nothing about the command**. From the outside, that does not distinguish the two causes,
+which call for opposite actions:
 
-  · el worker escribió algo raro por su cuenta → es conducta, y se mide;
-  · **nuestro propio prompt se lo enseñó** → es culpa nuestra, y se arregla en el prompt.
+  · the worker wrote something strange on its own → it is behavior, and it is measured;
+  · **our own prompt taught it to do so** → it is our fault, and it must be fixed in the prompt.
 
-Dos de las cuatro eran lo segundo (el `&` que la regla no listaba, el `cd` cuya premisa falsa venía del
-comando que le enseñamos), y para averiguarlo hubo que reconstruirlo a mano cada vez, leyendo logs de sesión
-y adivinando. El sistema tenía el comando delante en el `tool_use` y lo tiraba al casarlo con su resultado.
+Two of the four were the latter (the `&` that the rule did not list, and the `cd` whose false premise came from
+the command we taught it), and finding that out required reconstructing it by hand each time, reading session logs
+and guessing. The system had the command right there in the `tool_use` and discarded it when pairing it with its result.
 
-Solo se emite cuando el paso FALLA: el comando de un paso que sale bien es ruido, y una fila que sale siempre
-deja de mirarse.
+It is emitted only when the step FAILS: the command from a successful step is noise, and a row that always succeeds
+stops being examined.
 """
 from __future__ import annotations
 
@@ -45,15 +45,15 @@ def test_un_rechazo_dice_QUE_se_intento(monkeypatch):
 
 
 def test_un_paso_que_sale_BIEN_no_arrastra_su_comando(monkeypatch):
-    """La mitad de sensibilidad: una fila que sale siempre deja de mirarse, y el comando de un paso sano es
-    ruido en un flujo que ya es denso."""
+    """The sensitivity half: a row that always succeeds stops being examined, and the command from a healthy step is
+    noise in an already dense flow."""
     v = _emitido(monkeypatch, {"text": "8 resultados", "is_error": False, "where": "web",
                                "tool": "Bash", "cmd": "python -m nucleo.nav_cli extract"})
     assert "cmd" not in v["extra"]
 
 
 def test_sin_comando_no_se_inventa_un_campo_vacio(monkeypatch):
-    """Un `cmd: ""` en el flujo se lee como «se intentó nada», que es otra cosa que «no lo sabemos»."""
+    """A `cmd: ""` in the flow reads as “nothing was attempted,” which is different from “we do not know.”"""
     v = _emitido(monkeypatch, {"text": "Traceback…", "is_error": True, "where": "web", "tool": "WebSearch"})
     assert "cmd" not in v["extra"]
 
@@ -65,7 +65,7 @@ def test_el_comando_va_acotado(monkeypatch):
 
 
 def test_la_sesion_GUARDA_el_comando_al_casar_el_paso_con_su_resultado():
-    """La fontanería: si `claude_session` no lo mete en el meta del paso, aquí nunca llega nada."""
+    """The plumbing: if `claude_session` does not put it in the step's metadata, nothing ever gets here."""
     from pathlib import Path
     src = Path("nucleo/workers/claude_session.py").read_text(encoding="utf-8")
     assert '"cmd": str((tin or {}).get("command") or "")[:220]' in src, "el paso no guarda su comando"
@@ -73,11 +73,11 @@ def test_la_sesion_GUARDA_el_comando_al_casar_el_paso_con_su_resultado():
 
 
 def test_y_la_ANOMALIA_del_informe_lo_enseña():
-    """Media faena, y la mitad que faltaba era la del lector.
+    """Half the job, and the missing half was the reader's.
 
-    El comando llegaba al evento crudo y la anomalía —que es lo que aparece en el informe y lo que lee quien
-    va a arreglarlo— seguía diciendo solo la regla rota. Medido el 2026-08-28, con el motor ya guardándolo:
-    `search-buy-bicycle__us` publicó «Contains simple_expansion» a secas otra vez.
+    The command reached the raw event, and the anomaly—which is what appears in the report and what the person who
+    will fix it reads—was still saying only the broken rule. Measured on 2026-08-28, with the engine already storing it:
+    `search-buy-bicycle__us` once again published “Contains simple_expansion” and nothing else.
     """
     import json
     from tests.use_cases.e2e.agent import verify as V
@@ -92,7 +92,7 @@ def test_y_la_ANOMALIA_del_informe_lo_enseña():
 
 
 def test_y_sin_comando_la_anomalia_no_arrastra_una_coletilla_vacia():
-    """Una coletilla que sale siempre deja de leerse, y «lo que se intentó: ``» no dice nada."""
+    """A suffix that always appears stops being read, and “what was attempted: ``” says nothing."""
     import json
     from tests.use_cases.e2e.agent import verify as V
     ev = {"kind": "task", "cat": "worker",

@@ -1,32 +1,32 @@
-"""El worker relevado seguía escribiendo en el estado de su relevo (V2-350).
+"""The relieved worker kept writing to the state of its replacement (V2-350).
 
-Medido en vivo el 2026-08-26, `search-buy-used-car`. El worker escribió estos pasos, que llegaron enteros al
-prompt del turno y de ahí al informe del juez:
+Observed live on 2026-08-26, `search-buy-used-car`. The worker wrote these steps, which reached the turn
+prompt intact and from there the judge's report:
 
     51,5 s  «Selección final lista (7 coches con año/km verificados); el motor devuelve 403 al widget
              results, reintentando»
     72,0 s  «Motor sigue devolviendo 403 al widget; primera versión (10 coches) sí se publicó»
     97,8 s  «Sin poder actualizar el widget: motor con 403 persistente»
 
-Dos cosas mal a la vez, y la segunda es la que no se veía:
+Two things were wrong at once, and the second was the one that was not visible:
 
-1. Un worker con SIETE coches verificados no pudo publicarlos. El 403 sale de `/api/worker/act`, que verifica
-   `task_id`+token. El token vive EN el SessionRecord, así que para que no case tiene que haber un registro
-   NUEVO con el mismo `task_id`: un relevo. El viejo seguía vivo y ya no era el dueño.
-2. Y sin embargo SÍ escribía. `/api/agent/report` —fase, progreso, plan, amplitud— solo miraba el `tid`, nunca
-   el token, así que las notas del fantasma se escribían en el registro de su relevo. Por eso la traza tenía
-   una línea imposible: el worker nuevo «arrancando — lleva 18 s» a los 36,8 s, y a los 51,5 s una «selección
-   final lista». No es un worker rápido: son dos escribiendo en el mismo sitio.
+1. A worker with SEVEN verified cars could not publish them. The 403 came from `/api/worker/act`, which verifies
+   `task_id`+token. The token lives IN the SessionRecord, so for it not to match there must be a NEW record
+   with the same `task_id`: a replacement. The old one was still alive and was no longer the owner.
+2. And yet it DID write. `/api/agent/report` —phase, progress, plan, breadth— only looked at the `tid`, never
+   the token, so the ghost's notes were written to its replacement's record. That is why the trace had
+   an impossible line: the new worker «starting — 18 s in» at 36.8 s, and at 51.5 s a «final selection
+   ready». It is not a fast worker: there are two writing in the same place.
 
-Las dos puertas del motor le contestaban cosas OPUESTAS al mismo worker, y en el peor orden posible: no podía
-ENTREGAR y sí podía CONTAMINAR. El juez leyó «el motor devuelve 403 al widget» como un hecho de esa ronda y lo
-puso de bloqueador nº1 — un instrumento que se cree las notas de un fantasma no mide.
+The engine's two gates answered the same worker with OPPOSITE things, and in the worst possible order: it could not
+DELIVER but it could CONTAMINATE. The judge read «the engine returns 403 to the widget» as a fact of that round and
+made it blocker no. 1 — an instrument that believes a ghost's notes does not measure.
 
-UN TOKEN AUSENTE NO ES UN TOKEN EQUIVOCADO, y esa distinción es todo el diseño: sin token se sigue como
-siempre (un worker que arrancó antes del cambio no puede quedarse mudo por una cabecera que nadie le enseñó a
-mandar); lo que se corta es el que NO CASA, que es la única señal inequívoca de que quien escribe ya no es el
-dueño. Y no se tira nada: lo del huérfano se emite marcado, y se le RESPONDE que lo es — el 403 anterior decía
-«task/token no válido» a secas y el worker se pasó 45 s reintentando, convencido de que el fallo era del motor.
+AN ABSENT TOKEN IS NOT A WRONG TOKEN, and that distinction is the whole design: without a token, proceed as
+always (a worker that started before the change cannot be silenced by a header nobody taught it to
+send); what gets cut off is the one that DOES NOT MATCH, which is the only unambiguous signal that whoever writes is no longer the
+owner. And nothing is discarded: the orphan's output is emitted marked, and it is ANSWERED that it is one — the previous 403 said
+«invalid task/token» without further explanation and the worker spent 45 s retrying, convinced that the failure was in the engine.
 """
 import pytest
 
@@ -34,8 +34,8 @@ from nucleo import agent_api, dispatch
 
 
 def _client():
-    """Por HTTP y no llamando a la función: los `Body(...)` de FastAPI solo se resuelven en la ruta real, y esa
-    es justo la que usa el worker."""
+    """Through HTTP rather than by calling the function: FastAPI's `Body(...)` values are resolved only on the real
+    route, which is exactly the one the worker uses."""
     from fastapi import FastAPI
     from starlette.testclient import TestClient
     app = FastAPI()
@@ -63,31 +63,31 @@ def test_el_dueño_actual_escribe_como_siempre():
 
 
 def test_el_relevado_NO_es_el_dueño():
-    """El caso medido: mismo task_id, registro nuevo, token viejo en la mano del que sigue vivo."""
+    """The observed case: same task_id, new record, old token held by the one that is still alive."""
     viejo = dispatch.rec_token(_rec())
     dispatch._SESSIONS.clear()
-    nuevo = dispatch.rec_token(_rec())          # el relevo reusa el id y estrena token
+    nuevo = dispatch.rec_token(_rec())          # the replacement reuses the ID and gets a fresh token
     assert nuevo != viejo
     assert agent_api._is_orphan("w1", viejo) is True
 
 
 def test_un_token_AUSENTE_no_es_un_token_equivocado():
-    """Fail-open a propósito: un worker de antes del cambio, o un puente viejo, no manda token y no puede
-    quedarse mudo por eso. Lo que delata al huérfano es el token que NO CASA, no su ausencia."""
+    """Fail-open deliberately: a worker from before the change, or an old bridge, sends no token and cannot
+    be silenced because of that. What identifies the orphan is the token that DOES NOT MATCH, not its absence."""
     _rec()
     assert agent_api._is_orphan("w1", "") is False
     assert agent_api._is_orphan("w1", "   ") is False
 
 
 def test_sin_registro_no_hay_estado_que_corromper():
-    """Sin `SessionRecord` no se marca huérfano: `session_progress` y compañía ya salen de vacío, y marcarlo
-    aquí solo serviría para esconder la nota de un worker cuyo encargo se cerró limpiamente."""
+    """Without a `SessionRecord`, it is not marked as an orphan: `session_progress` and the like already return empty,
+    and marking it here would only hide the note from a worker whose assignment closed cleanly."""
     assert agent_api._is_orphan("no-existe", "cualquier-cosa") is False
 
 
 def test_el_puente_MANDA_el_token_que_ya_tenia_en_el_entorno(monkeypatch):
-    """Guarda de cableado: la comprobación sin quien la alimente es el arreglo que no existe. `ZAELAR_TASK_TOKEN`
-    ya viajaba en el entorno del worker (lo usa `mem_cli`); esta puerta era la única que no lo miraba."""
+    """Wiring guard: a check without anything feeding it is a fix that does not exist. `ZAELAR_TASK_TOKEN`
+    was already present in the worker's environment (it is used by `mem_cli`); this gate was the only one that did not inspect it."""
     from nucleo import agent_report
     enviado = {}
     monkeypatch.setenv("ZAELAR_TASK_ID", "w1")
@@ -102,14 +102,14 @@ def test_el_puente_MANDA_el_token_que_ya_tenia_en_el_entorno(monkeypatch):
 
 
 def test_el_endpoint_lee_el_token_del_cuerpo():
-    """Guarda de firma: si el parámetro se cae, FastAPI lo ignora en silencio y todo vuelve a fail-open."""
+    """Signature guard: if the parameter disappears, FastAPI silently ignores it and everything becomes fail-open again."""
     import inspect
     assert "token" in inspect.signature(agent_api.agent_report).parameters
 
 
 def test_la_respuesta_al_huerfano_le_dice_QUE_hacer():
-    """Un error que no nombra la causa manda a reintentar lo mismo — es lo que pasó con «task/token no válido»
-    a secas: 45 s de reintentos y siete coches que nunca salieron de su cabeza."""
+    """An error that does not name the cause tells it to retry the same thing — that is what happened with «invalid task/token»
+    without further explanation: 45 s of retries and seven cars that never left its head."""
     viejo = dispatch.rec_token(_rec())
     dispatch._SESSIONS.clear()
     _rec()
@@ -120,8 +120,8 @@ def test_la_respuesta_al_huerfano_le_dice_QUE_hacer():
 
 
 def test_el_huerfano_no_pisa_el_estado_del_relevo():
-    """El daño medido, reproducido: el fantasma escribía «selección final lista» en el registro del que acababa
-    de nacer, y eso llegaba al prompt del turno como si fuera de este encargo."""
+    """The measured damage, reproduced: the ghost wrote «final selection ready» to the record that had just
+    been created, and it reached the turn prompt as if it belonged to this assignment."""
     viejo = dispatch.rec_token(_rec())
     dispatch._SESSIONS.clear()
     nuevo = _rec()
@@ -134,7 +134,7 @@ def test_el_huerfano_no_pisa_el_estado_del_relevo():
 
 
 def test_el_dueño_SI_pisa_su_propio_estado():
-    """El lado contrario, y el que importa: la guarda no puede dejar mudo al worker legítimo."""
+    """The opposite side, and the one that matters: the guard cannot silence the legitimate worker."""
     r = _rec()
     _client().post("/api/agent/report",
                    json={"tid": "w1", "token": dispatch.rec_token(r),

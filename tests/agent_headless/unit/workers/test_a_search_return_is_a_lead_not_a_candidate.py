@@ -1,10 +1,10 @@
 #
 # test_a_search_return_is_a_lead_not_a_candidate.py — V2-510.
 #
-# V2-376 already taught the SHEET path that «lo que vuelve de una búsqueda es una PISTA, NO un candidato» and
+# V2-376 already taught the SHEET path that «what comes back from a search is a LEAD, NOT a candidate» and
 # marks the row's origin. The NOTE path — the one that actually moves the brain (V2-222 measured a pushed note
 # at 3/3 against a rendered prompt line at 0/13) — never learned it, and its imperative ordered the opposite:
-# «dáselo con nombre, precio o dato y enlace».
+# «give it to them with a name, price or piece of data and a link».
 #
 # Measured on `cheapest-monitor__us` round 20260830-125532, with V2-508's double sheet already out of the way:
 #   offered   → «Best 1440p Monitor 2026…», «The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com»,
@@ -49,7 +49,7 @@ def test_the_note_says_a_page_is_not_a_candidate(pushed):
 
 
 def test_it_no_longer_orders_the_lead_delivered_with_price_and_link(pushed):
-    """The old imperative — «dáselo con nombre, precio o dato y enlace» — applied to WHATEVER came back. That
+    """The old imperative — «give it to them with a name, price or piece of data and a link» — applied to WHATEVER came back. That
     single clause is what turned an article headline into a delivered recommendation."""
     findings.hand_web_finding("1", _HEADLINE, "monitor barato")
     note = pushed[0]

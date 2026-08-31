@@ -1,21 +1,21 @@
-"""Un relevo no es una muerte (V2-238).
+"""A handoff is not a death (V2-238).
 
-Un worker se queda sin cuota de proveedor y `_finish` hace lo correcto: releva. Relanza el encargo con el
-siguiente escalón y se vacía la entrega a propósito, para que el operador no vea dos. Lo que hacía era dejar
-`ok=False` y `status="error"` — es decir, la sesión relevada quedaba **indistinguible de un worker muerto**. Y
-de ahí salían tres cosas, las tres medidas o leídas en el código:
+A worker runs out of provider quota and `_finish` does the right thing: it hands off. It relaunches the task with the
+next tier and deliberately clears the delivery, so the operator does not see two. What it used to do was leave
+`ok=False` and `status="error"` — that is, the handed-off session became **indistinguishable from a dead worker**. And
+three things followed from that, all three measured or read in the code:
 
-1. El motor le empujaba al cerebro «la tarea de fondo ha MUERTO sin resultado y no se va a reintentar sola»
-   (V2-222) **mientras el relevo trabajaba**. Un aviso falso, y de los caros: pide una decisión al operador
-   sobre algo que ya está en marcha.
-2. `_resumable` lee exactamente ese `ok=False`, así que en una gestión web disparaba ADEMÁS el auto-resume de
-   V2-049: **dos escaladas para una sola muerte**, dos workers sobre el mismo encargo — y hasta V2-237 los dos
-   reanudando la MISMA sesión del CLI, que es como morían a los 400 ms.
-3. El arnés cuenta muertes leyendo la observabilidad, y contaba esta. En `best-plumber-same-day` y en
-   `weekend-barber`, «worker 1 murió tras el relevo de proveedor» (1459 y 1445 ms) no era una muerte.
+1. The engine pushed to the brain “the background task has DIED without a result and will not be retried on its own”
+   (V2-222) **while the handoff was working**. A false warning, and an expensive one: it asks the operator to decide
+   about something already in progress.
+2. `_resumable` reads that exact `ok=False`, so in a web run it ALSO triggered the V2-049 auto-resume: **two escalations
+   for one death**, two workers on the same task — and until V2-237 both resumed the SAME CLI session, which is how they
+   died after 400 ms.
+3. The harness counts deaths by reading observability, and counted this one. In `best-plumber-same-day` and
+   `weekend-barber`, “worker 1 died after the provider handoff” (1459 and 1445 ms) was not a death.
 
-El arreglo es un HECHO nuevo, no una heurística: `rec.handoff` dice a dónde pasó el testigo, y con él la sesión
-tiene su propio final —`relevada`— en vez de disfrazarse del final de al lado.
+The fix is a new FACT, not a heuristic: `rec.handoff` says where the baton went, and with it the session
+has its own ending —`relevada`— instead of disguising itself as the neighboring ending.
 """
 import asyncio
 
@@ -43,8 +43,8 @@ class _Backend:
 
 @pytest.fixture
 def sesion(monkeypatch):
-    """Sesión real con un backend de mentira, y el escalado interceptado: lo que se mide aquí es lo que `_finish`
-    DEJA ESCRITO en el registro, que es lo que leen dispatch, la hoja y el panel."""
+    """Real session with a fake backend and intercepted escalation: what is measured here is what `_finish`
+    LEAVES WRITTEN in the record, which is what dispatch, the sheet, and the panel read."""
     lanzadas = []
     from nucleo.flash import escalate as _esc
     monkeypatch.setattr(_esc, "escalate_to_slowbrain",
@@ -59,7 +59,7 @@ def _run(coro):
     return asyncio.get_event_loop_policy().new_event_loop().run_until_complete(coro)
 
 
-# ── el caso medido ───────────────────────────────────────────────────────────────────────────────────────────
+# ── the measured case ─────────────────────────────────────────────────────────────────────────────────────────
 
 def test_un_relevo_de_proveedor_NO_termina_en_error(sesion):
     rec = sesion._rec
@@ -79,8 +79,8 @@ def test_el_relevo_dice_A_DONDE_paso_el_testigo(sesion):
 
 
 def test_compactar_y_continuar_tambien_es_un_relevo(sesion):
-    """La otra entrega de `_finish` (V2-218): el contexto reventó, se retoma con lo aprendido. Misma verdad —el
-    encargo sigue— y por tanto el mismo final."""
+    """The other `_finish` handoff (V2-218): the context overflowed, and work resumes with what was learned. Same truth —the
+    task continues— and therefore the same ending."""
     rec = sesion._rec
     rec.context_full = {"text": "context window", "tokens": 138000}
     _run(sesion._finish())
@@ -88,7 +88,7 @@ def test_compactar_y_continuar_tambien_es_un_relevo(sesion):
     assert rec.status == "relevada" and "contexto" in rec.handoff
 
 
-# ── la otra dirección: un final de verdad SIGUE siendo un error ──────────────────────────────────────────────
+# ── the other direction: a genuine ending is STILL an error ──────────────────────────────────────────────────
 
 def test_un_worker_que_muere_de_verdad_sigue_en_error(sesion):
     rec = sesion._rec
@@ -100,7 +100,7 @@ def test_un_worker_que_muere_de_verdad_sigue_en_error(sesion):
 
 
 def test_un_relevo_SIN_a_donde_ir_es_una_muerte(sesion):
-    """Sin escalón siguiente no hay testigo que pasar: eso sí se acabó, y el operador tiene que enterarse."""
+    """With no next tier there is no baton to pass: that really is over, and the operator needs to know."""
     rec = sesion._rec
     rec.provider_down = {"provider": "z.ai", "next": "", "text": "insufficient balance"}
     _run(sesion._finish())
@@ -110,8 +110,8 @@ def test_un_relevo_SIN_a_donde_ir_es_una_muerte(sesion):
 
 
 def test_si_el_relanzamiento_FALLA_no_se_finge_un_relevo(sesion, monkeypatch):
-    """Sensibilidad. Marcar el testigo antes de saber que alguien lo cogió convertiría una muerte silenciosa en
-    una muerte silenciosa Y sin aviso: el operador se quedaría esperando a un relevo que nunca arrancó."""
+    """Sensitivity. Marking the baton before knowing that someone took it would turn a silent death into
+    a silent death AND without a warning: the operator would be left waiting for a handoff that never started."""
     from nucleo.flash import escalate as _esc
     monkeypatch.setattr(_esc, "escalate_to_slowbrain",
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no hay pool")), raising=False)
@@ -130,19 +130,19 @@ def test_una_cancelacion_no_se_convierte_en_relevo(sesion):
     assert not sesion._lanzadas and rec.status == "cancelled" and not rec.handoff
 
 
-# ── lo que leen los de fuera ─────────────────────────────────────────────────────────────────────────────────
+# ── what outsiders read ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_relevada_es_un_final_CLASIFICADO():
-    """Si no está en la enumeración de V2-198, una sesión relevada no aparece ni viva ni acabada en el estado
-    vivo, y el turno se queda con su memoria de haberla arrancado."""
+    """If it is not in the V2-198 enumeration, a handed-off session appears neither live nor finished in the live
+    state, and the turn retains its memory of having started it."""
     from nucleo import dispatch
     assert "relevada" in dispatch.ENDED_SESSION_STATES
     assert not (dispatch.LIVE_SESSION_STATES & dispatch.ENDED_SESSION_STATES)
 
 
 def test_el_aviso_de_MUERTE_no_se_empuja_sobre_un_relevo():
-    """GUARDA DE CABLEADO (V2-199): el predicado puede estar perfecto y el llamador seguir anunciando la muerte.
-    Esto es lo que el operador ESCUCHA, así que es la parte que no puede quedarse sin probar."""
+    """WIRING GUARD (V2-199): the predicate may be perfect while the caller continues announcing the death.
+    This is what the operator HEARS, so this is the part that cannot go untested."""
     import inspect
 
     from nucleo import dispatch
@@ -151,8 +151,8 @@ def test_el_aviso_de_MUERTE_no_se_empuja_sobre_un_relevo():
 
 
 def test_un_relevo_NO_dispara_ADEMAS_el_auto_resume():
-    """GUARDA DE CABLEADO: dos escaladas para una muerte. `_finish` ya relanzó; si `_will_resume` sigue leyendo
-    solo `ok=False`, el auto-resume de V2-049 lanza un SEGUNDO worker sobre el mismo encargo."""
+    """WIRING GUARD: two escalations for one death. `_finish` has already relaunched; if `_will_resume` keeps reading
+    only `ok=False`, the V2-049 auto-resume launches a SECOND worker on the same task."""
     import inspect
 
     from nucleo import dispatch
@@ -163,8 +163,8 @@ def test_un_relevo_NO_dispara_ADEMAS_el_auto_resume():
 
 
 def test_la_hoja_NO_se_cierra_cuando_el_encargo_continua():
-    """La hoja es del ENCARGO, no de la sesión: cerrarla al relevar apagaría en la cara del operador la superficie
-    donde está mirando, con el relevo ya trabajando (V2-227 ámbito C)."""
+    """The sheet belongs to the TASK, not the session: closing it on handoff would shut down the surface in front of
+    the operator, where they are looking, with the handoff already working (V2-227 scope C)."""
     import inspect
 
     from nucleo import dispatch
@@ -173,11 +173,11 @@ def test_la_hoja_NO_se_cierra_cuando_el_encargo_continua():
     assert "_continues = bool(_will_resume or _handoff)" in src
 
 
-# ── y el hallazgo que salió al escribir estos tests ──────────────────────────────────────────────────────────
-# Las tres ramas de `_finish` que NO son un relevo escriben un `result_summary` que anuncia un fallo, y ninguna
-# tocaba `ok`, que nace en True. Con el backend muerto antes de cerrarlo, esa frase se entregaba como logro:
-# «Tarea completada: Me he quedado sin cuota en el proveedor…». Visto en el log de la primera pasada de este
-# fichero, no razonado.
+# ── and the finding that emerged while writing these tests ───────────────────────────────────────────────────
+# The three `_finish` branches that are NOT a handoff write a `result_summary` announcing a failure, and none
+# touched `ok`, which starts as True. With the backend dead before it was closed, that sentence was delivered as a success:
+# “Task completed: I have run out of provider quota…”. Seen in the log of this file's first run,
+# not reasoned out.
 
 @pytest.mark.parametrize("montaje", ["sin_relevo", "relevo_roto", "contexto_roto"])
 def test_un_fallo_ANUNCIADO_no_se_entrega_como_tarea_completada(sesion, monkeypatch, montaje):
@@ -197,10 +197,10 @@ def test_un_fallo_ANUNCIADO_no_se_entrega_como_tarea_completada(sesion, monkeypa
     assert rec.status == "error"
 
 
-# ── V2-241: un final MUDO tras chocar con nuestra propia puerta ──────────────────────────────────────────────
-# Los tres casos medidos murieron sin decir nada y la causa solo aparecía cruzando el log del motor por
-# `span=worker:N`. Si la sesión se acaba sin entrega y sin relevo pero chocó con la puerta, ESO es lo que le
-# pasó — y no es un fallo de la tarea, es que la vía que eligió está cerrada aquí.
+# ── V2-241: a SILENT ending after hitting our own door ──────────────────────────────────────────────────────
+# The three measured cases died without saying anything, and the cause appeared only by cross-referencing the engine log via
+# `span=worker:N`. If the session ends without a delivery or handoff but hit the door, THAT is what happened
+# — and it is not a task failure; the route it chose is closed here.
 
 def test_un_final_sin_entrega_tras_la_puerta_DICE_que_comando_paro(sesion):
     rec = sesion._rec
@@ -212,8 +212,8 @@ def test_un_final_sin_entrega_tras_la_puerta_DICE_que_comando_paro(sesion):
 
 
 def test_si_YA_entrego_algo_no_se_le_pisa_la_entrega(sesion):
-    """Sensibilidad: el informe del worker manda. Sustituirlo por el aviso de la puerta cambiaría un resultado
-    parcial REAL por una excusa."""
+    """Sensitivity: the worker's report takes precedence. Replacing it with the door warning would change a
+    REAL partial result into an excuse."""
     rec = sesion._rec
     rec.ok = False
     rec.perm_denied = "cd /Users/x/zaelar/engine"
@@ -223,8 +223,8 @@ def test_si_YA_entrego_algo_no_se_le_pisa_la_entrega(sesion):
 
 
 def test_un_RELEVO_no_se_convierte_en_excusa_de_permiso(sesion):
-    """La otra dirección: si pasó el testigo, la entrega se vacía a propósito y meter aquí el aviso de la puerta
-    le contaría al operador un final que no ha ocurrido."""
+    """The other direction: if the baton was passed, the delivery is deliberately cleared, and inserting the door warning here
+    would tell the operator about an ending that did not happen."""
     rec = sesion._rec
     rec.perm_denied = "cd /Users/x/zaelar/engine"
     rec.provider_down = {"provider": "z.ai", "next": "deepseek", "text": "insufficient balance"}

@@ -1,20 +1,20 @@
-"""Un aviso PROGRAMADO existe de verdad, o no se dice (V2-249).
+"""A SCHEDULED reminder really exists, or it is not claimed (V2-249).
 
-La «píldora que se auto-avala», que el arnés lleva midiendo varias tandas: a un worker se le encarga
-«recuérdaselo el miércoles», y escribe en memoria —de forma durable— «Recordatorio PROGRAMADO … a las 09:00»
-**sin que exista ninguna entrada de scheduler**. No era desobediencia: probado en el código, la capacidad **no
-existía**. `worker_policy._KNOWN_ACTS` no tenía ninguna acción de agenda, así que le era IMPOSIBLE hacerlo.
+The “self-evaluating pill” that the harness has been measuring over several rounds: a worker is tasked with
+“remind him on Wednesday,” and durably writes to memory “SCHEDULED reminder … at 09:00”
+**without any scheduler entry existing**. It was not disobedience: tested in the code, the capability **did not
+exist**. `worker_policy._KNOWN_ACTS` had no scheduling action, so it was IMPOSSIBLE for the worker to do it.
 
-El camino del FlashBrain sí funcionaba (`nucleo/scheduler.py`, 109 tests verdes entre sus dos ficheros): el
-agujero se abría solo cuando el encargo se ESCALABA a un worker.
+The FlashBrain path did work (`nucleo/scheduler.py`, 109 green tests across its two files): the
+hole opened only when the task was ESCALATED to a worker.
 
-El listón lo puso el arnés y tiene dos salidas aceptables: **que la entrada exista, o que la píldora no diga
-«programado»**. Esto hace la primera y, para los casos en que no se pueda, empuja la segunda.
+The harness set the bar and allows two acceptable outcomes: **the entry exists, or the pill does not say
+“scheduled”**. This implements the first and, where that is not possible, enforces the second.
 
-El encuadre es del operador (2026-08-20), y corrige el que este agente puso primero: **un Brain Worker ya hace
-casi de todo** —opera los datos de un widget, crea y modifica su código, conduce el navegador, habla con la red
-MeshKore, escribe en memoria, usa MCP— y la seguridad de este sistema **no es una lista corta de permisos, es un
-FILTRO**. Así que la pregunta no era «¿debería poder?» sino «¿cuál es su filtro?».
+The framing is from the operator (2026-08-20), and corrects the one this agent initially used: **a Brain Worker already does
+almost everything** —operates a widget’s data, creates and modifies its code, drives the browser, communicates with the
+MeshKore network, writes to memory, uses MCP— and this system’s security **is not a short list of permissions, it is a
+FILTER**. So the question was not “should it be able to?” but “what is its filter?”.
 """
 import asyncio
 
@@ -24,7 +24,7 @@ from nucleo import worker_api, worker_policy
 
 
 class _Journal:
-    """El diario REAL escribe en el `zaelar.db` de la máquina. Un test unitario no toca artefactos vivos."""
+    """The REAL journal writes to the machine’s `zaelar.db`. A unit test does not touch live artifacts."""
 
     def __init__(self):
         self.entries = []
@@ -56,10 +56,10 @@ def _act(payload):
         worker_api._exec_allow("schedule", payload, _Rec()))
 
 
-# ── la capacidad existe ──────────────────────────────────────────────────────────────────────────────────────
+# ── the capability exists ────────────────────────────────────────────────────────────────────────────────────
 
 def test_programar_es_una_accion_CONOCIDA():
-    """Antes caía en «acción desconocida» y el worker lo leía como una prohibición."""
+    """Previously it fell into “unknown action,” which the worker interpreted as a prohibition."""
     assert "schedule" in worker_policy._KNOWN_ACTS
     assert worker_policy.classify_act("schedule", {}) == worker_policy.ALLOW
 
@@ -72,15 +72,15 @@ def test_el_aviso_QUEDA_de_verdad(agenda):
 
 
 def test_el_aviso_dice_QUIEN_lo_puso(agenda):
-    """El operador tiene que poder ver de dónde salió lo que le suena a las 9 de la mañana."""
+    """The operator must be able to see where the thing that rings at 9 in the morning came from."""
     _act({"when": "mañana a las 9", "prompt": "llamar al fontanero"})
     assert "[worker:t7]" in agenda.entries[0]["title"]
 
 
-# ── el FILTRO ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── the FILTER ──────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_hay_un_TOPE_por_tarea(agenda):
-    """Sin tope, un worker en bucle le llena la agenda al operador — y cada entrada dispara luego un turno."""
+    """Without a cap, a worker in a loop fills the operator’s agenda — and each entry then triggers a turn."""
     for i in range(worker_api._SCHEDULE_CAP):
         assert _act({"when": "mañana a las 9", "prompt": f"aviso {i}"})["ok"]
     out = _act({"when": "mañana a las 9", "prompt": "uno más"})
@@ -89,7 +89,7 @@ def test_hay_un_TOPE_por_tarea(agenda):
 
 
 def test_el_tope_es_POR_TAREA_y_no_global(agenda, monkeypatch):
-    """Dos encargos distintos del operador no compiten por el mismo cupo."""
+    """Two different tasks from the operator do not compete for the same slot."""
     for i in range(worker_api._SCHEDULE_CAP):
         _act({"when": "mañana a las 9", "prompt": f"aviso {i}"})
 
@@ -102,7 +102,7 @@ def test_el_tope_es_POR_TAREA_y_no_global(agenda, monkeypatch):
     assert out["ok"], out
 
 
-# ── y lo que NO se puede hacer, se dice, no se finge ─────────────────────────────────────────────────────────
+# ── and what CANNOT be done is stated, not faked ─────────────────────────────────────────────────────────────
 
 def test_sin_CUANDO_no_se_programa_y_se_dice_como(agenda):
     out = _act({"prompt": "llamar al fontanero"})
@@ -124,7 +124,7 @@ def test_un_CUANDO_que_no_se_entiende_devuelve_las_formas_validas(agenda):
 
 
 def test_un_fallo_del_diario_NO_se_devuelve_como_programado(agenda, monkeypatch):
-    """Sensibilidad: lo peor que puede hacer esto es decir que sí cuando no. Es literalmente el defecto que cierra."""
+    """Sensitivity: the worst thing this can do is say yes when it cannot. This is literally the defect it closes."""
     def _boom(*a, **k):
         raise RuntimeError("db bloqueada")
 
@@ -133,11 +133,11 @@ def test_un_fallo_del_diario_NO_se_devuelve_como_programado(agenda, monkeypatch)
     assert not out["ok"] and "no pude programarlo" in out["error"]
 
 
-# ── y que el worker SEPA que existe ──────────────────────────────────────────────────────────────────────────
+# ── and make sure the worker KNOWS it exists ─────────────────────────────────────────────────────────────────
 
 def test_al_worker_se_le_DICE_que_puede_programar():
-    """GUARDA DE CABLEADO (V2-199): una capacidad que el modelo no sabe que tiene no existe. Es exactamente lo
-    que pasó con el intérprete en 2026-08-02 — el worker se pasó minutos adivinando algo que ya funcionaba."""
+    """WIRING GUARD (V2-199): a capability the model does not know it has does not exist. That is exactly what
+    happened with the interpreter on 2026-08-02 — the worker spent minutes guessing at something that already worked."""
     from nucleo import dispatch_prompts as dp
     p = dp._build_prompt("recuérdale el miércoles llamar al fontanero", "", True)
     assert "act schedule" in p
@@ -145,15 +145,15 @@ def test_al_worker_se_le_DICE_que_puede_programar():
 
 
 def test_y_que_si_FALLA_no_diga_que_lo_ha_programado():
-    """La otra mitad del listón del arnés: si no se pudo, la píldora no puede decir «programado»."""
+    """The other half of the harness’s bar: if it could not be done, the pill cannot say “scheduled”."""
     from nucleo import dispatch_prompts as dp
     p = dp._build_prompt("recuérdale el miércoles llamar al fontanero", "", True)
     assert "NO digas que lo has programado" in p
 
 
-# ── las formas que se le enseñan tienen que PARSEAR de verdad ────────────────────────────────────────────────
-# V2-219 lo pagó ya una vez: el worker murió dos veces en la aridad de nuestro propio CLI. Una lista de ejemplos
-# que no parsean es peor que ninguna, porque manda a reintentar lo mismo. Aquí se comprueba contra el parser.
+# ── the forms taught to it must really PARSE ─────────────────────────────────────────────────────────────────
+# V2-219 already paid the price once: the worker died twice on the arity of our own CLI. A list of examples
+# that do not parse is worse than none, because it sends the worker to retry the same thing. This is checked against the parser.
 
 @pytest.mark.parametrize("cuando", ["mañana a las 9", "el miércoles a las 18:00", "every 30m", "0 9 * * 3"])
 def test_cada_ejemplo_que_le_damos_SE_ENTIENDE(cuando, agenda):
@@ -161,8 +161,8 @@ def test_cada_ejemplo_que_le_damos_SE_ENTIENDE(cuando, agenda):
 
 
 def test_los_ejemplos_del_PROMPT_son_los_mismos_que_parsean():
-    """Y que el prompt no enseñe formas que el error no menciona (o al revés): dos listas distintas de ejemplos
-    se separan sin avisar, y el worker acaba probando la que no vale."""
+    """And ensure the prompt does not teach forms the error does not mention (or vice versa): two different lists of examples
+    drift apart without warning, and the worker ends up trying the invalid one."""
     from nucleo import dispatch_prompts as dp
     p = dp._build_prompt("recuérdale algo", "", True)
     for cuando in ("mañana a las 9", "el miércoles a las 18:00", "every 30m", "0 9 * * 3"):
@@ -170,8 +170,8 @@ def test_los_ejemplos_del_PROMPT_son_los_mismos_que_parsean():
 
 
 def test_lo_AMBIGUO_no_se_adivina(agenda):
-    """`parse_when` devuelve "" adrede ante «esta tarde» o «pronto». Un aviso puesto sobre una fecha inventada es
-    peor que ninguno: el operador se queda creyendo que está puesto y se entera el día que no suena."""
+    """`parse_when` deliberately returns "" for “this afternoon” or “soon”. A reminder placed on an invented date is
+    worse than none: the operator keeps believing it is set and finds out on the day it does not ring."""
     for vago in ("esta tarde", "pronto", "cuando puedas"):
         out = _act({"when": vago, "prompt": "x"})
         assert not out["ok"], f"«{vago}» no puede convertirse en una fecha"
@@ -179,11 +179,11 @@ def test_lo_AMBIGUO_no_se_adivina(agenda):
     assert not agenda.entries
 
 
-# ── y que se VEA, con su prueba ──────────────────────────────────────────────────────────────────────────────
-# memoria-dev señaló que esto cierra UNA instancia y no la clase: la memoria guarda como hecho durable una
-# afirmación del SISTEMA sobre sus propios efectos, y mañana el recall la confirma. Hoy `remember_external` veta
-# lo que dice un TERCERO y el gate de REM verifica un insight contra sus píldoras; **nada verifica una píldora
-# contra el mundo**. La mitad que puede poner quien EJECUTA la acción es dejar la prueba: un ref comprobable.
+# ── and make it VISIBLE, with its proof ──────────────────────────────────────────────────────────────────────
+# memoria-dev pointed out that this closes ONE instance, not the class: memory stores as a durable fact an
+# assertion by the SYSTEM about its own effects, and tomorrow recall confirms it. Today `remember_external` vetoes
+# what a THIRD PARTY says and the REM gate verifies an insight against its pills; **nothing verifies a pill
+# against the world**. The half that the person who EXECUTES the action can provide is to leave proof: a verifiable ref.
 
 def test_el_aviso_devuelve_un_REF_comprobable(agenda):
     out = _act({"when": "mañana a las 9", "prompt": "llamar al fontanero"})
@@ -192,8 +192,8 @@ def test_el_aviso_devuelve_un_REF_comprobable(agenda):
 
 
 def test_programar_DEJA_FILA_en_la_observabilidad(agenda, monkeypatch):
-    """Un aviso que suena dentro de tres días lo puso una tarea de fondo que para entonces ya no existe. Sin
-    fila, el operador se lo encuentra sin saber de dónde salió."""
+    """A reminder that rings in three days was created by a background task that no longer exists by then. Without a
+    row, the operator encounters it without knowing where it came from."""
     vistos = []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
@@ -204,8 +204,8 @@ def test_programar_DEJA_FILA_en_la_observabilidad(agenda, monkeypatch):
 
 
 def test_un_aviso_que_NO_se_pudo_poner_no_deja_fila(agenda, monkeypatch):
-    """Sensibilidad: una fila «⏰ aviso programado» sobre algo que no se programó es la misma mentira, en otro
-    sitio y con más autoridad."""
+    """Sensitivity: a “⏰ scheduled reminder” row for something that was not scheduled is the same lie, in another
+    place and with more authority."""
     vistos = []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
@@ -214,12 +214,12 @@ def test_un_aviso_que_NO_se_pudo_poner_no_deja_fila(agenda, monkeypatch):
 
 
 def test_la_TERCERA_puerta_al_scheduler_normaliza_como_las_otras_dos(agenda, monkeypatch):
-    """V2-480 — `safe_reminder_prompt` dice en su docstring que existe «para que las DOS puertas al scheduler
-    digan lo mismo»; esta acción es la TERCERA, nació después (V2-249) y nunca la llamó.
+    """V2-480 — `safe_reminder_prompt` says in its docstring that it exists “so that the TWO doors to the scheduler
+    say the same thing”; this action is the THIRD, was created later (V2-249), and never called it.
 
-    Medido en `find-a-future-release-and-remind-me` (2026-08-29): el trabajo quedó programado con la frase
-    CRUDA del operador dentro, así que el día que suene el agente le leerá al operador sus propias palabras —
-    y, peor, las leerá como una petición que apuntar, que es el bucle que toda esta zona existe para cerrar.
+    Measured in `find-a-future-release-and-remind-me` (2026-08-29): the task was scheduled with the operator’s
+    RAW phrase inside, so when it rings the agent will read the operator their own words —
+    and, worse, will read them as a request to note down, which is the loop this whole area exists to close.
     """
     from nucleo import scheduler
 
@@ -237,7 +237,7 @@ def test_la_TERCERA_puerta_al_scheduler_normaliza_como_las_otras_dos(agenda, mon
 
 
 def test_y_un_prompt_que_YA_es_una_orden_al_agente_no_se_toca(agenda, monkeypatch):
-    """La otra dirección: normalizar de más envolvería una orden legítima dentro de otra orden."""
+    """The other direction: over-normalizing would wrap a legitimate command inside another command."""
     from nucleo import scheduler
 
     creados: list[str] = []
