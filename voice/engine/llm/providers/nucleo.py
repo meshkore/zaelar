@@ -2368,9 +2368,18 @@ class NucleoLLMStream(llm.LLMStream):
                                                         on_tool_call=_on_tool_call, metrics=llm_metrics):
                     _again.append(_piece)
                 if _again:
-                    _txt2 = "".join(_again).strip()
-                    spoken.append(_txt2)
-                    send(_txt2)
+                    # Through the SAME buf/take seam as the primary stream — never `send()` raw model text.
+                    # Measured live (session acc5e85e, 2026-08-31): this retry sent the model's output verbatim,
+                    # so «Vale, quiero saber si tengo mensajes de WhatsApp» ended with the TTS *speaking*
+                    # «[[show:mensajeria]]» out loud and NO widget opening — the tag reached the operator's ears
+                    # instead of the dispatcher. `take(True)` runs strip_tags with `_tag_emit`, which is exactly
+                    # what executes the tag and removes it from speech; bypassing it turned an action into noise.
+                    buf = ""                       # discard any tag leftovers from the first pass
+                    buf += "".join(_again)
+                    _txt2 = take(True).strip()
+                    if _txt2:
+                        spoken.append(_txt2)
+                        send(speech.sanitize(_txt2, drop_metadata=False))
             except Exception as e:  # noqa: BLE001
                 emit("brain", "⚠️ el segundo viaje falló — sigo con lo que haya", role="system",
                      extra={"cat": "flash", "err": repr(e)[:120]})

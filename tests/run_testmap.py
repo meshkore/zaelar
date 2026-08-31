@@ -971,6 +971,10 @@ DOMAINS: list[dict] = [
             # V2-108 cont. modularization pass (2026-08-17): vault_intercept.py split out of `_run_inner`'s
             # security-config-command + spoken-secret intercept — first standalone unit coverage for this path.
             "tests/voice/unit/providers/test_vault_intercept.py",
+            # 2026-08-31 (session acc5e85e, operator's live report): the V2-096 F2 second trip sent the model's
+            # reply RAW — the TTS spoke «[[show:mensajeria]]» out loud and no widget opened. The retry now feeds
+            # the same buf/take seam as the primary stream; source guards, red-verified against the shipped bug.
+            "tests/voice/unit/providers/test_second_trip_tags.py",
             "tests/voice/unit/test_trace.py", "tests/voice/e2e/agent/interlocutor/test_trace.py"]},
         {"id": "3.3", "title": "Mic→STT (transporte WebRTC)", "ch": VOICE, "live": True,
             "cmd": "./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest"},
