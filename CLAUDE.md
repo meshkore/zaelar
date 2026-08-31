@@ -6631,6 +6631,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
+- **An errand has a NAME, and it is not a slice of the conversation (V2-530, 2026-08-31)**: the operator, with
+  the screen in front of him — «los dos widgets de resultados tenían un título… más un comentario parte del
+  diálogo». Session `7cab1afd`: his two sheets were titled «Sanidad con Sanitas en Soria» and **«Me parece bien.
+  Oye, una cosita, estabas buscándome un médico. ¿Eres…»** — a slice of the conversation, cut BEFORE the errand
+  is even mentioned. The same string was what the voice read out when the worker needed a datum («el proceso
+  "Me parece bien. Oye, una cosita, estabas" pregunta: …»), so the defect was audible as well as visible, and it
+  was one of the two options in the disambiguation question — which is why answering that question was hopeless:
+  it named one errand and one pleasantry.
+  - **Traced, not guessed**: the promise backstop escalated with the RAW turn as its goal
+    (`router_guards`: `escalate_req["v"] = _win_goal or _op_text`), and three readers took that brief for a
+    name — `sheets._sheet_open` → `begin_task(rec.goal)` → the header, `loop.py` → `goal[:40]`, and
+    `instances._label`, which reads the header back.
+  - **The GOAL is the operator's own words ON PURPOSE and stays that way.** Fidelity is what lets the worker do
+    the right thing — he said «invéntate el apellido si te lo piden». So the brief stays a brief and the NAME
+    becomes its own field (`SessionRecord.title`), beside `goal` and never instead of it: dedup compares goals
+    and the master audits them.
+  - **Two answers, in this order.** `errand_title.provisional()` is instant and **deliberately not clever** —
+    the goal clipped on a WORD boundary, because every heuristic here GUESSES and a wrong guess renames the
+    operator's errand to something he never said; the one defect it fixes alone is the mid-word cut, which is
+    what made the measured title unreadable. `errand_title.compose()` is one small model call, fired
+    fire-and-forget from `dispatch._name_errand`: the sheet is already on screen and the worker already
+    spawning, so a slow or dead provider can only cost a box that keeps the name it had. **Naming is
+    understanding** — a verb table over that exact sentence produces «Me parece».
+  - `sheets.title_of()` is ONE function for the three readers, and `rename_task` is separate from `begin_task`
+    **because that one ESTRENA**: reusing it would erase the results it is naming.
+  - **«Cierra los dos» ANSWERS the disambiguation question.** Measured minutes earlier in the same session: he
+    said it at 22:11:20 and got the question BACK; said «las dos» at 22:11:28 and got it again, this time with
+    the verb changed from «cierro» to «enseño». The Susurro auditor filed it live as `[P1·routing]`. The
+    question asks WHICH ONE and the answer was BOTH — an option the resolver had no way to express, so every
+    rephrasing round-tripped into the same question. `instances.wants_every()` is a QUANTIFIER, not a verb
+    table, and `resolve_close`/`resolve_show` now return **`ids` ALWAYS**: a caller that loops it is correct for
+    one card, none, an already-disambiguated id and «both» with the same line — reading `id` is exactly what
+    made two of the three closing paths miss the answer. Wired in the four call sites **plus the probe
+    channel**, because this class of bug survives by diverging between voice and text. Counterweight under
+    test: a plain «ciérralo» with two open still ASKS, or «answer both» would be satisfied by never asking.
+  - Nodes 2.5 and 4.38, nine disarms. ⚠️ **Two came back GREEN on the first pass and both were the TEST's
+    fault**, the same trap twice: reverting `_sheet_open` to the raw goal changed nothing because the file only
+    checked that `title_of` EXISTS (V2-199 again — the wiring test is what makes it bite), and commenting out
+    `_name_errand(rec)` left the source guard green because a substring scan cannot tell a live call from its
+    own citation **and** `def _name_errand(rec)` matches the same substring.
+  - **Not verified live**: the engine is serving an older build with a live voice session and a running errand,
+    so it was not restarted. Still open: the frontend task card paints `goal`, not `title`; and the worker's own
+    restatement of the errand («Recibido el nuevo encargo: cita de traumatología en el Centro Médico Pama…») is
+    a better name than anything a titler composes, and nothing reads it.
+
 - **The lead-in filler sounds BEFORE the reply — it IS the reply's first segment (V2-529, 2026-08-31)**:
   operator's report, verbatim: «la voz lo hace al revés: primero reproduce la respuesta y después el nexo …
   "Vale, empiezo con la tarea" y luego "Espera, espera"». Both defects measured. (1) The reversal was

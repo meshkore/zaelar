@@ -25,6 +25,7 @@ import time
 
 from loguru import logger
 
+from . import errand_title as _errand_title
 from . import scheduler as _scheduler
 from . import sparks as _sparks
 
@@ -216,7 +217,11 @@ class OrchestratorLoop:
             goal = ""
             for s in sessions:
                 if s["id"] == a["task_id"]:
-                    goal = s.get("goal") or ""
+                    # V2-530 — the errand's NAME, not its brief. `goal[:40]` of a raw turn is what made the
+                    # voice say «el proceso "Me parece bien. Oye, una cosita, estabas" pregunta: …»: the cut
+                    # landed before the errand was even mentioned. `title` falls back to the brief, so this
+                    # is never worse than it was.
+                    goal = s.get("title") or s.get("goal") or ""
                     break
             try:
                 from voice import attention
@@ -225,7 +230,9 @@ class OrchestratorLoop:
                 pass
             await self._deliver("zaelar", self._say(
                 "worker_ask_named" if goal else "worker_ask_generic",
-                goal=goal[:40], question=a["question"]))
+                # Clipped on a word boundary (V2-530): the old `[:40]` cut mid-word, and a name read aloud
+                # with its last word amputated is worse than a slightly longer one.
+                goal=_errand_title.provisional(goal, 48), question=a["question"]))
         # purge resolved corr_ids from the relayed set (to avoid growth)
         try:
             pend = {p["corr_id"] for p in worker_api.pending_asks()}

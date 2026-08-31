@@ -44,12 +44,7 @@ class SessionRecord:
     by `dispatch.active_sessions()`; handles (session/task) do not travel to STATE or /api/tasks."""
     task_id: str
     goal: str
-    # V2-530 — what this errand is CALLED, which is not the same string as what it was ASKED. `goal` is the
-    # BRIEF and stays the operator's own words verbatim (the promise backstop escalates the raw turn on
-    # purpose: «invéntate el apellido si te lo piden» has to survive). `title` is the NAME the operator reads
-    # on the sheet and hears in «el proceso "…" pregunta». Empty until `nucleo.errand_title` fills it; every
-    # reader falls back to the goal, so nothing depends on it arriving.
-    title: str = ""
+    title: str = ""               # V2-530 — the NAME, beside the BRIEF; readers fall back to `goal`
     kind: str = "generic"
     backend: str = ""
     label: str = ""

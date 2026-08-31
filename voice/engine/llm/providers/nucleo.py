@@ -1253,13 +1253,14 @@ class NucleoLLMStream(llm.LLMStream):
                 # NO dice borrar, es un CLOSE → no abrir confirmación de borrado. Determinista (no depende del LLM).
                 from nucleo.flash import router as _router
                 if _router.looks_like_close(turn_text):
-                    _t = _close_target(wid)
+                    _t = _close_target(wid, turn_text)
                     if _t["ask"]:                       # V2-259 F3: varias tarjetas de esa pieza → se PREGUNTA
                         clarify["msg"] = _t["ask"]
                         emit("brain", "❓ cerrar: varias tarjetas abiertas", text=wid, role="system",
                              extra={"options": _t["options"]})
                         return
-                    emit("widget", "close", extra={"id": _t["id"] or wid, "src": "flash"})
+                    for _cid in (_t.get("ids") or [_t["id"] or wid]):
+                        emit("widget", "close", extra={"id": _cid, "src": "flash"})
                     emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
                     acted["widget"] = True
                     acted["closed"] = True
@@ -1687,7 +1688,7 @@ class NucleoLLMStream(llm.LLMStream):
                             # ronda 24 el modelo mostró `results` con la hoja del encargo abierta al lado y el
                             # canvas abrió la caja PELADA, vacía. Misma decisión y mismo dueño que el cierre
                             # (`_close_target` → `instances.resolve_close`); con varias abiertas se pregunta.
-                            _r2 = _show_target_instance(_rid)
+                            _r2 = _show_target_instance(_rid, text)
                             if _r2.get("ask"):
                                 clarify["msg"] = _r2["ask"]
                                 emit("brain", "🤔 show_widget con varias hojas → pregunto", text=_rid,
@@ -2553,7 +2554,7 @@ class NucleoLLMStream(llm.LLMStream):
             if not _cw and len(text.split()) <= 5 and len(_openw) == 1:
                 _cw = _openw[0]
             if _cw:
-                _t = _close_target(_cw)
+                _t = _close_target(_cw, text)
                 if _t["ask"]:                           # V2-259 F3
                     clarify["msg"] = _t["ask"]
                     emit("brain", "❓ cerrar: varias tarjetas abiertas", text=_cw, role="system",
@@ -2564,7 +2565,8 @@ class NucleoLLMStream(llm.LLMStream):
             if _cw:
                 acted["widget"] = True
                 acted["closed"] = True
-                emit("widget", "close", extra={"id": _t["id"] or _cw, "src": "flash"})
+                for _cid in (_t.get("ids") or [_t["id"] or _cw]):
+                    emit("widget", "close", extra={"id": _cid, "src": "flash"})
                 emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                      text=_cw, role="system")
                 # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)
@@ -3278,18 +3280,21 @@ def _is_meta_widget_question(n: str) -> bool:
         r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
 
 
-def _show_target_instance(wid: str) -> dict:
+def _show_target_instance(wid: str, text: str = "") -> dict:
     """A QUÉ tarjeta va este «enséñamelo» (V2-300) — hermana de `_close_target`, mismo fail-soft: si no se
-    puede saber qué hay abierto, se muestra la base como siempre."""
+    puede saber qué hay abierto, se muestra la base como siempre.
+
+    `text` es el turno del operador: con varias tarjetas abiertas, «las dos» resuelve a todas en vez de
+    preguntar (V2-530)."""
     try:
         from server.voice_api import open_instances
         from widgets import instances as _inst
-        return _inst.resolve_show(wid, open_instances())
+        return _inst.resolve_show(wid, open_instances(), text)
     except Exception:  # noqa: BLE001
-        return {"id": wid, "ask": "", "options": []}
+        return {"id": wid, "ids": [wid], "ask": "", "options": []}
 
 
-def _close_target(wid: str) -> dict:
+def _close_target(wid: str, text: str = "") -> dict:
     """A QUÉ tarjeta va este cierre (V2-259 F3). Una sola decisión para los TRES puntos de este fichero que
     emiten `widget/close` con id — escribir la regla tres veces es cómo se llega a que falte en uno.
 
@@ -3299,9 +3304,9 @@ def _close_target(wid: str) -> dict:
     try:
         from server.voice_api import open_instances
         from widgets import instances as _inst
-        return _inst.resolve_close(wid, open_instances())
+        return _inst.resolve_close(wid, open_instances(), text)
     except Exception:  # noqa: BLE001
-        return {"id": wid, "ask": "", "options": []}
+        return {"id": wid, "ids": [wid], "ask": "", "options": []}
 
 
 def _widget_fallback(text: str, emit, ask=None) -> bool:
@@ -3326,7 +3331,7 @@ def _widget_fallback(text: str, emit, ask=None) -> bool:
                 return True
             wid = _identify(text)
             if wid:
-                _t = _close_target(wid)
+                _t = _close_target(wid, text)
                 if _t["ask"]:
                     if ask:
                         ask(_t["ask"])
@@ -3334,7 +3339,8 @@ def _widget_fallback(text: str, emit, ask=None) -> bool:
                              extra={"options": _t["options"]})
                         return True
                     return False        # sin canal para preguntar, mejor no cerrar a ciegas
-                emit("widget", "close", extra={"id": _t["id"] or wid, "src": "flash"})
+                for _cid in (_t.get("ids") or [_t["id"] or wid]):
+                    emit("widget", "close", extra={"id": _cid, "src": "flash"})
                 return True
         elif _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi", n):
             wid = _identify(text)

@@ -250,6 +250,15 @@ DOMAINS: list[dict] = [
             # en el escalón caro, y self-host SIN relevo de fábrica.
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
+            # V2-530 — un encargo se LLAMA algo, y no es la cadena con la que se pidió. Medido en la sesión
+            # `7cab1afd`: las dos hojas del operador se titulaban «Sanidad con Sanitas en Soria» y «Me parece
+            # bien. Oye, una cosita, estabas buscándome un médico. ¿Eres…» — la segunda es un trozo de la
+            # conversación, y encima cortado ANTES de que se mencione el encargo. Ese mismo texto era el que
+            # la voz leía en alto («el proceso "…" pregunta») y una de las dos opciones de la pregunta de
+            # desambiguación, o sea que el defecto era audible además de visible. El GOAL se queda como
+            # BRIEF (el backstop escala el turno crudo a propósito: la fidelidad es lo que deja al worker
+            # hacer lo correcto); el NOMBRE pasa a ser campo propio.
+            "tests/agent_headless/unit/test_an_errand_has_a_name.py",
             # V2-345: lo que el worker NARRA (82 eventos en 21,6 min, uno cada 16 s) llega a la pestaña de
             # Proceso MARCADO con «💬». Es la señal más rica que tenemos —lleva sitio, precio, modelo y el
             # porqué del paso— y no salía en ninguna pantalla. El marcador la separa de lo que verificamos

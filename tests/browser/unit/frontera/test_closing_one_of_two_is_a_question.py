@@ -110,7 +110,10 @@ def test_every_close_path_goes_through_the_one_decision():
               if 'emit("widget", "close"' in ln and '"id"' in ln]
     assert len(con_id) >= 3, "cambiaron los puntos de cierre: revisa que TODOS pasen por _close_target"
     for ln in con_id:
-        assert '_t["id"]' in ln, f"este cierre no pasa por la decisión compartida: {ln.strip()}"
+        # V2-530: the id now comes from the loop over `_t["ids"]` (the shared decision returns a LIST, so
+        # «both» is expressible). Reading `_t["id"]` is still fine; a literal or a bare variable is not.
+        assert '_t["id"]' in ln or "_cid" in ln, \
+            f"este cierre no pasa por la decisión compartida: {ln.strip()}"
     assert src.count("def _close_target(") == 1, "la decisión tiene que estar escrita UNA vez"
 
 
@@ -175,6 +178,55 @@ def test_the_show_decision_is_wired_in_BOTH_channels():
 
     voz = _code("voice/engine/llm/providers/nucleo.py")
     assert voz.count("def _show_target_instance(") == 1
-    assert "_show_target_instance(_rid)" in voz, "la voz no consulta la instancia al mostrar"
+    assert "_show_target_instance(_rid" in voz, "la voz no consulta la instancia al mostrar"
     probe = _code("nucleo/flash/probe.py")
     assert "resolve_show(_rid" in probe, "el probe no consulta la instancia al mostrar"
+
+
+# ── 5) «los dos» ANSWERS the question instead of restarting it (V2-530) ───────────────────────────────────────
+#
+# Measured 2026-08-31 (session `7cab1afd`): with two results sheets open the operator said «cierra los dos» and
+# got the disambiguation question BACK, then said «cierra las dos» and got it again — the second time with the
+# verb changed from «cierro» to «enseño». He had ANSWERED it. The question asks WHICH ONE and the answer was
+# BOTH, an option the resolver had no way to express, so every rephrasing round-tripped into the same question.
+
+def test_both_closes_every_card_instead_of_asking_again():
+    r = instances.resolve_close("results", ["results::t1", "results::t2"], "Cierra los dos.")
+    assert not r["ask"], "«los dos» IS the answer — asking again is the bug"
+    assert r["ids"] == ["results::t1", "results::t2"]
+
+
+@pytest.mark.parametrize("said", ["cierra las dos", "ciérralas ambas", "cierra todas", "close both of them"])
+def test_the_other_natural_ways_of_saying_it(said):
+    assert instances.wants_every(said), f"«{said}» quantifies over every card"
+
+
+def test_but_a_plain_close_still_asks():
+    """The counterweight. Without it, «answer both» is satisfied by never asking again — which throws away
+    V2-259 F3 whole: closing the wrong search is exactly what the question exists to prevent."""
+    r = instances.resolve_close("results", ["results::t1", "results::t2"], "ciérralo")
+    assert r["ask"] and r["ids"] == []
+
+
+def test_showing_answers_it_too():
+    """The mirror. In the live session the follow-up was routed to SHOW, not close (the model changed the verb
+    on its own), so fixing only the close half would have left the operator in the very same loop."""
+    r = instances.resolve_show("results", ["results::t1", "results::t2"], "enséñame las dos")
+    assert not r["ask"] and r["ids"] == ["results::t1", "results::t2"]
+
+
+def test_ids_always_travels_so_a_caller_that_loops_it_is_right_in_every_case():
+    """`ids` is the whole reason this does not need a second rule at each call site: a caller that iterates it
+    handles one card, none, an already-disambiguated id and «both» with the same line. Reading `id` is what
+    made two of the three closing paths miss the answer."""
+    assert instances.resolve_close("results", ["results::t1"], "")["ids"] == ["results::t1"]
+    assert instances.resolve_close("results::t7", [], "")["ids"] == ["results::t7"]
+    assert instances.resolve_close("results", [], "")["ids"] == ["results"]
+
+
+def test_every_closing_path_iterates_ids():
+    """Source guard, same reason the file already has one: `nucleo.py` emits `widget/close` from THREE places,
+    and writing the rule three times is how it comes to be missing from one."""
+    body = NUCLEO.read_text()
+    assert body.count('for _cid in (_t.get("ids")') == 3, \
+        "the three closing paths must loop over `ids`, not read `id`"

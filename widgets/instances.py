@@ -83,34 +83,68 @@ def _distinguibles(etiquetas: list[str], ids: list[str]) -> list[str]:
     return out
 
 
-def resolve_close(target, open_ids) -> dict:
+_EVERY_RE = _re.compile(
+    r"\b(?:ambos|ambas|todas?|todos|both|all\s+of\s+them|"
+    r"(?:los|las)\s+(?:dos|tres|cuatro|\d+))\b", _re.I)
+
+
+def wants_every(text: str) -> bool:
+    """Does the operator mean ALL the open cards of this piece, rather than one of them?
+
+    Measured 2026-08-31 (session `7cab1afd`): with two results sheets open the operator said «cierra los dos»
+    and got the disambiguation question BACK — «¿cuál te enseño, "…" o "…"?» — then said «cierra las dos» and
+    got it again. He had answered it. The question asks WHICH ONE and the answer was BOTH, an option the
+    resolver had no way to express, so every rephrasing round-tripped into the same question.
+
+    A QUANTIFIER, not a verb table: «los dos», «ambas», «todas», «both». What to DO with them is already
+    decided by the caller — this only says how many cards the order reaches.
+    """
+    if not text:
+        return False
+    return bool(_EVERY_RE.search(_strip_accents(str(text))))
+
+
+def _strip_accents(text: str) -> str:
+    return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c))
+
+
+def resolve_close(target, open_ids, text: str = "") -> dict:
     """A QUÉ tarjeta va un «ciérralo».
 
-    Devuelve `{"id": <id a cerrar> | None, "ask": <pregunta> | "", "options": [...]}`:
+    Devuelve `{"id": <id a cerrar> | None, "ids": [...], "ask": <pregunta> | "", "options": [...]}`:
 
       · el operador ya nombró una instancia (`results::t7`)          → esa, sin preguntar
       · la pieza tiene 0 o 1 tarjetas abiertas                       → el id tal cual (cerrar una ya cerrada es
                                                                         un no-op inofensivo, y ese era el
                                                                         comportamiento de siempre)
+      · dos o más, y el turno dice CUÁNTAS («los dos», «todas»)      → todas, sin preguntar (V2-530)
       · dos o más                                                    → `ask`, y `id` a None
+
+    `ids` es la lista a cerrar y viene SIEMPRE — un llamante que recorra `ids` está bien escrito para los cuatro
+    casos, y ésa es la diferencia con leer `id` y perderse la respuesta «los dos» en dos de los tres sitios que
+    cierran. `id` se conserva para no romper a nadie.
     """
     tid = str(target or "").strip()
     if not tid:
-        return {"id": None, "ask": "", "options": []}
+        return {"id": None, "ids": [], "ask": "", "options": []}
     if SEP in tid:
-        return {"id": tid, "ask": "", "options": []}          # ya vino desambiguado; no hay nada que preguntar
+        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # ya vino desambiguado; nada que preguntar
     abiertas = instances_of(tid, open_ids)
     if len(abiertas) <= 1:
-        return {"id": abiertas[0] if abiertas else tid, "ask": "", "options": abiertas}
+        _one = abiertas[0] if abiertas else tid
+        return {"id": _one, "ids": [_one], "ask": "", "options": abiertas}
+    if wants_every(text):
+        return {"id": None, "ids": list(abiertas), "ask": "", "options": abiertas}
     etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
     if len(etiquetas) == 2:
         cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
     else:
         cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
-    return {"id": None, "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál cierro, {cuales}?", "options": abiertas}
+    return {"id": None, "ids": [], "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál cierro, {cuales}?",
+            "options": abiertas}
 
 
-def resolve_show(target, open_ids) -> dict:
+def resolve_show(target, open_ids, text: str = "") -> dict:
     """A QUÉ tarjeta va un «enséñamelo» — el espejo de `resolve_close`, medido por el lado contrario (V2-300).
 
     Ronda 24 de `search-buy-guitar__es` (2026-08-24): la hoja del encargo (`results::58c1af-1`) estaba ABIERTA
@@ -122,18 +156,20 @@ def resolve_show(target, open_ids) -> dict:
     """
     tid = str(target or "").strip()
     if not tid:
-        return {"id": None, "ask": "", "options": []}
+        return {"id": None, "ids": [], "ask": "", "options": []}
     if SEP in tid:
-        return {"id": tid, "ask": "", "options": []}          # ya vino desambiguado
+        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # ya vino desambiguado
     abiertas = instances_of(tid, open_ids)
     if not abiertas:
-        return {"id": tid, "ask": "", "options": []}          # sin instancias: la base, como siempre
+        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # sin instancias: la base, como siempre
     if len(abiertas) == 1:
-        return {"id": abiertas[0], "ask": "", "options": abiertas}
+        return {"id": abiertas[0], "ids": [abiertas[0]], "ask": "", "options": abiertas}
+    if wants_every(text):
+        return {"id": None, "ids": list(abiertas), "ask": "", "options": abiertas}
     etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
     if len(etiquetas) == 2:
         cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
     else:
         cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
-    return {"id": None, "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál te enseño, {cuales}?",
+    return {"id": None, "ids": [], "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál te enseño, {cuales}?",
             "options": abiertas}
