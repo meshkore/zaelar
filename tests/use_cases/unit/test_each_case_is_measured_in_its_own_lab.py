@@ -1,18 +1,18 @@
-"""Un caso de San Francisco no se mide con el plató de Madrid.
+"""A San Francisco case is not measured on the Madrid set.
 
-`--lab es` sobre un caso `__us` NO falla: mide. Y lo que mide es a Marc, de Madrid, conduciendo un encargo de
-San Francisco en castellano dentro de un brief inglés. Un tester que se contradice a sí mismo no mide el
-producto, mide el arnés — y la ronda sale VERDE de infraestructura, así que el resultado entra al marcador
-como si fuera un veredicto sobre el producto. Misma familia que los 19 escenarios US que el 2026-08-27
-contestaban con realidad española, e invisible desde fuera por el mismo motivo.
+`--lab es` on a `__us` case does NOT fail: it measures. And what it measures is Marc, from Madrid, handling a
+San Francisco assignment in Spanish inside an English brief. A tester that contradicts itself does not measure the
+product; it measures the harness—and the round comes out GREEN for infrastructure, so the result enters the scoreboard
+as though it were a verdict about the product. Same family as the 19 US scenarios that on 2026-08-27
+responded with Spanish reality, and invisible from the outside for the same reason.
 
-El defecto vivía en dos sitios y es UNO:
-  · el supervisor —el bucle que va a correr 24 h seguidas— llamaba a `una_ronda(esc)` sin plató, así que se
-    quedaba el `es` por defecto para TODO, incluidos los `__us`.
-  · `run.py` no lo impedía, así que arreglar solo el supervisor deja el mismo error a un `--lab` a mano.
+The defect lived in two places and is ONE:
+  · the supervisor—the loop that is going to run for 24 consecutive hours—called `una_ronda(esc)` without a set, so
+    the default `es` remained in effect for EVERYTHING, including `__us` cases.
+  · `run.py` did not prevent it, so fixing only the supervisor leaves the same error possible with a manual `--lab`.
 
-La negativa es fail-closed a propósito: una medición con la persona equivocada es peor que ninguna, porque la
-que no existe no engaña a nadie.
+The refusal is intentionally fail-closed: a measurement with the wrong person is worse than no measurement, because
+one that does not exist cannot fool anyone.
 """
 from __future__ import annotations
 
@@ -35,13 +35,13 @@ def test_el_sufijo_del_id_dice_el_plato():
 
 
 def test_el_supervisor_lo_pasa_de_verdad(monkeypatch):
-    """No basta con que la función exista: `main()` tenía que dejar de llamar sin plató."""
+    """It is not enough for the function to exist: `main()` had to stop calling it without a set."""
     vistos: list[tuple[str, str]] = []
 
     def _falsa_ronda(esc, lab="es"):
         vistos.append((esc, lab))
         if len(vistos) >= 2:
-            raise KeyboardInterrupt          # corta el bucle infinito del supervisor
+            raise KeyboardInterrupt          # stops the supervisor's infinite loop
         return {}
 
     monkeypatch.setattr(S, "rotacion", lambda: ["cheapest-monitor__us", "hotel-under-15-days"])
@@ -61,31 +61,31 @@ def test_el_plato_equivocado_se_niega():
 
 
 def test_el_plato_correcto_pasa():
-    """La mitad de sensibilidad: sin esto, «niega el cruce» y «lo niega todo» pasan igual."""
+    """The sensitivity half: without this, “rejects the mismatch” and “rejects everything” pass alike."""
     assert wrong_lab_refusal("us", [_Caso("cheapest-monitor__us", "us")]) == ""
     assert wrong_lab_refusal("es", [_Caso("hotel-under-15-days", "es")]) == ""
 
 
 def test_una_tanda_mixta_se_niega_entera_y_los_nombra():
-    """El caso real de la rotación: la lista trae de los dos y hay que ver CUÁLES sobran."""
+    """The real rotation case: the list contains both kinds and we need to see WHICH ones are extraneous."""
     casos = [_Caso("a__us", "us"), _Caso("b", "es"), _Caso("c__us", "us")]
     msg = wrong_lab_refusal("es", casos)
     assert "a__us" in msg and "c__us" in msg and "2 caso" in msg
-    assert " b," not in msg and "b." not in msg, "el que sí encaja no se acusa"
+    assert " b," not in msg and "b." not in msg, "the one that fits is not accused"
 
 
 def test_un_sandbox_no_tiene_persona_y_no_es_asunto_de_esto():
-    """Sin `--lab` no hay agente persistente ni perfil que contradecir: la negativa no aplica."""
+    """Without `--lab` there is no persistent agent or profile to contradict: the refusal does not apply."""
     assert wrong_lab_refusal("", [_Caso("cheapest-monitor__us", "us")]) == ""
 
 
-# ── Y que los dos platós avancen, no solo uno (2026-08-28) ──────────────────────────────────────────────────
+# ── Make both sets advance, not just one (2026-08-28) ──────────────────────────────────────────────────
 def test_los_dos_platos_se_alternan_dentro_de_cada_grupo():
-    """El operador pidió medir US **y** ES. La prioridad de la rotación («rotos primero») es lo valioso y no
-    se toca; lo que fallaba es que dentro de cada grupo el orden salía del diccionario del marcador y los
-    `__us` quedaban en bloque — medido: el primer caso US estaba en la **posición 21** de 132, a unas dos
-    horas y tres cuartos de plató. Un bucle que corre toda la noche sin tocar media lista no está midiendo
-    esa mitad, aunque la tenga escrita."""
+    """The operator asked to measure US **and** ES. The rotation priority (“broken first”) is what matters and is not
+    changed; what was failing is that within each group the order came from the scoreboard dictionary and the
+    `__us` cases remained in a block—measured: the first US case was in **position 21** of 132, about two
+    hours and forty-five minutes into the set. A loop that runs all night without touching half the list is not measuring
+    that half, even if it has it written down."""
     got = S.intercala(["a__es", "b__es", "c__es", "x__us", "y__us"])
     assert got == ["a__es", "x__us", "b__es", "y__us", "c__es"]
 
@@ -97,8 +97,8 @@ def test_el_mas_largo_termina_de_tirar_solo():
 
 
 def test_se_alterna_pero_NO_se_baraja():
-    """Barajar haría que dos vueltas seguidas no se puedan comparar, y la rotación es justo lo que las hace
-    comparables. El orden relativo dentro de cada plató tiene que sobrevivir intacto."""
+    """Shuffling would make two consecutive passes impossible to compare, and the rotation is precisely what makes them
+    comparable. The relative order within each set must remain intact."""
     ids = [f"{c}__es" for c in "abcde"] + [f"{c}__us" for c in "vwxyz"]
     got = S.intercala(ids)
     assert [x for x in got if x.endswith("__es")] == [f"{c}__es" for c in "abcde"]
@@ -107,17 +107,17 @@ def test_se_alterna_pero_NO_se_baraja():
 
 
 def test_la_prioridad_sigue_mandando_DENTRO_de_cada_plato():
-    """Reescrito 2026-08-28, NO volteado. La propiedad —la prioridad manda— es la misma; lo que cambió es
-    dónde significa algo.
+    """Rewritten 2026-08-28, NOT reversed. The property—the priority takes precedence—is the same; what changed is
+    where it means something.
 
-    Antes se alternaba dentro de cada grupo (`intercala(rotos) + intercala(nunca) + intercala(buenos)`), y
-    medido en las cuatro primeras horas del 24/7 eso dio **25 rondas ES contra 7 US**: ES tiene más casos
-    rotos, así que al agotar los US del grupo «rotos» quedaban trece ES seguidos antes de llegar al grupo
-    «nunca medidos», que es donde viven los 52 US sin tocar.
+    Previously, each group was interleaved (`intercala(rotos) + intercala(nunca) + intercala(buenos)`), and
+    measured over the first four hours of the 24/7 run this produced **25 ES rounds versus 7 US**: ES has more broken
+    cases, so after exhausting the US cases in the “broken” group, thirteen consecutive ES cases remained before reaching the
+    “never measured” group, where the 52 untouched US cases live.
 
-    Ahora cada plató lleva su cola completa (rotos → nunca → buenos) y se alternan turno a turno. Lo que se
-    sacrifica es que un roto de un plató vaya antes que un nunca-medido del OTRO — una comparación que no
-    significa nada, porque son dos productos midiéndose en paralelo, no una sola lista.
+    Now each set carries its complete queue (broken → never → good) and they alternate turn by turn. What is
+    sacrificed is having a broken case from one set come before a never-measured case from the OTHER—a comparison that
+    means nothing, because two products are being measured in parallel, not one list.
     """
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
@@ -126,15 +126,15 @@ def test_la_prioridad_sigue_mandando_DENTRO_de_cada_plato():
 
 
 def test_cada_plato_lleva_su_PROPIA_cola_de_prioridad():
-    """Intercalar dentro de cada grupo no bastaba, y se vio en las cifras: **25 rondas ES contra 7 US** en las
-    cuatro primeras horas del plató 24/7.
+    """Interleaving within each group was not enough, as the figures showed: **25 ES rounds versus 7 US** in the
+    first four hours of the 24/7 set.
 
-    La causa: ES tiene muchos más casos rotos, así que tras agotar los US del grupo «rotos» quedaban trece ES
-    seguidos ANTES de que empezara el grupo «nunca medidos» — que es donde viven los 52 casos US que nadie ha
-    tocado. La prioridad se respetaba y el operador seguía sin datos de US.
+    The cause: ES has many more broken cases, so after exhausting the US cases in the “broken” group, thirteen consecutive ES
+    cases remained BEFORE the “never measured” group began—the one where the 52 US cases no one had touched live. The
+    priority was respected and the operator still had no US data.
 
-    Ahora cada plató recorre rotos → nunca → buenos por su cuenta y se alternan turno a turno: la prioridad
-    sigue intacta DENTRO de cada locale, que es donde significa algo.
+    Now each set goes through broken → never → good independently and they alternate turn by turn: the priority
+    remains intact WITHIN each locale, which is where it means something.
     """
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
@@ -143,8 +143,8 @@ def test_cada_plato_lleva_su_PROPIA_cola_de_prioridad():
 
 
 def test_un_ROTO_de_su_plato_sigue_yendo_antes_que_un_BUENO_del_mismo():
-    """La prioridad no se sacrifica por alternar: se sacrifica que un roto de un plató vaya antes que un
-    nunca-medido del OTRO, que es una comparación que no significa nada."""
+    """The priority is not sacrificed for alternation: having a broken case from one set come before a
+    never-measured case from the OTHER is sacrificed, since that comparison means nothing."""
     got = S.intercala(["roto__es", "nunca__es", "bueno__es", "roto__us", "nunca__us"])
     solo_es = [x for x in got if not x.endswith("__us")]
     assert solo_es == ["roto__es", "nunca__es", "bueno__es"]

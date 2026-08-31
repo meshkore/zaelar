@@ -8,7 +8,7 @@ MEASURED on `play-music-and-build-playlist` (2026-08-28 21:27, ES lab, recorded)
 job: the model called `add_to_playlist` twice, the store finished holding `playlists=[{name: "Curro",
 tracks: [the track that was playing]}]` and `yt.videoId` live with `paused: false` — both halves of the
 scenario's success check. The reader published zero, and the judge wrote "hallucination of saved state, the
-playlist is EMPTY", scoring resultado 2 and mecanismo 2. Nothing in the product was wrong.
+playlist is EMPTY", scoring result 2 and mechanism 2. Nothing in the product was wrong.
 
 Sixth instrument-accuses-product defect of the same family, and this one is the sharpest form of it: a field
 read at the wrong LEVEL does not fail loudly, it manufactures a fact — and the manufactured one reads
@@ -41,7 +41,7 @@ def test_a_music_track_saved_in_a_named_playlist_is_counted(monkeypatch):
 
 
 def test_the_playlist_NAME_travels(monkeypatch):
-    """Half the errand is the name («una lista que se llame Curro»): a track counter cannot check it."""
+    """Half the errand is the name ("a list called Curro"): a track counter cannot check it."""
     out = _read({"youtube": {"list": []}, "musica": MUSICA_REAL}, monkeypatch)
     assert {"name": "Curro", "n": 1, "widget": "musica"} in out["lists"]
 
@@ -73,8 +73,8 @@ def test_an_empty_player_is_still_reported_as_empty(monkeypatch):
 
 
 def test_the_raw_playback_fields_are_published(monkeypatch):
-    """`widgets_producing` is a CONCLUSION; the scenarios name the raw fields («`yt.videoId` con
-    `yt.paused` falso»). Three rounds in a row on 2026-08-28 answered the conclusion by distrusting it —
+    """`widgets_producing` is a CONCLUSION; the scenarios name the raw fields ("`yt.videoId` with
+    `yt.paused` false"). Three rounds in a row on 2026-08-28 answered the conclusion by distrusting it —
     "the report shows no evidence the player is active" — with it stated in words right in front of them.
     A derived fact nobody can check against anything persuades nobody."""
     out = _read({"youtube": {"list": []}, "musica": MUSICA_REAL}, monkeypatch)

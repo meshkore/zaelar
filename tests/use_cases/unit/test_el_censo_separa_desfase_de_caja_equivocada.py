@@ -1,13 +1,13 @@
-"""V2-440 · el censo del INSTANTE separa las dos causas que se veían idénticas.
+"""V2-440 · the point-in-time census separates the two causes that looked identical.
 
-La cara dice «ya ha encontrado algo» y la hoja no da ni una fila. Eso tiene DOS causas que piden arreglos
-opuestos: **desfase** (el worker aún no ha entregado — el aviso es correcto y no hay nada que tocar) y
-**caja equivocada** (las filas están en otra hoja — ahí sí hay defecto). Desde fuera se ven igual.
+The face says “it has already found something” and the sheet yields not even one row. This has TWO causes that
+call for opposite fixes: **lag** (the worker has not delivered yet—the alert is correct and there is nothing to
+change) and **wrong box** (the rows are on another sheet—there is a defect there). From the outside they look the same.
 
-El 2026-08-28 se intentó separarlas comparando con el estado FINAL de la ronda y salió un FALSO POSITIVO:
-`search-buy-bicycle__es` marcó `e84138-2` como equivocada y esa caja acabó con 35 filas. El estado final no
-puede contestar una pregunta sobre un instante — para entonces la caja que se miró ya tenía lo que le
-faltaba cuando se miró.
+On 2026-08-28, an attempt was made to separate them by comparing against the round’s FINAL state, producing a
+FALSE POSITIVE: `search-buy-bicycle__es` marked `e84138-2` as wrong, and that box ended up with 35 rows. The
+final state cannot answer a question about a point in time—by then, the box that was checked already had what it
+was missing when it was checked.
 """
 from tests.use_cases.e2e.agent.verify import _censo_dice, unresolved_errand_sheets
 
@@ -19,51 +19,51 @@ def _ev(cajas, censo):
 
 
 def test_ninguna_hoja_con_filas_es_DESFASE_y_no_un_defecto():
-    """El caso sano: el aviso salió antes de que el worker entregara. Contarlo como defecto manda a alguien a
-    arreglar algo que nunca pasó — el error que una herramienta de medida no puede permitirse."""
+    """The healthy case: the alert appeared before the worker delivered. Counting it as a defect sends someone to
+fix something that never happened—the kind of error a measuring instrument cannot afford."""
     assert _censo_dice("e84138-1:0 e84138-2:0", "e84138-2") == ("desfase", "")
 
 
 def test_otra_hoja_CON_filas_se_reporta_como_HECHO_y_dice_CUAL():
-    """Y NO como «caja equivocada»: el censo lista todo el almacén, y la hoja de un encargo anterior tiene
-    filas con todo el derecho. Llamarlo defecto convierte una ronda sana en un hallazgo en cuanto hay dos
-    encargos — el mismo error que este nodo existe para no repetir. Nombrar cuál es lo que evita deducirlo a
-    mano, que es lo que costó horas esa noche."""
+    """And NOT as “wrong box”: the census lists the entire warehouse, and the sheet from a previous errand has
+rows there legitimately. Calling it a defect turns a healthy round into a finding as soon as there are two
+errands—the same error this node exists to prevent. Naming which one it is avoids having to infer it by hand,
+which is what cost hours that night."""
     v, donde = _censo_dice("e84138-1:12 e84138-2:0", "e84138-2")
     assert v == "otras_con_filas" and donde == "e84138-1:12"
 
 
 def test_mirar_donde_estan_las_filas_no_es_ninguna_de_las_dos():
-    """La hoja tenía filas y las miramos: si esto marcara algo, el instrumento acusaría al motor de un fallo
-    que no cometió justo cuando acierta."""
+    """The sheet had rows and we checked them: if this flagged anything, the instrument would accuse the engine of
+a failure it did not commit precisely when it got things right."""
     assert _censo_dice("e84138-2:12", "e84138-2") == ("", "")
 
 
 def test_un_censo_ILEGIBLE_es_un_HUECO_y_nunca_un_hallazgo():
-    """«No pude mirar» no es «no había nada». Confundirlos publica una causa inventada con la misma
-    seguridad que una medida."""
+    """“I could not check” is not “there was nothing.” Confusing them publishes an invented cause with the same
+certainty as a measurement."""
     assert _censo_dice("?", "e84138-2") == ("", "")
     assert _censo_dice("", "e84138-2") == ("", "")
 
 
 def test_las_filas_en_la_hoja_DESNUDA_son_su_propia_categoria():
-    """La caja FANTASMA no es un desfase, y meterla ahí sería lo cómodo: en un desfase no hay nada escrito y
-    aquí las filas existen, a un palmo de la hoja del encargo. `_sheet_of_tab` lo documenta — sin hoja
-    resuelta los hallazgos caen en `results` desnuda, «la que no es de nadie». El arreglo es OTRO: el motor
-    miró bien y entregó mal el escritor. Medido en `search-buy-bicycle__es`, cuyo `written_ids` trae las dos.
-    """
+    """The GHOST box is not lag, and putting it there would be the convenient choice: in a lag case nothing is
+written, whereas here the rows exist, right next to the errand’s sheet. `_sheet_of_tab` documents this—without a
+resolved sheet, findings land in bare `results`, “the one that belongs to no one.” The fix is DIFFERENT: the engine
+looked correctly and the writer delivered incorrectly. Measured in `search-buy-bicycle__es`, whose `written_ids`
+contains both."""
     assert _censo_dice("(base):9 e84138-2:0", "e84138-2") == ("fantasma", "(base)")
 
 
 def test_la_hoja_DESNUDA_no_se_confunde_con_una_caja_de_encargo_equivocada():
-    """Si se contara como caja equivocada, el informe mandaría a arreglar la RESOLUCIÓN cuando lo roto es la
-    ENTREGA — y el que lo lea perderá el tiempo en el sitio que no es."""
+    """If it were counted as a wrong box, the report would send someone to fix RESOLUTION when DELIVERY is what is
+broken—and whoever reads it would waste time in the wrong place."""
     v, _ = _censo_dice("(base):9 e84138-1:0", "e84138-1")
     assert v == "fantasma"
 
 
 def test_el_informe_PUBLICA_el_veredicto_y_no_solo_las_cajas():
-    """La mitad del cableado: emitir la señal y no traerla al informe deja el dato donde nadie lo mira."""
+    """Half the wiring: emitting the signal without bringing it into the report leaves the data where no one looks."""
     out = unresolved_errand_sheets([_ev("e84138-2", "e84138-1:12 e84138-2:0"),
                                     _ev("e84138-2", "e84138-1:0 e84138-2:0")])
     assert out["n_face_without_rows"] == 2
@@ -72,20 +72,20 @@ def test_el_informe_PUBLICA_el_veredicto_y_no_solo_las_cajas():
 
 
 def test_el_MOTOR_emite_el_censo_y_no_solo_las_cajas(monkeypatch, tmp_path):
-    """La otra mitad, y sin ella los cinco de arriba pasan con el emisor MUDO — comprobado desarmándolo.
+    """The other half, and without it the five above pass with the emitter MUTED—verified by dismantling it.
 
-    Un lector que sabe interpretar un campo que nadie escribe no mide nada: publica ceros que se leen como
-    «no pasó», que es la respuesta tranquilizadora. La guarda recorre el camino real (`aviso_sin_filas`) y
-    exige que el evento lleve el censo dentro.
+An interpreter that knows how to interpret a field nobody writes measures nothing: it publishes zeroes that read as
+“nothing happened,” which is the reassuring answer. The check follows the real path (`aviso_sin_filas`) and
+requires the event to carry the census inside it.
     """
     monkeypatch.setenv("ZAELAR_HOME", str(tmp_path))
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "z.db"))
     from nucleo.flash import errand_sheet
     from widgets import store
     from widgets.results import data as sheet, intake
-    # ALMACÉN PROPIO. El censo lista TODAS las hojas y va acotado, así que dentro de la suite completa las que
-    # dejan otros casos empujan a la nuestra fuera del corte y la guarda falla por el motivo equivocado —
-    # medido. Lo que se prueba aquí es el CABLEADO, no cuántas hojas quepan.
+    # OWN WAREHOUSE. The census lists ALL sheets and is bounded, so in the full suite the ones left by other cases
+    # push ours outside the cutoff and the check fails for the wrong reason—measured. What is tested here is the
+    # WIRING, not how many sheets fit.
     _wd = tmp_path / "wdata"
     _wd.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(store, "DATA_DIR", str(_wd), raising=False)
@@ -101,20 +101,20 @@ def test_el_MOTOR_emite_el_censo_y_no_solo_las_cajas(monkeypatch, tmp_path):
     assert visto, "el motor no emitió nada"
     censo = str(visto[-1].get("censo") or "")
     assert censo and censo != "?", f"el aviso salió sin censo: {visto[-1]!r}"
-    # Y el censo tiene que ser LEGIBLE por el mismo parser que lo consume, o el cableado sigue roto.
+    # And the census must be READABLE by the same parser that consumes it, or the wiring is still broken.
     v, _ = _censo_dice(censo, "cen-2")
     assert v == "otras_con_filas"
-    # Lo que prueba el CABLEADO es que nuestra hoja esté en el censo CRUDO con su recuento: el resumen del
-    # informe va acotado a propósito, así que dentro de la suite completa —con las hojas que dejan otros
-    # tests— la nuestra puede caer fuera del corte sin que nada esté roto. Comprobado: falla solo ahí.
+    # What proves the WIRING is that our sheet is in the RAW census with its count: the report summary is
+    # deliberately bounded, so in the full suite—with the sheets left by other tests—ours may fall outside the
+    # cutoff without anything being broken. Verified: it fails only there.
     assert "cen-1:1" in censo, censo
 
 
 def test_al_juez_se_le_da_la_causa_del_CENSO_y_no_la_del_estado_final():
-    """`n_wrong_box` compara con el estado FINAL de la ronda y por eso marcó los ONCE avisos de
-    `find-theatre-tickets__us` (2026-08-28) como caja equivocada, cuando el censo dice que los once eran
-    DESFASE: nadie tenía filas en ese instante. Decirle al juez una causa falsa once veces es peor que no
-    darle ninguna — se la creerá y bajará la nota de mecanismo por una avería inexistente."""
+    """`n_wrong_box` compares against the round’s FINAL state and therefore marked the ELEVEN alerts from
+    `find-theatre-tickets__us` (2026-08-28) as wrong box, when the census says all eleven were LAG: nobody had rows
+    at that point in time. Telling the judge a false cause eleven times is worse than telling it none—it will
+    believe it and lower the mechanism score for a nonexistent failure."""
     from tests.use_cases.e2e.agent import judge
     mech = {"sheet_hidden_from_the_prompt": {"n": 2, "turns": [{"turn": 5}]},
             "unresolved_errand_sheets": {"n_wrong_box": 11, "wrong_boxes": {"86f804-2": 11},
@@ -124,8 +124,8 @@ def test_al_juez_se_le_da_la_causa_del_CENSO_y_no_la_del_estado_final():
 
 
 def test_y_si_el_CENSO_dice_que_habia_filas_en_otra_hoja_SI_se_le_dice():
-    """La mitad que impide que el arreglo sea silencio: cuando el censo sí encuentra filas fuera, esa es la
-    pista buena y tiene que llegar — con el aviso de que una hoja anterior las tiene con todo el derecho."""
+    """The half that keeps the fix from being silence: when the census does find rows elsewhere, that is the right
+clue and it must get through—with the notice that a previous sheet legitimately has them."""
     from tests.use_cases.e2e.agent import judge
     mech = {"sheet_hidden_from_the_prompt": {"n": 2, "turns": [{"turn": 5}]},
             "unresolved_errand_sheets": {"n_lag": 0, "n_ghost": 0,

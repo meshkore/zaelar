@@ -53,54 +53,54 @@ class SessionRecord:
     started: float = field(default_factory=time.time)
     native_sid: str = ""
     waiting_on: str = ""          # "" | "user" | "flash"  (lo fija worker_api al aparcar un ask)
-    ask: str = ""                 # texto de la pregunta activa (si waiting_on)
-    ask_corr: str = ""            # corr_id del ask activo
+    ask: str = ""                 # text of the active question (if waiting_on)
+    ask_corr: str = ""            # corr_id of the active ask
     result_summary: str = ""
     ok: bool = True
     parent_task_id: str = ""
     depth: int = 0
     trace_id: str = ""            # V2-044: trace of the phrase that originated the session (chains all its events)
     nav_task: str = ""            # kind=web: associated browser task ID (card) — set by dispatch
-    # V2-259 — la HOJA de este encargo (`results::<sheet>`), sellada UNA vez por `dispatch._sheet_open`. No es
-    # `task_id` a secas y ese fue un defecto real: `escalate._seq` arranca en 0 en cada proceso, así que los ids
-    # se REPITEN entre reinicios y el primer encargo de un arranque nuevo caía en la hoja `results--1` de la
-    # sesión anterior — que `begin_task(fresh=True)` estrena, o sea BORRA. Justo el «error de borrar búsquedas»
-    # que esta iniciativa existe para quitar, reintroducido por la puerta de atrás.
+    # V2-259 — the SHEET for this errand (`results::<sheet>`), sealed ONCE by `dispatch._sheet_open`. It is not
+    # `task_id` alone, and that was a real defect: `escalate._seq` starts at 0 in each process, so IDs
+    # REPEAT across restarts and the first errand of a new startup landed in the previous session's
+    # `results--1` sheet — which `begin_task(fresh=True)` opens anew, that is, DELETES. Exactly the «search deletion
+    # error» this initiative exists to remove, reintroduced through the back door.
     sheet: str = ""
-    # V2-227 — DÓNDE va a ver el operador el resultado, decidido al ENCARGAR y no al entregar. Vocabulario
-    # CERRADO (`nucleo/surfaces.py`): lista | item | widget | voz | silenciosa. Se sella UNA vez (`set_once`) y
-    # no se re-decide a mitad: cambiar de superficie cuando el operador ya está mirando la primera es peor que
-    # haber elegido mal. Vacío = todavía sin sellar (una sesión creada a mano en un test, por ejemplo).
+    # V2-227 — WHERE the operator will see the result, decided when ASSIGNING it and not when delivering it. CLOSED
+    # vocabulary (`nucleo/surfaces.py`): list | item | widget | voice | silent. It is sealed ONCE (`set_once`) and
+    # not reconsidered midway: changing surfaces when the operator is already looking at the first is worse than
+    # having chosen incorrectly. Empty = not sealed yet (for example, a session created manually in a test).
     surface: str = ""
-    # V2-227 ámbito C — el HISTORIAL de fases legibles, para la pestaña de PROCESO de la hoja. Anillo corto: es
-    # lo que el operador está mirando ahora, no un registro de auditoría (eso ya vive en observabilidad). Va
-    # aparte de `steps`, que son los pasos crudos derivados del stream y no se le enseñan a nadie.
+    # V2-227 scope C — the HISTORY of readable phases, for the sheet's PROCESS tab. Short ring: it is
+    # what the operator is looking at now, not an audit log (that already lives in observability). It is kept
+    # separate from `steps`, which are the raw steps derived from the stream and are shown to nobody.
     phases: list = field(default_factory=list)     # [{"t": <ts>, "s": "entrando en booking.com"}]
     last_event_at: float = field(default_factory=time.time)
     injects: list = field(default_factory=list)     # [Inject]
     paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero
-                                    # congelado; no confundir con status=cancelled (eso es irreversible)
+                                    # frozen; do not confuse with status=cancelled (that is irreversible)
     # ── observabilidad ESTRUCTURADA del worker (V2-059) ──────────────────────────────────────────────────────
-    # El worker abre una sesión de Claude Code con trabajo INTERNO opaco. Para verlo de forma controlada:
-    #  · `plan`  = la lista de tareas que el worker DECLARA al empezar (`hbnote plan "a|b|c"`).
-    #  · `done`  = cuántos pasos del plan lleva hechos (`hbnote progress --done N`) → progreso = done/len(plan).
-    #  · `pct`   = progreso explícito 0-100 si lo reporta (manda sobre done/plan); -1 = derivar/desconocido.
-    #  · `note`  = última nota de progreso legible.
-    #  · `steps` = anillo de los últimos pasos REALES (derivados del stream: tool + dónde + qué) → debug + UI.
+    # The worker opens a Claude Code session with opaque INTERNAL work. To view it in a controlled way:
+    #  · `plan`  = the list of tasks the worker DECLARES at startup (`hbnote plan "a|b|c"`).
+    #  · `done`  = how many plan steps it has completed (`hbnote progress --done N`) → progress = done/len(plan).
+    #  · `pct`   = explicit 0-100 progress if reported (takes precedence over done/plan); -1 = derive/unknown.
+    #  · `note`  = latest readable progress note.
+    #  · `steps` = ring of the latest REAL steps (derived from the stream: tool + where + what) → debug + UI.
     plan: list = field(default_factory=list)
     done: int = 0
     pct: int = -1
     note: str = ""
     steps: list = field(default_factory=list)
-    # AMPLITUD de una investigación (`hbnote considered N --kept M`): cuántos candidatos ha mirado el worker DE
-    # VERDAD antes de quedarse con M. Es lo que separa una selección defendible de las tres primeras filas de un
-    # buscador, y lo que le permite al cerebro ofrecer «he visto 47, ¿te vale o sigo?» en vez de callar el dato.
-    # -1 = no reportado (tarea que no es una investigación, o worker que no lo dijo).
+    # BREADTH of an investigation (`hbnote considered N --kept M`): how many candidates the worker REALLY
+    # examined before keeping M. This is what separates a defensible selection from the first three search-result
+    # rows, and lets the brain offer «I've seen 47; is that enough, or should I continue?» instead of hiding the fact.
+    # -1 = not reported (a task that is not an investigation, or a worker that did not say).
     considered: int = -1
     kept: int = -1
-    # Murió porque el PROVEEDOR se quedó sin cuota (no por la tarea) → `{provider, next, text}`. Lo pone el
-    # backend al ver el error; `_finish` lo usa para reintentar UNA vez con el escalón de relevo en vez de
-    # entregarle al operador un «API Error … Weekly Limit Exhausted» como si fuera su informe.
+    # Died because the PROVIDER ran out of quota (not because of the task) → `{provider, next, text}`. The
+    # backend sets it when it sees the error; `_finish` uses it to retry ONCE with the handoff tier instead of
+    # delivering the operator an «API Error … Weekly Limit Exhausted» as though it were the report.
     provider_down: dict | None = None
     provider_retried: bool = False
     # Died (or is about to) because the CONTEXT no longer fits, not because the provider failed (incident
@@ -118,14 +118,14 @@ class SessionRecord:
     # either. Same shape as the sheet id that reset on every process: a per-instance counter read as if it were
     # a global one.
     relay_gen: int = 0
-    # V2-238 — UN RELEVO NO ES UNA MUERTE. Cuando una de las dos entregas de `_finish` se completa (relevo de
-    # proveedor, compactar-y-continuar), esta sesión no ha fracasado: ha PASADO EL TESTIGO a otra que ya está
-    # corriendo. Sin este hecho, `ok=False` la dejaba indistinguible de un worker muerto, y el motor le decía al
-    # operador que su tarea «ha MUERTO sin resultado y no se va a reintentar sola» mientras el relevo trabajaba.
-    handoff: str = ""             # "" = final de verdad · si no, a dónde pasó el testigo, en legible
-    # V2-241 — el TROZO exacto que la puerta paró (`cd /Users/…`, `curl -s https://…`). Se guarda para poder
-    # nombrarlo en la corrección —una regla general no le dice cuál de sus comandos sobra— y para que un final
-    # sin entrega pueda decir por qué se quedó a medias en vez de callarse.
+    # V2-238 — A HANDOFF IS NOT A DEATH. When one of `_finish`'s two deliveries completes (provider handoff,
+    # compact-and-continue), this session has not failed: it has PASSED THE BATON to another that is already
+    # running. Without this fact, `ok=False` made it indistinguishable from a dead worker, and the engine told the
+    # operator that their task «DIED without a result and will not be retried automatically» while the handoff worked.
+    handoff: str = ""             # "" = genuinely final · otherwise, where the baton went, in readable form
+    # V2-241 — the exact FRAGMENT the gate stopped (`cd /Users/…`, `curl -s https://…`). It is stored so it can be
+    # named in the correction —a general rule does not say which of its commands is unnecessary— and so a final
+    # without delivery can say why it was left incomplete instead of staying silent.
     perm_denied: str = ""
     ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
     real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
@@ -174,14 +174,14 @@ class WorkerSession:
         self._model = spec.model or ""     # V2-048: worker model (observability chip) — refined by `spawned`
         self._usage: dict = {}             # `result` tokens (input/output) → size chip in the final row
         self._usage_partial: dict = {}     # tokens ACCUMULATED message by message: all we have if we kill it
-        self._cost = None                  # coste USD del `result` → texto de la fila final (informativo, NO se
+        self._cost = None                  # USD cost of `result` → final-row text (informational, NOT used for
                                             # used for Energy — see energy_meter.report_worker_usage docstring)
         self._base_url = ""                # actual endpoint of the tier serving the session (energy_meter, 2026-08-05)
         self._started_at = time.time()     # to measure the worker's FIRST output (its TTFT) — see _emit_note
         self._first_output_at = 0.0
-        # V2-241 — la corrección del permiso iba UNA vez por sesión (V2-211), y el worker medido chocó TRES.
-        # Del segundo choque en adelante nadie le decía nada y moría en silencio, que es exactamente lo que la
-        # red pretendía evitar. Ahora se corrige cada choque hasta un tope, y el ÚLTIMO cambia de mensaje.
+        # V2-241 — permission correction ran ONCE per session (V2-211), and the measured worker hit the gate THREE times.
+        # From the second hit onward nobody told it anything and it died silently, exactly what the network
+        # intended to prevent. Now every hit is corrected up to a cap, and the LAST one changes its message.
         self._perm_hits = 0
         self._ctx_warned = False           # the wrap-up turn is injected ONCE (incident 2026-08-18): repeating it
                                             # every message past the budget would spend the little room that is left
@@ -229,25 +229,25 @@ class WorkerSession:
             _lbl = (d.get("label") or "").strip()
             rec.phase = _lbl or rec.phase
             self._bus("worker.phase", {"id": rec.task_id, "phase": rec.phase})
-            # EL DIARIO QUE MIRA EL OPERADOR. Esta línea faltaba, y su ausencia no se parecía a un fallo: la
-            # pestaña de PROCESO leía un anillo (`rec.phases`) que solo llenaba `hbnote`, o sea lo que el worker
-            # se molestara en narrar. Todo lo que traduce SUS PASOS a una frase —`progress.phrase`, que es la
-            # pieza escrita justo para esto— se quedaba en `rec.phase` (una sola línea, la de AHORA) y moría ahí.
-            # Medido en la sesión `ed9df756`: catorce pasos de navegador reales y dos entradas en el diario, las
-            # dos al final. El operador vio «trabajando» dos minutos y medio.
+            # THE DIARY THE OPERATOR WATCHES. This line was missing, and its absence did not look like a failure: the
+            # PROCESS tab read a ring (`rec.phases`) populated only by `hbnote`, meaning whatever the worker
+            # bothered to narrate. Everything that translates ITS STEPS into a sentence —`progress.phrase`, the
+            # component written precisely for this— stayed in `rec.phase` (a single line, the NOW line) and died there.
+            # Measured in session `ed9df756`: fourteen real browser steps and two diary entries, both at the end.
+            # The operator saw «working» for two and a half minutes.
             try:
                 from nucleo import dispatch as _d
-                _d.record_phase(rec.task_id, _lbl)   # LA ETIQUETA QUE LLEGA, no `rec.phase`: vacía significa
-                #  «la fase la pone otro» (hbnote, más rica), y apuntar la anterior repetiría en el diario un paso
-                #  que no ha vuelto a ocurrir.
+                _d.record_phase(rec.task_id, _lbl)   # THE LABEL THAT ARRIVES, not `rec.phase`: empty means
+                #  «another source supplies the phase» (`hbnote`, richer), and recording the previous one would
+                #  repeat in the diary a step that has not happened again.
             except Exception:  # noqa: BLE001
                 pass
-            if not d.get("quiet"):                             # quiet = acompaña a un `step` rico → no duplicar fila
+            if not d.get("quiet"):                             # quiet = accompanies a rich `step` → do not duplicate row
                 self._emit_chip("phase", rec.phase)
         elif ev.type == "step":
-            self._emit_step(d)                                 # V2-048: DÓNDE + QUÉ concreto de este paso
-            # V2-059: además de la fila del panel, GUARDA el paso en el registro (anillo, cap 12) → /api/tasks +
-            # ESTADO ven la actividad REAL del worker (no solo la fase coarse). where/what los compone _tool_step.
+            self._emit_step(d)                                 # V2-048: concrete WHERE + WHAT of this step
+            # V2-059: besides the panel row, STORE the step in the record (ring, cap 12) → /api/tasks + STATE
+            # see the worker's REAL activity (not only the coarse phase). _tool_step composes where/what.
             try:
                 rec.steps.append({"where": d.get("where", ""), "action": d.get("action", ""),
                                   "target": (d.get("target") or "")[:80], "ts": time.time()})
@@ -256,11 +256,11 @@ class WorkerSession:
             except Exception:
                 pass
         elif ev.type == "step_result":
-            self._emit_step_result(d)                          # 2026-08-10: qué le CONTESTARON a ese paso
-            self._maybe_unstick_permission(d)                  # V2-211: ¿ha chocado con NUESTRA propia puerta?
-            self._maybe_hand_web(d)                            # V2-236: lo que la BÚSQUEDA trajo, a la conversación
+            self._emit_step_result(d)                          # 2026-08-10: what ANSWERED that step
+            self._maybe_unstick_permission(d)                  # V2-211: did it hit OUR own gate?
+            self._maybe_hand_web(d)                            # V2-236: what the SEARCH brought to the conversation
         elif ev.type == "note":
-            self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
+            self._emit_note(str(d.get("text") or ""))          # worker narration → observability, not voice
         elif ev.type == "context_full":
             # The context no longer fits. NOT a provider fault (see `providers.is_context_overflow`) — nobody goes on
             # cooldown; `_finish` compacts what was learned and hands it to a fresh session.
@@ -274,10 +274,10 @@ class WorkerSession:
         elif ev.type == "progress":
             self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
         elif ev.type == "usage":
-            # CONSUMO PARCIAL, mensaje a mensaje (2026-08-13). Se acumula aparte del `usage` del `result` porque
-            # sirve a un caso que el `result` no puede cubrir: el worker MATADO por presupuesto nunca lo emite. No
-            # se suma al total final si el `result` llega —ese ya viene sumado por el CLI— sino que se conserva como
-            # el MÍNIMO declarado. Ver `_finish`.
+            # PARTIAL USAGE, message by message (2026-08-13). It is accumulated separately from the `result`'s
+            # `usage` because it covers a case `result` cannot: a worker KILLED by budget never emits it. It is not
+            # added to the final total if `result` arrives —the CLI has already summed that— but is preserved as
+            # the declared MINIMUM. See `_finish`.
             u = d.get("usage") or {}
             for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
                 try:
@@ -342,9 +342,9 @@ class WorkerSession:
                 rec.ok = False                    # V2-238: ver la nota de abajo — esto NO se entrega como logro
                 rec.result_summary = ("Me he quedado sin espacio de contexto en esa tarea y no he podido retomarla. "
                                       "Si me la pides otra vez, la parto en trozos más pequeños.")
-        # RELEVO DE PROVEEDOR: la tarea no fracasó, se quedó sin gasolina. Se relanza UNA vez —el escalón agotado
-        # ya está en cooldown, así que el spawn nuevo coge el siguiente— en vez de entregarle al operador el error
-        # crudo del proveedor como si fuera el resultado de lo que pidió.
+        # PROVIDER HANDOFF: the task did not fail; it ran out of fuel. Relaunch ONCE —the exhausted tier is already
+        # on cooldown, so the new spawn takes the next one— instead of delivering the operator the provider's raw
+        # error as though it were the result of what they requested.
         if (rec.provider_down and not rec.provider_retried and rec.status != "cancelled"
                 and rec.relay_gen < self._RELAY_CAP):
             rec.provider_retried = True
@@ -366,19 +366,19 @@ class WorkerSession:
                     rec.result_summary = (f"Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
                                           f"he podido relevarlo. Míralo en el panel de estado.")
             else:
-                # V2-238 — LOS TRES CAMINOS QUE NO SON UN RELEVO CIERRAN `ok`. Las tres ramas de arriba escriben un
-                # `result_summary` que ANUNCIA un fallo, y ninguna tocaba `ok`, que nace en True. Si el backend no
-                # lo había cerrado ya, esa frase salía entregada como «Tarea completada: me he quedado sin cuota…»
-                # — la avería exacta que persigue V2-092/V2-236: un final que dice lo contrario de lo que pasó.
+                # V2-238 — THE THREE PATHS THAT ARE NOT A HANDOFF CLOSE `ok`. The three branches above write a
+                # `result_summary` that ANNOUNCES a failure, and none touched `ok`, which starts as True. If the
+                # backend had not already closed it, that sentence was delivered as «Task completed: I ran out of quota…»
+                # —the exact defect targeted by V2-092/V2-236: an ending that says the opposite of what happened.
                 rec.ok = False
                 rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
                                       "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
                                       "en el panel de estado.")
-        # LA CADENA SE PARÓ: hay que decirlo, y decir la VERDAD. Sin esto, un final capado seguía llevando el error
-        # crudo del proveedor en `result_summary`, y `operator_safe_summary` lo traduce a «me he quedado sin espacio
-        # de contexto… LA RETOMO con lo que llevaba» — una promesa de reintento que ya no va a ocurrir. Una frase
-        # tranquilizadora que miente es peor que el error crudo: el operador se queda esperando algo que nadie está
-        # haciendo, que es la avería de V2-185 en otra puerta.
+        # THE CHAIN STOPPED: it must be said, and the TRUTH must be told. Without this, a capped ending retained the
+        # provider's raw error in `result_summary`, and `operator_safe_summary` translated it as «I ran out of context…
+        # I'LL RESUME it with what I had» —a retry promise that will no longer happen. A reassuring sentence that
+        # lies is worse than the raw error: the operator waits for something nobody is doing, the V2-185 defect at
+        # another gate.
         if (rec.relay_gen >= self._RELAY_CAP and not rec.handoff and rec.status != "cancelled"
                 and (rec.context_full or rec.provider_down)):
             rec.ok = False
@@ -392,10 +392,10 @@ class WorkerSession:
                     f"He intentado esa tarea {_veces} veces y el proveedor que mueve mis procesos de fondo ha "
                     f"fallado las {_veces}, así que paro. Lo tienes en el panel de estado.")
 
-        # V2-241 — UN FINAL MUDO TRAS CHOCAR CON LA PUERTA. Los tres casos medidos murieron sin decir nada, y la
-        # causa solo aparecía cruzando el log del motor. Si la sesión se acaba sin entrega y sin relevo pero
-        # chocó con nuestra propia puerta, ESO es lo que le pasó, y es lo que el operador tiene que oír: no es un
-        # fallo de la tarea, es que la vía que eligió está cerrada aquí.
+        # V2-241 — A SILENT ENDING AFTER HITTING THE GATE. The three measured cases died without saying anything,
+        # and the cause appeared only by cross-checking the engine log. If the session ends without delivery or
+        # handoff but hit our own gate, THAT is what happened, and it is what the operator must hear: it is not a
+        # task failure; the route they chose is closed here.
         if (not rec.ok and not rec.handoff and rec.perm_denied and rec.status != "cancelled"
                 and not rec.result_summary.strip()):
             rec.result_summary = (
@@ -408,22 +408,22 @@ class WorkerSession:
             rec.phase = "terminado"
         else:
             rec.phase = "relevada" if rec.handoff else "sin completar"
-        # ENTREGA por voz+UI + [SISTEMA] + memoria, salvo cancelación (el operador ya sabe que la paró).
+        # DELIVERY through voice+UI + [SYSTEM] + memory, except on cancellation (the operator already knows they stopped it).
         if rec.status != "cancelled" and rec.result_summary.strip():
             await _deliver(rec)
         self._bus("worker.done", {"id": rec.task_id, "ok": rec.ok, "status": rec.status})
-        # LOS TOKENS SE COBRAN SIEMPRE, tambien si la sesión se CANCELÓ (2026-08-13). Esto vivía dentro del
-        # `if rec.status != "cancelled"` de abajo, que existe por una razón de INTERFAZ (no pintar dos filas `end`
-        # contradictorias) y se llevaba por delante una de FACTURACIÓN que no tiene nada que ver: un worker matado
-        # por presupuesto había consumido tokens REALES y se metraba a CERO. Medido en el banco: 704 s, 256 pasos,
-        # ~$0,20 de tokens de xAI → €0 facturados. Dos preocupaciones distintas en un solo `if`; se separan.
+        # TOKENS ARE ALWAYS CHARGED, even if the session was CANCELLED (2026-08-13). This lived inside the
+        # `if rec.status != "cancelled"` below, which exists for an INTERFACE reason (do not paint two contradictory
+        # `end` rows) and swept away an unrelated BILLING concern: a worker killed by budget had consumed REAL tokens
+        # and was metered at ZERO. Measured in the database: 704 s, 256 steps, ~$0.20 of xAI tokens → €0 billed.
+        # Two distinct concerns in one `if`; they are separated.
         u = self._usage or self._usage_partial or {}
         pt, ct = u.get("input_tokens"), u.get("output_tokens")
-        # El input CACHEADO es una LÍNEA FACTURABLE APARTE y no va dentro de `input_tokens` (el usage con forma
-        # Anthropic lleva los tres contadores separados). En una sesión agéntica larga el mismo prefijo de prompt
-        # se relee en cada turno, así que los tokens de caché acaban siendo VARIAS VECES los de input fresco:
-        # medido contra el coste que reporta el propio CLI de Grok, ignorarlos nos dejaba el 29% de la factura
-        # fuera (211k cacheados frente a 74k de input). Se pasa al metro, que lo tariffa a su precio propio.
+        # CACHED input is a SEPARATELY BILLABLE LINE and does not belong in `input_tokens` (Anthropic-shaped usage
+        # has the three counters separated). In a long agent session the same prompt prefix is reread each turn,
+        # so cache tokens end up being SEVERAL TIMES the fresh-input tokens: measured against the cost reported by
+        # Grok's own CLI, ignoring them left 29% of the bill out (211k cached versus 74k input). It is passed to the
+        # meter, which tariffs it at its own price.
         cached = u.get("cache_read_input_tokens")
         if pt or ct or cached:
             from nucleo import energy_meter as _energy
@@ -435,10 +435,10 @@ class WorkerSession:
                 base_url=self._base_url, model=(rec.real_model or self._model),
                 prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
             )
-        # una sesión CANCELADA ya emitió su chip end (ok=False) desde dispatch.cancel_session — re-emitir aquí
-        # producía DOS end contradictorios (ok=False y ok=True un segundo después, visto en la demo 2026-07-14).
+        # a CANCELLED session has already emitted its end chip (ok=False) from dispatch.cancel_session — re-emitting
+        # here produced TWO contradictory ends (ok=False and ok=True one second later, seen in the 2026-07-14 demo).
         if rec.status != "cancelled":
-            # V2-048: la fila final lleva los TOKENS (chip de tamaño) + el COSTE + el modelo — cuánto costó la tarea.
+            # V2-048: the final row carries TOKENS (size chip) + COST + the model — what the task cost.
             extra = {}
             if pt is not None:
                 extra["prompt_tokens"] = pt
@@ -458,20 +458,20 @@ class WorkerSession:
                     lbl = f"${float(self._cost):.4f}"
             except (TypeError, ValueError):
                 pass
-            # UN FINAL DICE POR QUÉ (V2-237, 2026-08-21). La fila del final salía con el coste y nada más, así que
-            # un worker MUERTO dejaba `text:""` y el motivo había que ir a buscarlo cruzando el log del motor por
-            # `span=worker:N`. Medido por el arnés en `best-plumber-same-day`: los únicos eventos de error de la
-            # ronda eran del worker que NO murió, y los cuatro que sí murieron no dijeron nada. Un final sin causa
-            # se lee igual que un final normal.
+            # AN ENDING SAYS WHY (V2-237, 2026-08-21). The ending row showed cost and nothing else, so a DEAD worker
+            # left `text:""` and the reason had to be found by cross-checking the engine log through `span=worker:N`.
+            # Measured by the harness in `best-plumber-same-day`: the only error events in the round were from the
+            # worker that did NOT die, and the four that did die said nothing. An ending without a cause
+            # reads the same as a normal ending.
             #
-            # Va el texto CRUDO a propósito: esta fila es del registro, no de la boca del operador. De que un error
-            # de proveedor no se le lea en voz alta ya se encarga `operator_safe_summary` en la entrega, y su
-            # propio docstring dice que el texto completo se queda en el log — que es justo esto.
+            # The RAW text is intentional: this row belongs to the record, not the operator's mouth. Ensuring a provider error
+            # being read aloud is handled by `operator_safe_summary` during delivery, and its own docstring says
+            # the full text remains in the log —which is exactly this.
             extra["status"] = str(rec.status or "")
             if rec.handoff:
-                # V2-238 — y si PASÓ EL TESTIGO, la fila lo dice con ese nombre. Un relevo entregaba aquí el mismo
-                # final vacío que un muerto (`result_summary` se vacía a propósito para que el operador no vea dos
-                # entregas), así que en el registro los dos se leían igual.
+                # V2-238 — if the BATON WAS PASSED, the row says so by name. A handoff delivered here the same
+                # empty ending as a dead worker (`result_summary` is deliberately emptied so the operator does not
+                # see two deliveries), so both read the same in the record.
                 extra["handoff"] = rec.handoff
                 lbl = f"{lbl} · relevada: {rec.handoff}".strip(" ·")
             elif not rec.ok:
@@ -479,10 +479,10 @@ class WorkerSession:
                 lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
             self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)
         # LEAK FIX (marathon 2026-07-22/23): `run()` sale del bucle en el PRIMER "done" (= primer `result` de
-        # stream-json), pero el proceso `claude --print` sigue vivo (modo multi-turno, espera más stdin). dispatch
-        # hace `_SESSIONS.pop(key)` justo después de `run()` → se pierde la ÚNICA referencia al backend sin haber
-        # matado el proceso: quedaba huérfano para siempre (visto: 14 procesos zombie tras ~2h de batería). Si la
-        # sesión no se cerró ya por `stop()` (cancelación explícita), cerramos el backend aquí antes de soltarla.
+        # stream-json), but the `claude --print` process remains alive (multi-turn mode, waiting for more stdin).
+        # dispatch performs `_SESSIONS.pop(key)` immediately after `run()` → the ONLY reference to the backend is
+        # lost without killing the process: it remained orphaned forever (observed: 14 zombie processes after ~2h).
+        # If the session was not already closed by `stop()` (explicit cancellation), close the backend here before releasing it.
         if not self._stopped:
             try:
                 await self._b.stop()
@@ -610,24 +610,24 @@ class WorkerSession:
             pass
         asyncio.create_task(self._ask_for_delivery())
 
-    # V2-211 — LA PUERTA ES NUESTRA, y el worker se muere en ella sin decirlo. Tres casos medidos el mismo día,
-    # tres comandos distintos, la misma forma: `cd … was blocked`, `requires approval: curl -s …`, `requires
-    # approval: cd /Users/…`. En headless nadie aprueba, así que la petición de aprobación es un callejón sin
-    # salida; el worker lo lee como un no y para, y el turno sigue contando que avanza.
+    # V2-211 — THE GATE IS OURS, and the worker dies there without saying so. Three cases measured on the same day,
+    # three different commands, the same pattern: `cd … was blocked`, `requires approval: curl -s …`, `requires
+    # approval: cd /Users/…`. In headless mode nobody approves, so the approval request is a dead end; the worker
+    # reads it as a no and stops, while the turn continues to count as progress.
     #
-    # `dispatch_prompts` lo ataca por delante (las reglas del cajón, igual que el intérprete en 2026-08-02); esto
-    # es la RED: si aun así choca, se le dice EN EL MOMENTO qué ha pasado y cómo se reescribe. La misma forma que
-    # la entrega anticipada de arriba —un turno inyectado, UNA vez— porque la sesión sigue viva y su propio
-    # razonamiento es el camino más corto de vuelta.
+    # `dispatch_prompts` attacks it upstream (the drawer rules, like the interpreter on 2026-08-02); this is the
+    # NET: if it still hits the gate, it is told IMMEDIATELY what happened and how to rewrite it. The same form as
+    # the early delivery above —one injected turn, ONCE— because the session is still alive and its own reasoning
+    # is the shortest route back.
     _DENIED_NEEDLES = ("requires approval", "was blocked", "permission to use", "requested permissions",
                        "may only change directories")
 
     def _maybe_hand_web(self, d: dict) -> None:
-        """Lo que una BÚSQUEDA WEB devuelve va a la conversación en el momento, no cuando el worker entregue.
+        """What a WEB SEARCH returns goes to the conversation immediately, not when the worker delivers.
 
-        Aquí y no en cada backend: `where` ya viene normalizado por el sustrato (`_PLACE`), así que esto cubre a
-        Claude Code, a Codex y a Grok con un solo sitio — y a las tools NATIVAS de cada CLI, que es donde el arnés
-        midió el dato bueno perdiéndose. Un `is_error` no se empuja: un fallo de la tool no es un hallazgo, y ya
+        Here rather than in each backend: `where` is already normalized by the substrate (`_PLACE`), so this covers
+        Claude Code, Codex, and Grok in one place — including each CLI's NATIVE tools, where the harness measured the
+        useful data being lost. An `is_error` is not pushed: a tool failure is not a finding, and already
         tiene su propio camino (`_maybe_unstick_permission`, el chip del panel).
         """
         try:
@@ -638,7 +638,7 @@ class WorkerSession:
         except Exception:  # noqa: BLE001
             pass
 
-    _PERM_MAX = 3          # los que midió el arnés en un solo worker antes de morir callado
+    _PERM_MAX = 3          # the number the harness measured in one worker before it died silently
 
     def _maybe_unstick_permission(self, d: dict) -> None:
         raw = " ".join(str(d.get(k) or "") for k in ("text", "result", "output", "target"))
@@ -670,9 +670,9 @@ class WorkerSession:
             py = bridge_python()
         except Exception:
             py = "python"
-        # V2-241 — el ÚLTIMO aviso no repite las reglas: si tres reescrituras no han bastado, seguir corrigiendo
-        # es pedirle lo mismo por cuarta vez. Lo que hace falta es que ENTREGUE lo que tiene antes de morir, que
-        # es la diferencia entre una tarea incompleta y una tarea muda.
+        # V2-241 — the LAST warning does not repeat the rules: if three rewrites were insufficient, continuing to
+        # correct it is asking the same thing for a fourth time. What is needed is for it to DELIVER what it has
+        # before dying, which is the difference between an incomplete task and a silent task.
         if last:
             try:
                 await self._b.send(
@@ -730,11 +730,11 @@ class WorkerSession:
     def _emit_step_result(self, d: dict) -> None:
         """The step's EVIDENCE: what the tool answered (2026-08-10).
 
-        Los `tool_result` del stream se descartaban como «ruido interno», y con ellos se iba lo único que permite
+        The stream's `tool_result` entries were discarded as «internal noise», taking with them the only thing that lets
         to audit a worker properly: we could see that it searched a place and opened a URL, **never what it found**. A
-        worker que trae basura y otro que trae el dato exacto dejaban EL MISMO rastro. Va recortado (no resumido —
-        un resumen es una interpretación) y en la misma familia que su paso, para que se lea seguido: pido → me
-        answer."""
+        a worker that brings junk and one that brings the exact datum left THE SAME trace. It is trimmed (not summarized —
+        a summary is an interpretation) and in the same family as its step, so it reads continuously: I ask → I
+        receive an answer."""
         try:
             from voice.observer import emit
             body = str(d.get("text") or "").strip()
@@ -742,16 +742,17 @@ class WorkerSession:
                 return
             where = (d.get("where") or "sistema")
             place, kind = _PLACE.get(where, _PLACE["sistema"])
-            from nucleo.workers.probes import is_menu_probe   # ver su docstring: leer el menú NO es estrellarse
+            from nucleo.workers.probes import is_menu_probe   # see its docstring: reading the menu is NOT a crash
             bad = bool(d.get("is_error")) and not is_menu_probe(body)
             _ex = {"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
                    "is_error": bad, "span": f"worker:{self._rec.task_id}"}
             if bad and d.get("cmd"):
-                _ex["cmd"] = str(d["cmd"])[:220]     # QUÉ se intentó, no solo que salió mal (ver claude_session)
+                _ex["cmd"] = str(d["cmd"])[:220]     # WHAT was attempted, not only what went wrong (see claude_session)
             emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body, extra=_ex)
-            # CEGUERA: un error de cuota de las TOOLS del proveedor no hace fallar la llamada al modelo, así que no
-            # dispara el relevo y el worker sigue razonando SIN poder buscar. Sin esto no había ni alerta ni rastro:
-            # el worker parecía sano y entregaba conclusiones sin material. Ver `providers.note_tool_blindness`.
+            # BLINDNESS: a quota error in the provider's TOOLS does not fail the model call, so it does not trigger
+            # handoff and the worker keeps reasoning WITHOUT being able to search. Without this there was neither
+            # alert nor trace: the worker appeared healthy and delivered conclusions without evidence. See
+            # `providers.note_tool_blindness`.
             if bad:
                 try:
                     from nucleo.workers import providers as _prov
@@ -763,10 +764,10 @@ class WorkerSession:
             pass
 
 
-# Lugar del worker → (etiqueta del panel, `kind` que fija la CATEGORÍA/filtro y el color). Reutiliza kinds ya
-# conocidos (observer._CAT): memoria→memory (púrpura, filtro Memoria), navegador→navegador (filtro Navegador),
-# web→search, código/archivo/zaelar/sistema→task (main). Así los pasos del worker se integran en los MISMOS filtros
-# que los eventos de primera clase, en vez de un cajón aparte (V2-048).
+# Worker's location → (panel label, `kind` fixing the CATEGORY/filter and color). Reuses known kinds from
+# (observer._CAT): memory→memory (purple, Memory filter), browser→browser (Browser filter),
+# web→search, code/file/zaelar/system→task (main). Thus worker steps integrate into the SAME filters as first-class
+# events, rather than a separate drawer (V2-048).
 _PLACE = {
     "web":       ("🌐 web", "search"),
     "memoria":   ("🧠 memoria", "memory"),
@@ -783,17 +784,17 @@ def _default_label(kind: str) -> str:
             "memory": "Actualizando la memoria…", "research": "Investigando…"}.get(kind, "Pensando…")
 
 
-# V2-276 — los dos constructores de texto (`operator_safe_summary`, `context_handoff`) viven en
-# `handoff.py` desde el 2026-08-24 (trinquete de arquitectura). Puros, sobre el record y nada más; este
-# fichero gobierna el CICLO DE VIDA de una sesión, no redacta. Se re-exportan porque los tests y
-# `providers.py` los nombran desde aquí.
+# V2-276 — the two text builders (`operator_safe_summary`, `context_handoff`) have lived in
+# `handoff.py` since 2026-08-24 (architectural ratchet). Pure, operating only on the record; this
+# file governs a session's LIFECYCLE, it does not compose text. They are re-exported because tests and
+# `providers.py` refer to them from here.
 from nucleo.workers.handoff import (  # noqa: F401,E402 — re-export
     context_handoff, operator_safe_summary,
 )
 
 async def _deliver(rec: "SessionRecord") -> None:
-    """Entrega el resultado por los raíles de siempre: proactive (voz+UI) + nota [SISTEMA] + memoria (único
-    escritor). Réplica del antiguo dispatch._deliver, ahora por-sesión."""
+    """Delivers the result through the usual rails: proactive (voice+UI) + [SYSTEM] note + memory (sole
+    writer). Replica of the former dispatch._deliver, now per session."""
     summary = operator_safe_summary(rec.result_summary)
     if not summary:
         return
@@ -803,10 +804,10 @@ async def _deliver(rec: "SessionRecord") -> None:
         brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}")
     except Exception:
         pass
-    # MEMORIA: solo el ÉXITO se recuerda como resultado durable (auditoría 2026-07-14 — el refactor P2 perdió el
-    # gate `ok` del one-shot y las tareas FALLIDAS escribían píldoras mid tipo «No pude completar la tarea», ruido
-    # que además competía en el recall). El fallo ya llega al operador por voz + nota [SISTEMA]. Procedencia
-    # estampada (`meta.source`) para poder auditar/limpiar por origen.
+    # MEMORY: only SUCCESS is remembered as a durable result (2026-07-14 audit — the P2 refactor lost the one-shot
+    # `ok` gate and FAILED tasks wrote mid-sized pills such as «I could not complete the task», creating noise that
+    # also competed in recall). Failure already reaches the operator through voice + [SYSTEM] note. Provenance is
+    # stamped (`meta.source`) so it can be audited/cleaned by origin.
     if rec.ok:
         try:
             from nucleo import memory_agent

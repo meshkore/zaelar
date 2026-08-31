@@ -66,35 +66,37 @@ def test_the_ordinary_turns_of_the_same_round_still_pass():
         assert looks_like_the_assistant(legit, "Marc") is False, legit
 
 
-# ── cara 6: el que promete la ENTREGA ──────────────────────────────────────────────────────────────────
+# ── face 6: the one who promises DELIVERY ─────────────────────────────────────────────────────────────
 _PROMISES = "Perfecto, sigo en ello. No te preocupes, que en cuanto tenga algo te aviso."
 
 
 def test_the_person_who_PROMISES_delivery_is_the_assistant():
-    """Misma ronda 7, y sin nombre por medio: la cara 5 no podía verlo.
+    """Same round 7, and with no name involved: face 5 could not see it.
 
-    Lo que lo delata es la DIRECCIÓN de la promesa. En esta relación el asistente avisa y la persona espera;
-    la persona dice «avísame». «Te aviso en cuanto tenga algo» es la frase del que hace el trabajo."""
+    What gives it away is the DIRECTION of the promise. In this relationship the assistant gives notice and
+    the person waits; the person says «avísame». «Te aviso en cuanto tenga algo» is the phrase of the one
+    doing the work."""
     assert looks_like_the_assistant(_PROMISES) is True
     # …y sin nombre, para que quede claro que no se está apoyando en la cara 5.
     assert looks_like_the_assistant(_PROMISES, "Marc") is True
 
 
 def test_cada_mitad_POR_SEPARADO_es_una_frase_normal():
-    """La sensibilidad: exigir las dos es lo que hace la cara segura, así que hay que probar que cada una
-    sola NO dispara. La gente sí sigue buscando por su cuenta, y sí promete volver con algo."""
+    """The sensitivity: requiring both is what makes the face safe, so we need to test that each one
+    alone does NOT trigger it. People do continue searching on their own, and do promise to come back with
+    something."""
     assert looks_like_the_assistant("Vale, sigo en ello por si acaso.") is False
     assert looks_like_the_assistant("Si cambio de idea te digo algo, ¿vale?") is False
 
 
 def test_y_si_dice_que_busca_EL_TAMBIEN_las_dos_mitades_son_suyas():
-    """La lectura bajo la cual las dos mitades sí son de la persona, dicha en voz alta por ella misma."""
+    """The interpretation under which both halves do belong to the person, spoken aloud by the person herself."""
     assert looks_like_the_assistant("Vale, yo sigo mirando por mi cuenta y te digo si encuentro algo.") is False
     assert looks_like_the_assistant("Yo también sigo buscando, y te aviso si veo algo.") is False
 
 
 def test_las_esperas_normales_de_la_ronda_7_siguen_pasando():
-    """Verbatim de la misma ronda — los turnos que sí eran de la persona esperando."""
+    """Verbatim from the same round — the turns that really were from the waiting person."""
     for legit in ("Vale, aquí sigo. Si no aparece nada me dices, que lo necesito ya.",
                   "Ok, me quedo esperando aquí.",
                   "Vale, gracias, me avisas cuando tengas algo.",
@@ -102,7 +104,7 @@ def test_las_esperas_normales_de_la_ronda_7_siguen_pasando():
         assert looks_like_the_assistant(legit, "Marc") is False, legit
 
 
-# ── el que se DISCULPA por no haber entregado ──────────────────────────────────────────────────────────
+# ── the one who APOLOGISES for not having delivered ───────────────────────────────────────────────────
 _APOLOGISES = ("Perdona, llevo ya un rato dándote largas y no te he traído nada. Te soy claro: la búsqueda "
                "con lo que me pediste (27 pulgadas, menos de 150€, segunda mano) no está dando resultados. "
                "No quiero seguir mareándote con «te aviso» y que no llegue nada.\n\n"
@@ -110,35 +112,36 @@ _APOLOGISES = ("Perdona, llevo ya un rato dándote largas y no te he traído nad
 
 
 def test_el_que_se_disculpa_por_no_haber_ENTREGADO_es_el_asistente():
-    """Verbatim de `search-secondhand-monitor__es` (ronda 2, 2026-08-23), y se coló por TODAS las caras.
+    """Verbatim from `search-secondhand-monitor__es` (round 2, 2026-08-23), and it slipped through ALL faces.
 
-    Fue la peor de las medidas: el conductor escribió el turno entero del asistente —disculpa por no haber
-    traído nada y oferta de parar o seguir— y zaelar le contestó COMO USUARIO («dale una última vuelta»).
-    Dos turnos con los papeles invertidos del todo."""
+    It was the worst of the measurements: the driver wrote the assistant's entire turn —an apology for not
+    bringing anything and an offer to stop or continue— and zaelar answered it AS THE USER («dale una última
+    vuelta»). Two turns with the roles completely reversed."""
     assert looks_like_the_assistant(_APOLOGISES, "Marc") is True
     assert looks_like_the_assistant(_APOLOGISES) is True     # sin apoyarse en la cara 5
 
 
 def test_dar_un_DATO_no_es_traer_un_RESULTADO():
-    """El verbo es lo que separa los dos papeles, y va en una sola dirección.
+    """The verb is what separates the two roles, and it goes in only one direction.
 
-    La persona DA lo que el asistente le pide; el asistente TRAE resultados. Sin esta distinción, “perdona,
-    no te he dado la ciudad” —una persona contestando a una pregunta— se leería como una inversión de papel
-    y tiraría la ronda."""
+    The person GIVES what the assistant asks for; the assistant BRINGS results. Without this distinction,
+    “perdona, no te he dado la ciudad” —a person answering a question— would be read as a role reversal
+    and would invalidate the round."""
     for legit in ("perdona, no te he dado la ciudad: Madrid",
                   "uy, no te he dicho el presupuesto: 300 €",
                   "perdona, no te he pasado las fechas todavía",
-                  # Con oferta INCLUIDA, que es donde la distinción se juega de verdad: sin ella, la primera
-                  # tanda de este test era verde por el motivo equivocado —las frases de arriba no llevan
-                  # oferta, así que la pareja FOUND+OFFERS no llegaba a evaluarse y meter «dar» en los verbos
-                  # de entrega no rompía nada. Lo cazó el desarme.
+                  # WITH an offer INCLUDED, which is where the distinction really matters: without it, the
+                  # first version of this test was green for the wrong reason —the sentences above contain
+                  # no offer, so the FOUND+OFFERS pair was never evaluated and adding «dar» to the delivery
+                  # verbs changed nothing. The teardown caught it.
                   "Perdona, no te he dado el presupuesto. ¿Quieres que lo deje en 300 y ya está?"):
         assert looks_like_the_assistant(legit, "Marc") is False, legit
 
 
 def test_ofrecer_PARAR_sigue_necesitando_la_otra_mitad():
-    """La oferta se ensanchó a los verbos de continuar/parar el encargo, y sola no puede bastar: una persona
-    sí dice «¿lo dejamos?». Lo que no dice es eso Y haber traído (o no) los resultados."""
+    """The offer was broadened to verbs for continuing/stopping the task, and alone it cannot be enough: a
+    person does say «¿lo dejamos?». What they do not say is that AND that they have brought (or not brought)
+    the results."""
     assert looks_like_the_assistant("¿lo dejamos y miro yo?", "Marc") is False
     assert looks_like_the_assistant("¿Quieres que lo deje?", "Marc") is False
 
@@ -172,6 +175,6 @@ def test_the_driver_carries_the_name_so_the_face_is_reachable_in_a_real_round(mo
     monkeypatch.setattr(drivermod.llm, "call", lambda *a, **k: seen.append(1) or _MEASURED)
     d.hears("Vale, lo miro.")
     d.reply()
-    # Se le pidió otra vez: una llamada de más es el reintento, y sin él el flip habría pasado mudo.
-    assert len(seen) == 2, "el flip no disparó el reintento: la cara 5 no llegó a la instancia"
+    # It was requested again: one extra call is the retry, and without it the flip would have passed silently.
+    assert len(seen) == 2, "the flip did not trigger the retry: face 5 did not reach the instance"
     assert d.role_flips >= 1

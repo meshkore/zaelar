@@ -1,15 +1,15 @@
-"""Una acción que el turno DECIDIÓ y el sistema tiró tiene que llegar al juez.
+"""An action that the turn DECIDED and the system dropped must reach the judge.
 
-Es la diferencia entre los dos diagnósticos que desde un transcript se ven idénticos: «el agente no lo
-intentó» y «el agente lo intentó y le tiraron la acción». Equivocarse costó tres días — V2-133 abrió ocho
-casos de «zaelar narra un progreso que no ocurre» cuando el FlashBrain SÍ había llamado a
-`escalate_to_slowbrain` y sus argumentos llegaron cortados (V2-171). Un juez que no puede ver esto no
-distingue, así que elige el que se lee peor.
+It is the difference between the two diagnoses that look identical in a transcript: “the agent did not
+try” and “the agent tried and the action was dropped.” Getting this wrong cost three days — V2-133 opened
+eight cases of “zaelar narrates progress that does not happen” when FlashBrain HAD called
+`escalate_to_slowbrain` and its arguments arrived truncated (V2-171). A judge that cannot see this cannot
+distinguish them, so it chooses the one that reads worse.
 
-Todos los tests fijan la FORMA REAL del evento, que es donde esto se rompe sin hacer ruido: `observer.emit`
-hace `ev.update(extra)`, o sea que `extra` queda APLANADO en el payload, y el payload llega como STRING JSON
-desde la API de observabilidad. Un lector que busque `e["extra"]["tool"]` no encuentra nada y reporta «cero
-acciones descartadas», que es indistinguible de una corrida sana.
+All tests pin down the REAL SHAPE of the event, which is where this breaks silently: `observer.emit`
+does `ev.update(extra)`, meaning that `extra` is FLATTENED into the payload, and the payload arrives as a
+JSON STRING from the observability API. A reader looking for `e["extra"]["tool"]` finds nothing and reports
+“zero dropped actions,” which is indistinguishable from a healthy run.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from tests.use_cases.e2e.agent import verify as V
 
 def _real_event(tool: str = "show_widget", reason: str = "cortada por el tope de tokens",
                 finish: str = "length") -> dict:
-    """Un evento tal y como lo devuelve `/api/observability/events`, no como se emite en proceso."""
+    """An event exactly as returned by `/api/observability/events`, not as emitted in-process."""
     return {"kind": "tool_dropped", "cat": "flash",
             "payload": json.dumps({"kind": "tool_dropped", "label": "⚠️ acción descartada",
                                    "text": f"{tool}: {reason}", "cat": "flash",
@@ -34,7 +34,7 @@ def test_reads_the_shape_the_observability_api_actually_returns():
 
 
 def test_and_the_two_other_shapes_read_the_same():
-    """Anidada bajo `extra` y en-proceso: el mismo hecho no puede depender de por dónde entró el evento."""
+    """Nested under `extra` and in-process: the same fact cannot depend on how the event arrived."""
     nested = [{"kind": "tool_dropped", "payload": {"extra": {"tool": "a", "reason": "b"}}}]
     inproc = [{"kind": "tool_dropped", "extra": {"tool": "a", "reason": "b"}}]
     assert V.dropped_actions(nested)[0]["tool"] == "a"
@@ -42,21 +42,22 @@ def test_and_the_two_other_shapes_read_the_same():
 
 
 def test_an_unrelated_event_is_not_a_dropped_action():
-    """La mitad de sensibilidad: sin esto, «lee los descartes» y «lo declara todo un descarte» pasan igual."""
+    """The sensitivity half: without this, “reads the drops” and “declares everything a drop” both pass."""
     assert V.dropped_actions([{"kind": "brain", "payload": "{}"},
                               {"kind": "search", "payload": json.dumps({"tool": "web_search"})}]) == []
 
 
 def test_a_broken_payload_does_not_take_the_run_down():
-    """Fail-open: esto es recogida de evidencia para el juez, nunca una puerta que pueda tirar una corrida."""
+    """Fail-open: this is evidence collection for the judge, never a gate that can bring down a run."""
     assert V.dropped_actions([{"kind": "tool_dropped", "payload": "no-es-json{{"}]) == [
         {"tool": "", "reason": "", "finish_reason": ""}]
     assert V.dropped_actions([]) == []
 
 
 def test_it_reaches_the_mechanism_report_and_the_judge():
-    """Que el helper acierte no sirve de nada si el informe no lo lleva: es el fallo de «la verdad existe y no
-    llega al sitio donde se decide» que ya se repitió en V2-145/V2-150 y en V2-171."""
+    """The helper being correct is useless if the report does not carry it: this is the failure where “the
+    truth exists and does not reach the place where the decision is made,” which has already recurred in
+    V2-145/V2-150 and V2-171."""
     rep = V.mechanism_report([_real_event()], expected_signals=[])
     assert rep["dropped_actions"] == [{"tool": "show_widget",
                                        "reason": "cortada por el tope de tokens",

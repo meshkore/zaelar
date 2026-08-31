@@ -84,23 +84,23 @@ def test_and_says_nothing_when_the_driver_behaved():
     assert "AVERÍA DEL ARNÉS" not in J.mechanism_facts({"families_observed": ["flash"]})
 
 
-# ── V2-312: dos caras más del flip, medidas en la MISMA ronda (find-direct-flight-budget__es, 10:42) ─────────
+# ── V2-312: two more faces of the flip, measured in the SAME round (find-direct-flight-budget__es, 10:42) ───
 #
-# El juez puntuó adaptación 1/5 sobre un diálogo donde el TESTER hablaba como agente en dos turnos seguidos, y
-# `role_flips` salió vacío: ninguna de las seis caras las vio. Sin esa marca la ronda se puntúa como si el
-# producto hubiera hecho lo que hizo el arnés — la familia del instrumento acusando al producto.
+# The judge scored adaptation 1/5 on a dialogue where the TESTER spoke like an agent for two consecutive turns, and
+# `role_flips` came out empty: none of the six faces saw them. Without that marker, the round is scored as though the
+# product had done what the harness did—the instrument's family accusing the product.
 
 def test_rehacer_el_trabajo_tambien_es_prometer_entrega():
-    """«Lo rehago ya… te aviso en cuanto lo tenga»: la mitad de la ENTREGA sí casaba; la del TRABAJO no,
-    porque solo conocía «sigo en ello»."""
+    """“I’ll redo it now…I’ll let you know as soon as I have it”: the DELIVERY half did match; the WORK half did not,
+    because it only knew “I’m still working on it”."""
     linea = ("Ay, perdona, tienes toda la razón, me hice un lío con las fechas. Lo rehago ya para el finde "
              "del 15 de septiembre, con equipaje de mano incluido. Te aviso en cuanto lo tenga.")
     assert D.looks_like_the_assistant(linea, "Marc") is True
 
 
 def test_narrar_NUESTRA_maquinaria_en_primera_persona_es_un_flip():
-    """Una persona no sortea la verificación anti-robot del navegador del agente ni filtra sus resultados.
-    Lo que delata no es el VERBO (uno filtra su propio correo) sino el OBJETO."""
+    """A person does not bypass the agent browser’s anti-robot verification or filter its results.
+    What gives it away is not the VERB (one can filter one’s own email) but the OBJECT."""
     linea = ("Te cuento: la búsqueda va un poco lenta por la verificación que pedía Skyscanner, pero ya la he "
              "sorteado y estoy filtrando solo salidas alrededor del 15 de septiembre.")
     assert D.looks_like_the_assistant(linea, "Marc") is True
@@ -115,6 +115,6 @@ def test_narrar_NUESTRA_maquinaria_en_primera_persona_es_un_flip():
     "ok, avísame cuando lo tengas",
 ])
 def test_y_la_persona_SIGUE_pudiendo_hablar_normal(linea):
-    """La mitad cara del detector: un falso positivo marca la ronda como avería del arnés y tira una medida
-    buena. Estas seis son cosas que una persona real dice — cuatro de ellas nombran nuestra maquinaria."""
+    """The detector’s face half: a false positive marks the round as a harness failure and discards a
+    good measurement. These six are things a real person says—four of them mention our machinery."""
     assert D.looks_like_the_assistant(linea, "Marc") is False
