@@ -1,12 +1,12 @@
-"""Cadena de proveedores del Brain Worker + relevo automático por cuota agotada.
+"""Brain Worker provider chain + automatic failover when a quota is exhausted.
 
-Incidente 2026-08-02: el plan de Z.AI agotó su cuota SEMANAL en mitad de una búsqueda («[1310] Weekly/Monthly
-Limit Exhausted. Your limit will reset at 2026-08-04»). Tres fallos a la vez: el worker murió sin relevo, al
-operador se le entregó el texto del error donde esperaba su informe, y el panel de alertas —que existe justo para
-avisar de esto— no dijo nada porque el proveedor de los workers no estaba en ningún mapa de servicios.
+Incident 2026-08-02: the Z.AI plan exhausted its WEEKLY quota midway through a search («[1310] Weekly/Monthly
+Limit Exhausted. Your limit will reset at 2026-08-04»). Three failures at once: the worker died without failover, the
+operator received the error text where the report was expected, and the alerts panel—which exists precisely to
+warn about this—said nothing because the worker provider was not in any service map.
 
-Regla del operador: quien conduce es SIEMPRE Claude Code; lo que se releva por debajo es el endpoint
-Anthropic-compatible, y con planes de SUSCRIPCIÓN (forfait), no pago por token.
+Operator rule: Claude Code is ALWAYS the driver; what fails over underneath is the
+Anthropic-compatible endpoint, using SUBSCRIPTION plans (flat-rate), not pay-per-token.
 """
 import time
 
@@ -14,9 +14,9 @@ import pytest
 
 from nucleo.workers import providers as prov
 
-# Fecha de reset SIEMPRE 2 días por delante de "ahora" (2026-08-09: una fecha fija ya se quedó atrás una vez —
-# "2026-08-04" pasó a estar en el PASADO, y un cooldown con fecha de reset ya vencida se considera disponible al
-# instante, tumbando relayed()/pick() en cascada). Nunca hardcodear una fecha absoluta en un test de cooldown.
+# Reset date ALWAYS two days ahead of "now" (2026-08-09: a fixed date fell into the past once—
+# "2026-08-04" became the PAST, and a cooldown with an expired reset date is considered available immediately,
+# breaking relayed()/pick() in a cascade). Never hardcode an absolute date in a cooldown test.
 RESET_DATE = time.strftime("%Y-%m-%d", time.localtime(time.time() + 2 * 86400))
 REAL_429 = ("API Error: Request rejected (429) · [1310][Weekly/Monthly Limit Exhausted. "
             f"Your limit will reset at {RESET_DATE} 00:00:00]")
@@ -25,13 +25,13 @@ REAL_429 = ("API Error: Request rejected (429) · [1310][Weekly/Monthly Limit Ex
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     fresh = prov.CooldownStore(prov._KV)
-    fresh._loaded = True                                # sin tocar la memoria real
+    fresh._loaded = True                                # without touching real state
     monkeypatch.setattr(fresh, "_save", lambda: None)
     monkeypatch.setattr(prov, "_store", fresh)
     monkeypatch.setattr(prov, "_is_container", lambda: False)
-    # La cadena mira `os.environ` para saber qué escalón EXISTE. En la batería completa alguien carga el
-    # credential store real antes que este fichero → aparecía una `Z_AI_API_KEY` de verdad y dos tests fallaban
-    # solo por el ORDEN (pasaban sueltos). El entorno de credenciales lo fija cada test, nunca la máquina.
+    # The chain checks `os.environ` to determine which tier EXISTS. In the full suite, something loads the real
+    # credential store before this file → a real `Z_AI_API_KEY` appeared and two tests failed solely due to ORDER
+    # (they passed in isolation). Each test sets the credential environment, never the machine.
     for _var in {e for t in prov.KNOWN for e in t.get("env", ())}:
         monkeypatch.delenv(_var, raising=False)
     yield
@@ -44,30 +44,30 @@ def _cfg(monkeypatch, **over):
     monkeypatch.setattr(v2, "get", lambda k: base if k == "code_agent" else {})
 
 
-# ── la cadena solo ofrece escalones que existen de verdad ─────────────────────────────────────────────────
+# ── the chain only offers tiers that genuinely exist ─────────────────────────────────────────────────
 def test_a_tier_without_credentials_is_not_offered(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.delenv("KIMI_API_KEY", raising=False)
     names = [t["name"] for t in prov.chain()]
-    assert names[0] == "z.ai"                    # el configurado va primero
-    assert "moonshot" not in names               # sin key no es un escalón, es un espejismo
-    assert names[-1] == "licencia-claude"        # la licencia local, siempre la última
+    assert names[0] == "z.ai"                    # the configured one comes first
+    assert "moonshot" not in names               # without a key it is not a tier, but a mirage
+    assert names[-1] == "licencia-claude"        # the local licence, always last
 
 
 def test_a_second_subscription_joins_the_chain(monkeypatch):
-    """Dos suscripciones baratas cubren el hueco semanal de una — sin tocar código, solo poniendo la key."""
+    """Two cheap subscriptions cover one another's weekly gap—without changing code, just by setting the key."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
-    # V2-497: titular + UN failover (+ la licencia local, que no es un proveedor de API sino el
-    # salvavidas de quien se autohospeda). Moonshot salió: ni medido ni con credencial.
+    # V2-497: primary + ONE failover (+ the local licence, which is not an API provider but the
+    # lifeline for anyone self-hosting). Moonshot was removed: neither measured nor credentialed.
     assert [t["name"] for t in prov.chain()] == ["z.ai", "deepseek", "licencia-claude"]
 
 
 def test_cloud_never_offers_the_browser_licence(monkeypatch):
-    """En un contenedor no hay login de navegador: ofrecer la licencia ahí sería prometer un relevo inexistente."""
+    """There is no browser login in a container: offering the licence there would promise nonexistent failover."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setattr(prov, "_is_container", lambda: True)
@@ -84,7 +84,7 @@ def test_operator_can_order_the_chain_by_hand(monkeypatch):
     assert [t["name"] for t in prov.chain()] == ["deepseek", "z.ai"]
 
 
-# ── clasificar la avería: agotado ≠ rate-limit pasajero ───────────────────────────────────────────────────
+# ── classify the failure: exhausted ≠ transient rate limit ───────────────────────────────────────────────
 def test_the_real_incident_is_read_as_exhausted():
     assert prov.classify_failure(REAL_429) == "exhausted"
 
@@ -102,7 +102,7 @@ def test_a_task_failure_is_not_a_provider_failure():
     assert prov.note_failure("no encontré ningún parque acuático abierto hoy") is None
 
 
-# ── el relevo ────────────────────────────────────────────────────────────────────────────────────────────
+# ── failover ──────────────────────────────────────────────────────────────────────────────────────────────
 def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
@@ -110,37 +110,37 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
 
     nxt = prov.note_failure(REAL_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     assert nxt["name"] == "licencia-claude"
-    assert prov.pick()["name"] == "licencia-claude"          # el siguiente spawn ya arranca en el relevo
-    # el cooldown sale de la FECHA que da el proveedor, no de un timeout inventado
+    assert prov.pick()["name"] == "licencia-claude"          # the next spawn already starts on the failover
+    # the cooldown comes from the DATE supplied by the provider, not an invented timeout
     assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
-    """Una CUOTA que no dice cuándo vuelve: media hora y se reintenta.
+    """A QUOTA that does not say when it returns: wait half an hour and retry.
 
-    El ejemplo era «insufficient credit» y V2-243 lo convirtió en el OTRO caso —un saldo, que no vuelve solo—,
-    así que aquí va un agotamiento de cuota de verdad. La intención del test no cambia; lo que tenía dos
-    significados era el ejemplo."""
+    The example was «insufficient credit», and V2-243 turned it into the OTHER case—a balance that does not return
+    on its own—so this uses a genuine quota exhaustion. The test's intent is unchanged; it was the example that had
+    two meanings."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     prov.note_failure("quota exceeded", {"name": "z.ai", "base_url": "x"})
     assert time.time() < prov._store._cooldown["z.ai"] <= time.time() + prov._DEFAULT_COOLDOWN_S + 1
 
 
-# ── V2-243: un SALDO agotado no es una cuota ────────────────────────────────────────────────────────────────
-# Medido en producción el 2026-08-21: `Insufficient Balance` de DeepSeek (HTTP 402) dos veces, anunciado como
-# «sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible». A las 03:02 no iba a pasar nada — un saldo no se
-# repone solo—, y con la cadena entera seca el arnés tuvo que parar de medir. Una cuota le dice al operador
-# «espera»; un saldo le dice «recarga», y de eso depende lo que HAGA.
+# ── V2-243: an exhausted BALANCE is not a quota ────────────────────────────────────────────────────────────
+# Measured in production on 2026-08-21: DeepSeek `Insufficient Balance` (HTTP 402) twice, announced as
+# «no quota until 21 Aug 03:02 · NO FAILOVER available». At 03:02 nothing would have changed—a balance does not
+# replenish itself—and with the entire chain dry, the harness had to stop measuring. A quota tells the operator
+# «wait»; a balance says «top up», and what it DOES depends on that distinction.
 
 def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
-    """Reescrito el 2026-08-27, NO volteado. Lo que protegía sigue en pie: un saldo agotado se castiga MÁS que
-    un fallo cualquiera, porque reintentar cada poco contra una cuenta vacía quema un turno por ronda. Lo que
-    cambia es el techo, y lo cambia una medida: con seis horas, el 402 de las 18:55 dejó al titular fuera hasta
-    pasada la medianoche; el operador recargó a las 19:40 y el motor no tenía forma de enterarse, así que
-    siguió mandándolo todo al relevo — y cuando ese relevo se cayó, el cerebro se quedó MUDO con el titular
-    sano al lado. Una recarga es invisible desde aquí: la única manera de verla es volver a probar. Ahora el
-    castigo sigue siendo mayor que el de una cuota sin fecha, pero cabe en una libertad condicional.
+    """Rewritten on 2026-08-27, NOT reverted. What it protected remains: an exhausted balance is penalized MORE than
+    than an ordinary failure, because retrying frequently against an empty account burns one turn per round. What
+    changes is the ceiling, and one measurement changes it: with six hours, the 402 at 18:55 kept the primary out
+    past midnight; the operator topped up at 19:40 and the engine had no way to know, so it kept sending everything
+    to the failover—and when that failover fell, the brain went SILENT with the healthy primary beside it. A top-up
+    is invisible from here: the only way to detect it is to try again. Now the penalty remains greater than that for
+    an undated quota, but fits within a probationary period.
     """
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
@@ -153,14 +153,14 @@ def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
 
 
 def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
-    """Sensibilidad, y no es teórico: un plan con forfait puede decir «insufficient credit … reset at …». Si
-    anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
+    """Sensitivity, and this is not theoretical: a flat-rate plan may say «insufficient credit … reset at …». If
+    it announces when it returns, it returns on its own, and disabling it six hours too long loses the preferred tier."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    # La fecha se calcula, no se escribe: con "2026-08-30" literal este caso funcionó hasta las 23:33
-    # del 29 y a partir de ahí la fecha anunciada quedaba en el pasado, así que mandaba el suelo de
-    # cuarentena y el caso pasaba a medir lo contrario de lo que dice. Un test con una fecha dentro
-    # tiene una bomba de relojería dentro.
+    # The date is calculated, not written: with the literal "2026-08-30", this case worked until 23:33
+    # on the 29th, after which the announced date was in the past, so the quarantine floor took over
+    # and the case started measuring the opposite of what it says. A test with an embedded date
+    # contains a time bomb.
     _manana = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3 * 86400))
     prov.note_failure(f"insufficient credit, quota will reset at {_manana}",
                       {"name": "z.ai", "base_url": "x"})
@@ -169,7 +169,7 @@ def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
 
 
 def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch):
-    """Lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que haga."""
+    """What is written here is what the operator reads in the panel, and what they do depends on it."""
     from voice import health_state
     dichos = []
     monkeypatch.setattr(health_state, "record", lambda *a, **k: dichos.append(a), raising=False)
@@ -182,7 +182,7 @@ def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch)
 
 
 def test_the_local_licence_is_never_put_in_cooldown(monkeypatch):
-    """No tiene cuota de API que agotar; sacarla de la cadena nos dejaría sin último recurso."""
+    """It has no API quota to exhaust; removing it from the chain would leave us without a last resort."""
     _cfg(monkeypatch, base_url="")
     assert prov.pick()["name"] == "licencia-claude"
     assert prov.note_failure(REAL_429) is None
@@ -216,7 +216,7 @@ def test_clear_lets_the_operator_resume_after_topping_up(monkeypatch):
     assert prov.pick()["name"] == "z.ai"
 
 
-# ── y que el PANEL se entere (lo que faltaba) ─────────────────────────────────────────────────────────────
+# ── and make sure the PANEL knows (what was missing) ───────────────────────────────────────────────────────
 def test_the_alerts_panel_surfaces_an_exhausted_worker_provider(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
@@ -227,14 +227,14 @@ def test_the_alerts_panel_surfaces_an_exhausted_worker_provider(monkeypatch):
     rows = balances.worker_providers()
     bad = [r for r in rows if r["state"] == "error"]
     assert bad and bad[0]["key"] == "worker:z.ai" and "cuota" in bad[0]["detail"]
-    # «PRÓXIMO», no «EN USO» (2026-08-10): esta aserción decía «EN USO» y era precisamente el significado
-    # impreciso que hacía mentir al panel — marcaba como trabajando a un escalón que solo era el candidato. Lo que
-    # importa aquí sigue comprobándose: tras el relevo se ve QUIÉN toma el mando.
+    # «PRÓXIMO», not «EN USO» (2026-08-10): this assertion said «EN USO», precisely the inaccurate meaning
+    # that made the panel lie—it marked a tier as working when it was only the candidate. What still matters
+    # is checked here: after failover, we see WHO takes command.
     assert [r for r in rows if r["state"] == "ok" and "PRÓXIMO" in r["detail"]]
 
 
 def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
-    """Sin ningún relevo el operador tiene que verlo ANTES de pedir una tarea que no va a poder correr."""
+    """Without any failover, the operator must see it BEFORE requesting a task that cannot run."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setattr(prov, "_is_container", lambda: True)      # cloud: sin licencia local
@@ -243,10 +243,10 @@ def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
     assert any(r["key"] == "worker:sin-relevo" for r in balances.worker_providers())
 
 
-# ── el MODELO viaja con el escalón (si no, el relevo no releva) ───────────────────────────────────────────
+# ── the MODEL travels with the tier (otherwise failover does not fail over) ───────────────────────────────
 def test_the_model_belongs_to_its_tier_not_to_the_global_config(monkeypatch):
-    """Primer relevo real (2026-08-02): cambió el endpoint pero siguió pidiendo `glm-5.2`, y el CLI murió con
-    «There's an issue with the selected model (glm-5.2)». `code_agent.model` solo existe en SU proveedor."""
+    """First real failover (2026-08-02): the endpoint changed but it kept requesting `glm-5.2`, and the CLI died with
+    «There's an issue with the selected model (glm-5.2)». `code_agent.model` exists only in ITS provider."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
@@ -268,8 +268,8 @@ def test_dispatch_asks_the_active_tier_for_the_model(monkeypatch):
 
 
 def test_without_a_relay_the_per_invocation_model_still_rules(monkeypatch):
-    """Regresión: al endurecer el modelo-por-escalón se rompió el modelo POR INVOCACIÓN de siempre
-    (`code_agent.model_code`), que debe seguir mandando mientras no haya habido relevo."""
+    """Regression: tightening the model-per-tier behavior broke the usual PER-INVOCATION model
+    (`code_agent.model_code`), which must continue to take precedence until failover occurs."""
     from nucleo import dispatch
     import config.v2 as v2
     monkeypatch.setattr(v2, "get", lambda k: {})              # sin proveedor externo configurado
@@ -278,17 +278,17 @@ def test_without_a_relay_the_per_invocation_model_still_rules(monkeypatch):
     assert dispatch._model_for("code") == "modelo-de-tarea"
 
 
-# ── CIEGO ≠ CAÍDO: las TOOLS del proveedor se agotan sin que falle el modelo (2026-08-10) ─────────────────────
-# Hallazgo de una prueba e2e real (informada por otra sesión mientras corría una búsqueda de veleros): el plan de
-# un proveedor se agota por DOS vías distintas que hasta hoy se trataban como una sola cosa.
+# ── BLIND ≠ DOWN: the provider's TOOLS are exhausted without the model failing (2026-08-10) ─────────────────
+# Finding from a real e2e test (reported by another session while running a sailboat search): a provider's plan
+# is exhausted in TWO different ways that until now were treated as one thing.
 #
 #   · el MODELO se agota (`[1308] Usage limit reached for 5 hour`) → la llamada falla → relevo. Ya funcionaba.
 #   · las TOOLS INTEGRADAS del proveedor se agotan (`[1310] … for web_search_prime`) → **la llamada al modelo no
-#     falla**. El worker sigue razonando pero CIEGO: no puede buscar ni leer una página. El error llega dentro de
-#     un `tool_result`, que se descartaba como ruido interno → ni alerta, ni relevo, ni rastro. El worker parecía
+#     fails**. The worker keeps reasoning but is BLIND: it cannot search or read a page. The error arrives inside
+#     a `tool_result`, which was discarded as internal noise → no alert, failover, or trace. The worker appeared
 #     sano y entregaba conclusiones sin material.
 #
-# Es el modo de fallo más caro de este sistema: un estado que ENGAÑA. Estos tests fijan la distinción.
+# It is this system's most costly failure mode: a DECEPTIVE state. These tests lock in the distinction.
 TOOL_429 = ('API Error: 429 {"error":{"code":"1310","message":"Weekly/Monthly Limit Exhausted for '
             'web_search_prime. Your limit will reset at 2026-08-30"}}')
 MODEL_429 = ('API Error: 429 {"error":{"code":"1308","message":"Usage limit reached for 5 hour, '
@@ -308,8 +308,8 @@ def test_going_blind_raises_an_alert_and_names_the_right_provider(monkeypatch):
     from voice import health_state
 
     health_state.clear("worker_tools")
-    # El culpable es el escalón con el que corría ESA sesión, no el primero de la cadena ahora mismo: tras un
-    # relevo son distintos, y nombrar al equivocado manda al operador a mirar el proveedor que sí funciona.
+    # The culprit is the tier on which THAT session was running, not the chain's current first tier: after
+    # failover they differ, and naming the wrong one sends the operator to inspect the provider that works.
     detail = prov.note_tool_blindness(TOOL_429, tool="web_search_prime", provider="z.ai")
     assert "z.ai" in detail
     assert "2026-08-30" in detail, "la fecha de reset la da el propio proveedor: es lo que dice cuándo vuelve a ver"
@@ -319,8 +319,8 @@ def test_going_blind_raises_an_alert_and_names_the_right_provider(monkeypatch):
 
 
 def test_going_blind_does_NOT_put_the_model_in_cooldown(monkeypatch):
-    """Sus tools están agotadas, su modelo no. Castigar al modelo apagaría un proveedor que funciona para todo lo
-    demás — y esa política es decisión del operador, no un efecto colateral de instrumentar."""
+    """Its tools are exhausted, its model is not. Penalizing the model would shut down a provider that works for
+    everything else—and that policy is the operator's decision, not a side effect of instrumentation."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     prov._store._cooldown.clear()
@@ -330,8 +330,8 @@ def test_going_blind_does_NOT_put_the_model_in_cooldown(monkeypatch):
 
 
 def test_the_panel_gets_its_own_row_for_blindness(monkeypatch):
-    """Fila propia, no la de «proveedor sin cuota»: es otro problema con otra solución. Sin ella el panel decía
-    «todo ok» mientras el worker entregaba conclusiones sin haber podido mirar nada."""
+    """Its own row, not the «provider without quota» row: it is a different problem with a different solution. Without
+    it, the panel said «all ok» while the worker delivered conclusions without being able to look at anything."""
     from voice import health_state
     import config.balances as balances
 
@@ -344,18 +344,18 @@ def test_the_panel_gets_its_own_row_for_blindness(monkeypatch):
     health_state.clear("worker_tools")
 
 
-# ── UNA VENTANA AGOTADA NO ES UN RATE-LIMIT (2026-08-10) ──────────────────────────────────────────────────────
-# Hallazgo de un e2e real: el 429 `[1308] Usage limit reached for 5 hour … reset at 23:15:37` caía en `rate`, y
-# `rate` NO pone cooldown ni releva. Consecuencia medida: el cooldown que sí se puso venía de otro camino y expiró
-# a las 16:11 — SIETE HORAS antes del reset que el propio proveedor anuncia. A partir de ahí, cada worker nuevo
-# elegía ese escalón, se comía un 429 y quemaba su reintento, uno detrás de otro, hasta las 23:15.
+# ── AN EXHAUSTED WINDOW IS NOT A RATE LIMIT (2026-08-10) ─────────────────────────────────────────────────────
+# Finding from a real e2e test: the 429 `[1308] Usage limit reached for 5 hour … reset at 23:15:37` fell into `rate`, and
+# `rate` does NOT set a cooldown or fail over. Measured consequence: the cooldown that was set came from another
+# path and expired at 16:11—SEVEN HOURS before the reset announced by the provider itself. From then on, each new
+# worker chose that tier, hit a 429, and burned its retry, one after another, until 23:15.
 #
-# Dos causas encadenadas, y las dos hacen falta: la clasificación (no es pasajero) y la LECTURA DE LA HORA
-# (`_RESET_RE` solo capturaba la FECHA, así que una hora del mismo día se resolvía a medianoche pasada → epoch en
-# el pasado → el cooldown nacía vencido y caía al suelo de media hora).
-# La hora de reset se CALCULA (ahora + 3 h) en vez de estar clavada. Estuvo clavada a las «23:15:37», y eso hacía
+# Two linked causes, and both are necessary: classification (it is not transient) and READING THE TIME
+# (`_RESET_RE` captured only the DATE, so a time on the same day resolved to the past midnight → an epoch in
+# the past → the cooldown was born expired and fell back to the half-hour floor).
+# The reset time is CALCULATED (now + 3 h) instead of being fixed. It was fixed at «23:15:37», which made
 # que `test_the_window_limit_actually_relays_and_waits` —que comprueba que el cooldown llega a la hora anunciada y
-# no al suelo de media hora— dependiera de la hora a la que corres la suite: verde por la mañana, rojo a partir de
+# not the half-hour floor—depended on when the suite was run: green in the morning, red from
 # las 22:15 todas las noches. El test habla del MECANISMO, no del reloj de quien lo lanza.
 _RESET_AT = time.strftime("%H:%M:%S", time.localtime(time.time() + 3 * 3600))
 WINDOW_429 = ('API Error: 429 {"error":{"code":"1308","message":"Usage limit reached for 5 hour. '
@@ -379,7 +379,7 @@ def test_a_bare_time_resets_today_not_at_midnight_past():
 
 
 def test_a_bare_time_already_gone_rolls_to_tomorrow(monkeypatch):
-    """A las 23:50 un «reset at 00:30» es de mañana, no de hace 23 horas."""
+    """At 23:50, a «reset at 00:30» is tomorrow, not 23 hours ago."""
     import time as _t
 
     e = prov._reset_epoch("your limit will reset at 00:30")
@@ -400,11 +400,11 @@ def test_the_window_limit_actually_relays_and_waits(monkeypatch):
     prov._store._cooldown.clear()
 
 
-# ── «EN USO» ≠ «EL QUE SE ELEGIRÍA» ──────────────────────────────────────────────────────────────────────────
+# ── «IN USE» ≠ «THE ONE THAT WOULD BE CHOSEN» ───────────────────────────────────────────────────────────────
 def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypatch):
-    """La fila decía «EN USO · disponible» de un escalón que no estaba sirviendo a nadie: tras un relevo, el que
-    trabaja es el de relevo, y el que se elegiría vuelve a ser el primero en cuanto expira su cooldown. Son dos
-    preguntas distintas y el panel tiene que distinguirlas."""
+    """The row said «IN USE · available» for a tier serving nobody: after failover, the failover tier is working,
+    and the one that would be chosen becomes the first again when its cooldown expires. These are two different
+    questions, and the panel must distinguish them."""
     import config.balances as balances
 
     _cfg(monkeypatch)
@@ -421,9 +421,9 @@ def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypat
     assert "EN USO" not in rows["worker:z.ai"]["detail"]
 
 
-# ── V2-309: «session limit» es una VENTANA agotada, y su hora viene como el proveedor quiera escribirla ──────
+# ── V2-309: «session limit» is an exhausted WINDOW, and its time comes in whatever form the provider uses ────
 #
-# Medido el 2026-08-25 04:36: el worker murió al instante con «You've hit your session limit · resets 6:10am
+# Measured on 2026-08-25 04:36: the worker died instantly with «You've hit your session limit · resets 6:10am
 # (Europe/Madrid)», `classify_failure` devolvió "" (no es fallo de proveedor) → sin cooldown y sin relevo, así
 # que CADA worker nuevo iba al mismo escalón muerto y moría igual. La ronda acabó con la hoja vacía y zaelar
 # diciendo la verdad («se cortó por el límite de sesión») contra un estado que decía EN CURSO.
@@ -439,14 +439,14 @@ def test_a_session_limit_is_an_exhausted_window(text):
 
 
 def test_a_sentence_that_merely_mentions_a_session_limit_is_not_a_failure():
-    """Sensibilidad: el patrón exige el verbo de haberlo alcanzado o su reset — una frase que habla del
-    límite («session limit is configurable in settings») no puede tumbar un escalón sano."""
+    """Sensitivity: the pattern requires the verb indicating it was reached or its reset—a sentence that mentions
+    the limit («session limit is configurable in settings») must not bring down a healthy tier."""
     assert prov.classify_failure("session limit is configurable in settings") == ""
 
 
 def test_the_reset_hour_is_read_even_written_as_6_10am():
-    """Sin leer la hora, el cooldown caía al suelo por defecto (30 min) y otro worker moría contra el mismo
-    límite antes de que se repusiera. `6:10am` es como lo escribe el CLI: un dígito y el sufijo pegado."""
+    """Without reading the time, the cooldown fell to the default floor (30 min) and another worker died against the
+    same limit before it was replenished. `6:10am` is how the CLI writes it: one digit with the suffix attached."""
     import time as _t
     got = prov._reset_epoch("You've hit your session limit · resets 6:10am (Europe/Madrid)")
     assert got, "la hora no se leyó"
@@ -455,7 +455,7 @@ def test_the_reset_hour_is_read_even_written_as_6_10am():
 
 
 def test_the_iso_and_24h_forms_still_work():
-    """La forma que ya funcionaba no se toca al ensanchar el patrón."""
+    """The form that already worked is untouched while broadening the pattern."""
     import time as _t
     iso = prov._reset_epoch("limit will reset at 2026-08-25 06:10")
     assert _t.localtime(iso).tm_hour == 6

@@ -44,16 +44,16 @@ def test_el_escalon_deepseek_declara_un_modelo_que_su_gateway_SIRVE():
 
 
 def test_no_se_cuela_un_alias_de_claude_en_el_escalon_deepseek():
-    """El error concreto que había: el alias de Claude parece razonable porque el endpoint ES Anthropic-compatible.
-    Compatible en el PROTOCOLO no significa compatible en el CATÁLOGO."""
+    """The specific error that occurred: the Claude alias seems reasonable because the endpoint IS Anthropic-compatible.
+    Compatible in the PROTOCOL does not mean compatible in the CATALOG."""
     m = (_rung("deepseek").get("model") or "").lower()
     assert "sonnet" not in m and "opus" not in m and "claude" not in m, (
         f"model={m!r}: el gateway de DeepSeek habla el protocolo de Anthropic pero NO sirve sus modelos")
 
 
 def test_deepseek_va_DESPUES_de_los_planes_de_suscripcion():
-    """Regla del operador: «planes de SUSCRIPCIÓN (forfait), nunca pago por token». DeepSeek es por token, así que
-    es red de seguridad barata y no puede adelantar a un forfait que ya está pagado."""
+    """Operator rule: “SUBSCRIPTION plans (forfait), never pay-per-token.” DeepSeek is pay-per-token, so it is
+    an inexpensive safety net and cannot move ahead of a forfait that has already been paid for."""
     names = [t.get("name") for t in providers.KNOWN]
     assert "deepseek" in names
     for plan in ("z.ai", "moonshot"):

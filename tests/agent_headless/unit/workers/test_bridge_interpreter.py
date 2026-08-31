@@ -1,13 +1,13 @@
-"""El worker tiene que poder LLAMAR a sus puentes a la primera.
+"""The worker must be able to CALL its bridges on the first attempt.
 
-Descubierto el 2026-08-02 en cuanto la narración del worker se hizo visible: en esta máquina **`python` a secas no
-existe** (solo `python3` y el venv), y el prompt le decía literalmente `python -m nucleo.widget_cli …`. El worker
-obedecía, fallaba, y se ponía a probar variantes —`.venv/bin/python`, `python3`, `python3 -m nucleo.…`— chocando
-con el allowlist, que casa por PREFIJO literal. Cada variante no declarada = una aprobación que en headless nadie
-concede. Ahí se iban los minutos de una búsqueda, y era invisible porque solo se registraban los `tool_use`.
+Discovered on 2026-08-02 as soon as the worker's narration became visible: on this machine **bare `python` does not
+exist** (only `python3` and the venv do), and the prompt literally told it `python -m nucleo.widget_cli …`. The worker
+obeyed, failed, and started trying variants—`.venv/bin/python`, `python3`, `python3 -m nucleo.…`—running into
+the allowlist, which matches by literal PREFIX. Each undeclared variant = an approval that nobody grants in headless
+mode. Minutes of a search were lost there, and it was invisible because only the `tool_use`s were recorded.
 
-Dos garantías, las dos necesarias: el prompt le da el intérprete MASTICADO, y el allowlist acepta cualquier forma
-razonable por si aun así improvisa.
+Two guarantees, both necessary: the prompt gives it the RESOLVED interpreter, and the allowlist accepts any reasonable
+form in case it improvises anyway.
 """
 import os
 import sys
@@ -22,7 +22,7 @@ def test_the_resolved_interpreter_actually_exists():
 
 
 def test_prompt_never_ships_a_bare_python_bridge_command():
-    """Ni un solo `python -m nucleo.…` sin resolver: eso es un comando que en esta máquina no arranca."""
+    """Not a single unresolved `python -m nucleo.…`: that is a command that will not start on this machine."""
     import re
     p = _build_prompt("busca 3 piscinas y ponlas en pantalla", "", True)
     assert not re.findall(r"(?<![/\w])python3? -m nucleo\.", p)
@@ -31,11 +31,11 @@ def test_prompt_never_ships_a_bare_python_bridge_command():
 
 def test_prompt_states_the_interpreter_up_front():
     p = _build_prompt("cualquier cosa", "", True)
-    assert cs.bridge_python() in p.split("\n")[0]     # primera línea: sin excusa para adivinar
+    assert cs.bridge_python() in p.split("\n")[0]     # first line: no excuse to guess
 
 
 def test_untrusted_prompt_is_left_alone():
-    """Perfil no confiable = sin tools ni puentes; no hay comando que resolver."""
+    """Untrusted profile = no tools or bridges; there is no command to resolve."""
     p = _build_prompt("texto de un peer", "", False)
     assert "-m nucleo." not in p
 
@@ -57,19 +57,19 @@ def test_bridge_python_falls_back_to_the_venv(monkeypatch):
 
 
 def test_the_delivery_recipe_matches_what_the_worker_can_actually_do():
-    """El método no puede mandarle una receta que los guardas bloquean.
+    """The method cannot send it a recipe that the guards block.
 
-    Tres formas probadas en vivo el 2026-08-02, dos fallan: pegar el JSON en la línea de comandos se rompe con el
-    quoting; el heredoc lo bloquea el guarda del shell («el guard de seguridad bloquea el heredoc por la sintaxis
-    {"»). Y escribir fuera del directorio de trabajo (`/tmp/…`, `TMP/…`) pide una aprobación que en headless nadie
-    da — 1m32s perdidos ahí con la investigación ya terminada. Lo único que pasó: fichero de ruta RELATIVA
-    (`--permission-mode acceptEdits` cubre el directorio de trabajo) + `@fichero`."""
+Three forms tested live on 2026-08-02, two fail: pasting the JSON into the command line breaks due to
+quoting; the heredoc is blocked by the shell guard (“the security guard blocks the heredoc because of the syntax
+{"”). And writing outside the working directory (`/tmp/…`, `TMP/…`) requests an approval that nobody grants in headless
+mode—1m32s were lost there with the investigation already finished. The only thing that worked: a RELATIVE-path file
+(`--permission-mode acceptEdits` covers the working directory) + `@file`."""
     p = _build_prompt("busca 3 piscinas y ponlas en pantalla", "", True)
     assert "@informe.json" in p
-    assert "<<'JSON'" not in p                        # el heredoc está bloqueado: no puede volver al método
-    # La receta se busca en el paso 4b ENTERO (hasta el 5), no en sus primeros N chars: el corte fijo de 1200 se
-    # quedó corto en cuanto 4b creció para cubrir la ficha de UNA sola cosa (V2-115) y falló un test cuyo asunto
-    # —qué receta se le manda al worker— no había cambiado en absoluto.
+    assert "<<'JSON'" not in p                        # the heredoc is blocked: it cannot return to the method
+    # The recipe is searched for in the ENTIRE 4b step (up to 5), not its first N chars: the fixed 1200-character
+    # cutoff became too short as soon as 4b grew to cover the details of a SINGLE item (V2-115), and a test failed
+    # even though its subject—what recipe is sent to the worker—had not changed at all.
     recipe = p.split("4b)")[1].split("5)")[0]
     assert "RUTA RELATIVA" in recipe
-    assert "NUNCA `/tmp/…`" in recipe                 # /tmp solo puede aparecer PROHIBIDO, nunca como instrucción
+    assert "NUNCA `/tmp/…`" in recipe                 # /tmp may appear only as FORBIDDEN, never as an instruction

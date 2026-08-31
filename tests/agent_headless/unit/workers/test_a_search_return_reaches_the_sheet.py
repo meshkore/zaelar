@@ -1,10 +1,10 @@
-"""V2-320 — un worker que resuelve BUSCANDO dejaba la hoja vacía siempre, por construcción.
+"""V2-320 — a worker that resolves via SEARCH always left the sheet empty, by construction.
 
-Medido en `kid-friendly-activity-nearby` (2026-08-25 12:37): worker vivo 709 s, 8 búsquedas web, 7 returns,
-0 navegaciones — y la hoja vacía de punta a punta. El return de búsqueda tenía UN solo camino: la nota al
-cerebro (`hand_web_finding`), que el turno lee una vez y se gasta. La hoja no los rechazaba (`_to_item`
-acepta título+url sin precio, comprobado antes de tocar nada): no tenían puerta. Buscar es una forma
-legítima de resolver «actividades cerca», así que sus hallazgos son hallazgos.
+Measured in `kid-friendly-activity-nearby` (2026-08-25 12:37): worker alive for 709 s, 8 web searches, 7 returns,
+0 navigations — and the sheet empty from end to end. The search return had only ONE path: the note to the
+brain (`hand_web_finding`), which the turn reads once and consumes. The sheet did not reject them (`_to_item`
+accepts title+url without a price, checked before touching anything): they had no entry point. Searching is a
+legitimate way to resolve “nearby activities,” so its findings are findings.
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ RES = {"query": "actividades niños Madrid", "source": "tavily", "results": [
     {"title": "Parque de atracciones de Madrid", "snippet": "Atracciones para todas las edades…",
      "url": "https://x/parque"},
     {"title": "Faunia", "snippet": "Naturaleza y animales", "url": "https://x/faunia"},
-    {"title": "", "snippet": "", "url": "https://x/cita-sin-titulo"},          # cita pelada de Perplexity
+    {"title": "", "snippet": "", "url": "https://x/cita-sin-titulo"},          # bare citation from Perplexity
 ]}
 
 
@@ -49,8 +49,8 @@ def test_el_return_de_busqueda_llega_a_la_hoja_del_encargo():
 
 
 def test_ocho_busquedas_solapadas_CONVERGEN_en_vez_de_apilar():
-    """El ejemplar real hizo 8 búsquedas. Sin el dedup de la hoja (título+url), la misma Faunia saldría ocho
-    veces y la hoja parecería llena de hallazgos que son uno."""
+    """The real case made 8 searches. Without the sheet's deduplication (title+url), the same Faunia would appear eight
+    times and the sheet would look full of findings that are actually one."""
     for _ in range(8):
         findings.hand_search_rows(_Rec(), RES)
     assert len(sheet.view_data("hoja-k")["items"]) == 2
@@ -71,8 +71,8 @@ def test_un_return_vacio_o_roto_no_toca_la_hoja_ni_revienta():
 
 
 def test_el_worker_api_lo_llama_donde_entrega_la_nota():
-    """Guarda de CABLEADO por AST: la función puede estar perfecta y no servir de nada si la costura que
-    recibe el return no la llama — que es literalmente el defecto que arregla."""
+    """WIRING guard by AST: the function can be perfect and still be useless if the seam that
+    receives the return does not call it — which is literally the defect this fixes."""
     import ast
     src = ast.parse(open("nucleo/worker_api.py", encoding="utf8").read())
     fn = next(n for n in ast.walk(src)
@@ -89,7 +89,7 @@ def test_el_worker_api_lo_llama_donde_entrega_la_nota():
 # $279.99»). The model's five-turn «let me confirm the price» loop was HONEST — its sheet held no price as a
 # datum — and the delivery backstop cannot append what the rows do not carry. One unambiguous amount in the
 # title (or, failing that, exactly one in the snippet) is the source's own claim; ambiguity stays absent —
-# absence is said by `fila()` («sin precio»), a guess is invented data.
+# absence is stated by `fila()` (“no price”), a guess is invented data.
 
 
 def test_a_single_amount_in_the_title_becomes_the_price():
