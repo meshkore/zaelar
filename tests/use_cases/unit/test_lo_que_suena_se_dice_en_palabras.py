@@ -1,18 +1,18 @@
-"""V2-395 — lo que está SONANDO se le dice al juez en PALABRAS.
+"""V2-395 — what is PLAYING is told to the judge in WORDS.
 
-V2-392 metió `widgets_producing` en el informe de mecanismo y ahí se quedó. La sección que traduce el
-mecanismo a palabras —la que sí nombra `widget_ops`, los disparadores durables y la auditoría— no lo
-mencionaba, así que el dato viajaba en el JSON crudo y el juez no lo veía enunciado. Es la lección de V2-346:
-«una lista VACÍA no dice nada en voz alta».
+V2-392 added `widgets_producing` to the mechanism report, and it stayed there. The section that translates the
+mechanism into words —the one that does name `widget_ops`, durable triggers, and the audit— did not mention it,
+so the data traveled in the raw JSON and the judge did not see it stated. That is the lesson of V2-346:
+“an EMPTY list says nothing out loud.”
 
-Medido en `play-music-and-build-playlist` (2026-08-27 14:31), con la música SONANDO de verdad —comprobado a
-mano contra el plató: `yt.videoId = 0iLF_rtUbq0`, `paused: false`— y el veredicto en **2/5**: «ni sonó la
-música ni se guardó la canción, solo hubo una promesa vacía en el transcript».
+Measured in `play-music-and-build-playlist` (2026-08-27 14:31), with the music genuinely PLAYING —checked by
+hand against the set: `yt.videoId = 0iLF_rtUbq0`, `paused: false`— and the verdict at **2/5**: “neither did the
+music play nor was the song saved; there was only an empty promise in the transcript.”
 
-Y la mitad que lo explica: el juez citó **`n_evidence: 0`** como prueba. La EVIDENCIA es, por definición, lo
-que trae el MUNDO EXTERIOR, y un reproductor local no trae nada de fuera — así que en un caso de música o de
-vídeo ese contador es CERO POR CONSTRUCCIÓN. Un lector que mira donde no está no falla: RESPONDE, y responde
-una ausencia, que es la respuesta más creíble y más dañina.
+And the part that explains it: the judge cited **`n_evidence: 0`** as evidence. EVIDENCE is, by definition, what
+comes from the OUTSIDE WORLD, and a local player brings nothing from outside — so in a music or video case that
+counter is ZERO BY CONSTRUCTION. A reader who looks where something is not does not fail: it ANSWERS, and it
+answers with an absence, which is the most credible and most damaging answer.
 """
 from __future__ import annotations
 
@@ -30,17 +30,17 @@ def test_si_algo_SUENA_se_dice_y_se_nombra():
 
 
 def test_que_NO_suene_nada_tambien_se_dice():
-    """La otra dirección: un silencio en el informe se lee como «no miramos», no como «no sonaba»."""
+    """The other direction: silence in the report is read as “we did not look,” not as “it was not playing.”"""
     txt = _palabras({"widgets_producing": []})
     assert "NADA" in txt and "sonando" in txt
 
 
 def test_no_haber_podido_PREGUNTAR_no_es_lo_mismo_que_no_sonar():
-    """Nombrar el hueco (V2-127/V2-133): sin el campo, la ausencia de reproducción NO está probada.
+    """Name the gap (V2-127/V2-133): without the field, the absence of playback is NOT proven.
 
-    ⚠️ La entrada NO es `{}` — un informe totalmente vacío tiene su propia salida honesta desde antes («la
-    verificación no se pudo hacer»). El caso real es un informe que SÍ existe y no trae este campo: una ronda
-    APARCADA que se juzga después, construida por código anterior a V2-392.
+    ⚠️ The input is NOT `{}` — a completely empty report has had its own honest output from the beginning (“the
+    verification could not be performed”). The real case is a report that DOES exist and does not contain this
+    field: a PARKED round judged later, built by code predating V2-392.
     """
     txt = _palabras({"families_observed": ["flash"]})
     assert "NO se pudo preguntar" in txt
@@ -48,13 +48,13 @@ def test_no_haber_podido_PREGUNTAR_no_es_lo_mismo_que_no_sonar():
 
 
 def test_se_le_AVISA_de_que_la_evidencia_no_mide_esto():
-    """El error concreto del veredicto: `n_evidence: 0` citado como prueba de que no sonó."""
+    """The verdict’s specific error: `n_evidence: 0` cited as proof that it did not play."""
     txt = _palabras({"widgets_producing": ["musica"]})
     assert "n_evidence" in txt and "NORMAL" in txt
 
 
 def test_los_tres_casos_son_DISTINTOS_entre_si():
-    """Si dos de los tres dijeran lo mismo, el juez no podría separarlos — y separarlos es todo el punto."""
+    """If two of the three said the same thing, the judge could not distinguish them — and distinguishing them is the whole point."""
     a = _palabras({"widgets_producing": ["musica"]})
     b = _palabras({"widgets_producing": []})
     c = _palabras({"families_observed": ["flash"]})
@@ -62,6 +62,6 @@ def test_los_tres_casos_son_DISTINTOS_entre_si():
 
 
 def test_lo_que_ya_decia_sigue_diciendose():
-    """La sección tiene más inquilinos: partirla es como se pierde una regla por el camino."""
+    """The section has more tenants: splitting it is how a rule gets lost along the way."""
     txt = _palabras({"widget_ops": {"agenda": {"data": 1}}, "widgets_producing": []})
     assert "agenda" in txt and "Operaciones de WIDGET" in txt

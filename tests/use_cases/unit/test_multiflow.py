@@ -154,11 +154,11 @@ def test_every_other_scenario_stays_single_task():
     """Guard: `concurrent_tasks` changes the runner's behavior (live registry sampling) and the judge's
     rubric, so it must never get set by accident on a single-task scenario."""
     multi = sorted(s.id for s in scenarios.SCENARIOS if s.concurrent_tasks)
-    # Inventario CERRADO, y cada uno con su motivo:
-    #   · three-tasks-at-once      → se JUZGA por la coordinación de tres encargos a la vez.
-    #   · two-searches-two-sheets  → mide que dos búsquedas simultáneas abran DOS hojas, y «simultáneas» es
-    #     justo lo que el muestreo del registro vivo prueba: un volcado posterior enseña que existieron dos
-    #     tareas, nunca que se solaparan en el tiempo.
+    # CLOSED inventory, with the reason for each:
+    #   · three-tasks-at-once      → JUDGED on the coordination of three tasks at once.
+    #   · two-searches-two-sheets  → measures whether two simultaneous searches open TWO sheets, and
+    #     "simultaneous" is exactly what live-registry sampling tests: a later dump shows that two tasks
+    #     existed, never that they overlapped in time.
     assert multi == ["three-tasks-at-once", "two-searches-two-sheets"]
 
 
@@ -228,9 +228,9 @@ def test_handwritten_scenarios_are_never_shadowed_by_a_derived_one():
     reg = SC.registry()
     for hand in SC.SCENARIOS:
         got = reg[hand.id]
-        # Contra el texto RESUELTO: las fechas de un caso son relativas a hoy (norma del operador 2026-08-19),
-        # así que el registro sustituye sus tokens. Comparar contra el crudo haría fallar este test por la
-        # resolución de fechas, que no es sombreado — y el test dejaría de vigilar lo que existe para vigilar.
+        # Contrary to the RESOLVED text: a case's dates are relative to today (operator rule 2026-08-19),
+        # so the registry replaces its tokens. Comparing against the raw text would make this test fail due
+        # to date resolution, which is not shadowing — and the test would stop checking what it is meant to.
         assert got.opening_line == DT.resolve(hand.opening_line)
         assert got.persona_brief == DT.resolve(hand.persona_brief)
         assert got.expected_signals == hand.expected_signals
@@ -602,7 +602,7 @@ def test_closing_fails_open_and_never_raises_into_a_batch(monkeypatch, tmp_path)
 # ── the real-data limit: what a case can HONESTLY be graded on ─────────────────────────────────────────────
 def test_a_case_with_no_real_data_behind_it_is_graded_on_CONDUCT_not_outcome():
     """Operator, 2026-08-18: renewing a gym membership can never work with no gym, no account, no membership —
-    "eso no es un fallo del use case". What is withdrawn from judgement is the OUTCOME; the CONDUCT stays,
+    "that is not a failure of the use case". What is withdrawn from judgement is the OUTCOME; the CONDUCT stays,
     because the batch didn't fail for lacking a Netflix account, it failed for saying "ya tengo en marcha la
     cancelación". Without that half kept, this becomes an amnesty for hallucination."""
     from tests.use_cases.e2e.agent import derived as D

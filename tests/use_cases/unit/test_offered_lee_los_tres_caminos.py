@@ -2,7 +2,7 @@
 invisible, and rule 1 of the rubric had nowhere to look.
 
 Measured in `cheapest-monitor__us` (00:04): 10 real system notes pushed («Una búsqueda web ha devuelto
-esto…») and the worker narrating «El LG 27UP650K-W aparece a $194.99 en Amazon (mínimo histórico)» then
+this…») and the worker narrating «El LG 27UP650K-W aparece a $194.99 en Amazon (mínimo histórico)» then
 «Confirmado por varias fuentes (Technobezz $194.99, Lifehacker $196.99)» — and `offered.n_offered: 0`,
 because the parser required the navigator's «SACADO» header. With offered empty, the judge's rule 1
 («busca el nombre y el precio en offered.with_price») failed open into [alta] «afirmación de éxito falsa»

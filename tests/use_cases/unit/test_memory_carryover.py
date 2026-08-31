@@ -1,15 +1,15 @@
-"""Una tanda comparte UN motor, así que del tercer caso en adelante zaelar recuerda los anteriores — y eso NO
-es un defecto del producto.
+"""A batch shares ONE engine, so from the third case onward zaelar remembers the earlier ones—and that is NOT
+a product defect.
 
-Medido el 2026-08-20: `renew-gym-membership__es` bajó a 2/5 con el veredicto «fallos de relevancia en memoria,
-mezclando dominios (Netflix/Teatro) al preguntar por el gimnasio». Netflix y Teatro son EXACTAMENTE los dos
-casos que corrieron antes que él en la misma tanda. Una instalación nueva no puede hacer eso: el hallazgo era
-sobre nuestro montaje, no sobre el agente.
+Measured on 2026-08-20: `renew-gym-membership__es` dropped to 2/5 with the verdict “memory relevance failures,
+mixing domains (Netflix/Theater) when asking about the gym.” Netflix and Theater are EXACTLY the two cases
+that ran before it in the same batch. A fresh installation cannot do that: the finding concerned our setup,
+not the agent.
 
-No se puede arreglar borrando la memoria entre casos: eso exige matar el proceso (SQLite en uso) y
-`/api/reset/full` relanza el motor — en un sandbox eso es peor que el problema. Así que el hecho se ESTAMPA en
-la evidencia y llega al juez antes de que razone, igual que `search_health`. Y con el límite dicho: recordar
-otro tema no es un fallo, pero CONFUNDIRSE de tema sí.
+It cannot be fixed by deleting the memory between cases: that requires killing the process (SQLite is in use), and
+`/api/reset/full` relaunches the engine—in a sandbox that is worse than the problem. So the fact is STAMPED into
+the evidence and reaches the judge before it reasons, just like `search_health`. And with the boundary stated:
+remembering another topic is not a failure, but CONFUSING the topic is.
 """
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ def _scn():
 
 
 def _prompt(run: dict, monkeypatch) -> str:
-    """El prompt REAL que recibe el juez, capturado SIN llamar a ningún modelo.
+    """The REAL prompt received by the judge, captured WITHOUT calling any model.
 
-    Se parchea `llm.judge_call`, que es el único punto por el que el juez habla con un modelo (`judge.py:246`).
-    La primera versión de este helper ADIVINABA el nombre de la función y no acertaba, así que devolvía "" y
-    encima hacía la llamada de verdad: 12 segundos y coste real por un test unitario.
+    `llm.judge_call` is patched; it is the only point through which the judge talks to a model (`judge.py:246`).
+    The first version of this helper GUESSED the function name and got it wrong, so it returned "" and
+    on top of that made the real call: 12 seconds and an actual cost for a unit test.
     """
     seen: dict[str, str] = {}
 
@@ -51,23 +51,23 @@ def test_the_judge_is_told_which_cases_ran_before_this_one(monkeypatch):
 
 
 def test_and_told_what_WOULD_still_be_a_real_failure(monkeypatch):
-    """La mitad que impide que esto sea una amnistía: recordar otro tema no es un fallo, confundirse de tema sí.
-    Sin esta frase, el aviso enseñaría al juez a perdonar justo el fallo que el caso busca."""
+    """The half that prevents this from being an amnesty: remembering another topic is not a failure, but confusing the topic is.
+    Without this sentence, the notice would teach the judge to forgive exactly the failure the case is looking for."""
     txt = _prompt({"transcript": [], "mechanism_report": {}, "memory_carryover": ["otro-caso"]}, monkeypatch)
     assert "CONFUNDIR" in txt
     assert "actúe sobre el tema" in txt
 
 
 def test_the_FIRST_case_of_a_batch_gets_no_such_note(monkeypatch):
-    """Sensibilidad: el primero no arrastra nada, así que el aviso no puede aparecer — si apareciera siempre,
-    el juez perdonaría fallos de memoria en el único caso donde son inequívocamente del producto."""
+    """Sensitivity: the first one carries nothing over, so the notice cannot appear—if it appeared every time,
+    the judge would forgive memory failures in the only case where they are unequivocally product failures."""
     txt = _prompt({"transcript": [], "mechanism_report": {}}, monkeypatch)
     assert "MEMORIA COMPARTIDA" not in txt
 
 
 def test_run_passes_the_cases_already_finished_in_this_batch():
-    """Que el aviso exista no sirve si el runner no lo rellena — el fallo de «la verdad existe y no llega al
-    sitio donde se decide», que en este repo ya se ha repetido varias veces."""
+    """The notice being present is useless if the runner does not populate it—the failure of “the truth exists but does not reach the
+    place where the decision is made,” which has already happened several times in this repo."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
