@@ -1,4 +1,4 @@
-"""Tests de la CARA del conector de música (widget musica, V2-041): view_data + apply_action."""
+"""Tests of the music connector's CARA (music widget, V2-041): view_data + apply_action."""
 import pytest
 
 from connectors.music.base import MusicResult
@@ -8,7 +8,7 @@ from widgets.musica import data as md
 
 @pytest.fixture(autouse=True)
 def _isolate(monkeypatch, tmp_path):
-    # store en tmp (no tocar el data dir real) + spotify desconectado por defecto
+    # store in tmp (do not touch the real data directory) + Spotify disconnected by default
     import widgets.store as store
     monkeypatch.setattr(store, "_path", lambda wid: str(tmp_path / f"{wid}.json"))
     monkeypatch.setattr(store, "_legacy_path", lambda wid: str(tmp_path / f"{wid}_legacy.json"))
@@ -68,10 +68,10 @@ def test_unknown_action():
 
 
 def test_favorite_current_no_lleva_nombre_de_demo_y_no_abre_un_segundo_linaje(monkeypatch):
-    """V2-366 repaso: la lista de favoritos era «Favoritos de Manolo» HARDCODEADO para cualquier operador
-    (resto de demo). Ahora es «Favoritos» a secas — y en una instalación que YA tiene la lista vieja, el
-    favorito cae AHÍ (match por contención de _find_playlist): renombrar el destino sin migrar dejaría DOS
-    linajes vivos, la trampa medida en V2-242."""
+    """V2-366 review: the favorites list was «Favoritos de Manolo» HARDCODED for every operator
+    (leftover demo). It is now simply «Favoritos» — and in an installation that ALREADY has the old list, the
+    favorite lands THERE (match by containment in _find_playlist): renaming the destination without migrating
+    it would leave TWO live lineages, the trap measured in V2-242."""
     monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "A", "album": "",
                                                           "art": "", "query": "Song"})
     r = md.apply_action("favorite_current", {})
@@ -89,11 +89,11 @@ def test_favorite_current_no_lleva_nombre_de_demo_y_no_abre_un_segundo_linaje(mo
     assert names == ["Favoritos de Manolo"]
 
 
-# --- V2-384: «guárdamelo en una lista que se llame Curro» tiene mecanismo detrás, en UNA llamada ---
+# --- V2-384: «save it in a list called Curro» has a mechanism behind it, in ONE call ---
 
 def test_guardar_lo_que_suena_en_una_lista_nueva_con_nombre_en_una_sola_llamada(monkeypatch):
-    """El caso medido en vivo: «Hecho.» y nada detrás. El modelo emite UNA data-op; exigir
-    create_playlist + add_to_playlist era cómo esa llamada resolvía a nada."""
+    """The case measured live: «Done.» and nothing behind it. The model emits ONE data-op; requiring
+    create_playlist + add_to_playlist was how that call resolved to nothing."""
     monkeypatch.setattr(md, "_current_track", lambda db: {"title": "La Song", "artist": "A", "album": "",
                                                           "art": "", "query": "La Song"})
     r = md.apply_action("add_to_playlist", {"playlist": "Curro"})
@@ -131,13 +131,14 @@ def test_favorite_current_acepta_lista_con_nombre(monkeypatch):
 
 
 def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja_la_lista_vacia():
-    """Evidencia del arnés (2026-08-27 13:40): yt={videoId 0iLF_rtUbq0, paused:false} sonando y
-    playlists=[{id:curro, tracks:[]}] — con la atribución «favorite_current crea la lista ANTES de resolver
-    la pista». Contra el código NO es así: _current_track se resuelve y gatea (nothing_playing) antes de
-    _find_or_create_playlist, en las DOS ramas. Este test recorre el camino REAL (la pista sale del bloque
-    yt persistido, sin monkeypatch): si alguna rama volviera a crear antes de resolver, la lista saldría
-    vacía y esto se pone rojo. La lista vacía medida la produce `create_playlist` a secas — legítimo — con
-    el add de después perdido por el una-data-op-por-turno del canal (V2-391, ya arreglado por el arnés)."""
+    """Harness evidence (2026-08-27 13:40): yt={videoId 0iLF_rtUbq0, paused:false} playing and
+    playlists=[{id:curro, tracks:[]}] — with the claim that «favorite_current creates the list BEFORE resolving
+    the track». The code says otherwise: _current_track is resolved and gates (nothing_playing) before
+    _find_or_create_playlist, in BOTH branches. This test follows the REAL path (the track comes from the
+    persisted yt block, without monkeypatch): if either branch started creating before resolving, the list would
+    be empty and this would fail. The measured empty list is produced by `create_playlist` alone — legitimately —
+    with the subsequent add lost because of the channel's one-data-op-per-turn behavior (V2-391, already fixed by
+    the harness)."""
     import widgets.store as store
     store.save("musica", {"yt": {"videoId": "0iLF_rtUbq0", "title": "La que suena", "paused": False,
                                  "muted": False, "volume": 70, "cmd_seq": 3}})
@@ -145,7 +146,7 @@ def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja
     assert r["ok"] is True and r["created"] is True
     db = md._load_db()
     curro = next(pl for pl in db["playlists"] if pl["name"] == "Curro")
-    assert [t["title"] for t in curro["tracks"]] == ["La que suena"]      # NUNCA vacía
+    assert [t["title"] for t in curro["tracks"]] == ["La que suena"]      # NEVER empty
 
     store.save("musica", {"yt": {"videoId": "0iLF_rtUbq0", "title": "La que suena", "paused": False,
                                  "muted": False, "volume": 70, "cmd_seq": 3}})
@@ -157,9 +158,9 @@ def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja
 
 
 def test_create_playlist_con_algo_sonando_ENSEÑA_el_siguiente_paso(monkeypatch):
-    """Medido: «guárdame lo que suena en una lista Curro» acaba en create_playlist a secas → lista VACÍA.
-    El modelo lee el resultado de la tool y el canal encadena data-ops (V2-391): la respuesta lleva el
-    siguiente paso cuando suena algo — y NO lo lleva con silencio, donde la lista vacía es todo el encargo."""
+    """Measured: «save what is playing in a Curro list» ends at create_playlist alone → EMPTY list.
+    The model reads the tool result and the channel chains data-ops (V2-391): the response includes the
+    next step when something is playing — and does NOT include it in silence, when the empty list is the entire request."""
     monkeypatch.setattr(md, "_current_track", lambda db: {"title": "Song", "artist": "", "album": "",
                                                           "art": "", "query": "Song"})
     r = md.apply_action("create_playlist", {"name": "Curro"})

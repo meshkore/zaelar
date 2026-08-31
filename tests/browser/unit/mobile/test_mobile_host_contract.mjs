@@ -157,8 +157,8 @@ for (const path of ["/m", "/manifest.webmanifest", "/sw.js"]) {
 
 
 // ── THE DOCK: the orb is the CENTRE, and it is also the switch ─────────────────────────────────────────────────
-// Operator's design (2026-08-18): «un orbe en el centro del footer… y en los laterales del orbe, el resto de
-// botones», with the orb doubling as stop. Three assertions, because three different things can quietly break it.
+// Operator's design (2026-08-18): «an orb in the centre of the footer… and, on either side of the orb, the rest of
+// the buttons», with the orb doubling as stop. Three assertions, because three different things can quietly break it.
 const zones = [...DOCKBAR.matchAll(/class:\s*"(zm-side|zm-centre)"/g)].map((m) => m[1]);
 check("the dock is side / centre / side, in that order",
   zones.join(",") === "zm-side,zm-centre,zm-side",

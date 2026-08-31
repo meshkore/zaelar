@@ -1,14 +1,14 @@
-"""V2-320 — un listado cuyas fichas no llevan ancla era INVISIBLE entero para el extractor.
+"""V2-320 — a listing whose cards have no anchors was entirely INVISIBLE to the extractor.
 
-Medido en vivo (2026-08-25, kayak.es/cars): la página mostraba «381 resultados» —Fiat 500 a 105 €, Peugeot
-408 a 167 €— con 27 nodos hoja llevando precio, y `_JS_EXTRACT` devolvía CERO. Por construcción: el bucle de
-candidatos solo recorre `a[href]`, y en Kayak cada oferta es un `<div>` cuyo único control es un botón «Ver
-oferta». Los agregadores adoran el CTA de botón (coches, seguros, actividades) — que es exactamente la forma
-de la familia «hoja vacía» del tablero (9/28 rondas).
+Measured live (2026-08-25, kayak.es/cars): the page showed «381 resultados» —Fiat 500 a 105 €, Peugeot
+408 a 167 €— with 27 leaf nodes containing prices, and `_JS_EXTRACT` returned CERO. By construction, the
+candidate loop only traverses `a[href]`, and on Kayak each offer is a `<div>` whose only control is a «Ver
+oferta» button. Aggregators love button CTAs (cars, insurance, activities) — which is exactly the shape
+of the board’s «empty leaf» family (9/28 rounds).
 
-Se prueba RENDERIZANDO un fixture local con la forma medida de la tarjeta real (radiografiada: sin headings,
-sin img alt, sin strong; el nombre SOLO existe en el aria-label del botón). Un test de fuente daría por bueno
-un recolector que compila; lo que importa es lo que sale de un DOM de verdad.
+Tested by RENDERING a local fixture with the measured shape of the real card (examined: no headings,
+no img alt, no strong; the name exists ONLY in the button’s aria-label). A source-level test would accept
+a collector that compiles; what matters is what comes out of a real DOM.
 """
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from playwright.sync_api import sync_playwright
 
 from widgets.navegador import dom
 
-# La forma MEDIDA de la tarjeta de kayak (radiografía del 2026-08-25): div, precio en hoja con leyenda
-# «Total», proveedor como primera línea, y el nombre completo solo en el aria-label del botón.
+# The MEASURED shape of the Kayak card (examined on 2026-08-25): div, price in a leaf with a
+# «Total» label, provider as the first line, and the full name only in the button’s aria-label.
 _KAYAK_SHAPED = """
 <div id="grid">
   <div class="card"><span>bsp-auto</span><div><span aria-label="22 € en total">22 €</span><span>Total</span></div>
@@ -32,7 +32,7 @@ _KAYAK_SHAPED = """
 </div>
 """
 
-# Y la forma ancla-por-ficha (Wallapop/Amazon): el camino de siempre, que no puede moverse ni un pelo.
+# And the anchor-per-card shape (Wallapop/Amazon): the established path, which must not move even a hair.
 _ANCHORED = """
 <div>
   <a href="https://x.example/item/monitor-lg-1"><img alt="Monitor LG Full HD"><span>Monitor LG Full HD</span>
@@ -62,16 +62,16 @@ def test_una_tarjeta_sin_ancla_sale_con_nombre_y_precio(_page):
     assert len(rows) == 3, f"tres tarjetas con precio son tres filas, no {len(rows)}"
     por_precio = {r["price"]: r for r in rows}
     assert set(por_precio) == {"22 €", "17 €", "31 €"}
-    # el nombre es el accesible LARGO de la tarjeta, no la leyenda corta del precio («22 € en total»)
+    # The name is the card’s LONG accessible name, not the price’s short label («22 € en total»)
     assert "Seat Ibiza" in por_precio["22 €"]["title"]
     assert "Renault Clio" in por_precio["17 €"]["title"]
-    # sin ancla no hay URL, y el contrato lo permite (las filas de teléfono tampoco llevan importe)
+    # Without an anchor there is no URL, and the contract allows it (phone rows also have no amount)
     assert all(not r.get("url") for r in rows)
 
 
 def test_el_camino_de_anclas_no_se_mueve_ni_un_pelo(_page):
-    """La guarda del recolector nuevo es que SOLO dispara con el de anclas vacío: en un listado con anclas
-    las filas salen por el camino medido de siempre — con URL — y ninguna fila fantasma se cuela al lado."""
+    """The new collector’s guard triggers ONLY when the anchor collector is empty: in a listing with anchors,
+    rows come through the established measured path — with URLs — and no phantom row slips in alongside them."""
     rows = _extract(_page, _ANCHORED)
     assert len(rows) == 2
     assert all(r.get("url", "").startswith("https://x.example/item/") for r in rows)
@@ -79,7 +79,7 @@ def test_el_camino_de_anclas_no_se_mueve_ni_un_pelo(_page):
 
 
 def test_una_pagina_sin_ningun_precio_sigue_dando_cero(_page):
-    """El formulario de rentalcars (radiografiado: 129 anclas, cero importes) tiene que seguir saliendo
-    vacío: cero filas de un formulario es la respuesta HONESTA, no un defecto."""
+    """The rentalcars form (examined: 129 anchors, zero amounts) must still come out
+    empty: zero rows from a form is the HONEST answer, not a defect."""
     rows = _extract(_page, "<form><input placeholder='Recogida'><button>Buscar</button></form><a href='https://x.example/ayuda'>Ayuda</a>")
     assert rows == []

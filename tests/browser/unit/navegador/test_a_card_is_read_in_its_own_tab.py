@@ -1,22 +1,22 @@
-"""Leer una ficha sin perder el listado (2026-08-24).
+"""Read a listing without losing the results list (2026-08-24).
 
-Petición del operador: *«el propio brain worker tiene que encargarse de extraer datos, modelar las
-diferentes fichas, abrir bastantes pestañas para investigar y valorar cada una de las fichas de
-resultados»*. No podía: el puente solo sabía `navigate`, que se lleva la ÚNICA pestaña — así que mirar un
-anuncio costaba perder el listado y volver a buscarlo, **dos navegaciones por ficha**, con el buscador y los
-filtros de por medio. A 7-11 s cada una, valorar tres fichas se comía la conversación entera.
+Operator request: *“the brain worker itself has to handle extracting data, modeling the
+different listings, opening enough tabs to investigate, and evaluating each of the result
+listings”*. It could not: the bridge only knew `navigate`, which takes over the ONLY tab — so looking at an
+item meant losing the results list and searching for it again, **two navigations per listing**, with the search box and
+filters in between. At 7–11 s each, evaluating three listings consumed the entire conversation.
 
-Medido con el verbo nuevo contra el plató vivo (es.wallapop.com):
+Measured with the new verb against the live site (es.wallapop.com):
 
-    navigate al listado   8,24 s
-    extract               0,02 s → 6 fichas
-    visit ficha #1        0,85 s   ← y el listado sigue donde estaba
-    visit (repetido)      0,59 s
-    extract               0,01 s → las MISMAS 6
+    navigate to the results list   8.24 s
+    extract                        0.02 s → 6 listings
+    visit listing #1               0.85 s   ← and the results list remains where it was
+    visit (repeated)               0.59 s
+    extract                        0.01 s → the SAME 6
 
-Lo que devuelve es lo que hace falta para VALORAR —título, texto de la ficha, listados declarados— y no una
-captura: valorar diez fichas por visión son diez lecturas de PNG, y esto tiene que poder hacerse muchas
-veces.
+What it returns is what is needed to EVALUATE —title, listing text, declared lists— and not a
+screenshot: evaluating ten listings by vision means ten PNG reads, and this has to be possible many
+times.
 """
 import inspect
 
@@ -34,14 +34,14 @@ def test_la_ficha_se_lee_en_OTRA_pestana():
 
 
 def test_NUNCA_se_toca_la_pestana_del_listado():
-    """Es la razón de existir del verbo: si tocara `self.page`, el listado se perdería igual."""
+    """This is the verb's reason for existing: if it touched `self.page`, the results list would still be lost."""
     src = _code(owner.TaskBrowser.visit)
     assert "self.page =" not in src and "self._goto" not in src
 
 
 def test_la_pestana_se_cierra_SIEMPRE():
-    """Una pestaña huérfana por ficha es cómo se llega a las treinta que ya midió `_reap_popups`. El cierre
-    va en `finally`, así que también ocurre cuando la lectura revienta."""
+    """One orphaned tab per listing is how you end up with the thirty already measured by `_reap_popups`. Closing
+    happens in `finally`, so it also occurs when the read blows up."""
     src = _code(owner.TaskBrowser.visit)
     i = src.find("finally:")
     assert i > 0, "sin `finally` una ficha que falla deja su pestaña abierta"
@@ -49,34 +49,34 @@ def test_la_pestana_se_cierra_SIEMPRE():
 
 
 def test_prefiere_el_CONTENIDO_al_MENU():
-    """Medido en la primera prueba: `body.innerText` empezaba por «Todas las categorías Coches Motos Motor y
-    accesorios…». Con el texto recortado, eso deja al worker valorando una ficha por el menú del sitio —
-    la misma forma que V2-234 midió en la extracción, por la otra puerta.
+    """Measured in the first test: `body.innerText` started with “All categories Cars Motorcycles Motor and
+    accessories…”. With the text truncated, that leaves the worker evaluating a listing by the site's menu —
+    the same way V2-234 measured during extraction, through the other entrance.
 
-    La regla es ESTRUCTURAL, no una lista de sitios: si la página declara su contenido principal se lee eso;
-    si no, el cuerpo entero, que es lo que había."""
+    The rule is STRUCTURAL, not a list of sites: if the page declares its main content, read that;
+    otherwise, the entire body, which is what existed."""
     src = _code(owner.TaskBrowser.visit)
     assert "main, article, [role=main]" in src
     assert "document.body" in src, "sin contenido declarado hay que caer al cuerpo, no devolver vacío"
 
 
 def test_las_lecturas_estan_ACOTADAS():
-    """Mismo motivo que la mirada: `evaluate` no tiene timeout en Playwright, y una ficha lenta no puede
-    llevarse la ronda."""
+    """Same reason as the inspection: `evaluate` has no timeout in Playwright, and a slow listing cannot
+    consume the round."""
     src = _code(owner.TaskBrowser.visit)
     assert src.count("asyncio.wait_for") >= 3
     assert "_DOM_TIMEOUT_S" in src
 
 
 def test_un_fallo_de_la_ficha_NO_lanza():
-    """El worker va a visitar muchas: una ficha caída tiene que devolver un `ok:false` legible y seguir, no
-    tumbar la acción."""
+    """The worker will visit many: a failed listing must return a readable `ok:false` and continue, not
+    bring down the action."""
     src = _code(owner.TaskBrowser.visit)
     assert '"ok": False' in src and "error" in src
 
 
 def test_el_WORKER_puede_llamarlo():
-    """Una capacidad que el puente no expone no existe para el worker (misma lección que el nodo 4.20)."""
+    """A capability that the bridge does not expose does not exist for the worker (the same lesson as node 4.20)."""
     src = inspect.getsource(nav_cli.main)
     assert 'sub.add_parser("visit"' in src
     assert '_act("visit"' in src
@@ -89,9 +89,9 @@ def test_el_puente_HTTP_lo_enruta():
 
 
 def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():
-    """Un verbo que el prompt no explica se queda sin usar — la lección de V2-219, donde el worker se moría
-    aprendiendo su propio CLI a tientas. Y el inventario cerrado de subcomandos tiene que incluirlo, o el
-    propio prompt le dice que no existe."""
+    """A verb that the prompt does not explain goes unused — the lesson of V2-219, where the worker was dying
+    while learning its own CLI by trial and error. And the closed inventory of subcommands must include it, or the
+    prompt itself tells it that it does not exist."""
     import inspect
     from nucleo import dispatch_prompts as dp
     src = inspect.getsource(dp)
