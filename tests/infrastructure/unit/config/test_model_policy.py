@@ -35,8 +35,8 @@ BANNED = ("hai" + "ku",)
 # to decide what to call.
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", "resultados", "snapshots", "timeline",
              ".runtime", "logs", "_data", "vendor", "certs", "dist", "build",
-             # Artefactos de corridas ya hechas (logs, eventos): registran el modelo que corrió DE VERDAD ese
-             # día. Reescribirlos falsificaría la evidencia, igual que los informes de banco.
+             # Artifacts from completed runs (logs, events): they record the model that ACTUALLY ran that
+             # day. Rewriting them would falsify the evidence, just like the benchmark reports.
              "runs"}
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".wav", ".mp3", ".pdf", ".ico", ".woff", ".woff2",
                  ".onnx", ".bin", ".so", ".dylib", ".zip", ".gz"}
@@ -86,14 +86,14 @@ def test_the_emergency_fallback_is_the_SAME_brain_as_the_config():
     """A fallback pointing at a different model is a SILENT brain swap at the worst possible moment — the one
     where the config cannot be read. It shows up in answer quality and in the bill, never as an error.
 
-    Se compara contra el default QUE SE ENVÍA (`config/v2.py`), no contra `config/v2.json`. Ese fichero está
-    gitignoreado: es la config LOCAL de cada máquina, así que la versión anterior de este test afirmaba que una
-    constante del código coincide con un fichero privado — y por tanto se ponía roja en cuanto alguien elegía
-    otro titular, que es su derecho y no una avería. Pasó el 2026-08-21: bastó cambiar el titular del operador a
-    `deepseek-v4-flash` para que este guarda acusara al código. Misma familia que el suelo absoluto de
-    `test_accumulator` calibrado contra los logs vivos: un test unitario no puede depender de un artefacto vivo.
-    Lo que sí es un defecto del PRODUCTO —y es lo que el docstring de arriba quiere cazar— es que el fallback de
-    emergencia del código no coincida con el titular que el producto declara por defecto."""
+    It is compared against the default that IS SHIPPED (`config/v2.py`), not against `config/v2.json`. That file is
+    gitignored: it is each machine's LOCAL config, so the previous version of this test claimed that a code
+    constant matched a private file—and therefore turned red as soon as someone chose a different titular, which is
+    their right and not a failure. This happened on 2026-08-21: merely changing the operator's titular to
+    `deepseek-v4-flash` caused this guard to accuse the code. Same family as the absolute floor in
+    `test_accumulator`, calibrated against live logs: a unit test cannot depend on a live artifact.
+    What IS a PRODUCT defect—and what the docstring above is meant to catch—is for the code's emergency fallback
+    not to match the titular that the product declares by default."""
     import config.v2 as v2
     from nucleo.flash import model_spec as M
     shipped = str((v2._DEFAULTS.get("fast") or {}).get("model") or "")
@@ -121,21 +121,21 @@ def test_the_browser_loop_defaults_to_the_titular():
     assert not re.match(r"^deepseek/", A._judge_model()), "nombre del broker sobre el endpoint nativo → 400"
 
 
-# ── OpenAI: en el CATÁLOGO sí, corriendo solo no (norma del operador, 2026-08-21) ─────────────────────────────
+# ── OpenAI: yes in the CATALOGUE, no running on its own (operator's norm, 2026-08-21) ──────────────────────────
 #
-# La norma ya estaba escrita en el árbol —el escalón i18n de `memllm._FAILOVER` la cita como «the operator's
-# standing norm (no OpenAI models)»— pero se aplicaba en un sitio y no en los otros cuatro, que es la forma en que
-# una norma en prosa vuelve. El operador la acotó: «por defecto no los usamos —ni la config de pruebas, ni su
-# instancia local, ni la nube— pero si un usuario quiere cambiarlo, que lo haga».
+# The norm was already written in the tree—the i18n rung of `memllm._FAILOVER` cites it as «the operator's
+# standing norm (no OpenAI models)»—but it was applied in one place and not the other four, which is how a norm in
+# prose returns. The operator narrowed it: «by default we do not use them—neither the test config, nor its local
+# instance, nor the cloud—but if a user wants to change it, let them».
 #
-# Así que NO es un barrido del árbol como el de arriba: la línea está entre lo que se OFRECE y lo que CORRE sin
-# que nadie lo elija. Por eso el test tiene dos filos, y el segundo importa tanto como el primero — un barrido a
-# secas habría "limpiado" también el catálogo y roto el principio de auto-hospedaje del repo.
+# So this is NOT a tree sweep like the one above: the line is between what is OFFERED and what RUNS without
+# anyone choosing it. That is why the test has two edges, and the second matters as much as the first—a sweep alone
+# would also have "cleaned" the catalogue and broken the repo's self-hosting principle.
 _OPENAI_RE = re.compile(r"\bopenai/|\bgpt-[0-9]", re.I)
 
 
 def test_no_relay_rung_runs_an_openai_model():
-    """Los escalones corren SOLOS: nadie los elige, se llega a ellos porque el anterior falló."""
+    """The rungs run on their OWN: no one chooses them; they are reached because the previous one failed."""
     from nucleo import memllm
 
     culpables = []
@@ -147,7 +147,7 @@ def test_no_relay_rung_runs_an_openai_model():
 
 
 def test_no_config_default_runs_an_openai_model():
-    """Y los DEFAULTS igual: son lo que corre en una instalación que nadie ha tocado."""
+    """The DEFAULTS are the same: they are what runs in an untouched installation."""
     from config import v2
 
     culpables = []
@@ -161,9 +161,9 @@ def test_no_config_default_runs_an_openai_model():
 
 
 def test_the_susurro_fallback_literal_matches_its_config_default():
-    """El último recurso del susurro solo se usa cuando la config NO se puede leer — o sea, cuando algo ya va mal.
-    Un literal que se separe del default es una deriva que por definición nadie ve hasta ese momento, y así fue
-    como este quedó apuntando a OpenAI después de que la config se moviera al broker."""
+    """The susurro fallback is used only when the config CANNOT be read—in other words, when something is already
+    wrong. A literal that diverges from the default is drift that by definition no one sees until that moment, and
+    that is how this one ended up pointing to OpenAI after the config moved to the broker."""
     import inspect
 
     from config import v2
@@ -176,8 +176,8 @@ def test_the_susurro_fallback_literal_matches_its_config_default():
 
 
 def test_but_the_CATALOGUE_still_offers_one():
-    """El otro filo, y no es simetría de adorno: `engine/` es OSS y quien se autohospeda tiene que poder poner
-    OpenAI en su motor. Si un barrido futuro «limpia» también el catálogo, este test lo para."""
+    """The other edge, and it is not decorative symmetry: `engine/` is OSS, and anyone self-hosting it must be able
+    to put OpenAI in their engine. If a future sweep also «cleans» the catalogue, this test stops it."""
     fuente = (ENGINE / "server" / "config_api.py").read_text()
     assert _OPENAI_RE.search(fuente), \
         "el catálogo dejó de ofrecer OpenAI: la norma prohíbe que CORRA solo, no que exista"

@@ -1,24 +1,24 @@
-"""SMOKE INTEGRAL — «¿el sistema entero está en funcionamiento?» (2026-07-25, petición del operador).
+"""FULL SMOKE — “is the entire system operational?” (2026-07-25, operator request).
 
-Un SOLO comando que valida TODAS las vías del sistema contra el server VIVO y devuelve exit 0 solo si TODO
-funciona. Nació de un fallo real: tras V2-069 (FlashBrain conduce operador Y cluster) el CHAT parecía roto y los
-tests de código no lo cazaban porque cubrían el núcleo pero no el camino de extremo a extremo. Esto es la red de
-seguridad "el sistema siempre queda operativo"; se extiende con más casos (1000→10000) sobre esta misma espina.
+A SINGLE command that validates ALL system paths against the LIVE server and returns exit 0 only if EVERYTHING
+works. It was born from a real failure: after V2-069 (FlashBrain drives operator AND cluster), CHAT appeared broken
+and the code tests did not catch it because they covered the core but not the end-to-end path. This is the
+“the system always remains operational” safety net; it is extended with more cases (1000→10000) on this same backbone.
 
-Comprueba, por capas:
-  1. SALUD        — /api/status overall + cada subsistema (server/brain/llm/memory/stt/tts/cron/widgets/cluster)
-  2. CHAT/VOZ     — /api/flash/say: un turno REAL del FlashBrain → respuesta real (NO el fallback "se me ha ido")
-  3. MEMORIA      — estado legible + roundtrip kv (escribe/lee)
-  4. CLUSTER      — /api/meshkore/status wired + (si hay) conectado; + motor untrusted responde (cluster.respond)
-  5. CÓDIGO       — pytest de las suites críticas (connectors/meshkore + nucleo/flash)
+Checks, layer by layer:
+  1. HEALTH       — /api/status overall + every subsystem (server/brain/llm/memory/stt/tts/cron/widgets/cluster)
+  2. CHAT/VOICE   — /api/flash/say: one REAL FlashBrain turn → real response (NOT the "se me ha ido" fallback)
+  3. MEMORY       — readable state + kv roundtrip (write/read)
+  4. CLUSTER      — /api/meshkore/status wired + connected (if present); + untrusted engine responds (cluster.respond)
+  5. CODE         — pytest for the critical suites (connectors/meshkore + nucleo/flash)
 
-GAP CONOCIDO (documentado, no falso-verde): el camino de TRANSPORTE del chat del navegador (data-channel LiveKit
-`zaelar-text` → agent → SSE) y el estado de sesión tras un REFRESCO del frontend NO se cubren aquí — exigen un
-cliente LiveKit real (patrón `tests/voice/e2e/agent/`). Es la vía donde falló el chat del operador el 2026-07-25 (desync de sesión
-frontend↔server). TODO: añadir `run_chat_over_livekit.py` (une un participante, publica zaelar-text, espera la
-respuesta por SSE) para cerrar ese hueco.
+KNOWN GAP (documented, not falsely green): the BROWSER CHAT TRANSPORT path (LiveKit data channel
+`zaelar-text` → agent → SSE) and session state after a frontend REFRESH are NOT covered here — they require a
+real LiveKit client (pattern `tests/voice/e2e/agent/`). This is the path where the operator chat failed on 2026-07-25
+(frontend↔server session desync). TODO: add `run_chat_over_livekit.py` (joins a participant, publishes zaelar-text,
+waits for the response over SSE) to close this gap.
 
-Uso:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py [--base http://127.0.0.1:43917] [--no-pytest]
+Usage:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py [--base http://127.0.0.1:43917] [--no-pytest]
 """
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def _load_env() -> None:
             pass
 
 
-# ── 1. SALUD ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── 1. HEALTH ────────────────────────────────────────────────────────────────────────────────────────────────
 def layer_health(base: str) -> None:
     print("\n[1] SALUD (/api/status)")
     try:
@@ -82,17 +82,17 @@ def layer_health(base: str) -> None:
         return
     check("server alcanzable", True)
     items = {i["key"]: i for i in st.get("items", [])}
-    # subsistemas que DEBEN estar ok (voice es 'off' salvo sesión abierta → no se exige)
+    # subsystems that MUST be ok (voice is 'off' unless a session is open → not required)
     for key in ("server", "brain", "llm", "memory", "stt", "tts", "cron", "widgets", "cluster"):
         it = items.get(key, {})
         state = it.get("state")
-        # 'llm' puede parpadear en rojo por un blip cacheado; lo revalida la capa CHAT abajo → aquí solo warn
+        # 'llm' may flash red because of a cached blip; the CHAT layer below revalidates it → warn only here
         hard = key not in ("llm",)
         ok = state == "ok"
         check(f"{key} = ok", ok or not hard, f"{state} · {it.get('detail','')}")
 
 
-# ── 2. CHAT / VOZ (núcleo del FlashBrain) ─────────────────────────────────────────────────────────────────────
+# ── 2. CHAT / VOICE (FlashBrain core) ─────────────────────────────────────────────────────────────────────
 def layer_chat(base: str) -> None:
     print("\n[2] CHAT/VOZ (/api/flash/say — turno REAL del FlashBrain)")
     try:
@@ -107,7 +107,7 @@ def layer_chat(base: str) -> None:
     check("NO es el fallback de error", not fallback, "¡turno cayó al fallback 'se me ha ido'!" if fallback else "")
 
 
-# ── 3. MEMORIA ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── 3. MEMORY ────────────────────────────────────────────────────────────────────────────────────────────────
 def layer_memory() -> None:
     print("\n[3] MEMORIA (estado + roundtrip kv)")
     try:
@@ -131,7 +131,7 @@ def layer_cluster(base: str) -> None:
         check("meshkore status legible", True, str(conns) or "sin clusters")
     except Exception as e:  # noqa: BLE001
         check("meshkore status", False, f"{type(e).__name__}: {str(e)[:80]}")
-    # motor untrusted responde (identidad-safe + sin re-presentarse) — llamada REAL al tier del canal
+    # untrusted engine responds (identity-safe + without reintroducing itself) — REAL call to the channel tier
     try:
         _load_env()
         os.environ.setdefault("ZAELAR_DB", tempfile.mktemp(suffix=".db"))
@@ -148,7 +148,7 @@ def layer_cluster(base: str) -> None:
         check("motor cluster", False, f"{type(e).__name__}: {str(e)[:80]}")
 
 
-# ── 5. CÓDIGO (suites críticas) ───────────────────────────────────────────────────────────────────────────────
+# ── 5. CODE (critical suites) ───────────────────────────────────────────────────────────────────────────────
 def layer_code() -> None:
     print("\n[5] CÓDIGO (pytest suites críticas)")
     r = subprocess.run([sys.executable, "-m", "pytest", "-q",

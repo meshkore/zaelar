@@ -1,5 +1,5 @@
-"""test_doctor.py — detector de capacidades (V2-040). Verifica: presencia de credenciales (redactada), match de
-modelos de Ollama, recomendación de perfil por hardware, y el roundtrip build→write→report. Ejecutar:
+"""test_doctor.py — capability detector (V2-040). Verifies: presence of credentials (redacted), Ollama model
+matching, hardware-based profile recommendation, and the build→write→report round trip. Run:
 .venv/bin/pytest tests/infrastructure/unit/config/test_doctor.py
 """
 import json
@@ -15,15 +15,15 @@ def test_credentials_only_report_presence(monkeypatch):
     creds = {c["key"]: c for c in doctor.credentials()}
     assert creds["aimlapi"]["set"] is True
     assert creds["deepgram"]["set"] is False
-    # el secreto NUNCA aparece en el informe
+    # the secret NEVER appears in the report
     assert "sk-secret-value" not in json.dumps(doctor.credentials())
 
 
 def test_ollama_model_match_by_tag_and_base():
     models = ["qwen2.5:7b-instruct", "embeddinggemma:latest"]
     assert doctor._has_ollama_model(models, "qwen2.5:7b-instruct") is True
-    assert doctor._has_ollama_model(models, "qwen2.5") is True          # nombre pelado casa el tag
-    assert doctor._has_ollama_model(models, "embeddinggemma") is True   # tag :latest casa el pelado
+    assert doctor._has_ollama_model(models, "qwen2.5") is True          # bare name matches the tag
+    assert doctor._has_ollama_model(models, "embeddinggemma") is True   # :latest tag matches the bare name
     assert doctor._has_ollama_model(models, "llama3") is False
 
 
@@ -42,7 +42,7 @@ def test_recommend_cloud_without_accel():
 def test_recommend_cloud_in_container():
     rec = doctor.recommend({"metal": True, "cuda": True, "container": True},
                            {"reachable": True}, {})
-    assert rec["profile"] == "cloud"           # un contenedor no tiene rutas de modelo local
+    assert rec["profile"] == "cloud"           # a container has no local model paths
 
 
 def test_build_has_all_sections():
@@ -59,7 +59,7 @@ def test_write_and_report_roundtrip(tmp_path, monkeypatch):
     rep = doctor.build()
     doctor.write(rep)
     assert path.exists()
-    # report() sin refresh lee el de disco (reciente)
+    # report() without refresh reads the one from disk (recent)
     got = doctor.report(refresh=False)
     assert got["ts"] == rep["ts"]
 
@@ -71,4 +71,4 @@ def test_report_refresh_rebuilds(tmp_path, monkeypatch):
              "credentials": [], "current": {}, "recommend": {}}
     doctor.write(stale)
     fresh = doctor.report(refresh=True)
-    assert fresh["ts"] > 1                       # re-analizar reconstruye
+    assert fresh["ts"] > 1                       # re-analysis rebuilds it

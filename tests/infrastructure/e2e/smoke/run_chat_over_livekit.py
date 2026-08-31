@@ -1,19 +1,19 @@
-"""E2E del CHAT por el transporte REAL — cliente LiveKit → data-channel → agent → respuesta (2026-07-25).
+"""E2E CHAT over the REAL transport — LiveKit client → data channel → agent → response (2026-07-25).
 
-Cierra el hueco que dejó pasar el fallo del 2026-07-25: el chat del operador quedó sin respuesta porque el MOTOR
-LiveKit del server se había degradado (wait_pc_connection timed out) → el agent no formaba la sala → el handler del
-data-channel `zaelar-text` nunca se activaba. El smoke server-side (probe) NO lo cazaba porque el probe no usa
-LiveKit. ESTE test sí: reproduce el camino EXACTO del navegador.
+Closes the gap that allowed the 2026-07-25 failure through: the operator chat received no response because the server's
+LiveKit ENGINE had degraded (wait_pc_connection timed out) → the agent did not form the room → the handler for the
+`zaelar-text` data channel was never activated. The server-side smoke test (probe) did NOT catch it because the probe
+does not use LiveKit. THIS test does: it reproduces the browser's EXACT path.
 
-Qué hace:
-  1. pide token + url (/api/token, /api/livekit) — como el frontend
-  2. conecta una sala LiveKit REAL (rtc.Room) — si el motor está degradado, esto falla → cazado
-  3. publica un mensaje en el data-topic `zaelar-text` (idéntico a session-lk.js::sendText)
-  4. espera la respuesta de zaelar en el stream de observabilidad (timeline: transcript de zaelar posterior)
-  5. PASS si llega respuesta; FAIL si no (chat roto) — exit≠0
+What it does:
+  1. requests a token + URL (/api/token, /api/livekit) — like the frontend
+  2. connects to a REAL LiveKit room (rtc.Room) — if the engine is degraded, this fails → caught
+  3. publishes a message to the `zaelar-text` data topic (identical to session-lk.js::sendText)
+  4. waits for zaelar's response in the observability stream (timeline: subsequent zaelar transcript)
+  5. PASS if a response arrives; FAIL otherwise (chat broken) — exit≠0
 
-Uso:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py [--base http://127.0.0.1:43917]
-Requiere el server arrancado (make run) y el SDK livekit (ya usado por tests/voice/e2e/agent/).
+Usage:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py [--base http://127.0.0.1:43917]
+Requires the server to be running (make run) and the livekit SDK (already used by tests/voice/e2e/agent/).
 """
 from __future__ import annotations
 
@@ -43,7 +43,7 @@ def _timeline_size() -> int:
 
 
 def _new_zaelar_replies(since: int) -> list[str]:
-    """Transcripts de zaelar (role assistant / label 'zaelar') aparecidos tras el offset `since`."""
+    """Zaelar transcripts (role assistant / label 'zaelar') that appeared after the `since` offset."""
     out = []
     try:
         with open(_TIMELINE, "rb") as f:
@@ -80,7 +80,7 @@ async def _run(base: str) -> int:
 
     room = rtc.Room()
     try:
-        # 1+2. conectar la sala REAL — si el motor LiveKit está degradado, esto lanza (cazado)
+        # 1+2. connect to the REAL room — if the LiveKit engine is degraded, this raises (caught)
         await asyncio.wait_for(room.connect(url, tok), timeout=20)
         print(f"✅ sala LiveKit conectada ({url})")
     except Exception as e:  # noqa: BLE001
@@ -93,11 +93,11 @@ async def _run(base: str) -> int:
         since = _timeline_size()
         msg = f"prueba e2e chat {int(time.time())}: responde OK en una palabra"
         payload = json.dumps({"t": "zaelar-text", "text": msg}).encode()
-        # 3. publicar en el data-topic EXACTO del chat del frontend
+        # 3. publish to the EXACT data topic used by the frontend chat
         await room.local_participant.publish_data(payload, reliable=True, topic="zaelar-text")
         print(f"✅ mensaje publicado en data-topic 'zaelar-text'")
 
-        # 4. esperar la respuesta de zaelar (timeline) hasta ~25s
+        # 4. wait for zaelar's response (timeline) for up to ~25s
         reply = None
         for _ in range(25):
             await asyncio.sleep(1)
