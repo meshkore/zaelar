@@ -24,6 +24,7 @@ INTENTION, not a process state). Everything that can be “running” consults i
     STOP  →  workers FROZEN (SIGSTOP, reversible) · producer widgets SUSPENDED · background without ticks
              · crons do not fire · nothing new starts · OBSERVABILITY SESSION CLOSED (2026-08-16)
     START → workers CONTINUE where they were · background returns · crons return
+             · A NEW OBSERVABILITY SESSION IS OPENED (2026-08-31)
              · **widgets are NOT resumed** (explicit operator decision, see below)
 
 **Deliberate asymmetry.** Stopping is total; starting does NOT revive playback. Operator’s words
@@ -232,6 +233,17 @@ async def start(src: str = "operator") -> dict:
         _pending["src"] = ""
         _emit("resumed", f"stop cancelled by {src} — still running", {"src": src})
     _persist(RUNNING, src)
+    # The observability session is OPENED here — the mirror image of the close in `_do_stop` (2026-08-31). A
+    # stopped agent has no work session (`identity.begin_session` now refuses to open one), so ⏻ ON is what
+    # starts the next one and the operator's model holds exactly: stopping ENDS the session, starting BEGINS a
+    # new one. ORDER matters — `_persist` above already flipped the in-process switch, so this call sees a
+    # RUNNING agent. Without `force`, on purpose: a session that survived a DEFERRED stop is reused, not split
+    # in two by the same click that cancelled the stop.
+    try:
+        from observability import identity
+        identity.begin_session(source="power_on")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"runstate.start: the observability session could not be opened: {e!r}")
     resumed = 0
     try:
         from nucleo import dispatch

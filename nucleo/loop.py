@@ -167,7 +167,21 @@ class OrchestratorLoop:
         await self._fire_due(now)
         await self._maybe_spark(now)
         await self._maybe_consolidate(now)
+        self._close_idle_session()
         _emit("loop.tick", {"ts": now, "n": self._ticks})
+
+    def _close_idle_session(self) -> None:
+        """Closes the observability session when nothing real has happened in it for a while
+        (`observability/identity.py::close_if_idle` owns the decision and the clock; this only offers the
+        pulse). Until 2026-08-31 the idle ceiling could only fire when activity came BACK, so a session the
+        operator simply walked away from stayed open forever and read "EN CURSO" in the master with nothing
+        happening in it. Pure RAM arithmetic, and it never OPENS a session or extends the clock — a pulse must
+        be able to end an idle stretch without ever being mistaken for work."""
+        try:
+            from observability import identity
+            identity.close_if_idle()
+        except Exception:
+            pass
 
     async def _supervise_workers(self, now: float) -> None:
         """V2-038 (§8): PROJECTS the RAM registry into STATE (~1 Hz, §v2·C), RELAYS a waiting worker's question

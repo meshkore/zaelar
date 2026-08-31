@@ -1824,6 +1824,15 @@ DOMAINS: list[dict] = [
         {"id": "7.21", "title": "Sesión de trabajo: cierre por inactividad real + latido hacia el control-plane",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_idle_rollover.py",
                                   "tests/infrastructure/unit/core/test_session_heartbeat.py"]},
+        # 2026-08-31: las FRONTERAS de la sesión, que era lo que el operador no podía explicar — con el agente
+        # ⏻ off pulsó Reset y el master le enseñó una sesión "EN CURSO". Dos defectos independientes: un reset
+        # abría sesión delante de un agente parado (saltándose el guarda que desde 2026-08-16 impide que un
+        # EVENTO la abra solo), y NINGUNA sesión escribía jamás su propio cierre en su fichero (0 de los 12
+        # últimos ficheros del motor del operador tenían su `session/end`, porque el evento salía con `sid` vacío
+        # y la ruta por sesión lo tiraba). La regla que fijan estos tests: parar TERMINA la sesión, arrancar
+        # EMPIEZA una nueva, y una sesión abandonada se cierra sola sin esperar a que vuelva la actividad.
+        {"id": "7.27", "title": "Sesión de trabajo: fronteras (⏻ off no abre, ⏻ on abre, el cierre se graba)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_lifecycle_boundaries.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [

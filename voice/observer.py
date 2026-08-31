@@ -524,7 +524,13 @@ def rotate_session(reason: str = "reset") -> dict:
     if trace_reset:
         trace_reset()
     try:
-        _ident.begin_session(source=reason, force=True)
+        # A reset in front of a STOPPED agent (⏻ off) opens NOTHING — `begin_session` returns `{}` and this
+        # returns `{}` too, so the RESET event announces no session rather than a fresh one that would then sit
+        # "EN CURSO" in the master with the agent visibly off (measured 2026-08-31; see `identity.begin_session`).
+        # The blank slate still happens: the log above was already cleared. The next session is born when the
+        # operator presses ⏻ ON, which is what "empezamos en blanco" means with a stopped agent.
+        if not _ident.begin_session(source=reason, force=True):
+            return {}
         # `session_info()` y no lo que devuelve `begin_session`: esa lleva la clave interna `id`, y quien llama a
         # esto (la respuesta del reset, el evento RESET) habla el vocabulario público `session_id`.
         return _ident.session_info()

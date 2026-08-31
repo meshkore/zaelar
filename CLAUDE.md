@@ -6581,6 +6581,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **The BOUNDARIES of a work session (V2-524, 2026-08-31)**: the operator pressed ⏻ off, then Reset, and the
+  master showed him a session **EN CURSO** on an engine whose own switch said `stopped`. The ⏻ was innocent —
+  it HAD closed the session; the **Reset** opened a new one eleven minutes into the stop. Two independent
+  defects, both about a boundary, plus a third found while writing the rule down:
+  - **`begin_session` had no guard.** `stamp_identity` has refused to let an EVENT self-open a session while
+    stopped since 2026-08-16, but `rotate_session` called `begin_session(force=True)` explicitly and walked
+    past it. The new session then held nothing but the tab's own noise and stayed open forever. The guard now
+    lives in `begin_session` itself — one door, not one per caller — and fails OPEN (an unreadable switch
+    counts as running: losing the operator's work from the record is the worse of the two mistakes).
+  - **No session ever recorded its own end.** `end_session` nulls `_session["id"]` before emitting the closing
+    mark, so `stamp_identity` — correctly — would not invent a session for that `system` event: it went out
+    with `sid=""` and `_session_path("")` dropped it. **0 of the last 12 session files** on his engine had
+    their own `session/end`. `rotate_session`'s docstring asserted the opposite in writing; it had simply
+    stopped being true. The lesson is the recurring one: **a doc that describes a seam is not evidence the
+    seam still works** — the id is now stamped explicitly, from a value already in hand.
+  - **The idle ceiling could only fire on the way back.** `note_real_activity` runs on activity, so a session
+    nobody returns to was never closed by it. `close_if_idle()` is the same decision taken from the other
+    side, offered by the pulse — it only ever CLOSES, never opens and never extends the clock, so an idle
+    machine closes once. Its clock counts from `max(last_real_activity, started_ms)`: `_last_real_activity_ms`
+    is global, so without the start time a session opened after a long quiet stretch is **born expired**.
+  - **The rule, which is what he actually asked for**: a work session is *the stretch in which the agent could
+    work*. ⏻ ON opens one, ⏻ OFF closes it, a reset in front of a stopped agent wipes the slate and opens
+    NOTHING, an abandoned one closes itself. And it is an OBSERVABILITY axis, not a state boundary: memory is
+    deliberately independent of it — anything that must be wiped between sessions is wiped explicitly.
+  - **Master side too** (`localSessionState`): the ⏻ beats `current`, so a master polling an older engine
+    still cannot print EN CURSO over a stopped switch. `runState: null` decides nothing — an agent that did
+    not answer is not evidence of anything.
+
 - **Messaging is a MAIN widget now — the operator's spec (V2-521/522/523, 2026-08-31)**: direction given in
   one long instruction; phase 1 shipped the same day, the rest is RECORDED so it cannot evaporate.
   - **Replies reach every platform**: the `msg.reply` seam existed since V2-051 and only email subscribed —

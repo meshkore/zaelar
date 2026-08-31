@@ -112,7 +112,18 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
     """Abre la sesión de trabajo. **Reutiliza la que ya esté abierta** salvo `force`: el frontend llama a esto
     cada vez que conecta, y una reconexión por un bache de red o un `/reset` ligero NO es una sesión nueva —
     partirla en dos falsearía cualquier análisis de «cuánto duró y qué hizo». Una sesión nueva nace solo cuando
-    la anterior se CERRÓ de verdad (⏻ o pestaña cerrada), que es justo cuando no hay ninguna abierta."""
+    la anterior se CERRÓ de verdad (⏻ o pestaña cerrada), que es justo cuando no hay ninguna abierta.
+
+    **A STOPPED agent has no work session at all**: with ⏻ off this opens nothing and returns `{}`. Measured on
+    the operator's engine 2026-08-31 — with the agent stopped, pressing Reset minted a brand-new session that
+    then sat "EN CURSO" in the master indefinitely, holding nothing but the browser tab's own background noise
+    (7 events, 0 flows, no work). `voice/observer.py::stamp_identity` has refused to let an EVENT self-open a
+    session while stopped since 2026-08-16; this closes the OTHER door, the explicit `begin_session` calls (the
+    reset, the frontend endpoint), which walked straight past that guard. «Parar es parar» (V2-092): the session
+    that groups the work reopens when the work can happen again — ⏻ ON (`nucleo/runstate.py::start`) — never as
+    a side effect of a gesture made in front of a stopped agent."""
+    if _agent_stopped():
+        return {}
     with _lock:
         if _session["id"] and not force:
             return dict(_session)
@@ -179,6 +190,38 @@ def note_real_activity() -> None:
         _last_real_activity_ms["v"] = now
     if idle:
         end_session("idle_timeout")
+
+
+def _agent_stopped() -> bool:
+    """The server-side ⏻ switch (`nucleo/runstate`, V2-092). Fail-OPEN on purpose: a switch that cannot be read
+    counts as RUNNING, because the cost of the two mistakes is not symmetric — wrongly refusing to open a session
+    loses the operator's work from the record for good, wrongly opening one leaves a session the idle timeout
+    closes on its own."""
+    try:
+        from nucleo import runstate
+        return runstate.stopped()
+    except Exception:
+        return False
+
+
+def close_if_idle() -> bool:
+    """Closes the open session once it has gone longer than `IDLE_TIMEOUT_MS` with no REAL activity. Same
+    decision as `note_real_activity`, taken from the other side: THAT one can only fire when activity comes
+    BACK, so a session nobody ever returns to (the operator walks away, a tab dies without `pagehide`) stayed
+    open forever and read "EN CURSO" in the master with nothing happening inside it. The pulse calls this
+    (`nucleo/loop.py::tick`). It only ever CLOSES — it never opens a session and never touches the activity
+    clock — so an idle machine closes once and then has nothing left to close.
+
+    The clock counts from the LATER of the last real activity and this session's own start: `_last_real_activity_ms`
+    is global, so a brand-new session opened after a long quiet stretch would otherwise be born already expired."""
+    with _lock:
+        if not _session["id"]:
+            return False
+        ref = max(_last_real_activity_ms["v"] or 0, _session["started_ms"] or 0)
+        idle = (round(time.time() * 1000) - ref) > IDLE_TIMEOUT_MS
+    if idle:
+        end_session("idle_timeout")
+    return idle
 
 
 def session_info() -> dict:
@@ -257,10 +300,20 @@ def _stop_heartbeat() -> None:
 
 
 def _emit_session(label: str, info: dict, extra: dict | None = None) -> None:
-    """Marca de sesión en el propio hilo de eventos. Import perezoso: `voice.observer` importa este módulo."""
+    """Marca de sesión en el propio hilo de eventos. Import perezoso: `voice.observer` importa este módulo.
+
+    `sid` is stamped EXPLICITLY here, and that one word is the whole point of the line. By the time the CLOSING
+    event is emitted `_session["id"]` is already `None`, and `stamp_identity` — correctly, since 2026-08-15 —
+    refuses to invent a session for a `system` event: the event went out with an empty `sid`, and
+    `observer._session_path("")` then dropped it instead of writing it. Measured 2026-08-31: not ONE of the last
+    twelve session files on the operator's engine held its own `session/end` record, so opening a session to
+    audit it could never say how or why it ended — the closing mark existed in RAM and in the live timeline, and
+    nowhere durable. Passing the id we already hold puts the mark in the file of the session it closes, and opens
+    nothing: it is a value, not a lookup."""
     try:
         from voice.observer import emit
         emit("session", label, role="system",
-             extra={"session_id": info.get("id"), "user_id": user_id(), **(extra or {})})
+             extra={"sid": info.get("id") or "", "session_id": info.get("id"),
+                    "user_id": user_id(), **(extra or {})})
     except Exception:
         pass

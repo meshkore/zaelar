@@ -151,9 +151,12 @@ async def session_start(request: Request):
         body = await request.json()
     except Exception:
         body = {}
+    # `""` and not `None` when nothing opened: with the agent ⏻ off `begin_session` opens no session (see its
+    # docstring), and the caller reads this field as "which session am I in" — an empty string says "none",
+    # a `null` invites a reader to treat the key as missing.
     info = _identity.begin_session(str((body or {}).get("source") or "frontend"),
                                    force=bool((body or {}).get("force")))
-    return JSONResponse({"session_id": info.get("id"), "user_id": _identity.user_id()})
+    return JSONResponse({"session_id": info.get("id") or "", "user_id": _identity.user_id()})
 
 
 @router.post("/api/observability/session/end")
