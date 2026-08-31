@@ -1,20 +1,20 @@
-"""Guardas de FUENTE sobre voice/engine/pipeline/agent.py — quién puede etiquetar con voice.trace.active()
-(2026-08-16). Igual que test_lead_in.py's `test_el_relleno_consulta_la_sonda_y_muere_con_su_turno`: montar la
-sesión real exige media pila de LiveKit, así que se protege la DECISIÓN leyendo el código fuente.
+"""SOURCE guards for voice/engine/pipeline/agent.py — who may label with voice.trace.active()
+(2026-08-16). Like test_lead_in.py's `test_el_relleno_consulta_la_sonda_y_muere_con_su_turno`: mounting the
+real session requires half a LiveKit stack, so the DECISION is protected by reading the source code.
 
-Origen: una auditoría en vivo de una sesión real mostró que la MAYORÍA de eventos de `agent.py` (transcript,
-bot_speech, tts, state, metric, vad) llegaban SIN corr_id — nacen en tareas HERMANAS de la que fija el trace del
-turno (`NucleoLLMStream._run_inner`), así que el ContextVar nunca los ve, sea cual sea el orden temporal real
-(confirmado contra el código fuente de livekit-agents 1.6.6). `voice/trace.py::active()` es el puntero explícito
-que arregla esto — pero SOLO para los eventos que describen algo sobre un trace que YA EXISTE (TTS que suena
-porque el turno ya generó texto, un barge-in que interrumpe una locución en marcha, el item del asistente
-añadido tras la cadena LLM+TTS). Los que PRECEDEN a su propio trace (el transcript del operador, "voz
-detectada", "fin de voz", las métricas de STT) se dejan SIN forzar a propósito: colgarles active() les pegaría
-el trace de la conversación ANTERIOR más a menudo que el correcto — ESE caso lo resuelve
-`cloud/backoffice/src/flowAttribution.js::attributeOrphans` en lectura, que sí conoce ambos lados de la ventana
-temporal.
+Origin: a live audit of a real session showed that the MAJORITY of `agent.py` events (transcript, bot_speech, tts,
+state, metric, vad) arrived WITHOUT corr_id — they are created in SIBLING tasks to the one that sets the turn's
+trace (`NucleoLLMStream._run_inner`), so the ContextVar never sees them, regardless of the actual temporal order
+(confirmed against the livekit-agents 1.6.6 source code). `voice/trace.py::active()` is the explicit pointer
+that fixes this — but ONLY for events that describe something about a trace that ALREADY EXISTS (TTS that sounds
+because the turn has already generated text, a barge-in that interrupts an ongoing utterance, the assistant item
+added after the LLM+TTS chain). Those that PRECEDE their own trace (the operator transcript, "voice detected",
+"end of voice", STT metrics) are deliberately left WITHOUT forcing: attaching active() to them would attach
+the PREVIOUS conversation's trace more often than the correct one — THAT case is resolved by
+`cloud/backoffice/src/flowAttribution.js::attributeOrphans` at read time, which does know both sides of the
+temporal window.
 
-Estos tests fijan esa línea para que no se difumine sin querer en un cambio futuro."""
+These tests establish that boundary so it does not inadvertently blur in a future change."""
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
@@ -42,9 +42,9 @@ def test_on_state_change_only_reads_active_when_the_state_is_safe():
 
 
 def test_operator_transcript_and_interim_never_read_active():
-    """El transcript FINAL del operador (y su interim) nacen ANTES de que exista el trace del turno que van a
-    disparar — forzar active() aquí les pegaría el de la conversación anterior. Debe seguir resolviéndose en
-    lectura (attributeOrphans), no aquí."""
+    """The operator's FINAL transcript (and its interim) are created BEFORE the trace of the turn they will
+    trigger exists — forcing active() here would attach the previous conversation's trace. It must continue to be
+    resolved at read time (attributeOrphans), not here."""
     body = _body()
     i = body.index('@session.on("user_input_transcribed")')
     block = body[i:body.index("@session.on(", i + 10)]

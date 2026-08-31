@@ -1,4 +1,4 @@
-"""Una frase en dos tiempos es una sola petición — V2-096, nodo 3.9.
+"""One sentence in two stages is one request — V2-096, node 3.9.
 
 Why this exists rather than a bigger `max_delay`, in one table (measured over 372 real mid-sentence pauses across
 the 195 sessions of the local registry):
@@ -12,8 +12,8 @@ or 19s, because what gets judged is the fragments TOGETHER.
 
 The operator's own example is the specification:
 
-    «oye, ¿qué tal? Ahora vamos a…»   → generates NOTHING, and must not
-    «…buscar un libro del autor X»    → now the request is whole; act on the join
+    “oye, ¿qué tal? Ahora vamos a…”   → generates NOTHING, and must not
+    “…buscar un libro del autor X”    → now the request is whole; act on the join
 
 The first three tests are the safety invariants. They matter more than the feature: a stop order or an
 authorisation that gets swallowed is a worse bug than the one this fixes.
@@ -65,17 +65,17 @@ def _offer(a: acc.Accumulator, *args, **kwargs) -> tuple[str, str, str, str]:
     return asyncio.run(a.offer(*args, **kwargs))
 
 
-# ── LOS INVARIANTES DE SEGURIDAD ────────────────────────────────────────────────────────────────────────────────
+# ── THE SAFETY INVARIANTS ─────────────────────────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("orden", [
     "para", "páralo", "páralo todo.", "Y que lo pares todo.", "Ciérralo todo y páralo todo.",
     "cancélalo", "Cancélalo.", "basta", "cierra todos los widgets", "ciérralo todo",
 ])
 def test_una_orden_de_PARAR_nunca_se_acumula(orden):
-    """V2-092 se llama «parar es parar». Un «para» retenido es el operador viendo cómo el agente ignora una orden.
+    """V2-092 is called “stop means stop.” A held “stop” is the operator watching the agent ignore an order.
 
-    Aquí se comprueba en el ACUMULADOR además de en `attention.hard_interrupt`, que ya la atiende antes de llegar:
-    defensa en profundidad, porque la lista de `hard_interrupt` y esta regla pueden divergir y el precio de que
-    divergan lo paga el operador.
+    This is checked in the ACCUMULATOR as well as in `attention.hard_interrupt`, which already handles it before it
+    gets here: defense in depth, because the `hard_interrupt` list and this rule can diverge, and the operator pays
+    the price when they do.
     """
     assert _offer(_a(), orden)[0] == "act", f"¡se retuvo una orden de parar!: {orden!r}"
 
@@ -83,26 +83,26 @@ def test_una_orden_de_PARAR_nunca_se_acumula(orden):
 @pytest.mark.parametrize("resp", ["sí", "no", "vale", "sí, te autorizo a borrar toda la agenda",
                                   "Sí, te autorizo a borrar toda la agenda.", "gracias", "ok"])
 def test_una_confirmacion_nunca_se_acumula(resp):
-    """Es como el operador autoriza algo IRREVERSIBLE. Retener la respuesta a una confirmación es retener la
-    confirmación — y «sí»/«si» colapsan al normalizar tildes, que ya costó un fallo."""
+    """This is how the operator authorizes something IRREVERSIBLE. Holding the response to a confirmation means
+    holding the confirmation — and “sí”/“si” collapse when accents are normalized, which has already caused a bug."""
     assert _offer(_a(), resp)[0] == "act", f"¡se retuvo una confirmación!: {resp!r}"
 
 
 @pytest.mark.parametrize("orden", ["pon música", "abre la agenda", "sube el volumen", "cierra eso",
                                    "enséñame mi agenda", "siguiente canción", "vacía la agenda"])
 def test_una_orden_corta_pasa_entera(orden):
-    """Lo más frecuente que dice el operador. Un acumulador que las retiene es una regresión, no una mejora."""
+    """The most frequent thing the operator says. An accumulator that holds them is a regression, not an improvement."""
     assert _offer(_a(), orden)[0] == "act", f"¡se retuvo una orden corta!: {orden!r}"
 
 
-# ── EL COMPORTAMIENTO QUE PIDIÓ EL OPERADOR ─────────────────────────────────────────────────────────────────────
+# ── THE BEHAVIOR THE OPERATOR REQUESTED ─────────────────────────────────────────────────────────────────────────
 def test_el_ejemplo_literal_del_operador():
-    """«oye, ¿qué tal? Ahora vamos a…» + [pausa] + «buscar un libro del autor X»."""
+    """“oye, ¿qué tal? Ahora vamos a…” + [pause] + “buscar un libro del autor X”."""
     a = _a()
-    assert _offer(a, "Oye, ¿qué tal?", now=100.0)[0] == "act"          # saludo completo: se contesta
+    assert _offer(a, "Oye, ¿qué tal?", now=100.0)[0] == "act"          # complete greeting: it gets answered
     action, text, why, dropped = _offer(a, "Ahora vamos a", now=101.0)
     assert action == "hold" and text == "" and why and not dropped, "«Ahora vamos a» tenía que quedarse callado"
-    # La pausa dura CUATRO SEGUNDOS — más que `max_delay`, que es justo el caso que antes se perdía.
+    # The pause lasts FOUR SECONDS — longer than `max_delay`, which is exactly the case previously lost.
     action, text, _, _ = _offer(a, "buscar un libro del autor X.", now=105.0)
     assert action == "act"
     assert text == "Ahora vamos a buscar un libro del autor X."
@@ -110,7 +110,7 @@ def test_el_ejemplo_literal_del_operador():
 
 
 def test_la_pausa_puede_durar_lo_que_quiera():
-    """Lo que hace a esto distinto de esperar: NO hay reloj. 19 s fue el hueco real más largo del registro."""
+    """What makes this different from waiting: there is NO timer. 19 s was the longest real gap in the registry."""
     for gap in (0.3, 2.2, 4.9, 12.0, 19.5):
         a = _a()
         assert _offer(a, "Busca también en todas las", now=0.0)[0] == "hold"
@@ -128,19 +128,18 @@ def test_tres_trozos_seguidos_se_juntan():
 
 
 def test_LIMITE_CONOCIDO_el_lexico_no_ve_que_falta_el_OBJETO():
-    """El hueco que la capa léxica NO cubre, escrito como test para que se vea y se mida en vez de descubrirse otra
-    vez en una sesión.
+    """The gap the lexical layer does NOT cover, written as a test so it can be seen and measured instead of being
+    discovered again in a session.
 
-    «Quiero que busques» está sintácticamente cerrada —la última palabra no es función— pero pragmáticamente le falta
-    lo esencial: buscar QUÉ. Igual que `'Mora, is there project'`, que sale de pegar dos trozos reales del registro.
+    “Quiero que busques” is syntactically closed —the last word is not a function word— but pragmatically lacks
+    the essential thing: what to search for. Like `'Mora, is there project'`, formed by joining two real registry fragments.
 
-    Distinguir esto es exactamente lo que pidió el operador originalmente («o no tienen una definición clara de
-    acción, de pregunta o de request»), y AÚN documenta una carencia real tras V2-102: la capa 2 (`_judge`) solo
-    se consulta cuando la capa 1 dice INCOMPLETA — aquí la capa 1 ya dice completa (ningún `_HARD`/`_SOFT` al
-    final), así que el juez nunca llega a verla. Cerrar este hueco necesitaría consultar al juez TAMBIÉN en el
-    veredicto "complete" de la capa 1, lo que convertiría cada turno corto y claro en una llamada de red — el
-    mismo coste que V2-095 ya midió y descartó (2026-08-02). Sigue siendo la carencia conocida, ahora con motivo
-    explícito de por qué no se cerró aquí.
+    Distinguishing this is exactly what the operator originally requested (“or do not have a clear definition of an
+    action, question, or request”), and it STILL documents a real limitation after V2-102: layer 2 (`_judge`) is
+    consulted only when layer 1 says INCOMPLETE — here layer 1 already says complete (no `_HARD`/`_SOFT` at the
+    end), so the judge never sees it. Closing this gap would require consulting the judge ALSO for layer 1's
+    “complete” verdict, turning every short, clear turn into a network call — the same cost V2-095 measured and
+    rejected (2026-08-02). It remains a known limitation, now with an explicit reason why it was not closed here.
     """
     a = _a()
     assert _offer(a, "Quiero que busques")[0] == "act", (
@@ -148,10 +147,11 @@ def test_LIMITE_CONOCIDO_el_lexico_no_ve_que_falta_el_OBJETO():
         "de tocar este test")
 
 
-# ── QUE NO SE CUELGUE NI CONTAMINE ──────────────────────────────────────────────────────────────────────────────
+# ── MUST NOT HANG OR CONTAMINATE ──────────────────────────────────────────────────────────────────────────────
 def test_un_hueco_ENORME_no_se_pega_a_lo_de_antes():
-    """Pegar un trozo de hace un minuto a una petición nueva daría una petición Frankenstein de dos intenciones.
-    Se descarta lo viejo — y se DICE en el motivo, porque perder texto del operador en silencio es peor."""
+    """Appending a fragment from a minute ago to a new request would produce a Frankenstein request with two
+    intentions. The old content is discarded — and this is STATED in the reason, because silently losing the
+    operator's words is worse."""
     a = _a()
     _offer(a, "y ponerlo en la", now=0.0)
     action, text, why, dropped = _offer(a, "Abre la agenda.", now=acc.MAX_GAP_S + 5)
@@ -227,8 +227,8 @@ def test_a_NEW_fragment_that_does_not_extend_still_concatenates():
 
 
 def test_la_valvula_de_TROZOS_entrega_todo_lo_que_hay():
-    """El caso patológico: el STT pica una parrafada en trozos que nunca cierran. Se entrega el buffer COMPLETO,
-    nunca a medio vaciar — si no, se perdería parte de lo que dijo el operador."""
+    """The pathological case: the STT chops a long utterance into fragments that never close. The COMPLETE buffer
+    is delivered, never partially emptied — otherwise part of what the operator said would be lost."""
     a = _a()
     trozos = ["y luego", "y además", "y también", "y encima", "y aparte", "y para acabar"]
     outs = [_offer(a, t, now=float(i)) for i, t in enumerate(trozos)]
@@ -253,27 +253,27 @@ def test_la_valvula_de_TAMANO_tambien_corta(monkeypatch):
 
 
 def test_un_predicado_ROTO_no_deja_mudo_al_agente():
-    """Fail-open duro. Que se caiga el juez de completitud no puede convertir al agente en un mudo — retener de más
-    es infinitamente peor que colar un turno."""
+    """Hard fail-open. If the completeness judge goes down, it must not turn the agent mute — holding too much is
+    infinitely worse than letting a turn through."""
     acc.set_predicate(lambda t: (_ for _ in ()).throw(RuntimeError("boom")))
     assert _offer(_a(), "y ponerlo en la")[0] == "act"
 
 
 def test_el_predicado_es_INYECTABLE():
-    """La capa 1 (léxica, rápida) es inyectable — no confundir con la capa 2, PRAGMÁTICA/con modelo, cuyo punto de
-    entrada es `set_judge` (ver la sección de abajo)."""
+    """Layer 1 (lexical, fast) is injectable — do not confuse it with layer 2, PRAGMATIC/model-based, whose entry
+    point is `set_judge` (see the section below)."""
     acc.set_predicate(lambda t: (("autor" in t), "falta la petición"))
     a = _a()
     assert _offer(a, "Vamos a buscar un libro.")[0] == "hold", "el predicado inyectado no se usó"
     assert _offer(a, "del autor X")[0] == "act"
 
 
-# ── LA CAPA 2, EL JUEZ (V2-102) ─────────────────────────────────────────────────────────────────────────────────
-# El fallo real que la motivó: "dame los datos personales que conoces de mi" se retuvo TRES veces sin generar
-# nunca una respuesta — la capa 1 la lee incompleta ("mi" = posesiva) y este módulo NO tiene válvula de tiempo,
-# así que una petición real se perdía PARA SIEMPRE. Ahora, cuando la capa 1 dice incompleta, se consulta al juez.
+# ── LAYER 2, THE JUDGE (V2-102) ─────────────────────────────────────────────────────────────────────────────────
+# The real bug that prompted it: "dame los datos personales que conoces de mi" was held THREE times without ever
+# generating a response — layer 1 reads it as incomplete ("mi" = possessive), and this module has NO time valve,
+# so a real request was lost FOREVER. Now, when layer 1 says incomplete, the judge is consulted.
 def test_el_juez_sube_a_ACT_lo_que_el_lexico_marco_incompleto():
-    """El caso exacto del fallo real: la capa 1 dice incompleta, el juez (real, cualquier idioma) dice que no."""
+    """The exact case from the real bug: layer 1 says incomplete, while the judge (real, any language) says it is not."""
     acc.set_judge(_fake_judge("complete", ""))
     a = _a()
     assert _offer(a, "dame los datos personales que conoces de mi")[0] == "act", (
@@ -281,10 +281,10 @@ def test_el_juez_sube_a_ACT_lo_que_el_lexico_marco_incompleto():
 
 
 def test_el_juez_puede_pedir_una_ACLARACION():
-    """Nuevo veredicto (V2-102): ni actúa ni espera en silencio — pregunta, y la pregunta viaja en el campo
-    `motivo` (mismo hueco que ya usaba «por qué se retuvo», reaprovechado). «Ahora vamos a» es lexicalmente
-    incompleta (acaba en «a», capa 1 la manda al juez) — a diferencia de «Quiero que busques» (ver el test de
-    la carencia conocida arriba), que la capa 1 YA da por completa y nunca llegaría al juez."""
+    """New verdict (V2-102): it neither acts nor waits silently — it asks, and the question travels in the `motivo`
+    (the same slot previously used for “why it was held,” repurposed). “Ahora vamos a” is lexically incomplete
+    (it ends in “a,” so layer 1 sends it to the judge) — unlike “Quiero que busques” (see the known-gap test above),
+    which layer 1 ALREADY considers complete and would never send to the judge."""
     acc.set_judge(_fake_judge("ask", "¿A dónde vamos?"))
     a = _a()
     action, text, question, dropped = _offer(a, "Ahora vamos a")
@@ -294,22 +294,22 @@ def test_el_juez_puede_pedir_una_ACLARACION():
 
 
 def test_ASK_sin_pregunta_de_texto_hace_fail_open_a_incompleta():
-    """Un juez que dice ASK pero no da pregunta no es accionable — mejor seguir esperando (capa 1 ya validado)
-    que hablar con la boca vacía."""
+    """A judge that says ASK but provides no question is not actionable — better to keep waiting (layer 1 already
+    validated it) than to speak with an empty mouth."""
     acc.set_judge(_fake_judge("ask", ""))
     assert _offer(_a(), "Ahora vamos a")[0] == "hold"
 
 
 def test_el_juez_confirma_incompleta_y_sigue_el_comportamiento_de_siempre():
-    """Cuando el juez está de acuerdo con la capa 1, nada cambia respecto a antes de V2-102: se acumula."""
+    """When the judge agrees with layer 1, nothing changes from before V2-102: the content is accumulated."""
     acc.set_judge(_fake_judge("incomplete", ""))
     assert _offer(_a(), "Ahora vamos a")[0] == "hold"
 
 
 def test_un_juez_ROTO_no_deja_mudo_al_agente():
-    """Fail-open duro, igual que la capa 1: un juez que revienta (red caída, respuesta rara) nunca puede convertir
-    la ambigüedad en un cuelgue — cae a «incomplete», que es EXACTAMENTE el comportamiento de antes de V2-102, no
-    uno peor."""
+    """Hard fail-open, just like layer 1: a judge that crashes (network down, malformed response) can never turn
+    ambiguity into a hang — it falls back to “incomplete,” which is EXACTLY the behavior from before V2-102, not
+    a worse one."""
     async def _boom(text):
         raise RuntimeError("modelo caído")
     acc.set_judge(_boom)
@@ -317,8 +317,8 @@ def test_un_juez_ROTO_no_deja_mudo_al_agente():
 
 
 def test_el_juez_NUNCA_se_consulta_si_la_capa_1_ya_dice_completa():
-    """Coste: la capa 2 solo se paga cuando hace falta. Si la capa 1 ya dice completa, el juez ni se llama —
-    verificado con un juez que revienta si se invoca."""
+    """Cost: layer 2 is paid for only when needed. If layer 1 already says complete, the judge is not called —
+    verified with a judge that raises if invoked."""
     async def _must_not_be_called(text):
         raise AssertionError("el juez no debía llamarse: la capa 1 ya había dicho completa")
     acc.set_judge(_must_not_be_called)
@@ -376,16 +376,16 @@ def test_sobre_las_sesiones_REALES_recompone_frases_y_no_se_atasca():
             action, merged, _, _ = _offer(a, txt, now=float(i) * 2.0)
             if action == "act" and " " in merged and merged != txt:
                 recompuestas += 1
-        # (b) ninguna cadena puede dejar el acumulador retenido más allá de sus válvulas
+        # (b) no chain may leave the accumulator held beyond its valves
         assert len(a.fragments) < acc.MAX_FRAGMENTS, f"cadena atascada con {len(a.fragments)} trozos: {c[:3]}"
 
-    # El suelo es una PROPORCIÓN, no un recuento. Estaba escrito como `>= 50` contra las 141 medidas el día que
-    # se calibró, sobre la premisa que dice el docstring: «el registro crece cada sesión». La premisa es falsa —
-    # el registro se vació el 2026-08-15 al sacar del repo público el diario del operador— así que el test se
-    # quedó DORMIDO bajo el `skip` de «menos de 10 cadenas», y el 2026-08-21, al reiniciar el motor y generarse
-    # sesiones nuevas, despertó y se puso rojo con 16 sobre 17 cadenas: un 94% de acierto denunciado como avería.
-    # Un recuento absoluto sobre datos vivos mide el TAMAÑO DEL CORPUS; la proporción mide el predicado, que es lo
-    # único que este fichero puede afirmar. Sin esto, la próxima limpieza de logs vuelve a acusar al producto.
+    # The floor is a PROPORTION, not a count. It was written as `>= 50` against the 141 measurements on the day it
+    # was calibrated, based on the premise stated in the docstring: “the registry grows every session.” The premise
+    # is false — the registry was emptied on 2026-08-15 when the operator's diary was removed from the public repo—
+    # so the test went DORMANT under the “fewer than 10 chains” `skip`, and on 2026-08-21, after restarting the engine
+    # and generating new sessions, woke up red with 16 out of 17 chains: a 94% success rate reported as a failure.
+    # An absolute count on live data measures CORPUS SIZE; the proportion measures the predicate, which is the only
+    # thing this file can assert. Without this, the next log cleanup will blame the product again.
     assert recompuestas >= max(5, len(chains) // 2), (
         f"solo {recompuestas} frases recompuestas sobre {len(chains)} cadenas reales (menos de la mitad). "
         f"El predicado de completitud cambió de comportamiento.")

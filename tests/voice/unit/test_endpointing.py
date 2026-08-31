@@ -16,7 +16,7 @@ from voice.endpointing import (
 )
 
 
-# ── Chop / fragmentation (the "responde a cada trozo" bug) ───────────────────────────────────────────────────
+# ── Chop / fragmentation (the "replies to every fragment" bug) ─────────────────────────────────────────────
 def test_fragment_pause_does_not_commit():
     """Session 20:28 +88s: 'esos registros estamos guardando' → 0.7s pause → 'todos los eventos…'. The old layer
     committed at the browser stop and the brain replied to the fragment. The new hold must ride over that pause."""
@@ -48,7 +48,7 @@ def test_lost_browser_stop_still_commits():
     assert should_commit(silence_secs=h + NO_STOP_EXTRA + 0.1, utterance_secs=utter, browser_stopped=False)
 
 
-# ── Backchannel gate (the "me corta cuando digo ok/gracias" bug) ─────────────────────────────────────────────
+# ── Backchannel gate (the "cuts me off when I say ok/thanks" bug) ─────────────────────────────────────────────
 def test_backchannels_detected():
     # session 20:28 +113s: "Gracias." cut the bot AND got a reply — must be gated now
     for t in ("Gracias.", "ok", "Vale, vale", "sí sí", "ajá", "perfecto", "OK vale", "Entendido."):

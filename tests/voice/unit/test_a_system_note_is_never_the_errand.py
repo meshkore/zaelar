@@ -68,7 +68,7 @@ def _backstop_block() -> str:
 
 
 def test_no_backstop_reads_the_note_prefixed_turn_text():
-    """Grosero a propósito (this repo's convention for guarding a seam by text): every backstop decision in that
+    """Deliberately crude (this repo's convention for guarding a seam by text): every backstop decision in that
     block has to go through the operator's own words. A bare `text` there is the bug coming back."""
     block = _backstop_block()
     assert "_op_text = _router.operator_words(operator_text, text)" in block, (

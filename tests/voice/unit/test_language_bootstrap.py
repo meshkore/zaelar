@@ -1,15 +1,15 @@
 """
-Arranque IDIOMÁTICO del producto (2026-08-09). Dos invariantes que se rompieron por separado y que juntas
-decidían si zaelar puede adaptarse al idioma de quien lo instala:
+Product LANGUAGE bootstrap (2026-08-09). Two invariants that broke separately and together
+determined whether zaelar could adapt to the installer's language:
 
-1. **El defecto es INGLÉS.** Una instalación limpia arrancaba con la UI en inglés (`store.lang()` cae a "en")
-   y la VOZ en castellano (`langs.DEFAULT_LANG = "es"`) — incoherente, y contrario a la norma del operador.
-2. **En primera ejecución el STT transcribe en AUTO.** La autodetección de `i18n.init.detect` clasifica la
-   PRIMERA frase del operador; si el STT ya viene clavado a un idioma, esa frase llega transcrita por el modelo
-   equivocado y no hay nada que clasificar. `whisper_local` lo hacía; los REMOTOS (deepgram/voxtral) NO — o sea
-   que en el perfil de nube, el de producción, la autodetección no podía funcionar. Cada backend dice «auto» a
-   su manera y por eso se comprueban los tres por separado: omitir el parámetro en Deepgram NO es auto (el
-   servidor cae a en-US).
+1. **The default is ENGLISH.** A clean installation started with the UI in English (`store.lang()` falls back to "en")
+   and the VOICE in Spanish (`langs.DEFAULT_LANG = "es"`) — inconsistent and contrary to the operator's norm.
+2. **On the first run, STT transcribes in AUTO.** The autodetection in `i18n.init.detect` classifies the
+   operator's FIRST phrase; if STT is already locked to a language, that phrase arrives transcribed by the
+   wrong model and there is nothing to classify. `whisper_local` did this; the REMOTE backends (deepgram/voxtral) DID NOT — meaning
+   autodetection could not work in the cloud profile, the production one. Each backend handles «auto» in
+   its own way, which is why all three are checked separately: omitting the parameter in Deepgram is NOT auto (the
+   server falls back to en-US).
 """
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def test_first_run_auto_follows_the_detector(monkeypatch):
 
 
 def test_first_run_auto_is_fail_closed(monkeypatch):
-    """Si i18n revienta o no está, el STT se comporta como siempre (idioma fijo) — nunca al revés."""
+    """If i18n crashes or is unavailable, STT behaves as usual (fixed language) — never the other way around."""
     from i18n.init import detect
 
     def boom():
@@ -76,7 +76,7 @@ def test_voxtral_omits_language_only_while_detecting(monkeypatch, detecting):
     monkeypatch.setattr(langs, "current_code", lambda: "es")
     kw = _captured_stt_kwargs(monkeypatch, adapter, "STT", _mi)
     if detecting:
-        assert "language" not in kw, "pasar un idioma en primera ejecución mata la autodetección"
+        assert "language" not in kw, "passing a language on the first run kills autodetection"
     else:
         assert kw["language"] == "es"
 
@@ -100,7 +100,7 @@ def test_a_brand_new_account_starts_in_english(monkeypatch):
 
     With nothing configured the answer this test was written to protect is unchanged: English."""
     from memory import state as mstate
-    assert mstate._DEFAULT["language"] is None, "un literal aquí vuelve a ser un PIN que nada mueve"
+    assert mstate._DEFAULT["language"] is None, "a literal here would once again be a PIN that nothing moves"
     monkeypatch.delenv("ZAELAR_LANGUAGE", raising=False)
     monkeypatch.setattr(langs, "_default_code", lambda: "en")
     assert mstate._active_language() == langs.DEFAULT_LANG == "en"

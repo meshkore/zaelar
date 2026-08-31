@@ -1,14 +1,15 @@
-"""V2-338 — un 200 con cuerpo VACÍO no es una respuesta del juez, en NINGUNA pata.
+"""V2-338 — a 200 with an EMPTY body is not a judge response on EITHER path.
 
-La regla existía desde el 2026-08-20… solo en la pata de DeepSeek, con su porqué escrito al lado («la cadena
-existía y nunca avanzó, porque nada había lanzado»). La pata de GLM no la tenía.
+The rule had existed since 2026-08-20… but only on the DeepSeek path, with its rationale written beside it
+(“the chain existed and never advanced because nothing had launched”). The GLM path did not have it.
 
-MEDIDO el 2026-08-26 (ronda enfocada de `search-buy-used-car`): GLM contestó 200 con contenido vacío,
-`judge_call` lo DEVOLVIÓ como respuesta —el relevo solo salta con excepción—, el juez parseó '' tres veces y
-la ronda entera murió como INFRA. Ocho minutos de conversación ya medidos, tirados por la pata que «funcionó».
+MEASURED on 2026-08-26 (focused `search-buy-used-car` run): GLM returned 200 with empty content,
+`judge_call` RETURNED it as a response —handoff only triggers on an exception—, the judge parsed '' three times,
+and the entire run died as INFRA. Eight minutes of conversation already measured, wasted by the path that
+“worked”.
 
-Verificado en vivo tras el arreglo: GLM vacío → «respuesta VACÍA (200 sin contenido)» → relevo → DeepSeek
-devuelve el JSON.
+Verified live after the fix: empty GLM → “EMPTY response (200 with no content)” → handoff → DeepSeek
+returns the JSON.
 """
 from unittest import mock
 
@@ -34,7 +35,7 @@ def test_glm_vacio_RELEVA_en_vez_de_devolver_nada(zai_on, monkeypatch):
 
 
 def test_glm_con_contenido_NO_releva(zai_on, monkeypatch):
-    """La sensibilidad: el relevo no puede volverse el camino normal."""
+    """The sensitivity check: handoff must not become the normal path."""
     monkeypatch.setattr(llm, "glm_call", lambda *a, **k: '{"v": 1}')
     def _no(*a, **k): raise AssertionError("no debía llegar a DeepSeek")
     monkeypatch.setattr(llm, "deepseek_direct_call", _no)

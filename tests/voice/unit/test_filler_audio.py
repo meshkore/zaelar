@@ -2,10 +2,10 @@
 is actually slow (V2-529, 2026-08-31).
 
 The two operator reports this closes, both measured live:
-  · «la voz lo hace al revés: primero reproduce la respuesta y después el nexo» — the say-path filler was
+  · “the voice does it backwards: it plays the reply first and then the interjection” — the say-path filler was
     authorized by LiveKit's speech scheduler only when the CURRENT speech (the reply) finished playing.
     Session e081f343: the filler's synthesis fired at the exact millisecond the reply's playout ended.
-  · «si vamos a contestar en un segundo o menos, no es necesario meter esos nexos» — the timer fired at
+  · “if we are going to answer in one second or less, there is no need to add those interjections” — the timer fired at
     600 ms against a measured TTFT of 1.9-2.8 s, so practically every turn got one.
 
 ⚠️ The intermediate design (pre-synthesized frames from a `tts_node` wrapper) was ALSO wrong and only a
@@ -74,7 +74,7 @@ def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkey
 
 
 def test_a_fast_reply_gets_NO_filler(monkeypatch):
-    """«Si vamos a contestar en un segundo o menos, no metas el nexo»."""
+    """“If we are going to answer in one second or less, do not add the interjection.”"""
     monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
     fa.arm(_Brain())
     out = _run(_collect_llm(_inner_llm(first_after=0.0)))
@@ -212,7 +212,7 @@ def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):
 def test_but_an_arm_that_NEVER_arrives_stays_silent(monkeypatch):
     """The other half of the race fix: waiting for a late arm must not become "fire whenever". A
     generation that never arms (the kickoff) gets nothing, however slow the model is — the greeting
-    nobody is waiting for never gets a «Pues…».
+    nobody is waiting for never gets a “Well…”.
 
     ⚠️ This does NOT cover `_ARM_GRACE_S` itself, and saying so is the point: disarming that bound leaves
     every test green, because the first-chunk future always resolves (chunk, end, or error) and the loop

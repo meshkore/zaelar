@@ -1,5 +1,5 @@
 #
-# test_attention.py — gate de atención (V2-015 · T134/T135/T136; contenido V2-??? 2026-08-16).
+# test_attention.py — attention gate (V2-015 · T134/T135/T136; content V2-??? 2026-08-16).
 #
 import asyncio
 import importlib
@@ -20,9 +20,9 @@ def _clean_env(monkeypatch):
     attention.set_directed_judge(None)
 
 
-# ── modo ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── mode ────────────────────────────────────────────────────────────────────────────────────────────────
 def test_mode_default_is_always():
-    # robot OFF por defecto = escucha y responde siempre; el toggle de la UI pasa a wake-word.
+    # Robot OFF by default = always listens and responds; the UI toggle switches to wake-word mode.
     assert attention.mode() == "always"
 
 
@@ -56,7 +56,7 @@ def test_wakeword_absent(txt):
 def test_custom_wakewords(monkeypatch):
     monkeypatch.setenv("ZAELAR_WAKEWORDS", "colmena, abeja")
     assert attention.has_wakeword("oye colmena")
-    assert not attention.has_wakeword("zaelar")   # el custom REEMPLAZA el default
+    assert not attention.has_wakeword("zaelar")   # The custom value REPLACES the default.
 
 
 # ── evaluate: smart ─────────────────────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ def test_smart_active_window_is_directed(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     now = 1000.0
     attention.note_directed(now=now)
-    v = attention.evaluate("y mañana qué tengo", now=now + 10)   # dentro de 30s
+    v = attention.evaluate("y mañana qué tengo", now=now + 10)   # within 30s
     assert v.directed and v.reason == "active_window"
 
 
@@ -84,7 +84,7 @@ def test_smart_window_expires(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     now = 1000.0
     attention.note_directed(now=now)
-    v = attention.evaluate("y mañana qué tengo", now=now + 45)   # fuera de 30s
+    v = attention.evaluate("y mañana qué tengo", now=now + 45)   # beyond 30s
     assert not v.directed and v.reason == "ambient"
 
 
@@ -101,7 +101,7 @@ def test_wakeword_mode_ignores_window(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "wakeword")
     now = 1000.0
     attention.note_directed(now=now)
-    assert not attention.evaluate("sin llamarle", now=now + 5).directed   # ventana NO cuenta
+    assert not attention.evaluate("sin llamarle", now=now + 5).directed   # The window does NOT count.
     assert attention.evaluate("zaelar ayuda", now=now + 5).directed
 
 
@@ -110,17 +110,18 @@ def test_always_mode_everything_directed(monkeypatch):
     assert attention.evaluate("cualquier cosa ambiente").directed
 
 
-# ── evaluate_content: modo `always` JUZGA el contenido (2026-08-16) ────────────────────────────────────────
-# Real, sesión en vivo: ruido de fondo ("Mira donde tú quieras, pero dame el ya...") corrió un turno COMPLETO
-# —incluido un web_search real de 3,3s— antes de descartarse como superado. `evaluate()` (arriba) sigue dando
-# TODO por dirigido en `always`; `evaluate_content()` es la que de verdad discrimina, y es la única que usa el
-# turno real de voz (nucleo.py). El juez es inyectable (`set_directed_judge`) para no pegarle a la red en tests.
+# ── evaluate_content: `always` mode JUDGES content (2026-08-16) ─────────────────────────────────────────
+# Real live session: background noise ("Mira donde tú quieras, pero dame el ya...") ran a COMPLETE turn
+# —including a real 3.3s web_search— before being discarded as ambient. `evaluate()` (above) still treats
+# EVERYTHING as directed in `always`; `evaluate_content()` is what actually discriminates, and it is the only
+# one used by the real voice turn (nucleo.py). The judge is injectable (`set_directed_judge`) so tests do not
+# hit the network.
 def _run(coro):
     return asyncio.run(coro)
 
 
 def test_evaluate_content_ignores_smart_wakeword_modes_same_as_evaluate(monkeypatch):
-    """Fuera de `always` no hace falta preguntarle a ningún modelo — el heurístico de siempre basta."""
+    """Outside `always`, there is no need to ask any model—the existing heuristic is sufficient."""
     monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
     now = 1000.0
     attention.note_directed(now=now)
@@ -146,8 +147,8 @@ def test_evaluate_content_directed_when_the_judge_says_so():
 
 
 def test_evaluate_content_ambient_when_the_judge_says_so():
-    """El caso real que motivó esto: ruido de fondo, el juez dice AMBIENTE, y el turno NUNCA llega a costar
-    nada (nucleo.py corta aquí, antes del prompt/tools/búsqueda)."""
+    """The real case that motivated this: background noise, the judge says AMBIENT, and the turn NEVER incurs
+    any cost (nucleo.py cuts off here, before the prompt/tools/search)."""
     async def _judge(text, context):
         return False
     attention.set_directed_judge(_judge)
@@ -175,7 +176,7 @@ def test_evaluate_content_fails_open_when_the_judge_raises():
 
 
 def test_evaluate_content_fails_open_when_the_judge_returns_none():
-    """None = no se pudo parsear la respuesta (JSON roto, modelo raro) — mismo fail-open que una excepción."""
+    """None = the response could not be parsed (broken JSON, odd model)—same fail-open behavior as an exception."""
     async def _judge(text, context):
         return None
     attention.set_directed_judge(_judge)
@@ -225,28 +226,28 @@ def test_hard_interrupt_stop_hard(txt):
     assert attention.hard_interrupt(txt) == "stop"
 
 
-# ── PRONOMBRE ENCLÍTICO (fallo REAL en vivo, 2026-08-12 13:01:51) ────────────────────────────────────────
-# El operador dijo «Ciérralo todo y páralo todo». `\bcierra\b` no casa con «cierralo» (no hay frontera de palabra
-# después de 'cierra'), así que el detector devolvió None, la orden acabó en el MODELO —que ese turno se atascó— y
-# no se cerró nada. Este camino existe precisamente para que cerrar y parar NO dependan del LLM.
-# Es morfología, no una lista de frases: el imperativo español pega hasta dos pronombres al verbo.
+# ── ENCLITIC PRONOUN (REAL live failure, 2026-08-12 13:01:51) ────────────────────────────────────────────
+# The operator said «Ciérralo todo y páralo todo». `\bcierra\b` does not match «cierralo» (there is no word
+# boundary after 'cierra'), so the detector returned None, the command reached the MODEL—which got stuck on
+# that turn—and nothing was closed. This path exists precisely so closing and stopping do NOT depend on the LLM.
+# This is morphology, not a phrase list: the Spanish imperative attaches up to two pronouns to the verb.
 def test_close_all_with_the_pronoun_stuck_to_the_verb():
-    assert attention.hard_interrupt("Ciérralo todo y páralo todo.") == "close"   # la frase EXACTA del incidente
+    assert attention.hard_interrupt("Ciérralo todo y páralo todo.") == "close"   # the EXACT phrase from the incident
     assert attention.hard_interrupt("ciérralo todo") == "close"
-    assert attention.hard_interrupt("ciérramelo todo") == "close"                # dos pronombres
+    assert attention.hard_interrupt("ciérramelo todo") == "close"                # two pronouns
     assert attention.hard_interrupt("quítalos todos") == "close"
     assert attention.hard_interrupt("límpialo todo") == "close"
 
 
 def test_stop_with_the_pronoun_stuck_to_the_verb():
-    """El pronombre pegado desambigua la PREPOSICIÓN, así que un stop con clítico no necesita el tope de
-    palabras de la regla blanda — eso sigue siendo cierto y es lo que este caso protege.
+    """An attached pronoun disambiguates the PREPOSITION, so a stop with a clitic does not need the soft
+    rule's word limit—that remains true and is what this case protects.
 
-    Lo que V2-393 corrigió es la otra mitad: «inequívoco como VERBO» no es «inequívoco sobre QUÉ». El
-    reflexivo/dativo habla de zaelar y sigue siendo un stop duro; el acusativo de tercera («párala»,
-    «detenlo») lleva OBJETO DIRECTO — va sobre una cosa — y un barge-in no tiene objeto. Medido en
-    `watch-a-video-not-listen-to-it`: «Ahora páralo, porfa» sobre un vídeo cargado se comió el turno entero.
-    El detalle vive en `tests/voice/unit/test_paralo_lleva_objeto.py` (nodo 3.14).
+    What V2-393 fixed is the other half: «unambiguous as a VERB» is not «unambiguous about WHAT». The
+    reflexive/dative refers to zaelar and remains a hard stop; the third-person accusative («párala»,
+    «detenlo») carries a DIRECT OBJECT—it applies to a thing—and a barge-in has no object. In
+    `watch-a-video-not-listen-to-it`: «Ahora páralo, porfa» over a loaded video consumed the entire turn.
+    The detail lives in `tests/voice/unit/test_paralo_lleva_objeto.py` (node 3.14).
     """
     assert attention.hard_interrupt("páralo todo ahora mismo y espera") == "stop"   # «todo» → global
     assert attention.hard_interrupt("párate ahora mismo y espera") == "stop"        # reflexivo → es él
@@ -255,11 +256,11 @@ def test_stop_with_the_pronoun_stuck_to_the_verb():
 
 
 def test_the_enclitic_forms_do_not_swallow_normal_speech():
-    """La frontera sigue exigiendo un pronombre REAL pegado: ni 'cierralotodo' inventado ni palabras que empiecen
-    igual disparan un cierre, y un turno largo con 'para' de preposición sigue siendo conversación."""
+    """The boundary still requires a REAL attached pronoun: neither invented 'cierralotodo' nor words that start
+    the same way trigger a close, and a long turn with prepositional 'para' remains conversation."""
     assert attention.hard_interrupt("dame una receta rica para la cena de mañana") is None
-    assert attention.hard_interrupt("cierra la puerta de casa cuando salgas") is None   # sin 'todo/widgets'
-    assert attention.hard_interrupt("quita la pantalla completa") is None               # modo de UN widget
+    assert attention.hard_interrupt("cierra la puerta de casa cuando salgas") is None   # without 'todo/widgets'
+    assert attention.hard_interrupt("quita la pantalla completa") is None               # mode for ONE widget
 
 
 def test_hard_interrupt_soft_para_short():
@@ -267,13 +268,13 @@ def test_hard_interrupt_soft_para_short():
 
 
 def test_hard_interrupt_soft_para_long_is_not_stop():
-    # "para" como preposición en un turno largo NO debe disparar un STOP.
+    # "para" as a preposition in a long turn must NOT trigger a STOP.
     assert attention.hard_interrupt("dame una receta rica para la cena de mañana") is None
 
 
 def test_hard_interrupt_none_for_normal_turn():
     assert attention.hard_interrupt("qué tiempo hace hoy") is None
-    assert attention.hard_interrupt("cierra la agenda") is None   # cierre de UN widget ≠ hard (no 'todo/widgets')
+    assert attention.hard_interrupt("cierra la agenda") is None   # closing ONE widget ≠ hard (no 'todo/widgets')
 
 
 # ── clamp_input (T135) ──────────────────────────────────────────────────────────────────────────────────
@@ -287,7 +288,7 @@ def test_clamp_preserves_command_at_start():
     long = cmd + ("bla bla bla ambiente " * 200)   # >> max
     txt, clipped = attention.clamp_input(long, 400)
     assert clipped
-    assert "cierra los widgets" in txt            # el comando NO se pierde aunque esté al principio
+    assert "cierra los widgets" in txt            # the command is NOT lost even though it is at the beginning
     assert len(txt) <= 400 + 8
 
 
