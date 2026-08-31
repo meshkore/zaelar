@@ -1,20 +1,20 @@
-"""nucleo/sheets.py — la HOJA de resultados como superficie de UN encargo (V2-276).
+"""nucleo/sheets.py — the results SHEET as the surface of ONE errand (V2-276).
 
-Extraído de `nucleo/dispatch.py` el 2026-08-24 para pagar el trinquete de arquitectura, que llevaba rojo
-desde la noche anterior por MIS commits: `dispatch.py` estaba 22 líneas por encima de su techo y la regla de
-esa tabla es explícita — un fichero que crece pide EXTRAER, y su único precedente de subida exige poder
-decir qué duplicación se retiró. No retiré ninguna, así que se extrae.
+Extracted from `nucleo/dispatch.py` on 2026-08-24 to satisfy the architecture ratchet, which had been red
+since the previous night because of MY commits: `dispatch.py` was 22 lines over its ceiling and that table's
+rule is explicit — a file that grows calls for EXTRACTION, and its only precedent for being raised requires
+being able to say what duplication was removed. I removed none, so it is extracted.
 
-Se eligió esta sección porque la frontera ya estaba dibujada: llevaba su propio banner desde V2-227, y
-`widgets/results/data.py` y `widgets/navegador/act_api.py` ya importaban de aquí a través de `dispatch` —
-una capa de widgets pidiéndole a un gestor de sesiones cómo se llama su caja.
+This section was chosen because the boundary was already drawn: it had its own banner since V2-227, and
+`widgets/results/data.py` and `widgets/navegador/act_api.py` already imported from here through `dispatch` —
+a widget layer asking a session manager what its box is called.
 
-MÓDULO HOJA a propósito: no importa `dispatch`. Las tres funciones que necesitan recorrer el registro vivo
-reciben las sesiones como argumento (`sessions=`), y `dispatch` las envuelve pasándole las suyas. Hacerlo al
-revés —importar `_SESSIONS` desde aquí— es el ciclo que V2-112 ya pagó (`research.py` cogiendo un nombre
-privado de `dispatch`, y solo la suite ENTERA lo cazó, en runtime).
+SHEET MODULE deliberately: it does not import `dispatch`. The three functions that need to traverse the live
+registry receive the sessions as an argument (`sessions=`), and `dispatch` wraps them by passing its own. Doing
+it the other way around — importing `_SESSIONS` from here — is the cycle V2-112 already paid for (`research.py`
+grabbing a private name from `dispatch`, and only the ENTIRE suite caught it, at runtime).
 
-Todo se re-exporta desde `dispatch`: es una mudanza, no un cambio de interfaz.
+Everything is re-exported from `dispatch`: this is a move, not an interface change.
 """
 from __future__ import annotations
 
@@ -23,31 +23,31 @@ import time
 from nucleo import surfaces
 from nucleo.runtime_ids import boot_id as _boot_id
 
-#: El anillo de fases: lo que cabe en una pestaña sin convertirse en un log. Vive aquí porque es la longitud
-#: de lo que la HOJA pinta; `dispatch.record_phase` lo re-importa para recortar el registro con la misma cifra.
-#: Cuántas líneas de PROCESO se conservan. Subido de 40 a 150 en V2-345, y el número sale de una medida, no
-#: del gusto: el encargo real de `search-buy-used-car` (sesión `7575e81a`, 21,6 min) produce **127 líneas** con
-#: la narración del worker dentro. Con 40 la pestaña enseñaba los últimos ~7 minutos y su propia frase de
-#: cierre —«Esto es lo que hizo para llegar aquí»— dejaba de ser cierta justo cuando más se lee, al acabar.
-#: Sigue siendo un ANILLO y sigue siendo lo que el operador MIRA, no la auditoría: esa vive entera en
-#: observabilidad, con su evidencia. Lo que cambia es que ahora cabe un encargo entero.
+#: The phase ring: what fits in a tab without becoming a log. It lives here because it is the length
+#: of what the SHEET renders; `dispatch.record_phase` re-imports it to trim the registry to the same figure.
+#: How many PROCESS lines are retained. Raised from 40 to 150 in V2-345, and the number comes from measurement,
+#: not taste: the real `search-buy-used-car` errand (session `7575e81a`, 21.6 min) produces **127 lines** with
+#: the worker's narration included. With 40 the tab showed the last ~7 minutes and its own closing sentence
+#: —«Esto es lo que hizo para llegar aquí»— stopped being true exactly when it was read most, at completion.
+#: It is still a RING and still what the operator WATCHES, not the audit: that lives entirely in
+#: observability, with its evidence. What changes is that a whole errand now fits.
 PHASES_KEPT = 150
 
-# ── la HOJA de resultados como superficie del progreso (V2-227 ámbito C) ──────────────────────────────────────
-# El registro vivo es el ÚNICO dueño de «qué está pasando». La hoja no lo guarda: lo LEE en cada `view_data`,
-# igual que `counts`. Guardarlo sería reproducir el estado en dos sitios y quedarse con la copia rancia en
-# pantalla — que es exactamente el fallo que este ámbito existe para quitar.
+# ── the results SHEET as the progress surface (V2-227 scope C) ────────────────────────────────────────────────
+# The live registry is the ONLY owner of «qué está pasando». The sheet does not store it: it READS it on every
+# `view_data`, just like `counts`. Storing it would reproduce the state in two places and leave the stale copy
+# on screen — exactly the failure this scope exists to remove.
 def sheet_sessions(sessions, live_states) -> list:
-    """Las sesiones VIVAS cuya superficie es la hoja (`lista`/`item`). El resto de encargos no pintan aquí.
+    """The LIVE sessions whose surface is the sheet (`lista`/`item`). Other errands are not rendered here.
 
-    Recibe el registro en vez de importarlo: ver la nota de módulo HOJA en la cabecera.
+    Receives the registry instead of importing it: see the SHEET module note in the header.
     """
     return [r for r in list(sessions)
             if r.status in live_states and surfaces.opens_sheet(getattr(r, "surface", ""))]
 
 
 def _phrases(rec) -> list:
-    """Las fases de un registro, ya legibles y en orden, sin el andamio `{t, s}`."""
+    """The phases of a record, already readable and ordered, without the `{t, s}` scaffolding."""
     out = []
     for p in list(getattr(rec, "phases", None) or []):
         s = str((p.get("s") if isinstance(p, dict) else p) or "").strip()
@@ -56,29 +56,29 @@ def _phrases(rec) -> list:
     return out
 
 
-#: Sello de ESTE proceso. `escalate._seq` vuelve a 0 en cada arranque, así que un `task_id` no identifica un
-#: encargo más allá de la vida del motor; un id de hoja SÍ tiene que hacerlo, porque la hoja se guarda en disco y
-#: sobrevive al reinicio (V2-233). Aleatorio y corto: no hace falta que sea legible, hace falta que no choque.
+#: Seal of THIS process. `escalate._seq` returns to 0 on every startup, so a `task_id` does not identify an
+#: errand beyond the engine's lifetime; a sheet id DOES have to, because the sheet is stored on disk and
+#: survives restart (V2-233). Random and short: it need not be readable, it must not collide.
 def sheet_id_for(task_id) -> str:
-    """El id de la HOJA de un encargo. UNA definición: la usan el sellado del record y cualquiera que necesite
-    reconstruirlo, para que no haya dos formas de nombrar la misma caja."""
+    """The SHEET id of an errand. ONE definition: record sealing and anyone who needs to reconstruct it use it,
+    so there are not two ways to name the same box."""
     return f"{_boot_id()}-{str(task_id or '').strip()}"
 
 
 def sheet_of(rec) -> str:
-    """La hoja de un encargo, sellada UNA vez (mismo criterio que `surfaces.set_once`: cambiarla a mitad mueve lo
-    que el operador ya está mirando). Devuelve "" si este encargo no tiene hoja — entonces se escribe la de
-    siempre, que es lo correcto para un navegador sin encargo detrás."""
+    """An errand's sheet, sealed ONCE (the same rule as `surfaces.set_once`: changing it midway moves what the
+    operator is already watching). Returns "" if this errand has no sheet — the default is then used, which is
+    correct for a browser with no errand behind it."""
     return str(getattr(rec, "sheet", "") or "")
 
 
 def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
-    """La hoja del ENCARGO al que pertenece esta tarea de navegador ("" si no cuelga de ninguno).
+    """The sheet of the ERRAND this browser task belongs to ("" if it belongs to none).
 
-    V2-259 — el navegador encuentra cosas y las entrega a la hoja (V2-257), pero la hoja es del ENCARGO y la tarea
-    del navegador tiene su propio id: dos navegadores de la misma búsqueda entregan en la MISMA hoja. `_prepare_web`
-    ya guarda `rec.nav_task`, así que la vuelta existe; lo que faltaba era pedirla. Sin encargo detrás —el operador
-    conduciendo el navegador a mano— devuelve "", que es la hoja de siempre y es lo correcto.
+    V2-259 — the browser finds things and delivers them to the sheet (V2-257), but the sheet belongs to the ERRAND
+    and the browser task has its own id: two browsers from the same search deliver to the SAME sheet. `_prepare_web`
+    already stores `rec.nav_task`, so the route exists; what was missing was asking for it. With no errand behind it
+    —the operator driving the browser manually— it returns "", the default sheet, which is correct.
     """
     tid = str(nav_task or "").strip()
     if not tid:
@@ -86,21 +86,20 @@ def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
     for r in list(sessions):
         if str(getattr(r, "nav_task", "") or "") == tid:
             return sheet_of(r)
-    # V2-290 — Y POR EL ID DEL PROPIO ENCARGO, porque no todo el que conduce el navegador tiene una pestaña
-    # reservada. `_prepare_web` crea la pestaña y guarda `rec.nav_task` SOLO para `kind="web"`; cualquier otro
-    # encargo que abra el navegador cae al fallback de `nucleo/nav_cli.py` — «`ZAELAR_NAV_TASK` o, si no,
-    # `ZAELAR_TASK_ID`» — así que su pestaña se llama como la TAREA. Esa vuelta no existía aquí, y sin ella los
-    # hallazgos de esa pestaña no encontraban su caja.
+    # V2-290 — AND BY THE ID OF THE ERRAND ITSELF, because not everyone driving the browser has a reserved tab.
+    # `_prepare_web` creates the tab and stores `rec.nav_task` ONLY for `kind="web"`; any other errand that opens
+    # the browser falls back to `nucleo/nav_cli.py` — «`ZAELAR_NAV_TASK` o, si no, `ZAELAR_TASK_ID`» — so its tab
+    # is named after the TASK. That route did not exist here, and without it findings from that tab found no box.
     #
-    # Medido en la tanda de las 12:03, `search-buy-bicycle__es`: el worker de investigación abrió la pestaña «3»,
-    # extrajo SIETE bicis reales con precio y enlace, y las siete se escribieron en `results` PELADO mientras
-    # `results::3fc631-1` —la hoja del encargo, abierta y con su título— se quedaba vacía. Lo mismo en la cámara,
-    # con catorce. La caja pelada no es de nadie desde V2-259, así que aquello era invisible por construcción:
-    # el operador con una tarjeta en blanco delante y los resultados en una caja que nadie le abrió.
+    # Measured in the 12:03 run, `search-buy-bicycle__es`: the research worker opened tab «3», extracted SEVEN real
+    # bicycles with price and link, and all seven were written to bare `results` while `results::3fc631-1` —the
+    # errand's open sheet with its title— remained empty. The same happened in the camera, with fourteen. The bare
+    # box belongs to nobody since V2-259, so this was invisible by construction: the operator faced a blank card while
+    # the results sat in a box nobody had opened for them.
     #
-    # La regla que aplica es la misma que resuelve el id en el puente, y por eso se escribe igual: la pestaña se
-    # llama por su tarea de navegador si la tiene, y si no por su encargo. Dos formas de nombrar lo mismo en dos
-    # sitios distintos es como nació esta grieta.
+    # The applicable rule is the same one that resolves the id in the bridge, so it is written the same way: the tab
+    # is named after its browser task if it has one, otherwise after its errand. Two ways to name the same thing in
+    # two different places are how this crack began.
     for r in list(sessions):
         if str(getattr(r, "task_id", "") or "") == tid:
             return sheet_of(r)
@@ -108,18 +107,18 @@ def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
 
 
 def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
-    """La hoja donde ENTREGAR lo que esta pestaña acaba de encontrar, ABRIÉNDOLA si su encargo aún no tiene.
+    """The sheet where this tab should DELIVER what it just found, OPENING IT if its errand does not yet have one.
 
-    V2-290 — la hoja se abre al ENCARGAR solo cuando el cerebro declaró la hoja como superficie
-    (`surfaces.opens_sheet`), y eso es correcto: no se le abre una caja vacía a quien no va a llenarla. Pero un
-    encargo que NO la declaró puede acabar conduciendo el navegador y extrayendo filas, y entonces la premisa ya
-    no se sostiene: hay hallazgos y no hay dónde ponerlos. Medido en la tanda de las 12:03: el worker de
-    INVESTIGACIÓN de `search-buy-bicycle__es` sacó SIETE bicis con precio y enlace y las siete cayeron en el
-    `results` PELADO, que no es de nadie desde V2-259; la cámara igual, con catorce. Invisible por construcción.
+    V2-290 — the sheet opens when COMMISSIONED only when the brain declared the sheet as its surface
+    (`surfaces.opens_sheet`), and that is correct: an empty box is not opened for someone who will not fill it. But an
+    errand that did NOT declare it may end up driving the browser and extracting rows, so the premise no longer holds:
+    there are findings with nowhere to put them. Measured in the 12:03 run: the RESEARCH worker for
+    `search-buy-bicycle__es` extracted SEVEN bicycles with price and link and all seven fell into bare `results`,
+    which belongs to nobody since V2-259; same in the camera, with fourteen. Invisible by construction.
 
-    Abrirla AQUÍ y no al encargar es la diferencia entre una caja vacía que nadie pidió y una que aparece con el
-    primer resultado dentro. Y solo para un encargo VIVO: un hallazgo que llega después de que el suyo muriera no
-    estrena una tarjeta en la pantalla de alguien que ya pasó a otra cosa.
+    Opening it HERE rather than when commissioned is the difference between an empty box nobody asked for and one that
+    appears with the first result inside. And only for a LIVE errand: a finding arriving after its errand died does not
+    create a card on the screen of someone who has already moved on.
     """
     sheet = sheet_for_nav_task(nav_task, sessions)
     if sheet:
@@ -135,21 +134,20 @@ def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
 
 
 def sheet_progress(sheet: str = "", sessions=(), live_states=()) -> dict:
-    """`{alive, phases}` — lo que la pestaña de PROCESO de la hoja tiene que pintar AHORA MISMO.
+    """`{alive, phases}` — what the sheet's PROCESS tab must render RIGHT NOW.
 
-    `alive` es «hay un encargo en marcha», no «ha dicho algo»: la hoja se abre antes de la primera fase, y ese
-    hueco de unos segundos es justo cuando el operador está mirando la pantalla en blanco que pidió quitar.
+    `alive` means «an errand is in progress», not «it has said something»: the sheet opens before the first phase, and
+    that gap of a few seconds is exactly when the operator is looking at the blank screen they asked to remove.
 
-    `sheet` acota a UN encargo (V2-259: una hoja por encargo, y su clave es el `task_id`). Sin él se mantiene el
-    comportamiento viejo —las fases de todos los encargos vivos, entrelazadas EN ORDEN DE TIEMPO—, que era la
-    respuesta honesta cuando la hoja era única: quedarse con un encargo escondía en silencio que había otro
-    trabajando. Con hojas separadas eso deja de hacer falta, pero la hoja SIN instancia sigue existiendo y sigue
-    mereciendo el relato completo.
+    `sheet` narrows this to ONE errand (V2-259: one sheet per errand, keyed by `task_id`). Without it, the old
+    behavior remains —the phases of all live errands, interleaved IN TIME ORDER— which was the honest answer when
+    there was one sheet: choosing one errand silently hid that another was working. Separate sheets make that
+    unnecessary, but the sheet WITHOUT an instance still exists and still deserves the complete account.
     """
     rows = sheet_sessions(sessions, live_states)
-    # V2-259 — con UNA hoja por encargo, el relato de una caja es el de SU encargo. El entrelazado de abajo era
-    # la respuesta honesta mientras la hoja era única (quedarse con un encargo escondía que había otro); ahora
-    # cada uno tiene dónde contarse, y mezclarlos sería contar dos veces lo mismo en dos sitios.
+    # V2-259 — with ONE sheet per errand, a box's account is that of ITS errand. The interleaving below was the honest
+    # answer while there was one sheet (choosing one errand hid that another existed); now each has its own place,
+    # and mixing them would tell the same story twice in two places.
     want = str(sheet or "").strip()
     if want:
         rows = [r for r in rows if sheet_of(r) == want]
@@ -166,20 +164,20 @@ def sheet_progress(sheet: str = "", sessions=(), live_states=()) -> dict:
 
 
 def sheet_harvest(sheet: str = "", sessions=(), live_states=()) -> dict:
-    """La COSECHA de esta hoja: cuánto se ha mirado y qué ha sobrevivido a cada corte (V2-296).
+    """This sheet's HARVEST: how much has been viewed and what survived each cutoff (V2-296).
 
-    Hermana de `sheet_progress` y con el mismo reparto: aquélla cuenta QUÉ está haciendo, ésta CUÁNTO lleva
-    hecho. Se mantienen separadas porque una es un relato y la otra aritmética, y porque el relato se recorta a
-    las últimas `PHASES_KEPT` líneas mientras que los totales no pueden recortarse sin mentir.
+    Sibling of `sheet_progress` with the same division: that one counts WHAT it is doing, this one HOW MUCH it has
+    done. They remain separate because one is an account and the other arithmetic, and because the account is trimmed
+    to the last `PHASES_KEPT` lines while totals cannot be trimmed without lying.
 
-    DERIVADA en cada lectura, igual que las fases: la dueña de los números es la pestaña del navegador
-    (`widgets.navegador.tasks`), y la hoja los LEE. Guardar aquí una copia sería el defecto que `_progress` ya
-    documenta —el mismo estado en dos sitios, y el que se queda en pantalla siempre es el rancio—.
+    DERIVED on every read, just like phases: the browser tab (`widgets.navegador.tasks`) owns the numbers, and the
+    sheet READS them. Keeping a copy here would be the defect already documented by `_progress` —the same state in
+    two places, with the stale one always remaining on screen—.
 
-    Se SUMA sobre los encargos de la hoja porque un encargo puede abrir más de una pestaña (buscar en dos
-    sitios): dos páginas miradas son dos, vengan de donde vengan. Sin encargo vivo devuelve `{}`, que es lo que
-    deja a la hoja caer a lo que guardó al cerrarse en vez de pintar ceros — un cero dice «se miró y no había»,
-    y eso no es lo mismo que «ya no lo sabemos».
+    It is SUMMED across the sheet's errands because one errand can open more than one tab (searching two sites): two
+    viewed pages are two, wherever they came from. With no live errand it returns `{}`, allowing the sheet to fall
+    back to what it saved on close instead of rendering zeroes —a zero says «se miró y no había», which is not the
+    same as «ya no lo sabemos».
     """
     rows = sheet_sessions(sessions, live_states)
     want = str(sheet or "").strip()
@@ -203,19 +201,44 @@ def sheet_harvest(sheet: str = "", sessions=(), live_states=()) -> dict:
     return total if any(total.values()) else {}
 
 
-def _sheet_open(rec) -> None:
-    """ABRIR la hoja al ENCARGAR, que es el gesto entero del ámbito C: sin esto el operador no ve nada hasta que
-    hay respuesta, y el contrato de pantalla se queda cumplido en un test y ausente en el producto.
+def title_of(rec) -> str:
+    """How this errand is NAMED on screen: its title when one has been composed, its brief otherwise (V2-530).
 
-    UNA HOJA POR ENCARGO (V2-259), y su clave es el `task_id`. Antes era única, así que había que elegir entre
-    estrenarla —borrándole lo entregado a otro encargo que siguiera escribiendo— y reutilizarla, que enseñaba los
-    resultados de la búsqueda anterior como si fueran los de ésta. Ninguna de las dos era buena, y la primera es
-    literalmente el «error de borrar búsquedas» que el operador pidió quitar. Con una clave por encargo la
-    disyuntiva desaparece: cada uno estrena la suya y nadie pisa a nadie.
-
-    Todo fail-soft: un fallo aquí no puede tumbar una escalada.
+    One function because there are three readers — the sheet's header, the disambiguation question that names
+    open sheets, and the voice relaying a worker's question — and a rule written three times is how it comes to
+    be missing from one of them.
     """
-    # El SELLO, una vez y antes de nada: todo lo que escriba en esta hoja tiene que nombrarla igual.
+    try:
+        from nucleo import errand_title as _et
+        t = str(getattr(rec, "title", "") or "").strip()
+        return t or _et.provisional((getattr(rec, "goal", "") or "").strip())
+    except Exception:  # noqa: BLE001
+        return (getattr(rec, "goal", "") or "").strip()
+
+
+def retitle(rec) -> None:
+    """Rename an OPEN sheet once its title has been composed. Fail-soft: the provisional name is already
+    truthful, so a failure here costs nothing and must never reach the errand."""
+    try:
+        from widgets.results import data as _sheet
+        _sheet.rename_task(title_of(rec), sheet=sheet_of(rec))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _sheet_open(rec) -> None:
+    """OPEN the sheet when COMMISSIONED, which is the entire gesture of scope C: without this the operator sees nothing
+    until there is a response, leaving the screen contract fulfilled in a test and absent in the product.
+
+    ONE SHEET PER ERRAND (V2-259), keyed by `task_id`. It used to be unique, so the choice was between opening it
+    —deleting what another errand still writing had delivered— and reusing it, which showed the previous search's
+    results as though they belonged to this one. Neither was good, and the first is literally the «error de borrar
+    búsquedas» the operator asked to remove. With one key per errand the dilemma disappears: each opens its own and
+    nobody overwrites anybody.
+
+    Everything is fail-soft: a failure here must not bring down an escalation.
+    """
+    # The SEAL, once and before anything else: everything written to this sheet must name it the same way.
     #
     # A RELAY IS NOT A NEW ERRAND (measured 2026-08-23, `cheapest-monitor`). When the provider runs out of
     # quota, `session._finish` relaunches the SAME goal on the next tier — and that relaunch minted a fresh
@@ -238,14 +261,17 @@ def _sheet_open(rec) -> None:
     _sid = sheet_of(rec)
     try:
         from widgets.results import data as _sheet
-        # V2-259 — SU hoja. `fresh` deja de ser una decisión difícil: una hoja nueva es una CLAVE nueva, así que
-        # estrenar ya no puede borrarle a nadie lo suyo (que es literalmente lo que el operador pidió evitar).
+        # V2-259 — ITS sheet. `fresh` is no longer a difficult decision: a new sheet is a new KEY, so opening one
+        # can no longer delete someone else's content (which is literally what the operator asked to avoid).
         #
         # …except when the sheet is INHERITED, where `fresh` is precisely the damage: `present` REPLACES the
         # items, so starting the predecessor's sheet fresh wipes whatever it had already delivered before running
         # out of quota. Inheriting without this turns "two boxes" into "one empty box", which is worse.
-        _sheet.begin_task((rec.goal or "").strip(), fresh=not _inherited, sheet=_sid)
-        _sheet.prune_sheets()          # la hoja persiste a propósito; N instancias no pueden crecer sin techo
+        # V2-530 — the sheet is named by the errand's TITLE, falling back to its brief. The brief is the
+        # operator's raw turn on purpose (see `SessionRecord.title`), and a raw turn read as a name gave the
+        # operator a box called «Me parece bien. Oye, una cosita, estabas buscándome un médico. ¿Eres…».
+        _sheet.begin_task(title_of(rec), fresh=not _inherited, sheet=_sid)
+        _sheet.prune_sheets()          # the sheet persists deliberately; N instances cannot grow without a ceiling
     except Exception:  # noqa: BLE001
         pass
     try:
@@ -258,12 +284,12 @@ def _sheet_open(rec) -> None:
 
 
 def _sheet_close(rec) -> None:
-    """El encargo ACABÓ: se para el loader y la historia se queda con el informe.
+    """The errand is OVER: the loader stops and the history remains with the report.
 
-    Dos cosas que solo se pueden hacer aquí. (1) Nadie más avisa del final: el emisor de fases solo dispara al
-    CAMBIAR una fase, así que sin esta escritura la tarjeta seguiría diciendo «Trabajando…» sobre un worker que
-    ya no existe. (2) El registro vivo se tira al terminar, y con él las frases; la hoja SÍ es persistente —un
-    informe que sobrevive a un reinicio con la explicación de cómo se llegó a él borrada cuenta la mitad.
+    Two things can only be done here. (1) Nobody else announces the end: the phase emitter fires only when a phase
+    CHANGES, so without this write the card would keep saying «Trabajando…» about a worker that no longer exists.
+    (2) The live registry is discarded on completion, along with its phrases; the sheet IS persistent —a report that
+    survives a restart with its explanation of how it was reached erased tells only half the story.
     """
     try:
         from widgets.results import data as _sheet
@@ -273,30 +299,30 @@ def _sheet_close(rec) -> None:
 
 
 def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
-    """Apunta UNA línea en el diario que lee la pestaña de PROCESO. Devuelve si entró.
+    """Write ONE line to the journal read by the PROCESS tab. Returns whether it was added.
 
-    MÓDULO HOJA (V2-281): recibe el REGISTRO, no lo busca — quien lo tiene es `dispatch`, que lo envuelve.
+    SHEET MODULE (V2-281): receives the REGISTRY, does not look it up — `dispatch` has it and wraps this module.
 
-    Es la ÚNICA casa de esa regla, y lo es porque tiene DOS puertas que no se parecen: lo que el worker narra de
-    su parte (`hbnote`, vía `session_phase`) y lo que hacemos nosotros al traducir sus pasos de herramienta a una
-    frase (`nucleo/workers/progress.phrase`, vía el stream del backend). Hasta el 2026-08-21 la segunda no pasaba
-    por aquí, y el efecto no era una línea peor: era que **no había línea**. La sesión `ed9df756` del operador es
-    la prueba — el worker abrió Google Maps, cerró el overlay, hizo captura, snapshot y dos clics, extrajo la
-    ruta con tráfico, y la pestaña dijo «trabajando» durante dos minutos y medio porque las únicas dos entradas
-    que llegaron a este anillo fueron las que el propio worker se molestó en narrar, y llegaron al final.
+    It is the ONLY home for that rule because it has TWO unlike doors: what the worker narrates (`hbnote`, via
+    `session_phase`) and what we do when translating its tool steps into a phrase (`nucleo/workers/progress.phrase`,
+    via the backend stream). Until 2026-08-21 the latter did not pass through here, and the effect was not a worse line:
+    it was **no line at all**. The operator's `ed9df756` session proves it —the worker opened Google Maps, closed the
+    overlay, captured, snapshotted and clicked twice, extracted the route with traffic, and the tab said «trabajando»
+    for two and a half minutes because the only two entries reaching this ring were the ones the worker chose to narrate,
+    and they arrived at the end.
 
-    Se DEDUPLICA contra la última: tres `scroll` seguidos producen tres veces «recorriendo la página», y tres
-    líneas idénticas no informan de nada — parecen progreso sin serlo. El anillo es corto a propósito: esto es lo
-    que el operador MIRA, no la auditoría (que ya vive en observabilidad, entera y con su evidencia).
+    It is DEDUPLICATED against the last entry: three consecutive `scroll`s produce «recorriendo la página» three
+    times, and three identical lines convey nothing —they look like progress without being it. The ring is short on
+    purpose: this is what the operator WATCHES, not the audit (which already lives in observability, complete and with evidence).
     """
     r, _p = rec, (phase or "").strip()
     if r is None or not _p:
         return False
-    # V2-358 — un paso que AFIRMA algo sobre la hoja del operador y que la hoja no respalda sale MARCADO como
-    # lo que es: palabra del worker. Aquí y no en `dispatch.session_phase` porque este es el sitio donde se
-    # escribe el anillo y ya tiene el registro delante — y porque el trinquete de arquitectura pidió sacarlo.
-    # El porqué de la marca, en `live_blocks.worker_phase_is_a_claim`. Va ANTES del dedup a propósito: la línea
-    # marcada y la sin marcar son la misma frase y colapsarlas escondería justo la distinción.
+    # V2-358 — a step that CLAIMS something about the operator's sheet that the sheet does not support is MARKED as
+    # what it is: the worker's word. Here rather than in `dispatch.session_phase` because this is where the ring is
+    # written and the record is already in hand — and because the architecture ratchet asked for it to be extracted.
+    # The reason for the mark is in `live_blocks.worker_phase_is_a_claim`. It deliberately comes BEFORE deduplication:
+    # the marked and unmarked lines are the same phrase, and collapsing them would hide precisely that distinction.
     try:
         from nucleo.flash import live_blocks as _lb
         if _lb.worker_phase_is_a_claim(_p, sheet_of(r)):
@@ -307,9 +333,9 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
         return False
     r.phases.append({"t": time.time(), "s": _p})
     del r.phases[:-(phases_kept or PHASES_KEPT)]
-    # …y que la tarjeta abierta se entere. `widgets/store.py` emite esto al GUARDAR, y aquí no hay nada
-    # que guardar: el proceso es una vista del registro vivo, no un dato de la hoja. Sin este aviso la
-    # pestaña se quedaría quieta hasta el siguiente cambio de datos — un panel de progreso que no avanza.
+    # …and let the open card know. `widgets/store.py` emits this on SAVE, and there is nothing to save here:
+    # the process is a view of the live registry, not sheet data. Without this notice the tab would remain still
+    # until the next data change —a progress panel that does not advance.
     if surfaces.opens_sheet(getattr(r, "surface", "")):
         try:
             from voice.observer import emit as _emit_w

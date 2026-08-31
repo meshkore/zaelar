@@ -1,13 +1,13 @@
-"""nucleo/workers/session.py — `WorkerSession`: una sesión de Brain Worker VIVA (V2-038).
+"""nucleo/workers/session.py — `WorkerSession`: a live Brain Worker session (V2-038).
 
-Envuelve un `WorkerBackend` y conduce su ciclo de vida: arranca el motor, BOMBEA sus eventos normalizados
-(`WorkerEvent`) → actualiza el REGISTRO EN RAM (fuente de verdad, §v2·C) + publica en el bus (`worker.*`) + emite
-el chip de actividad + ENTREGA el resultado por voz+UI. Gestiona la **cola de inyección** (↓, §v3·H: pending→
-delivered, sin doble entrega) y el **cierre con cortesía** (kill de grupo, §v2·D).
+Wraps a `WorkerBackend` and drives its lifecycle: starts the engine, PUMPS its normalized events
+(`WorkerEvent`) → updates the IN-MEMORY RECORD (source of truth, §v2·C) + publishes on the bus (`worker.*`) + emits
+the activity chip + DELIVERS the result through voice+UI. Manages the **injection queue** (↓, §v3·H: pending→
+delivered, no double delivery) and **courteous shutdown** (group kill, §v2·D).
 
-La sesión NO habla con el usuario directamente ni resuelve `ask`/`act` (eso es el plano request/response de
-worker_api + el loop supervisor): aquí solo se bombea el stream del backend (spawned/phase/result/error/done) y se
-mantiene el registro coherente. Diseño: initiatives/V2-038-brain-workers-interactivos.md.
+The session does NOT speak to the user directly or resolve `ask`/`act` (that is the worker_api request/response
+plane + supervisor loop): here we only pump the backend stream (spawned/phase/result/error/done) and keep the record
+consistent. Design: initiatives/V2-038-brain-workers-interactivos.md.
 """
 from __future__ import annotations
 
@@ -39,11 +39,17 @@ class Inject:
 
 @dataclass
 class SessionRecord:
-    """La FILA de una sesión viva en el registro RAM (fuente de verdad). Absorbe lo que antes estaba disperso en
-    escalate._tasks / dispatch._INFLIGHT / dispatch._SESSIONS (§v3·G). La proyección serializable la da
-    `dispatch.active_sessions()`; los handles (session/task) no viajan al ESTADO ni a /api/tasks."""
+    """The ROW for a live session in the in-memory record (source of truth). Absorbs what was previously scattered
+    across escalate._tasks / dispatch._INFLIGHT / dispatch._SESSIONS (§v3·G). The serializable projection is provided
+    by `dispatch.active_sessions()`; handles (session/task) do not travel to STATE or /api/tasks."""
     task_id: str
     goal: str
+    # V2-530 — what this errand is CALLED, which is not the same string as what it was ASKED. `goal` is the
+    # BRIEF and stays the operator's own words verbatim (the promise backstop escalates the raw turn on
+    # purpose: «invéntate el apellido si te lo piden» has to survive). `title` is the NAME the operator reads
+    # on the sheet and hears in «el proceso "…" pregunta». Empty until `nucleo.errand_title` fills it; every
+    # reader falls back to the goal, so nothing depends on it arriving.
+    title: str = ""
     kind: str = "generic"
     backend: str = ""
     label: str = ""
@@ -58,8 +64,8 @@ class SessionRecord:
     ok: bool = True
     parent_task_id: str = ""
     depth: int = 0
-    trace_id: str = ""            # V2-044: trace de la frase que originó la sesión (encadena todos sus eventos)
-    nav_task: str = ""            # kind=web: id de la tarea del navegador (tarjeta) asociada — la fija dispatch
+    trace_id: str = ""            # V2-044: trace of the phrase that originated the session (chains all its events)
+    nav_task: str = ""            # kind=web: associated browser task ID (card) — set by dispatch
     # V2-259 — la HOJA de este encargo (`results::<sheet>`), sellada UNA vez por `dispatch._sheet_open`. No es
     # `task_id` a secas y ese fue un defecto real: `escalate._seq` arranca en 0 en cada proceso, así que los ids
     # se REPITEN entre reinicios y el primer encargo de un arranque nuevo caía en la hoja `results--1` de la
@@ -128,14 +134,14 @@ class SessionRecord:
     perm_denied: str = ""
     ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
     real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
-    # handles runtime (NO serializar):
+    # runtime handles (NOT serialized):
     session: "WorkerSession | None" = None
     task: "asyncio.Task | None" = None
 
 
-# V2-241 — QUÉ trozo paró la puerta. Una corrección que repite las reglas generales no le dice CUÁL de sus
-# comandos sobra; el CLI sí lo nombra, en tres formas distintas y medidas. Devuelve "" si el texto no lo dice —
-# nunca se inventa un fragmento, que sería mandarle a reescribir un comando que no escribió.
+    # V2-241 — WHICH fragment the gate stopped. A correction repeating general rules does not say WHICH command
+    # is unnecessary; the CLI names it in three different measured forms. Returns "" if the text does not say —
+    # never invents a fragment, which would ask it to rewrite a command it did not write.
 _DENIED_RE = (
     re.compile(r"following part requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
     re.compile(r"\bcd in ['\"](.+?)['\"] was blocked", re.I),
@@ -145,7 +151,7 @@ _DENIED_RE = (
 
 
 def denied_fragment(text: str) -> str:
-    """El comando (o la ruta) que la puerta nombró, recortado y en una línea."""
+    """The command (or path) named by the gate, trimmed and placed on one line."""
     t = str(text or "")
     for rx in _DENIED_RE:
         m = rx.search(t)
@@ -170,13 +176,13 @@ class WorkerSession:
         self._spec = spec
         self._rec = record
         self._stopped = False
-        self._model = spec.model or ""     # V2-048: modelo del worker (chip de observabilidad) — lo afina `spawned`
-        self._usage: dict = {}             # tokens del `result` (input/output) → chip de tamaño en la fila final
-        self._usage_partial: dict = {}     # tokens ACUMULADOS mensaje a mensaje: lo único que hay si lo matamos
+        self._model = spec.model or ""     # V2-048: worker model (observability chip) — refined by `spawned`
+        self._usage: dict = {}             # `result` tokens (input/output) → size chip in the final row
+        self._usage_partial: dict = {}     # tokens ACCUMULATED message by message: all we have if we kill it
         self._cost = None                  # coste USD del `result` → texto de la fila final (informativo, NO se
-                                            # usa para Energy — ver energy_meter.report_worker_usage docstring)
-        self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
-        self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
+                                            # used for Energy — see energy_meter.report_worker_usage docstring)
+        self._base_url = ""                # actual endpoint of the tier serving the session (energy_meter, 2026-08-05)
+        self._started_at = time.time()     # to measure the worker's FIRST output (its TTFT) — see _emit_note
         self._first_output_at = 0.0
         # V2-241 — la corrección del permiso iba UNA vez por sesión (V2-211), y el worker medido chocó TRES.
         # Del segundo choque en adelante nadie le decía nada y moría en silencio, que es exactamente lo que la
@@ -189,7 +195,7 @@ class WorkerSession:
     def alive(self) -> bool:
         return self._b.alive and not self._stopped
 
-    # ── ciclo de vida completo de la sesión ────────────────────────────────────────────────────────────────
+    # ── complete session lifecycle ──────────────────────────────────────────────────────────────────────────
     async def run(self, prompt: str) -> None:
         rec = self._rec
         rec.status = "running"
@@ -210,7 +216,7 @@ class WorkerSession:
             rec.status = "cancelled"
             raise
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"worker[{rec.task_id}]: run falló: {e}")
+            logger.warning(f"worker[{rec.task_id}]: run failed: {e}")
             rec.status = "error"
             rec.ok = False
             rec.result_summary = rec.result_summary or "No pude completar la tarea."
@@ -305,12 +311,12 @@ class WorkerSession:
             self._base_url = d.get("base_url") or self._base_url
             self._bus("worker.result", {"id": rec.task_id, "ok": rec.ok})
         elif ev.type == "say":
-            # (por si un backend lo emite explícito) → lo relata el loop; aquí solo al bus.
+            # (if a backend emits it explicitly) → the loop reports it; here it only goes to the bus.
             self._bus("worker.say", {"id": rec.task_id, "text": (d.get("text") or "")[:400]})
         elif ev.type == "error":
             rec.ok = False
             if d.get("fatal") and not rec.result_summary:
-                # el operador debe OÍR que falló (nunca silencio): _finish entrega este summary por voz+UI.
+                # the operator must HEAR that it failed (never silence): _finish delivers this summary via voice+UI.
                 rec.result_summary = "No pude completar la tarea."
             self._bus("worker.error", {"id": rec.task_id, "message": (d.get("message") or "")[:300]})
 
@@ -488,22 +494,22 @@ class WorkerSession:
             except Exception:
                 pass
 
-    # ── inyección (↓) ────────────────────────────────────────────────────────────────────────────────────
+    # ── injection (↓) ───────────────────────────────────────────────────────────────────────────────────────
     async def inject(self, text: str) -> None:
-        """Encola una instrucción para el worker (§v3·H). Entrega PRINCIPAL = piggyback (worker_api la sirve al
-        próximo contacto del bridge); SECUNDARIA = stdin del backend (motores conversacionales)."""
+        """Queues an instruction for the worker (§v3·H). PRIMARY delivery = piggyback (worker_api serves it on the
+        bridge's next contact); SECONDARY = backend stdin (conversational engines)."""
         text = (text or "").strip()
         if not text:
             return
         self._rec.injects.append(Inject(text=text, ts=time.time()))
         try:
-            await self._b.send(text)     # vía secundaria; si el backend encola hasta cerrar turno, no pasa nada
+            await self._b.send(text)     # secondary path; if the backend queues until the turn ends, nothing happens
         except Exception:
             pass
 
     def take_pending_injects(self) -> list[str]:
-        """Devuelve las inyecciones pendientes y las marca `delivered` (idempotente, sin doble entrega). La llama
-        worker_api al responder a un bridge (piggyback)."""
+        """Returns pending injections and marks them `delivered` (idempotent, no double delivery). Called by
+        worker_api when responding to a bridge (piggyback)."""
         out = []
         for inj in self._rec.injects:
             if inj.state == "pending":
@@ -511,7 +517,7 @@ class WorkerSession:
                 out.append(inj.text)
         return out
 
-    # ── cierre con cortesía ────────────────────────────────────────────────────────────────────────────────
+    # ── courteous shutdown ─────────────────────────────────────────────────────────────────────────────────
     async def stop(self, *, grace: float = 3.0, reason: str = "operator") -> None:
         if self._stopped:
             return
@@ -520,10 +526,10 @@ class WorkerSession:
         try:
             await self._b.stop(grace=grace)
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"worker[{self._rec.task_id}]: stop backend falló: {e}")
+            logger.warning(f"worker[{self._rec.task_id}]: backend stop failed: {e}")
         self._bus("worker.cancelled", {"id": self._rec.task_id, "reason": reason})
 
-    # ── V2-065: pausar ≠ parar (ver workers/base.py) — congela sin marcar `status="cancelled"` ────────────────
+    # ── V2-065: pause ≠ stop (see workers/base.py) — freezes without setting `status="cancelled"` ───────────
     def pause(self) -> bool:
         if self._stopped or not self._b.pause():
             return False
@@ -561,7 +567,7 @@ class WorkerSession:
 
     # ── V2-048: filas RICAS de observabilidad del worker ─────────────────────────────────────────────────────
     def _emit_meta_row(self) -> None:
-        """Al nacer: qué MOTOR + qué MODELO + qué CAPA conduce esta tarea (lo que el operador pidió «qué usa»)."""
+        """At birth: which ENGINE + MODEL + LAYER drives this task (what the operator asked it uses)."""
         try:
             from voice.observer import emit
             rec = self._rec
@@ -572,13 +578,13 @@ class WorkerSession:
             pass
 
     def _emit_note(self, text: str) -> None:
-        """Lo que el worker VA DICIENDO mientras trabaja (su razonamiento en voz alta), con el ID de la sesión y el
-        sello `worker` para que en el visor se lea «esto viene del brain worker N». Es la fila que llena el hueco
-        entre que nace y hace algo: sale en cuanto el modelo emite el bloque de texto, sin esperar a una tool.
+        """What the worker IS SAYING while it works (its reasoning aloud), with the session ID and the
+        `worker` marker so the viewer reads “this comes from brain worker N”. This row fills the gap
+        between birth and action: it appears as soon as the model emits the text block, without waiting for a tool.
 
-        Además mide el **primer output** (`first_output_ms` desde que arrancó la sesión) — el equivalente al TTFT de
-        un turno de voz, para poder decir si un worker tardó porque el motor arranca lento o porque el trabajo era
-        largo de verdad."""
+        It also measures the **first output** (`first_output_ms` since the session started)—the equivalent of TTFT
+        for a voice turn, so we can tell whether a worker was slow because the engine starts slowly or because the
+        work was genuinely long."""
         t = " ".join((text or "").split())
         if not t:
             return
@@ -712,7 +718,7 @@ class WorkerSession:
             logger.warning(f"worker[{self._rec.task_id}]: no pude pedir la entrega anticipada: {e}")
 
     def _emit_step(self, d: dict) -> None:
-        """Un PASO: DÓNDE trabaja (badge/categoría por lugar) + QUÉ hace y sobre qué (acción + objetivo)."""
+        """A STEP: WHERE it works (badge/category by place) + WHAT it does and on what (action + target)."""
         try:
             from voice.observer import emit
             where = (d.get("where") or "sistema")
@@ -727,13 +733,13 @@ class WorkerSession:
             pass
 
     def _emit_step_result(self, d: dict) -> None:
-        """La EVIDENCIA del paso: qué le contestó la herramienta (2026-08-10).
+        """The step's EVIDENCE: what the tool answered (2026-08-10).
 
         Los `tool_result` del stream se descartaban como «ruido interno», y con ellos se iba lo único que permite
-        auditar un worker de verdad: se veía que buscó en tal sitio y abrió tal URL, **nunca lo que encontró**. Un
+        to audit a worker properly: we could see that it searched a place and opened a URL, **never what it found**. A
         worker que trae basura y otro que trae el dato exacto dejaban EL MISMO rastro. Va recortado (no resumido —
         un resumen es una interpretación) y en la misma familia que su paso, para que se lea seguido: pido → me
-        contestan."""
+        answer."""
         try:
             from voice.observer import emit
             body = str(d.get("text") or "").strip()

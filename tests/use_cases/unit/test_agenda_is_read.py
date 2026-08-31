@@ -62,10 +62,10 @@ def test_the_runner_actually_READS_it(monkeypatch):
     monkeypatch.setattr(R.probe_client, "current_session_id", lambda: "s")
     monkeypatch.setattr(R.probe_client, "session_events", lambda sid: [])
     monkeypatch.setattr(R.probe_client, "scheduled_jobs", lambda: [])
-    # Reescrito por V2-400, no volteado: la lectura pasó de `widget_rows` (que traga el error DENTRO y
-    # devuelve [], con lo que una agenda ilegible llegaba al juez como «vacía y confirmada») a `widget_data`,
-    # que devuelve None cuando no se pudo mirar. Lo que este test protege —que el runner LEA la agenda y que
-    # lo leído llegue al informe del juez— sigue intacto, sobre el lector honesto.
+    # Rewritten by V2-400, not reverted: reading moved from `widget_rows` (which swallows the error INSIDE and
+    # returns [], causing an unreadable agenda to reach the judge as "empty and confirmed") to `widget_data`,
+    # which returns None when it could not be checked. What this test protects—that the runner READS the agenda
+    # and that what was read reaches the judge's report—remains intact, relying on the honest reader.
     monkeypatch.setattr(R.probe_client, "widget_data",
                         lambda wid, q="": seen.setdefault("asked", wid) and None
                         or {"meetings": [{"title": "X", "date": "2026-08-27"}]})

@@ -1,18 +1,18 @@
-"""Un número ARCHIVADO sigue siendo suyo para siempre.
+"""An ARCHIVED number remains yours forever.
 
-Escrito el 2026-08-20, al archivar el tablero: 87 iniciativas terminales y 210 tareas se movieron a
-`archive/`, y los dos asignadores de números buscaban con `glob` NO recursivo. Sin recursión, archivar la
-iniciativa más alta hace que su número vuelva a estar libre.
+Written on 2026-08-20, when archiving the board: 87 terminal initiatives and 210 tasks were moved to
+`archive/`, and both number assigners searched with non-recursive `glob`. Without recursion, archiving the
+highest initiative makes its number available again.
 
-Y el daño de reutilizar un número aquí es del tipo caro: nada falla, nada sale en rojo. Simplemente dos
-trozos de historia sin relación responden al mismo nombre, y cada referencia cruzada escrita ANTES de la
-reutilización —en una tarea, en un commit, en `CLAUDE.md`— pasa a apuntar silenciosamente a la otra.
+And the harm caused by reusing a number here is the expensive kind: nothing fails, nothing turns red. Two
+unrelated pieces of history simply answer to the same name, and every cross-reference written BEFORE the
+reuse—in a task, in a commit, in `CLAUDE.md`—silently starts pointing to the other one.
 
-⚠️ Estos tests montan el tablero en un directorio TEMPORAL a propósito. La primera versión afirmaba lo
-mismo contra el disco real y pasaba con el `glob` roto: hoy los números archivados están todos por DEBAJO
-del máximo vivo, así que `max+1` los esquiva por accidente y el test no medía nada. La situación peligrosa
-—el número más alto viviendo SOLO en `archive/`— es justo la que llega cuando se cierre V2-201, y hay que
-construirla, no esperarla.
+⚠️ These tests deliberately set up the board in a TEMPORARY directory. The first version asserted the
+same thing against the real disk and passed with the broken `glob`: today all archived numbers are BELOW
+the live maximum, so `max+1` skips them by accident and the test measured nothing. The dangerous situation
+—the highest number living ONLY in `archive/`—is exactly what arrives when V2-201 is closed, and it must be
+built, not awaited.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from tests.use_cases.e2e.agent import initiative as I
 
 @pytest.fixture
 def board(tmp_path, monkeypatch):
-    """Un tablero donde lo más alto que se ha usado nunca está ARCHIVADO, no vivo."""
+    """A board where the highest number ever used is ARCHIVED, not live."""
     inis = tmp_path / "initiatives"
     (inis / "archive").mkdir(parents=True)
     (inis / "V2-150-algo-vivo.md").write_text("---\nstatus: open\n---\n")
@@ -50,6 +50,6 @@ def test_the_number_of_an_archived_task_is_never_reissued(board):
 
 
 def test_and_the_live_board_still_moves_the_counter(board):
-    """La mitad de sensibilidad: mirar dentro del archivo no puede hacer que se IGNORE el tablero vivo."""
+    """The sensitivity check: looking inside the archive must not cause the live board to be IGNORED."""
     (board / "initiatives" / "V2-300-mas-alta-y-viva.md").write_text("---\nstatus: open\n---\n")
     assert I._next_initiative_number() == 301

@@ -96,12 +96,13 @@ def test_the_report_names_what_it_could_not_read():
 
 
 def test_a_healthy_report_carries_no_such_field(monkeypatch):
-    """Sensibilidad: si el campo apareciera SIEMPRE, dejaría de significar nada.
+    """Sensitivity: if the field appeared ALWAYS, it would cease to mean anything.
 
-    Las lecturas se sustituyen por una que CONTESTA. Antes esto salía a la red de verdad contra
-    `config.ZAELAR_URL`, así que su veredicto dependía de que hubiera un motor escuchando — y en la corrida
-    completa del mapa no lo hay: falló con `URLError: nodename nor servname provided` y en solitario pasaba.
-    Un unitario que necesita un artefacto vivo no mide lo que dice medir; mide el entorno."""
+    The reads are replaced with one that ANSWERS. Previously this reached the real network against
+    `config.ZAELAR_URL`, so its verdict depended on an engine being available — and in the full map run there
+    is none: it failed with `URLError: nodename nor servname provided`, while passing in isolation.
+    A unit test that needs a live artifact does not measure what it claims to measure; it measures the
+    environment."""
     monkeypatch.setattr(P, "_get", lambda path, timeout=15.0: {})
     P.clear_read_failures()
     mech = V.mechanism_report([], [])

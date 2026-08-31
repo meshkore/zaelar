@@ -1,18 +1,18 @@
-"""Un caso BLOQUEADO no abre iniciativa propia — pero su fallo de HONESTIDAD no se pierde.
+"""A BLOCKED case does not open its own initiative — but its HONESTY failure is not lost.
 
-Los dos lados de esto se midieron el 2026-08-20 y los dos cuestan:
+Both sides of this were measured on 2026-08-20, and both come at a cost:
 
-· **Abrir iniciativa por caso** llenó el tablero de trabajo que nadie puede hacer. `--verify` corre lo que el
-  agente que arregla pide (correcto, honra su petición) y el camino de ROTACIÓN abría una iniciativa nueva sin
-  mirar el segmento: así se abrieron V2-172/173 y, en la MISMA tanda, V2-174/175 — los mismos dos casos
-  archivados dos veces, minutos después de cerrarlos por necesitar credenciales del operador.
+· **Opening an initiative per case** filled the work board with work that no one can do. `--verify` runs what the
+  fixing agent requests (correctly, honoring its request), while the ROTATION path opened a new initiative without
+  checking the segment: this opened V2-172/173 and, in the SAME batch, V2-174/175 — the same two cases
+  filed twice, minutes after they were closed because they needed operator credentials.
 
-· **Suprimirlo del todo** —mi primer arreglo— habría tirado el único hallazgo que valía. Esos dos casos
-  puntuaron `naturalidad 5` con `mecanismo 1-2`: el agente, sin poder hacer el trabajo, lo CONTÓ como hecho
-  («soñó la sesión del usuario»). Eso no necesita ninguna credencial para verse — es el transcript contra el
-  informe de mecanismo de la misma corrida — y es un defecto real y accionable.
+· **Suppressing it entirely** —my first fix— would have thrown away the only finding that mattered. Those two cases
+  scored `naturalidad 5` with `mecanismo 1-2`: unable to do the work, the agent REPORTED it as completed
+  («it imagined the user's session»). Seeing that requires no credentials — it is the transcript compared with the
+  mechanism report from the same run — and it is a real, actionable defect.
 
-Así que la ronda va al paraguas compartido y no se crea tarea por caso.
+So the round goes to the shared umbrella, and no per-case task is created.
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ def _result(sid: str, overall: int = 2) -> dict:
 
 
 def test_the_blocked_case_is_confirmed_blocked_first():
-    """La premisa. Si algún día se desbloquea, este fichero deja de probar lo que cree."""
+    """The premise. If it is ever unblocked, this file will stop testing what it claims to test."""
     assert not SG.is_completable(BLOCKED)
     assert SG.is_completable(RUNNABLE)
 
@@ -48,7 +48,7 @@ def test_a_blocked_failure_never_creates_its_own_initiative_or_task(tmp_path, mo
     assert res.get("task") is None
     assert res.get("blocked"), "tiene que decir QUE está bloqueado y qué falta"
     assert "necesita" in res["blocked"]
-    # con el paraguas ausente (tmp_path vacío) no se inventa ninguna iniciativa
+    # with the umbrella absent (empty tmp_path), no initiative is invented
     assert res.get("initiative") is None
     assert not list(tmp_path.glob("V2-*.md")), "no puede haber creado ningún fichero de iniciativa"
 
@@ -69,7 +69,7 @@ def test_but_its_honesty_failure_lands_in_the_shared_umbrella(tmp_path, monkeypa
     assert "HONESTIDAD" in body, "tiene que decir QUÉ se está midiendo en un caso que no puede completar"
     assert "narró un login que no ocurrió" in body
 
-    # una segunda corrida AÑADE ronda, no reemplaza ni fragmenta
+    # a second run ADDS a round; it does not replace or fragment it
     I.file_failure(_result("renew-gym-membership__es"), scenario=SC.registry()["renew-gym-membership__es"],
                    sandboxed=True, force_new=True)
     assert len(re.findall(r"^## Ronda ", umb.read_text(encoding="utf-8"), re.M)) == 2
@@ -77,8 +77,8 @@ def test_but_its_honesty_failure_lands_in_the_shared_umbrella(tmp_path, monkeypa
 
 
 def test_a_RUNNABLE_case_still_gets_its_own_initiative(tmp_path, monkeypatch):
-    """La mitad de sensibilidad, y la que importa: sin ella, «no archives los bloqueados» y «no archives nada»
-    pasan el mismo test, y el arnés se quedaría mudo justo para los casos que sí puede medir."""
+    """The sensitivity half, and the one that matters: without it, «do not file blocked cases» and «do not file anything»
+    pass the same test, and the harness would be silent precisely for cases it can measure."""
     monkeypatch.setattr(I, "INITIATIVES", tmp_path)
     monkeypatch.setattr(I, "MODULES", tmp_path / "modules")
     (tmp_path / "modules" / "nucleo" / "tasks").mkdir(parents=True)
@@ -89,8 +89,8 @@ def test_a_RUNNABLE_case_still_gets_its_own_initiative(tmp_path, monkeypatch):
 
 
 def test_a_closed_umbrella_is_not_resurrected(tmp_path, monkeypatch):
-    """Fail-open: si alguien cierra el paraguas, un caso bloqueado no lo reabre ni acuña uno por caso — que es
-    justo la fragmentación que esto existe para evitar."""
+    """Fail-open: if someone closes the umbrella, a blocked case does not reopen it or mint a per-case one — which is
+    exactly the fragmentation this exists to prevent."""
     umb = tmp_path / I.BLOCKED_UMBRELLA
     umb.write_text("---\nid: V2-176\ntitle: \"x\"\ndate: 2026-08-20\nstatus: closed\n---\n", encoding="utf-8")
     monkeypatch.setattr(I, "INITIATIVES", tmp_path)
@@ -100,8 +100,8 @@ def test_a_closed_umbrella_is_not_resurrected(tmp_path, monkeypatch):
 
 
 def test_the_real_umbrella_exists_and_is_open():
-    """El nombre está escrito en el código, así que un rename silencioso lo dejaría sin destino y los
-    bloqueados volverían a archivar nada sin que se ponga rojo."""
+    """The name is written in the code, so a silent rename would leave it without a destination and blocked cases
+    would go back to filing nothing without turning red."""
     path = I.INITIATIVES / I.BLOCKED_UMBRELLA
     if not path.is_file():
         pytest.skip("el paraguas no está en disco (roadmap gitignoreado en un clone limpio)")
@@ -109,11 +109,10 @@ def test_the_real_umbrella_exists_and_is_open():
 
 
 def test_an_UNCLASSIFIED_case_still_files(tmp_path, monkeypatch):
-    """`segment_of` devolviendo None es «sin clasificar», que su propia docstring llama «un bug, no un estado».
-    Tratarlo como bloqueado es la lectura PELIGROSA: un caso nuevo dejaría de producir órdenes de trabajo en
-    silencio, que es justo el fallo que este guard evita en la otra dirección. Lo descubrieron 8 tests del
-    arnés que usan un escenario sintético (`unit-mf`), no en el catálogo — y con la primera versión del guard
-    dejaron de archivar."""
+    """`segment_of` returning None means «unclassified», which its own docstring calls «a bug, not a state».
+    Treating it as blocked is the DANGEROUS interpretation: a new case would silently stop producing work orders,
+    which is exactly the failure this guard prevents in the other direction. Eight harness tests using a synthetic
+    scenario (`unit-mf`), not the catalog, exposed it — and with the first version of the guard they stopped filing."""
     monkeypatch.setattr(I, "INITIATIVES", tmp_path)
     monkeypatch.setattr(I, "MODULES", tmp_path / "modules")
     (tmp_path / "modules" / "nucleo" / "tasks").mkdir(parents=True)
@@ -127,16 +126,16 @@ def test_an_UNCLASSIFIED_case_still_files(tmp_path, monkeypatch):
 
 
 def test_the_tick_does_not_file_a_blocked_case_a_SECOND_time(monkeypatch):
-    """`run.py --verify` ya archiva la ronda; el tick solo la NOMBRA.
+    """`run.py --verify` already files the round; the tick only NAMES it.
 
-    Archivar en los dos sitios escribió la MISMA ronda dos veces —mismo caso, mismo minuto— y se vio leyendo
-    V2-176 el 2026-08-20 (rondas 3 y 4 idénticas). La rama de AGRUPADOS que está justo encima ya lo hacía bien
-    por este mismo motivo; la de bloqueados no. Un duplicado no se pone rojo: solo hace que la evidencia de una
-    iniciativa cuente el doble de intentos de los que hubo, que es peor que no tenerla.
+    Filing in both places wrote the SAME round twice —same case, same minute— as seen when reading
+    V2-176 on 2026-08-20 (identical rounds 3 and 4). The GROUPED branch immediately above already handled this
+    correctly for the same reason; the blocked branch did not. A duplicate does not turn red: it merely makes an
+    initiative's evidence count twice as many attempts as actually occurred, which is worse than having none.
 
-    Se afirma sobre la CONDUCTA (¿se llamó a `file_failure`?) y no leyendo el fuente: la primera versión de
-    este test buscaba el nombre en el texto de la rama y lo encontraba... en el comentario que explica por qué
-    NO hay que llamarlo.
+    This asserts the BEHAVIOR (was `file_failure` called?) rather than reading the source: the first version of
+    this test searched for the name in the branch text and found it... in the comment explaining why it should
+    NOT be called.
     """
     from tests.use_cases.e2e.agent import status as statusmod, tick as T
 
@@ -148,9 +147,9 @@ def test_the_tick_does_not_file_a_blocked_case_a_SECOND_time(monkeypatch):
     monkeypatch.setattr(T.I, "scenarios_awaiting_verification",
                         lambda reg: [{"scenario": BLOCKED, "task": "T999"}])
     monkeypatch.setattr(T.I, "find_initiative", lambda sid: None)
-    # El marcador tiene que MOVERSE con la tanda: si `last_run` no cambia, el tick concluye —con razón— que no
-    # se midió nada y no clasifica el caso en absoluto (ver `test_run_persistence.py`). Aquí lo que se prueba es
-    # la rama de BLOQUEADOS, así que la tanda sí mide.
+    # The marker has to MOVE with the batch: if `last_run` does not change, the tick rightly concludes that nothing
+    # was measured and does not classify the case at all (see `test_run_persistence.py`). What is tested here is
+    # the BLOCKED branch, so the batch does measure something.
     ledger = {"scenarios": {BLOCKED: {"state": "FAIL", "overall": 2, "last_run": "2026-08-20 01:00",
                                       "verdict": "narró un login que no ocurrió"}}}
 
@@ -169,8 +168,8 @@ def test_the_tick_does_not_file_a_blocked_case_a_SECOND_time(monkeypatch):
 
 
 def test_a_runnable_case_can_also_be_grouped_under_the_umbrella():
-    """`cheapest-monitor` es EJECUTABLE y aun así comparte el defecto de V2-176 — iba camino de su tercera
-    iniciativa propia. Que esté en GROUPED es lo que impide que se vuelva a fragmentar solo."""
+    """`cheapest-monitor` is RUNNABLE and still shares V2-176's defect — it was on its way to a third
+    initiative of its own. Being in GROUPED is what prevents it from fragmenting again on its own."""
     assert SG.is_completable("cheapest-monitor")
     assert I.GROUPED.get("cheapest-monitor") == I.BLOCKED_UMBRELLA
     path = I.INITIATIVES / I.BLOCKED_UMBRELLA
@@ -179,13 +178,13 @@ def test_a_runnable_case_can_also_be_grouped_under_the_umbrella():
 
 
 def test_a_case_that_is_BOTH_blocked_and_grouped_files_in_its_OWN_umbrella(monkeypatch, tmp_path):
-    """`find-theatre-tickets__es` necesita cuenta y tarjeta (bloqueado) **y** está en V2-167 (agrupado). Su
-    paraguas propio manda.
+    """`find-theatre-tickets__es` needs an account and card (blocked) **and** is in V2-167 (grouped). Its
+    own umbrella takes precedence.
 
-    Sin esto, la MISMA medición cae en un fichero u otro según qué camino la archive —la rama de bloqueados
-    escribe en V2-176, la de agrupados en V2-167— y la evidencia de un caso queda partida entre dos
-    iniciativas. Se vio el 2026-08-20 preparando el handoff: los dos paraguas tenían rondas del mismo caso, y
-    quien tiene que arreglarlo no puede saber que le falta la mitad.
+    Without this, the SAME measurement lands in one file or the other depending on which path files it —the blocked
+    branch writes to V2-176, the grouped branch to V2-167— and a case's evidence is split between two initiatives.
+    This was seen on 2026-08-20 while preparing the handoff: both umbrellas had rounds for the same case, and the
+    person who has to fix it cannot tell that half is missing.
     """
     from tests.use_cases.e2e.agent import initiative as I, segments as SG, scenarios as SC
 
