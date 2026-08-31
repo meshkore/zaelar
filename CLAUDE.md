@@ -6581,6 +6581,35 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **A catalog costs nothing until it is CONNECTED (V2-526, 2026-08-31 — DESIGN, no code yet)**: before any new
+  connector is written, the shelf. Measured first: the messaging `PROTOCOL` block is **1656 chars (~473 tokens)
+  for THREE connectors**, re-injected every turn — thirty more written that way would put 4-5k tokens on turns
+  that touch none of them. The rule, and it is a hard one: **anything merely LISTED contributes 0 prompt bytes,
+  0 tool entries and 0 startup imports.** Only what is connected, or what a lookup just selected for this task,
+  costs anything. Consequences worth knowing before touching it:
+  - **Declaration is DATA, implementation is CODE, in separate files** (`connectors/catalog/*.json`).
+    `registry.py` imports a module per family inside `descriptors()`; fine for six, a hundred imports for a
+    hundred — the startup clause is the one that gets forgotten.
+  - **Discovery uses NO language model.** A lexical index over the manifests' `capabilities` returns **at most
+    five** candidates, ranked connected > frequent > rest, and only then does the brain choose. Choosing 1 of 5
+    is a decision a model makes well; 1 of 10.000 is one it makes badly. What gets used is promoted to `state`
+    as a favourite — the same *open > recent > catalog* layering as V2-078, one level out.
+  - **MCP is a TRANSPORT, not a category** — it sits next to the Node bridge, in a `transport` field. What a
+    thing IS depends on who starts it and how long it lasts: **interface** (the other side starts it, a session,
+    identity+permissions — voice, chat, mobile shell, MeshKore cluster) · **connector** (the operator, once,
+    until revoked, their credential) · **supplier** (the engine, per task, no credential — mesh agents, the
+    Oracle, a public MCP server). So an MCP bound to the operator's account is a connector; a public one picked
+    per task is a supplier and belongs on the shelf `nucleo/mesh_agents.py` already hires from — **one lookup
+    path, not two**, or it inherits exactly the risk V2-169 exists to track.
+  - **Rendering is decided and costs no new widget**: `ChatWall` gets a fifth tab (it already has four, the
+    active one lives in `store.chatTab`, and the orb's ⏰ already opens it on a chosen tab) for browsing and
+    requesting; `ConfigPanel`'s existing "conectores" tab (V2-083) keeps forms, QR and OAuth. That split is
+    **V2-520's rule one level up — voice carries INTENT only, never a credential**, and it is already pinned by
+    a test. Both surfaces read the same manifests so they cannot drift.
+  - The ratchet that IS the initiative: build the prompt with the real catalog and again with N synthetic
+    `planned` manifests → **byte-identical**. It must fail loudly the first time someone helpfully adds "just a
+    short list of names".
+
 - **⏻ ON has to START it — the reload was the tell (V2-525, 2026-08-31)**: «al darle al botón de arranque se me
   queda en amarillo parpadeando y creo que al cabo de un minuto o dos sí que arranca. Pero si hago un refresh de
   la página, automáticamente ya se pone en marcha todo.» Two faults stacked:
