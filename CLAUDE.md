@@ -6577,6 +6577,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `personalizado-reproduzca-video`, `temporizador-pomodoro-ayudar`) — move them out under `_user/` (repo
     privacy procedure applies) or bless them in `registry._BUILTINS` as shipped examples. And the frontend
     still lacks the visual "restore" affordance the `forked` flag exists for.
+  - RESOLVED 2026-08-31 (operator): the seven personal widgets were **deleted everywhere** (repo, disk,
+    dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
+    V2-518 (below).
+
+- **The widget's CONFIG corner + confirmations live in the CHAT (V2-518, 2026-08-31)**: operator's design.
+  The card's existing ⚙ panel (the alias editor) is the config corner: right under the title it now says
+  where the piece comes from — "Tu fork del widget de sistema «id»" **with the Restaurar button** (never on
+  the widget's face), "Widget de sistema · id de referencia: «id»", or "Widget tuyo". The button only OPENS
+  the confirmation (`POST /widgets/{id}/restore/ask` → `confirm.request_restore`): the question lands **in
+  the chat thread with Sí/No** (house norm, restated by the operator: NO popups — questions render in the
+  conversation, answerable there, on the card overlay, or by voice) and resolves through the same
+  `/widgets/{id}/confirm` gate as everything else. `store.widgetConfirm` mirrors the SSE
+  `confirm`/`confirm-cancel` events that already paint the card overlay; a widget with `confirm_ui:false`
+  stays fully voice-only (no emit → no bubble), by design. RENDER-VERIFIED live (Chromium 1280×800): fork
+  panel, system-id panel, chat bubble, Sí discards the real fork from disk. The render caught what no unit
+  test sees: the button clipped inside short cards (`.hb-aliases` gets max-height; the origin section sits
+  at the TOP so it never scrolls out of sight). Mobile shell (`frontend/mobile/`) has no ⚙ panel — pending
+  decision.
 
 ## Testing y rueda de mejora (INI-013)
 
