@@ -1,4 +1,4 @@
-"""Test de volcado a memoria de los mensajes entrantes (V2-003 · T57)."""
+"""Test dumping incoming messages to memory (V2-003 · T57)."""
 import pytest
 
 from connectors.messaging import store as msgstore
@@ -26,7 +26,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def isolated_widget_store(monkeypatch):
-    """Aísla el store de UI del widget (widgets/_data) para no tocar el disco real."""
+    """Isolate the widget's UI store (widgets/_data) so the real disk is not touched."""
     state = {"db": msgstore._empty()}
     monkeypatch.setattr(msgstore, "load", lambda: state["db"])
     monkeypatch.setattr(msgstore, "save", lambda db: state.update(db=db) or db)
@@ -39,9 +39,9 @@ def test_incoming_message_becomes_searchable_memory(fresh_db, isolated_widget_st
         "body": "¿nos vemos mañana para lo del alquiler?", "urgencia": "alta",
         "dirigido_a_mi": True,
     }])
-    # el mensaje entró al store de UI...
+    # the message entered the UI store...
     assert any(it["body"].startswith("¿nos vemos") for it in isolated_widget_store["db"]["items"])
-    # ...y ADEMÁS es un recuerdo `msg` recuperable
+    # ...and is ALSO a retrievable `msg` memory
     res = memret.search("alquiler", limit=5, expand=False)
     assert res, "el mensaje entrante debe ser buscable en la memoria"
     row = memdb.get_db().query_one("SELECT kind FROM memories WHERE text LIKE '%alquiler%'")
@@ -51,7 +51,7 @@ def test_incoming_message_becomes_searchable_memory(fresh_db, isolated_widget_st
 def test_duplicate_not_dumped_twice(fresh_db, isolated_widget_store):
     item = {"messageId": "dup", "chatId": "c", "senderName": "X", "body": "hola qué tal", "urgencia": "media"}
     msgstore.upsert_items("whatsapp", [item])
-    msgstore.upsert_items("whatsapp", [item])   # mismo messageId → dedupe en el store
+    msgstore.upsert_items("whatsapp", [item])   # same messageId → deduplicate in the store
     rows = memdb.get_db().query("SELECT id FROM memories WHERE text LIKE '%hola qué tal%'")
     assert len(rows) == 1
 

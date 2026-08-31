@@ -1,8 +1,8 @@
 #
-# test_ingest.py — la capa STATELESS de mensajería v2 (V2-008). Verifica: el gate v2 (sigue al cerebro nucleo,
-# con override por env), la publicación de connector.msg / connector.status / msg.mark_read al bus, y que la
-# MarkReadInbox de un conector solo drena las órdenes de SU plataforma.
-# Ejecutar: .venv/bin/python -m pytest tests/connectors/unit/messaging/test_ingest.py
+# test_ingest.py — the STATELESS v2 messaging layer (V2-008). Verifies: the v2 gate (follows the nucleo brain,
+# with an env override), publication of connector.msg / connector.status / msg.mark_read to the bus, and that a
+# connector's MarkReadInbox only drains orders for ITS platform.
+# Run: .venv/bin/python -m pytest tests/connectors/unit/messaging/test_ingest.py
 #
 import pytest
 
@@ -57,7 +57,7 @@ def test_mark_read_inbox_filters_by_platform():
     tg_keys = tg.drain()
     assert [k["messageId"] for k in wa_keys] == ["wa1"]
     assert [k["messageId"] for k in tg_keys] == ["tg1"]
-    # drenado consume: un segundo drain no repite.
+    # Draining consumes: a second drain does not repeat.
     assert wa.drain() == []
     wa.close()
     tg.close()

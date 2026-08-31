@@ -13,7 +13,7 @@ from widgets.mensajeria import data as mdata
 
 @pytest.fixture
 def isolated_store(monkeypatch):
-    """Aísla el fichero de estado del widget (mismo id, mismo backend) para no tocar el disco real."""
+    """Isolate the widget state file (same ID, same backend) so the real disk is not touched."""
     state = {}
 
     def _load(wid, default=None):
@@ -37,11 +37,11 @@ def _seed_email_item(**over):
 
 
 def test_reply_enqueues_pending_reply_with_threading(isolated_store, monkeypatch):
-    # un chat de email en el store (sin volcado a memoria: lo cortocircuitamos)
+    # An email chat in the store (without dumping to memory: we short-circuit it)
     monkeypatch.setattr(msgstore, "_to_memory", lambda items: None)
     msgstore.upsert_items("email", [_seed_email_item()])
 
-    # el operador responde al CHAT nº1 (lista de chats, sin chat abierto)
+    # The operator replies to CHAT #1 (chat list, with no chat open)
     mdata.apply_action("reply", {"n": 1, "text": "Sí, allí estaré"})
 
     pending = msgstore.take_pending_reply("email")
@@ -50,16 +50,16 @@ def test_reply_enqueues_pending_reply_with_threading(isolated_store, monkeypatch
     assert r["platform"] == "email"
     assert r["to"] == "pablo@example.com"
     assert r["subject"] == "Cena"
-    assert r["msgid"] == "<abc@ex>"           # threading correcto
+    assert r["msgid"] == "<abc@ex>"           # correct threading
     assert r["text"] == "Sí, allí estaré"
-    assert r["messageId"] == "99"             # UID para marcar leído tras enviar
+    assert r["messageId"] == "99"             # UID to mark as read after sending
 
 
 def test_reply_also_marks_read_and_removes_item(isolated_store, monkeypatch):
     monkeypatch.setattr(msgstore, "_to_memory", lambda items: None)
     msgstore.upsert_items("email", [_seed_email_item()])
     mdata.apply_action("reply", {"n": 1, "text": "vale"})
-    # el item respondido se quita de la lista y se encola su mark-read
+    # The replied-to item is removed from the list and its mark-read is queued
     assert not mdata.view_data()["items"]
     reads = msgstore.take_pending_read("email")
     assert any(k["messageId"] == "99" for k in reads)
@@ -69,11 +69,11 @@ def test_reply_ignored_without_text(isolated_store, monkeypatch):
     monkeypatch.setattr(msgstore, "_to_memory", lambda items: None)
     msgstore.upsert_items("email", [_seed_email_item()])
     mdata.apply_action("reply", {"n": 1, "text": "   "})
-    assert not msgstore.take_pending_reply()   # nada encolado
+    assert not msgstore.take_pending_reply()   # nothing queued
 
 
 def test_reply_inbox_filters_by_platform():
-    """ReplyInbox('email') solo consume msg.reply de email; descarta los de otras plataformas."""
+    """ReplyInbox('email') only consumes email msg.reply messages; it discards those from other platforms."""
     from connectors.messaging import ingest
     inbox = ingest.ReplyInbox("email")
     try:

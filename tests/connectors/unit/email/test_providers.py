@@ -1,4 +1,4 @@
-"""Tests del REGISTRO de proveedores de email (V2-055) — puro, sin red."""
+"""Tests for the email provider REGISTRY (V2-055) — pure, no network."""
 from connectors.email import providers as pv
 
 
@@ -16,7 +16,7 @@ def test_gmail_prefers_oauth_but_allows_password():
 
 def test_outlook_is_oauth_only():
     o = pv.get("outlook")
-    assert o.auth_methods == ("oauth",)          # Microsoft deshabilitó basic-auth → sin password
+    assert o.auth_methods == ("oauth",)          # Microsoft disabled basic auth → no password
     assert not o.supports("password")
     assert o.oauth and "outlook.office.com" in o.oauth.scopes[0]
 
@@ -45,4 +45,4 @@ def test_public_list_has_no_secrets_and_lists_all():
 
 def test_legacy_presets_alias():
     assert pv.PRESETS["gmail"]["imap_host"] == "imap.gmail.com"
-    assert "imap" not in pv.PRESETS         # 'otro' no tiene hosts → no está en PRESETS
+    assert "imap" not in pv.PRESETS         # 'other' has no hosts → it is not in PRESETS

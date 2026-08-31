@@ -1,4 +1,4 @@
-"""Tests de los parsers PUROS del conector email (V2-051) — sin red, sin store."""
+"""Tests of the email connector's PURE parsers (V2-051) — no network, no store."""
 from connectors.email import mailbox as mb
 
 
@@ -83,12 +83,12 @@ def test_send_reply_oauth_uses_xoauth2(monkeypatch):
     class _FakeSMTP:
         def ehlo(self): calls["ehlo"] = True
         def docmd(self, cmd, arg): calls["auth"] = (cmd, arg); return (235, b"OK")
-        def login(self, *a): calls["login"] = a          # NO debe llamarse en modo oauth
+        def login(self, *a): calls["login"] = a          # MUST NOT be called in OAuth mode
         def send_message(self, msg): calls["sent"] = msg
         def quit(self): pass
         def close(self): pass
     monkeypatch.setattr(m, "_connect_smtp", lambda: _FakeSMTP())
     ok, mid = m.send_reply("x@y.com", "Hi", "cuerpo", "<id@x>")
     assert ok
-    assert "login" not in calls                      # password login no se usa con OAuth
+    assert "login" not in calls                      # password login is not used with OAuth
     assert calls["auth"][0] == "AUTH" and calls["auth"][1].startswith("XOAUTH2 ")

@@ -1,4 +1,4 @@
-"""Tests del seam agnóstico de música (V2-041): registro + fachada."""
+"""Tests for the music-agnostic seam (V2-041): registry + facade."""
 from connectors import music
 from connectors.music import registry
 from connectors.music.base import MusicProvider, MusicResult, NowPlaying, Track
@@ -45,7 +45,7 @@ class _Fake(MusicProvider):
 
 def _reset():
     registry._PROVIDERS.clear()
-    registry._loaded = True          # evita cargar los built-in (aislamiento del test)
+    registry._loaded = True          # prevents loading the built-ins (test isolation)
 
 
 def test_no_provider_returns_hablable_message():
@@ -75,12 +75,12 @@ def test_control_routes_play_and_volume():
     music.control("volume_up")               # 50 (now_playing) + 15
     music.control("volume_down")             # 50 - 15
     assert ("volume", 65) in f.calls and ("volume", 35) in f.calls
-    music.control("stop")                    # stop = pausar
+    music.control("stop")                    # stop = pause
     assert ("pause",) in f.calls
 
 
 def test_lazy_registry_loads_builtin_spotify():
-    # El registro carga spotify de forma perezosa por su símbolo; sin credenciales queda no-conectado (no crashea).
+    # The registry lazily loads Spotify by its symbol; without credentials it remains disconnected (does not crash).
     registry._PROVIDERS.clear()
     registry._loaded = False
     names = {p.name for p in registry.providers()}
