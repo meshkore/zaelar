@@ -1,19 +1,19 @@
-"""V2-451 · el bloque de filas colgaba de la PESTAÑA, así que un encargo sin navegador no enseñaba ninguna.
+"""V2-451 · the rows block depended on the TAB, so an errand without a browser showed none.
 
-`_sheet_top_rows` resuelve la hoja DESDE la tarea de navegador, y `navegador_lines()` solo compone caras si
-hay tareas. Un encargo resuelto por BÚSQUEDA no tiene pestaña: llena la hoja y el prompt no nombra una sola
-fila — y ni siquiera se emite el aviso de V2-438, porque vive dentro de la función que nadie llama.
+`_sheet_top_rows` resolves the sheet FROM the browser task, and `navegador_lines()` only composes cards if
+there are tasks. An errand resolved by SEARCH has no tab: it fills the sheet and the prompt does not name a
+single row — and it does not even emit the V2-438 warning, because it lives inside the function nobody calls.
 
-Medido en `cheapest-monitor__us` (2026-08-28, plató 24/7):
+Measured in `cheapest-monitor__us` (2026-08-28, 24/7 set):
 
-    navegador_task_id: ""            ← no hubo navegador en toda la ronda
-    results_sheet: 6 filas con nombre y precio (Dell S2725QC, LG 27UP650-W, BenQ GW2790QT…)
+    navegador_task_id: ""            ← there was no browser for the entire round
+    results_sheet: 6 rows with name and price (Dell S2725QC, LG 27UP650-W, BenQ GW2790QT…)
     delivery_completeness: {named: 0, available: 6, shown_to_model: false}
-    unresolved_errand_sheets: TODO a cero — ni un aviso
+    unresolved_errand_sheets: TODO down to zero — not even one warning
 
-y el juez de bloqueador: «respondió con una promesa vacía ("I'll get back to you") sin entregar nada. La hoja
-de resultados ya tenía 6». Es la causa que quedaba abierta desde V2-432, V2-441 y V2-444: la hoja es del
-ENCARGO (V2-259) y el prompt solo sabía leerla por el navegador.
+and the blocker judge: «it responded with an empty promise ("I'll get back to you") without delivering anything.
+The results sheet already had 6». This is the cause left open since V2-432, V2-441, and V2-444: the sheet belongs
+to the ERRAND (V2-259), and the prompt only knew how to read it through the browser.
 """
 import pytest
 
@@ -52,16 +52,16 @@ def test_las_filas_de_su_hoja_llegan_al_prompt_SIN_pestana_de_navegador():
 
 
 def test_sin_filas_no_se_dice_nada():
-    """Un bloque que sale siempre deja de leerse, y anunciar una entrega vacía es la mentira de V2-209."""
-    # Hoja PROPIA: el almacén se comparte entre tests, así que reusar la del caso anterior lee sus filas y el
-    # test falla por el motivo equivocado — comprobado, falló así al escribirlo.
+    """A block that always appears stops being read, and announcing an empty delivery is the lie of V2-209."""
+    # OWN sheet: the store is shared between tests, so reusing the previous case's reads its rows and the
+    # test fails for the wrong reason — confirmed, it failed that way when it was written.
     _encargo_sin_navegador(sheet="v451-vacia", filas=())
     assert "YA ENTREGADO (de su hoja)" not in "\n".join(LB.pending_task_lines())
 
 
 def test_sin_hoja_sellada_no_se_inventa_ninguna():
-    """Un encargo sin hoja lee la caja PELADA si se le deja, y ésa es el cementerio de rondas anteriores
-    (V2-281): enseñaría hallazgos de OTRO encargo como si fueran de éste."""
+    """An errand without a sheet reads the BARE box if allowed to, and that is the graveyard of previous rounds
+(V2-281): it would show findings from ANOTHER errand as if they belonged to this one."""
     rec = SessionRecord(task_id="w1", goal="algo", kind="web")
     rec.status, rec.sheet = "running", ""
     D._SESSIONS["w1"] = rec
@@ -72,26 +72,25 @@ def test_sin_hoja_sellada_no_se_inventa_ninguna():
 
 
 def test_una_fila_SIN_precio_lo_dice_en_vez_de_callarlo():
-    """Misma regla que `_sheet_top_rows` (V2-360): nombrar el hueco cuesta una palabra y cierra la
-    sustitución — un nombre a secas se lee como una opción comparable."""
+    """Same rule as `_sheet_top_rows` (V2-360): naming the gap costs one word and closes the
+substitution — a name on its own is read as a comparable option."""
     _encargo_sin_navegador(filas=(("Monitor sin importe", ""),))
     assert "SIN PRECIO" in "\n".join(LB.pending_task_lines())
 
 
 def test_el_resumen_del_encargo_LLEVA_su_hoja():
-    """La fontanería: sin el campo en `pending_summaries`, el bloque no tiene con qué leer y los cuatro de
-    arriba pasarían con el arreglo a medias."""
+    """The plumbing: without the field in `pending_summaries`, the block has nothing to read, and the four above
+would pass with only a partial fix."""
     rec = _encargo_sin_navegador()
     fila = next(x for x in D.pending_summaries() if x["id"] == "w1")
     assert fila.get("sheet") == rec.sheet
 
 
-# ── Y EL INSTRUMENTO TIENE QUE PODER VERLO ────────────────────────────────────────────────────────────────
-# El arreglo puso las filas en un bloque NUEVO con su propia cabecera, y `verify._rows_in` leía solo la del
-# navegador sobre la LÍNEA del navegador. Medido el 2026-08-28: en las cuatro rondas siguientes al arreglo
-# `navegador_task_id` estaba VACÍO en las cuatro, así que `shown_to_model` habría salido False para siempre y
-# yo habría concluido que el arreglo no funciona. Un arreglo que el instrumento no puede ver no se puede
-# verificar — y aquí el instrumento soy yo mismo dos horas antes.
+# ── AND THE INSTRUMENT MUST BE ABLE TO SEE IT ─────────────────────────────────────────────────────────────
+# The fix put the rows in a NEW block with its own header, and `verify._rows_in` read only the browser header
+# on the browser LINE. Measured on 2026-08-28: in the four rounds after the fix, `navegador_task_id` was EMPTY
+# in all four, so `shown_to_model` would have been False forever and I would have concluded that the fix did not
+# work. A fix the instrument cannot see cannot be verified — and here the instrument is me two hours earlier.
 def test_el_ARNES_reconoce_la_cabecera_del_bloque_de_tareas():
     from tests.use_cases.e2e.agent.verify import _rows_in
     _encargo_sin_navegador(sheet="v451-arnes", filas=(("Dell S2725QC", "$280"), ("LG 27UP650-W", "$230")))
@@ -100,17 +99,17 @@ def test_el_ARNES_reconoce_la_cabecera_del_bloque_de_tareas():
 
 
 def test_y_sigue_reconociendo_la_del_NAVEGADOR():
-    """Sensibilidad por el otro lado: enseñar a leer la nueva no puede costar la vieja, que es la que mide
-    todas las rondas con navegador."""
+    """Sensitivity in the other direction: teaching it to read the new one must not cost the old one, which is
+what measures all rounds with a browser."""
     from tests.use_cases.e2e.agent.verify import _ROWS_HEAD, _rows_in
     assert _rows_in(f"NAVEGADOR …{_ROWS_HEAD}«Bici Orbea — 150€». OJO: la hoja") == ["Bici Orbea"]
 
 
-# ── UN SOLO FORMATEADOR (V2-455) ──────────────────────────────────────────────────────────────────────────
-# V2-451 dejó DOS: el de la cara del navegador y el nuevo. Dos copias de una regla se separan sin avisar —
-# esta casa lo ha pagado cuatro veces esta semana— y la regla que formatean tiene tres inquilinos que
-# costaron una ronda cada uno: la ausencia dicha (V2-360), el teléfono como dato accionable (V2-240) y la
-# pista de búsqueda que NO es un candidato (V2-376).
+# ── A SINGLE FORMATTER (V2-455) ──────────────────────────────────────────────────────────────────────────
+# V2-451 left TWO: the one for the browser card and the new one. Two copies of a rule drift apart without warning —
+# this house has paid for it four times this week— and the rule they format has three tenants that each cost a
+# round: the stated absence (V2-360), the phone as actionable data (V2-240), and the search hint that is NOT a
+# candidate (V2-376).
 def test_las_DOS_lecturas_formatean_la_fila_IGUAL():
     from nucleo.flash import live_blocks as _LB
     from nucleo.flash.errand_sheet import fila
@@ -129,7 +128,6 @@ def test_el_formateador_conserva_las_TRES_reglas_que_costaron_una_ronda_cada_una
 
 
 def test_el_TELEFONO_tambien_se_lee_de_los_facts():
-    """Viene por los dos sitios según quién extraiga; leer solo uno pierde la mitad."""
+    """It comes from both places depending on who extracts it; reading only one loses half."""
     from nucleo.flash.errand_sheet import fila
     assert "600111222" in fila({"title": "Cerrajero", "facts": [{"label": "Teléfono", "value": "600111222"}]})
-

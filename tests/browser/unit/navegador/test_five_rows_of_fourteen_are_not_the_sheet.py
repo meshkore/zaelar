@@ -1,27 +1,27 @@
-"""La cara cortaba en cinco y se callaba, así que para el turno esas cinco ERAN la hoja (V2-374).
+"""The face cut off at five and said nothing, so for the turn those five WERE the sheet (V2-374).
 
-Segunda mitad de V2-234, que la nota del navegador aplica desde entonces («y N filas más de la misma página»)
-y esta superficie nunca tuvo.
+Second half of V2-234, which the browser note has applied ever since (“and N more rows from the same page”)
+and this surface never had.
 
-Medido en `search-buy-camera__es` (2026-08-27, 2/5). La hoja tenía **CATORCE** candidatos con nombre —Canon
+Measured in `search-buy-camera__es` (2026-08-27, 2/5). The sheet had **FOURTEEN** named candidates —Canon
 EOS 4000D, Nikon D3500, D5300, Canon 7D, EOS 1200D, Nikon D50, D800— y las cinco que llegaron al último turno,
-leídas de su prompt, fueron:
+read from its prompt, were:
 
-    «Cámara profesional Canon EOS 550D — 200 €»; «Funda Hama para cámara réflex — 9 €»;
-    «Mochila para cámara réflex — 25 €»; «Arnés para cámara — 15 €»; «Funda Kata e-702 — 25 €»
+    “Canon EOS 550D professional camera — 200 €”; “Hama case for SLR camera — 9 €”;
+    “SLR camera backpack — 25 €”; “Camera harness — 15 €”; “Kata e-702 case — 25 €”
 
-Cuatro de cinco eran ACCESORIOS. Zaelar cerró la conversación ofreciendo la funda de 9 € y la mochila de 25 €
-a quien pedía una réflex por menos de 400, y el watchdog lo había cantado en vivo: «Esos son accesorios, no
-cámaras».
+Four of the five were ACCESSORIES. Zaelar ended the conversation by offering the €9 case and the €25 backpack
+to someone asking for an SLR for less than 400, and the watchdog had called it out live: “Those are accessories, not
+cameras”.
 
-**No hay nada que reordenar, y conviene decirlo porque era mi primera hipótesis y era falsa**: reproducido
-contra el pipeline real (`dedupe_by_url` → `by_identity` → `by_amount`), el orden que llega es el del DOM,
-fielmente — fue Wallapop quien puso una funda la segunda. Tampoco eran dos hojas distintas, que fue la
-segunda hipótesis: las dos superficies leen la misma.
+**There is nothing to reorder, and it is worth saying so because it was my first hypothesis and it was false**: replayed
+against the real pipeline (`dedupe_by_url` → `by_identity` → `by_amount`), the order that arrives is the DOM order,
+faithfully — Wallapop was the one that put a case second. Nor were they two different sheets, which was the
+second hypothesis: both surfaces read the same one.
 
-Lo que faltaba era decir que había más. Con nueve filas escondidas y sin saberlo, «di solo lo que RESPONDE a
-lo que pidió» es una instrucción que el prompt hace difícil de cumplir — el modelo no puede elegir entre lo
-que no ve (V2-330).
+What was missing was saying that there were more. With nine rows hidden and without knowing it, “give only what
+ANSWERS what was asked for” is an instruction that the prompt makes difficult to follow — the model cannot choose among what
+it cannot see (V2-330).
 """
 import pytest
 
@@ -64,14 +64,14 @@ def test_la_ronda_medida_ya_DICE_que_hay_nueve_mas(hoja):
 
 
 def test_las_cinco_filas_SIGUEN_saliendo_enteras(hoja):
-    """Contar el resto no puede costar ni una de las que sí se listan."""
+    """Counting the remainder must not cost even one of the rows that are actually listed."""
     filas = LB._sheet_top_rows(hoja(CAMARAS), 5)
     assert filas[0] == "«Cámara profesional Canon EOS 550D — 200 €»"
     assert sum(1 for f in filas if f.startswith("«")) == 5
 
 
 def test_con_la_hoja_JUSTA_no_se_dice_nada(hoja):
-    """Sensibilidad: cinco de cinco no esconde nada, y una coletilla que sale siempre deja de ser señal."""
+    """Sensitivity: five out of five hides nothing, and a suffix that always appears ceases to be a signal."""
     filas = LB._sheet_top_rows(hoja(CAMARAS[:5]), 5)
     assert len(filas) == 5
     assert not any("más" in f for f in filas)
@@ -88,16 +88,16 @@ def test_una_sola_escondida_se_dice_igual(hoja):
 
 
 def test_las_filas_SIN_NOMBRE_no_se_cuentan_como_candidatos(hoja):
-    """Una fila sin título no tiene identidad de cosa (V2-234), así que contarla inflaría el número y le haría
-    creer que le escondemos hallazgos que no existen."""
+    """A row without a title has no thing identity (V2-234), so counting it would inflate the number and make it
+    believe that we are hiding findings that do not exist."""
     items = CAMARAS[:5] + [{"title": "", "price": "1 €"}, {"title": "  ", "price": "2 €"}]
     filas = LB._sheet_top_rows(hoja(items), 5)
     assert len(filas) == 5, filas
 
 
 def test_la_linea_NO_afirma_la_pantalla(hoja):
-    """V2-278: nunca decir dónde vive. Dice que están en la HOJA —una escritura que ya ocurrió, igual que las
-    otras cinco— y nunca «en pantalla»."""
+    """V2-278: never say where it lives. It says that they are in the SHEET —a write that already happened, just like the
+    other five— and never “on screen”."""
     filas = LB._sheet_top_rows(hoja(CAMARAS), 5)
     assert "en pantalla" not in filas[-1]
 

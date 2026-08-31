@@ -1,18 +1,19 @@
-"""Cada cara del bloque del navegador tiene que poder DISPARARSE en producción (V2-201).
+"""Every face of the browser block must be able to be TRIGGERED in production (V2-201).
 
-Dos veces la misma noche un arreglo pasó sus tests sin hacer nada:
+Twice on the same night, a fix passed its tests without doing anything:
 
-  · **V2-199** — `recently_ended_sessions()` leía `_SESSIONS` para las sesiones acabadas, y `_run_session`
-    saca el registro en su `finally`. Los tests colocaban el registro y no lo sacaban nunca.
-  · **V2-200** — la cara «ya encontró algo» leía `results` de la tarea, y los tres sitios que lo escriben
-    llaman a `finish()` acto seguido: una tarea ACTIVA con resultados no existe. Los tests la fabricaban.
+  · **V2-199** — `recently_ended_sessions()` read `_SESSIONS` for finished sessions, and `_run_session`
+    removes the record in its `finally`. The tests placed the record there and never removed it.
+  · **V2-200** — the “already found something” face read the task’s `results`, and the three places that
+    write it call `finish()` immediately afterward: an ACTIVE task with results does not exist. The tests fabricated it.
 
-Los dos se encontraron preguntándole al CÓDIGO si el estado que el test construye llega a existir. Este
-fichero es esa pregunta, hecha una vez y para siempre: **por cada condición sobre la que el bloque se
-ramifica, tiene que existir código de producción que la escriba.**
+Both were found by asking the CODE whether the state constructed by the test can ever exist. This file
+asks that question once and for all: **for every condition on which the block branches, production code
+must exist that writes it.**
 
-No prueba que la cara sea CORRECTA —para eso están los tests de al lado— sino que no es código muerto. Es la
-diferencia entre «este arreglo está mal» y «este arreglo no existe», que es la que costó dos rondas.
+It does not test that the face is CORRECT —that is what the neighboring tests are for—but that it is not
+dead code. That is the difference between “this fix is wrong” and “this fix does not exist,” which is what
+cost two rounds.
 """
 from __future__ import annotations
 
@@ -49,7 +50,7 @@ def _load():
     yield
 
 
-# (cara, patrón que la escribe en producción, por qué importa)
+# (face, pattern that writes it in production, why it matters)
 FACES = [
     ("MURO", r"update_view\(", "el muro sale de la URL que escribe `update_view`, que llama el navegador real"),
     ("SIN MOVERSE", r"add_event\(|update_view\(", "el atasco se mide contra `last_progress`, que mueven ambos"),
@@ -67,26 +68,26 @@ def test_the_condition_behind_each_face_has_a_production_writer(face, pattern, w
         "Una cara que no puede dispararse es código muerto que además parece un arreglo hecho.")
 
 
-#: Dónde vive el bloque. Estuvo dentro de `prompt.live_state()` hasta el 2026-08-24, cuando el trinquete de
-#: arquitectura lo mandó a `live_blocks.py` (V2-276). Se apunta al fichero y NO a la carpeta entera a
-#: propósito: buscar «MURO» en todo el motor pasaría por los tests y por cualquier comentario, y este guarda
-#: existe justo para que renombrar una cara falle.
+#: Where the block lives. It was inside `prompt.live_state()` until 2026-08-24, when the architecture
+#: ratchet moved it to `live_blocks.py` (V2-276). It points to the file and NOT the entire directory on
+#: purpose: searching for “MURO” throughout the engine would include the tests and any comment, and this
+#: guard exists precisely so that renaming a face fails.
 _BLOCK = ROOT / "nucleo" / "flash" / "live_blocks.py"
 
 
 def test_and_the_block_really_branches_on_all_of_them():
-    """La otra mitad: que los patrones de arriba sigan siendo las caras de verdad. Si alguien renombra una,
-    este fichero dejaría de vigilar nada sin fallar."""
+    """The other half: ensuring that the patterns above remain the actual faces. If someone renames one,
+    this file would stop monitoring anything without failing."""
     src = _BLOCK.read_text(encoding="utf-8")
     for face, _, _ in FACES:
         assert face in src, f"«{face}» ya no aparece en el bloque — actualiza FACES o la cara desapareció"
 
 
 def test_y_el_bloque_SIGUE_llegando_al_prompt():
-    """La mudanza no puede dejar las caras compuestas y sin llamante: eso las haría código muerto otra vez.
+    """The move must not leave the faces composed but with no caller: that would make them dead code again.
 
-    Es literalmente el fallo que este fichero existe para cazar (V2-199/V2-200), aplicado a la extracción que
-    lo movió. Se comprueba RENDERIZANDO, no leyendo el `import`.
+    This is literally the failure this file exists to catch (V2-199/V2-200), applied to the extraction that
+    moved it. It is checked by RENDERING, not by reading the `import`.
     """
     from nucleo.flash import live_blocks, prompt
     assert prompt._live_blocks is live_blocks
@@ -96,8 +97,8 @@ def test_y_el_bloque_SIGUE_llegando_al_prompt():
 
 
 def test_an_ACTIVE_task_with_results_is_still_impossible():
-    """El hecho concreto que mató a V2-192, fijado aquí también porque es la razón de que la cara de
-    resultados lea la señal del worker y no el campo de la tarea."""
+    """The specific fact that killed V2-192, recorded here as well because it is why the results face
+    reads the worker signal rather than the task field."""
     for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py"):
         src = (ROOT / rel).read_text(encoding="utf-8", errors="replace")
         for m in re.finditer(r"set_results\(", src):

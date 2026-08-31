@@ -1,16 +1,16 @@
-"""V2-454 · la oferta de parar una tarea atascada se repetía turno tras turno.
+"""V2-454 · the offer to stop a stuck task was repeated turn after turn.
 
-El bloque decía «si una tarea sale ENCALLADA o SIN AVANZAR, dilo con esas letras **la primera vez** que salga
-a colación y ofrece pararla», y el modelo **no puede saber si es la primera**: eso es un hecho NUESTRO, la
-misma lección que V2-224 aprendió con el aviso de muerte. Sin contarlo, la oferta se renderiza en TODOS los
-turnos que la tarea siga atascada.
+The block said “if a task becomes STUCK or NOT PROGRESSING, say so in those exact words **the first time** it
+comes up and offer to stop it,” and the model **cannot know whether it is the first time**: that is OUR fact, the
+same lesson that V2-224 learned with the death notice. Without telling it, the offer is rendered on EVERY
+turn while the task remains stuck.
 
-Medido sobre las 334 rondas guardadas: **49 (14 %) repiten la oferta de parar dos o más veces**, y diez de
-las últimas quince del 2026-08-28. El daño no es la redundancia — **el operador YA CONTESTÓ**: en
-`search-buy-used-car` (10:57) dijo «párale y prueba de nuevo, o miramos por otro sitio, tú decides» y el
-turno siguiente volvió a plantear la misma disyuntiva; el juez lo puso de bloqueador [alta].
+Measured across the 334 saved rounds: **49 (14%) repeat the offer to stop two or more times**, including ten of
+the last fifteen on 2026-08-28. The harm is not redundancy — **the operator ALREADY ANSWERED**: in
+`search-buy-used-car` (10:57) they said “stop it and try again, or we can look somewhere else; you decide,” and
+the next turn posed the same dilemma again; the judge classified it as a blocker [high].
 
-Y la regla que gobierna la redacción es la de V2-224: **callar la repetición no es callar el estado.**
+And the rule governing the wording is V2-224’s: **silencing the repetition is not silencing the state.**
 """
 import pytest
 
@@ -34,7 +34,7 @@ def _atascada(tid="w1"):
     rec = SessionRecord(task_id=tid, goal="busca un fontanero", kind="web")
     rec.status = "running"
     rec.started = time.time() - 900
-    rec.last_event_at = time.time() - 900          # ENCALLADA: sin señal
+    rec.last_event_at = time.time() - 900          # STUCK: no signal
     D._SESSIONS[tid] = rec
     return rec
 
@@ -48,14 +48,14 @@ def test_la_PRIMERA_vez_se_ofrece_parar():
 
 def test_la_SEGUNDA_vez_se_dice_que_NO_lo_vuelva_a_preguntar():
     _atascada()
-    TB.pending_task_lines()                        # turno 1: se la lleva delante
-    st = "\n".join(TB.pending_task_lines())        # turno 2
+    TB.pending_task_lines()                        # turn 1: it carries the offer forward
+    st = "\n".join(TB.pending_task_lines())        # turn 2
     assert "YA le ofreciste pararla" in st and "NO se lo vuelvas a preguntar" in st
 
 
 def test_pero_el_HECHO_se_sigue_diciendo():
-    """La regla de V2-224: callar la repetición NO es callar el estado. Si al quitar la oferta se quitara el
-    hecho, el turno volvería a «sigue en marcha» — que es el silencio que V2-131 cerró."""
+    """The V2-224 rule: silencing the repetition is NOT silencing the state. If removing the offer also removed
+    the fact, the turn would revert to “still running” — the silence that V2-131 closed off."""
     _atascada()
     TB.pending_task_lines()
     st = "\n".join(TB.pending_task_lines())
@@ -63,8 +63,8 @@ def test_pero_el_HECHO_se_sigue_diciendo():
 
 
 def test_una_tarea_SANA_no_marca_nada():
-    """Sensibilidad: si se marcara siempre, la primera tarea que SÍ se atasque nacería ya «ofrecida» y nadie
-    le ofrecería nunca parar nada."""
+    """Sensitivity: if it were always marked, the first task that actually got stuck would already start as
+    “offered,” and no one would ever offer to stop anything for it."""
     import time
     rec = SessionRecord(task_id="w2", goal="algo", kind="web")
     rec.status, rec.started, rec.last_event_at = "running", time.time(), time.time()
@@ -74,15 +74,16 @@ def test_una_tarea_SANA_no_marca_nada():
 
 
 def test_cada_tarea_lleva_su_propia_cuenta():
-    """Dos encargos atascados son dos ofertas: compartir la marca dejaría al segundo sin que nadie le
-    ofreciera nada."""
+    """Two stuck assignments mean two offers: sharing the marker would leave the second one without anyone
+    offering it anything."""
     _atascada("w1"); _atascada("w3")
     TB.pending_task_lines()
     assert D.stall_offered("w1") == 1 and D.stall_offered("w3") == 1
 
 
 def test_el_bloque_le_DICE_al_modelo_que_no_repita_la_pregunta():
-    """La instrucción, no solo la marca: sin la frase, el modelo tiene el hecho y no sabe qué hacer con él."""
+    """The instruction, not just the marker: without the phrase, the model has the fact and does not know what
+    to do with it."""
     _atascada()
     st = "\n".join(TB.pending_task_lines())
     assert "la pregunta NO se \nrepite" in st or "la pregunta NO se repite" in st.replace("\n", "")

@@ -1,18 +1,18 @@
-"""Unos argumentos ilegibles no son una acción SIN argumentos (V2-253).
+"""Unreadable arguments are not an argument-less action (V2-253).
 
-Sale del barrido que adoptó el cluster el 2026-08-21, con la regla que propuso memoria-dev: **un techo solo es
-peligroso si el lector acepta PREFIJOS**. El arnés barrió sus cuatro topes y los declaró seguros (exigen JSON
-entero y caen a un default). Al barrer los del motor con el mismo criterio, todos los lectores resultaron seguros
-—`attention._parse_directed` y `segmenter._parse_judge` exigen el objeto entero y fallan a un valor conservador—
-menos uno: el que conduce el NAVEGADOR.
+It comes from the sweep adopted by the cluster on 2026-08-21, using the rule proposed by memoria-dev: **a limit is only
+dangerous if the parser accepts PREFIXES**. The harness swept its four limits and declared them safe (they require
+complete JSON and fall back to a default). Sweeping the engine's limits with the same criterion, all parsers proved safe
+—`attention._parse_directed` and `segmenter._parse_judge` require the complete object and fall back to a conservative value—
+except one: the one that drives the BROWSER.
 
-`_next_action` devolvía **el NOMBRE de la acción con `{}`** cuando el JSON de sus argumentos no parseaba. O sea
-que el bucle ejecutaba `click` sin ref, `type` sin texto o `navigate` sin url: una acción plausible con lo que el
-modelo dijo BORRADO. Es la familia de V2-171 —«una tool call truncada se descarta en silencio»— y aquí es peor,
-porque no se descarta: **se actúa**.
+`_next_action` returned **the action NAME with `{}`** when its arguments' JSON could not be parsed. In other words,
+the loop executed `click` without a ref, `type` without text, or `navigate` without a URL: a plausible action based on
+what the model said DELETED. It is part of the V2-171 family —“a truncated tool call is silently discarded”— and here it is worse,
+because it is not discarded: **the action is taken**.
 
-Y se distingue quién lo rompió, que es la mitad útil: el TOPE es nuestro y se arregla subiéndolo; unos argumentos
-inválidos son del modelo y se arreglan reintentando. «No emitió acción» tapaba las dos.
+And it distinguishes who broke it, which is the useful half: the LIMIT is ours and is fixed by raising it; invalid arguments
+come from the model and are fixed by retrying. “No action emitted” hid both cases.
 """
 import asyncio
 import json
@@ -60,7 +60,7 @@ def _decidir(monkeypatch, resp):
         agent._next_action([{"role": "system", "content": "x"}], [], strong=False))
 
 
-# ── el caso ──────────────────────────────────────────────────────────────────────────────────────────────────
+# ── the case ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_un_JSON_a_medias_NO_se_ejecuta_como_accion_vacia(monkeypatch):
     accion, args = _decidir(monkeypatch, _Resp([_TC("click", '{"ref": 2')], finish_reason="length"))
@@ -75,8 +75,8 @@ def test_dice_que_lo_CORTAMOS_NOSOTROS_cuando_fue_el_tope(monkeypatch):
 
 
 def test_y_que_fue_el_MODELO_cuando_no_lo_fue(monkeypatch):
-    """La otra mitad: unos argumentos inválidos con el turno entero entregado son del modelo, y se arreglan
-    reintentando. Confundirlas manda a mirar al sitio equivocado."""
+    """The other half: invalid arguments with the entire turn delivered come from the model and are fixed by
+    retrying. Confusing them sends investigation to the wrong place."""
     _, args = _decidir(monkeypatch, _Resp([_TC("click", "no soy json")], finish_reason="stop"))
     assert "ilegibles" in args["_error"] and "tope" not in args["_error"]
 
@@ -86,7 +86,7 @@ def test_sin_ninguna_accion_tambien_se_dice_si_fue_el_tope(monkeypatch):
     assert accion is None and "tope de tokens" in args["_error"]
 
 
-# ── la otra dirección: el camino bueno no cambia ─────────────────────────────────────────────────────────────
+# ── the other direction: the successful path remains unchanged ─────────────────────────────────────────────
 
 def test_una_accion_BIEN_formada_pasa_igual(monkeypatch):
     accion, args = _decidir(monkeypatch, _Resp([_TC("click", json.dumps({"ref": 7}))], finish_reason="stop"))
@@ -94,14 +94,14 @@ def test_una_accion_BIEN_formada_pasa_igual(monkeypatch):
 
 
 def test_unos_argumentos_VACIOS_de_verdad_siguen_valiendo(monkeypatch):
-    """`snapshot` o `back` no llevan argumentos: `{}` legítimo no puede confundirse con `{}` de un fallo."""
+    """`snapshot` and `back` take no arguments: legitimate `{}` must not be confused with `{}` from a failure."""
     accion, args = _decidir(monkeypatch, _Resp([_TC("snapshot", "{}")], finish_reason="stop"))
     assert accion == "snapshot" and args == {}
 
 
 def test_el_BUCLE_apunta_el_motivo_y_no_una_frase_generica():
-    """GUARDA DE CABLEADO (V2-199): el motivo puede estar perfecto y el bucle seguir escribiendo «no emitió
-    acción» en los pasos, que es justo lo que manda a mirar al modelo cuando el tope es nuestro."""
+    """WIRING GUARD (V2-199): the reason may be perfect while the loop keeps writing “no action emitted” in the
+    steps, which is exactly what directs investigation to the model when the limit is ours."""
     import inspect
     src = inspect.getsource(agent)
     assert 'steps.append(args.get("_error") or "(el modelo no emitió acción)")' in src
@@ -112,8 +112,8 @@ def test_el_BUCLE_apunta_el_motivo_y_no_una_frase_generica():
     ("_parse_judge", "nucleo.flash.segmenter"),
 ])
 def test_los_OTROS_lectores_del_motor_exigen_el_objeto_entero(lector, fuente):
-    """El barrido, clavado: si alguno se relaja y empieza a aceptar un prefijo, su techo se vuelve peligroso sin
-    que nada falle. Los dos parsean JSON y caen a un valor conservador (None / «incomplete»)."""
+    """The sweep, nailed down: if either parser relaxes and starts accepting a prefix, its limit becomes dangerous
+    without anything failing. Both parse JSON and fall back to a conservative value (None / “incomplete”)."""
     import importlib
     import inspect
     src = inspect.getsource(getattr(importlib.import_module(fuente), lector))
@@ -121,10 +121,10 @@ def test_los_OTROS_lectores_del_motor_exigen_el_objeto_entero(lector, fuente):
     assert "except" in src
 
 
-# ── y se cuenta por el canal que YA existe (V2-255) ──────────────────────────────────────────────────────────
-# `tool_dropped` nació en V2-171 para exactamente este suceso en el FlashBrain, y el arnés ya lo lee (su nodo
-# 10.6). El navegador tenía el mismo suceso y lo contaba solo en su lista de pasos: para cualquier instrumento
-# de fuera, no ocurría. Estrenar un kind nuevo habría obligado a cambiar a quien ya lo consume.
+# ── and it is counted through the channel that ALREADY exists (V2-255) ─────────────────────────────────────
+# `tool_dropped` originated in V2-171 for exactly this event in FlashBrain, and the harness already reads it (its node
+# 10.6). The browser had the same event and counted it only in its steps list: to any external instrument, it did not
+# occur. Introducing a new kind would have forced changes in the existing consumer.
 
 def test_una_accion_descartada_SALE_por_tool_dropped(monkeypatch):
     vistos = []
@@ -138,7 +138,7 @@ def test_una_accion_descartada_SALE_por_tool_dropped(monkeypatch):
 
 
 def test_una_accion_BUENA_no_emite_nada(monkeypatch):
-    """Sensibilidad: si esto se disparara siempre, el contador de acciones descartadas dejaría de significar nada."""
+    """Sensitivity: if this fired every time, the discarded-actions counter would cease to mean anything."""
     vistos = []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append(a), raising=False)
@@ -147,7 +147,7 @@ def test_una_accion_BUENA_no_emite_nada(monkeypatch):
 
 
 def test_es_la_MISMA_forma_de_evento_que_la_del_FlashBrain():
-    """GUARDA DE FUENTE: quien ya consume `tool_dropped` no puede tener que cambiar para verlo también aquí."""
+    """SOURCE GUARD: a consumer that already consumes `tool_dropped` must not have to change to see it here too."""
     import inspect
 
     from nucleo.flash import fast_client

@@ -1,20 +1,20 @@
-"""V2-443 · sin filas, la cara afirmaba como HECHO lo que solo dice el worker.
+"""V2-443 · with no rows, the face stated as FACT what the worker merely says.
 
-`_found_candidates` tiene dos fuentes: las filas de la hoja (un hecho, las escribe `intake.push`) y `kept`,
-la cuenta que el propio worker escribe con `hbnote considered --kept N`. Sin filas solo queda la segunda —una
-AFIRMACIÓN suya, no algo comprobado— y el bloque la renderizaba como «YA HA ENCONTRADO algo», prohibiéndole
-además al turno decir lo contrario: «NO digas que sigue sin resultados … eso es falso».
+`_found_candidates` has two sources: the sheet's rows (a fact, written by `intake.push`) and `kept`,
+the count that the worker itself writes with `hbnote considered --kept N`. With no rows, only the second remains—a
+CLAIM of its own, not something verified—and the block rendered it as «YA HA ENCONTRADO algo», also forbidding
+the turn from saying the opposite: «NO digas que sigue sin resultados … eso es falso».
 
-Medido en `find-theatre-tickets__us` (2026-08-28, plató 24/7): la cara disparó **once veces** con
-`worker_outcome.found: []`, cero extracciones con filas y la hoja vacía en todas partes (censo de V2-440: los
-once avisos, DESFASE). El worker dijo tener finalistas y no había ninguno. Le poníamos al turno una
-afirmación falsa delante y le prohibíamos la verdadera, así que la única salida que le dejábamos era decirle
-al operador que ya estaba sacando cosas — y luego eso se puntúa como que el agente promete lo que no tiene.
+Measured on `find-theatre-tickets__us` (2026-08-28, 24/7 set): the face fired **eleven times** with
+`worker_outcome.found: []`, zero extractions with rows, and the sheet empty everywhere (V2-440 census: the
+eleven alerts, MISMATCH). The worker said it had finalists, and there were none. We put a
+false assertion in front of the turn and forbade the true one, so the only output we left it was to tell
+the operator that it was already pulling things out—and then that gets scored as the agent promising what it does not have.
 
-La prohibición era el error, no un exceso: para el operador «todavía no ha llegado nada» es CIERTO, y es lo
-que necesita para decidir si espera o cambia de sitio. Es la familia de V2-358 («un paso que el worker
-escribe sobre la pantalla es una afirmación suya») y de V2-249 (la píldora auto-avalada): no se tira, se
-MARCA.
+The prohibition was the error, not an excess: for the operator, «todavía no ha llegado nada» is TRUE, and it is what
+they need to decide whether to wait or move elsewhere. It belongs to the family of V2-358 («un paso que el worker
+escribe sobre la pantalla es una afirmación suya») and V2-249 (the self-validated pill): it is not thrown away, it is
+MARKED.
 """
 import pytest
 
@@ -47,13 +47,13 @@ def test_sin_filas_la_cara_dice_que_lo_DICE_el_worker_y_no_que_sea_un_hecho():
     state = "\n".join(LB.navegador_lines())
     assert "DICE QUE YA TIENE CANDIDATOS" in state
     assert "es SU cuenta, no la hemos comprobado" in state
-    # …y no la afirmación en firme, que es la que el turno repetía al operador
+    # …and not the firm assertion, which is what the turn was repeating to the operator
     assert "YA HA ENCONTRADO algo: no está bloqueada ni esperando, pero" not in state
 
 
 def test_sin_filas_YA_NO_se_le_prohibe_decir_que_no_ha_llegado_nada():
-    """La mitad que de verdad cambia el turno. Con la prohibición delante, la única salida que le quedaba era
-    afirmar que ya estaba sacando cosas — con la hoja vacía y el worker sin haber encontrado nada."""
+    """The half that actually changes the turn. With the prohibition in front of it, the only output it had left was
+    to claim that it was already pulling things out—with the sheet empty and the worker having found nothing."""
     tid = T.create("Busca entradas de teatro", sheet="v443-2")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
@@ -63,8 +63,8 @@ def test_sin_filas_YA_NO_se_le_prohibe_decir_que_no_ha_llegado_nada():
 
 
 def test_pero_lo_que_SI_seria_falso_se_sigue_prohibiendo():
-    """Sin esta mitad el arreglo abre la puerta a lo contrario: inventar nombres o decir que están en
-    pantalla, que es lo que V2-278 cerró y costó un [alta] por afirmación sin respaldo."""
+    """Without this half, the fix opens the door to the opposite: inventing names or saying they are on the
+    screen, which is what V2-278 closed off and cost a [high] for an unsupported assertion."""
     tid = T.create("Busca entradas de teatro", sheet="v443-3")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
@@ -74,8 +74,8 @@ def test_pero_lo_que_SI_seria_falso_se_sigue_prohibiendo():
 
 
 def test_la_tarea_sigue_diciendose_VIVA_para_no_reabrir_V2_152():
-    """«No ha llegado nada» no puede leerse como «está parada»: eso empuja a relanzar una tarea que va bien,
-    que es el daño real que V2-152 midió."""
+    """«No ha llegado nada» cannot be read as «está parada»: that pushes toward relaunching a task that is doing well,
+    which is the actual harm V2-152 measured."""
     tid = T.create("Busca entradas de teatro", sheet="v443-4")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
@@ -84,8 +84,8 @@ def test_la_tarea_sigue_diciendose_VIVA_para_no_reabrir_V2_152():
 
 
 def test_CON_filas_la_cara_no_se_toca_porque_ahi_SI_es_un_hecho():
-    """La hoja respalda la afirmación: ahí «ya ha encontrado» es verdad y la orden de contarlo con nombre y
-    precio es cumplible. Debilitarla también sería un defecto — el de V2-330 por el otro lado."""
+    """The sheet supports the assertion: there, «ya ha encontrado» is true and the instruction to report it with a name and
+    price is actionable. Weakening it too would be a defect—the one V2-330 identified from the other side."""
     tid = T.create("Busca entradas de teatro", sheet="v443-5")
     T.set_status(tid, "working")
     SHEET.apply_action("present", {"sheet": "v443-5", "title": "Resultados",

@@ -4,7 +4,7 @@
 browser's OWN loop, which a Brain Worker does not use: it drives through `nav_cli` → `/api/navegador/act` →
 `TaskBrowser.agent_act`. So for the whole life of a worker task `events` stayed empty, which meant
 `active_progress()` reported `steps=0` and `last_event=""` no matter how much browsing had happened, and the
-brain had a step COUNT of zero to answer «¿cómo va?» with.
+brain had a step COUNT of zero to answer “how’s it going?” with.
 
 Reaching a page is a milestone by this module's own definition (what the task DID, not every click), so that is
 where the line goes — not on clicks and types, which is exactly the flood `_emit`'s docstring rejects.

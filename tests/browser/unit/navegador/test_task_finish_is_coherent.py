@@ -5,10 +5,10 @@ The first V2-167 fix worked on the axis it aimed at: the three browser tasks tha
 state they reach is contradictory, and the contradiction lands exactly where the previous bug did — in what the
 FlashBrain reads to describe the task:
 
-    status: "done"   phase: "conduciendo el navegador"   phase_active: true   results: null
+    status: "done"   phase: "driving the browser"   phase_active: true   results: null
 
-Which is why the judge, re-reading the same three cases, escalated its wording from "desconexión" to
-"comportamiento halucinatorio de búsqueda continua" and two of the four notes went DOWN (2 → 1). The agent is
+Which is why the judge, re-reading the same three cases, escalated its wording from "disconnection" to
+"hallucinatory continuous-search behavior" and two of the four notes went DOWN (2 → 1). The agent is
 still telling the truth about the state it is given; the state just changed which way it lies.
 
 `set_status()` writes `finished` when it moves to a terminal status and leaves `phase`/`phase_active` untouched —
@@ -45,7 +45,7 @@ def _finished_task(status: str = "done") -> str:
 
 @pytest.mark.parametrize("status", ["done", "failed", "cancelled"])
 def test_a_terminal_status_stops_the_phase(status):
-    """MEASURED: `status=done` with `phase_active=True` and «conduciendo el navegador» still in `phase`.
+    """MEASURED: `status=done` with `phase_active=True` and «driving the browser» still in `phase`.
 
     Parametrised over the three terminal states because the bug is in `set_status`, not in the happy path: a fix
     that only cleared it for `done` would leave a cancelled or failed task claiming to be driving a browser,
@@ -54,7 +54,7 @@ def test_a_terminal_status_stops_the_phase(status):
     CLOSED 2026-08-23 (`set_status` now clears `phase_active` when it enters a terminal state), so the `xfail`
     marker is gone — which is exactly the cue this file's header describes. The measurement that finally forced
     it came from `search-secondhand-monitor__es`: a task read `status="cancelled"` while still carrying
-    `phase="en pausa — reanudando la gestión"` and `phase_active=True`, and the round's watchdog fired twice on
+    `phase="paused — resuming management"` and `phase_active=True`, and the round's watchdog fired twice on
     the gap between what the mechanism said and what the state advertised.
     """
     t = tasks.get(_finished_task(status))
@@ -89,10 +89,10 @@ def test_a_task_that_ends_with_nothing_says_WHY():
     tasks.set_status(tid, "done")
     t = tasks.get(tid)
     assert not t.get("results"), "premisa del test: esta tarea termina sin resultados"
-    # OJO: `t["phase"]` NO vale como razón. La primera versión de este test aceptaba «wall OR phase» y PASABA —
-    # pero pasaba porque la fase rancia («conduciendo el navegador») sigue ahí, o sea se satisfacía con el propio
-    # defecto. Un test que el bug hace verde es peor que no tenerlo. La razón tiene que ser un MURO declarado, o
-    # una fase FINAL; nunca una fase de vuelo.
+    # NOTE: `t["phase"]` is NOT a reason. The first version of this test accepted «wall OR phase» and PASSED —
+    # but it passed because the stale phase («driving the browser») was still there, so it was satisfied by the
+    # defect itself. A test that the bug makes green is worse than having no test. The reason must be a declared
+    # WALL or a FINAL phase; never an in-flight phase.
     stale = (t.get("phase") or "").lower()
     assert "conduciendo" not in stale, "la fase de vuelo no es una razón: es el bug de arriba"
     assert t.get("wall") or stale, (
