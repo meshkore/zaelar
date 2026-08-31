@@ -97,7 +97,7 @@ def test_the_inherited_sheet_is_not_started_fresh(monkeypatch):
     monkeypatch.setattr(_sheet, "prune_sheets", lambda: None)
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
 
-    sheets._sheet_open(_Rec("2", sheet="boot99-1"))          # llega con la de su predecesor
+    sheets._sheet_open(_Rec("2", sheet="boot99-1"))          # arrives with its predecessor's sheet
     assert calls and calls[0][0] == "boot99-1", "must write into the box already on screen"
     assert calls[0][1] is False, "an inherited sheet must NOT be started fresh"
 

@@ -23,7 +23,7 @@ _CATEGORIES = {
 
 
 def test_every_locale_covers_the_same_categories():
-    # symmetric on purpose (see the module docstring) — a category missing from one locale silently falls
+    # Symmetric on purpose (see the module docstring) — a category missing from one locale silently falls
     # back to nothing instead of a sensible per-market default.
     for locale, catalog in site_catalog.SITE_CATALOG.items():
         assert set(catalog) == _CATEGORIES, locale
@@ -53,7 +53,7 @@ def test_directive_block_mentions_every_site_by_name_and_url_for_its_locale():
 
 
 def test_es_and_us_catalogs_pick_different_sites_for_the_same_category():
-    # a real locale split, not the same content duplicated under two keys
+    # A real locale split, not the same content duplicated under two keys.
     assert site_catalog.SITE_CATALOG["es"]["restaurant_booking"].name != \
         site_catalog.SITE_CATALOG["us"]["restaurant_booking"].name
 
@@ -75,11 +75,11 @@ def test_web_prompt_embeds_the_directive_block():
     assert "Casa Lucio" in prompt  # the actual goal must still be present, untouched
 
 
-# ── ¿de qué categoría es una petición? (V2-119 / V2-118, 2026-08-18) ─────────────────────────────────────
-# `dispatch._classify_kind` solo decía "web" cuando el operador NOMBRABA el sitio, así que dos tareas que solo
-# existen DENTRO de un sitio caían en `generic`: un worker sin navegador y sin este catálogo. Medido en vivo:
-# `restaurant-tonight-madrid` acabó sin un solo intento de reserva; `three-tasks-at-once` devolvió monitores
-# NUEVOS de una tienda habiendo pedido segunda mano.
+# ── what category is a request? (V2-119 / V2-118, 2026-08-18) ───────────────────────────────────────────
+# `dispatch._classify_kind` used to say "web" only when the operator NAMED the site, so two tasks that merely
+# exist INSIDE a site fell into `generic`: a worker without a browser and without this catalog. Measured live:
+# `restaurant-tonight-madrid` ended with not a single booking attempt; `three-tasks-at-once` returned NEW
+# monitors from a store when second-hand had been requested.
 def test_a_table_booking_is_recognized_even_without_a_named_site():
     assert site_catalog.category_of("Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio", "es") \
         == "restaurant_booking"
@@ -87,7 +87,7 @@ def test_a_table_booking_is_recognized_even_without_a_named_site():
 
 
 def test_the_imperative_with_its_accent_still_matches():
-    # "resérvame" es la forma que el operador DICE de verdad; sin normalizar acentos no casa un stem `reserv`.
+    # "resérvame" is the form the operator actually SAYS; without normalizing accents, a `reserv` stem does not match.
     assert site_catalog.category_of("resérvame un hotel en Madrid para el viernes", "es") == "hotel_booking"
 
 
@@ -97,9 +97,9 @@ def test_second_hand_is_the_signal_and_cars_win_over_the_generic_classifieds():
 
 
 def test_categories_it_must_NOT_claim():
-    # Deliberadamente estrecho: una data-op local, una charla o un informe NO son tareas de navegador. El
-    # incidente que lo justifica está en dispatch.py (una data-op enrutada a "web" abrió dos tarjetas de
-    # navegador que nadie pidió, y un stop_worker equivocado acabó matando la tarea buena).
+    # Deliberately narrow: a local data op, a chat, or a report are NOT browser tasks. The incident justifying
+    # this is in dispatch.py (a data op routed to "web" opened two browser cards nobody requested, and a
+    # mistaken stop_worker ended up killing the good task).
     for text in ("Hazme un informe sobre coches eléctricos para ciudad",
                  "lees lo que hay en la agenda, lo borras y compruebas",
                  "móntame un widget de un juego de plataformas",
@@ -116,13 +116,13 @@ def test_only_a_TRANSACTIONAL_category_routes_the_task_to_the_browser():
 
 
 def test_second_hand_does_NOT_hijack_the_research_funnel():
-    # «segunda mano» es también como empieza una INVESTIGACIÓN, y esa ruta (kind "research", presupuesto de
-    # 1200 s) solo se alcanza desde `generic`. Promocionarla a "web" la sacaría del embudo — el mismo daño que
-    # ya costó una vez enrutar de más. El worker genérico recibe el catálogo igual, ver el test de abajo.
+    # «segunda mano» is also how a RESEARCH request begins, and that route (kind "research", 1200 s budget)
+    # is reached only from `generic`. Promoting it to "web" would remove it from the funnel — the same damage
+    # caused once before by over-routing. The generic worker receives the catalog anyway; see the test below.
     from nucleo import dispatch
     assert dispatch._classify_kind("búscame un monitor barato de segunda mano") == "generic"
-    # V2-158: `event_tickets` (V2-132) y `local_business` (V2-144) entraron después. Lo que este test protege no
-    # es la LISTA sino que «segunda mano» siga fuera de ella — la línea de arriba.
+    # V2-158: `event_tickets` (V2-132) and `local_business` (V2-144) were added later. What this test protects
+    # is not the LIST but that «segunda mano» remains outside it — the line above.
     assert set(site_catalog.TRANSACTIONAL_CATEGORIES) == {
         "restaurant_booking", "hotel_booking", "flight_search", "event_tickets", "local_business"}
     assert "general_classifieds" not in site_catalog.TRANSACTIONAL_CATEGORIES
@@ -132,8 +132,8 @@ def test_the_generic_worker_also_gets_the_trusted_site_catalog():
     from nucleo import dispatch_prompts
     p = dispatch_prompts._build_prompt("búscame un monitor barato de segunda mano", "", trusted=True)
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
-    # …pero SIN titular de categoría: aquí caen las investigaciones y un «empieza por Wallapop» sería peor que
-    # no decir nada para quien busca un velero de 50.000 €.
+    # …but WITHOUT a category heading: research requests land here, and «start with Wallapop» would be worse
+    # than saying nothing to someone looking for a €50,000 sailboat.
     assert "ESTA TAREA es de categoría" not in p
 
 
@@ -147,10 +147,10 @@ def test_the_web_prompt_leads_with_the_matched_category_site():
     from nucleo import dispatch_prompts
     p = dispatch_prompts._web_prompt("Resérvame mesa para 2 esta noche en Casa Lucio", "")
     lead = p.index("ESTA TAREA es de categoría «restaurant_booking»")
-    # el titular va ANTES del catálogo entero: la decisión de "cuál de las seis es la mía" ya está tomada.
+    # The heading comes BEFORE the entire catalog: the decision of "which of the six is mine" has already been made.
     assert lead < p.index("SITIOS DE CONFIANZA POR CATEGORÍA")
-    # el sitio es el de la locale ACTIVA del motor (es→TheFork, cualquier otra→OpenTable); el test no fija el
-    # idioma del entorno, así que pregunta por el mismo camino que el prompt.
+    # The site is the one for the engine's ACTIVE locale (es→TheFork, anything else→OpenTable); the test does not
+    # fix the environment's language, so it asks through the same path as the prompt.
     from voice.engine.core import langs
     entry = site_catalog.entry_for("restaurant_booking", site_catalog.resolve_locale(langs.current_code()))
     assert entry.url in p[lead:lead + 400]
@@ -163,33 +163,33 @@ def test_the_web_prompt_is_unchanged_when_no_category_matches():
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
 
 
-# ── un sitio NOMBRADO que el motor ya conoce (V2-126, 2026-08-18) ────────────────────────────────────────
-# Había DOS inventarios de sitios conocidos, desincronizados: `dispatch._WEB_RE` (wallapop, amazon, linkedin,
-# «abre la web»…) y `router_guards._KNOWN_SITES` (quince, los que el motor sabe abrir para un login). DOCE
-# estaban solo en el segundo. Medido en `cancel-subscription-before-charge`: «Cancela mi suscripción a Netflix»
-# → `generic`, o sea un worker SIN navegador — y sin navegador la tarea no puede ni llegar al muro de login,
-# así que el sistema se queda sin la única respuesta honesta que tenía («no puedo entrar en tu cuenta»).
+# ── a NAMED site the engine already knows (V2-126, 2026-08-18) ───────────────────────────────────────────
+# There were TWO unsynchronized inventories of known sites: `dispatch._WEB_RE` (wallapop, amazon, linkedin,
+# «open the web»…) and `router_guards._KNOWN_SITES` (fifteen, the ones the engine knows how to open for a login).
+# TWELVE existed only in the second. Measured in `cancel-subscription-before-charge`: «Cancel my Netflix
+# subscription» → `generic`, meaning a worker WITHOUT a browser — and without a browser the task cannot even
+# reach the login wall, so the system is left without the only honest answer it had («I can't access your account»).
 def test_a_named_known_site_plus_a_task_verb_goes_to_the_browser():
     from nucleo import dispatch
     for req in ("Cancela mi suscripción a Netflix antes de que me cobren el día 15",
-                "date de baja de Netflix",           # LA forma de decirlo, y no llevaba ningún verbo de tarea
+                "date de baja de Netflix",           # THE way to say it, and it contained no task verb
                 "cancela mi cuenta de eBay",
                 "borra mis publicaciones de Instagram"):
         assert dispatch._classify_kind(req) == "web", req
 
 
 def test_music_and_messaging_never_go_to_the_browser_even_naming_their_site():
-    """Esas cuentas se vinculan DENTRO de su widget (OAuth/QR), nunca por el Chromium — sus dos guards existen
-    justo para sostener ese invariante."""
+    """Those accounts are linked INSIDE their widget (OAuth/QR), never through Chromium — their two guards exist
+    precisely to uphold that invariant."""
     from nucleo import dispatch
     for req in ("ponme música en Spotify", "conéctame a Spotify", "mándale un mensaje a Ana por WhatsApp"):
         assert dispatch._classify_kind(req) != "web", req
 
 
 def test_naming_no_site_is_still_not_a_browser_task():
-    """El verbo suelto NO basta: `looks_like_web_task` es ancho (lee|mira|revis|compr) y su propio docstring
-    dice que existe como DISPARADOR, no como clasificador. Enrutar de más ya costó una vez dos tarjetas de
-    navegador que nadie pidió."""
+    """The standalone verb is NOT enough: `looks_like_web_task` is broad (lee|mira|revis|compr), and its own docstring
+    says it exists as a TRIGGER, not as a classifier. Over-routing already once cost two browser cards that nobody
+    requested."""
     from nucleo import dispatch
     for req in ("lees lo que hay en la agenda, lo borras y compruebas",
                 "Hazme un informe sobre coches eléctricos para ciudad",
@@ -198,13 +198,13 @@ def test_naming_no_site_is_still_not_a_browser_task():
 
 
 def test_but_ending_a_paid_commitment_IS_a_browser_task_now():
-    """V2-158 retira «cancela la suscripción del gimnasio» de la lista de arriba: desde V2-148 un encargo que
-    TERMINA un compromiso de pago va al navegador A PROPÓSITO (`money_work_needs_a_browser`), y el argumento
-    está escrito en esa decisión — sin navegador la tarea no puede ni llegar al muro del login, así que el
-    sistema pierde la única respuesta honesta que tenía y el turno rellena el hueco narrando.
+    """V2-158 removes «cancel the gym membership» from the list above: since V2-148, a request that
+    ENDS a payment commitment deliberately goes to the browser (`money_work_needs_a_browser`), and the rationale
+    is written into that decision — without a browser the task cannot even reach the login wall, so the
+    system loses the only honest answer it had and the turn fills the gap by narrating.
 
-    La afirmación llevaba desde entonces contradiciendo el comportamiento buscado sin que nadie se enterara,
-    porque este fichero no estaba en `tests/run_testmap.py`."""
+    The assertion had contradicted the intended behavior ever since without anyone noticing,
+    because this file was not in `tests/run_testmap.py`."""
     from nucleo import dispatch
     from nucleo.flash import router_guards as rg
     assert rg.money_work_needs_a_browser("cancela la suscripción del gimnasio") is True

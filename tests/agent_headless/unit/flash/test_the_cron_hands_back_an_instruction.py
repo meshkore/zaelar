@@ -5,10 +5,10 @@ cron lleva la frase cruda del usuario, así que el recordatorio hará que el age
 avisar — el aviso existe pero su contenido está roto».
 
 `_reminder_prompt` composes the safe form («AVISA al operador, es el recordatorio que te pidió: …») and its own
-docstring says why: the cron's reader is the AGENT at a later moment, so leaving the operator's own words in asks
-it to FILE something, which is the loop this whole area exists to close. Only the BACKSTOP went through it. When
-the model emits the `cron.create` tag itself, its `prompt` is whatever it wrote — and what it wrote was «el jueves
-tengo que renovar el seguro del coche».
+docstring explains why: the cron's reader is the AGENT at a later moment, so leaving the operator's own words in
+asks it to FILE something, which is the loop this whole area exists to close. Only the BACKSTOP went through it.
+When the model emits the `cron.create` tag itself, its `prompt` is whatever it wrote — and what it wrote was «el
+jueves tengo que renovar el seguro del coche».
 
 So the answer to «regression, or never covered?» is: never covered. Same defect, the other door.
 

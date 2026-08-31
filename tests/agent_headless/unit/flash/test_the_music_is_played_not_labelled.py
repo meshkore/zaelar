@@ -1,26 +1,26 @@
-"""El canal de texto rotulaba la música en vez de ponerla (V2-380).
+"""The text channel labelled the music instead of playing it (V2-380).
 
-Medido en la PRIMERA ronda que `play-music-and-build-playlist` ha tenido nunca (2026-08-27), y salió **1/5**,
-el peor del día:
+Measured in the FIRST round that `play-music-and-build-playlist` had ever had (2026-08-27), and it scored **1/5**,
+the worst of the day:
 
-    familias faltantes: ['widget']    · cero operaciones de widget · cero eventos con evidencia
+    missing families: ['widget']    · zero widget operations · zero events with evidence
     tester  Ponme algo de música tranquila para trabajar.
     zaelar  Hecho.
     tester  ¿Qué has puesto?
 
-«Hecho.» es `data_ack`, nuestro ack enlatado, y era lo ÚNICO que este canal hacía con `play_music`: lo
-resolvía a la etiqueta «music» y ahí acababa. Después el turno se inventó «Painkiller» de Judas Priest y
-«Stairway to Heaven» para quien había pedido música tranquila e instrumental.
+«Hecho.» is `data_ack`, our canned ack, and it was the ONLY thing this channel did with `play_music`: it
+resolved it to the «music» label and stopped there. Then the turn invented «Painkiller» by Judas Priest and
+«Stairway to Heaven» for someone who had asked for calm, instrumental music.
 
-El juez lo archivó como narrar una sesión de música ficticia. Lo era — y **el caso no podía pasar por
-construcción**: estaba midiendo un mecanismo INALCANZABLE, así que la nota no dice nada del producto.
+The judge filed it as narrating a fictional music session. It was — and **the case could not pass by
+construction**: it was measuring an UNREACHABLE mechanism, so the score says nothing about the product.
 
-Tercera vez de la misma familia en este fichero, y su propio código lo repite en cada backstop: es la
-implementación PARALELA del provider de voz, «cablear en AMBOS». Ya pasó con las tags de cron (V2-121) y con
-el traspaso de login (V2-176).
+Third time for the same family in this file, and its own code repeats it at every backstop: it is the
+PARALLEL implementation of the voice provider, «wire it in BOTH». It already happened with cron tags (V2-121) and with
+login handoff (V2-176).
 
-El rail es el MISMO que ejecuta la voz (`music_flow.run`), así que esto no añade una segunda forma de poner
-música: la enchufa.
+The rail is the SAME one that executes voice (`music_flow.run`), so this does not add a second way to play
+music: it plugs it in.
 """
 import pytest
 
@@ -34,7 +34,7 @@ class _Res:
 
 @pytest.fixture
 def rail(monkeypatch):
-    """Sustituye el rail por un testigo: aquí se mide el CABLEADO, no el conector de música."""
+    """Replace the rail with a witness: this measures the WIRING, not the music connector."""
     visto = {}
     import nucleo.flash.music_flow as _mf
 
@@ -45,10 +45,10 @@ def rail(monkeypatch):
     return visto
 
 
-# ── el cableado ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the wiring ────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_rail_de_musica_ESTA_enchufado_en_este_canal():
-    """El guarda que habría bastado: la rama existía y no ejecutaba nada."""
+    """The guard that would have been enough: the branch existed and executed nothing."""
     from pathlib import Path
     src = Path("nucleo/flash/probe.py").read_text()
     assert "from nucleo.flash import music_turn as _music_turn" in src
@@ -57,7 +57,7 @@ def test_el_rail_de_musica_ESTA_enchufado_en_este_canal():
 
 
 def test_la_rama_de_musica_va_DENTRO_del_bloque_de_ejecucion():
-    """Fuera del `if execute:` volvería a ser una etiqueta — y ese es exactamente el defecto que se cierra."""
+    """Outside `if execute:`, it would become a label again — and that is exactly the defect being closed."""
     from pathlib import Path
     src = Path("nucleo/flash/probe.py").read_text()
     i_exec, i_music = src.index("    if execute:"), src.index('elif action == "music" and music_req:')
@@ -65,14 +65,14 @@ def test_la_rama_de_musica_va_DENTRO_del_bloque_de_ejecucion():
 
 
 def test_los_argumentos_del_modelo_llegan_al_rail():
-    """`play_music` lleva `action` y `query`; perder cualquiera de los dos pone otra cosa o no pone nada."""
+    """`play_music` carries `action` and `query`; losing either one plays something else or nothing at all."""
     from nucleo.flash import music_turn as MT
     req = MT.request_from([{"name": "play_music", "args": {"action": "QUEUE", "query": "  Brian Eno  "}}])
     assert req == {"action": "queue", "query": "Brian Eno"}
 
 
 def test_sin_accion_se_asume_PONER():
-    """Un `action` vacío no puede quedarse sin ejecutar: sería este mismo defecto con otra cara."""
+    """An empty `action` cannot go unexecuted: it would be this same defect in another form."""
     from nucleo.flash import music_turn as MT
     assert MT.request_from([{"name": "play_music", "args": {"query": "algo tranquilo"}}])["action"] == "play"
 
@@ -108,7 +108,7 @@ def test_una_averia_del_reproductor_devuelve_parte_y_no_lanza(monkeypatch):
 # ── la boca dice lo que PASÓ ───────────────────────────────────────────────────────────────────────────────
 
 def _boca(extra):
-    """La decisión REAL, no una copia: reimplementarla aquí probaría que mi copia funciona (V2-199)."""
+    """The REAL decision, not a copy: reimplementing it here would prove that my copy works (V2-199)."""
     from nucleo.flash import music_turn as MT
     return MT.spoken_for(extra, "Hecho.")
 
@@ -119,8 +119,8 @@ def test_si_SUENA_se_dice_lo_que_suena():
 
 
 def test_si_NO_suena_se_DICE_en_vez_de_Hecho():
-    """El corazón del defecto: «Hecho.» sobre una reproducción que no existe. Cuarta vez que una frase
-    enlatada nuestra es la que miente (V2-176, V2-209, V2-377)."""
+    """The heart of the defect: «Hecho.» for playback that does not exist. The fourth time one of our canned
+    phrases is the one doing the lying (V2-176, V2-209, V2-377)."""
     salida = _boca({"executed": "play_music", "ok": False, "message": "no hay ningún reproductor conectado"})
     assert salida.startswith("No he podido ponerlo")
     assert "Hecho." not in salida
@@ -134,30 +134,30 @@ def test_un_turno_que_NO_es_de_musica_conserva_su_ack():
     assert _boca({"executed": "widget_data", "ok": True}) == "Hecho."
 
 
-# ── lo que NO se hace, y es una decisión ───────────────────────────────────────────────────────────────────
+# ── what is NOT done, and is a decision ───────────────────────────────────────────────────────────────────
 
 def test_NO_se_paga_un_segundo_pase_de_modelo():
-    """El `extract` es un 2º pase del modelo que resuelve una petición difusa, y lo presta el llamante. Aquí se
-    mide el MECANISMO, no la resolución difusa, y una llamada extra se paga en CADA ronda del plató."""
+    """`extract` is a 2nd model pass that resolves an ambiguous request, and the caller provides it. Here we
+    measure the MECHANISM, not ambiguous-request resolution, and an extra call is paid for in EVERY studio round."""
     from pathlib import Path
     cuerpo = Path("nucleo/flash/music_turn.py").read_text()
-    # ⚠️ Sobre la LLAMADA, no sobre el comentario: el propio comentario nombra «extract=None», así que un
-    # guarda por substring salía VERDE con un `extract` de verdad puesto. Leía la explicación, no el código.
+    # ⚠️ About the CALL, not the comment: the comment itself names «extract=None», so a
+    # substring guard passed with a real `extract` in place. It read the explanation, not the code.
     assert "_mflow.run(action, query, extract=None)" in cuerpo
     assert "extract=lambda" not in cuerpo and "extract=_extract" not in cuerpo
 
 
 def test_una_averia_del_rail_no_tumba_el_turno():
-    """Fail-soft como el resto del bloque: el turno tiene que salir aunque el reproductor esté roto."""
+    """Fail-soft like the rest of the block: the turn must complete even if the player is broken."""
     from pathlib import Path
     cuerpo = Path("nucleo/flash/music_turn.py").read_text()
     assert "except Exception" in cuerpo and "execute_error" in cuerpo
 
 
-# ── V2-463 — la tarjeta del reproductor se abre en el rail COMPARTIDO ───────────────────────────────────
+# ── V2-463 — the player card opens on the SHARED rail ───────────────────────────────────
 def test_poner_musica_ABRE_la_tarjeta_y_pararla_no_la_reabre(monkeypatch):
-    """Mismo agujero que imagenes/youtube en el canal probe. Y la mitad fina: un stop sobre una tarjeta ya
-    cerrada no puede volver a abrirla — parar es parar (V2-092)."""
+    """Same hole as images/youtube in the probe channel. And the subtle part: a stop on an already
+    closed card cannot reopen it — stopping is stopping (V2-092)."""
     import asyncio
     emitted: list[tuple] = []
 

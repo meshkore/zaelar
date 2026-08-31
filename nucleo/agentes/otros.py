@@ -1,20 +1,20 @@
-"""nucleo/agentes/otros.py — ⚠️ PIEZA MUERTA (parkeada en V2-036, 2026-07-13). NO está cableada.
+"""nucleo/agentes/otros.py — ⚠️ DEAD COMPONENT (parked in V2-036, 2026-07-13). NOT wired in.
 
-REEMPLAZADA por `nucleo/agentes/worker.py` (worker genérico conducido por Claude Code con acceso a memoria +
+REPLACED by `nucleo/agentes/worker.py` (generic worker driven by Claude Code with memory access +
 reporte de progreso, bajo el pool). Se conserva SIN borrar para poder revertir si hiciera falta; el dispatcher ya
-NO la llama (`nucleo/dispatch.py` enruta el genérico a `worker`). Decidir más adelante si se elimina.
+It is NOT called (`nucleo/dispatch.py` routes the generic path to `worker`). Decide later whether to remove it.
 
---- doc original (histórica) ---
-agente de trabajo GENÉRICO on-demand del SlowBrain (V2-007 · T86).
+--- original documentation (historical) ---
+GENERIC on-demand work agent for SlowBrain (V2-007 · T86).
 
-El caso por defecto: matemáticas, búsqueda/consulta puntual, redacción, razonamiento — cualquier cosa que no sea
-conducir el navegador (`web.py`) ni tocar widgets/código (`code.py`). Compone el contexto mínimo del agente de
-MEMORIA ★, arma el prompt y corre el `CodeAgent` seleccionado por config con el **modelo POR INVOCACIÓN** del tipo
-de tarea y la política de tools por confianza (`deny_tools` para input NO confiable). Devuelve un `WorkResult` que
+Default case: mathematics, one-off search/query, writing, reasoning — anything that is not
+driving the browser (`web.py`) or touching widgets/code (`code.py`). It composes the agent's minimum
+MEMORY ★, builds the prompt, and runs the config-selected `CodeAgent` with the **PER-INVOCATION model** for the
+task type and the trust-based tool policy (`deny_tools` for UNTRUSTED input). Returns a `WorkResult` that
 el dispatcher entrega por voz+UI+[SISTEMA] y guarda en memoria.
 
-Es la promoción a módulo propio del cuerpo genérico que vivía inline en `dispatch.dispatch()` (V2-006): el
-dispatcher pasa a ser un ROUTER (web/code/otros) y esta pieza es el ramal genérico.
+This is the promotion to its own module of the generic body formerly inline in `dispatch.dispatch()` (V2-006):
+the dispatcher becomes a ROUTER (web/code/others), and this component is the generic branch.
 """
 from __future__ import annotations
 
@@ -24,24 +24,24 @@ from .base import RunSpec, WorkResult
 
 
 async def run(task) -> WorkResult:
-    """Resuelve una tarea genérica con el `CodeAgent` (memoria → prompt → agente). Nunca lanza."""
+    """Resolves a generic task with the `CodeAgent` (memory → prompt → agent). Never raises."""
     from nucleo import agentes, dispatch, memory_agent
 
     req = (task.request or "").strip()
     if not req:
         return WorkResult(ok=True, summary="", deliver=False)
 
-    # 1) contexto mínimo desde el agente de memoria (best-effort).
+    # 1) Minimum context from the memory agent (best effort).
     try:
         context = await memory_agent.compose_context(req, budget=int(task.context.get("budget", 2000)))
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"otros: compose_context falló ({e}); sigo sin contexto")
+        logger.warning(f"otros: compose_context failed ({e}); continuing without context")
         context = ""
 
-    # 2) prompt dinámico = contexto + tarea.
+    # 2) Dynamic prompt = context + task.
     prompt = dispatch._build_prompt(req, context, task)
 
-    # 3) agente por config + modelo POR INVOCACIÓN + política de tools por confianza.
+    # 3) Configured agent + PER-INVOCATION model + trust-based tool policy.
     agent = agentes.get_agent()
     spec = RunSpec(
         model=dispatch._model_for(task.kind),

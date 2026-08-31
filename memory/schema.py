@@ -1,4 +1,4 @@
-"""memory/schema.py — DDL de la memoria central (V2-002).
+"""memory/schema.py — central memory DDL (V2-002).
 
 Copia FIEL del schema de `.meshkore/docs/architecture/zaelar-memory.md §Schema SQLite`. Un solo fichero
 `zaelar.db`. Las tablas virtuales (`vec_memories` = sqlite-vec vec0, `fts_memories` = FTS5) solo se crean si

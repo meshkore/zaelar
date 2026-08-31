@@ -24,9 +24,9 @@ def _hablando_en_castellano(monkeypatch):
     monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es")
 
 
-# La segunda LLEVA la categoría a propósito: la puerta de pertenencia (ronda 35) exige compartir un token
-# con el encargo, y un título sin la palabra categoría («Yamaha F370BL Negra» a secas) NO se anuncia — es el
-# lado conservador asumido: mejor callar una fila legítima que anunciar Beyblades como guitarras.
+# The second one DELIBERATELY CARRIES the category: the membership gate (round 35) requires sharing a token
+# with the errand, and a title without the category word («Yamaha F370BL Negra» on its own) is NOT announced — this is
+# the conservative side chosen: better to keep a legitimate row quiet than announce Beyblades as guitars.
 ROWS = ["Guitarra Acústica Fender CD-60 — 120 €", "Guitarra Yamaha F370BL Negra — 100 €"]
 
 
@@ -34,18 +34,18 @@ def test_a_waiting_reply_with_fresh_rows_gets_them_appended():
     out = RG.sheet_delivery_backstop("Vale, te aviso en cuanto tenga novedades.", ROWS, "",
                                      errand="busca una guitarra acústica por menos de 150€")
     assert "Fender CD-60" in out and "120 €" in out
-    assert "hoja de resultados" in out, "las filas vienen de la hoja: decirlo es un hecho, no una promesa"
+    assert "hoja de resultados" in out, "the rows come from the sheet: saying so is a fact, not a promise"
 
 
 def test_a_reply_that_already_delivers_is_left_alone():
-    """El lado contrario: una respuesta larga que ya está contando algo no se pisa."""
+    """The opposite case: a long response that is already reporting something is left alone."""
     r = ("¡Ya tengo candidatos! La Fender CD-60 a 120 € encaja con tu tope y también hay una Yamaha F370BL "
          "a 100 €. El humidificador es un accesorio y no te vale. ¿Te abro alguna ficha o sigo afinando?")
     assert RG.sheet_delivery_backstop(r, ROWS, "") == ""
 
 
 def test_rows_already_said_before_are_not_reannounced():
-    """Re-anunciar lo entregado es el disco rayado de V2-189 por la puerta de atrás."""
+    """Re-announcing what was delivered is V2-189's broken record through the back door."""
     said = "Ya te pasé la Guitarra Acústica Fender CD-60 a 120 € y la Yamaha F370BL Negra a 100 €."
     assert RG.sheet_delivery_backstop("Sigo con ello, te aviso.", ROWS, said) == ""
 
@@ -55,16 +55,16 @@ def test_no_rows_no_backstop():
 
 
 def test_una_pregunta_corta_ENTREGA_los_hechos_y_no_añade_la_nuestra():
-    """INVERTIDO por V2-371, y se conserva aquí porque el ejemplo es el mismo. Decía
+    """REVERTED by V2-371, and kept here because the example is the same. It was called
     `test_a_non_waiting_short_reply_is_untouched` y exigía silencio ante una pregunta.
 
-    Lo que ese silencio costó, medido en `search-buy-motorcycle__es` (2026-08-27): once candidatos con nombre
-    y enlace en la hoja, 87,4 s de retención, y los turnos que preguntaban caían al backstop de ATASCO, que
-    le colgaba detrás NUESTRA pregunta de gestión — el operador recibió dos veces la misma pregunta, una ya
-    contestada, y ni uno de los once candidatos.
+    What that silence cost, measured in `search-buy-motorcycle__es` (2026-08-27): eleven named candidates
+    with links in the sheet, 87.4 s of retention, and turns that asked a question fell into the STALLED backstop, which
+    appended OUR management question behind it — the operator received the same question twice, one already
+    answered, and none of the eleven candidates.
 
-    Lo que protegía sigue protegido y es la mitad que importa: no se le roba la palabra. Se entregan los
-    HECHOS y no se añade pregunta, así que la única que cierra el turno es la suya."""
+    What it protected remains protected, and that is the half that matters: it does not take the floor away. The
+    FACTS are delivered and no question is added, so the only question closing the turn is theirs."""
     out = RG.sheet_delivery_backstop("¿Prefieres cuerdas de metal o nylon?", ROWS, "")
     assert "Fender CD-60" in out
     assert "?" not in out
@@ -78,9 +78,9 @@ def test_partial_freshness_only_appends_the_unsaid_rows():
 
 
 def test_the_category_noun_never_kills_freshness():
-    """Agnóstico del dominio: «guitarra» (o «hotel», o «monitor») está en el ENCARGO y suena en cada turno —
-    si contara como identidad, todas las filas serían «ya dichas» y el backstop no dispararía nunca. La
-    exclusión sale del encargo, no de una lista de genéricos por sector (eso sería adaptarse al caso de uso)."""
+    """Domain-agnostic: «guitarra» (or «hotel», or «monitor») is in the ERRAND and is heard in every turn —
+    if it counted as identity, every row would be «already said» and the backstop would never fire. The
+    exclusion comes from the errand, not from a sector-specific list of generic terms (that would be adapting to the use case)."""
     rows = ["Guitarra Acústica Española Completa Nueva — 95 €"]
     said = "Estoy buscando tu guitarra acústica, dame un momento."
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", rows, said,
@@ -89,12 +89,12 @@ def test_the_category_noun_never_kills_freshness():
 
 
 def test_the_probe_actually_wires_it():
-    """Guarda de cableado (fuente SIN comentarios): la decisión sin llamante es el arreglo que no existe —
-    dos guardas de esta suite ya pasaron en verde con la llamada borrada porque el comentario la nombraba."""
+    """Wiring guard (source WITHOUT comments): the decision without a caller is the fix that does not exist —
+    two guards in this suite already passed in green with the call deleted because the comment named it."""
     from pathlib import Path
-    # V2-340: el cableado se mudó a `delivery.apply_to_reply`, así que el guarda mira los DOS sitios — que
-    # el probe llame, y que la llamada siga llevando el encargo. Comprobar solo el probe daría verde con la
-    # función vacía; comprobar solo la función, con el probe sin llamarla.
+    # V2-340: the wiring moved to `delivery.apply_to_reply`, so the guard checks BOTH places — that
+    # the probe calls it, and that the call still carries the errand. Checking only the probe would pass with the
+    # function empty; checking only the function, with the probe not calling it.
     probe = "\n".join(ln for ln in Path("nucleo/flash/probe.py").read_text().splitlines()
                       if not ln.strip().startswith("#"))
     assert "delivery.apply_to_reply(spoken" in probe or "_delivery.apply_to_reply(spoken" in probe
@@ -102,14 +102,14 @@ def test_the_probe_actually_wires_it():
                        if not ln.strip().startswith("#"))
     assert "sheet_delivery_backstop(spoken" in deliv
     assert "any_live_task_rows()" in deliv
-    assert "errand=encargo" in deliv, "sin el encargo, la categoría del dominio mata la frescura de todas las filas"
+    assert "errand=encargo" in deliv, "without the errand, the domain category kills the freshness of every row"
 
 
 def test_junk_rows_from_an_unfiltered_feed_are_never_announced():
-    """Ronda 35 (2026-08-25 02:20): el worker falló el tecleo, la página devolvió su portada sin filtrar y la
-    hoja se llenó de Beyblades, cosmética, velas y un Ford Fiesta. El modelo hizo BIEN en no entregarla — y
-    este backstop la habría anunciado. Lo que las delata NO es el encargo (ver el test de abajo) sino que no
-    comparten NADA entre sí: unos resultados de búsqueda son coherentes, un feed no."""
+    """Round 35 (2026-08-25 02:20): the worker failed at typing, the page returned its unfiltered home page, and the
+    sheet filled up with Beyblades, cosmetics, candles, and a Ford Fiesta. The model did the RIGHT thing by not
+    delivering them — and this backstop would have announced them. What exposes them is NOT the errand (see the test
+    below), but that they share NOTHING with one another: search results are coherent; a feed is not."""
     junk = ["Juguetes Beyblade Die-Cast (COLOR AL AZAR) — 15 €",
             "Pack 2x Paula's Choice BHA 2% Exfoliante 118ml — 30 €",
             "Velas de Gruta y Gel artesanales — 12 €",
@@ -120,10 +120,10 @@ def test_junk_rows_from_an_unfiltered_feed_are_never_announced():
 
 
 def test_entities_that_never_repeat_the_category_STILL_fire():
-    """El defecto de la primera puerta, medido en la tanda de las 10:04: exigir compartir palabra con el
-    ENCARGO está adaptado a un dominio — en un marketplace el título repite la categoría, pero un hotel se
-    llama «La Banda Living Hostel» y un vuelo «Ryanair directo». Con 36 filas legítimas de hoteles en la
-    hoja, el backstop no disparó ni una vez y el juez fichó «retención de 202 s»."""
+    """The defect in the first gate, measured in the 10:04 batch: requiring a shared word with the
+    ERRAND is domain-specific — in a marketplace the title repeats the category, but a hotel is called
+    «La Banda Living Hostel» and a flight «Ryanair directo». With 36 legitimate hotel rows in the
+    sheet, the backstop did not fire even once and the judge logged «202 s of retention»."""
     hoteles = ["La Banda Living Hostel — € 98", "New Samay Hostel — € 88",
                "La Banda Rooftop Hostel — € 118"]
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", hoteles, "",
@@ -132,8 +132,8 @@ def test_entities_that_never_repeat_the_category_STILL_fire():
 
 
 def test_two_rows_are_never_called_a_feed():
-    """Dos cosas distintas no son un feed: por debajo de tres filas no se juzga coherencia, porque callar ahí
-    reintroduce justo el silencio que este backstop existe para quitar."""
+    """Two different things are not a feed: below three rows, coherence is not judged, because staying quiet there
+    reintroduces precisely the silence this backstop exists to remove."""
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.",
                                      ["Hotel Alfonso XIII — 210 €", "Corral del Rey — 180 €"], "",
                                      errand="busca hotel en Sevilla")
@@ -147,66 +147,65 @@ def test_matching_rows_still_fire_with_the_membership_gate():
 
 
 def test_a_heterogeneous_errand_YA_NO_es_un_coste_asumido():
-    """Este test fijaba un coste que V2-339 ha dejado de pagar, y se conserva invertido para que la mejora
-    quede registrada en el mismo sitio donde estaba la renuncia.
+    """This test recorded a cost that V2-339 no longer pays, and is kept reverted so that the improvement
+    remains recorded in the same place where the renunciation was.
 
     Decía: «un encargo legítimamente heterogéneo ("cosas para el piso nuevo") se lee como feed y el backstop
-    calla — se pierde una ayuda, no se dice una falsedad». Era cierto mientras la guarda miraba UNA señal (que
-    las filas compartieran vocabulario). Un sofá, una lámpara y un microondas no comparten ninguna… **y son
-    exactamente la respuesta a ese encargo**.
+    stays quiet — help is lost, but no falsehood is told». It was true while the guard looked at ONE signal (the
+    rows sharing vocabulary). A sofa, a lamp, and a microwave share none… **and are exactly the answer to that errand**.
 
-    Con las dos señales de V2-339, sus precios (180 · 25 · 60 → ×7,2) no son escalas absurdas, así que ya no
-    se leen como feed y el backstop ENTREGA. La renuncia sobraba."""
+    With V2-339's two signals, its prices (180 · 25 · 60 → ×7.2) are not absurd scales, so they are no longer
+    read as a feed and the backstop DELIVERS. The renunciation was unnecessary."""
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.",
                                      ["Sofá cama gris — 180 €", "Lámpara de pie — 25 €",
                                       "Microondas Balay — 60 €"], "",
                                      errand="busca cosas para el piso nuevo")
     assert out, "el encargo heterogéneo vuelve a silenciarse: V2-339 revertido"
     assert "Lámpara de pie" in out and "Microondas Balay" in out
-    # «Sofá cama gris» quedaba fuera («sofá», «cama», «gris»: ningún token distintivo de ≥5 letras) — la
-    # limitación que esta prueba dejó ANOTADA en su día. V2-471 la cerró por el camino del DATO: una fila
-    # cuyo precio (180) no ha sonado es una fila sin entregar, tenga el título los tokens que tenga.
+    # «Sofá cama gris» was excluded («sofá», «cama», «gris»: no distinctive token of ≥5 letters) — the
+    # limitation this test recorded at the time. V2-471 closed it through the DATA path: a row
+    # whose price (180) has not been spoken is an undelivered row, regardless of which tokens its title contains.
     assert "Sofá" in out, "la fila de título corto entra ahora por su dato (V2-471)"
 
 
-# ── V2-364: la puerta ya no es el vocabulario de espera, es la PREGUNTA ─────────────────────────────────
+# ── V2-364: the gate is no longer the waiting vocabulary; it is the QUESTION ─────────────────────────────────
 #
-# Hasta aquí este backstop exigía que la respuesta SONARA a espera (`_WAITING_REPLY_RE`), y esa lista se
-# ensanchó DOS VECES en un solo día persiguiendo formas nuevas —«te informo», «en cuanto sepa», «voy a
-# reunir»— sin dejar de perder turnos.
+# Until here, this backstop required the reply to SOUND like waiting (`_WAITING_REPLY_RE`), and that list was
+# expanded TWICE in a single day chasing new forms —«te informo», «en cuanto sepa», «voy a
+# reunir»— while still missing turns.
 #
-# Medido en `find-concert-tickets__es` (2026-08-27, ronda del supervisor, 2/5), con el reloj estricto que
-# V2-355 arregló y V2-362 sacó al informe:
+# Measured in `find-concert-tickets__es` (2026-08-27, supervisor round, 2/5), with the strict clock that
+# V2-355 fixed and V2-362 put into the report:
 #
-#     ⏱ primera fila de candidatos: 72,2 s desde que se abrió la hoja
-#        · el turno los nombró 62,7 s DESPUÉS de que existieran
+#     ⏱ first candidate row: 72.2 s after the sheet was opened
+#        · the turn named them 62.7 s AFTER they existed
 #
-# Sesenta y cinco segundos de silencio con VEINTIDÓS candidatos escritos y con enlace. El backstop acabó
-# disparando —a los 137,3 s, que es justo cuando el turno los nombró— pero llegó tarde porque los turnos de en
-# medio no decían ninguna de las frases de la lista.
+# Sixty-five seconds of silence with TWENTY-TWO candidates written down and linked. The backstop eventually
+# fired —at 137.3 s, exactly when the turn named them— but arrived late because the turns in
+# between did not contain any of the list's phrases.
 #
-# Perseguir el idioma es una carrera que no se gana. Lo que esto existe para evitar no es «que la respuesta
-# suene a espera»: es que el operador se quede sin lo que YA está en su hoja. Las otras dos guardas siguen
-# haciendo el trabajo fino —una respuesta larga ya está contando algo (>300 caracteres), y las filas ya dichas
-# no se re-anuncian (V2-189)—, así que lo único que había que proteger de verdad es la PREGUNTA: si el turno le
-# está preguntando algo, colgarle las filas detrás le cambia el tema y se queda sin contestar.
+# Chasing the language is a race that cannot be won. What this exists to prevent is not «the reply
+# sounding like waiting»: it is the operator being left without what is ALREADY in the sheet. The other two guards
+# still do the fine-grained work —a long reply is already reporting something (>300 characters), and rows already
+# mentioned are not re-announced (V2-189)—, so the only thing that truly needed protecting is the QUESTION: if the turn
+# is asking something, hanging the rows behind it changes the subject and leaves it unanswered.
 
 CONCIERTOS = ["La Bella y La Bestia — 45 €", "Concierto indie Sala But — 22 €", "Vetusta Morla — 38 €"]
 
 
 def test_una_respuesta_que_no_suena_a_espera_TAMBIEN_entrega():
-    """El caso medido: turnos que no callaban a propósito, simplemente no estaban en la lista."""
+    """The measured case: turns that were not deliberately staying quiet; they simply were not on the list."""
     for r in ("Perfecto, lo dejo así entonces.", "Ahora mismo lo reviso.", "Vale."):
         out = RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas de concierto")
         assert "Vetusta Morla" in out, r
 
 
 def test_una_PREGUNTA_se_respeta_SIN_retener_la_entrega():
-    """INVERTIDO por V2-371. La versión de V2-364 exigía silencio absoluto ante una pregunta, y ese era el
-    error de grado: lo que hay que proteger no es la entrega, es el TURNO DE PALABRA.
+    """REVERTED by V2-371. The V2-364 version required absolute silence in response to a question, and that was the
+    wrong degree: what must be protected is not delivery, but the TURN TO SPEAK.
 
-    Callar retiene; añadir nuestra pregunta le roba la suya. La salida es entregar los hechos y callarnos —
-    con lo que sus tres formas siguen siendo la última pregunta del turno, que es lo que este caso vigilaba."""
+    Staying quiet withholds; adding our question steals theirs. The solution is to deliver the facts and keep quiet —
+    so all three forms remain the last question of the turn, which is what this case guarded."""
     for r in ("¿Prefieres sala pequeña o grande?", "Claro. ¿Te va bien el sábado?", "¿Lo reservo?"):
         out = RG.sheet_delivery_backstop(r, CONCIERTOS, "", errand="busca entradas")
         assert "Vetusta Morla" in out, r
@@ -214,8 +213,8 @@ def test_una_PREGUNTA_se_respeta_SIN_retener_la_entrega():
 
 
 def test_lo_que_ya_protegian_las_otras_guardas_sigue_protegido():
-    """Ensanchar la puerta no puede aflojar el resto: una respuesta larga que ya cuenta algo, y las filas ya
-    dichas, se quedan exactamente como estaban."""
+    """Widening the gate cannot loosen the rest: a long response that already reports something, and rows already
+    mentioned, remain exactly as they were."""
     larga = ("¡Ya tengo entradas! Vetusta Morla el sábado por 38 € en la Sala But, y hay una de indie por 22 €. "
              "La Bella y La Bestia está a 45 € pero es teatro, no concierto, así que la dejo fuera. ¿Te abro "
              "alguna o sigo mirando otras salas?")
@@ -225,19 +224,19 @@ def test_lo_que_ya_protegian_las_otras_guardas_sigue_protegido():
 
 
 def test_el_backstop_de_ATASCO_conserva_la_puerta_vieja():
-    """A propósito y no por olvido: contar un atasco es más intrusivo que entregar lo que ya existe, así que
-    ahí sí conviene que la respuesta esté en modo espera. Ensanchar los dos a la vez habría metido la frase del
-    atasco en turnos donde no venía a cuento."""
+    """Deliberately and not by omission: reporting a stall is more intrusive than delivering what already exists, so
+    there it is preferable for the response to be in waiting mode. Widening both at once would have inserted the
+    stall phrase into turns where it was out of place."""
     assert RG.stalled_task_backstop("Perfecto, lo dejo así entonces.", "busca entradas", 5, "sin avanzar") == ""
     assert RG.stalled_task_backstop("Sigo con ello, te aviso.", "busca entradas", 5, "sin avanzar") != ""
 
 
 def test_una_hoja_de_DOCE_filas_viaja_entera_hasta_su_techo_de_tamano(monkeypatch):
-    """V2-479 — cinco filas eran pocas, y el cambio tiene que poder comprobarse.
+    """V2-479 — five rows were too few, and the change must be verifiable.
 
-    Medido dos veces: `search-buy-camera__es` con CATORCE candidatos (cuatro de las cinco mostradas eran
-    accesorios) y `find-best-hotel-city__us` ronda 6 con DOCE hoteles, dos por debajo del tope del operador,
-    mostrando las caras. El turno concluyó sobre el total un conjunto que no había visto entero.
+    Measured twice: `search-buy-camera__es` with FOURTEEN candidates (four of the five shown were
+    accessories) and `find-best-hotel-city__us` round 6 with TWELVE hotels, two below the operator's cap,
+    showing the faces. The turn concluded about the total of a set it had not seen in full.
     """
     from nucleo.flash import live_blocks as LB
 
@@ -252,12 +251,12 @@ def test_una_hoja_de_DOCE_filas_viaja_entera_hasta_su_techo_de_tamano(monkeypatc
 
 
 def test_y_el_techo_de_TAMANO_manda_sobre_el_conteo(monkeypatch):
-    """El bound real es de TAMAÑO, no de unidades — y por eso se prueba pidiendo MÁS de doce.
+    """The real bound is by SIZE, not by units — which is why this is tested by requesting MORE than twelve.
 
-    A doce filas el techo no muerde (medido: 926 de 1200 caracteres con los títulos al máximo, o sea que el
-    tope de doce lleva una fila de holgura), y eso está bien: el techo existe para que subir `n` mañana no
-    meta en el prompt lo que le dé la gana. Un test que fingiera que corta a doce estaría afirmando algo
-    falso sobre el código que dice guardar.
+    With twelve rows the ceiling does not bite (measured: 926 of 1200 characters with maximum-length titles, meaning
+    the twelve-row cap has one row of headroom), and that is fine: the ceiling exists so increasing `n` tomorrow does
+    not put anything it pleases into the prompt. A test pretending that it cuts at twelve would make a false claim
+    about the code it is supposed to protect.
     """
     from nucleo.flash import live_blocks as LB
 
@@ -269,5 +268,5 @@ def test_y_el_techo_de_TAMANO_manda_sobre_el_conteo(monkeypatch):
     cuerpo = [r for r in out if "no listados aquí" not in r]
     assert len(cuerpo) < 30, "el techo de tamaño no cortó nada con treinta filas largas"
     assert sum(len(r) for r in cuerpo) <= LB._SHEET_ROWS_BUDGET + 100, "el bloque se pasó de su techo"
-    # V2-374 — lo que queda fuera se sigue CONTANDO: cortar y callarse devuelve el defecto original.
+    # V2-374 — what remains outside is still COUNTED: cutting off and staying quiet brings back the original defect.
     assert any("no listados aquí" in r for r in out), "cortó y se calló el resto"

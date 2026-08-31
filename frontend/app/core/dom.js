@@ -54,9 +54,9 @@ export function h(tag, props, ...children) {
     else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v);
     else if (k === "class" || k === "className") bind(v, (val) => { el.className = val ?? ""; });
     else if (k === "html") bind(v, (val) => { el.innerHTML = val ?? ""; });
-    // `--x` son CUSTOM PROPERTIES y NO se pueden asignar por índice (`el.style["--x"] = v` no hace nada, en
-    // silencio): hay que pasar por setProperty. Sirve para animar por CSS a partir de un signal sin re-renderizar
-    // el nodo — p.ej. el vúmetro del icono del micro, que solo mueve una variable por frame.
+    // `--x` are CUSTOM PROPERTIES and CANNOT be assigned by index (`el.style["--x"] = v` does nothing, silently):
+    // setProperty is required. This animates via CSS from a signal without re-rendering the node—for example, the
+    // microphone icon's level meter, which moves only one variable per frame.
     else if (k === "style" && typeof v === "object") for (const [sk, sv] of Object.entries(v)) bind(sv, (val) => {
       if (sk.startsWith("--")) el.style.setProperty(sk, val == null ? "" : String(val));
       else el.style[sk] = val;

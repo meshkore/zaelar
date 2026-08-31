@@ -1,17 +1,18 @@
-"""V2-147 (`find-theatre-tickets__es`) — preguntó en qué web, teniendo el motor la respuesta.
+"""V2-147 (`find-theatre-tickets__es`) — asked which website despite the engine having the answer.
 
-Turno 1: «¿tienes una web o agencia favorita… o prefieres que busque las opciones?». Turno 2, el operador: «No
-tengo ninguna web favorita, busca donde haya opciones». Turno 8, zaelar otra vez: «¿a qué web o plataforma
-quieres que entre a buscar las entradas?». El juez lo marca `alta` y el watchdog lo cazó en vivo.
+Turn 1: “Do you have a favorite website or agency… or would you rather I search the options?”. Turn 2, the
+operator: “I don’t have a favorite website, search wherever there are options”. Turn 8, zaelar again: “Which
+website or platform do you want me to go to search for the tickets?”. The judge marks it `alta`, and the watchdog
+caught it live.
 
-Y el motor SÍ tenía la respuesta desde V2-132: `site_catalog` lleva una entrada por tipo de encargo y el worker
-la recibe pegada a la tarea — medido aquí, «EMPIEZA por Entradas.com». Lo que faltaba es que el catálogo nunca
-ha estado a la vista del prompt del FlashBrain, así que para el cerebro «en qué web» parecía un dato que solo
-tiene el operador. Misma forma que lleva toda la tanda: la capacidad existe, y es invisible desde donde se
-decide.
+And the engine DID have the answer since V2-132: `site_catalog` has one entry per type of assignment, and the
+worker receives it attached to the task — measured here as, “START with Entradas.com”. What was missing was that
+the catalog had never been visible to the FlashBrain prompt, so to the brain “which website” seemed like data that
+only the operator has. It is the same pattern as throughout the batch: the capability exists, and it is invisible
+from where the decision is made.
 
-No se lista el catálogo en el prompt a propósito — sería O(N) en cada turno (V2-085) y basta con que sepa que
-existe.
+The catalog is intentionally not listed in the prompt — that would be O(N) on every turn (V2-085), and it is
+enough for it to know that it exists.
 """
 from __future__ import annotations
 

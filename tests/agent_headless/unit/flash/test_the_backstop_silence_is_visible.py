@@ -1,19 +1,20 @@
-"""V2-336 — un backstop que CALLA es indistinguible de uno que decidió callar, y eso costó una ronda entera.
+"""V2-336 — a backstop that SILENTLY FAILS is indistinguishable from one that decided to stay silent, and that cost an entire round.
 
-En la ronda limpia del coche (`search-buy-used-car__es`, 2026-08-26 01:06-01:14) hubo tres respuestas de pura
-espera con la hoja llevando cinco coches bajo presupuesto, y el backstop de entrega (V2-305) no disparó NI UNA
-VEZ — mientras pasaba sus tests unitarios con esas mismas entradas. Todo el bloque vive bajo un `except`
-general, así que la avería interna, la que sea, desaparece sin ruido.
+In the clean car round (`search-buy-used-car__es`, 2026-08-26 01:06-01:14), there were three pure-wait
+responses with the sheet carrying five under-budget cars, and the delivery backstop (V2-305) did not fire ONCE
+— while passing its unit tests with those same inputs. The entire block lives under a general `except`,
+so whatever the internal failure is, it disappears without a sound.
 
-Este cambio no arregla el backstop: hace VISIBLE su silencio, emitiendo las ENTRADAS de la decisión.
+This change does not fix the backstop: it makes its silence VISIBLE by emitting the decision's INPUTS.
 
-Y PAGÓ A LA PRIMERA. La ronda siguiente (12:08:59 y 12:09:57) trajo `rows=3` con el backstop callado — o sea
-que había filas y aun así no disparaba. Eso llevó a la causa (una guarda mía leía «marcas distintas» como
-feed) y a V2-339. Sin el evento, el silencio habría seguido leyéndose como «el modelo retiene resultados».
+AND IT PAID OFF IMMEDIATELY. The next round (12:08:59 and 12:09:57) brought `rows=3` with the backstop silent
+— meaning there were rows and it still did not fire. That led to the cause (one of my guards read “different
+marks” as a feed) and to V2-339. Without the event, the silence would have continued to be read as “the model
+is withholding results.”
 
-⚠️ Desde V2-340 esto se prueba por CONDUCTA y no por grep de la fuente: la lógica vive en
-`delivery.apply_to_reply`, que recibe la respuesta y la ventana. Un guarda de fuente daba verde con la llamada
-presente y el emit roto.
+⚠️ Since V2-340 this has been tested by BEHAVIOR rather than by grepping the source: the logic lives in
+`delivery.apply_to_reply`, which receives the response and the window. A source guard passed with the call
+present and the emit broken.
 """
 from unittest import mock
 
@@ -21,7 +22,7 @@ from nucleo.flash import delivery as D
 
 
 def _capturar(monkeypatch, spoken, filas, encargo="busca un coche de segunda mano", dicho=""):
-    """Corre el backstop de verdad, con `any_live_task_rows` fijado, y devuelve lo que se emitió."""
+    """Run the real backstop, with `any_live_task_rows` pinned, and return what was emitted."""
     emitido = []
     monkeypatch.setattr(D, "_emit", lambda label, **extra: emitido.append((label, extra)))
     with mock.patch("nucleo.flash.live_blocks.any_live_task_rows", return_value=(encargo, filas)):
@@ -41,10 +42,10 @@ def test_una_espera_SIN_filas_emite_el_silencio_con_sus_entradas(monkeypatch):
 
 
 def test_el_caso_MEDIDO_rows_3_y_calla_queda_registrado(monkeypatch):
-    """La ronda del 12:09: había TRES filas y el backstop calló porque ya estaban dichas. El evento tiene que
-    llevar el 3 — es el número que resolvió el misterio."""
+    """The 12:09 round: there were THREE rows and the backstop stayed silent because they had already been said. The event must
+    carry the 3 — it is the number that solved the mystery."""
     filas = ["Fiat Panda 4x4 — 6900 €", "Mercedes Clase A — 9500 €", "Peugeot 3008 — 8490 €"]
-    # nombre + dato: desde V2-471 una fila con precio solo cuenta como dicha cuando su precio también sonó
+    # name + data: since V2-471, a row with a price only counts as said when its price was also spoken
     dicho = ("Ya te dije: el Fiat Panda 4x4 por 6900 €, el Mercedes Clase A por 9500 € y el "
              "Peugeot 3008 por 8490 €.")
     _, ev = _capturar(monkeypatch, "te aviso en cuanto lo tenga", filas, dicho=dicho)
@@ -60,13 +61,13 @@ def test_cuando_SÍ_dispara_no_emite_silencio_y_añade_las_filas(monkeypatch):
 
 
 def test_un_turno_NORMAL_no_emite_nada(monkeypatch):
-    """Sin esta puerta el evento sería ruido en cada turno en vez de señal."""
+    """Without this gate, the event would be noise on every turn instead of a signal."""
     _, ev = _capturar(monkeypatch, "¿Prefieres diésel o gasolina?", [])
     assert ev == []
 
 
 def test_no_puede_TUMBAR_el_turno(monkeypatch):
-    """Fail-soft: si la lectura de filas revienta, la respuesta sale intacta."""
+    """Fail-soft: if reading the rows blows up, the response comes out intact."""
     def _boom():
         raise RuntimeError("registro caído")
     with mock.patch("nucleo.flash.live_blocks.any_live_task_rows", side_effect=_boom):
@@ -74,7 +75,7 @@ def test_no_puede_TUMBAR_el_turno(monkeypatch):
 
 
 def test_el_PROBE_lo_llama():
-    """La mitad de cableado: la función puede ser perfecta y no tener llamante (V2-199)."""
+    """Half the wiring: the function can be perfect and have no caller (V2-199)."""
     from pathlib import Path
     src = "\n".join(ln for ln in Path("nucleo/flash/probe.py").read_text().splitlines()
                     if not ln.strip().startswith("#"))

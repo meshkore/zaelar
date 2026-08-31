@@ -1,15 +1,15 @@
-"""Cuando la hoja del encargo no se resuelve, el prompt se compone como si no hubiera nada.
+"""When the errand sheet is not resolved, the prompt is composed as if there were nothing.
 
-Y esa es la avería medida en V2-432: de las **48** rondas cuya hoja llegó a tener filas con nombre, **45**
-tuvieron turnos en los que el bloque vivo le dijo al modelo que la tarea seguía atascada — **257 turnos**. El
-modelo contestó «sin novedades» y el juez lo puntuó por negar lo que tenía delante.
+And that is the failure measured in V2-432: of the **48** rounds whose sheet eventually had rows with names, **45**
+had turns in which the live block told the model that the task was still stuck — **257 turns**. The
+model answered “nothing new” and the judge penalized it for denying what was in front of it.
 
-El fallo no hace ruido: `_sheet_of_tab` devuelve `""`, `_sheet_has_rows` devuelve `False`, la cara de
-resultados no se enciende, y el resultado es indistinguible de que de verdad no haya nada. Sin una línea que
-lo diga, la avería solo se puede inferir cruzando el instante en que la hoja se llenó con el texto de cada
-prompt — que es lo que hubo que hacer para encontrarla.
+The failure makes no noise: `_sheet_of_tab` returns `""`, `_sheet_has_rows` returns `False`, the results
+face does not light up, and the result is indistinguishable from there truly being nothing. Without a line that
+says so, the failure can only be inferred by cross-referencing when the sheet was filled with the text of each
+prompt — which is what had to be done to find it.
 
-Se emite en `_sheet_of_tab` y no en cada llamante porque los DOS caminos de resolución mueren ahí.
+It is emitted in `_sheet_of_tab` and not in each caller because BOTH resolution paths end there.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _emitido(monkeypatch):
 
 
 def _sin_resolver(monkeypatch):
-    """Ni sello en la pestaña ni registro de sesiones: la firma exacta de la avería."""
+    """Neither a tab marker nor a session record: the exact signature of the failure."""
     import widgets.navegador.tasks as _t
     import nucleo.dispatch as _d
     monkeypatch.setattr(_t, "get", lambda *_a, **_k: {})
@@ -44,8 +44,8 @@ def test_una_hoja_sin_resolver_lo_DICE(monkeypatch, _emitido):
 
 
 def test_una_hoja_que_SÍ_resuelve_no_dice_nada(monkeypatch, _emitido):
-    """La mitad de sensibilidad: una línea que sale en cada composición del prompt es ruido puro, y el bloque
-    vivo se compone en todos los turnos."""
+    """The sensitivity counterpart: a line emitted during every prompt composition is pure noise, and the live block
+    is composed on every turn."""
     import widgets.navegador.tasks as _t
     monkeypatch.setattr(_t, "get", lambda *_a, **_k: {"sheet": "results::6175ca-1"})
     assert ES._sheet_of_tab("6175ca-1") == "results::6175ca-1"
@@ -53,7 +53,7 @@ def test_una_hoja_que_SÍ_resuelve_no_dice_nada(monkeypatch, _emitido):
 
 
 def test_el_REGISTRO_como_respaldo_tampoco_avisa(monkeypatch, _emitido):
-    """El segundo camino es tan válido como el primero: avisar ahí sería llamar avería a lo que funciona."""
+    """The second path is just as valid as the first: warning there would label working behavior as a failure."""
     import widgets.navegador.tasks as _t
     import nucleo.dispatch as _d
     monkeypatch.setattr(_t, "get", lambda *_a, **_k: {})
@@ -63,7 +63,7 @@ def test_el_REGISTRO_como_respaldo_tampoco_avisa(monkeypatch, _emitido):
 
 
 def test_instrumentar_NO_puede_tumbar_el_prompt(monkeypatch):
-    """El bloque vivo se compone en cada turno: una excepción aquí dejaría al operador sin turno entero."""
+    """The live block is composed on every turn: an exception here would leave the operator without the entire turn."""
     _sin_resolver(monkeypatch)
     import voice.observer as OBS
     monkeypatch.setattr(OBS, "emit", lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("boom")))
@@ -71,18 +71,18 @@ def test_instrumentar_NO_puede_tumbar_el_prompt(monkeypatch):
 
 
 def test_live_blocks_sigue_usando_LA_MISMA_funcion():
-    """La extracción no puede haber dejado dos copias: es la deuda que este repo pagó cuatro veces en una
-    semana, y aquí significaría que el aviso existe en un sitio y el prompt se compone con el otro."""
+    """The extraction cannot have left two copies: that is the debt this repo paid four times in one
+    week, and here it would mean that the warning exists in one place while the prompt is composed with the other."""
     from nucleo.flash import live_blocks as LB
     assert LB._sheet_of_tab is ES._sheet_of_tab
 
 
-# ── Y la otra mitad: RESUELTA, pero no es la que tiene las filas ────────────────────────────────────────────
+# ── And the other half: RESOLVED, but not the one containing the rows ─────────────────────────────────────
 def test_una_hoja_resuelta_y_VACIA_tambien_lo_dice(monkeypatch, _emitido):
-    """Fallar al resolver ya se contaba. Resolver a la caja EQUIVOCADA se veía exactamente igual que acertar —
-    y era el caso de `search-buy-guitar__es` (2026-08-28): `unresolved_errand_sheets.n` salió a **0**, o sea
-    que resolvió, y aun así hubo seis turnos en los que al modelo no se le dijo que tuviera nada, con quince
-    candidatos en la hoja. Sin esta línea el diagnóstico se queda en «resolvió bien y algo pasa después»."""
+    """Failing to resolve was already counted. Resolving to the WRONG box looked exactly like getting it right —
+    and that was the case for `search-buy-guitar__es` (2026-08-28): `unresolved_errand_sheets.n` came out **0**, meaning
+    it resolved, and yet there were six turns in which the model was not told it had anything, with fifteen
+    candidates in the sheet. Without this line, the diagnosis remains “it resolved correctly and something happens afterward.”"""
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
     monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results"])
@@ -93,7 +93,7 @@ def test_una_hoja_resuelta_y_VACIA_tambien_lo_dice(monkeypatch, _emitido):
 
 
 def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
-    """La mitad de sensibilidad: es el camino sano y se recorre en cada turno."""
+    """The sensitivity counterpart: this is the healthy path and it is traversed on every turn."""
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
     monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
@@ -103,12 +103,12 @@ def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
 
 
 def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
-    """El tercer camino mudo, y el que quedaba. Medido el 2026-08-28 en `weekend-motor-events__es`: cuatro
-    turnos ciegos con las DOS señales anteriores a cero — ni falló al resolver ni encontró la caja vacía—, así
-    que solo quedaba que la lectura reventara y el `except` se lo tragase.
+    """The third silent path, and the one that remained. Measured on 2026-08-28 in `weekend-motor-events__es`: four
+    blind turns with the TWO previous signals at zero — it neither failed to resolve nor found the empty box—, so
+    the only possibility left was for the read to blow up and the `except` to swallow it.
 
-    Un fallo que se traga a sí mismo es peor que uno ruidoso: deja al prompt diciendo que no hay nada y a
-    quien investiga sin nada que leer.
+    A failure that swallows itself is worse than a noisy one: it leaves the prompt saying there is nothing and
+    the investigator with nothing to read.
     """
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
@@ -120,29 +120,29 @@ def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
 
 
 def test_la_cara_dice_que_hay_filas_y_la_hoja_no_las_da(monkeypatch, _emitido):
-    """El cuarto camino, y el único que quedaba MUDO.
+    """The fourth path, and the only one that remained SILENT.
 
-    La cara de resultados se enciende con `_p["has_results"]` **O** con `_found_candidates`, y el `or` hace
-    CORTOCIRCUITO: si el primero es cierto, `_sheet_has_rows` ni se llama y sus tres avisos no existen.
-    Entonces `_sheet_top_rows` resuelve por su cuenta, no encuentra caja con filas, y el turno sale diciendo
-    «ya ha encontrado algo, pero sus nombres aún no están escritos» — con los nombres escritos.
+    The results face lights up with `_p["has_results"]` **OR** `_found_candidates`, and the `or` short-circuits:
+    if the first is true, `_sheet_has_rows` is not called and its three warnings do not exist.
+    Then `_sheet_top_rows` resolves on its own, finds no box with rows, and the turn comes out saying
+    “it has already found something, but its names have not yet been written” — with the names written.
 
-    Medido en `reorder-prescription__us` (2026-08-28): tres turnos a 32, 72 y 111 segundos DESPUÉS de que la
-    hoja tuviera seis farmacias con nombre y dirección, avisados de que había algo y con cero filas. El modelo
-    nombró cero de seis, y el juez lo llamó «falla gravemente al no entregar esos datos».
+    Measured in `reorder-prescription__us` (2026-08-28): three turns at 32, 72, and 111 seconds AFTER the
+    sheet had six pharmacies with names and addresses, told that there was something there and with zero rows. The model
+    named zero of six, and the judge called it “a severe failure to provide that data.”
     """
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
     monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
     assert LB._sheet_top_rows("d787b2-1") == []
-    # el aviso vive en `errand_sheet` (su casa: va de la hoja del encargo) y `live_blocks` lo llama
+    # the warning lives in `errand_sheet` (its home: it concerns the errand sheet), and `live_blocks` calls it
     assert _emitido and "no las da" in _emitido[0]["label"]
     assert "d787b2-1" in _emitido[0]["extra"]["cajas"], "sin las cajas no se puede comparar con dónde están"
 
 
 def test_y_cuando_SÍ_las_da_no_dice_nada(monkeypatch, _emitido):
-    """La mitad de sensibilidad: es el camino sano y se recorre en cada turno con resultados."""
+    """The sensitivity counterpart: this is the healthy path and it is traversed on every turn with results."""
     from nucleo.flash import live_blocks as LB
     import widgets.results.data as _rd
     monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])

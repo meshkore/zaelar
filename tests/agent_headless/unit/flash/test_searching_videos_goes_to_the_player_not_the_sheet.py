@@ -72,8 +72,8 @@ def test_a_play_request_still_loads_one_video(rail):
 
 
 def test_the_mouth_names_the_candidates_and_invites_a_choice(rail, monkeypatch):
-    # V2-464: las frases siguen al MOTOR y el entorno de la suite resuelve inglés — se fija el castellano
-    # porque este caso mide el CONTENIDO de la frase, no su idioma.
+    # V2-464: phrases follow the ENGINE and the suite environment resolves English — Spanish is fixed
+    # because this case measures the phrase's CONTENT, not its language.
     monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)
     parte = asyncio.run(VT.execute("vídeos de paella", "list"))
     spoken = VT.spoken_for(parte, "Hecho.")
@@ -168,10 +168,10 @@ def test_a_probe_search_turn_reaches_the_widgets_search_dataop(monkeypatch, tmp_
 
 # ── V2-467 — un enlace YA PEGADO se encola, no se reproduce ─────────────────────────────────────────────
 def test_un_enlace_pegado_se_AÑADE_a_la_lista_y_no_arranca_la_reproduccion():
-    """Medido en `build-a-video-playlist-from-links`: pegar dos enlaces y pedir una lista disparó
-    `play_video` — el escenario declara ese arranque un DEFECTO explícito, «como añadir a la cola de
-    YouTube: cortarte lo que ves no es una comodidad». El catálogo no distinguía «búscame un vídeo» (esta
-    tool) de «aquí tienes el enlace» (una data-op del widget), así que el modelo cogía la que conocía."""
+    """Measured in `build-a-video-playlist-from-links`: pasting two links and requesting a list triggered
+    `play_video` — the scenario declares that startup an explicit DEFECT, «como añadir a la cola de
+    YouTube: cortarte lo que ves no es una comodidad». The catalog did not distinguish «búscame un vídeo» (this
+    tool) from «aquí tienes el enlace» (a widget data-op), so the model picked the one it knew."""
     d = _desc("play_video")
     assert "ENLACE ya PEGADO" in d
     assert "widget_data(youtube, add)" in d, "hay que decir A DÓNDE va, no solo que no es aquí"

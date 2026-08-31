@@ -1,10 +1,10 @@
-"""V2-213 — «prueba otro sitio» sin decir CUÁL es un deseo, no una instrucción.
+"""V2-213 — «try another site» without saying WHICH one is a wish, not an instruction.
 
 The wall reaches everywhere it should: the task records it (V2-176), the worker's CLI prints it (V2-186), the
-turn says it out loud (V2-185, and `book-hotel`'s own transcript proves it: «la han bloqueado un par de veces…
-¿sigo o paramos?»). And the runs still ground against the same host: thirteen minutes on `nh-hotels.com` in
-`book-hotel-night-known__es`, and `restaurant-tonight-madrid` ending on a DuckDuckGo results page after Casa
-Lucio.
+turn says it out loud (V2-185, and `book-hotel`'s own transcript proves it: «it has been blocked a couple of
+times… should I continue or stop?»). And the runs still ground against the same host: thirteen minutes on
+`nh-hotels.com` in `book-hotel-night-known__es`, and `restaurant-tonight-madrid` ending on a DuckDuckGo results
+page after Casa Lucio.
 
 The missing piece was never the information. It was the ALTERNATIVE: the catalog held exactly ONE site per
 category, so when the trusted one served an anti-bot page there was literally nowhere written down to go, and

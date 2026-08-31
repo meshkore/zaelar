@@ -1,6 +1,6 @@
-"""El canal de texto rotulaba el vídeo en vez de ponerlo (V2-383).
+"""The text channel labelled the video instead of playing it (V2-383).
 
-Hermano exacto de V2-380 (la música) y una rama más abajo en el mismo `elif`. Medido en
+The exact sibling of V2-380 (music), one branch lower in the same `elif`. Measured in
 `watch-a-video-not-listen-to-it` (2026-08-27 12:53), **1/5**:
 
     tester  Pon el vídeo del tráiler de la última de Dune.
@@ -10,15 +10,15 @@ Hermano exacto de V2-380 (la música) y una rama más abajo en el mismo `elif`. 
     …
     tester  Tío, eso me lo has dicho ya tres veces y sigue sin salir el vídeo.
 
-`play_video` resolvía a la etiqueta «canvas:show:youtube» y ahí acababa: ninguna `load`, el widget PELADO. Y
-lo que más duele — el sistema SÍ encontró los tráileres: seis búsquedas con títulos reales («Dune: Part Two |
-Official Trailer»), todas a la HOJA DE RESULTADOS, ninguna al reproductor. El buscador tampoco estaba roto:
-`_search_id('Dune tráiler oficial')` resuelve hoy a `mSY_NbSmaUI` de Warner Bros. España. Estaba
-INALCANZABLE desde este canal.
+`play_video` resolved to the «canvas:show:youtube» label and ended there: no `load`, the widget was BARE. And
+what hurts most—the system DID find the trailers: six searches with real titles («Dune: Part Two |
+Official Trailer»), all going to the RESULTS SHEET, none to the player. The search engine was not broken either:
+`_search_id('Dune tráiler oficial')` resolves today to `mSY_NbSmaUI` from Warner Bros. España. It was
+UNREACHABLE from this channel.
 
-Cuarta vez de esta familia en `probe.py`: tags de cron (V2-121), traspaso de login (V2-176), música (V2-380).
-Y la frase repetida NO era enlatada nuestra —no está en el código— sino el modelo diciendo la verdad sobre una
-caja vacía, que es peor: el guarda de honestidad funcionaba y no había nada honesto que contar.
+Fourth occurrence in this family in `probe.py`: cron tags (V2-121), login handoff (V2-176), music (V2-380).
+And the repeated phrase was NOT canned by us—it is not in the code—but the model telling the truth about an
+empty box, which is worse: the honesty guard was working and there was nothing honest to report.
 """
 import asyncio
 from pathlib import Path
@@ -30,7 +30,7 @@ from nucleo.flash import video_turn as VT
 
 @pytest.fixture
 def rail(monkeypatch):
-    """Sustituye el rail por un testigo: aquí se mide el CABLEADO, no el buscador de YouTube."""
+    """Replace the rail with a witness: this measures the WIRING, not the YouTube search engine."""
     visto = {}
 
     async def _brain_action(wid, action, payload):
@@ -42,12 +42,12 @@ def rail(monkeypatch):
     return visto
 
 
-# ── el TURNO ENTERO, que es donde vivía el defecto ─────────────────────────────────────────────────────────
+# ── the ENTIRE TURN, where the defect lived ─────────────────────────────────────────────────────────────────
 #
-# Los guardas de más abajo miran el fichero y el módulo por separado, y con eso NO basta: al desarmar
-# `video_req = _video_turn.request_from(tool_calls)` → `video_req = None` los catorce seguían en verde. La rama
-# de ejecución existía, el módulo funcionaba, y entre los dos no llegaba nada — que es exactamente la forma del
-# defecto original. Lo único que lo caza es conducir el turno de verdad.
+# The guards below inspect the file and module separately, and that is NOT enough: when unpacking
+# `video_req = _video_turn.request_from(tool_calls)` → `video_req = None`, all fourteen remained green. The execution
+# branch existed, the module worked, and nothing reached the other from one to the other—exactly the shape of the
+# original defect. The only thing that catches it is running the real turn.
 
 class _ClienteQuePideVideo:
     """Stub: el modelo llama a `play_video`, como en la ronda real."""
@@ -61,7 +61,7 @@ class _ClienteQuePideVideo:
 
 
 def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
-    """De la petición del modelo al `load` del widget, sin saltarse nada por el medio."""
+    """From the model's request to the widget's `load`, without skipping anything in between."""
     from memory import db as memdb
     from memory import embeddings as mememb
     from nucleo.flash import probe
@@ -92,7 +92,7 @@ def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
 
 
 class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
-    """El modelo llama a `play_video` y NO dice nada — ahí es donde habla nuestro ack."""
+    """The model calls `play_video` and says NOTHING—that is where our ack speaks."""
 
     async def stream(self, *_a, on_tool_call=None, **_kw):
         if on_tool_call is not None:
@@ -104,8 +104,8 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
 
 
 def test_un_turno_MUDO_de_video_NOMBRA_lo_que_cargo(monkeypatch, tmp_path):
-    """Sin esto el turno cae al ack genérico de `canvas:`, que solo sabe decir «aquí lo tienes» o —si el
-    widget está vacío— la frase que el tester leyó cuatro veces seguidas."""
+    """Without this, the turn falls back to the generic `canvas:` ack, which only knows how to say «here you go» or—if the
+    widget is empty—the phrase the tester heard four times in a row."""
     from memory import db as memdb
     from memory import embeddings as mememb
     from nucleo.flash import probe
@@ -127,31 +127,31 @@ def test_un_turno_MUDO_de_video_NOMBRA_lo_que_cargo(monkeypatch, tmp_path):
         probe._SESSIONS.pop("test-video-mudo", None)
         memdb.reset_db(); mememb.reset()
 
-    # `reply`, no `text` ni `spoken`: medir contra la forma REAL del dato. Con el nombre equivocado el guarda
-    # habría salido rojo sobre un turno que decía exactamente lo que tenía que decir.
+    # `reply`, not `text` or `spoken`: measure against the data's REAL shape. With the wrong name, the guard
+    # would have gone red on a turn that said exactly what it was supposed to say.
     assert "Dune: Part Two" in (res.get("reply") or "")
 
 
 def test_la_boca_del_video_va_ANTES_del_ack_generico_de_canvas():
-    """El orden ES la corrección: `canvas:show:youtube` empieza por `canvas:`, así que la rama genérica se lo
-    come si va primero."""
+    """The order IS the fix: `canvas:show:youtube` starts with `canvas:`, so the generic branch consumes it
+    if it comes first."""
     src = Path("nucleo/flash/probe.py").read_text()
     i_video = src.index("# V2-383 — se NOMBRA el vídeo que cargó")
     i_canvas = src.index('elif action.startswith("canvas:"):')
     assert i_video < i_canvas
 
 
-# ── el cableado ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the wiring ─────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_rail_de_video_ESTA_enchufado_en_este_canal():
-    """El guarda que habría bastado: la rama existía y no ejecutaba nada."""
+    """The guard that would have been enough: the branch existed and executed nothing."""
     src = Path("nucleo/flash/probe.py").read_text()
     assert "from nucleo.flash import video_turn as _video_turn" in src
     assert "await _video_turn.execute(video_req[" in src
 
 
 def test_la_rama_de_video_va_DENTRO_del_bloque_de_ejecucion():
-    """Fuera del `if execute:` volvería a ser una etiqueta — y ese es exactamente el defecto que se cierra."""
+    """Outside `if execute:`, it would become a label again—and that is exactly the defect being closed."""
     src = Path("nucleo/flash/probe.py").read_text()
     i_exec = src.index("    if execute:")
     i_video = src.index('elif action == "canvas:show:youtube" and video_req:')
@@ -159,8 +159,8 @@ def test_la_rama_de_video_va_DENTRO_del_bloque_de_ejecucion():
 
 
 def test_el_rail_es_el_MISMO_que_usa_la_voz():
-    """La voz hace `_apply_widget_data("youtube", "load", {"query": …})`. Si este canal inventara su propio
-    camino habría DOS formas de poner un vídeo, y la que se mide no sería la que usa el operador."""
+    """The voice uses `_apply_widget_data("youtube", "load", {"query": …})`. If this channel invented its own
+    path, there would be TWO ways to play a video, and the one being measured would not be the one the operator uses."""
     assert 'brain_action("youtube", "load"' in Path("nucleo/flash/video_turn.py").read_text()
 
 
@@ -172,14 +172,14 @@ def test_los_argumentos_del_modelo_llegan_al_rail(rail):
 
 
 def test_una_query_VACIA_no_manda_una_busqueda_vacia(rail):
-    """`load` sin query recarga lo que hubiera; mandar `{"query": ""}` haría buscar la nada."""
+    """`load` without a query reloads whatever was there; sending `{"query": ""}` would search for nothing."""
     asyncio.run(VT.execute("   "))
     assert rail["payload"] == {}
 
 
-# Reescritos por V2-402, no volteados: `request_from` ganó el campo `action` (play|list) porque una búsqueda
-# de vídeos («búscame vídeos de…») ahora también es de esta tool y va a la LISTA del reproductor, no a la hoja
-# de resultados. Lo que estos dos tests protegen —no inventar una petición y recortar la query— sigue intacto.
+# Rewritten by V2-402, not reversed: `request_from` gained the `action` field (play|list) because a video search
+# («find me videos of…») is now also handled by this tool and goes to the player's LIST, not the results sheet.
+# What these two tests protect—not inventing a request and trimming the query—remains intact.
 def test_sin_llamada_a_play_video_no_se_inventa_una():
     assert VT.request_from([{"name": "web_search", "args": {}}]) == {"query": "", "action": "play"}
 
@@ -190,7 +190,7 @@ def test_la_query_se_recorta_al_extraerla():
 
 
 def test_una_averia_del_reproductor_devuelve_parte_y_no_lanza(monkeypatch):
-    """Fail-soft como el resto del bloque: el turno tiene que salir aunque el reproductor esté roto."""
+    """Fail-soft like the rest of the block: the turn must complete even if the player is broken."""
     async def _boom(*a, **k):
         raise RuntimeError("el widget no responde")
     import widgets.server_api as _sa
@@ -200,29 +200,29 @@ def test_una_averia_del_reproductor_devuelve_parte_y_no_lanza(monkeypatch):
 
 
 def test_un_NO_ENCONTRADO_del_widget_se_reporta_como_fallo(rail):
-    """El propio widget devuelve `{"ok": False, "error": "no_video"}`. Darlo por bueno sería volver a decir
-    «te lo abro» sobre una pantalla vacía, que es el defecto entero."""
+    """The widget itself returns `{"ok": False, "error": "no_video"}`. Treating that as successful would mean saying
+    «I'll open it for you» again over an empty screen, which is the entire defect."""
     rail["_res"] = {"ok": False, "error": "no_video", "message": "No encontré ese vídeo."}
     parte = asyncio.run(VT.execute("un vídeo que no existe"))
     assert parte["ok"] is False and "No encontré" in parte["message"]
 
 
-# ── la boca dice lo que PASÓ ───────────────────────────────────────────────────────────────────────────────
+# ── the mouth says what HAPPENED ────────────────────────────────────────────────────────────────────────────
 
 def _boca(extra):
-    """La decisión REAL, no una copia: reimplementarla aquí probaría que mi copia funciona (V2-199)."""
+    """The REAL decision, not a copy: reimplementing it here would only prove that my copy works (V2-199)."""
     return VT.spoken_for(extra, "Hecho.")
 
 
 def test_si_CARGA_se_NOMBRA_el_video():
-    """Nombrarlo es lo que deja verificar de un vistazo que es el que pedía (V2-057). «Hecho.» no lo deja."""
+    """Naming it makes it possible to verify at a glance that it is the one requested (V2-057). «Hecho.» does not."""
     salida = _boca({"executed": "play_video", "ok": True, "title": "Dune: Part Two | Official Trailer"})
     assert "Dune: Part Two" in salida and "Hecho." not in salida
 
 
 def test_si_NO_carga_se_DICE_en_vez_de_Hecho(monkeypatch):
-    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: frases siguen al motor
-    """El corazón del defecto: una frase de entrega sobre una caja vacía. Quinta vez (V2-176, V2-209, V2-377,
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: phrases follow the engine
+    """The heart of the defect: a delivery phrase over an empty box. Fifth occurrence (V2-176, V2-209, V2-377,
     V2-380)."""
     salida = _boca({"executed": "play_video", "ok": False, "message": "No encontré ese vídeo."})
     assert salida.startswith("No he podido ponerlo")
@@ -230,7 +230,7 @@ def test_si_NO_carga_se_DICE_en_vez_de_Hecho(monkeypatch):
 
 
 def test_un_fallo_SIN_motivo_no_se_queda_mudo(monkeypatch):
-    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: frases siguen al motor
+    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "es", raising=False)  # V2-464: phrases follow the engine
     assert "no encontré ese vídeo" in _boca({"executed": "play_video", "ok": False})
 
 
@@ -239,14 +239,14 @@ def test_un_turno_que_NO_es_de_video_conserva_su_ack():
 
 
 def test_un_exito_SIN_titulo_no_inventa_uno():
-    """Sin título no hay nada que verificar, así que se cae al ack en vez de fabricar un nombre."""
+    """Without a title there is nothing to verify, so it falls back to the ack instead of fabricating a name."""
     assert _boca({"executed": "play_video", "ok": True, "title": ""}) == "Hecho."
 
 
-# ── V2-463 — la tarjeta del reproductor se abre en el rail COMPARTIDO ───────────────────────────────────
+# ── V2-463 — the player's card opens on the SHARED rail ─────────────────────────────────────────────────
 def test_cargar_un_video_ABRE_la_tarjeta_tambien_desde_el_probe(monkeypatch):
-    """Mismo agujero que el visor de imágenes: la voz emitía su `show` y el canal probe ninguno, así que una
-    ronda medida reproducía sobre un canvas sin tarjeta. La apertura vive en `video_turn.execute`."""
+    """The same hole as the image viewer: voice emitted its `show` and the probe channel emitted none, so a
+    measured run played on a canvas without a card. The opening lives in `video_turn.execute`."""
     import asyncio
     emitted: list[tuple] = []
 
@@ -279,12 +279,12 @@ def test_un_video_que_NO_cargo_no_abre_nada(monkeypatch):
     assert not [e for e in emitted if e[0] == "widget" and e[1] == "show"]
 
 
-# ── V2-465 — el reproductor PUBLICA su lista ────────────────────────────────────────────────────────────
+# ── V2-465 — the player PUBLISHES its list ──────────────────────────────────────────────────────────────
 def test_el_reproductor_publica_sus_items_para_que_el_cerebro_los_nombre(monkeypatch, tmp_path):
-    """Único de la familia de medios que no lo hacía (medido 2026-08-28 comparando los tres): `musica` e
-    `imagenes` contestaban y este devolvía "". Dos consecuencias, y la segunda es la cara: «pon la tercera»
-    no tenía contra qué resolver —y el modelo NUNCA debe inventar un id (V2-026)—, y con la tarjeta ABIERTA
-    Y VACÍA el brief no podía decirlo, que es el «doy por entregado lo que no está» de V2-377/380/383."""
+    """The only one in the media family that did not do so (measured on 2026-08-28 by comparing all three): `musica` and
+    `imagenes` answered and this one returned "". Two consequences, the second being the ugly one: «pon la tercera»
+    had nothing to resolve against—and the model must NEVER invent an id (V2-026)—and with the card OPEN
+    AND EMPTY the brief could not say it, which is the «claiming delivery of what is not there» of V2-377/380/383."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets.youtube import data as yt
@@ -306,19 +306,19 @@ def test_el_reproductor_publica_sus_items_para_que_el_cerebro_los_nombre(monkeyp
 
 
 def test_una_lista_VACIA_lo_dice_en_vez_de_callar(monkeypatch, tmp_path):
-    """La mitad que evita el defecto caro: sin índice, «abierta y vacía» y «no publica» eran indistinguibles."""
+    """The half that prevents the costly defect: without an index, «open and empty» and «does not publish» were indistinguishable."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets import refs
     assert "VACÍA" in refs.items_line("youtube")
 
 
-# ── V2-467 — la lista del reproductor se puede NOMBRAR ──────────────────────────────────────────────────
+# ── V2-467 — the player's list can be NAMED ──────────────────────────────────────────────────────────────
 def test_la_lista_se_puede_nombrar_como_las_de_musica(monkeypatch, tmp_path):
-    """Asimetría de familia medida en `build-a-video-playlist-from-links`: `musica` tiene listas con nombre y
-    este reproductor no, así que «llámala la de la tarde» no tenía dónde caer — el modelo no encontró acción
-    y el propio catálogo de escalate («no estar en el catálogo NO es motivo para negarte») mandó una cola de
-    dos enlaces a un Brain Worker. El escenario llama a eso FALLO: es un rail, se resuelve en el turno."""
+    """Family asymmetry measured in `build-a-video-playlist-from-links`: `musica` has named lists and
+    this player did not, so «call it the afternoon one» had nowhere to go—the model found no action
+    and the escalate catalog itself («not being in the catalog is NOT a reason to refuse») sent a queue of
+    two links to a Brain Worker. The scenario calls that a FAILURE: it is a rail, resolved in the turn."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets.youtube import data as yt
@@ -328,8 +328,8 @@ def test_la_lista_se_puede_nombrar_como_las_de_musica(monkeypatch, tmp_path):
 
 
 def test_un_nombre_vacio_lo_QUITA_igual_que_el_filtro(monkeypatch, tmp_path):
-    """Dos acciones de lista no pueden discrepar sobre qué significa un payload vacío: `filter_list` ya usa
-    «vacío = quitar»."""
+    """Two list actions cannot disagree about what an empty payload means: `filter_list` already uses
+    «empty = remove»."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets.youtube import data as yt
@@ -347,7 +347,7 @@ def test_la_tarjeta_ENSEÑA_el_nombre_o_no_sirve_de_nada():
 
 
 def test_las_acciones_declaradas_siguen_siendo_las_que_hace(monkeypatch, tmp_path):
-    """El gate del generador rechaza una acción declarada que nadie atiende y una atendida sin declarar."""
+    """The generator gate rejects a declared action that nobody handles and a handled action that is undeclared."""
     import json
     import pathlib
     from widgets import store

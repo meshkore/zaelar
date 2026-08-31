@@ -1,16 +1,16 @@
-"""nucleo/agentes/worker.py — WORKER genérico conducido por Claude Code (V2-036).
+"""nucleo/agentes/worker.py — GENERIC WORKER driven by Claude Code (V2-036).
 
-Sustituye a `nucleo/agentes/otros.py` (parkeado): el caso por defecto (razonamiento, redacción, consulta, informe —
-todo lo que no sea navegar ni tocar código de widget) lo conduce un agente Claude Code headless que ACTÚA COMO UN
+Replaces `nucleo/agentes/otros.py` (parked): the default case (reasoning, writing, queries, reports —
+everything that is not browsing or touching widget code) is driven by a headless Claude Code agent that ACTS AS A
 SLOW BRAIN para SU tarea. A diferencia del viejo `otros.py`, este worker:
 
   • USA la MEMORIA de zaelar EN CURSO como pieza serial: `mem_cli recall` para pedir un dato, `mem_cli remember`
-    para guardar lo que descubra — sin abrir la BD (habla por HTTP con el server vivo, escritor único intacto).
-  • REPORTA su progreso al FlashBrain con `agent_report phase` → el operador ve la fase de la sesión mientras trabaja
-    (las sesiones son lentas; la comunicación constante es lo que las hace usables).
+    to save what it discovers — without opening the DB (it talks over HTTP to the live server; the single writer remains intact).
+  • REPORTS progress to FlashBrain with `agent_report phase` → the operator sees the session phase while it works
+    (sessions are slow; constant communication is what makes them usable).
 
 Corre bajo el POOL del dispatcher (concurrencia acotada) y devuelve un `WorkResult` que el dispatcher entrega por
-voz+UI+[SISTEMA] y guarda en memoria. El id de sesión viaja por `ZAELAR_TASK_ID` (env) → los CLIs lo toman solos.
+voice+UI+[SYSTEM] and saves to memory. The session ID travels through `ZAELAR_TASK_ID` (env) → the CLIs pick it up automatically.
 """
 from __future__ import annotations
 
@@ -33,21 +33,21 @@ _TOOLS_DOC = (
 
 
 async def run(task) -> WorkResult:
-    """Resuelve una tarea genérica con un agente Claude Code que usa memoria + reporta progreso. Nunca lanza."""
+    """Resolves a generic task with a Claude Code agent that uses memory and reports progress. Never raises."""
     from nucleo import agentes, dispatch, memory_agent
 
     req = (task.request or "").strip()
     if not req:
         return WorkResult(ok=True, summary="", deliver=False)
 
-    # 1) contexto mínimo desde el agente de memoria (semilla; el agente puede pedir MÁS con mem_cli recall).
+    # 1) Minimum context from the memory agent (seed; the agent can request MORE with mem_cli recall).
     try:
         context = await memory_agent.compose_context(req, budget=int(task.context.get("budget", 2000)))
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"worker: compose_context falló ({e}); sigo sin contexto")
+        logger.warning(f"worker: compose_context failed ({e}); continuing without context")
         context = ""
 
-    # 2) prompt = contexto + tarea + doc de herramientas (memoria/reporte).
+    # 2) Prompt = context + task + tool documentation (memory/reporting).
     prompt = dispatch._build_prompt(req, context, task) + (_TOOLS_DOC if task.trusted else "")
 
     try:
@@ -55,7 +55,7 @@ async def run(task) -> WorkResult:
     except Exception:
         pass
 
-    # 3) agente Claude Code, modelo POR INVOCACIÓN, tools por confianza + el id de sesión por env (para los CLIs).
+    # 3) Claude Code agent, PER-INVOCATION model, trust-based tools + session ID via env (for the CLIs).
     agent = agentes.get_agent()
     spec = RunSpec(
         model=dispatch._model_for(task.kind),

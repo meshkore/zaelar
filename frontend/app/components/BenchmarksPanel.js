@@ -1,7 +1,7 @@
-// BenchmarksPanel — "¿Quieres ver los benchmarks y el por qué usamos unos modelos u otros?" (V2-077, 2026-07-26).
-// Réplica VISIBLE al usuario de las decisiones de modelo del sistema — misma filosofía que web/technology: una
-// foto curada del contexto interno (config/model_benchmarks.py), no un parser del doc denso. Puramente
-// informativo (sin guardar nada); abierta desde el botón al fondo de "Cerebro rápido" en ConfigPanel.
+// BenchmarksPanel — "Want to see the benchmarks and why we use some models over others?" (V2-077, 2026-07-26).
+// User-VISIBLE replica of the system's model decisions — same philosophy as web/technology: a curated
+// snapshot of internal context (config/model_benchmarks.py), not a parser for the dense document. Purely
+// informational (saves nothing); opened from the button at the bottom of "Fast brain" in ConfigPanel.
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";

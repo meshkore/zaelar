@@ -1,18 +1,18 @@
-"""V2-488 — un modelo que NO PUEDE apagar el razonamiento tumbaba TODAS las búsquedas dirigidas, en silencio.
+"""V2-488 — a model that CANNOT turn off reasoning was silently breaking ALL directed searches.
 
-Medido en el plató US el 2026-08-29, idéntico en las dos rondas del hotel (20:03:02 y 20:40:36):
+Measured on the US stage on 2026-08-29, identically in both hotel runs (20:03:02 and 20:40:36):
 
-    research: el compositor falló (Error code: 400 - {'error': {'code': '1210', 'message': 'This model always
+    research: the composer failed (Error code: 400 - {'error': {'code': '1210', 'message': 'This model always
     engages in thinking and cannot be disabled; please use low, high, or max'}})
-    — el worker sale SIN brief (búsqueda sin dirigir)
+    — the worker exits WITHOUT a brief (undirected search)
 
-Y **no relevaba**: un 400 de parámetro no es una caída de proveedor, así que `classify_failure` no devuelve
-tier de relevo y la excepción viaja hasta el fail-open. El motor degradaba a búsqueda ciega —lo que este
-módulo existe para cerrar— cada vez que la cadena elegía un razonador puro, y por una línea NUESTRA.
+And it **did not fail over**: a parameter 400 is not a provider outage, so `classify_failure` does not return a
+failover tier and the exception travels up to fail-open. The engine degraded to blind search —what this module
+exists to prevent— whenever the chain selected a pure reasoner, because of one line of OUR code.
 
-La corrección tiene dos mitades y las dos se fijan aquí: reintentar **con** razonamiento, y con el
-presupuesto que la deliberación necesita (1.600 vuelve truncado; el propio comentario del módulo ya había
-medido 2.517 tokens de salida con thinking puesto).
+The fix has two halves, and both are enforced here: retry **with** reasoning, and with the
+budget that deliberation requires (1,600 comes back truncated; the module's own comment had already
+measured 2,517 output tokens with thinking enabled).
 """
 import asyncio
 
@@ -25,7 +25,7 @@ RECHAZO = ("Error code: 400 - {'error': {'code': '1210', 'message': 'This model 
            "and cannot be disabled; please use low, high, or max'}}")
 
 
-# ── el predicado: distingue «no admite lo que le pido» de «se ha caído» ─────────────────────────────────────
+# ── the predicate: distinguishes “does not support what I request” from “has gone down” ────────────────────
 
 @pytest.mark.parametrize("texto", [
     RECHAZO,
@@ -43,15 +43,15 @@ def test_reconoce_el_rechazo(texto):
     "",
 ])
 def test_NO_se_come_otros_fallos(texto):
-    """Si esto tragara un 429 de cuota agotada, el relevo dejaría de dispararse — que es exactamente el
-    defecto que V2-225 cerró. La cuarentena del proveedor tiene que seguir ocurriendo cuando toca."""
+    """If this swallowed a 429 for an exhausted quota, failover would stop triggering — exactly the
+    defect that V2-225 fixed. Provider quarantine must continue to occur when appropriate."""
     assert not research._no_puede_dejar_de_pensar(Exception(texto))
 
 
-# ── la conducta: el brief SALE, no se degrada a búsqueda ciega ──────────────────────────────────────────────
+# ── the behavior: the brief GETS OUT; it does not degrade to blind search ───────────────────────────────────
 
 class _ClienteFalso:
-    """Rechaza `no_thinking` como el proveedor real y anota con qué se le llamó cada vez."""
+    """Rejects `no_thinking` like the real provider and records how it was called each time."""
 
     llamadas: list = []
 
@@ -83,8 +83,8 @@ def test_el_brief_SALE_aunque_el_modelo_no_pueda_dejar_de_pensar(_compositor):
 
 
 def test_el_reintento_lleva_PRESUPUESTO_para_la_deliberacion(_compositor):
-    """Con thinking puesto, el bloque se carga contra `max_tokens`: reintentar con los mismos 1.600 devuelve un
-    brief truncado e ilegible — la trampa ya medida del razonador que se come el presupuesto."""
+    """With thinking enabled, the block counts against `max_tokens`: retrying with the same 1,600 returns a
+    truncated, unreadable brief — the already-measured trap of the reasoner consuming the budget."""
     asyncio.run(research.compose("búscame el mejor hotel de Nueva Orleans"))
     primera, segunda = _compositor.llamadas
     assert primera["no_thinking"] is True and primera["max_tokens"] == 1600
@@ -94,8 +94,8 @@ def test_el_reintento_lleva_PRESUPUESTO_para_la_deliberacion(_compositor):
 
 
 def test_el_tier_NO_se_pone_en_cuarentena_por_culpa_nuestra(_compositor, monkeypatch):
-    """El proveedor no ha fallado: le hemos pedido algo que no admite. Marcarlo como caído lo aparta de la
-    cadena para todo el mundo por un error de nuestro lado."""
+    """The provider has not failed: we asked it for something it does not support. Marking it as down removes it
+    from the chain for everyone because of an error on our side."""
     marcados = []
     monkeypatch.setattr(research, "_note_provider_failure",
                         lambda exc, tier: marcados.append(tier) or None)

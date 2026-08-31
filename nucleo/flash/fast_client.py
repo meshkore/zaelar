@@ -1,18 +1,18 @@
-"""nucleo/flash/fast_client.py — cliente del modelo RÁPIDO no-razonador del FlashBrain (V2-004 · T60).
+"""nucleo/flash/fast_client.py — client for the FlashBrain's FAST non-reasoning model (V2-004 · T60).
 
-Puerto propio de `brains/duo/fast_client.py` (que muere con Hermes en V2-009), con la diferencia CLAVE del
-cerebro v2:
+Own port of `brains/duo/fast_client.py` (which dies with Hermes in V2-009), with the KEY difference of
+the v2 brain:
 
-  - **Modelo POR INVOCACIÓN** (regla dura del proyecto): el modelo/base_url/api_key/provider se pasan en CADA
-    `stream()` dentro de un `ModelSpec`, NUNCA se leen de una env global de modelo — así dos sesiones concurrentes
-    pueden usar modelos distintos sin pisarse. `spec_from_config()` compone el spec por defecto desde `config/v2`
-    (que la UI gestiona), pero el llamador es libre de pasar otro.
-  - **NO-razonador**: thinking siempre OFF. Un razonador no cierra el turno a tiempo → la voz se queda muda.
-  - Interfaz OpenAI-compatible con **tool-calling real** (escalado y control van por function-calling, no por
-    listas de palabras clave — agnóstico del idioma). Streaming de `delta.content` + acumulación de
-    `delta.tool_calls`, con `on_tool_call(name, args)` disparado una vez por llamada completa.
-  - **Degradación**: `stream()` propaga el error de transporte/proveedor; el provider de voz (`nucleo.py`) lo
-    captura y responde una frase de reserva — NUNCA se queda mudo ni habla el error crudo.
+  - **Model PER INVOCATION** (hard project rule): model/base_url/api_key/provider are passed on EACH
+    `stream()` inside a `ModelSpec`, NEVER read from a global model env — so two concurrent sessions
+    can use different models without stepping on each other. `spec_from_config()` builds the default spec from `config/v2`
+    (managed by the UI), but the caller is free to pass another.
+  - **Non-reasoning**: thinking is always OFF. A reasoner does not close the turn in time → voice goes silent.
+  - OpenAI-compatible interface with **real tool-calling** (escalation and control use function-calling, not
+    keyword lists — language-agnostic). Streaming of `delta.content` + accumulation of
+    `delta.tool_calls`, with `on_tool_call(name, args)` fired once per complete call.
+  - **Degradation**: `stream()` propagates the transport/provider error; the voice provider (`nucleo.py`) catches
+    it and replies with a fallback phrase — it NEVER stays silent or speaks the raw error.
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ from typing import Any, AsyncIterator
 
 from loguru import logger
 
-# UA de navegador: AIMLAPI está tras Cloudflare y 403ea el User-Agent por defecto del SDK OpenAI (403/1010
-# intermitente, visto en producción). Se falsea SOLO en el endpoint de AIMLAPI (sin efecto en Ollama/otros).
+# Browser UA: AIMLAPI is behind Cloudflare and intermittently 403s the OpenAI SDK's default User-Agent (403/1010,
+# observed in production). It is spoofed ONLY on the AIMLAPI endpoint (no effect on Ollama/others).
 _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 # The turn's output ceiling. It was 200, and 200 does not FIT the most important tool call in the system:
 # `escalate_to_slowbrain` writes ~1000-1400 characters of JSON on its own, and the same budget has to also
@@ -45,10 +45,10 @@ _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 # doing the most work. 1200 fits a full escalation with room for the spoken sentence.
 _DEFAULT_MAX_TOKENS = int(os.getenv("FAST_MAX_TOKENS", "1200"))
 
-# Reintento en TRANSITORIOS (2026-07-25): AIMLAPI va tras Cloudflare y da `Connection error`/403/5xx intermitentes.
-# Un blip PUNTUAL en la fase de conexión NO debe tirar el turno (síntoma real: el chat del operador quedaba sin
-# respuesta o con "Uf, se me ha ido"). Reintentamos SOLO la fase de conexión (antes del primer token del stream) →
-# seguro (no se re-emite nada ya enviado). Configurable `FAST_CONNECT_RETRIES` (def 2 reintentos).
+# Retry on TRANSIENTS (2026-07-25): AIMLAPI is behind Cloudflare and intermittently returns `Connection error`/403/5xx.
+# A SINGLE blip during the connection phase must NOT kill the turn (real symptom: the operator chat was left without
+# a response or with "Uf, se me ha ido"). Retry ONLY the connection phase (before the stream's first token) →
+# safe (nothing already sent is re-emitted). Configurable `FAST_CONNECT_RETRIES` (default: 2 retries).
 _CONNECT_RETRIES = int(os.getenv("FAST_CONNECT_RETRIES", "2"))
 _RETRY_BACKOFF_S = float(os.getenv("FAST_RETRY_BACKOFF_S", "0.4"))
 
@@ -105,8 +105,8 @@ def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
 
 
 def _is_transient(e: Exception) -> bool:
-    """¿El error es un blip transitorio de red/proveedor (merece reintento) y NO un error de la petición (4xx de
-    autenticación/cuota/entrada, que reintentar no arregla)?"""
+    """Is the error a transient network/provider blip (worth retrying), and NOT a request error (4xx for
+    authentication/quota/input, which retrying cannot fix)?"""
     name = type(e).__name__.lower()
     if any(k in name for k in ("connection", "timeout", "apiconnection", "apitimeout", "internalserver")):
         return True
@@ -119,34 +119,34 @@ def _is_transient(e: Exception) -> bool:
 
 
 async def _raise_with_body(resp) -> None:
-    """`resp.raise_for_status()`, pero con el CUERPO de la respuesta metido en el mensaje de la excepción. Sin
-    esto, un 429 de Z.AI llega como el mensaje genérico de httpx («429 Too Many Requests», sin más) y quien
-    clasifica el fallo aguas abajo (`nucleo.flash.provider_chain.classify_failure`, y su hermano de
-    `nucleo.workers.providers`) no puede distinguir «cuota SEMANAL agotada, reset el jueves» (hay que relevar) de
-    un rate-limit pasajero (se reintenta solo) — los dos dan el MISMO 429 desnudo. No-op si la respuesta es OK.
+    """`resp.raise_for_status()`, but with the response BODY included in the exception message. Without
+    this, a Z.AI 429 arrives as httpx's generic message («429 Too Many Requests», with no further detail), and the
+    downstream failure classifier (`nucleo.flash.provider_chain.classify_failure`, and its sibling in
+    `nucleo.workers.providers`) cannot distinguish «WEEKLY quota exhausted, reset Thursday» (the model must be replaced) from
+    a temporary rate limit (retried automatically) — both produce the SAME bare 429. No-op if the response is OK.
 
-    ES CORRUTINA: hay que llamarla con AWAIT. Sin await no lanza absolutamente nada —Python solo crea el objeto
-    corrutina y lo tira— así que un 429/500 pasaba por bueno y el código seguía con `resp.json()` sobre un cuerpo de
-    error, convirtiendo un fallo de proveedor claro en un error de parseo confuso más adelante. Pasó justo aquí, en
-    `_complete_zai` (2026-08-09): solo se vio porque Python avisa («coroutine never awaited»)."""
+    THIS IS A COROUTINE: it must be called with AWAIT. Without await it throws absolutely nothing —Python only creates the
+    coroutine and discards it—so a 429/500 was treated as successful and the code continued with `resp.json()` on an error
+    body, turning a clear provider failure into a confusing parse error later. This happened right here, in
+    `_complete_zai` (2026-08-09): it was only noticed because Python warned («coroutine never awaited»)."""
     import httpx
     if resp.status_code < 400:
         return
     try:
-        await resp.aread()          # no-op si ya está buffered (Response normal); imprescindible en streaming
+        await resp.aread()          # no-op if already buffered (normal Response); essential for streaming
         body = (resp.text or "")[:400]
     except Exception:
         body = ""
     err = httpx.HTTPStatusError(f"{resp.status_code} {resp.reason_phrase}" + (f" — {body}" if body else ""),
                                 request=resp.request, response=resp)
-    err.status_code = resp.status_code   # deja que `_is_transient` lo detecte también por status_code, no solo texto
+    err.status_code = resp.status_code   # let `_is_transient` detect it by status_code too, not only by text
     raise err
 
 
 def _keepalive_expiry() -> float:
-    """Segundos que el pool HTTP mantiene VIVA una conexión ociosa (FASE 1 cold-start). httpx por defecto la cierra
-    a los ~5s → el prewarm no llega al 1er turno. La subimos mucho (def 30 min). Configurable `FAST_HTTP_KEEPALIVE_S`.
-    La MISMA cifra alimenta la heurística `cold_estimate` (gap > keepalive ⇒ conexión probablemente fría)."""
+    """Seconds for which the HTTP pool keeps an idle connection ALIVE (PHASE 1 cold-start). httpx closes it by default
+    after ~5s → prewarming does not reach the first turn. We raise it substantially (default: 30 min). Configurable via `FAST_HTTP_KEEPALIVE_S`.
+    The SAME value feeds the `cold_estimate` heuristic (gap > keepalive ⇒ connection probably cold)."""
     try:
         return float(os.getenv("FAST_HTTP_KEEPALIVE_S", "1800"))
     except Exception:
@@ -154,8 +154,8 @@ def _keepalive_expiry() -> float:
 
 
 def _http_client():
-    """Cliente httpx con keepalive LARGO + pool, para que la conexión TLS prewarmeada sobreviva al 1er turno y
-    entre turnos (FASE 1). Best-effort: si httpx no admite la firma, devuelve None → AsyncOpenAI usa su default."""
+    """httpx client with LONG keepalive + pool, so the prewarmed TLS connection survives the first turn and
+    the gaps between turns (PHASE 1). Best-effort: if httpx does not support the signature, return None → AsyncOpenAI uses its default."""
     try:
         import httpx
         ka = _keepalive_expiry()
@@ -189,24 +189,24 @@ _CHARS_PER_TOKEN = 3.3
 
 
 def est_tokens(chars: int) -> int:
-    """Estimación barata de tokens desde nº de chars. Dos usos, y el segundo es el que fija la constante:
+    """Cheap token estimate from the number of chars. Two uses, and the second is what determines the constant:
 
-    1. **Observabilidad** — distinguir «prompt de 100 tokens» de «prompt de 50k», el eje que pide el operador para
-       saber si la latencia es del MODELO o del TAMAÑO del prompt. Aquí el divisor casi da igual.
-    2. **La factura de un turno CANCELADO** — el `usage` real del proveedor viaja en el ÚLTIMO chunk del stream, así
-       que un turno cortado por barge-in no lo recibe nunca y este estimado es lo único que hay. Aquí el divisor es
-       dinero (ver `_CHARS_PER_TOKEN`).
+    1. **Observability** — distinguish a «100-token prompt» from a «50k prompt», the axis the operator needs to
+       determine whether latency comes from the MODEL or the prompt SIZE. Here the divisor hardly matters.
+    2. **The bill for a CANCELLED turn** — the provider's real `usage` arrives in the stream's LAST chunk, so
+       a turn cut off by barge-in never receives it and this estimate is all we have. Here the divisor is money
+       (see `_CHARS_PER_TOKEN`).
 
-    Si el proveedor devuelve `usage`, ese manda siempre (ver `stream`).
+    If the provider returns `usage`, it always takes precedence (see `stream`).
     """
     return int(round((chars or 0) / _CHARS_PER_TOKEN))
 
 
 class _AnthropicSSE:
-    """Máquina de estados PURA para el stream SSE de Anthropic Messages (lo que habla Z.AI directo). Separada del
-    transporte HTTP a propósito → testeable con objetos `data:` sintéticos (ver tests). `feed(obj)` recibe UN
-    objeto JSON de una línea `data:` y devuelve una lista de eventos: `("text", str)` por cada `text_delta`, y
-    `("tool", name, input_dict)` cuando un bloque `tool_use` se cierra (acumula `input_json_delta.partial_json`)."""
+    """PURE state machine for the Anthropic Messages SSE stream (the protocol spoken by direct Z.AI). Deliberately
+    separate from HTTP transport → testable with synthetic `data:` objects (see tests). `feed(obj)` receives ONE
+    JSON object from a `data:` line and returns a list of events: `("text", str)` for each `text_delta`, and
+    `("tool", name, input_dict)` when a `tool_use` block closes (accumulating `input_json_delta.partial_json`)."""
 
     def __init__(self) -> None:
         self._blocks: dict[int, dict] = {}   # index → {"type","name","json"}
@@ -238,32 +238,32 @@ class _AnthropicSSE:
 
 
 class FastClient:
-    """Cliente streaming del modelo rápido. STATELESS respecto al modelo: cada `stream()` recibe su `ModelSpec`.
-    Los clientes AsyncOpenAI subyacentes se cachean por (base_url, api_key, ua) para reusar conexiones."""
+    """Streaming client for the fast model. STATELESS with respect to the model: each `stream()` receives its `ModelSpec`.
+    Underlying AsyncOpenAI clients are cached by (base_url, api_key, ua) to reuse connections."""
 
-    # timestamp de la ÚLTIMA llamada por client-key → heurística cold/warm (gap > keepalive ⇒ conexión probablemente
-    # fría, se re-hace TLS). Observabilidad del cold-start (FASE 1). Class-level: compartido por todas las instancias.
+    # timestamp of the LAST call per client key → cold/warm heuristic (gap > keepalive ⇒ connection probably
+    # cold, TLS is renegotiated). Cold-start observability (PHASE 1). Class-level: shared by all instances.
     _last_call_at: dict[tuple, float] = {}
 
     _clients: dict[tuple, Any] = {}
 
     def _client_key(self, spec: ModelSpec) -> tuple:
-        # EGRESS (T303). Donde el despliegue declara una salida mediada, el destino y la credencial los
-        # decide `llm_egress`, no el spec: el spec sigue diciendo QUÉ modelo se quiere, y deja de decir
-        # con qué llave se paga. Sin salida mediada esto devuelve exactamente lo de antes, así que el
-        # camino de self-host no cambia ni un byte.
+        # EGRESS (T303). Where the deployment declares mediated egress, `llm_egress` decides the destination
+        # and credential, not the spec: the spec still says WHICH model is wanted, but no longer says
+        # which key pays for it. Without mediated egress this returns exactly what it did before, so the
+        # self-host path does not change by a single byte.
         from nucleo import llm_egress
         raw_base = spec.resolved_base_url()
         base, key, extra = llm_egress.route(raw_base, spec.resolved_api_key())
         if not key:
             raise RuntimeError(f"sin credencial para el modelo rápido ({spec.model} @ {base})")
-        # El User-Agent de navegador es para Cloudflare delante de AIMLAPI. Con salida mediada quien
-        # habla con AIMLAPI es el otro extremo, así que aquí ya no hace falta.
+        # The browser User-Agent is for Cloudflare in front of AIMLAPI. With mediated egress the other
+        # end talks to AIMLAPI, so it is not needed here.
         ua = _BROWSER_UA if (spec._is_aimlapi() and not extra) else ""
         return (base, key, ua, tuple(sorted(extra.items())))
 
     def _client_for(self, spec: ModelSpec):
-        # import perezoso: una key ausente no debe reventar el import del paquete/setup de sesión.
+        # lazy import: a missing key must not break package/session-setup import.
         from openai import AsyncOpenAI
 
         ck = self._client_key(spec)
@@ -274,10 +274,10 @@ class FastClient:
             if ua:
                 headers["User-Agent"] = ua
             headers = headers or None
-            # FASE 1 (cold-start): el cliente HTTP mantiene la conexión TLS VIVA mucho más que el default de httpx
-            # (~5s). Sin esto, el prewarm calienta la conexión al arrancar pero CADUCA antes del 1er turno → se
-            # re-hace TLS+handshake = los ~3.8s del 1er turno frío. Con keepalive largo, la conexión prewarmeada
-            # sobrevive hasta el 1er turno y ENTRE turnos → el modelo caliente (~1.2s) se percibe siempre.
+            # PHASE 1 (cold-start): the HTTP client keeps the TLS connection ALIVE much longer than httpx's default
+            # (~5s). Without this, prewarming heats the connection at startup but it EXPIRES before the first turn →
+            # TLS+handshake is redone = the first cold turn takes ~3.8s. With long keepalive, the prewarmed connection
+            # survives until the first turn and BETWEEN turns → the hot model (~1.2s) is always perceived.
             okw = dict(api_key=_key, base_url=base, default_headers=headers)
             _hc = _http_client()
             if _hc is not None:
@@ -296,10 +296,10 @@ class FastClient:
         on_tool_call=None,
         no_thinking: bool = False,
     ) -> str:
-        """Llamada NO-streaming (devuelve el texto entero). Mismo cliente/keys/spec que `stream()` — es el MISMO
-        motor, solo sin trocear la salida. La usa el canal de cluster (V2-069): off-voz no necesita streaming, y un
-        tier RAZONADOR (GLM-5.2 vía AIMLAPI) NO emite deltas hasta terminar de pensar → con `stream=True` la llamada
-        parece colgarse (medido: >115s vs 3.4s sin stream). Lanza el error del proveedor igual que `stream`.
+        """NON-streaming call (returns the complete text). Same client/keys/spec as `stream()` — the SAME
+        engine, only without chunking the output. Used by the cluster channel (V2-069): off-voice needs no streaming, and a
+        REASONING tier (GLM-5.2 via AIMLAPI) emits NO deltas until it finishes thinking → with `stream=True` the call
+        appears to hang (measured: >115s vs 3.4s without streaming). Raises the provider error just like `stream`.
 
         Si se pasan `tools` (function-calling OpenAI-compatible, V2-076), se ofrecen con `tool_choice='auto'` y, al
         volver, `on_tool_call(name, args_dict)` se dispara una vez por llamada del modelo (best-effort: una con JSON
@@ -539,12 +539,12 @@ class FastClient:
         metrics: dict | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        """Generador async: emite el texto de cada chunk según llega (para empujarlo a TTS al instante). Lanza
-        ante error de transporte/proveedor (el llamador habla una reserva limpia — nunca el error crudo).
+        """Async generator: emits each chunk's text as it arrives (to push it to TTS immediately). Raises
+        on transport/provider error (the caller speaks a clean fallback — never the raw error).
 
-        Si se pasan `tools` (funciones OpenAI-compatible), se ofrecen con `tool_choice='auto'`; los
-        `delta.tool_calls` se acumulan por índice y, al terminar el stream, `on_tool_call(name, args_dict)` se
-        dispara una vez por llamada completa (best-effort: una con JSON inválido se salta, nunca lanza)."""
+        If `tools` (OpenAI-compatible functions) are passed, they are offered with `tool_choice='auto'`; the
+        `delta.tool_calls` are accumulated by index and, when the stream ends, `on_tool_call(name, args_dict)` is
+        fired once per complete call (best-effort: one with invalid JSON is skipped and never raises)."""
         spec = spec or spec_from_config()
         # Z.AI directo habla Anthropic Messages SSE (no OpenAI chat/completions) → ruta aparte (paridad con
         # `complete()`, que ya bifurca a `_complete_zai`). Latente hasta configurar FAST=Z.AI.

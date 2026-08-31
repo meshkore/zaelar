@@ -29,8 +29,8 @@ def _fmt(res: dict) -> str:
     if res.get("loop_run", 0) >= 2:
         extra.append(f"⚠️BUCLE×{res['loop_run']}")
     tail = ("  [" + " · ".join(extra) + "]") if extra else ""
-    # TOTALIZADORES (premisa de observabilidad): TTFT + tamaño de entrada/salida + cold, para distinguir «lento por
-    # el modelo» de «lento por prompt gigante» o «frío».
+    # TOTALS (observability premise): TTFT + input/output size + cold, to distinguish “slow because of the model”
+    # from “slow because of a huge prompt” or “cold”.
     m = res.get("metrics", {}) or {}
     ptok = m.get("prompt_tokens", m.get("prompt_tokens_est"))
     ctok = m.get("completion_tokens", m.get("completion_tokens_est"))
@@ -44,13 +44,13 @@ def _fmt(res: dict) -> str:
 def main() -> None:
     import argparse
     import sys
-    ap = argparse.ArgumentParser(description="Canal de prueba headless del FlashBrain")
-    ap.add_argument("text", nargs="*", help="texto a inyectar (vacío = REPL)")
+    ap = argparse.ArgumentParser(description="FlashBrain headless test channel")
+    ap.add_argument("text", nargs="*", help="text to inject (empty = REPL)")
     ap.add_argument("--session", default="default")
     ap.add_argument("--base", default="http://localhost:43917")
-    ap.add_argument("--no-ingest", action="store_true", help="no escribir a memoria (charla aislada)")
-    ap.add_argument("--reset", action="store_true", help="limpia la ventana del probe y sale")
-    ap.add_argument("--json", action="store_true", help="imprime el JSON completo")
+    ap.add_argument("--no-ingest", action="store_true", help="do not write to memory (isolated conversation)")
+    ap.add_argument("--reset", action="store_true", help="clear the probe window and exit")
+    ap.add_argument("--json", action="store_true", help="print the complete JSON")
     args = ap.parse_args()
 
     if args.reset:
@@ -66,7 +66,7 @@ def main() -> None:
     if args.text:
         _send(" ".join(args.text))
         return
-    print("FlashBrain probe — escribe y pulsa enter (Ctrl-D para salir). `/reset` limpia la ventana.")
+    print("FlashBrain probe — type and press Enter (Ctrl-D to exit). `/reset` clears the window.")
     for line in sys.stdin:
         line = line.strip()
         if not line:

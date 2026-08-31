@@ -1,9 +1,9 @@
-"""Detector DETERMINISTA de fricción (V2-053 F1) — funciones puras, es/en, sin LLM.
+"""DETERMINISTIC friction detector (V2-053 F1) — pure functions, es/en, no LLM.
 
-La fricción es la señal de disparo BARATA del Susurro: el LLM potente solo se paga cuando hay motivo. Doctrina
-del proyecto (V2-046): esto NO es routing por tabla de palabras — no decide qué HACER con el turno (eso sigue
-siendo del modelo); solo decide si merece la pena AUDITAR el tramo. Precisión > recall: un disparo de más cuesta
-céntimos; uno de menos se recupera con la siguiente queja o con el pulso.
+Friction is Susurro's CHEAP trigger signal: the powerful LLM is only paid when there is cause. Project doctrine
+(V2-046): this is NOT word-table routing — it does not decide what to DO with the turn (that remains the
+model's job); it only decides whether the segment is worth AUDITING. Precision > recall: an extra trigger costs
+cents; a missed one is recovered by the next complaint or pulse.
 """
 from __future__ import annotations
 
@@ -17,10 +17,10 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s.lower()).strip()
 
 
-# Señales FUERTES: el operador está corrigiendo/quejándose de zaelar de forma inequívoca. Una basta.
+# STRONG signals: the operator is unambiguously correcting/complaining about zaelar. One is enough.
 _STRONG = [
     r"\bte lo (?:he |habia |había )?(?:dicho|pedido|preguntado|repetido)\b",
-    r"\bte lo estoy (?:pidiendo|preguntando|diciendo|repitiendo)\b",   # presente continuo: frustración de repetir
+    r"\bte lo estoy (?:pidiendo|preguntando|diciendo|repitiendo)\b",   # continuous present: frustration from repetition
     r"\bte (?:he|habia|había) (?:dicho|pedido|preguntado)\b",
     r"\b(?:ya )?te dije\b",
     r"\bno (?:era|es) eso\b",
@@ -35,7 +35,7 @@ _STRONG = [
     r"\bhace (?:un montón de |mucho |un buen |)rato que\b",
     r"\bllevas (?:un rato|mucho|media hora|horas)\b",
     r"\botra vez (?:mal|no|te (?:has|vuelves)|lo mismo)\b",
-    r"\bque no,?\s",                     # "que no, la otra" — corrección enfática
+    r"\bque no,?\s",                     # "no, the other one" — emphatic correction
     # en
     r"\bi (?:already )?told you\b",
     r"\bthat'?s not what i\b",
@@ -46,12 +46,12 @@ _STRONG = [
 ]
 _STRONG_RE = [re.compile(p, re.I) for p in _STRONG]
 
-# Señales DÉBILES: sugieren fricción pero tienen usos legítimos ("otra vez" en "ponla otra vez"). Hacen falta 2.
+# WEAK signals: they suggest friction but have legitimate uses ("again" in "put it on again"). Two are needed.
 _WEAK = [
     r"\botra vez\b",
     r"\bde nuevo\b",
     r"\bno,?\s+(?:asi|así) no\b",
-    r"\bno es asi\b",                    # "no es así" (corrección; débil: puede ser neutro en frase larga)
+    r"\bno es asi\b",                    # "no es así" (correction; weak: can be neutral in a long sentence)
     r"\beso esta mal\b|\beso está mal\b",
     r"\bmal\b[\s.!?]*$",
     r"\bagain\b",
@@ -61,7 +61,7 @@ _WEAK_RE = [re.compile(p, re.I) for p in _WEAK]
 
 
 def complaint_signals(text: str) -> list[str]:
-    """Patrones de queja/corrección que matchean en el turno (normalizado sin acentos)."""
+    """Complaint/correction patterns that match in the turn (normalized without accents)."""
     t = _norm(text)
     if not t:
         return []
@@ -77,10 +77,10 @@ def is_complaint(text: str) -> bool:
 
 
 def repeated_request(text: str, prev_user_turns: list[str], thr: float = 0.7) -> bool:
-    """La MISMA petición re-dicha (≥thr Jaccard con alguno de los turnos previos del operador). Reutiliza la
-    costura compartida de estabilidad (nucleo/flash/dialog.similar) — misma métrica que el anti-eco del turno."""
+    """The SAME request repeated (≥thr Jaccard with one of the operator's previous turns). Reuses the shared
+    stability seam (nucleo/flash/dialog.similar) — the same metric as the turn's anti-echo."""
     t = (text or "").strip()
-    if len(t) < 12:                       # "sí", "vale", "no" — nunca son una petición repetida
+    if len(t) < 12:                       # "yes", "okay", "no" — never a repeated request
         return False
     try:
         from nucleo.flash.dialog import similar
@@ -89,43 +89,46 @@ def repeated_request(text: str, prev_user_turns: list[str], thr: float = 0.7) ->
     return any(similar(t, p, thr=thr) for p in prev_user_turns if p and len(p.strip()) >= 12)
 
 
-# RIESGO en la DECISIÓN del turno (V2-061): el cerebro rápido hizo una acción CONSECUENTE de widget (cambió datos /
-# borró) SIN escalar → pudo tratar como simple tweak local algo que era una acción del MUNDO REAL (cancelar una
-# cita/baja/pedido) y decir «hecho» en falso. Es la señal BARATA que le da a Susurro la OPORTUNIDAD de intervenir
-# ANTES de que el operador se queje (lo que faltaba en el caso ITV). NO decide qué hacer —eso es del modelo potente,
-# por comprensión—; solo marca el turno como digno de AUDITAR. No es una tabla de verbos.
+# RISK in the turn DECISION (V2-061): the fast brain performed a CONSEQUENTIAL widget action (changed data /
+# deleted) WITHOUT escalating → it may have treated something that was a REAL-WORLD action (canceling an
+# appointment/cancellation/order) as a simple local tweak and falsely said "done". This is the CHEAP signal that
+# gives Susurro the OPPORTUNITY to intervene BEFORE the operator complains (what was missing in the ITV case).
+# It does NOT decide what to do — that is the powerful model's job, through understanding —; it only marks the
+# turn as worth AUDITING. It is not a verb table.
 def risky_decision(decision: dict | None) -> str:
-    """Motivo si la DECISIÓN del turno es de riesgo (acción consecuente de widget sin escalar); '' si no."""
+    """Reason if the turn DECISION is risky (consequential widget action without escalation); '' otherwise."""
     d = decision if isinstance(decision, dict) else {}
     if d.get("escalated"):
-        return ""       # ya tomó el camino pesado correcto — no es el patrón de riesgo
+        return ""       # it already took the correct heavyweight path — not the risk pattern
     if d.get("confirm_opened"):
-        # BUG real (2026-07-25, sesión viva de Manolo): pedir "manda un mensaje a Zalo" ABRE el confirm-gate de la
-        # data-op `send` (widget_acted=true PERO confirm_opened=true) — la acción NO se ejecutó, está ESPERANDO el
-        # Sí/No del operador. Susurro lo leía como "acción consecuente sin escalar/no ejecutada" y lanzaba un
-        # worker_action que iba al GENERADOR de código y se ponía a MODIFICAR el widget para "enviar el mensaje".
-        # Un confirm-gate ABIERTO es justo lo contrario del patrón de riesgo V2-061 (reflejar en local algo real sin
-        # ejecutarlo y decir «hecho»): aquí no se dijo «hecho», se PREGUNTÓ, y se ejecutará al confirmar. No auditar.
+        # Real BUG (2026-07-25, Manolo's live session): asking "send a message to Zalo" OPENS the confirm-gate for
+        # the `send` data-op (widget_acted=true BUT confirm_opened=true) — the action was NOT executed; it is
+        # WAITING for the operator's Yes/No. Susurro read it as "consequential action without escalation/not
+        # executed" and launched a worker_action that went to the code GENERATOR and began MODIFYING the widget
+        # to "send the message". An OPEN confirm-gate is exactly the opposite of the V2-061 risk pattern (reflecting
+        # something real locally without executing it and saying "done"): here it did not say "done", it ASKED,
+        # and it will execute upon confirmation. Do not audit.
         return ""
-    # Fix V2-081: SOLO una MUTACIÓN DE DATOS (data_done) es candidata a "reflejo local de una acción real sin
-    # ejecutar" (la ITV: agenda.drop). ANTES disparaba también con `widget_acted`, que es True para un simple
-    # SHOW/CLOSE de canvas → auditoría espuria (incidente 2026-08-01: un close de mensajería tras un WhatsApp
-    # nuevo disparó a Susurro, que sobre-escaló un "muestra el mensaje" a un worker→generador→widget basura).
-    # Abrir/cerrar/mostrar un widget NUNCA es una acción del mundo real reflejada en local.
+    # Fix V2-081: ONLY a DATA MUTATION (data_done) is a candidate for "local reflection of a real action without
+    # execution" (the ITV: agenda.drop). Previously it also triggered on `widget_acted`, which is True for a simple
+    # canvas SHOW/CLOSE → spurious audit (2026-08-01 incident: a messaging close after a new WhatsApp triggered
+    # Susurro, which over-escalated a "show the message" into a worker→generator→junk widget).
+    # Opening/closing/showing a widget is NEVER a real-world action reflected locally.
     if d.get("data_done"):
         return "data-op sin escalar (¿reflejo local de una acción real no ejecutada?)"
     return ""
 
 
-# CONFABULACIÓN de data-op (V2-078, 2026-07-31): el ESPEJO de risky_decision. Ahí el rápido ACTUÓ sin escalar;
-# aquí NO actuó (turno de charla, cero tools/tags) PERO su RESPUESTA CLAMA que hizo/está haciendo algo («ya la
-# estoy añadiendo a la agenda», «sigo con ello», «hecho») sobre un widget del catálogo que el operador NOMBRÓ. Es
-# la data-op FANTASMA que el A/B destapó: con el widget CERRADO el no-razonador dice que actúa sin llamar
-# widget_data → mentira. Señal BARATA (regex de la RESPUESTA, es/en, no una tabla de verbos por widget) que le da a
-# Susurro la oportunidad de RE-RUTEAR (worker_action) y ejecutar de verdad, OFF-hot-path. El MODELO decide si de
-# verdad quedó algo sin hacer; esto solo abre la puerta. Doctrina V2-046/V2-075: la decisión es del modelo.
+# data-op CONFABULATION (V2-078, 2026-07-31): the MIRROR of risky_decision. There the fast brain ACTED without
+# escalating; here it did NOT act (chat turn, zero tools/tags) BUT its RESPONSE CLAIMS that it did/is doing
+# something ("I'm already adding it to the calendar", "I'm still on it", "done") regarding a catalog widget the
+# operator NAMED. This is the PHANTOM data-op exposed by the A/B test: with the widget CLOSED, the non-reasoner says
+# it acts without calling widget_data → a lie. CHEAP signal (regex on the RESPONSE, es/en, not a per-widget verb
+# table) that gives Susurro the opportunity to RE-ROUTE (worker_action) and actually execute, OFF the hot path. The
+# MODEL decides whether something really remained undone; this only opens the door. V2-046/V2-075 doctrine: the
+# decision belongs to the model.
 _CLAIM = [
-    # es — pretérito/gerundio/presente que AFIRMA una mutación hecha o en curso
+    # es — preterite/gerund/present that CLAIMS a mutation was made or is in progress
     r"\b(?:hecho|listo|ya (?:esta|está)|queda (?:hecho|anotad|apuntad|añadid|agregad|guardad|reservad|marcad|cread))\b",
     r"\b(?:lo|la|los|las|te) (?:he |)(?:anotad|apuntad|añadid|agregad|guardad|actualizad|reservad|marcad|puest|cread|cancelad|borrad|program)",
     r"\b(?:lo |la |los |las |)(?:añado|agrego|apunto|anoto|guardo|actualizo|reservo|marco|pongo|creo|cancelo|borro|programo)\b",
@@ -140,41 +143,41 @@ _CLAIM_RE = [re.compile(p, re.I) for p in _CLAIM]
 
 
 def claims_action(reply: str) -> bool:
-    """¿La RESPUESTA de zaelar afirma haber hecho / estar haciendo una mutación? (es/en, acento-insensible).
-    Es el rastro de la confabulación cuando el turno NO llamó a ninguna tool."""
+    """Does zaelar's RESPONSE claim to have made / be making a mutation? (es/en, accent-insensitive).
+    It is the trace of confabulation when the turn called NO tools."""
     t = _norm(reply)
     return bool(t) and any(p.search(t) for p in _CLAIM_RE)
 
 
 def _nothing_acted(decision: dict | None) -> bool:
-    """True si el turno NO ejecutó NADA consecuente — robusto a las dos formas de `decision` (voz vs probe).
-    Voz: banderas escalated/searched/widget_acted/worker_acted/data_done/confirm_opened/clarify/shown_ids.
-    Probe: action=='chat' + sin tool_calls + sin tags."""
+    """True if the turn executed NOTHING consequential — robust to both forms of `decision` (voice vs probe).
+    Voice: escalated/searched/widget_acted/worker_acted/data_done/confirm_opened/clarify/shown_ids flags.
+    Probe: action=='chat' + no tool_calls + no tags."""
     d = decision if isinstance(decision, dict) else {}
     if "action" in d:                       # forma del probe
         if str(d.get("action") or "") not in ("chat", ""):
             return False
         return not (d.get("tool_calls") or d.get("tags"))
-    # forma del provider de voz
+    # voice provider form
     return not any(d.get(k) for k in ("escalated", "searched", "widget_acted", "worker_acted",
                                       "data_done", "confirm_opened", "clarify", "shown_ids"))
 
 
 def phantom_dataop(user: str, decision: dict | None) -> str:
-    """Motivo si el turno es una data-op FANTASMA (charló y clamó una acción sobre un widget nombrado, sin
-    ejecutarla); '' si no. `decision` debe llevar la RESPUESTA en `reply`. Gate en TRES capas de precisión:
-    (1) nada actuó · (2) la respuesta clama acción · (3) el turno resuelve a un widget con acciones DECLARADAS
-    (data-driven del manifest, no una tabla de verbos). El modelo potente decide luego si de verdad quedó algo
-    sin hacer y re-rutea; esto solo abre la puerta, barato."""
+    """Reason if the turn is a PHANTOM data-op (chatted and claimed an action on a named widget without
+    executing it); '' otherwise. `decision` must contain the RESPONSE in `reply`. Three-layer precision gate:
+    (1) nothing acted · (2) the response claims an action · (3) the turn resolves to a widget with DECLARED actions
+    (data-driven from the manifest, not a verb table). The powerful model then decides whether something really
+    remained undone and re-routes; this only opens the door, cheaply."""
     d = decision if isinstance(decision, dict) else {}
     if not _nothing_acted(d):
         return ""
     if not claims_action(str(d.get("reply") or "")):
         return ""
     u = (user or "").strip()
-    if len(u) < 8:                          # "vale", "gracias" — nunca una data-op
+    if len(u) < 8:                          # "okay", "thanks" — never a data-op
         return ""
-    try:                                    # ¿el turno apunta a un widget REAL con acciones que cambian datos?
+    try:                                    # does the turn point to a REAL widget with data-changing actions?
         from widgets import runtime
         from memory import api as _mem
         st = _mem.state() or {}
@@ -184,14 +187,14 @@ def phantom_dataop(user: str, decision: dict | None) -> str:
             return ""
         w = runtime.get(m) or {}
         if not (isinstance(w.get("actions"), dict) and w.get("actions")):
-            return ""                       # widget sin data-ops (solo display) → no era una data-op
+            return ""                       # widget without data-ops (display only) → it was not a data-op
     except Exception:
         return ""
     return "data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)"
 
 
-# Eventos del sistema que son fricción por sí mismos (los emite quien ya vigila cada pieza; aquí solo se mapean
-# a un motivo legible). kind/label del observer o topic del bus → motivo.
+# System events that are friction in themselves (emitted by whoever already monitors each piece; here they are only
+# mapped to a readable reason). kind/label from the observer or bus topic → reason.
 def system_friction(kind: str, label: str = "", topic: str = "") -> str:
     if topic == "worker.stuck":
         return "worker encallado (sin eventos)"

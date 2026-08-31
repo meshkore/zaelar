@@ -1,17 +1,17 @@
 """
-observability/api.py — superficie HTTP de lectura (`/api/observability/*`) + ciclo de vida de la SESIÓN.
+observability/api.py — read-only HTTP surface (`/api/observability/*`) + SESSION lifecycle.
 
-Dos superficies con permisos DISTINTOS, y la diferencia importa:
+Two surfaces with DIFFERENT permissions, and the difference matters:
 
-**ABIERTA** — la usa la propia interfaz de esta instalación desde el navegador del operador, que en un despliegue
-remoto NO es loopback. No expone contenido:
+**OPEN** — used by this installation's own interface from the operator's browser, which in a remote deployment
+is NOT loopback. It does not expose content:
   GET  /api/observability/identity          → quién es esta instalación y qué sesión hay abierta
   GET  /api/observability/catalog           → el mapa de familias/tipos que pinta el filtro del visor
-  POST /api/observability/session/start     → ciclo de la sesión de trabajo: solo el frontend sabe cuándo el
-  POST /api/observability/session/end         operador arranca y para el agente de verdad (pestaña, botón ⏻)
+  POST /api/observability/session/start     → work-session lifecycle: only the frontend knows when the
+  POST /api/observability/session/end         operator actually starts and stops the agent (tab, ⏻ button)
 
-**PROTEGIDA** — devuelve el CONTENIDO (frases del operador, prompts, resultados de búsqueda, lo que trajo un
-worker). Quien pueda leer esto puede leer la conversación entera, así que pasa por `_allowed()`:
+**PROTECTED** — returns CONTENT (operator utterances, prompts, search results, whatever a
+worker brought back). Anyone who can read this can read the entire conversation, so it goes through `_allowed()`:
   GET  /api/observability/flows             → últimos flujos con su resumen (duración, piezas, tokens, errores)
   GET  /api/observability/flow/{corr_id}    → un flujo completo, en orden
   GET  /api/observability/sessions          → últimas sesiones de trabajo
@@ -19,8 +19,8 @@ worker). Quien pueda leer esto puede leer la conversación entera, así que pasa
   GET  /api/observability/events            → eventos en crudo con cursor `since_id` (seguir una sesión viva)
   GET  /api/observability/stats             → cobertura de los ejes
 
-`session/end` acepta cuerpo vacío a propósito: lo dispara `sendBeacon` al cerrar la pestaña, que no puede
-negociar nada.
+`session/end` intentionally accepts an empty body: `sendBeacon` triggers it when closing the tab, and it cannot
+negotiate anything.
 """
 from __future__ import annotations
 
@@ -35,17 +35,17 @@ from . import identity as _identity
 
 router = APIRouter()
 
-# ── QUIÉN PUEDE LEER EL CONTENIDO ─────────────────────────────────────────────────────────────────────────────
-# Estas rutas nacieron para el visor local y eran ABIERTAS: en una instalación en casa da igual (el puerto solo
-# lo alcanza la propia máquina), pero el mismo código corre en despliegues donde el puerto SÍ es alcanzable —
-# y ahí «abierto» significa que cualquiera que dé con la URL se lleva las conversaciones. Patrón
-# guarded-until-configured, el mismo del resto del sistema:
+# ── WHO CAN READ THE CONTENT ─────────────────────────────────────────────────────────────────────────────────
+# These routes were created for the local viewer and were OPEN: in a home installation it makes no difference (the
+# port is reachable only by the machine itself), but the same code runs in deployments where the port IS reachable —
+# and there «open» means that anyone who finds the URL gets the conversations. The
+# guarded-until-configured pattern, the same one used throughout the rest of the system:
 #
-#   · sin `ZAELAR_OBS_TOKEN` → **solo loopback**. Una instalación local funciona exactamente igual que antes.
-#   · con `ZAELAR_OBS_TOKEN` → hace falta la cabecera `X-Observability-Token`, venga de donde venga. Es lo que
-#     permite que una herramienta de operación consulte una instancia remota SIN abrir el contenido al mundo.
+#   · without `ZAELAR_OBS_TOKEN` → **loopback only**. A local installation works exactly as before.
+#   · with `ZAELAR_OBS_TOKEN` → the `X-Observability-Token` header is required, regardless of where it comes from. This
+#     allows an operations tool to query a remote instance WITHOUT exposing the content to the world.
 #
-# Fail-closed: si no se puede determinar el origen (sin `request.client`), se deniega.
+# Fail-closed: if the origin cannot be determined (without `request.client`), access is denied.
 _LOOPBACK = {"127.0.0.1", "::1", "localhost", "::ffff:127.0.0.1"}
 
 
@@ -53,7 +53,7 @@ def _allowed(request: Request) -> bool:
     token = (os.getenv("ZAELAR_OBS_TOKEN") or "").strip()
     if token:
         got = request.headers.get("x-observability-token") or ""
-        return hmac.compare_digest(got, token)     # comparación en tiempo constante: no filtra el prefijo válido
+        return hmac.compare_digest(got, token)     # constant-time comparison: does not leak the valid prefix
     host = (getattr(request, "client", None).host if getattr(request, "client", None) else "") or ""
     return host in _LOOPBACK
 
@@ -72,12 +72,12 @@ async def identity_state():
 
 @router.get("/api/observability/catalog")
 async def catalog():
-    """El MAPA COMPLETO de lo que se puede filtrar: cada `kind` que el sistema sabe emitir y a qué familia
-    pertenece. El visor lo pinta ENTERO al desplegar los filtros, en vez de ir descubriéndolo según llegan
-    eventos — así el operador ve de una lo que puede encender y apagar, incluso lo que hoy no ha ocurrido.
+    """The COMPLETE MAP of what can be filtered: every `kind` the system knows how to emit and which family it
+    belongs to. The viewer renders it in FULL when expanding the filters, instead of discovering it as events arrive
+    — this way the operator immediately sees what can be turned on and off, even what has not happened today.
 
-    La fuente es `voice/observer.py::_CAT`, la MISMA que sella la familia de cada evento: el frontend no
-    duplica el mapa, lo pide. Un test impide que un kind nuevo se quede fuera
+    The source is `voice/observer.py::_CAT`, the SAME one that assigns each event's family: the frontend does not
+    duplicate the map; it requests it. A test prevents a new kind from being left out
     (`tests/infrastructure/unit/core/test_observer_categories.py`)."""
     from voice import observer as _obs
     return JSONResponse({"kinds": dict(sorted(_obs._CAT.items()))})
@@ -101,11 +101,11 @@ async def one_flow(request: Request, corr_id: str, limit: int = 500):
 async def list_sessions(request: Request, limit: int = 30, user_id: str = ""):
     if not _allowed(request):
         return _DENIED
-    # `current` deja claro cuál de ellas está VIVA. Sin esto, quien lee tiene que adivinarlo comparando marcas de
-    # tiempo — y una sesión viva y una que murió hace un minuto se parecen mucho.
-    # `session_id`, NO `id`: es la clave que devuelve `identity.session_info()`. Con la clave equivocada esto
-    # daba "" en silencio y NINGUNA sesión salía marcada como viva — el fallo más caro posible en una vista de
-    # auditoría, porque no parece un error: parece que no hay nadie trabajando.
+    # `current` makes it clear which one is ALIVE. Without it, readers have to guess by comparing timestamps
+    # — and a live session and one that ended a minute ago look very much alike.
+    # `session_id`, NOT `id`: it is the key returned by `identity.session_info()`. With the wrong key this
+    # silently returned "" and NO session was marked as alive — the most costly possible failure in an audit view,
+    # because it does not look like an error: it looks as though nobody is working.
     return JSONResponse({"sessions": _flows.sessions(limit=min(limit, 500), user_id=user_id),
                          "current": _identity.session_info().get("session_id") or ""})
 
@@ -118,9 +118,9 @@ async def one_session(request: Request, session_id: str):
     if not info:
         return JSONResponse({"error": "unknown_session", "session_id": session_id}, status_code=404)
     info["live"] = (session_id == (_identity.session_info().get("session_id") or ""))
-    # `flows` (número, del resumen) y `flows_detail` (la lista) son campos DISTINTOS a propósito: meter la lista
-    # en `flows` pisaba el contador del resumen y quien leyera «flows» recibía a veces un número y a veces un
-    # array según la ruta. Un mismo nombre con dos tipos es una trampa para el que consuma esto.
+    # `flows` (a number, from the summary) and `flows_detail` (the list) are intentionally DISTINCT fields: putting the
+    # list in `flows` overwrote the summary counter, and anyone reading `flows` would sometimes receive a number and
+    # sometimes an array depending on the route. One name with two types is a trap for whoever consumes this.
     info["flows_detail"] = _flows.flows(limit=500, session_id=session_id)
     return JSONResponse(info)
 
@@ -128,8 +128,8 @@ async def one_session(request: Request, session_id: str):
 @router.get("/api/observability/events")
 async def raw_events(request: Request, session_id: str = "", corr_id: str = "",
                      since_id: int = 0, limit: int = 500):
-    """Eventos en crudo con cursor. Es la ruta que sirve para DOS cosas a la vez: seguir una sesión viva
-    (llamando con el último `id` visto) y archivarla entera (paginando desde 0)."""
+    """Raw events with a cursor. This route serves TWO purposes at once: following a live session
+    (calling with the last `id` seen) and archiving it in full (paginating from 0)."""
     if not _allowed(request):
         return _DENIED
     rows = _flows.events(session_id=session_id, corr_id=corr_id,

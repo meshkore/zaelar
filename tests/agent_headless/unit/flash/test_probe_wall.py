@@ -1,12 +1,12 @@
-"""V2-461 — la conversación por API también SE VE: el canal de texto pinta el muro de chat.
+"""V2-461 — the conversation over the API is also VISIBLE: the text channel renders the chat wall.
 
-Norma del operador (2026-08-28), mirando una ronda desatendida conducir al agente con el chat en blanco:
-«si se opera por voz se transcribe al chat, y si se opera por chat se ve el texto, tanto si se hace
-manualmente sobre el widget del chat como si estamos manejando la conversación a través de la API».
+Operator rule (2026-08-28), after watching an unattended run drive the agent with the chat blank:
+“if operating by voice, it is transcribed into the chat, and if operating by chat, the text is visible, whether it is done
+manually on the chat widget or whether we are handling the conversation through the API.”
 
-Faltaba porque este canal nació como superficie HEADLESS (V2-032): nadie iba a mirar. Dejó de ser verdad el
-día que los agentes del plató tuvieron puerto fijo para que el operador los mirara trabajar — y un agente
-que trabaja en silencio es indistinguible de uno colgado.
+This was missing because this channel was born as a HEADLESS surface (V2-032): nobody was going to watch. That stopped being true the
+day the studio agents got a fixed port so the operator could watch them work — and an agent
+working silently is indistinguishable from one that is hung.
 """
 from __future__ import annotations
 
@@ -22,17 +22,17 @@ ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 @pytest.fixture(autouse=True)
 def _sin_detector_de_idioma(monkeypatch):
-    """`say()` es el BORDE HTTP y ahí vive el detector de primer arranque (V2-170), que PERSISTE el idioma
-    en `settings.json`. En un test unitario eso rompe el invariante de la suite («el fichero de ajustes
-    arranca vacío», `conftest.py`) — y lo hace de forma dependiente del orden, que es la peor manera. Se
-    desarma aquí: estos casos miden el MURO, no la detección."""
+    """`say()` is the HTTP EDGE, and that is where the first-start detector (V2-170) lives; it PERSISTS the language
+    in `settings.json`. In a unit test, that breaks the suite invariant (“the settings file
+    starts empty”, `conftest.py`) — and does so in an order-dependent way, which is the worst way. It is
+    disabled here: these cases measure the WALL, not detection."""
     import i18n.init.detect as _d
     monkeypatch.setattr(_d, "ensure_for_text", lambda *a, **k: None, raising=False)
 
 
 def _capture(monkeypatch) -> list[dict]:
-    """El muro se alimenta del observador, así que se mide ahí y no en un log (`loguru` no pasa por el
-    logging estándar: un `caplog` aquí pasa VACÍO y el caso certifica lo contrario de lo que dice)."""
+    """The wall is fed by the observer, so it is measured there rather than in a log (`loguru` does not go through the
+    standard logging system: a `caplog` here is EMPTY, and the test would certify the opposite of what it says)."""
     seen: list[dict] = []
     import voice.observer as obs
     monkeypatch.setattr(obs, "emit",
@@ -42,7 +42,7 @@ def _capture(monkeypatch) -> list[dict]:
     return seen
 
 
-# ── lo que sale al muro ─────────────────────────────────────────────────────────────────────────────────
+# ── what reaches the wall ─────────────────────────────────────────────────────────────────────────────────
 def test_los_DOS_lados_de_la_conversacion_salen(monkeypatch):
     seen = _capture(monkeypatch)
     probe_api._wall("user", "enséñame una foto del Amalfi")
@@ -53,8 +53,8 @@ def test_los_DOS_lados_de_la_conversacion_salen(monkeypatch):
 
 
 def test_se_marca_con_un_CAMPO_y_no_con_el_texto_del_label(monkeypatch):
-    """El frontend distingue por `wall`. Una comparación de subcadenas sobre el label sería un contrato que
-    no se ve desde ninguno de los dos lados, y que se rompe el día que alguien mejora la redacción."""
+    """The frontend distinguishes by `wall`. A substring comparison on the label would be a contract that
+    cannot be seen from either side and that breaks the day someone improves the wording."""
     seen = _capture(monkeypatch)
     probe_api._wall("user", "hola")
     assert seen[0]["extra"]["wall"] == "you"
@@ -62,10 +62,10 @@ def test_se_marca_con_un_CAMPO_y_no_con_el_texto_del_label(monkeypatch):
 
 
 def test_NO_sale_como_transcript(monkeypatch):
-    """La otra rama que el muro pinta alimenta ADEMÁS el atajo de órdenes por voz del navegador
-    (`handleWidgetVoice`). Un turno del probe que diga «cierra la agenda» se ejecutaría DOS veces: una por el
-    canal, que ya ejecuta acciones, y otra por la pantalla. Enseñar una conversación no puede cambiar lo que
-    hace."""
+    """The other branch rendered by the wall ALSO feeds the browser's voice-command shortcut
+    (`handleWidgetVoice`). A probe turn saying “close the calendar” would execute TWICE: once through the
+    channel, which already executes actions, and once through the screen. Showing a conversation cannot change what it
+    does."""
     seen = _capture(monkeypatch)
     probe_api._wall("user", "cierra la agenda")
     assert all(e["kind"] != "transcript" for e in seen)
@@ -79,20 +79,20 @@ def test_un_turno_mudo_no_pinta_una_burbuja_vacia(monkeypatch):
 
 
 def test_enseñar_la_conversacion_JAMAS_tumba_el_turno(monkeypatch):
-    """El muro es una ventana al turno, no parte de él."""
+    """The wall is a window into the turn, not part of it."""
     import voice.observer as obs
 
     def _boom(*a, **k):
         raise RuntimeError("el bus del observador está caído")
 
     monkeypatch.setattr(obs, "emit", _boom)
-    probe_api._wall("user", "esto no puede reventar")     # no lanza
+    probe_api._wall("user", "esto no puede reventar")     # does not raise
 
 
-# ── el orden importa ────────────────────────────────────────────────────────────────────────────────────
+# ── order matters ────────────────────────────────────────────────────────────────────────────────────
 def test_lo_PEDIDO_se_pinta_ANTES_de_ejecutar_el_turno(monkeypatch):
-    """Si la línea del operador se pintara al final, la pantalla estaría muda justo mientras el agente
-    trabaja — que es el único rato en el que se mira."""
+    """If the operator's line were rendered at the end, the screen would be silent precisely while the agent
+    works — which is the only time anyone watches it."""
     orden: list[str] = []
     monkeypatch.setattr(probe_api, "_wall", lambda role, text: orden.append(f"wall:{role}"))
 
@@ -107,8 +107,8 @@ def test_lo_PEDIDO_se_pinta_ANTES_de_ejecutar_el_turno(monkeypatch):
 
 
 def test_la_respuesta_es_una_LISTA_de_frases_y_se_UNE(monkeypatch):
-    """`run_turn` devuelve `reply` como lista (un turno puede decir varias frases). Un `str()` sobre ella
-    pintaría en el muro `['Te las busco ahora mismo.']`, corchetes y comillas incluidos."""
+    """`run_turn` returns `reply` as a list (a turn can say several sentences). Calling `str()` on it
+    would render `['Te las busco ahora mismo.']` on the wall, including brackets and quotation marks."""
     dicho: list[str] = []
     monkeypatch.setattr(probe_api, "_wall", lambda role, text: dicho.append(text) if role == "agent" else None)
 
@@ -121,10 +121,10 @@ def test_la_respuesta_es_una_LISTA_de_frases_y_se_UNE(monkeypatch):
     assert "[" not in dicho[0]
 
 
-# ── la otra mitad, que vive en el navegador ─────────────────────────────────────────────────────────────
+# ── the other half, which lives in the browser ─────────────────────────────────────────────────────────────
 def test_el_frontend_lee_ESE_campo():
-    """Cablear un solo lado no falla con ruido: falla saliendo vacío, que es el defecto que se está
-    arreglando. Se comprueba la fuente porque el contrato son dos ficheros en dos lenguajes."""
+    """Wiring up only one side does not fail noisily: it fails by producing nothing, which is the defect being
+    fixed. The source is checked because the contract spans two files in two languages."""
     js = (ENGINE / "frontend" / "app" / "services" / "sse.js").read_text(encoding="utf-8")
     assert 'd.kind === "brain" && d.wall' in js
     assert 'd.wall === "you"' in js and "pushChat" in js

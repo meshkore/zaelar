@@ -9,7 +9,7 @@
    NOT here: MemoryMap. Its component is shared-able but its CSS is a whole panel UI (mm-head/mm-modes/graph/lists,
    ~200 lines keyed to a wide window). The mobile shell does not mount it — see V2-124's open items. */
 
-/* ---------- BOOT OVERLAY — «Colmena sináptica» splash while zaelar comes up on first load ----------
+/* ---------- BOOT OVERLAY — “Synaptic Hive” splash while zaelar comes up on first load ----------
    A full-screen canvas (components/boot-anim.js) where a neural constellation assembles itself in parts, one
    cluster per boot phase, then implodes into the orb on "listo". z-index above EVERYTHING else (upd-ovl is
    100002) — the first thing the user sees. Visible by default; `.gone` (set on store.bootReady) lifts the veil

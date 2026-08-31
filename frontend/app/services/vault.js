@@ -1,11 +1,11 @@
 // ============================================================================
-// vault.js — cliente de la BÓVEDA de secretos (V2-060). Habla con /api/vault/* y
-// gestiona los PASSKEYS (WebAuthn extensión `prf`, Touch ID / Windows Hello).
+// vault.js — client for the secret VAULT (V2-060). Talks to /api/vault/* and
+// manages PASSKEYS (WebAuthn `prf` extension, Touch ID / Windows Hello).
 //
-// Modelo (detalle en zaelar-security.md): la passphrase o el PRF de la passkey
-// desbloquean la MISMA clave privada en el SERVER (modo cómodo — el default). El
-// valor del secreto se sirve por /api/vault/reveal (loopback), NUNCA por el bus de
-// eventos ni por el LLM. La biometría es del NAVEGADOR; si no hay, se usa passphrase.
+// Model (details in zaelar-security.md): the passphrase or the passkey PRF
+// unlock the SAME private key on the SERVER (convenience mode — the default). The
+// secret value is served through /api/vault/reveal (loopback), NEVER through the
+// event bus or the LLM. Biometrics belong to the BROWSER; if unavailable, use the passphrase.
 // ============================================================================
 import { t } from "../core/i18n.js?v=1";
 
@@ -20,7 +20,7 @@ export const unlock   = (passphrase, hold = true) => postJSON("/api/vault/unlock
 export const lock     = () => postJSON("/api/vault/lock", {}).then(json);
 export const change   = (oldP, newP) => postJSON("/api/vault/change", { old: oldP, new: newP });
 export const secrets  = () => fetch("/api/vault/secrets", { cache: "no-store" }).then(json).catch(() => ({ secrets: [] }));
-// reveal → 200 {value} · 423 bloqueada (abrir modal) · 403 passphrase mala · 404 no existe
+// reveal → 200 {value} · 423 locked (open modal) · 403 wrong passphrase · 404 does not exist
 export async function reveal(memory_id, passphrase) {
   const r = await postJSON("/api/vault/reveal", passphrase != null ? { memory_id, passphrase } : { memory_id });
   if (r.status === 423) return { locked: true };
@@ -28,7 +28,7 @@ export async function reveal(memory_id, passphrase) {
   return r.json();
 }
 
-// ---- WebAuthn / passkeys (extensión PRF) ----
+// ---- WebAuthn / passkeys (PRF extension) ----
 export const passkeySupported = () =>
   !!(window.PublicKeyCredential && navigator.credentials && navigator.credentials.create);
 
@@ -38,8 +38,8 @@ const _b64url = (buf) => _bytesToB64(buf).replace(/\+/g, "-").replace(/\//g, "_"
 
 async function _challenge() { return fetch("/api/vault/passkey/challenge", { cache: "no-store" }).then(json); }
 
-// ENROLA este aparato: crea una passkey de plataforma, deriva el PRF con el salt de la bóveda y lo manda al server
-// (que envuelve la clave privada bajo ese PRF). Requiere la bóveda DESBLOQUEADA. Devuelve {ok} o {error}.
+// ENROLL this device: create a platform passkey, derive the PRF with the vault salt, and send it to the server
+// (which wraps the private key under that PRF). Requires the vault to be UNLOCKED. Returns {ok} or {error}.
 export async function enrollPasskey() {
   try {
     const ch = await _challenge();
@@ -58,7 +58,7 @@ export async function enrollPasskey() {
       },
     });
     if (!cred) return { error: t("vaultsvc.cancelled") };
-    // el PRF puede venir en la creación; si no, se obtiene con un get() inmediato (patrón robusto multi-navegador)
+    // the PRF may come from creation; otherwise obtain it with an immediate get() (robust cross-browser pattern)
     let prf = cred.getClientExtensionResults?.()?.prf?.results?.first;
     if (!prf) {
       const asrt = await navigator.credentials.get({
@@ -82,7 +82,7 @@ export async function enrollPasskey() {
   } catch (e) { return { error: (e && e.message) || t("vaultsvc.passkey_cancelled") }; }
 }
 
-// DESBLOQUEA con una passkey registrada (biometría). Devuelve {ok} o {error}.
+// UNLOCK with a registered passkey (biometrics). Returns {ok} or {error}.
 export async function unlockPasskey(hold = true) {
   try {
     const ch = await _challenge();

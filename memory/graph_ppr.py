@@ -1,4 +1,4 @@
-"""memory/graph_ppr.py — Personalized PageRank sobre el grafo de `edges` (V2-111 §9.1).
+"""memory/graph_ppr.py — Personalized PageRank over the `edges` graph (V2-111 §9.1).
 
 `retriever.graph_expand()` solo hace UN salto (pill→concepto→píldoras hermanas) — pierde conexiones
 genuinamente de 2-3 saltos (pill→concepto→pill hermana→SU OTRO concepto→pill prima). Es la misma clase de
@@ -26,8 +26,8 @@ FANOUT = int(os.getenv("ZAELAR_PPR_FANOUT", "12"))         # aristas considerada
 
 
 def _load_subgraph(db, seed_ids: list[int]) -> tuple[dict[int, list[tuple[int, float]]], set[int]]:
-    """BFS acotado desde `seed_ids`. Devuelve (adyacencia SOLO de nodos expandidos, TODOS los nodos vistos —
-    incluye hojas del último salto que nunca llegaron a expandirse, para que no pierdan su masa en silencio)."""
+    """Bounded BFS from `seed_ids`. Returns (adjacency ONLY for expanded nodes, ALL seen nodes—
+    including leaves at the last hop that were never expanded, so they do not silently lose their mass)."""
     adj: dict[int, list[tuple[int, float]]] = {}
     seen: set[int] = set(seed_ids)
     frontier = list(dict.fromkeys(seed_ids))
@@ -53,9 +53,9 @@ def _load_subgraph(db, seed_ids: list[int]) -> tuple[dict[int, list[tuple[int, f
 
 
 def personalized_pagerank(seed_weights: dict[int, float]) -> dict[int, float]:
-    """Power-iteration PPR sembrado en `seed_weights` (id -> masa de reinicio, no hace falta que sume 1 — se
-    normaliza dentro). Devuelve id -> score PPR para cada nodo tocado (semillas incluidas). Fail-open: un
-    grafo vacío/degenerado o cualquier excepción devuelve `{}` — el llamante lo trata como "nada que añadir"."""
+    """Power-iteration PPR seeded by `seed_weights` (id -> restart mass; it need not sum to 1—it is
+    normalized internally). Returns id -> PPR score for every touched node (including seeds). Fail-open: an
+    empty/degenerate graph or any exception returns `{}`—the caller treats it as "nothing to add"."""
     if not seed_weights:
         return {}
     try:

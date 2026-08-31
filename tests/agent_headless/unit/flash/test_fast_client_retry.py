@@ -1,10 +1,10 @@
 #
-# Reintento en TRANSITORIOS del cliente del modelo (fast_client, 2026-07-25).
+# Retry on TRANSIENT model-client failures (fast_client, 2026-07-25).
 # Run: .venv/bin/pytest tests/agent_headless/unit/flash/test_fast_client_retry.py -q
 #
-# Un blip PUNTUAL de conexión (AIMLAPI tras Cloudflare) NO debe tirar el turno — síntoma real: el chat del operador
-# se quedaba sin respuesta / con "Uf, se me ha ido". Verifica: reintenta en transitorio y acierta; NO reintenta en
-# error de petición (4xx auth/entrada).
+# A SINGLE connection blip (AIMLAPI behind Cloudflare) MUST NOT drop the turn — real symptom: the operator's chat
+# was left without a response / with "Oops, it got away from me." Verifies: retries on transient failure and succeeds;
+# does NOT retry on request error (4xx auth/input).
 #
 import asyncio
 
@@ -23,7 +23,7 @@ class _Resp:
 
 
 class _FakeClient:
-    """create() falla `fail_n` veces con `exc`, luego devuelve `_Resp(content)`."""
+    """create() fails `fail_n` times with `exc`, then returns `_Resp(content)`."""
     def __init__(self, fail_n, exc, content="ok"):
         self.fail_n = fail_n; self.exc = exc; self.content = content; self.calls = 0
         self.chat = type("C", (), {"completions": self})()
@@ -37,7 +37,7 @@ class _FakeClient:
 @pytest.fixture(autouse=True)
 def _fast_retry(monkeypatch):
     monkeypatch.setattr(fc, "_CONNECT_RETRIES", 2)
-    monkeypatch.setattr(fc, "_RETRY_BACKOFF_S", 0.0)   # sin espera en test
+    monkeypatch.setattr(fc, "_RETRY_BACKOFF_S", 0.0)   # no wait in test
 
 
 def _spec():
@@ -49,7 +49,7 @@ def test_complete_retries_transient_then_succeeds(monkeypatch):
     monkeypatch.setattr(FastClient, "_client_for", lambda self, spec: fake)
     out = asyncio.run(FastClient().complete([{"role": "user", "content": "hi"}], spec=_spec()))
     assert out == "hola"
-    assert fake.calls == 3          # 2 fallos + 1 éxito
+    assert fake.calls == 3          # 2 failures + 1 success
 
 
 def test_complete_gives_up_after_retries(monkeypatch):
@@ -57,17 +57,17 @@ def test_complete_gives_up_after_retries(monkeypatch):
     monkeypatch.setattr(FastClient, "_client_for", lambda self, spec: fake)
     with pytest.raises(Exception):
         asyncio.run(FastClient().complete([{"role": "user", "content": "hi"}], spec=_spec()))
-    assert fake.calls == 3          # intento inicial + 2 reintentos, luego se rinde
+    assert fake.calls == 3          # initial attempt + 2 retries, then gives up
 
 
 def test_complete_does_not_retry_request_error(monkeypatch):
-    # un 4xx de petición (auth/entrada) NO se reintenta (reintentar no lo arregla)
+    # a request 4xx (auth/input) is NOT retried (retrying will not fix it)
     err = type("BadRequest", (Exception,), {"status_code": 400})()
     fake = _FakeClient(fail_n=99, exc=err)
     monkeypatch.setattr(FastClient, "_client_for", lambda self, spec: fake)
     with pytest.raises(Exception):
         asyncio.run(FastClient().complete([{"role": "user", "content": "hi"}], spec=_spec()))
-    assert fake.calls == 1          # sin reintentos
+    assert fake.calls == 1          # no retries
 
 
 def test_is_transient_classification():
@@ -78,11 +78,11 @@ def test_is_transient_classification():
     assert not _is_transient(ValueError("bad input schema"))
 
 
-# ── el CUERPO del 429 viaja con la excepción (2026-08-03) ────────────────────────────────────────────────────
-# Sin esto, el 429 de Z.AI (`_complete_zai`/`_stream_zai`, que hablan httpx crudo, no el SDK OpenAI) llega como el
-# mensaje genérico de httpx («429 Too Many Requests», sin más) y `nucleo.flash.provider_chain.classify_failure`
-# (y su hermano de `nucleo.workers.providers`) no puede distinguir cuota SEMANAL agotada de un blip pasajero — los
-# dos dan el MISMO 429 desnudo. Verificado con el diagnóstico real del operador 2026-08-03.
+# ── the 429 BODY travels with the exception (2026-08-03) ────────────────────────────────────────────────────
+# Without this, Z.AI's 429 (`_complete_zai`/`_stream_zai`, which use raw httpx rather than the OpenAI SDK) arrives as
+# httpx's generic message ("429 Too Many Requests", with nothing else), and `nucleo.flash.provider_chain.classify_failure`
+# (and its counterpart in `nucleo.workers.providers`) cannot distinguish an exhausted WEEKLY quota from a transient blip —
+# both produce the SAME bare 429. Verified with the operator's real diagnostics on 2026-08-03.
 class _FakeHttpxResp:
     def __init__(self, status_code, body):
         self.status_code = status_code
@@ -106,15 +106,15 @@ def test_raise_with_body_embeds_the_response_text_for_exhaustion():
 
 def test_raise_with_body_is_a_noop_on_success():
     resp = _FakeHttpxResp(200, "")
-    asyncio.run(fc._raise_with_body(resp))    # no lanza
+    asyncio.run(fc._raise_with_body(resp))    # does not raise
 
 
 def test_raise_with_body_is_a_coroutine_and_must_be_awaited():
-    """Bug real (2026-08-09), encontrado por el aviso de Python «coroutine never awaited» durante la primera corrida
-    del director de investigación: en `_complete_zai` se llamaba `_raise_with_body(resp)` SIN await. Sin await no
-    lanza nada —Python crea el objeto corrutina y lo descarta— así que un 429/500 pasaba por bueno y el flujo seguía
-    hasta `resp.json()` sobre un cuerpo de error, convirtiendo un fallo de proveedor claro en un error de parseo
-    confuso más adelante (y, peor, sin clasificar la cuota → sin relevo de proveedor)."""
+    """Real bug (2026-08-09), discovered by Python's «coroutine never awaited» warning during the research director's first
+    run: `_complete_zai` called `_raise_with_body(resp)` WITHOUT await. Without await it raises nothing — Python creates
+    the coroutine object and discards it — so a 429/500 was treated as successful and the flow continued to
+    `resp.json()` on an error body, turning a clear provider failure into a confusing parse error later (and, worse,
+    without classifying the quota → without switching providers)."""
     import inspect
     from nucleo.flash import fast_client
     assert inspect.iscoroutinefunction(fast_client._raise_with_body)
@@ -122,4 +122,4 @@ def test_raise_with_body_is_a_coroutine_and_must_be_awaited():
     for line in src.splitlines():
         s = line.strip()
         if "_raise_with_body(" in s and not s.startswith(("#", "async def", "def")):
-            assert "await" in s, f"llamada sin await, no lanzará nada: {s}"
+            assert "await" in s, f"call without await will raise nothing: {s}"

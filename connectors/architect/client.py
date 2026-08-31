@@ -7,7 +7,7 @@
 # a time per project (429 → ArchitectBusy).
 #
 # Config (.env, gitignored — the token is NEVER committed or shown):
-#   ARCHITECT_URL    — base del daemon (def: https://127.0.0.1:5573)
+#   ARCHITECT_URL    — daemon base URL (default: https://127.0.0.1:5573)
 #   ARCHITECT_TOKEN  — remote-control bearer token (the operator rotates it from the cockpit if it leaks)
 #
 import os

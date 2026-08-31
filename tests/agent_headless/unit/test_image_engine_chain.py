@@ -1,9 +1,9 @@
-"""V2-466 — la cadena de buscadores de imágenes: nunca depender de uno solo.
+"""V2-466 — the image-search chain: never rely on just one.
 
-Petición del operador (2026-08-28) tras ver a Google pidiendo captcha una tarde entera: «no podemos confiar
-todo el rato en Google, tengamos una lista de buscadores e iterar de uno a otro».
+Operator request (2026-08-28) after seeing Google ask for a captcha for an entire afternoon: «we cannot rely
+on Google all the time; let’s have a list of search engines and iterate from one to the next».
 
-El orden NO es por reputación, es lo MEDIDO ese día desde esta máquina con la misma consulta:
+The order is NOT based on reputation; it is what was MEASURED that day from this machine with the same query:
 
     google      captcha              →  0 resultados
     ecosia      captcha (proxia)     →  0
@@ -11,7 +11,7 @@ El orden NO es por reputación, es lo MEDIDO ese día desde esta máquina con la
     yandex      30 tiles             →  el coche CORRECTO
     bing        52 tiles             →  el coche EQUIVOCADO 9 de cada 10 (SF90, F8, dos F80)
 
-Por eso Bing queda el ÚLTIMO y no el primero de recambio, que es donde estaba.
+That is why Bing remains LAST rather than being the first fallback, which is where it was.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from nucleo import browser_search as BS, image_search as I
 
 
 def _falso(**por_motor):
-    """Sustituye las tres patas por respuestas fijas, para medir la CADENA y no la red."""
+    """Replaces the three legs with fixed responses, to measure the CHAIN rather than the network."""
     async def _mk(name):
         async def _leg(q, k=12):
             return dict(por_motor.get(name) or {"query": q, "items": [], "source": name, "blocked": False})
@@ -41,9 +41,9 @@ def _items(n=3, site="www.ferrari.com"):
              "site": site, "page": "https://p", "w": 800, "h": 600} for i in range(n)]
 
 
-# ── el orden ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the order ───────────────────────────────────────────────────────────────────────────────────────────
 def test_el_orden_es_google_yandex_bing():
-    """Clavado a mano: cada fila salió de una medición, y Bing el último no es un detalle estético."""
+    """Hand-verified: each row came from a measurement, and Bing being last is not an aesthetic detail."""
     assert BS._IMAGE_ENGINES == ("google", "yandex", "bing")
 
 
@@ -54,7 +54,7 @@ def test_si_google_contesta_no_se_pregunta_a_nadie_mas(monkeypatch):
 
 
 def test_google_BLOQUEADO_pasa_a_yandex_y_NO_a_bing(monkeypatch):
-    """El defecto que originó esto: el captcha mandaba directo al índice más flojo."""
+    """The defect that prompted this: the captcha sent requests straight to the weakest index."""
     _instalar(monkeypatch,
               google={"query": "x", "items": [], "source": "google", "blocked": True},
               yandex={"query": "x", "items": _items(), "source": "yandex", "blocked": False},
@@ -83,9 +83,9 @@ def test_con_TODOS_caidos_se_dice_a_cuantos_se_preguntó(monkeypatch):
     assert r.get("blocked") is True, "el bloqueo del primero es lo que explica el turno"
 
 
-# ── el parser de Yandex, sin red ────────────────────────────────────────────────────────────────────────
+# ── the Yandex parser, without a network ───────────────────────────────────────────────────────────────
 def test_yandex_saca_la_foto_a_TAMAÑO_COMPLETO_del_enlace():
-    """Lo frágil —el `img_url` dentro del enlace del tile— es lo que tiene que poder probarse sin red."""
+    """The fragile part—the `img_url` inside the tile link—is what must be testable without a network."""
     rows = [{"href": "https://yandex.com/images/search?pos=0&img_url=https%3A%2F%2Fd.com%2Fa.jpg&rpt=simage",
              "alt": "Ferrari Amalfi 2026", "thumb": "https://avatars.mds.yandex.net/t.jpg", "w": 480, "h": 320}]
     it = I.parse_yandex_rows(rows)[0]
@@ -111,7 +111,7 @@ def test_la_misma_foto_dos_veces_es_una_y_se_respeta_el_tope():
 
 
 def test_una_lista_ilegible_sale_vacia_y_no_revienta():
-    """Mismo contrato total que su hermano de Google: un cambio de formato degrada al siguiente índice, no
-    tumba el turno."""
+    """Same total contract as its Google sibling: a format change degrades to the next index; it does not
+    bring down the turn."""
     for basura in ([], None, [{"href": ""}], ["texto suelto"], [{"href": "no-es-una-url"}]):
         assert I.parse_yandex_rows(basura) == []

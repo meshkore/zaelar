@@ -11,12 +11,12 @@
 // whatsapp), each stamped h:m:s.mmm. A filter box narrows by kind/label/text. Rows
 // are inserted imperatively (a live log of ~800 rows shouldn't re-render wholesale).
 //
-// ORDEN: EL ÚLTIMO EVENTO VA ARRIBA (2026-08-10, decisión del operador). La lista crece hacia ABAJO por
-// PREPEND, así que lo recién ocurrido está siempre pegado a la cabecera de columnas — a la vista, sin perseguir
-// nada. El scroll queda 100% MANUAL: nadie lo mueve por ti. Esto SUSTITUYE al «stick-to-tail» (seguir el fondo,
-// soltarse al subir, re-enganchar al bajar, indicador de seguimiento, guarda de rAF, ventana de gesto real):
-// ~70 líneas de estado que se podía desincronizar de la realidad —y que ya falló dos veces— para resolver un
-// problema que el orden inverso simplemente NO TIENE.
+// ORDEN: EL ÚLTIMO EVENTO VA ARRIBA (2026-08-10, decisión of the operador). The lista crece hacia ABAJO por
+// PREPEND, así that lo recién ocurrido está siempre pegado a the cabecera of columnas — a the vista, without perseguir
+// nada. The scroll remains 100% MANUAL: nadie lo mueve by ti. Esto SUSTITUYE al “stick-to-tail” (seguir the fondo,
+// soltarse al subir, re-enganchar al bajar, indicador of seguimiento, guarda of rAF, ventana of gesto real):
+// ~70 líneas of state that se podía desincronizar of the realidad —y that ya falló dos veces— for resolver un
+// problema that the orden inverso simplemente NO TIENE.
 // ============================================================================
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
@@ -39,7 +39,7 @@ function parts(d) {
   if (d.role) meta.push(d.role);                         // transcript: user | bot
   if (d.id) meta.push(d.id);                             // widget id
   if (d.dir) meta.push(d.dir);                           // cluster in/out/note
-  if (d.module) meta.push(d.module);                     // V2-037: PIEZA donde sucede (memory/nav/voz…)
+  if (d.module) meta.push(d.module);                     // V2-037: PIEZA where sucede (memory/nav/voz…)
   if (d.func) meta.push(d.func);                         // V2-037: FUNCIÓN/rutina
   const chan = [d.cluster, d.peer || d.to].filter(Boolean).join("·");
   if (chan) meta.push(chan);
@@ -47,38 +47,38 @@ function parts(d) {
   return { label: (d.label || "").toString(), meta: meta.join(" · "), text };
 }
 
-// Las FAMILIAS = las piezas reales del sistema. Aquí solo fijan el ORDEN de las filas de la tabla de filtros y
-// su rótulo; qué kind pertenece a cuál lo dice el backend (`observer.py::_CAT`, servido en
-// `/api/observability/catalog`) — el frontend no duplica ese mapa, lo pide.
+// The FAMILIAS = the piezas reales of the sistema. Here only fijan the ORDEN of the filas of the tabla of filtros y
+// su rótulo; qué kind pertenece a cuál lo dice the backend (`observer.py::_CAT`, servido en
+// `/api/observability/catalog`) — the frontend no duplica ese mapa, lo pide.
 const CATS = [
-  { key: "flash", label: "FlashBrain" },       // el turno: transcripts, decisión, búsqueda, Susurro
-  { key: "worker", label: "Brain Workers" },   // trabajo async + el Chromium interno que abren para navegar
+  { key: "flash", label: "FlashBrain" },       // the turno: transcripts, decisión, búsqueda, Susurro
+  { key: "worker", label: "Brain Workers" },   // trabajo async + the Chromium interno that abren for navegar
   { key: "memory", label: "Memory" },
-  { key: "widget", label: "Widgets" },         // TODA orden contra el canvas (show/close/move/data-op/tap)
+  { key: "widget", label: "Widgets" },         // TODA orden contra the canvas (show/close/move/data-op/tap)
   { key: "system", label: "System/Code" },
-  // Pulse (V2-043): el LATIDO del loop orquestador (~1 Hz, «PULSE·tick»). OFF por defecto — ensucia el log muy
-  // rápido y no lleva datos; actívalo solo para ver el ritmo del loop. Las llamadas REALES de memoria in/out van
-  // en «Memoria», nunca aquí (la proyección de estado sin cambios ya no se emite — dispatch.sync_state).
+  // Pulse (V2-043): the LATIDO of the loop orquestador (~1 Hz, “PULSE·tick”). OFF by defecto — ensucia the log muy
+  // rápido and no lleva datos; actívalo only for ver the ritmo of the loop. The llamadas REALES of memory in/out van
+  // en “Memoria”, nunca here (la proyección of state without cambios ya no se emite — dispatch.sync_state).
   { key: "pulse", label: "Pulse" },
 ];
-// Tipos que arrancan ENCENDIDOS aunque su familia venga apagada por defecto: un error invisible es el peor modo
-// de fallo posible. El operador puede apagarlos, pero tiene que ser una decisión suya, no una omisión.
+// Tipos that arrancan ENCENDIDOS aunque su familia venga apagada by defecto: un error invisible es the peor modo
+// of fallo posible. The operador puede apagarlos, pero tiene that ser a decisión suya, no a omisión.
 const ALWAYS_KINDS = new Set(["error", "alert"]);
 
-// V2-089: cada categoría del filtro mapea a su clave i18n (la `key` sigue siendo el valor comparado en código).
+// V2-089: each categoría of the filtro mapea a su clave i18n (la `key` sigue siendo the valor comparado en código).
 const CAT_LABEL_KEY = {
   worker: "debug.cat_worker", memory: "debug.cat_memory", flash: "debug.cat_flash",
   widget: "debug.cat_widget", system: "debug.cat_system", pulse: "debug.cat_pulse",
 };
 
-// Cabecera FIJA de columnas (2026-08-09, petición del operador: «no se ve claro qué es cada columna»). Mismo
-// grid EXACTO que `.dbg-row` en CSS — mismos anchos, mismo gap, mismo padding — para que cada rótulo caiga
-// justo encima de su columna sin tocar el ancho actual de nada. Si el rótulo no cabe se recorta con «…» y el
-// `title` (hover) dice qué es. Bajo 560px de panel las filas se colapsan a flujo libre (container query) y la
-// cabecera se oculta: ahí ya no hay columnas que rotular.
-// El ORDEN cuenta una historia de izquierda a derecha: CUÁNDO · de qué FLUJO · de qué PIEZA · QUÉ tipo ·
-// cuánto tardó · con qué modelo · cuántos tokens · y qué pasó. Las dos primeras después de la hora son las que
-// permiten leer el log como PROCESOS y no como líneas sueltas.
+// Cabecera FIJA of columnas (2026-08-09, operator request: “no se ve claro qué es each columna”). Mismo
+// grid EXACTO that `.dbg-row` en CSS — mismos anchos, mismo gap, mismo padding — for that each rótulo caiga
+// justo encima of su columna without tocar the ancho actual of nada. Si the rótulo no cabe se recorta with “…” and el
+// `title` (hover) dice qué es. Bajo 560px of panel the filas se colapsan a flujo libre (container query) and la
+// cabecera se oculta: ahí ya no there is columnas that rotular.
+// The ORDEN cuenta a historia of izquierda a derecha: CUÁNDO · of qué FLUJO · of qué PIEZA · QUÉ tipo ·
+// cuánto tardó · with qué modelo · cuántos tokens · and qué pasó. The dos primeras después of the hora son the que
+// permiten leer the log as PROCESOS and no as líneas sueltas.
 const COLS = [
   { cls: "dbg-t", key: "debug.col_time", tip: "debug.col_time_t" },
   { cls: "dbg-corr", key: "debug.col_corr", tip: "debug.col_corr_t" },
@@ -90,17 +90,17 @@ const COLS = [
   { cls: "dbg-msg", key: "debug.col_event", tip: "debug.col_event_t" },
 ];
 
-// Which layer of the «Colmena» brain resolved this turn: the FlashBrain stamps its fast-model provider
+// Which layer of the “Colmena” brain resolved this turn: the FlashBrain stamps its fast-model provider
 // ("aimlapi"/"ollama"/…), the SlowBrain escalation path stamps "slowbrain". Stamped by the provider itself
 // (voice/engine/llm/providers/nucleo.py) via emit(..., extra={"engine":..., "model":...}) — read straight off
 // the event, never guessed from the label text.
 // Column 2 (kind badge): for "brain" rows, name the layer instead of the generic "BRAIN" pill.
-// V2-036: ya NO hay "cerebro" aparte — solo el FlashBrain ORQUESTADOR + procesos (workers) que lanza. Los turnos
-// del orquestador se etiquetan "FlashBrain"; un evento de worker (engine "slowbrain", legado) → "Worker".
-// Familia abreviada para la celda estrecha de la columna FAMILIA. Va por i18n como cualquier otro texto de la
-// interfaz —un idioma generado puede necesitar otras letras, u otro alfabeto entero— y el nombre completo sigue
-// estando en el hover y en la tabla de filtros. Sin clave (familia aún sin clasificar) → las 4 primeras letras
-// del código técnico, que es lo único que se sabe de ella.
+// V2-036: ya NO there is "cerebro" aparte — only the FlashBrain ORQUESTADOR + procesos (workers) that lanza. The turnos
+// of the orquestador se etiquetan "FlashBrain"; un evento of worker (engine "slowbrain", legado) → "Worker".
+// Familia abreviada for the celda estrecha of the columna FAMILIA. Va by i18n as cualquier otro texto of la
+// interfaz —un idioma generado puede necesitar otras letras, u otro alfabeto entero— and the nombre completo sigue
+// estando en the hover and en the tabla of filtros. Without clave (familia aún without clasificar) → the 4 primeras letras
+// of the código técnico, that es lo único that se sabe of ella.
 function catShort(cat) {
   const key = CAT_LABEL_KEY[cat] ? "debug.short_" + cat : null;
   return key ? t(key) : (cat || "?").slice(0, 4).toUpperCase();
@@ -118,7 +118,7 @@ function modelChip(d) {
   return { text: d.model, cls: (d.engine === "ollama" || d.engine === "local") ? "eng-local" : "eng-api" };
 }
 
-// Column 4 for MEMORY rows (V2-014 Task 2): which layer the op hit — state / short / long / slow. A flat chip,
+// Column 4 for MEMORAnd rows (V2-014 Task 2): which layer the op hit — state / short / long / slow. A flat chip,
 // so the log reads "memory · <layer> · <request> → <result>". Falls back to the model chip for non-memory rows.
 function layerChip(d) {
   if (!d.layer) return null;
@@ -145,9 +145,9 @@ function latencyInfo(d) {
   return null;
 }
 
-// TOTALIZADORES DE TAMAÑO (FASE 0, premisa del operador): in→out en tokens (reales del proveedor si vinieron, si
-// no estimados por chars/4) + nº de tools + marca de FRÍO. Sirve para distinguir «lento por el modelo» de «lento
-// por prompt gigante» o «cold-start». Solo cuando el evento trae métricas de LLM.
+// TOTALIZADORES DE TAMAÑO (FASE 0, premisa of the operador): in→out en tokens (reales of the proveedor si vinieron, si
+// no estimados by chars/4) + nº of tools + marca of FRÍO. Sirve for distinguir “lento by the modelo” of “lento
+// by prompt gigante” or “cold-start”. Only when the evento trae métricas of LLM.
 function fmtTok(n) { if (n == null) return "?"; return n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n); }
 function sizeInfo(d) {
   const pin = d.prompt_tokens != null ? d.prompt_tokens : null;
@@ -166,18 +166,18 @@ function sizeInfo(d) {
 function isNoise(kind, label) { return kind === "state" || (kind === "widget" && label === "data"); }
 
 // ── TRAZABILIDAD (V2-044) ────────────────────────────────────────────────────────────────────────────────────
-// Cada estímulo (frase del operador, cron, probe, tap de UI, peer de cluster) nace con un `trace` id en el
-// backend (voice/trace.py) y TODO lo que deriva de él (tools, tags, rails, workers, navegador, memoria) llega
-// sellado con ese id. Aquí: (a) chip clicable por fila en el log cronológico (click → filtra la cadena) y
-// (b) la vista «Trazas»: un árbol por trace — la FRASE raíz y debajo, agrupado por actor (span), todo lo que generó.
-function traceHue(tid) {                       // color determinista por trace (mismo id = mismo tono, siempre)
+// Each estímulo (frase of the operador, cron, probe, tap of UI, peer of cluster) nace with un `trace` id en el
+// backend (voice/trace.py) and TODO lo that deriva of él (tools, tags, rails, workers, navegador, memoria) llega
+// sellado with ese id. Aquí: (a) chip clicable by row en the log cronológico (click → filtra the cadena) y
+// (b) the vista “Trazas”: un árbol by trace — the FRASE raíz and debajo, agrupado by actor (span), todo lo that generó.
+function traceHue(tid) {                       // color determinista by trace (mismo id = mismo tono, siempre)
   let hs = 0; for (let i = 0; i < tid.length; i++) hs = (hs * 31 + tid.charCodeAt(i)) >>> 0;
   return hs % 360;
 }
 function traceChip(tid, onClick) {
   const c = document.createElement("span");
   c.className = "dbg-tr";
-  c.textContent = tid.split("·")[0];           // "T12" — corto; el id completo va en el title
+  c.textContent = tid.split("·")[0];           // "T12" — corto; the id completo va en the title
   c.title = tid + " — click: filtrar esta cadena";
   const hue = traceHue(tid);
   c.style.background = `hsla(${hue},60%,50%,.18)`;
@@ -190,56 +190,56 @@ const ORIGIN_ICON = { turno: "🗣", kickoff: "👋", probe: "🧪", cron: "⏰"
 
 export function DebugPanel() {
   let listEl, countEl, filterEl, lastRow = null, lastSig = "";
-  let tracesEl;                                  // V2-044: contenedor de la vista Trazas (árbol por trace)
-  let hdrEl;                                     // cabecera fija de columnas (solo tiene sentido en la vista log)
+  let tracesEl;                                  // V2-044: contenedor of the vista Trazas (árbol by trace)
+  let hdrEl;                                     // cabecera fija of columnas (solo tiene sentido en the vista log)
   let mode = localStorage.getItem("hb_dbg_mode") === "traces" ? "traces" : "log";
   let filter = "";
   let noiseHidden = true;
   let count = 0;
   // ── UN SOLO EJE DE FILTRO: EL TIPO ──────────────────────────────────────────────────────────────────────────
-  // Rediseño 2026-08-09 (petición del operador): «vamos a exponer el MAPA COMPLETO de todo lo que podemos
-  // filtrar, ya inicializado con unos valores por defecto». Se retira la barra de familias: era un SEGUNDO eje
-  // que se solapaba con el de tipos y obligaba a razonar dos veces («esta fila no sale… ¿por la familia o por el
-  // tipo?»). La familia sigue existiendo, pero como FILA de la tabla: su rótulo enciende o apaga todos sus tipos
-  // de una vez, que es para lo que servía el chip.
+  // Rediseño 2026-08-09 (petición of the operador): “vamos a exponer the MAPA COMPLETO of todo lo that podemos
+  // filtrar, ya inicializado with unos valores by defecto”. Se retira the barra of familias: era un SEGUNDO eje
+  // that se solapaba with the of tipos and obligaba a razonar dos veces (“esta row no sale… por the familia or by el
+  // tipo?”). The familia sigue existiendo, pero as FILA of the tabla: su rótulo enciende or apaga todos sus tipos
+  // of a vez, that es for lo that servía the chip.
   //
-  // El mapa NO se construye con lo que va apareciendo: se pide entero al backend (`/api/observability/catalog`,
-  // que lo saca de `observer.py::_CAT`, la misma fuente que sella la familia de cada evento). Así el operador ve
-  // de una lo que puede encender y apagar, incluso lo que hoy no ha ocurrido todavía.
+  // The mapa NO se construye with lo that va apareciendo: se pide entero al backend (`/api/observability/catalog`,
+  // that lo saca of `observer.py::_CAT`, the misma fuente that sella the familia of each evento). Así the operador ve
+  // of a lo that puede encender and apagar, incluso lo that hoy no ha ocurrido todavía.
   //
-  // Se persisten los APAGADOS, no los encendidos: un kind NUEVO (el que estrene una capacidad futura) nace
-  // VISIBLE en vez de desaparecer por una lista vieja del localStorage. Shift+click = solo ese tipo.
+  // Se persisten the APAGADOS, no the encendidos: un kind NUEVO (el that estrene a capacidad futura) nace
+  // VISIBLE en vez of desaparecer by a lista old of the localStorage. Shift+click = only ese tipo.
   const DEFAULT_ON_CATS = new Set(["flash", "worker", "memory", "widget"]);
   const hiddenKinds = new Set((() => {
     try { const s = JSON.parse(localStorage.getItem("hb_dbg_kinds_off_v2") || "null"); if (Array.isArray(s)) return s; } catch {}
-    return null;   // null = aún sin decidir: los valores por defecto se aplican al llegar el catálogo
+    return null;   // null = aún without decidir: the valores by defecto se aplican al llegar the catálogo
   })() || []);
   let defaultsApplied = localStorage.getItem("hb_dbg_kinds_off_v2") != null;
-  const catalog = new Map();                     // kind -> familia (el mapa COMPLETO, del backend)
+  const catalog = new Map();                     // kind -> familia (el mapa COMPLETO, of the backend)
   const kindChips = new Map();                   // kind -> {btn, nEl, n, cat}
-  const kindGroups = new Map();                  // familia -> {box, body, head, cat} — la FILA de esa familia
+  const kindGroups = new Map();                  // familia -> {box, body, head, cat} — the FILA of esa familia
   let kindsEl, filtersEl, filtersBtn, filtersLabel;
-  // PANEL DE FILTROS PLEGABLE (2026-08-09, petición del operador: «hay tantos datos que configurar en los
-  // filtros que no los podemos tener a la vista porque perdemos la pantalla»). CERRADO por defecto: lo normal
-  // es mirar eventos, no reconfigurar el filtro. Cerrado no queda NADA de filtros en pantalla — solo la
-  // cabecera de columnas y la lista.
+  // PANEL DE FILTROS PLEGABLE (2026-08-09, operator request: “hay tantos data that configurar en los
+  // filtros that no the podemos tener a the vista porque perdemos the pantalla”). CLOSED by defecto: lo normal
+  // es mirar eventos, no reconfigurar the filtro. Cerrado no remains NADA of filtros en pantalla — only la
+  // cabecera of columnas and the lista.
   let filtersOpen = localStorage.getItem("hb_dbg_filters_open") === "1";
 
-  // ── LO NUEVO ENTRA POR ARRIBA — y el scroll es del operador (2026-08-10) ────────────────────────────────────
-  // Toda la maquinaria de «seguir el fondo» desaparece: no hay estado de seguimiento, ni gestos que vigilar, ni
-  // rAF, ni indicador que mantener sincronizado. Solo dos casos, y ninguno guarda nada:
+  // ── LO NUEVO ENTRA POR ARRIBA — and the scroll es of the operador (2026-08-10) ────────────────────────────────────
+  // Toda the maquinaria of “seguir the fondo” desaparece: no there is state of seguimiento, ni gestos that vigilar, ni
+  // rAF, ni indicador that mantener sincronizado. Only dos casos, and ninguno guarda nada:
   //
-  //   · el operador está ARRIBA (scrollTop 0) → la fila entra justo bajo la cabecera y empuja al resto hacia
-  //     abajo. Es lo que quiere ver, y sale sin tocar el scroll.
-  //   · el operador está LEYENDO más abajo → se compensa el alto que acaba de aparecer ENCIMA, así lo que tiene
-  //     bajo los ojos no se mueve ni un píxel. Sin esto, cada evento le desplazaría el texto hacia abajo.
+  //   · the operador está ARRIBA (scrollTop 0) → the row entra justo bajo the cabecera and empuja al resto hacia
+  //     abajo. Es lo that quiere ver, and sale without tocar the scroll.
+  //   · the operador está LEYENDO more abajo → se compensa the alto that acaba of aparecer ENCIMA, así lo that tiene
+  //     bajo the ojos no se mueve ni un píxel. Without esto, each evento le desplazaría the texto hacia abajo.
   //
-  // La compensación la hacemos NOSOTROS y no el navegador (`overflow-anchor:none` en `.dbg-list`): el anclaje
-  // automático solo existe en Chrome/Firefox y su ajuste se sumaría al nuestro. Un solo dueño, mismo
-  // comportamiento en todos los navegadores.
-  // `bulk` = relleno masivo al abrir el panel (hasta 1.000 filas del anillo de golpe). Ahí no hay nada que
-  // compensar —el scroll se coloca arriba al terminar— y el corto-circuito evita leer el scroll fila a fila, que
-  // fuerza un relayout en cada una. No es estado que sobreviva a nada: se pone y se quita en el mismo pase.
+  // The compensación the hacemos NOSOTROS and no the navegador (`overflow-anchor:none` en `.dbg-list`): the anclaje
+  // automático only existe en Chrome/Firefox and su ajuste se sumaría al nuestro. Un only dueño, mismo
+  // comportamiento en todos the navegadores.
+  // `bulk` = relleno masivo al abrir the panel (hasta 1.000 filas of the anillo of golpe). Ahí no there is nada que
+  // compensar —el scroll se coloca arriba al terminar— and the corto-circuito evita leer the scroll row a fila, que
+  // fuerza un relayout en each una. No es state that sobreviva a nada: se pone and se quita en the mismo pase.
   let bulk = false;
   function prepend(el, node) {
     if (!el) return;
@@ -250,15 +250,15 @@ export function DebugPanel() {
   }
 
   function visible(row) {
-    // UN SOLO EJE: el tipo. La familia ya no filtra por su cuenta (su rótulo enciende/apaga sus tipos), así que
-    // «esta fila no sale» tiene siempre UNA respuesta y no dos que se pisan.
+    // UN SOLO EJE: the tipo. The familia ya no filtra by su cuenta (su rótulo enciende/apaga sus tipos), así que
+    // “esta row no sale” tiene siempre UNA respuesta and no dos that se pisan.
     if (hiddenKinds.has(row.dataset.kind || "log")) return false;
     if (noiseHidden && row.dataset.noise === "1") return false;
     return !filter || (row.dataset.s || "").includes(filter);
   }
 
-  // El MAPA COMPLETO desde el backend: `observer.py::_CAT`, la misma fuente que sella la familia de cada evento.
-  // Se pide una vez al abrir el panel; si falla, el visor sigue funcionando y la tabla se irá poblando con lo que
+  // The MAPA COMPLETO from the backend: `observer.py::_CAT`, the misma fuente that sella the familia of each evento.
+  // Se pide a vez al abrir the panel; si falla, the visor sigue funcionando and the tabla se irá poblando with lo que
   // vaya llegando (degradación, no pantalla en blanco).
   async function loadCatalog() {
     if (catalog.size) return;
@@ -267,20 +267,20 @@ export function DebugPanel() {
       const d = await r.json();
       for (const [kind, cat] of Object.entries(d.kinds || {})) catalog.set(kind, cat);
     } catch (_) { /* sin catálogo se degrada a lo observado */ }
-    // SIN catálogo NO se tocan los valores por defecto ni se persiste nada, y se reintenta en la siguiente
-    // apertura. Fallo real 2026-08-09: con un backend que aún no servía el endpoint, `applyDefaults()` corría
-    // sobre un mapa VACÍO, se marcaba como aplicado y guardaba una lista de apagados vacía — así que el día que
-    // el catálogo llegara, «ya estaba configurado» y las familias de plomería habrían salido ENCENDIDAS. Los
-    // valores por defecto solo tienen sentido cuando se sabe sobre qué se aplican.
+    // SIN catálogo NO se tocan the valores by defecto ni se persiste nada, and se reintenta en the siguiente
+    // apertura. Failure real 2026-08-09: with un backend that aún no servía the endpoint, `applyDefaults()` corría
+    // sobre un mapa VACÍO, se marcaba as aplicado and guardaba a lista of apagados vacía — así that the día que
+    // the catálogo llegara, “ya estaba configurado” and the familias of plomería habrían salido ENCENDIDAS. Los
+    // valores by defecto only tienen sentido when se sabe sobre qué se aplican.
     if (!catalog.size) return;
     applyDefaults();
     for (const [kind, cat] of catalog) ensureChip(kind, cat);
     syncGroups();
   }
 
-  // Valores POR DEFECTO, aplicados una sola vez (la primera apertura de una instalación): visibles las familias
-  // de trabajo, apagadas las de plomería… salvo error/alert, que arrancan encendidos aunque su familia esté
-  // apagada — un error invisible es el peor modo de fallo posible. A partir de ahí manda el operador.
+  // Valores POR DEFECTO, aplicados a sola vez (la first apertura of a instalación): visibles the familias
+  // of trabajo, apagadas the of plomería… salvo error/alert, that arrancan encendidos aunque su familia esté
+  // apagada — un error invisible es the peor modo of fallo posible. A partir of ahí manda the operador.
   function applyDefaults() {
     if (defaultsApplied) return;
     defaultsApplied = true;
@@ -290,25 +290,25 @@ export function DebugPanel() {
     persistKinds();
   }
 
-  // Los tipos van AGRUPADOS BAJO SU FAMILIA (2026-08-09, petición del operador: «si cojo la familia de memoria,
-  // que salga debajo una línea con los kinds que puedo filtrar»). Antes era una lista plana de ~35 chips donde no
-  // se veía a qué pieza pertenecía cada uno; ahora cada familia ACTIVA aporta su línea, y apagar la familia se
-  // lleva su línea con ella. La familia de cada kind NO se duplica aquí: viene sellada en el propio evento
-  // (`cat`, de `observer.py::_CAT`), así que el frontend la aprende mirando lo que pasa y no puede desalinearse.
+  // The tipos van AGRUPADOS BAJO SU FAMILIA (2026-08-09, operator request: “si cojo the familia of memoria,
+  // that salga debajo a línea with the kinds that puedo filtrar”). Antes era a lista plana of ~35 chips where no
+  // se veía a qué pieza pertenecía each uno; now each familia ACTIVA aporta su línea, and apagar the familia se
+  // lleva su línea with ella. The familia of each kind NO se duplica aquí: viene sellada en the propio evento
+  // (`cat`, of `observer.py::_CAT`), así that the frontend the aprende mirando lo that pasa and no puede desalinearse.
   function groupFor(cat) {
     let g = kindGroups.get(cat);
     if (!g && kindsEl) {
       const box = document.createElement("div");
       box.className = "dbg-kgroup c-" + cat;
-      // El rótulo de la familia ES el mando de la familia: enciende o apaga todos sus tipos de golpe. Sustituye
-      // al chip de la barra que se retiró, sin volver a introducir un segundo eje de filtrado.
+      // The rótulo of the familia ES the mando of the familia: enciende or apaga todos sus tipos of golpe. Sustituye
+      // al chip of the barra that se retiró, without volver a introducir un segundo eje of filtrado.
       const head = document.createElement("button");
       head.className = "dbg-kgh";
       head.addEventListener("click", () => toggleFamily(cat));
       const body = document.createElement("span"); body.className = "dbg-kgb";
       box.append(head, body);
-      // Orden ESTABLE por el catálogo (CATS + lo no clasificado al final), no por orden de aparición: la tabla
-      // no puede bailar mientras el operador la mira.
+      // Orden ESTABLE by the catálogo (CATS + lo no clasificado al final), no by orden of aparición: the tabla
+      // no puede bailar mientras the operador the mira.
       const order = CATS.map((c) => c.key);
       const at = order.indexOf(cat);
       let before = null;
@@ -324,8 +324,8 @@ export function DebugPanel() {
     return g;
   }
 
-  // Toda la familia de una vez. Si ya estaba entera encendida, se apaga; si no, se enciende (incluye recuperar
-  // los tipos que el operador hubiera apagado sueltos dentro de ella).
+  // Toda the familia of a vez. Si ya estaba entera encendida, se apaga; si no, se enciende (incluye recuperar
+  // the tipos that the operador hubiera apagado sueltos inside of ella).
   function toggleFamily(cat) {
     const kinds = [...catalog].filter(([, c]) => c === cat).map(([k]) => k);
     for (const [k, c] of kindChips) if (c.cat === cat && !kinds.includes(k)) kinds.push(k);
@@ -337,18 +337,18 @@ export function DebugPanel() {
     reflow();
   }
 
-  // El rótulo de una familia se pinta de forma IMPERATIVA (el chip vive fuera del árbol reactivo de dom.js), así
-  // que hay que re-rotularlo a mano cuando cambia el idioma o cuando llega el bundle bueno. Sin esto salían
-  // rótulos MEZCLADOS —«FAMILY» en una fila y «FAMILIA» en la siguiente— según si el grupo se creó antes o
-  // después de que el fetch del bundle reconciliara. Una familia sin nombre conocido se rotula como tal, en vez
-  // de caer al genérico «Familia», que no decía nada.
+  // The rótulo of a familia se pinta of forma IMPERATIVA (el chip vive outside of the árbol reactivo of dom.js), así
+  // that there is that re-rotularlo a mano when cambia the idioma or when llega the bundle bueno. Without esto salían
+  // rótulos MEZCLADOS —“FAMILY” en a row and “FAMILIA” en the siguiente— según si the grupo se creó antes o
+  // después of that the fetch of the bundle reconciliara. A familia without nombre conocido se rotula as tal, en vez
+  // of caer al genérico “Familia”, that no decía nada.
   function labelGroup(g) {
     g.head.textContent = CAT_LABEL_KEY[g.cat] ? t(CAT_LABEL_KEY[g.cat]) : t("debug.cat_other");
-    g.head.title = g.head.textContent;   // el rótulo se recorta en columna estrecha; el hover lo dice entero
+    g.head.title = g.head.textContent;   // the rótulo se recorta en columna estrecha; the hover lo dice entero
   }
 
-  // La tabla enseña SIEMPRE el mapa entero (esa es la gracia); lo que cambia es el aspecto del rótulo de cada
-  // familia según tenga todos, algunos o ningún tipo encendido.
+  // The tabla enseña SIEMPRE the mapa entero (esa es the gracia); lo that cambia es the aspecto of the rótulo of cada
+  // familia según tenga todos, algunos or ningún tipo encendido.
   function syncGroups() {
     for (const [cat, g] of kindGroups) {
       const kinds = [...kindChips].filter(([, c]) => c.cat === cat).map(([k]) => k);
@@ -359,8 +359,8 @@ export function DebugPanel() {
     updateFiltersLabel();
   }
 
-  // «Filtros (N)» — N = tipos MARCADOS entre los visibles ahora mismo. Es el número que responde «¿estoy viendo
-  // todo o me falta algo?» sin abrir el panel.
+  // “Filtros (N)” — N = tipos MARCADOS entre the visibles now mismo. Es the número that responde “estoy viendo
+  // todo or me falta algo?” without abrir the panel.
   function updateFiltersLabel() {
     if (!filtersLabel) return;
     let n = 0;
@@ -375,8 +375,8 @@ export function DebugPanel() {
     if (filtersBtn) filtersBtn.classList.toggle("on", filtersOpen);
   }
 
-  // Registra (o actualiza) el chip de un kind. Se llama por CADA evento —también por los colapsados en ×N— así el
-  // contador dice cuánto pesa realmente cada tipo en el hilo, que es lo que decide qué apagar.
+  // Registra (o actualiza) the chip of un kind. Se llama by CADA evento —también by the colapsados en ×N— así el
+  // contador dice cuánto pesa realmente each tipo en the hilo, that es lo that decide qué apagar.
   function noteKind(kind, cat) {
     let c = kindChips.get(kind);
     if (!c) {
@@ -397,16 +397,16 @@ export function DebugPanel() {
   }
 
   function persistKinds() {
-    // MISMA clave que se LEE arriba (`hb_dbg_kinds_off_v2`). Escribía en la vieja sin `_v2`: la configuración de
-    // filtros del operador no sobrevivía a un recargado —y los valores por defecto se re-aplicaban cada vez—
-    // porque nadie leía nunca lo que se guardaba.
+    // MISMA clave that se LEE arriba (`hb_dbg_kinds_off_v2`). Escribía en the old without `_v2`: the configuration de
+    // filtros of the operador no sobrevivía a un recargado —y the valores by defecto se re-aplicaban each vez—
+    // porque nadie leía nunca lo that se guardaba.
     try { localStorage.setItem("hb_dbg_kinds_off_v2", JSON.stringify([...hiddenKinds])); } catch {}
     if (filtersBtn) filtersBtn.classList.toggle("muted", hiddenKinds.size > 0);
   }
 
   function toggleKind(kind, solo) {
     if (solo) {
-      // «solo esto»: si YA estaba aislado, el segundo shift+click devuelve todo (interruptor, no callejón sin salida).
+      // “solo esto”: si YA estaba aislado, the segundo shift+click devuelve todo (interruptor, no callejón without salida).
       const alreadySolo = !hiddenKinds.has(kind) && hiddenKinds.size === kindChips.size - 1;
       hiddenKinds.clear();
       if (!alreadySolo) for (const k of kindChips.keys()) if (k !== kind) hiddenKinds.add(k);
@@ -429,13 +429,13 @@ export function DebugPanel() {
     const lat = latencyInfo(d);
     const sz = sizeInfo(d);
     const searchable = (kind + " " + label + " " + meta + " " + text + " " + (bn || "") + " " + (chip ? chip.text : "")
-      + " " + (d.trace || "") + " " + (d.span || "")).toLowerCase();   // V2-044: filtrable por trace/span
+      + " " + (d.trace || "") + " " + (d.span || "")).toLowerCase();   // V2-044: filtrable by trace/span
     const sig = kind + "|" + label + "|" + meta + "|" + text;
 
     noteKind(kind, (d.cat || "other").toString());
 
     // Collapse consecutive identical events into one row with a ×N counter (defends the panel against any burst).
-    // `lastRow` es la fila de ARRIBA (la más reciente), que es justo donde el operador está mirando.
+    // `lastRow` es the row of ARRIBA (la more reciente), that es justo where the operador está mirando.
     if (lastRow && sig === lastSig) {
       const n = (parseInt(lastRow.dataset.n || "1", 10) + 1);
       lastRow.dataset.n = String(n);
@@ -450,13 +450,13 @@ export function DebugPanel() {
     row.className = "dbg-row k-" + kind.replace(/[^a-z0-9_]/gi, "");
     row.dataset.s = searchable;
     row.dataset.noise = isNoise(kind, label) ? "1" : "0";
-    row.dataset.cat = (d.cat || "main").toString();       // V2-037: categoría para el filtro superior
-    row.dataset.kind = kind;                              // desglose por kind (2ª fila de chips)
+    row.dataset.cat = (d.cat || "main").toString();       // V2-037: categoría for the filtro superior
+    row.dataset.kind = kind;                              // desglose by kind (2ª row of chips)
 
     const ts = document.createElement("span"); ts.className = "dbg-t"; ts.textContent = stamp(d._rx);
-    // CORRELATION ID: el flujo completo al que pertenece esta línea (voice/trace.py). Antes el chip iba dentro
-    // del mensaje, donde se perdía entre el texto; en columna propia se leen los flujos de un vistazo — click
-    // sigue aislando la cadena entera.
+    // CORRELATION ID: the flujo completo al that pertenece this línea (voice/trace.py). Antes the chip iba dentro
+    // of the mensaje, where se perdía entre the texto; en columna propia se leen the flujos of un vistazo — click
+    // sigue aislando the cadena entera.
     const cr = document.createElement("span"); cr.className = "dbg-corr";
     if (d.trace) cr.appendChild(traceChip(d.trace, (tid) => { if (filterEl) { filterEl.value = tid; } applyFilter(); }));
     const ct = document.createElement("span"); ct.className = "dbg-cat c-" + (d.cat || "other");
@@ -478,18 +478,18 @@ export function DebugPanel() {
 
     prepend(listEl, row);
     lastRow = row; lastSig = sig;
-    // El recorte se lleva las filas MÁS VIEJAS, que ahora son las del final.
+    // The recorte se lleva the filas MÁS VIEJAS, that now son the of the final.
     while (listEl.childElementCount > MAX_ROWS) { const f = listEl.lastElementChild; if (f === lastRow) break; listEl.removeChild(f); }
     count++; if (countEl) countEl.textContent = t("debug.events", { n: count });
   }
 
   // ── vista TRAZAS (V2-044): árbol  frase-raíz → actor (span) → eventos ──────────────────────────────────────
-  // Cada trace = un <details> con la FRASE que lo inició en el summary; debajo, los eventos que generó, agrupados
-  // por actor (`span`: worker:N / rail:X / web:tN). Es la vista de EVALUACIÓN: ¿esta frase cayó en el rail
-  // correcto y desembocó en el set de eventos que corresponde? Imperativa como el log (sin re-render global).
+  // Each trace = un <details> with the FRASE that lo inició en the summary; debajo, the eventos that generó, agrupados
+  // by actor (`span`: worker:N / rail:X / web:tN). Es the vista of EVALUACIÓN: esta frase cayó en the rail
+  // correcto and desembocó en the set of eventos that corresponde? Imperativa as the log (without re-render global).
   const traces = new Map();              // tid -> {det, ic, tx, nEl, body, spans:Map(span->bodyEl), n}
-  const MAX_TRACES = 120;                // cap de árboles vivos en el DOM
-  const MAX_TR_EVENTS = 250;             // cap de eventos por trace (una navegación larga no crece sin límite)
+  const MAX_TRACES = 120;                // cap of árboles vivos en the DOM
+  const MAX_TR_EVENTS = 250;             // cap of eventos by trace (una navegación larga no crece without límite)
 
   function traceEntry(tid) {
     let e = traces.get(tid);
@@ -506,8 +506,8 @@ export function DebugPanel() {
     det.append(sum, body);
     e = { det, ic, tx, nEl, body, spans: new Map(), n: 0 };
     traces.set(tid, e);
-    // El flujo más RECIENTE arriba, igual que el log. DENTRO de cada árbol los eventos siguen en orden
-    // cronológico: un flujo se lee de principio a fin, es lo que permite ver dónde se torció.
+    // The flujo more RECIENTE arriba, igual that the log. DENTRO of each árbol the eventos siguen en orden
+    // cronológico: un flujo se lee of principio a fin, es lo that permite ver dónde se torció.
     if (tracesEl) {
       prepend(tracesEl, det);
       while (tracesEl.childElementCount > MAX_TRACES) {
@@ -538,7 +538,7 @@ export function DebugPanel() {
     const tid = d.trace;
     if (!tid || !tracesEl) return;
     const e = traceEntry(tid);
-    if (d.kind === "trace" && d.root) {                 // la RAÍZ: la frase/estímulo que inició la cadena
+    if (d.kind === "trace" && d.root) {                 // the RAÍZ: the frase/estímulo that inició the cadena
       e.ic.textContent = ORIGIN_ICON[d.origin] || "•";
       e.tx.textContent = (d.text || d.label || "").toString();
       e.tx.title = stamp(d._rx) + " · origen: " + (d.origin || "?");
@@ -547,7 +547,7 @@ export function DebugPanel() {
     if (e.n >= MAX_TR_EVENTS) return;
     e.n++; e.nEl.textContent = t("debug.events", { n: e.n });
     let parent = e.body;
-    if (d.span) {                                        // nivel 2: el ACTOR que trabaja para esta frase
+    if (d.span) {                                        // nivel 2: the ACTOR that trabaja for this frase
       let sp = e.spans.get(d.span);
       if (!sp) {
         const sd = document.createElement("details"); sd.className = "dbg-span"; sd.open = true;
@@ -566,7 +566,7 @@ export function DebugPanel() {
     localStorage.setItem("hb_dbg_mode", m);
     if (listEl) listEl.hidden = (m === "traces");
     if (tracesEl) tracesEl.hidden = (m !== "traces");
-    if (hdrEl) hdrEl.hidden = (m === "traces");     // el árbol no va en columnas → sin cabecera que rotular
+    if (hdrEl) hdrEl.hidden = (m === "traces");     // the árbol no va en columnas → without cabecera that rotular
     if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? t("debug.view_log") : t("debug.view_traces"); }
   }
 
@@ -579,9 +579,9 @@ export function DebugPanel() {
   function clearAll() {
     clearDebugBuffer();
     if (listEl) listEl.replaceChildren();
-    if (tracesEl) tracesEl.replaceChildren();   // V2-044: también el árbol
-    // Los chips de kind describen lo que HAY en el log → al vaciarlo se vacían con él (y se re-crean solos con el
-    // siguiente evento). Lo que NO se toca es qué kinds están apagados: esa es la preferencia del operador.
+    if (tracesEl) tracesEl.replaceChildren();   // V2-044: also the árbol
+    // The chips of kind describen lo that HAAnd en the log → al vaciarlo se vacían with él (y se re-crean solos with el
+    // siguiente evento). Lo that NO se toca es qué kinds están apagados: esa es the preferencia of the operador.
     if (kindsEl) kindsEl.replaceChildren();
     kindChips.clear();
     kindGroups.clear();
@@ -615,8 +615,8 @@ export function DebugPanel() {
     h("div", { class: "dbg-head" },
       h("span", { class: "dbg-title" }, raw(BUG_ICON), () => t("debug.title")),
       h("input", { class: "dbg-filter", placeholder: () => t("debug.filter_placeholder"), ref: (el) => (filterEl = el), onInput: applyFilter }),
-      // FILTROS — un solo botón que despliega TODO el panel (familias + tipos). Lleva el nº de tipos marcados
-      // para saber de un vistazo si se está mirando el hilo entero o uno recortado.
+      // FILTROS — un only button that despliega TODO the panel (familias + tipos). Lleva the nº of tipos marcados
+      // for saber of un vistazo si se está mirando the hilo entero or uno recortado.
       h("button", {
         class: "dbg-fbtn" + (filtersOpen ? " on" : ""), title: () => t("debug.filters_title"),
         ref: (el) => (filtersBtn = el), onClick: toggleFilters,
@@ -625,7 +625,7 @@ export function DebugPanel() {
         h("span", { class: "dbg-fcar" }, "▾"),
       ),
       h("span", { class: "dbg-count", ref: (el) => (countEl = el) }, () => t("debug.events", { n: 0 })),
-      // V2-044: toggle Log cronológico ⇄ árbol de Trazas (frase → acciones → eventos)
+      // V2-044: toggle Log cronológico ⇄ árbol of Trazas (frase → acciones → eventos)
       h("button", {
         class: "dbg-btn hb-icbtn", title: () => t("debug.view_traces"),
         ref: (el) => { el.innerHTML = mode === "traces" ? LIST_ICON : LINK_ICON; },
@@ -635,45 +635,45 @@ export function DebugPanel() {
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.clear"), onClick: clearAll }, raw(TRASH_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.close"), onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
     ),
-    // PANEL DE FILTROS (plegable). Cerrado no deja NADA en pantalla: debajo de la cabecera van directamente los
-    // rótulos de columna y los eventos, que es lo que se viene a mirar.
-    // Dentro va LA TABLA y nada más: una fila por familia —su rótulo enciende o apaga la familia entera— con
-    // todos sus tipos a la derecha. La barra de chips de familia que había encima se RETIRÓ: era un segundo eje
-    // que se solapaba con este y obligaba a razonar dos veces por qué no salía una fila.
+    // PANEL DE FILTROS (plegable). Cerrado no deja NADA en pantalla: debajo of the cabecera van directamente los
+    // rótulos of columna and the eventos, that es lo that se viene a mirar.
+    // Inside va LA TABLA and nada más: a row by familia —su rótulo enciende or apaga the familia entera— con
+    // todos sus tipos a the derecha. The barra of chips of familia that había encima se RETIRÓ: era un segundo eje
+    // that se solapaba with this and obligaba a razonar dos veces by qué no salía a fila.
     h("div", { class: "dbg-filters", ref: (el) => { filtersEl = el; el.hidden = !filtersOpen; } },
       h("div", { class: "dbg-kinds", ref: (el) => (kindsEl = el) }),
-      // Condensar desde DENTRO del panel: al terminar de configurar no hay que volver a subir a la cabecera.
+      // Condensar from DENTRO of the panel: al terminar of configurar no there is that volver a subir a the cabecera.
       h("div", { class: "dbg-fbar" },
         h("button", { class: "dbg-fclose", onClick: toggleFilters }, "▴ ", () => t("debug.filters_collapse")),
       ),
     ),
-    // CABECERA DE COLUMNAS — fija, fuera del contenedor con scroll (así no scrollea ni la puede podar el
-    // recorte de MAX_ROWS) y con el MISMO grid que las filas. El wrapper es su propio query-container para que
-    // se oculte sola cuando el panel se estrecha y las filas dejan de estar en columnas.
+    // CABECERA DE COLUMNAS — fija, outside of the contenedor with scroll (así no scrollea ni the puede podar el
+    // recorte of MAX_ROWS) and with the MISMO grid that the filas. The wrapper es su propio query-container for que
+    // se oculte sola when the panel se estrecha and the filas dejan of estar en columnas.
     h("div", { class: "dbg-hdrwrap", ref: (el) => { hdrEl = el; el.hidden = (mode === "traces"); } },
       h("div", { class: "dbg-hdr" },
         ...COLS.map((c) => h("span", { class: c.cls, title: () => t(c.tip) }, () => t(c.key))),
       ),
     ),
     h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); } }),
-    // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
+    // V2-044: the vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
     h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); } }),
   );
 
-  // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), y REPONER lo que falte del buffer.
-  // El bus (debugbus.js) sigue vivo y acumulando SIEMPRE, abierto o cerrado el panel — pero mientras está
-  // cerrado no pintamos filas (abajo, el suscriptor vivo lo filtra por `store.debugOpen()`), así que al
-  // reabrir puede haber eventos reales más recientes que el último que SÍ se pintó. Antes esto se resolvía
-  // con un flag de una sola vez (`backfilled`), que solo rellenaba en la PRIMERA apertura de la página — la
-  // 2ª+ apertura se quedaba con la última fila pintada antes de cerrar, aunque hubiera eventos más nuevos en
-  // el buffer: el scroll SÍ estaba abajo, pero abajo de un DOM incompleto (parecía "no sigue al último
-  // evento" sin serlo). Ahora cada evento se marca `_dbgSeen` al pintarse, y CADA apertura repone los que
-  // falten — así el operador siempre ve el evento real más reciente, no solo el más reciente que ya viera.
+  // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), and REPONER lo that falte of the buffer.
+  // The bus (debugbus.js) sigue vivo and acumulando SIEMPRE, open or closed the panel — pero mientras está
+  // closed no pintamos filas (abajo, the suscriptor vivo lo filtra by `store.debugOpen()`), así that al
+  // reabrir puede haber eventos reales more recientes that the último that SÍ se pintó. Antes esto se resolvía
+  // with un flag of a sola vez (`backfilled`), that only rellenaba en the PRIMERA apertura of the página — la
+  // 2ª+ apertura seremainsba with the última row pintada antes of cerrar, aunque hubiera eventos more nuevos en
+  // the buffer: the scroll SÍ estaba abajo, pero abajo of un DOM incompleto (parecía "no sigue al último
+  // evento" without serlo). Now each evento se marca `_dbgSeen` al pintarse, and CADA apertura repone the que
+  // falten — así the operador siempre ve the evento real more reciente, no only the more reciente that ya viera.
   function catchUp() {
     if (!listEl) return;
     bulk = true;
     try {
-      // Del más VIEJO al más nuevo: como cada uno entra por arriba, el último del anillo acaba arriba del todo.
+      // From the more VIEJO al more nuevo: as each uno entra by arriba, the último of the anillo acaba arriba of the todo.
       for (const d of debugBuffer()) {
         if (d._dbgSeen) continue;
         d._dbgSeen = true;
@@ -689,34 +689,34 @@ export function DebugPanel() {
     if (open) {
       startDebugBus();
       catchUp();
-      // Abrir el panel es «a ver qué está pasando» → arriba, donde está lo último. Es la ÚNICA vez que movemos
-      // el scroll nosotros; a partir de aquí es todo del operador.
+      // Abrir the panel es “a ver qué está pasando” → arriba, where está lo último. Es the ÚNICA vez that movemos
+      // the scroll nosotros; a partir of here es todo of the operador.
       if (listEl) listEl.scrollTop = 0;
       if (tracesEl) tracesEl.scrollTop = 0;
     }
   });
 
-  // Los rótulos del panel de filtros se pintan IMPERATIVAMENTE (viven fuera del árbol reactivo de dom.js), así
-  // que hay que re-rotularlos cuando cambia el idioma o cuando llega el bundle bueno. Leer `t()` aquí dentro es
-  // lo que crea la dependencia. Sin esto se veían rótulos MEZCLADOS en dos idiomas a la vez —«FAMILY» en una
-  // fila y «FAMILIA» en la siguiente— según si el grupo se creó antes o después de reconciliar el bundle.
+  // The rótulos of the panel of filtros se pintan IMPERATIVAMENTE (viven outside of the árbol reactivo of dom.js), así
+  // that there is that re-rotularlos when cambia the idioma or when llega the bundle bueno. Leer `t()` here inside es
+  // lo that crea the dependencia. Without esto se veían rótulos MEZCLADOS en dos idiomas a the vez —“FAMILY” en una
+  // row and “FAMILIA” en the siguiente— según si the grupo se creó antes or después of reconciliar the bundle.
   createEffect(() => {
     t("debug.filters", { n: 0 });
     for (const g of kindGroups.values()) labelGroup(g);
     updateFiltersLabel();
-    // La celda FAMILIA de cada fila ya pintada también es texto de interfaz: se re-rotula, no se queda con el
-    // idioma que hubiera cuando llegó el evento.
+    // The celda FAMILIA of each row ya pintada also es texto of interfaz: se re-rotula, no se remains with el
+    // idioma that hubiera when llegó the evento.
     if (listEl) for (const row of listEl.children) {
       const c = row.querySelector(".dbg-cat");
       if (c) c.textContent = catShort(row.dataset.cat || "");
     }
   });
 
-  // SESIÓN NUEVA (2026-08-10) → la columna se vacía. Un Reset deliberado abre otra sesión de trabajo en el backend
-  // (id nuevo, observabilidad a cero); si aquí siguieran las filas de la anterior, el operador estaría leyendo el
-  // historial de una sesión que ya no existe creyendo que es la de ahora. Es el MISMO vaciado que el botón 🗑, con
-  // una diferencia deliberada: los kinds que el operador tenía apagados NO se re-encienden — eso es su preferencia
-  // de trabajo, no contenido de la sesión. `store.sessionEpoch` empieza en 0, así que el primer pase (montaje) no
+  // SESIÓN NUEVA (2026-08-10) → the columna se vacía. Un Reset deliberado abre otra sesión of trabajo en the backend
+  // (id nuevo, observabilidad a cero); si here siguieran the filas of the anterior, the operador estaría leyendo el
+  // historial of a sesión that ya no existe creyendo that es the of ahora. Es the MISMO vaciado that the button 🗑, con
+  // a diferencia deliberada: the kinds that the operador tenía apagados NO se re-encienden — eso es su preferencia
+  // of trabajo, no contenido of the sesión. `store.sessionEpoch` empieza en 0, así that the primer pase (montaje) no
   // borra nada.
   let _lastEpoch = store.sessionEpoch();
   createEffect(() => {

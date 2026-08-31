@@ -13,8 +13,8 @@ from widgets.results import data as sheet
 
 @pytest.fixture(autouse=True)
 def _aislado(tmp_path, monkeypatch):
-    """Disco APARTE. Un test unitario no toca la hoja real del operador, y este escribe de verdad: lo que se
-    mide es si los hallazgos SOBREVIVEN, no si se llamó a una función."""
+    """Separate disk. A unit test does not touch the operator's real sheet, and this one writes for real: what is
+    measured is whether the findings SURVIVE, not whether a function was called."""
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     monkeypatch.setattr(D, "_SESSIONS", {})
     store._last_hash.clear()
@@ -26,17 +26,17 @@ def _encargo(tid: str, goal: str, sheet_id: str = "") -> SessionRecord:
     rec = SessionRecord(task_id=tid, goal=goal, kind="web")
     surfaces.set_once(rec, "lista")
     if sheet_id:
-        rec.sheet = sheet_id          # como llega un RELEVO: con la hoja de su predecesora ya puesta
+        rec.sheet = sheet_id          # how a HANDOFF arrives: with its predecessor's sheet already set
     rec.status = "running"
     D._SESSIONS[tid] = rec
     return rec
 
 
-# ── la herencia ────────────────────────────────────────────────────────────────────────────────────────────
+# ── inheritance ────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_un_encargo_nuevo_estrena_su_hoja():
-    """El caso de siempre, intacto: sin hoja heredada se sella la suya y nace vacía. Sin este caso, «heredar
-    siempre» pasaría, y entonces dos búsquedas volverían a compartir caja — lo que V2-259 arregló."""
+    """The usual case, intact: without an inherited sheet, its own is sealed and starts empty. Without this case,
+    "always inherit" would pass, and then two searches would share a box again—which is what V2-259 fixed."""
     D._sheet_open(_encargo("t1", "Busca fontaneros"))
     sheet.apply_action("present", {"sheet": D.sheet_id_for("t1"), "title": "Fontaneros",
                                    "items": [{"title": "Relatores"}]})
@@ -49,9 +49,10 @@ def test_un_encargo_nuevo_estrena_su_hoja():
 
 
 def test_un_relevo_hereda_la_hoja_y_NO_la_borra():
-    """Las dos mitades a la vez, porque una sin la otra es PEOR que el defecto: hereda la clave (una caja, no
-    dos) y no la estrena — o sea que los trece hallazgos que la predecesora entregó antes de quedarse sin cuota
-    siguen ahí. Heredar y estrenar convertiría «dos cajas, una llena» en «una caja vacía»."""
+    """Both halves at once, because one without the other is WORSE than the bug: it inherits the key (one box, not
+    two) and does not start a new one—in other words, the thirteen findings its predecessor delivered before
+    running out of quota are still there. Inheriting and starting a new one would turn "two boxes, one full" into
+    "one empty box."""
     D._sheet_open(_encargo("t1", "Busca un monitor"))
     heredada = D.sheet_id_for("t1")
     sheet.apply_action("present", {"sheet": heredada, "title": "Monitores",
@@ -65,20 +66,20 @@ def test_un_relevo_hereda_la_hoja_y_NO_la_borra():
 
 
 def test_la_hoja_sellada_no_se_reescribe_nunca():
-    """Mismo criterio que `surfaces.set_once`: cambiarla a mitad mueve lo que el operador ya está mirando."""
+    """Same principle as `surfaces.set_once`: changing it halfway through moves what the operator is already viewing."""
     rec = _encargo("t9", "Busca un monitor", sheet_id="una-hoja-cualquiera")
     D._sheet_open(rec)
     D._sheet_open(rec)
     assert rec.sheet == "una-hoja-cualquiera"
 
 
-# ── el transporte: la hoja tiene que VIAJAR con el relevo ───────────────────────────────────────────────────
+# ── transport: the sheet must TRAVEL with the handoff ──────────────────────────────────────────────────────
 
 def test_los_dos_relanzamientos_mandan_la_hoja():
-    """Guarda de CABLEADO, no de lógica. `_sheet_open` puede heredar perfectamente y no servir de nada si el
-    relanzamiento no le pasa la hoja — que es exactamente lo que pasaba: el contexto llevaba `kind`, `trace`,
-    `depth` y `relay_gen`, y no la hoja. Son DOS caminos (relevo de proveedor y retoma por contexto agotado) y
-    los dos tenían el mismo agujero, así que arreglar uno solo deja la mitad viva."""
+    """Wiring guard, not a logic guard. `_sheet_open` can inherit perfectly and be useless if the relaunch does not
+    pass it the sheet—which is exactly what happened: the context carried `kind`, `trace`, `depth`, and
+    `relay_gen`, but not the sheet. There are TWO paths (provider handoff and resumption after context exhaustion),
+    and both had the same hole, so fixing only one leaves half of it alive."""
     import inspect
 
     from nucleo.workers import session as S
@@ -90,7 +91,7 @@ def test_los_dos_relanzamientos_mandan_la_hoja():
 
 
 def test_el_dispatcher_lee_la_hoja_del_contexto():
-    """La otra punta del cable: mandarla no sirve si nadie la recoge al construir el record."""
+    """The other end of the cable: sending it is useless if nobody picks it up when constructing the record."""
     import inspect
 
     src = inspect.getsource(D.run_listener)
@@ -98,6 +99,6 @@ def test_el_dispatcher_lee_la_hoja_del_contexto():
 
 
 def test_una_escalada_normal_sigue_naciendo_sin_hoja():
-    """El defecto simétrico: si `sheet` se colara con cualquier valor por defecto, TODO encargo nuevo heredaría
-    una caja y volveríamos a la hoja única que V2-259 partió."""
+    """The symmetric bug: if `sheet` slipped in with any default value, EVERY new errand would inherit a box and we
+    would return to the single sheet that V2-259 split."""
     assert SessionRecord(task_id="1", goal="x", kind="web").sheet == ""

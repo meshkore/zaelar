@@ -37,7 +37,7 @@ def chain_of(monkeypatch):
 
 
 def test_una_cadena_VACIA_no_es_una_cadena_dormida(chain_of):
-    """La sensibilidad que importa: sin escalones configurados NO se bloquea nada — es el self-host de siempre."""
+    """The important distinction: with no tiers configured, NOTHING is blocked — this is the usual self-host."""
     chain_of([])
     assert providers.exhausted_until() == 0.0
     assert providers.exhausted_reason() == ""
@@ -60,7 +60,7 @@ def test_TODOS_dormidos_devuelve_la_hora_del_PRIMERO_que_vuelve(chain_of):
 
 
 def test_el_motivo_LLEVA_LA_HORA(chain_of):
-    """«sin cuota» invita a reintentar en diez segundos; «vuelve a las 14:20» no. La hora es lo accionable."""
+    """«sin cuota» invites retrying in ten seconds; «vuelve a las 14:20» does not. The time is the actionable part."""
     vuelve = time.time() + 900
     chain_of(["licencia-claude"], asleep={"licencia-claude": vuelve})
     texto = providers.exhausted_reason()
@@ -69,16 +69,16 @@ def test_el_motivo_LLEVA_LA_HORA(chain_of):
 
 
 def test_el_caso_MEDIDO_la_licencia_sola_dormida_para_el_lanzamiento(chain_of):
-    """La cadena del plató tiene UN escalón. Con él dormido, `pick()` decía None y `env_for_worker()` {} —
-    o sea «usa la licencia», que es justo la que acababa de decir que no."""
+    """The studio chain has ONE tier. With it asleep, `pick()` returned None and `env_for_worker()` {} —
+    meaning «use the license», which is exactly the one that had just said no."""
     chain_of(["licencia-claude"], asleep={"licencia-claude": time.time() + 3600})
-    assert providers.pick() is None                 # el None ambiguo de siempre…
-    assert providers.env_for_worker() == {}         # …y su lectura, que mandaba lanzar
-    assert providers.exhausted_until() > 0          # el hecho que lo desambigua
+    assert providers.pick() is None                 # the same old ambiguous None…
+    assert providers.env_for_worker() == {}         # …and its interpretation, which ordered a launch
+    assert providers.exhausted_until() > 0          # the fact that disambiguates it
 
 
 def test_el_dispatcher_LO_CONSULTA():
-    """La mitad de cableado: el predicado puede acertar y no llegar a la puerta (V2-199)."""
+    """The wiring half: the predicate can be correct and still never reach the door (V2-199)."""
     import inspect
 
     from nucleo import dispatch
@@ -91,9 +91,9 @@ def test_el_dispatcher_LO_CONSULTA():
 
 
 def test_y_lo_cuenta_como_NO_ARRANCADA_no_como_rota():
-    """`provider_asleep` y no un `end` pelado: la ronda no falló, no llegó a empezar. El Master y el arnés
-    necesitan distinguir «lo intentamos y se rompió» de «sabíamos que era inútil», o una cuota agotada se sigue
-    puntuando como producto roto."""
+    """`provider_asleep` rather than a bare `end`: the round did not fail; it never started. The Master and harness
+    need to distinguish «we tried it and it broke» from «we knew it was useless», or an exhausted quota will continue
+    to be scored as a broken product."""
     import inspect
 
     from nucleo import dispatch

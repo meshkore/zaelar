@@ -1,28 +1,28 @@
-"""nucleo/rails.py — RAILS: comportamientos comunes CONDUCIDOS (V2-042, patrón de orquestación del FlashBrain).
+"""nucleo/rails.py — RAILS: common GUIDED behaviors (V2-042, FlashBrain orchestration pattern).
 
-Un **RAIL** es un comportamiento habitual que sabemos conducir de una forma determinada — música difusa, vídeo,
-estudios de datos, búsquedas complejas en sites, mensajería, agenda, búsquedas recursivas (cron+búsqueda). El
-nombre es del operador: son "raíles" por los que circula la acción. Cada rail aporta cuatro piezas MODULARES:
+An **RAIL** is a habitual behavior that we know how to guide in a specific way — fuzzy music, video,
+data studies, complex searches on sites, messaging, calendar, recursive searches (cron+search). The
+name comes from the operator: they are "rails" along which the action runs. Each rail provides four MODULAR pieces:
 
-  1. una **cadena determinista en CÓDIGO** (resolver→validar→actuar, p.ej. `nucleo/flash/music_flow.py`) — el
-     FlashBrain sigue NO-razonador: él solo dispara la tool; el rail conduce;
-  2. su **tool** en `router.TOOLS` (y nada más: el "cuándo SÍ/NO" vive en la descripción, V2-035);
-  3. sus **RUNS vivos** — este módulo: registro RAM proyectado al ESTADO (`state.rails`) → el prompt de cada turno
-     sabe qué se busca, qué suena, y qué quedó SIN RESOLVER (aislado, con intentos) para continuarlo cuando el
-     operador aporte datos ("era de Sinatra");
-  4. su **writeback a memoria** (vía tipada `memory.ingest_message(source=…)`) → historial + gustos → zaelar conoce
-     al operador y afina las siguientes conducciones.
+  1. a **deterministic chain in CODE** (resolve→validate→act, e.g. `nucleo/flash/music_flow.py`) — the
+     FlashBrain remains non-reasoning: it only triggers the tool; the rail guides;
+  2. its **tool** in `router.TOOLS` (and nothing else: the "when YES/NO" lives in the description, V2-035);
+  3. its **live RUNS** — this module: RAM registry projected into STATE (`state.rails`) → each turn's prompt
+     knows what is being searched for, what is playing, and what remains UNRESOLVED (isolated, with attempts)
+     so it can continue when the operator provides data ("it was Sinatra");
+  4. its **writeback to memory** (via typed `memory.ingest_message(source=…)`) → history + preferences → zaelar knows
+     the operator and fine-tunes subsequent guidance.
 
-**Prompts aislados, solo cuando hacen falta** (idea del operador): además del run en el ESTADO, un rail puede
-aportar una línea de GUÍA al prompt únicamente mientras tiene un run vivo (`prompt_lines()` ← `_GUIDANCE`) — cero
-coste de prompt cuando el rail está en reposo.
+**Isolated prompts, only when needed** (the operator's idea): in addition to the run in STATE, a rail may
+provide a GUIDANCE line to the prompt only while it has a live run (`prompt_lines()` ← `_GUIDANCE`) — zero
+prompt cost while the rail is idle.
 
-Es el hermano LIGERO de las sesiones de `nucleo/dispatch.py` (workers pesados): un run NO es un proceso — es el
-ESTADO de una conducción que hace el propio FlashBrain en sus turnos. Diseño:
-  · **Singleton por `kind`**: un run nuevo del mismo kind SUSTITUYE al anterior (no se acumulan).
-  · **Fallos AISLADOS con TTL**: un run fallido queda `sin_resolver` (15 min) — ni contamina ni se pierde.
-  · **Escrituras SIEMPRE off-hot-path**: los callers llaman desde `asyncio.to_thread` (V2-011). `project()` hace
-    el `memory.set_state` best-effort (nunca lanza). Transiciones observables (evento `rail` en /debug).
+It is the LIGHTWEIGHT sibling of the sessions in `nucleo/dispatch.py` (heavy workers): a run is NOT a process — it is the
+STATE of guidance that FlashBrain itself carries out during its turns. Design:
+  · **Singleton per `kind`**: a new run of the same kind REPLACES the previous one (they do not accumulate).
+  · **ISOLATED failures with TTL**: a failed run remains `sin_resolver` (15 min) — it neither contaminates nor gets lost.
+  · **Writes ALWAYS off the hot path**: callers invoke from `asyncio.to_thread` (V2-011). `project()` performs
+    `memory.set_state` best-effort (never raises). Observable transitions (`rail` event in /debug).
 """
 from __future__ import annotations
 
@@ -31,29 +31,29 @@ import time
 
 from loguru import logger
 
-# kind → run vivo {kind, label, status, detail, attempts, created, updated}
+# kind → live run {kind, label, status, detail, attempts, created, updated}
 _RUNS: dict[str, dict] = {}
 _lock = threading.Lock()
 
-# TTL por estado (segundos): cuánto vive un run sin que nadie lo toque antes de expirar solo.
+# TTL per status (seconds): how long a run lives without anyone touching it before expiring on its own.
 _TTL = {
-    "searching": 10 * 60,        # una búsqueda en curso abandonada
-    "sin_resolver": 15 * 60,     # el fallo AISLADO: se conserva para retomarlo, expira si nadie lo retoma
-    "playing": 4 * 60 * 60,      # algo sonando (larga: una sesión de música)
+    "searching": 10 * 60,        # an abandoned search in progress
+    "sin_resolver": 15 * 60,     # the ISOLATED failure: kept for resumption, expires if no one resumes it
+    "playing": 4 * 60 * 60,      # something playing (long: a music session)
     "paused": 60 * 60,
 }
 _TTL_DEFAULT = 30 * 60
 
-# GUÍA situacional por rail (kind → línea de prompt + estados en que aplica): se INYECTA solo mientras el rail
-# tiene un run vivo en ese estado (prompt_lines()). Modular: el prompt no paga rails en reposo.
+# Situational GUIDANCE per rail (kind → prompt line + statuses where it applies): INJECTED only while the rail
+# has a live run in that status (prompt_lines()). Modular: the prompt does not pay for idle rails.
 _GUIDANCE = {
     "music.search": (("sin_resolver",),
                      "Hay una búsqueda de canción SIN RESOLVER en tus rails: si el operador aporta un dato "
                      "(artista, año, otra palabra de la letra), vuelve a llamar a play_music con la query "
                      "ENRIQUECIDA (pista original + dato nuevo)."),
-    # Sesión 22:40 2026-07-16: con música sonando, «no se oye» escaló a un worker que investigó la VOZ de zaelar.
-    # Con un run de reproducción vivo, TODA queja de audio se refiere a ESA música — y si aun así escalas, la
-    # petición debe decirlo (el worker no ve esta conversación).
+    # Session 22:40 2026-07-16: with music playing, «no se oye» escalated to a worker that investigated zaelar's VOICE.
+    # With a live playback run, EVERY audio complaint refers to THAT music — and if you still escalate, the
+    # request must say so (the worker cannot see this conversation).
     "music.playing": (("playing", "paused"),
                       "Hay MÚSICA SONANDO ahora (mírala en tus rails). Si el operador dice que «no se oye», «no "
                       "suena», «súbelo», «quita eso» o cualquier queja/orden de audio, se refiere a ESA música — "
@@ -64,14 +64,14 @@ _GUIDANCE = {
 
 
 def upsert(kind: str, label: str = "", *, status: str = "", detail: str = "", bump: bool = False) -> dict:
-    """Crea/actualiza el run de un `kind` (singleton: sustituye al anterior). `bump` incrementa intentos.
-    Devuelve el run. Llamar OFF-LOOP (to_thread)."""
+    """Create/update the run for a `kind` (singleton: replaces the previous one). `bump` increments attempts.
+    Returns the run. Call OFF-LOOP (to_thread)."""
     kind = (kind or "").strip()
     if not kind:
         return {}
     now = time.time()
-    # V2-044: trace de la frase que CONDUCE este run (ctxvar del turno; viaja por to_thread). Un run nuevo lo
-    # adopta; uno vivo lo conserva — así las transiciones posteriores (fail/resolve off-turn) siguen encadenadas.
+    # V2-044: trace of the phrase that GUIDES this run (turn ctxvar; travels through to_thread). A new run
+    # adopts it; a live one preserves it — so later transitions (fail/resolve off-turn) remain chained.
     try:
         from voice import trace as _trace
         _tid = _trace.current()
@@ -80,7 +80,7 @@ def upsert(kind: str, label: str = "", *, status: str = "", detail: str = "", bu
     with _lock:
         a = _RUNS.get(kind)
         if a is None or (label and a.get("label") != label):
-            # run nuevo (o el mismo kind con OTRO objetivo → sustituye; los intentos empiezan de cero)
+            # new run (or the same kind with a DIFFERENT target → replaces it; attempts start from zero)
             a = {"kind": kind, "label": label or (a or {}).get("label", ""), "status": status or "searching",
                  "detail": detail, "attempts": 1 if bump else 0, "created": now, "updated": now,
                  "trace": _tid}
@@ -102,7 +102,7 @@ def upsert(kind: str, label: str = "", *, status: str = "", detail: str = "", bu
 
 
 def resolve(kind: str) -> None:
-    """El run terminó BIEN → desaparece del estado. Llamar OFF-LOOP."""
+    """The run ended SUCCESSFULLY → disappears from state. Call OFF-LOOP."""
     with _lock:
         a = _RUNS.pop((kind or "").strip(), None)
     if a:
@@ -111,8 +111,8 @@ def resolve(kind: str) -> None:
 
 
 def fail(kind: str, reason: str = "") -> None:
-    """El run falló → queda AISLADO como `sin_resolver` (con su label/intentos) hasta que alguien lo retome con
-    más datos o expire su TTL. NO desaparece: es el estado que permite continuar («era de Sinatra»)."""
+    """The run failed → remains ISOLATED as `sin_resolver` (with its label/attempts) until someone resumes it with
+    more data or its TTL expires. It does NOT disappear: this is the state that allows continuation ("it was Sinatra")."""
     snap = None
     with _lock:
         a = _RUNS.get((kind or "").strip())
@@ -134,7 +134,7 @@ def get(kind: str) -> "dict | None":
 
 
 def live() -> list[dict]:
-    """Runs vigentes (barre los expirados por TTL). Orden: más reciente primero."""
+    """Current runs (removes those expired by TTL). Order: most recent first."""
     now = time.time()
     with _lock:
         dead = [k for k, a in _RUNS.items()
@@ -145,8 +145,8 @@ def live() -> list[dict]:
 
 
 def prompt_lines() -> list[str]:
-    """GUÍA situacional de los rails con run vivo — se inyecta al prompt SOLO cuando aplica (idea del operador:
-    prompts aislados por comportamiento, cero coste en reposo)."""
+    """Situational GUIDANCE for rails with a live run — injected into the prompt ONLY when applicable (the operator's idea:
+    isolated prompts per behavior, zero idle cost)."""
     out = []
     for a in live():
         spec = _GUIDANCE.get(a.get("kind") or "")
@@ -156,8 +156,8 @@ def prompt_lines() -> list[str]:
 
 
 def project() -> None:
-    """Proyecta el registro RAM → ESTADO de memoria (`state.rails`). Best-effort, nunca lanza. Los callers ya
-    están off-loop (to_thread), así que el write µs de state es seguro (V2-011)."""
+    """Projects the RAM registry → memory STATE (`state.rails`). Best-effort, never raises. Callers are already
+    off-loop (to_thread), so the state write taking µs is safe (V2-011)."""
     try:
         from memory import api as memory
         memory.set_state({"rails": [
@@ -170,13 +170,13 @@ def project() -> None:
 
 
 def _observe(op: str, run: dict) -> None:
-    """Transición OBSERVABLE (evento `rail` → /debug + SSE): visibilidad de cada conducción. Best-effort."""
+    """OBSERVABLE transition (`rail` event → /debug + SSE): visibility into each guidance operation. Best-effort."""
     try:
         from voice.observer import emit
         extra = {"kind": run.get("kind"), "status": run.get("status"), "label": (run.get("label") or "")[:80],
                  "attempts": int(run.get("attempts") or 0), "op": op}
-        # V2-044: encadena la transición a la frase que conduce el run (aunque ocurra off-turn, p.ej. un fail
-        # posterior) + span=rail:<kind> para el nivel 2 del árbol de Trazas.
+        # V2-044: chains the transition to the phrase that guides the run (even if it occurs off-turn, e.g. a later
+        # failure) + span=rail:<kind> for level 2 of the Trace tree.
         _tid = run.get("trace") or ""
         if _tid:
             extra["trace"] = _tid
@@ -187,7 +187,7 @@ def _observe(op: str, run: dict) -> None:
 
 
 def clear_all() -> None:
-    """Limpieza total (reset/tests)."""
+    """Full cleanup (reset/tests)."""
     with _lock:
         _RUNS.clear()
     project()

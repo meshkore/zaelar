@@ -1,7 +1,7 @@
 // ============================================================================
 // MenuSheet.js — the ☰ sheet: the mobile home for everything the desktop keeps in its top bar and its floating
-// launcher.  Operator's brief: «un botón de menú también para acceder al feedback, a la cuenta, al perfil, algunas
-// otras cosas… un pequeño aparato de configuración y desde ahí manejar también todo eso».
+// launcher.  Operator's brief: «a menu button also to access feedback, the account, the profile, some
+// other things… a small configuration device and from there manage all that too».
 //
 // WHAT IT HOLDS, and where each row's behaviour actually lives:
 //   · Energy      — the balance, read from store.energy() (the SSE keeps it live; no polling here)

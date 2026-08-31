@@ -1,5 +1,5 @@
 // ============================================================================
-// MemoryMap — the 🧠 "map of zaelar's memory": a full-screen, VERY visual overlay
+// MemoryMap — the 🧠 "map of zaelar's memory": a full-screen, VERAnd visual overlay
 // that shows how zaelar's central memory (memory/, V2-002/003) is composed IN REAL
 // TIME while you talk. Toggled by the 🧠 icon in the orb bowl (store.memOpen).
 //
@@ -19,8 +19,8 @@
 //
 // REAL-TIME, NO POLLING: the server bridges the bus signal `memory.updated` onto the SSE
 // stream (kind:"memory" — see server/__init__.py + services/sse.js), which bumps
-// store.memBump(). This component refetches /api/memory/map (debounced) ONLY while open — so
-// BOTH views stay live as memory forms. LIVE OBSERVABILITY (V2-014, gated by
+// store.memBump(). This component refetches /api/memory/map (debounced) ONLAnd while open — so
+// BOTH views stay live as memory forms. LIVE OBSERVABILITAnd (V2-014, gated by
 // `memory_observability`): in the SLOTS view each SSE pulse tints the affected nodes for a few
 // seconds (write=green, overwrite=amber, query=blue) so you SEE the memory forming/being read.
 // Theme via --hb-* only.

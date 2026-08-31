@@ -1,22 +1,22 @@
-"""nucleo/scheduler.py — cron PROPIO del cerebro v2 (V2-005 · T71).
+"""nucleo/scheduler.py — the brain v2's OWN cron (V2-005 · T71).
 
-Sustituye al **cron nativo de Hermes** (`brains/hermes/cron.py`, que muere con Hermes en V2-009). Las tareas
-programadas se **persisten en `memory.journal`** (continuidad tras reinicio) y las dispara el loop orquestador
-(`nucleo/loop.py`, ~1 Hz). No hay proceso ni binario externo: el disparo y la entrega viven en NUESTRO proceso.
+Replaces **Hermes's native cron** (`brains/hermes/cron.py`, which dies with Hermes in V2-009). Scheduled tasks
+are **persisted in `memory.journal`** (continuity after restart) and triggered by the orchestrator loop
+(`nucleo/loop.py`, ~1 Hz). There is no external process or binary: triggering and delivery live in OUR process.
 
-Formatos de `schedule` (mismos que enseñaba el brief de cron, agnósticos del idioma en el parser):
-  - **una vez, relativo**: `"30m"`, `"2h"`, `"1d"`, `"45s"` (también `"en 30m"`, `"in 2h"`, `"+1h"`).
-  - **una vez, FECHA ABSOLUTA**: `"2026-08-19 09:00"` (o `"2026-08-19T09:00"`, o `"2026-08-19"` → 09:00 por
-    defecto). Añadido 2026-08-18 (V2-121): sin esto NO había forma de programar un aviso de una sola vez en un
-    DÍA concreto — «recuérdamelo el miércoles» solo se podía expresar como un cron 5-campos `0 9 * * 3`, que es
-    RECURRENTE (avisa todos los miércoles para siempre) o contando días a mano (`2d`), que es frágil y opaco.
-    El caso de uso `remember-and-remind-deadline` lo midió: el aviso no llegaba a existir.
-  - **recurrente por intervalo**: `"every 30m"`, `"cada 2h"`.
+`schedule` formats (the same ones shown by the cron brief; the parser is language-agnostic):
+  - **one-time, relative**: `"30m"`, `"2h"`, `"1d"`, `"45s"` (also `"en 30m"`, `"in 2h"`, `"+1h"`).
+  - **one-time, ABSOLUTE DATE**: `"2026-08-19 09:00"` (or `"2026-08-19T09:00"`, or `"2026-08-19"` → 09:00 by
+    default). Added 2026-08-18 (V2-121): without this there was NO way to schedule a one-time reminder on a
+    specific DAY — «recuérdamelo el miércoles» could only be expressed as a 5-field cron `0 9 * * 3`, which is
+    RECURRING (alerts every Wednesday forever), or by counting days manually (`2d`), which is fragile and opaque.
+    The `remember-and-remind-deadline` use case measured this: the reminder never came into existence.
+  - **recurring by interval**: `"every 30m"`, `"cada 2h"`.
   - **cron 5-campos**: `"0 9 * * *"` (min hora dom mes dow; soporta `* , - /`).
 
-El scheduler NO ejecuta un agente por tarea (Hermes lo hacía): entrega el `prompt` de la tarea por los raíles
-proactivos (voz + UI), que es lo que necesita un recordatorio. Una tarea con condición/razonamiento se escala
-al SlowBrain (V2-006/007); hasta entonces el prompt se entrega tal cual (recordatorio autocontenido).
+The scheduler does NOT run an agent per task (Hermes did): it delivers the task's `prompt` through the proactive
+rails (voice + UI), which is what a reminder needs. A task involving a condition/reasoning is escalated to
+SlowBrain (V2-006/007); until then, the prompt is delivered as-is (self-contained reminder).
 """
 from __future__ import annotations
 
@@ -27,32 +27,32 @@ from memory import journal as _journal
 
 _KIND = "scheduled"
 
-# Unidades de tiempo → segundos (parser agnóstico del idioma).
+# Time units → seconds (language-agnostic parser).
 _UNIT_S = {"s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hr": 3600, "d": 86400, "day": 86400}
 
 _RE_EVERY = re.compile(r"^(?:every|cada)\s+(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
 _RE_ONCE = re.compile(r"^(?:in\s+|en\s+|\+)?(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
-# Fecha ABSOLUTA de una sola vez (V2-121): ISO `YYYY-MM-DD` con hora opcional separada por espacio o `T`.
-# Deliberadamente SOLO ISO: el prompt del cerebro ya lleva la fecha de hoy y de mañana en ese mismo formato
-# (`prompt.live_state`), así que el modelo no tiene que inventarse una gramática de fechas — traduce «el
-# miércoles» a la fecha que ya tiene delante. Un formato local ambiguo (19/08 vs 08/19) se rechaza a propósito.
+# ABSOLUTE one-time date (V2-121): ISO `YYYY-MM-DD` with an optional time separated by a space or `T`.
+# Deliberately ISO ONLY: the brain prompt already contains today's and tomorrow's date in that same format
+# (`prompt.live_state`), so the model does not have to invent a date grammar — it translates «el miércoles»
+# to the date already in front of it. An ambiguous local format (19/08 vs 08/19) is intentionally rejected.
 _RE_ABS = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?$")
-# Hora por defecto cuando se da un día sin hora: un recordatorio «el miércoles» se entrega por la mañana.
+# Default hour when a day is given without a time: a «el miércoles» reminder is delivered in the morning.
 _DEFAULT_HOUR = 9
 
 
-# ── una expresión de tiempo HABLADA → la fecha ISO que `parse_schedule` ya entiende ──────────────────────
+# ── a SPOKEN time expression → the ISO date that `parse_schedule` already understands ──────────────────────
 #
-# V2-146 — «apúntame que el jueves… y recuérdamelo el miércoles» acabó con `scheduled_jobs.created` VACÍO: el
-# modelo prometió el aviso en prosa y no emitió ninguna tag. El ejecutor de crons funciona (verificado en
-# V2-134), el prompt lo pide con todas las letras — lo que faltaba era el backstop, y un backstop necesita
-# resolver «el miércoles» POR SU CUENTA.
+# V2-146 — «apúntame que el jueves… y recuérdamelo el miércoles» ended with `scheduled_jobs.created` EMPTY: the
+# model promised the reminder in prose and emitted no tag. The cron executor works (verified in
+# V2-134), the prompt explicitly requests it — what was missing was the backstop, and a backstop needs to
+# resolve «el miércoles» ON ITS OWN.
 #
-# Esto NO contradice la decisión de arriba de aceptar solo ISO en `parse_schedule`. Aquella dice que el MODELO
-# no tenga que inventarse una gramática de fechas teniendo la lista de días delante, y sigue en pie: esta
-# función no la usa el modelo, la usa el backstop cuando el modelo ya no hizo nada. Y es aritmética, no
-# adivinación: devuelve "" en cuanto la expresión no es inequívoca, porque un aviso mal fechado no se nota
-# hasta el día que no suena (V2-121).
+# This does NOT contradict the decision above to accept only ISO in `parse_schedule`. That decision says the MODEL
+# should not have to invent a date grammar when it has the list of days in front of it, and it still stands: this
+# function is not used by the model; the backstop uses it when the model did nothing. And it is arithmetic, not
+# guesswork: it returns "" as soon as the expression is not unambiguous, because a wrongly dated reminder is not noticed
+# until the day it fails to sound (V2-121).
 _WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6,
              "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
 # «mañana» as the NOUN *morning* — see `parse_when`. Always determined; the adverb *tomorrow* never is.
@@ -67,7 +67,7 @@ def _strip_accents_sched(text: str) -> str:
 
 
 def parse_when(text: str, now: float | None = None) -> str:
-    """A spoken time expression → the `YYYY-MM-DD [HH:MM]` spec `parse_schedule` accepts, or "" if unsure.
+    """A spoken time expression → the `YYYY-MM-DD [HH:MM]` spec `parse_schedule` accepts, or "" if uncertain.
 
     Only the forms that are unambiguous on their own: tomorrow, a named weekday, and a day of the month, each
     with an optional «a las HH(:MM)». «esta tarde», «pronto» or «cuando puedas» return "" on purpose — a
@@ -92,7 +92,7 @@ def parse_when(text: str, now: float | None = None) -> str:
         lt = time.localtime(day_ts)
         return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, hh, mi, 0, 0, 1, -1))
 
-    # «mañana» is TWO words in Spanish: the adverb *tomorrow* and the noun *morning*. Measured on the run that
+    # «mañana» is TWO words in Spanish: the adverb *tomorrow* and the noun *morning*. Measured on the run where
     # V2-151 came from: «te programo un recordatorio para el miércoles a media mañana» resolved to THURSDAY,
     # because the noun inside «media mañana» matched the adverb and short-circuited the weekday below. That is
     # the worst failure this function can have — a reminder that is set, reported as set, and fires on the wrong
@@ -132,9 +132,9 @@ def parse_when(text: str, now: float | None = None) -> str:
     return ""
 
 
-# ── parseo del schedule ──────────────────────────────────────────────────────────────────────────────────
+    # ── schedule parsing ──────────────────────────────────────────────────────────────────────────────────
 def parse_schedule(spec: str, now: float | None = None) -> dict | None:
-    """Devuelve un dict de schedule normalizado (con `next_run` en epoch) o None si no se reconoce."""
+    """Return a normalized schedule dict (with `next_run` in epoch time), or None if unrecognized."""
     now = time.time() if now is None else now
     s = (spec or "").strip()
     if not s:
@@ -161,12 +161,12 @@ def parse_schedule(spec: str, now: float | None = None) -> dict | None:
         if not (1 <= mo <= 12 and 1 <= d <= 31 and 0 <= hh <= 23 and 0 <= mi <= 59):
             return None
         try:
-            # mktime interpreta la tupla en HORA LOCAL, que es la del operador — igual que `next_cron`.
+            # mktime interprets the tuple in LOCAL TIME, which is the operator's time zone — just like `next_cron`.
             ts = time.mktime((y, mo, d, hh, mi, 0, 0, 1, -1))
         except (OverflowError, ValueError):
             return None
-        # Una fecha ya PASADA no se programa: entregar «ya» un aviso del jueves pasado es peor que rechazarlo,
-        # porque el operador cree que quedó puesto para el que viene.
+        # A date that has already PASSED is not scheduled: delivering «ya» a reminder for last Thursday is worse than rejecting it,
+        # because the operator believes it was set for the next occurrence.
         if ts <= now:
             return None
         return {"type": "once", "interval_s": int(ts - now), "next_run": int(ts),
@@ -179,7 +179,7 @@ def parse_schedule(spec: str, now: float | None = None) -> dict | None:
 
 
 def _advance(sch: dict, fired_at: float) -> dict | None:
-    """Recalcula `next_run` tras un disparo. `once` → None (se cierra). Recurrente → siguiente ocurrencia."""
+    """Recalculate `next_run` after a trigger. `once` → None (it closes). Recurring → next occurrence."""
     t = sch.get("type")
     if t == "once":
         return None
@@ -197,12 +197,12 @@ def _advance(sch: dict, fired_at: float) -> dict | None:
     return None
 
 
-# ── cron 5-campos (min hora dom mes dow) ─────────────────────────────────────────────────────────────────
-_FIELD_BOUNDS = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 6)]  # dow: 0=domingo
+# ── 5-field cron (min hour dom month dow) ─────────────────────────────────────────────────────────────────
+_FIELD_BOUNDS = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 6)]  # dow: 0=Sunday
 
 
 def _parse_field(field: str, lo: int, hi: int) -> set[int] | None:
-    """Expande un campo cron a un conjunto de valores permitidos. None si es inválido."""
+    """Expand a cron field into a set of allowed values. None if invalid."""
     out: set[int] = set()
     for part in field.split(","):
         part = part.strip()
@@ -241,27 +241,27 @@ def _cron_fields(expr: str):
         f = _parse_field(raw, lo, hi)
         if f is None:
             return None
-        # ¿estaba restringido (no era comodín completo)?
+        # Was it restricted (was not a full wildcard)?
         restricted = raw.strip() != "*" and not raw.strip().startswith("*/")
         fields.append((f, restricted, raw.strip()))
     return fields
 
 
 def next_cron(expr: str, after: float) -> float | None:
-    """Siguiente epoch (>= after+60s, alineado al minuto) que casa la expresión cron. None si no casa en ~1 año
-    o la expresión es inválida. Búsqueda minuto a minuto (acotada) — barata para uso ocasional."""
+    """Next epoch (>= after+60s, aligned to the minute) matching the cron expression. None if none matches in ~1 year
+    or the expression is invalid. Minute-by-minute search (bounded) — inexpensive for occasional use."""
     fields = _cron_fields(expr)
     if fields is None:
         return None
     (mins, _, _), (hours, _, _), (doms, dom_r, _), (months, _, _), (dows, dow_r, _) = fields
-    # arranca en el próximo minuto entero tras `after`.
+    # Start at the next full minute after `after`.
     t = (int(after) // 60 + 1) * 60
     cap = t + 366 * 86400
     while t <= cap:
         lt = time.localtime(t)
-        # cron: si dom Y dow están restringidos, casa si CUALQUIERA de los dos casa (semántica estándar).
-        dow0 = lt.tm_wday  # lunes=0..domingo=6
-        cron_dow = (dow0 + 1) % 7  # cron: domingo=0..sábado=6
+        # cron: if dom AND dow are restricted, match if EITHER matches (standard semantics).
+        dow0 = lt.tm_wday  # Monday=0..Sunday=6
+        cron_dow = (dow0 + 1) % 7  # cron: Sunday=0..Saturday=6
         dom_ok = lt.tm_mday in doms
         dow_ok = cron_dow in dows
         day_ok = (dom_ok or dow_ok) if (dom_r and dow_r) else (dom_ok and dow_ok)
@@ -271,12 +271,12 @@ def next_cron(expr: str, after: float) -> float | None:
     return None
 
 
-# ── CRUD de tareas programadas (respaldado por memory.journal) ───────────────────────────────────────────
+# ── CRUD for scheduled tasks (backed by memory.journal) ───────────────────────────────────────────
 def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
            now: float | None = None) -> dict:
-    """Programa una tarea. Devuelve {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}."""
+    """Schedule a task. Return {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}."""
     now = time.time() if now is None else now
-    # `repeat` heredado del brief de Hermes: si viene, fuerza recurrencia por intervalo.
+    # `repeat` inherited from the Hermes brief: if provided, force interval recurrence.
     spec = schedule
     if repeat and not _RE_EVERY.match((schedule or "").strip()):
         spec = f"every {repeat}"
@@ -296,7 +296,7 @@ def _scheduled(entries: list[dict]) -> list[dict]:
 
 
 def list_jobs(active_only: bool = True) -> list[dict]:
-    """Tareas programadas en una vista amigable (para el brief del cerebro / verificación)."""
+    """Scheduled tasks in a user-friendly view (for the brain brief / verification)."""
     entries = _journal.list_entries(status="pending" if active_only else None)
     out = []
     for e in _scheduled(entries):
@@ -311,8 +311,8 @@ def list_jobs(active_only: bool = True) -> list[dict]:
 
 
 def for_brain() -> str:
-    """Brief de arranque para el cerebro: las tareas programadas activas (o vacío si no hay). Mismo papel que
-    tenía el brief de cron de Hermes en el kickoff — sin nada que enseñar, no añade ruido al prompt."""
+    """Startup brief for the brain: active scheduled tasks (or empty if none). Same role as Hermes's cron brief
+    had in the kickoff — with nothing to show, it adds no noise to the prompt."""
     jobs = list_jobs(active_only=True)
     if not jobs:
         return ""
@@ -325,7 +325,7 @@ def for_brain() -> str:
 
 
 def due(now: float | None = None) -> list[dict]:
-    """Tareas programadas VENCIDAS (pending, next_run <= now). Devuelve las entradas de journal (con detail)."""
+    """OVERDUE scheduled tasks (pending, next_run <= now). Return the journal entries (with detail)."""
     now = time.time() if now is None else now
     out = []
     for e in _scheduled(_journal.list_entries(status="pending")):
@@ -336,8 +336,8 @@ def due(now: float | None = None) -> list[dict]:
 
 
 def mark_fired(entry: dict, now: float | None = None) -> dict | None:
-    """Marca una tarea como disparada. Una-vez → status='done'. Recurrente → recalcula next_run (sigue pending).
-    Devuelve el schedule nuevo (o None si se cerró)."""
+    """Mark a task as triggered. One-time → status='done'. Recurring → recalculate next_run (remains pending).
+    Return the new schedule (or None if it closed)."""
     now = time.time() if now is None else now
     d = dict(entry["detail"])
     sch = d.get("schedule") or {}
@@ -354,7 +354,7 @@ def mark_fired(entry: dict, now: float | None = None) -> dict | None:
 
 
 def cancel(ref: str) -> bool:
-    """Cancela una tarea por nombre (o id numérico). Devuelve True si canceló alguna."""
+    """Cancel a task by name (or numeric id). Return True if any task was canceled."""
     ref = (ref or "").strip()
     if not ref:
         return False

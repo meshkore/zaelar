@@ -52,7 +52,7 @@ def reset_seq(name: str) -> None:
 
     ⚠️ This docstring used to say «for TESTS … production never rewinds a sequence», and that was FALSE the
     day it was written: `escalate.reset()` is called by `nucleo/reset.py::reset_all()`, which is the operator's
-    ⏻ «empezamos de cero» and the harness's reset between cases. So the exact repeated-id class this module
+    ⏻ «we start from zero» and the harness's reset between cases. So the exact repeated-id class this module
     exists to end was happening in production, through the door its author believed was test-only.
 
     Measured on the batch of 2026-08-24 03:02: FOUR cases in one lab process, and all four errands got the

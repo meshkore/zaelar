@@ -1,11 +1,11 @@
 #
-# Guard de confinamiento REAL del dev-worker (V2-076, auditoría 2026-07-26). Run:
+# REAL confinement guard for the dev-worker (V2-076, audit 2026-07-26). Run:
 # .venv/bin/pytest tests/agent_headless/unit/test_dev_worker_guard.py -q
 #
-# Antes de este fix, Read/Write/Edit del dev-worker solo estaban "confinados" por una instrucción de prompt — un
-# bug/prompt-injection podía leer fuera del cwd temporal. Este módulo es un hook PreToolUse real: lo crítico de
-# seguridad es que `check()` deniegue cualquier ruta fuera de ZAELAR_DEV_WORKER_ROOT, para las tools con campo de
-# ruta, y sea FAIL-OPEN (nunca tumba un worker legítimo) ante entradas raras.
+# Before this fix, the dev-worker's Read/Write/Edit operations were "confined" only by a prompt instruction — a
+# bug/prompt injection could read outside the temporary cwd. This module is a real PreToolUse hook: the critical
+# security requirement is that `check()` deny any path outside ZAELAR_DEV_WORKER_ROOT for tools with a path field,
+# and be FAIL-OPEN (never bring down a legitimate worker) for unusual inputs.
 #
 import json
 import os
@@ -45,8 +45,8 @@ def test_relative_path_resolved_against_cwd(tmp_path, monkeypatch):
     root = tmp_path / "workdir"
     root.mkdir()
     monkeypatch.setenv(guard._ROOT_ENV, str(root))
-    # ruta relativa "../../etc/passwd" desde el cwd DEL PROCESO (que el payload declara) — debe resolverse y
-    # detectarse como fuera del root, no colarse por ser "relativa".
+    # relative path "../../etc/passwd" from the PROCESS cwd (declared by the payload) — it must be resolved and
+    # detected as outside the root, not slip through because it is "relative".
     assert guard.check({"tool_name": "Read", "cwd": str(root),
                         "tool_input": {"file_path": "../fuera.txt"}}) is False
 
@@ -59,7 +59,7 @@ def test_symlink_escape_denied(tmp_path, monkeypatch):
     secret.write_text("s3cr3t")
     link = root / "sneaky"
     link.symlink_to(secret)
-    # realpath() sigue el symlink → se resuelve fuera del root aunque el PATH nominal esté dentro.
+    # realpath() follows the symlink → it resolves outside the root even though the nominal PATH is inside.
     assert guard.check({"tool_name": "Read", "tool_input": {"file_path": str(link)}}) is False
 
 
@@ -72,8 +72,8 @@ def test_glob_grep_path_field_checked(tmp_path, monkeypatch):
 
 
 def test_glob_without_path_field_allowed_by_default(tmp_path, monkeypatch):
-    # Glob/Grep sin `path` explícito buscan desde el cwd de la tool (ya confinado por el propio CLI) — el guard
-    # no tiene nada que comprobar y no debe bloquear el uso normal.
+    # Glob/Grep without an explicit `path` search from the tool's cwd (already confined by the CLI itself) — the guard
+    # has nothing to check and must not block normal use.
     monkeypatch.setenv(guard._ROOT_ENV, str(tmp_path))
     assert guard.check({"tool_name": "Glob", "tool_input": {"pattern": "*.py"}}) is True
 
@@ -88,7 +88,7 @@ def test_main_fail_open_on_malformed_json(monkeypatch, capsys):
     rc = guard.main()
     assert rc == 0
     out = json.loads(capsys.readouterr().out.strip())
-    assert out == {}     # {} = allow (sin hookSpecificOutput) — fail-open
+    assert out == {}     # {} = allow (without hookSpecificOutput) — fail-open
 
 
 def test_main_denies_and_emits_reason(tmp_path, monkeypatch, capsys):

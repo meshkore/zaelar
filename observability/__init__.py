@@ -1,21 +1,21 @@
 """
-observability/ — QUIÉN, CUÁNDO y en qué FLUJO (2026-08-09).
+observability/ — WHO, WHEN, and in which FLOW (2026-08-09).
 
-El registro de eventos (`voice/observer.py` + `bus/log.py`) ya contaba QUÉ pasa en el sistema. Este módulo añade
-los ejes que faltaban para poder ANALIZARLO en vez de solo mirarlo pasar:
+The event log (`voice/observer.py` + `bus/log.py`) already recorded WHAT happens in the system. This module adds
+the missing dimensions so it can be ANALYZED instead of merely watched go by:
 
-- **`identity`** — `user_id` estable por instalación (UUID4 aleatorio, persistido) y
-  `session_id` por sesión de trabajo del operador.
-- **`flows`** — lectura por CORRELATION ID: un flujo = todo lo que desencadena un estímulo, de inicio a fin.
+- **`identity`** — a stable `user_id` per installation (a random, persisted UUID4) and
+  a `session_id` for each operator work session.
+- **`flows`** — reading by CORRELATION ID: a flow = everything triggered by a stimulus, from start to finish.
 
-El **correlation id NO es un identificador nuevo**: es el `trace` de V2-044 (`voice/trace.py`), que ya nacía con
-cada estímulo y viajaba por ContextVar a todo lo derivado. Inventar un segundo id paralelo habría creado dos
-verdades que se separan a la primera costura cross-loop que alguien olvide. Lo que se hizo fue PROMOVERLO:
-pasa de ser un campo dentro del JSON a una **columna indexada** (`events.corr_id`), y el visor lo enseña en su
-propia columna. Un flujo nuevo (una petición nueva del operador, aunque modifique un resultado anterior) nace con
-un correlation id nuevo; lo que continúa un flujo vivo (la entrega de un worker, un paso del navegador) hereda el
-suyo — eso ya lo resolvía el ContextVar y no cambia.
+The **correlation id is NOT a new identifier**: it is the `trace` from V2-044 (`voice/trace.py`), which was already
+created with each stimulus and propagated through ContextVar to everything derived from it. Inventing a second
+parallel id would have created two truths that diverge at the first cross-loop seam someone forgets. What was done
+was to PROMOTE IT: it goes from being a field inside the JSON to an **indexed column** (`events.corr_id`), and the
+viewer displays it in its own column. A new flow (a new operator request, even if it modifies a previous result)
+starts with a new correlation id; whatever continues a live flow (a worker delivery, a browser step) inherits its
+own — ContextVar already handled that, and it does not change.
 
-Fronteras: aquí NO se escribe nunca en la base de datos. El único escritor de `events` sigue siendo el sink del
-bus (`bus/log.py`), igual que el único escritor de la memoria sigue siendo el agente de memoria.
+Boundaries: this module NEVER writes to the database. The bus sink (`bus/log.py`) remains the only writer of
+`events`, just as the memory agent remains the only writer of memory.
 """

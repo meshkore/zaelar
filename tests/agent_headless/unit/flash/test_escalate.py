@@ -1,4 +1,4 @@
-"""Tests de nucleo/flash/escalate.py (V2-004 · T64) — stub de escalado: registro + evento de bus."""
+"""Tests for nucleo/flash/escalate.py (V2-004 · T64) — escalation stub: registration + bus event."""
 import pytest
 
 import bus

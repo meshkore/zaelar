@@ -1,33 +1,33 @@
-// EnergyGauge — LA PILA. Cuánta Energy le queda a la cuenta, a la izquierda del 👤 de la barra superior.
+// EnergyGauge — THE BATTERY. How much Energy remains in the account, left of the 👤 in the top bar.
 //
-// Nace de una queja concreta (operador, 2026-08-13): el agente se quedó sin energía a mitad de trabajo y se enteró
-// por un cartel, sin haber visto NUNCA cuánta le quedaba. Es la misma clase de fallo que un agente caído que se
-// pinta vivo: un estado que puede dejarte tirado tiene que VERSE antes, no anunciarse después.
+// Born from a concrete complaint (operator, 2026-08-13): the agent ran out of energy halfway through a task and learned it
+// from a banner, having NEVER seen how much remained. It is the same kind of failure as a down agent painted as alive:
+// a state that can strand you must be VISIBLE beforehand, not announced afterward.
 //
-// SOLO CLOUD. En self-host `/api/energy` devuelve `cloud:false` y aquí no se pinta nada — no hay saldo que gastar,
-// el usuario paga sus propias APIs.
+// CLOUD ONLY. On self-host, `/api/energy` returns `cloud:false` and nothing is rendered here — there is no balance to spend;
+// the user pays for their own APIs.
 //
 // ── LA ESCALA ────────────────────────────────────────────────────────────────────────────────────────────────
-// El problema de dibujar un saldo es que crece sin techo y una barra no. Se resuelve con DOS ejes en vez de uno:
-// la pila tiene un número FIJO de huecos y lo que cambia es **cuánto vale cada rayita**, con el color diciendo
-// cuánto vale. Así un saldo pequeño y uno 25 veces mayor caben en el mismo sitio, y quien tiene más lo VE (más
-// rayitas encendidas, y las de los dos tramos altos son más anchas).
+// The problem with drawing a balance is that it grows without bound while a bar does not. Solve it with TWO axes:
+// the battery has a FIXED number of slots, and what changes is **the value of each tick**, indicated by its color.
+// This lets a small balance and one 25 times larger fit in the same space, while the larger balance remains VISIBLE
+// through more lit ticks; ticks in the two upper tiers are wider.
 //
-//   valor por rayita = techo(capacidad / 50 huecos), acotado a la escalera de tramos
-//   rayitas encendidas = saldo / valor · huecos dibujados = los que había al empezar
+//   value per tick = ceiling(capacity / 50 slots), bounded by the tier ladder
+//   lit ticks = balance / value · rendered slots = the number present at startup
 //
-// **La CAPACIDAD fija el valor y el color, no el saldo.** Si dependiera del saldo, el color cambiaría mientras
-// gastas y la pila dejaría de leerse como una pila: sería un indicador de tramo bajando de categoría.
+// **CAPACITY fixes the value and color, not the balance.** If it depended on the balance, the color would change as
+// you spend and the battery would stop reading as a battery: it would be a tier indicator dropping in rank.
 //
-// Una capacidad por debajo del escalón más bajo de la escalera × 10 no puede venir de una recarga (no hay recarga
-// tan pequeña): es una asignación inicial, y se dibuja en su propia banda de 10 huecos con su color. Por eso la
-// pila NO necesita que nadie le diga el plan de la cuenta — le basta el saldo y de cuánto se partía.
+// Capacity below the ladder's lowest tier × 10 cannot come from a top-up (there is no top-up that small): it is an
+// initial grant, drawn in its own 10-slot band with its color. The battery therefore does NOT need the account plan;
+// it only needs the balance and the starting capacity.
 //
-// El techo de la escalera (50 huecos × el escalón más alto) es deliberado: por encima de eso la pila se acota en
-// vez de crecer, porque una barra que llega al borde de la pantalla ya no informa de nada.
+// The ladder ceiling (50 slots × the highest tier) is deliberate: above it the battery is capped instead of growing,
+// because a bar reaching the edge of the screen no longer conveys information.
 //
-// Y lo gastado NO desaparece: se queda en gris pálido. Sin eso no es una pila, es un número de rayitas variable —
-// no se vería que se está agotando, que es justo lo que hay que ver.
+// Spent capacity does NOT disappear: it remains pale gray. Without that, this is not a battery but a variable number
+// of ticks; you could not see it being depleted, which is exactly what must be visible.
 import { h } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { t } from "../core/i18n.js?v=1";
@@ -36,28 +36,28 @@ const SLOTS = 50;                 // huecos de la pila LLENA
 const DEMO_SLOTS = 10;            // los de un grant de demo (banda propia: no es una compra)
 const ENERGY_PER_USD = 100;       // 1 Energy = €0,01 (nucleo/energy_meter.EUR_PER_ENERGY_UNIT)
 
-// La escalera. `usd` = lo que vale una rayita; `cls` = su color en styles.css. Ascendente en valor percibido:
-// verde (sano) → naranja → los tres metales. Verde→amarillo→naranja como SUBIDA leería como que empeora, que es lo
-// contrario de lo que cuenta un tramo más alto.
+// The ladder. `usd` = the value of one tick; `cls` = its color in styles.css. Ascending in perceived value:
+// green (healthy) → orange → the three metals. Green→yellow→orange as an ASCENT would read as worsening, the
+// opposite of what a higher tier means.
 const LADDER = [
   { usd: 1, cls: "eg-u1" },       // verde
   { usd: 2, cls: "eg-u2" },       // naranja
   { usd: 3, cls: "eg-u3" },       // bronce
-  { usd: 4, cls: "eg-u4" },       // plata — rayita más ancha
-  { usd: 5, cls: "eg-u5" },       // oro   — rayita más ancha
+  { usd: 4, cls: "eg-u4" },       // silver — wider tick
+  { usd: 5, cls: "eg-u5" },       // gold   — wider tick
 ];
-const DEMO = { cls: "eg-demo" };  // ámbar
+const DEMO = { cls: "eg-demo" };  // amber
 
-/** Saldo + capacidad (en Energy) → cómo se dibuja la pila. PURA: es la única pieza con reglas, así que se puede
- *  probar sin DOM (tests/browser). Devuelve `null` cuando no hay nada que pintar. */
+/** Balance + capacity (in Energy) → how to draw the battery. PURE: the only piece containing rules, so it can be
+ * tested without the DOM (tests/browser). Returns `null` when there is nothing to render. */
 export function scale(balance, capacity) {
   const cap = Number(capacity);
   if (!Number.isFinite(cap) || cap <= 0) return null;
   const bal = Math.max(0, Number.isFinite(Number(balance)) ? Number(balance) : 0);
   const capUsd = cap / ENERGY_PER_USD;
   if (capUsd < LADDER[0].usd * DEMO_SLOTS) {
-    // BANDA DEMO: la pila entera son 10 rayitas del tamaño del grant, no de un dólar — un grant de $2,50 tiene que
-    // verse LLENO al empezar (10 de 10), no como una cuota a medias (2 de 10), que diría algo falso.
+    // DEMO BAND: the entire battery is 10 grant-sized ticks, not dollar-sized — a $2.50 grant must
+    // appear FULL at the start (10 of 10), not as a half quota (2 of 10), which would be misleading.
     const per = cap / DEMO_SLOTS;
     return { slots: DEMO_SLOTS, per, cls: DEMO.cls, demo: true,
              lit: Math.min(DEMO_SLOTS, Math.floor(bal / per)) };
@@ -71,10 +71,10 @@ export function scale(balance, capacity) {
 export function EnergyGauge() {
   return () => {
     const e = store.energy() || {};
-    if (!e.cloud) return null;                       // self-host: no hay pila que pintar
+    if (!e.cloud) return null;                       // self-host: there is no battery to render
     // NO SABERLO Y ESTAR A CERO NO PUEDEN VERSE IGUAL. Mientras la cuenta no haya gastado nada no tenemos saldo
-    // (llega en la respuesta de cada reporte de consumo), así que se pinta una pila APAGADA con su aviso, nunca
-    // una vacía — que diría «se te ha acabado» sin que sea verdad.
+    // (it arrives in each usage-report response), so render an OFF battery with its notice, never
+    // an empty one — that would say "you are out" when it is not true.
     if (!e.known) {
       return h("div", { class: "eg eg-unknown", title: () => t("energy.unknown") },
         ...Array.from({ length: DEMO_SLOTS }, () => h("i", { class: "eg-t eg-off" })));
@@ -88,8 +88,8 @@ export function EnergyGauge() {
       .replace("{lit}", String(s.lit))
       .replace("{slots}", String(s.slots));
     return h("div", { class: "eg " + s.cls + (s.lit ? "" : " eg-dead"), title: tip },
-      // Las rayitas se pintan de IZQUIERDA a DERECHA y se gastan por la DERECHA (la más cercana al 👤 cae primero),
-      // así el frente de consumo queda junto al icono de la cuenta, que es donde se va a mirar.
+      // Ticks are rendered from LEFT to RIGHT and spent from the RIGHT (the one nearest 👤 falls first),
+      // keeping the consumption front beside the account icon, where users look.
       ...Array.from({ length: s.slots }, (_, i) =>
         h("i", { class: "eg-t" + (i < s.lit ? "" : " eg-spent") })));
   };

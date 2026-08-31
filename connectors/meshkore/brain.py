@@ -48,7 +48,7 @@ def make_brain():
         try:
             return await cluster.respond(text, spec=spec, on_chunk=on_chunk,
                                          tool_names=tool_names, escalate_ctx=escalate_ctx)
-        except Exception as e:  # noqa: BLE001 — clasificar y, si hay relevo, reintentar ESTE turno una vez
+        except Exception as e:  # noqa: BLE001 — classify and, if there is a relay, retry THIS turn once
             nxt = provider_chain.note_failure(str(e), tier=tier)
             if not nxt:
                 raise

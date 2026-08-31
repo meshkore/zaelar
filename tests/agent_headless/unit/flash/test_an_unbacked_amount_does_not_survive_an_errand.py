@@ -4,7 +4,7 @@ The blocker class that dominates the US board (`market_claims_before_delivery` m
 instrument side): mid-errand, with nothing to hand over yet, the model invents a market figure and says
 it with the same confidence as a real one — «several 27\" 4K models under $400» (round 12, user's ceiling
 was $250), «the $200–300 range is a sweet spot» (round 10), «CUNPU 27\" at $136» (round 13). The prompt
-rule («o está en tu ESTADO o NO LO SABES») loses one round in three; the conduct is guaranteed by code,
+rule ("either it is in your STATE or YOU DON'T KNOW") loses one round in three; the conduct is guaranteed by code,
 like every delivery rule in this family. Conservative by the same asymmetry as the instrument: the
 operator's own figures are backing, the sheet's rows are backing, and with no live errand nothing is
 touched — a trivia answer is not a finding.

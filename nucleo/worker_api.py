@@ -1,17 +1,17 @@
-"""nucleo/worker_api.py — plano REQUEST/RESPONSE de los Brain Workers (V2-038, §v2·B + §v3·I/J/K).
+"""nucleo/worker_api.py — REQUEST/RESPONSE blueprint for Brain Workers (V2-038, §v2·B + §v3·I/J/K).
 
-Un worker (subproceso, cualquier backend) habla con el server vivo por HTTP para PEDIR cosas que solo el host/
-FlashBrain puede hacer o que espera respuesta:
-  · `ask_user`  — preguntar al operador y ESPERAR ("¿enduro o cross?").
-  · `use_tool`  — usar una TOOL del FlashBrain (web_search hoy; catálogo FILTRADO §v3·J) → el brain la ejecuta y
-                  devuelve el resultado (el operador pidió: "el brain ejecuta búsquedas y se las devuelve al worker").
-  · `read_widget`/`show_widget`/`close_widget` — leer/mostrar/cerrar un widget del canvas.
-  · `push_channel` — empujar a un canal externo (CONFIRM + scan_outbound).
-  · `spawn` — encadenar otro Brain Worker (dentro de cuota/profundidad).
+A worker (subprocess, any backend) talks to the live server over HTTP to REQUEST things that only the host/
+FlashBrain can do or that require a response:
+  · `ask_user`  — ask the operator and WAIT ("¿enduro o cross?").
+  · `use_tool`  — use a FlashBrain TOOL (web_search today; FILTERED catalog §v3·J) → the brain executes it and
+                  returns the result (the operator asked: "the brain executes searches and returns them to the worker").
+  · `read_widget`/`show_widget`/`close_widget` — read/show/close a canvas widget.
+  · `push_channel` — push to an external channel (CONFIRM + scan_outbound).
+  · `spawn` — chain another Brain Worker (within quota/depth limits).
 
-UN solo endpoint (`ask` = `act action=ask_user`), política ALLOW/CONFIRM/DENY evaluada AQUÍ (server, no en el
-prompt del worker), CONFIRM = un `ask_user` auto-generado (§v3·K), re-poll idempotente (§v3·I), y **piggyback**: toda
-respuesta arrastra las inyecciones pendientes del FlashBrain para ese task (§v3·H). Auth por token por-tarea (§v2·D).
+ONE endpoint (`ask` = `act action=ask_user`), ALLOW/CONFIRM/DENY policy evaluated HERE (server, not in the
+worker prompt), CONFIRM = an auto-generated `ask_user` (§v3·K), idempotent re-poll (§v3·I), and **piggyback**: every
+response carries the pending FlashBrain injections for that task (§v3·H). Per-task token auth (§v2·D).
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from loguru import logger
 router = APIRouter()
 
 
-# ── política por acción (§v3·J) ────────────────────────────────────────────────────────────────────────────
+# ── per-action policy (§v3·J) ───────────────────────────────────────────────────────────────────────────────
 # ALLOW/CONFIRM/DENY vocab, the prestable/deny tool sets, _KNOWN_ACTS, deny_reason(), classify_act() and
 # _confirm_question() moved to nucleo/worker_policy.py (2026-08-17 modularization pass) — pure decision
 # logic, no I/O. Re-exported here so every existing call site (worker_api.classify_act(...), direct
@@ -39,20 +39,20 @@ _MAX_DEPTH = 2
 
 
 
-# ── registro de peticiones en vuelo (corr_id → estado) ──────────────────────────────────────────────────────
+# ── in-flight request registry (corr_id → state) ────────────────────────────────────────────────────────────
 _ACTS: dict[str, dict] = {}
 
 from nucleo.runtime_ids import next_seq as _next_seq
 
 
 def _new_corr(task_id: str, action: str) -> str:
-    """corr_id IMPREDECIBLE: el re-poll (`GET /act/{corr_id}`) no lleva token — el corr ES la capability. Uno
-    secuencial sería adivinable (leer la respuesta del operador + robar el piggyback de inyecciones, §v2·D)."""
+    """UNPREDICTABLE corr_id: re-polling (`GET /act/{corr_id}`) carries no token — the corr IS the capability. A
+    sequential one would be guessable (read the operator's response + steal the injection piggyback, §v2·D)."""
     return f"{task_id}:{action}:{_next_seq('worker_api.corr')}:{secrets.token_urlsafe(8)}"
 
 
 def _piggyback(task_id: str) -> list[str]:
-    """Inyecciones pendientes del FlashBrain para este worker (§v3·H) — se sirven en CUALQUIER respuesta de bridge."""
+    """Pending FlashBrain injections for this worker (§v3·H) — served in ANY bridge response."""
     try:
         from nucleo import dispatch
         return dispatch.take_pending_injects(task_id)
@@ -61,7 +61,7 @@ def _piggyback(task_id: str) -> list[str]:
 
 
 def _verify(task_id: str, token: str):
-    """Devuelve el SessionRecord si el token casa; None si no (auth por-tarea, §v2·D)."""
+    """Return the SessionRecord if the token matches; None otherwise (per-task auth, §v2·D)."""
     try:
         from nucleo import dispatch
         rec = dispatch.get_record(task_id)
@@ -74,21 +74,21 @@ def _verify(task_id: str, token: str):
         return None
 
 
-# ── ejecución inmediata de acciones ALLOW ────────────────────────────────────────────────────────────────
-#: Cuántos avisos puede programar UNA tarea de fondo. Es el filtro de la capacidad, no un número decorativo: sin
-#: tope, un worker en bucle le llena la agenda al operador y cada entrada dispara luego un turno.
+# ── immediate execution of ALLOW actions ─────────────────────────────────────────────────────────────────
+#: How many reminders ONE background task may schedule. This is the capability filter, not a decorative number: without
+#: a cap, a looping worker fills the operator's agenda and each entry later triggers a turn.
 _SCHEDULE_CAP = 3
 
-#: Las formas que el parser acepta DE VERDAD, en una frase. Escrito aquí una vez porque va en los tres errores, y
-#: porque una lista de ejemplos que no parsean es peor que ninguna: manda al worker a reintentar lo mismo.
+#: The forms the parser REALLY accepts, in one sentence. Written here once because it appears in all three errors, and
+#: because a list of examples that do not parse is worse than none: it sends the worker to retry the same thing.
 _CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un día del mes («el 3 a las 10»), '
                 '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
 
 
 def _safe_reminder_prompt(text: str) -> str:
-    """Normaliza el prompt de un cron a la forma de AVISO — misma regla que las otras dos puertas (V2-214).
+    """Normalize a cron prompt to the REMINDER form — same rule as the other two gates (V2-214).
 
-    Guardado: esta acción ya funciona hoy, y perder un aviso que el worker sí pudo poner por un import sería
+    Safeguard: this action already works today, and losing a reminder the worker was able to create because of an import
     peor que dejar pasar una redacción cruda.
     """
     try:
@@ -105,16 +105,16 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         try:
             from nucleo import websearch
             res = await asyncio.to_thread(websearch.search, str(q))
-            # V2-236: y lo que la búsqueda trae va A LA CONVERSACIÓN en el momento, no cuando el worker entregue
-            # — que en 5 de cada 8 sesiones medidas no llegó a pasar. Mismo remedio que V2-223 dio a lo que
-            # extrae el navegador, por la otra puerta: ésta es NUESTRA búsqueda, prestada al worker.
+            # V2-236: and what the search brings goes INTO THE CONVERSATION immediately, not when the worker delivers
+            # it — which failed to happen in 5 of 8 measured sessions. Same remedy V2-223 gave to what the browser
+            # extracts through the other gate: this is OUR search, lent to the worker.
             try:
                 from nucleo.workers import findings
                 findings.hand_web_finding(getattr(rec, "task_id", ""), findings.render_search(res),
                                           getattr(rec, "goal", ""))
-                # V2-320 — …y a la HOJA, que es donde el operador mira. Un worker que resuelve buscando (sin
-                # navegador) dejaba la hoja vacía SIEMPRE: el return solo tenía camino a la nota. Misma puerta
-                # que el navegador (V2-257) y las mismas filas que lleva la nota.
+                # V2-320 — …and INTO THE SHEET, where the operator looks. A worker that solves by searching (without
+                # a browser) ALWAYS left the sheet empty: the return only had a path to the note. Same gate as
+                # the browser (V2-257) and the same rows carried by the note.
                 findings.hand_search_rows(rec, res)
             except Exception:  # noqa: BLE001
                 pass
@@ -122,10 +122,10 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"web_search falló: {e}"}
     if action == "schedule":
-        # V2-249 — el aviso PROGRAMADO existe de verdad, o no se dice. Un worker al que se le encargaba
-        # «recuérdaselo el miércoles» no podía hacerlo (la capacidad no existía) y escribía en memoria, de forma
-        # durable, que lo había programado. El arnés puso el listón: **que la entrada exista, o que la píldora no
-        # diga «programado»**. Esto hace lo primero.
+        # V2-249 — the SCHEDULED reminder must really exist, or it must not be claimed. A worker told
+        # «remind him on Wednesday» could not do it (the capability did not exist) and durably wrote in memory
+        # that it had scheduled it. The harness set the bar: **the entry must exist, or the pill must not say
+        # «scheduled»**. This does the former.
         when = str(payload.get("when") or payload.get("schedule") or "").strip()
         what = str(payload.get("prompt") or payload.get("text") or payload.get("what") or "").strip()
         tid = str(getattr(rec, "task_id", "") or "")
@@ -136,38 +136,38 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": False, "error": "falta `when`: cuándo. " + _CUANDO_VALE}
         try:
             from nucleo import scheduler
-            # DOS parsers, y en este orden: `parse_schedule` entiende las formas de máquina («every 30m», un cron
-            # de 5 campos, `YYYY-MM-DD HH:MM`) y `parse_when` traduce las habladas («mañana a las 9», «el
-            # miércoles a las 18:00»). El worker escribe como habla, así que sin el segundo casi todo lo suyo se
-            # rechazaría; y sin el primero se perdería la recurrencia.
+            # TWO parsers, in this order: `parse_schedule` understands machine forms («every 30m», a 5-field cron,
+            # `YYYY-MM-DD HH:MM`) and `parse_when` translates spoken forms («mañana a las 9», «el miércoles a las
+            # 18:00»). The worker writes as it speaks, so without the second almost all of its input would be rejected;
+            # without the first, recurrence would be lost.
             spec = when if scheduler.parse_schedule(when) else (scheduler.parse_when(when) or "")
             if not spec:
-                # `parse_when` devuelve "" ADREDE ante lo ambiguo («esta tarde», «pronto»): un aviso puesto sobre
-                # una fecha adivinada es peor que ninguno, porque el operador se queda creyendo que está puesto.
+                # `parse_when` deliberately returns "" for ambiguous input («esta tarde», «pronto»): a reminder set
+                # for a guessed date is worse than none, because the operator is left believing it is scheduled.
                 return {"ok": False, "error": f"«{when}» no me dice un momento exacto y no lo adivino: un aviso "
                                               f"sobre una fecha inventada es peor que ninguno. " + _CUANDO_VALE}
-            # EL TOPE, que es el filtro de esta capacidad (mismo patrón que la cuota de `spawn`): un worker en
-            # bucle no puede llenarle la agenda al operador. Se cuenta sobre las tareas VIVAS y por atribución,
-            # así que no hace falta estado nuevo ni sobrevive a un reinicio como una cifra rancia.
+            # THE CAP, which is this capability's filter (same pattern as the `spawn` quota): a looping worker
+            # cannot fill the operator's agenda. It is counted over LIVE tasks and by attribution, so no new state
+            # is needed and no stale number survives a restart.
             mias = [j for j in scheduler.list_jobs() if f"[worker:{tid}]" in str(j.get("name") or "")]
             if len(mias) >= _SCHEDULE_CAP:
                 return {"ok": False, "error": f"ya has programado {len(mias)} avisos en esta tarea, que es el "
                                               f"tope. Si necesitas otro, cancela uno o dilo en tu entrega."}
             name = f"{(payload.get('name') or what)[:80]} [worker:{tid}]"
-            # V2-480 — LA TERCERA PUERTA. `safe_reminder_prompt` existe desde V2-214 y su docstring dice «para
-            # que las DOS puertas al scheduler digan lo mismo»; esta acción es la TERCERA, nació después
-            # (V2-249) y nunca la llamó. El lector de un cron es el AGENTE en otro momento, así que dejarle las
-            # palabras del operador le pide APUNTAR — el bucle que toda esta zona existe para cerrar.
+            # V2-480 — THE THIRD GATE. `safe_reminder_prompt` has existed since V2-214 and its docstring says «so
+            # that the TWO gates to the scheduler say the same thing»; this action is the THIRD, born later
+            # (V2-249), and never called it. A cron's reader is the AGENT at another time, so leaving the operator's
+            # words asks it to TAKE NOTES — the loop this whole area exists to close.
             what = _safe_reminder_prompt(what)
             out = await asyncio.to_thread(scheduler.create, what, spec, name)
             if not out.get("ok"):
-                # La forma la sabe él; que la diga (mismo contrato que V2-203).
+                # It knows the form; let it say so (same contract as V2-203).
                 return {"ok": False, "error": f"{out.get('error') or 'no se pudo programar'}. " + _CUANDO_VALE}
-            # V2-249 — Y QUE SE VEA. Un aviso que va a sonar dentro de tres días lo puso una tarea de fondo que
-            # para entonces ya no existe: sin fila, el operador se lo encuentra sin saber de dónde salió. La fila
-            # lleva el ID REAL, que es lo que permite comprobar una píldora contra el scheduler — memoria-dev
-            # señaló que hoy nada verifica una afirmación del sistema sobre sus propios efectos, y esto es la
-            # mitad que puede aportar quien ejecuta la acción: dejar la prueba.
+                # V2-249 — AND MAKE IT VISIBLE. A reminder due in three days was created by a background task that
+                # no longer exists by then: without a row, the operator encounters it without knowing where it came
+                # from. The row carries the REAL ID, which allows a pill to be checked against the scheduler —
+                # memoria-dev noted that nothing currently verifies a system claim about its own effects, and this
+                # is the half that the action executor can provide: leave the proof.
             try:
                 from voice.observer import emit
                 emit("task", "⏰ aviso programado",
@@ -188,8 +188,8 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             from widgets.server_api import MISSING, run_widget_hook
             man = runtime.get(wid)
             if not man:
-                # …y antes de decir que no existe, PREGUNTAR por el nombre que el resto del sistema ya conoce:
-                # el registro trae la identidad de los 26 (id, nombre y alias) y este puente no la miraba.
+                # …and before saying it does not exist, ASK about the name the rest of the system already knows:
+                # the registry contains the identity of all 26 (id, name, and alias), and this bridge did not consult it.
                 from widgets import naming as _nm
                 _id, _varios = _nm.resolve(wid)
                 if _id:
@@ -200,10 +200,10 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             def _call(view_data):
                 try:
                     return view_data(q="")
-                except TypeError:            # widgets antiguos sin argumento de query
+                except TypeError:            # old widgets without a query argument
                     return view_data()
 
-            # los DATOS del widget (§7.3: view_data), off-loop y con timeout — no solo el manifest.
+            # the widget DATA (§7.3: view_data), off-loop and with a timeout — not just the manifest.
             data = await run_widget_hook(wid, "view_data", _call)
             return {"ok": True, "result": {"manifest": man,
                                            "data": None if data is MISSING else data}}
@@ -229,9 +229,9 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             pass
         try:
             from voice.observer import emit
-            _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: procedencia — orden de un Brain Worker
+            _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command
             extra = {"id": str(wid), "src": _src} if action == "show_widget" else {"src": _src}
-            _tid = getattr(rec, "trace_id", "")                   # V2-044: handler HTTP sin contexto → trace de la sesión
+            _tid = getattr(rec, "trace_id", "")                   # V2-044: HTTP handler without context → session trace
             if _tid:
                 extra["trace"] = _tid
                 extra["span"] = f"worker:{getattr(rec, 'task_id', '')}"
@@ -240,19 +240,19 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
     if action == "widget_data":
-        # V2-061 puente worker→widget: aplica la data-op por el MISMO camino que el tag [[widget.data]] del
-        # FlashBrain (widgets.brain_action → apply_action del widget, off-loop, aislado, nunca revienta). La
-        # PROCEDENCIA se sella como worker:<id> (V2-039) para que el evento widget/data no se atribuya a "user".
+        # V2-061 worker→widget bridge: applies the data-op through the SAME path as the FlashBrain's [[widget.data]]
+        # tag (widgets.brain_action → the widget's apply_action, off-loop, isolated, never crashes). The PROVENANCE
+        # is sealed as worker:<id> (V2-039) so the widget/data event is not attributed to "user".
         wid = str(payload.get("widget_id") or payload.get("id") or "").strip().lower()
         act = str(payload.get("action") or "").strip()
         data_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
         if not wid or not act:
             return {"ok": False, "error": "widget_data requiere widget_id y action"}
-        # V2-259 — A QUÉ HOJA. El prompt del worker le dice «entrega en la hoja `results`» (V2-257) y con
-        # instancias ese nombre pelado deja de ser una dirección: escribiría en la caja que no mira nadie
-        # mientras el operador tiene delante la de SU encargo. Lo resuelve el PUENTE y no el worker, a propósito:
-        # un worker no debería conocer ids de instancia, y pedírselos sería una forma nueva de equivocarse. Se
-        # respeta un `sheet` explícito por si algún día hace falta, pero nadie se lo enseña.
+        # V2-259 — WHICH SHEET. The worker prompt says «deliver to the `results` sheet» (V2-257), and with
+        # instances that bare name stops being an address: it would write to the box nobody looks at while the
+        # operator has THEIR assignment's box in front of them. The BRIDGE resolves it, deliberately, not the worker:
+        # a worker should not need to know instance IDs, and asking for them would create a new way to make mistakes.
+        # An explicit `sheet` is respected in case it is ever needed, but nobody tells it about this.
         if wid == "results" and not str(data_payload.get("sheet") or "").strip():
             try:
                 from nucleo.dispatch import sheet_of as _sheet_of_rec
@@ -288,7 +288,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
 
 
 async def _spawn_child(payload: dict, rec) -> dict:
-    """Encadena otro Brain Worker dentro de cuota/profundidad (§v3·J: DENY al exceder)."""
+    """Chain another Brain Worker within quota/depth limits (§v3·J: DENY when exceeded)."""
     depth = int(getattr(rec, "depth", 0) or 0)
     if depth + 1 > _MAX_DEPTH:
         return {"ok": False, "error": "límite de profundidad de cadena alcanzado"}
@@ -306,9 +306,9 @@ async def _spawn_child(payload: dict, rec) -> dict:
 
 
 def purge_task(task_id: str) -> int:
-    """§v3·L: al morir/matarse una sesión se purgan sus peticiones PENDIENTES — el loop no debe relatar la pregunta
-    de un muerto. Las respondidas se conservan (un `hbask wait` tardío del grupo aún vivo recibe error limpio 404).
-    La llama dispatch (cancel_session / fin de sesión)."""
+    """§v3·L: when a session dies/is killed, its PENDING requests are purged — the loop must not recount a dead
+    session's question. Answered requests are retained (a late `hbask wait` from the still-live group gets a clean 404).
+    Called by dispatch (cancel_session / end of session)."""
     n = 0
     for corr, e in list(_ACTS.items()):
         if e.get("task_id") == str(task_id) and e.get("state") == "pending":
@@ -321,7 +321,7 @@ _ANSWERED_TTL_S = 600.0
 
 
 def _prune() -> None:
-    """Poda entradas RESPONDIDAS viejas (el worker ya reclamó o murió) — el registro nunca crece sin límite."""
+    """Prune old ANSWERED entries (the worker has claimed them or died) — the registry never grows without limit."""
     cut = time.time() - _ANSWERED_TTL_S
     for corr, e in list(_ACTS.items()):
         if e.get("state") == "answered" and float(e.get("created") or 0) < cut:
@@ -329,7 +329,7 @@ def _prune() -> None:
 
 
 def _register_ask(rec, question: str, action: str = "ask_user", retained: dict | None = None) -> str:
-    """Aparca una pregunta pendiente (ask_user o el CONFIRM de un act, §v3·K) → waiting_on=user + bus worker.ask."""
+    """Park a pending question (ask_user or an act's CONFIRM, §v3·K) → waiting_on=user + bus worker.ask."""
     _prune()
     corr = _new_corr(rec.task_id, action)
     _ACTS[corr] = {"corr_id": corr, "task_id": rec.task_id, "action": action, "question": question,
@@ -350,8 +350,8 @@ def _register_ask(rec, question: str, action: str = "ask_user", retained: dict |
 @router.post("/api/worker/act")
 async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("", embed=True),
                      action: str = Body(..., embed=True), payload: dict = Body(default={}, embed=True)):
-    """El worker pide una acción. Verifica token → política → ejecuta (ALLOW inmediato), aparca (ask/CONFIRM) o
-    deniega. Siempre arrastra piggyback de inyecciones."""
+    """The worker requests an action. Verify token → policy → execute (immediate ALLOW), park (ask/CONFIRM), or
+    deny. Always carries the injection piggyback."""
     rec = _verify(task_id, token)
     inj = _piggyback(task_id)
     if rec is None:
@@ -368,7 +368,7 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
 
     if pol == CONFIRM:
-        # §v3·K: un act irreversible se convierte en un ask_user auto-generado con la acción RETENIDA.
+        # §v3·K: an irreversible act becomes an auto-generated ask_user with the RETAINED action.
         q = _confirm_question(action, payload)
         corr = _register_ask(rec, q, action=action, retained={"action": action, "payload": payload})
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
@@ -382,7 +382,7 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
 @router.post("/api/worker/say")
 async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("", embed=True),
                      text: str = Body("", embed=True)):
-    """El worker DICE algo al usuario (say EXPLÍCITO, §v2·E·Q3) — se relata por voz+UI con atribución. Piggyback."""
+    """The worker SAYS something to the user (EXPLICIT say, §v2·E·Q3) — recounted by voice+UI with attribution. Piggyback."""
     rec = _verify(task_id, token)
     inj = _piggyback(task_id)
     if rec is None:
@@ -404,7 +404,7 @@ async def worker_say(task_id: str = Body(..., embed=True), token: str = Body("",
 
 @router.get("/api/worker/act/{corr_id}")
 async def worker_act_poll(corr_id: str):
-    """Re-poll idempotente (§v3·I): estado de una petición aparcada. La respuesta se guarda hasta reclamarse."""
+    """Idempotent re-poll (§v3·I): state of a parked request. The response is stored until claimed."""
     e = _ACTS.get(corr_id)
     tid = (e or {}).get("task_id", "")
     inj = _piggyback(tid) if tid else []
@@ -418,13 +418,13 @@ async def worker_act_poll(corr_id: str):
 
 
 
-# ── resolución de un ask (la llama el FlashBrain/provider cuando el operador responde) ───────────────────────
+# ── ask resolution (called by FlashBrain/provider when the operator responds) ──────────────────────────────
 def has_pending_ask() -> bool:
     return any(e["state"] == "pending" for e in _ACTS.values())
 
 
 def pending_asks() -> list[dict]:
-    """Preguntas pendientes (para el loop supervisor: relatarlas por voz, una a una, FIFO)."""
+    """Pending questions (for the supervisor loop: recount them by voice, one at a time, FIFO)."""
     out = [e for e in _ACTS.values() if e["state"] == "pending"]
     out.sort(key=lambda e: e["created"])
     return [{"corr_id": e["corr_id"], "task_id": e["task_id"], "question": e["question"],
@@ -432,20 +432,20 @@ def pending_asks() -> list[dict]:
 
 
 def active_ask() -> dict | None:
-    """El ask pendiente MÁS ANTIGUO (el 'activo' que se relata, §v3·M/Q5)."""
+    """The OLDEST pending ask (the 'active' one being recounted, §v3·M/Q5)."""
     p = pending_asks()
     return p[0] if p else None
 
 
 async def answer(corr_id: str, text: str) -> bool:
-    """Resuelve un ask por corr_id: guarda la respuesta y, si era un CONFIRM de act, EJECUTA la acción retenida
-    (§v3·K). Limpia waiting_on del record. Devuelve True si resolvió algo."""
+    """Resolve an ask by corr_id: store the response and, if it was an act CONFIRM, EXECUTE the retained action
+    (§v3·K). Clear waiting_on on the record. Return True if something was resolved."""
     e = _ACTS.get(corr_id)
     if not e or e["state"] != "pending":
         return False
     e["answer"] = text or ""
     e["state"] = "answered"
-    # CONFIRM retenido: "sí" → ejecuta la acción; cualquier otra cosa → no.
+    # Retained CONFIRM: "sí" → execute the action; anything else → no.
     retained = e.get("retained") or {}
     if retained.get("action") and _is_yes(text):
         try:
@@ -460,7 +460,7 @@ async def answer(corr_id: str, text: str) -> bool:
 
 
 async def answer_active(text: str) -> bool:
-    """Resuelve el ask ACTIVO (más antiguo) — camino determinista cuando el operador responde por voz (§v3·M)."""
+    """Resolve the ACTIVE (oldest) ask — deterministic path when the operator responds by voice (§v3·M)."""
     a = active_ask()
     if not a:
         return False
@@ -468,8 +468,8 @@ async def answer_active(text: str) -> bool:
 
 
 def answer_active_soon(text: str) -> bool:
-    """Fire-and-forget marshalado al loop del server (§v3·D/O): resuelve el ask activo. Lo llama el FlashBrain desde
-    el job-thread. Devuelve True si HABÍA un ask que responder (para que la voz confirme)."""
+    """Fire-and-forget marshalled to the server loop (§v3·D/O): resolve the active ask. Called by FlashBrain from
+    the job thread. Return True if there WAS an ask to answer (so voice can confirm)."""
     if not has_pending_ask():
         return False
     try:
@@ -487,8 +487,8 @@ def answer_active_soon(text: str) -> bool:
 
 
 def match_by_options(text: str) -> str | None:
-    """§v3·M/Q5: si la respuesta corta casa claramente con las `options` de ALGÚN ask pendiente, devuelve su
-    corr_id (para enrutar a ese, no al activo). Placeholder conservador: sin options declaradas, None."""
+    """§v3·M/Q5: if the short response clearly matches the `options` of ANY pending ask, return its corr_id
+    (to route to that one, not the active one). Conservative placeholder: without declared options, None."""
     return None
 
 

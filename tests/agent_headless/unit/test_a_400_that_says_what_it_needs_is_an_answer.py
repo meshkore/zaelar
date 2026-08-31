@@ -1,20 +1,19 @@
-"""V2-487 — un agente que contesta «me falta este campo» SÍ ha contestado.
+"""V2-487 — an agent that answers “this field is missing” HAS answered.
 
-Medido en vivo contra `roomrover` el 2026-08-29, los tres saltos seguidos:
+Measured live against `roomrover` on 2026-08-29, the three consecutive hops:
 
     {"prompt": "hotel in New York City check-in 2026-09-10 …"}
       → 400 {"error": "parse_failed", "detail": "…Pass structured fields (city, checkin, checkout) instead."}
     {"city": "New York", "checkin": "2026-09-10", "checkout": "2026-09-12", "adults": 2}
       → 400 {"error": "missing_fields", "need": ["country_code"]}
-    …con `country_code: "US"` → **200 con diez hoteles reales**, precio, nota y enlace de reserva, en 0,4 s.
+    …with `country_code: "US"` → **200 with ten real hotels**, price, rating, and booking link, in 0.4 s.
 
-`ask` aplastaba todo eso a «respondió 400» y `serve` lo volvía a aplastar a «los agentes de la red no
-contestaron» — una diagnosis falsa que manda a abrir un Chromium contra Booking por un dato que estaba a un
-campo de distancia. La forma la avisaba el propio docstring del módulo; estaba sabido y se tiraba igual.
+`ask` flattened all of that to “returned 400” and `serve` flattened it again to “the network agents did not
+answer” — a false diagnosis that sends us to open Chromium against Booking for data that was one field away.
+The form was stated in the module’s own docstring; it was known and still discarded.
 
-Aquí NO se prueba ningún esquema de hoteles: no lo hay. Lo que se fija es el CONTRATO — el agente declara lo
-que necesita, nosotros se lo transmitimos entero a quien tiene el encargo, y los campos que ese componga
-viajan tal cual.
+This does NOT test any hotel schema: there is none. What is fixed is the CONTRACT — the agent declares what it
+needs, we transmit it in full to whoever has the task, and the fields that agent composes travel unchanged.
 """
 import pytest
 
@@ -25,7 +24,7 @@ AGENTE = {"agent_id": "roomrover", "endpoint": "https://roomrover.example"}
 
 
 def _post_falso(respuestas):
-    """Devuelve un `_post` de mentira que además ANOTA el cuerpo con el que se le llamó."""
+    """Returns a fake `_post` that also RECORDS the body with which it was called."""
     vistos = []
 
     def _post(url, body, timeout=None):
@@ -63,8 +62,8 @@ def test_serve_NO_dice_que_no_contestaron_cuando_si_contestaron(monkeypatch):
 
 
 def test_los_campos_viajan_SOLOS(monkeypatch):
-    """Con `prompt` dentro, el agente interpreta el texto libre y **descarta los campos** — medido: el mismo
-    cuerpo que devuelve diez hoteles sin `prompt` devuelve `parse_failed` con él."""
+    """With `prompt` included, the agent interprets the free text and **discards the fields** — measured: the same
+    body that returns ten hotels without `prompt` returns `parse_failed` with it."""
     post, vistos = _post_falso([(200, {"count": 10})])
     monkeypatch.setattr(m, "_post", post)
     m.ask(AGENTE, "hotel en Nueva York", {"city": "New York", "country_code": "US"})
@@ -73,8 +72,8 @@ def test_los_campos_viajan_SOLOS(monkeypatch):
 
 
 def test_sin_campos_sigue_yendo_el_TEXTO_LIBRE(monkeypatch):
-    """El primer intento no cambia: el oráculo y los agentes esperan `prompt` (y `query` por compatibilidad),
-    y ese camino es el que ya funcionaba."""
+    """The first attempt remains unchanged: the oracle and agents expect `prompt` (and `query` for compatibility),
+    and that is the path that already worked."""
     post, vistos = _post_falso([(200, {"count": 10})])
     monkeypatch.setattr(m, "_post", post)
     m.ask(AGENTE, "entradas de teatro en Madrid")
@@ -82,7 +81,7 @@ def test_sin_campos_sigue_yendo_el_TEXTO_LIBRE(monkeypatch):
 
 
 def test_un_402_sigue_sin_pagarse(monkeypatch):
-    """Solo agentes gratis, aplicado en código. Tocar el camino de error no puede aflojar esto."""
+    """Free agents only, enforced in code. Touching the error path must not loosen this."""
     post, _ = _post_falso([(402, {"price": 1})])
     monkeypatch.setattr(m, "_post", post)
     res = m.ask(AGENTE, "hotel en Nueva York")
@@ -90,8 +89,8 @@ def test_un_402_sigue_sin_pagarse(monkeypatch):
 
 
 def test_el_puente_convierte_field_en_campos():
-    """`--field clave=valor`, repetible. Un número va como número: algunos agentes rechazan `adults: "2"`, y
-    eso es la FORMA del valor, no su significado — el puente no sabe qué es «adults»."""
+    """`--field key=value`, repeatable. A number is sent as a number: some agents reject `adults: "2"`, and
+    that is the FORM of the value, not its meaning — the bridge does not know what “adults” is."""
     from nucleo import mesh_cli
     visto = {}
 

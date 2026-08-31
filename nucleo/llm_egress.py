@@ -1,23 +1,23 @@
 #
-# EGRESS DE MODELOS — a dónde sale de verdad una llamada de LLM y con qué credencial.
+# MODEL EGRESS — where an LLM call actually goes and with which credential.
 #
-# UN SOLO CÓDIGO, DOS DESPLIEGUES. Quien se auto-hospeda habla con los proveedores directamente y con
-# SUS propias claves: es su cuenta, su gasto y su decisión, y este módulo no le cambia nada. En el
-# despliegue gestionado la salida está mediada, y este módulo es la costura donde eso ocurre — un
-# PUERTO, no un caso especial repartido por diez ficheros.
+# ONE CODEBASE, TWO DEPLOYMENTS. A self-hosted deployment talks to providers directly using
+# ITS own keys: it is its account, its expense, and its decision, and this module changes nothing for it. In a
+# managed deployment, egress is mediated, and this module is the seam where that happens — a
+# PORT, not a special case scattered across ten files.
 #
-# Lo que se describe aquí es el MECANISMO: si el entorno declara un egress mediado, se usa; si no, se
-# habla directo. La política de por qué un despliegue elige una cosa u otra no vive en este repo.
+# What is described here is the MECHANISM: if the environment declares mediated egress, it is used; otherwise, it
+# talks directly. The policy explaining why a deployment chooses one or the other does not live in this repo.
 #
-# LA INVERSIÓN QUE IMPORTA. Sin esto, cada call site elegía endpoint Y llevaba la credencial. Con esto,
-# el call site declara qué QUIERE (un modelo) y el egress decide POR DÓNDE sale. Mientras un proceso
-# pueda nombrar el endpoint y tenga la clave, la clave tiene que estar de su lado — que es justo lo que
-# se quiere dejar de hacer.
+# THE INVERSION THAT MATTERS. Without this, each call site chose an endpoint AND carried the credential. With this,
+# the call site declares what it WANTS (a model), and egress decides WHERE it goes. As long as a process
+# can name the endpoint and has the key, the key has to be on its side — which is exactly what
+# we want to stop doing.
 #
-# FAIL-CLOSED, Y A PROPÓSITO. Si el despliegue declara egress mediado y falta la credencial para
-# usarlo, esto NO se cae hacia atrás a hablar directo con el proveedor. Un fallback silencioso
-# convertiría un despliegue incompleto en una fuga que funciona — el mismo patrón
-# «guarded-until-configured» que dejó una superficie abierta nueve días. Prefiere romper y decirlo.
+# FAIL-CLOSED, BY DESIGN. If the deployment declares mediated egress and the credential needed to
+# use it is missing, this does NOT fall back to talking directly to the provider. A silent fallback
+# would turn an incomplete deployment into a working leak — the same
+# “guarded-until-configured” pattern that left an exposed surface open for nine days. It prefers to break and say so.
 #
 from __future__ import annotations
 
@@ -25,12 +25,12 @@ import os
 
 from loguru import logger
 
-# El endpoint mediado y la credencial con la que este proceso se identifica ante él.
+# The mediated endpoint and the credential with which this process identifies itself to it.
 _URL_ENV = "ZAELAR_GATEWAY_URL"
 _TOKEN_ENV = "CONTROL_PLANE_SERVICE_TOKEN"
 
-# base_url del proveedor → nombre corto que entiende el egress mediado. Es un MAPA DE ROUTING, no una
-# credencial: dice «esta llamada iba dirigida a tal familia», y quien tenga la clave decidirá.
+# Provider base_url → short name understood by mediated egress. It is a ROUTING MAP, not a
+# credential: it says “this call was intended for this family,” and whoever has the key decides.
 _PROVIDER_BY_HOST = (
     ("aimlapi.com", "aimlapi"),
     ("api.x.ai", "xai"),
@@ -40,7 +40,7 @@ _PROVIDER_BY_HOST = (
 
 
 def mediated() -> bool:
-    """¿Este despliegue saca las llamadas por un egress mediado?"""
+    """Does this deployment send calls through mediated egress?"""
     from nucleo import cloud_account
     return cloud_account.is_cloud_account() and bool((os.getenv(_URL_ENV) or "").strip())
 
@@ -59,28 +59,28 @@ def provider_of(base_url: str) -> str:
 
 
 def route(base_url: str, api_key: str) -> tuple[str, str, dict]:
-    """`(base_url, api_key, headers_extra)` efectivos para esta llamada.
+    """Effective `(base_url, api_key, headers_extra)` for this call.
 
-    Sin egress mediado devuelve lo que le dan, tal cual — self-host queda byte-idéntico. Un endpoint
-    LOCAL (Ollama) tampoco se toca nunca: no cuesta dinero y no hay nada que mediar.
+    Without mediated egress, returns exactly what it was given — self-host remains byte-identical. A LOCAL endpoint
+    (Ollama) is also never touched: it costs no money and there is nothing to mediate.
     """
     if is_local_endpoint(base_url) or not mediated():
         return base_url, api_key, {}
 
     token = (os.getenv(_TOKEN_ENV) or "").strip()
     if not token:
-        # Ver la nota de fail-closed en la cabecera. Se avisa fuerte y se devuelve el destino mediado
-        # SIN credencial: la llamada fallará con 401 en el egress, que es un fallo visible y acotado,
-        # en vez de salir por la puerta de atrás con la clave del proveedor.
+        # See the fail-closed note in the header. Warn loudly and return the mediated destination
+        # WITHOUT a credential: the call will fail with 401 at egress, which is a visible and contained failure,
+        # instead of escaping through the back door with the provider key.
         logger.error(
             f"llm_egress: egress mediado declarado pero sin {_TOKEN_ENV} — la llamada fallará. "
             "NO se cae hacia atrás a hablar directo con el proveedor: eso convertiría un despliegue "
             "incompleto en una fuga que funciona."
         )
-    # El SDK compone `<base>/chat/completions`, así que la base tiene que acabar donde acababa la del
-    # proveedor: en `/v1`. Sin esto la llamada sale a `<egress>/chat/completions` y el egress devuelve
-    # 404 — que es como se rompió en el primer arranque real, y el síntoma («prewarm saltado») no
-    # apuntaba a la causa por ningún lado.
+    # The SDK composes `<base>/chat/completions`, so the base must end where the provider's did:
+    # in `/v1`. Without this, the call goes to `<egress>/chat/completions` and egress returns
+    # 404 — which is how it broke on the first real startup, and the symptom (“prewarm skipped”) did not
+    # point to the cause at all.
     base = (os.getenv(_URL_ENV) or "").strip().rstrip("/")
     if not base.endswith("/v1"):
         base = f"{base}/v1"
@@ -88,20 +88,20 @@ def route(base_url: str, api_key: str) -> tuple[str, str, dict]:
 
 
 def _headers(base_url: str) -> dict:
-    """La familia a la que iba dirigida la llamada. Va en cabecera y NO en el cuerpo para que el
-    egress pueda enrutar sin abrir el JSON, y porque el cuerpo lo compone el modelo — no queremos que
-    lo que un modelo escriba pueda cambiar a qué proveedor se factura."""
+    """The family the call was intended for. It goes in a header and NOT in the body so that
+    egress can route without opening the JSON, and because the model composes the body — we do not want
+    something a model writes to be able to change which provider is billed."""
     p = provider_of(base_url)
     return {"X-Zaelar-Provider": p} if p else {}
 
 
 def bills_upstream() -> bool:
-    """¿Quién apunta el gasto en el ledger?
+    """Who records the expense in the ledger?
 
-    Con egress mediado, el que hizo la llamada de verdad — no este proceso. Contarlo también aquí
-    duplicaría el cargo, y un cliente que paga el doble por turno es un fallo peor que no cobrar.
-    Lo que este proceso SÍ sigue haciendo es descontar de su arriendo local (`energy_lease`): ese
-    contador es un techo de seguridad, no una factura, y tiene que seguir funcionando aunque el enlace
-    con la nube esté caído.
+    With mediated egress, the party that actually made the call — not this process. Counting it here as well
+    would duplicate the charge, and a client paying twice per turn is a worse failure than not charging.
+    What this process DOES continue to do is deduct from its local lease (`energy_lease`): that
+    counter is a safety ceiling, not an invoice, and must keep working even when the link
+    to the cloud is down.
     """
     return mediated()

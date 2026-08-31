@@ -184,7 +184,7 @@ def update(payload: dict) -> dict:
             d[k] = val
             os.environ[env] = val
             applied.append(k); needs_reconnect = True
-    # Boolean knobs (aplican en caliente, sin reconectar): p.ej. memory_observability.
+    # Boolean knobs (apply live, without reconnecting): e.g. memory_observability.
     for k in BOOL_DEFAULTS:
         if k in payload:
             d[k] = bool(payload[k]) if not isinstance(payload[k], str) else payload[k].strip().lower() not in ("0", "false", "no", "off", "")

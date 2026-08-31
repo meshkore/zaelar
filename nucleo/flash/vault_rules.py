@@ -1,12 +1,13 @@
-"""nucleo/flash/vault_rules.py — comandos de VOZ que cambian la CONFIGURACIÓN de seguridad de la bóveda (V2-060 F2).
+"""nucleo/flash/vault_rules.py — VOICE commands that change the vault's security CONFIGURATION (V2-060 F2).
 
-Son **user rules DURAS**: no guían por prompt (eso son las de estilo, V2-046), sino que se aplican DETERMINISTA en
-código y solo cambian por una orden EXPLÍCITA (o desde el ⚙). Detección regex es/en (el FlashBrain sigue
-no-razonador). Hoy cubre una: **¿zaelar lee los secretos en voz alta?** («no me digas los secretos por voz» →
-solo pantalla; «puedes decírmelos por voz» → modo cómodo). Se persiste en `state.security` (2ª clase).
+They are **HARD user rules**: they do not guide via prompts (those are the style rules, V2-046), but are applied
+DETERMINISTICALLY in code and only change through an EXPLICIT command (or from ⚙). Regex detection is es/en (the
+FlashBrain remains non-reasoning). It currently covers one case: **does zaelar read secrets aloud?** (“don't tell me
+secrets by voice” → screen only; “can you tell them to me by voice” → comfortable mode). It is persisted in
+`state.security` (2nd class).
 
-Se comprueba MUY pronto en el turno (antes del gate/routing) — como `attention.hard_interrupt` — para que una
-orden de configuración nunca quede enterrada. Devuelve una FRASE de confirmación a hablar (localizada), o None.
+It is checked VERY early in the turn (before the gate/routing) — like `attention.hard_interrupt` — so that a
+configuration command is never buried. It returns a confirmation PHRASE to speak (localized), or None.
 """
 from __future__ import annotations
 
@@ -23,13 +24,13 @@ _SECRET_WORD = r"(?:secretos?|secrets?|contrase[nñ]as?|claves?|datos? (?:privad
 _BY_VOICE = r"(?:en voz alta|por voz|hablando|en alto|out loud|aloud|by voice)"
 _NEG = r"(?:no|nunca|don'?t|do not|never)"
 
-# NO leer secretos por voz → solo pantalla
+# Do NOT read secrets aloud → screen only
 _NO_VOICE_RE = re.compile(
     rf"\b{_NEG}\b[^.]*\b(?:digas|leas|menciones|reproduzcas|say|read|tell)\w*\b[^.]*{_SECRET_WORD}[^.]*{_BY_VOICE}"
     rf"|\b{_SECRET_WORD}\b[^.]*\bsolo (?:en|por) pantalla\b"
     rf"|\bmodo (?:de )?maxima seguridad\b",
 )
-# SÍ leer secretos por voz → modo cómodo
+# DO read secrets aloud → comfortable mode
 _YES_VOICE_RE = re.compile(
     rf"\b(?:si|puedes|vale|ok)\b[^.]*\b(?:decir|leer|say|read)\w*\b[^.]*{_SECRET_WORD}[^.]*{_BY_VOICE}"
     rf"|\b(?:dime|leeme|read me|read)\b[^.]*{_SECRET_WORD}[^.]*{_BY_VOICE}"
@@ -38,11 +39,11 @@ _YES_VOICE_RE = re.compile(
 
 
 def detect(text: str) -> tuple[str, object] | None:
-    """→ ('secrets_voice', bool) si el turno es una orden de config de bóveda; None si no lo es."""
+    """→ ('secrets_voice', bool) if the turn is a vault configuration command; None otherwise."""
     t = _n(text)
     if not t:
         return None
-    # el NO manda sobre el SÍ (más específico y más seguro)
+    # NO takes precedence over YES (more specific and safer)
     if _NO_VOICE_RE.search(t):
         return ("secrets_voice", False)
     if _YES_VOICE_RE.search(t):
@@ -51,7 +52,7 @@ def detect(text: str) -> tuple[str, object] | None:
 
 
 def apply(cmd: tuple[str, object]) -> str:
-    """Aplica la regla de seguridad (persiste en state.security) y devuelve la frase de confirmación localizada."""
+    """Applies the security rule (persists it in state.security) and returns the localized confirmation phrase."""
     key, value = cmd
     try:
         from memory import state as _state

@@ -1,4 +1,4 @@
-"""memory/ — zaelar v2 "Hive" CENTRAL MEMORY (EPIC-v2-colmena, INI V2-002).
+"""memory/ — zaelar v2 "Hive" CENTRAL MEMORY (EPIC-v2-hive, INI V2-002).
 
 **Top-level** module (sibling of `voice/`, `widgets/`, `bus/`), NOT part of the brain: it is the **shared substrate**
 written by FlashBrain, the SlowBrain memory agent, and widgets, and read by the retriever on the hot path (ms).

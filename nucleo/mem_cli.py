@@ -1,14 +1,16 @@
-"""nucleo/mem_cli.py — PUENTE de MEMORIA para los agentes Claude Code del SlowBrain (V2-036).
+"""nucleo/mem_cli.py — MEMORY BRIDGE for SlowBrain Claude Code agents (V2-036).
 
-Es la "pieza independiente y SERIAL" con la que un agente Claude Code headless USA la memoria de zaelar sin tocar la
-BD directamente (preserva el ESCRITOR ÚNICO: escribe por la cola del proceso vivo). El agente la invoca por Bash:
+It is the "independent and SERIAL component" with which a headless Claude Code agent USES zaelar's memory without
+touching the DB directly (it preserves the SINGLE WRITER: it writes through the live process's queue). The agent
+invokes it through Bash:
 
-    python -m nucleo.mem_cli recall "moto de enduro del operador"        # PIDE un dato → imprime las píldoras
-    python -m nucleo.mem_cli remember "el operador quiere una KTM 350" --slot goal.moto   # GUARDA un dato
+    python -m nucleo.mem_cli recall "moto de enduro del operador"        # REQUESTS a fact → prints the pills
+    python -m nucleo.mem_cli remember "el operador quiere una KTM 350" --slot goal.moto   # SAVES a fact
 
-Habla con el server local (http://localhost:43917, override ZAELAR_BASE) por HTTP — NUNCA abre la SQLite en paralelo,
-así el invariante "único escritor" del proceso vivo se mantiene. Serial por naturaleza: una llamada, un resultado, y
-el agente sigue su ejecución. Fail-soft: si el server no responde, imprime el error y sale !=0 (el agente lo maneja).
+It communicates with the local server (http://localhost:43917, ZAELAR_BASE override) over HTTP — it NEVER opens the
+SQLite database in parallel, so the live process's "single writer" invariant is maintained. Serial by nature: one
+call, one result, and the agent continues its execution. Fail-soft: if the server does not respond, it prints the
+error and exits !=0 (the agent handles it).
 """
 from __future__ import annotations
 
@@ -24,8 +26,8 @@ _UA = "zaelar-mem-cli/1.0"
 
 def _post(path: str, payload: dict, timeout: float = 20.0) -> dict:
     headers = {"Content-Type": "application/json", "User-Agent": _UA}
-    # AUTH por-tarea (auditoría 2026-07-14): el worker acredita SU sesión con el token que dispatch le puso en el
-    # entorno (§v2·D) — /api/memory/remember lo exige (un proceso local cualquiera ya no puede escribir memoria).
+    # Per-task AUTH (audit 2026-07-14): the worker authenticates ITS session with the token that dispatch placed in
+    # the environment (§v2·D) — /api/memory/remember requires it (an arbitrary local process can no longer write memory).
     tid, tok = os.getenv("ZAELAR_TASK_ID", ""), os.getenv("ZAELAR_TASK_TOKEN", "")
     if tid:
         headers["X-Zaelar-Task"] = tid
@@ -37,12 +39,12 @@ def _post(path: str, payload: dict, timeout: float = 20.0) -> dict:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as e:
-        # EL MOTIVO VIAJA EN EL CUERPO, y `HTTPError` solo trae el número. Medido el 2026-08-28: cinco intentos
-        # del worker de guardar hallazgos operativos —«Wallapop filtro que funciona: …max_sale_price=8000»,
-        # «Milanuncios bloqueado por anti-bot», «coches.net da error persistente»— murieron con «HTTP Error
-        # 422: Unprocessable Entity» y nada más. El servidor SÍ dice por qué («descartado por el gate de
-        # precisión (<razón>)»), y el worker no llegaba a leerlo: reintenta o se rinde a ciegas, y el hallazgo
-        # —que es justo lo que evita que el siguiente worker repita el trabajo— se pierde.
+        # THE REASON IS IN THE BODY, and `HTTPError` only carries the number. Measured on 2026-08-28: five attempts
+        # by the worker to save operational findings —«Wallapop filtro que funciona: …max_sale_price=8000»,
+        # «Milanuncios bloqueado por anti-bot», «coches.net da error persistente»— ended with «HTTP Error
+        # 422: Unprocessable Entity» and nothing else. The server DOES say why («descartado por el gate de
+        # precisión (<razón>)»), and the worker never got to read it: it retries or gives up blindly, and the finding
+        # —which is precisely what prevents the next worker from repeating the work— is lost.
         try:
             detalle = json.loads(e.read().decode("utf-8") or "{}").get("detail") or ""
         except Exception:  # noqa: BLE001

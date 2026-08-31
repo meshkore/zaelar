@@ -166,7 +166,7 @@ class SpotifyProvider(MusicProvider):
         pct = max(0, min(100, int(percent or 0)))
         return self._run(lambda dev: client.set_volume(pct, device_id=dev), "volume", None, {"n": pct})
 
-    # ── estado ─────────────────────────────────────────────────────────────────────────────────────────
+    # ── status ─────────────────────────────────────────────────────────────────────────────────────────
     def now_playing(self) -> "NowPlaying | None":
         try:
             st = client.playback_state()

@@ -1,40 +1,40 @@
-"""El escritor resolvía la hoja por dos caminos y el lector por uno (V2-352).
+"""The writer resolved the sheet through two paths and the reader through one (V2-352).
 
-Medido en vivo el 2026-08-26, `search-buy-used-car` ronda 12. La ronda salió **1/5**, y su bloqueador nº1 fue
-«zaelar tuvo resultados reales delante durante más de 4 minutos y dijo repetidamente que no había nada»: el
-operador preguntó cinco veces «¿ya tienes algo?» y recibió cinco negativas mientras la hoja acumulaba DOCE
-coches con nombre, precio y enlace (Mercedes Clase A, Chrysler Sebring, Alfa Tonale, Golf Variant, BMW 520d…).
+Measured live on 2026-08-26, `search-buy-used-car` is around 12. The run came out **1/5**, and its #1 blocker was
+“zaelar had real results in front of it for more than 4 minutes and repeatedly said there was nothing”: the
+operator asked five times “do you have anything yet?” and received five negative answers while the sheet
+accumulated TWELVE cars with a name, price, and link (Mercedes A-Class, Chrysler Sebring, Alfa Tonale, Golf Variant, BMW 520d…).
 
-No fue el modelo. El guarda DETERMINISTA que existe justo para esto —`delivery.sheet_delivery_backstop`, V2-305—
-disparó su evento de silencio NUEVE veces, y V2-336 (que hizo el silencio visible con sus entradas) dejó el
-porqué escrito en el propio evento:
+It was not the model. The DETERMINISTIC guard that exists precisely for this —`delivery.sheet_delivery_backstop`, V2-305—
+fired its silence event NINE times, and V2-336 (which made the silence visible through its entries) left the
+reason written in the event itself:
 
-    38,0s  rows=0  goal=''   |   325,5s  rows=0  goal=''      ← las nueve iguales
+    38,0s  rows=0  goal=''   |   325,5s  rows=0  goal=''      ← all nine identical
 
-`rows=0` con doce filas en la hoja. Al backstop nunca le llegaron.
+`rows=0` with twelve rows in the sheet. They never reached the backstop.
 
-LA ASIMETRÍA. La hoja de un encargo se resuelve desde la pestaña del navegador, y hay DOS caminos:
+THE ASYMMETRY. A task’s sheet is resolved from the browser tab, and there are TWO paths:
 
-  · el SELLO de la pestaña (`tasks.get(tid)["sheet"]`) — durable, sobrevive al worker (V2-281), pero **se
-    escribe una sola vez, en `create()`**: si el registro aún no tenía hoja sellada en ese instante, queda
-    vacío PARA SIEMPRE (lo dice el propio comentario de `tasks.create`);
-  · el REGISTRO de sesiones vivas (`dispatch.sheet_for_nav_task`) — sabe contestar mientras el worker viva.
+  · the tab’s SEAL (`tasks.get(tid)["sheet"]`) — durable, survives the worker (V2-281), but **is written
+    only once, in `create()`**: if the record did not yet have a sealed sheet at that moment, it remains
+    empty FOREVER (the comment in `tasks.create` itself says so);
+  · the live-session REGISTRY (`dispatch.sheet_for_nav_task`) — can answer while the worker is alive.
 
-El ESCRITOR (`act_api._sheet_for`, que alimenta `_hand_over`) usa los dos: sello, y si está vacío, el registro.
-Por eso las doce filas aterrizaron bien en `results::9a37af-1`. Los LECTORES —`_sheet_has_rows`, la cara «YA
-TIENE RESULTADOS», y `_sheet_top_rows`, del que come el backstop— se paraban en el primero:
+The WRITER (`act_api._sheet_for`, which feeds `_hand_over`) uses both: seal, and if it is empty, registry.
+That is why the twelve rows landed correctly in `results::9a37af-1`. The READERS —`_sheet_has_rows`, the
+“HAS RESULTS” face, and `_sheet_top_rows`, which feeds the backstop— stopped at the first one:
 
     sheet = tasks.get(tid)["sheet"]
     if not sheet:
-        return []          # ← ciego
+        return []          # ← blind
 
-Escribe bien y lee mal: la misma forma que V2-350 (dos puertas, respuestas distintas al mismo worker) y que
-V2-348 (una rama que faltaba en un solo lado). Y la tarjeta FANTASMA que el arnés reporta en las dos rondas es
-el otro síntoma del mismo cero: `tasks.create` avisa de que una hoja sin resolver manda los hallazgos a la caja
-`results` desnuda, «la que no es de nadie».
+It writes correctly and reads incorrectly: the same pattern as V2-350 (two gates, different answers for the same
+worker) and V2-348 (a branch missing on only one side). And the GHOST card that the harness reports in both runs is
+the other symptom of the same zero: `tasks.create` warns that an unresolved sheet sends findings to the bare
+`results` box, “the one that belongs to nobody”.
 
-EL ORDEN NO CAMBIA, y es deliberado: primero el sello, que es lo único que sigue ahí cuando al worker le
-relevan o se muere (V2-281). El registro es RESPALDO, exactamente como en el escritor — ni más ni menos.
+THE ORDER DOES NOT CHANGE, and that is deliberate: the seal comes first, because it is the only thing still there
+when the worker is replaced or dies (V2-281). The registry is BACKUP, exactly as in the writer — no more, no less.
 """
 import pytest
 
@@ -47,12 +47,12 @@ FILAS = [{"title": "MERCEDES-BENZ Clase A 200 d", "price": "39.900 €"},
 
 @pytest.fixture
 def plató(monkeypatch):
-    """Una pestaña, una hoja con filas, y un mando para decir si la pestaña lleva sello o no.
+    """A tab, a sheet with rows, and a control for saying whether the tab has a seal or not.
 
-    Se parchean los ATRIBUTOS de los módulos reales, nunca `sys.modules`: los lectores hacen
-    `from widgets.navegador import tasks` DENTRO de la función, y eso lee el atributo del paquete ya importado,
-    así que sustituir la entrada de `sys.modules` solo funciona si nadie lo importó antes — verde en solitario y
-    rojo con la suite entera, que es como se cazó aquí.
+    The ATTRIBUTES of the real modules are patched, never `sys.modules`: the readers execute
+    `from widgets.navegador import tasks` INSIDE the function, and that reads the attribute from the already imported
+    package, so replacing the `sys.modules` entry works only if nothing imported it beforehand — green in isolation and
+    red with the full suite, which is how this was caught here.
     """
     from nucleo import dispatch as _disp
     from widgets.navegador import tasks as _t
@@ -68,7 +68,7 @@ def plató(monkeypatch):
 
 
 def test_con_sello_se_lee_por_el_sello(plató):
-    """El camino de siempre, intacto: el sello manda y el registro ni se consulta (V2-281)."""
+    """The usual path, unchanged: the seal takes precedence and the registry is not even queried (V2-281)."""
     plató["sello"] = "results::9a37af-1"
     plató["registro"] = "results::OTRA-COSA"
     assert LB._sheet_top_rows("t1", 3)
@@ -77,8 +77,8 @@ def test_con_sello_se_lee_por_el_sello(plató):
 
 
 def test_SIN_sello_el_lector_pregunta_al_registro_como_hace_el_escritor(plató):
-    """El defecto medido: la pestaña se creó antes de que su registro tuviera hoja, así que el sello quedó
-    vacío para siempre. El escritor sale adelante por el respaldo; el lector se quedaba ciego."""
+    """The measured defect: the tab was created before its registry had a sheet, so the seal remained
+    empty forever. The writer succeeds through the backup; the reader remained blind."""
     plató["sello"] = ""
     plató["registro"] = "results::9a37af-1"
     filas = LB._sheet_top_rows("t1", 3)
@@ -88,7 +88,7 @@ def test_SIN_sello_el_lector_pregunta_al_registro_como_hace_el_escritor(plató):
 
 
 def test_y_entonces_el_backstop_de_entrega_SI_ve_las_filas(plató):
-    """La consecuencia entera, en el punto donde se midió: `any_live_task_rows` es lo que come el backstop."""
+    """The full consequence, at the point where it was measured: `any_live_task_rows` is what the backstop consumes."""
     plató["sello"] = ""
     plató["registro"] = "results::9a37af-1"
     goal, filas = LB.any_live_task_rows(3)
@@ -97,8 +97,8 @@ def test_y_entonces_el_backstop_de_entrega_SI_ve_las_filas(plató):
 
 
 def test_sin_sello_y_sin_registro_no_se_inventa_nada(plató):
-    """El lado conservador: dos caminos agotados es «no hay hoja», no una hoja cualquiera. Caer en la caja
-    `results` desnuda sería anunciar las filas de otro encargo."""
+    """The conservative side: two exhausted paths means “there is no sheet”, not just any sheet. Falling back to the bare
+    `results` box would announce the rows from another task."""
     plató["sello"] = ""
     plató["registro"] = ""
     assert LB._sheet_top_rows("t1", 3) == []
@@ -107,7 +107,7 @@ def test_sin_sello_y_sin_registro_no_se_inventa_nada(plató):
 
 
 def test_una_hoja_que_existe_pero_esta_VACIA_no_es_un_hallazgo(plató):
-    """Resolver la dirección no es tener filas: una hoja recién abierta resuelve bien y no trae nada."""
+    """Resolving the address is not the same as having rows: a newly opened sheet resolves correctly and contains nothing."""
     plató["sello"] = "results::recien-abierta"
     plató["registro"] = ""
     assert LB._sheet_top_rows("t1", 3) == []

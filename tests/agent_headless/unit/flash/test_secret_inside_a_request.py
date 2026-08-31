@@ -1,7 +1,7 @@
 """V2-141 (`pay-known-bill__es`, round 2) — a secret spoken INSIDE a request must not swallow the request.
 
 The transcript ends with the operator handing over exactly what zaelar had asked him for — invoice number,
-amount and IBAN — and receiving `(sin respuesta)`. Nothing after his bank details. The cause is not the model:
+amount and IBAN — and receiving `(no response)`. Nothing after his bank details. The cause is not the model:
 both channels intercept a detected secret DETERMINISTA before the model sees it (V2-060, and that invariant
 stands: a secret value never reaches an LLM), but the intercept then consumed the WHOLE turn.
 
@@ -12,7 +12,7 @@ stop it.
 
 Second measured cause in the same run: `danger.is_dangerous("¿Puedes pagarla antes del día 5?")` was False. The
 polite way to give an order in Spanish is a question with a modal, and there the verb is an infinitive with the
-pronoun glued on — the same blind spot that already cost «resérvame» and «págala», one verb mood further along.
+pronoun glued on — the same blind spot that already cost «reserve it for me» and «pay it», one verb mood further along.
 """
 from __future__ import annotations
 
@@ -90,8 +90,8 @@ def test_the_request_survives_and_the_secret_does_not(fresh_db, monkeypatch):
 
 
 def test_a_turn_that_is_only_a_secret_still_short_circuits(fresh_db, monkeypatch):
-    """The interception is right for its own case — and it answers with a SENTENCE now, not «(secreto
-    cifrado)», which is a stage direction the harness reads as an empty turn and nobody can say out loud."""
+    """The interception is right for its own case — and it answers with a SENTENCE now, not «(encrypted
+    secret)», which is a stage direction the harness reads as an empty turn and nobody can say out loud."""
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Client)
     res = asyncio.run(probe.run_turn(SECRET_ONLY_TURN, sid="t-v141-b", ingest=False))
     probe._SESSIONS.pop("t-v141-b", None)

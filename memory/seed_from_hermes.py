@@ -1,11 +1,11 @@
-"""memory/seed_from_hermes.py — SIEMBRA one-shot de la memoria central desde Hermes (V2-003 · T56).
+"""memory/seed_from_hermes.py — One-shot seeding of central memory from Hermes (V2-003 · T56).
 
-Importador **best-effort, idempotente y SOLO-LECTURA** de lo que Hermes ya sabía del operador:
+**Best-effort, idempotent, READ-ONLY** importer for what Hermes already knew about the operator:
 `~/.hermes/memories/USER.md` (perfil + preferencias de trato) y `MEMORY.md` (recuerdos generales). Ambos son
 texto libre con secciones separadas por `§`. NO toca `~/.hermes/` (solo lee); si no hay Hermes instalado, no
 hace nada y no falla — es una siembra, no una dependencia.
 
-Qué hace:
+What it does:
   - `state`: extrae del perfil el **nombre del operador** y el **idioma** (heurística simple) → `state.patch`.
   - `memories`: cada sección `§` no vacía entra como recuerdo **pinned** (`kind='pref'` para USER.md,
     `kind='fact'` para MEMORY.md, `level='long'`). Los pinned NUNCA los borra el consolidador.
@@ -50,7 +50,7 @@ def _exists(text: str) -> bool:
 
 
 def _seed_state(user_text: str) -> dict:
-    """Extrae nombre + idioma del perfil (heurística), sin pisar lo ya sembrado a mano."""
+    """Extract the name and language from the profile without overwriting manual seeds."""
     fields: dict = {}
     m = _NAME_RE.search(user_text)
     if m:
@@ -63,10 +63,10 @@ def _seed_state(user_text: str) -> dict:
     if not fields:
         return {}
     cur = _state.read()
-    # no sobreescribir un nombre ya presente (respeta ediciones posteriores del operador)
+    # Do not overwrite an existing name (respect later operator edits).
     if cur.get("operator_name") and "operator_name" in fields:
         fields.pop("operator_name")
-    # no re-escribir si el idioma ya coincide y no queda nada más que aportar
+    # Do not rewrite when the language already matches and there is nothing else to add.
     if fields.get("language") == cur.get("language"):
         fields.pop("language", None)
     if not fields:
@@ -76,7 +76,7 @@ def _seed_state(user_text: str) -> dict:
 
 
 def seed(hermes_dir=None) -> dict:
-    """Ejecuta la siembra. Devuelve {seeded, skipped, state_updated, source_present}."""
+    """Run seeding. Return {seeded, skipped, state_updated, source_present}."""
     d = _hermes_dir(hermes_dir)
     user_text = _read(d / "USER.md")
     mem_text = _read(d / "MEMORY.md")
@@ -104,6 +104,6 @@ def seed(hermes_dir=None) -> dict:
             "source_present": True}
 
 
-if __name__ == "__main__":  # ejecución a mano: `python -m memory.seed_from_hermes`
+if __name__ == "__main__":  # Manual execution: `python -m memory.seed_from_hermes`
     import json
     print(json.dumps(seed(), ensure_ascii=False, indent=2))

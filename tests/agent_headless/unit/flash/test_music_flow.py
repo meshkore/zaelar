@@ -1,4 +1,4 @@
-"""Tests de nucleo/flash/music_flow.py (V2-042) — la cadena resolver→validar→actuar del rail de música."""
+"""Tests for nucleo/flash/music_flow.py (V2-042) — the music rail's resolve→validate→act chain."""
 import asyncio
 
 import pytest
@@ -10,13 +10,13 @@ from nucleo.flash import music_flow
 
 @pytest.fixture(autouse=True)
 def _iso(monkeypatch):
-    """Aísla rails (proyección capturada) + memoria (ingest capturado) + el IDIOMA.
+    """Isolate rails (captured projection) + memory (captured ingest) + LANGUAGE.
 
-    El idioma se fija a propósito: este fichero comprueba FRASES que se le dicen al operador («pide el artista»),
-    y desde el arranque idiomático (2026-08-09) el producto arranca en INGLÉS y solo pasa al idioma del operador
-    cuando lo detecta. Sin fijarlo, el test heredaba el idioma AMBIENTE de la máquina: pasaba en la del operador
-    —que tiene castellano en su config— y fallaba en cualquier otra y en CI, sin que el producto tuviera nada
-    malo. Un test de una frase tiene que decir en qué idioma la espera."""
+    The language is set deliberately: this file checks PHRASES spoken to the operator («ask for the artist»),
+    and since the language-startup change (2026-08-09), the product starts in ENGLISH and only switches to the
+    operator's language when it detects it. Without fixing it, the test inherited the machine's ENVIRONMENT
+    language: it passed on the operator's machine —which has Spanish in its config— and failed anywhere else
+    and in CI, even though nothing was wrong with the product. A phrase test must specify which language it expects."""
     monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
     ingested = []
     from memory import api as mapi
@@ -50,7 +50,7 @@ def test_direct_hit_plays_updates_rails_and_memory(_iso, monkeypatch):
                         lambda action, q="", uri="", pct=0, prefer="": _ok(track=_track()))
     res = _run(music_flow.run("play", "frank sinatra"))
     assert res.ok
-    assert rails.get("music.search") is None                       # sin cadena → sin run de búsqueda
+    assert rails.get("music.search") is None                       # no chain → no search run
     playing = rails.get("music.playing")
     assert playing and "Come Fly With Me" in playing["label"] and playing["status"] == "playing"
     assert _iso and _iso[0]["source"] == "music" and _iso[0]["entity"] == "Frank Sinatra"
@@ -64,7 +64,7 @@ def test_chain_resolves_fuzzy_via_websearch_and_extract(_iso, monkeypatch):
         calls.append(q)
         if q == "esa que dice vuela conmigo":
             return _no_track(q)
-        return _ok(track=_track())                                  # el canónico sí acierta
+        return _ok(track=_track())                                  # the canonical query succeeds
 
     monkeypatch.setattr("connectors.music.control", _control)
     monkeypatch.setattr("nucleo.websearch.search", lambda q, k=5: {"results": [{"title": "Come Fly With Me - Wikipedia",
@@ -78,9 +78,9 @@ def test_chain_resolves_fuzzy_via_websearch_and_extract(_iso, monkeypatch):
     res = _run(music_flow.run("play", "esa que dice vuela conmigo", extract=_extract))
     assert res.ok and res.extra.get("resolved_from") == "esa que dice vuela conmigo"
     assert calls == ["esa que dice vuela conmigo", "Frank Sinatra - Come Fly With Me"]
-    assert rails.get("music.search") is None                        # resuelta → desaparece
+    assert rails.get("music.search") is None                        # resolved → disappears
     assert rails.get("music.playing")["status"] == "playing"
-    assert _iso and "la pidió como" in _iso[0]["text"]              # writeback guarda la pista original
+    assert _iso and "la pidió como" in _iso[0]["text"]              # writeback stores the original track
 
 
 def test_chain_fail_keeps_isolated_run_and_asks_more(_iso, monkeypatch):
@@ -96,8 +96,8 @@ def test_chain_fail_keeps_isolated_run_and_asks_more(_iso, monkeypatch):
     assert res.ok is False
     a = rails.get("music.search")
     assert a and a["status"] == "sin_resolver" and a["attempts"] == 1
-    assert "artista" in res.message                                 # pide un dato más
-    assert not _iso                                                 # nada sonó → nada a memoria
+    assert "artista" in res.message                                 # asks for one more piece of information
+    assert not _iso                                                 # nothing played → nothing to memory
 
 
 def test_extract_no_means_unresolved(monkeypatch):

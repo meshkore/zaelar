@@ -10,88 +10,87 @@
 # any module reads it at import time. Same knob shape as bus/log.py's ZAELAR_DB / nucleo/workspace.py's
 # ZAELAR_WORKSPACE; unset in production → byte-identical to before.
 #
-# ZAELAR_RESEARCH=0 — el DIRECTOR DE INVESTIGACIÓN (nucleo/research.py) compone el brief de una selección con una
-# llamada REAL a un proveedor, en el pre-vuelo de cada escalada. En producción es lo que se quiere; en un test es
-# una llamada de red no declarada que cuelga el caso hasta el timeout (visto con
-# `test_listener_consumes_escalate_requested`: «busca un piso» es una investigación, así que el despacho se ponía
-# a llamar al modelo). Apagado para toda la sesión de test; quien PRUEBE el compositor lo enciende a mano
-# (monkeypatch) — la misma forma de knob que ZAELAR_LOG_DIR de arriba, y sin efecto en producción.
+# ZAELAR_RESEARCH=0 — the RESEARCH DIRECTOR (nucleo/research.py) composes a selection brief with a REAL
+# provider call during escalation preflight. That is wanted in production; in a test it is
+# an undeclared network call that hangs the case until timeout (seen with
+# `test_listener_consumes_escalate_requested`: «busca un piso» is research, so dispatch started calling the model).
+# Disabled for the whole test session; anyone TESTING the composer enables it manually
+# (monkeypatch) — the same knob pattern as ZAELAR_LOG_DIR above, with no production effect.
 #
-# ZAELAR_LANGUAGE=en — EL IDIOMA NO LO PONE LA MÁQUINA DEL QUE CORRE LOS TESTS (2026-08-10). Aparecieron dos tests
-# verdes por el ENTORNO y no por el código (`test_music_flow`, `test_prompt`): comprobaban frases que se le dicen al
-# operador sin fijar el idioma, así que pasaban en una máquina configurada en castellano y habrían fallado en
-# cualquier otra y en CI. Es la peor clase de test — no es que falle, es que MIENTE sobre estar cubriendo algo.
-# Aquí se fija el idioma con el que ARRANCA el producto (`langs.DEFAULT_LANG`, inglés), que es el estado que vive
-# cualquier instalación nueva; un test que pruebe otro idioma lo declara él (monkeypatch), y entonces lo que prueba
-# es explícito. Con esto, `config/settings.json` del operador deja de poder cambiar el resultado de la suite.
+# ZAELAR_LANGUAGE=en — THE TEST RUNNER'S MACHINE MUST NOT CHOOSE THE LANGUAGE (2026-08-10). Two tests were green
+# because of the ENVIRONMENT rather than the code (`test_music_flow`, `test_prompt`): they checked phrases spoken to
+# the operator without fixing the language, so they passed on a Spanish-configured machine and would fail elsewhere
+# and in CI. That is the worst kind of test — it does not fail; it LIES about what it covers.
+# The product's STARTUP language (`langs.DEFAULT_LANG`, English) is fixed here, matching every new installation;
+# a test for another language declares it itself (monkeypatch), making its coverage explicit. Thus the operator's
+# `config/settings.json` can no longer change the suite result.
 import os
 import tempfile
 
 os.environ.setdefault("ZAELAR_LOG_DIR", tempfile.mkdtemp(prefix="zaelar-test-logs-"))
 os.environ.setdefault("ZAELAR_RESEARCH", "0")
-# FORZADO, no `setdefault`: con un default, un `ZAELAR_LANGUAGE=es` en el shell del que corre la suite volvería a
-# cambiar qué significa «verde», que es justo el problema. El idioma de un test lo declara EL TEST (monkeypatch), y
-# probar los dos idiomas se hace comprobando los dos DENTRO del caso —como en el guarda de las capas de memoria—,
-# no corriendo la suite dos veces con el entorno cambiado.
+# FORCED, not `setdefault`: with a default, `ZAELAR_LANGUAGE=es` in the suite runner's shell would again
+# change what «green» means, which is exactly the problem. A test's language is declared by THE TEST (monkeypatch),
+# and both languages are tested INSIDE the case —as with the memory-layer guard—, rather than running the suite twice
+# with a changed environment.
 os.environ["ZAELAR_LANGUAGE"] = "en"
 
-# …Y LA CONFIG DEL OPERADOR NO DECIDE EL RESULTADO DE LA SUITE (2026-08-10).
+# …AND THE OPERATOR'S CONFIG MUST NOT DECIDE THE SUITE RESULT (2026-08-10).
 #
-# Fijar `ZAELAR_LANGUAGE` arriba NO basta, y descubrirlo es el hallazgo: `config/settings.load_into_env()` copia
-# `config/settings.json` ENCIMA del entorno (`os.environ[env] = ...`, sin condición) porque en producción el store
-# MANDA sobre el env — que es la regla correcta ahí. En un test significa que, en cuanto algo del grafo de imports
-# llama a esa función, el idioma del operador (aquí `es`) pisa el de la suite… y con él el proveedor de STT/TTS, el
-# modo de atención y el perfil del motor. O sea que un test puede estar verde por la máquina en la que corre.
-# Apareció por el idioma (dos tests comprobaban frases en castellano sin fijarlo: verdes aquí, rojos en CI), pero
-# la clase es más ancha que el idioma.
+# Fixing `ZAELAR_LANGUAGE` above is NOT enough, and discovering that is the finding: `config/settings.load_into_env()` copies
+# `config/settings.json` OVER the environment (`os.environ[env] = ...`, unconditionally) because in production the
+# store OVERRIDES the env — the correct rule there. In a test, once anything in the import graph calls that function,
+# the operator's language (here `es`) overwrites the suite's… along with the STT/TTS provider, attention mode, and
+# engine profile. A test can therefore be green because of the machine where it runs.
+# It surfaced through language (two tests checked Spanish phrases without fixing it: green here, red in CI), but
+# the class of issue is broader than language.
 #
-# Se apunta el fichero de ajustes a un temporal VACÍO para toda la sesión de test, al nivel del módulo y no en un
-# fixture, porque los módulos de test se importan ANTES de que corra cualquier fixture. Misma lección de aislamiento
-# que ZAELAR_LOG_DIR arriba, ZAELAR_DB en bus/log.py y `store.DATA_DIR` en los tests de widgets: **un test nunca
-# lee ni escribe el estado real del operador**. Quien pruebe `load_into_env` de verdad se apunta el fichero él.
+# The settings file is pointed to an EMPTY temporary file for the whole test session, at module level rather than in a
+# fixture, because test modules are imported BEFORE any fixture runs. Same isolation lesson
+# like ZAELAR_LOG_DIR above, ZAELAR_DB in bus/log.py, and `store.DATA_DIR` in widget tests: **a test never
+# never reads or writes the operator's real state**. Anyone genuinely testing `load_into_env` points it at their own file.
 try:
     from pathlib import Path as _Path
 
     from config import settings as _settings
 
     _settings.SETTINGS_FILE = _Path(tempfile.mkdtemp(prefix="zaelar-test-settings-")) / "settings.json"
-except Exception:                                  # sin `config` importable, la suite sigue como antes
+except Exception:                                  # if `config` is not importable, the suite continues as before
     pass
 
-# V2-194 — el MISMO invariante que el de arriba («un test nunca lee ni escribe el estado real del operador»),
-# aplicado al último sitio donde faltaba: los DATOS de los widgets. El comentario de arriba ya citaba
-# `store.DATA_DIR` como la misma lección, pero solo estaba aplicado dentro de los tests de widgets, no a nivel
-# de sesión — así que cualquier otro test que despachara una data-op escribía en la agenda REAL.
+# V2-194 — the SAME invariant as above («a test never reads or writes the operator's real state»),
+# applied to the last place still missing: widget DATA. The comment above already cited
+# `store.DATA_DIR` as the same lesson, but it was applied only inside widget tests, not at session level
+# — so any other test dispatching a data-op wrote to the REAL agenda.
 #
-# Medido el 2026-08-20: **328 citas** «renovar el seguro del coche» acumuladas en la agenda del operador, y
-# **2 más por cada corrida completa** de la suite. Ninguna falló nada: la basura se queda ahí y solo se nota
-# cuando alguien mira su agenda — o cuando un arreglo nuevo empieza a LEERLA (el dedup de citas de V2-194) y
-# de pronto nueve tests dependen del orden en que corrieron los anteriores.
+# Measured on 2026-08-20: **328 appointments** «renovar el seguro del coche» accumulated in the operator's agenda, and
+# **2 more per complete suite run**. Nothing failed: the garbage remained there and was noticed only
+# when someone looks at the agenda — or when a new fix starts READING IT (V2-194 appointment deduplication) and
+# suddenly nine tests depend on the order in which earlier tests ran.
 try:
     from widgets import store as _wstore
 
     _wstore.DATA_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-widgets-"))
-except Exception:                                  # sin `widgets` importable, la suite sigue como antes
+except Exception:                                  # if `widgets` is not importable, the suite continues as before
     pass
 
 
-# V2-279 — UN TRACE ABIERTO SE LLEVA POR DELANTE LOS TESTS DE DESPUÉS (2026-08-24).
+# V2-279 — AN OPEN TRACE LEAKS INTO SUBSEQUENT TESTS (2026-08-24).
 #
-# `voice/trace.begin()` fija un ContextVar y NO tiene teardown: pytest corre toda la suite en un solo contexto,
-# así que un test que abre un trace y no lo cierra se lo deja puesto a todos los siguientes. Medido: correr
-# `tests/infrastructure/unit` antes que `tests/agent_headless/unit` pone rojo
-# `test_escalate_registers_and_emits_bus`, que compara el `context` de la escalada con `{"src": "voice"}` y
-# recibe `{"src": "voice", "trace": "T1·7d5a"}` — el trace de OTRO test, sellado por `escalate_to_slowbrain`
-# haciendo exactamente lo que debe. Corriendo la suite sola, verde.
+# `voice/trace.begin()` sets a ContextVar and has NO teardown: pytest runs the whole suite in one context,
+# so a test that opens a trace and does not close it leaves it set for all subsequent tests. Measured: running
+# `tests/infrastructure/unit` before `tests/agent_headless/unit` makes
+# `test_escalate_registers_and_emits_bus` fail; it compares the escalation `context` with `{"src": "voice"}` and
+# receives `{"src": "voice", "trace": "T1·7d5a"}` — ANOTHER test's trace, sealed by `escalate_to_slowbrain`
+# doing exactly what it should. Running the suite alone is green.
 #
-# La clase es peor que ese caso: el trace lo lee `observer.emit` en CADA evento, así que un test cualquiera
-# puede quedar atribuido a la traza de otro. Y es order-dependent, o sea que aparece y desaparece según qué
-# nodos del testmap se corran juntos — la forma más cara de fallo, porque no se reproduce cuando lo buscas.
+# The class of issue is worse than that case: `observer.emit` reads the trace on EVERY event, so any test
+# can be attributed to another test's trace. It is also order-dependent, appearing or disappearing depending on
+# which testmap nodes run together — the most expensive failure because it cannot be reproduced when investigated.
 #
-# Se resetea el ContextVar en el teardown de CADA test. Deliberadamente SIN `monkeypatch`: un fixture del
-# conftest RAÍZ que lo pida reordena el teardown de toda la suite (ya costó un ERROR en un test que nadie
-# había tocado). Quien PRUEBE el trace lo abre él dentro de su caso, que es lo que ya hacen los dos ficheros
-# que lo usan.
+# The ContextVar is reset in the teardown of EACH test. Deliberately WITHOUT `monkeypatch`: a fixture in the
+# ROOT conftest that requests it would reorder teardown for the entire suite (already causing an ERROR in an untouched
+# test). Anyone TESTING the trace opens it inside their own case, as the two files using it already do.
 try:
     import pytest as _pytest
 

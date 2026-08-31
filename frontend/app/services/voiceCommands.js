@@ -10,7 +10,7 @@
 import { identifyWidget } from "./api.js?v=2";
 
 // Match by VERB STEM on accent-stripped text, so every conjugation triggers the instant local fast-path
-// ("enséñame / muéstrame / ábreme / ciérrala / límpiala" all hit). This is what makes "show the agenda" appear
+// ("show me / show / open / close it / clear it" all hit). This is what makes "show the agenda" appear
 // in ~50ms instead of waiting 2-6s for the brain's reply to carry [[show]].
 const norm = s => (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 const OPEN_RE  = /\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|dejame ver/;   // stems (no trailing \b)
@@ -19,7 +19,7 @@ const CLOSE_RE = /\b(quit|cierr|cerr|elimin|borra|escond|ocult|limpi|despej|vaci
 // "cards") — "close widgets" / "cierra los widgets" means the whole set. Kept PLURAL on purpose so a singular,
 // named "close the meteo widget" still targets just that one (falls through to identify()).
 const ALL_RE   = /\b(todo|todos|todas|all|everything|widgets|tarjetas|cards|la pantalla|el escritorio|el canvas|el mural|todo esto)/;
-// MOVE: verb-ish move intent + a DIRECTION. "muévelo a la izquierda", "ponlo a la derecha", "lo quiero arriba".
+// MOVE: verb-ish move intent + a DIRECTION. "move it left", "put it right", "I want it up".
 // The direction gate keeps "pon el reloj" (no direction → SHOW) from being mistaken for a move.
 const MOVE_RE  = /\b(muev|mueve|mover|desplaz|coloc|reubic|reajust|arrastr|move)|ponl|\bpon\b|\bquiero\b/;
 const DIR_RE   = /\b(izquierd|derech|centr|medio|arrib|abaj|encim|debaj|left|right|center|middle|top|bottom)/;
@@ -42,7 +42,7 @@ export async function handleWidgetVoice(desktop, text, isFinal) {
     if (!isFinal) return;
     const where = (n.match(DIR_RE) || [""])[0];
     let target = await identifyWidget(text);
-    if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "muévelo" → last opened
+    if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "move it" → last opened
     if (target && desktop.move && _act("move:" + target + ":" + where)) desktop.move(target, where);
     return;
   }
@@ -50,7 +50,7 @@ export async function handleWidgetVoice(desktop, text, isFinal) {
     if (!isFinal) return;
     if (ALL_RE.test(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
     let target = await identifyWidget(text);
-    if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "quítalo" → last opened
+    if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "remove it" → last opened
     if (target && _act("close:" + target)) desktop.close(target);
     return;
   }

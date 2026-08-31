@@ -1,10 +1,10 @@
-"""V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación.
+"""V2-391 — “ONE data-op per turn” turned two pasted links into a hallucination.
 
-El tope era deliberado y su motivo está medido: el modelo pequeño DUPLICA un `add_meeting` (cita doble) o
-ENUMERA acciones ante «muéstrame la agenda» (done/drop/snooze). Las dos siguen bloqueadas.
+The cap was deliberate and its reason is measured: the small model DUPLICATES an `add_meeting` (double
+appointment) or ENUMERATES actions for “show me the agenda” (done/drop/snooze). Both remain blocked.
 
-Lo que no contemplaba es que a veces VARIAS son la petición. Medido en `build-a-video-playlist-from-links`
-(2026-08-27 13:36), y la cadena entera empieza ahí:
+What it did not account for is that sometimes MULTIPLE are the request. Measured in
+`build-a-video-playlist-from-links` (2026-08-27 13:36), and the entire chain starts there:
 
     tester  Te paso un par de vídeos: …dQw4w9WgXcQ y …9bZkp7q19f0 — móntame una lista con ellos.
     zaelar  Voy a cargar esos dos vídeos en tu lista de YouTube.
@@ -14,16 +14,17 @@ Lo que no contemplaba es que a veces VARIAS son la petición. Medido en `build-a
     tester  ¿Y qué está sonando ahora?
     zaelar  Ahora está sonando «PSY - GANGNAM STYLE (강남스타일) M/V».
 
-`add` admite un vídeo, así que dos enlaces son dos llamadas, y solo entró la primera (`widget_ops: add: 1`).
-El `next` se encontró un solo vídeo, el widget devolvió «No hay más vídeos» y el turno anunció el segundo
-igualmente — el título lo sabía por la URL, no por la lista. 1/5 en resultado por una alucinación que empieza
-siendo un tope nuestro.
+`add` accepts one video, so two links are two calls, and only the first got through (`widget_ops: add: 1`).
+`next` found only one video, the widget returned “No hay más vídeos,” and the turn announced the second
+one anyway — it knew the title from the URL, not from the list. 1/5 in outcome because of a hallucination
+that begins as one of our caps.
 
-El criterio nuevo es MÁS ESTRECHO que el viejo donde importa: solo se amplía a misma acción con payloads
-distintos, y aquí abajo solo llegan las FAST (una acción irreversible es CONFIRM y sigue pidiendo el sí).
+The new criterion is NARROWER than the old one where it matters: it only expands to the same action with
+different payloads, and only FAST actions reach the code below (an irreversible action is CONFIRM and still
+asks for approval).
 
-La regla vive en `nucleo/flash/data_ops.py` y no en `router_guards` por el trinquete de fichero-dios: lo que
-importa es que la decisión sea UNA, no en qué fichero está.
+The rule lives in `nucleo/flash/data_ops.py`, rather than in `router_guards`, because of the god-file ratchet:
+what matters is that there is ONE decision, not which file it is in.
 """
 from __future__ import annotations
 
@@ -38,35 +39,35 @@ def _op(wid, act, **payload):
     return {"widget_id": wid, "action": act, "payload": payload}
 
 
-# ── el criterio ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── the criterion ────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_dos_enlaces_DISTINTOS_entran_los_dos():
-    """El caso que se rompía: misma acción, payloads distintos."""
+    """The case that was broken: same action, different payloads."""
     a, b = _op("youtube", "add", url="dQw4w9WgXcQ"), _op("youtube", "add", url="9bZkp7q19f0")
     assert RG.admite_data_op(a, []) is True
     assert RG.admite_data_op(b, [a]) is True
 
 
 def test_un_duplicado_EXACTO_se_colapsa():
-    """La cita doble, que es por lo que existía el tope."""
+    """The double appointment, which is why the cap existed."""
     a = _op("agenda", "add_meeting", title="dentista", date="2026-09-03")
     assert RG.admite_data_op(dict(a), [a]) is False
 
 
 def test_otra_ACCION_sobre_el_mismo_widget_no_entra():
-    """La enumeración: «muéstrame la agenda» → done/drop/snooze. Solo la primera."""
+    """The enumeration: “show me the agenda” → done/drop/snooze. Only the first one."""
     a = _op("agenda", "done", item=1)
     assert RG.admite_data_op(_op("agenda", "drop", item=1), [a]) is False
 
 
 def test_otro_WIDGET_sigue_siendo_otra_cosa():
-    """La restricción es por widget: tocar dos widgets distintos no es enumerar sobre uno."""
+    """The restriction is per widget: touching two different widgets is not enumerating over one."""
     a = _op("youtube", "add", url="x")
     assert RG.admite_data_op(_op("musica", "play", query="algo"), [a]) is True
 
 
 def test_hay_TECHO():
-    """Cinco enlaces de una vez es una petición; cincuenta es un modelo roto."""
+    """Five links at once is a request; fifty is a broken model."""
     ya = [_op("youtube", "add", url=f"v{i}") for i in range(RG.MAX_DATA_OPS)]
     assert RG.admite_data_op(_op("youtube", "add", url="uno-mas"), ya) is False
 
@@ -76,12 +77,13 @@ def test_una_op_SIN_widget_o_SIN_accion_no_entra():
     assert RG.admite_data_op({"widget_id": "youtube"}, []) is False
 
 
-# ── el canal de TEXTO lo ejecuta ────────────────────────────────────────────────────────────────────────────
+# ── the TEXT channel executes it ─────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def rail(monkeypatch):
-    """El testigo apunta a `brain_action` desde V2-394: `dispatch_tag` se traga el resultado, así que dejó de
-    usarse para poder saber si la op ocurrió. Lo que este fichero mide —cuántas entran y cuáles— no cambia."""
+    """The witness points to `brain_action` since V2-394: `dispatch_tag` swallows the result, so it stopped
+    being used to determine whether the op occurred. What this file measures —how many get through and which
+    ones— does not change."""
     despachadas = []
 
     async def _brain_action(wid, act, payload):
@@ -109,7 +111,7 @@ def test_el_canal_de_texto_despacha_los_DOS_enlaces(rail):
 
 
 def test_lo_DESCARTADO_se_dice(rail):
-    """Un parte que solo cuenta lo que salió bien es cómo sobrevive un «Hecho.» que no lo es."""
+    """A report that only counts what went well is how a “Done.” that is not done survives."""
     from nucleo.flash import widget_data_turn as WDT
     dup = _op("agenda", "add_meeting", title="dentista")
     parte = asyncio.run(WDT.execute(_llamadas(dup, dict(dup))))
@@ -118,7 +120,7 @@ def test_lo_DESCARTADO_se_dice(rail):
 
 
 def test_una_accion_que_pide_PERMISO_sigue_sin_ejecutarse(monkeypatch, rail):
-    """La frontera que NO se mueve: lo irreversible es CONFIRM y sigue necesitando el sí del operador."""
+    """The boundary that does NOT move: irreversible actions are CONFIRM and still require the operator’s yes."""
     from widgets import actions as _wa
 
     from nucleo.flash import widget_data_turn as WDT
@@ -129,17 +131,17 @@ def test_una_accion_que_pide_PERMISO_sigue_sin_ejecutarse(monkeypatch, rail):
 
 
 def test_el_parte_conserva_la_forma_singular_de_antes(rail):
-    """`widget`/`act` los leen el informe y los guardas anteriores: cambiarlos por una lista rompería la
-    lectura sin avisar."""
+    """The report and previous guards read `widget`/`act`: changing them to a list would break the
+    reading without warning."""
     from nucleo.flash import widget_data_turn as WDT
     parte = asyncio.run(WDT.execute(_llamadas(_op("youtube", "add", url="x"))))
     assert parte["widget"] == "youtube" and parte["act"] == "add"
 
 
-# ── y la VOZ usa el MISMO criterio ──────────────────────────────────────────────────────────────────────────
+# ── and VOICE uses the SAME criterion ────────────────────────────────────────────────────────────────────────
 
 def test_la_voz_decide_con_el_MISMO_guarda():
-    """Si cada canal se trae el suyo, divergen — que es cómo esta clase de fallo sobrevive (V2-176)."""
+    """If each channel brings its own, they diverge — which is how this kind of failure survives (V2-176)."""
     from pathlib import Path
     src = Path("voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     assert "_data_ops.admite_data_op(args, _data_ops_hechas)" in src

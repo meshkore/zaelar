@@ -1,4 +1,4 @@
-"""Tests de nucleo/flash/procs.py (V2-004 · T63) — puente fino al supervisor de widgets backed."""
+"""Tests for nucleo/flash/procs.py (V2-004 · T63) — thin bridge to the backed widget supervisor."""
 from nucleo.flash import procs
 
 
@@ -29,4 +29,4 @@ def test_is_backed_failsafe(monkeypatch):
     def boom(wid):
         raise RuntimeError("x")
     monkeypatch.setattr(sup, "is_backed", boom)
-    assert procs.is_backed("navegador") is False    # nunca lanza
+    assert procs.is_backed("navegador") is False    # never raises

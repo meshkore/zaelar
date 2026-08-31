@@ -1,9 +1,9 @@
-// ConfigPanel — ⚙ área de CONFIGURACIÓN a pantalla completa (V2-043).
+// ConfigPanel — ⚙ área of CONFIGURACIÓN a pantalla completa (V2-043).
 // Elige QUÉ API/modelo usa CADA pieza (FlashBrain, CodeAgent, memoria, voz, búsqueda web, música, conectores)
-// y muestra el RESUMEN de APIs con SALDO. Todo desde la UI (invariante de producto). Patrón: menú lateral
-// (una sección visible a la vez, estilo Chrome/macOS Ajustes) + panel de formulario a la derecha con filas
-// agrupadas y su botón de guardar, leído por id (como SettingsModal), guardado por sección contra /api/config/*.
-// Las API keys por pieza se guardan en la ENV del proveedor (coherente con la resolución por endpoint del FlashBrain).
+// and shows the RESUMEN of APIs with SALDO. Todo from the UI (invariante of producto). Patrón: menú lateral
+// (una sección visible a the vez, estilo Chrome/macOS Ajustes) + panel of formulario a the derecha with filas
+// agrupadas and su button of guardar, leído by id (como SettingsModal), guardado by sección contra /api/config/*.
+// The API keys by pieza se guardan en the ENV of the proveedor (coherente with the resolución by endpoint of the FlashBrain).
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
@@ -16,11 +16,11 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&am
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
 const badge = st => `<span class="cf-badge cf-${esc(st || "off")}">${({ ok: t("config.badge.ok"), warn: t("config.badge.warn"), error: t("config.badge.error"), off: t("config.badge.off"), unknown: "—" }[st] || st || "—")}</span>`;
 
-// una fila de ajuste: etiqueta a la izquierda, control (+ pista opcional) a la derecha — patrón Ajustes/Chrome.
+// a row of ajuste: etiqueta a the izquierda, control (+ pista opcional) a the derecha — patrón Ajustes/Chrome.
 const row = (label, ctl, hint) =>
   `<div class="cf-row2"><label class="cf-row2-label">${esc(label)}</label><div class="cf-row2-ctl">${ctl}${hint ? `<span class="cf-hint">${hint}</span>` : ""}</div></div>`;
 
-// una sección = título + subtítulo + un grupo de filas (tarjeta con separadores, como un grupo de Ajustes).
+// a sección = título + subtítulo + un grupo of filas (tarjeta with separadores, as un grupo of Ajustes).
 const panel = (id, title, sub, inner) =>
   `<section class="cf-panel-sec" id="cf_${id}"><header class="cf-panel-head"><h4>${esc(title)}</h4>${sub ? `<p>${esc(sub)}</p>` : ""}</header><div class="cf-group">${inner}</div></section>`;
 
@@ -42,8 +42,8 @@ const CLOUD_LOCKED_NAV_SECTIONS = new Set(["fast", "code", "memory"]);
 // voice_api's STT/TTS provider knobs specifically (the rest of `voice` — language, VAD, etc. — stays editable).
 const CLOUD_LOCKED_VOICE_KEYS = new Set(["stt_provider", "tts_provider"]);
 
-// V2-083: tres pestañas principales. "settings" = todo lo de antes (menú lateral + secciones); "conectores" y
-// "widgets" son nuevas. Patrón de pastilla segmentada (como las pestañas del ChatWall).
+// V2-083: tres pestañas principales. "settings" = todo lo of antes (menú lateral + secciones); "conectores" y
+// "widgets" son nuevas. Patrón of pastilla segmentada (como the pestañas of the ChatWall).
 const TABS = [
   { id: "settings" },
   { id: "conectores" },
@@ -87,7 +87,7 @@ export function ConfigPanel() {
   }
 
   const providerKeyRow = (prov) => {
-    // fila de API key para el proveedor seleccionado (si es cloud y tiene key_env). Redactada: solo presencia.
+    // row of API key for the proveedor seleccionado (si es cloud and tiene key_env). Redactada: only presencia.
     if (!prov || !prov.cloud || !prov.key_env) return "";
     const setNow = (cfg.credentials || []).some(c => (c.env || []).includes(prov.key_env) && c.set);
     return row(t("config.apikey.label", { env: prov.key_env }),
@@ -95,10 +95,10 @@ export function ConfigPanel() {
       setNow ? t("config.key.configured") : t("config.key.not_configured"));
   };
 
-  // Desplegable CERRADO de modelos: solo lo que ese proveedor sirve. `blank` = una primera opción vacía con su
-  // texto (heredar / por defecto del proveedor). Un modelo que el proveedor no sirve ya no es tecleable — el
-  // backend además lo rechaza al guardar (config_api._model_mismatch), porque el síntoma de un modelo imposible
-  // aparecía minutos después dentro de una tarea muerta, no al guardar.
+  // Desplegable CLOSED of modelos: only lo that ese proveedor sirve. `blank` = a first opción vacía with su
+  // texto (heredar / by defecto of the proveedor). Un modelo that the proveedor no sirve ya no es tecleable — el
+  // backend además lo rechaza al guardar (config_api._model_mismatch), porque the síntoma of un modelo imposible
+  // aparecía minutos después inside of a tarea muerta, no al guardar.
   const modelSelect = (id, models, sel, blank) =>
     `<select id="${id}">${blank != null ? `<option value=""${sel ? "" : " selected"}>${esc(blank)}</option>` : ""}${opt(models || [], sel)}</select>`;
 
@@ -106,8 +106,8 @@ export function ConfigPanel() {
     const f = (cfg.v2 && cfg.v2.fast) || {};
     const provs = c.providers || [];
     const cur = provs.find(p => p.id === f.provider) || provs[0] || {};
-    // Ni URL base ni modelo a mano (norma del operador 2026-08-12): el proveedor determina el endpoint y la lista
-    // de modelos son los que el benchmark avala. Lo único que se teclea aquí es la API key.
+    // Ni URL base ni modelo a mano (norma of the operador 2026-08-12): the proveedor determina the endpoint and the lista
+    // of modelos son the that the benchmark avala. Lo único that se teclea here es the API key.
     return panel("fast", t("config.fast.title"), (c.note || "") + t("config.fast.sub_suffix"),
       row(t("config.row.provider"), `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
       row(t("config.row.model"), `<span id="cf_fast_modelbox">${modelSelect("cf_fast_model", cur.models, f.model)}</span>`) +
@@ -116,21 +116,21 @@ export function ConfigPanel() {
       `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">${t("config.fast.benchmarks")}</button></div>`);
   }
 
-  // ¿Está el CLI de ese proveedor instalado en ESTA máquina? Lo dice el backend (`detected`/`version`). Antes la UI
-  // ofrecía los dos por igual y elegir el que no estaba se descubría dentro de una tarea muerta.
+  // Está the CLI of ese proveedor instalado en ESTA máquina? Lo dice the backend (`detected`/`version`). Antes the UI
+  // ofrecía the dos by igual and elegir the that no estaba se descubría inside of a tarea muerta.
   const cliState = (p) => {
     if (p.detected === undefined) return "";
     if (!p.detected) return `<span class="cf-hint cf-warn">⚠ ${esc(t("config.code.cli_missing"))}</span>`;
     let s = `<span class="cf-hint">✓ ${esc(t("config.code.cli_found", { version: p.version || "?" }))}</span>`;
-    // Su propio config del CLI pide un modelo que la API no sirve: se DICE, no se descarta callando.
+    // Su propio config of the CLI pide un modelo that the API no sirve: se DICE, no se descarta callando.
     if (p.stale_default) s += `<span class="cf-hint cf-warn">⚠ ${esc(t("config.code.stale_default", { model: p.stale_default }))}</span>`;
     return s;
   };
 
   const codeModelRows = (p, a) => {
     const ms = p.models || [];
-    // El default del propio CLI (leído de su config) manda como pista: si el operador ya decidió cuál usa su
-    // Codex, la UI arranca de ahí en vez de proponer otro.
+    // The default of the propio CLI (leído of su config) manda as pista: si the operador ya decidió cuál usa su
+    // Codex, the UI arranca of ahí en vez of proponer otro.
     const dflt = p.default_model && ms.includes(p.default_model) ? p.default_model : "";
     const g = t("config.ph.provider_default") + (dflt ? ` (${dflt})` : "");
     return row(t("config.code.model_global"), modelSelect("cf_code_model", ms, a.model, g)) +
@@ -139,9 +139,9 @@ export function ConfigPanel() {
       row(t("config.code.model_code"), modelSelect("cf_code_model_code", ms, a.model_code, t("config.ph.inherits")));
   };
 
-  // Un preset mueve CLI + endpoint + modelo A LA VEZ. Elegir las tres piezas por separado es donde salían los
-  // desajustes (glm-5.2 sobre Codex, gpt-5.5 sobre Z.AI). Se marca el que NO puede funcionar y POR QUÉ — verlo
-  // antes de elegir, no dentro de una tarea muerta media hora después.
+  // Un preset mueve CLI + endpoint + modelo A LA VEZ. Elegir the tres piezas by separado es where salían los
+  // desajustes (glm-5.2 sobre Codex, gpt-5.5 sobre Z.AI). Se marca the that NO puede funcionar and POR QUÉ — verlo
+  // antes of elegir, no inside of a tarea muerta media hora después.
   const presetCard = (p, activeId) => {
     const on = p.id === activeId;
     const money = p.billing === "subscription" ? "◆" : (p.billing === "licence" ? "◇" : "$");
@@ -152,8 +152,8 @@ export function ConfigPanel() {
       <span class="cf-hint">${esc(p.cost || "")}</span>${state}</button>`;
   };
 
-  // ¿Cuál de los presets es el que está puesto ahora? Se compara la TERNA completa: dos presets pueden compartir
-  // CLI y distinguirse solo por el endpoint.
+  // Cuál of the presets es the that está puesto ahora? Se compara the TERNA completa: dos presets pueden compartir
+  // CLI and distinguirse only by the endpoint.
   const activePreset = (presets, a) => (presets.find(p =>
     p.provider === (a.provider || "") && (p.base_url || "") === (a.base_url || "") &&
     (p.model || "") === (a.model || "")) || {}).id || "";
@@ -213,8 +213,8 @@ export function ConfigPanel() {
   }
 
   function sec_search() {
-    // La búsqueda web elige proveedor AUTO por calidad según la key disponible (Perplexity→Tavily→Brave→Google
-    // gratis→DDG). No hay store propio: se gobierna con las KEYS. Se editan aquí como credenciales.
+    // The búsqueda web elige proveedor AUTO by calidad según the key disponible (Perplexity→Tavily→Brave→Google
+    // gratis→DDG). No there is store propio: se gobierna with the KEYS. Se editan here as credenciales.
     const creds = cfg.credentials || [];
     const keyRow = (prov, env, label) => {
       const setNow = creds.some(c => c.key === prov && c.set);
@@ -262,12 +262,12 @@ export function ConfigPanel() {
   function wire() {
     // V2-083: pestañas principales (settings/conectores/widgets)
     bodyEl.querySelectorAll(".cf-tab").forEach(b => b.onclick = () => { if (b.dataset.tab !== activeTab) { activeTab = b.dataset.tab; render(); } });
-    // controles de la pestaña Conectores
+    // controles of the pestaña Conectores
     bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
     const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
     bodyEl.querySelectorAll(".cf-nav-item").forEach(b => b.onclick = () => { if (b.dataset.sec !== activeSec) { activeSec = b.dataset.sec; render(); } });
 
-    // proveedor del FlashBrain → repuebla SUS modelos y su fila de key
+    // proveedor of the FlashBrain → repuebla SUS modelos and su row of key
     const fp = document.getElementById("cf_fast_provider");
     if (fp) fp.onchange = () => {
       const provs = (cfg.catalog.fast && cfg.catalog.fast.providers) || [];
@@ -277,16 +277,16 @@ export function ConfigPanel() {
       const kr = document.getElementById("cf_fast_keyrow"); if (kr) kr.innerHTML = providerKeyRow(p);
     };
 
-    // preset de Brain Workers → guarda la TERNA de golpe (proveedor + endpoint + modelo) y recarga
+    // preset of Brain Workers → guarda the TERNA of golpe (proveedor + endpoint + modelo) and recarga
     bodyEl.querySelectorAll(".cf-preset").forEach(b => b.onclick = () => {
       const presets = (cfg.catalog.code_agent && cfg.catalog.code_agent.presets) || [];
       const p = presets.find(x => x.id === b.dataset.preset);
       if (p) savePreset(p, b);
     });
 
-    // proveedor de los Brain Workers → repuebla SUS modelos (el bug que traía al operador aquí: cambiaba a Codex
-    // y los cinco campos seguían con los `glm-5.2` del proveedor anterior, que Codex no sirve), su nota de
-    // seguridad y el estado del CLI. Los modelos NO se conservan al cambiar: son de otro proveedor.
+    // proveedor of the Brain Workers → repuebla SUS modelos (el bug that traía al operador aquí: cambiaba a Codex
+    // and the cinco campos seguían with the `glm-5.2` of the proveedor anterior, that Codex no sirve), su nota de
+    // seguridad and the state of the CLI. The modelos NO se conservan al cambiar: son of otro proveedor.
     const cp = document.getElementById("cf_code_provider");
     if (cp) cp.onchange = () => {
       const provs = (cfg.catalog.code_agent && cfg.catalog.code_agent.providers) || [];
@@ -321,10 +321,10 @@ export function ConfigPanel() {
       if (section === "fast") {
         const provs = (cfg.catalog.fast && cfg.catalog.fast.providers) || [];
         const p = provs.find(x => x.id === val("cf_fast_provider")) || {};
-        // El endpoint SALE del proveedor, ya no hay campo de URL: elegir proveedor y dejar una base_url vieja
-        // apuntando a otro sitio era una forma silenciosa de romper el FlashBrain.
+        // The endpoint SALE of the proveedor, ya no there is campo of URL: elegir proveedor and dejar a base_url vieja
+        // apuntando a otro sitio era a forma silenciosa of romper the FlashBrain.
         patch = { provider: val("cf_fast_provider"), model: val("cf_fast_model"), base_url: p.base_url || "" };
-        // la key del proveedor seleccionado (si se tecleó) → credencial en su env
+        // the key of the proveedor seleccionado (si se tecleó) → credencial en su env
         if (p.key_env) await saveKey(p.key_env);
       } else if (section === "code_agent") {
         patch = { provider: val("cf_code_provider"), model: val("cf_code_model"), model_memory: val("cf_code_model_memory"),
@@ -344,8 +344,8 @@ export function ConfigPanel() {
   async function savePreset(p, btn) {
     btn.disabled = true; msg(t("config.msg.saving"));
     try {
-      // Los `model_<kind>` se LIMPIAN a propósito: son de otro proveedor y arrastrarlos es exactamente el desajuste
-      // que el preset viene a evitar.
+      // The `model_<kind>` se LIMPIAN a propósito: son of otro proveedor and arrastrarlos es exactamente the desajuste
+      // that the preset viene a evitar.
       const r = await api.saveConfigV2("code_agent", {
         provider: p.provider, base_url: p.base_url || "", model: p.model || "",
         model_memory: "", model_web: "", model_code: "",
@@ -403,7 +403,7 @@ export function ConfigPanel() {
   }
 
   // ═══ PESTAÑA CONECTORES (V2-083) ═══════════════════════════════════════════════════════════════════════
-  // Etiqueta traducida directa (sin depender del texto renderizado por badge): connected/error/off.
+  // Etiqueta traducida directa (without depender of the texto renderizado by badge): connected/error/off.
   const cxBadge = c => {
     const st = c.connected ? "ok" : (c.status === "error" ? "error" : "off");
     const label = c.connected ? t("config.cx.connected")
@@ -415,7 +415,7 @@ export function ConfigPanel() {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
     if (c.connected) {
-      // ya conectado → botón de desconectar/revocar
+      // ya conectado → button of desconectar/revocar
       const revoke = c.family === "infra" ? t("config.cx.revoke") : t("config.cx.disconnect_btn");
       box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}">${revoke}</button>`;
     } else if (id === "whatsapp") {
@@ -466,7 +466,7 @@ export function ConfigPanel() {
     try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) {}
     if (activeTab === "conectores") render();
   }
-  async function pollConnectors() {   // tras conectar mensajería, el QR/estado tardan un momento en aparecer
+  async function pollConnectors() {   // tras conectar mensajería, the QR/estado tardan un momento en aparecer
     for (let i = 0; i < 6; i++) { await sleep(1500); await reloadConnectors(); }
   }
 
@@ -499,7 +499,7 @@ export function ConfigPanel() {
     } catch (e) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
   }
 
-  // ═══ PESTAÑA WIDGETS (V2-083) — una sola lista alfabética con badge de-serie/tuyo ═══════════════════════
+  // ═══ PESTAÑA WIDGETS (V2-083) — a sola lista alfabética with badge de-serie/tuyo ═══════════════════════
   function sec_widgets() {
     const ws = (cfg.widgets || []).filter(w => w.surface === "user")
       .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "es"));
@@ -519,7 +519,7 @@ export function ConfigPanel() {
     msg(""); bodyEl.innerHTML = `<p class="cf-loading">${t("config.loading")}</p>`;
     try {
       cfg = await api.getConfig();
-      // V2-083: conectores + widgets para sus pestañas (best-effort, en paralelo).
+      // V2-083: conectores + widgets for sus pestañas (best-effort, en paralelo).
       try {
         const [cx, wr] = await Promise.all([api.getConnectors(), api.getWidgetsRegistry()]);
         cfg.connectors = (cx && cx.connectors) || [];

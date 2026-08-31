@@ -1,9 +1,9 @@
 #
-# WORKSPACE ROOT (Fase 3 M0) — one mountable root for every per-tenant persistent path.
+# WORKSPACE ROOT (Phase 3 M0) — one mountable root for every per-tenant persistent path.
 #
 # The engine is coded as a single-tenant process (one operator, one machine) and stays that way —
 # it must NEVER become multi-tenant-aware. What changes for the real cloud (1 Fly Machine + 1 Fly
-# Volume per paying user, see the Fase 3 plan) is WHERE its own data lands: today every module
+# Volume per paying user, see the Phase 3 plan) is WHERE its own data lands: today every module
 # resolves its own path relative to `Path(__file__)` (repo root), which only works because there's
 # exactly one tenant on one disk. This module gives every one of those call sites a single override
 # knob instead of each inventing its own — set `ZAELAR_WORKSPACE=/data` (a mounted Fly Volume) and

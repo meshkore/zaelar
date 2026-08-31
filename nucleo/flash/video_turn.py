@@ -1,19 +1,19 @@
-"""Poner un vídeo desde un turno: la ejecución, compartida (V2-383).
+"""Play a video from a turn: shared execution (V2-383).
 
-Hermano exacto de `music_turn` (V2-380) y por la misma razón. En este canal (`probe`, el que conducen los
-casos de uso) `play_video` resolvía a la etiqueta «canvas:show:youtube» y ahí acababa: cero data-ops, cero
-`load`, el widget abierto y PELADO. El provider de voz sí lo ejecuta —muestra el widget y despacha `load` con
-la query— y este canal es su implementación PARALELA: «cablear en AMBOS».
+Exact sibling of `music_turn` (V2-380), and for the same reason. In this channel (`probe`, the one driven by
+the use cases), `play_video` resolved to the «canvas:show:youtube» tag and ended there: zero data-ops, zero
+`load`, the widget open and BARE. The voice provider does execute it — it shows the widget and dispatches
+`load` with the query — and this channel is its PARALLEL implementation: «wire up BOTH».
 
-Medido en `watch-a-video-not-listen-to-it` (2026-08-27 12:53, **1/5**): ocho turnos pidiendo el tráiler de
-Dune, cuatro veces la misma frase —«Te lo abro, aunque de momento está vacío»— hasta que el tester escribió
-«eso me lo has dicho ya tres veces». Y la parte que más duele: el sistema SÍ encontró los tráileres. Seis
-búsquedas, títulos reales («Dune: Part Two | Official Trailer»), todos a la hoja de resultados. Ninguno al
-reproductor. La frase no era enlatada nuestra: era el modelo diciendo la verdad sobre una caja vacía.
+Measured in `watch-a-video-not-listen-to-it` (2026-08-27 12:53, **1/5**): eight turns asking for the Dune
+trailer, the same sentence four times —«I'll open it for you, although it's empty for now»— until the tester
+wrote «you've already told me that three times». And the most painful part: the system DID find the trailers.
+Six searches, real titles («Dune: Part Two | Official Trailer»), all on the results sheet. None in the player.
+The sentence was not one of our canned lines: it was the model telling the truth about an empty box.
 
-El buscador tampoco estaba roto — `_search_id('Dune tráiler oficial')` resuelve hoy a `mSY_NbSmaUI`,
-«Dune - Tráiler Oficial» de Warner Bros. España. Estaba INALCANZABLE desde este canal, que es la cuarta vez de
-esta familia en `probe.py`: tags de cron (V2-121), traspaso de login (V2-176), música (V2-380) y ahora vídeo.
+The search engine was not broken either — `_search_id('Dune tráiler oficial')` resolves today to `mSY_NbSmaUI`,
+«Dune - Tráiler Oficial» by Warner Bros. España. It was UNREACHABLE from this channel, which is the fourth time
+this family has appeared in `probe.py`: cron tags (V2-121), login handoff (V2-176), music (V2-380), and now video.
 """
 from __future__ import annotations
 
@@ -44,14 +44,14 @@ def request_from(tool_calls: list) -> dict:
 
 
 async def execute(query: str, action: str = "play") -> dict:
-    """Carga el vídeo y devuelve el parte de lo que PASÓ, para que la boca no tenga que adivinar.
+    """Loads the video and returns a report of what HAPPENED, so the mouth does not have to guess.
 
-    Mismo rail que la voz (`brain_action` → `apply_action` del widget), no una segunda forma de poner vídeos.
-    Se llama a `brain_action` y no a `dispatch_tag` a propósito: `dispatch_tag` se traga el resultado y
-    devuelve `None`, o sea que con él no hay forma de saber si cargó — y no saberlo es exactamente cómo se
-    acaba diciendo «te lo abro» sobre una pantalla vacía.
+Same rail as voice (`brain_action` → the widget's `apply_action`), not a second way to play videos.
+It calls `brain_action` rather than `dispatch_tag` deliberately: `dispatch_tag` swallows the result and
+returns `None`, so with it there is no way to know whether it loaded — and not knowing is exactly how one
+ends up saying «I'll open it for you» over an empty screen.
 
-    Fail-soft entero: el turno tiene que salir aunque el reproductor esté roto.
+Entirely fail-soft: the turn has to complete even if the player is broken.
     """
     q = str(query or "").strip()
     try:
@@ -118,12 +118,12 @@ def ensure_delivery_named(spoken: str, parte: dict) -> str:
 
 
 def spoken_for(parte: dict, ack: str) -> str:
-    """Lo que se DICE tras intentar poner el vídeo. `ack` es el enlatado del idioma, solo para el caso bueno mudo.
+    """What is SAID after attempting to play the video. `ack` is the language-specific canned response, only for the silent success case.
 
-    Se NOMBRA el vídeo que cargó, no «hecho»: es lo que deja al operador verificar de un vistazo que es el que
-    pedía (V2-057), y es la diferencia entre entregar y afirmar que se entregó. Y si no cargó se dice que no
-    cargó — quinta vez que una frase nuestra sobre una caja vacía es la que miente (V2-176, V2-209, V2-377,
-    V2-380).
+The loaded video is NAMED, not «done»: that lets the operator verify at a glance that it is the one they
+asked for (V2-057), and it is the difference between delivering and claiming delivery. And if it did not
+load, that is stated — the fifth time one of our sentences about an empty box is the one that lies
+(V2-176, V2-209, V2-377, V2-380).
     """
     parte = parte if isinstance(parte, dict) else {}
     if parte.get("executed") != "play_video":

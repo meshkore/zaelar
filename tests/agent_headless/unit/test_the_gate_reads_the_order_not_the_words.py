@@ -75,7 +75,7 @@ def test_the_reminder_clipping_it_mirrors_still_works():
 
 @pytest.mark.parametrize("text", _LOOKUPS + _ORDERS)
 def test_moves_money_is_a_SUBSET_of_is_dangerous(text):
-    """`moves_money` is documented as «Subconjunto de is_dangerous». It clips the same way for the same
+    """`moves_money` is documented as «Subset of is_dangerous». It clips the same way for the same
     reason, so it had to learn this too — a subset that fires where its superset does not is a new bug, and
     it would ask for money confirmation on an errand the gate itself let through."""
     if danger.moves_money(text):

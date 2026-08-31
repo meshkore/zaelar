@@ -1,14 +1,14 @@
-"""nucleo/research.py — el BRIEF DE INVESTIGACIÓN: cómo se DIRIGE una búsqueda, no cómo se ejecuta.
+"""nucleo/research.py — the RESEARCH BRIEF: how a search is DIRECTED, not how it is executed.
 
-EL PROBLEMA QUE RESUELVE (operador, 2026-08-09). Pedir «las mejores vacaciones en Baleares» y recibir tres
-resultados es trivial: entrar en una web, poner dos filtros y copiar los tres primeros lo hace cualquiera. Lo que
-el operador espera de un asistente es lo que haría una persona competente: mirar CUARENTA opciones, leer las
-opiniones, comprobar en las FOTOS que la piscina es de verdad grande, y solo entonces proponer tres. La diferencia
-entre esas dos cosas no está en las herramientas del worker —ya sabe navegar y extraer— sino en que NADIE le
-estaba diciendo cuán ancho buscar ni con qué baremo juzgar. El worker recibía prosa libre y se autoimponía el
-criterio, así que hacía lo mínimo que satisfacía la frase literal.
+THE PROBLEM IT SOLVES (operator, 2026-08-09). Asking for “the best holiday options in the Balearic Islands” and
+receiving three results is trivial: anyone can enter a website, set two filters, and copy the first three. What the
+operator expects from an assistant is what a competent person would do: inspect FORTY options, read the reviews,
+check in the PHOTOS that the pool is genuinely large, and only then propose three. The difference is not in the
+worker’s tools — it already knows how to browse and extract — but in the fact that NOBODY was telling it how broadly
+to search or by what standard to judge. The worker received free-form prose and imposed its own criterion, so it did
+the minimum that satisfied the literal wording.
 
-LA PIEZA. Entre «el operador pide» y «el worker arranca» se compone un BRIEF estructurado que fija:
+THE COMPONENT. Between “the operator asks” and “the worker starts”, a structured BRIEF is composed that fixes:
   · criterios DUROS (lo que descalifica) y BLANDOS (lo que puntúa) separados — un blando tratado como duro deja
     la búsqueda sin resultados; un duro tratado como blando entrega algo que no sirve;
   · lo ASUMIDO cuando el operador no lo dijo, explícito para poder contárselo en vez de fingir que lo sabíamos;
@@ -18,18 +18,18 @@ LA PIEZA. Entre «el operador pide» y «el worker arranca» se compone un BRIEF
   · BARERO DE CALIDAD: qué hay que verificar de verdad para que un finalista cuente como verificado;
   · ENTREGABLE: la forma de la respuesta en pantalla (cuántas propuestas, de qué piezas se compone cada una).
 
-POR QUÉ ES GENÉRICO Y NO UN BUSCADOR DE HOTELES. Nada aquí sabe de hoteles, ferries ni precios: el compositor
+WHY IT IS GENERIC AND NOT A HOTEL SEARCHER. Nothing here knows about hotels, ferries, or prices: the composer
 pregunta «¿qué añadiría un experto de ESTE dominio, cuán ancho hay que buscar, cómo se juzga la calidad?» y esa
 pregunta tiene la misma forma para una tesis de física cuántica (¿cuántos papers hay que leer antes de concluir?
 ¿qué hace que una fuente sea sólida?), para escribir un libro o para elegir una librería de software. El dominio
 lo nombra el propio brief; la ESTRUCTURA de dirigir una investigación es la misma.
 
-DÓNDE CORRE. En el pre-vuelo ASÍNCRONO de la escalada (`nucleo/dispatch.py`), nunca en el turno de voz: por eso
+WHERE IT RUNS. In the ASYNCHRONOUS pre-flight of the escalation (`nucleo/dispatch.py`), never during the voice turn: therefore
 puede permitirse un modelo que razone. Si el compositor no está disponible o dice que esto no es una
 investigación (cancelar una cita no necesita amplitud ni baremo), se devuelve None y el worker sale como siempre
 — fail-open, la escalada NUNCA se cae por no tener brief.
 
-RONDAS. El brief se PERSISTE con la tarea, así que «no me convence, sigue buscando» no vuelve a empezar de cero:
+ROUNDS. The brief is PERSISTED with the task, so “I’m not convinced, keep searching” does not start from zero:
 `expand()` sube la amplitud y añade ángulos nuevos sobre los MISMOS criterios ya acordados.
 """
 from __future__ import annotations
@@ -42,8 +42,8 @@ import time
 
 logger = logging.getLogger("zaelar.research")
 
-# V2-301 cambió lo que este techo protege. El compositor corría ANTES del spawn, así que su latencia la pagaba
-# el arranque de la tarea y 30 s era el máximo tolerable — y NO bastaba: medido el 2026-08-24 en el blindaje de
+# V2-301 changed what this ceiling protects. The composer ran BEFORE the spawn, so its latency delayed
+# task startup and 30 s was the tolerable maximum — and it was NOT enough: measured on 2026-08-24 during the guitar
 # la guitarra, el compositor (tier razonador, 1600 tokens) venció ese plazo en 3 de 7 rondas, y LAS DOS rondas
 # que fallaron son exactamente las que corrieron sin brief. Desde V2-301 compone EN PARALELO con el worker (el
 # spawn ya no espera; el brief tardío llega inyectado), así que el plazo ya no compra arranque — solo decide
@@ -53,12 +53,12 @@ logger = logging.getLogger("zaelar.research")
 # ⚠️ Con el kill-switch serial (ZAELAR_BRIEF_HEAD_START_S=0) este plazo vuelve a pagarse en el arranque.
 _COMPOSE_TIMEOUT = float(os.environ.get("ZAELAR_COMPOSE_TIMEOUT_S", "90") or 90)
 
-# Suelo de amplitud. Existe porque el sesgo del modelo, si le dejas el número, es pedir "10 candidatos" — que es
-# otra vez la búsqueda superficial con otro nombre. Una SELECCIÓN («la mejor», «las 3 mejores») solo significa
+# Breadth floor. It exists because the model’s bias, if allowed to choose the number, is to ask for “10 candidates” — which is
+# superficial search under another name. A SELECTION (“the best”, “the 3 best”) only means
 # algo si detrás hay un conjunto del que elegir.
 _MIN_CANDIDATES_FLOOR = 25
 _MIN_CANDIDATES_CAP = 200
-# CUÁNTAS se entregan. El defecto es DIEZ por decisión del operador (2026-08-12): con tres, una selección honesta
+# HOW MANY are delivered. The default is TEN by operator decision (2026-08-12): with three, an honest selection
 # se queda sin sitio para enseñar el segundo pelotón —lo que casi entra— y él no puede juzgar si el corte fue
 # bueno; con diez ve la horquilla entera y elige. Si el operador PIDE un número ("dame tres", "ponme veinte"), ese
 # número manda y sustituye al defecto: el brief lo recoge del propio encargo, no de aquí.
@@ -68,13 +68,13 @@ _MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el wo
 _MAX_ITEM_CHARS = 220
 # El ROL de una pieza se pinta como INSIGNIA en la tarjeta («Hotel», «Ferry»), así que tiene que caber en una. El
 # modelo, si le dejas, devuelve la descripción del contenido en vez del nombre del rol («Tarifa del ferry para 4
-# pasajeros detallando cargos por altura»), y eso en una insignia rompe la tarjeta. El prompt lo pide corto; esto lo
+# passengers detailing charges by height”), which breaks the card as a badge. The prompt asks for it to be short; this
 # GARANTIZA, porque un prompt es una petición y un cap es un contrato.
 _MAX_ROLE_CHARS = 28
 _KV = "research_brief"  # memoria KV: <_KV>:<task_id>
 
 
-# ── el catálogo CERRADO de lo que un brief puede decir (mismo criterio que evaluator.py: validar, no confiar) ──
+# ── the CLOSED catalog of what a brief may say (same principle as evaluator.py: validate, do not trust) ──
 def _strlist(raw, cap: int = _MAX_LIST, chars: int = _MAX_ITEM_CHARS) -> list[str]:
     if isinstance(raw, str):
         raw = [raw]
@@ -94,14 +94,14 @@ _MAX_ROLE_WORDS = 3
 
 
 def _roles(raw) -> list[str]:
-    """Roles de las piezas de una propuesta compuesta. Cortos por contrato (van en una insignia) y sin duplicados:
-    dos piezas con el mismo rol («Hotel» y «Hotel») no son una propuesta compuesta, son una lista mal montada.
+    """Roles of the parts of a composite proposal. Short by contract (they appear on a badge) and without duplicates:
+    two parts with the same role (“Hotel” and “Hotel”) are not a composite proposal; they are a malformed list.
 
-    Se corta por PALABRA, nunca a mitad: «Tarifa de ferry para 4 pasajeros (detallando…)» → «Tarifa de ferry», que
-    es una insignia legible; cortar por caracteres daba «Tarifa de ferry para 4 pasaj», que es basura en pantalla."""
+    It is cut by WORD, never midway: “Ferry fare for 4 passengers (detailing…)” → “Ferry fare”, which is a readable
+    badge; cutting by characters would produce “Ferry fare for 4 passe”, which is unusable on screen."""
     seen, out = set(), []
     for raw_role in _strlist(raw, cap=6, chars=200):
-        # una frase descriptiva colada como rol se queda en su primera cláusula, que es donde está el nombre real
+        # A descriptive phrase masquerading as a role is reduced to its first clause, where the real name is.
         r = raw_role.split("(")[0].split(",")[0].split(":")[0].strip(" -–—")
         words = [w for w in (r or raw_role).split() if w]
         r = " ".join(words[:_MAX_ROLE_WORDS])[:_MAX_ROLE_CHARS].strip(" -–—")
@@ -113,7 +113,7 @@ def _roles(raw) -> list[str]:
 
 
 def parse(raw: str) -> dict | None:
-    """JSON del compositor → brief validado. None si no hay JSON usable o si dice que esto no es investigación."""
+    """Composer JSON → validated brief. None if there is no usable JSON or it says this is not research."""
     s = (raw or "").strip()
     if s.startswith("```"):
         s = s.strip("`")
@@ -129,7 +129,7 @@ def parse(raw: str) -> dict | None:
     if not isinstance(p, dict):
         return None
     if not p.get("research"):
-        return None                      # el propio modelo dice que esto no pide amplitud ni baremo
+        return None                      # the model itself says this requires neither breadth nor a quality bar
 
     breadth = p.get("breadth") if isinstance(p.get("breadth"), dict) else {}
     try:
@@ -164,7 +164,7 @@ def parse(raw: str) -> dict | None:
         "ts": time.time(),
     }
     if not brief["goal"]:
-        return None                      # sin objetivo reformulado no hay brief que dirigir nada
+        return None                      # without a restated objective there is no brief to direct anything
     return brief
 
 
@@ -184,9 +184,9 @@ def build_messages(request: str, context: str = "", today: str = "") -> list[dic
 
 
 def _spec():
-    """Modelo del compositor. Va por la CADENA de proveedores del tier de razonamiento (misma que el cerebro de
-    cluster): esto no es la ruta de voz, así que puede pensar — y si el proveedor principal está sin cuota, releva
-    en vez de morir. `config §research.model` lo fuerza si el operador quiere uno concreto."""
+    """Composer model. It uses the reasoning-tier provider CHAIN (the same one as the cluster brain):
+    this is not the voice path, so it can think — and if the primary provider is out of quota, it relays instead of
+    dying. `config §research.model` forces it when the operator wants a specific one."""
     try:
         from config import v2 as _v2
         cfg = _v2.get("research") or {}
@@ -240,8 +240,8 @@ def _note_provider_failure(exc: Exception, tier):
 
 
 def enabled() -> bool:
-    """Kill-switch de 1ª clase: env ZAELAR_RESEARCH (0 apaga) + config §research.enabled (UI). Mismo patrón que el
-    Susurro. Apagado = las escaladas salen sin dirigir, exactamente como antes de que esto existiera."""
+    """First-class kill switch: env ZAELAR_RESEARCH (0 disables) + config §research.enabled (UI). Same pattern as
+    Whisper. Disabled = escalations run without direction, exactly as before this existed."""
     if (os.getenv("ZAELAR_RESEARCH", "1") or "1").strip().lower() in ("0", "false", "no", "off"):
         return False
     try:
@@ -255,20 +255,20 @@ def enabled() -> bool:
 
 
 class ComposerUnavailable(Exception):
-    """El compositor NO PUDO contestar (timeout, sin proveedor, respuesta ilegible) — distinto de que contestara
-    «esto no es una investigación».
+    """The composer COULD NOT answer (timeout, no provider, unreadable response) — distinct from answering
+    “this is not research”.
 
     Existen como dos cosas separadas porque `None` para ambas costó una tarea entera (banco del 2026-08-13). El
     fail-open es correcto —mejor arrancar sin dirigir que no arrancar— pero tenía un coste OCULTO: `dispatch`
     promociona el kind a `research` (1200 s) solo cuando HAY brief, así que un compositor caído dejaba además la
     tarea en `generic` = 600 s. El worker murió conminado a «entrega ya» a los 704 s con el navegador a medias,
     que es EXACTAMENTE el síntoma que la promoción de kind existe para cerrar. Perder el brief tiene que costar
-    DIRECCIÓN, nunca TIEMPO: que la petición sea una investigación no depende de que el compositor esté vivo."""
+    DIRECTION, never TIME: whether the request is research must not depend on the composer being alive."""
 
 
 def _declined(raw: str) -> bool:
-    """¿El compositor CONTESTÓ que esto no es una investigación? (frente a no haber podido contestar). Solo cuenta
-    como decisión suya si su JSON llegó entero y legible con `research` en falso."""
+    """Did the composer ANSWER that this is not research? (as opposed to being unable to answer). It only counts as
+    its decision if its JSON arrived complete and readable with `research` false."""
     s = (raw or "").strip()
     i, j = s.find("{"), s.rfind("}")
     if i < 0 or j <= i:
@@ -280,7 +280,7 @@ def _declined(raw: str) -> bool:
     return isinstance(p, dict) and not p.get("research")
 
 
-# V2-488 · un modelo que NO PUEDE apagar el razonamiento tumbaba TODAS las búsquedas dirigidas, en silencio.
+# V2-488 · a model that CANNOT disable reasoning silently broke ALL directed searches.
 #
 # Medido en el plató US el 2026-08-29, en las dos rondas del hotel (20:03:02 y 20:40:36), idéntico:
 #
@@ -297,11 +297,11 @@ def _declined(raw: str) -> bool:
 # lee**. `no_thinking` se envía como si todo modelo pudiera; el que no puede lo dice con un 400 clarísimo y
 # hasta con la lista de valores que admite.
 def _no_puede_dejar_de_pensar(exc: Exception) -> bool:
-    """¿El proveedor ha rechazado la PETICIÓN de no razonar (frente a haberse caído)?
+    """Has the provider rejected the REQUEST not to reason (as opposed to having failed)?
 
-    Se lee del mensaje porque es donde viene: el cliente envuelve el cuerpo del 400 en el texto de la
-    excepción. Se exige la conjunción —hablar de razonamiento Y de que no se puede desactivar— para no
-    confundirlo con un 400 de otra cosa; el código propietario `1210` vale por sí solo.
+    It is read from the message because that is where it appears: the client wraps the 400 body in the
+    exception text. The conjunction is required —mentioning reasoning AND that it cannot be disabled— to avoid
+    confusing it with another 400; proprietary code `1210` is sufficient on its own.
     """
     t = str(exc or "").lower()
     if "1210" in t:
@@ -312,12 +312,12 @@ def _no_puede_dejar_de_pensar(exc: Exception) -> bool:
 
 
 async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_TIMEOUT) -> dict | None:
-    """Petición cruda → brief estructurado. `None` = el compositor dijo que **no es una investigación**;
-    `ComposerUnavailable` = no pudo contestar (ver esa clase: la diferencia vale medio presupuesto).
+    """Raw request → structured brief. `None` = the composer said **this is not research**;
+    `ComposerUnavailable` = it could not answer (see that class: the distinction is worth half the budget).
 
-    FAIL-OPEN Y RUIDOSO: sin brief el worker sale exactamente como salía antes (no se pierde la escalada), pero se
-    registra el motivo — un fail-open silencioso aquí escondería que TODAS las búsquedas volvieron a ser
-    superficiales, que es justo el fallo que este módulo existe para cerrar."""
+    FAIL-OPEN AND LOUD: without a brief the worker exits exactly as it did before (the escalation is not lost), but
+    the reason is recorded — a silent fail-open here would hide that ALL searches had become superficial again,
+    precisely the failure this module exists to prevent."""
     req = (request or "").strip()
     if not req or not enabled():
         return None
@@ -336,8 +336,8 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         # output tokens; switching thinking off produces the same parseable brief in 22,3 s and 681 tokens.
         # The worker cannot start until this returns, so the seconds are the person's, not ours.
         async def _pedir(_spec_, *, pensando: bool = False):
-            """Una sola puerta para las dos llamadas (la normal y la del relevo): la corrección de abajo tenía
-            que valer para las dos, y una regla escrita dos veces es como la segunda copia se queda atrás."""
+            """One gateway for both calls (the normal one and the relay): the fix below had to apply to both,
+            and a rule written twice is liable to leave its second copy behind."""
             if pensando:
                 # V2-488: si el modelo NO PUEDE apagar el razonamiento, apagarlo no es una opción — y entonces
                 # el presupuesto tiene que caber la deliberación, que es exactamente lo que midió el comentario
@@ -353,7 +353,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             except Exception as e:  # noqa: BLE001
                 if not _no_puede_dejar_de_pensar(e):
                     raise
-                # No es una caída del proveedor: es que le pedimos algo que ese modelo no admite. Marcar el tier
+                # This is not a provider failure: we asked for something that model does not support. Marking the tier
                 # como caído aquí lo pondría en cuarentena por culpa NUESTRA, y el relevo iría a otro modelo
                 # cuando el que hay sirve perfectamente.
                 logger.warning("research: el modelo del compositor no puede apagar el razonamiento — "
@@ -362,7 +362,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         except asyncio.TimeoutError:
             raise
         except Exception as e:  # noqa: BLE001
-            # V2-225 — el compositor LEÍA la cadena y nunca la ESCRIBÍA, así que su relevo no podía dispararse.
+            # V2-225 — the composer READ the chain and never WROTE to it, so its relay could not trigger.
             _relay = _note_provider_failure(e, tier)
             if _relay is None:
                 raise
@@ -395,10 +395,10 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
 
 
 def expand(brief: dict, *, note: str = "") -> dict:
-    """Siguiente RONDA sobre el MISMO brief: «no me convence, sigue buscando». Sube la amplitud (el conjunto
-    anterior ya se demostró insuficiente) y deja constancia de qué pidió el operador al rechazarlo, sin tocar los
-    criterios ya acordados — reabrir los criterios sería empezar otra búsqueda, no continuar esta."""
-    nxt = json.loads(json.dumps(brief))          # copia honda: la ronda anterior queda intacta en su registro
+    """Next ROUND on the SAME brief: “I’m not convinced, keep searching”. It increases breadth (the previous set
+    has already proved insufficient) and records what the operator requested when rejecting it, without touching the
+    agreed criteria — reopening the criteria would start another search, not continue this one."""
+    nxt = json.loads(json.dumps(brief))          # deep copy: the previous round remains intact in its record
     nxt["round"] = int(brief.get("round") or 1) + 1
     b = nxt.setdefault("breadth", {})
     try:
@@ -413,13 +413,13 @@ def expand(brief: dict, *, note: str = "") -> dict:
 
 
 def to_criteria(brief: dict) -> dict:
-    """El brief traducido al payload de la pestaña CRITERIOS de la hoja de resultados.
+    """The brief translated into the payload for the CRITERIA tab of the results sheet.
 
-    Por qué existe: los criterios con los que se está buscando eran, hasta hoy, algo que solo se podía PREGUNTAR
+    Why it exists: until now, the criteria being used for the search were something that could only be ASKED
     («¿qué has entendido?») y por tanto no se podía comprobar de un vistazo. Se siembran desde AQUÍ, en el
     pre-vuelo, y no desde el worker: si dependieran de que el ejecutor se acuerde de escribirlos, faltarían justo
     en las búsquedas que peor van. `goal` hace además de firma del encargo — un objetivo distinto vacía la hoja de
-    la búsqueda anterior, y una ronda 2 (que conserva el objetivo) no borra nada."""
+    the previous search, and round 2 (which preserves the objective) deletes nothing."""
     if not isinstance(brief, dict) or not brief.get("goal"):
         return {}
     b = brief.get("breadth") or {}
@@ -431,7 +431,7 @@ def to_criteria(brief: dict) -> dict:
         if brief.get(k):
             out[k] = list(brief[k])
     if brief.get("feedback"):
-        out["changes"] = list(brief["feedback"])     # lo que el operador corrigió al rechazar la ronda anterior
+        out["changes"] = list(brief["feedback"])     # what the operator corrected when rejecting the previous round
     if b.get("min_candidates"):
         out["min_candidates"] = b["min_candidates"]
     if d.get("n_final"):
@@ -466,13 +466,13 @@ def load(task_id) -> dict | None:
         return None
 
 
-# ── RONDAS por OBJETIVO: «no me convence, sigue buscando» continúa, no reempieza ───────────────────────────────
+# ── ROUNDS by OBJECTIVE: “I’m not convinced, keep searching” continues; it does not restart ───────────────────
 # Indexado por la firma del objetivo (no por task_id) porque quien pide la continuación es el OPERADOR hablando,
 # y su segunda frase es una tarea nueva sin ninguna referencia a la primera. Casando por objetivo, «busca más
 # hoteles, esos no me valen» hereda los criterios YA acordados y solo sube la amplitud — el operador no tiene que
 # repetir las fechas, los niños ni el tamaño del coche.
 #
-# DELIBERADO: si el operador vuelve a pedir lo MISMO dentro del TTL, se trata como continuación (ronda 2), no como
+# DELIBERATE: if the operator asks for the SAME thing again within the TTL, it is treated as a continuation (round 2), not as a
 # búsqueda nueva. Pedir dos veces lo mismo significa que la primera respuesta no sirvió, así que buscar MÁS ancho
 # es la lectura correcta; y el TTL acota el efecto para que dentro de una semana sea otra búsqueda desde cero.
 _KV_ROUND = "research_rounds"     # UN registro con todas las rondas vivas (el casado es difuso, no por clave)
@@ -499,7 +499,7 @@ def remember_round(goal_key: str, brief: dict) -> None:
         reg = {k: v for k, v in _rounds().items()
                if isinstance(v, dict) and now - float(v.get("ts") or 0) <= _ROUND_TTL}
         reg[goal_key] = {"brief": brief, "ts": now}
-        if len(reg) > _ROUND_MAX:                     # las más viejas primero
+        if len(reg) > _ROUND_MAX:                     # oldest first
             reg = dict(sorted(reg.items(), key=lambda kv: -float(kv[1].get("ts") or 0))[:_ROUND_MAX])
         memory.kv_set(_KV_ROUND, reg)
     except Exception:
@@ -507,7 +507,7 @@ def remember_round(goal_key: str, brief: dict) -> None:
 
 
 def previous_round(goal_key: str) -> dict | None:
-    """Brief de la investigación viva que MEJOR casa con este objetivo, o None si es una búsqueda nueva.
+    """Brief of the live investigation that BEST matches this objective, or None if this is a new search.
 
     El casado es DIFUSO (solape de palabras de contenido ≥0.5) y no exacto, porque la frase con la que el operador
     pide continuar nunca es la misma que la inicial: «busca vacaciones en Baleares…» y luego «esos no me valen,

@@ -26,7 +26,7 @@ _ROOT = _HERE.parent
 
 
 def _store_path() -> Path:
-    # `ZAELAR_WORKSPACE` SET (Fase 3, real cloud Machine on its own mounted volume) → the store moves
+    # `ZAELAR_WORKSPACE` SET (Phase 3, real cloud machine on its own mounted volume) → the store moves
     # to `<workspace>/credentials/zaelar.env`, dropping the `.meshkore` segment entirely: a deployed
     # container never has the dev-only `engine/.meshkore -> ../.meshkore` symlink this path used to
     # depend on (see root CLAUDE.md — that symlink only makes sense for the local monorepo layout).
@@ -145,7 +145,7 @@ def _quote(v: str) -> str:
 
 
 def get(name: str) -> str:
-    """Valor EFECTIVO de una credencial (store → entorno). USO INTERNO — nunca exponer al frontend."""
+    """EFFECTIVE value of a credential (store → environment). INTERNAL USE — never expose to the frontend."""
     name = (name or "").strip()
     return _values().get(name) or (os.getenv(name) or "")
 

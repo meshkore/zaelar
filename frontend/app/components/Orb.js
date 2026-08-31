@@ -1,11 +1,11 @@
 // Orb — bottom-centre voice orb (zaelar's voice spectrum) = zaelar PERSONIFIED, the LIVE CAPTIONS that crawl up
 // from it (Star-Wars style), the activity rail, the transient flash label, the 🚫 mic-blocked ring/caption, and
-// — V2-039 «EL OJO» (operator 2026-07-17) — the whole cluster reads as an EYE: the icon arc above is the UPPER
+// — V2-039 “EL OJO” (operator 2026-07-17) — the whole cluster reads as an EYE: the icon arc above is the UPPER
 // LID, the ECG arc below (lib/ecg.js) is the LOWER LID, the orb is the IRIS. Both arcs stretch so their tips
 // nearly meet at the corners (canthi). SEVEN controls on the upper lid (L→R):
 //   🎤 mic      → mute/unmute the OPERATOR'S OWN microphone input. MOVED here 2026-08-09 when the CameraUnit
 //                 widget (its former home) was hidden/archived — same session.toggleMic()/store.micMuted() seam.
-//   🧠 memory   → open the MEMORY MAP visualizer (state + short/long-term + concept graph, V2-014). BLUE while open.
+//   🧠 memory   → open the MEMORAnd MAP visualizer (state + short/long-term + concept graph, V2-014). BLUE while open.
 //   🔊 speaker  → mute/unmute zaelar's voice OUTPUT (the agent keeps running: mic, brain and crons stay live).
 //   ⏻ power    → CENTRE (apex). Explicit ON/OFF of the voice session — the ONE exception to always-on: while
 //                 off (persisted hb_power_off) main.js does NOT auto-(re)connect; click again to come back.
@@ -18,8 +18,8 @@
 //                 replaces both that shortcut AND CameraUnit's own chat button (archived along with it).
 //   🤖 robot    → attention gate (V2-016). OFF (grey) = `always`; ON (blue) = `wakeword` ("zaelar"/"harvis").
 //                 Toggles attention_mode LIVE via the SAME settings seam the ⚙ uses (POST /api/settings).
-// All controls are frameless icons: BLUE when ON/open, pale GREY when OFF/closed. The lid arc is drawn by CSS
-// (translateY per nth-child: centre highest, outer icons dive to the corners) — UNCHANGED by the 2026-08-09 swap,
+// All controls are frameless icons: BLUE when ON/open, pale GREAnd when OFF/closed. The lid arc is drawn by CSS
+// (translateAnd per nth-child: centre highest, outer icons dive to the corners) — UNCHANGED by the 2026-08-09 swap,
 // since it's keyed by SLOT INDEX, not which icon sits there. The PROJECT icons (◉ status, ⌗ docs, ◷ debug, ⚙,
 // ☾ theme, 🧭, Reset) stay UP in the TopBar — ☾ theme moved there FROM here the same day, next to ⚙. Drag the orb
 // to move it (position persisted). The orb canvas is driven by the visualizer; the ECG canvas by lib/ecg.js; the
@@ -65,18 +65,18 @@ export function Orb() {
       .catch(() => setWakeOn(!next));                           // revert on failure
   };
 
-  // ⏻ STOPPED dims the whole lid (petición del operador): a stopped agent can't use mic/speaker/captions — and
+  // ⏻ STOPPED dims the whole lid (petición of the operador): a stopped agent can't use mic/speaker/captions — and
   // when the mic/speaker icons kept reading ON (blue) over a stopped session, the operator mistook a stopped
   // agent for a broken mic. Now, while ⏻ is OFF, the OTHER six controls all read as DISABLED (grey .off) whatever
   // their own signal says, so there's no doubt the agent is stopped. The ⏻ icon itself already reads "off", and
   // clicking it is how you bring everything back. Visual only: each control keeps its real state underneath and
   // reflects it again the moment power returns. (Reactive: reads powerOff() inside the class effect → repaints on
   // toggle, same as every other icon here.)
-  // 2026-08-10: la condición era `!store.powerOff()` — la INTENCIÓN persistida. No cubría el caso que de verdad
-  // hizo daño: `powerOff=false` con la sesión CAÍDA pintaba el micro y el altavoz en azul sobre un agente muerto.
-  // Ahora depende de `agentLive()` (store.js), que es la realidad: si el agente no está vivo, NINGÚN icono puede
-  // leerse como encendido, dé lo que dé su propia señal. Visual: cada control conserva su estado debajo y lo vuelve
-  // a mostrar en cuanto el agente vive.
+  // 2026-08-10: the condición era `!store.powerOff()` — the INTENCIÓN persistida. No cubría the caso that of verdad
+  // hizo daño: `powerOff=false` with the sesión CAÍDA pintaba the micro and the altavoz en azul sobre un agente muerto.
+  // Now depende of `agentLive()` (store.js), that es the realidad: si the agente no está vivo, NINGÚN icono puede
+  // leerse as encendido, dé lo that dé su propia señal. Visual: each control conserva su state debajo and loreturns
+  // a show en cuanto the agente vive.
   const lidClass = (on) => "orbic" + (on && store.agentLive() ? " on" : " off");
 
   const wrap = h("div", { id: "orbwrap", class: "orbwrap", ref: el => (wrapEl = el) },
@@ -90,19 +90,19 @@ export function Orb() {
     h("div", { class: () => "vlabel" + (store.voiceFlash().show ? " show" : "") }, () => store.voiceFlash().text),
     h("div", { class: () => "micblockcap" + (store.micBlocked().show ? " show" : "") }, () => store.micBlocked().msg),
     // UPPER LID of the EYE — 7 controls arched over the orb (order L→R, CENTRE = ⏻ at the apex, outer icons dive
-    // to the corners to meet the ECG's lower lid): ⏰ · 🧠 · 🔊 · ⏻ · 📝 · ☾ · 🤖. BLUE = on/open, GREY = off.
+    // to the corners to meet the ECG's lower lid): ⏰ · 🧠 · 🔊 · ⏻ · 📝 · ☾ · 🤖. BLUE = on/open, GREAnd = off.
     h("div", { class: "orbctl" },
       h("button", {
         // 2026-08-09: relocated from CameraUnit (now hidden/archived) — same session.toggleMic()/store.micMuted()
         // seam, just a different button. ON (blue) = mic live, like the speaker's on/off language.
         //
-        // VÚMETRO (2026-08-10, petición del operador): «quiero estar seguro de que me estás escuchando cuando
-        // hablo, y como no tenemos ningún medidor en pantalla, quisiera que el icono del micrófono hiciera
-        // blinking, incluso se hiciera un poquito más grande y más pequeño a medida que detecta la voz». O sea: el
-        // propio icono ES el medidor, igual que el orbe crece cuando habla zaelar. Se escala con el nivel REAL del
-        // micro (store.micLevel, RMS 0..1) por variable CSS, así que la animación no cuesta un re-render: solo
-        // cambia una custom property. Con el micro silenciado o el agente parado no hay efecto — porque no hay
-        // nivel: el medidor solo puede moverse cuando de verdad se está escuchando.
+        // VÚMETRO (2026-08-10, operator request): “quiero estar seguro of that me estás escuchando cuando
+        // hablo, and as no tenemos ningún medidor en pantalla, quisiera that the icono of the micrófono hiciera
+        // blinking, incluso se hiciera un poquito more grande and more pequeño a medida that detecta the voz”. Or sea: el
+        // propio icono ES the medidor, igual that the orbe crece when habla zaelar. Se escala with the nivel REAL del
+        // micro (store.micLevel, RMS 0..1) by variable CSS, así that the animación no cuesta un re-render: solo
+        // cambia a custom property. Con the micro silenciado or the agente parado no there is efecto — porque no hay
+        // nivel: the medidor only puede moverse when of verdad se está escuchando.
         class: () => lidClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() ? " vu" : ""),
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
@@ -119,11 +119,11 @@ export function Orb() {
         onClick: () => { session.toggleBotMute(); api.uiEvent("orb:speaker", { state: store.botMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.botMuted() ? SPK_OFF : SPK_ON)),
       h("button", {
-        // El ⏻ es el ÚNICO icono que no puede mentir nunca: es el que el operador mira para saber si hay alguien
-        // al otro lado. Pinta los CUATRO estados reales (store.agentState), no el flag persistido:
-        //   live → azul · starting → «levantándose» · off → gris (parado a mano) · stalled → AVISO.
-        // `stalled` («debería estar encendido y no lo está») es el estado que no existía: con él, un agente caído
-        // se ve caído en vez de pasar por operativo.
+        // The ⏻ es the ÚNICO icono that no puede mentir nunca: es the that the operador mira for saber si there is alguien
+        // al otro lado. Pinta the CUATRO estados reales (store.agentState), no the flag persistido:
+        //   live → azul · starting → “levantándose” · off → gris (parado a mano) · stalled → AVISO.
+        // `stalled` (“debería estar encendido and no lo está”) es the state that no existía: with él, un agente caído
+        // se ve caído en vez of pasar by operativo.
         class: () => "orbic pwr-" + store.agentState() + (store.agentLive() ? " on" : " off"),
         title: () => t("orb.power_" + store.agentState()),
         onClick: () => {
@@ -134,42 +134,42 @@ export function Orb() {
           store.markPowerCommand();
           store.setPowerOff(off);
           if (off) {
-            // V2-066 (2026-07-24, petición explícita del operador tras un fallo real: "el botón principal tiene
-            // que bloquear TODO — pausar procesos de desarrollo, parar el micrófono, parar el altavoz, detenerlo
-            // todo"). `session.stop()` YA corta el micro (para los tracks reales de MediaStream, no solo el
-            // icono) y el altavoz (pausa+desengancha <audio>) — pero lo hace de forma IMPLÍCITA, como parte de
-            // desmontar la sesión entera. Se fuerzan TAMBIÉN los signals de mic/altavoz explícitamente aquí,
-            // en defensa: si algún día `stop()` cambia y dejar de tocarlos, el candado de ⏻ no depende de ello.
+            // V2-066 (2026-07-24, explicit operator request tras un fallo real: "el button principal tiene
+            // that bloquear TODO — pausar procesos of desarrollo, parar the micrófono, parar the altavoz, detenerlo
+            // todo"). `session.stop()` YA corta the micro (para the tracks reales of MediaStream, no only el
+            // icono) and the altavoz (pausa+desengancha <audio>) — pero lo hace of forma IMPLÍCITA, as parte de
+            // desmontar the sesión entera. Se fuerzan TAMBIÉN the signals of mic/altavoz explícitamente aquí,
+            // en defensa: si algún día `stop()` cambia and dejar of tocarlos, the candado of ⏻ no depende of ello.
             try { session.stop(); } catch (_) {}
-            // Fin de la SESIÓN DE TRABAJO para observabilidad (2026-08-09): ⏻ es, junto con cerrar la pestaña,
-            // el único gesto que significa «he terminado». Un `stop()` por reconexión NO cierra sesión — si lo
-            // hiciera, un bache de red partiría en dos lo que el operador vive como una sola tarde de trabajo.
+            // Fin of the SESIÓN DE TRABAJO for observabilidad (2026-08-09): ⏻ es, junto with cerrar the pestaña,
+            // the único gesto that significa “he terminado”. Un `stop()` by reconexión NO cierra sesión — si lo
+            // hiciera, un bache of red partiría en dos lo that the operador vive as a sola tarde of trabajo.
             api.obsSessionEnd("power_off");
             store.setMicMuted(true); localStorage.setItem("hb_mic_muted", "1");
             store.setBotMuted(true); localStorage.setItem("hb_bot_muted", "1");
-            // Bug real 2026-07-23 (reporte del operador): apagar dejaba el pulso del ECG latiendo y los
-            // subtítulos clavados. El ECG se autogenera latidos LOCALES mientras `store.tasks()` tenga algo sin
-            // terminar (lib/ecg.js::activeLoad) — la reconciliación contra la verdad del server (GET /api/tasks)
-            // solo corre al (re)conectar SSE (sse.js::es.onopen); si un `task end` se perdió en algún hueco de
-            // reconexión, el chip huérfano se queda para SIEMPRE hasta la próxima reconexión — que con la voz
-            // apagada nunca llega. Apagar debe dejar todo asentado: reconcilia aquí, aunque la SSE ya esté cerrada
-            // (fetchTasks es un fetch aparte, no depende de ella).
+            // Bug real 2026-07-23 (reporte of the operador): apagar dejaba the pulso of the ECG latiendo and los
+            // subtítulos clavados. The ECG se autogenera latidos LOCALES mientras `store.tasks()` tenga algo sin
+            // terminar (lib/ecg.js::activeLoad) — the reconciliación contra the verdad of the server (GET /api/tasks)
+            // only corre al (re)conectar SSE (sse.js::es.onopen); si un `task end` se perdió en algún hueco de
+            // reconexión, the chip huérfano se remains for SIEMPRE until the próxima reconexión — that with the voz
+            // apagada nunca llega. Apagar debe dejar todo asentado: reconcilia aquí, aunque the SSE ya esté cerrada
+            // (fetchTasks es un fetch aparte, no depende of ella).
             try { store.fetchTasks(); } catch (_) {}
-            // V2-065 (petición del operador): ⏻ para TODO, pero PAUSA — no mata como Reset. Congela los Brain
-            // Workers vivos (SIGSTOP, reversible) para que sigan EXACTAMENTE donde estaban al volver a encender.
-            // V2-092: la orden va al INTERRUPTOR GLOBAL del servidor, que hace eso y además suspende los widgets
-            // que estén produciendo (el vídeo que seguía sonando sobre un agente parado), corta los ciclos de
-            // background y los crons, y bloquea trabajo nuevo. El servidor guarda el estado → recargar la página
+            // V2-065 (petición of the operador): ⏻ for TODO, pero PAUSA — no mata as Reset. Congela the Brain
+            // Workers vivos (SIGSTOP, reversible) for that sigan EXACTAMENTE where estaban al volver a encender.
+            // V2-092: the orden va al INTERRUPTOR GLOBAL of the servidor, that hace eso and además suspende the widgets
+            // that estén produciendo (el vídeo that seguía sonando sobre un agente parado), corta the ciclos de
+            // background and the crons, and bloquea trabajo nuevo. The servidor guarda the state → recargar the página
             // ya no resucita nada.
             api.runStop().then(() => store.fetchTasks());
           } else {
-            // Simétrico: el mute que ⏻ impuso al apagar (arriba) se deshace al volver a encender — si el
-            // operador quiere mic/altavoz mudos DE FORMA INDEPENDIENTE, ya tiene sus propios botones para eso.
+            // Simétrico: the mute that ⏻ impuso al apagar (arriba) se deshace al volver a encender — si el
+            // operador quiere mic/altavoz mudos DE FORMA INDEPENDIENTE, ya tiene sus propios botones for eso.
             store.setMicMuted(false); localStorage.setItem("hb_mic_muted", "0");
             store.setBotMuted(false); localStorage.setItem("hb_bot_muted", "0");
             try { session.start(); } catch (_) {}
-            // Arrancar CONTINÚA el trabajo congelado (SIGCONT) pero NO reanuda los widgets: volver a poner la
-            // música o el vídeo es un gesto del operador, no una consecuencia de encender (asimetría deliberada,
+            // Arrancar CONTINÚA the trabajo congelado (SIGCONT) pero NO reanuda the widgets: volver a poner la
+            // música or the vídeo es un gesto of the operador, no a consecuencia of encender (asimetría deliberada,
             // ver nucleo/runstate.py).
             api.runStart().then(() => store.fetchTasks());
           }
@@ -202,9 +202,9 @@ export function Orb() {
       h("div", { class: "orbcap", ref: el => (capEl = el) },
         h("div", { class: "orbcap-inner", ref: el => (capInnerEl = el) }),
       ),
-      // `frozen` (2026-08-10): con el agente parado el orbe se apaga y se queda QUIETO. Es la pieza que más
-      // «personifica» a zaelar, así que verla ondular con el agente detenido es la señal más engañosa de toda la
-      // pantalla. El visualizador además deja de avanzar su fase, así que no es solo que se vea gris: no se mueve.
+      // `frozen` (2026-08-10): with the agente parado the orbe se apaga and se remains QUIETO. Es the pieza that más
+      // “personifica” a zaelar, así that verla ondular with the agente detenido es the señal more engañosa of toda la
+      // pantalla. The visualizador además deja of avanzar su fase, así that no es only that se vea gris: no se mueve.
       h("canvas", { id: "orb",
                     class: () => (store.botMuted() ? "muted" : "") + (store.agentLive() ? "" : " frozen"),
                     ref: el => (orbEl = el), title: () => t("orb.drag") }),
@@ -239,10 +239,10 @@ export function Orb() {
     return lines;
   };
 
-  // Bug real 2026-07-23 (reporte del operador): con el ChatWall ABIERTO toda la conversación va por texto ahí —
-  // los subtítulos sobre el orbe son EXCLUSIVOS del modo voz (ChatWall cerrado) y deben respetar el 📝 solo en ese
-  // modo. Faltaba el gate `!store.chatOpen()`: el crawl seguía apareciendo sobre el orbe aunque el chat estuviera
-  // abierto, sin importar el estado del icono de subtítulos.
+  // Bug real 2026-07-23 (reporte of the operador): with the ChatWall OPEN toda the conversación va by texto ahí —
+  // the subtítulos sobre the orbe son EXCLUSIVOS of the modo voz (ChatWall cerrado) and deben respetar the 📝 only en ese
+  // modo. Faltaba the gate `!store.chatOpen()`: the crawl seguía apareciendo sobre the orbe aunque the chat estuviera
+  // abierto, without importar the state of the icono of subtítulos.
   const showCap = (on) => { if (capEl) capEl.classList.toggle("show", on && store.captionsOn() && !store.chatOpen()); };
   const resetState = () => { committedLines = []; curId = null; activeText = ""; addedLines = 0; lastDiv = null; };
   const clearLines = () => { if (capInnerEl) capInnerEl.replaceChildren(); lineDivs = []; };
@@ -299,10 +299,10 @@ export function Orb() {
 
   createEffect(() => { if (!store.captionsOn()) hideNow(); });   // captions OFF → clear immediately
   createEffect(() => { if (store.chatOpen()) hideNow(); });      // chat wall opens → subtítulos son SOLO modo voz
-  // Bug real 2026-07-23: el efecto de "zaelar dejó de hablar" (arriba) solo se dispara con una transición
-  // true→false de botSpeaking — si ya estaba en false cuando se apaga, no hay transición que lo re-dispare y el
-  // último subtítulo se queda clavado para siempre (la sesión se cierra, no llegan más segmentos que lo pisen).
-  createEffect(() => { if (store.powerOff()) hideNow(); });      // apagar SIEMPRE limpia, sin depender de esa transición
+  // Bug real 2026-07-23: the efecto of "zaelar dejó of hablar" (arriba) only se dispara with a transición
+  // true→false of botSpeaking — si ya estaba en false when se apaga, no there is transición that lo re-dispare and el
+  // último subtítulo se remains clavado for siempre (la sesión se cierra, no llegan more segmentos that lo pisen).
+  createEffect(() => { if (store.powerOff()) hideNow(); });      // apagar SIEMPRE limpia, without depender of esa transición
 
   return wrap;
 }

@@ -1,4 +1,4 @@
-"""Tests de nucleo/scheduler.py (V2-005 · T71/T72) — cron propio respaldado por memory.journal."""
+"""Core scheduler.py tests (V2-005 · T71/T72) — custom cron backed by memory.journal."""
 import time
 
 import pytest
@@ -16,7 +16,7 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── parseo ───────────────────────────────────────────────────────────────────────────────────────────────
+# ── parsing ──────────────────────────────────────────────────────────────────────────────────────────────
 def test_parse_relative_once():
     now = 1000.0
     s = scheduler.parse_schedule("30m", now=now)
@@ -33,7 +33,7 @@ def test_parse_interval():
 
 
 def test_parse_cron_and_next():
-    # 09:00 todos los días; ancla en un instante conocido y pide el próximo.
+    # 09:00 every day; anchor at a known instant and request the next occurrence.
     base = time.mktime(time.strptime("2026-07-09 08:00", "%Y-%m-%d %H:%M"))
     s = scheduler.parse_schedule("0 9 * * *", now=base)
     assert s["type"] == "cron"
@@ -44,7 +44,7 @@ def test_parse_cron_and_next():
 def test_parse_garbage_returns_none():
     assert scheduler.parse_schedule("mañana por la tarde") is None
     assert scheduler.parse_schedule("") is None
-    assert scheduler.parse_schedule("99 99 * * *") is None   # cron fuera de rango
+    assert scheduler.parse_schedule("99 99 * * *") is None   # cron out of range
 
 
 def test_next_cron_step_field():
@@ -53,16 +53,16 @@ def test_next_cron_step_field():
     assert time.localtime(nr).tm_min == 15
 
 
-# ── ciclo de vida de una tarea ─────────────────────────────────────────────────────────────────────────
+# ── task lifecycle ──────────────────────────────────────────────────────────────────────────────────────
 def test_create_list_and_due(fresh_db):
     now = 1000.0
     r = scheduler.create("recuérdame estirar", "30m", name="estirar", now=now)
     assert r["ok"] and r["id"] > 0
     jobs = scheduler.list_jobs()
     assert len(jobs) == 1 and jobs[0]["name"] == "estirar"
-    # aún no vencida
+    # not due yet
     assert scheduler.due(now=now + 60) == []
-    # vencida pasado el intervalo
+    # due after the interval has elapsed
     due = scheduler.due(now=now + 1801)
     assert len(due) == 1 and due[0]["detail"]["prompt"] == "recuérdame estirar"
 
@@ -78,9 +78,9 @@ def test_once_fires_then_done(fresh_db):
     due = scheduler.due(now=now + 601)
     assert len(due) == 1
     nxt = scheduler.mark_fired(due[0], now=now + 601)
-    assert nxt is None                                   # una vez → se cierra
-    assert scheduler.due(now=now + 100000) == []         # ya no vence
-    assert scheduler.list_jobs(active_only=True) == []   # ya no está pending
+    assert nxt is None                                   # one-shot → closes
+    assert scheduler.due(now=now + 100000) == []         # no longer due
+    assert scheduler.list_jobs(active_only=True) == []   # no longer pending
 
 
 def test_interval_reschedules(fresh_db):
@@ -89,7 +89,7 @@ def test_interval_reschedules(fresh_db):
     due = scheduler.due(now=now + 1801)
     nxt = scheduler.mark_fired(due[0], now=now + 1801)
     assert nxt is not None and nxt["next_run"] == int(now + 1801 + 1800)
-    assert scheduler.list_jobs()[0]["fire_count"] == 1   # sigue viva, contador subido
+    assert scheduler.list_jobs()[0]["fire_count"] == 1   # still active, count increased
 
 
 def test_cancel_by_name_and_id(fresh_db):
@@ -109,10 +109,10 @@ def test_repeat_forces_recurrence(fresh_db):
     assert scheduler.list_jobs()[0]["type"] == "interval"
 
 
-# ── fecha ABSOLUTA de una sola vez (V2-121) ──────────────────────────────────────────────────────────────
-# Añadido porque el caso de uso `remember-and-remind-deadline` midió que «recuérdamelo el miércoles» NO tenía
-# forma de expresarse: solo había plazos relativos (`2d`, frágil) y cron de 5 campos (RECURRENTE — avisaría
-# todos los miércoles). El aviso no llegaba a existir y el turno decía que sí.
+# ── ABSOLUTE one-shot date (V2-121) ──────────────────────────────────────────────────────────────────────
+# Added because the `remember-and-remind-deadline` use case revealed that «remind me on Wednesday» had NO
+# way to be expressed: there were only relative deadlines (`2d`, fragile) and five-field cron (RECURRING — it
+# would alert every Wednesday). The reminder was never created, while the turn claimed it was.
 def _at(y, mo, d, h=12, mi=0):
     return time.mktime((y, mo, d, h, mi, 0, 0, 1, -1))
 
@@ -120,9 +120,9 @@ def _at(y, mo, d, h=12, mi=0):
 def test_parse_absolute_date_with_time_is_a_one_shot():
     now = _at(2026, 8, 18, 12, 0)
     s = scheduler.parse_schedule("2026-08-19 09:00", now=now)
-    assert s["type"] == "once"                       # una sola vez, no un cron semanal
+    assert s["type"] == "once"                       # one-shot, not a weekly cron
     assert s["next_run"] == int(_at(2026, 8, 19, 9, 0))
-    assert s["display"] == "2026-08-19 09:00"        # legible para el operador, no un epoch
+    assert s["display"] == "2026-08-19 09:00"        # readable by the operator, not an epoch
 
 
 def test_parse_absolute_date_accepts_iso_t_separator():
@@ -137,8 +137,8 @@ def test_parse_absolute_date_without_time_defaults_to_the_morning():
 
 
 def test_absolute_date_already_past_is_rejected():
-    # Entregar «ya» un aviso del jueves pasado es peor que rechazarlo: el operador se queda creyendo que quedó
-    # puesto para el jueves que viene.
+    # Delivering a reminder for last Thursday «now» is worse than rejecting it: the operator is left believing it
+    # was set for the coming Thursday.
     now = _at(2026, 8, 18, 12, 0)
     assert scheduler.parse_schedule("2026-08-17 09:00", now=now) is None
     assert scheduler.parse_schedule("2026-08-18 11:00", now=now) is None
@@ -158,4 +158,4 @@ def test_absolute_one_shot_closes_after_firing(fresh_db):
     fired = scheduler.due(job["next_run"] + 1)
     assert [j["id"] for j in fired] == [job["id"]]
     scheduler.mark_fired(fired[0], job["next_run"] + 1)
-    assert not scheduler.list_jobs(active_only=True)   # `once` no se re-programa
+    assert not scheduler.list_jobs(active_only=True)   # `once` is not rescheduled

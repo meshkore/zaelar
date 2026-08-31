@@ -1,10 +1,10 @@
-"""nucleo/flash/prewarm.py — calienta el CAMINO CALIENTE en el arranque (V2-024).
+"""nucleo/flash/prewarm.py — warms the HOT PATH at startup (V2-024).
 
-El operador notaba 6-8s en el PRIMER turno y ~1s a partir del segundo. Causa: la primera llamada al FlashBrain
-(AIMLAPI/Grok tras Cloudflare) monta TLS + handshake + arranque del modelo en frío. Lo absorbemos AQUÍ, en el
-arranque del server — mientras el frontend pinta el loader de la malla cerebral — con una query MÍNIMA
-fire-and-forget, para que cuando el usuario pueda interactuar el modelo ya esté caliente (~1s). De paso calienta el
-Chromium de búsqueda (`nucleo/browser_search`). Nunca bloquea el arranque ni lanza.
+The operator saw 6–8s on the FIRST turn and about 1s thereafter. The cause: the first FlashBrain call
+(AIMLAPI/Grok behind Cloudflare) establishes TLS, performs the handshake, and starts the model cold. We absorb
+that HERE, during server startup—while the frontend renders the brain-mesh loader—with a MINIMAL fire-and-forget
+query, so the model is warm (~1s) when the user can interact. It also warms search Chromium
+(`nucleo/browser_search`). It never blocks startup or raises.
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from loguru import logger
 
 
 async def run() -> None:
-    """Fire-and-forget desde el lifespan: calienta FlashBrain + navegador de búsqueda + reranker + embeddings en paralelo."""
+    """Fire-and-forget from the lifespan: warm FlashBrain, the search browser, reranker, and embeddings in parallel."""
     await asyncio.gather(_warm_flash(), _warm_browser(), _warm_rerank(), _warm_embed())
 
 

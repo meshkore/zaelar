@@ -1,7 +1,7 @@
 #
-# test_skeleton.py — el esqueleto del cerebro v2 (V2-001, T37). Verifica que `import nucleo` (y todos sus
-# submódulos) funciona y que el CONTRATO está fijado: firmas presentes, stubs que levantan NotImplementedError
-# al llamarse (nada cableado a la voz todavía). Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_skeleton.py
+# test_skeleton.py — the v2 brain skeleton (V2-001, T37). Verifies that `import nucleo` (and all its
+# submodules) works and that the CONTRACT is fixed: signatures are present, stubs raise NotImplementedError
+# when called (nothing wired to voice yet). Run: .venv/bin/pytest tests/agent_headless/unit/test_skeleton.py
 #
 import importlib
 
@@ -20,7 +20,7 @@ def test_import_tree():
 
 
 def test_wired_to_voice():
-    # V2-004: el FlashBrain ya está cableado a la voz (provider `nucleo`, opt-in BRAIN=nucleo).
+    # V2-004: FlashBrain is already wired to voice (provider `nucleo`, opt-in BRAIN=nucleo).
     import nucleo
     assert nucleo.WIRED_TO_VOICE is True
 
@@ -41,13 +41,13 @@ def test_router_decision_dataclass():
 def test_codeagent_interface_is_abstract():
     from nucleo.agentes.base import CodeAgent, RunSpec, RunResult
     with pytest.raises(TypeError):
-        CodeAgent()                      # ABC con run() abstracto → no instanciable
+        CodeAgent()                      # ABC with abstract run() → cannot be instantiated
     assert RunSpec(model="m").deny_tools is False
     assert RunResult(ok=True).output == ""
 
 
 def test_flash_pieces_built():
-    # V2-004: las piezas del FlashBrain ya NO son stubs (frontend.show compone tag; escalate registra + emite bus).
+    # V2-004: the FlashBrain pieces are NO longer stubs (frontend.show composes a tag; escalate logs + emits to the bus).
     from nucleo.flash import frontend, escalate
     assert frontend.show("agenda") == "[[show:agenda]]"
     tid = escalate.escalate_to_slowbrain("haz algo")
@@ -56,8 +56,8 @@ def test_flash_pieces_built():
 
 
 def test_slowbrain_built():
-    # V2-006: el SlowBrain (agentes CodeAgent + dispatcher + memory_agent) YA está construido.
-    # Los adaptadores no lanzan NotImplementedError; devuelven un RunResult limpio (aquí, CLI ausente → ok=False).
+    # V2-006: SlowBrain (CodeAgent agents + dispatcher + memory_agent) is ALREADY built.
+    # The adapters do not raise NotImplementedError; they return a clean RunResult (here, CLI absent → ok=False).
     import asyncio
     import os
 

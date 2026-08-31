@@ -81,16 +81,17 @@ def _publish(reason: str, detail: str, query: str) -> None:
 
 
 def _reinforce_delivered(propias: dict) -> None:
-    """El refuerzo sigue a la ENTREGA, nunca al cálculo (V2-311, 2026-08-25).
+    """Reinforcement follows DELIVERY, never computation (V2-311, 2026-08-25).
 
-    `memory.query` reforzaba al componer, y componer no es usar: de los 27 recalls vivos medidos, 21 se
-    abandonaban al vencer el presupuesto **y el hilo terminaba igualmente**, así que subían el peso y reseteaban
-    la caducidad (`access_count++`, `last_access=now`, `weight+step` — escritura durable) de píldoras por
-    preguntas que nunca se contestaron con ellas. La señal de «esto se usa» la alimentaba el trabajo tirado.
+    `memory.query` reinforced while composing, and composing is not using: of the 27 live recalls measured, 21
+    were abandoned when the budget expired **and the thread still finished**, so they increased the weight and
+    reset the expiration (`access_count++`, `last_access=now`, `weight+step` — durable write) of pills for
+    questions that were never answered with them. The signal that “this is used” was being fed by discarded work.
 
-    Los ids vienen de `memory.api.reinforce_ids_for`, calculados dentro de `memory/`: aquí viaja el MOMENTO, no
-    la política. Reforzar `ids` a pelo sería reforzar el paquete entero (40 píldoras en vez de 1) y el refuerzo
-    selectivo desaparecería sin que fallara nada — que es la forma en que estas cosas se pierden."""
+    The IDs come from `memory.api.reinforce_ids_for`, calculated inside `memory/`: what travels here is the
+    MOMENT, not the policy. Reinforcing `ids` wholesale would reinforce the entire package (40 pills instead of
+    1), and selective reinforcement would disappear without anything failing — which is how these things get
+    lost."""
     ids = propias.pop("recall_reinforce_ids", None) or []
     if not ids:
         return
@@ -98,7 +99,7 @@ def _reinforce_delivered(propias: dict) -> None:
         from memory import api as _memory
         _memory.reinforce(list(ids))
     except Exception:  # noqa: BLE001
-        pass                                  # el refuerzo es una señal, no una garantía: nunca rompe un turno
+        pass                                  # reinforcement is a signal, not a guarantee: it never breaks a turn
 
 
 async def compose(query: str, timings: dict | None = None) -> tuple[str, list[int]]:
@@ -126,9 +127,9 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
         # wraps; a cancelled task drops the thread's result on the floor — measured while building this.)
         fut = asyncio.get_running_loop().run_in_executor(None, _prompt.compose_recall, q, propias)
         got = await asyncio.wait_for(asyncio.shield(fut), timeout=budget_s())
-        _reinforce_delivered(propias)     # entregado al turno → ESO es usar la memoria
+        _reinforce_delivered(propias)     # delivered to the turn → THAT is using the memory
         if timings is not None:
-            timings.update(propias)       # llegó a tiempo → su coste ES el coste del turno
+            timings.update(propias)       # arrived on time → its cost IS the turn's cost
         return got
     except asyncio.TimeoutError:
         if timings is not None:
@@ -180,7 +181,7 @@ def _salvage(fut, query: str, asked_gen: int, propias: dict | None = None) -> No
             f"[SISTEMA] La memoria durable llegó tarde para la pregunta «{(query or '')[:80]}» del turno "
             f"anterior. Esto es lo que tenía: {block[:600]} — úsalo solo si aún viene al caso; si la "
             f"conversación ya va por otro sitio, ignóralo.")
-        _reinforce_delivered(propias or {})   # una entrega tardía que el turno siguiente SÍ lleva es un uso
+        _reinforce_delivered(propias or {})   # a late delivery that the next turn DOES carry is a use
         _LOG.info("recall tardío entregado como nota para el turno siguiente")
     except Exception:  # noqa: BLE001
-        pass                                  # el salvamento es best-effort; nunca rompe nada
+        pass                                  # salvage is best-effort; it never breaks anything

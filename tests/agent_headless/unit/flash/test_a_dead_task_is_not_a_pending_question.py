@@ -2,9 +2,9 @@
 
 Measured by the harness on `hotel-under-15-days` (19:12), reading the system prompt of every turn:
 
-  turno 2: «TAREAS DE FONDO — YA ACABADAS: «Reservar una noche de hotel…» FALLÓ»
-  turnos 3,4,5,6,7,8: lo mismo, la tarea muerta en el prompt cada vez
-  respuesta, ocho veces: «sigo con ello, te aviso»
+  turn 2: «TAREAS DE FONDO — YA ACABADAS: «Reservar una noche de hotel…» FALLÓ»
+  turns 3,4,5,6,7,8: the same, the dead task in the prompt each time
+  response, eight times: «sigo con ello, te aviso»
 
 No wall, no question — a dead task, stated on its own line of the prompt, ignored eight times in a row. That
 separates the two halves of this whole area without ambiguity: DELIVERY was fixed (V2-198 puts the fact in the

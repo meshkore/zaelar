@@ -80,7 +80,7 @@ body {
   border-top: 1px solid var(--hb-line);
 }
 /* Each side HUGS the orb rather than spreading to the screen edge: the controls read as belonging to the orb
-   («en los laterales del orbe»), and the outer corners stay clear of the thumb's natural resting spots. */
+   (“along the sides of the orb”), and the outer corners stay clear of the thumb's natural resting spots. */
 .zm-side { display: flex; align-items: center; gap: 2px; }
 .zm-side:first-child { justify-content: flex-end; }
 .zm-side:last-child  { justify-content: flex-start; }

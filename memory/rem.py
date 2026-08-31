@@ -1,4 +1,4 @@
-"""memory/rem.py — el sueño PROFUNDO de la memoria («fase REM», V2-056 · 2026-07-20).
+"""memory/rem.py — memory's DEEP sleep ("REM phase", V2-056 · 2026-07-20).
 
 El consolidador clásico (`consolidator.py`, cada hora) es el sueño LIGERO: mecánica barata (promote/dedup-exacto/
 decay/prune/evict). Esta es la fase REM — el ciclo PROFUNDO (diario por defecto) en el que la memoria se ORDENA,

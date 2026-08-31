@@ -1,16 +1,16 @@
 """nucleo/flash/procs.py — puente FlashBrain → supervisor de procesos de widgets (V2-004 · T63).
 
-La capa refleja puede conducir procesos de vida propia (widgets `backed` como el navegador) sin bloquear el
-turno de voz. Este módulo es un **PUENTE FINO** a `widgets/supervisor.py` — NO duplica la supervisión (mailbox +
-backoff + aislamiento + desactivación tras N fallos siguen viviendo en el host, arrancado en el lifespan del
-server, en el MISMO loop que la voz). Aquí solo: encolar una orden al owner de un widget, y consultar su estado.
-Encolar (no ejecutar en línea) preserva el invariante del `backed`: el owner es el ÚNICO escritor de su store.
+The reflection layer can drive independent processes (`backed` widgets such as the browser) without blocking the
+voice turn. This module is a **THIN BRIDGE** to `widgets/supervisor.py` — it does NOT duplicate supervision (the
+mailbox, backoff, isolation, and deactivation after N failures remain in the host, started in the server lifespan,
+on the SAME loop as voice). It only enqueues an order for a widget owner and queries its state.
+Enqueuing (rather than executing inline) preserves the `backed` invariant: the owner is the ONLY writer of its store.
 """
 from __future__ import annotations
 
 
 def is_backed(widget_id: str) -> bool:
-    """¿Es `widget_id` un widget backed (con proceso propio supervisado)?"""
+    """Is `widget_id` a backed widget (with its own supervised process)?"""
     try:
         from widgets import supervisor
         return supervisor.is_backed(widget_id)
@@ -19,8 +19,8 @@ def is_backed(widget_id: str) -> bool:
 
 
 def dispatch(widget_id: str, action: str, payload: dict | None = None) -> bool:
-    """Deja una orden en el BUZÓN del owner del widget (no bloquea el turno). Devuelve True si se encoló
-    (widget backed y vivo), False si no (passive/no arrancado/desactivado). Best-effort: nunca lanza."""
+    """Put an order in the widget owner's MAILBOX (does not block the turn). Return True if it was queued
+    (backed and live widget), False otherwise (passive/not started/disabled). Best-effort: never raises."""
     try:
         from widgets import supervisor
         return supervisor.enqueue(widget_id, (action or "").strip(), payload or {})
@@ -29,7 +29,7 @@ def dispatch(widget_id: str, action: str, payload: dict | None = None) -> bool:
 
 
 def status(widget_id: str) -> dict:
-    """Estado del proceso supervisado del widget: {backed, running, disabled, fails}."""
+    """State of the widget's supervised process: {backed, running, disabled, fails}."""
     try:
         from widgets import supervisor
         return supervisor.info(widget_id)
@@ -38,7 +38,7 @@ def status(widget_id: str) -> dict:
 
 
 def running() -> list[str]:
-    """Ids de widgets backed con owner vivo."""
+    """IDs of backed widgets with a live owner."""
     try:
         from widgets import supervisor
         return supervisor.running()

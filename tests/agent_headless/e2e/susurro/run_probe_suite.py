@@ -1,15 +1,15 @@
-"""Grupo de integración «susurro» (V2-053) — suite headless por el canal de PRUEBA del FlashBrain.
+"""“Susurro” integration group (V2-053) — headless suite through FlashBrain’s TEST channel.
 
-Verifica el ciclo COMPLETO contra el server VIVO (make run / make flash-serve):
-  fricción simulada (queja del operador vía probe) → trigger del Susurro → request/response al LLM auditor
-  (eventos con payload en el timeline) → correcciones aplicadas → repair_say hablado en el turno siguiente.
+Verifies the COMPLETE cycle against the LIVE server (make run / make flash-serve):
+  simulated friction (operator complaint via probe) → Susurro trigger → request/response to the auditor LLM
+  (events with payload in the timeline) → corrections applied → spoken repair_say on the following turn.
 
-La MAQUINARIA se exige (sin trigger/request/response = FAIL); el JUICIO del modelo se reporta sin fallar la
-suite (que decida corrections=[] ante un tramo sano es correcto). Cada run APPENDEA su resumen a
-`tests/agent_headless/e2e/susurro/history.jsonl` — la métrica LONGITUDINAL que pidió el operador para ver si el sistema
-mejora (menos fricción, mejores diagnósticos) con el tiempo.
+The MACHINERY is required (without trigger/request/response = FAIL); the model’s JUDGMENT is reported without failing the
+suite (deciding corrections=[] for a healthy segment is correct). Each run APPENDS its summary to
+`tests/agent_headless/e2e/susurro/history.jsonl` — the LONGITUDINAL metric the operator requested to see whether the system
+improves (less friction, better diagnoses) over time.
 
-Uso:  ./.venv/bin/python tests/agent_headless/e2e/susurro/run_probe_suite.py  [--base http://localhost:43917]
+Usage:  ./.venv/bin/python tests/agent_headless/e2e/susurro/run_probe_suite.py  [--base http://localhost:43917]
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def _susurro_events(since_ts: float) -> list[dict]:
                     ev = json.loads(line)
                 except Exception:
                     continue
-                # el timeline sella época en ms como `t_ms` (no `ts`)
+                # the timeline records the epoch in ms as `t_ms` (not `ts`)
                 if ev.get("kind") == "susurro" and float(ev.get("t_ms") or 0) / 1000.0 >= since_ts:
                     out.append(ev)
     except FileNotFoundError:
@@ -86,7 +86,7 @@ def main() -> int:
     print(f"  eventos susurro: {len(evs)} · trigger={has_trigger} request={has_request} "
           f"response={has_response} completa={bool(done)} correcciones={len(applied)}")
     if done:
-        # el timeline APLANA `extra` dentro del evento
+        # the timeline FLATTENS `extra` into the event
         print(f"  assessment: {str(done.get('assessment'))[:200]}")
         print(f"  tipos: {done.get('types')} · total_ms: {done.get('total_ms')}")
 

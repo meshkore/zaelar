@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# zaelar sobre LiveKit (INI-012) — levanta el stack de voz nuevo:
-#   1) servidor LiveKit dev   2) agent worker (voice/engine EMBEBIDO)   3) servidor web zaelar (FastAPI)
-# Ctrl-C lo tira todo. El servidor LiveKit usa el BINARIO NATIVO (sin Docker) si está instalado
-# (`make install-livekit` / `brew install livekit`); Docker es solo un FALLBACK opcional.
+# zaelar over LiveKit (INI-012) — starts the new voice stack:
+#   1) LiveKit dev server   2) agent worker (EMBEDDED voice/engine)   3) zaelar web server (FastAPI)
+# Ctrl-C tears everything down. The LiveKit server uses the NATIVE BINARY (without Docker) if installed
+# (`make install-livekit` / `brew install livekit`); Docker is only an optional FALLBACK.
 #
-# Uso:  bash scripts/run-livekit.sh   (cerebro «Colmena» nucleo por defecto; override con BRAIN=direct/local)
+# Usage:  bash scripts/run-livekit.sh   (default «Colmena» nucleo brain; override with BRAIN=direct/local)
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -24,63 +24,63 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Servidor LiveKit dev: BINARIO NATIVO preferido (sin Docker); Docker solo como fallback.
+# LiveKit dev server: preferred NATIVE BINARY (without Docker); Docker only as a fallback.
 mkdir -p "$HERE/.meshkore/logs"
 
-# ESTABILIDAD (V2-036): barre navegadores/bridges HUÉRFANOS de arranques anteriores (un kill -9 del server deja
-# chrome-headless-shell de Playwright y el node bridge sueltos, que consumen CPU/RAM y saturan el equipo). Solo toca
-# el chrome-headless-shell de Playwright (NO el Google Chrome del operador) y el bridge de WhatsApp de zaelar.
+# STABILITY (V2-036): sweep ORPHANED browsers/bridges from previous launches (a server kill -9 leaves
+# Playwright's chrome-headless-shell and the node bridge detached, consuming CPU/RAM and saturating the machine). Only touches
+# Playwright's chrome-headless-shell (NOT the operator's Google Chrome) and zaelar's WhatsApp bridge.
 pkill -f "chrome-headless-shell" 2>/dev/null || true
 pkill -f "widgets/navegador/bridge\|connectors/whatsapp/bridge/bridge.js" 2>/dev/null || true
-# V2-038: barre Brain Workers HUÉRFANOS (claude --print en modo streaming) de un crash previo. La firma
-# `--input-format stream-json --output-format stream-json` es exclusiva de nuestros workers → NO toca un `claude`
-# interactivo del operador. §v3·L (el barrido en RAM cubre el reinicio limpio; esto, el kill -9).
+# V2-038: sweep ORPHANED Brain Workers (claude --print in streaming mode) from a previous crash. The signature
+# `--input-format stream-json --output-format stream-json` is exclusive to our workers → does NOT touch an operator's
+# interactive `claude`. §v3·L (the RAM sweep covers a clean restart; this covers kill -9).
 pkill -f "input-format stream-json --output-format stream-json" 2>/dev/null || true
 
-# INSTANCIA ÚNICA (fix recurrente 2026-07-16): un `make run` anterior que no recibió Ctrl-C (terminal cerrada,
-# kill -9, arrancado en background) deja el `livekit-server` y/o el server web VIVOS. El siguiente `make run`
-# arranca un `livekit-server` nuevo que NO puede bindear el 7880 (muere en silencio en background), pero el probe
-# de readiness responde contra el VIEJO zombi → el server web se engancha al LiveKit wedgeado →
-# `wait_pc_connection timed out`, "Lost the audio connection", cero STT. Reapamos el stack anterior ANTES de
-# arrancar y esperamos a que el 7880 quede LIBRE, para que el nuevo livekit-server sea el que de verdad escucha.
+# SINGLE INSTANCE (recurring fix 2026-07-16): a previous `make run` that did not receive Ctrl-C (terminal closed,
+# kill -9, started in the background) leaves `livekit-server` and/or the web server ALIVE. The next `make run`
+# starts a new `livekit-server` that CANNOT bind 7880 (it dies silently in the background), but the readiness probe
+# responds against the OLD zombie → the web server attaches to the wedged LiveKit →
+# `wait_pc_connection timed out`, "Lost the audio connection", zero STT. Reap the previous stack BEFORE
+# starting and wait for 7880 to become FREE, so the new livekit-server is the one actually listening.
 SELF_PID=$$
 for pid in $(pgrep -f "scripts/run-livekit.sh" 2>/dev/null || true); do
-  [[ "$pid" != "$SELF_PID" ]] && kill "$pid" 2>/dev/null || true   # su trap EXIT tira a sus hijos (livekit + web)
+  [[ "$pid" != "$SELF_PID" ]] && kill "$pid" 2>/dev/null || true   # its EXIT trap tears down its children (livekit + web)
 done
-pkill -f "livekit-server --dev" 2>/dev/null || true   # livekit-server NUESTRO huérfano (sin su script; cualquier node-ip)
-_web_pids="$(lsof -ti tcp:43917 -sTCP:LISTEN 2>/dev/null || true)"      # server web anterior dueño del 43917
+pkill -f "livekit-server --dev" 2>/dev/null || true   # OUR orphaned livekit-server (without its script; any node-ip)
+_web_pids="$(lsof -ti tcp:43917 -sTCP:LISTEN 2>/dev/null || true)"      # previous web server owning 43917
 [[ -n "$_web_pids" ]] && kill $_web_pids 2>/dev/null || true
-# SPLIT-BRAIN (fix 2026-07-16): el reap de arriba solo mata al DUEÑO del 43917. Un `python -m server` HUÉRFANO
-# (PPID=1, su run-livekit.sh ya murió) que YA NO es dueño del 43917 —porque un stack más nuevo se lo quedó—
-# SOBREVIVE, pero su worker LiveKit EMBEBIDO sigue REGISTRADO en el 7880 → el dev server le despacha jobs de voz
-# → el turno corre en el ZOMBI mientras el /events (SSE) del frontend cuelga del VIVO → "no cierra widgets", el
-# cerebro no ve el canvas, la tarea muere. Reapamos TODO `python -m server` anterior (SIGTERM y, si lo ignora
-# —visto en vivo—, SIGKILL); el que arrancamos abajo será el único con worker registrado.
+# SPLIT-BRAIN (fix 2026-07-16): the reap above only kills the OWNER of 43917. An ORPHANED `python -m server`
+# (PPID=1, its run-livekit.sh has already died) that is NO LONGER the owner of 43917 —because a newer stack took it—
+# SURVIVES, but its EMBEDDED LiveKit worker remains REGISTERED on 7880 → the dev server dispatches voice jobs to it
+# → the turn runs on the ZOMBIE while the frontend's /events (SSE) hangs off the LIVE process → "does not close widgets", the
+# brain cannot see the canvas, and the task dies. Reap ALL previous `python -m server` processes (SIGTERM and, if ignored
+# —observed live—, SIGKILL); the one started below will be the only one with a registered worker.
 for pid in $(pgrep -f "[Pp]ython -m server" 2>/dev/null || true); do kill "$pid" 2>/dev/null || true; done
 sleep 0.5
 for pid in $(pgrep -f "[Pp]ython -m server" 2>/dev/null || true); do kill -9 "$pid" 2>/dev/null || true; done
-# espera a que el 7880 quede LIBRE (hasta ~6s) — si no, el probe de abajo re-detecta al zombi y volvemos al bug
+# wait for 7880 to become FREE (up to ~6s) — otherwise the probe below re-detects the zombie and we return to the bug
 for _ in $(seq 1 12); do nc -z 127.0.0.1 7880 2>/dev/null || break; sleep 0.5; done
 
-# node-ip: NO lo fijamos (auto-sanación ante cambios de red — fix 2026-07-29). LiveKit/pion ENUMERA las interfaces
-# VIVAS y reúne sus host-candidates ICE EN EL MOMENTO de cada PeerConnection nueva (no una vez al arrancar) → una
-# conexión hecha DESPUÉS de cambiar de wifi/hotspot/casa-de-un-amigo anuncia sola la IP ACTUAL, sin reiniciar.
-# FIJAR `--node-ip` al arranque (lo que hacíamos antes) DESACTIVABA justo ese auto-descubrimiento: LiveKit seguía
-# anunciando la IP detectada al arrancar aunque ya no existiera en ninguna interfaz → 'wait_pc_connection timed out'
-# en CADA cambio de red (incidente recurrente 2026-07-28: 3 caídas en un día al moverse entre redes).
-# OJO — esto NO es el caso loopback: `--node-ip=127.0.0.1` SÍ falla (el agente embebido pion no reúne candidato
-# loopback → no hay par ICE, confirmado por la comunidad LiveKit); por eso NO ponemos loopback, simplemente NO
-# fijamos nada y dejamos el enumerado dinámico. La señalización sigue en `--bind 127.0.0.1` (privada, no LAN).
-# Escape hatch power-user / entornos raros: `ZAELAR_LIVEKIT_NODE_IP=<ip>` restaura el viejo pin.
-# PRODUCCIÓN (deploy real, no local): LiveKit Cloud o coturn/Cloudflare TURN → candidato relay con IP estable,
-# independiente de la IP del nodo y del NAT del cliente. Ver zaelar-deploy.md. Detalle: research 2026-07-29.
+# node-ip: we do NOT pin it (self-healing on network changes — fix 2026-07-29). LiveKit/pion ENUMERATES LIVE
+# interfaces and gathers their ICE host-candidates AT THE MOMENT of each new PeerConnection (not once at startup) → a
+# connection made AFTER switching wifi/hotspot/a-friend's-house automatically advertises the CURRENT IP, without restarting.
+# PINNING `--node-ip` at startup (what we used to do) specifically DISABLED that auto-discovery: LiveKit continued
+# advertising the IP detected at startup even though it no longer existed on any interface → 'wait_pc_connection timed out'
+# on EVERY network change (recurring incident 2026-07-28: 3 outages in one day while moving between networks).
+# NOTE — this is NOT the loopback case: `--node-ip=127.0.0.1` DOES fail (the embedded pion agent does not gather a loopback
+# candidate → there is no ICE pair, confirmed by the LiveKit community); therefore we do NOT set loopback, simply do NOT
+# pin anything and leave enumeration dynamic. Signaling remains on `--bind 127.0.0.1` (private, not LAN).
+# Power-user escape hatch / unusual environments: `ZAELAR_LIVEKIT_NODE_IP=<ip>` restores the old pin.
+# PRODUCTION (real deploy, not local): LiveKit Cloud or coturn/Cloudflare TURN → relay candidate with a stable IP,
+# independent of the node IP and the client's NAT. See zaelar-deploy.md. Detail: research 2026-07-29.
 LK_NODE_IP_ARG=""
 if [[ -n "${ZAELAR_LIVEKIT_NODE_IP:-}" ]]; then
   LK_NODE_IP_ARG="--node-ip=${ZAELAR_LIVEKIT_NODE_IP}"
 fi
 
-# AUTO-INSTALL (self-contained first run, sin pasos manuales): si no hay binario nativo, intenta instalarlo solo
-# ANTES de caer a Docker/error — macOS vía brew, Linux vía el instalador oficial. Silencioso si ya está.
+# AUTO-INSTALL (self-contained first run, without manual steps): if there is no native binary, attempts to install it
+# BEFORE falling back to Docker/error — macOS via brew, Linux via the official installer. Silent if already present.
 if ! command -v livekit-server >/dev/null 2>&1; then
   if command -v brew >/dev/null 2>&1; then
     echo "▶ instalando livekit-server (brew, una vez)…"
@@ -112,15 +112,15 @@ fi
 # Wait until LiveKit is truly READY for the embedded worker's agent registration — not just the TCP port open.
 # `nc -z` succeeds the instant the socket binds, but the agent service may not be up; if the worker registers in
 # that window it can SILENTLY fail to register (seen 2026-07-07: 0 workers registered → NO agent ever joins a room
-# → voice muerta en TODO el sistema). Probe HTTP + add a settle margin before starting the web server.
+# → dead voice across the ENTIRE system). Probe HTTP + add a settle margin before starting the web server.
 for _ in $(seq 1 60); do curl -sf -m1 -o /dev/null "http://127.0.0.1:7880/" 2>/dev/null && break; nc -z 127.0.0.1 7880 2>/dev/null && break; sleep 0.5; done
-sleep 2   # settle: let the agent service finish coming up so worker registration lands (evita la carrera de arranque)
+sleep 2   # settle: let the agent service finish coming up so worker registration lands (avoids the startup race)
 echo "  ws://127.0.0.1:7880 (devkey/secret)"
 
 echo "▶ servidor web zaelar (worker LiveKit EMBEBIDO, BRAIN=$BRAIN)…"
-# El worker corre dentro de este proceso (ZAELAR_ENGINE=livekit → server lifespan monta AgentServer THREAD).
-# No hay proceso worker aparte: así comparte el bus/observer-SSE, la memoria central, el loop orquestador y
-# el buzón brain_notes con el cerebro «Colmena» (nucleo/).
+# The worker runs inside this process (ZAELAR_ENGINE=livekit → server lifespan mounts the AgentServer THREAD).
+# There is no separate worker process: this way it shares the bus/observer-SSE, central memory, orchestrator loop, and
+# brain_notes mailbox with the «Colmena» brain (nucleo/).
 ( cd "$HERE" && ZAELAR_ENGINE=livekit exec "$PY" -m server ) & WEB_PID=$!
 
 echo

@@ -87,9 +87,9 @@ Cómo pensar cada campo:
 
 
 def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
-    """El brief como bloque para el prompt del worker. El EMBUDO va explícito y en primera posición porque es la
-    instrucción que el worker se salta si no se le dice: reunir ancho ANTES de descartar. Redactado sin nombrar
-    ningún dominio — vale igual para hoteles, papers o librerías."""
+    """The brief as a block for the worker's prompt. The FUNNEL is explicit and placed first because it is the
+    instruction the worker skips unless told: gather broadly BEFORE discarding. Written without naming any
+    domain — it works equally for hotels, papers, or libraries."""
     if not isinstance(brief, dict) or not brief.get("goal"):
         return ""
     b = brief.get("breadth") or {}
@@ -141,8 +141,8 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
                  f"su precio y su enlace real.")
     else:
         L.append(f"ENTREGABLE — las {nfin} mejores opciones, cada una con sus datos verificados y su enlace real.")
-    # ORDEN = parte del entregable, no cosmética (petición del operador 2026-08-12: «ordenar los diez mejores por
-    # orden de uno al diez»). Una lista sin orden obliga al operador a re-hacer la comparación que el worker ya hizo.
+    # ORDER = part of the deliverable, not cosmetic (operator request 2026-08-12: «sort the ten best from one to
+    # ten»). An unordered list forces the operator to redo the comparison the worker has already made.
     L.append(f"ORDENADAS DE MEJOR A PEOR — la primera es tu nº1 y la última tu nº{nfin}. El orden en que las mandes "
              f"ES el ranking (la hoja las pinta en ese orden), y cada una lleva su `score` con el `why` en una "
              f"frase: sin el porqué, el operador no puede discutir ni corregir tu criterio. Si dos empatan, "
@@ -151,12 +151,12 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              "contrato exacto. IMPORTANTE para que el operador pueda PREGUNTAR después ('¿lleva desayuno?', '¿a qué "
              "hora es la entrada?'): mete los datos duros en `facts` del item y de cada pieza, y las fotos REALES "
              "en `images` — lo que no dejes ahí, zaelar no lo sabrá cuando él pregunte, y tendrá que buscarlo otra vez.")
-    # LA HOJA SE LLENA MIENTRAS TRABAJAS (2026-08-12, petición del operador). Una investigación seria tarda de 5 a
-    # 15 minutos, y hasta hoy el brief solo pedía entregar AL FINAL: el operador se quedaba mirando una hoja vacía
-    # —o peor, la de la búsqueda anterior— sin saber si había algo pasando. Su regla: «un brainworker que está
-    # produciendo resultados, a medida que va teniendo candidatos, los tiene que ir colocando en el widget». No es
-    # cosmético: es lo que le permite CORREGIR el rumbo a los dos minutos en vez de a los quince (y ya ocurrió:
-    # tuvo que decir «acótalo a 42-49 pies» con el worker a medio camino).
+    # THE SHEET FILLS UP WHILE YOU WORK (2026-08-12, operator request). Serious research takes 5 to 15 minutes,
+    # and until now the brief only asked for delivery AT THE END: the operator was left staring at an empty sheet
+    # —or worse, the previous search's sheet—without knowing whether anything was happening. Their rule: «a
+    # brainworker that is producing results must place candidates in the widget as they obtain them». It is not
+    # cosmetic: it lets them CORRECT the direction after two minutes instead of fifteen (and it has already
+    # happened: they had to say «narrow it down to 42–49 feet» with the worker halfway through).
     L.append(f"\nLA HOJA SE LLENA MIENTRAS TRABAJAS, no solo al final — el operador está MIRANDO:\n"
              f"  · En cuanto tengas los PRIMEROS candidatos reales (no esperes a filtrar), haz un `present` con el "
              f"título del encargo, un subtítulo que diga en qué punto vas («en curso · 12 candidatos, aún sin "
@@ -169,10 +169,10 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              f"provisional. Lo que quede en pantalla al acabar tiene que ser exactamente tu selección.\n"
              f"  · Si al final descartas algo que habías publicado, que desaparezca: la hoja no es un historial, es "
              f"el estado ACTUAL de tu trabajo.")
-    # LAS OTRAS TRES PESTAÑAS (2026-08-12). La hoja dejó de ser solo la lista: lleva SUMARIO, FUENTES y CRITERIOS.
-    # Las fuentes son la pieza que faltaba para que el operador pueda AUDITAR el trabajo: hasta hoy, una web que
-    # nos dejaba fuera (login, límite de 50, bloqueo) y una web sin resultados se veían exactamente igual —«no he
-    # encontrado nada»—, así que él no podía saber si convenía entrar a mano, cambiar de sitio o rendirse.
+    # THE OTHER THREE TABS (2026-08-12). The sheet is no longer just the list: it includes SUMMARY, SOURCES, and
+    # CRITERIA. Sources are the missing piece that lets the operator AUDIT the work: until now, a website that
+    # kept us out (login, limit of 50, block) and a website with no results looked exactly the same —«I found
+    # nothing»—so they could not know whether it was worth entering manually, changing sites, or giving up.
     L.append(f"\nDEJA RASTRO DE CÓMO TRABAJAS — la hoja tiene tres pestañas más y se llenan MIENTRAS buscas:\n"
              f"  · FUENTES: cada sitio en el que entras (o al que no puedes entrar) se reporta con "
              f"`python -m nucleo.widget_cli data results sources @fuentes.json` → "

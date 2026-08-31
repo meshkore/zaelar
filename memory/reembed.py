@@ -1,4 +1,4 @@
-"""memory/reembed.py — firma del modelo de embedding + RE-EMBED de mantenimiento (V2-030 · Fase 3).
+"""memory/reembed.py — embedding-model signature + maintenance RE-EMBED (V2-030 · Phase 3).
 
 El embedding es CONFIGURABLE (sección `memory.embed_provider/embed_model`, model-agnostic: local hoy, cloud
 mañana). Pero los vectores de `vec_memories` viven en el ESPACIO del modelo que los creó: si se cambia de modelo
@@ -32,7 +32,7 @@ def _sig_path():
 
 
 def signature() -> str:
-    """Huella del embedding ACTIVO: backend + modelo + dimensión. Cambiar cualquiera invalida los vectores."""
+    """ACTIVE embedding fingerprint: backend + model + dimension. Changing any invalidates the vectors."""
     backend = _emb.active_backend()
     model = _emb._active_model_name() if backend != "hash" else "hash"
     return f"{backend}:{model or backend}:{_emb.dim()}"
@@ -47,11 +47,11 @@ def stored_signature() -> str | None:
 
 
 def stamp(sig: str | None = None) -> None:
-    """Sella la firma con la que está indexada la BD (tras insertar de cero o tras un re-embed)."""
+    """Stamp the signature used to index the database (after a fresh insert or a re-embed)."""
     try:
         _sig_path().write_text(sig or signature(), encoding="utf-8")
     except Exception as e:
-        logger.debug("no se pudo sellar la firma de embedding: %s", e)
+        logger.debug("could not stamp the embedding signature: %s", e)
 
 
 def _vec_count() -> int:
@@ -108,8 +108,9 @@ def space_ok(ttl: float = 60.0) -> bool:
 
 
 def check() -> dict:
-    """Compara la firma activa con la sellada. Si difieren y HAY vectores → aviso fuerte (recall en riesgo). Si no
-    hay firma sellada pero hay vectores (BD previa a V2-030), la sella con la actual (asume coherente). Off-hot-path."""
+    """Compare the active and stamped signatures. If they differ and vectors exist, issue a strong warning
+    (recall is at risk). If vectors exist without a stamp (a pre-V2-030 database), stamp the current one
+    (assuming consistency). Off-hot-path."""
     cur = signature()
     stored = stored_signature()
     n = _vec_count()
@@ -126,8 +127,8 @@ def check() -> dict:
 
 
 def reembed(batch: int = 128) -> dict:
-    """Recalcula TODOS los vectores con el backend ACTUAL. Si cambió la dimensión, recrea `vec_memories`. Job de
-    MANTENIMIENTO (lento, off-hot-path). Devuelve un informe. Tras terminar, re-sella la firma."""
+    """Recompute ALL vectors with the CURRENT backend. If the dimension changed, recreate `vec_memories`.
+    MAINTENANCE job (slow, off-hot-path). Returns a report and re-stamps the signature when finished."""
     db = _db.get_db()
     if not db.vec_available:
         return {"ok": False, "reason": "sqlite-vec no disponible"}

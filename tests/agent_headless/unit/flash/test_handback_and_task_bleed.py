@@ -1,5 +1,5 @@
 """V2-142 (`reorder-prescription__es`) — two failures with one shape: something that is not this request
-becoming part of it.
+becomes part of it.
 
 Turn 1, with a task from ANOTHER request still alive: «Tienes dos cosas: primero necesito los datos del recibo
 de la luz para preparar la transferencia, y segundo voy a pedir la reposición de tu receta». The operator had
@@ -130,15 +130,15 @@ def test_a_search_result_is_only_his_if_you_searched_with_his_words(fresh_db):
     assert "solo es SUYO si buscaste con sus palabras" in system
 
 
-# ── V2-156: la tercera forma de devolver el encargo ──────────────────────────────────────────────────────────
+# ── V2-156: the third way of handing the job back ──────────────────────────────────────────────────────────
 #
-# Turno 1 de `restaurant-tonight-madrid`, a «resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio»:
-# «Te abro la web de Casa Lucio para que hagas la reserva». El operador tuvo que contestar «No, quiero que
+# Turn 1 of `restaurant-tonight-madrid`, with «resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio»:
+# «Te abro la web de Casa Lucio para que hagas la reserva». The operator had to reply «No, quiero que
 # reserves TÚ la mesa, no solo que me pases la web».
 #
-# No es «búscalo tú» (V2-142) ni «avísame tú» (V2-136): es devolverle la ACCIÓN envuelta en un favor, y por eso
-# ninguna de las dos reglas la cubría. Y no era falta de capacidad — la escalada salió y el worker fue a
-# TheFork; lo que falló fue lo que dijo.
+# It is neither «búscalo tú» (V2-142) nor «avísame tú» (V2-136): it is handing the ACTION back wrapped in a favor,
+# which is why neither rule covered it. And it was not a lack of capability — the escalation happened and the worker
+# went to TheFork; what failed was what it said.
 def test_opening_the_page_so_he_does_it_is_also_handing_the_job_back(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "te abro la página y reservas tú" in system
@@ -146,37 +146,36 @@ def test_opening_the_page_so_he_does_it_is_also_handing_the_job_back(fresh_db):
 
 
 def test_and_it_says_that_opening_a_page_is_working_not_delegating(fresh_db):
-    """Sin esta mitad la regla se lee como «no abras páginas», que es lo contrario de lo que se quiere."""
+    """Without this half, the rule reads as «no abras páginas», which is the opposite of what is wanted."""
     system, _ = prompt.build_flash_system()
     assert "una forma de TRABAJAR tú" in system
 
 
 def test_the_wall_is_still_a_legitimate_stopping_point(fresh_db):
-    """Este caso puntúa como MÁXIMO pararse en el muro diciéndolo. La regla no puede prohibir eso — solo exige
-    haberlo intentado primero."""
+    """This case scores stopping at the wall and saying so as the MAXIMUM. The rule cannot prohibit that — it only
+    requires trying first."""
     system, _ = prompt.build_flash_system()
     assert "llega hasta ahí y dilo entonces" in system
 
 
 def test_the_older_two_forms_are_still_covered(fresh_db):
-    """El arreglo es una ampliación de familia, no una sustitución: las dos reglas anteriores siguen."""
+    """The fix expands the family rather than replacing it: the two earlier rules remain."""
     system, _ = prompt.build_flash_system()
     assert "El trabajo es TUYO" in system
     assert "BUSCAR un dato es TU trabajo" in system
 
 
-# ── V2-357: y los CANDIDATOS tampoco se inventan ────────────────────────────────────────────────────────
+# ── V2-357: CANDIDATES are not invented either ────────────────────────────────────────────────────────
 #
-# La regla de arriba (V2-142) cubre los datos DEL OPERADOR —su ciudad, su farmacia, su gimnasio— y no dice
-# nada de los candidatos de un encargo. Medido en `weekend-plan-barcelona__es` (2026-08-27, ronda del
-# supervisor): en el TURNO 2, con el worker recién arrancado y cero filas en la hoja, zaelar propuso las vías
-# ferratas «de Centelles» y «Teresina» — sin precio, sin horario, sin enlace, sin fuente. El juez lo puso de
-# bloqueador nº1: «nombres plausibles sacados del conocimiento del modelo, no de una búsqueda… tiene forma de
-# resultado y no lo es».
+# The rule above (V2-142) covers the OPERATOR'S data —his city, his pharmacy, his gym— and says nothing about
+# the candidates for a job. Measured in `weekend-plan-barcelona__es` (2026-08-27, supervisor round): on TURN 2,
+# with the worker just started and zero rows in the sheet, zaelar proposed the via ferratas «de Centelles» and
+# «Teresina» — with no price, schedule, link, or source. The judge made it blocker nº1: «nombres plausibles sacados
+# del conocimiento del modelo, no de una búsqueda… tiene forma de resultado y no lo es».
 #
-# Es la tercera vez en la misma tanda con la misma forma —V2-344 y V2-348 fueron las otras dos—: la
-# instrucción correcta, acotada a la rama equivocada. Y aquí el daño es peor que callar, porque el operador NO
-# PUEDE distinguir un nombre inventado de uno encontrado: se fía y se equivoca.
+# It is the third time in the same batch with the same pattern —V2-344 and V2-348 were the other two—: the
+# correct instruction, scoped to the wrong branch. And here the harm is worse than silence, because the operator
+# CANNOT distinguish an invented name from one found: he trusts it and makes a mistake.
 
 def test_los_candidatos_salen_de_la_busqueda_no_del_modelo():
     system, _ = prompt.build_flash_system()
@@ -185,15 +184,15 @@ def test_los_candidatos_salen_de_la_busqueda_no_del_modelo():
 
 
 def test_y_dice_que_NO_TENER_es_una_respuesta_completa():
-    """Sin esta mitad el bloque solo prohíbe, y el modelo se queda sin salida legítima — que es justo cómo se
-    llega a inventar. Misma lección que V2-187."""
+    """Without this half, the block only prohibits, and the model is left without a legitimate way out — which is
+    exactly how it ends up inventing. Same lesson as V2-187."""
     system, _ = prompt.build_flash_system()
     assert "«todavía no tengo candidatos» es una respuesta COMPLETA" in system
 
 
 def test_la_EXCEPCION_va_dentro_del_imperativo():
-    """Explicar qué ES algo en general sigue permitido y ayuda. Va en la misma frase, no en otra: dos órdenes
-    en un párrafo salen a cara o cruz (V2-348)."""
+    """Explaining what something IS in general remains allowed and helpful. It goes in the same sentence, not
+    another one: two commands in a paragraph come out heads or tails (V2-348)."""
     system, _ = prompt.build_flash_system()
     assert "qué ES algo" in system and "sí puedes" in system
     i, j = system.index("CANDIDATOS de lo que te encarga"), system.index("qué ES algo")
@@ -201,7 +200,7 @@ def test_la_EXCEPCION_va_dentro_del_imperativo():
 
 
 def test_la_regla_HERMANA_sigue_en_pie():
-    """El lado contrario: la de V2-142 no puede desaparecer al añadir la suya."""
+    """The opposite side: the V2-142 rule cannot disappear when its counterpart is added."""
     system, _ = prompt.build_flash_system()
     assert "busca lo que ÉL ha dicho" in system
     assert "Un resultado solo es SUYO" in system

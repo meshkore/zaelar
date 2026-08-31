@@ -31,9 +31,9 @@ const _pendingText = [];                           // text queued while the data
 export function attachVideo(el) { videoEl = el; }
 export function attachBotAudio(el) {
   botAudioEl = el;
-  // PARIDAD icono↔audio — INVARIANTE AUTO-CORRECTIVA (espejo de session-lk.js, bug de hidratación 2026-07-17):
-  // cualquier cambio externo de muted/volume dispara 'volumechange' → re-asertamos el estado del signal (guard
-  // anti-recursión) + cinturón volume=0 + hidratación inmediata del estado persistido al montar.
+  // ICON↔AUDIO PARITY — SELF-CORRECTING INVARIANT (mirror of session-lk.js, hydration bug 2026-07-17):
+  // any external muted/volume change triggers 'volumechange' → reassert the signal state (recursion guard)
+  // + volume=0 safety belt + immediate hydration of the persisted state on mount.
   const enforce = () => {
     const want = store.botMuted();
     if (el.muted !== want) el.muted = want;
@@ -88,7 +88,7 @@ export function toggleMic() {
 export function applyBotMute() {
   if (!botAudioEl) return;
   botAudioEl.muted = store.botMuted();
-  botAudioEl.volume = store.botMuted() ? 0 : 1;   // cinturón: volumen 0 silencia aunque algo des-mutee el elemento
+  botAudioEl.volume = store.botMuted() ? 0 : 1;   // safety belt: volume 0 silences even if something unmutes the element
 }
 export function toggleBotMute() {
   const next = !store.botMuted(); store.setBotMuted(next); localStorage.setItem("hb_bot_muted", next ? "1" : "0");
@@ -131,7 +131,7 @@ function auditMicCapture() {
     const sp2 = new URLSearchParams(location.search);
     const mode = sp2.get("raw") === "1" ? "raw" : sp2.get("aec") === "1" ? "aec(echoCancel only)" : "full(interviewer: aec+ns+agc+voiceIso)";
     api.clientLog("🔎 mic capture audit", { rms: Math.round(peak * 1000) / 1000, raw: sp2.get("raw") === "1", device: dev, text: (peak > 0.02 ? "OK: browser capturing sound" : "SILENT: browser captures ~0 over 2.5s") + " · dev=" + dev + " · " + mode });
-    audit.silent = !store.micMuted() && peak < 0.02;   // si estoy muteado a propósito, el silencio es esperado
+    audit.silent = !store.micMuted() && peak < 0.02;   // if muted intentionally, silence is expected
     if (audit.silent && micDeviceId) { micDeviceId = null; localStorage.removeItem("zaelar_mic"); }   // drop a silent pinned mic
   }, 2500);
 }
@@ -246,28 +246,28 @@ export function stop() {
   started = false; starting = false; store.setStarted(false); store.setStarting(false);
   try { stopBrowserSTT(); } catch (_) {}
   try { stopMicVAD(); } catch (_) {}
-  // OJO: aquí NO se cierra el stream de /events. Desde 2026-08-09 lo abre `main.js` en el arranque y su vida es la
-  // de la APLICACIÓN, no la de la sesión de voz: por él llegan los eventos de widget (un worker empujando
-  // resultados uno a uno), que tienen que seguir pintándose con la voz parada. Cerrarlo aquí dejaba la pantalla
-  // congelada en dos casos reales y silenciosos — el operador que para la voz, y el navegador que DENIEGA el
-  // micrófono (start() falla → pasa por aquí → adiós al stream que main.js acababa de abrir).
+  // NOTE: do NOT close the /events stream here. Since 2026-08-09 `main.js` opens it at startup and its lifetime is the
+  // APPLICATION's, not the voice session's: widget events arrive through it (a worker pushing
+  // results one by one), and must keep rendering with voice stopped. Closing it here froze the screen
+  // in two real, silent cases — the operator stopping voice, and the browser DENYING the
+  // microphone (start() fails → passes through here → goodbye to the stream main.js had just opened).
   try { if (pc) pc.close(); } catch (_) {} pc = null; dc = null;
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
-  // Mismo contrato que el motor LiveKit (`session-lk.js`): al parar se suelta el grafo de audio COMPLETO, no solo
-  // el analizador del bot. `gate` se anula justo debajo, así que nadie queda leyendo un analizador muerto.
+  // Same contract as the LiveKit engine (`session-lk.js`): stopping releases the COMPLETE audio graph, not just
+  // the bot analyser. `gate` is nulled immediately below, so nobody keeps reading a dead analyser.
   store.setBotSpeaking(false); audio.reset("session_stop");
   gate = null; store.setSpk({ show: false, other: false, html: "" });
   store.setConnState("—"); store.setLatency("— ms");
 }
 
 export async function reset() { stop(); await api.reset(); }
-// HARD reset (botón Reset, tras confirmación): para la voz + dispara /reset/hard (congela el trabajo en curso en
-// la memoria de estado, lo registra en corto y MATA los procesos de fondo) + limpia los blobs de actividad.
+// HARD reset (Reset button, after confirmation): stop voice + trigger /reset/hard (freeze the current work in
+// state memory, log it briefly, and KILL background processes) + clear activity blobs.
 export async function resetHard() {
   stop();
   try { await api.resetHard(); } catch (_) {}
   try { store.setTasks([]); } catch (_) {}
-  unmuteVoice();   // tras un RESET del agente, la voz arranca ACTIVA (icono activo) por defecto
+  unmuteVoice();   // after an agent RESET, voice starts ACTIVE (active icon) by default
 }
 export function toggle() { (started || starting) ? stop() : start(); }
 

@@ -1,17 +1,17 @@
 #
-# test_work_agents.py — agentes de trabajo del SlowBrain + router + confirm-gate + retorno (V2-007).
-# Verifica sin arrancar navegador/Claude reales:
-#   - web.run orquesta una tarea de navegador (crea tarea, planifica, encola `automate`) y NO entrega (owner lo hace)
-#   - web.run deduplica refinamientos (similar_active) sin crear otra tarjeta
-#   - code.run envuelve el generador de widgets (crear/modificar) y el Architect
-#   - el dispatcher enruta por tipo (web/code/genérico) y clasifica lo no marcado
-#   - el confirm-gate PARA una acción irreversible salvo OK; sin OK no ejecuta el agente
-#   - el retorno entrega por voz+UI+[SISTEMA] solo lo entregable (web no)
-# Ejecutar: .venv/bin/pytest tests/agent_headless/unit/agentes/test_work_agents.py
+# test_work_agents.py — SlowBrain work agents + router + confirm-gate + return (V2-007).
+# Verifies without starting real browsers/Claude:
+#   - web.run orchestrates a browser task (creates a task, plans, queues `automate`) and does NOT deliver (the owner does so)
+#   - web.run deduplicates refinements (similar_active) without creating another card
+#   - code.run wraps the widget generator (create/modify) and the Architect
+#   - the dispatcher routes by type (web/code/generic) and classifies unmarked requests
+#   - the confirm-gate STOPS an irreversible action unless OK; without OK it does not execute the agent
+#   - the return delivers only deliverable results by voice+UI+[SYSTEM] (not web)
+# Run: .venv/bin/pytest tests/agent_headless/unit/agentes/test_work_agents.py
 #
-# ⚠️ V2-038: los agentes one-shot de nucleo/agentes/ quedaron PARKEADOS (sustituidos por nucleo/workers/ — sesiones
-# interactivas). dispatch.run_task/_deliver ya no existen. Este test se SALTA (revertible; su cobertura la retoman
-# tests/agent_headless/unit/workers/test_workers.py + los tests de routing). Retirada física = trabajo del equipo.
+# ⚠️ V2-038: the one-shot agents in nucleo/agentes/ were PARKED (replaced by nucleo/workers/ — interactive
+# sessions). dispatch.run_task/_deliver no longer exist. This test is SKIPPED (reversible; its coverage is taken over by
+# tests/agent_headless/unit/workers/test_workers.py + the routing tests). Physical removal = team work.
 import pytest
 pytest.skip("nucleo/agentes one-shot parkeado en V2-038 (ver nucleo/workers/)", allow_module_level=True)
 
@@ -35,7 +35,7 @@ def test_web_run_orchestrates_navegador(monkeypatch):
     monkeypatch.setattr(navtasks, "inst_id", lambda tid: f"navegador::{tid}")
     monkeypatch.setattr(navtasks, "add_event", lambda tid, text: None)
     monkeypatch.setattr(navtasks, "finish", lambda *a, **k: None)
-    # planificador: no arranca un CodeAgent real
+    # planner: does not start a real CodeAgent
     async def _fake_plan(goal, task):
         return "PLAN: ir a wallapop, filtrar por precio"
     monkeypatch.setattr(web_agent, "_plan", _fake_plan)
@@ -56,7 +56,7 @@ def test_web_run_orchestrates_navegador(monkeypatch):
 
 
 def test_web_run_refines_active_task(monkeypatch):
-    """Aclaración sobre una tarea VIVA → la MODIFICA (set_goal) en su misma tarjeta, NO abre otro navegador."""
+    """Clarification about a LIVE task → MODIFIES it (set_goal) on the same card, does NOT open another browser."""
     from widgets.navegador import tasks as navtasks
     created = {"n": 0}
     goals = {}
@@ -70,12 +70,12 @@ def test_web_run_refines_active_task(monkeypatch):
     wr = asyncio.run(web_agent.run(task))
     assert wr.ok is True and wr.deliver is False
     assert wr.meta.get("refined") is True
-    assert created["n"] == 0                        # NO creó otra tarjeta
-    assert goals.get("taskDUP") == "no, de enduro 300 4T cerca de Soria"   # la aclaración MODIFICÓ el objetivo
+    assert created["n"] == 0                        # Did NOT create another card
+    assert goals.get("taskDUP") == "no, de enduro 300 4T cerca de Soria"   # The clarification MODIFIED the goal
 
 
 def test_web_run_reruns_finished_task(monkeypatch):
-    """Aclaración sobre una tarea recién TERMINADA → RE-LANZA la MISMA tarjeta (mismo task_id), no una nueva."""
+    """Clarification about a recently FINISHED task → RE-LAUNCHES the SAME card (same task_id), not a new one."""
     from widgets.navegador import tasks as navtasks
     created = {"n": 0}
     calls = {}
@@ -97,8 +97,8 @@ def test_web_run_reruns_finished_task(monkeypatch):
     task = dispatch.Task(id="t", request="en realidad quería de enduro, no eso", kind="web")
     wr = asyncio.run(web_agent.run(task))
     assert wr.ok is True and wr.meta.get("rerun") is True
-    assert created["n"] == 0                        # NO creó otra tarjeta
-    assert calls["ba"]["task_id"] == "taskOLD"      # re-lanzó en la MISMA tarea/tarjeta
+    assert created["n"] == 0                        # Did NOT create another card
+    assert calls["ba"]["task_id"] == "taskOLD"      # Relaunched on the SAME task/card
 
 
 # ── code agent ───────────────────────────────────────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ def test_code_run_modifies_existing_widget(monkeypatch):
         seen["wid"], seen["change"] = wid, change
         return {"ok": True, "id": wid, "modified": True}
     monkeypatch.setattr(generator, "modify_widget", _mod)
-    # red de seguridad: si el routing cae al CREATE por error, que NO arranque un headless real
+    # Safety net: if routing mistakenly falls through to CREATE, do NOT start a real headless agent
     monkeypatch.setattr(generator, "generate_widget",
                         lambda *a, **k: pytest.fail("no debía crear, sino modificar"))
     task = dispatch.Task(id="t", request="modifica el widget agenda para añadir prioridad", kind="code")
@@ -156,7 +156,7 @@ def test_router_sends_web_request_to_web_agent(monkeypatch):
         seen["task"] = task
         return WorkResult(ok=True, summary="en marcha", deliver=False)
     monkeypatch.setattr(web_agent, "run", _web_run)
-    # petición sin kind explícito pero claramente web → se clasifica a 'web'
+    # Request without an explicit kind but clearly web-related → classified as 'web'
     task = dispatch.Task(id="t", request="en wallapop búscame una bici", kind="generic")
     wr = asyncio.run(dispatch.run_task(task))
     assert wr.deliver is False
@@ -175,10 +175,10 @@ def test_confirm_gate_blocks_irreversible(monkeypatch):
     task = dispatch.Task(id="t", request="borra la cuenta de correo", kind="generic")
     wr = asyncio.run(dispatch.run_task(task))
     assert wr.meta.get("needs_confirm") is True
-    assert ran["n"] == 0                            # NO se ejecutó el agente sin OK
-    assert "?" in wr.summary                         # es una pregunta de confirmación
+    assert ran["n"] == 0                            # The agent was NOT executed without OK
+    assert "?" in wr.summary                         # It is a confirmation question
 
-    # con OK explícito, procede
+    # With explicit OK, proceed
     task2 = dispatch.Task(id="t2", request="borra la cuenta de correo", kind="generic",
                           context={"confirmed": True})
     asyncio.run(dispatch.run_task(task2))
@@ -197,10 +197,10 @@ def test_deliver_pushes_note_and_notifies(monkeypatch):
 
     task = dispatch.Task(id="t", request="calcula 2+2", kind="generic")
     asyncio.run(dispatch._deliver(WorkResult(ok=True, summary="son 4", deliver=True), task))
-    assert any("son 4" in p for p in pushed)         # nota [SISTEMA]
-    assert notified == ["son 4"]                     # voz+UI
+    assert any("son 4" in p for p in pushed)         # [SYSTEM] note
+    assert notified == ["son 4"]                     # voice+UI
 
-    # una tarea web (deliver=False) NO se entrega aquí (su owner lo hace)
+    # A web task (deliver=False) is NOT delivered here (its owner does so)
     pushed.clear(); notified.clear()
     asyncio.run(dispatch._deliver(WorkResult(ok=True, summary="en marcha", deliver=False), task))
     assert pushed == [] and notified == []

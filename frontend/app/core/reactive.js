@@ -56,15 +56,15 @@ export function createEffect(fn) {
   return () => cleanupObserver(observer);
 }
 
-// untrack(fn) — lee señales SIN suscribirse a ellas. Firma idéntica a la de Solid (`untrack`), así que la
-// migración prevista arriba sigue siendo un cambio de import.
+// untrack(fn) — reads signals WITHOUT subscribing to them. Its signature is identical to Solid's (`untrack`), so
+// the planned migration above remains an import change.
 //
-// Para qué sirve, con un caso real detrás: un efecto que LEE una señal para DECIDIR y luego la ESCRIBE se
-// retroalimenta. Pasó con el altavoz — un efecto leía `botMuted()` para silenciar al abrir el chat, quedaba
-// suscrito, y al pulsar 🔊 se re-disparaba y VOLVÍA A SILENCIAR: el icono parecía bloqueado porque respondía y
-// algo lo deshacía en el mismo tick (V2-087). Aquel efecto se eliminó del todo en V2-088 —chat y voz son
-// independientes—, así que hoy nadie usa `untrack`; se conserva porque es primitivo de Solid y la herramienta
-// correcta para esa clase de bucle. Antes de usarlo, pregúntate si el acoplamiento debería existir siquiera.
+// What it is for, with a real case behind it: an effect that READS a signal to DECIDE and then WRITES it feeds
+// back into itself. This happened with the speaker—an effect read `botMuted()` to mute it when opening chat,
+// remained subscribed, and pressing 🔊 retriggered it and MUTED IT AGAIN: the icon looked stuck because it reacted
+// and something undid the action in the same tick (V2-087). That effect was removed entirely in V2-088—chat and
+// voice are independent—so nobody uses `untrack` today; it remains because it is a Solid primitive and the right
+// tool for that class of loop. Before using it, ask whether the coupling should exist at all.
 export function untrack(fn) {
   const prev = currentObserver;
   currentObserver = null;

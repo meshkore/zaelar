@@ -1,18 +1,18 @@
-"""nucleo/flash/memory_cache.py — bloque de MEMORIA del FlashBrain cacheado FUERA del turno (V2-011 · T114).
+"""nucleo/flash/memory_cache.py — FlashBrain MEMORY block cached OUTSIDE the turn (V2-011 · T114).
 
-El problema (V2-004 → V2-011): el port a `nucleo/` metió el retriever COMPLETO de memoria en el camino caliente
-del turno — `build_flash_system(recall_query=text)` disparaba `memory.query()` (embeddings HTTP a Ollama + RRF +
-graph + refuerzo) SÍNCRONO en el event loop antes del LLM, cada turno. El baseline de T113 lo confirma: 112–452 ms
-por turno, bloqueando el loop.
+The problem (V2-004 → V2-011): the port to `nucleo/` put the COMPLETE memory retriever in the turn's hot path
+— `build_flash_system(recall_query=text)` triggered `memory.query()` (HTTP embeddings to Ollama + RRF + graph +
+reinforcement) SYNCHRONOUSLY in the event loop before the LLM, on every turn. The T113 baseline confirms it: 112–452
+ms per turn, blocking the loop.
 
-La v1 (`brains/duo/briefing.py`) NUNCA consultaba memoria por turno: pedía un briefing UNA vez al arrancar y lo
-CACHEABA (TTL 300 s), inyectando el string en el prompt. Este módulo es el equivalente v2 sin Hermes: el bloque
-sale de la memoria central PROPIA — de la **tabla de estado fija** (`memory.state()`, nombre/trato/ubicación/
-temas/recientes: la "memoria de arranque" que neutraliza el "¿quién eres?") — y se cachea por proceso con TTL
-corto + **refresco async** + **invalidación por la señal `memory.updated`** del bus. El turno lee el string
-cacheado al instante; NUNCA dispara el retriever en el event loop.
+V1 (`brains/duo/briefing.py`) NEVER queried memory per turn: it requested a briefing ONCE at startup and CACHED it
+(TTL 300 s), injecting the string into the prompt. This module is the v2 equivalent without Hermes: the block
+comes from the PROPER central memory — from the **fixed state table** (`memory.state()`, name/address/location/
+topics/recent items: the "startup memory" that neutralizes "who are you?") — and is cached per process with a
+short TTL + **async refresh** + **invalidation through the bus's `memory.updated` signal**. The turn reads the
+cached string instantly; it NEVER triggers the retriever in the event loop.
 
-El recall semántico específico (`memory.query`) NO vive aquí — es bajo demanda y fuera del loop (T115/T116).
+The specific semantic recall (`memory.query`) does NOT live here — it is on demand and outside the loop (T115/T116).
 """
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ import time
 
 from loguru import logger
 
-_TTL = float(os.getenv("NUCLEO_MEM_CACHE_TTL", "300"))   # s; corto → recall casi-vivo, pero fuera del turno
+_TTL = float(os.getenv("NUCLEO_MEM_CACHE_TTL", "300"))   # s; short → near-live recall, but outside the turn
 _lock = threading.Lock()
 _cache = {"block": "", "op": "", "at": 0.0, "dirty": True}
-_refreshing = threading.Event()   # dedup: un solo refresco en vuelo a la vez
+_refreshing = threading.Event()   # dedup: only one refresh in flight at a time
 _bus_wired = {"v": False}
-# Stats de la última composición (observabilidad de memoria, V2-014 Task 2): el turno las lee para pintar
-# filas MEMORY (estado/corto) en la columna de logs, con lo que se leyó y su tamaño.
+# Stats from the last composition (memory observability, V2-014 Task 2): the turn reads them to render
+# MEMORY rows (state/short) in the log column, showing what was read and its size.
 _last_stats: dict = {"has_state": False, "state_fields": 0, "short_count": 0, "short_chars": 0,
                      "salient_count": 0, "has_mission": False, "op": ""}
 
@@ -40,15 +40,15 @@ def _set_stats(**kw) -> None:
 
 
 def stats() -> dict:
-    """Stats de la última lectura de memoria compuesta (para la columna de observabilidad)."""
+    """Stats from the last composed memory read (for the observability column)."""
     with _lock:
         return dict(_last_stats)
 
 
-# ── composición del bloque (delega en memory.compose_state; SIEMPRE fuera del loop) ─────────────────────────
+# ── block composition (delegates to memory.compose_state; ALWAYS outside the loop) ─────────────────────────
 def _mission_fallback() -> str:
-    """Texto de MISIÓN por defecto, del catálogo de idioma (single source de idioma). Se pasa a
-    `compose_state` para no invertir la dependencia memoria→voz, y se SIEMBRA en el estado en `prime()`."""
+    """Default MISSION text from the language catalog (single language source). Passed to
+    `compose_state` to avoid reversing the memory→voice dependency, and SEEDED into state in `prime()`."""
     try:
         from voice.engine.core import langs
         return langs.current_language().mission or ""
@@ -57,9 +57,9 @@ def _mission_fallback() -> str:
 
 
 def _compose() -> tuple[str, str]:
-    """Compone el bloque de ESTADO COMPARTIDO delegando en `memory.compose_state()` (V2-027 — la memoria es la
-    dueña de la composición A+B+C; este módulo solo la CACHEA off-hot-path). Devuelve (bloque, operator_name).
-    Best-effort: ('', '') si la memoria no está disponible. Se ejecuta SIEMPRE en un hilo — nunca en el event loop."""
+    """Composes the SHARED STATE block by delegating to `memory.compose_state()` (V2-027 — memory owns the
+    A+B+C composition; this module only CACHES it off the hot path). Returns (block, operator_name).
+    Best-effort: ('', '') if memory is unavailable. ALWAYS runs in a thread — never in the event loop."""
     try:
         from memory import api as memory
         block, op, stats = memory.compose_state(mission_fallback=_mission_fallback())
@@ -69,26 +69,26 @@ def _compose() -> tuple[str, str]:
     return block, op
 
 
-# ── API pública ─────────────────────────────────────────────────────────────────────────────────────────
+# ── public API ─────────────────────────────────────────────────────────────────────────────────────────
 def get() -> tuple[str, str]:
-    """Lee el bloque cacheado (bloque, operator_name) AL INSTANTE — nunca bloquea el turno. Si está sucio o
-    caducado, agenda un refresco async (fire-and-forget) y devuelve el valor actual (posiblemente stale, pero
-    fresco por el TTL corto + la invalidación por `memory.updated`)."""
+    """Reads the cached block (block, operator_name) INSTANTLY — never blocks the turn. If dirty or
+    expired, schedules an async refresh (fire-and-forget) and returns the current value (possibly stale, but
+    kept fresh by the short TTL + invalidation through `memory.updated`)."""
     _wire_bus()
     with _lock:
         block, op, at, dirty = _cache["block"], _cache["op"], _cache["at"], _cache["dirty"]
     if dirty or (time.time() - at) > _TTL:
-        if _schedule_refresh():          # refresco SÍNCRONO (sin loop) → re-lee el valor ya fresco
+        if _schedule_refresh():          # SYNCHRONOUS refresh (no loop) → re-read the now-fresh value
             with _lock:
                 block, op = _cache["block"], _cache["op"]
     return block, op
 
 
 def _seed_mission() -> None:
-    """SIEMBRA la MISIÓN en la memoria (state.mission) al arrancar si aún no está, tomándola del catálogo de idioma
-    (`langs`, idioma del operador). Así la identidad de zaelar VIVE en la memoria — visible en el mapa y editable —
-    en vez de en un prompt inglés hardcodeado (V2-027). Idempotente: si ya hay misión, no la pisa (respeta una
-    misión evolucionada). Best-effort; corre en el hilo de `prime` (arranque), nunca en el turno."""
+    """SEEDS the MISSION into memory (state.mission) at startup if it is not there yet, taking it from the language
+    catalog (`langs`, the operator's language). This way zaelar's identity LIVES in memory — visible and editable on
+    the map — instead of in a hardcoded English prompt (V2-027). Idempotent: if a mission already exists, does not
+    overwrite it (preserves an evolved mission). Best-effort; runs in the `prime` thread (startup), never in the turn."""
     try:
         from memory import api as memory
         cur = (memory.state().get("mission") or "").strip()
@@ -96,15 +96,15 @@ def _seed_mission() -> None:
             return
         text = _mission_fallback()
         if text:
-            memory.set_state({"mission": text})   # emite memory.updated → el refresh de prime recompone tras esto
+            memory.set_state({"mission": text})   # emits memory.updated → prime's refresh recomposes after this
     except Exception:
         pass
 
 
 async def prime() -> None:
-    """Siembra la MISIÓN (si falta) y compone el bloque UNA vez al arrancar la sesión (analogía del briefing v1),
-    para que el PRIMER turno ya tenga identidad + memoria de arranque (saludo por nombre). Corre en un hilo; nunca
-    rompe el arranque de la voz."""
+    """Seeds the MISSION (if missing) and composes the block ONCE at session startup (analogous to the v1 briefing),
+    so the FIRST turn already has identity + startup memory (name greeting). Runs in a thread; never
+    disrupts voice startup."""
     _wire_bus()
     await asyncio.to_thread(_seed_mission)
     await _do_refresh()
@@ -120,13 +120,13 @@ async def refresh() -> None:
 
 
 def invalidate() -> None:
-    """Marca el bloque como sucio → el próximo `get()` agenda un refresco. Lo llama el sink de `memory.updated`."""
+    """Marks the block as dirty → the next `get()` schedules a refresh. Called by the `memory.updated` sink."""
     with _lock:
         _cache["dirty"] = True
 
 
 def reset() -> None:
-    """Limpia el estado (tests): caché, refresco en vuelo y suscripción al bus."""
+    """Clears state (tests): cache, in-flight refresh, and bus subscription."""
     with _lock:
         _cache.update({"block": "", "op": "", "at": 0.0, "dirty": True})
     _refreshing.clear()
@@ -139,11 +139,11 @@ def reset() -> None:
         _bus_wired["v"] = False
 
 
-# ── mecánica interna ────────────────────────────────────────────────────────────────────────────────────
+# ── internal mechanics ────────────────────────────────────────────────────────────────────────────────────
 def _schedule_refresh() -> bool:
-    """Agenda `_do_refresh()` en el loop en curso (fire-and-forget). Si no hay loop (tests/standalone), refresca
-    en línea de forma síncrona — nunca deja el bloque vacío por no tener loop. Devuelve True SOLO si refrescó
-    síncrono (para que `get()` re-lea el valor ya fresco)."""
+    """Schedules `_do_refresh()` on the current loop (fire-and-forget). If there is no loop (tests/standalone), refreshes
+    inline synchronously — never leaves the block empty because no loop exists. Returns True ONLY if it refreshed
+    synchronously (so `get()` re-reads the now-fresh value)."""
     if _refreshing.is_set():
         return False
     try:
@@ -155,14 +155,14 @@ def _schedule_refresh() -> bool:
         task = loop.create_task(_do_refresh())
         task.add_done_callback(lambda t: (_refreshing.clear(), t.cancelled() or t.exception()))
         return False
-    # sin loop: refresco síncrono (compose es barato: solo memory.state()).
+    # no loop: synchronous refresh (compose is cheap: only memory.state()).
     block, op = _compose()
     _store(block, op)
     return True
 
 
 async def _do_refresh() -> None:
-    """Recompone el bloque en un hilo y actualiza el caché. Best-effort."""
+    """Recomposes the block in a thread and updates the cache. Best-effort."""
     try:
         block, op = await asyncio.to_thread(_compose)
         _store(block, op)
@@ -172,13 +172,13 @@ async def _do_refresh() -> None:
 
 def _store(block: str, op: str) -> None:
     with _lock:
-        # SUELO DE IDENTIDAD SAGRADO (fix del "no sabe mi nombre aunque está en el estado"): `compose_state` puede
-        # FALLAR transitoriamente (lectura de la BD bajo contención en sesiones con muchas escrituras) y devolver
-        # ('',''). NUNCA sobrescribimos un bloque BUENO con vacío → el nombre/trato/misión jamás desaparecen a mitad
-        # de sesión por un fallo puntual. El vacío legítimo (fresh install / `reset()`) parte de un caché ya vacío,
-        # así que esta guarda no lo bloquea; solo protege contra el borrado accidental del estado vivo.
+        # SACRED IDENTITY FLOOR (fix for "doesn't know my name although it is in state"): `compose_state` may
+        # FAIL transiently (DB read under contention in sessions with many writes) and return
+        # ('',''). We NEVER overwrite a GOOD block with empty → name/address/mission never disappear mid-session
+        # because of a transient failure. Legitimate emptiness (fresh install / `reset()`) starts with an already
+        # empty cache, so this guard does not block it; it only protects against accidental deletion of live state.
         if not (block or "").strip() and (_cache["block"] or "").strip():
-            _cache["dirty"] = True     # mantener el bueno, pero reintentar el refresco en el próximo get()
+            _cache["dirty"] = True     # keep the good one, but retry the refresh on the next get()
             return
         _cache["block"] = block
         _cache["op"] = op
@@ -187,8 +187,8 @@ def _store(block: str, op: str) -> None:
 
 
 def _wire_bus() -> None:
-    """Suscribe la invalidación a `memory.updated` con un SINK del bus (síncrono, loop-agnóstico — igual que el
-    log durable). Barato: filtra el topic y marca sucio. Idempotente."""
+    """Subscribes invalidation to `memory.updated` with a bus SINK (synchronous, loop-agnostic — like the
+    durable log). Cheap: filters the topic and marks it dirty. Idempotent."""
     if _bus_wired["v"]:
         return
     try:

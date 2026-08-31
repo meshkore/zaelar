@@ -1,4 +1,4 @@
-"""memory/rerank_local.py — reranker LOCAL cross-encoder (ONNX/CPU) (V2-030 · Fase 2).
+"""memory/rerank_local.py — LOCAL cross-encoder reranker (ONNX/CPU) (V2-030 · Phase 2).
 
 Retador autosuficiente del techo OpenAI: un **cross-encoder** `bge-reranker` servido por **fastembed**
 (ONNX-Runtime, **CPU** → cero contención con la GPU Apple, que ya cargan STT+TTS). A diferencia del embedding

@@ -1,25 +1,25 @@
-"""V2-339 — «no comparten vocabulario» silenciaba los dominios donde los resultados buenos NO se parecen.
+"""V2-339 — “do not share vocabulary” silenced domains where good results do NOT look alike.
 
-La guarda de V2-305 existe para que el backstop de entrega no anuncie el FEED de una página como si fueran
-candidatos (ronda 35: Beyblades, cosmética, velas y un Ford Fiesta, tras un tecleo fallido). Su señal era una
-sola: si ninguna palabra se repite entre las filas, es un feed.
+The V2-305 guard exists so that the delivery backstop does not announce a page's FEED as if it were
+candidates (round 35: Beyblades, cosmetics, candles, and a Ford Fiesta, after a failed keystroke). Its signal was a
+single one: if no word is repeated among the rows, it is a feed.
 
-Eso silencia justo los dominios donde unos resultados legítimos NO comparten palabra:
+That silences precisely the domains where legitimate results do NOT share a word:
 
     coches   «Fiat Panda 4x4» · «Mercedes Clase A» · «Peugeot 3008»
     hoteles  «La Banda Living Hostel» · «Eurostars Sevilla» · «Hotel Don Paco»
     vuelos   «Ryanair directo» · «Vueling 08:15» · …
 
-MEDIDO con la instrumentación de V2-336, ronda enfocada del coche (2026-08-26, 12:08:59 y 12:09:57): `rows=3`
-y el backstop CALLÓ las dos veces. Sin ese evento el silencio era indistinguible de una decisión.
+MEASURED with the instrumentation from V2-336, focused car round (2026-08-26, 12:08:59 and 12:09:57): `rows=3`
+and the backstop WAS SILENT both times. Without that event, the silence was indistinguishable from a decision.
 
-Lo que de verdad delataba el feed no era el vocabulario: era la MEZCLA DE ESCALAS. Una vela y un Ford Fiesta
-no comparten orden de magnitud; tres coches de una misma búsqueda van de 6.900 a 9.500 (×1,4) y tres guitarras
-de 90 a 120 (×1,3).
+What really gave the feed away was not the vocabulary: it was the MIXTURE OF SCALES. A candle and a Ford Fiesta
+do not share an order of magnitude; three cars from the same search range from 6,900 to 9,500 (×1.4) and three guitars
+from 90 to 120 (×1.3).
 
-Ahora se exigen las DOS señales para callar, así que la guarda es **estrictamente más estrecha** que antes:
-sigue cubriendo el incidente que la creó —que tenía ambas— y devuelve el backstop a los dominios donde su
-silencio costaba la entrega.
+Now BOTH signals are required to remain silent, so the guard is **strictly narrower** than before:
+it still covers the incident that created it—which had both—and returns the backstop to the domains where its
+silence cost delivery.
 """
 from nucleo.flash import delivery as RG
 
@@ -36,7 +36,7 @@ def test_marcas_DISTINTAS_no_son_un_feed():
 
 
 def test_y_ANTES_sí_lo_eran_por_UNA_sola_señal():
-    """La sensibilidad del caso de arriba: con la regla vieja (solo vocabulario) los coches SÍ eran feed."""
+    """The sensitivity of the case above: with the old rule (vocabulary only), the cars WERE a feed."""
     def vieja(rows):
         titles = [RG._norm_txt(str(r or "").split(" — ")[0]) for r in rows]
         counts = {}
@@ -49,17 +49,17 @@ def test_y_ANTES_sí_lo_eran_por_UNA_sola_señal():
 
 
 def test_el_FEED_original_sigue_cazado():
-    """El incidente que creó la guarda tenía las DOS señales, así que sigue cubierto."""
+    """The incident that created the guard had BOTH signals, so it remains covered."""
     assert RG._looks_like_an_unfiltered_feed(_FEED) is True
 
 
 def test_compartir_vocabulario_basta_para_NO_ser_feed():
-    """Primera señal sola: si se parecen entre sí, ni se miran los precios."""
+    """First signal alone: if they resemble one another, prices are not even considered."""
     assert RG._looks_like_an_unfiltered_feed(_GUITARRAS) is False
 
 
 def test_sin_precios_legibles_NO_se_juzga_por_ahi():
-    """Fail-open: sin precios no hay segunda señal, y callar por sospecha es el error que se está quitando."""
+    """Fail-open: without prices there is no second signal, and remaining silent on suspicion is the error being removed."""
     assert RG._looks_like_an_unfiltered_feed(
         ["Fontanería Paco", "Cerrajería Luis", "Reformas Ana"]) is False
 
@@ -69,6 +69,6 @@ def test_menos_de_TRES_filas_nunca_es_un_feed():
 
 
 def test_y_el_BACKSTOP_vuelve_a_entregar_los_coches():
-    """La mitad que importa: la guarda no es el fin, es la puerta del backstop."""
+    """The part that matters: the guard is not the end; it is the backstop's gateway."""
     out = RG.sheet_delivery_backstop("te aviso en cuanto tenga algo", _COCHES, "", errand="coche segunda mano")
     assert out and "Fiat Panda" in out

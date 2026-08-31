@@ -1,16 +1,16 @@
 """V2-342 — on FRICTION with a live worker, the answer is to INJECT, and a kill no longer throws the work away.
 
 Measured in session 7575e81a (search-buy-used-car, 2026-08-26 13:33-13:54): 3 workers over 21.6 min. The
-person complains («lleva tantos minutos sin nada») at 13:34:37, the brain does NOTHING with the live worker,
-and 35 s later the person orders the kill themself («sepárala y lánzala otra vez desde cero») — twice. The
+person complains (“it has been so many minutes with nothing”) at 13:34:37, the brain does NOTHING with the live worker,
+and 35 s later the person orders the kill themself (“separate it and launch it again from scratch”) — twice. The
 first two workers were thrown away whole; only the third delivered. Two thirds of the time in discarded work,
 and the loop feeds itself: slow → complaint → relaunch from zero → slower.
 
 Three coordinated cuts, one defect:
-  · the workers directive teaches the complaint fork: inject «deliver what you have NOW», killing is reserved
+  · the workers directive teaches the complaint fork: inject “deliver what you have NOW”, killing is reserved
     for an explicit order or a stall the state shows;
   · a CANCELLED web errand keeps its resumable trace (`_leave_resume`) — stopping erases the PROCESS (tab
-    closed, no auto-resume: «parar es parar», V2-092), not the road walked: the CLI native session keeps all
+    closed, no auto-resume: “stopping means stopping”, V2-092), not the road walked: the CLI native session keeps all
     its reasoning and an explicit relaunch inherits it;
   · `_find_resume` scores against the SMALLER word set (floor 3): the real relaunch order carries 47 content
     words of pacing instructions, and Jaccard scored the contained errand at 0.208 — under every sane
@@ -39,8 +39,8 @@ RELANZA = ("Relanza desde cero la búsqueda de coches de segunda mano en venta p
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch):
-    # V2-342: el subsistema vive en `nucleo/workers/resume.py`; se parchea AHÍ, que es donde las funciones
-    # leen sus globals — parchear el alias de dispatch dejaría el dict real intacto y el test mediría aire.
+# V2-342: the subsystem lives in `nucleo/workers/resume.py`; it is patched THERE, which is where the functions
+# read their globals — patching the dispatch alias would leave the real dict untouched and the test would measure nothing.
     from nucleo.workers import resume as _wres
     monkeypatch.setattr(_wres, "_WEB_RESUME", {}, raising=False)
     monkeypatch.setattr(_wres, "_resume_persist", lambda: None, raising=False)

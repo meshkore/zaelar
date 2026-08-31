@@ -14,24 +14,24 @@ from nucleo.memory_agent.lang_marks import (  # noqa: F401
 
 
 def classify(text: str) -> dict:
-    """Decide DÓNDE guardar `text` — el "corazón" del agente de memoria (V2-013).
+    """Decide WHERE to store `text` — the "heart" of the memory agent (V2-013).
 
-    Devuelve un plan::
+    Returns a plan::
 
         {
-          "state_patch": dict,        # merge superficial en la tabla `state` (perfil del operador); {} si nada.
-          "level":       str | None,  # 'short' | 'mid' | 'long' | None (skip: no crear un `memories`)
+          "state_patch": dict,        # shallow merge into the `state` table (operator profile); {} if none.
+          "level":       str | None,  # 'short' | 'mid' | 'long' | None (skip: do not create a `memories`)
           "kind":        str,         # 'profile' | 'pref' | 'fact' | 'event' | 'result'
-          "importance":  float,       # 0..1 (peso inicial + orden en el retriever)
-          "pinned":      bool,        # True = intocable por el consolidador (identidad del operador)
+          "importance":  float,       # 0..1 (initial weight + retriever ordering)
+          "pinned":      bool,        # True = untouched by the consolidator (operator identity)
         }
 
-    Reglas (heurística barata, µs, agnóstica del proveedor):
-      - PERFIL detectado (nombre/ubicación/trato/hardware/coche) → `state_patch` + traza `long` pinned. Es lo
-        que hoy se pierde: el operador dice "me llamo Ramón" en un turno normal y no llegaba a `state`.
-      - DESEO/PREF durable ("quiero X", "prefiero Y") → `long`, no pinned.
-      - TRIVIA (saludos, sí/no) o COMANDO ("cierra widget") → skip (`level=None`, sin state_patch).
-      - Resto → `mid` (deliberación / hecho genérico). El consolidador decide más adelante si sube a `long`.
+    Rules (cheap heuristic, µs, provider-agnostic):
+      - PROFILE detected (name/location/treatment/hardware/car) → `state_patch` + a pinned `long` trace. This is what
+        gets lost today: the operator says "my name is Ramón" in a normal turn and it never reaches `state`.
+      - Durable DESIRE/PREF ("I want X", "I prefer Y") → `long`, not pinned.
+      - TRIVIA (greetings, yes/no) or COMMAND ("close widget") → skip (`level=None`, no state_patch).
+      - Remainder → `mid` (deliberation / generic fact). The consolidator decides later whether to promote it to `long`.
     """
     t = (text or "").strip()
     if not t:
@@ -61,9 +61,9 @@ def classify(text: str) -> dict:
         patch["proyecto"] = m.group(1).strip().strip(",.")
 
     if patch:
-        # Perfil: además del state, dejamos una TRAZA durable en `memories` (long, pinned) para el visor y el
-        # recall — "ese dato lo dijiste tal día". El `slot` (V2-013) da supersede EXACTO: el dato nuevo con el
-        # mismo slot invalida el viejo ("el más reciente MANDA").
+        # Profile: in addition to state, we leave a durable TRACE in `memories` (long, pinned) for the viewer and
+        # recall — "you said that fact on such-and-such a day". The `slot` (V2-013) provides EXACT supersession: the
+        # new fact with the same slot invalidates the old one ("the most recent one WINS").
         return {"state_patch": patch, "level": "long", "kind": "profile",
                 "importance": 0.9, "pinned": True, "slot": _slot_for_patch(patch)}
 
@@ -75,9 +75,9 @@ def classify(text: str) -> dict:
         return {"state_patch": {}, "level": "long", "kind": "pref",
                 "importance": 0.7, "pinned": False, "slot": None}
 
-    # REDES DETERMINISTAS también en la ruta heurística (fix 2026-07-20, con el default ya endurecido): con el
-    # LLM caído, lo inequívocamente durable NO puede degradar a short — salud crítica (writer la pinnea además en
-    # su chokepoint), compromisos/tareas encargadas ("¿qué te pedí?"), rutinas, reversiones y observaciones.
+    # DETERMINISTIC NETWORKS also in the heuristic path (fix 2026-07-20, with the default already hardened): with the
+    # LLM down, anything unambiguously durable MUST NOT degrade to short — critical health (the writer also pins it at
+    # its chokepoint), commitments/assigned tasks ("what did I ask you?"), routines, reversals, and observations.
     from memory import writer as _mw
     if _mw._is_critical_health(t):
         return {"state_patch": {}, "level": "long", "kind": "fact",
@@ -89,12 +89,11 @@ def classify(text: str) -> dict:
         return {"state_patch": {}, "level": "long", "kind": "fact",
                 "importance": 0.6, "pinned": False, "slot": None}
 
-    # DEFAULT endurecido (auditoría 2026-07-19 H2): el resto era `mid` durable con el TEXTO CRUDO del STT — con
-    # el CORAZÓN caído la heurística metía a chorro basura vigente en el largo plazo ("Conchacón…", "¡Lera!").
-    # Ahora el crudo sin señal fuerte degrada a CORTO con TTL: visible unos días (recencia), jamás durable. Lo
-    # durable de verdad lo rescatan las redes deterministas (compromisos/rutinas/salud/…) o el LLM al volver.
+    # Hardened DEFAULT (2026-07-19 H2 audit): the remainder used to be durable `mid` with the RAW STT TEXT — with
+    # the HEART down, the heuristic was dumping current junk into the long term ("Conchacón…", "¡Lera!").
+    # Now raw text without a strong signal degrades to SHORT with TTL: visible for a few days (recency), never durable.
+    # Truly durable items are rescued by the deterministic networks (commitments/routines/health/…) or the LLM when it returns.
     return {"state_patch": {}, "level": "short", "kind": "fact",
             "importance": 0.4, "pinned": False, "slot": None, "ttl_days": 3.0}
-
 
 

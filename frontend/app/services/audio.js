@@ -3,13 +3,13 @@
 // AnalyserNodes (mic = person's voice, bot = zaelar's voice). The visualizer and
 // the speaker-gate read these; the session service drives init/attach/reset.
 //
-// OBSERVABILIDAD DEL CICLO DE VIDA (2026-08-10). Este módulo es el ÚNICO dueño de
-// los analizadores, así que es el único sitio donde «se abrió» y «se soltó» son la
-// verdad y no una suposición. Antes el log tenía el attach de la pista del bot
-// (🔈 TrackSubscribed) pero NUNCA su release, y del micro solo se veía apagarse el
-// icono — que es intención, no realidad: un altavoz zombi o un analizador que
-// sobrevive a `stop()` no dejaban ni una línea. Se emite SOLO en transición (abrir/
-// soltar son operaciones puntuales de la sesión, no de render) y es best-effort.
+// LIFECYCLE OBSERVABILITY (2026-08-10). This module is the ONLY owner of the analysers,
+// so it is the only place where “attached” and “released” are truth rather than an
+// assumption. The log used to record the bot track attach (🔈 TrackSubscribed) but
+// NEVER its release, while for the mic it only showed the icon turning off—intent,
+// not reality: a zombie speaker or an analyser surviving `stop()` left no trace.
+// Emit ONLY on transitions (attach/release are discrete session operations, not render)
+// and best-effort.
 // ============================================================================
 import * as api from "./api.js?v=2";
 
@@ -29,9 +29,9 @@ export function initMic(stream) {
     throw new Error("audio.initMic: no MediaStream — the voice session was stopped while starting up "
                     + `(received: ${stream === null ? "null" : typeof stream})`);
   }
-  // Un `start()` sin `stop()` previo (reconexión) dejaba el AudioContext anterior VIVO y colgado: Chrome corta a
-  // ~6 por página, así que unas cuantas reconexiones y `new AudioContext()` empieza a lanzar → el medidor de micro
-  // y el orbe se quedan muertos para el resto de la vida de la pestaña. Se cierra el anterior antes de abrir otro.
+  // A `start()` without a previous `stop()` (reconnection) left the previous AudioContext ALIVE and hanging:
+  // Chrome caps pages at ~6, so a few reconnections made `new AudioContext()` throw → the mic meter and orb stayed
+  // dead for the rest of the tab's lifetime. Close the previous one before opening another.
   if (ac) reset("reinit");
   ac = new (window.AudioContext || window.webkitAudioContext)();
   micAn = ac.createAnalyser(); micAn.fftSize = 2048;
@@ -48,8 +48,8 @@ export function attachBot(stream) {
   } catch (_) {}
 }
 
-// SOLTAR de verdad: además de olvidar los nodos, se CIERRA el AudioContext (libera el grafo de audio del navegador).
-// `reason` dice por qué, que es lo que distingue un cierre normal de una reconexión.
+// Truly RELEASE: besides forgetting the nodes, CLOSE the AudioContext (releasing the browser's audio graph).
+// `reason` says why, distinguishing a normal close from a reconnection.
 export function reset(reason = "stop") {
   const had = { mic: !!micAn, bot: !!botAn };
   const old = ac;
@@ -59,7 +59,7 @@ export function reset(reason = "stop") {
   if (had.mic) api.uiState("mic:analyser", { state: "closed", reason });
 }
 export function dropBot() {
-  if (!botAn) return;                                    // ya soltada: no hay transición que contar
+  if (!botAn) return;                                    // already released: no transition to record
   botAn = null;
   api.uiState("audio:out", { state: "released" });
 }

@@ -1,36 +1,36 @@
 """
-observability.evidence — guardar la EVIDENCIA de lo que trajo el mundo exterior, con presupuesto.
+observability.evidence — store EVIDENCE of what the outside world returned, within a budget.
 
-Hasta 2026-08-10 el registro contaba la PREGUNTA y la DECISIÓN, no la PRUEBA: de una búsqueda quedaba el
-proveedor, el número de resultados y la latencia, pero **no qué páginas volvieron ni qué decían**; de un paso de
-un Brain Worker quedaba la tool y su objetivo (la query, la URL), **no lo que le contestó**. Con eso se puede
-auditar que el sistema BUSCÓ, no si buscó BIEN: la pregunta que importa —«¿los resultados sostienen lo que
-respondió?»— era inverificable a posteriori.
+Until 2026-08-10 the record captured the QUESTION and the DECISION, not the PROOF: from a search it retained the
+provider, result count, and latency, but **not which pages came back or what they said**; from a Brain Worker
+step it retained the tool and its target (the query, the URL), **not what it answered**. With that, one can audit
+that the system SEARCHED, but not whether it searched WELL: the question that matters —“do the results support
+what it answered?”— was unverifiable after the fact.
 
-Aquí viven el formato y, sobre todo, **el presupuesto**. La evidencia va dentro del payload del evento (misma
-fila, mismo escritor, misma vida útil), así que sin tope una sola búsqueda con diez snippets largos podría pesar
-más que el resto del turno junto. Reglas:
+The format lives here and, above all, **the budget**. The evidence goes inside the event payload (same row, same
+writer, same lifetime), so without a cap a single search with ten long snippets could weigh more than the rest of
+the turn combined. Rules:
 
-- **Se recorta, no se resume.** Un resumen es una interpretación; una auditoría necesita el texto tal cual, aunque
-  sea el principio. Todo recorte deja marca visible (`…`).
-- **Cabeceras antes que cuerpos.** De un resultado web se guarda SIEMPRE título y URL (lo que identifica la
-  fuente y permite volver a ella) y el snippet se recorta agresivo.
-- **Un tope por evento, no por campo.** `TOTAL` acota la evidencia entera de una fila; si diez resultados no
-  caben, entran los primeros y se dice cuántos se quedaron fuera (`omitted`) — nunca se pierde en silencio la
-  información de que había más.
+- **Trim, do not summarize.** A summary is an interpretation; an audit needs the text as-is, even if it is only
+  the beginning. Every trim leaves a visible mark (`…`).
+- **Headers before bodies.** A web result ALWAYS retains its title and URL (what identifies the source and allows
+  returning to it), and the snippet is trimmed aggressively.
+- **One cap per event, not per field.** `TOTAL` bounds the entire evidence for one row; if ten results do not
+  fit, the first ones are included and the number left out (`omitted`) is stated — the information that there
+  were more is never silently lost.
 """
 from __future__ import annotations
 
-MAX_ITEMS = 8            # resultados por evento: los primeros son los que el modelo lee de verdad
-MAX_SNIPPET = 220        # cuerpo de cada resultado
+MAX_ITEMS = 8            # results per event: the first ones are what the model actually reads
+MAX_SNIPPET = 220        # body of each result
 MAX_TITLE = 120
-MAX_URL = 300            # una URL de marketplace con parámetros es legítimamente larga
-MAX_BODY = 1500          # respuesta de una tool / extracto de página
-TOTAL = 6000             # techo de la evidencia de UN evento
+MAX_URL = 300            # a marketplace URL with parameters is legitimately long
+MAX_BODY = 1500          # tool response / page extract
+TOTAL = 6000             # evidence ceiling for ONE event
 
 
 def clip(s, n: int) -> str:
-    """Recorta a `n` marcando el corte. Nunca lanza: la evidencia es best-effort y jamás puede tumbar al emisor."""
+    """Trim to `n`, marking the cut. Never raises: evidence is best-effort and must never bring down the emitter."""
     try:
         t = " ".join(str(s or "").split())
     except Exception:
@@ -39,10 +39,10 @@ def clip(s, n: int) -> str:
 
 
 def web_results(results, max_items: int = MAX_ITEMS) -> dict:
-    """`[{title,snippet,url}]` → `{items:[{t,u,s}], omitted:N}` con presupuesto.
+    """`[{title,snippet,url}]` → `{items:[{t,u,s}], omitted:N}` within a budget.
 
-    Claves cortas a propósito (`t`/`u`/`s`): esto se repite por resultado y por evento, y el payload va a una
-    columna JSON que se lee millones de veces — no se paga el nombre largo en cada fila."""
+    Short keys on purpose (`t`/`u`/`s`): this is repeated per result and per event, and the payload goes into a
+    JSON column read millions of times — the long name is not paid for in every row."""
     items, used = [], 0
     src = list(results or [])
     for r in src[:max_items]:
@@ -54,12 +54,12 @@ def web_results(results, max_items: int = MAX_ITEMS) -> dict:
             it["s"] = sn
         cost = len(it.get("t", "")) + len(it.get("u", "")) + len(it.get("s", ""))
         if used + cost > TOTAL:
-            break                            # el techo manda: mejor 5 resultados enteros que 8 destrozados
+            break                            # the ceiling rules: 5 complete results are better than 8 mangled ones
         used += cost
         items.append(it)
     return {"items": items, "omitted": max(0, len(src) - len(items))}
 
 
 def body(text) -> str:
-    """El cuerpo de una respuesta externa (resultado de una tool, extracto de una página, error de una API)."""
+    """The body of an external response (tool result, page extract, API error)."""
     return clip(text, MAX_BODY)

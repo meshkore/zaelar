@@ -1,7 +1,7 @@
 """V2-469 · the canned search line says a count and must name that many — or say how many more.
 
-Measured in `find-videos-on-a-topic-no-ai-slop` (2026-08-28 22:31): «Te he puesto 5 vídeos en la lista:
-«a» · «b» · «c»… dime cuál pongo» — a count of 5, three names, and a bare ellipsis. The user answered,
+Measured in `find-videos-on-a-topic-no-ai-slop` (2026-08-28 22:31): “I’ve put 5 videos in the list:
+“a” · “b” · “c”… tell me which one I should play” — a count of 5, three names, and a bare ellipsis. The user answered,
 reasonably: «me has dicho 5 pero solo veo 3 enlaces». A count that doesn't match what's shown reads as a
 delivery that lost items; «y 2 más» turns the same truncation into a fact.
 """
@@ -43,9 +43,9 @@ def test_the_english_engine_says_it_in_english(monkeypatch):
 
 # ── the model spoke a promise while its own search already delivered (V2-469, round 8) ───────────────────
 def test_a_spoken_promise_gets_the_delivery_appended():
-    """Round 8, turn 0: the model said «Voy a buscar vídeos reales…» while execute() had already put 5
+    """Round 8, turn 0: the model said “I’m going to search for real videos…” while execute() had already put 5
     titled hits in the list — the user had to ASK for the titles, and next turn the model DENIED having
-    searched («ya estaban ahí en tu lista»). A list-search that added items names them in the same turn:
+    searched (“they were already there in your list”). A list-search that added items names them in the same turn:
     if the model already spoke, the outcome is appended."""
     parte = {"executed": "play_video", "accion": "list", "ok": True, "added": ["A", "B", "C", "D", "E"]}
     out = VT.ensure_delivery_named("Voy a buscar vídeos reales y de personas de verdad.", parte)

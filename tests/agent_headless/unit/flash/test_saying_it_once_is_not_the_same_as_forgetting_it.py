@@ -1,21 +1,21 @@
-"""V2-224 — «¿ya se lo dije?» era una deducción del modelo, y tenía que ser un hecho nuestro.
+"""V2-224 — «did I already tell it?» was a deduction made by the model, and it had to be a fact supplied by us.
 
-V2-221 puso la instrucción incondicional («DÍSELO EN ESTE TURNO») y funcionó: el arnés midió 2 de 2 turnos
-diciéndolo, en el turno 2, sin que nadie preguntara. Pero llevaba la anti-repetición DENTRO de la misma frase
-—«si ya se lo dijiste en un turno anterior, no lo repitas»— y eso se midió en DOS rondas del MISMO commit con
-resultados opuestos:
+V2-221 added the unconditional instruction («TELL IT THIS TURN») and it worked: the harness measured 2 out of 2 turns
+saying it, on turn 2, without anyone asking. But it put the anti-repetition rule INSIDE the same sentence
+—«if you already told it in an earlier turn, do not repeat it»— and this was measured in TWO rounds of the SAME commit with
+opposite results:
 
-    ronda 5 → lo dijo en el turno 2 y lo REPITIÓ en el 5, 6, 7, 8 y 9.            (el disco rayado de V2-189)
-    ronda 6 → lo dijo en el turno 2 y luego lo NEGÓ siete turnos: «Sigo con ello»,
-              «Dame un momento», «Ahora te lo relanzo».
+    round 5 → it said it on turn 2 and REPETED it on 5, 6, 7, 8, and 9.            (the V2-189 broken record)
+    round 6 → it said it on turn 2 and then DENIED it for seven turns: «I am still working on it»,
+              «Give me a moment», «I am relaunching it now».
 
-Mismo commit, misma cláusula, fallos contrarios. Eso no es un umbral mal puesto: es que el registro de «ya se lo
-dije» no gobernaba la decisión. En una ronda no lo encontraba y repetía; en la otra lo encontraba y se callaba
-ENTERO — y callar la repetición no es callar el estado.
+Same commit, same clause, opposite failures. That is not a wrongly set threshold: it is that the «already told it»
+record did not govern the decision. In one round it did not find it and repeated it; in the other it found it and fell
+completely SILENT — and silencing the repetition is not silencing the state.
 
-Nosotros sabemos cuántos turnos han llevado ese final delante. Así que se cuenta, y cada turno recibe UNA
-instrucción: la primera vez, dilo; a partir de ahí, no lo repitas PERO sigue muerta, y las frases
-tranquilizadoras siguen prohibidas.
+We know how many turns have carried that ending forward. So it is counted, and each turn receives ONE
+instruction: the first time, say it; from then on, do not repeat it BUT keep it dead, and the reassuring phrases
+remain forbidden.
 """
 import pytest
 
@@ -53,8 +53,8 @@ def test_a_fresh_death_starts_at_zero():
 
 
 def test_the_turn_that_carried_it_marks_it(monkeypatch):
-    """El contador lo mueve el turno que lo llevó delante, no el que murió: entre la muerte y el prompt siguiente
-    puede no haber ninguno."""
+    """The counter is advanced by the turn that carried it forward, not the one that died: there may be no turn
+    between the death and the next prompt."""
     d._remember_ended(_Rec("1", GOAL))
     _state(monkeypatch, d.recently_ended_sessions())
     assert d._ENDED_SESSIONS["1"]["told"] == 1
@@ -72,8 +72,8 @@ def test_and_the_ONES_AFTER_are_told_not_to_repeat_it(monkeypatch):
 
 
 def test_but_the_STATE_survives_the_silence(monkeypatch):
-    """La mitad que la ronda 6 perdió: dejar de dar la noticia no es volver a «sigo con ello». La tarea sigue
-    muerta y la frase tranquilizadora sigue prohibida."""
+    """What round 6 lost: stopping the announcement is not returning to «I am still working on it». The task remains
+    dead and the reassuring phrase remains forbidden."""
     st = _state(monkeypatch, [{**FAILED[0], "told": 3}])
     assert "SIGUE MUERTA" in st
     for banned in ("sigo con ello", "te aviso en cuanto lo tenga", "dame un momento"):
@@ -81,7 +81,7 @@ def test_but_the_STATE_survives_the_silence(monkeypatch):
 
 
 def test_only_ONE_instruction_per_turn(monkeypatch):
-    """La causa raíz: dos órdenes en la misma frase se resolvían a cara o cruz según la ronda."""
+    """The root cause: two commands in the same sentence were resolved by a coin toss depending on the round."""
     first = _state(monkeypatch, FAILED)
     later = _state(monkeypatch, [{**FAILED[0], "told": 1}])
     assert ("DÍSELO EN ESTE TURNO" in first) != ("DÍSELO EN ESTE TURNO" in later)
@@ -89,7 +89,7 @@ def test_only_ONE_instruction_per_turn(monkeypatch):
 
 
 def test_a_task_that_ended_WELL_is_never_counted(monkeypatch):
-    """Sensitivity: el contador es de MUERTES. Marcar un final bueno gastaría el primer turno de la siguiente."""
+    """Sensitivity: the counter is for DEATHS. Marking a successful ending would spend the first turn of the next one."""
     ok = [{"id": "9", "goal": GOAL, "status": "done", "ok": True, "summary": "hecho", "ago_s": 2, "told": 0}]
     d._ENDED_SESSIONS["9"] = dict(ok[0])
     _state(monkeypatch, ok)
@@ -97,7 +97,7 @@ def test_a_task_that_ended_WELL_is_never_counted(monkeypatch):
 
 
 def test_a_CANCELLED_task_is_never_counted_either(monkeypatch):
-    """V2-196: pararse no es fallar, y el operador ya lo sabe porque la paró él."""
+    """V2-196: stopping is not failing, and the operator already knows because they stopped it."""
     c = [{"id": "9", "goal": GOAL, "status": "cancelled", "ok": False, "summary": "", "ago_s": 2, "told": 0}]
     d._ENDED_SESSIONS["9"] = dict(c[0])
     _state(monkeypatch, c)
@@ -105,5 +105,5 @@ def test_a_CANCELLED_task_is_never_counted_either(monkeypatch):
 
 
 def test_marking_an_id_that_no_longer_exists_is_harmless():
-    """El registro caduca a los 5 minutos; el turno que lo llevaba puede llegar tarde."""
+    """The record expires after 5 minutes; the turn that carried it forward may arrive late."""
     d.mark_death_reported(["no-existe", ""])

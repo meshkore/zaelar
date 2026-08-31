@@ -1,19 +1,19 @@
 #
-# test_runstate.py — el INTERRUPTOR GLOBAL del agente (V2-092): parar es parar.
+# test_runstate.py — the agent's GLOBAL SWITCH (V2-092): stopped means stopped.
 #
-# El botón ⏻ existía desde V2-039 y congelaba los Brain Workers desde V2-065, pero su estado vivía SOLO en el
-# localStorage del navegador. El operador lo vio así (2026-08-13), con el agente parado en pantalla: un vídeo
-# seguía reproduciéndose, recargar la página lo volvía a arrancar, la música sonaba a la vez, y los ciclos de
-# background seguían sondeando conectores. El ⏻ paraba la voz y los workers; nada más se enteraba, porque el
-# servidor no sabía que el operador había parado.
+# The ⏻ button had existed since V2-039 and had frozen the Brain Workers since V2-065, but its state lived ONLY in
+# the browser's localStorage. The operator saw it this way (2026-08-13), with the agent stopped on screen: a video
+# kept playing, reloading the page started it again, music played at the same time, and the background cycles
+# continued polling connectors. The ⏻ stopped voice and workers; nothing else knew, because the server did not know
+# that the operator had stopped it.
 #
-# Lo que este test fija es la POLÍTICA, que es donde están las decisiones que se pueden perder en una refactorización:
-#   · parar CONGELA a todos (workers + widgets que producen) y persiste;
-#   · arrancar CONTINÚA el trabajo pero NO reanuda los widgets (asimetría deliberada, petición del operador);
-#   · con el agente parado no hay ticks de background, ni crons, ni trabajo NUEVO;
-#   · un fallo de una pieza no puede dejar la parada a medias.
+# This test locks down the POLICY, where the decisions that can be lost in a refactor live:
+#   · stopping FREEZES everything (workers + producing widgets) and persists;
+#   · starting CONTINUES the work but does NOT resume the widgets (deliberate asymmetry, at the operator's request);
+#   · with the agent stopped there are no background ticks, crons, or NEW work;
+#   · a failure in one component must not leave the stop half-completed.
 #
-# Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_runstate.py
+# Run: .venv/bin/pytest tests/agent_headless/unit/test_runstate.py
 #
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ from nucleo import runstate
 
 @pytest.fixture(autouse=True)
 def fresh_db(tmp_path, monkeypatch):
-    """Base limpia + caché del interruptor a cero: `state()` cachea en proceso a propósito (lo consultan caminos
-    calientes), así que sin esto un test heredaría el interruptor del anterior."""
+    """Clean database + switch cache reset to zero: `state()` deliberately caches in-process (hot paths consult it),
+    so without this a test would inherit the previous test's switch state."""
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
     memdb.reset_db()
     memdb.get_db()
@@ -41,7 +41,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def piezas(monkeypatch):
-    """Sustituye las dos piezas que la parada gobierna, y registra lo que se les pidió."""
+    """Replace the two components governed by stopping, and record what they were asked to do."""
     log = {"pause": 0, "resume": 0, "suspend": [], "reason": ""}
 
     # V2-516: start() now also revives the heartbeat — a unit test must never spawn the REAL loop
@@ -61,10 +61,10 @@ def piezas(monkeypatch):
     return log
 
 
-# ── el estado por defecto y su persistencia ─────────────────────────────────────────────────────────────────
+# ── default state and persistence ───────────────────────────────────────────────────────────────────────────
 def test_por_defecto_en_marcha():
-    """Sin nada guardado el agente está EN MARCHA. Lo contrario sería una instalación nueva que no trabaja y no
-    dice por qué."""
+    """With nothing saved, the agent is RUNNING. The alternative would be a new installation that does not work and
+    does not say why."""
     assert runstate.state() == runstate.RUNNING
     assert runstate.running() is True
     assert runstate.stopped() is False
@@ -73,7 +73,7 @@ def test_por_defecto_en_marcha():
 def test_parar_persiste_y_sobrevive_al_proceso(piezas):
     asyncio.run(runstate.stop("operator"))
     assert runstate.stopped() is True
-    runstate._reset_for_tests()                    # simula reiniciar el motor
+    runstate._reset_for_tests()                    # simulate restarting the engine
     assert runstate.stopped() is True, "una parada es una INTENCIÓN del operador, no un estado de proceso"
 
 
@@ -85,8 +85,8 @@ def test_arrancar_persiste(piezas):
 
 
 def test_una_lectura_imposible_no_deja_el_agente_muerto(monkeypatch):
-    """Ante un `sys_kv` ilegible se asume EN MARCHA: un fallo de lectura no puede dejar al operador con un agente
-    que se niega a trabajar y sin forma de saber por qué."""
+    """If `sys_kv` cannot be read, assume RUNNING: a read failure must not leave the operator with an agent that
+    refuses to work and no way to know why."""
     from memory import api as memapi
     monkeypatch.setattr(memapi, "kv_get", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("db caída")))
     runstate._reset_for_tests()
@@ -100,7 +100,7 @@ def test_snapshot_es_lo_que_ve_el_frontend(piezas):
     assert snap["src"] == "operator" and snap["at"] > 0
 
 
-# ── PARAR: congela a todos ──────────────────────────────────────────────────────────────────────────────────
+# ── STOP: freezes everything ─────────────────────────────────────────────────────────────────────────────────
 def test_parar_congela_workers_y_suspende_widgets(piezas):
     res = asyncio.run(runstate.stop("operator"))
     assert piezas["pause"] == 1
@@ -109,8 +109,8 @@ def test_parar_congela_workers_y_suspende_widgets(piezas):
 
 
 def test_parar_no_mata_los_workers(piezas, monkeypatch):
-    """PAUSAR ≠ matar. `cancel_all` es lo que hace Reset y es irreversible; ⏻ tiene que ser reversible o el
-    operador pierde una tarea de minutos por apagar un momento."""
+    """PAUSE ≠ kill. `cancel_all` is what Reset does and is irreversible; ⏻ must be reversible or the operator
+    loses a task that took minutes to run by switching it off for a moment."""
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "cancel_all", lambda **kw: pytest.fail("⏻ NUNCA debe matar tareas"))
     asyncio.run(runstate.stop())
@@ -123,7 +123,7 @@ def test_parar_dos_veces_es_inofensivo(piezas):
 
 
 def test_un_worker_que_falla_al_congelar_no_impide_parar_los_widgets(monkeypatch):
-    """Una parada a medias es peor que ninguna: el operador cree que paró y algo sigue sonando."""
+    """A half-completed stop is worse than no stop: the operator thinks it stopped, but something is still playing."""
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "pause_all", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     called = []
@@ -134,7 +134,7 @@ def test_un_worker_que_falla_al_congelar_no_impide_parar_los_widgets(monkeypatch
     monkeypatch.setattr(producers, "suspend_all", suspend_all)
     res = asyncio.run(runstate.stop())
     assert res["widgets"] == ["youtube"] and called == ["agent_stopped"]
-    assert runstate.stopped() is True               # y el interruptor queda puesto igual
+    assert runstate.stopped() is True               # and the switch remains set anyway
 
 
 def test_un_widget_que_falla_no_impide_congelar_los_workers(monkeypatch):
@@ -150,7 +150,7 @@ def test_un_widget_que_falla_no_impide_congelar_los_workers(monkeypatch):
     assert runstate.stopped() is True
 
 
-# ── ARRANCAR: continúa el trabajo, NO la reproducción ───────────────────────────────────────────────────────
+# ── START: continues the work, NOT playback ──────────────────────────────────────────────────────────────────
 def test_arrancar_continua_los_workers(piezas):
     asyncio.run(runstate.stop())
     res = asyncio.run(runstate.start())
@@ -158,9 +158,9 @@ def test_arrancar_continua_los_workers(piezas):
 
 
 def test_arrancar_NO_reanuda_los_widgets(piezas, monkeypatch):
-    """Palabras del operador: «si digo que arranque el sistema no necesariamente hay que volver a arrancar los
-    widgets, que ya sea el usuario a mano el que decide si quiere volver a seguir escuchando música». Lo que SÍ
-    continúa es el trabajo (un worker a medias de crear un widget o de una búsqueda)."""
+    """The operator's words: “if I tell the system to start, the widgets do not necessarily need to start again;
+    let the user decide manually whether they want to resume listening to music”. What DOES continue is the work
+    (a worker halfway through creating a widget or performing a search)."""
     asyncio.run(runstate.stop())
     piezas["suspend"].clear()
     from widgets import producers
@@ -168,12 +168,12 @@ def test_arrancar_NO_reanuda_los_widgets(piezas, monkeypatch):
         pytest.fail("arrancar el agente NO debe reanudar los widgets")
     monkeypatch.setattr(producers, "resume_all", resume_should_not_happen, raising=False)
     asyncio.run(runstate.start())
-    assert piezas["suspend"] == []                  # tampoco se les vuelve a tocar para nada
+    assert piezas["suspend"] == []                  # they are not touched again in any way either
 
 
-# ── lo que el resto del sistema consulta ────────────────────────────────────────────────────────────────────
+# ── what the rest of the system queries ─────────────────────────────────────────────────────────────────────
 def test_background_no_hace_ticks_con_el_agente_parado(piezas, monkeypatch):
-    """Un «agente parado» que sigue sondeando conectores y escribiendo en la memoria no está parado."""
+    """A “stopped agent” that continues polling connectors and writing to memory is not stopped."""
     from widgets import background
     llamadas = []
     monkeypatch.setattr(background, "_call_tick", lambda wid: llamadas.append(wid))
@@ -186,16 +186,16 @@ def test_background_no_hace_ticks_con_el_agente_parado(piezas, monkeypatch):
 
 
 def test_un_cron_no_dispara_pero_sigue_vencido(piezas, monkeypatch):
-    """Se sale ANTES de `mark_fired`, así que el job sigue vencido y salta en cuanto el operador arranca: parar no
-    pierde el recordatorio, lo aplaza. Un cron hablando por voz sobre un agente parado es exactamente el fallo que
-    ⏻ existe para evitar."""
+    """Exit BEFORE `mark_fired`, so the job remains due and fires as soon as the operator starts: stopping does not
+    lose the reminder; it postpones it. A cron job speaking over a stopped agent is exactly the failure ⏻ exists to
+    prevent."""
     from nucleo import loop as nloop
     marcados, entregados = [], []
     monkeypatch.setattr(nloop._scheduler, "due", lambda now=None: [{"id": "j1", "title": "riega",
                                                                    "detail": {"prompt": "riega las plantas"}}])
     monkeypatch.setattr(nloop._scheduler, "mark_fired", lambda job, now=None: marcados.append(job["id"]))
 
-    orq = nloop.OrchestratorLoop.__new__(nloop.OrchestratorLoop)     # sin arrancar el ciclo real
+    orq = nloop.OrchestratorLoop.__new__(nloop.OrchestratorLoop)     # without starting the real loop
     async def deliver(name, prompt):
         entregados.append(prompt)
     orq._deliver = deliver
@@ -210,7 +210,7 @@ def test_un_cron_no_dispara_pero_sigue_vencido(piezas, monkeypatch):
 
 
 def _escalar(tid: str):
-    """Publica una escalada en el bus y deja al listener del dispatcher un momento para atenderla."""
+    """Publish an escalation on the bus and give the dispatcher's listener a moment to handle it."""
     import bus
     from nucleo import dispatch
 
@@ -227,13 +227,13 @@ def _escalar(tid: str):
 
 
 def test_no_se_abre_trabajo_nuevo_con_el_agente_parado(piezas, monkeypatch):
-    """Los workers que ya estaban se congelan y continúan; abrir uno DESDE CERO sobre un agente parado es lo
-    contrario de parar. Y se rechaza VISIBLE (evento `task/blocked`), nunca en silencio."""
+    """Workers that already existed are frozen and continue; starting one FROM SCRATCH on a stopped agent is the
+    opposite of stopping. It is rejected VISIBLY (`task/blocked` event), never silently."""
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "_run_session", lambda task: asyncio.sleep(5))
 
-    # CONTROL POSITIVO primero: sin él, este test pasaría igual si el listener estuviera roto o el bus no llegara,
-    # y sería un test que no prueba nada.
+    # POSITIVE CONTROL first: without it, this test would pass anyway if the listener were broken or the bus failed
+    # to deliver, making it a test that proves nothing.
     _escalar("t-viva")
     assert dispatch.get_record("t-viva") is not None, "el arnés tiene que ser capaz de abrir una sesión"
     dispatch.cancel_session("t-viva", reason="test")

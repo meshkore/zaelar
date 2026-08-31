@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# zaelar · instala los git hooks versionados de scripts/hooks/ en .git/hooks/ (V2-038).
-# .git/hooks/ NO se versiona; este script hace el enlace. Idempotente. Ejecútalo tras clonar.
+# zaelar · installs the versioned Git hooks from scripts/hooks/ into .git/hooks/ (V2-038).
+# .git/hooks/ is NOT versioned; this script creates the link. Idempotent. Run it after cloning.
 set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 SRC="$ROOT/scripts/hooks"

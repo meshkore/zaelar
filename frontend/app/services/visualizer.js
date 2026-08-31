@@ -10,14 +10,14 @@ import { micRMS, micAnalyser, botAnalyser, level } from "./audio.js?v=2";
 import { t as tr } from "../core/i18n.js?v=1";
 
 let raf = null, orbPhase = 0, vizPhase = 0;
-// ¿quedó el orbe ya pintado en su forma de reposo tras congelarse? (evita repintarlo 60 veces por segundo estando
-// parado, que es lo que lo mantenía ondulando: la fase avanza dentro del propio dibujado)
+// Was the orb already painted in its resting form after freezing? (avoids repainting it 60 times per second while
+// stopped, which kept it rippling: the phase advances inside the drawing itself)
 let _orbFrozenAt = false;
 
 // The orb's own glow layers below are translucent by design (additive "lighter" blend, alpha .18-.63) — on a
 // canvas cleared to transparent each frame that means whatever sits BEHIND the orb in the page (a widget card)
 // shows straight through it, which reads as "part of the widget" instead of a solid shape floating on top
-// (operator 2026-07-22, screenshot: the navegador widget's text was visible bleeding through the orb's body).
+// (operator 2026-07-22, screenshot: the browser widget's text was visible bleeding through the orb's body).
 // z-index was never the issue (.orbwrap is already 100000, above every widget/panel except the 3 deliberately
 // higher transient overlays — boot/update/settings). Fix: paint an OPAQUE backstop disc (the app's own --canvas
 // background color, dark or light) first, so the glow layers composite onto solid color instead of transparency.
@@ -45,7 +45,7 @@ function drawOrbPro(x, W, H, buf, lvl) {
   const N = 72, layers = [["#2DD4BF", "#1FAE9C", 0, 1], ["#4D8DFF", "#3D6FE0", 2.1, .85], ["#9A8CFF", "#6A5CFF", 4.2, .7]];
   // Opaque backstop FIRST — but soft-edged (radial gradient, alpha 1→0) + a drop shadow, not a flat hard-edged
   // disc: a plain solid circle read as a "hole punched in the widget behind it" rather than a shape floating
-  // ABOVE it (operator 2026-07-22, 2nd pass: "no da la sensación de que esté por encima de todo"). The shadow is
+  // ABOVE it (operator 2026-07-22, 2nd pass: "it does not feel like it is above everything"). The shadow is
   // the depth cue that actually sells "this is on top, casting a shadow down" — a flat fill has no such cue.
   x.save();
   x.globalCompositeOperation = "source-over"; x.globalAlpha = 1;
@@ -96,25 +96,25 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
     // MIC METER: true RMS of the captured mic. If flat while you talk, the browser is capturing silence (wrong
     // device / OS mute) — the problem is BEFORE the network, not STT.
     //
-    // GATED POR EL ESTADO DEL AGENTE (2026-08-10). Antes escribía SIEMPRE, con solo que existiera un analizador —
-    // y el analizador SOBREVIVE a `stop()` (nadie llama a `audio.reset()`), así que con el agente parado el medidor
-    // seguía publicando nivel y el vúmetro seguía moviéndose: el operador veía «el micrófono captando» en
-    // observabilidad y daba por hecho que había alguien escuchando. Con el agente parado no hay micro: el nivel es
-    // 0 y se dice UNA vez (no en cada frame, para no despertar a los efectos 60 veces por segundo).
+    // GATED BY AGENT STATE (2026-08-10). Previously it ALWAYS wrote whenever an analyser existed —
+    // and the analyser SURVIVES `stop()` (nothing calls `audio.reset()`), so with the agent stopped the meter
+    // kept publishing a level and the VU meter kept moving: the operator saw «microphone capturing» in
+    // observability and assumed someone was listening. With the agent stopped there is no mic: the level is
+    // 0 and this is reported ONCE (not every frame, so effects are not awakened 60 times per second).
     const live = store.agentLive();
     const micAn = live ? micAnalyser() : null;
     if (micAn) { const r = micRMS(); store.setMicLevel(r); if (r > 0.02) audit.silent = false; }
     else if (store.micLevel() !== 0) store.setMicLevel(0);
 
     // MIC BLOCKED check (real-time): the OS muted our track or another app (SuperWhisper) grabbed the mic → 🚫 ring.
-    // Parado no es «bloqueado»: al apagar hay que RETIRAR el 🚫, no dejarlo clavado con el último valor.
+    // Stopped is not «blocked»: when powering off, REMOVE the 🚫 instead of leaving it stuck at the last value.
     if (!live) {
       if (store.micBlocked().show) store.setMicBlocked({ show: false, msg: "" });
     } else if (store.started()) {
       const stream = getStream(); const t = stream && stream.getAudioTracks()[0];
       const muted = !!(t && (t.muted || t.readyState === "ended"));
       const micMuted = store.micMuted();
-      // si lo he silenciado YO (micMuted) no es un bloqueo: lo indica el icono del micro, no el 🚫
+      // if I muted it MYSELF (micMuted), it is not a block: the mic icon indicates that, not the 🚫
       const show = !micMuted && (muted || audit.silent);
       store.setMicBlocked({
         show,
@@ -128,10 +128,10 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
     let bbuf = null, blvl = 0; const botAn = botAnalyser();
     if (botAn) { bbuf = new Uint8Array(botAn.frequencyBinCount); botAn.getByteFrequencyData(bbuf); blvl = level(botAn); }
     const oc = orbCanvas, W = oc.clientWidth, H = oc.clientHeight;
-    // Con el agente PARADO el orbe se dibuja UNA vez y se queda quieto: `frozen` (styles.css) lo apaga en color, y
-    // saltarse el redibujado congela también su ondulación (la fase avanza dentro de drawOrb*). Un orbe gris que
-    // sigue moviéndose seguiría diciendo «estoy aquí». Se pinta el primer frame tras el cambio para que quede en su
-    // forma de reposo, no con el último gesto a medias.
+    // With the agent STOPPED the orb is drawn ONCE and stays still: `frozen` (styles.css) dims its color, and
+    // skipping redraw also freezes its ripple (the phase advances inside drawOrb*). A gray orb that
+    // keeps moving would still say «I am here». Paint the first frame after the change so it remains in its
+    // resting form, not halfway through its last gesture.
     const frozen = !live;
     if (W && !(frozen && _orbFrozenAt)) {
       if (oc.width !== W * dpr) { oc.width = W * dpr; oc.height = H * dpr; }

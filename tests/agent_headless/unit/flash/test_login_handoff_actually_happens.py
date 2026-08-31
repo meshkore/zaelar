@@ -1,23 +1,23 @@
-"""El traspaso de INICIO DE SESIÓN tiene que OCURRIR en el canal de texto, no solo nombrarse (V2-176).
+"""The LOGIN handoff has to HAPPEN in the text channel, not merely be named (V2-176).
 
-Medido en `cancel-subscription-before-charge__es` (2026-08-20 10:26). El diálogo era excelente y honesto —
-`naturalidad 5`, `adaptacion 5`: se negó a fingir que tenía la cuenta del operador y ofreció el traspaso — y
-luego:
+Measured in `cancel-subscription-before-charge__es` (2026-08-20 10:26). The dialogue was excellent and honest —
+`naturalidad 5`, `adaptacion 5`: it refused to pretend that it had the operator's account and offered the handoff — and
+then:
 
     TESTER  Vale, abre la web de Netflix y me dices cuando esté en el login.
     ZAELAR  Aquí lo tienes.
     TESTER  Ya he entrado con mi cuenta. Sigue tú, porfa, que no quiero tocar nada más.
     ZAELAR  Vale, dame un momento que lo miro.
 
-con `navegador_task` VACÍO. `authenticate_web` y `login_done` se resolvían en `probe.py` a una ETIQUETA y nada
-más: la voz llamaba a sus dos closures y este canal —el que usan los casos de uso— no ejecutaba nada. No se
-abrió ninguna ventana, así que «ya he entrado» no tenía tarea que reanudar y «lo miro» no tenía nada que mirar.
-El juez lo llamó «una fachada vacía»; las palabras eran ciertas y lo que faltaba era el cableado.
+with an EMPTY `navegador_task`. `authenticate_web` and `login_done` were resolved in `probe.py` to a LABEL and nothing
+else: the voice called its two closures and this channel — the one used by use cases — executed nothing. No
+window was opened, so «ya he entrado» had no task to resume and «lo miro» had nothing to look at.
+The judge called it «an empty facade»; the words were true and what was missing was the wiring.
 
-Es el MISMO agujero que el bloque de cron de `probe.py` ya tenía documentado con estas palabras: «el bloque de
-ejecución solo cubría worker + data-op. El canal `probe` es el que usan los casos de uso, así que el aviso NO
-PODÍA existir en una corrida por muy bien que el modelo emitiera la tag». Los 54 escenarios del segmento
-`credentials` pasan por este traspaso.
+It is the SAME hole that the cron block in `probe.py` had already documented in these words: «the execution block
+only covered worker + data-op. The `probe` channel is the one used by use cases, so the notification COULD NOT
+exist in a run no matter how well the model emitted the tag». All 54 scenarios in the `credentials` segment
+go through this handoff.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ from voice import brain_notes
 
 
 class _CallsAuth:
-    """Stub: el modelo pide el login de Netflix, como en la corrida medida."""
+    """Stub: the model requests the Netflix login, as in the measured run."""
 
     async def stream(self, *_a, on_tool_call=None, **_kw):
         if on_tool_call:
@@ -76,15 +76,15 @@ def sid():
 
 @pytest.fixture
 def spied(monkeypatch):
-    """Se espía el DESPACHO al owner del navegador, que es la frontera real: lo que se mide es que la orden
-    salga, no que un Chromium arranque en un test."""
+    """Spy on the DISPATCH to the browser owner, which is the real boundary: what is measured is that the command
+    goes out, not that Chromium starts in a test."""
     sent: list[tuple] = []
     monkeypatch.setattr("nucleo.flash.procs.dispatch",
                         lambda wid, action, payload=None: sent.append((wid, action, payload or {})) or True)
     return sent
 
 
-# ── abrir la ventana ────────────────────────────────────────────────────────────────────────────────────────
+# ── open the window ─────────────────────────────────────────────────────────────────────────────────────────
 def test_the_login_window_is_actually_opened(fresh_db, sid, spied, monkeypatch):
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsAuth)
     res = asyncio.run(probe.run_turn("Abre la web de Netflix y me dices cuando esté en el login.",
@@ -104,8 +104,8 @@ def test_it_opens_the_site_the_operator_named(fresh_db, sid, spied, monkeypatch)
 
 
 def test_without_execute_it_still_only_REPORTS(fresh_db, sid, spied, monkeypatch):
-    """El probe sigue siendo un canal que reporta por defecto. `execute` es lo que lo convierte en el ciclo real
-    (V2-049), y sin él nada puede abrir una ventana en la máquina del operador."""
+    """The probe remains a reporting channel by default. `execute` is what turns it into the real cycle
+    (V2-049), and without it nothing can open a window on the operator's machine."""
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsAuth)
     res = asyncio.run(probe.run_turn("Abre Netflix.", sid=sid, ingest=False))
     assert res["action"] == "authenticate_web"
@@ -131,8 +131,8 @@ def test_the_operator_saying_he_is_in_resumes_the_waiting_task(fresh_db, sid, sp
 
 
 def test_and_saying_it_with_NOTHING_waiting_reports_that_honestly(fresh_db, sid, spied, monkeypatch):
-    """Un "" es la respuesta honesta a «dice que ya entró y no había ningún login esperando» — mismo criterio que
-    la confirmación caducada de V2-190. Dar el turno por bueno sería inventar que algo se reanudó."""
+    """An "" is the honest response to «it says it is already logged in and no login was waiting» — the same
+    criterion as the expired confirmation in V2-190. Treating the turn as successful would invent that something resumed."""
     from widgets.navegador import tasks as navtasks
     navtasks._tasks.clear()
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _SaysImIn)
@@ -143,10 +143,10 @@ def test_and_saying_it_with_NOTHING_waiting_reports_that_honestly(fresh_db, sid,
     assert not any(a == "auth_done" for _w, a, _p in spied)
 
 
-# ── la decisión compartida ──────────────────────────────────────────────────────────────────────────────────
-# Sin esta guarda, cablear el canal de texto habría roto DOS invariantes en su primer turno: un servicio de
-# música se conecta en la tarjeta de `musica` y la mensajería por QR dentro de `mensajeria`, nunca conduciendo un
-# Chromium a spotify.com. La cadena vivía SOLO dentro del provider de voz.
+# ── the shared decision ─────────────────────────────────────────────────────────────────────────────────────
+# Without this guard, wiring the text channel would have broken TWO invariants on its first turn: a music service
+# connects through the `musica` card and QR messaging through `mensajeria`, never driving Chromium to spotify.com.
+# The chain lived ONLY inside the voice provider.
 @pytest.mark.parametrize("site,text,kind", [
     ("netflix.com", "abre la web de Netflix y me dices cuando esté en el login", web_auth.KIND_LOGIN),
     ("spotify", "conéctame a mi cuenta de Spotify", web_auth.KIND_MUSIC),
@@ -171,14 +171,14 @@ def test_a_music_service_does_not_open_a_browser_from_the_text_channel(fresh_db,
 
 
 def test_no_site_no_guessing():
-    """Bug de 2026-07-23: sin sitio reconocido esto abría wallapop.com por defecto — un login a un sitio que
-    nadie pidió. No hay nada que abrir, así que no se abre nada."""
+    """Bug from 2026-07-23: without a recognized site this opened wallapop.com by default — a login to a site that
+    nobody requested. There is nothing to open, so nothing is opened."""
     assert web_auth.start("") == ""
 
 
 def test_the_two_channels_share_ONE_body(fresh_db):
-    """Guarda contra la divergencia que este repo ya pagó (V2-153: el mismo aviso programado dos veces porque dos
-    copias de una decisión no se veían). Las closures de la voz tienen que DELEGAR, no reimplementar."""
+    """Guard against the divergence this repo has already paid for (V2-153: the same notification scheduled twice
+    because two copies of a decision could not see each other). The voice closures must DELEGATE, not reimplement."""
     import inspect
 
     from voice.engine.llm.providers import nucleo as voice_nucleo

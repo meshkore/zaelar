@@ -112,12 +112,12 @@ async def providers():
     whisper_ok = importlib.util.find_spec("faster_whisper") is not None
     kokoro_reachable = True  # local Kokoro-FastAPI endpoint (SETTINGS.kokoro_url); assumed present if selected
     functions = [
-        # STT · voz → texto — engine providers: voxtral (cloud), deepgram (cloud), whisper_local (on-machine).
+        # STT · voice → text — engine providers: voxtral (cloud), deepgram (cloud), whisper_local (on-machine).
         {"fn": "STT · voz → texto", "options": [
             opt("Voxtral · Mistral (cloud)", "paid·barato", has("MISTRAL_API_KEY"), stt_cur == "voxtral", "MISTRAL_API_KEY"),
             opt("Deepgram Nova-3 (cloud)", "free·tier", has("DEEPGRAM_API_KEY"), stt_cur == "deepgram", "DEEPGRAM_API_KEY"),
             opt("Whisper local (privado · gratis)", "free·local", whisper_ok, stt_cur == "whisper_local", "faster-whisper")]},
-        # TTS · texto → voz — engine providers: cartesia (cloud), kokoro_local (on-machine).
+        # TTS · text → voice — engine providers: cartesia (cloud), kokoro_local (on-machine).
         {"fn": "TTS · texto → voz", "options": [
             opt("Cartesia Sonic", "paid", has("CARTESIA_API_KEY"), tts_cur == "cartesia", "CARTESIA_API_KEY"),
             opt("Kokoro local (es/en · privado)", "free·local", kokoro_reachable, tts_cur == "kokoro_local", "Kokoro-FastAPI local")]},
@@ -299,7 +299,7 @@ async def status():
         items.append({"key": "cluster", "label": "Cluster MeshKore", "state": "off", "detail": "sin clusters"})
 
     # Group items so the panel can show the CORE (what you boot from the terminal — must be up for zaelar to work)
-    # above the fold, and SECONDARY features (proactividad, widgets, cluster) below in a quieter section.
+    # above the fold, and SECONDARY features (proactivity, widgets, cluster) below in a quieter section.
     CORE = {"server", "brain", "voice", "llm", "memory", "stt", "tts"}
     for it in items:
         it["group"] = "core" if it["key"] in CORE else "extra"
@@ -398,7 +398,7 @@ async def canvas_state(payload: dict):
     try:
         from voice.observer import emit as _emit_inst
         _prev_inst = getattr(canvas_state, "_last_inst", None)
-        canvas_state._last_inst = inst          # V2-259 F3: SIEMPRE, no solo cuando cambia — ver open_instances()
+        canvas_state._last_inst = inst          # V2-259 F3: ALWAYS, not only when it changes — see open_instances()
         if inst != _prev_inst:
             _emit_inst("ui", "canvas (instancias)", role="user",
                        extra={"instances": inst, "n": len(inst), "cat": "main"})
@@ -459,17 +459,17 @@ async def canvas_state(payload: dict):
 
 
 def open_instances() -> list[str]:
-    """Las tarjetas ABIERTAS con su id COMPLETO (`results::t7`), tal y como las reportó el canvas.
+    """The OPEN cards with their FULL id (`results::t7`), exactly as reported by the canvas.
 
-    V2-259 F3 — `memory.state()["open_widgets"]` guarda el conjunto NORMALIZADO (bases), que es lo correcto para
-    lo que hace: el estado del cerebro habla de PIEZAS. Pero «cierra los resultados» con dos hojas abiertas es una
-    pregunta sobre TARJETAS, y ahí la normalización borra justo el dato que hace falta — el mismo colapso que
-    V2-047 F9 anotó y que hasta ahora solo se había instrumentado.
+    V2-259 F3 — `memory.state()["open_widgets"]` stores the NORMALIZED set (base ids), which is correct for
+    its purpose: the brain's state talks about PIECES. But “close the results” with two sheets open is a
+    question about CARDS, and normalization erases exactly the data needed there — the same collapse that
+    V2-047 F9 documented and that had only been instrumented until now.
 
-    Es estado de PROCESO, no persistido, y eso está bien: el canvas es la autoridad y reporta en cada cambio, así
-    que esto es lo más fresco que hay del lado del servidor. Tras un reinicio queda vacío hasta el primer informe,
-    y una lista vacía significa «no lo sé» — quien pregunta cae entonces al comportamiento de siempre en vez de
-    inventarse una ambigüedad.
+    This is PROCESS state, not persisted, and that is fine: the canvas is authoritative and reports on every change,
+    so this is the freshest information available on the server side. After a restart it remains empty until the
+    first report, and an empty list means “I don't know” — the caller then falls back to the usual behavior instead
+    of inventing an ambiguity.
     """
     return list(getattr(canvas_state, "_last_inst", None) or [])
 

@@ -1,13 +1,13 @@
 #
-# git_cli.py — PUENTE git ACOTADO para el dev worker (V2-076). Mismo patrón que los demás puentes CLI (mem_cli,
-# nav_cli, widget_cli): un worker NUNCA usa `Bash(git:*)` pelado (git escapa a ejecución arbitraria por hooks,
-# aliases o `git -c core.sshCommand=…`). En su lugar el worker llama a ESTE CLI, que solo expone operaciones
-# seguras y REFUSA cualquier repo que no sea el AUTORIZADO por el operador (`ZAELAR_ALLOWED_REPO`, inyectado por
-# `dispatch` desde el perfil de permisos del cluster). Así una escalada de una charla agente-agente solo puede
-# tocar el repo del experimento, jamás otro repositorio ni el sistema.
+# git_cli.py — BOUNDED git BRIDGE for the dev worker (V2-076). Same pattern as the other CLI bridges (mem_cli,
+# nav_cli, widget_cli): a worker NEVER uses bare `Bash(git:*)` (git can escape to arbitrary execution through hooks,
+# aliases, or `git -c core.sshCommand=…`). Instead, the worker calls THIS CLI, which exposes only
+# safe operations and REFUSES any repo that is not AUTHORIZED by the operator (`ZAELAR_ALLOWED_REPO`, injected by
+# `dispatch` from the cluster permissions profile). Thus, an escalation from an agent-to-agent conversation can only
+# touch the experiment repo, never another repository or the system.
 #
-# Operaciones: clone (del repo autorizado a un dir de trabajo), commit, push. Nada más — ni remote add arbitrario,
-# ni config, ni fetch de otros orígenes. El repo autorizado se resuelve por `gh` (respeta la auth del host).
+# Operations: clone (the authorized repo into a working directory), commit, push. Nothing else — neither arbitrary
+# remote add, nor config, nor fetch from other origins. The authorized repo is resolved through `gh` (respects the host's auth).
 #
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ import os
 import subprocess
 import sys
 
-_ALLOWED_ENV = "ZAELAR_ALLOWED_REPO"   # p.ej. "meshkore/zalo-zaelar-trading-algo-experiment"
+_ALLOWED_ENV = "ZAELAR_ALLOWED_REPO"   # e.g. "meshkore/zalo-zaelar-trading-algo-experiment"
 
 
 def _allowed_repo() -> str:
@@ -29,9 +29,9 @@ def _fail(msg: str) -> int:
 
 
 def _run(args: list[str], cwd: str | None = None) -> int:
-    """Ejecuta git con timeout y sin heredar prompts interactivos. Devuelve el returncode; imprime salida."""
+    """Runs git with a timeout and without inheriting interactive prompts. Returns the return code; prints output."""
     env = dict(os.environ)
-    env["GIT_TERMINAL_PROMPT"] = "0"       # nunca pedir credenciales por tty (falla limpio si no hay auth)
+    env["GIT_TERMINAL_PROMPT"] = "0"       # never ask for credentials through the TTY (fails cleanly if there is no auth)
     try:
         p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env, timeout=120)
     except Exception as e:  # noqa: BLE001
@@ -49,8 +49,8 @@ def _repo_url(repo: str) -> str:
 
 
 def _origin_url(dir: str) -> str:
-    """URL real del remote `origin` de `dir` (o "" si no tiene/no es un repo). Sin timeout largo — solo lee config
-    local, no toca red."""
+    """Actual URL of the `origin` remote for `dir` (or "" if it has none/is not a repo). No long timeout — only reads
+    local config; does not touch the network."""
     try:
         p = subprocess.run(["git", "-C", dir, "remote", "get-url", "origin"],
                             capture_output=True, text=True, timeout=10)
@@ -60,12 +60,12 @@ def _origin_url(dir: str) -> str:
 
 
 def _verify_authorized_dir(dir: str, repo: str) -> str:
-    """'' si `dir` es realmente un clon del repo AUTORIZADO (origin coincide); si no, el motivo del rechazo.
+    """'' if `dir` is actually a clone of the AUTHORIZED repo (origin matches); otherwise, the reason for rejection.
 
-    CRÍTICO (auditoría 2026-07-26, hallazgo P0): antes de este check, `commit`/`push` solo comprobaban que
-    `dir/.git` existiera — nunca que su `origin` REAL fuera el repo autorizado. Un worker podía apuntar `dir` a
-    CUALQUIER repo git (incluido el propio repo del motor, o uno cuyo `origin` se hubiera reescrito tras el clone)
-    y `commit`/`push` lo aceptaban sin más. Esto revalida el vínculo en cada operación, no solo en el `clone`.
+    CRITICAL (2026-07-26 audit, P0 finding): before this check, `commit`/`push` only checked that
+    `dir/.git` existed — never that its REAL `origin` was the authorized repo. A worker could point `dir` to
+    ANY git repo (including the engine's own repo, or one whose `origin` had been rewritten after the clone)
+    and `commit`/`push` accepted it without further checks. This revalidates the link on every operation, not only during `clone`.
     """
     if not os.path.isdir(os.path.join(dir, ".git")):
         return f"'{dir}' no es un repo git (clona primero)"
@@ -104,7 +104,7 @@ def cmd_push(a) -> int:
     err = _verify_authorized_dir(a.dir, repo)
     if err:
         return _fail(err)
-    # push SOLO al origin (RE-VERIFICADO arriba en cada llamada, no solo al clonar); no se admite un remoto arbitrario.
+    # push ONLY to origin (RE-VERIFIED above on every call, not only when cloning); arbitrary remotes are not allowed.
     return _run(["git", "-C", a.dir, "push", "origin", "HEAD"])
 
 

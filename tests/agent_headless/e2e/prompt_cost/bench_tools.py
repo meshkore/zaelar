@@ -1,17 +1,17 @@
-"""¿Cuánto cuesta —en tiempo y en tokens— el catálogo de tools del turno? Medición REAL contra el modelo vivo.
+"""How much does the turn's tool catalog cost—in time and tokens? REAL measurement against the live model.
 
-Nace de una pregunta del operador (2026-08-02): «31 KB de tools no puede pesar tanto; hay que tratar las tools de
-menos a más como norma… mandar un resumen cortito, y a partir de ahí un segundo request». La intuición sobre el
-PESO es correcta, pero la conclusión sobre la LATENCIA no se sostenía, así que en vez de discutirlo se midió.
+It arose from a question by the operator (2026-08-02): “31 KB of tools cannot weigh that much; tools should be handled
+from fewer to more as a rule… send a short summary, and from there a second request.” The intuition about WEIGHT is
+correct, but the conclusion about LATENCY did not hold up, so it was measured instead of debated.
 
-Tres experimentos, en este orden:
+Three experiments, in this order:
 
-  A) COMPOSICIÓN  — de qué está hecho el catálogo (¿esquemas o prosa?).
-  B) DOS PASADAS  — índice compacto + meta-tool `need_capability`, y luego una 2ª llamada con la tool elegida,
-                    frente a UNA sola llamada con las 23 tools.
-  C) COMPACTAR    — mismas 23 tools pero con la descripción recortada a sus 2 primeras frases: ¿enruta igual?
+  A) COMPOSITION  — what the catalog is made of (schemas or prose?).
+  B) TWO PASSES   — compact index + `need_capability` meta-tool, followed by a 2nd call with the selected tool,
+                    versus a SINGLE call with all 23 tools.
+  C) COMPACT      — same 23 tools, but with the description cut down to its first 2 sentences: does it route the same?
 
-Uso (exige el server vivo para las credenciales; no toca memoria ni estado):
+Usage (requires the live server for credentials; does not touch memory or state):
     ./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_tools [--only a|b|c]
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ import re
 import statistics
 import time
 
-import server.common  # noqa: F401  — carga el credential store en el entorno
+import server.common  # noqa: F401  — loads the credential store into the environment
 
 from nucleo.flash import router
 from nucleo.flash.fast_client import FastClient, spec_from_config
@@ -39,7 +39,7 @@ def _chars(tools) -> int:
 
 
 def first_sentences(text: str, n: int = 2, cap: int = 220) -> str:
-    """El «para qué» de la tool, sin su manual de uso."""
+    """The tool's “what for,” without its user manual."""
     return " ".join(re.split(r"(?<=[.!?])\s+", (text or "").strip())[:n])[:cap]
 
 

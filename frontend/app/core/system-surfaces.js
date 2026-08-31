@@ -1,13 +1,13 @@
-// system-surfaces.js — LISTA CANÓNICA de las SUPERFICIES NATIVAS del frontend (V2-080).
+// system-surfaces.js — CANONICAL LIST of the frontend's NATIVE SURFACES (V2-080).
 //
-// Estos son los "widgets de SISTEMA": UI nativa, fija e INTOCABLE. NO son widgets del catálogo (`widgets/<id>/`):
-// el generador y el ciclo de vida (`widgets/lifecycle.py`) SOLO tocan `widgets/<id>/`, nunca esto. El usuario no
-// los crea, edita ni borra. Se distinguen de los WIDGETS DE USUARIO (los del catálogo, aunque los distribuyamos de
-// serie), que sí son variables, creados por y para el usuario — igual que los conectores.
+// These are the "SYSTEM widgets": native, fixed, UNTOUCHABLE UI. They are NOT catalog widgets (`widgets/<id>/`):
+// the generator and lifecycle (`widgets/lifecycle.py`) touch ONLY `widgets/<id>/`, never this. Users do not create,
+// edit, or delete them. They differ from USER WIDGETS (catalog items, even when shipped by default), which are
+// variable and created by and for the user—like connectors.
 //
-// Esta es la ÚNICA fuente de verdad de "qué es nativo": `main.js` MONTA desde aquí (no hay lista duplicada). Cada
-// superficie se pinta distinto (chrome del escritorio, panel acoplable, overlay, modal, banner…) pero TODA es
-// frontend nativo. Al añadir una superficie nativa nueva, va AQUÍ (y `main.js` la monta sola).
+// This is the ONLY source of truth for "what is native": `main.js` MOUNTS from here (there is no duplicate list).
+// Each surface renders differently (desktop chrome, dockable panel, overlay, modal, banner…), but ALL are native
+// frontend. When adding a native surface, put it HERE (and `main.js` mounts it automatically).
 //
 // Campos por entrada:
 //   id      — identificador estable de la superficie de sistema
@@ -39,7 +39,7 @@ import { TopBar } from "../components/TopBar.js?v=3";
 import { VaultModal } from "../components/VaultModal.js?v=1";
 import { WizardModal } from "../components/WizardModal.js?v=1";
 
-// El ORDEN es el de montaje real en el DOM (importa para el apilado). scaffold primero, luego overlay.
+// The ORDER is the actual DOM mount order (it matters for stacking). Scaffold first, then overlay.
 export const SYSTEM_SURFACES = [
   // El PANAL DE ACTIVIDAD (hexágonos de fondo, V2-039) se RETIRÓ el 2026-08-20 por decisión del operador
   // (V2-233 D): el relato de lo que está pasando vive en UN sitio por encargo — la pestaña «Proceso» de la
@@ -124,6 +124,6 @@ export const SYSTEM_SURFACES = [
 
 const _IDS = new Set(SYSTEM_SURFACES.map(s => s.id));
 
-// ¿`id` es una superficie NATIVA de sistema? (frente a un widget de usuario del catálogo). Fuente única para
-// cualquier guard futuro que necesite distinguir sistema vs usuario en el frontend.
+// Is `id` a NATIVE system surface? (as opposed to a catalog user widget). Single source for any future guard that
+// needs to distinguish system from user in the frontend.
 export function isSystemSurface(id) { return _IDS.has(String(id || "")); }

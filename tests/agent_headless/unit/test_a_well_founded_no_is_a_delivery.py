@@ -1,13 +1,13 @@
-"""Buscar bien y encontrar que NO existe es un resultado completo, y el prompt no lo decía.
+"""Searching thoroughly and finding that something does NOT exist is a complete result, but the prompt did not say so.
 
-Medido en `find-concert-tickets__es` (2026-08-28, plató 24/7, cerebro `deepseek-v4-flash`). No había concierto
-de Rosalía en Madrid ese mes — una respuesta **completa y correcta**— y el worker llenó la hoja de eventos que
-no eran, dejando a la persona **siete minutos** esperando. El juez: *«no cierra el resultado negativo como
-conclusión principal y en su lugar llena la hoja con eventos irrelevantes»*.
+Measured on `find-concert-tickets__es` (2026-08-28, 24/7 set, `deepseek-v4-flash` brain). There was no Rosalía
+concert in Madrid that month — a **complete and correct** answer—yet the worker filled the sheet with events that
+were not it, leaving the person waiting for **seven minutes**. The judge: *«does not close with the negative result as
+the main conclusion and instead fills the sheet with irrelevant events»*.
 
-El método ya cubría «no puedo certificarlo» (paso 7). Esto es **lo contrario** y faltaba: sí lo certifiqué, y
-lo que certifiqué es que no existe. Sin decirlo, el único final que le queda al worker es seguir buscando —
-volver con las manos vacías no está en su repertorio, así que rellena.
+The method already covered «I cannot certify it» (step 7). This is **the opposite**, and it was missing: I did certify
+it, and what I certified is that it does not exist. Without saying so, the only ending left to the worker is to keep
+searching — returning empty-handed is not in its repertoire, so it fills the sheet.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ def _metodo() -> str:
 
 
 def _buscar_metodo() -> str:
-    """El bloque del método, sea cual sea la función que lo compone hoy."""
+    """The method block, regardless of which function currently composes it."""
     import inspect
     src = inspect.getsource(DP)
     i = src.index("7) VERIFICA antes de cerrar")
@@ -32,23 +32,23 @@ def test_el_no_se_declara_una_ENTREGA():
 
 
 def test_y_se_dice_QUE_hay_que_contar_con_el():
-    """Un «no» sin decir dónde miraste no es verificable, y quien lo lee no puede distinguirlo de no haberlo
-    intentado — que es exactamente la duda que este producto tiene que quitar."""
+    """A «no» without saying where you looked is not verifiable, and the reader cannot distinguish it from not having
+    tried — exactly the uncertainty this product must eliminate."""
     t = _buscar_metodo()
     i = t.index("ESO ES LA ENTREGA")
     assert "dónde miraste" in t[i:i + 400] and "descartaste" in t[i:i + 400]
 
 
 def test_y_se_PROHÍBE_rellenar():
-    """Es la mitad que evita que la regla se lea como «di que no y ya»: lo que se prohíbe es lo que hizo."""
+    """This is the half that keeps the rule from being read as «just say no»: what is prohibited is what it did."""
     t = _buscar_metodo()
     i = t.index("ESO ES LA ENTREGA")
     assert "rellenar con lo que no cumple" in t[i:i + 500]
 
 
 def test_no_pisa_el_paso_7():
-    """«No puedo certificarlo» y «he certificado que no existe» son distintos y los dos tienen que estar: el
-    primero es una limitación, el segundo es una respuesta."""
+    """«I cannot certify it» and «I have certified that it does not exist» are distinct, and both must remain: the
+    former is a limitation; the latter is an answer."""
     t = _buscar_metodo()
     assert "si no se puede certificar, dilo con honestidad" in t
     assert t.index("si no se puede certificar") < t.index("ESO ES LA ENTREGA")

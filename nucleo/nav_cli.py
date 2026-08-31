@@ -1,22 +1,22 @@
-"""nucleo/nav_cli.py — `hbweb`: CLI con el que un worker Claude Code CONDUCE el navegador de zaelar (V2-036 F3).
+"""nucleo/nav_cli.py — `hbweb`: CLI with which a Claude Code worker DRIVES zaelar's browser (V2-036 F3).
 
-El agente dirige el Chromium de zaelar paso a paso con SU inteligencia (no un bucle barato). El id de la pestaña/
-tarea sale de `ZAELAR_TASK_ID` (lo inyecta el dispatcher). Cada acción devuelve el ESTADO de la página (url, título y
-los elementos interactivos con su ref) para que el agente razone el siguiente paso:
+The agent directs zaelar's Chromium step by step with ITS intelligence (not a cheap loop). The tab/task id comes from
+`ZAELAR_TASK_ID` (injected by the dispatcher). Each action returns the page STATE (URL, title, and interactive
+elements with their refs) so the agent can reason about the next step:
 
-    python -m nucleo.nav_cli look                          # VISIÓN: ruta PNG (Read) + coordenadas → click_at/type_at
-    python -m nucleo.nav_cli snapshot                      # elementos interactivos con [ref]
+    python -m nucleo.nav_cli look                          # VISION: PNG path (Read) + coordinates → click_at/type_at
+    python -m nucleo.nav_cli snapshot                      # interactive elements with [ref]
     python -m nucleo.nav_cli navigate "https://es.wallapop.com/search?keywords=moto+enduro"
-    python -m nucleo.nav_cli click 12                      # click en el elemento [12] del ÚLTIMO snapshot
+    python -m nucleo.nav_cli click 12                      # click the [12] element from the LAST snapshot
     python -m nucleo.nav_cli type 7 "moto enduro 250" --submit
-    python -m nucleo.nav_cli click_at 640 300              # VISIÓN: click en píxeles de la captura
-    python -m nucleo.nav_cli type_at 300 220 "7465JKY" --submit   # VISIÓN: click en (x,y) y escribe
+    python -m nucleo.nav_cli click_at 640 300              # VISION: click at capture pixels
+    python -m nucleo.nav_cli type_at 300 220 "7465JKY" --submit   # VISION: click at (x,y) and type
     python -m nucleo.nav_cli scroll 800
-    python -m nucleo.nav_cli extract                       # anuncios/resultados de la página actual (JSON)
+    python -m nucleo.nav_cli extract                       # listings/results from the current page (JSON)
 
-Flujo VISIÓN (robusto para formularios): `look` → Read el PNG → `click_at`/`type_at` por coordenadas → `look` otra
-vez. Flujo DOM: `snapshot` → elige una ref → `click`/`type` → snapshot nuevo → repite → `extract` al final.
-Habla por HTTP con el server vivo (ZAELAR_BASE, def localhost:43917). Fail-soft.
+VISION flow (robust for forms): `look` → Read the PNG → `click_at`/`type_at` by coordinates → `look` again.
+DOM flow: `snapshot` → choose a ref → `click`/`type` → new snapshot → repeat → `extract` at the end.
+It communicates over HTTP with the live server (ZAELAR_BASE, default localhost:43917). Fail-soft.
 """
 from __future__ import annotations
 
@@ -33,18 +33,17 @@ _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 
 #: How long we wait for one browser action before giving up on the ANSWER (not on the action). The error
 #: message NAMES this number, so it lives once: two literals drift and then the hint states a wrong figure.
-# El navegador es una CONEXIÓN DIRECTA: una acción que funciona, funciona en segundos. Medido contra el
-# plató vivo sobre un sitio real: `navigate` 4,2 s · `look` 4,2 s · `extract` 0,05 s. Estaba en 90 —veinte
-# veces el coste real— y eso no es «margen de sobra»: es que un cuelgue se lleva un tercio de la ronda antes
-# de que nadie se entere. Medido el 2026-08-24 en `search-buy-guitar__es`: 90 de 250 segundos en un `type`
-# que YA HABÍA ESCRITO el texto. Norma del operador el mismo día: «no tiene tiempos de espera de noventa
-# segundos bajo ningún concepto». 25 s sigue siendo seis veces el coste real; lo que no da es para esconder
-# un cuelgue.
+# The browser is a DIRECT CONNECTION: an action that works completes in seconds. Measured against the
+# live test rig on a real site: `navigate` 4.2 s · `look` 4.2 s · `extract` 0.05 s. It was 90 —twenty
+# times the real cost— and that is not “ample margin”: a hang consumes a third of the round before anyone notices.
+# Measured on 2026-08-24 in `search-buy-guitar__es`: 90 of 250 seconds in a `type` that HAD ALREADY WRITTEN the
+# text. Operator rule that same day: “there are no ninety-second timeouts under any circumstances.” 25 s is still
+# six times the real cost; it is not enough to conceal a hang.
 _ACT_TIMEOUT_S = 25
 
 
 def _act(action: str, args: dict) -> dict:
-    # el navegador se keyea por el id del NAVTASK (la pestaña/tarjeta), no por el id de la escalada del dispatcher.
+    # The browser is keyed by the NAVTASK id (the tab/card), not by the dispatcher's escalation id.
     tid = (os.getenv("ZAELAR_NAV_TASK") or os.getenv("ZAELAR_TASK_ID") or "").strip()
     if not tid:
         return {"ok": False, "error": "ZAELAR_NAV_TASK no definido (no soy un worker de navegador gestionado)"}
@@ -95,16 +94,16 @@ def _transport_error(e: Exception, action: str) -> str:
 
 
 def _sees() -> bool:
-    """¿El modelo que conduce esta sesión lee imágenes? Lo declara el escalón que la sirve
-    (`nucleo/workers/providers.vision_env`) y llega por entorno, que es lo que este CLI hereda del worker.
+    """Does the model driving this session read images? The serving stage declares this
+    (`nucleo/workers/providers.vision_env`) and it arrives through the environment, which this CLI inherits from the worker.
 
-    **Ausente = sí**, la conducta de siempre: un «no ve» equivocado deja ciego a un worker que veía, y eso es un
-    fallo mudo; un «sí ve» equivocado cuesta un `Read` fallido y se sigue por el DOM."""
+    **Absent = yes**, the established behavior: an incorrect “cannot see” leaves a worker that could see blind,
+    and that is a silent failure; an incorrect “can see” costs one failed `Read`, and the worker continues via the DOM."""
     return (os.environ.get("ZAELAR_NAV_VISION") or "").strip().lower() not in ("0", "false", "no")
 
 
-#: Fallos de Playwright que el worker se encuentra y que NO dicen qué hacer. El mensaje crudo se conserva —es
-#: cierto y ayuda a quien depura— y se le añade la salida, que es lo único que le falta al que está trabajando.
+#: Playwright failures encountered by the worker that do NOT say what to do. The raw message is preserved —it is
+#: accurate and helps whoever debugs it— and the way out is appended, which is the only thing missing for the worker.
 _QUE_HACER = (
     ("not attached to the dom",
      "El elemento ya no existe: la página se ha redibujado desde que miraste. Haz `look` otra vez y usa un "
@@ -118,12 +117,12 @@ _QUE_HACER = (
 
 
 def _salida(error: str) -> str:
-    """Qué hacer a continuación, si este error tiene una salida conocida. «» si no la tiene.
+    """What to do next if this error has a known way out. `` if it does not.
 
-    Medido el 2026-08-28 en el plató 24/7: **siete** `click` contra elementos muertos («Element is not
-    attached to the DOM») en dos rondas, y el mensaje no decía nada más. Su hermano —el ref fuera de la
-    mirada— sí lo dice desde siempre («Haz `look` … no inventes refs ni reintentes el mismo») y esa asimetría
-    no tiene motivo: los dos son el mismo problema, un ref que caducó.
+    Measured on 2026-08-28 on the 24/7 test rig: **seven** `click` calls against dead elements (“Element is not
+    attached to the DOM”) across two rounds, and the message said nothing else. Its sibling —the ref outside the
+    view— has always said so (“Run `look` … do not invent refs or retry the same one”), and that asymmetry has no
+    justification: both are the same problem, an expired ref.
     """
     low = (error or "").lower()
     for aguja, salida in _QUE_HACER:
@@ -150,13 +149,12 @@ def _print_state(res: dict) -> None:
     # worker's entire view of the page — and this printer never printed either. Measured across four rounds of
     # `find-theatre-tickets__es` and `restaurant-tonight-madrid`: fourteen captures of one page over twenty
     # minutes, a whole run spent against Booking's challenge, and a task reported `done` while the operator was
-    # told «aún no ha dado señal». Two fixes that travelled over HTTP and died one line short of their reader.
+    # told “it still had not signaled.” Two fixes that travelled over HTTP and died one line short of their reader.
     # First, because a worker reads top-down and a wall means «stop trying here», not «keep scrolling».
     if res.get("wall"):
         print(f"⛔ MURO: {res['wall']} — esta página NO te va a dejar seguir. No insistas aquí: prueba otro "
               f"sitio, o si ya tienes algo aprovechable, extráelo y cierra.")
-        # V2-213: y CUÁL. «Prueba otro sitio» sin nombrar uno es un deseo; el que se atasca es el que no sabe a
-        # dónde ir. Se listan ya excluido el host que acaba de bloquear.
+        # V2-213: and WHICH ONE. “Try another site” without naming one is a wish; the stuck worker is the one that does not know where to go. The alternatives are listed with the host that just blocked us excluded.
         for _a in (res.get("wall_alts") or [])[:3]:
             print(f"   → prueba en {_a.get('name', '')}: {_a.get('url', '')}")
         # V2-470 — when the walls span SEVERAL sites, the browser channel itself is being refused and another
@@ -174,27 +172,28 @@ def _print_state(res: dict) -> None:
         print(f"⚠️ AVISO: {res['hint']}")
     print(f"URL: {res.get('url', '')}")
     if res.get("url_change"):
-        # V2-293 — el DELTA, que es lo único que el worker no puede deducir: la dirección de ahora la tiene, la
-        # de antes no. Va JUNTO a la URL y antes de los elementos porque es una consecuencia de la acción que
-        # acaba de hacer, y el worker lee de arriba abajo. Medido: quiso precio MÁXIMO 150 € y la página se fue
-        # a `min_sale_price=750` — el filtro cayó en otro campo y en otro sentido, sin que nada lo dijera.
+        # V2-293 — the DELTA, the only thing the worker cannot deduce: it has the current address, but not the
+        # previous one. It goes NEXT TO the URL and before the elements because it is a consequence of the action
+        # just performed, and the worker reads top to bottom. Measured: it wanted a MAXIMUM price of €150 and the
+        # page switched to `min_sale_price=750` — the filter landed on another field and in the opposite direction,
+        # without saying so.
         print(f"CAMBIÓ EN LA DIRECCIÓN: {res['url_change']} — es el filtro que la página ha aplicado DE VERDAD. "
               f"Si no es el que querías, deshazlo o vuelve a intentarlo; no sigas contando con el que pediste.")
     print(f"TÍTULO: {res.get('title', '')}")
-    # V2-049 VISIÓN: si hay captura, dile al worker que la MIRE con Read (la página como la ve un humano) y actúe
-    # por coordenadas con click_at/type_at — el camino robusto para formularios/date-pickers/selects.
+    # V2-049 VISION: if there is a capture, tell the worker to LOOK at it with Read (the page as a human sees it)
+    # and act by coordinates with click_at/type_at — the robust path for forms/date-pickers/selects.
     shot = res.get("shot")
     if shot and not _sees():
-        # V2-289 — el modelo que conduce esta sesión NO lee imágenes, así que ofrecerle la captura es mandarle a
-        # un sitio del que solo puede volver con las manos vacías. Medido con el relevo a DeepSeek puesto
-        # (`search-buy-guitar__es`, 2026-08-24 11:23): hizo `Read` de la PNG y contestó «La captura no se pudo
-        # leer (formato no soportado). Sigo por DOM», y otra vez cuatro pasos después — un `Read` de ~300-530 KB
-        # por acción para redescubrir lo mismo, más la narración del fallo al operador, que no tiene qué hacer
-        # con ella. La captura SE SIGUE ESCRIBIENDO: es lo que el operador ve en la tarjeta del navegador, y esa
-        # superficie no depende de quién conduzca.
+        # V2-289 — the model driving this session does NOT read images, so offering it the capture sends it to a
+        # place from which it can only return empty-handed. Measured with DeepSeek taking over
+        # (`search-buy-guitar__es`, 2026-08-24 11:23): it ran `Read` on the PNG and replied “The capture could not
+        # be read (unsupported format). Continuing via DOM,” and again four steps later — a ~300–530 KB `Read` per
+        # action to rediscover the same thing, plus a narration of the failure for the operator, who had no use for
+        # it. The capture CONTINUES TO BE WRITTEN: it is what the operator sees in the browser card, and that
+        # surface does not depend on who is driving.
         #
-        # Y se DICE que no la hay en vez de callar, porque el camino de texto es el que queda y una ausencia sin
-        # nombre se lee como que la captura falló (que es otra cosa, y tiene su propio aviso justo abajo).
+        # And it SAYS that it is unavailable instead of staying silent, because the text path is what remains and an
+        # name is read as meaning the capture failed (which is something else, with its own warning just below).
         print("VISTA: no disponible para este modelo (no lee imágenes). Trabaja con los ELEMENTOS de abajo y "
               "usa click/type con su número [ref] — click_at/type_at piden coordenadas de una captura que no "
               "puedes mirar.")
@@ -213,16 +212,16 @@ def _print_state(res: dict) -> None:
     print("ELEMENTOS INTERACTIVOS (usa el número [ref] con click/type):\n" + (els or "(ninguno)"))
 
 
-# V2-212 — DOS COMANDOS HERMANOS CON FIRMAS DISTINTAS, y el worker mezcló las dos. Medido en
+    # V2-212 — TWO RELATED COMMANDS WITH DIFFERENT SIGNATURES, and the worker mixed them up. Measured in
 # `book-hotel-night-known__es` (2026-08-20 15:29):
 #
 #     Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text
 #     nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
 #
-# `type` toma un [ref] del snapshot y `type_at` toma COORDENADAS de la captura: escribió el texto donde va `y`,
-# que es exactamente lo que sale de usar la aridad de uno con el nombre del otro. Y el `usage` de argparse dice
-# la FORMA pero no el ERROR — la misma clase de mensaje mudo que el `informe.json` de V2-203: dice qué falló y
-# nada de qué hacer, así que el worker no tiene de dónde tirar.
+# `type` takes a [ref] from the snapshot and `type_at` takes COORDINATES from the capture: it wrote the text where
+# `y` belongs, exactly what happens when one command's arity is used with the other's name. And argparse's `usage`
+# states the FORM but not the ERROR — the same kind of silent message as V2-203's `informe.json`: it says what
+# failed and nothing about what to do, leaving the worker with nowhere to go.
 _SCROLL_STEP = 800
 # V2-219 — `scroll down` is what a worker writes, and it is not unreasonable: every other tool it has ever
 # driven takes a direction there. Measured FOUR times across TWO unrelated cases the same day
@@ -263,12 +262,12 @@ def _hint_for(prog: str) -> str:
     if prog.endswith("click_at"):
         return ("   · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura de `look`).\n"
                 "   · Con un [ref] del snapshot el comando es `click <ref>`.")
-    # V2-369 — los verbos que van a una URL. Medido en `rental-car-automatic-airport__es` (2026-08-27): el
-    # worker escribió `nav_cli navigate` PELADO a los 32 s, recibió el `usage:` a secas, y **volvió a
-    # escribirlo pelado 42 s después**; `visit` igual. En la MISMA sesión, `worker_bridge act` pelado —que sí
-    # tiene pista— falló UNA vez y no se repitió. Esa es la medida: el que lleva pista se corrige, el que solo
-    # recibe la forma reincide. Los tres primeros minutos se fueron ahí y el encargo no llegó a ningún sitio de
-    # alquiler; lo que acabó en la hoja eran los títulos de la página de resultados del buscador.
+    # V2-369 — verbs that take a URL. Measured in `rental-car-automatic-airport__es` (2026-08-27): the
+    # worker wrote `nav_cli navigate` with NO ARGUMENT at 32 s, received only the `usage:`, and **wrote it again
+    # without an argument 42 s later**; `visit` did the same. In the SAME session, bare `worker_bridge act` —which
+    # does provide a hint—failed ONCE and was not repeated. That is the measure: the one with a hint self-corrects;
+    # the one that only receives the form repeats it. The first three minutes were lost there and the task reached
+    # no rental site; the sheet ended up with search-results-page titles.
     if prog.endswith(("navigate", "open", "goto", "visit")):
         _verbo = prog.rsplit(" ", 1)[-1] or "navigate"
         return (f"   · A `{_verbo}` le falta LA DIRECCIÓN, y va pegada detrás en el MISMO comando: "
@@ -279,20 +278,19 @@ def _hint_for(prog: str) -> str:
     return ""
 
 
-# Un `usage` dice la FORMA; esto añade QUÉ hacer. Es el contrato del nodo 4.20 aplicado a los argumentos: lo que
-# el puente sabe, lo dice — y un fallo dice además cómo se sale de él. El mecanismo se comparte (V2-219); lo que
-# es de este puente es `_hint_for`.
+# A `usage` message states the FORM; this adds WHAT to do. This is node 4.20's contract applied to arguments: what
+# the bridge knows, it says — and a failure also says how to get out of it. The mechanism is shared (V2-219); what
+# belongs to this bridge is `_hint_for`.
 _GuidedParser = bridge_usage.guided(_hint_for)
 
 
 def _ref(v: str) -> int:
-    """Un `ref` con los corchetes que NOSOTROS pintamos es un ref, no un error de sintaxis (V2-341).
+    """A `ref` with the brackets that WE render is a ref, not a syntax error (V2-341).
 
     `dom.py` renderiza cada elemento como `[2] button "Buscar"` y el propio encabezado de `_print_state` dice
     «usa el numero [ref] con click/type» — o sea que la forma con corchetes es la que el worker tiene DELANTE
     cuando escribe el comando. Medido en los logs de sesion del plato: `nav_cli type: error: argument ref:
-    invalid int value: '[2]'`. Misma regla que V2-306/V2-219: copiar literalmente lo que le enseñamos no puede
-    costarle un turno.
+    invalid int value: '[2]'`. Same rule as V2-306/V2-219: copying literally what we show it must not cost a turn.
     """
     return int(str(v).strip().strip("[]"))
 
@@ -305,7 +303,7 @@ def main(argv: list[str] | None = None) -> int:
     # V2-306 — `open`/`goto` are ALIASES of navigate, and it is the CLI that was wrong, not the worker (the
     # V2-219 rule). Measured on `find-best-hotel-city__es` (2026-08-25 02:22): TWO workers in a row wrote
     # `nav_cli open <url>` — the natural verb, and the one our own recipe teaches in prose («para ABRIR una
-    # página usa…») — and burned their turns on «invalid choice: 'open'» while the round ended with an empty
+    # page uses…») — and burned their turns on «invalid choice: 'open'» while the round ended with an empty
     # sheet. An alias keeps the semantics identical; a hint on the error would still cost the failed call.
     n = sub.add_parser("navigate", aliases=["open", "goto"], help="ir a una URL"); n.add_argument("url")
     c = sub.add_parser("click", help="click en un [ref] del último snapshot"); c.add_argument("ref", type=_ref)
@@ -325,31 +323,29 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("extract", help="raspar anuncios/resultados"); e.add_argument("--limit", type=int, default=14)
     v = sub.add_parser("visit", help="abrir UNA ficha en otra pestaña, leerla y cerrarla (NO pierdes el listado)")
     v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
-    # V2-341 — DOS FORMAS MÁS QUE EL CLI RECHAZABA Y EL WORKER ESCRIBE SOLO. Misma regla que V2-306: cuando
-    # el uso natural es inequívoco, el equivocado es el CLI. Medido sobre TODOS los logs de sesión del plató
-    # (41 errores de contrato con `nav_cli`):
+    # V2-341 — TWO MORE FORMS THAT THE CLI REJECTED AND THE WORKER WRITES ON ITS OWN. Same rule as V2-306: when
+    # the natural usage is unambiguous, the CLI is the one that is wrong. Measured across ALL test-rig session logs
+    # (41 contract errors involving `nav_cli`):
     #
-    #     18x  `open <url>`                    <- ya cerrado por V2-306; los 18 son anteriores
-    #      5x  `nav_cli <url>` sin verbo       <- una URL suelta solo puede ser `navigate`
-    #      5x  `type_at <ref> "texto"`         <- confundir `type` (ref) con `type_at` (coordenadas)
+    #     18x  `open <url>`                    <- already closed by V2-306; the 18 are earlier
+    #      5x  `nav_cli <url>` without a verb  <- a standalone URL can only be `navigate`
+    #      5x  `type_at <ref> "text"`         <- confusing `type` (ref) with `type_at` (coordinates)
     #
-    # Los dos que se cierran aqui NO son adivinar la intencion: una cadena que empieza por http(s) no es ningun
-    # otro verbo, y `type_at` con DOS argumentos donde el segundo no es un numero solo puede ser el `type` de
-    # toda la vida. Cada uno cuesta un turno del worker y, medido en la ronda del coche, cinco errores
-    # encadenados dejaron la hoja a cero.
+    # The two cases closed here are NOT guesses about intent: a string beginning with http(s) cannot be any other
+    # verb, and `type_at` with TWO arguments where the second is not a number can only be the usual `type` command.
+    # Each costs a worker turn and, measured in the car round, five chained errors left the sheet empty.
     #
-    # OJO con el indice: `main(argv=None)` deja que argparse lea `sys.argv[1:]`, asi que aqui el VERBO esta en
-    # la posicion 0 -- no en la 1. Escribirlo como `argv[1]` reventaba en cada invocacion real y pasaba los
-    # tests, que si pasan una lista.
+    # WATCH THE INDEX: `main(argv=None)` lets argparse read `sys.argv[1:]`, so the VERB is at position 0 here —
+    # not 1. Writing it as `argv[1]` crashed on every real invocation and passed the tests, which pass a list.
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv:
         if argv[0].startswith(("http://", "https://")):
             argv.insert(0, "navigate")
         elif argv[0] == "type_at" and len(argv) == 3:
             try:
-                int(argv[2])          # `type_at x y` a medias: eso NO se toca, que lo diga argparse
+                int(argv[2])          # partial `type_at x y`: do NOT touch this; let argparse report it
             except ValueError:
-                argv[0] = "type"      # `type_at <ref> "texto"` -> el `type` de siempre
+                argv[0] = "type"      # `type_at <ref> "text"` -> the usual `type`
     a = ap.parse_args(argv)
     if a.cmd in ("open", "goto"):     # V2-306: argparse keeps the alias the caller typed; the dispatch is one
         a.cmd = "navigate"

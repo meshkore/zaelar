@@ -1,13 +1,13 @@
 // ============================================================================
-// VaultModal — el modal NATIVO de la BÓVEDA de secretos (V2-060). NO es un widget:
-// es parte del frontend y del motor de memoria. Cubre crear la bóveda, desbloquear
-// (por PASSPHRASE o por PASSKEY biométrica — Touch ID/Windows Hello), mostrar un
-// secreto y gestionar dispositivos.
+// VaultModal — the modal NATIVO of the BÓVEDA of secretos (V2-060). NO es un widget:
+// es parte of the frontend and of the motor of memoria. Cubre create the bóveda, desbloquear
+// (por PASSPHRASE or by PASSKEAnd biométrica — Touch ID/Windows Hello), show un
+// secreto and gestionar dispositivos.
 //
-// Se abre solo cuando hace falta: el cerebro emite eventos SSE kind "secret"
-// (locked → pide desbloqueo; no_vault → propone crear; reveal → muestra el valor),
-// o el operador lo abre desde la gestión. El VALOR del secreto se pide a
-// /api/vault/reveal (loopback), nunca llega por el bus de eventos ni por el LLM.
+// Se abre only when hace falta: the cerebro emite eventos SSE kind "secret"
+// (locked → pide desbloqueo; no_vault → propone crear; reveal → shows the valor),
+// or the operador lo abre from the gestión. The VALOR of the secreto se pide a
+// /api/vault/reveal (loopback), nunca llega by the bus of eventos ni by the LLM.
 // Tema vía --hb-* únicamente.
 // ============================================================================
 import { h, raw } from "../core/dom.js?v=2";
@@ -24,7 +24,7 @@ async function refreshStatus() {
 export function VaultModal() {
   let p1, p2, np1, np2, op1;   // inputs
 
-  // al abrir: refresca estado y, si no hay bóveda, fuerza el modo "create"
+  // al abrir: refreshes state y, si no there is bóveda, fuerza the modo "create"
   createEffect(() => {
     if (!store.vaultOpen()) return;
     refreshStatus().then(() => {
@@ -35,7 +35,7 @@ export function VaultModal() {
 
   const msg = (t) => store.setVaultMsg(t || "");
 
-  // tras desbloquear: si había un secreto pendiente, lo revela y pasa a "reveal"
+  // tras desbloquear: si había un secreto pendiente, lo revela and pasa a "reveal"
   async function afterUnlock() {
     await refreshStatus();
     const mid = store.vaultPendingMid();
@@ -60,7 +60,7 @@ export function VaultModal() {
     if (r && r.exists) { p1.value = p2.value = ""; msg(t("vault.created")); afterUnlockOrManage(); }
     else msg((r && r.detail) || t("vault.createError"));
   };
-  // tras crear, la bóveda queda SIN desbloquear (no hay clave en RAM) → desbloquea con la misma passphrase
+  // tras crear, the bóveda remains SIN desbloquear (no there is clave en RAM) → desbloquea with the misma passphrase
   const afterUnlockOrManage = async () => { await refreshStatus(); store.setVaultMode(store.vaultPendingMid() != null ? "unlock" : "manage"); };
 
   const doUnlock = async () => {

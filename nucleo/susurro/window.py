@@ -1,9 +1,9 @@
-"""Ensamblador de la VENTANA DE AUDITORÍA (V2-053 F1): conversación verbatim + eventos filtrados + estado.
+"""Assembler for the AUDIT WINDOW (V2-053 F1): verbatim conversation + filtered events + state.
 
-Comprime lo que el auditor necesita para juzgar un tramo en ~2-4k tokens. Fuentes (todas por fachada, cero
-acoplamiento): `memory.recent_window` (buffer conversacional persistente, u/a verbatim), el anillo de eventos
-filtrados que mantiene el engine (decisiones de turno + fricción del sistema, con trace), y el bloque de ESTADO
-compacto. Solo contenido del OPERADOR — nada `untrusted` de cluster entra aquí (invariante §3f).
+Compresses what the auditor needs to judge a segment into ~2-4k tokens. Sources (all through facades, zero
+coupling): `memory.recent_window` (persistent conversational buffer, u/a verbatim), the filtered event ring
+maintained by the engine (turn decisions + system friction, with trace), and the compact STATE block. Only
+OPERATOR content—nothing `untrusted` from the cluster enters here (invariant §3f).
 """
 from __future__ import annotations
 
@@ -16,24 +16,23 @@ def _clip(s: str, n: int) -> str:
 
 
 def conversation_block(turns: int = 8, *, since_ts: float = 0.0) -> str:
-    """Últimos turnos verbatim del buffer conversacional (lectura directa; llamar FUERA del event loop).
+    """Latest verbatim turns from the conversational buffer (direct read; call OUTSIDE the event loop).
 
-    ⚠️ El SHAPE de `memory.recent_window` es `[{"role": "user"|"assistant", "content": …}]` — mensajes de chat,
-    NO pares por turno. Esto leía `u`/`user`/`a`/`assistant` (claves que no existen en esa lista) y devolvía SIEMPRE
-    cadena vacía, con lo que `has_conversation()` era SIEMPRE False y **Susurro no auditaba nunca** (2026-08-14).
-    Fallo silencioso y de los caros: el guarda de «sin conversación no hay auditoría» se añadió el 2026-08-13 para
-    impedir que el auditor rellenara el vacío con el ejemplo de su propio prompt, y al leer mal la ventana acabó
-    apagando el 100% de las auditorías en vez del caso patológico. Se vio en la sesión b70a45d0, donde Susurro
-    detectó SEIS veces el fallo real («data-op fantasma») con las quejas literales del operador como señal, y las
-    seis veces se abstuvo — con el timeline diciendo «auditoría OMITIDA (ventana sin conversación)» sobre 16 turnos
-    de conversación viva.
+    ⚠️ The SHAPE of `memory.recent_window` is `[{"role": "user"|"assistant", "content": …}]`—chat messages,
+    NOT per-turn pairs. This read `u`/`user`/`a`/`assistant` (keys that do not exist in that list) and ALWAYS returned
+    an empty string, so `has_conversation()` was ALWAYS False and **Susurro never audited** (2026-08-14).
+    A silent and costly failure: the “no conversation, no audit” guard was added on 2026-08-13 to prevent the auditor
+    from filling the gap with the example from its own prompt; misreading the window ended up disabling 100% of audits
+    instead of only the pathological case. It was seen in session b70a45d0, where Susurro detected the real failure
+    (“phantom data-op”) SIX times with the operator’s literal complaints as the signal, and abstained all six times—
+    with the timeline saying “audit OMITTED (window without conversation)” over 16 turns of live conversation.
 
-    Se lee el shape REAL y se toleran los dos históricos (pares `u`/`a`) por si algún registro viejo los trae.
+    The REAL shape is read, and both historical forms (`u`/`a` pairs) are tolerated in case an old record contains them.
 
     `since_ts` (V2-105 follow-up, 2026-08-17): `memory.recent_window` reads the SAME global buffer regardless of
     which conversation/session is asking — it has no session boundary and its 2-day TTL is deliberate (the
     FlashBrain's own continuity across reconnects). `_audit()` in engine.py already computes a recency cutoff for
-    `turn_ring`/`event_ring` for exactly this reason ("un escenario diagnosticó el fallo de OTRO anterior"); this
+    `turn_ring`/`event_ring` for exactly this reason ("one scenario diagnosed the failure of an earlier OTHER one"); this
     buffer was the one section of the audit window that gap didn't cover. Confirmed 2026-08-17: an 11-HOUR-old,
     unrelated verbatim exchange (a real operator conversation about a football's price) got pulled into a test
     session's friction audit as if it were "recent", and the auditor escalated a worker_action for it attributed
@@ -51,14 +50,14 @@ def conversation_block(turns: int = 8, *, since_ts: float = 0.0) -> str:
         ts = t.get("ts")
         if since_ts and ts and float(ts) < since_ts:
             continue
-        # Shape CANÓNICO: mensaje de chat con role/content.
+        # CANONICAL shape: chat message with role/content.
         role = str(t.get("role") or "").strip().lower()
         content = _clip(str(t.get("content") or ""), 400)
         if role and content:
             lines.append(f"OPERADOR: {content}" if role == "user" else f"  ZAELAR: {content}")
             continue
-        # Compat: par por turno (u/a). No se ha visto en producción, pero abstenerse por no reconocer un shape es
-        # justo el fallo que esto arregla.
+        # Compat: per-turn pair (u/a). It has not been seen in production, but refusing to recognize a shape is
+        # precisely the failure this fixes.
         u = _clip(str(t.get("u") or t.get("user") or ""), 400)
         a = _clip(str(t.get("a") or t.get("assistant") or ""), 400)
         if u:
@@ -69,7 +68,7 @@ def conversation_block(turns: int = 8, *, since_ts: float = 0.0) -> str:
 
 
 def turns_block(turn_ring: list[dict]) -> str:
-    """Decisiones por turno (del topic `turn.completed`): qué tools vio, qué decidió, con su trace."""
+    """Per-turn decisions (from the `turn.completed` topic): which tools it saw, what it decided, with its trace."""
     lines = []
     for t in turn_ring:
         d = t.get("decision") or {}
@@ -100,10 +99,10 @@ def state_block() -> str:
 def compose_audit_window(*, reason: str, signals: list[str], turn_ring: list[dict],
                          event_ring: list[dict], turns: int = 8,
                          max_chars: int = _MAX_CHARS_DEF, since_ts: float = 0.0) -> str:
-    """El documento que se manda al auditor. Secciones fijas; recorte global al presupuesto.
+    """The document sent to the auditor. Fixed sections; global truncation to fit the budget.
 
-    `since_ts`: mismo cutoff de recencia que ya se aplica a `turn_ring`/`event_ring` en `engine.py::_audit` —
-    ver el docstring de `conversation_block` para el incidente que esto cierra."""
+    `since_ts`: the same recency cutoff already applied to `turn_ring`/`event_ring` in `engine.py::_audit`—
+    see the `conversation_block` docstring for the incident this closes."""
     parts = [
         "=== FRICCIÓN DETECTADA ===",
         f"motivo: {reason}",
@@ -127,17 +126,17 @@ def compose_audit_window(*, reason: str, signals: list[str], turn_ring: list[dic
 
 
 def has_conversation(turns: int = 8, *, since_ts: float = 0.0) -> bool:
-    """¿Hay algo que auditar? SIN conversación en la ventana, Susurro no tiene material y NO debe auditar.
+    """Is there anything to audit? WITHOUT conversation in the window, Susurro has no material and MUST NOT audit.
 
-    Incidente 2026-08-13, y es de los graves. Saltó la fricción «worker encallado (sin eventos)» mientras el buffer
-    conversacional estaba vacío, así que la ventana salió de 1.643 caracteres SIN la sección de conversación (el
-    ensamblador omite las secciones vacías, sin decir que faltan). El auditor, ante ese vacío, **rellenó el hueco
-    con el EJEMPLO que lleva en su propio prompt de sistema** —el caso de la ITV de V2-061— y afirmó como hecho
-    «el operador pidió cancelar una cita real». Y como `worker_action` está habilitado (F2), despachó un worker de
-    verdad a CANCELAR LA CITA. Una acción sobre el mundo nacida de una alucinación, sin que el operador hubiera
-    dicho una palabra.
+    Incident from 2026-08-13, and one of the serious ones. The “worker stuck (no events)” friction fired while the
+    conversational buffer was empty, so the window came out at 1,643 characters WITHOUT the conversation section
+    (the assembler omits empty sections without saying they are missing). Faced with that gap, the auditor **filled
+    it with the EXAMPLE in its own system prompt**—the V2-061 vehicle-inspection case—and stated as fact “the
+    operator asked to cancel a real appointment.” And because `worker_action` is enabled (F2), it dispatched a real
+    worker to CANCEL THE APPOINTMENT. An action in the world born from a hallucination, without the operator having
+    said a word.
 
-    Es la misma clase de fallo que [[feedback_visible_state_over_silent_state]]: una ventana incompleta se veía
-    igual que una ventana completa. La corrección de raíz es no dejar que un auditor de CONVERSACIONES opine
-    cuando no hay conversación — abstenerse es gratis; inventar cuesta una cita cancelada."""
+    It is the same class of failure as [[feedback_visible_state_over_silent_state]]: an incomplete window looked
+    identical to a complete window. The root fix is not to let a CONVERSATION auditor weigh in when there is no
+    conversation—abstaining is free; inventing costs a canceled appointment."""
     return bool(conversation_block(turns, since_ts=since_ts).strip())

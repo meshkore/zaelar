@@ -14,18 +14,19 @@ from nucleo.memory_agent.lang_marks import (_RELOCATION_RE, _looks_like_injectio
                                             _talks_about_the_operator)
 
 
-# ── V2-033 · PRECISIÓN de escritura (el CORAZÓN no ensucia el largo plazo) ─────────────────────────────────────
-# El modelo pequeño no obedece de forma fiable "descarta peticiones/preguntas" por prompt (lección del proyecto:
-# los guards que importan son DETERMINISTAS). Estos gates filtran/ajustan lo que el CORAZÓN (LLM o heurística)
-# intentaría persistir, para que SOLO entren afirmaciones con sustancia.
+# ── V2-033 · WRITE PRECISION (the CORE does not dirty the long term) ───────────────────────────────────────────
+# The small model does not reliably obey "discard requests/questions" through prompting (a project lesson:
+# the guards that matter are DETERMINISTIC). These gates filter/adjust what the CORE (LLM or heuristic)
+# would try to persist, so that ONLY substantive assertions get in.
 
-# (P0a) Un ÁTOMO ya canónico que en realidad es una PREGUNTA reificada o un ECO de petición al asistente — NO es un
-# hecho del operador. Un hecho canónico es declarativo en 3ª persona ("Es alérgico…", "Le interesa…"); nunca lleva
-# "?" ni "el operador pregunta si…" ni empieza por un imperativo dirigido al asistente.
-#   OJO: NO metemos aquí el eco de imperativo crudo ("búscame …") — una TAREA CONCRETA ("búscame vuelos a Tokio")
-#   SÍ es recordable ("¿qué te pedí?", `_COMMITMENT_RE`). El eco VAGO ("búscame algo") lo caza `_is_vague_request`
-#   en la capa pre-LLM (sobre el turno crudo). Aquí solo lo INEQUÍVOCAMENTE no-hecho: interrogativos y preguntas/
-#   peticiones REIFICADAS en 3ª persona (lo que el LLM pequeño produce al convertir una pregunta en "hecho").
+# (P0a) A canonical ATOM that is actually a reified QUESTION or an ECHO of a request to the assistant is NOT an
+# operator fact. A canonical fact is declarative in the 3rd person ("Es alérgico…", "Le interesa…"); it never has
+# "?" or "el operador pregunta si…" and never starts with an imperative addressed to the assistant.
+#   NOTE: We do NOT put the raw imperative echo ("búscame …") here — a CONCRETE TASK ("búscame vuelos a Tokio")
+#   IS recordable ("¿qué te pedí?", `_COMMITMENT_RE`). The VAGUE echo ("búscame algo") is caught by
+#   `_is_vague_request` in the pre-LLM layer (over the raw turn). Here we only reject the UNAMBIGUOUSLY non-facts:
+#   interrogatives and reified questions/requests in the 3rd person (what the small LLM produces when turning a
+#   question into a "fact").
 _ATOM_NONFACT_RE = re.compile(
     r"\?|^\s*¿|"
     r"\bpregunt[aó]\s+(?:si|qu[eé]|cu[aá]l(?:es)?|cu[aá]ndo|d[oó]nde|c[oó]mo|cu[aá]nto|qui[eé]n|por\s+qu[eé])\b|"
@@ -33,29 +34,30 @@ _ATOM_NONFACT_RE = re.compile(
     r"\b(?:pide|pidi[oó]|quiere)\s+que\s+(?:le|se\s+le|me)\s+"
     r"(?:busque|busques|mire|mires|muestre|muestres|ense[ñn]e|ense[ñn]es|abra|abras|diga|digas|"
     r"recomiende|recomiendes|investigue|investigues)\b|"
-    # petición de INFORMACIÓN reificada: "(necesita|quiere|pide) (más) información/datos/detalles (…) sobre/de X".
-    # NARROW a propósito — exige el sustantivo información/datos/detalles + preposición, así "Necesita gafas" o
-    # "Necesita terminar el informe" (hechos/compromisos reales) NO caen. (V2-033 follow-up: slip de "Necesita
-    # información sobre el viento" visto en el bombardeo headless.)
+    # Reified INFORMATION request: "(necesita|quiere|pide) (más) información/datos/detalles (…) sobre/de X".
+    # Deliberately NARROW — requires the noun información/datos/detalles + preposition, so "Necesita gafas" or
+    # "Necesita terminar el informe" (real facts/commitments) do NOT match. (V2-033 follow-up: slip of "Necesita
+    # información sobre el viento" seen in the headless bombardment.)
     r"\b(?:necesit[ao]|quiere|pide|pidi[oó]|solicit[ao])\s+(?:m[aá]s\s+|una?\s+|nueva\s+)?"
     r"(?:informaci[oó]n|datos|detalles)(?:\s+\w+){0,2}\s+(?:sobre|de|del|acerca|respecto|para)\b|"
-    # (P0c·C, V2-050) petición VAGA reificada al asistente con objeto indefinido: "quiere que repitan algo",
-    # "pide que le muestre eso". NARROW: exige objeto vago (algo/eso/esto/lo mismo/lo de antes) → una tarea CONCRETA
-    # ("quiere que le reserve la cita ITV") NO cae (la conserva el COMMITMENT-net).
+    # (P0c·C, V2-050) VAGUE reified request to the assistant with an indefinite object: "quiere que repitan algo",
+    # "pide que le muestre eso". NARROW: requires a vague object (algo/eso/esto/lo mismo/lo de antes) → a CONCRETE
+    # task ("quiere que le reserve la cita ITV") does NOT match (the COMMITMENT-net preserves it).
     r"\b(?:quiere|pide|pidi[oó]|necesita|dice)\s+que\s+\w+(?:\s+\w+){0,2}\s+"
     r"(?:algo|eso|esto|lo\s+mismo|lo\s+de\s+antes|una\s+cosa)\b",
     re.I,
 )
 
-# (P0c·B, V2-050) un slot de IDENTIDAD (nombre/trato/ubicación…) es un ATRIBUTO ESTABLE — jamás una petición. El
-# procesador a veces mis-asigna una orden ("entra en la web y reserva") al slot operator.treatment como si fuera
-# "cómo tratarle". Si un átomo va a un slot de identidad y su texto es una petición reificada ("quiere/pide/
-# necesita QUE …"), NO es ese atributo → se rechaza (no ensucia la identidad). Slot-scoped → los deseos de vida
-# sueltos (slot=None) no se tocan.
+# (P0c·B, V2-050) an IDENTITY slot (name/form of address/location…) is a STABLE ATTRIBUTE — never a request. The
+# processor sometimes misassigns an order ("entra en la web y reserva") to the operator.treatment slot as if it were
+# "how to address them". If an atom goes to an identity slot and its text is a reified request ("quiere/pide/
+# necesita QUE …"), it is NOT that attribute → reject it (do not dirty identity). Slot-scoped → standalone life
+# wishes (slot=None) are untouched.
 _WANTS_THAT_RE = re.compile(r"\b(?:quiere|pide|pidi[oó]|necesita|solicit[ao]|dice)\s+que\b", re.I)
 
-# (P0a) Petición VAGA / sin referente concreto ("mira eso", "búscame algo", "¿puedes mirar eso por mí?"): ruido, no
-# una tarea recordable. DISTINTA de una tarea CONCRETA con dato ("búscame vuelos a Tokio"), que SÍ se recuerda.
+# (P0a) VAGUE request / without a concrete referent ("mira eso", "búscame algo", "¿puedes mirar eso por mí?"):
+# noise, not a recordable task. DISTINCT from a CONCRETE task with data ("búscame vuelos a Tokio"), which IS
+# remembered.
 _VAGUE_REQUEST_RE = re.compile(
     r"\b(?:mira|revisa|checa|comprueba|ve|b[uú]scame|b[uú]sca|encu[eé]ntrame|mir[aá]|ens[eé][ñn]ame)\s+"
     r"(?:eso|esto|aquello|algo|lo\s+de\s+(?:antes|eso))\b|"
@@ -63,8 +65,8 @@ _VAGUE_REQUEST_RE = re.compile(
     re.I,
 )
 
-# (P1) Directiva de comportamiento EFÍMERA sobre la pantalla/acción inmediata → estilo de sesión, NO preferencia
-# durable. Solo cuenta como efímera si NO trae marca de durabilidad ("prefiero/siempre/nunca/en general…").
+# (P1) EPHEMERAL behavior directive about the screen/immediate action → session style, NOT a durable preference.
+# It counts as ephemeral only if it has NO durability marker ("prefiero/siempre/nunca/en general…").
 _EPHEMERAL_DIRECTIVE_RE = re.compile(
     r"\bno\s+me\s+(?:muestres|ense[ñn]es|abras|pongas|saques)\b|"
     r"\bno\s+(?:muestres|abras|ense[ñn]es)\s+(?:nada|eso|esto)\b|"
@@ -74,55 +76,56 @@ _EPHEMERAL_DIRECTIVE_RE = re.compile(
 _DURABLE_PREF_MARKER_RE = re.compile(
     r"\b(prefiero|preferir[íi]a|me\s+gusta(?:r[íi]a)?|siempre|nunca|en\s+general|"
     r"por\s+lo\s+general|de\s+ahora\s+en\s+adelante|a\s+partir\s+de\s+ahora|"
-    # CONDICIONAL/RECURRENTE = regla GENERAL, no directiva de sesión (batería v1 2026-07-20: «si es fin de
-    # semana no me pongas recordatorios» caía como efímera y se perdía una user-rule durable)
+    # CONDITIONAL/RECURRING = GENERAL rule, not a session directive (battery v1 2026-07-20: «si es fin de
+    # semana no me pongas recordatorios» was classified as ephemeral and a durable user rule was lost)
     r"si\s+es|si\s+estoy|si\s+hay|cuando\s+\w+|cada\s+vez\s+que|los\s+fines?\s+de\s+semana|"
     r"los\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bados?|domingos?)|"
     r"por\s+las?\s+(?:ma[ñn]anas?|tardes?|noches?)|entre\s+semana|on\s+weekends?|when(?:ever)?\s+\w+)\b", re.I)
 
 
-# (P0c) VALIDEZ DE FORMATO de un slot TIPADO (V2-050): un dato de identidad con formato canónico (email, teléfono)
-# cuyo VALOR está malformado NO es un hecho durable — es garble del STT ("mi email es rjj.com" → 'rjj.com' sin @ no
-# es un email). Sin esto el valor roto se guardaba en el slot y competía con el bueno (bug ITV: rjj.com pisando
-# rjj@proars.com). Validación de FORMATO determinista, keyed SOLO por el slot que el procesador ya asignó → NO toca
-# preferencias ("prefiere el correo por la mañana" no lleva slot operator.email, así que no se filtra).
+# (P0c) FORMAT VALIDITY of a TYPED slot (V2-050): an identity value with canonical format (email, phone)
+# whose VALUE is malformed is NOT a durable fact — it is STT garble ("mi email es rjj.com" → 'rjj.com' without @
+# is not an email). Without this, the broken value was stored in the slot and competed with the good one (ITV bug:
+# rjj.com overwriting rjj@proars.com). Deterministic FORMAT validation, keyed ONLY by the slot already assigned by
+# the processor → does NOT touch preferences ("prefiere el correo por la mañana" has no operator.email slot, so it
+# is not filtered).
 _EMAIL_OK_RE = re.compile(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", re.I)
 
 
 def _atom_value_invalid(atom: dict) -> bool:
-    """True si el átomo va a un slot TIPADO pero su valor está MALFORMADO (no ensuciar la identidad con garble)."""
+    """True if the atom targets a TYPED slot but its value is MALFORMED (do not dirty identity with garble)."""
     slot = (atom.get("slot") or "").strip().lower()
     hay = ((atom.get("value") or "") + " " + (atom.get("text") or "")).strip()
     if slot == "operator.email":
         return not _EMAIL_OK_RE.search(hay)
     if slot == "operator.phone":
-        return len(re.sub(r"\D", "", hay)) < 7        # un teléfono real tiene ≥7 dígitos; menos = cortado/garble
+        return len(re.sub(r"\D", "", hay)) < 7        # a real phone has ≥7 digits; fewer = truncated/garble
     return False
 
 
 def _atom_is_nonfact(text: str) -> bool:
-    """(P0a) El átomo canónico es una pregunta reificada / eco de petición al asistente → no es un hecho durable."""
+    """(P0a) The canonical atom is a reified question / request echo to the assistant → not a durable fact."""
     return bool(_ATOM_NONFACT_RE.search(text or ""))
 
 
 def _is_ephemeral_directive(t: str) -> bool:
-    """(P1) Directiva efímera de pantalla/acción, sin marca de durabilidad → no es preferencia durable."""
+    """(P1) Ephemeral screen/action directive, without a durability marker → not a durable preference."""
     return bool(_EPHEMERAL_DIRECTIVE_RE.search(t or "")) and not _DURABLE_PREF_MARKER_RE.search(t or "")
 
 
 def _is_vague_request(t: str) -> bool:
-    """(P0a) Petición vaga sin referente concreto → ruido, no tarea recordable."""
+    """(P0a) Vague request without a concrete referent → noise, not a recordable task."""
     return bool(_VAGUE_REQUEST_RE.search(t or ""))
 
 
 def _precision_reject_atom(atom: dict, *, raw: str) -> bool:
-    """V2-033: ¿este átomo ensuciaría el largo plazo? (pregunta/petición reificada, o pref derivada de directiva
-    efímera). Se aplica a la salida del LLM Y de la heurística antes de escribir."""
+    """V2-033: would this atom dirty the long term? (reified question/request, or preference derived from an
+    ephemeral directive). Applied to both LLM and heuristic output before writing."""
     if _atom_is_nonfact(atom.get("text") or ""):
         return True
-    if _atom_value_invalid(atom):                 # (P0c) slot tipado con valor malformado (email sin @, tel cortado)
+    if _atom_value_invalid(atom):                 # (P0c) typed slot with malformed value (email without @, truncated phone)
         return True
-    # (P0c·B) petición reificada mis-asignada a un slot de IDENTIDAD → no es ese atributo, se rechaza.
+    # (P0c·B) Reified request misassigned to an IDENTITY slot → it is not that attribute; reject it.
     if (atom.get("slot") or "").strip().lower() in _IDENTITY_SLOTS and _WANTS_THAT_RE.search(atom.get("text") or ""):
         return True
     if (atom.get("kind") == "pref" or atom.get("dest") == "state") and _is_ephemeral_directive(raw):
@@ -135,11 +138,11 @@ _DEMOTE_STOP = frozenset({"del", "los", "las", "una", "uno", "con", "por", "para
 
 
 def _same_entity_refinement(cur: str, new: str) -> bool:
-    """(P0b·V2-050) ¿el valor NUEVO es un REFINAMIENTO del MISMO ente que el establecido, no un garble a otro? Sí si
-    comparten un token DISTINTIVO (len≥4, sin colores/stopwords): 'Dacia Duster'↔'Duster gris'↔'Duster de Dacia'
-    comparten «duster» → mismo coche (facetas), NO cuarentena → el slot superseda («el más reciente MANDA», ≤2
-    facetas, bot v2 #21). SEGURO para garble de identidad: 'Ricard'↔'Teigano' o 'Ana García'↔'Ana Pérez' (ana<4,
-    apellido distinto) NO comparten token len≥4 → siguen cuarentenados."""
+    """(P0b·V2-050) Is the NEW value a REFINEMENT of the SAME entity as the established one, not garble into another?
+    Yes if they share a DISTINCTIVE token (len≥4, excluding colors/stopwords): 'Dacia Duster'↔'Duster gris'↔'Duster
+    de Dacia' share «duster» → same car (facets), NOT quarantine → the slot supersedes ("the most recent WINS", ≤2
+    facets, bot v2 #21). SAFE for identity garble: 'Ricard'↔'Teigano' or 'Ana García'↔'Ana Pérez' (ana<4,
+    different surname) do NOT share a token len≥4 → remain quarantined."""
     import re as _re
     ta = {w for w in _re.findall(r"\w+", cur.lower()) if len(w) >= 4 and w not in _DEMOTE_STOP}
     tb = {w for w in _re.findall(r"\w+", new.lower()) if len(w) >= 4 and w not in _DEMOTE_STOP}
@@ -147,11 +150,11 @@ def _same_entity_refinement(cur: str, new: str) -> bool:
 
 
 def _plausibility_demote(atom: dict, *, state: dict, is_correction: bool) -> dict:
-    """(P0b) Un slot de IDENTIDAD singular cuyo valor NUEVO contradice el ya establecido NO sobrescribe el `state`
-    en una mención única no confirmada (típico garble del STT): se degrada a `long` recuperable con menor peso y sin
-    slot, dejando la identidad intacta. Las CORRECCIONES explícitas ('no me llamo X sino Y') sí pasan — ya olvidaron
-    el valor viejo antes en el flujo. En un perfil VACÍO (primer dato) no hay conflicto → entra normal. Un
-    REFINAMIENTO del mismo ente (comparte token distintivo) tampoco es garble → supersede (V2-050)."""
+    """(P0b) A singular IDENTITY slot whose NEW value contradicts the established one does NOT overwrite `state`
+    in a single unconfirmed mention (typical STT garble): it is demoted to recoverable `long` with lower weight and
+    no slot, leaving identity intact. Explicit CORRECTIONS ('no me llamo X sino Y') pass — the old value was already
+    forgotten earlier in the flow. In an EMPTY profile (first datum) there is no conflict → it enters normally. A
+    REFINEMENT of the same entity (sharing a distinctive token) is not garble either → supersedes (V2-050)."""
     if is_correction or atom.get("dest") != "state":
         return atom
     slot = atom.get("slot")
@@ -159,13 +162,13 @@ def _plausibility_demote(atom: dict, *, state: dict, is_correction: bool) -> dic
     if slot in _GARBLE_GUARD_SLOTS and field:
         cur = str(state.get(field) or "").strip().lower()
         new = str((atom.get("state_patch") or {}).get(field) or "").strip().lower()
-        # contradice una identidad YA establecida Y no es un refinamiento del mismo ente → no corromper el estado
+        # Contradicts an ALREADY established identity AND is not a refinement of the same entity → do not corrupt state.
         if cur and new and cur != new and not _same_entity_refinement(cur, new):
             a = dict(atom)
             a.update(dest="long", state_patch={}, slot=None, pinned=False,
                      importance=min(float(atom.get("importance", 0.5)), 0.4),
-                     _quarantine=True)             # → meta.trust=untrusted en _write_atom: recuperable solo por
-            return a                               #   consulta explícita, NUNCA aflora en recall/prompt (anti-garble)
+                     _quarantine=True)             # → meta.trust=untrusted in _write_atom: recoverable only via
+            return a                               #   explicit query, NEVER surfaces in recall/prompt (anti-garble)
     return atom
 
 
@@ -251,16 +254,16 @@ def _established_slot_value(slot: str) -> str:
 
 
 def _report_self_declared_change_ignored(slot: str, raw: str) -> None:
-    """VISIBLE por la misma razón que `_report_slot_guard`, y aquí hace además un segundo trabajo.
+    """VISIBLE for the same reason as `_report_slot_guard`, and it also does a second job here.
 
-    `_talks_about_the_operator` es una ENUMERACIÓN de marcas de primera persona, y una enumeración por idiomas
-    nunca está completa: el hueco que deja no es escribir de más, es NO aprender una mudanza legítima dicha en
-    una lengua que la lista no cubre. Ese fallo sería mudo —el operador diría «me he mudado» y la memoria no se
-    enteraría, sin nada en ninguna pantalla— así que cada vez que la puerta calla una autodeclaración deja
-    RASTRO con la frase entera. Si aparece aquí una mudanza de verdad, la lista tiene un agujero con nombre y
-    apellidos en vez de una queja de que «no se acuerda».
+    `_talks_about_the_operator` is an ENUMERATION of first-person markers, and an enumeration across languages
+    is never complete: its gap does not cause over-writing, but failure to learn a legitimate move stated in a
+    language the list does not cover. That failure would be silent —the operator would say «me he mudado» and
+    memory would not know, with nothing on any screen— so whenever the gate silences a self-declaration it leaves
+    a TRACE with the entire phrase. If a real move appears here, the list has a named gap rather than a complaint
+    that it «does not remember».
     """
-    detail = f"slot {slot}: `change` autodeclarado IGNORADO — el turno no habla del operador: {raw[:160]!r}"
+    detail = f"slot {slot}: self-declared `change` IGNORED — the turn is not about the operator: {raw[:160]!r}"
     try:
         from voice.observer import emit
         emit("memory", "identidad protegida de una autodeclaración", text=detail,
@@ -292,18 +295,16 @@ def _report_slot_guard(slot: str, cur: str, new: str, text: str) -> None:
 from memory import slots as _memslots
 
 _PATCH_TO_SLOT = _memslots.patch_to_slot()
-# V2-033 P0b: inverso slot→campo de state + conjunto de slots de IDENTIDAD singular (un valor nuevo que contradiga
-# el establecido no debe sobrescribir el estado en una mención única no confirmada — garble del STT).
+# V2-033 P0b: inverse slot→state field + set of singular IDENTITY slots (a new value contradicting the established
+# one must not overwrite state in a single unconfirmed mention — STT garble).
 _SLOT_TO_STATE_FIELD = {v: k for k, v in _PATCH_TO_SLOT.items()}
 _IDENTITY_SLOTS = _memslots.identity_slots()
-_GARBLE_GUARD_SLOTS = _memslots.garble_guard_slots()   # P0b: identidad garble-able (las prefs reformulables NO)
+_GARBLE_GUARD_SLOTS = _memslots.garble_guard_slots()   # P0b: garble-able identity (reformulable preferences NO)
 
 
 def _slot_for_patch(patch: dict) -> str | None:
-    """Slot canónico para una traza de perfil (el primero que aparezca en el patch). Fail-open: None si no hay."""
+    """Canonical slot for a profile trace (the first one appearing in the patch). Fail-open: None if absent."""
     for k in patch:
         if k in _PATCH_TO_SLOT:
             return _PATCH_TO_SLOT[k]
     return None
-
-

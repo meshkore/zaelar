@@ -27,7 +27,7 @@ logger = logging.getLogger("zaelar.email.oauth")
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
 STORE = _ROOT / ".meshkore" / "credentials" / "email_oauth.json"
-_REFRESH_SKEW = 120                      # refresca 2 min antes de caducar
+_REFRESH_SKEW = 120                      # refresh 2 minutes before expiry
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/email/callback"
 
 

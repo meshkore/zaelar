@@ -5,7 +5,7 @@
 # asyncio.to_thread (IMAP/SMTP block) → never clogs the server event loop.
 #
 # Flow (stateless v2 production path, BRAIN=nucleo): IMAP/SMTP login → poll INBOX (BODY.PEEK, does not mark read)
-# → publish NEW emails to the bus (connector.msg) → the mensajeria widget triages/saves/notifies. Drains:
+# → publish NEW emails to the messaging widget (connector.msg), which triages/saves/notifies. Drains:
 #   · msg.mark_read (MarkReadInbox) → mailbox.mark_seen (marks \Seen in IMAP).
 #   · msg.reply      (ReplyInbox)   → mailbox.send_reply (SMTP with In-Reply-To/References threading).
 # Direct duo/hermes path (fallback): triages with the shared classifier and writes the store like WhatsApp/Telegram.
@@ -21,8 +21,8 @@ PLATFORM = "email"
 
 _task: asyncio.Task | None = None
 _seen: set[str] = set()          # already-seen IMAP UIDs (seeded on connect → only triage NEW email)
-_published: set[str] = set()     # v2: UIDs ya publicados al bus (dedup antes de triar en el widget)
-_shown: set[str] = set()         # camino directo: messageIds ya sacados a flote
+_published: set[str] = set()     # v2: UIDs already published to the bus (dedup before triage in the widget)
+_shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
 

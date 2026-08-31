@@ -1,16 +1,16 @@
-"""nucleo/worker_bridge.py — `hbask`/`hbact`/`hbsay`: puentes del Brain Worker → FlashBrain/usuario (V2-038).
+"""nucleo/worker_bridge.py — `hbask`/`hbact`/`hbsay`: bridges from the Brain Worker → FlashBrain/user (V2-038).
 
-Un Brain Worker (subproceso, cualquier backend) los invoca por Bash para INTERACTUAR mientras trabaja — el plano
-request/response del diseño (§v2·B, §v3·I). Igual patrón que `hbnote`/`hbmem`/`hbweb`: habla por HTTP con el server
-vivo, id + token de la sesión por entorno (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft.
+A Brain Worker (subprocess, any backend) invokes them through Bash to INTERACT while working — the
+request/response layer of the design (§v2·B, §v3·I). Same pattern as `hbnote`/`hbmem`/`hbweb`: communicates over HTTP
+with the live server, using the session id + token from the environment (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft.
 
     python -m nucleo.worker_bridge ask "¿la prefieres de enduro o de cross?"
-    python -m nucleo.worker_bridge wait <corr_id>            # reintenta la espera (no agota el timeout del Bash)
+    python -m nucleo.worker_bridge wait <corr_id>            # retries the wait (does not exhaust the Bash timeout)
     python -m nucleo.worker_bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
     python -m nucleo.worker_bridge say "voy a tardar un poco más, sigo filtrando"
 
-Toda respuesta puede arrastrar ⟦NUEVAS INSTRUCCIONES⟧ (piggyback, §v3·H): si el operador refinó la tarea
-("además, verde"), el worker se entera aquí sin depender del turn-taking del motor.
+Any response may carry ⟦NUEVAS INSTRUCCIONES⟧ (piggyback, §v3·H): if the operator refined the task
+("also, green"), the worker learns about it here without depending on the engine's turn-taking.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ import urllib.request
 from nucleo import bridge_usage
 
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
-# Ventana de espera de UN ciclo de `ask`/`wait` — corta para retornar ANTES del timeout del tool Bash (§v3·I).
+# Wait window for ONE `ask`/`wait` cycle — kept short to return BEFORE the Bash tool timeout (§v3·I).
 _ASK_CYCLE_S = float(os.getenv("ZAELAR_ASK_CYCLE_S", "20"))
 _POLL_EVERY_S = float(os.getenv("ZAELAR_ASK_POLL_S", "1.5"))
 
@@ -59,7 +59,7 @@ def _emit_injections(res: dict) -> None:
 
 
 def _poll_until(corr_id: str) -> int:
-    """Un CICLO de espera acotado. Imprime la respuesta si llega; si no, dice cómo reintentar (§v3·I)."""
+    """One bounded wait CYCLE. Print the response if it arrives; otherwise explain how to retry (§v3·I)."""
     deadline = time.time() + _ASK_CYCLE_S
     while time.time() < deadline:
         res = _get(f"/api/worker/act/{corr_id}")
@@ -100,25 +100,25 @@ def _cmd_act(action: str, payload_json: str) -> int:
     if not tid:
         print("ZAELAR_TASK_ID no definido", file=sys.stderr)
         return 1
-    # V2-379 — el payload puede venir en línea, por `@fichero` o por `-`. En línea NO SIEMPRE CABE: nuestra
-    # propia puerta de permisos rechaza un argumento con llaves y comillas dentro, y sin salida el worker se
-    # queda sin poder pedir una búsqueda. Ver `bridge_usage.read_payload` para el rastro medido.
+    # V2-379 — the payload may be inline, via `@file`, or via `-`. Inline does NOT ALWAYS FIT: our own
+    # permission gate rejects an argument containing braces and quotes, and without an alternative the worker
+    # cannot request a search. See `bridge_usage.read_payload` for the measured trace.
     from nucleo import bridge_usage as _bu
     _raw, _src, _err = _bu.read_payload(payload_json)
     if _err:
         print(f"no puedo leer el payload de {payload_json[1:]}: {_err}", file=sys.stderr)
         print(f"   · ruta RELATIVA a tu directorio de trabajo: {os.getcwd()}", file=sys.stderr)
-        # LO QUE SÍ HAY, no solo lo que falta: «no existe» a secas no distingue entre escribirlo en otro
-        # sitio, escribirlo con otro nombre y no escribirlo — tres salidas distintas que desde ahí se ven
-        # iguales. Ver `bridge_usage.what_is_here`.
+        # WHAT IS THERE, not just what is missing: «does not exist» alone does not distinguish between writing it
+        # somewhere else, writing it under another name, and not writing it — three different outcomes that look
+        # identical from there. See `bridge_usage.what_is_here`.
         _hay = _bu.what_is_here()
         if _hay:
             print(f"   · {_hay}", file=sys.stderr)
         print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write a esa ruta "
               "(relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.", file=sys.stderr)
         return 1
-    # QUÉ tenía de inválido, no solo que lo era — y tolerando la valla de markdown. Ver `parse_payload`:
-    # ésta es la anomalía nº 1 del tablero entero, y su mensaje no daba nada con lo que corregirla.
+    # WHAT was invalid about it, not merely that it was invalid — while tolerating the Markdown fence. See
+    # `parse_payload`: this is anomaly no. 1 on the entire board, and its message provided nothing to fix it.
     payload, _perr = _bu.parse_payload(_raw)
     if _perr:
         # V2-469 — a plain-text payload for web_search IS the query (V2-341's rule: the natural shape must
@@ -135,7 +135,7 @@ def _cmd_act(action: str, payload_json: str) -> int:
         print(f"ACCIÓN DENEGADA: {res.get('error')}")
         return 0
     if res.get("status") == "pending" and res.get("corr_id"):
-        return _poll_until(res["corr_id"])          # CONFIRM u otra que espera → esperamos como un ask
+        return _poll_until(res["corr_id"])          # CONFIRM or another action that waits → wait as for an ask
     if res.get("ok"):
         if res.get("result") is not None:
             print("RESULTADO: " + json.dumps(res["result"], ensure_ascii=False))
@@ -156,11 +156,11 @@ def _cmd_say(text: str) -> int:
     return 0 if res.get("ok") else 1
 
 
-# V2-219 — medido en `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
-# the following arguments are required`. El worker se quedó ahí y la ronda acabó con CERO búsquedas. Un `usage`
-# dice la forma y no dice qué hacer, que es el callejón sin salida que ya pagaron `nav_cli` (V2-212) y el puente
-# del payload (V2-203). Aquí duele más que en ninguno: `worker_bridge` es la vía por la que el worker PIDE una
-# búsqueda, así que morir en sus argumentos lo deja ciego para el resto de la tarea.
+# V2-219 — measured in `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
+# the following arguments are required`. The worker got stuck there and the round ended with ZERO searches. A `usage`
+# message shows the form but not what to do, which is the dead end already paid for by `nav_cli` (V2-212) and the
+# payload bridge (V2-203). It hurts more here than anywhere else: `worker_bridge` is how the worker REQUESTS a
+# search, so dying on its arguments leaves it blind for the rest of the task.
 def _hint_for(prog: str) -> str:
     if prog.endswith("act"):
         return ('   · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES.\n'
@@ -168,9 +168,9 @@ def _hint_for(prog: str) -> str:
                 '       act use_tool \'{"tool":"web_search","args":{"query":"<qué buscas>"}}\'\n'
                 '   · El JSON va en UNA sola línea y con comillas simples por fuera: sin ellas el shell lo parte '
                 'y llega a medias.\n'
-                # V2-379 — la salida cuando el JSON en línea NO PASA. Nuestra propia puerta rechaza un
-                # argumento con llaves y comillas dentro, y sin decir esto el worker se queda dando vueltas:
-                # medido, dio con el rodeo por fichero él solo y el puente no sabía leerlo.
+                # V2-379 — the fallback when inline JSON DOES NOT PASS. Our own gate rejects an argument
+                # containing braces and quotes, and without saying this the worker keeps going in circles:
+                # measured, it found the file workaround on its own and the bridge did not know how to read it.
                 '   · Si te lo rechazan por las llaves («brace with quote»), escribe el JSON a un fichero con '
                 'Write y pásalo con arroba: `act use_tool @busqueda.json` (ruta RELATIVA a tu directorio). '
                 'También vale `-` para leerlo de la entrada estándar.')

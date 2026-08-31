@@ -1,27 +1,27 @@
 """nucleo/ — cerebro propio de zaelar v2 «Colmena» (EPIC-v2-colmena).
 
-Sustituye a `brains/` (entierro de Hermes, V2-009). Este paquete es, de momento, el **ESQUELETO** del
-cerebro: docstrings + firmas que fijan el contrato. Nada está cableado a la voz todavía (`BRAIN=duo`/`hermes`
-sigue siendo el default hasta V2-009). Las piezas se rellenan en V2-004→V2-007.
+It replaces `brains/` (Hermes retirement, V2-009). For now this package is the brain's **SKELETON**:
+docstrings and signatures that define the contract. Nothing is wired to voice yet (`BRAIN=duo`/`hermes`
+remains the default until V2-009). The pieces are filled in during V2-004→V2-007.
 
 Dos velocidades:
 
 - **FlashBrain** (`nucleo/flash/`) — CÓDIGO PROPIO reflejo, **sub-segundo**. Cierra cada turno de voz. Piezas:
-    · `router`      — clasifica el input y decide la acción (charla · control de widgets · lanzar proceso · escalar).
-    · `fast_client` — cliente del modelo rápido NO-razonador, **modelo POR INVOCACIÓN** (Ollama local / Grok
-                      AIMLAPI), nunca una env global de modelo (concurrencia de sesiones).
+    · `router`      — classifies input and chooses the action (chat · widget control · launch process · escalate).
+    · `fast_client` — client for the fast NON-REASONING model, **MODEL PER INVOCATION** (local Ollama / Grok
+                      AIMLAPI), never a global model environment (session concurrency).
     · `frontend`    — gestor de frontend/widgets (emite el protocolo de tags `[[show]]`/`[[close]]`/…).
     · `procs`       — lanzador/gestor de procesos (widgets backed, tareas de navegador…).
-    · `escalate`    — puente al SlowBrain cuando el turno pide memoria/tools/razonamiento.
+    · `escalate`    — bridge to SlowBrain when a turn needs memory/tools/reasoning.
   Se enchufa al motor de voz como provider `livekit.agents.llm.LLM` (misma costura que `duo`), en V2-004.
 
-- **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — deliberación **async**:
-  una constelación de agentes **Claude Code** tras la interfaz `CodeAgent` (sustituible por Codex; modelo por
-  invocación). Dispatcher + agente de MEMORIA ★ (compone el contexto mínimo desde `memory/`) + agentes de
-  trabajo (web/código/otros). El resultado vuelve por los raíles de siempre: `voice/proactive` + `voice/brain_notes`.
+- **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — **async** deliberation:
+  a constellation of **Claude Code** agents behind `CodeAgent` (replaceable by Codex; model per invocation).
+  Dispatcher + MEMORY agent ★ (composes the minimum context from `memory/`) + work agents (web/code/other).
+  The result returns through the usual rails: `voice/proactive` + `voice/brain_notes`.
 
-- **Loop orquestador** (`nucleo/loop.py`, ~1 Hz) — el hilo del tiempo: tareas programadas (cron propio),
-  🔥 chispas (pensamiento espontáneo), dispara el consolidador ("sueño") de la memoria, y reporta por voz+UI.
+- **Orchestrator loop** (`nucleo/loop.py`, ~1 Hz) — the thread of time: scheduled tasks (built-in cron),
+  🔥 sparks (spontaneous thought), memory consolidation ("sleep"), and voice+UI reporting.
 
 Substratos compartidos (NO son parte del cerebro): la **memoria** (`memory/`, V2-002/003) y el **Sistema
 Nervioso** (`bus/`, V2-001, ya construido).
@@ -29,6 +29,6 @@ Nervioso** (`bus/`, V2-001, ya construido).
 
 __all__ = ["flash", "agentes"]
 
-# Marcador de fase: desde V2-004 el FlashBrain SÍ está cableado a la voz (provider `nucleo`, opt-in con
-# BRAIN=nucleo, en paralelo a duo/hermes). El default de arranque sigue siendo `duo` hasta el cutover de V2-009.
+# Phase marker: since V2-004 FlashBrain IS wired to voice (provider `nucleo`, opt-in with
+# BRAIN=nucleo, alongside duo/hermes). The startup default remains `duo` until the V2-009 cutover.
 WIRED_TO_VOICE = True

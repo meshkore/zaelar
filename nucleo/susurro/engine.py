@@ -1,12 +1,12 @@
-"""Orquestación del Susurro (V2-053 F1): suscripción al bus → detección de fricción → ciclo de auditoría.
+"""Susurro orchestration (V2-053 F1): bus subscription → friction detection → audit cycle.
 
-Enchufado SOLO por el bus (audit de modularidad 2026-07-17): `turn.completed` (el topic semántico que emite
-`observer.turn_detail`, punto único de voz Y probe), `worker.stuck`/`worker.budget_kill`, y el topic `observer`
-(filtrado) para el anillo de eventos y las señales alert/rail-fail. Cero imports del provider de voz.
+Connected ONLY through the bus (modularity audit 2026-07-17): `turn.completed` (the semantic topic emitted by
+`observer.turn_detail`, the single voice AND probe point), `worker.stuck`/`worker.budget_kill`, and the `observer`
+topic (filtered) for the event ring and alert/rail-fail signals. Zero imports from the voice provider.
 
-Ciclo: fricción → (cooldown + single-flight) → compose_audit_window (to_thread, lecturas de memoria fuera del
-loop) → LLM potente (client, fail-open) → validar catálogo → aplicar (apply, con antes/después) → todo trazado
-con eventos kind `susurro` (trigger/request/response/apply/done/error) que caen al timeline + SSE + bus/log.
+Cycle: friction → (cooldown + single-flight) → compose_audit_window (to_thread, memory reads outside the
+loop) → powerful LLM (client, fail-open) → validate catalog → apply (apply, with before/after) → everything traced
+with events of kind `susurro` (trigger/request/response/apply/done/error) that flow to the timeline + SSE + bus/log.
 """
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from collections import deque
 
 from loguru import logger
 
-_TURN_RING: deque = deque(maxlen=16)      # {user, decision, trace, ts} por turn.completed
-_EVENT_RING: deque = deque(maxlen=48)     # eventos filtrados del observer (contexto para la ventana)
-_USER_TEXTS: deque = deque(maxlen=6)      # últimos textos del operador (detección de petición repetida)
+_TURN_RING: deque = deque(maxlen=16)      # {user, decision, trace, ts} per turn.completed
+_EVENT_RING: deque = deque(maxlen=48)     # filtered observer events (context for the window)
+_USER_TEXTS: deque = deque(maxlen=6)      # operator's latest texts (repeated-request detection)
 
 _RING_KINDS = {"alert", "error", "rail", "task", "music", "search", "widget", "ambient"}
 
@@ -36,7 +36,7 @@ def _cfg() -> dict:
 
 
 def enabled() -> bool:
-    """Kill-switch de 1ª clase: env ZAELAR_SUSURRO (0 apaga) + config §susurro.enabled (UI)."""
+    """First-class kill switch: ZAELAR_SUSURRO env (0 turns it off) + §susurro.enabled config (UI)."""
     if (os.getenv("ZAELAR_SUSURRO", "1") or "1").strip().lower() in ("0", "false", "no", "off"):
         return False
     v = _cfg().get("enabled", True)
@@ -67,21 +67,21 @@ async def _consume_turns(sub):
             _stats["turns_seen"] += 1
             global _turns_since_audit
             _turns_since_audit += 1
-            # fricción de TURNO (determinista, gratis)
+            # TURN friction (deterministic, free)
             signals = friction.complaint_signals(user)
             if signals:
                 _maybe_trigger("queja/corrección del operador", signals, trace)
             elif friction.repeated_request(user, list(_USER_TEXTS)):
                 _maybe_trigger("petición repetida (no atendida)", [user[:80]], trace)
             else:
-                # V2-061: RIESGO por la decisión del turno — le da a Susurro la oportunidad de intervenir ANTES de
-                # que el operador se queje (el caso ITV: acción de widget sin escalar sobre una orden real). El
-                # modelo potente juzga si el path fue erróneo; esto solo abre la puerta. Gate por config (ON def).
+                # V2-061: RISK from the turn's decision — gives Susurro an opportunity to intervene BEFORE
+                # the operator complains (the ITV case: an un-escalated widget action on a real order). The
+                # powerful model judges whether the path was wrong; this merely opens the door. Config-gated (ON by default).
                 cons = _cfg().get("audit_consequential", True)
                 risk = friction.risky_decision(ev.get("decision")) if cons else ""
-                # V2-078: el ESPEJO — data-op FANTASMA (charló y dijo que actuaba sobre un widget, sin ejecutar).
-                # Mismo principio que risky_decision: señal barata que abre la puerta; el modelo potente decide y
-                # re-rutea (worker_action) off-hot-path. Gate por config (ON def).
+                # V2-078: the MIRROR — GHOST data-op (chatted and said it acted on a widget, without executing).
+                # Same principle as risky_decision: cheap signal that opens the door; the powerful model decides and
+                # reroutes (worker_action) off-hot-path. Config-gated (ON by default).
                 phantom = friction.phantom_dataop(user, ev.get("decision")) if _cfg().get("audit_phantom", True) else ""
                 if risk:
                     _maybe_trigger(risk, [user[:80]], trace)
@@ -98,7 +98,7 @@ async def _consume_turns(sub):
 
 
 async def _consume_worker_topic(sub, topic: str):
-    # la Subscription entrega solo el payload (sin topic) → una suscripción DEDICADA por topic de fricción
+    # The Subscription delivers only the payload (without the topic) → a DEDICATED subscription per friction topic
     from . import friction
     reason = friction.system_friction("", topic=topic)
     try:
@@ -118,7 +118,7 @@ async def _consume_observer(sub):
             if not isinstance(ev, dict):
                 continue
             kind = str(ev.get("kind") or "")
-            if kind == "susurro":                     # nunca auto-observarse (bucle)
+            if kind == "susurro":                     # never observe itself (loop)
                 continue
             label = str(ev.get("label") or "")
             if kind in _RING_KINDS and not (kind == "vad" and "barge" not in label):
@@ -149,11 +149,11 @@ def _maybe_trigger(reason: str, signals: list[str], trace: str):
     try:
         asyncio.get_running_loop().create_task(_audit(reason, signals, trace))
     except RuntimeError:
-        _auditing = False               # sin loop (contexto raro/tests sync) → no audita, fail-open
+        _auditing = False               # no loop (unusual context/sync tests) → no audit, fail-open
 
 
 async def _audit(reason: str, signals: list[str], trace: str):
-    """Un ciclo completo de auditoría, con observabilidad TOTAL (request/response/aplicaciones)."""
+    """A complete audit cycle, with TOTAL observability (request/response/applications)."""
     global _auditing, _last_audit_ts, _turns_since_audit
     t0 = time.time()
     try:
@@ -167,16 +167,16 @@ async def _audit(reason: str, signals: list[str], trace: str):
             _emit("👂 fricción → auditoría", text=reason, extra={"reason": reason, "signals": signals[:6]})
             from . import apply, catalog, client, window
             turns = int(_cfg().get("window_turns") or 8)
-            # ACOTAR POR RECENCIA: la fricción es de AHORA; el anillo global (maxlen 16) puede contener tramos
-            # viejos no relacionados que contaminarían el diagnóstico (visto en la batería: un escenario diagnosticó
-            # el fallo de OTRO anterior). Solo turnos/eventos de la ventana de recencia + últimos K.
+            # BOUND BY RECENCY: the friction is NOW; the global ring (maxlen 16) may contain unrelated old
+            # segments that would contaminate the diagnosis (seen in the test suite: one scenario diagnosed
+            # ANOTHER earlier failure). Only turns/events from the recency window + the last K.
             recent_s = float(_cfg().get("recency_window_s") or 180)
             cut = time.time() - recent_s
             tr = [t for t in _TURN_RING if float(t.get("ts") or 0) >= cut][-(turns):]
             er = [e for e in _EVENT_RING if float(e.get("ts") or 0) >= cut][-16:]
-            # SIN CONVERSACIÓN NO HAY AUDITORÍA (2026-08-13, ver `window.has_conversation` para el incidente):
-            # un auditor de conversaciones sin conversación no se calla, RELLENA — y con `worker_action` habilitado
-            # ese relleno se convierte en una acción real sobre el mundo. Abstenerse es gratis.
+            # NO CONVERSATION, NO AUDIT (2026-08-13, see `window.has_conversation` for the incident):
+            # a conversation auditor without a conversation does not stay silent; it FILLS IN — and with `worker_action` enabled
+            # that filling-in becomes a real action in the world. Refraining is free.
             if not await asyncio.to_thread(window.has_conversation, turns, since_ts=cut):
                 _emit("🤐 auditoría OMITIDA (ventana sin conversación)", text=reason,
                       extra={"reason": reason, "signals": signals[:4]})
@@ -185,7 +185,7 @@ async def _audit(reason: str, signals: list[str], trace: str):
                 window.compose_audit_window, reason=reason, signals=signals,
                 turn_ring=tr, event_ring=er, turns=turns, since_ts=cut)
             content, meta = await client.audit_llm(doc)
-            # observabilidad TOTAL (regla del operador): ENVÍO y RESPUESTA crudos, al timeline + log durable
+            # TOTAL observability (operator rule): raw REQUEST and RESPONSE, to the timeline + durable log
             _emit("📤 request → LLM auditor", text=f"{meta.get('model')} · {len(doc)} chars",
                   extra={"model": meta.get("model"), "request": meta.get("request")})
             _emit("📥 response ← LLM auditor",
@@ -210,7 +210,7 @@ async def _audit(reason: str, signals: list[str], trace: str):
                          "n_corrections": len(applied),
                          "types": [a["type"] for a in applied],
                          "total_ms": round((time.time() - t0) * 1000)})
-    except Exception as e:  # noqa: BLE001 — el Susurro jamás revienta nada
+    except Exception as e:  # noqa: BLE001 — Susurro never crashes anything
         logger.debug(f"susurro: auditoría falló (fail-open): {e}")
         _emit("⚠️ error interno de auditoría (fail-open)", text=str(e)[:200])
     finally:
@@ -220,7 +220,7 @@ async def _audit(reason: str, signals: list[str], trace: str):
 
 
 def start():
-    """Arranca los consumidores en el loop actual (lifespan del server). Idempotente."""
+    """Start consumers in the current loop (server lifespan). Idempotent."""
     global _tasks
     if _tasks:
         return
@@ -229,7 +229,7 @@ def start():
         return
     import bus
     loop = asyncio.get_event_loop()
-    # suscripciones SÍNCRONAS antes de lanzar las tareas — cero ventana en la que un evento temprano se pierda
+    # SYNCHRONOUS subscriptions before launching tasks — zero window in which an early event can be lost
     _tasks = [loop.create_task(_consume_turns(bus.subscribe("turn.completed"))),
               loop.create_task(_consume_worker_topic(bus.subscribe("worker.stuck"), "worker.stuck")),
               loop.create_task(_consume_worker_topic(bus.subscribe("worker.budget_kill"), "worker.budget_kill")),
@@ -259,7 +259,7 @@ def status() -> dict:
 
 
 def reset():
-    """Para tests: limpia el estado en RAM (no toca tasks)."""
+    """For tests: clear in-memory state (does not touch tasks)."""
     global _auditing, _last_audit_ts, _turns_since_audit
     _TURN_RING.clear()
     _EVENT_RING.clear()

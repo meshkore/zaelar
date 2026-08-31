@@ -1,23 +1,23 @@
-"""El JSON no cabía en la línea de comandos, y el puente no sabía leerlo de un fichero (V2-379).
+"""The JSON did not fit on the command line, and the bridge did not know how to read it from a file (V2-379).
 
-Medido en `best-rated-rental-car__es` (2026-08-27, 2/5). El rastro del worker se lee de corrido:
+Measured on `best-rated-rental-car__es` (2026-08-27, 2/5). The worker trace reads as follows:
 
-    63,5 s  ⚠️ Contains brace with quote character (expansion obfuscation)   ← NUESTRA puerta bloquea el JSON
-    67,6 s  ✏️ escribe 24316c-1/search.json                                  ← el worker inventa el rodeo
-    69,2 s  ⚠️ Exit code 1 payload JSON inválido                             ← y el puente no lee ficheros
-    73,1 s  usage: worker_bridge act …                                       ← a ciegas
-    77,5 s  usage: worker_bridge act …                                       ← otra vez
-    85,1 s  ✏️ escribe 24316c-1/use_tool.json                                ← y otra
+    63,5 s  ⚠️ Contains brace with quote character (expansion obfuscation)   ← OUR gate blocks the JSON
+    67,6 s  ✏️ writes 24316c-1/search.json                                   ← the worker improvises the workaround
+    69,2 s  ⚠️ Exit code 1 invalid JSON payload                              ← and the bridge does not read files
+    73,1 s  usage: worker_bridge act …                                       ← blindly
+    77,5 s  usage: worker_bridge act …                                       ← again
+    85,1 s  ✏️ writes 24316c-1/use_tool.json                                 ← and another one
 
-Ocho errores internos y CERO resultados del navegador. El worker dio con la solución correcta él solo
-—escribir el JSON a un fichero— y le dijimos que no.
+Eight internal errors and ZERO browser results. The worker found the correct solution on its own
+—writing the JSON to a file— and we told it no.
 
-`act` es por donde el worker PIDE una búsqueda, así que cerrado ahí se queda ciego. Y la convención YA existía
-en el otro puente: `widget_cli` acepta `@fichero` y `-` desde V2-203. Un puente la tenía y el otro no.
+`act` is how the worker REQUESTS a search, so if it is closed there, the worker is left blind. And the convention ALREADY existed
+in the other bridge: `widget_cli` accepts `@file` and `-` since V2-203. One bridge had it and the other did not.
 
-El MECANISMO se comparte (misma razón que `bridge_usage.guided`): dos lectores de payload se separan y
-entonces uno acepta `@fichero` y el otro no, que es exactamente el estado del que se sale. El MENSAJE lo pone
-cada puente, porque qué hacer con un fichero que falta depende de quién pregunta.
+The MECHANISM is shared (for the same reason as `bridge_usage.guided`): two payload readers diverge and
+then one accepts `@file` and the other does not, which is exactly the state being fixed. Each bridge provides the MESSAGE,
+because what to do with a missing file depends on who is asking.
 """
 import json
 import os
@@ -28,7 +28,7 @@ from nucleo import bridge_usage as BU
 from nucleo import worker_bridge as WB
 
 
-# ── el lector compartido ───────────────────────────────────────────────────────────────────────────────────
+# ── the shared reader ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_un_payload_en_LINEA_pasa_tal_cual():
     raw, src, err = BU.read_payload('{"tool":"web_search"}')
@@ -58,14 +58,14 @@ def test_la_entrada_estandar_tambien(monkeypatch):
 
 
 def test_sin_payload_no_es_un_error():
-    """`act` con acción y sin payload es legítimo — no todas las acciones llevan datos."""
+    """`act` with an action and no payload is legitimate — not every action carries data."""
     assert BU.read_payload("") == ("", "argumento", "")
 
 
-# ── el puente lo usa de verdad ─────────────────────────────────────────────────────────────────────────────
+# ── the bridge actually uses it ────────────────────────────────────────────────────────────────────────────
 
 def test_el_puente_LEE_el_fichero_y_no_dice_JSON_invalido(tmp_path, monkeypatch, capsys):
-    """El cableado: el lector puede ser perfecto y no estar enchufado, que es el estado del que se sale."""
+    """The wiring: the reader can be perfect and still not be connected, which is the state being fixed."""
     f = tmp_path / "busqueda.json"
     f.write_text('{"tool":"web_search","args":{"query":"coches"}}', encoding="utf-8")
     monkeypatch.setenv("ZAELAR_TASK_ID", "t1")
@@ -78,7 +78,7 @@ def test_el_puente_LEE_el_fichero_y_no_dice_JSON_invalido(tmp_path, monkeypatch,
 
 
 def test_un_fichero_AUSENTE_dice_donde_mira_y_que_hacer(tmp_path, monkeypatch, capsys):
-    """V2-203 en este puente: un mensaje sin salida es un mensaje que para al worker."""
+    """V2-203 in this bridge: a message without an exit path is a message that stops the worker."""
     monkeypatch.setenv("ZAELAR_TASK_ID", "t1")
     assert WB._cmd_act("use_tool", "@no-existe.json") == 1
     err = capsys.readouterr().err
@@ -88,8 +88,8 @@ def test_un_fichero_AUSENTE_dice_donde_mira_y_que_hacer(tmp_path, monkeypatch, c
 
 
 def test_un_JSON_ROTO_dice_DE_DONDE_venia(tmp_path, monkeypatch, capsys):
-    """«payload JSON inválido» a secas no distingue un argumento mal escrito de un fichero mal escrito, y son
-    dos arreglos distintos."""
+    """“invalid JSON payload” by itself does not distinguish a malformed argument from a malformed file, and they require
+    two different fixes."""
     f = tmp_path / "roto.json"
     f.write_text("{esto no es json", encoding="utf-8")
     monkeypatch.setenv("ZAELAR_TASK_ID", "t1")
@@ -97,11 +97,11 @@ def test_un_JSON_ROTO_dice_DE_DONDE_venia(tmp_path, monkeypatch, capsys):
     assert "fichero" in capsys.readouterr().err
 
 
-# ── y se le ENSEÑA la salida ───────────────────────────────────────────────────────────────────────────────
+# ── and the way out is SHOWN to it ─────────────────────────────────────────────────────────────────────────
 
 def test_la_pista_de_act_nombra_el_rodeo_por_fichero():
-    """Una capacidad que el worker no sabe que tiene no existe (V2-249). Y la pista nombra el error EXACTO que
-    le van a devolver, que es con lo que puede casarlo."""
+    """A capability the worker does not know it has does not exist (V2-249). And the hint names the EXACT error that
+    will be returned to it, which is what lets it match the error."""
     p = WB._hint_for("worker_bridge act")
     assert "brace with quote" in p
     assert "@busqueda.json" in p and "RELATIVA" in p

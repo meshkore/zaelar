@@ -1,24 +1,24 @@
-"""V2-461 — un MATIZ sobre una foto afina la búsqueda; no convierte ver una foto en un encargo.
+"""V2-461 — a NUANCE about a photo sharpens the search; it does not turn viewing a photo into an errand.
 
-Medido en vivo el 2026-08-28, primera corrida de `show-real-photo-of-a-new-car__es` contra el agente ES:
+Measured live on 2026-08-28, first run of `show-real-photo-of-a-new-car__es` against the ES agent:
 
-  turno 1  «enséñame una foto del Ferrari Amalfi»          → show_images · 12 fotos en el visor · ✅
-  turno 3  «una de esas, la que mejor se vea. Pero que      → NINGUNA tool. Prometió y no hizo nada.
-            sea el Amalfi, no otro Ferrari»
-  turno 4  (el modelo insiste con «verificada»)             → escalate → Brain Worker → hoja de Resultados
+  turn 1  «enséñame una foto del Ferrari Amalfi»          → show_images · 12 photos in the viewer · ✅
+  turn 3  «una de esas, la que mejor se vea. Pero que      → NO tool. It promised and did nothing.
+          sea el Amalfi, no otro Ferrari»
+  turn 4  (the model insists on «verificada»)             → escalate → Brain Worker → Results sheet
 
-Y el defecto estaba ESCRITO en la descripción de la propia tool, puesta el mismo día:
+And the defect was WRITTEN in the description of the tool itself, added that same day:
 
     «Escala solo si hay que CURAR: … o mejores si las que ya enseñaste NO LE VALEN.»
 
-«Que sea el Amalfi y no otro Ferrari» es exactamente «las que enseñaste no me valen», así que el modelo hizo
-lo que se le dijo. La hoja genérica que vio el operador no la eligió el worker: la abre la ESCALADA, porque
-esa tarjeta es la ficha de la tarea. O sea que el destino de la entrega no era el problema — el problema era
-escalar.
+«Que sea el Amalfi y no otro Ferrari» is exactly «las que enseñaste no me valen», so the model did
+what it was told. The generic sheet the operator saw was not chosen by the worker: ESCALATION opens it,
+because that card is the task record. In other words, the delivery destination was not the problem — the
+problem was escalating.
 
-La regla del operador, con sus palabras: «en realidad sólo estamos pidiendo una imagen». Un matiz afina la
-CONSULTA. Y si las fotos ya están en el visor, elegir una de ellas es una acción del widget, no otra
-búsqueda ni un worker.
+The operator's rule, in their words: «en realidad sólo estamos pidiendo una imagen». A nuance sharpens the
+QUERY. And if the photos are already in the viewer, choosing one of them is a widget action, not another
+search or a worker.
 """
 from __future__ import annotations
 
@@ -34,17 +34,17 @@ def _desc(name: str) -> str:
     raise AssertionError(f"no existe la tool {name}")
 
 
-# ── lo que se quitó ─────────────────────────────────────────────────────────────────────────────────────
+# ── what was removed ────────────────────────────────────────────────────────────────────────────────────
 def test_ya_no_invita_a_escalar_porque_las_de_antes_no_valgan():
-    """El literal que causó la corrida. Se comprueba la INVITACIÓN, no la palabra «escala»: la tool sigue
-    nombrando una escalada legítima (una web concreta), así que buscar «escala» pasaría con el defecto
-    puesto."""
+    """The literal that caused the run. The INVITATION is checked, not the word «escala»: the tool still
+    names a legitimate escalation (a specific website), so searching for «escala» would pass with the bug
+    in place."""
     d = _desc("show_images")
     assert "no le valen" not in d
     assert "CURAR" not in d, "«curar» era el nombre que se le daba a re-buscar, y re-buscar es esta tool"
 
 
-# ── lo que se puso ──────────────────────────────────────────────────────────────────────────────────────
+# ── what was added ───────────────────────────────────────────────────────────────────────────────────────
 def test_un_matiz_afina_la_consulta_y_se_vuelve_a_llamar():
     d = _desc("show_images")
     assert "MATIZ" in d and "`query`" in d
@@ -52,47 +52,47 @@ def test_un_matiz_afina_la_consulta_y_se_vuelve_a_llamar():
 
 
 def test_elegir_una_de_las_que_YA_estan_en_pantalla_es_del_widget():
-    """La mitad que faltaba y que explica el turno 3 MUDO: el modelo no tenía dicho a dónde va «una de esas»,
-    así que no llamó a nada. El mecanismo ya existía (`widget_data` sobre las acciones declaradas del visor);
-    lo que no existía era la frase que lo conecta."""
+    """The missing half that explains the SILENT turn 3: the model was not told where «una de esas» goes,
+    so it called nothing. The mechanism already existed (`widget_data` on the viewer's declared actions);
+    what did not exist was the sentence connecting it."""
     d = _desc("show_images")
     assert "widget_data" in d and "imagenes" in d
 
 
 def test_la_escalada_que_queda_es_una_WEB_CONCRETA_y_se_dice():
-    """Sin ningún camino de escalada, «sácalas de la web oficial de Ferrari» —que un índice de imágenes no
-    puede resolver— se quedaría sin sitio a donde ir. La frontera es un SITIO nombrado, no la exigencia de
-    calidad, que es lo que se confundía."""
+    """Without any escalation path, «sácalas de la web oficial de Ferrari» —which an image index cannot
+    resolve— would have nowhere to go. The boundary is a named SITE, not a quality requirement, which is
+    what was being confused."""
     d = _desc("show_images")
     assert "web concreta" in d
 
 
-# ── la otra mitad, sin la cual esto no bastaría ─────────────────────────────────────────────────────────
+# ── the other half, without which this would not be enough ──────────────────────────────────────────────
 def test_el_NO_list_de_escalate_sigue_nombrando_las_fotos():
-    """Dos superficies deciden lo mismo y cablear una sola falla EN SILENCIO: aunque `show_images` ya no
-    invite a escalar, `escalate_to_slowbrain` sigue siendo la tool «ante la duda» y se llevaría el turno."""
+    """Two surfaces make the same decision, and wiring only one fails SILENTLY: even though `show_images` no
+    longer invites escalation, `escalate_to_slowbrain` remains the «when in doubt» tool and would take the turn."""
     e = _desc("escalate_to_slowbrain")
     assert "show_images" in e
     assert "enseñar FOTOS" in e
 
 
 def test_sigue_sin_confundirse_con_las_otras_dos_hermanas():
-    """`play_video` y `web_search` son los dos destinos equivocados que ya costaron una ronda cada uno."""
+    """`play_video` and `web_search` are the two wrong destinations that have already cost one round each."""
     d = _desc("show_images")
     assert "web_search" in d and "play_video" in d
 
 
 def test_habla_en_PRESENTE_porque_tarda_segundos():
-    """Regla ganada en V2-380/383 y que aquí sigue viva: decirlo en pasado («te las he puesto») antes de que
-    existan es la quinta versión de la misma mentira sobre una caja vacía."""
+    """A rule learned in V2-380/383 that still holds here: saying it in the past tense («te las he puesto»)
+    before they exist is the fifth version of the same lie about an empty box."""
     assert "Presente" in _desc("show_images")     # compactado en V2-463: «Presente (…), nunca pasado»
 
 
-# ── el precio ───────────────────────────────────────────────────────────────────────────────────────────
+# ── the cost ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_que_sea_de_verdad_es_un_matiz_no_un_encargo():
-    """Ronda 6 (2026-08-28): «busca algo que se note que es el Amalfi de verdad» escaló a un worker de 4
-    minutos con la respuesta oficial ya en pantalla. Las DOS superficies lo dicen ahora: la tool nombra esos
-    matices, y el NO-list de escalate añade «aunque las pida verificadas o de verdad»."""
+    """Round 6 (2026-08-28): «busca algo que se note que es el Amalfi de verdad» escalated to a 4-minute
+    worker with the official answer already on screen. Both surfaces now say so: the tool names those
+    nuances, and escalate's NO-list adds «aunque las pida verificadas o de verdad»."""
     d = _desc("show_images")
     assert "de verdad" in d and "que se note que es X" in d
     assert "nunca un worker" in d
@@ -101,7 +101,7 @@ def test_que_sea_de_verdad_es_un_matiz_no_un_encargo():
 
 
 def test_el_catalogo_no_ha_crecido_por_explicarlo_mejor():
-    """El techo se paga en CADA turno de voz. Esta redacción entró compactando la propia tool tres veces en
-    vez de subirlo, que es lo que manda el trinquete de `test_router.py`."""
+    """The ceiling is paid on EVERY voice turn. This wording was added by compacting the tool itself three
+    times instead of raising it, as required by the ratchet in `test_router.py`."""
     from tests.agent_headless.unit.flash.test_router import MAX_CATALOG_CHARS
     assert len(json.dumps(router.TOOLS, ensure_ascii=False)) <= MAX_CATALOG_CHARS

@@ -6,7 +6,7 @@ is LOCAL, so it can (a) RE-RUN the detector live ("re-analyze" button), (b) appl
 (pip/playwright/ollama pull) or RETURN the command for system-level ones (brew/apt/npm). Operator decisions
 2026-07-15: web + system script; automate installation where possible, commands otherwise.
 
-Endpoints (todos bajo /api/wizard):
+Endpoints (all under /api/wizard):
   GET  /state                → {first_run, active_profile, profiles[], report, installers[]}
   POST /report   {refresh}   → re-analyzes the system (doctor) and returns the report
   POST /profile  {name}      → applies the coordinated profile (settings+v2) and returns its requirements

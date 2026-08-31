@@ -37,14 +37,14 @@ _CONFIRM_TTL = 300.0     # 5 min. Longer than the widget gate's 90 s: this quest
 # Measured on `renew-gym-membership__es` (2026-08-20 01:01): the gate parked the renewal, the operator was
 # asked, five minutes went by inside a normal conversation, `_sweep_confirm` dropped the entry, `confirm_line()`
 # went empty — and from that turn on the state said NOTHING about it. The model fell back on the only thing it
-# still had, its own earlier «empiezo ya con la renovación», and answered «sigo sin novedades de la web de
+# still had, its own earlier «empiezo already with the renovacion», and answered «sigo without novedades of the web of
 # Basic-Fit» about a task whose record read `status=done url= shot_rev=0`: it never opened a single page.
 #
-# The TTL itself is NOT the bug and is not raised: a «shall I really pay?» answered «sí» forty minutes later is
+# The TTL itself is NOT the bug and is not raised: a «shall I really pay?» answered «si» forty minutes later is
 # exactly what it protects against. What was wrong is that expiring the GATE also erased the MEMORY of it. So
 # the gate still expires — `resolve_confirm` reads `_PENDING_CONFIRM` and an expired ask can no longer be armed
 # by a late yes — and the fact moves here, where the turn can still say it. Same remedy as
-# `widgets/navegador/tasks.recently_finished()` (V2-150): an ending is a fact.
+# `widgets/browser/tasks.recently_finished()` (V2-150): an ending is a fact.
 _EXPIRED_CONFIRM: dict[str, dict] = {}
 _EXPIRED_MEMORY_S = 900.0     # 15 min: long enough to outlive the conversation that asked
 
@@ -58,11 +58,11 @@ def _sweep_confirm(now: float | None = None) -> None:
 
 
 def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
-    """Keep the question the gate just asked, so a later «sí» has somewhere to go.
+    """Keep the question the gate just asked, so a later «si» has somewhere to go.
 
     …AND the SHEET it had already opened (V2-508). The gate parks the errand and pops its record, but the
     sheet is on the operator's screen by then: `run_listener` opens it at the moment of the errand, on
-    purpose, so nobody stares at a blank canvas. Without carrying it, the «sí» relaunches through the normal
+    purpose, so nobody stares at a blank canvas. Without carrying it, the «si» relaunches through the normal
     door with no sheet in its context, mints a SECOND box beside the first, and leaves the first one empty
     for good — measured 2026-08-30 (`cheapest-monitor__us`, `results::101c0f-1` abandoned, `-2` filled).
 
@@ -102,8 +102,8 @@ def confirm_line() -> str:
                 f"Esa tarea NUNCA EMPEZÓ y no va a empezar sola — no digas que sigue en marcha ni que esperas "
                 f"novedades suyas. Si sale a colación, dilo y ofrece retomarla desde cero.")
     from nucleo import danger as _danger_line
-    # Si mueve DINERO se dice aquí también (V2-129): el operador ya oyó «no hago ningún cargo sin decirte el
-    # importe», y el turno siguiente no puede contradecir esa promesa.
+    # If mueve DINERO is says here also (V2-129): the operator already oyo «no hago ningun cargo without decirte the
+    # importe», and the turn siguiente no can contradecir esa promesa.
     money = (" MUEVE DINERO: le prometiste decirle el importe exacto ANTES de cobrar nada, así que ni lo pagues"
              " ni digas que está pagado hasta haber mirado la cifra y habértela confirmado él."
              if _danger_line.moves_money(p["request"]) else "")
@@ -121,13 +121,13 @@ def resolve_confirm(ok: bool) -> dict | None:
     _PENDING_CONFIRM.pop(p["task_id"], None)
     if not ok:
         return {**p, "ok": False}
-    # Se re-lanza por la MISMA puerta que cualquier escalada (`escalate.requested` → `run_listener`), no por un
-    # atajo: así conserva el trace, el dedup y el registro de tareas. Lo único distinto es `confirmed`, que es
-    # lo que el gate mira para dejarla pasar esta vez.
+    # Se re-lanza by the MISMA puerta that any escalada (`escalate.requested` → `run_listener`), no by a
+    # atajo: so preserves the trace, the dedup and the record of tasks. Lo only distinto es `confirmed`, that es
+    # it that the gate mira for dejarla pasar this vez.
     ctx = {**p["context"], "confirmed": True, "kind": p["kind"]}
-    # La HOJA del encargo viaja con el «sí». `_sheet_open` ya sabe heredarla (compara contra la que le tocaría
-    # a ESTE task_id: si la que trae no deriva de él, es de su predecesor y no se estrena). Sin esta línea el
-    # confirmado abre caja nueva al lado de la que el operador ya tiene delante.
+    # La HOJA of the errand viaja with the «si». `_sheet_open` already sabe heredarla (compara contra the that le tocaria
+    # a ESTE task_id: if the that trae no deriva of el, es of su predecesor and no is estrena). Sin this linea the
+    # confirmado opens caja new al lado of the that the operator already has delante.
     if p.get("sheet"):
         ctx["sheet"] = str(p["sheet"])
     try:

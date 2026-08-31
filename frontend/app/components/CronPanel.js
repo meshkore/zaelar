@@ -1,6 +1,6 @@
-// CronPanel — manage zaelar's proactive tasks (loop orquestador PROPIO, nucleo/scheduler.py). Toggled by the ⏰
+// CronPanel — manage zaelar's proactive tasks (its OWN orchestrator loop, nucleo/scheduler.py). Toggled by the ⏰
 // button in the TopBar (store.cronOpen). Lists scheduled jobs with delete, and a small form to add one by hand.
-// The brain also creates these by voice ("recuérdame…", "avísame cuando…") via the [[cron.create]] tag — this
+// The brain also creates these by voice ("remind me…", "notify me when…") via the [[cron.create]] tag — this
 // panel is just the manual surface over the SAME store (tasks persisted in memory.journal).
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";

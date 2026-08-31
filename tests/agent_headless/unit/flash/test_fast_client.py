@@ -1,4 +1,4 @@
-"""Tests de nucleo/flash/fast_client.py (V2-004 · T60) — modelo por invocación, streaming, tool-calls, UA-spoof."""
+"""Tests for nucleo/flash/fast_client.py (V2-004 · T60) — per-invocation model, streaming, tool calls, UA spoofing."""
 import asyncio
 from types import SimpleNamespace
 
@@ -8,7 +8,7 @@ from nucleo.flash import fast_client as fc
 from nucleo.flash.fast_client import FastClient, ModelSpec
 
 
-# ── fakes que imitan la superficie de streaming de OpenAI ────────────────────────────────────────────────
+# ── fakes that imitate OpenAI's streaming interface ─────────────────────────────────────────────────────
 def _delta(content=None, tool_calls=None):
     return SimpleNamespace(content=content, tool_calls=tool_calls)
 
@@ -72,7 +72,7 @@ def test_reasoning_effort_gemini_only():
     assert aiml.reasoning_effort() == ""
 
 
-# ── streaming de texto ──────────────────────────────────────────────────────────────────────────────────
+# ── text streaming ──────────────────────────────────────────────────────────────────────────────────────
 def test_stream_yields_text(monkeypatch):
     rec = {}
     _patch_client(monkeypatch, [_chunk("Hola"), _chunk(" mundo")], rec)
@@ -115,7 +115,7 @@ def test_stream_tracks_inflight_around_the_network_call(monkeypatch):
 
 
 def test_model_passed_per_invocation(monkeypatch):
-    """El modelo del spec llega al request — no una env global."""
+    """The spec's model reaches the request — not a global environment variable."""
     rec = {}
     _patch_client(monkeypatch, [_chunk("ok")], rec)
 
@@ -142,7 +142,7 @@ def test_local_spec_sets_keep_alive(monkeypatch):
     assert rec.get("extra_body", {}).get("keep_alive") == "30m"
 
 
-# ── tool-calling ────────────────────────────────────────────────────────────────────────────────────────
+# ── tool calling ────────────────────────────────────────────────────────────────────────────────────────
 def test_tool_calls_accumulated_and_fired(monkeypatch):
     rec = {}
     chunks = [
@@ -174,12 +174,12 @@ def test_bad_tool_args_skipped_not_raised(monkeypatch):
                                            tools=[{"type": "function"}], on_tool_call=lambda n, a: fired.append(n)):
             pass
 
-    asyncio.run(run())          # no lanza
-    assert fired == []          # se salta la llamada con JSON inválido
+    asyncio.run(run())          # does not raise
+    assert fired == []          # skips the call with invalid JSON
 
 
 def test_tool_call_fired_on_early_return(monkeypatch):
-    """El consumidor corta el bucle (GeneratorExit) → la tool call ya acumulada NO se pierde (finally)."""
+    """The consumer breaks the loop (GeneratorExit) → the already accumulated tool call is NOT lost (finally)."""
     rec = {}
     chunks = [
         _chunk(tool_calls=[_tool_call(0, name="escalate_to_slowbrain", args='{"request":"x"}')]),
@@ -210,8 +210,8 @@ def test_spec_from_config_reads_v2(monkeypatch):
 
 
 def test_spec_from_config_fallback_is_never_grok(monkeypatch):
-    # auditoría 2026-07-26: el fallback (config sin modelo, o config.v2 rota) NUNCA debe caer en grok — está
-    # BANEADO en el FlashBrain (mis-rutea memoria→widget_data). Cubre ambas ramas: dict sin "model" y excepción.
+    # audit 2026-07-26: the fallback (config without a model, or broken config.v2) must NEVER fall back to grok — it is
+    # BANNED in FlashBrain (misroutes memory→widget_data). Covers both branches: dict without "model" and exception.
     monkeypatch.setattr("config.v2.fast_model_spec",
                         lambda: {"provider": "aimlapi", "model": "", "base_url": "", "api_key": ""})
     assert "grok" not in fc.spec_from_config().model.lower()
@@ -224,29 +224,29 @@ def test_spec_from_config_fallback_is_never_grok(monkeypatch):
     assert spec.model == fc._FALLBACK_MODEL
 
 
-# ── V2-171: una acción descartada es un HECHO, no un `continue` ───────────────────────────────────────────
+# ── V2-171: a dropped action is a FACT, not a `continue` ──────────────────────────────────────────────────
 #
-# Medido el 2026-08-20 contra el titular real (deepseek-v4-pro): el turno corría con `max_tokens=200`, y una
-# escalada bien escrita ocupa ~1000-1400 caracteres de JSON ella sola. El proveedor cortaba con
-# `finish_reason="length"`, los argumentos llegaban a medias, `json.loads` reventaba y el `except` hacía
-# `continue`. 67 acciones perdidas en 27 corridas, 48 de ellas escaladas que nunca llegaron a un Brain Worker.
-# Desde fuera se leía como que zaelar prometía y no hacía. No mentía: le tiraban la acción.
+# Measured on 2026-08-20 against the actual flagship (deepseek-v4-pro): the turn ran with `max_tokens=200`, and a
+# well-written escalation takes ~1000–1400 JSON characters by itself. The provider cut it off with
+# `finish_reason="length"`, the arguments arrived incomplete, `json.loads` blew up, and the `except` did a
+# `continue`. 67 actions lost across 27 runs, 48 of them escalations that never reached a Brain Worker.
+# From the outside, it looked as if zaelar promised and did nothing. It was not lying: the action was discarded.
 def _chunk_fr(reason):
     return SimpleNamespace(choices=[SimpleNamespace(delta=_delta(None, None), finish_reason=reason)])
 
 
 def test_the_cap_fits_the_most_important_tool_call():
-    """El tope tiene que caber una escalada COMPLETA. Medido: 972-1408 caracteres de JSON, más la frase que
-    zaelar dice en voz alta. Y subirlo no cuesta latencia —también medido, 3 corridas por brazo: TTFT 0,99s a
-    200 y 0,91s a 1200, con la MISMA respuesta— porque un tope es un techo, no un objetivo."""
+    """The limit must fit a COMPLETE escalation. Measured: 972–1408 JSON characters, plus the phrase that
+    zaelar says aloud. And raising it costs no latency — also measured, 3 runs per arm: TTFT 0.99s at
+    200 and 0.91s at 1200, with the SAME response — because a limit is a ceiling, not a target."""
     from nucleo.flash import fast_client as fc
 
     assert fc._DEFAULT_MAX_TOKENS >= 1000
 
 
 def test_the_stream_records_WHY_it_ended(monkeypatch):
-    """El dato que convertía esto en un misterio: sin `finish_reason`, un corte por tope y un final limpio son
-    indistinguibles desde dentro del bucle."""
+    """The fact that turned this into a mystery: without `finish_reason`, a limit cutoff and a clean ending are
+    indistinguishable from inside the loop."""
     rec, m = {}, {}
     _patch_client(monkeypatch, [_chunk(content="ok"), _chunk_fr("length")], rec)
 
@@ -273,15 +273,15 @@ def test_a_truncated_tool_call_leaves_a_trace_instead_of_vanishing(monkeypatch):
             pass
 
     asyncio.run(run())
-    assert fired == []                                   # sigue sin ejecutarse: los argumentos no son legibles
+    assert fired == []                                   # still not executed: the arguments are not readable
     dropped = m.get("dropped_tool_calls") or []
     assert len(dropped) == 1
     assert dropped[0]["name"] == "escalate_to_slowbrain"
-    assert "tope" in dropped[0]["reason"]                 # y dice POR QUÉ, que es lo que faltaba
+    assert "tope" in dropped[0]["reason"]                 # and says WHY, which was what was missing
 
 
 def test_and_says_so_where_the_operator_can_see_it(monkeypatch):
-    """Mientras el fallo solo viviera en un `logger.warning`, ni el operador, ni el juez, ni el Master lo veían."""
+    """While the failure lived only in a `logger.warning`, neither the operator, the judge, nor the Master could see it."""
     from voice import observer
 
     seen = []
@@ -300,7 +300,7 @@ def test_and_says_so_where_the_operator_can_see_it(monkeypatch):
 
 
 def test_but_a_tool_call_that_parses_is_untouched(monkeypatch):
-    """La sensibilidad de todo lo anterior: sin esto, «reporta los descartes» y «reporta siempre» pasan igual."""
+    """The sensitivity of everything above: without this, “report dropped calls” and “always report” pass alike."""
     rec, m = {}, {}
     chunks = [_chunk(tool_calls=[_tool_call(0, name="recall", args='{"query": "monitor"}')]), _chunk_fr("tool_calls")]
     _patch_client(monkeypatch, chunks, rec)
@@ -317,15 +317,15 @@ def test_but_a_tool_call_that_parses_is_untouched(monkeypatch):
     assert not m.get("dropped_tool_calls")
 
 
-# ── V2-176 frente 2: la acción descartada tiene que llegar al TURNO SIGUIENTE ──────────────────────────────────────
+# ── V2-176 front 2: the dropped action must reach the NEXT TURN ───────────────────────────────────────────
 #
-# V2-171 dejó el descarte en las métricas del turno y en observabilidad — donde el operador puede mirarlo
-# DESPUÉS. Pero la frase («te pongo con ello») ya se dijo en ese mismo turno, así que lo único que todavía se
-# puede arreglar es el turno de después… y ése no veía nada. La conversación continuaba como si la orden
-# hubiera salido, que es el corazón de V2-176: narrar un trabajo que no ocurrió.
+# V2-171 left the drop in the turn's metrics and observability — where the operator can look at it
+# LATER. But the phrase (“I'll put you through to it”) was already said in that same turn, so the only thing that can
+# still be fixed is the following turn… and it saw nothing. The conversation continued as if the order
+# had gone out, which is the heart of V2-176: narrating work that did not happen.
 #
-# Mismo remedio que `tasks.recently_finished()` (V2-150) y `dispatch._EXPIRED_CONFIRM` (V2-190): un hecho que
-# solo vive un turno es un hecho que la conversación pierde.
+# Same remedy as `tasks.recently_finished()` (V2-150) and `dispatch._EXPIRED_CONFIRM` (V2-190): a fact that
+# lives for only one turn is a fact the conversation loses.
 def test_a_dropped_action_survives_the_turn_that_lost_it():
     from nucleo.flash import fast_client as fc
 
@@ -350,7 +350,7 @@ def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
 
 
 def test_but_it_is_said_ONCE_and_not_forever():
-    """Un hecho que se repite en cada estado deja de ser un hecho y pasa a ser ruido — y este ya se dijo."""
+    """A fact repeated in every state stops being a fact and becomes noise — and this one has already been said."""
     from nucleo.flash import fast_client as fc
     from nucleo.flash import prompt as _p
 
@@ -374,7 +374,7 @@ def test_and_an_old_drop_is_not_this_conversation():
 
 
 def test_and_a_turn_with_nothing_dropped_says_nothing():
-    """La sensibilidad: sin esto, «avisa del descarte» y «avisa siempre» pasan igual."""
+    """The sensitivity: without this, “report the drop” and “always report” pass alike."""
     from nucleo.flash import fast_client as fc
     from nucleo.flash import prompt as _p
 

@@ -1,21 +1,21 @@
 """The deterministic vault/secrets pre-flight, decided ONCE for both channels (V2-060 · F1 step 1, 2026-08-23).
 
 Two intercepts that must run before the model sees the text, and for OPPOSITE reasons: a security-config command
-(«no me digas los secretos por voz») because a non-reasoning model would rephrase or refuse it, and a spoken
+(«don't tell me the secrets by voice») because a non-reasoning model would rephrase or refuse it, and a spoken
 secret because the value must never reach an LLM at all. Both were implemented twice — the voice side extracted
 to `providers/vault_intercept.py` in V2-112, the probe side still carrying its own copy under three mirror markers.
 
-They had ALREADY drifted, which is the whole argument: the probe's copy returned the parenthetical «(secreto
-cifrado)» where voice said a real localized sentence, and V2-141 had to be fixed in both places separately —
-its comment in `probe.py` said so out loud («este es el canal por el que corren los casos de uso, así que las
-dos eran invisibles desde la voz»).
+They had ALREADY drifted, which is the whole argument: the probe's copy returned the parenthetical «(encrypted
+secret)» where voice said a real localized sentence, and V2-141 had to be fixed in both places separately —
+its comment in `probe.py` said so out loud («this is the channel through which the use cases run, so both were
+invisible from voice»).
 
 WHAT IS SHARED is the decision and the one side effect both channels need (encrypting the secret). WHAT IS NOT
 is delivery: voice speaks the line through its turn closure and emits observability; probe puts it in its
 response dict. `inspect()` returns a verdict and touches neither.
 
 Two knobs instead of a channel flag, so the caller states its own truth rather than naming itself:
-  · `enabled` — voice passes `not first_turn` (the kickoff greeting is not the operator talking); probe passes
+  · `enabled` — voice passes `not first_turn` (the kickoff greeting is not the operator speaking); probe passes
     True. A channel-name parameter would have hidden that this is a rule about the TURN, not about the mouth.
   · `store`  — voice always persists; probe only when `ingest` is on, because a dry run must not write the
     operator's real secrets into the real vault.
@@ -112,20 +112,20 @@ async def inspect(text: str, *, enabled: bool = True, store: bool = True) -> Vau
     return VaultVerdict(kind="carried", consumed=False, text=redacted, labels=labels, has_vault=has_vault)
 
 
-# ── REVELAR un secreto guardado (V2-060 F1b) ─────────────────────────────────────────────────────────────────
-# El tercero de la terna, y el que más cuidado pide: aquí SÍ existe un valor descifrado, y la frontera entre los
-# dos canales no es de estilo sino de INVARIANTE. La voz puede decirlo (modo cómodo, decisión del operador, con
-# la regla dura `secrets_voice` para apagarlo); el probe NO PUEDE NI VERLO — su respuesta viaja al arnés y a los
-# logs de casos de uso, así que el valor lo sirve `/api/vault/reveal` al frontend y nunca esta ruta.
+# ── REVEAL a stored secret (V2-060 F1b) ─────────────────────────────────────────────────────────────────
+# The third of the trio, and the one requiring the most care: a decrypted value DOES exist here, and the boundary
+# between the two channels is not about style but about an INVARIANT. Voice may say it (convenience mode, operator
+# decision, with the hard `secrets_voice` rule to disable it); the probe MUST NOT EVEN SEE IT — its response travels
+# to the harness and use-case logs, so `/api/vault/reveal` serves the value to the frontend and never this route.
 #
-# Por eso lo compartido llega hasta el DESENLACE y sus filas de observabilidad, y la frase se queda en la voz:
-# devolver una línea ya compuesta obligaría al probe a recibir el valor dentro para tirarlo después, que es
-# justo la forma en que un invariante se convierte en una convención.
+# That is why the shared part ends at the OUTCOME and its observability rows, while the phrase stays in voice:
+# returning an already-composed line would force the probe to receive the value internally and discard it afterward,
+# which is exactly how an invariant turns into a convention.
 
 
 @dataclass
 class RevealOutcome:
-    """El desenlace de un `reveal_secret`. `events` son las filas que el llamante emite en su propio canal."""
+    """The outcome of a `reveal_secret`. `events` are the rows that the caller emits on its own channel."""
 
     status: str = "error"          # ok | locked | no_vault | not_found | empty | error
     label: str = ""
@@ -135,14 +135,14 @@ class RevealOutcome:
     events: list = field(default_factory=list)   # [(kind, label, extra_dict)]
 
     def as_probe_payload(self) -> dict:
-        """Lo que el canal de texto puede devolver, por construcción sin el valor."""
+        """What the text channel can return, constructed without the value."""
         return {"status": self.status, "label": self.label,
                 "memory_id": self.memory_id, "candidates": self.candidates}
 
 
 async def reveal(label: str) -> RevealOutcome:
-    """Resuelve la petición de un secreto guardado. Nunca lanza: cualquier fallo sale como `status="error"`,
-    que los dos canales ya tratan como «no lo encuentro» — un reveal roto no puede tumbar el turno."""
+    """Resolves a request for a stored secret. Never raises: any failure results in `status="error"`,
+    which both channels already treat as «I can't find it» — a broken reveal cannot bring down the turn."""
     try:
         from nucleo.flash import vault_flow
         rv = await asyncio.to_thread(vault_flow.reveal, str(label or ""))
@@ -153,8 +153,8 @@ async def reveal(label: str) -> RevealOutcome:
     st = rv.get("status") or "error"
     out = RevealOutcome(status=st, label=rv.get("label") or "", memory_id=rv.get("memory_id"),
                         candidates=list(rv.get("candidates") or []), value=rv.get("value") or "")
-    # Las claves son `slabel`/`mid` y NO `label`/`id` a propósito: `label` pisaría el label del propio evento en
-    # `observer.emit`. Es un detalle que ya costó una fila ilegible una vez.
+    # The keys are deliberately `slabel`/`mid`, NOT `label`/`id`: `label` would overwrite the event's own label in
+    # `observer.emit`. This detail has already cost us an unreadable row once.
     if st == "ok":
         out.events.append(("secret", "reveal", {"slabel": out.label, "mid": out.memory_id}))
     elif st == "locked":
@@ -165,10 +165,10 @@ async def reveal(label: str) -> RevealOutcome:
 
 
 def voice_line(out: RevealOutcome) -> str:
-    """La frase HABLADA. Vive aquí y no en el provider porque la decide el mismo desenlace, pero solo la llama
-    quien tiene boca: es la única función de este módulo que puede devolver un valor descifrado, y lo hace solo
-    cuando la regla dura del operador (`secrets_voice`, V2-060 F2) lo permite. Con ella apagada se nombra el
-    secreto y se enseña en pantalla, nunca se dice."""
+    """The SPOKEN phrase. It lives here rather than in the provider because the same outcome determines it, but only
+    the party with a mouth calls it: it is the only function in this module that can return a decrypted value, and it
+    does so only when the operator's hard rule (`secrets_voice`, V2-060 F2) allows it. When disabled, the secret is
+    named and shown on screen, never spoken."""
     try:
         from voice.engine.core import langs
         L = langs.current_language()
@@ -188,4 +188,4 @@ def voice_line(out: RevealOutcome) -> str:
         return L.secret_no_vault
     if out.status == "not_found" and out.candidates:
         return L.secret_not_found + f" Tengo: {', '.join(out.candidates)}."
-    return L.secret_not_found          # not_found sin candidatos, empty, error
+    return L.secret_not_found          # not_found without candidates, empty, error

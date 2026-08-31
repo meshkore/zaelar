@@ -27,7 +27,7 @@ _lock = threading.Lock()
 # Shape per platform + default values. Adding a connector = one entry here.
 _DEFAULTS = {
     "whatsapp": {"enabled": False},                                  # WhatsApp needs no credentials (QR only)
-    "telegram": {"enabled": False, "api_id": "", "api_hash": ""},    # Telegram: api_id/api_hash de my.telegram.org
+    "telegram": {"enabled": False, "api_id": "", "api_hash": ""},    # Telegram: api_id/api_hash from my.telegram.org
     "email": {"enabled": False, "email_address": "", "email_password": "", "provider": "",   # V2-051: IMAP/SMTP
               "imap_host": "", "imap_port": 0, "smtp_host": "", "smtp_port": 0, "autoreply": False},
     # V2-083: the Architect daemon token lives HERE (dynamic store), NOT in .env — configurable/revocable from the

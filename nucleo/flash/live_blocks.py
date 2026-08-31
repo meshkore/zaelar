@@ -1,21 +1,21 @@
-"""nucleo/flash/live_blocks.py — el ESTADO VIVO del NAVEGADOR, renderizado (V2-276).
+"""nucleo/flash/live_blocks.py — the rendered LIVE STATE of the BROWSER (V2-276).
 
-Extraído de `prompt.live_state()` el 2026-08-24 para pagar el trinquete de arquitectura
-(`test_architecture_ratchet`), que llevaba rojo desde los commits de la noche anterior: `prompt.py` estaba 56
-líneas por encima de su techo y la regla de esa tabla es explícita — un fichero que crece pide EXTRAER un
-módulo, nunca subir el número.
+Extracted from `prompt.live_state()` on 2026-08-24 to pay down the architecture ratchet
+(`test_architecture_ratchet`), which had been red since the previous night's commits: `prompt.py` was 56
+lines above its ceiling, and that table's rule is explicit — a growing file calls for EXTRACTING a
+module, never raising the number.
 
-Se eligió este trozo y no otro porque la frontera ya existía: es el único de los tres bloques de `live_state()`
-que se compone ENTERO a partir del registro del navegador (`widgets.navegador.tasks`) y no comparte un solo
-dato con los otros dos. Sus tres ayudantes —el umbral de atasco, el nombre legible del sitio y la señal de
-«ya encontró algo»— no tienen ningún otro llamante en el motor, así que viajan con él.
+This fragment was chosen because the boundary already existed: it is the only one of the three `live_state()`
+blocks composed ENTIRELY from the browser registry (`widgets.navegador.tasks`) and sharing no data with the
+other two. Its three helpers — the stall threshold, the human-readable site name, and the “found something”
+signal — have no other callers in the engine, so they travel with it.
 
-Se re-exportan desde `prompt` porque hay tests que los importan por nombre desde allí, y porque el
-contrato público sigue siendo `live_state()`: esto es una mudanza, no un cambio de interfaz.
+They are re-exported from `prompt` because tests import them by name from there, and because the public
+contract remains `live_state()`: this is a move, not an interface change.
 
-Las CARAS del bloque (pregunta pendiente · ya tiene resultados · parada esperando login · bloqueada · sana) y
-el porqué de cada una siguen documentados donde se aplican, abajo. El nodo 4.21
-(`test_every_face_is_reachable`) recorre este fichero exigiendo que cada una pueda dispararse de verdad.
+The block's FACES (pending question · has results · stopped waiting for login · blocked · healthy), and the
+reason for each, remain documented where they are applied below. Node 4.21
+(`test_every_face_is_reachable`) walks this file, requiring that each one can actually be triggered.
 """
 from __future__ import annotations
 
@@ -81,11 +81,11 @@ _DICE_PANTALLA = ("hoja de resultados", "en la hoja", "en pantalla", "results sh
 
 
 def worker_phase_is_a_claim(phase: str, sheet: str) -> bool:
-    """¿Este paso del worker afirma algo sobre la hoja del operador que la hoja no respalda?
+    """Does this worker step assert something about the operator's sheet that the sheet does not support?
 
-    `sheet` es la hoja del ENCARGO (`sheets.sheet_of(rec)`), no la de una pestaña: el paso lo escribe el
-    worker sobre lo SUYO. Sin hoja resuelta se responde que NO — marcar por no saber leer sería acusar a
-    ciegas, y el silencio de este detector deja el anillo exactamente como estaba.
+    `sheet` is the ERRAND's sheet (`sheets.sheet_of(rec)`), not a tab's: the worker writes the step about its
+    OWN sheet. Without a resolved sheet the answer is NO — marking because it cannot be read would be a blind
+    accusation, and this detector's silence leaves the ring exactly as it was.
     """
     p = (phase or "").strip().lower()
     if not p or not any(x in p for x in _DICE_PANTALLA):
@@ -104,7 +104,7 @@ from nucleo.flash.errand_sheet import _sheet_of_tab, aviso_sin_filas, boxes_of_t
 
 
 def _sheet_has_rows(nav_task_id: str) -> bool:
-    """¿Hay ya filas CON NOMBRE en la hoja de este encargo?
+    """Are there already NAMED rows in this errand's sheet?
 
     V2-284 — la señal de arriba es un REPORTE VOLUNTARIO: solo existe si el worker se acordó de llamar a
     `hbnote considered --kept N`. Medido en la tanda del 2026-08-24 03:02, con los prompts de los diez turnos
@@ -167,7 +167,7 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
 
 
 def _driver_is_gone(nav_task_id: str, prog: dict) -> bool:
-    """¿Esta pestaña se quedó SIN CONDUCTOR? (V2-310)
+    """Did this tab become DRIVERLESS? (V2-310)
 
     Medido el 2026-08-25 04:36: el plan de los Brain Workers agotó su límite de sesión, el worker murió al
     instante — y su pestaña siguió `working` en el registro, así que el estado decía «NAVEGADOR — YA EN CURSO»
@@ -294,12 +294,12 @@ def _site_of(url: str) -> str:
 
 
 def navegador_lines() -> list[str]:
-    """Las líneas del ESTADO que hablan del navegador — vacío si no hay nada que contar.
+    """The STATE lines that talk about the browser — empty when there is nothing to report.
 
-    Fail-open como el bloque del que sale: un fallo aquí no puede dejar al turno sin estado, así que devuelve
-    lo que llevara compuesto. Esa era la semántica del `try/except: pass` que lo envolvía en `live_state()` y
-    se conserva tal cual — con una diferencia a favor: antes un fallo a mitad se llevaba por delante TODO el
-    bloque, y ahora las líneas ya compuestas sobreviven.
+    Fail-open like the block it came from: a failure here must not leave the turn without state, so it returns
+    whatever it has composed so far. That was the meaning of the `try/except: pass` around it in `live_state()`
+    and is preserved — with one improvement: previously a mid-block failure took out the WHOLE block, whereas
+    now already-composed lines survive.
     """
     lines: list[str] = []
     try:
@@ -678,7 +678,7 @@ def navegador_lines() -> list[str]:
 
 
 def any_stalled_task() -> tuple[str, int, str]:
-    """`(encargo, minutos, motivo)` de la primera tarea viva ATASCADA, o `("", 0, "")` si ninguna lo está.
+    """`(errand, minutes, reason)` for the first live STALLED task, or `("", 0, "")` when none is stalled.
 
     MISMA fuente y MISMOS umbrales que la cara de `pending_task_lines` — a propósito, y la razón está escrita
     en `dispatch_thresholds`: dos copias de estos números es cómo el operador acaba oyendo una cosa del aviso

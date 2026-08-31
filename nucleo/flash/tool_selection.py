@@ -1,42 +1,42 @@
-"""Selección PROGRESIVA de tools: el turno lleva la dirección hacia la que va, no el catálogo entero (V2-096 F2).
+"""PROGRESSIVE tool selection: the turn carries the direction it is heading in, not the entire catalog (V2-096 F2).
 
-## La petición
+## The request
 
-> «Cuando alguien dice "hola, ¿qué tal?" no le vamos a mandar todos los widgets, todas las tools. Lo primero que
-> vamos a decirle es: analiza esto, este es el abanico de posibilidades por donde podemos ir… e ir encaminando la
-> dirección.»
+> “When someone says ‘hello, how are you?’ we are not going to send them every widget, every tool. The first thing we
+> are going to tell them is: analyze this, here is the range of possibilities we can pursue… and start steering the
+> direction.”
 
-## Por qué NO es una segunda llamada al modelo
+## Why this is NOT a second model call
 
-Porque eso ya se midió y perdió (2026-08-02): partir el turno en dos peticiones baja el prompt de 9.729 a 1.221
-tokens pero **sube el turno de 1.938 a 6.208 ms**, porque cada ida y vuelta cuesta 1,5-4,5 s. Dos viajes en el
-camino crítico del turno común están descartados.
+Because that was already measured and lost (2026-08-02): splitting the turn into two requests reduces the prompt from
+9,729 to 1,221 tokens but **increases the turn from 1,938 to 6,208 ms**, because each round trip costs 1.5–4.5 s. Two
+trips on the critical path of the ordinary turn are ruled out.
 
-El abanico se resuelve sin viaje extra, en tres piezas de las que **solo la última necesitaría modelo**:
+The range is resolved without an extra trip, in three pieces of which **only the last would need a model**:
 
-  1. ¿la frase está acabada?  → léxico, gratis (V2-096 F1, `accumulator`)
-  2. ¿qué tools cargo?        → **RECUPERACIÓN O(K), gratis — esto es este módulo**
-  3. ¿hay petición clara?     → sí necesita modelo, y es el hueco declarado (`accumulator.set_predicate`)
+  1. Is the sentence finished? → lexicon, free (V2-096 F1, `accumulator`)
+  2. Which tools do I load?   → **O(K) RETRIEVAL, free — this is this module**
+  3. Is there a clear request? → yes, it needs a model, and that is the declared gap (`accumulator.set_predicate`)
 
-## Recuperar no es comprender, y por eso hay escotilla
+## Retrieval is not understanding, which is why there is an escape hatch
 
-V2-085 fijó un invariante duro: **un GATE mira ESTADO, jamás las palabras del turno** — si no, esconderías una
-capacidad que sí existe. Este módulo no es un gate: es RECUPERACIÓN, la misma que `widgets/selection.py` ya hace
-para elegir widgets con la capa `named` sobre el texto del turno. La diferencia entre las dos cosas es lo que
-justifica usar palabras aquí: un gate DECIDE que algo no existe; una recuperación PROPONE candidatos y tiene que
-degradar bien cuando falla.
+V2-085 established a hard invariant: **a GATE looks at STATE, never at the words in the turn** — otherwise you would
+hide a capability that does exist. This module is not a gate: it is RETRIEVAL, the same thing `widgets/selection.py`
+already does to choose widgets with the `named` layer over the turn text. The difference between the two is what
+justifies using words here: a gate DECIDES that something does not exist; retrieval PROPOSES candidates and must fail
+gracefully when it fails.
 
-La escotilla es `need_capability`: una tool minúscula que se añade **solo cuando se ha recortado algo**, y con la que
-el modelo pide la familia que le falta. Si la llama, el llamador repite con esa familia cargada. Eso convierte el
-error de recuperación en **un viaje extra medible** en vez de en una capacidad negada en silencio — que es el fallo
-que de verdad rompe una conversación.
+The escape hatch is `need_capability`: a tiny tool that is added **only when something has been trimmed**, through which
+the model requests the family it is missing. If it calls it, the caller retries with that family loaded. This turns the
+retrieval error into **a measurable extra trip** instead of a capability silently denied — which is the failure that
+actually breaks a conversation.
 
-## Las familias que NUNCA se recortan, y por qué
+## The families that are NEVER trimmed, and why
 
-`core` (escalar y fijar estilo), `web` (`web_search`) y `memory` (`recall`) se quedan siempre. Son las que un turno
-puede necesitar **sin ningún aviso previo en el estado ni en las palabras**: «¿cuánto cuesta la entrada?» o «¿cuándo
-es la cita de la ITV» no anuncian nada; simplemente no se pueden contestar sin la tool. Recortarlas para ahorrar
-tokens sería cambiar coste por contestar mal, que es el intercambio equivocado.
+`core` (scaling and setting style), `web` (`web_search`), and `memory` (`recall`) always remain. They are the ones a turn
+may need **without any prior indication in the state or the words**: “how much does admission cost?” or “when is the
+vehicle inspection appointment?” do not announce anything; they simply cannot be answered without the tool. Trimming
+them to save tokens would trade cost for an incorrect answer, which is the wrong trade-off.
 """
 from __future__ import annotations
 
@@ -46,13 +46,13 @@ import unicodedata
 
 from nucleo.flash.router import FAMILIES
 
-# Familias intocables (ver el docstring). El resto se recupera.
+# Untouchable families (see the docstring). The rest are retrieved.
 ALWAYS: frozenset[str] = frozenset({"core", "web", "memory"})
 
-# Pistas léxicas por familia. NO son un clasificador de intención: son SEMILLAS de recuperación, y su fallo lo
-# absorbe `need_capability`. Deliberadamente cortas — la lista larga de verbos que el operador rechazó
-# ([[feedback_no_hardcoded_understand]]) es lo que NO se hace aquí: no se decide qué quiere el operador, solo qué
-# esquemas vale la pena poner delante del modelo para que lo decida ÉL.
+# Lexical hints by family. They are NOT an intent classifier: they are retrieval SEEDS, and `need_capability` absorbs
+# their failure. Deliberately short — the long list of verbs that the operator rejected
+# ([[feedback_no_hardcoded_understand]]) is what is NOT done here: we do not decide what the operator wants, only which
+# schemas are worth putting in front of the model so that IT can decide.
 _HINTS: dict[str, tuple[str, ...]] = {
     "widgets": ("widget", "tarjeta", "panel", "pantalla", "ventana", "abre", "abre", "cierra", "muestra",
                 "muestrame", "ensename", "borra", "alias", "llama", "lista", "agenda", "card", "screen",
@@ -97,24 +97,24 @@ _family_of: dict[str, str] = {name: fam for fam, names in FAMILIES.items() for n
 
 
 def enabled() -> bool:
-    """Kill-switch de 1ª clase. Un cambio que toca el ENRUTADO tiene que poder apagarse sin desplegar código:
-    `ZAELAR_TOOL_SELECTION=0` devuelve el comportamiento de mandar el catálogo entero."""
+    """First-class kill switch. A change that affects ROUTING must be switchable off without deploying code:
+    `ZAELAR_TOOL_SELECTION=0` restores the behavior of sending the entire catalog."""
     return (os.getenv("ZAELAR_TOOL_SELECTION", "1") or "").strip().lower() not in ("0", "false", "no", "off")
 
 
 def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
            recent_families=None, force: set[str] | None = None) -> tuple[list[dict], dict]:
-    """Recorta `tools` (que YA vienen gateadas por estado, `router.tools`) a lo que este turno puede necesitar.
+    """Trims `tools` (which have ALREADY been gated by state, `router.tools`) to what this turn may need.
 
-    Devuelve `(tools_recortadas, informe)`. El informe viaja a la observabilidad: sin él, un recorte equivocado es
-    un modelo que "se olvida" de una capacidad y nadie sabe por qué.
+    Returns `(trimmed_tools, report)`. The report travels to observability: without it, an incorrect trim means a model
+    that "forgets" a capability and nobody knows why.
 
-    Capas, de más a menos derecho a estar (misma escalera que `widgets/selection.py`):
-      · `ALWAYS`   — nunca se recortan
-      · `state`    — lo que el operador tiene DELANTE (widgets abiertos → familia widgets)
-      · `forced`   — lo que el llamador exige (p. ej. tras un `need_capability`)
-      · `named`    — lo que las palabras del turno sugieren
-      · `recent`   — familias usadas en los últimos turnos (MRU), para que una conversación no pierda el hilo
+    Layers, from most to least entitled to be present (same ladder as `widgets/selection.py`):
+      · `ALWAYS`   — never trimmed
+      · `state`    — what the operator has IN FRONT OF THEM (open widgets → widgets family)
+      · `forced`   — what the caller requires (e.g. after a `need_capability`)
+      · `named`    — what the words in the turn suggest
+      · `recent`   — families used in recent turns (MRU), so a conversation does not lose the thread
     """
     if not enabled() or not tools:
         return tools, {"selection": "off"}
@@ -122,7 +122,7 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
     keep = set(ALWAYS)
     keep |= set(force or ())
     if open_widgets:
-        keep.add("widgets")                      # lo que tiene delante manda, sin mirar palabras
+        keep.add("widgets")                      # what is in front of the operator takes precedence, without looking at words
     ws = _words(turn_text)
     named: set[str] = set()
     for fam, hints in _HINTS.items():
@@ -141,7 +141,7 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
             omitted.add(fam)
 
     if omitted:
-        out.append(NEED_CAPABILITY)              # la escotilla, solo si de verdad falta algo
+        out.append(NEED_CAPABILITY)              # the escape hatch, only if something is genuinely missing
 
     report = {"selection": "on", "kept": sorted(keep), "omitted": sorted(omitted),
               "n_before": len(tools), "n_after": len(out), "named": sorted(named)}
@@ -149,5 +149,5 @@ def select(tools: list[dict], *, turn_text: str = "", open_widgets=None,
 
 
 def families_used(names) -> set[str]:
-    """Familias a las que pertenecen unas tools llamadas — para alimentar la capa `recent` del turno siguiente."""
+    """Families to which called tools belong — to populate the `recent` layer of the next turn."""
     return {_family_of[n] for n in (names or ()) if n in _family_of}

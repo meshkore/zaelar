@@ -1,22 +1,22 @@
-"""nucleo/memory_agent.py — el agente de MEMORIA ★ del SlowBrain. V2-006 · T81 (mejora V2-013).
+"""nucleo/memory_agent.py — the SlowBrain's ★ MEMORY agent. V2-006 · T81 (V2-013 enhancement).
 
-Pieza central de la deliberación. Tres caras:
+Central piece of deliberation. Three facets:
 
-  - `compose_context(prompt, budget)` — da **SOLO lo necesario** para un turno (no vuelca todo el store):
-    estado siempre-inyectado (`memory.state()`, µs) + recall híbrido vec+FTS por RRF (`memory.query`), truncado
-    al presupuesto de tokens. **Heurística barata el 90%** (el score rel+rec+imp+uso del retriever ya ordena);
-    un **router LLM barato** entra SOLO si el recall es ambiguo/pobre (query corta o resultados flojos), para
-    reformular/ampliar la consulta — best-effort, guardado (sin modelo → se salta). Modelo POR INVOCACIÓN.
-  - `classify(text)` — decide DÓNDE guardar cada cosa (V2-013): perfil del operador (nombre, ubicación, trato,
-    hardware, coche) → `state_patch` + traza durable `level='long', pinned=True`; deseos/preferencias →
-    `level='long'`; trivia (saludos/comandos) → skip; resto → `level='mid'` (deliberación). Heurística regex es/en
-    primero (µs, agnóstica del proveedor); LLM barato SOLO como reserva. Es el "corazón" que decide rápido: sin
-    esto el `state` se queda vacío aunque el operador diga su nombre en un turno normal.
-  - `remember(item)` — es el **ÚNICO** que escribe a `memory/` desde el SlowBrain. Si el caller no fija destino
-    (`level`/`kind`/`state_patch`), auto-clasifica el `text` para no perder nada. Mantiene la tabla `state`
-    (perfil del operador) junto al consolidador. `ingest_utterance(text)` es el envoltorio para "algo que dijo/
-    escribió el operador este turno" — la vía por la que el FlashBrain (u observer) alimenta al agente sin
-    tener que decidir él mismo dónde va cada frase.
+  - `compose_context(prompt, budget)` — provides **ONLY what is necessary** for one turn (it does not dump the entire store):
+    always-injected state (`memory.state()`, µs) + hybrid vec+FTS recall via RRF (`memory.query`), truncated
+    to the token budget. **Cheap heuristic 90% of the time** (the retriever's rel+rec+imp+uso score already ranks results);
+    a **cheap LLM router** enters ONLY if recall is ambiguous/poor (short query or weak results), to
+    rephrase/expand the query — best-effort, cached (if there is no model → skipped). Model PER INVOCATION.
+  - `classify(text)` — decides WHERE to store each item (V2-013): operator profile (name, location, treatment,
+    hardware, car) → `state_patch` + durable trace `level='long', pinned=True`; wants/preferences →
+    `level='long'`; trivia (greetings/commands) → skip; everything else → `level='mid'` (deliberation). Regex heuristic es/en
+    first (µs, provider-agnostic); cheap LLM ONLY as a fallback. It is the fast-deciding "heart": without
+    it, `state` remains empty even when the operator says their name during a normal turn.
+  - `remember(item)` — is the **ONLY** one that writes to `memory/` from the SlowBrain. If the caller does not set a destination
+    (`level`/`kind`/`state_patch`), it auto-classifies the `text` so nothing is lost. It maintains the `state` table
+    (operator profile) alongside the consolidator. `ingest_utterance(text)` is the wrapper for "something the operator said/
+    wrote this turn" — the channel through which the FlashBrain (or observer) feeds the agent without
+    having to decide for itself where each sentence belongs.
 """
 
 # Split into a package by the architecture audit 2026-08-23 (god-file: 1,486 lines, six responsibilities).

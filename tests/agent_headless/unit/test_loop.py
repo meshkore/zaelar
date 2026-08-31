@@ -1,4 +1,4 @@
-"""Tests de nucleo/loop.py (V2-005 · T70/T74/T76) — el latido: dispara vencidos, chispas, consolida, emite bus."""
+"""Tests for nucleo/loop.py (V2-005 · T70/T74/T76) — the heartbeat: fires overdue items, sparks, consolidates, emits to the bus."""
 import asyncio
 import time
 
@@ -22,7 +22,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def _never_spark():
-    # gate que NUNCA permite chispa (aísla los tests de disparo/consolidación)
+    # Gate that NEVER permits a spark (isolates the firing/consolidation tests).
     return sparks.SparkGate(daily_max=0, min_gap_s=0, prob=0.0, clock=lambda: 0.0, rng=lambda: 1.0)
 
 
@@ -36,7 +36,7 @@ def test_tick_does_not_deliver_before_due(fresh_db, monkeypatch):
     scheduler.create("recuérdame estirar", "10m", name="estirar", now=base)
     lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=deliver, consolidate_every_s=1e9)
 
-    monkeypatch.setattr(nloop.time, "time", lambda: base + 60)   # aún no vence
+    monkeypatch.setattr(nloop.time, "time", lambda: base + 60)   # not due yet
     asyncio.run(lp.tick())
     assert delivered == []
 
@@ -51,11 +51,11 @@ def test_fire_due_via_tick_with_patched_clock(fresh_db, monkeypatch):
     scheduler.create("bebe agua", "10m", name="agua", now=base)
     lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=deliver, consolidate_every_s=1e9)
 
-    # avanza el reloj del módulo loop más allá del vencimiento
+    # Advance the loop module's clock past the due time.
     monkeypatch.setattr(nloop.time, "time", lambda: base + 601)
     asyncio.run(lp.tick())
     assert len(delivered) == 1 and delivered[0] == ("agua", "bebe agua")
-    # la tarea "una vez" ya no vence
+    # The "once" task is no longer due.
     assert scheduler.due(now=base + 100000) == []
 
 
@@ -66,7 +66,7 @@ def test_tick_emits_loop_tick_on_bus(fresh_db):
 
     async def run():
         await lp.tick()
-        # drena lo que haya (best-effort, sin bloquear)
+        # Drain whatever is available (best effort, without blocking).
         try:
             ev = await asyncio.wait_for(sub.get(), timeout=0.5)
             seen.append(ev)
@@ -82,11 +82,11 @@ def test_consolidation_triggers_off_hot_path(fresh_db, monkeypatch):
     calls = []
     from memory import api as memapi
 
-    # **kwargs, y no es cosmético: desde la auditoría del 2026-08-23 el loop INYECTA la limpieza del ledger de
-    # workers (`prune_workers_fn`) en vez de que la memoria importe `nucleo.workers`. Un stub de aridad fija
-    # revienta con TypeError… que el `except Exception` de `_maybe_consolidate` convierte en un warning, así que
-    # el síntoma no es un error sino que la consolidación entera DEJA DE CORRER en silencio. Se captura el hook
-    # para exigir que la inyección llegue de verdad: sin eso, este test pasaría con el loop llamando a pelo.
+    # **kwargs, and not cosmetically: since the 2026-08-23 audit, the loop INJECTS the ledger cleanup for
+    # workers (`prune_workers_fn`) instead of memory importing `nucleo.workers`. A fixed-arity stub
+    # blows up with TypeError… which `_maybe_consolidate`'s `except Exception` turns into a warning, so
+    # the symptom is not an error but that the entire consolidation SILENTLY STOPS RUNNING. Capture the hook
+    # to require that the injection really arrives: without it, this test would pass with the loop calling directly.
     def _fake(**kw):
         calls.append(kw)
         return {"deduped": 0, "evicted": 0, "promoted": 0}
@@ -100,10 +100,10 @@ def test_consolidation_triggers_off_hot_path(fresh_db, monkeypatch):
         await lp.tick()
 
     asyncio.run(run())
-    assert len(calls) == 1, "la consolidación tiene que dispararse una vez por ciclo vencido"
+    assert len(calls) == 1, "consolidation must fire once per overdue cycle"
     assert callable(calls[0].get("prune_workers_fn")), (
-        "el loop dejó de inyectar la limpieza del ledger: la memoria no la hace por su cuenta desde 2026-08-23, "
-        "así que el ledger de Brain Workers crecería sin límite y sin que nada fallara")
+        "the loop stopped injecting the ledger cleanup: memory has not done it on its own since 2026-08-23, "
+        "so the Brain Workers ledger would grow without limit and nothing would fail")
 
 
 def test_spark_fires_when_gate_allows(fresh_db, monkeypatch):
@@ -126,7 +126,7 @@ def test_spark_discarded_when_nothing_useful(fresh_db, monkeypatch):
     async def deliver(title, text):
         delivered.append((title, text))
 
-    monkeypatch.setattr(sparks, "propose", lambda now=None: None)   # gate de utilidad: nada que aportar
+    monkeypatch.setattr(sparks, "propose", lambda now=None: None)   # usefulness gate: nothing to contribute
     gate = sparks.SparkGate(daily_max=5, min_gap_s=0, prob=1.0, clock=lambda: 0.0, rng=lambda: 0.0)
     lp = nloop.OrchestratorLoop(spark_gate=gate, deliver=deliver, consolidate_every_s=1e9)
 
@@ -245,8 +245,8 @@ def test_a_recent_flow_within_the_grace_window_is_left_alone(flow_session):
 
 
 def test_a_stale_flow_with_a_live_worker_never_closes_no_matter_how_old(flow_session, monkeypatch):
-    """Operator's invariant, verbatim: "si es una búsqueda activa que mantiene un Brain Worker en marcha, eso
-    JAMÁS se tiene que cerrar hasta que se termine — la pelota está en el tejado de la gente." """
+    """Operator's invariant, verbatim: "if it is an active search keeping a Brain Worker running, it must
+    NEVER be closed until it is finished — the ball is in the people's court." """
     from nucleo import dispatch
     from voice import observer
 

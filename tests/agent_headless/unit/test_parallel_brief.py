@@ -1,10 +1,10 @@
 """The research brief composes IN PARALLEL with the worker's spawn (V2-301).
 
 Measured across the guitar rounds (2026-08-24): the composer is a REASONING call (15-30 s) and it ran in
-series BEFORE the spawn — the worker sat «en cola» 20-32 s doing nothing while the composer thought, and then
-spent its OWN first ~20 s on preamble (mesh PASO 0 + memory reads). Two stretches that overlap perfectly.
-That dead time is what pushed an end-to-end search past the operator's 2-3 minute bar («una búsqueda de este
-tipo debería durar de dos a tres minutos»).
+series BEFORE the spawn — the worker sat "in the queue" 20-32 s doing nothing while the composer thought, and then
+spent its OWN first ~20 s on preamble (mesh STEP 0 + memory reads). Two stretches that overlap perfectly.
+That dead time is what pushed an end-to-end search past the operator's 2-3 minute bar ("a search of this
+kind should take two to three minutes").
 
 The design: a short head start keeps every INSTANT path fully-directed (a resumed or round-2 brief returns
 with no LLM call at all); past it, the worker spawns NOW and the brief arrives as an injected turn — the same
@@ -73,9 +73,9 @@ def test_a_late_brief_reaches_the_running_worker_and_promotes_the_budget():
 
 
 def test_a_dead_composer_still_promotes_but_injects_nothing():
-    """El mismo fail-open que el camino serial: sin brief no hay nada que inyectar, pero el presupuesto de
-    investigación no depende de que el compositor esté vivo (banco del 2026-08-13: worker muerto a los 704 s
-    con medio presupuesto)."""
+    """The same fail-open behavior as the serial path: without a brief there is nothing to inject, but the
+    research budget does not depend on the composer being alive (2026-08-13 incident: worker dead at 704 s
+    with half the budget remaining)."""
     mp = pytest.MonkeyPatch()
     try:
         async def go():
@@ -90,8 +90,8 @@ def test_a_dead_composer_still_promotes_but_injects_nothing():
 
 
 def test_not_an_investigation_changes_nothing():
-    """`compose` devolviendo None a secas dijo «esto no pide amplitud ni baremo»: ni inyección ni promoción —
-    promocionar aquí cobraría presupuesto de investigación a una tarea que no lo es."""
+    """`compose` returning None outright said "this does not call for breadth or a research standard": no
+    injection or promotion — promoting here would charge research budget to a task that is not research."""
     mp = pytest.MonkeyPatch()
     try:
         async def go():
@@ -106,8 +106,8 @@ def test_not_an_investigation_changes_nothing():
 
 
 def test_a_finished_worker_gets_no_injection():
-    """Sensibilidad: inyectar a una sesión muerta es ruido en el canal; guardar el brief sí vale (una ronda 2
-    del mismo encargo lo hereda)."""
+    """Edge case: injecting into a dead session is noise on the channel; saving the brief is still worthwhile
+    (a round 2 of the same request inherits it)."""
     mp = pytest.MonkeyPatch()
     try:
         async def go():
@@ -122,8 +122,8 @@ def test_a_finished_worker_gets_no_injection():
 
 
 def test_the_spawn_path_actually_wires_the_followup():
-    """La guarda de cableado (fuente SIN comentarios): el head start y el follow-up tienen que estar en el
-    camino real de `run_listener` — un test que solo prueba el callback pasa igual con el enganche borrado."""
+    """The wiring guard (source WITHOUT comments): the head start and follow-up must be on the real
+    `run_listener` path — a test that only exercises the callback passes even with the hook removed."""
     import inspect
     src = "\n".join(ln for ln in inspect.getsource(D._run_session).splitlines()
                     if not ln.strip().startswith("#"))

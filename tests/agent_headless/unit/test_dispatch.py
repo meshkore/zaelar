@@ -1,10 +1,10 @@
 #
-# test_dispatch.py — el gestor de sesiones de Brain Workers (V2-038; reescrito en la auditoría de memoria
-# 2026-07-14: los tests viejos mockeaban la costura MUERTA `nucleo.agentes.get_agent` → el mock no interceptaba
-# nada y lanzaban un `claude` REAL que colgaba la suite). Verifica contra la costura REAL (`dispatch.get_backend`):
-# prompt = contexto de memoria + tarea, modelo por invocación, deny-tools a input no confiable, Bash NUNCA pelado,
-# el resultado OK se recuerda en memoria (y el FALLIDO no), y el listener consume `escalate.requested`.
-# Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_dispatch.py
+# test_dispatch.py — the Brain Workers session manager (V2-038; rewritten in the memory audit
+# 2026-07-14: old tests mocked the DEAD seam `nucleo.agentes.get_agent` → the mock did not intercept
+# anything and launched a REAL `claude` that hung the suite). Verifies against the REAL seam (`dispatch.get_backend`):
+# prompt = memory context + task, per-invocation model, deny-tools for untrusted input, Bash NEVER bare,
+# the OK result is remembered in memory (the FAILED one is not), and the listener consumes `escalate.requested`.
+# Run: .venv/bin/pytest tests/agent_headless/unit/test_dispatch.py
 #
 import asyncio
 import pathlib
@@ -22,7 +22,7 @@ from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
 @pytest.fixture(autouse=True)
 def _hash_backend(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    monkeypatch.delenv("FAST_API_KEY", raising=False)     # sin router LLM (heurística pura)
+    monkeypatch.delenv("FAST_API_KEY", raising=False)     # no LLM router (pure heuristic)
     mememb.reset()
     yield
     mememb.reset()
@@ -38,8 +38,8 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 class _FakeBackend(WorkerBackend):
-    """Backend falso: registra el prompt+spec recibidos y emite el ciclo mínimo de eventos NORMALIZADOS
-    (spawned → result → done). Prueba el dispatcher SIN arrancar un Claude Code real."""
+    """Fake backend: records the received prompt+spec and emits the minimum cycle of NORMALIZED events
+    (spawned → result → done). Tests the dispatcher WITHOUT starting a real Claude Code."""
     name = "fake"
 
     def __init__(self, *, ok: bool = True, summary: str = "RESULTADO: hecho"):
@@ -96,15 +96,15 @@ def fake_backend(monkeypatch):
 def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, monkeypatch):
     memapi.set_state({"operator_name": "Ricart"})
     memapi.write_now("el operador vive en Barcelona", kind="fact", level="long")
-    # modelo por invocación desde config: fija un modelo de tarea 'code' (store vacío → cae al env)
+    # per-invocation model from config: set a 'code' task model (empty store → falls back to env)
     from pathlib import Path
     monkeypatch.setenv("CODE_AGENT_MODEL_CODE", "modelo-de-tarea")
     import config.v2 as v2
     monkeypatch.setattr(v2, "_PATH", Path("/nonexistent/v2.json"))
-    # El modelo por invocación solo manda mientras NO haya relevo de proveedor, y la cadena decide si hay relevo
-    # mirando `os.environ`. En la batería completa alguien carga el credential store real antes que este fichero
-    # → aparecía una key de proveedor, la cadena creía estar relevada y el modelo de tarea se perdía: el test
-    # fallaba solo por el ORDEN. Aquí no se prueba el relevo, así que el entorno de credenciales va vacío.
+    # The per-invocation model applies only while there is NO provider handoff, and the chain decides whether there is a handoff
+    # by looking at `os.environ`. In the full test suite, something loads the real credential store before this file
+    # → a provider key appeared, the chain considered itself handed off, and the task model was lost: the test
+    # failed only because of ORDER. Handoff is not tested here, so the credential environment is empty.
     from nucleo.workers import providers as _prov
     for _var in {e for t in _prov.KNOWN for e in t.get("env", ())}:
         monkeypatch.delenv(_var, raising=False)
@@ -112,29 +112,29 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
     task = dispatch.Task(id="t1", request="arregla el bug de arranque", kind="code", trusted=True)
     asyncio.run(dispatch.dispatch(task))
     b = fake_backend["last"]
-    assert "arregla el bug de arranque" in b.seen_prompt    # la tarea entra en el prompt
-    assert "Ricart" in b.seen_prompt                        # contexto de memoria inyectado (fix compose_context)
-    assert "CONTEXTO DE MEMORIA" in b.seen_prompt           # el bloque existe (regresión V2-038 P2 cazada)
-    assert b.seen_spec.model == "modelo-de-tarea"           # MODELO POR INVOCACIÓN
-    assert b.seen_spec.deny_tools is False                  # tarea confiable
-    # Auditoría 2026-07-14: NUNCA un "Bash" pelado — el Bash del worker es solo el de los CLIs puente
-    # (los añade claude_session._BRIDGE_TOOLS). Un Bash abierto rompería el ESCRITOR ÚNICO de la memoria.
+    assert "arregla el bug de arranque" in b.seen_prompt    # the task enters the prompt
+    assert "Ricart" in b.seen_prompt                        # injected memory context (fix compose_context)
+    assert "CONTEXTO DE MEMORIA" in b.seen_prompt           # the block exists (V2-038 P2 regression caught)
+    assert b.seen_spec.model == "modelo-de-tarea"           # PER-INVOCATION MODEL
+    assert b.seen_spec.deny_tools is False                  # trusted task
+    # Audit 2026-07-14: NEVER a bare "Bash" — the worker's Bash is only for bridge CLIs
+    # (added by claude_session._BRIDGE_TOOLS). An open Bash would break memory's SINGLE WRITER.
     assert "Bash" not in (b.seen_spec.tools or [])
-    assert "Write" in (b.seen_spec.tools or [])             # el worker 'code' conserva sus tools de código
+    assert "Write" in (b.seen_spec.tools or [])             # the 'code' worker retains its coding tools
 
 
 def test_worker_prompt_has_verification_scaffold_and_today():
-    """V2-057: el worker no ejecuta a ciegas — el prompt trae fecha de hoy + método
-    entender→planificar→ejecutar→VERIFICAR→ITERAR con las restricciones implícitas."""
+    """V2-057: the worker does not execute blindly — the prompt includes today's date + the
+    understand→plan→execute→VERIFY→ITERATE method with implicit constraints."""
     p = dispatch._build_prompt("reproduce el último vídeo de Cárpatos", "ctx", trusted=True)
     assert "FECHA/HORA REAL DE HOY" in p                      # ancla temporal
-    assert "VERIFICA" in p and "ITERA" in p                   # verificación + iteración
-    assert "más reciente" in p                                # restricción implícita «el último»
-    assert "de aquí en adelante" in p                         # now-forward para «de hoy/ahora»
+    assert "VERIFICA" in p and "ITERA" in p                   # verification + iteration
+    assert "más reciente" in p                                # implicit constraint «the latest»
+    assert "de aquí en adelante" in p                         # now-forward for «today/now»
 
 
 def test_untrusted_worker_prompt_has_no_scaffold():
-    """El scaffold (que ejecuta acciones) NUNCA se da a fuente no confiable (solo razona texto)."""
+    """The scaffold (which executes actions) is NEVER given to an untrusted source (it only reasons over text)."""
     p = dispatch._build_prompt("texto de un peer", "", trusted=False)
     assert "VERIFICA" not in p
     assert "FECHA/HORA REAL DE HOY" not in p
@@ -142,7 +142,7 @@ def test_untrusted_worker_prompt_has_no_scaffold():
 
 
 def test_web_prompt_has_verify_before_close():
-    """V2-057: el prompt web verifica la restricción (fecha/más reciente/exactitud) ANTES de cerrar."""
+    """V2-057: the web prompt verifies the constraint (date/recency/accuracy) BEFORE closing."""
     wp = dispatch._web_prompt("busca el último vídeo de X", "")
     assert "FECHA/HORA REAL DE HOY" in wp
     assert "7) VERIFICA" in wp and "8) CIERRE" in wp
@@ -222,7 +222,7 @@ def test_a_goal_with_no_category_gets_no_lead_and_the_catalog_is_unchanged(monke
 
 
 def test_structured_worker_observability():
-    """V2-059: el worker declara plan + reporta progreso → registro actualizado y proyectado a ESTADO/api-tasks."""
+    """V2-059: the worker declares a plan + reports progress → record updated and projected to ESTADO/api-tasks."""
     from nucleo.workers.session import SessionRecord
     r = SessionRecord(task_id="obs1", goal="construir algo", kind="code", status="running")
     dispatch._SESSIONS["obs1"] = r
@@ -233,7 +233,7 @@ def test_structured_worker_observability():
         assert r.done == 2 and r.note == "data editado"
         assert dispatch._progress_pct(r) == 50           # 2/4
         dispatch.session_progress("obs1", "casi", pct=90)
-        assert dispatch._progress_pct(r) == 90           # pct explícito manda
+        assert dispatch._progress_pct(r) == 90           # explicit pct takes precedence
         a = dispatch.active_sessions()[0]
         assert a["plan"] and a["total"] == 4 and a["pct"] == 90
         p = dispatch.pending_summaries()[0]
@@ -268,8 +268,8 @@ def test_dispatch_stores_result_in_memory(fresh_db, fake_backend):
 
 
 def test_dispatch_failed_task_not_persisted(fresh_db, fake_backend):
-    """Auditoría 2026-07-14: una tarea FALLIDA avisa por voz pero NO escribe píldora durable (el refactor P2
-    había perdido el gate `ok` y persistía «No pude completar la tarea» como resultado)."""
+    """Audit 2026-07-14: a FAILED task reports by voice but does NOT write a durable memory pill (the P2 refactor
+    had lost the `ok` gate and persisted «No pude completar la tarea» as the result)."""
     fake_backend["ok"] = False
 
     async def run():
@@ -277,7 +277,7 @@ def test_dispatch_failed_task_not_persisted(fresh_db, fake_backend):
         try:
             task = dispatch.Task(id="t4", request="tarea que revienta", kind="generic", trusted=True)
             await dispatch.dispatch(task)
-            await asyncio.sleep(0.3)            # deja drenar la cola de memoria
+            await asyncio.sleep(0.3)            # let the memory queue drain
             out = memapi.query("tarea que revienta", reinforce_used=False)
             return [m["text"] for m in out["memories"] if m["text"].startswith("[tarea")]
         finally:
@@ -290,26 +290,26 @@ def test_dispatch_empty_request_is_noop(fresh_db, fake_backend):
 
 
 def test_find_duplicate_by_text_overlap(monkeypatch):
-    """Dedup en la fuente de verdad: una re-escalada casi idéntica de una tarea VIVA se detecta (§2026-07-15)."""
+    """Dedup at the source of truth: a nearly identical re-escalation of a LIVE task is detected (§2026-07-15)."""
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     dispatch._SESSIONS["1"] = SessionRecord(
         task_id="1", kind="code", status="running",
         goal="Implementar en el widget youtube la capacidad de ampliarse a toda la pantalla por voz")
-    # casi idéntica (la re-escalada real del bug) → dedup a la tarea 1
+    # nearly identical (the bug's actual re-escalation) → dedup to task 1
     assert dispatch.find_duplicate(
         "Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz", "code") == "1"
-    # petición DISTINTA → no dedup
+    # DIFFERENT request → no dedup
     assert dispatch.find_duplicate("busca un piso de alquiler en Madrid por menos de 900 euros", "web") is None
-    # una tarea que ya NO está viva no cuenta
+    # a task that is no longer live does not count
     dispatch._SESSIONS["1"].status = "done"
     assert dispatch.find_duplicate(
         "Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz", "code") is None
 
 
 def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, monkeypatch):
-    """Con una tarea VIVA, una 2ª escalada casi idéntica se INYECTA, NO relanza (el bug de los dos chips). Se
-    pre-siembra una sesión viva para no depender del timing de arranque de la 1ª."""
+    """With a LIVE task, a nearly identical second escalation is INJECTED, NOT relaunched (the two-chip bug). A
+    live session is seeded beforehand to avoid depending on the first task's startup timing."""
     from nucleo.flash import escalate
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
@@ -322,14 +322,14 @@ def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, mon
 
     async def run():
         bus.reset(); escalate.reset()
-        # tarea VIVA ya en curso sobre el widget youtube
+        # LIVE task already in progress for the YouTube widget
         dispatch._SESSIONS["live"] = SessionRecord(
             task_id="live", kind="code", status="running",
             goal="Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz")
         stop = asyncio.Event()
         task = asyncio.create_task(dispatch.run_listener(stop))
         await asyncio.sleep(0.05)
-        # re-escalada casi idéntica (como la del bug: llegó en un turno ambiente)
+        # nearly identical re-escalation (as in the bug: it arrived during an ambient turn)
         escalate.escalate_to_slowbrain(
             "Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz rápido",
             context={"kind": "code"})
@@ -339,8 +339,8 @@ def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, mon
         return new_keys
 
     new_keys = asyncio.run(run())
-    assert new_keys == []                        # NO se creó una 2ª sesión
-    assert injected and injected[0][0] == "live" and "rápido" in injected[0][1]   # se inyectó a la viva
+    assert new_keys == []                        # NO second session was created
+    assert injected and injected[0][0] == "live" and "rápido" in injected[0][1]   # injected into the live task
 
 
 # ── V2-113: an escalation that never spawns its own SessionRecord must still close ITS trace explicitly ─────────
@@ -421,10 +421,10 @@ def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
         escalate.reset()
         stop = asyncio.Event()
         task = asyncio.create_task(dispatch.run_listener(stop))
-        await asyncio.sleep(0.05)               # deja que se suscriba
-        tid = escalate.escalate_to_slowbrain("busca un piso")   # publica escalate.requested por el bus
-        # espera a que el listener lo despache y lo marque resuelto. Margen holgado: desde el fix de
-        # compose_context (auditoría 2026-07-14) el despacho paga un recall REAL (~2s con reranker local).
+        await asyncio.sleep(0.05)               # let it subscribe
+        tid = escalate.escalate_to_slowbrain("busca un piso")   # publishes escalate.requested on the bus
+        # wait for the listener to dispatch it and mark it resolved. Generous margin: since the
+        # compose_context fix (2026-07-14 audit), dispatch performs a REAL recall (~2s with the local reranker).
         done = False
         for _ in range(300):
             if not any(p["id"] == tid for p in escalate.pending()):
@@ -437,13 +437,13 @@ def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
         return done, fake_backend.get("last")
 
     done, b = asyncio.run(run())
-    assert done is True                          # la escalada quedó resuelta (escalate.finish)
-    assert b is not None and "busca un piso" in b.seen_prompt   # el listener despachó la petición al worker
+    assert done is True                          # the escalation was resolved (escalate.finish)
+    assert b is not None and "busca un piso" in b.seen_prompt   # the listener dispatched the request to the worker
 
 
-# ── BRIEF DE INVESTIGACIÓN en el prompt del worker (2026-08-09) ───────────────────────────────────────────────
-# El worker recibía prosa libre y se autoimponía el criterio mínimo. Aquí se prueba el CABLEADO: que la dirección
-# compuesta en el pre-vuelo (nucleo/research.py) llegue de verdad al prompt, por los dos caminos de prompt que hay.
+# ── RESEARCH BRIEF in the worker prompt (2026-08-09) ───────────────────────────────────────────────────────────
+# The worker received free-form prose and imposed the minimum criterion on itself. This tests the WIRING: that the
+# direction composed during preflight (nucleo/research.py) actually reaches the prompt through both prompt paths.
 def _brief(**over):
     b = {"goal": "Tres propuestas de vacaciones en Baleares", "domain": "viaje familiar",
          "hard": ["17-23 agosto"], "soft": ["ferry rápido"],
@@ -461,7 +461,7 @@ def test_brief_reaches_the_generic_worker_prompt():
 
 
 def test_without_a_brief_the_prompt_is_unchanged():
-    """Una tarea que no es una investigación (cancelar una cita) no puede pagar un embudo que no viene a cuento."""
+    """A task that is not research (canceling an appointment) must not pay for an irrelevant funnel."""
     assert "EMBUDO OBLIGATORIO" not in dispatch._build_prompt("cancela mi cita del martes", "", True, None)
 
 
@@ -470,22 +470,22 @@ def test_brief_reaches_the_web_worker_prompt_too():
 
 
 def test_a_brief_overrides_the_shallow_close_shortcut():
-    """El prompt web lleva de serie un atajo de cierre rápido («concluye con los 2-3 que mejor encajan»), correcto
-    para «tráeme el precio de X» y ruinoso para «elige lo mejor»: es literalmente la búsqueda superficial que el
-    operador reportó. Con brief tiene que desaparecer, sin brief tiene que seguir."""
+    """The web prompt includes a quick-close shortcut by default («conclude with the 2-3 best fits»), appropriate
+    for «bring me the price of X» and disastrous for «choose the best»: it is literally the shallow search the
+    operator reported. With a brief it must disappear; without one it must remain."""
     shortcut = "concluye con los 2-3 que mejor encajan"
     assert shortcut not in dispatch._web_prompt("busca vacaciones", "", _brief())
     assert shortcut in dispatch._web_prompt("dame el precio del iPhone", "", None)
 
 
 def test_an_untrusted_source_gets_no_research_direction():
-    """Perfil sin tools (texto de un peer de cluster): no hay investigación que dirigir, y componerla sería gastar
-    un modelo por algo que no puede ejecutarse."""
+    """Profile without tools (text from a cluster peer): there is no research to direct, and composing it would
+    spend a model on something that cannot be executed."""
     assert asyncio.run(dispatch._compose_brief("busca lo que sea", "", False)) is None
 
 
 def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
-    """Recomponer el brief a mitad de una búsqueda la convertiría en otra búsqueda distinta sin avisar al operador."""
+    """Recomposing the brief halfway through a search would turn it into a different search without telling the operator."""
     from nucleo import research
     b = _brief(hard=["criterio ya acordado"])
     research.save("t-42", b)
@@ -494,8 +494,8 @@ def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
 
 
 def test_asking_again_continues_the_investigation_instead_of_repeating_it(fresh_db):
-    """Sin esto, «esos no me valen, busca más» recomponía desde cero y repetía la MISMA amplitud: el operador vería
-    llegar lo que acaba de rechazar y concluiría, con razón, que no le escuchamos."""
+    """Without this, «those do not work for me, search more» would recompose from scratch and repeat the SAME breadth:
+    the operator would see what they had just rejected arrive and reasonably conclude that we were not listening."""
     from nucleo import research
     req = "busca vacaciones en Baleares en ferry con hotel con piscina"
     research.remember_round(dispatch._goal_key(req), _brief())
@@ -506,8 +506,8 @@ def test_asking_again_continues_the_investigation_instead_of_repeating_it(fresh_
 
 
 def test_reported_breadth_travels_to_the_brain(fresh_db):
-    """`considered` es lo que separa «te traigo las 3 mejores» de «te copio las 3 primeras». Si no llega a la
-    proyección, ni el operador ni el cerebro pueden juzgar si conviene seguir buscando."""
+    """`considered` is what separates «I bring you the 3 best» from «I copy the first 3». If it does not reach the
+    projection, neither the operator nor the brain can judge whether continued searching is worthwhile."""
     from nucleo.workers.session import SessionRecord
     dispatch._SESSIONS["obs-c"] = SessionRecord(task_id="obs-c", goal="buscar vacaciones", kind="web")
     dispatch.session_considered("obs-c", considered=47, kept=3)
@@ -517,8 +517,8 @@ def test_reported_breadth_travels_to_the_brain(fresh_db):
 
 
 def test_breadth_is_absent_not_zero_when_it_does_not_apply():
-    """Una tarea que no es una investigación no ha «considerado 0 candidatos»: el dato NO APLICA, y confundir las dos
-    cosas haría que el cerebro dijera «he evaluado 0 opciones» en una tarea que nunca tuvo opciones."""
+    """A task that is not research has not «considered 0 candidates»: the datum is NOT APPLICABLE, and confusing the
+    two would make the brain say «I evaluated 0 options» for a task that never had options."""
     from nucleo.workers.session import SessionRecord
     dispatch._SESSIONS["obs-n"] = SessionRecord(task_id="obs-n", goal="cancela la cita", kind="web")
     row = next(r for r in dispatch.active_sessions() if r["id"] == "obs-n")
@@ -526,13 +526,13 @@ def test_breadth_is_absent_not_zero_when_it_does_not_apply():
     dispatch._SESSIONS.pop("obs-n", None)
 
 
-# ── EL PRESUPUESTO DE UNA INVESTIGACIÓN (defecto encontrado en la corrida del 2026-08-12) ─────────────────────
-# `loop._kind_budget_default` reservaba 1200s para `research`, pero NADIE asignaba nunca ese kind: `_classify_kind`
-# solo devuelve web/code/generic. Así que toda investigación que no nombrara Wallapop/Amazon corría con los 600s
-# de `generic` — medio presupuesto para un encargo que el propio brief define como «reúne ≥40 candidatos y ENTRA
-# en la ficha de cada finalista». El operador lo vio dos veces el mismo día: «agotó su tiempo», hoja a medias.
+# ── RESEARCH BUDGET (defect found in the 2026-08-12 run) ───────────────────────────────────────────────────────
+# `loop._kind_budget_default` reserved 1200s for `research`, but NOBODY ever assigned that kind: `_classify_kind`
+# only returns web/code/generic. Thus any research that did not name Wallapop/Amazon ran with generic's 600s —
+# half the budget for a request whose brief itself defines «gather ≥40 candidates and ENTER each finalist's listing».
+# The operator saw it twice the same day: «it ran out of time», with the sheet half done.
 def test_the_research_budget_was_reserved_for_a_kind_nobody_assigned():
-    """Prueba de la INCOHERENCIA que motiva el arreglo: el presupuesto existe y es el doble del genérico."""
+    """Tests the INCOHERENCE motivating the fix: the budget exists and is twice the generic budget."""
     from nucleo.loop import OrchestratorLoop
     L = OrchestratorLoop()
     assert L._budget_for("research") == 1200.0
@@ -541,13 +541,13 @@ def test_the_research_budget_was_reserved_for_a_kind_nobody_assigned():
 
 
 def test_a_directed_investigation_is_not_billed_as_a_generic_task(fresh_db):
-    """La costura: en cuanto el pre-vuelo compone un BRIEF, la tarea ES una investigación y su registro lo dice —
-    que es lo único que el supervisor mira para decidir cuánto tiempo le da."""
+    """The seam: as soon as preflight composes a BRIEF, the task IS research and its record says so —
+    the only thing the supervisor checks when deciding how much time to grant it."""
     rec = dispatch.SessionRecord(task_id="9", goal="busca vacaciones en Baleares", kind="generic")
     dispatch._SESSIONS["9"] = rec
     try:
         assert rec.kind == "generic"
-        # se reproduce lo que hace `_run_session` al obtener un brief (el spec ya está construido para entonces)
+        # reproduce what `_run_session` does when it obtains a brief (the spec is already built by then)
         if rec.kind == "generic":
             rec.kind = "research"
             rec.label = dispatch._default_label("research", rec.goal)
@@ -558,8 +558,8 @@ def test_a_directed_investigation_is_not_billed_as_a_generic_task(fresh_db):
 
 
 def test_promoting_to_research_never_steals_the_web_route():
-    """`web` tiene 1200s Y su reanudación por `native_sid`; `code` escribe el código de un widget del operador.
-    Ninguno de los dos puede convertirse en `research` por traer un brief — solo se promociona `generic`."""
+    """`web` has 1200s AND resumes via `native_sid`; `code` writes the operator's widget code.
+    Neither can become `research` merely because it has a brief — only `generic` is promoted."""
     for kind in ("web", "code"):
         promoted = "research" if kind == "generic" else kind
         assert promoted == kind
@@ -579,8 +579,8 @@ _VELEROS_LITERAL = ("Busca veleros de segunda mano a la venta AHORA MISMO con es
 
 
 def test_the_operators_own_boat_criterion_is_not_code():
-    """Verbatim de la escalada real que se fue al generador. Lleva ADEMÁS la palabra «widget» al final (donde
-    pedía la superficie de resultados), así que blinda las dos trampas a la vez."""
+    """Verbatim of the actual escalation that went to the generator. It ALSO contains «widget» at the end (where
+    it requested the results surface), so it protects against both traps at once."""
     assert dispatch._classify_kind(_VELEROS_LITERAL) == "generic"
 
 
@@ -600,16 +600,16 @@ def test_real_project_work_still_routes_to_code():
 
 
 def test_the_architect_connector_name_still_matches_bare():
-    """`architect` SÍ se queda a secas a propósito: es el nombre de nuestro conector, no una palabra del habla."""
+    """`architect` deliberately remains bare: it is the name of our connector, not a word from ordinary speech."""
     assert dispatch._ARCHITECT_RE.search("architect") is not None
     assert dispatch._ARCHITECT_RE.search("proyecto") is None
 
 
 # ── PERDER EL BRIEF NO PUEDE COSTAR LA MITAD DEL TIEMPO (defecto del banco 2026-08-13) ────────────────────────
-# El fail-open del compositor es correcto —mejor arrancar sin dirigir que no arrancar— pero arrastraba un coste
-# OCULTO: la promoción a `research` (1200 s) colgaba de que HUBIERA brief, así que un compositor que tardaba >30 s
-# dejaba la tarea en `generic` (600 s). El worker murió a los 704 s con el navegador a medias: el mismo «agotó su
-# tiempo» que la promoción existe para cerrar. Y todo por un `None` que significaba DOS cosas distintas.
+    # The composer's fail-open behavior is correct —better to start without direction than not start— but carried a
+    # HIDDEN cost: promotion to `research` (1200 s) depended on a brief EXISTING, so a composer taking >30 s
+    # left the task in `generic` (600 s). The worker died at 704 s with the browser half done: the same «ran out of
+    # time» that promotion exists to prevent. All because one `None` meant TWO different things.
 def test_the_composer_distinguishes_declining_from_being_unable_to_answer():
     """«esto no es una investigación» (decisión del modelo, presupuesto normal) NO es «no pude contestar» (avería
     nuestra, el presupuesto se mantiene). Con un solo `None` para ambas, la costura era inexpresable."""
@@ -631,7 +631,7 @@ def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
         async def _boom(*a, **k):
             raise research.ComposerUnavailable("timeout")
         monkeypatch.setattr(dispatch, "_compose_brief", _boom)
-        # se reproduce la rama de `_run_session` que atiende la avería
+        # reproduce the `_run_session` branch that handles the failure
         brief = None
         try:
             brief = asyncio.run(dispatch._compose_brief("busca vacaciones", "", True))
@@ -722,14 +722,14 @@ def test_active_sessions_only_returns_live_ones():
     try:
         ids = {s["id"] for s in dispatch.active_sessions()}
         assert ids == {"run", "q"}, f"una tarea terminada no es un proceso en curso (vi {ids})"
-        # …y sigue coherente con sus dos hermanas, que siempre llevaron el filtro
+        # …and remains consistent with its two sibling projections, which always applied the filter
         assert dispatch.has_active() is True
         assert {s["id"] for s in dispatch.pending_summaries()} == ids
     finally:
         dispatch._SESSIONS.clear()
 
 
-# ── V2-123: una escalada DEDUPLICADA es la misma tarea → un solo flujo ────────────────────────────────────────────
+# ── V2-123: a DEDUPLICATED escalation is the same task → one flow ───────────────────────────────────────────────
 def test_live_traces_solo_devuelve_las_vivas(monkeypatch):
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
@@ -744,8 +744,8 @@ def test_live_traces_solo_devuelve_las_vivas(monkeypatch):
 
 
 def test_merge_dedup_flow_funde_en_el_trace_de_la_sesion_viva(monkeypatch):
-    """El dedup ya exigió 60% de solape con el goal de la sesión viva: es PRUEBA de que son la misma tarea, no una
-    conjetura. El marcador se emite bajo el trace NUEVO apuntando al titular."""
+    """Dedup already required 60% overlap with the live session's goal: this is PROOF they are the same task, not a
+    guess. The marker is emitted under the NEW trace, pointing to the owning task."""
     from voice import trace
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
@@ -758,8 +758,8 @@ def test_merge_dedup_flow_funde_en_el_trace_de_la_sesion_viva(monkeypatch):
 
 
 def test_merge_dedup_flow_sin_trace_deja_que_el_llamante_cierre(monkeypatch):
-    """Sin nada que fundir, el flujo SÍ necesita su cierre explícito o `just_escalated` lo deja abierto para
-    siempre (V2-113)."""
+    """With nothing to merge, the flow DOES need its explicit close or `just_escalated` leaves it open forever
+    (V2-113)."""
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running", goal="g", trace_id="")
@@ -768,7 +768,7 @@ def test_merge_dedup_flow_sin_trace_deja_que_el_llamante_cierre(monkeypatch):
 
 
 def test_merge_dedup_flow_con_el_MISMO_trace_no_deja_cerrar(monkeypatch):
-    """Mismo trace = ya es un solo flujo, y su worker sigue trabajando: cerrarlo aquí sería un cierre prematuro."""
+    """Same trace = already one flow, and its worker is still working: closing it here would be premature."""
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running", goal="g",
@@ -926,8 +926,7 @@ def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_bac
 
 
 def test_listener_does_not_touch_the_sheet_for_an_errand_that_is_only_spoken(fresh_db, fake_backend, monkeypatch):
-    """La otra dirección: un encargo que se cuenta por voz no abre ni vacía una hoja que el operador puede tener
-    delante con otra cosa."""
+    """The converse: a voice-only request neither opens nor clears a sheet the operator may have open with something else."""
     from nucleo.flash import escalate
 
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)

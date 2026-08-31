@@ -1,8 +1,8 @@
-"""Aplicadores de correcciones del Susurro (V2-053 F1) — MECÁNICOS, con ANTES/DESPUÉS registrado.
+"""Susurro correction appliers (V2-053 F1) — MECHANICAL, with BEFORE/AFTER recorded.
 
-Regla del operador (GO §4): toda corrección aplicada deja en el timeline un evento con el snapshot previo y el
-resultante de lo que tocó. En F1 nada muta estado/memoria: `repair_say` empuja una nota [SISTEMA] (el canal que
-ya drena el turno siguiente) y `finding` va a la cola durable que consume el bucle de desarrollo.
+Operator rule (GO §4): every applied correction leaves an event in the timeline with the previous snapshot and the
+result of what it touched. In F1 nothing mutates state/memory: `repair_say` pushes a [SYSTEM] note (the channel that
+already drains into the next turn), and `finding` goes to the durable queue consumed by the development loop.
 """
 from __future__ import annotations
 
@@ -15,20 +15,20 @@ from collections import deque
 
 FINDINGS_PATH = os.path.join(".meshkore", "logs", "susurro", "findings.jsonl")
 
-# Dedup DURO por-request, más allá de sesiones vivas: si un worker_action ya se intentó (viva o YA TERMINADA,
-# ok o fallida) hace poco, no se re-escala — evita el bucle infinito de un request condenado a fallar siempre
-# igual (p.ej. generator_fail) que, sin esto, se relanzaba en cada nuevo disparo de fricción posterior.
+# HARD per-request deduplication, beyond live sessions: if a worker_action was attempted recently (live or ALREADY FINISHED,
+# successful or failed), do not re-escalate it — this prevents the infinite loop of a request doomed to always fail
+# (e.g. generator_fail), which without this would be relaunched on every subsequent friction trigger.
 _RECENT_REQUESTS: deque = deque(maxlen=20)   # [(request, ts), …]
 _REQUEST_COOLDOWN_S = 300
 
-# GUARD ANTI-BUCLE (auditoría 2026-07-26, incidente 25/07: Susurro F2 ↔ el widget ejecuta-accion-real spawneó
-# code-workers en cadena, load 5.86, ahogó voz/chat). El dedup de arriba es solo similitud de TEXTO — un auditor
-# LLM que redacta "en una frase" cada vez puede variar lo suficiente para esquivarlo turno tras turno, mientras el
-# patrón semántico (widget-espejo de una acción ya escalada, re-marcado como riesgo por cada refresco posterior)
-# se repite indefinidamente. Este breaker es el freno DETERMINISTA de última instancia, independiente de si el
-# dedup de arriba acierta: un TOPE DURO de cuántos worker_action puede disparar Susurro en una ventana corta,
-# pase lo que pase. Si se alcanza, el circuito se ABRE (dev+seguridad primero: parar de gastar recursos, avisar
-# UNA vez al operador) y NINGÚN worker_action nuevo sale hasta que la ventana rote.
+# LOOP GUARD (2026-07-26 audit, 07/25 incident: Susurro F2 ↔ the execute-real-action widget spawned
+# chained code-workers, load 5.86, and overwhelmed voice/chat). The dedup above is only TEXT similarity — an auditor
+# LLM that writes "in one sentence" each time can vary enough to evade it turn after turn, while the
+# semantic pattern (mirror widget for an already-escalated action, re-flagged as a risk on every subsequent refresh)
+# repeats forever. This breaker is the DETERMINISTIC last-resort brake, independent of whether the
+# dedup above succeeds: a HARD CAP on how many worker_action calls Susurro can trigger in a short window,
+# no matter what. If reached, the circuit OPENS (dev+security first: stop spending resources, notify the operator
+# ONCE) and NO new worker_action runs until the window rolls over.
 _BREAKER_WINDOW_S = 600          # 10 min
 _BREAKER_MAX = 3                 # máx. worker_action lanzados en la ventana
 _worker_action_ts: deque = deque(maxlen=_BREAKER_MAX * 4)   # timestamps de escaladas OK
@@ -47,16 +47,16 @@ def _breaker_record(now: float) -> None:
 
 
 def breaker_reset() -> None:
-    """Para tests: limpia el estado del breaker Y el dedup de requests en RAM."""
+    """For tests: clear the breaker state AND the in-memory request deduplication."""
     global _breaker_notified_at
     _worker_action_ts.clear()
     _RECENT_REQUESTS.clear()
     _breaker_notified_at = 0.0
 
-# Mismo dedup para repair_say: el auditor LLM puede repetir el MISMO diagnóstico (a veces equivocado) en
-# fricciones sucesivas no relacionadas — sin esto, la MISMA frase de reparación se re-inyecta en cada turno
-# siguiente e secuestra respuestas a preguntas que no tienen nada que ver (bug real 2026-07-22: "Ya veo el
-# mensaje de Rakel Karó…" colándose en respuestas sobre la ITV/el ojo, turno tras turno).
+# Same deduplication for repair_say: the LLM auditor may repeat the SAME diagnosis (sometimes incorrectly) in
+# successive unrelated frictions — without this, the SAME repair phrase is re-injected on every following turn
+# and hijacks responses to completely unrelated questions (real bug 2026-07-22: "I see the message from Rakel
+# Karó…" slipping into responses about the vehicle inspection/the eye, turn after turn).
 _RECENT_REPAIRS: deque = deque(maxlen=20)    # [(text, ts), …]
 
 
@@ -94,15 +94,15 @@ _STOP = {"de", "la", "el", "los", "las", "un", "una", "en", "y", "a", "que", "de
 
 
 def _grounded(request: str, window: str) -> bool:
-    """¿La acción propuesta habla de algo que está EN LA VENTANA, o se la ha inventado?
+    """Does the proposed action concern something that is IN THE WINDOW, or was it invented?
 
-    Segunda defensa del incidente 2026-08-13 (la primera es no auditar sin conversación, en `window.py`). Aun con
-    ventana, un auditor puede irse por su cuenta y proponer una acción sobre el mundo que nadie pidió; ahí lo hizo
-    copiando el caso de EJEMPLO de su propio prompt de sistema. `worker_action` es la ÚNICA corrección que ACTÚA,
-    así que es la única que exige anclaje: al menos dos palabras de contenido de la petición tienen que aparecer en
-    la ventana auditada. No es comprensión semántica y no pretende serlo — es un cinturón barato contra el texto
-    que viene de fuera de la conversación. Fail-OPEN si no hay ventana con la que comparar (no se rompe nada que
-    funcionara), fail-CLOSED cuando hay ventana y la petición no aparece en ella."""
+    Second defense from the 2026-08-13 incident (the first is not auditing without a conversation, in `window.py`). Even with
+    a window, an auditor can go off on its own and propose an action in the real world that nobody asked for; here it did so
+    by copying the EXAMPLE case from its own system prompt. `worker_action` is the ONLY correction that ACTS,
+    so it is the only one requiring anchoring: at least two content words from the request must appear in
+    the audited window. This is not semantic understanding and does not claim to be — it is a cheap belt against text
+    coming from outside the conversation. Fail-OPEN if there is no window to compare against (nothing that worked is
+    broken), fail-CLOSED when there is a window and the request does not appear in it."""
     win = (window or "").lower()
     if not win:
         return True
@@ -115,8 +115,8 @@ def _grounded(request: str, window: str) -> bool:
 
 def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                       findings_path: str | None = None, window: str = "") -> list[dict]:
-    """Aplica F1 (repair_say + finding) + F2 (worker_action). Devuelve un registro por corrección con
-    before/after + estado. `window` = el documento auditado, para exigir ANCLAJE a la única corrección que ACTÚA."""
+    """Apply F1 (repair_say + finding) + F2 (worker_action). Return one record per correction with
+    before/after + status. `window` = the audited document, to require ANCHORING for the only correction that ACTS."""
     findings_path = findings_path or FINDINGS_PATH
     applied: list[dict] = []
     known = None
@@ -145,10 +145,10 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                   text=text, extra={"before": None, "after": text, "ok": ok, "reason": reason, "dedup": dup})
             applied.append(rec)
         elif t == "worker_action":
-            # F2 (V2-061): RE-RUTEO — el auditor concluyó que el cerebro rápido dejó sin ejecutar una acción
-            # real/consecuente → dispara el worker correcto por la MISMA vía que el FlashBrain (escalate), con el
-            # contexto de memoria+conversación que dispatch adjunta. Dedup DURO contra sesiones vivas (no relanzar
-            # lo que ya está en marcha). Nunca toca BRAIN RULES — solo lanza una tarea (invariante de Susurro).
+            # F2 (V2-061): RE-ROUTING — the auditor concluded that the fast brain failed to execute a
+            # real/consequential action → trigger the correct worker through the SAME path as FlashBrain (escalate),
+            # with the memory+conversation context attached by dispatch. HARD deduplication against live sessions (do
+            # not relaunch what is already in progress). Never touches BRAIN RULES — only launches a task (Susurro invariant).
             req = str(c.get("request") or "").strip()
             child = ""
             ok = False
@@ -157,8 +157,8 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
             ungrounded = False
             now = time.time()
             if req and not _grounded(req, window):
-                # La acción no habla de nada que esté en la ventana → viene de fuera de la conversación. Se
-                # DEGRADA a finding (queda registrada para el dev-loop) en vez de ejecutarse.
+                # The action does not concern anything in the window → it comes from outside the conversation. It is
+                # DEGRADED to a finding (recorded for the dev loop) instead of being executed.
                 ungrounded = True
             elif req and _breaker_tripped(now):
                 breaker = True

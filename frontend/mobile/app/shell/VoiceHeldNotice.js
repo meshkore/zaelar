@@ -7,8 +7,8 @@
 //
 // THE CONSEQUENCE THIS SHELL CREATED: until now the two surfaces that could hold that lock were two tabs on the
 // same computer, so "close the other one" was advice the operator could act on in one second. A phone and a laptop
-// are not two tabs. The brief for this whole initiative assumed «dos frontends se conectan al mismo server, y ya
-// está» — almost. The voice is the one thing that cannot be in two places.
+// are not two tabs. The brief for this whole initiative assumed “two frontends connect to the same server, and that's
+// it” — almost. The voice is the one thing that cannot be in two places.
 //
 // THE ANSWER: do not fight, do not retry in a loop, and above all do not paint the phone as live while it holds no
 // lock. Say where the voice is, and offer to bring it here — one tap. The surface that loses it drops to chat +

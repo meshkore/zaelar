@@ -1,6 +1,6 @@
-"""nucleo/flash/frontend.py — gestor de frontend/widgets del FlashBrain (V2-004 · T62).
+"""nucleo/flash/frontend.py — FlashBrain frontend/widget manager (V2-004 · T62).
 
-Traduce las decisiones de la capa refleja al protocolo de tags que ya entiende el frontend
+Translates reflective-layer decisions into the tag protocol already understood by the frontend
 (`voice/tag_protocol.py`): `[[show:<id>]]`, `[[close:<id>]]` / `[[close]]`, `[[move:<id>:<where>]]`. El modelo
 rápido emite estas tags como texto; `voice.tag_protocol.strip_tags` las saca de la voz y las despacha al canvas
 (el provider `nucleo.py` es quien conecta el `emit`). Aquí viven los helpers que COMPONEN esas tags y, sobre
@@ -17,18 +17,18 @@ _ALLOWED_WHERE = {"izquierda", "derecha", "centro", "arriba", "abajo",
 
 
 def show(widget_id: str) -> str:
-    """Tag para abrir un widget en el canvas."""
+    """Tag for opening a widget on the canvas."""
     return f"[[show:{(widget_id or '').strip().lower()}]]"
 
 
 def close(widget_id: str | None = None) -> str:
-    """Tag para cerrar un widget (o TODOS si `widget_id` es vacío)."""
+    """Tag for closing a widget (or ALL if `widget_id` is empty)."""
     wid = (widget_id or "").strip().lower()
     return f"[[close:{wid}]]" if wid else "[[close]]"
 
 
 def move(widget_id: str, where: str) -> str:
-    """Tag para reposicionar un widget. `where` debe ser una dirección conocida, si no se ignora (cadena vacía)."""
+    """Tag for repositioning a widget. `where` must be a known direction; otherwise it is ignored (empty string)."""
     wid = (widget_id or "").strip().lower()
     w = (where or "").strip().lower()
     if not wid or w not in _ALLOWED_WHERE:
@@ -36,9 +36,9 @@ def move(widget_id: str, where: str) -> str:
     return f"[[move:{wid}:{w}]]"
 
 
-# Verbos de CANVAS que el modelo pequeño a veces cuela como "acción" de `widget_data` en sesiones largas
+# CANVAS verbs that the small model sometimes slips in as a `widget_data` "action" during long sessions
 # (diag 2026-07-15: `widget_data(widget_id="clock", action="show")` ante "muéstrame un reloj"). NO son data-ops:
-# son la frontera CANVAS vs DATOS (V2-027). Solo aplican cuando la acción NO está declarada en el manifest (una
+# they are the CANVAS vs DATA boundary (V2-027). They apply only when the action is NOT declared in the manifest (a
 # acción declarada que se llame "show" es del widget y manda). es/en, acento-insensible.
 _CANVAS_SHOW = {"show", "open", "display", "view", "reveal", "unhide", "mostrar", "abrir", "abre", "muestra",
                 "ensenar", "ensena", "ver"}
@@ -46,9 +46,9 @@ _CANVAS_CLOSE = {"close", "hide", "cerrar", "cierra", "ocultar", "oculta", "esco
 
 
 def canvas_verb(action: str) -> str | None:
-    """Si `action` es un VERBO DE CANVAS (mostrar/cerrar la tarjeta) y no una data-op, devuelve la tag canónica
-    ('show'|'close'); None si no lo es. Compartido por la voz (`providers/nucleo.py`) y el probe (misma
-    semántica en ambos canales). El llamante debe comprobar ANTES que la acción NO está declarada en el manifest."""
+    """If `action` is a CANVAS VERB (show/close the card) rather than a data op, return the canonical tag
+    ('show'|'close'); None otherwise. Shared by voice (`providers/nucleo.py`) and the probe (same
+    semantics in both channels). The caller must check FIRST that the action is NOT declared in the manifest."""
     import unicodedata
     a = "".join(c for c in unicodedata.normalize("NFKD", (action or "").strip().lower())
                 if not unicodedata.combining(c))

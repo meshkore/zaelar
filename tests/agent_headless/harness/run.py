@@ -52,8 +52,8 @@ def run_conversation(persona: str, max_user_turns: int = MAX_USER_TURNS) -> dict
     transcript = []
     lat = []
 
-    # v2 «Colmena» (V2-009): el harness conversacional habla con el modelo de asistente directamente (no hay
-    # agente ACP externo que primar). La adaptación completa del arnés al cerebro propio es V2-010.
+    # v2 «Colmena» (V2-009): the conversational harness talks directly to the assistant model (there is no
+    # external ACP agent to prime). The complete adaptation of the harness to the native brain is V2-010.
     def reply(history):
         return assistant_reply(history)
 

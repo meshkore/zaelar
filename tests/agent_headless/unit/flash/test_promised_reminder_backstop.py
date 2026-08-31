@@ -1,15 +1,15 @@
-"""V2-146 (`remember-and-remind-deadline`) — «te avisaré el miércoles» con `scheduled_jobs.created` VACÍO.
+"""V2-146 (`remember-and-remind-deadline`) — “I’ll remind you on Wednesday” with `scheduled_jobs.created` EMPTY.
 
-Tres turnos, y los dos que zaelar dijo prometen el aviso: «voy a… programar el recordatorio para el miércoles» y
-«sí, ya está… te avisaré el miércoles». No había ningún cron. El ejecutor de tags funciona —lo verificó V2-134
-con sus propios tests— y el prompt lo pide con todas las letras desde V2-121; lo que faltaba era hacerlo cuando
-el modelo promete en prosa y no emite la tag.
+Three turns, and both in which zaelar says it promises the reminder: “I’m going to… schedule the reminder for
+Wednesday” and “yes, it’s done… I’ll remind you on Wednesday.” There was no cron. The tag executor works —V2-134
+verified it with its own tests— and the prompt has explicitly requested it since V2-121; what was missing was doing
+it when the model promises it in prose and emits no tag.
 
-Un backstop que programa avisos tiene que ser cobarde con las fechas: un aviso mal fechado no se nota hasta el
-día que no suena (V2-121). Por eso `scheduler.parse_when` devuelve "" ante cualquier expresión que no sea
-inequívoca, y ante DOS días en la misma frase — «el JUEVES tengo que renovar… y recuérdamelo el MIÉRCOLES» los
-tiene los dos — se niega en vez de elegir. En la respuesta sí se puede desempatar, y no por adivinación sino por
-posición: lo que viene DESPUÉS de «te avisaré» es cuándo va el aviso.
+An alert-scheduling backstop has to be cautious with dates: a wrongly dated alert is not noticed until the day it
+does not ring (V2-121). That is why `scheduler.parse_when` returns "" for any expression that is not unambiguous,
+and when there are TWO days in the same sentence — “I have to renew… on THURSDAY, and remind me on WEDNESDAY,” which
+contains both — it refuses rather than choosing. In the reply, ties can be broken, not by guessing but by position:
+what comes AFTER “I’ll remind you” is when the alert belongs.
 """
 from __future__ import annotations
 
@@ -191,12 +191,12 @@ def test_the_whole_turn_end_to_end(monkeypatch):
     assert g.promises_a_dated_reminder(REPLY_151, ASK) == "2026-08-19 09:00"
 
 
-# ── V2-153: el mismo aviso, prometido en dos turnos, se programaba DOS veces ──────────────────────────────────
+# ── V2-153: the same alert, promised in two turns, was scheduled TWICE ───────────────────────────────────────
 #
-# La corrida de las 16:56 dejó el mecanismo por fin NO vacío —que era lo que V2-151 perseguía— y con dos crons
-# idénticos dentro: `2026-08-26 09:00` los dos, uno con la petición real de prompt y otro con «Perfecto, gracias.
-# Así no se me pasa.», porque el backstop disparó en el turno que prometía y otra vez en el que lo reafirmaba.
-# Medido contra el scheduler real: dos `create()` con la misma spec devuelven ok las dos y dejan dos jobs vivos.
+# The 16:56 run finally left the mechanism NOT empty —which was what V2-151 was pursuing— and with two identical crons
+# inside: both `2026-08-26 09:00`, one with the actual prompt request and the other with “Perfect, thanks.
+# That way I won’t miss it,” because the backstop fired on the promising turn and again on the reaffirming turn.
+# Measured against the real scheduler: two `create()` calls with the same spec both return ok and leave two live jobs.
 def _n(text: str) -> str:
     import unicodedata as _ud
     return "".join(c for c in _ud.normalize("NFKD", text) if not _ud.combining(c)).lower()
@@ -210,12 +210,12 @@ ACK = "Perfecto, gracias. Así no se me pasa."
 def test_the_first_promise_schedules_the_notice(fresh_db):
     cron = g.dated_reminder_backstop(REPLY_T1, ASK)
     assert cron and cron["schedule"]
-    # V2-167 cambió esta línea A PROPÓSITO. Antes el prompt era la PETICIÓN literal, y lo que se midió al
-    # dispararse es que al agente se le pedía «Apúntame que el jueves… y recuérdamelo el miércoles» — o sea,
-    # PROGRAMAR el aviso otra vez, no darlo. Un cron cuyo texto reabre el encargo no es un recordatorio.
+    # V2-167 changed this line ON PURPOSE. Previously the prompt was the literal REQUEST, and what was measured when
+    # it fired was that the agent was asked “Note that I have to renew on Thursday… and remind me on Wednesday” —in
+    # other words, to SCHEDULE the alert again, not deliver it. A cron whose text reopens the task is not a reminder.
     assert cron["prompt"].lower().startswith("avisa al operador")
-    assert "seguro del coche" in cron["prompt"]      # y sigue llevando el QUÉ, que es lo que se perdía
-    assert "recuerdamelo" not in _n(cron["prompt"])  # sin la petición de programar dentro
+    assert "seguro del coche" in cron["prompt"]      # and it still carries the WHAT, which was what got lost
+    assert "recuerdamelo" not in _n(cron["prompt"])  # without the scheduling request inside
 
 
 def test_and_reaffirming_it_next_turn_does_not_schedule_a_second_one(fresh_db):
@@ -241,7 +241,7 @@ def test_and_a_promise_with_no_resolvable_moment_still_schedules_nothing(fresh_d
     assert g.dated_reminder_backstop("Te aviso en cuanto lo tenga.", "busca un hotel") is None
 
 
-# ── V2-159: el aviso ya estaba; faltaba la OTRA mitad ─────────────────────────────────────────────────────────
+# ── V2-159: the alert already existed; the OTHER half was missing ───────────────────────────────────────────
 #
 # La corrida del 18:56 dejó por fin UN solo cron, el miércoles correcto y con la petición del operador de prompt
 # —los arreglos de V2-151 y V2-153 aterrizaron— y aun así falló: «el sistema solo recordó el CUÁNDO (el cron)
@@ -323,7 +323,7 @@ def test_the_two_halves_are_independent(fresh_db, monkeypatch):
     assert cron["schedule"].split(" ")[0] != note["date"]
 
 
-# ── V2-167: un aviso llega ANTES de aquello de lo que avisa ───────────────────────────────────────────────
+# ── V2-167: an alert arrives BEFORE the thing it alerts about ─────────────────────────────────────────────
 #
 # La corrida del 19:46 dejó el caso «más limpio de los cinco» y aun así inútil: DOS turnos, todo comprobable, y
 # el trabajo programado decía `2026-08-26 09:00` para avisar de algo del JUEVES 2026-08-20 — seis días TARDE.
@@ -377,7 +377,7 @@ def test_the_whole_case_end_to_end(fresh_db, monkeypatch):
     assert "seguro" in note["title"] and note["date"] == "2026-08-20"
 
 
-# ── el mismo encargo, los SIETE días de la semana ─────────────────────────────────────────────────────────
+# ── the same task, all SEVEN days of the week ─────────────────────────────────────────────────────────────
 #
 # Estos tests se escribieron un miércoles y estaban verdes… de lunes a miércoles. El 2026-08-20, un jueves,
 # tres de ellos se pusieron rojos SIN que nadie tocara el código: «el jueves» y «el miércoles» son fechas
@@ -410,7 +410,7 @@ def test_the_backstop_behaves_the_same_on_every_day_of_the_week(fresh_db, monkey
     assert g.dated_reminder_backstop("Te aviso el viernes a las 18:30.", "recuérdame lo del taller") is not None
 
 
-# ── V2-176: el QUÉ no está en el turno que fija el CUÁNDO ──────────────────────────────────────────────────
+# ── V2-176: the WHAT is not in the turn that fixes the WHEN ───────────────────────────────────────────────
 #
 # Corrida real de `remember-and-remind-deadline`, 2026-08-20 01:01 (overall 1/5). El operador dice la
 # obligación una vez y luego gasta dos turnos corrigiendo la fecha; para cuando la fija, el sujeto ya no está
@@ -487,7 +487,7 @@ def test_the_helper_is_wired_into_BOTH_channels():
         assert "dated_reminder_backstop(" in src and "window=" in src
 
 
-# ── V2-194: el apunte tampoco puede escribirse dos veces ──────────────────────────────────────────────────
+# ── V2-194: the agenda entry cannot be written twice either ──────────────────────────────────────────────
 #
 # Del sandbox de la corrida del 2026-08-20 02:34, leído de su propio workspace:
 #
@@ -552,7 +552,7 @@ def test_and_the_write_path_actually_consults_it():
     assert "already_in_agenda(" in inspect.getsource(probe.run_turn)
 
 
-# ── V2-167 · la promesa que NO nombra el día, y el día que solo está en la frase del operador ────────────────
+# ── V2-167 · the promise that does NOT name the day, and the day found only in the operator’s sentence ─────
 #
 # Ronda 11 de `remember-and-remind-deadline` (2026-08-20 10:26), tres turnos enteros:
 #
@@ -629,7 +629,7 @@ def test_and_a_reply_that_promises_nothing_resolves_nothing(monkeypatch):
     assert g.promises_a_dated_reminder("No te lo puedo recordar, no tengo agenda.", ASK) == ""
 
 
-# ── V2-167 · una fecha sola no es un compromiso ──────────────────────────────────────────────────────────────
+# ── V2-167 · a date alone is not a commitment ───────────────────────────────────────────────────────────────
 #
 # Encontrado a UNA LÍNEA del arreglo de arriba, probando que no rompía nada: «El martes recuérdame lo del
 # seguro» programaba el aviso PARA ESE INSTANTE. `commitment_clause` corta en el verbo de la petición y la fecha
@@ -661,7 +661,7 @@ def test_the_measured_case_is_untouched_by_that_rule(monkeypatch):
     assert g.dated_reminder_backstop(REPLY_NO_DAY, ASK)["schedule"] == "2026-08-19 09:00"
 
 
-# ── V2-167 ronda 12 (2026-08-20 12:39) · el operador pide el aviso en SUBJUNTIVO ─────────────────────────────
+# ── V2-167 round 12 (2026-08-20 12:39) · the operator requests the alert in the SUBJUNCTIVE ────────────────
 #
 # Conversación medida, cuatro turnos, `mecanismo 1` y `scheduled_jobs.created` VACÍO — con la auditoría del
 # stream LIMPIA (cero `is_error`), o sea que no había ninguna excepción comiéndose nada: fallaba la lógica.
@@ -746,7 +746,7 @@ def test_the_ask_pattern_is_not_a_negation_detector(monkeypatch):
     assert g.dated_reminder_backstop("Vale, entendido.", "no me avises de nada el miércoles") is None
 
 
-# ── seguir PREGUNTANDO no es haber cerrado nada (las DOS ramas) ──────────────────────────────────────────────
+# ── continuing to ASK does not mean anything has been settled (both branches) ─────────────────────────────
 #
 # La regla ya estaba escrita para la rama que lee la obligación de la ventana —«a question mark means it is
 # still asking, and nothing gets filed on a date it has not settled»— y a la rama de la PROMESA nunca se le
@@ -775,7 +775,7 @@ def test_the_junk_title_that_was_reproduced_can_no_longer_be_built(monkeypatch):
         assert note is None or not note["title"].strip().startswith("¿")
 
 
-# ── V2-356: y el otro campo de la misma tag ─────────────────────────────────────────────────────────────
+# ── V2-356: and the other field of the same tag ────────────────────────────────────────────────────────────
 #
 # V2-214 blindó el `prompt` de la tag del modelo porque «el backstop ya componía la forma segura y la tag del
 # modelo entraba cruda por la otra puerta». Dejó el `schedule` entrando igual de crudo, y ése es el que
@@ -865,7 +865,7 @@ def test_las_DOS_puertas_lo_llaman():
     assert "safe_reminder_schedule(" in _limpio("voice/engine/llm/providers/nucleo.py"), "la puerta del proveedor"
 
 
-# ── Que el reloj esté CONGELADO de verdad (2026-08-28) ──────────────────────────────────────────────────────
+# ── Making sure the clock is truly FROZEN (2026-08-28) ─────────────────────────────────────────────────────
 def test_la_correccion_no_depende_del_dia_en_que_se_corra_el_test():
     """Los dos tests de arriba cayeron al pasar la medianoche del 27 al 28 de agosto de 2026, y hasta entonces
     habían pasado **por coincidencia del calendario**: el fixture congelaba `time.time()`, pero la guarda

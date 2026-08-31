@@ -25,7 +25,7 @@ must not be measured as a CRASH.
 """
 from __future__ import annotations
 
-#: Los puentes que servimos nosotros. Un `usage:` de otro binario no lo sabemos interpretar y se deja como está.
+#: The bridges we serve ourselves. We cannot interpret a `usage:` message from another binary, so it is left as is.
 OUR_BRIDGES = ("nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
 
 
@@ -36,6 +36,6 @@ def is_menu_probe(text: str) -> bool:
         return False
     if not any(b in low for b in OUR_BRIDGES):
         return False
-    # `…required: cmd` y nada más. Si falta OTRO argumento, alguien sí eligió subcomando y la llamada está rota.
+    # `…required: cmd` and nothing else. If ANOTHER argument is missing, someone did choose a subcommand and the call is broken.
     tras = low.split("arguments are required:", 1)[1].strip()
     return tras.split()[0].rstrip(",") == "cmd" if tras.split() else False

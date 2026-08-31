@@ -78,7 +78,7 @@ def extract_code(raw: str | None) -> str | None:
     retries. The cost is not cosmetic: the same code resolves `nucleo/flash/site_catalog.py`'s locale, so the
     errand goes to the wrong country's sites on turn 1 — the exact failure this module blocks the turn to avoid.
 
-    Seen live once in 66 saved rounds (2026-08-21 02:39), and the arnés placed it: the classifier only answers
+    Seen live once in 66 saved rounds (2026-08-21 02:39), and the harness recorded it: the classifier only answers
     with a SENTENCE when the model is degraded or relaying. So the rule is «unambiguous or nothing»:
 
       1. the cleaned reply IS a code -> take it (the healthy path, 65 of those 66 rounds);

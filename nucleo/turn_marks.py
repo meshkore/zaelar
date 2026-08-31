@@ -1,16 +1,16 @@
-"""Lo que un turno YA le puso delante al modelo — y por tanto no hay que volver a ponerle.
+"""What a turn has ALREADY put in front of the model — and therefore must not be put in front of it again.
 
-El prompt tiene varias caras que dicen «díselo LA PRIMERA VEZ» (la muerte de una tarea, la oferta de pararla)
-y el modelo **no puede saber si es la primera**: eso es un hecho NUESTRO. V2-224 lo aprendió con el aviso de
-muerte —la misma cláusula anti-repetición falló en las DOS direcciones opuestas en dos rondas del mismo
-commit— y la conclusión fue que «¿ya se lo dije?» no se deduce de la ventana, se cuenta.
+The prompt has several faces that say «tell it to them THE FIRST TIME» (a task's death, the offer to stop it)
+and the model **cannot know whether it is the first**: that is OUR fact. V2-224 learned this with the death
+notice —the same anti-repetition clause failed in BOTH opposite directions in two rounds of the same
+commit— and the conclusion was that «did I already tell it?» is not deduced from the window; it is counted.
 
-Vive aparte porque es un asunto propio y `dispatch` es un fichero-dios con techo: el trinquete pidió extraer
-un módulo en vez de subirlo, y tenía razón. Se re-exporta desde `dispatch` para que los llamantes sigan
-pidiéndoselo a la fachada de siempre.
+It lives separately because it is its own concern and `dispatch` is a capped god-file: the ratchet asked to
+extract a module instead of making it bigger, and it was right. It is re-exported from `dispatch` so callers
+can continue asking for it through the usual facade.
 
-**La regla que gobierna a todos sus inquilinos, y es de V2-224: callar la repetición NO es callar el estado.**
-Lo que deja de darse es el AVISO; el hecho —sigue muerta, sigue sin avanzar, y desde cuándo— se queda.
+**The rule governing all its tenants, from V2-224, is: silencing repetition is NOT silencing state.**
+What stops being given is the NOTICE; the fact —it is still dead, it is still not progressing, and since when— remains.
 """
 from __future__ import annotations
 
@@ -18,20 +18,20 @@ _STALL_OFFERED: dict[str, int] = {}
 
 
 def mark_stall_offered(task_ids) -> None:
-    """Un turno ya ha llevado delante la OFERTA DE PARAR esta tarea (V2-454).
+    """A turn has already carried the OFFER TO STOP this task in front of the model (V2-454).
 
-    Hermano exacto de `mark_death_reported`, y por la misma razón: el bloque dice «dilo con esas letras **la
-    primera vez** que salga a colación y ofrece pararla», y el modelo **no puede saber si es la primera** — eso
-    es un hecho NUESTRO, no algo que se deduzca de la ventana. Sin contarlo, la oferta se renderiza en todos
-    los turnos que la tarea siga atascada y el turno la repite: medido sobre las 334 rondas guardadas,
-    **49 (14 %) repiten la oferta de parar dos o más veces**, y diez de las últimas quince del 2026-08-28.
+    Exact sibling of `mark_death_reported`, and for the same reason: the block says «say it in those words **the
+    first time** it comes up and offer to stop it», and the model **cannot know whether it is the first** — that
+    is OUR fact, not something deduced from the window. Without counting it, the offer is rendered on every
+    turn while the task remains stuck and the turn repeats it: measured across the 334 saved rounds,
+    **49 (14 %) repeat the offer to stop two or more times**, including ten of the last fifteen on 2026-08-28.
 
-    El daño no es la redundancia: el operador YA CONTESTÓ. En `search-buy-used-car` (10:57) dijo «párale y
-    prueba de nuevo, o miramos por otro sitio, tú decides» y el turno siguiente volvió a plantear la misma
-    disyuntiva — el juez lo puso de bloqueador [alta].
+    The harm is not the redundancy: the operator HAS ALREADY ANSWERED. In `search-buy-used-car` (10:57) they
+    said «stop it and try again, or we can look elsewhere; you decide», and the next turn raised the same
+    dilemma again — the judge marked it as a blocker [high].
 
-    Y la regla que gobierna la redacción es la que dejó V2-224: **callar la repetición no es callar el
-    estado.** El HECHO (sigue sin avanzar, y desde cuándo) se queda; lo que deja de darse es la oferta.
+    And the rule governing the wording is the one V2-224 left behind: **silencing repetition is not silencing
+    state.** The FACT (it is still not progressing, and since when) remains; what stops being given is the offer.
     """
     for tid in (task_ids or []):
         t = str(tid)
@@ -39,7 +39,6 @@ def mark_stall_offered(task_ids) -> None:
 
 
 def stall_offered(task_id) -> int:
-    """Cuántos turnos han llevado ya la oferta de parar ESTA tarea."""
+    """How many turns have already carried the offer to stop THIS task."""
     return int(_STALL_OFFERED.get(str(task_id)) or 0)
-
 

@@ -1,17 +1,17 @@
-"""V2-150 (`restaurant-tonight-madrid`) — la tarea había TERMINADO y el turno seguía contando que iba.
+"""V2-150 (`restaurant-tonight-madrid`) — the task had FINISHED and the turn kept claiming it was ongoing.
 
-El informe decía `status=done url=` y zaelar: «los procesos siguen en marcha — llevan casi 5 minutos». No es el
-modelo inventando por gusto: el cerebro solo ve tareas ACTIVAS (`active_summaries`/`active_progress`), así que en
-cuanto esta acabó **desapareció del estado**. No quedaba ningún hecho diciendo que había terminado, y menos que
-había terminado vacía — se le había quitado de delante lo único que podía contradecirle, y el turno rellenó el
-hueco con lo que aún tenía: el worker.
+The report said `status=done url=` and zaelar said: “the processes are still running — they have been for almost
+5 minutes.” This is not the model making things up for no reason: the brain only sees ACTIVE tasks
+(`active_summaries`/`active_progress`), so as soon as this one ended it **disappeared from the state**. There was no
+fact saying that it had finished, much less that it had finished empty — the one thing that could contradict it had
+been removed from view, and the turn filled the gap with what it still had: the worker.
 
-Y el mismo run había DESCUBIERTO «Casa Lucio solo acepta reservas por teléfono» con los números. El operador se
-enteró en el último turno, cuando pidió pararlo. El hito estaba en la tarea desde el principio; al cerebro le
-llegaba un CONTADOR de pasos, y un número no se puede decir en voz alta.
+And the same run had DISCOVERED “Casa Lucio only accepts reservations by phone” along with the numbers. The
+operator found out in the last turn, when they asked to stop it. The milestone had been in the task from the start;
+the brain received a step COUNTER, and a number cannot be spoken aloud.
 
-Mismo remedio que `silent_s` (V2-131) y que la página actual (V2-145), un paso más: un FINAL es un hecho, y una
-tarea que acabó sin resultado es el más útil de los tres.
+Same remedy as `silent_s` (V2-131) and the current page (V2-145), one step further: an ENDING is a fact, and a task
+that ended without a result is the most useful of the three.
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def test_a_task_that_ended_WITH_something_says_that_instead(no_live_tasks, monke
 
 
 def test_what_it_last_saw_travels_with_the_ending(no_live_tasks, monkeypatch):
-    """«Solo acepta reservas por teléfono» ES el resultado del encargo, aunque no sea el que se esperaba."""
+    """“Only accepts reservations by phone” IS the result of the assignment, even if it is not the expected one."""
     monkeypatch.setattr(nt, "recently_finished",
                         lambda now=None, limit=3: _finished(
                             last_event="Casa Lucio solo acepta reservas por teléfono: 91 365 82 17"))
@@ -61,7 +61,7 @@ def test_what_it_last_saw_travels_with_the_ending(no_live_tasks, monkeypatch):
 
 
 def test_with_nothing_finished_the_line_does_not_appear(no_live_tasks, monkeypatch):
-    """Coste CERO cuando no hay nada que decir — como el resto de marcas de este bloque."""
+    """ZERO cost when there is nothing to say — like the other markers in this block."""
     monkeypatch.setattr(nt, "recently_finished", lambda now=None, limit=3: [])
     assert _line("NAVEGADOR — YA TERMINADO") == ""
 
@@ -89,11 +89,11 @@ def test_recently_finished_reports_what_the_task_ended_with():
     assert rows and rows[0]["status"] == "done"
     assert rows[0]["has_results"] is False
     assert "91 365 82 17" in rows[0]["last_event"]
-    assert not [t for t in nt.active_progress() if t["id"] == tid]   # y ya NO está entre las vivas
+    assert not [t for t in nt.active_progress() if t["id"] == tid]   # and it is NO longer among the live ones
 
 
 def test_an_old_ending_stops_being_reported():
-    """Suficiente para cubrir el turno del «¿lo conseguiste?», no para hablar del recado de ayer."""
+    """Enough to cover the “did you get it?” turn, not to talk about yesterday’s message."""
     import time as _t
     tid = nt.create("un encargo viejo")
     nt.finish(tid, "done")
@@ -102,16 +102,16 @@ def test_an_old_ending_stops_being_reported():
     assert not [r for r in nt.recently_finished(now=later) if r["id"] == tid]
 
 
-# ── V2-299: «SIN traer nada» se decidía por el registro de la TAREA, y la hoja es quien fía ─────────────────
+# ── V2-299: “WITHOUT bringing anything” was decided by the TASK record, and the sheet is the authority ─────────
 #
-# Medido el 2026-08-24 (segunda familia del arnés: 7 rondas con las filas en la hoja 42-209 s antes del último
-# turno): la tarea terminaba, `has_results` era False porque nadie llegó a llamar a `set_results` —worker
-# muerto, relevo—, y esta cara decía «terminó SIN traer nada» con 21 filas CON NOMBRE en la hoja. Un paso peor
-# que la desaparición que arregló V2-150: aquello era un hueco, esto es una mentira activa en el prompt.
+# Measured on 2026-08-24 (second harness family: 7 rounds with the rows in the sheet 42–209 s before the last
+# turn): the task ended, `has_results` was False because nobody got as far as calling `set_results` —dead worker,
+# handoff—, and this view said “finished WITHOUT bringing anything” with 21 NAMED rows in the sheet. One step worse
+# than the disappearance fixed by V2-150: that was a gap, this is an active lie in the prompt.
 #
-# Estos tests montan la CADENA REAL (tarea en el registro + filas por `intake.push` + `recently_finished` de
-# verdad) en vez de parchear `_sheet_top_rows`: el cableado es lo que se mide, y parchear la costura bajo test
-# dejaría verde un desarme que la quitara.
+# These tests assemble the REAL CHAIN (task in the record + rows via `intake.push` + the real
+# `recently_finished`) instead of patching `_sheet_top_rows`: the wiring is what is measured, and patching the seam
+# under test would leave green a dismantling that removed it.
 
 @pytest.fixture
 def _isolated_sheet(tmp_path, monkeypatch):
@@ -136,8 +136,8 @@ def _done_task_with_sheet(rows, status="done", **over):
 
 
 def test_rows_in_the_sheet_beat_an_empty_task_record(_isolated_sheet):
-    """El caso medido: `set_results` nunca corrió, la hoja tiene las filas. La hoja gana — y como la tarea ya
-    TERMINÓ, decir «en la hoja» es un hecho, no la afirmación de pantalla que V2-278 prohíbe en vuelo."""
+    """The measured case: `set_results` never ran; the sheet has the rows. The sheet wins — and since the task has
+    already FINISHED, saying “in the sheet” is a fact, not the on-screen claim that V2-278 prohibits in flight."""
     _done_task_with_sheet([{"title": "Fender CD-60", "price": "120 €", "url": "https://x/1"},
                            {"title": "Crafter FX 550", "price": "140 €", "url": "https://x/2"}])
     line = _line("NAVEGADOR — YA TERMINADO")
@@ -149,15 +149,15 @@ def test_rows_in_the_sheet_beat_an_empty_task_record(_isolated_sheet):
 
 
 def test_a_task_that_ended_empty_STILL_says_so(_isolated_sheet):
-    """La otra mitad de V2-150 no se pierde: sin filas y sin resultado, «terminó SIN traer nada» sigue siendo
-    el hecho más útil de los tres."""
+    """The other half of V2-150 is not lost: with no rows and no result, “finished WITHOUT bringing anything” remains
+    the most useful fact of the three."""
     _done_task_with_sheet([])
     assert "terminó SIN traer nada" in _line("NAVEGADOR — YA TERMINADO")
 
 
 def test_a_CANCELLED_task_does_not_get_rows_pinned_on_it(_isolated_sheet):
-    """Pararse no es acabar (V2-196): el operador dijo que parásemos, y colgarle filas a la cancelada invita a
-    tratarlas como un final que no ocurrió. El alcance del arreglo es la TERMINADA, y solo ella."""
+    """Stopping is not finishing (V2-196): the operator said to stop, and attaching rows to the cancelled task invites
+    treating them as an ending that never happened. The fix applies to the FINISHED task, and only to it."""
     _done_task_with_sheet([{"title": "Fender CD-60", "price": "120 €"}], status="cancelled")
     line = _line("NAVEGADOR — YA TERMINADO")
     assert "se PARÓ (cancelada)" in line

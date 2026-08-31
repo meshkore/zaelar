@@ -30,7 +30,7 @@ export function startEcg(canvas) {
   // An eye is two curves meeting at the corners. This canvas draws ONLY the LOWER lid = the live ECG trace (the
   // pulse), a slice of the almond circle with its tips at the canthi on the orb's centre line (±S, orbY) and its
   // bow clearing the orb below (bottom at +a, a > half). The UPPER lid is NOT a stroke — it's the ICONS
-  // themselves ("arriba van los iconos, no una raya"), laid out along the SAME circle by styles.css §orbctl
+  // themselves ("the icons go above, not a line"), laid out along the SAME circle by styles.css §orbctl
   // (same R = (S²+a²)/2a, same corners) so both lids close the almond with the orb as iris. Geometry recomputed
   // on resize; the whole orbwrap drags together, so the orb→canvas offset only changes on layout.
   let W = 0, H = 0;
@@ -96,25 +96,25 @@ export function startEcg(canvas) {
 
   // store.pulse → a beat. tick = the real ~1 Hz server heartbeat (rest amplitude); turn = a FlashBrain turn (taller).
   //
-  // PERO SOLO SI EL AGENTE ESTÁ VIVO (2026-08-10, fallo reportado por el operador con captura: «fíjate que está el
-  // ECG a tope y el agente debería estar completamente parado»). El pulso que llega es del SERVIDOR (loop.tick de
-  // nucleo/loop.py, ~1 Hz), y el servidor sigue latiendo aunque la sesión de voz esté apagada — así que el
-  // electrocardiograma, que es lo que MÁS dice «estoy vivo» en toda la pantalla, seguía a pleno pulmón sobre un
-  // agente detenido. Ahora un agente parado da una línea PLANA, que es la lectura honesta: no late porque no está.
-  // (El arreglo de 2026-07-23 atacó solo los latidos EXTRA por carga —`activeLoad`—, no el pulso base.)
+  // BUT ONLY WHILE THE AGENT IS LIVE (2026-08-10, failure reported by the operator with a screenshot: “the ECG is
+  // maxed out and the agent should be completely stopped”). The incoming pulse is from the SERVER (`loop.tick` in
+  // nucleo/loop.py, ~1 Hz), and the server keeps beating even when voice is off—so the ECG, the clearest “I'm alive”
+  // signal on the screen, stayed fully active over a stopped agent. A stopped agent now shows a FLAT line, the honest
+  // reading: it does not beat because it is not running. (The 2026-07-23 fix addressed only EXTRA load beats—
+  // `activeLoad`—not the base pulse.)
   let lastSeq = 0;
   createEffect(() => {
     const p = store.pulse();
     if (!p || p.seq === lastSeq) return;
-    lastSeq = p.seq;                          // se consume igual: al volver a encender no se descarga la cola
+    lastSeq = p.seq;                          // still consume it: turning on again does not drain the queue
     if (!store.agentLive()) return;
     triggerBeat(p.kind === "turn" ? 1.15 : 0.85);
   });
 
-  // V2-065: una tarea PAUSADA (⏻) está deliberadamente congelada — no debe seguir acelerando el pulso, o
-  // "apagar" contradiría su propia señal visual (el pulso seguiría corriendo mientras todo está quieto).
+  // V2-065: a PAUSED task (⏻) is deliberately frozen—it must not keep accelerating the pulse, or "off" would
+  // contradict its own visual signal (the pulse would keep running while everything is still).
   const activeLoad = () =>
-    store.agentLive()      // parado = ni latido base ni latidos por carga: la línea se queda plana de verdad
+    store.agentLive()      // stopped = neither base nor load beats: the line is genuinely flat
       ? (store.tasks() || []).filter(t => !t.done && !t.paused).length + (store.botSpeaking() ? 1 : 0)
       : 0;
 
@@ -161,7 +161,7 @@ export function startEcg(canvas) {
     const accent = css("--hb-accent", "#2DD4BF");
     ctx.lineJoin = "round"; ctx.lineCap = "round";
     // LOWER LID = the live ECG trace (the pulse) — the ONLY stroke this canvas draws (operator 2026-07-22: "abajo
-    // del ojo va el pulso, y arriba van los iconos, no una raya"). The UPPER lid is formed by the ICONS themselves,
+    // the eye carries the pulse, and the icons go above, not a line"). The UPPER lid is formed by the ICONS themselves,
     // laid out along this same almond circle by the CSS in styles.css §orbctl — same R, same corners.
     ctx.lineWidth = 1.7; ctx.strokeStyle = accent;
     ctx.shadowColor = accent; ctx.shadowBlur = 7;

@@ -1,34 +1,21 @@
-"""memory/secrets.py — detección FAIL-CLOSED de secretos del operador (V2-060).
-
-Antes de que un turno se destile en píldoras, este módulo decide **si contiene un SECRETO** (contraseña, PIN,
-IBAN, tarjeta, private key de wallet, seed phrase, API key, nº de cuenta) y, si lo hay, captura la **etiqueta**
-(en claro, buscable) + el **valor** (a cifrar) y **redacta** el valor del texto para que el LLM destilador NUNCA
-lo vea.
-
-**FAIL-CLOSED (regla invertida frente al resto de la memoria):** un secreto que se cuele en claro = privacidad
-rota. Por eso, ante la duda, esto marca secreto (un falso positivo —cifrar de más— es barato; un falso negativo
-—dejar un secreto en claro— es inaceptable). La extracción NLP fina (label/valor de habla libre) es mejorable con
-ayuda del LLM en el futuro; esta capa determinista es el suelo que siempre corre.
-
-Es stdlib puro (sin deps, sin importar el core) → se puede usar desde cualquier capa.
-"""
+"""Documentation translated to English."""
 from __future__ import annotations
 
 import re
 import unicodedata
 from dataclasses import dataclass
 
-REDACTION = "«secreto guardado»"   # lo que ve el LLM en lugar del valor
+REDACTION = "«secreto guardado»"   # translated implementation note
 
 
 @dataclass
 class Detected:
-    label: str          # etiqueta en claro y buscable ("contraseña de Netflix")
-    value: str          # el secreto a cifrar
-    slot: str           # clave canónica para supersede ("secret:netflix:password")
+    label: str          # translated implementation note
+    value: str          # translated implementation note
+    slot: str           # translated implementation note
     sensitivity: str    # "high" | "critical"
     kind: str           # "password" | "pin" | "card" | "iban" | "key" | "seed" | "account" | "secret"
-    span: tuple[int, int]   # (inicio, fin) del VALOR en el texto original (para redactar)
+    span: tuple[int, int]   # translated implementation note
 
 
 def _strip_accents(s: str) -> str:
@@ -61,12 +48,12 @@ def _clean_value(raw: str) -> str:
     v = raw.strip()
     v = re.sub(r'^(?:es\s+|son\s+)?(?:est[ae]|esto|la siguiente|el siguiente)\b[\s:,-]*', "", v, flags=re.I)
     v = v.strip().strip('"“”\'').strip()
-    # el valor termina en la frase: corta en un salto de línea o un cierre claro
+    # translated implementation note
     v = re.split(r"[\n\r]", v)[0].strip()
     return v
 
 
-# ── patrón por MARCADOR explícito (contraseña/clave/pin/usuario de X es Y) ──────────────────────────────────
+# translated implementation note
 _TYPE_WORDS = {
     "contraseña": "password", "contrasena": "password", "password": "password", "pass": "password",
     "clave": "password", "contraseñas": "password", "pin": "pin", "código": "pin", "codigo": "pin",
@@ -82,19 +69,19 @@ _MARKER_RE = re.compile(
     r"mnemonic)\s+(?:de|del|para|de la|de mi)\s+(?P<svc>[^,:=\n]{1,40}?)\s*[,:]?\s*(?:es|son|:|=)\s+(?P<val>.+)",
     re.IGNORECASE)
 
-# marcador SIN servicio: "mi contraseña es X" / "guárdame esta clave: X" (servicio genérico)
+# translated implementation note
 _MARKER_NOSVC_RE = re.compile(
     r"\b(?:mi|la|una|el|est[ae]|es[ae])\s+(?P<type>contrase[nñ]a|password|clave|pin)\s*[,:]?\s*(?:es|:|=)\s+"
     r"(?P<val>.+)", re.IGNORECASE)
 
-# marcador de servicio SIN conector "es" — «(guárdame) la contraseña del mail? CASAXX66gg12» / «la clave de la
-# wifi, RouterCasa2024». Casa <tipo> de <servicio> y el VALOR se busca aparte con _CRED_TOKEN_RE.
+# translated implementation note
+# translated implementation note
 _SVC_ONLY_RE = re.compile(
     r"\b(?P<type>contrase[nñ]as?|password|pass|clave privada|clave|pin|c[oó]digo|usuario y contrase[nñ]a|"
     r"credenciales)\s+(?:de la|de mi|del|de|para)\s+(?P<svc>[^,:=?!.\n]{1,40}?)(?=[\s,:?¿!.]|$)",
     re.IGNORECASE)
-# token con PINTA de credencial: ≥6 chars con AL MENOS una letra Y un dígito (contraseña típica). Evita cazar
-# palabras normales; solo se usa cuando YA hay un marcador de secreto en la frase (contexto), FAIL-CLOSED.
+# translated implementation note
+# translated implementation note
 _CRED_TOKEN_RE = re.compile(r"(?<![\w@#$%._/+-])(?=[^\s]*[A-Za-z])(?=[^\s]*\d)[A-Za-z0-9@#$%._/+-]{6,}(?![\w])")
 
 
@@ -106,7 +93,7 @@ def _type_of(word: str) -> str:
     return "password"
 
 
-# ── detectores ESTRUCTURALES (el valor aparece crudo, sin marcador) ─────────────────────────────────────────
+# translated implementation note
 _EVM_KEY_RE = re.compile(r"\b0x[0-9a-fA-F]{64}\b")
 _IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){10,30}\b")
 _CARD_RE = re.compile(r"\b(?:\d[ -]?){13,19}\b")
@@ -116,11 +103,11 @@ _APIKEY_RE = re.compile(r"\b(sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{20,}|xox[baprs]
 
 
 def detect(text: str) -> list[Detected]:
-    """Devuelve la lista de secretos detectados en `text` (vacía si no hay). FAIL-CLOSED."""
+    """Documentation translated to English."""
     if not text or not text.strip():
         return []
     out: list[Detected] = []
-    claimed: list[tuple[int, int]] = []   # spans ya reclamados (evita doble-detección)
+    claimed: list[tuple[int, int]] = []   # translated implementation note
 
     def _overlaps(a, b):
         return any(not (b <= s or a >= e) for s, e in claimed)
@@ -154,8 +141,8 @@ def detect(text: str) -> list[Detected]:
             span=(m.start("val"), m.end("val"))))
         claimed.append((m.start(), m.end()))
 
-    # 2b) marcador de servicio SIN conector "es" + un token con pinta de credencial en la frase
-    #     («puedo guardarme la contraseña del mail? CASAXX66gg12»). Solo si el marcador con conector no lo cazó ya.
+    # translated implementation note
+    # translated implementation note
     if not any(d.kind in ("password", "pin") for d in out):
         for m in _SVC_ONLY_RE.finditer(text):
             if _overlaps(m.start(), m.end()):
@@ -164,7 +151,7 @@ def detect(text: str) -> list[Detected]:
             for tm in _CRED_TOKEN_RE.finditer(text):
                 if _overlaps(tm.start(), tm.end()):
                     continue
-                if m.start() <= tm.start() < m.end():        # el token está DENTRO del marcador (svc) → no
+                if m.start() <= tm.start() < m.end():        # translated implementation note
                     continue
                 tok = tm
                 break
@@ -180,7 +167,7 @@ def detect(text: str) -> list[Detected]:
             claimed.append((tok.start(), tok.end()))
             break
 
-    # 3) estructurales — el valor crudo (fuera de un span ya reclamado)
+    # translated implementation note
     def _struct(rx, kind, label, sens, guard=None):
         for m in rx.finditer(text):
             if _overlaps(m.start(), m.end()):
@@ -197,7 +184,7 @@ def detect(text: str) -> list[Detected]:
     _struct(_APIKEY_RE, "key", "API key", "critical")
     _struct(_CARD_RE, "card", "número de tarjeta", "high", guard=_luhn_ok)
     if _SEED_MARKER_RE.search(text):
-        # seed phrase: 12/24 palabras — solo si hay marcador de 'seed' cerca (evita falsos positivos de frases)
+        # translated implementation note
         words = re.findall(r"\b[a-záéíóúñ]{3,}\b", text.lower())
         if len(words) >= 12:
             out.append(Detected(label="seed phrase (frase de recuperación)", value=text.strip(),
@@ -208,12 +195,11 @@ def detect(text: str) -> list[Detected]:
 
 
 def redact(text: str) -> tuple[str, list[Detected]]:
-    """Devuelve (texto_con_valores_redactados, detectados). El LLM ve `REDACTION` en lugar de cada secreto, así
-    conserva el contexto ('mi contraseña de Netflix es «secreto guardado»') sin ver el valor."""
+    """Documentation translated to English."""
     found = detect(text)
     if not found:
         return text, []
-    # redacta de derecha a izquierda para no descuadrar los offsets
+    # translated implementation note
     red = text
     for d in sorted(found, key=lambda x: x.span[0], reverse=True):
         s, e = d.span

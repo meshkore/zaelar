@@ -1,12 +1,11 @@
-"""nucleo/agentes/ — la constelación de agentes del SlowBrain tras la interfaz `CodeAgent`. V2-006.
+"""nucleo/agentes/ — the SlowBrain agent constellation behind the `CodeAgent` interface. V2-006.
 
-`base.py` fija la interfaz `CodeAgent` (agnóstica del proveedor); `claude_code.py` la implementa sobre
-Claude Code headless (`claude -p`), `codex.py` sobre Codex — intercambiables, **modelo por invocación**.
-Sobre esta interfaz corren el agente de MEMORIA ★ (`nucleo/memory_agent.py`) y, desde V2-007, los agentes de
-trabajo (web/código/otros).
+`base.py` defines the provider-agnostic `CodeAgent` interface; `claude_code.py` implements it over
+headless Claude Code (`claude -p`), and `codex.py` over Codex — interchangeable, **model per invocation**.
+The MEMORY agent ★ (`nucleo/memory_agent.py`) and, since V2-007, work agents (web/code/other) run through this interface.
 
-`get_agent(provider)` es la SELECCIÓN POR CONFIG: sin argumento lee `config/v2 › code_agent.provider`
-(gestionado por la UI; env `CODE_AGENT_PROVIDER` de fallback). Cambiar el proveedor NO toca al dispatcher.
+`get_agent(provider)` selects from configuration: without an argument it reads `config/v2 › code_agent.provider`
+(managed by the UI; `CODE_AGENT_PROVIDER` is the fallback environment variable). Changing the provider does not affect the dispatcher.
 """
 from __future__ import annotations
 
@@ -16,7 +15,7 @@ from .base import CodeAgent, RunResult, RunSpec, WorkResult  # noqa: F401 (re-ex
 
 __all__ = ["CodeAgent", "RunSpec", "RunResult", "WorkResult", "get_agent", "AGENTS"]
 
-# registro proveedor → clase (ampliable: un proveedor nuevo = una entrada + su módulo)
+# Provider-to-class registry (extensible: a new provider means one entry and its module).
 AGENTS: dict[str, type] = {}
 
 

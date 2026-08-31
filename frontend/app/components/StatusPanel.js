@@ -51,8 +51,8 @@ export function StatusPanel() {
         const extra = items.filter((it) => it.group === "extra");
         const out = [sec(() => t("status.sec_core")), ...core.map((it) => row(it))];
         if (extra.length) out.push(sec(() => t("status.sec_secondary"), "st-sec-2"), ...extra.map((it) => row(it, true)));
-        // Alertas de SALDO (V2-043): solo las APIs en warn/error (crédito agotado / credencial / caída). Los
-        // importes completos viven en el área de configuración (⚙ · resumen de APIs). Nada si no hay alertas.
+        // Alertas of SALDO (V2-043): only the APIs en warn/error (crédito agotado / credencial / caída). Los
+        // importes completos viven en the área of configuration (⚙ · resumen of APIs). Nada si no there is alertas.
         const alerts = store.apiAlerts() || [];
         if (alerts.length) {
           out.push(sec(() => t("status.sec_apis"), "st-sec-2"),
@@ -62,7 +62,7 @@ export function StatusPanel() {
       },
     ),
   );
-  // Drag ONLY by the grip (matches the camera unit); position persists per-browser.
+  // Drag ONLAnd by the grip (matches the camera unit); position persists per-browser.
   makeDraggable(panelEl, gripEl, "hb_pos_status", "tl");
   return panel;
 }

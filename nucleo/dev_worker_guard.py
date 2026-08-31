@@ -1,21 +1,21 @@
 #
-# dev_worker_guard.py — jail de filesystem REAL para el dev-worker (V2-076, auditoría 2026-07-26, cierre del
-# hallazgo P0 residual "el confinamiento al cwd temporal es solo convención de prompt").
+# dev_worker_guard.py — jail of filesystem REAL for the dev-worker (V2-076, auditoria 2026-07-26, cierre of the
+# hallazgo P0 residual "the containment al cwd temporary es only convencion of prompt").
 #
-# Claude Code YA restringe Write/Edit al cwd+subcarpetas por defecto (frontera de working-directory del propio
-# CLI), pero Read/Glob/Grep NO tienen esa frontera — un dev-worker podía leer secretos fuera de su cwd (.env,
-# config/*.json, memory/_data/zaelar.db) y, si el permiso 'code' del cluster incluye un repo autorizado, filtrarlos
-# escribiéndolos DENTRO del propio workdir y comiteándolos al repo (nucleo/git_cli.py ya re-verifica que el repo
-# sea el autorizado, pero eso no impedía la LECTURA inicial del secreto).
+# Claude Code YA restringe Write/Edit al cwd+subcarpetas by defecto (frontera of working-directory of the own
+# CLI), but Read/Glob/Grep NO have esa frontera — a dev-worker could read secretos outside of su cwd (.env,
+# config/*.json, memory/_data/zaelar.db) and, if the permission 'code' of the cluster incluye a repo authorized, filtrarlos
+# escribiendolos DENTRO of the own workdir and comiteandolos al repo (nucleo/git_cli.py already re-verifica that the repo
+# sea the authorized, but eso no impedia the LECTURA inicial of the secreto).
 #
-# Este módulo es un hook PreToolUse (https://code.claude.com/docs/en/agent-sdk/hooks.md): Claude Code lo invoca
-# como subproceso ANTES de ejecutar Read/Write/Edit/MultiEdit/Glob/Grep/NotebookEdit, con el tool_use en JSON por
-# stdin; si el path resuelto cae FUERA de `ZAELAR_DEV_WORKER_ROOT` (env, fijado por dispatch.py al crear el
-# workdir), deniega con `permissionDecision:"deny"`. Se invoca vía `--settings <path a write_settings_file()>`.
+# Este module es a hook PreToolUse (https://code.claude.com/docs/in/agent-sdk/hooks.md): Claude Code it invoca
+# como subproceso ANTES of ejecutar Read/Write/Edit/MultiEdit/Glob/Grep/NotebookEdit, with the tool_use in JSON by
+# stdin; if the path resuelto cae FUERA of `ZAELAR_DEV_WORKER_ROOT` (env, fijado by dispatch.py al crear the
+# workdir), deniega with `permissionDecision:"deny"`. Se invoca via `--settings <path a write_settings_file()>`.
 #
-# FAIL-OPEN por diseño (mismo patrón que susurro/homeostasis/websearch en este repo): cualquier fallo de ESTE
-# guard (JSON malformado, env no puesto, excepción) NUNCA debe poder tumbar un worker legítimo — un bug aquí
-# permite, no bloquea. Es defensa en profundidad sobre la frontera nativa del CLI, no el único control.
+# FAIL-OPEN by diseno (same patron that susurro/homeostasis/websearch in this repo): any failure of ESTE
+# guard (JSON malformado, env no puesto, excepcion) NUNCA must poder tumbar a worker legitimo — a bug here
+# allows, no bloquea. Es defensa in profundidad sobre the frontera nativa of the CLI, no the only control.
 #
 from __future__ import annotations
 
@@ -23,8 +23,8 @@ import json
 import os
 import sys
 
-# Qué tools tienen un campo de ruta y CUÁL — conservador: solo se comprueban estas; cualquier otra tool (incluida
-# Bash, ya acotada por --allowedTools a solo `nucleo.git_cli`) pasa sin tocar.
+# What tools have a field of path and CUÁL — conservative: only is comprueban these; any another tool (incluida
+# Bash, already acotada by --allowedTools a only `nucleo.git_cli`) pasa without touch.
 _PATH_FIELDS = {
     "Read": ("file_path",),
     "Write": ("file_path",),
@@ -59,7 +59,7 @@ def _within(resolved: str, root: str) -> bool:
 
 
 def check(payload: dict) -> bool:
-    """True si la tool/ruta del payload PreToolUse está permitida. Puro/testeable sin stdin real."""
+    """True if the tool/path of the payload PreToolUse esta allowed. Puro/testeable without stdin real."""
     root = os.environ.get(_ROOT_ENV, "")
     if not root:
         return True    # sin root configurado (p.ej. worker que no es 'dev') → no es este guard quien decide
@@ -96,9 +96,9 @@ def main() -> int:
         return 0
 
 
-# ── construcción del --settings <path> que activa el hook ──────────────────────────────────────────────────────
-# (el import `nucleo.dev_worker_guard` del hook resuelve porque dispatch.py ya pone PYTHONPATH=engine root en el
-# env del proceso — heredado por el subproceso del hook, no hace falta repetirlo aquí.)
+# ── construction of the --settings <path> that activa the hook ──────────────────────────────────────────────────────
+# (the import `nucleo.dev_worker_guard` of the hook resuelve because dispatch.py already pone PYTHONPATH=engine root in the
+# env of the proceso — heredado by the subproceso of the hook, no does missing repetirlo here.)
 
 
 def settings_dict(python_exe: str | None = None) -> dict:
@@ -109,8 +109,8 @@ def settings_dict(python_exe: str | None = None) -> dict:
 
 
 def write_settings_file(path: str, *, python_exe: str | None = None) -> str:
-    """Escribe el settings.json del guard en `path` (fichero, NO dentro del workdir del worker — evita que el
-    propio worker pueda tocarlo) y devuelve `path`. Idempotente/determinista, sin estado."""
+    """Escribe the settings.json of the guard in `path` (file, NO inside of the workdir of the worker — evita that the
+    own worker pueda tocarlo) and returns `path`. Idempotente/determinista, without state."""
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(settings_dict(python_exe=python_exe), fh)
     return path

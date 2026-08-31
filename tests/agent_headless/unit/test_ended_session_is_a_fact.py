@@ -1,18 +1,17 @@
-"""Una SESIÓN de worker que acaba también es un hecho (V2-198).
+"""A worker SESSION that ends is also a fact (V2-198).
 
-V2-150 cerró esto para las tareas de NAVEGADOR: «una tarea que TERMINA desaparecía del estado, así que no
-quedaba ningún hecho diciendo que había acabado, y menos aún que había acabado vacía… se le había quitado de
-delante lo único que podía contradecirle».
+V2-150 fixed this for BROWSER tasks: “a task that ENDS disappeared from the state, so there was no
+fact saying that it had ended, much less that it had ended empty… the only thing that could contradict it
+had been removed from in front of it.”
 
-El mismo hueco existía un nivel por encima y **es peor**: una tarea de navegador solo existe con `kind=web`,
-mientras que TODA escalada abre una sesión de worker. Los casos que se resuelven por BÚSQUEDA
-(`cheapest-monitor`) o por MEMORIA (`remember-and-remind-deadline`) no tienen tarea de navegador en absoluto,
-así que para ellos el arreglo de V2-150 nunca llegó a aplicarse — y son justo los que el arnés viene midiendo
-como «el usuario esperando sin feedback» y «espera infinita».
+The same gap existed one level above, and **it is worse**: a browser task exists only with `kind=web`,
+whereas EVERY escalation opens a worker session. Cases resolved by SEARCH
+(`cheapest-monitor`) or by MEMORY (`remember-and-remind-deadline`) have no browser task at all,
+so the V2-150 fix was never applied to them — and they are exactly the ones the harness has been measuring
+as “the user waiting without feedback” and “infinite wait.”
 
-Además había CUATRO filtros escribiendo `("queued", "running")` a mano, que es la misma forma que V2-197
-cerró en el registro del navegador: dos listas que hay que mantener sincronizadas son dos listas que no lo
-van a estar.
+There were also FOUR filters writing `("queued", "running")` by hand, which is the same way V2-197
+fixed the browser registry: two lists that have to be kept synchronized are two lists that will not be.
 """
 from __future__ import annotations
 
@@ -43,17 +42,17 @@ def _live_session(status: str = "running", goal: str = "Buscar un monitor"):
 
 
 def _session(status: str, *, ok: bool = True, summary: str = "", goal: str = "Buscar un monitor") -> None:
-    """Una sesión que ACABÓ, por el MISMO camino que la producción.
+    """A session that ENDED, through the SAME path as production.
 
-    V2-199 — la primera versión de este helper metía el registro en `_SESSIONS` y lo dejaba ahí. Pasaba, y no
-    probaba nada: `_run_session` **saca el registro en su `finally`**, así que en un dispatch de verdad no
-    quedaba nada que leer y `recently_ended_sessions()` devolvía cero. Lo descubrió una escalada real, no la
-    suite. Ahora se llama al mismo `_remember_ended()` que llama el `finally`, y hay un test que exige que ese
-    sitio lo siga llamando."""
+    V2-199 — the first version of this helper put the record in `_SESSIONS` and left it there. It passed, and did not
+    test anything: `_run_session` **removes the record in its `finally`**, so in a real dispatch there was nothing
+    left to read and `recently_ended_sessions()` returned zero. A real escalation discovered it, not the
+    suite. It now calls the same `_remember_ended()` that `finally` calls, and a test requires that this
+    location keep calling it."""
     r = _live_session(status, goal)
     r.ok, r.result_summary = ok, summary
     dispatch._remember_ended(r)
-    dispatch._SESSIONS.pop("w1", None)          # como hace `_run_session`
+    dispatch._SESSIONS.pop("w1", None)          # as `_run_session` does
 
 
 def _state() -> str:
@@ -63,25 +62,25 @@ def _state() -> str:
 
 def test_a_finished_session_does_not_vanish():
     _session("done", summary="3 monitores encontrados")
-    assert dispatch.pending_summaries() == []            # ya no está viva…
-    assert [r["id"] for r in dispatch.recently_ended_sessions()] == ["w1"]   # …pero SÍ es un final
+    assert dispatch.pending_summaries() == []            # it is no longer live…
+    assert [r["id"] for r in dispatch.recently_ended_sessions()] == ["w1"]   # …but it IS an ending
     state = _state()
     assert "TAREAS DE FONDO — YA ACABADAS" in state
-    assert "3 monitores encontrados" in state            # y con lo que trajo, que es lo que el operador quiere
+    assert "3 monitores encontrados" in state            # and with what it brought, which is what the operator wants
 
 
 @pytest.mark.parametrize("status,ok,marca", [("done", True, "TERMINÓ"),
                                              ("cancelled", True, "se PARÓ (cancelada)"),
                                              ("error", False, "FALLÓ")])
 def test_and_each_ending_sounds_like_what_it_was(status, ok, marca):
-    """Un final que suena igual que otro distinto no sirve: «terminó» invita a pedir el resultado, «se paró» a
-    preguntar si se retoma, y «falló» a intentar otra cosa."""
+    """An ending that sounds the same as a different one is useless: “it ended” invites asking for the result, “it stopped” to
+    ask whether to resume it, and “it failed” to try something else."""
     _session(status, ok=ok)
     assert marca in _state()
 
 
 def test_but_a_LIVE_session_is_not_announced_as_ended():
-    """La sensibilidad: sin esto, «di cómo acabó» y «di siempre que acabó» pasan igual."""
+    """The sensitivity check: without this, “say how it ended” and “always say that it ended” behave the same."""
     _live_session("running")
     state = _state()
     assert "YA ACABADAS" not in state
@@ -97,35 +96,35 @@ def test_and_an_old_ending_is_not_this_conversation():
 
 
 def test_the_REAL_path_records_the_ending_before_dropping_the_record():
-    """El test que faltaba, y el único que habría cazado el fallo: `_run_session` TIRA el registro en su
-    `finally`, así que leer `_SESSIONS` para los finales no encuentra nunca nada. Lo descubrió una escalada
-    real; esto lo fija sin tener que correr una."""
+    """The missing test, and the only one that would have caught the bug: `_run_session` THROWS the record away in its
+    `finally`, so reading `_SESSIONS` for endings never finds anything. A real escalation discovered it;
+    this fixes it without having to run one."""
     import inspect
 
     src = inspect.getsource(dispatch._run_session)
-    # El ÚLTIMO pop es el del `finally`, por donde sale toda sesión que llega a ejecutarse. Los otros dos son
-    # el confirm-gate —que tiene su propia línea de estado (V2-126/V2-190) y anunciarlo además como «TERMINÓ»
-    # sería contarlo dos veces y mal— y la cancelación en cola, que sí recuerda.
+    # The LAST pop is the one in `finally`, through which every session that reaches execution exits. The other two are
+    # the confirm gate —which has its own state line (V2-126/V2-190), and announcing it as “ENDED” as well
+    # would count it twice and incorrectly— and queued cancellation, which does remember.
     i = src.rindex("_SESSIONS.pop(key, None)")
     antes = src[:i]
-    # Se casa por la LLAMADA, no por su forma exacta: V2-222 le añadió `resuming=` y este assert exigía
-    # `_remember_ended(rec)` al carácter, así que falló por una firma nueva sin que la conducta cambiara. Lo que
-    # protege es que el final se anote ANTES del pop; los argumentos son asunto de quien llama.
+    # It matches the CALL, not its exact form: V2-222 added `resuming=` and this assert required
+    # `_remember_ended(rec)` literally, so it failed because of a new signature even though behavior did not change. What it
+    # protects is that the ending is recorded BEFORE the pop; the arguments are the caller's concern.
     assert "_remember_ended(rec" in antes, (
         "`_run_session` tira el registro sin recordar cómo acabó: `recently_ended_sessions()` no verá nada y "
         "el turno volverá a quedarse con su memoria de haber arrancado la tarea.")
 
 
 def test_and_the_snapshot_does_not_hold_the_worker_handles():
-    """Se guarda un dict ligero y no el `SessionRecord`: ese objeto lleva los handles del worker, y mantenerlo
-    vivo cinco minutos más allá del final los mantendría vivos también."""
+    """A lightweight dict is stored, not the `SessionRecord`: that object carries the worker handles, and keeping it
+    alive for five minutes beyond the ending would keep them alive too."""
     _session("done", summary="algo")
     row = dispatch._ENDED_SESSIONS["w1"]
     assert isinstance(row, dict)
     assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told"}
 
 
-# ── la enumeración, una sola vez (misma lección que V2-197) ───────────────────────────────────────────────
+# ── the enumeration, only once (same lesson as V2-197) ────────────────────────────────────────────────────
 _SET = re.compile(r"\.status\s*=\s*[\"']([a-z_]+)[\"']")
 
 
@@ -145,17 +144,17 @@ def test_every_session_status_the_code_writes_is_classified():
             except Exception:
                 continue
     known = dispatch.LIVE_SESSION_STATES | dispatch.ENDED_SESSION_STATES
-    # `.status = "x"` es un patrón ancho: solo se exigen los que declara el propio SessionRecord.
+    # `.status = "x"` is a broad pattern: only those declared by SessionRecord itself are required.
     declared = {"queued", "running", "done", "error", "cancelled", "relevada"}
     unclassified = sorted((found & declared) - known)
     assert not unclassified, (
-        f"estados de SESIÓN sin clasificar: {unclassified}. Una sesión en ese estado no aparece en el estado "
-        "vivo —ni viva ni acabada— y el turno se queda con su memoria de haberla arrancado.")
+        f"unclassified SESSION states: {unclassified}. A session in that state does not appear in the "
+        "live state —neither live nor ended— and the turn is left with its memory of having started it.")
 
 
 def test_and_nobody_enumerates_them_by_hand_anymore():
-    """Cuatro filtros escribían `("queued", "running")` cada uno por su cuenta. Es la forma exacta que dejó a
-    `cancelled` fuera en el registro del navegador (V2-196)."""
+    """Four filters each wrote `("queued", "running")` independently. This is exactly how `cancelled` was
+    left out of the browser registry (V2-196)."""
     src = (ROOT / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
     code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
     code = code.replace('LIVE_SESSION_STATES = frozenset({"queued", "running"})', "")

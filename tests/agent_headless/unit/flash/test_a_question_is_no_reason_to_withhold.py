@@ -1,26 +1,26 @@
-"""Una pregunta abierta no es motivo para RETENER la entrega — solo para no robarle la palabra (V2-371).
+"""An open question is no reason to WITHHOLD delivery — only a reason not to take the floor from it (V2-371).
 
-V2-364 cambió la puerta del backstop de entrega: dejó de ser el vocabulario de espera y pasó a ser LA
-PREGUNTA. El razonamiento era bueno —colgarle filas detrás a una pregunta puede dejarla sin contestar— y la
-conclusión, callar del todo, era demasiado.
+V2-364 changed the delivery backstop gate: it stopped being the waiting vocabulary and became THE
+QUESTION. The reasoning was sound —hanging rows behind a question can leave it unanswered— but the
+conclusion, to stay completely silent, went too far.
 
-Medido en `search-buy-motorcycle__es` (2026-08-27, 3/5) con ONCE candidatos con nombre y enlace en la hoja:
+Measured in `search-buy-motorcycle__es` (2026-08-27, 3/5) with ELEVEN candidates with a name and link in the sheet:
 
-    122,3 s   primera fila de candidatos en la hoja
-    +87,4 s   lo que tardó el turno en nombrar una
-    175,6 s   📬 backstop de ATASCO → «¿La paro y probamos por otro lado, o le doy un poco más de margen?»
-    446,2 s   📬 backstop de ATASCO → la MISMA pregunta otra vez
+    122.3 s   first row of candidates in the sheet
+    +87.4 s   how long the turn took to name one
+    175.6 s   📬 STALL backstop → “Should I stop it and try somewhere else, or give it a little more time?”
+    446.2 s   📬 STALL backstop → the SAME question again
 
-Las dos preguntas de gestión que el juez le reprochó a zaelar las escribimos NOSOTROS, y la segunda va
-después de que el operador ya hubiera contestado «para ya y prueba en otro sitio». El camino es este: el
-turno preguntaba algo, la puerta de V2-364 silenciaba la entrega, y con la entrega callada el flujo caía al
-backstop de atasco — cuyo propio comentario dice que con resultados delante la cara correcta es entregarlos.
-Su guarda, sin embargo, no era «no hay filas» sino «la entrega no disparó», y esas dos cosas dejaron de ser
-la misma en cuanto V2-364 añadió un motivo nuevo para no disparar.
+We wrote the two management questions that the judge reproached zaelar for, and the second came
+after the operator had already answered “stop now and try somewhere else.” The path was this: the
+turn asked something, the V2-364 gate silenced delivery, and with delivery silenced the flow fell into the
+stall backstop — whose own comment says that when results are in front of you, the right move is to deliver them.
+Its guard, however, was not “there are no rows” but “delivery did not trigger,” and those two things stopped being
+the same as soon as V2-364 added a new reason not to trigger.
 
-Ahora, con una pregunta abierta, se entregan los HECHOS y se calla la nuestra: la única pregunta que cierra
-el turno sigue siendo la suya. Y como la entrega dispara, el flujo ya no llega al atasco — la segunda mitad
-se arregla sola, que es la señal de que la causa era una y no dos.
+Now, with an open question, the FACTS are delivered and ours stays silent: the only question closing
+the turn remains theirs. And because delivery triggers, the flow no longer reaches the stall — the second half
+fixes itself, which is the sign that there was one cause, not two.
 """
 import pytest
 
@@ -47,26 +47,26 @@ def _bs(reply, dicho="", filas=None):
     return D.sheet_delivery_backstop(reply, filas if filas is not None else FILAS, dicho, errand=ENCARGO)
 
 
-# ── el caso medido ─────────────────────────────────────────────────────────────────────────────────────────
+# ── the measured case ───────────────────────────────────────────────────────────────────────────────────────
 
 def test_la_pregunta_de_gestion_ya_no_retiene_los_once_candidatos():
-    """La forma exacta de la ronda: el turno pregunta si parar, y había once filas sin entregar."""
+    """The exact form of the round: the turn asks whether to stop, and eleven rows had not been delivered."""
     out = _bs("¿La paro y probamos por otro lado, o le doy un poco más de margen?")
-    assert out, "la entrega volvió a callarse ante una pregunta"
+    assert out, "delivery went silent again in response to a question"
     assert "Yamaha R125" in out
 
 
 def test_con_una_pregunta_abierta_NO_añadimos_la_nuestra():
-    """Lo que la puerta de V2-364 protegía, conservado: si cerramos nosotros el turno con otra pregunta, la
-    suya se queda sin contestar. Se entregan los hechos y se calla."""
+    """The thing V2-364's gate protected, preserved: if we close the turn with another question, theirs
+    goes unanswered. The facts are delivered and we stay silent."""
     out = _bs("¿La paro o le doy un poco más de margen?")
     assert "?" not in out
     assert "sigo afinando" not in out
 
 
 def test_sin_pregunta_el_cierre_de_siempre_SIGUE():
-    """Sensibilidad por el otro lado: sin pregunta suya, preguntar nosotros es lo correcto — es lo que
-    convierte una entrega en una conversación."""
+    """Sensitivity in the other direction: without their question, asking ours is correct — it is what
+    turns a delivery into a conversation."""
     out = _bs("Vale, te aviso en cuanto tenga novedades.")
     assert "Dime si alguno te encaja o sigo afinando." in out
 
@@ -77,31 +77,31 @@ def test_sin_pregunta_el_cierre_de_siempre_SIGUE():
     "¿te importa el color?",
 ])
 def test_una_pregunta_de_DATO_tampoco_retiene(reply):
-    """La misma regla, y a propósito: aunque la pregunta sea legítima y necesaria, tener las filas guardadas
-    no la ayuda a contestarse. Se entregan igual, sin robarle la palabra."""
+    """The same rule, deliberately: even if the question is legitimate and necessary, keeping the rows
+    queued does not help it get answered. They are delivered anyway, without taking the floor from it."""
     out = _bs(reply)
     assert out and "?" not in out
 
 
-# ── lo que NO cambia ───────────────────────────────────────────────────────────────────────────────────────
+# ── what does NOT change ───────────────────────────────────────────────────────────────────────────────────
 
 def test_las_filas_YA_dichas_siguen_sin_re_anunciarse():
-    """El disco rayado de V2-189 no se reabre por esto.
+    """The V2-189 broken record is not reopened by this.
 
-    V2-471 redefinió «dicha»: nombre + DATO (una fila con precio no está entregada hasta que su precio
-    suena — ronda 12 del monitor). El fixture dice ahora las dos mitades, que es lo que una entrega real
-    dice; los nombres a secas los cubre `test_a_named_row_whose_datum_never_sounded_is_still_fresh`."""
+    V2-471 redefined “said”: name + DATUM (a row with a price is not delivered until its price
+    has sounded — round 12 of the monitor). The fixture now says both halves, as a real delivery does;
+    names alone are covered by `test_a_named_row_whose_datum_never_sounded_is_still_fresh`."""
     dicho = ("Te he encontrado una Yamaha R125 por 500 €, una Brixton 125cc por 1200 € y una "
              "Honda Varadero XL125V del 2006 por 1400 €")
     assert _bs("¿La paro o sigo?", dicho=dicho) == ""
 
 
 def test_una_respuesta_larga_que_YA_NOMBRA_sus_filas_no_se_pisa():
-    """La protección de verdad contra pisar una entrega: el turno ya dijo lo que la hoja tiene.
+    """The real protection against overwriting a delivery: the turn has already said what the sheet contains.
 
-    Hasta V2-478 esto se aproximaba por LONGITUD («una respuesta larga ya está contando algo»). La
-    aproximación era cómoda y falsa —ver el test de abajo—, así que ahora se afirma la propiedad real: si las
-    filas ya sonaron, `fresh` sale vacío y no se añade nada, mida lo que mida el turno.
+    Until V2-478 this was approximated by LENGTH (“a long response is already saying something”). The
+    approximation was convenient and false —see the test below—, so the real property is now asserted:
+    if the rows have already sounded, `fresh` is empty and nothing is added, regardless of the turn's length.
     """
     largo = ("Te cuento con detalle lo que llevo hasta ahora y por qué, con calma. " * 4) + \
             ("Tengo una Yamaha R125 Blanca Deportiva por 500 €, una Brixton 125cc por 1200 € y una "
@@ -111,12 +111,12 @@ def test_una_respuesta_larga_que_YA_NOMBRA_sus_filas_no_se_pisa():
 
 
 def test_una_respuesta_LARGA_que_NO_NOMBRA_NADA_sí_recibe_las_filas():
-    """El defecto que tiró la premisa vieja, medido en `find-best-hotel-city__us` ronda 5 (2026-08-29).
+    """The defect that toppled the old premise, measured in `find-best-hotel-city__us` round 5 (2026-08-29).
 
-    El turno era largo y decía «I've got a partial shortlist up on screen — six central candidates for that
-    weekend»: no nombró ni un hotel ni un precio. Con la puerta de los 300 caracteres, ese turno quedaba
-    protegido como si estuviera entregando algo, y el operador se iba con MENOS que tras un «te aviso» — con
-    la convicción añadida de que ya tenía resultados. Largo no es lo mismo que entregado.
+    The turn was long and said “I've got a partial shortlist up on screen — six central candidates for that
+    weekend”: it named neither a hotel nor a price. With the 300-character gate, that turn was protected
+    as if it were delivering something, and the operator got LESS than after a “I'll let you know” — with
+    the added conviction that it already had results. Long is not the same as delivered.
     """
     narrando = ("Ya tengo una preselección en pantalla con varios candidatos centrales para ese fin de "
                 "semana, y te cuento cómo la he montado y qué criterios he ido aplicando por el camino, "
@@ -131,11 +131,11 @@ def test_sin_filas_frescas_no_hay_nada_que_entregar():
     assert _bs("¿La paro o le doy margen?", filas=[]) == ""
 
 
-# ── la segunda mitad: el atasco deja de colgar su pregunta ─────────────────────────────────────────────────
+# ── the second half: the stall stops hanging its question ──────────────────────────────────────────────────
 
 def test_con_filas_frescas_el_flujo_NO_llega_al_backstop_de_atasco(monkeypatch):
-    """La causa era UNA. Con la entrega disparando, `apply_to_reply` vuelve antes de mirar el atasco, así que
-    la pregunta de gestión que el operador recibió dos veces ya no se escribe."""
+    """The cause was ONE. With delivery triggering, `apply_to_reply` returns before checking the stall, so
+    the management question the operator received twice is no longer written."""
     from nucleo.flash import live_blocks as LB
     monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: (ENCARGO, [f.strip("«»") for f in FILAS]))
     llamado = {"atasco": False}
@@ -147,12 +147,12 @@ def test_con_filas_frescas_el_flujo_NO_llega_al_backstop_de_atasco(monkeypatch):
 
     out = D.apply_to_reply("¿La paro y probamos por otro lado, o le doy un poco más de margen?", [])
     assert "Yamaha R125" in out
-    assert not llamado["atasco"], "con filas frescas delante no se habla del atasco"
+    assert not llamado["atasco"], "with fresh rows in front, the stall is not mentioned"
 
 
 def test_sin_filas_el_atasco_SIGUE_contandose(monkeypatch):
-    """Y la simétrica, que es la que impide que este arreglo silencie V2-359: sin nada que entregar, un
-    atasco detectado se cuenta igual que siempre."""
+    """And the symmetric case, which keeps this fix from silencing V2-359: with nothing to deliver, a
+    detected stall is reported just as before."""
     from nucleo.flash import live_blocks as LB
     monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: ("", []))
     monkeypatch.setattr(LB, "any_stalled_task", lambda: ("buscar una moto", 5, "sin avanzar"))
@@ -160,18 +160,18 @@ def test_sin_filas_el_atasco_SIGUE_contandose(monkeypatch):
     assert "puede estar atascada" in out
 
 
-# ── el silencio se ve ──────────────────────────────────────────────────────────────────────────────────────
+# ── the silence is visible ─────────────────────────────────────────────────────────────────────────────────
 
 def test_callar_ante_una_PREGUNTA_deja_su_fila(monkeypatch):
-    """V2-336 aplicado al motivo nuevo. Reconstruir esta ronda costó cruzar relojes porque los turnos que
-    importaban —los que preguntaban— no emitían nada: la guarda del evento seguía siendo el vocabulario de
-    espera que V2-364 ya no usaba para decidir."""
+    """V2-336 applied to the new reason. Reconstructing this round required cross-referencing clocks because
+    the turns that mattered —the ones asking questions— emitted nothing: the event guard was still the waiting
+    vocabulary that V2-364 no longer used to make its decision."""
     from nucleo.flash import live_blocks as LB
     vistos = []
     monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: (ENCARGO, [f.strip("«»") for f in FILAS]))
     monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
     monkeypatch.setattr(D, "_emit", lambda label, **k: vistos.append((label, k)))
-    # nombre + dato: desde V2-471 una fila con precio solo queda «dicha» cuando su precio ha sonado
+    # name + datum: since V2-471 a row with a price is only “said” once its price has sounded
     dicho = ("Te he encontrado una Yamaha R125 por 500 €, una Brixton 125cc por 1200 € y una "
              "Honda Varadero XL125V del 2006 por 1400 €")
     D.apply_to_reply("¿La paro o sigo?", [{"role": "assistant", "content": dicho}])

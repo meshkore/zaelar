@@ -35,10 +35,10 @@
 <link rel="stylesheet" href="/static/app/core/shared-surfaces.css?v=1"/>
 <link rel="stylesheet" href="/static/app/styles.css?v=3"/>
 <style>
-  /* PREBOOT splash — inline en el HTML a PROPÓSITO: pinta en el PRIMER byte, ANTES de que carguen los módulos ES.
-     En una Machine de cuenta en frío los módulos tardan decenas de segundos; sin esto el usuario veía una pantalla
-     NEGRA hasta que el BootOverlay (velo de neuronas, que lo pinta el JS) montaba. Su único fin es entretener desde
-     el segundo 1. `main.js` lo retira en cuanto monta la app. Cero dependencia de /static (colores inline). */
+  /* PREBOOT splash — deliberately inline in the HTML: paints on the FIRST byte, BEFORE ES modules load.
+     On a cold account Machine, modules take tens of seconds; without this the user saw a BLACK screen
+     until BootOverlay (the neural veil, painted by JS) mounted. Its sole purpose is to entertain from
+     second 1. `main.js` removes it as soon as the app mounts. Zero dependency on /static (inline colors). */
   #preboot { position:fixed; inset:0; z-index:9998; display:flex; flex-direction:column; align-items:center;
              justify-content:center; gap:18px; background:#0a0f16; color:#e6e8ee;
              font:15px/1.5 -apple-system, system-ui, sans-serif; }

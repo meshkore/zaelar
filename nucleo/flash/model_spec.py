@@ -5,8 +5,8 @@ audit that led to this split found them a genuinely separable concern from `fast
 transport code. Re-exported from `fast_client.py` (imported there by name across many callers: `nucleo/research.py`,
 `nucleo/flash/provider_chain.py`, `voice/engine/pipeline/agent.py`, etc. — none of them needed to change).
 
-Regla dura del proyecto (se conserva de la docstring original): modelo POR INVOCACIÓN, nunca una env global de
-modelo — dos sesiones concurrentes pueden usar modelos distintos sin pisarse."""
+Hard project rule (preserved from the original docstring): model PER INVOCATION, never a global model env
+variable — concurrent sessions may use different models without interfering."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,14 +15,14 @@ from loguru import logger
 
 @dataclass(frozen=True)
 class ModelSpec:
-    """Selección de modelo POR INVOCACIÓN. Nunca una env global de modelo."""
+    """Model selection PER INVOCATION. Never a global model env variable."""
     model: str
     base_url: str | None = None
     api_key: str | None = None
     provider: str = "aimlapi"     # 'ollama' (local) | 'aimlapi' (nube) | …
 
     def is_local(self) -> bool:
-        """True cuando apunta a un endpoint local (Ollama) — sin nube, sin coste por token."""
+        """True when pointing to a local endpoint (Ollama) — no cloud, no per-token cost."""
         if self.provider == "ollama":
             return True
         u = (self.base_url or "").lower()
@@ -40,8 +40,8 @@ class ModelSpec:
             return self.api_key
         if self.is_local():
             return "ollama"        # Ollama acepta cualquier no-vacío
-        # Nube sin key explícita → credencial DESDE EL ENTORNO (fallback power-user). La KEY es una credencial,
-        # no una selección de modelo, así que leerla del env NO viola "modelo por invocación". Contrato heredado:
+        # Cloud without an explicit key → credential FROM THE ENVIRONMENT (power-user fallback). The KEY is a credential,
+        # not model selection, so reading it from env does NOT violate "model per invocation". Inherited contract:
         # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/provider_keys.py`).
         import os
         fast = os.getenv("FAST_API_KEY")
@@ -78,8 +78,8 @@ class ModelSpec:
         return "api.z.ai" in u and "/paas/" not in u
 
     def _is_deepseek(self) -> bool:
-        """DeepSeek DIRECTO (`api.deepseek.com`), distinto de DeepSeek servido por el broker AIMLAPI. La diferencia
-        NO es cosmética: aquí el parámetro de no-razonar se OBEDECE, y por el broker no. Ver `reasoning_effort`."""
+        """DIRECT DeepSeek (`api.deepseek.com`), distinct from DeepSeek served by the AIMLAPI broker. The difference
+        is NOT cosmetic: here the no-reasoning parameter is obeyed, while the broker does not. See `reasoning_effort`."""
         return "api.deepseek.com" in self.resolved_base_url().lower()
 
     def reasoning_effort(self) -> str:
@@ -112,8 +112,8 @@ _FALLBACK_BASE = "https://api.deepseek.com"
 
 
 def spec_from_config() -> ModelSpec:
-    """Compone el `ModelSpec` por defecto desde `config/v2` (gestionado por la UI; env = fallback power-user).
-    El llamador puede ignorarlo y pasar su propio spec (modelo por invocación)."""
+    """Builds the default `ModelSpec` from `config/v2` (managed by the UI; env = power-user fallback).
+    The caller may ignore it and pass its own spec (model per invocation)."""
     try:
         from config import v2 as _v2
         cfg = _v2.fast_model_spec()
@@ -137,6 +137,6 @@ def spec_from_config() -> ModelSpec:
 
 
 def available(spec: ModelSpec | None = None) -> bool:
-    """True si hay credencial utilizable para este spec (local siempre; nube exige api_key)."""
+    """True if this spec has a usable credential (local always; cloud requires api_key)."""
     spec = spec or spec_from_config()
     return bool(spec.resolved_api_key())

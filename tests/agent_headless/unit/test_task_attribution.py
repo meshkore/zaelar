@@ -1,20 +1,21 @@
 """V2-140 (`three-tasks-at-once`, tier 4) — criterion 2: an allusion must reach the RIGHT task.
 
-The case's own words: «Responder por la tarea equivocada, mezclar dos, o tragarse un refinamiento sin acusar
-recibo es un fallo GRAVE. PREGUNTAR a cuál se refiere cuando es genuinamente ambiguo NO es un fallo.»
+The case's own words: «Responding for the wrong task, mixing two together, or swallowing a refinement without
+acknowledging receipt is a SERIOUS failure. ASKING which one it refers to when it is genuinely ambiguous is NOT a
+failure.»
 
 Measured with the three live tasks and the case's real phrases, before touching anything:
 
-    «¿y el del coche?»                        → ['t1','t2','t3']   (t1 IS «informe sobre COCHES eléctricos»)
-    «el del monitor, que sea de 27 pulgadas»  → ['t1','t2','t3']   (t2 IS «un MONITOR barato de segunda mano»)
+    «and the one about the car?»              → ['t1','t2','t3']   (t1 IS «report on electric CARS»)
+    «the monitor one, make it 27 inches»     → ['t1','t2','t3']   (t2 IS «a cheap second-hand MONITOR»)
 
 Two mechanical causes, neither of them the model:
 
-  · the punctuation stayed GLUED to the word — `coche?`, `monitor,` — because the tokenizer split on whitespace
+  · the punctuation stayed GLUED to the word — `car?`, `monitor,` — because the tokenizer split on whitespace
     over a `_norm` that only strips accents and lowercases. That is the SAME defect that cost real money in
-    V2-123 (`find_duplicate` comparing «guitarra» with «(guitarra»), in its sibling function, in the same file,
+    V2-123 (`find_duplicate` comparing «guitar» with «(guitar»), in its sibling function, in the same file,
     unreviewed at the time;
-  · the crossing was exact-match, so `coche` did not recognise `coches`. Alluding in the singular to something
+  · the crossing was exact-match, so `car` did not recognise `cars`. Alluding in the singular to something
     asked for in the plural is just how people talk.
 
 What deliberately does NOT change: a genuinely ambiguous allusion still resolves to every live task. That

@@ -5,7 +5,7 @@ reason: anything decided per-channel diverges per-channel. What is shared is the
 viewer, and report what actually happened — so voice and probe cannot drift into two different behaviours for
 the same request.
 
-WHY A FAST PATH AT ALL. Until today "conseguir una foto REAL para ENSEÑARLA" was a documented reason to
+WHY A FAST PATH AT ALL. Until today "get a REAL photo to SHOW" was a documented reason to
 ESCALATE (the rule dates from a real 2026-08-03 incident where the brain asked `web_search` for a photo,
 `web_search` can only return text, and the brain ended up DESCRIBING the picture in words for six turns). That
 rule fixed the right bug with the only tool available at the time. It is no longer the only tool.
@@ -21,8 +21,8 @@ and its fetch saw an empty page. An image index had already crawled what the wor
 to re-derive one page at a time.
 
 So the DEFAULT flips: pictures are a light turn now. Escalation is not removed — it is where it always belonged,
-which is CURATION. "Una foto del Amalfi" is a lookup. "Las fotos oficiales de prensa, verificadas, y dime de
-qué fuente sale cada una" is research, and so is "no, esas no me valen" after a first set came back. The router
+which is CURATION. "A photo of Amalfi" is a lookup. "The verified official press photos, and tell me what
+source each one comes from" is research, and so is "no, those don't work for me" after a first set came back. The router
 description draws that line; this module only executes the light half and reports honestly enough that the next
 turn can escalate on the operator's word rather than on a guess.
 """
@@ -72,7 +72,7 @@ async def execute(query: str, n: int = DEFAULT_N) -> dict:
             parte["blocked"] = True
         if not items:
             parte["message"] = str(res.get("error") or "")[:160] or "no encontré fotos de eso"
-            # También la que volvió VACÍA — es exactamente la que hay que poder diagnosticar después.
+            # Also the one that came back EMPTY — it is exactly the one we need to be able to diagnose later.
             _evidence(parte)
             return parte
         from widgets.server_api import brain_action
@@ -184,15 +184,15 @@ def _lang() -> str:
 
 
 async def voice_turn(req: dict, *, silent: bool) -> "tuple[dict, str]":
-    """`(parte, frase)` para el canal de VOZ — el cuerpo entero de su rama, aquí y no allí.
+    """`(parte, frase)` for the VOICE channel — the entire body of its branch, here and not there.
 
-    Vive en este módulo por lo mismo que `video_turn.voice_dispatch`: el provider de voz es un fichero-dios con
-    techo, y el trinquete pide extraer antes que subirlo. Además deja la resolución del idioma de este lado, así
-    que el provider no gana otro import perezoso — que es la otra mitad de lo que el trinquete vigila.
+    It lives in this module for the same reason as `video_turn.voice_dispatch`: the voice provider is a god-file with
+    a ceiling, and the ratchet calls for extracting before adding to it. It also keeps language resolution on this side, so
+    the provider does not gain another lazy import — which is the other half of what the ratchet monitors.
 
-    `silent` = el modelo no dijo nada en este turno. Solo entonces se habla: encajar el parte sobre una
-    respuesta que ya existe la cuenta dos veces, y callar tras una tool deja al turno siguiente creyendo que la
-    petición sigue sin atender.
+    `silent` = the model said nothing on this turn. Only then do we speak: fitting the report onto an
+    existing response counts it twice, and staying silent after a tool leaves the next turn believing that the
+    request is still unhandled.
     """
     parte = await execute(req.get("query") or "", req.get("n") or DEFAULT_N)
     if not silent:
@@ -200,6 +200,6 @@ async def voice_turn(req: dict, *, silent: bool) -> "tuple[dict, str]":
     try:
         from voice.engine.core import langs
         ack = langs.current_language().data_ack
-    except Exception:  # noqa: BLE001 — sin idioma resoluble se dice el parte igual, que es lo que importa
+    except Exception:  # noqa: BLE001 — if no language can be resolved, the report is still spoken, which is what matters
         ack = ""
     return parte, spoken_for(parte, ack)

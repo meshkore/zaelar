@@ -1,24 +1,24 @@
-"""Tres workers reanudando la MISMA sesión del CLI, y los tres muertos a los 400 ms (V2-237).
+"""Three workers resuming the SAME CLI session, and all three dying at 400 ms (V2-237).
 
-Medido por el arnés el 2026-08-21 en `best-plumber-same-day` (1/5, mecanismo 2, **cero filas extraídas**), con
-una correlación que no deja lugar a la duda:
+Measured by the harness on 2026-08-21 in `best-plumber-same-day` (1/5, mechanism 2, **zero rows extracted**), with
+a correlation that leaves no room for doubt:
 
     worker 3  «REANUDA sesión nativa c5ad1d9e-ad0…»  → ERROR a los 371 ms
     worker 4  «REANUDA sesión nativa c5ad1d9e-ad0…»  → ERROR a los 401 ms   ← LA MISMA
     worker 6  «REANUDA sesión nativa c5ad1d9e-ad0…»  → ERROR a los 374 ms   ← LA MISMA
     workers 2 y 5, sesión NUEVA, sin reanudar        → vivos
 
-**3 de 3 contra 0 de 3.** Su traza entera son cinco eventos en 400 ms: alive → widget show → task start
-(«Buscando en la web…») → task end. Una búsqueda web no dura 400 ms: murieron en el arranque, antes de hacer
-nada, y el caso se quedó sin una sola extracción.
+**3 out of 3 versus 0 out of 3.** Their entire trace consists of five events in 400 ms: alive → widget show → task start
+(«Buscando en la web…») → task end. A web search does not last 400 ms: they died during startup, before doing
+anything, and the case ended up without a single extraction.
 
-La causa: `_find_resume` LEÍA la entrada y no la consumía, así que cada escalada de la misma petición —incluidas
-las que dispara el auto-resume de V2-049— recibía el MISMO `native_sid`. Una sesión del CLI no se puede reanudar
-dos veces a la vez.
+The cause: `_find_resume` READ the entry without consuming it, so every escalation of the same request—including
+those triggered by V2-049's auto-resume—received the SAME `native_sid`. A CLI session cannot be resumed twice
+at the same time.
 
-Consumirla es seguro porque el ciclo de vida ya la devuelve: al cerrar una gestión web incompleta, `_run_session`
-reescribe la entrada con el `native_sid` actual. Y si el worker muere antes de llegar ahí, la reanudación se
-pierde y el siguiente encargo empieza de cero — estrictamente mejor que morir en 400 ms.
+Consuming it is safe because the lifecycle already returns it: when closing an incomplete web operation, `_run_session`
+rewrites the entry with the current `native_sid`. And if the worker dies before reaching that point, the resumption is
+lost and the next task starts from scratch—strictly better than dying in 400 ms.
 """
 import time
 
@@ -33,8 +33,8 @@ OTRA = "reserva mesa para dos esta noche en un restaurante de Sevilla"
 
 @pytest.fixture(autouse=True)
 def _registro_aislado(monkeypatch):
-    # V2-342: el subsistema vive en `nucleo/workers/resume.py`; se parchea AHÍ, que es donde las funciones
-    # leen sus globals — parchear el alias de dispatch dejaría el dict real intacto y el test mediría aire.
+    # V2-342: the subsystem lives in `nucleo/workers/resume.py`; patch it THERE, where the functions
+    # read their globals—patching dispatch's alias would leave the real dict intact and the test would measure nothing.
     from nucleo.workers import resume as _wres
     monkeypatch.setattr(_wres, "_WEB_RESUME", {}, raising=False)
     monkeypatch.setattr(_wres, "_resume_persist", lambda: None, raising=False)
@@ -46,7 +46,7 @@ def _sembrar(req=PETICION, sid="c5ad1d9e-ad0"):
         "nav_task": "t9", "native_sid": sid, "ts": time.time(), "count": 1, "goal": req[:200]}
 
 
-# ── el caso medido ───────────────────────────────────────────────────────────────────────────────────────────
+# ── the measured case ─────────────────────────────────────────────────────────────────────────────────────────
 
 def test_solo_el_PRIMERO_se_lleva_la_sesion_nativa():
     _sembrar()
@@ -59,27 +59,27 @@ def test_solo_el_PRIMERO_se_lleva_la_sesion_nativa():
 
 
 def test_sin_reanudacion_el_encargo_ARRANCA_de_cero():
-    """Lo que hacen los dos que sobrevivieron: sesión propia. Perder la continuidad es peor que perder el worker,
-    pero mucho mejor que perderlo A ÉL y la continuidad."""
+    """What the two survivors do: use their own session. Losing continuity is worse than losing the worker,
+    but much better than losing BOTH the worker and continuity."""
     _sembrar()
     dispatch._find_resume(PETICION, take=True)
     assert dispatch._find_resume(PETICION, take=True) is None
 
 
-# ── la otra dirección: consumir no puede romper la continuidad de V2-049 ─────────────────────────────────────
+# ── the other direction: consuming cannot break V2-049 continuity ────────────────────────────────────────────
 
 def test_la_entrada_VUELVE_al_cerrar_una_gestion_incompleta():
-    """GUARDA DE CABLEADO: sin la reescritura al cerrar, consumir la entrada convertiría el auto-resume en un solo
-    intento y la continuidad web de V2-049 moriría en silencio. La propiedad cruza una costura desde V2-342: la
-    reescritura vive en `_leave_resume` y `_run_session` tiene que LLAMARLA — las dos mitades se afirman, porque
-    cada una sola es un cable suelto."""
+    """WIRING GUARD: without rewriting on close, consuming the entry would turn auto-resume into a single
+    attempt and V2-049's web continuity would die silently. The property crosses a seam from V2-342: rewriting
+    lives in `_leave_resume` and `_run_session` has to CALL it—the two halves are asserted because each one alone
+    is a loose wire."""
     import inspect
     assert "_leave_resume(" in inspect.getsource(dispatch._run_session)
     assert "_WEB_RESUME[gk] = _resume_entry(" in inspect.getsource(dispatch._leave_resume)
 
 
 def test_leerla_SIN_tomarla_sigue_siendo_posible():
-    """`take` es explícito a propósito: quien solo quiera mirar si hay algo que reanudar no debe llevárselo."""
+    """`take` is explicit by design: anyone who only wants to check whether something can be resumed must not take it."""
     _sembrar()
     assert dispatch._find_resume(PETICION) is not None
     assert dispatch._find_resume(PETICION) is not None, "una lectura no puede consumir"
@@ -98,23 +98,23 @@ def test_una_entrada_caducada_no_se_entrega():
 
 
 def test_el_listener_la_TOMA_y_no_solo_la_lee():
-    """El defecto no era el predicado sino su llamador. Sin `take=True` en `run_listener`, esto sigue exactamente
-    igual de roto y los tests de arriba pasan — la lección de V2-199."""
+    """The defect was not the predicate but its caller. Without `take=True` in `run_listener`, this remains exactly
+    as broken and the tests above pass—the lesson of V2-199."""
     import inspect
     src = inspect.getsource(dispatch.run_listener)
     assert "_find_resume(request, take=True)" in src
 
 
-# ── el otro hallazgo de la misma ronda: un final sin causa ───────────────────────────────────────────────────
-# «Un worker que muere no deja ni un evento diciendo por qué»: `task|end` venía con `text:""` y el modelo, y
-# nada más. Los únicos eventos de error de la ronda eran del worker que NO murió, así que la causa de los
-# cuatro muertos solo se veía cruzando el log del motor por `span=worker:N`. Un final sin causa se lee igual
-# que un final normal.
+# ── the other finding from the same round: an unexplained ending ─────────────────────────────────────────────
+# “A worker that dies does not leave even one event saying why”: `task|end` arrived with `text:""` and the model,
+# and nothing else. The only error events in the round belonged to the worker that did NOT die, so the cause of the
+# four deaths could only be seen by cross-referencing the engine log by `span=worker:N`. An unexplained ending reads
+# the same as a normal ending.
 
 def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
-    """GUARDA DE FUENTE: la construcción vive dentro de `_finish`, que necesita un backend vivo para llegar hasta
-    ahí. Lo que se puede comprobar sin uno es que el motivo y el estado se meten en la fila — y eso es justo lo
-    que una regresión desharía sin fallar con ruido, dejando otra vez `text:""` sobre un worker muerto."""
+    """SOURCE GUARD: construction lives inside `_finish`, which needs a live backend to reach that point.
+    What can be checked without one is that the reason and status are put into the row—and that is exactly what
+    a regression would undo without failing noisily, once again leaving `text:""` for a dead worker."""
     import inspect
 
     from nucleo.workers import session as _s
@@ -123,15 +123,15 @@ def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
     assert "if not rec.ok:" in src and "rec.result_summary" in src
 
 
-# ── V2-239: consumirla no basta si el camino de la muerte la vuelve a armar ──────────────────────────────────
-# El arnés midió el arreglo de arriba EN 05dd79f, con el worktree fijado y `n_dirty=0`, y NO cerraba: sesión
-# `0364d544-505` → workers 3 y 4, muertos 2/2, vidas 380 y 420 ms. El `take=True` consumía bien. Lo que fallaba
-# es el otro extremo del ciclo: al cerrar, la entrada se reescribía con
+# ── V2-239: consuming it is not enough if the death path rebuilds it ─────────────────────────────────────────
+# The harness measured the fix above AT 05dd79f, with the worktree pinned and `n_dirty=0`, and it did NOT close: session
+# `0364d544-505` → workers 3 and 4, dead 2/2, lifetimes 380 and 420 ms. `take=True` consumed correctly. What failed
+# was the other end of the cycle: on close, the entry was rewritten with
 #
 #     "native_sid": rec.native_sid or str((resume or {}).get("native_sid") or "")
 #
-# o sea que un worker que moría ANTES de que el CLI anunciara su sesión devolvía a la entrada el id HEREDADO —
-# el mismo que acababa de matarlo— y el siguiente se lo llevaba. Un id que mata no se vuelve a armar.
+# meaning that a worker dying BEFORE the CLI announced its session returned the INHERITED id to the entry—
+# the same one that had just killed it—and the next worker took it. An id that kills must not be rebuilt.
 
 
 class _Rec:
@@ -146,24 +146,24 @@ def test_un_worker_que_MURIO_sin_sesion_propia_no_devuelve_el_id_heredado():
 
 
 def test_una_reanudacion_que_PRENDE_conserva_su_id():
-    """La otra dirección, y es la que sostiene V2-049: el `system/init` de Claude Code llega igual en un arranque
-    limpio que en un `--resume`, así que una reanudación viva SÍ deja `native_sid`. Sin este caso, el arreglo de
-    arriba se podría satisfacer borrando el id siempre — y eso mata la continuidad web en silencio."""
+    """The other direction, and the one that supports V2-049: Claude Code's `system/init` arrives the same in a clean
+    startup as in a `--resume`, so a live resumption DOES leave `native_sid`. Without this case, the fix above could
+    be satisfied by always deleting the id—and that silently kills web continuity."""
     ent = dispatch._resume_entry(_Rec("nuevo-sid"), nav_tid="t9", resume={"native_sid": "viejo"},
                                  req=PETICION, key="k1", brief=False, prev_count=1)
     assert ent["native_sid"] == "nuevo-sid"
 
 
 def test_la_PESTAÑA_del_navegador_si_conserva_su_respaldo():
-    """La pestaña es otro recurso: sobrevive al worker que la abrió y no es lo que estaba matando a nadie."""
+    """The browser tab is another resource: it survives the worker that opened it and is not what was killing anyone."""
     ent = dispatch._resume_entry(_Rec(""), nav_tid="", resume={"nav_task": "t9", "native_sid": "x"},
                                  req=PETICION, key="k1", brief=False, prev_count=1)
     assert ent["nav_task"] == "t9" and ent["native_sid"] == ""
 
 
 def test_el_contador_de_intentos_SIGUE_subiendo():
-    """El cap de `_RESUME_CAP` es lo que corta un encargo que no avanza: si al perder el id se perdiera también la
-    cuenta, un caso roto reintentaría para siempre."""
+    """The `_RESUME_CAP` cap is what stops a task that is not progressing: if losing the id also lost the count,
+    a broken case would retry forever."""
     ent = dispatch._resume_entry(_Rec(""), nav_tid="t9", resume={"native_sid": "x"},
                                  req=PETICION, key="k1", brief=False, prev_count=3)
     assert ent["count"] == 4

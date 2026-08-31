@@ -1,6 +1,6 @@
 // TopBar — top-right PROJECT controls: ◉ status · ◷ debug · ⚙ settings · 🧭 wizard · Reset.
 // These are the project's tools; zaelar's OWN things (voice, memory, captions, crons, attention, power, theme)
-// live on the EYE's upper lid over the orb (Orb.js, V2-039 «ojo»). ⏰ cron moved there in V2-014; ☾/☀ theme moved
+// live on the EYE's upper lid over the orb (Orb.js, V2-039 “ojo”). ⏰ cron moved there in V2-014; ☾/☀ theme moved
 // there in V2-039. The voice session is ALWAYS ON (auto-connects, main.js) — the ⏻ icon on the eye is the one
 // explicit, persisted exception. Reset clears the canvas. (operator 2026-07-07)
 import { h, raw } from "../core/dom.js?v=2";
@@ -22,11 +22,11 @@ export function TopBar() {
     // System status: the health beacon lives at the LEFT extreme of the toolbar. A dot that greens/ambers/reds
     // (blinks on error) so a problem (no saldo, Hermes caído, cluster desconectado) grabs attention without
     // opening anything. Click → the status panel with the per-item detail.
-    // CLOUD (cuenta de pago): el header se reduce a PERFIL + tema. En cuanto /api/config dice cloud_profile (=
+    // CLOUD (cuenta of pago): the header se reduce a PERFIL + tema. En cuanto /api/config dice cloud_profile (=
     // ZAELAR_USER_ID puesto) se ocultan estado/observabilidad/config/wizard/reset. En self-host cloudProfile es
-    // false y el header no cambia (cero regresión). El gate es reactivo: si la config tarda, aparecen y se ocultan.
+    // false and the header no cambia (cero regresión). The gate es reactivo: si the config tarda, aparecen and se ocultan.
     () => store.cloudProfile() ? null : h("button", {
-      class: () => "ic statusBtn st-" + overallStatus(),   // worst(server, voz del browser, offline) → color + parpadeo
+      class: () => "ic statusBtn st-" + overallStatus(),   // worst(server, voz of the browser, offline) → color + parpadeo
       id: "statusBtn", title: () => t("topbar.status.title"),
       onClick: () => { const v = !store.statusOpen(); store.setStatusOpen(v); api.uiEvent("topbar:status", { state: v ? "open" : "close" }); },
     }, raw(STATUS_ICON)),
@@ -35,34 +35,34 @@ export function TopBar() {
       id: "debugBtn", title: () => t("topbar.debug.title"),
       onClick: () => { const v = !store.debugOpen(); store.setDebugOpen(v); api.uiEvent("topbar:debug", { state: v ? "open" : "close" }); },
     }, raw(BUG_ICON)),
-    // ☾/☀ theme MOVED to the orb's upper lid (V2-039 «ojo» — generic/personal control, helps close the eye shape).
-    // Badge rojo (2026-08-03): store.apiAlerts() ya alimenta el ◉ de estado; el mismo dato aquí porque ⚙ es donde
-    // el operador mira el detalle por proveedor (workers/cluster relevados, saldo agotado…) — no un aviso nuevo.
+    // ☾/☀ theme MOVED to the orb's upper lid (V2-039 “ojo” — generic/personal control, helps close the eye shape).
+    // Badge rojo (2026-08-03): store.apiAlerts() ya alimenta the ◉ of estado; the mismo dato here porque ⚙ es donde
+    // the operador mira the detalle by proveedor (workers/cluster relevados, saldo agotado…) — no un aviso nuevo.
     () => store.cloudProfile() ? null : h("button", { class: () => "ic" + (store.configOpen() ? " on" : ""), id: "cfgBtn",
       title: () => t("topbar.settings.title"),
       onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } },
       raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
-    // ☾ tema: MOVIDO aquí desde el ojo (Orb.js, 2026-08-09) — junto a ⚙, a petición del operador. ONE icon (moon),
-    // blue=dark/grey=light — mismo lenguaje on/off que el resto de controles, nunca se cambia por un icono de sol.
-    // LA PILA de Energy, pegada a la IZQUIERDA del 👤 (EnergyGauge.js, 2026-08-13). Se gatea sola por el `cloud` de
-    // /api/energy y NO por `cloudProfile`: es el mismo hecho por dos vías, y la pila tiene que creerle al endpoint
-    // que le da el saldo, no a otro. En self-host devuelve null y aquí no aparece nada.
+    // ☾ tema: MOVIDO here from the ojo (Orb.js, 2026-08-09) — junto a ⚙, a operator request. ONE icon (moon),
+    // blue=dark/grey=light — mismo lenguaje on/off that the resto of controles, nunca se cambia by un icono of sol.
+    // LA PILA of Energy, pegada a the IZQUIERDA of the 👤 (EnergyGauge.js, 2026-08-13). Se gatea sola by the `cloud` de
+    // /api/energy and NO by `cloudProfile`: es the mismo hecho by dos vías, and the pila tiene that creerle al endpoint
+    // that le da the saldo, no a otro. En self-host devuelve null and here no aparece nada.
     EnergyGauge(),
-    // 👤 Perfil de la CUENTA (SOLO cloud): los datos de la cuenta de pago (usuario/energía/plan) — distinto de la
-    // persona del operador, que vive en el orbe. En self-host NO aparece (instalación puramente local, no hace falta).
-    // Contenido por definir; hoy abre un panel placeholder.
+    // 👤 Perfil of the CUENTA (SOLO cloud): the data of the cuenta of pago (usuario/energía/plan) — distinto of la
+    // persona of the operador, that vive en the orbe. En self-host NO aparece (instalación puramente local, no hace falta).
+    // Contenido by definir; hoy abre un panel placeholder.
     () => store.cloudProfile() ? h("button", { class: () => "ic" + (store.accountOpen() ? " on" : ""), id: "acctBtn",
       title: () => t("topbar.account.title"),
       onClick: () => { const v = !store.accountOpen(); store.setAccountOpen(v); api.uiEvent("topbar:account", { state: v ? "open" : "close" }); } }, raw(USER_ICON)) : null,
     h("button", { class: () => "ic" + (store.theme() === "dark" ? " on" : ""), id: "themeBtn",
       title: () => (store.theme() === "dark" ? t("topbar.theme_light") : t("topbar.theme_dark")),
       onClick: () => { toggleTheme(); api.uiEvent("topbar:theme", { state: store.theme() }); } }, raw(MOON_ICON)),
-    // 🧭 Wizard de config (V2-040): perfil local/cloud + detector del sistema + credenciales. Se auto-abre en el
-    // primer arranque; este icono lo reabre cuando el operador quiera revalidar/cambiar el perfil.
+    // 🧭 Wizard of config (V2-040): perfil local/cloud + detector of the system + credenciales. Se auto-abre en el
+    // primer arranque; this icono lo reabre when the operador quiera revalidar/cambiar the perfil.
     () => store.cloudProfile() ? null : h("button", { class: () => "ic" + (store.wizardOpen() ? " on" : ""), id: "wizBtn",
       title: () => t("topbar.wizard.title"),
       onClick: () => { const v = !store.wizardOpen(); store.setWizardOpen(v); api.uiEvent("topbar:wizard", { state: v ? "open" : "close" }); } }, raw(COMPASS_ICON)),
-    // Reset = DESTRUCTIVO: para todos los procesos de fondo y limpia el canvas. Pide confirmación primero.
+    // Reset = DESTRUCTIVO: for todos the procesos of fondo and limpia the canvas. Pide confirmación primero.
     () => store.cloudProfile() ? null : h("button", { class: "reset", id: "reset", title: () => t("topbar.reset.title"),
       onClick: () => { api.uiEvent("topbar:reset", { state: "prompt" }); store.setResetConfirmOpen(true); } }, () => t("topbar.reset")),
     ResetConfirm(),
@@ -71,13 +71,13 @@ export function TopBar() {
   );
 }
 
-// Diálogo de confirmación del Reset — CON CHECKBOXES (V2-063, petición del operador 2026-07-23). Overlay modal
-// (NO un toast). La BASE (siempre, sin marcar nada): para los procesos de fondo, limpia observabilidad Y deja el
-// escritorio en blanco — LIVE, sin reiniciar (lo que antes era el único comportamiento del botón). Dos checkboxes
-// OPCIONALES, desmarcados por defecto (como pidió el operador — "como si fuera un usuario que empieza de cero"
-// sería marcarlos TÚ, no el default): "Memoria" (state+corto+largo plazo, un solo botón) y "Credenciales de
-// widgets" (WhatsApp/Telegram/navegador). Marcar cualquiera de los dos exige que el server se reinicie solo
-// (SQLite/perfiles en uso) — `session.resetFull()` lo gestiona y pinta el overlay de "reiniciando…".
+// Diálogo of confirmación of the Reset — CON CHECKBOXES (V2-063, operator request 2026-07-23). Overlay modal
+// (NO un toast). The BASE (siempre, without marcar nada): for the procesos of fondo, limpia observabilidad And deja el
+// escritorio en blanco — LIVE, without reiniciar (lo that antes era the único comportamiento of the botón). Dos checkboxes
+// OPCIONALES, desmarcados by defecto (como pidió the operador — "como si outside un user that empieza of cero"
+// sería marcarlos TÚ, no the default): "Memoria" (state+corto+largo plazo, un only botón) and "Credenciales de
+// widgets" (WhatsApp/Telegram/navegador). Marcar cualquiera of the dos exige that the server se reinicie solo
+// (SQLite/perfiles en uso) — `session.resetFull()` lo gestiona and pinta the overlay of "reiniciando…".
 function ResetConfirm() {
   let memEl, credEl;
   const close = () => store.setResetConfirmOpen(false);
@@ -111,10 +111,10 @@ function ResetConfirm() {
   return ovl;
 }
 
-// Panel de CUENTA (icono 👤, solo cloud). Reutiliza el overlay del Reset (`ovl rc-ovl` + `rc-box`) para
+// Panel of CUENTA (icono 👤, only cloud). Reutiliza the overlay of the Reset (`ovl rc-ovl` + `rc-box`) para
 // no añadir CSS. Balance/plan/facturación en detalle no se muestran AQUÍ (eso pediría un endpoint propio del
-// motor); este panel es solo el punto de salida — un enlace de vuelta a donde esos datos SÍ viven. La URL es un
-// literal fijo, no una env var: no depende de qué despliegue sea, así que no hace falta configurarlo.
+// motor); this panel es only the punto of salida — un enlace of vuelta a where esos data SÍ viven. The URL es un
+// literal fijo, no a env var: no depende of qué despliegue sea, así that no hace falta configurarlo.
 function AccountPanel() {
   const close = () => store.setAccountOpen(false);
   let ovl;
@@ -139,8 +139,8 @@ function AccountPanel() {
   return ovl;
 }
 
-// Overlay de "reiniciando…" (V2-063) — se pinta mientras `session.resetFull()` espera a que el server vuelva a
-// responder tras un reinicio automático (checkbox Memoria/Credenciales marcado). Recarga la página sola al volver.
+// Overlay of "reiniciando…" (V2-063) — se pinta mientras `session.resetFull()` espera a that the server vuelva a
+// responder tras un reinicio automático (checkbox Memoria/Credenciales marcado). Recarga the página sola al volver.
 function RestartingOverlay() {
   return h("div", { class: () => "ovl rc-ovl" + (store.restarting() ? " on" : "") },
     h("div", { class: "rc-box" },

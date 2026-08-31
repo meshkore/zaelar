@@ -1,13 +1,13 @@
-"""Contrato del DIRECTOR DE INVESTIGACIÓN (`nucleo/research.py`).
+"""Contract for the RESEARCH DIRECTOR (`nucleo/research.py`).
 
-El fallo que cierra (operador, 2026-08-09): pedir «las mejores vacaciones» y recibir tres resultados sacados de la
-primera página de un buscador. El worker ya sabía navegar y extraer; lo que nadie le decía era cuán ANCHO buscar ni
-con qué BAREMO juzgar, así que se autoimponía el criterio mínimo que satisfacía la frase literal.
+The bug this closes (operator, 2026-08-09): asking for “the best holiday” and receiving three results taken from the
+first page of a search engine. The worker already knew how to browse and extract; what nobody told it was how BROADLY
+to search or by what STANDARD to judge, so it imposed the minimum criterion that satisfied the literal phrase.
 
-Lo que se prueba aquí es la DIRECCIÓN, no la búsqueda: que el brief separe lo que descalifica de lo que puntúa, que
-imponga un suelo de amplitud aunque el modelo pida menos, que el embudo llegue al prompt del worker, y que «sigue
-buscando» continúe la misma investigación en vez de repetirla igual. Todo determinista: el compositor (una llamada a
-un modelo) va mockeado — lo que se verifica es el contrato alrededor, no la creatividad del modelo.
+What is tested here is the DIRECTION, not the search: that the brief separates what disqualifies from what scores, that
+it imposes a breadth floor even when the model asks for less, that the funnel reaches the worker prompt, and that
+“keep searching” continues the same investigation instead of repeating it unchanged. Everything is deterministic: the
+composer (one model call) is mocked—the contract around it is verified, not the model’s creativity.
 """
 import asyncio
 import json
@@ -20,7 +20,7 @@ from nucleo import research
 
 @pytest.fixture(autouse=True)
 def _fresh_kv(tmp_path, monkeypatch):
-    """KV aislado: `remember_round` persiste en la memoria REAL y no puede ensuciar la del operador."""
+    """Isolated KV: `remember_round` persists in REAL memory and must not pollute the operator’s memory."""
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
     memdb.reset_db()
     memdb.get_db()
@@ -48,10 +48,10 @@ def _raw(**over):
     return json.dumps(base, ensure_ascii=False)
 
 
-# ── 1) qué NO es una investigación ────────────────────────────────────────────────────────────────────────────
+# ── 1) what is NOT a research task ─────────────────────────────────────────────────────────────────────────────
 def test_a_plain_action_is_not_a_research_task():
-    """«cancela mi cita» no necesita amplitud ni baremo: sin brief el worker sale como siempre. Si esto devolviera
-    un brief, cada acción trivial pagaría un pre-vuelo y un embudo que no vienen a cuento."""
+    """“cancel my appointment” needs neither breadth nor a standard: without a brief, the worker runs as usual. If this
+    returned a brief, every trivial action would pay for a pre-flight and a funnel that are beside the point."""
     assert research.parse(json.dumps({"research": False})) is None
 
 
@@ -68,10 +68,10 @@ def test_fences_around_the_json_are_tolerated():
     assert research.parse("```json\n" + _raw() + "\n```") is not None
 
 
-# ── 2) el SUELO DE AMPLITUD: lo que impide que la selección vuelva a ser superficial ──────────────────────────
+# ── 2) the BREADTH FLOOR: what keeps selection from becoming superficial again ─────────────────────────────────
 def test_a_lowball_breadth_is_raised_to_the_floor():
-    """El sesgo del modelo, si le dejas el número, es pedir «10 candidatos» — la búsqueda superficial con otro
-    nombre. Elegir «el mejor» entre 8 no es elegir."""
+    """If allowed to choose the number, the model’s bias is to ask for “10 candidates”—a superficial search under another
+    name. Choosing “the best” from 8 is not choosing."""
     b = research.parse(_raw(breadth={"min_candidates": 8, "angles": ["uno"]}))
     assert b["breadth"]["min_candidates"] == research._MIN_CANDIDATES_FLOOR
 
@@ -91,7 +91,7 @@ def test_lists_are_bounded_so_the_worker_can_actually_honour_them():
     assert len(b["hard"]) == research._MAX_LIST
 
 
-# ── 3) el EMBUDO llega al prompt del worker ───────────────────────────────────────────────────────────────────
+# ── 3) the FUNNEL reaches the worker prompt ────────────────────────────────────────────────────────────────────
 def test_prompt_block_orders_the_funnel_gather_before_discard():
     block = research.to_prompt_block(research.parse(_raw()))
     assert "EMBUDO OBLIGATORIO" in block
@@ -116,8 +116,8 @@ def test_prompt_block_asks_for_composite_proposals_not_separate_lists():
 
 
 def test_prompt_block_demands_facts_so_followups_are_answerable():
-    """Lo que el worker no deje en `facts` no lo sabrá el cerebro cuando el operador pregunte, y habrá que buscarlo
-    otra vez — el mismo trabajo pagado dos veces."""
+    """Anything the worker does not leave in `facts` will be unknown to the brain when the operator asks, and will have
+    to be searched for again—the same work paid for twice."""
     block = research.to_prompt_block(research.parse(_raw()))
     assert "facts" in block and "images" in block
 
@@ -132,7 +132,7 @@ def test_prompt_block_offers_to_keep_searching():
 
 
 def test_assumed_data_must_be_disclosed_not_hidden():
-    """Inventar un dato que falta está bien (no bloquea la búsqueda); ocultar que lo has inventado, no."""
+    """Inventing a missing fact is fine (it does not block the search); hiding that you invented it is not."""
     block = research.to_prompt_block(research.parse(_raw()))
     assert "DATOS ASUMIDOS" in block and "MENCIÓNALOS" in block
 
@@ -142,7 +142,7 @@ def test_an_empty_brief_renders_nothing_rather_than_a_hollow_block():
     assert research.to_prompt_block({"goal": ""}) == ""
 
 
-# ── 4) RONDA 2: «esos no me valen, sigue buscando» ────────────────────────────────────────────────────────────
+# ── 4) ROUND 2: “these don’t work for me, keep searching” ─────────────────────────────────────────────────────
 def test_expand_raises_breadth_and_keeps_the_agreed_criteria():
     b = research.parse(_raw())
     nxt = research.expand(b, note="esos no me valen, algo más barato")
@@ -165,10 +165,10 @@ def test_the_rejection_reason_reaches_the_worker():
     assert "ronda 2" in research.to_prompt_block(nxt)
 
 
-# ── 5) continuidad por OBJETIVO: la 2ª frase del operador no menciona la 1ª ───────────────────────────────────
+# ── 5) continuity by GOAL: the operator’s 2nd sentence does not mention the 1st ───────────────────────────────
 def test_a_continuation_is_matched_fuzzily_not_word_for_word():
-    """La frase con la que se pide continuar nunca es la inicial. Con casado exacto, «sigue buscando» se leía como
-    búsqueda nueva y devolvía la MISMA ronda 1 — es decir, lo que el operador acababa de rechazar."""
+    """The sentence asking to continue is never the initial one. With exact matching, “keep searching” was read as a
+    new search and returned the SAME round 1—in other words, what the operator had just rejected."""
     from nucleo.dispatch import _goal_key
     b = research.parse(_raw())
     research.remember_round(_goal_key("busca vacaciones en Baleares en ferry con hotel con piscina"), b)
@@ -189,7 +189,7 @@ def test_a_stale_round_is_a_new_search_again():
     research.remember_round(gk, research.parse(_raw()))
     from memory import api as memory
     reg = memory.kv_get(research._KV_ROUND)
-    reg[gk]["ts"] -= research._ROUND_TTL + 60          # envejecerla más allá del TTL
+    reg[gk]["ts"] -= research._ROUND_TTL + 60          # age it beyond the TTL
     memory.kv_set(research._KV_ROUND, reg)
     assert research.previous_round(gk) is None
 
@@ -209,7 +209,7 @@ def test_a_brief_survives_a_restart_so_a_resumed_task_keeps_its_criteria():
     assert research.load("no-existe") is None
 
 
-# ── 6) kill-switch y fail-open: esto NUNCA puede tumbar una escalada ─────────────────────────────────────────
+# ── 6) kill switch and fail-open: this must NEVER bring down an escalation ─────────────────────────────────────
 def test_the_killswitch_turns_it_off_completely(monkeypatch):
     monkeypatch.setenv("ZAELAR_RESEARCH", "0")
     assert research.enabled() is False
@@ -217,10 +217,10 @@ def test_the_killswitch_turns_it_off_completely(monkeypatch):
 
 
 def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
-    """Un proveedor atascado no puede impedir que la tarea arranque: mejor un worker sin dirigir —como salía antes—
-    que una escalada que no sale. Lo que CAMBIÓ el 2026-08-13 es la FORMA de decirlo: la avería sube como
-    `ComposerUnavailable` y `dispatch` la atiende, en vez de un `None` que se confundía con «esto no es una
-    investigación» y por esa confusión le quitaba a la tarea la mitad de su presupuesto (ver la clase)."""
+    """A stuck provider must not prevent the task from starting: a worker without direction—as it ran before—is better
+    than an escalation that never completes. What CHANGED on 2026-08-13 is HOW this is expressed: the failure is raised
+    as `ComposerUnavailable` and handled by `dispatch`, instead of a `None` that was confused with “this is not a
+    research task,” and that confusion took half the task’s budget away (see the class)."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
 
     class _Hung:
@@ -228,8 +228,8 @@ def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
             await asyncio.sleep(30)
             return _raw()
 
-    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
-    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
+    # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Hung())
     with pytest.raises(research.ComposerUnavailable):
@@ -243,8 +243,8 @@ def test_a_broken_composer_fails_open(monkeypatch):
         async def complete(self, *a, **k):
             raise RuntimeError("429 sin cuota")
 
-    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
-    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
+    # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Boom())
     with pytest.raises(research.ComposerUnavailable):
@@ -265,28 +265,28 @@ def test_a_good_composer_produces_a_directed_brief(monkeypatch):
         async def complete(self, *a, **k):
             return _raw()
 
-    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
-    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
+    # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Ok())
     b = asyncio.run(research.compose("nos queremos ir de vacaciones a Baleares en agosto"))
     assert b["breadth"]["min_candidates"] >= research._MIN_CANDIDATES_FLOOR
-    assert b["request"].startswith("nos queremos ir")     # la petición literal viaja con el brief
+    assert b["request"].startswith("nos queremos ir")     # the literal request travels with the brief
     assert b["round"] == 1
 
 
 def test_the_composer_is_told_todays_date():
-    """Sin la fecha real, «agosto» o «el puente que viene» no se pueden anclar y el brief sale con fechas de otro año."""
+    """Without the real date, “August” or “the upcoming long weekend” cannot be anchored and the brief comes out with dates from another year."""
     msgs = research.build_messages("busca vuelos", today="FECHA/HORA REAL DE HOY: lunes 10 ago 2026")
     assert "2026" in msgs[1]["content"]
     assert msgs[0]["role"] == "system" and "DIRECTOR DE INVESTIGACIÓN" in msgs[0]["content"]
 
 
 def test_the_composer_prompt_spans_domains_instead_of_specialising():
-    """La pieza tiene que dirigir igual de bien una tesis, un libro o la elección de una librería de software que un
-    viaje. Los EJEMPLOS de varios dominios son buenos (enseñan la forma del problema); lo que sería un fallo es que
-    solo hubiera ejemplos de un dominio, porque entonces esto es un buscador de viajes disfrazado de mecanismo
-    genérico. Se mide la DIVERSIDAD, no la ausencia de palabras."""
+    """The component must direct a thesis, a book, or the choice of a software library just as well as a trip. EXAMPLES
+    from several domains are good (they teach the shape of the problem); the failure would be to have examples from
+    only one domain, because then this would be a travel search engine disguised as a generic mechanism. DIVERSITY is
+    measured, not the absence of words."""
     sysmsg = research.build_messages("x")[0]["content"].lower()
     domains = {
         "compra/selección": ("alojamiento", "coche", "portátil", "proveedores"),
@@ -296,18 +296,18 @@ def test_the_composer_prompt_spans_domains_instead_of_specialising():
     }
     covered = [name for name, words in domains.items() if any(w in sysmsg for w in words)]
     assert len(covered) >= 3, f"el director solo contempla {covered}: se ha especializado en un dominio"
-    # y nada de fijar el vocabulario de UN caso concreto (el que motivó la pieza)
+    # and do not fix the vocabulary to ONE specific case (the one that motivated the component)
     for leak in ("baleares", "ferry", "piscina", "hotel"):
         assert leak not in sysmsg, f"«{leak}» es el caso que motivó la pieza, no puede estar en el mecanismo"
 
 
-# ── 7) hallazgos de la primera corrida REAL del compositor (2026-08-09) ──────────────────────────────────────
-# Se lanzó el director contra la petición literal del operador (viaje a Baleares) con el modelo de verdad. El brief
-# salió excelente en lo importante —enriquecimientos de experto reales: «a los 11 años muchos hoteles ya cuentan al
-# niño como adulto para la ocupación», «1,80 m es el umbral de vehículo alto en ferry»— pero destapó dos defectos.
+# ── 7) findings from the composer’s first REAL run (2026-08-09) ─────────────────────────────────────────────────
+# The director was run against the operator’s literal request (a trip to the Balearic Islands) with the actual model.
+# The brief was excellent where it mattered—real expert enrichments: “at age 11 many hotels already count a child as
+# an adult for occupancy,” “1.80 m is the threshold for a tall vehicle on a ferry”—but it revealed two defects.
 def test_a_descriptive_phrase_smuggled_as_a_role_becomes_a_badge():
-    """Lo que devolvió el modelo real: en vez de roles cortos, la DESCRIPCIÓN del contenido de cada pieza. Puesto tal
-    cual en la insignia de la tarjeta, la rompe. El prompt lo pide corto; el cap lo garantiza."""
+    """What the actual model returned: instead of short roles, the DESCRIPTION of each component’s content. Placed
+    unchanged in the card badge, it breaks it. The prompt asks for brevity; the cap guarantees it."""
     b = research.parse(_raw(deliverable={
         "widget": "results", "n_final": 3, "composite": True,
         "parts": ["Ruta de ferry (origen, destino, naviera, tipo rápido/convencional, horarios)",
@@ -316,7 +316,7 @@ def test_a_descriptive_phrase_smuggled_as_a_role_becomes_a_badge():
     roles = b["deliverable"]["parts"]
     assert all(len(r) <= research._MAX_ROLE_CHARS for r in roles)
     assert all(len(r.split()) <= research._MAX_ROLE_WORDS for r in roles)
-    # y NUNCA cortado a mitad de palabra: «Tarifa de ferry para 4 pasaj» es basura en pantalla
+    # and NEVER cut in the middle of a word: “Tarifa de ferry para 4 pasaj” is garbage on screen
     assert not any(r.endswith(("pasaj", "razó", "conven")) for r in roles), roles
     assert roles[0] == "Ruta de ferry"
 
@@ -328,10 +328,9 @@ def test_the_same_role_twice_is_not_a_composite_proposal():
 
 
 def test_the_composer_is_told_not_to_turn_a_search_into_a_booking():
-    """Defecto REAL de la primera corrida: el objetivo salió como «Encontrar y RESERVAR la mejor oferta…» cuando el
-    operador solo pidió buscar. Un worker con «reservar» en su objetivo puede reservar de verdad — dinero
-    comprometido e irreversible por una palabra que nadie dijo. Investigar es encontrar y proponer; actuar es una
-    decisión del operador al ver las propuestas."""
+    """REAL defect from the first run: the goal came out as “Find and BOOK the best deal…” when the operator only asked
+    to search. A worker with “book” in its goal may actually book—a commitment of money, irreversible because of one
+    word nobody said. Research means finding and proposing; acting is the operator’s decision after seeing the proposals."""
     sysmsg = research.build_messages("busca vacaciones")[0]["content"].lower()
     assert "no reservar" in sysmsg or "nunca añadas" in sysmsg
     for forbidden in ("reservar", "comprar", "pagar"):
@@ -339,19 +338,19 @@ def test_the_composer_is_told_not_to_turn_a_search_into_a_booking():
 
 
 def test_the_worker_is_told_not_to_commit_anything():
-    """Defensa en profundidad sobre lo anterior: aunque el objetivo se colara con «reservar», el bloque que LEE el
-    worker le prohíbe comprometer dinero o mandar algo. Investigar acaba en proponer; actuar lo decide el operador."""
+    """Defense in depth for the above: even if “book” slipped into the goal, the block the worker READS forbids it from
+    committing money or sending anything. Research ends in proposing; acting is the operator’s decision."""
     block = research.to_prompt_block(research.parse(_raw()))
     assert "NO COMPROMETAS NADA" in block
     for forbidden in ("reserves", "compres", "pagues"):
         assert forbidden in block
 
 
-# ── 8) el brief se VE en pantalla, no solo se obedece (2026-08-12) ────────────────────────────────────────────
-# Los criterios con los que se está buscando eran algo que solo se podía PREGUNTAR («¿qué has entendido?»), y por
-# tanto no se podían comprobar de un vistazo ni corregir mirándolos. Ahora se siembran en la pestaña CRITERIOS de
-# la hoja de resultados, desde el PRE-VUELO — no desde el worker: si dependiera de que el ejecutor se acuerde de
-# escribirlos, faltarían justo en las búsquedas que peor van.
+# ── 8) the brief is SEEN on screen, not merely obeyed (2026-08-12) ─────────────────────────────────────────────
+# The criteria being used for the search could previously only be ASKED about (“what did you understand?”), so they
+# could not be checked at a glance or corrected by looking at them. They are now seeded in the CRITERIA tab of the
+# results sheet, from PRE-FLIGHT—not by the worker: if this depended on the executor remembering to write them, they
+# would be missing precisely in the searches that go worst.
 def test_the_brief_becomes_the_criteria_tab():
     crit = research.to_criteria(research.parse(_raw()))
     assert crit["goal"].startswith("Tres propuestas")
@@ -361,8 +360,8 @@ def test_the_brief_becomes_the_criteria_tab():
 
 
 def test_criteria_of_a_second_round_carry_the_rejection_as_a_change():
-    """Lo que el operador dijo al rechazar la ronda anterior es una CORRECCIÓN suya: su sitio es la pestaña, donde
-    él puede verla, no solo el prompt del worker."""
+    """What the operator said when rejecting the previous round is their CORRECTION: it belongs in the tab, where they
+    can see it, not only in the worker prompt."""
     nxt = research.expand(research.parse(_raw()), note="ninguno tiene parking cubierto")
     crit = research.to_criteria(nxt)
     assert "ninguno tiene parking cubierto" in crit["changes"]
@@ -375,9 +374,9 @@ def test_nothing_to_show_is_not_a_crash():
 
 
 def test_the_worker_is_told_to_report_its_sources():
-    """La pieza que faltaba para poder AUDITAR una búsqueda: hasta hoy una web que nos dejaba fuera (login, tope
-    de 50, bloqueo) y una web sin resultados se veían igual — «no he encontrado nada» —, así que el operador no
-    podía saber si convenía entrar él a mano."""
+    """The missing piece for being able to AUDIT a search: until now, a website that kept us out (login, limit of 50,
+    blocking) and a website with no results looked identical—“I found nothing”—so the operator could not know whether
+    it was worth entering manually."""
     block = research.to_prompt_block(research.parse(_raw()))
     assert "FUENTES" in block and "results sources" in block
     for status in ("partial", "auth", "blocked"):
@@ -385,10 +384,10 @@ def test_the_worker_is_told_to_report_its_sources():
     assert "results progress" in block, "y el avance: sin él el sumario no puede decir cuántos ha explorado"
 
 
-# ── 8) CUÁNTAS y en QUÉ ORDEN se entregan (petición del operador 2026-08-12) ─────────────────────────────────
-# «Por defecto debemos buscar diez resultados, y si el usuario nos pide tres o veinte, modificar ese criterio de
-# base»; y «ordenar los diez mejores por orden de uno al diez». Antes el defecto era 3 y el tope 10 — con lo que
-# un «ponme veinte» era literalmente inexpresable en el brief.
+# ── 8) HOW MANY and in WHAT ORDER they are delivered (operator request 2026-08-12) ────────────────────────────
+# “By default we should search for ten results, and if the user asks for three or twenty, modify that base criterion”;
+# and “order the ten best from one to ten.” Previously the default was 3 and the cap 10—which made “give me twenty”
+# literally inexpressible in the brief.
 def test_by_default_ten_are_delivered_not_three():
     b = research.parse(_raw(deliverable={"widget": "results"}))
     assert b["deliverable"]["n_final"] == 10
@@ -408,8 +407,8 @@ def test_twenty_is_expressible_and_absurd_numbers_are_capped():
 
 
 def test_the_delivery_is_ranked_and_the_order_is_the_ranking():
-    """Una lista sin orden obliga al operador a repetir la comparación que el worker ya hizo. El brief tiene que
-    decir que el orden ES el ranking y que cada opción lleva su nota CON su porqué."""
+    """An unordered list forces the operator to repeat the comparison the worker already made. The brief must say that
+    the order IS the ranking and that each option includes its score WITH its reason."""
     block = research.to_prompt_block(research.parse(_raw(deliverable={"widget": "results", "n_final": 10})))
     assert "ORDENADAS DE MEJOR A PEOR" in block
     assert "nº1" in block and "nº10" in block
@@ -417,33 +416,33 @@ def test_the_delivery_is_ranked_and_the_order_is_the_ranking():
 
 
 def test_declining_is_not_an_outage_and_keeps_the_normal_budget(monkeypatch):
-    """La otra mitad del contrato: si el compositor CONTESTA que esto no pide amplitud ni baremo, eso es una
-    decisión suya y no una avería — devuelve `None` y la tarea corre con el presupuesto que le toca. Sin esta
-    distinción, cualquier charla habría heredado el presupuesto de una investigación."""
+    """The other half of the contract: if the composer ANSWERS that this does not require breadth or a standard, that is
+    its decision and not a failure—it returns `None` and the task runs with its proper budget. Without this distinction,
+    every conversation would have inherited a research task’s budget."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
 
     class _No:
         async def complete(self, *a, **k):
             return '{"research": false, "why": "es una pregunta, no una selección"}'
 
-    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
-    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
+    # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _No())
     assert asyncio.run(research.compose("¿qué hora es?")) is None
 
 
 def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
-    """Un compositor que contesta algo ilegible NO ha decidido que esto no sea una investigación: se ha averiado.
-    Tratarlo como un rechazo suyo es justo lo que le quitaba el tiempo a la tarea."""
+    """A composer that answers with something unreadable has NOT decided that this is not a research task: it has
+    failed. Treating it as its rejection is exactly what took time away from the task."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
 
     class _Garbage:
         async def complete(self, *a, **k):
             return "claro, te preparo un brief… (y aquí se cortó)"
 
-    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
-    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
+    # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Garbage())
     with pytest.raises(research.ComposerUnavailable):

@@ -1,21 +1,21 @@
-"""nucleo/flash/provider_failure.py — QUÉ hacer cuando el stream del modelo revienta, decidido UNA vez.
+"""nucleo/flash/provider_failure.py — WHAT to do when the model stream blows up, decided ONCE.
 
-Existe porque la misma decisión estaba escrita dos veces, y esa duplicación ha mordido TRES veces:
+It exists because the same decision was written twice, and that duplication has bitten THREE times:
 
-  · 2026-08-18 (V2-118…121, `22f3674`): `probe.py` es la implementación PARALELA del provider de voz, y el arnés
-    corre por ese canal. Las tags `[[cron.create]]` se CAPTURABAN allí y no se ejecutaban, así que un aviso
-    programado no podía existir por esa vía — el mecanismo era INALCANZABLE para todo lo que se midiera.
-  · 2026-08-15: el relevo ante un fallo DURO se añadió a la voz y no aquí.
-  · 2026-08-21, y es lo que dejó al arnés **ocho horas sin poder medir**: con la cadena real sembrada
-    (`deepseek-directo → aimlapi-failover`), un turno de texto devolvía
-    `{"ok":false,"error":"modelo: 402 Insufficient Balance"}` **en el mismo segundo** en que el log decía
-    «`deepseek-directo` SIN SALDO → relevo a `aimlapi-failover`». La voz relevaba, i18n relevaba, el texto no.
+  · 2026-08-18 (V2-118…121, `22f3674`): `probe.py` is the PARALLEL implementation of the voice provider, and the harness
+    runs through that channel. The `[[cron.create]]` tags were CAPTURED there and not executed, so a scheduled notice
+    could not exist through that route — the mechanism was UNREACHABLE for everything being measured.
+  · 2026-08-15: failover on a HARD failure was added to voice and not here.
+  · 2026-08-21, which is what left the harness **unable to measure for eight hours**: with the actual seeded chain
+    (`deepseek-directo → aimlapi-failover`), a text turn returned
+    `{"ok":false,"error":"modelo: 402 Insufficient Balance"}` **in the same second** that the log said
+    «`deepseek-directo` SIN SALDO → relevo a `aimlapi-failover`». Voice failed over, i18n failed over, text did not.
 
-O sea: no es que faltara la política, es que **el canal de texto no la aplicaba**. Dos copias de una decisión se
-separan sin avisar, y el aviso llega cuando alguien mide algo que sale mal por un motivo que no es el que mide.
+In other words: the policy was not missing; **the text channel was not applying it**. Two copies of a decision
+diverge without warning, and the warning arrives when someone measures something that fails for a reason other than the one being measured.
 
-Lo que se comparte es la DECISIÓN (¿atasco o fallo duro? ¿a qué escalón se releva? ¿queda alguno?). Lo que NO se
-comparte —a propósito— es qué le dice cada canal al operador: la voz habla, el canal de texto devuelve un objeto.
+What is shared is the DECISION (stall or hard failure? which tier to fail over to? is any tier left?). What is NOT
+shared —deliberately— is what each channel tells the operator: voice speaks, the text channel returns an object.
 """
 from __future__ import annotations
 
@@ -23,16 +23,16 @@ from loguru import logger
 
 
 def tier_for(spec, role: str):
-    """El escalón de la cadena con el que corrió ESTE turno, o None si no se reconoce.
+    """The tier in the chain on which THIS turn ran, or None if it is not recognized.
 
-    V2-252 — hay DOS fuentes de «quién es el titular» y no siempre dicen lo mismo: el turno compone su spec con
-    `spec_from_config()` (que lee `fast.model` / `fast.base_url`) y la cadena se ordena por `fast.providers`.
-    El arnés lo midió el 2026-08-21 al reordenar la escalera y ver que **no cambiaba nada**.
+    V2-252 — there are TWO sources for “who is primary” and they do not always agree: the turn builds its spec with
+    `spec_from_config()` (which reads `fast.model` / `fast.base_url`) and the chain is ordered by `fast.providers`.
+    The harness measured this on 2026-08-21 by reordering the ladder and seeing that **nothing changed**.
 
-    Importa aquí porque `note_failure` sin `tier` pregunta a `pick()`, o sea «el que se elegiría AHORA» — que
-    tras un reorden puede no ser el que acaba de fallar. Entonces el cooldown cae sobre un proveedor SANO y el
-    roto sigue elegido: castigar al inocente y dejar suelto al culpable, en silencio. Se resuelve por el
-    `base_url` con el que se hizo la llamada, que es el único dato que no puede mentir sobre quién contestó.
+    This matters because `note_failure` without `tier` asks `pick()`, meaning “the one that would be selected NOW” — which
+    after a reorder may not be the one that just failed. The cooldown then lands on a HEALTHY provider while the
+    broken one remains selected: punishing the innocent and leaving the guilty free, silently. It is resolved using the
+    `base_url` used for the call, which is the only datum that cannot lie about who responded.
     """
     try:
         url = (spec.resolved_base_url() or "").strip().rstrip("/") if spec is not None else ""
@@ -42,13 +42,13 @@ def tier_for(spec, role: str):
         return None
     try:
         from nucleo.flash import provider_chain as pc
-        # V2-307 — el base_url solo no basta cuando DOS escalones comparten endpoint: `deepseek-directo` y
-        # `deepseek-directo-pro` viven los dos en api.deepseek.com, y devolver «el primero que casa» marcaba
-        # SIEMPRE al flash. Medido a las 03:13-03:15 (2026-08-25): el titular cayó por SALDO (402), el relevo
-        # fue al pro —misma cuenta seca—, su 402 del reintento volvió a marcar al FLASH ya en cooldown, y el
-        # pro nunca entró en cooldown → la cadena no avanzó JAMÁS al broker: cuatro turnos mudos con un
-        # escalón con fondos esperando al lado. Con el MODELO delante, el par (endpoint, modelo) es único; el
-        # fallback a solo-endpoint se conserva para un spec cuyo modelo no esté en la cadena (un pin manual).
+        # V2-307 — base_url alone is insufficient when TWO tiers share an endpoint: `deepseek-directo` and
+        # `deepseek-directo-pro` both live at api.deepseek.com, and returning “the first match” ALWAYS marked
+        # flash. Measured at 03:13-03:15 (2026-08-25): the primary failed for BALANCE (402), failover went
+        # to pro —same empty account—, its retry 402 marked FLASH again, already in cooldown, and pro never
+        # entered cooldown → the chain NEVER advanced to the broker: four silent turns with a funded tier
+        # waiting beside it. With MODEL first, the (endpoint, model) pair is unique; the fallback to endpoint-only
+        # is retained for a spec whose model is not in the chain (a manual pin).
         _model = ""
         try:
             _model = str(getattr(spec, "model", "") or "").strip()
@@ -68,22 +68,21 @@ def tier_for(spec, role: str):
 
 
 def handle(err_text: str, *, role: str, stalled: bool = False, spec=None) -> dict:
-    """Marca el escalón, registra la salud, y devuelve `{relay, dry}`.
+    """Marks the tier, records health, and returns `{relay, dry}`.
 
-    · `relay` = el escalón al que ir, o None si no hay a dónde (o si el error no es del proveedor).
-    · `dry`   = la cadena se quedó SIN ningún escalón sano (V2-243): eso cambia lo que se le dice al operador,
-                porque «¿me lo repites?» es mentira cuando no queda a quién preguntar.
+    · `relay` = the tier to go to, or None if there is nowhere to go (or if the error is not provider-related).
+    · `dry`   = the chain has NO healthy tier left (V2-243): this changes what is told to the operator,
+                because “can you repeat that?” is a lie when there is no one left to ask.
 
-    Fail-soft entero: esto corre dentro del manejador de errores de un turno y no puede añadir una excepción a la
-    que ya hubo.
+    Entirely fail-soft: this runs inside a turn’s error handler and cannot add an exception to the one that already occurred.
     """
     from nucleo.flash import provider_chain as pc
 
     relay = None
-    culpable = tier_for(spec, role)          # el que REALMENTE corrió; None → que lo decida `pick()`, como antes
+    culpable = tier_for(spec, role)          # the one that ACTUALLY ran; None → let `pick()` decide, as before
     try:
         if stalled:
-            # V2-246: un atasco aislado es ruido; dos seguidos son un escalón que no sirve.
+            # V2-246: an isolated stall is noise; two in a row mean a tier is unusable.
             relay = pc.note_stall(role=role, tier=culpable)
         else:
             relay = pc.note_failure(err_text, role=role, tier=culpable)

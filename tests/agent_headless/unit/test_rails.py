@@ -1,4 +1,4 @@
-"""Tests de nucleo/rails.py (V2-042) — RAILS: registro de runs vivos + proyección al estado + guía situacional."""
+"""Tests for nucleo/rails.py (V2-042) — RAILS: live-run registry + state projection + situational guidance."""
 import time
 
 import pytest
@@ -8,7 +8,7 @@ from nucleo import rails
 
 @pytest.fixture(autouse=True)
 def _iso(monkeypatch):
-    """Aísla el registro RAM y captura la proyección (sin tocar la memoria real)."""
+    """Isolate the RAM registry and capture the projection (without touching real memory)."""
     projected = {}
 
     def _fake_set_state(fields):
@@ -32,7 +32,7 @@ def test_singleton_new_label_replaces_and_resets_attempts():
     rails.upsert("music.search", "cancion A", bump=True)
     rails.upsert("music.search", "cancion A", bump=True)
     assert rails.get("music.search")["attempts"] == 2
-    rails.upsert("music.search", "cancion B", bump=True)     # OTRO objetivo → sustituye, intentos de cero
+    rails.upsert("music.search", "cancion B", bump=True)     # DIFFERENT target → replaces it, attempts reset to zero
     a = rails.get("music.search")
     assert a["label"] == "cancion B" and a["attempts"] == 1
 
@@ -42,7 +42,7 @@ def test_fail_keeps_isolated_sin_resolver():
     rails.fail("music.search", "la web no la identificó")
     a = rails.get("music.search")
     assert a["status"] == "sin_resolver" and "identificó" in a["detail"]
-    assert any(x["kind"] == "music.search" for x in rails.live())   # sigue vivo (aislado), no borrado
+    assert any(x["kind"] == "music.search" for x in rails.live())   # remains live (isolated), not deleted
 
 
 def test_resolve_removes():
@@ -65,21 +65,21 @@ def test_projection_shape(_iso):
 
 
 def test_prompt_lines_only_when_live_and_matching_status():
-    # rail en reposo → sin guía (cero coste de prompt)
+    # rail at rest → no guidance (zero prompt cost)
     assert rails.prompt_lines() == []
-    # buscando (aún no fallida) → la guía de music.search aplica solo a sin_resolver
+    # searching (not failed yet) → music.search guidance applies only to sin_resolver
     rails.upsert("music.search", "vuela conmigo", status="searching")
     assert rails.prompt_lines() == []
     rails.fail("music.search")
     lines = rails.prompt_lines()
     assert lines and "SIN RESOLVER" in lines[0] and "play_music" in lines[0]
-    # resuelta → desaparece la guía
+    # resolved → guidance disappears
     rails.resolve("music.search")
     assert rails.prompt_lines() == []
 
 
 def test_compose_state_renders_rails(_iso, monkeypatch):
-    """La memoria pinta la línea 'Rails en curso' con estado legible (sin_resolver → SIN RESOLVER)."""
+    """Memory renders the 'Rails en curso' line with a readable status (sin_resolver → SIN RESOLVER)."""
     import memory.api as mapi
     st = {"rails": [{"kind": "music.search", "label": "vuela conmigo", "status": "sin_resolver",
                      "detail": "la web no la identificó", "attempts": 2}]}

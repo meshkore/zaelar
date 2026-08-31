@@ -1,4 +1,4 @@
-"""memory/consolidator.py — el "sueño" de la memoria (V2-002 · T49).
+"""memory/consolidator.py — memory's "sleep" (V2-002 · T49).
 
 Job periódico, SIN prisa (lo dispara el loop orquestador en V2-005: diario/horario/por tamaño). Comprime,
 deduplica, aplica el decay temporal y borra por peso SOLO si se supera el límite de almacenamiento — nunca los

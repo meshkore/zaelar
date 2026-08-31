@@ -178,19 +178,19 @@ def _pip_has(mod: str) -> bool:
 def tooling() -> dict:
     """Binarios y dependencias opcionales que habilitan capacidades locales."""
     return {
-        "claude_cli": _find_claude(),                          # SlowBrain / generador de widgets (None = ausente)
+        "claude_cli": _find_claude(),                          # SlowBrain / widget generator (None = absent)
         "codex_cli": shutil.which(os.getenv("CODEX_BIN", "codex")),
-        "livekit_server": shutil.which("livekit-server"),      # media server nativo (si no, Docker fallback)
+        "livekit_server": shutil.which("livekit-server"),      # native media server (Docker fallback otherwise)
         "docker": shutil.which("docker"),
         "playwright_chromium": _playwright_chromium(),         # browser + free Google search
         "deps": {
             "mlx_whisper": _pip_has("mlx_whisper"),             # STT Metal (Apple Silicon)
             "mlx_audio": _pip_has("mlx_audio"),                # TTS Metal (Apple Silicon)
             "faster_whisper": _pip_has("faster_whisper"),      # STT CPU/CUDA universal
-            "fastembed": _pip_has("fastembed"),                # embeddings + reranker locales (fallback)
+            "fastembed": _pip_has("fastembed"),                # local embeddings + reranker (fallback)
             "playwright": _pip_has("playwright"),
             "telethon": _pip_has("telethon"),                  # Telegram
-            "sqlite_vec": _pip_has("sqlite_vec"),              # store vectorial de la memoria
+            "sqlite_vec": _pip_has("sqlite_vec"),              # memory vector store
         },
     }
 

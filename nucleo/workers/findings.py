@@ -1,27 +1,27 @@
-"""nucleo/workers/findings.py — lo que un worker ENCUENTRA llega a la conversación en cuanto existe.
+"""nucleo/workers/findings.py — what a worker FINDS reaches the conversation as soon as it exists.
 
-V2-223 cerró esto para lo que extrae el NAVEGADOR: el hallazgo se empuja como nota de sistema en el momento en
-que aparece, no al final de la sesión. Lo que quedaba fuera —y es el mismo agujero con otra puerta— es lo que
-devuelve una BÚSQUEDA WEB, que en un worker es la vía que más veces produce el dato bueno ya limpio.
+V2-223 closed this for what the BROWSER extracts: the finding is pushed as a system note the moment it
+appears, not at the end of the session. What remained outside —the same hole with another door— is what a
+WEB SEARCH returns, which in a worker is the path that most often produces the good, already-clean datum.
 
-Medido por el arnés el 2026-08-21 en `cheapest-monitor`, leyendo la observabilidad entera: los eventos
-`kind='search'` (`🌐 web ↩`) traían
+Measured by the harness on 2026-08-21 in `cheapest-monitor`, reading the full observability data: the events
+`kind='search'` (`🌐 web ↩`) contained
 
     «Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €»
     «Alurin CoreVision 27" IPS 4K Freesync — 149,99 €»
 
-exactamente lo que el operador había pedido, en texto limpio. **Búsquedas 7, respuestas 5, notas al cerebro
-desde ese canal 0.** Y el porqué: **5 de 8 workers devolvieron `ok:false`** — se caen antes de entregar, y el
-texto bueno se va con ellos. Zaelar dijo «la búsqueda se ha caído sin terminar», que era LA VERDAD.
+exactly what the operator had requested, in clean text. **7 searches, 5 answers, 0 brain notes from that
+channel.** And the reason: **5 of 8 workers returned `ok:false`** — they fail before delivering, and the good
+text goes down with them. Zaelar said «the search failed without finishing», which was THE TRUTH.
 
-Tres decisiones que hacen que esto no se convierta en ruido:
+Three decisions keep this from becoming noise:
 
-  · **El JUICIO se queda en el cerebro.** La nota entrega el hecho y nombra la prueba; no ordena anunciarlo.
-    Una orden de «di esto» acabaría ofreciendo el primer resultado de una búsqueda fallida como la respuesta.
-  · **UNA sola instrucción** (V2-226): la bifurcación va DENTRO del imperativo, nunca como segunda orden.
-  · **Se recorta, no se resume, y se dice cuánto se dejó fuera** (doctrina de `observability/evidence.py`). Una
-    respuesta de búsqueda puede ser una página entera; lo que se empuja es su principio, con la cuenta de lo
-    que falta, y nunca una versión reescrita por nosotros.
+  · **The JUDGMENT stays in the brain.** The note delivers the fact and names the evidence; it does not order
+    it announced. An order saying «say this» would end up offering the first result of a failed search as the answer.
+  · **A single instruction** (V2-226): the branching goes INSIDE the imperative, never as a second command.
+  · **It is clipped, not summarized, and how much was left out is stated** (the doctrine of
+    `observability/evidence.py`). A search response may be an entire page; what is pushed is its beginning,
+    with a count of what is missing, and never a version rewritten by us.
 """
 from __future__ import annotations
 
@@ -43,39 +43,38 @@ def _lone_amount(text: str) -> str:
     return hits[0][:20] if len(hits) == 1 else ""
 
 
-#: Un enlace, como lo escribe cualquier fuente. Reconocer un enlace es agnóstico del dominio; reconocer un
-#: producto no lo sería.
+#: A link, as any source writes one. Recognizing a link is domain-agnostic; recognizing a product would not be.
 _URL_RE = _re.compile(r"https?://\S{4,}", _re.I)
 
-#: El ENVOLTORIO de una tool: su propia transcripción, con el JSON de enlaces dentro. Es ESTRUCTURA (un
-#: array de objetos detrás de dos puntos), no una frase — por eso no hace falta reconocer el idioma en que
-#: cada CLI redacta su cabecera, que es la carrera que este repo lleva perdiendo desde V2-364.
+#: A tool's WRAPPER: its own transcript, with the link JSON inside. It is STRUCTURE (an array of objects after
+#: a colon), not a sentence — so there is no need to recognize the language in which each CLI writes its header,
+#: which is the race this repo has been losing since V2-364.
 _ENVELOPE_RE = _re.compile(r':\s*\[\s*\{\s*"')
 
 
 def looks_like_a_finding(text: str) -> bool:
-    """¿Este texto TRAE algo, o solo CUENTA lo que pasó?
+    """Does this text BRING something, or does it merely TELL what happened?
 
-    V2-511. `_maybe_hand_web` empuja el texto CRUDO de cualquier paso web que no sea `is_error`, y una tool
-    que devuelve un rechazo CON ÉXITO no lo es. Medido en `cheapest-monitor__us` (20260830-130649) con la
-    hoja VACÍA y 17 notas ofrecidas al cerebro: siete eran errores HTTP o negativas del propio worker
-    («The server returned HTTP 404…», «Based on the content provided, I'm unable to summarize…») y **once
-    eran el envoltorio del buscador del CLI** («Web search results for query: … Links: [{"title":…»). Cero
-    fichas. El juez llevaba cuatro rondas archivando «presenta candidatos irrelevantes» y el agente no
-    elegía mal: le dábamos eso.
+    V2-511. `_maybe_hand_web` pushes the RAW text of any web step that is not `is_error`, and a tool that
+    successfully returns a rejection is not one. Measured in `cheapest-monitor__us` (20260830-130649) with
+    the sheet EMPTY and 17 notes offered to the brain: seven were HTTP errors or refusals from the worker
+    itself («The server returned HTTP 404…», «Based on the content provided, I'm unable to summarize…») and
+    **eleven were the CLI searcher's wrapper** («Web search results for query: … Links: [{"title":…»). Zero
+    records. The judge had spent four rounds filing «presents irrelevant candidates» and the agent was not
+    choosing badly: that is what we gave it.
 
-    DOS cortes, los dos ESTRUCTURALES — no una lista de frases en inglés, que es la cinta de correr que
-    V2-364 ya midió («perseguir el idioma es una carrera que no se gana») y que además dejaría fuera a
-    cualquier CLI que redacte su cabecera de otra forma:
+    TWO filters, both STRUCTURAL — not a list of English phrases, which is the treadmill that
+    V2-364 already measured («chasing the language is a race that cannot be won») and that would also exclude
+    any CLI that writes its header differently:
 
-      · un ENVOLTORIO de tool (JSON de enlaces dentro) es su transcripción, no un resultado que nadie vetó;
-      · un hallazgo trae un DATO DURO —un enlace o un importe—. Una narración sobre la página no trae
-        ninguno de los dos, y ese es justo su parecido de familia: cuenta, no entrega.
+      · a tool WRAPPER (link JSON inside) is its transcript, not a result that anyone vetted;
+      · a finding brings a HARD DATA POINT —a link or an amount—. A narrative about the page brings neither,
+        and that is precisely their family resemblance: it tells, it does not deliver.
 
-    COSTE ACEPTADO Y DICHO: un hallazgo cuyo único dato accionable sea un TELÉFONO (el encargo de servicio
-    de V2-240) no pasa este corte por esta puerta. No se añade aquí a propósito — «nueve a catorce dígitos»
-    sobre prosa libre es la trampa que V2-321 pagó (una fecha leída como teléfono), y la hoja SÍ conserva el
-    teléfono por su propio camino. Antes de ensancharlo, medirlo.
+    ACCEPTED AND STATED COST: a finding whose only actionable datum is a PHONE (the service errand of V2-240)
+    does not pass this filter through this door. It is deliberately not added here — «nine to fourteen digits»
+    over free prose is the trap V2-321 paid for (a date read as a phone number), and the sheet DOES preserve
+    the phone through its own path. Measure it before broadening it.
     """
     t = " ".join(str(text or "").split())
     if not t:
@@ -85,16 +84,16 @@ def looks_like_a_finding(text: str) -> bool:
     return bool(_URL_RE.search(t) or _AMOUNT_RE.search(t))
 
 
-MAX_CHARS = 700          # lo que cabe en una nota sin convertir la conversación en un volcado
-MIN_CHARS = 12           # por debajo no hay hallazgo que contar («ok», «done», una línea vacía)
+MAX_CHARS = 700          # what fits in a note without turning the conversation into a dump
+MIN_CHARS = 12           # below this there is no finding worth reporting («ok», «done», an empty line)
 
-#: task_id → firmas ya entregadas. La MISMA respuesta repetida no es un hallazgo nuevo; una búsqueda repetida
-#: sí lo sería si trajera otra cosa, así que se compara por CONTENIDO y no por el hecho de haber buscado.
+#: task_id → signatures already delivered. The SAME repeated response is not a new finding; a repeated search
+#: would be if it brought something else, so comparison is by CONTENT and not by the fact that it was searched.
 _HANDED: dict[str, set] = {}
 
 
 def clip(text: str) -> str:
-    """El principio del hallazgo, con la cuenta de lo que queda fuera. Nunca una versión reescrita."""
+    """The beginning of the finding, with a count of what is left out. Never a rewritten version."""
     t = " ".join(str(text or "").split())
     if len(t) <= MAX_CHARS:
         return t
@@ -102,16 +101,16 @@ def clip(text: str) -> str:
 
 
 def forget(task_id) -> None:
-    """La sesión terminó: su memoria de hallazgos se va con ella."""
+    """The session ended: its memory of findings goes with it."""
     _HANDED.pop(str(task_id), None)
 
 
 def render_search(res: dict, k: int = 4) -> str:
-    """`{answer, results:[{title,snippet,url}]}` → el texto que se le entrega al cerebro.
+    """`{answer, results:[{title,snippet,url}]}` → the text delivered to the brain.
 
-    Se prefiere `answer` cuando la fuente ya lo sintetizó (Perplexity/Tavily/AI Overview): es lo que esa fuente
-    devolvió, no una reescritura nuestra. Sin él, las primeras filas TAL CUAL. Aquí no se juzga cuál sirve — eso
-    es del cerebro — y por eso tampoco se reordena.
+    `answer` is preferred when the source has already synthesized it (Perplexity/Tavily/AI Overview): it is what
+    that source returned, not our own rewrite. Without it, the first rows EXACTLY AS IS. This does not judge
+    which one is useful — that is the brain's job — and therefore does not reorder them either.
     """
     if not isinstance(res, dict):
         return ""
@@ -131,15 +130,15 @@ def render_search(res: dict, k: int = 4) -> str:
 
 
 def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
-    """Empuja al cerebro lo que una búsqueda web acaba de devolver. Devuelve si se empujó.
+    """Pushes to the brain what a web search has just returned. Returns whether it was pushed.
 
-    Fail-soft entero: esto corre dentro del bucle de eventos de un worker vivo y no puede tumbarlo.
+    Entirely fail-soft: this runs inside a live worker's event loop and cannot bring it down.
     """
     body = clip(text)
     if len(body) < MIN_CHARS:
         return False
-    # V2-511 — lo que CUENTA lo que pasó no se empuja como si TRAJERA algo. V2-510 arregló el imperativo
-    # (una página no es un candidato); esto quita de en medio lo que ni siquiera es una página.
+    # V2-511 — what TELLS what happened is not pushed as though it BROUGHT something. V2-510 fixed the imperative
+    # (a page is not a candidate); this removes what is not even a page from the way.
     if not looks_like_a_finding(body):
         return False
     key = str(task_id)
@@ -154,12 +153,12 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
         brain_notes.push(
             f"[SISTEMA] Una búsqueda web ha devuelto esto, trabajando en «{what}»: {body}. Nadie más lo sabe: no "
             f"está en la conversación hasta que tú lo digas, y el worker puede morirse antes de entregarlo. "
-            # V2-510 — ESTO ES UNA PISTA HASTA QUE SE DEMUESTRE QUE ES UN CANDIDATO, y el imperativo lo tiene
-            # que decir. Lo que vuelve de una búsqueda son casi siempre PÁGINAS: titulares de comparativa, la
-            # portada de una tienda, el cuerpo de un 403. Ordenar «dáselo con nombre, precio y enlace» sobre
-            # eso es ordenar ofrecer un artículo como si fuera el producto — medido en `cheapest-monitor__us`
-            # (20260830-125532): el turno 4 entregó «The 6 Best Budget And Cheap Monitors of 2026 -
-            # RTINGS.com» mientras los ocho monitores REALES esperaban en la hoja.
+            # V2-510 — THIS IS A LEAD UNTIL PROVEN TO BE A CANDIDATE, and the imperative must say so. What
+            # returns from a search is almost always PAGES: comparison headlines, a store's homepage, the body
+            # of a 403. Ordering «give it with name, price, and link» in that situation means ordering an article
+            # to be offered as though it were the product — measured in `cheapest-monitor__us`
+            # (20260830-125532): turn 4 delivered «The 6 Best Budget And Cheap Monitors of 2026 -
+            # RTINGS.com» while the eight REAL monitors waited in the sheet.
             f"OJO CON LO QUE ES: lo que vuelve de una búsqueda suele ser una PÁGINA —el titular de una "
             f"comparativa, un listado, un error del sitio—, y una página NO es un candidato. NÓMBRALO EN ESTE "
             f"TURNO diciendo lo que ES: si trae ya la cosa concreta con su nombre y su precio, dásela como "
@@ -186,7 +185,7 @@ def hand_sheet_finding(task_id, items, goal: str = "") -> bool:
     note is the caller's job, and of the three callers only two do it (`act_api._hand_over`, `owner.py`). The
     third, `dispatch._finalize_web`, does its own `extract_listings()` when the worker finishes or dies and
     writes those rows to the sheet with nobody telling the conversation. Measured 2026-08-24: rows landed in the
-    sheet 42-113 s before the last turn and the agent still said «todavía no tengo nada».
+    sheet 42-113 s before the last turn and the agent still said «I still have nothing».
 
     ONLY IF NOBODY HAS TOLD IT YET, and the condition is deliberately about the TAB and not about these rows:
     `act_api._HANDED` holds the tabs whose extraction already went out as a note. If the tab is in there the
@@ -233,18 +232,17 @@ def hand_search_rows(rec, res: dict) -> int:
     title+url, so eight overlapping searches converge instead of piling.
     """
     try:
-        # V2-376 — LO QUE VUELVE DE UNA BÚSQUEDA ES UNA PISTA, NO UN CANDIDATO, y hasta ahora entraba en la
-        # hoja sin distinguirse de una ficha extraída de un listado. Medido en
-        # `weekend-adventure-sports-bilbao__es` (2026-08-27): **52 «candidatos con nombre»** de UNA sola
-        # fuente, y sus títulos eran páginas —«Descensos de Barranquismo en Vizcaya: 9 precios y ofertas
-        # 2026», «Bilbao despliega ocho escenarios de música gratis», «Top actividad en Bilbao - Reserva con
-        # cancelación gratis»—. La misma forma que los ocho títulos de Google que se contaron como coches de
-        # alquiler el mismo día.
+        # V2-376 — WHAT RETURNS FROM A SEARCH IS A LEAD, NOT A CANDIDATE, and until now it entered the
+        # sheet without being distinguished from a record extracted from a listing. Measured in
+        # `weekend-adventure-sports-bilbao__es` (2026-08-27): **52 «named candidates»** from a SINGLE
+        # source, and their titles were pages —«Canyoning descents in Vizcaya: 9 prices and offers
+        # 2026», «Bilbao unveils eight free music venues», «Top activity in Bilbao - Book with free
+        # cancellation»—. The same pattern as the eight Google titles counted as rental cars that same day.
         #
-        # V2-320 NO se deshace y esto es lo que hay que conservar: buscar es una forma legítima de resolver
-        # «actividades cerca de X», así que sus hallazgos son hallazgos y la hoja no puede quedarse vacía. Lo
-        # que faltaba es que la fila DIGA lo que es. Viaja por `facts`, que es vocabulario que la hoja ya
-        # conserva —es por donde va el teléfono— así que no hace falta tocar el contrato del widget.
+        # V2-320 is NOT undone and this is what must be preserved: searching is a legitimate way to resolve
+        # «activities near X», so its findings are findings and the sheet cannot remain empty. What was
+        # missing was for the row to SAY what it is. It travels through `facts`, vocabulary the sheet already
+        # preserves —that is how the phone number travels— so there is no need to touch the widget contract.
         rows = [{"title": str(r.get("title") or "").strip(),
                  "subtitle": str(r.get("snippet") or "").strip()[:160],
                  "url": str(r.get("url") or "").strip(),
@@ -267,4 +265,4 @@ def hand_search_rows(rec, res: dict) -> int:
         return intake.push(rows, sheet=str(getattr(rec, "sheet", "") or ""),
                            source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
     except Exception:  # noqa: BLE001
-        return 0                              # best-effort: perder una fila es malo, tumbar el turno es peor
+        return 0                              # best-effort: losing a row is bad, bringing down the turn is worse

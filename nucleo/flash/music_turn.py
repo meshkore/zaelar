@@ -1,8 +1,7 @@
-"""Poner música desde un turno: la ejecución, compartida (V2-380).
+"""Play music from a turn: shared execution (V2-380).
 
-Este canal (`probe`, el que conducen los casos de uso) resolvía `play_music` a la etiqueta «music» y ahí
-acababa todo: cero data-ops, cero widget vivo, y el turno contestaba «Hecho.» —el ack enlatado— sobre una
-reproducción que no existía.
+This channel (`probe`, driven by the use cases) resolved `play_music` to the `music` label and stopped there:
+no data ops, no live widget, and the turn replied “Done.”—a canned acknowledgement—for playback that did not exist.
 
 Medido en la PRIMERA ronda que `play-music-and-build-playlist` ha tenido nunca (2026-08-27, **1/5**, el peor
 del día): `familias faltantes: ['widget']`, cero operaciones de widget, y el turno inventando «Painkiller» de
@@ -10,9 +9,9 @@ Judas Priest y «Stairway to Heaven» para quien pedía música tranquila e inst
 narrar una sesión ficticia. Lo era — y el caso no podía pasar POR CONSTRUCCIÓN, así que su nota no decía nada
 del producto: estaba midiendo un mecanismo INALCANZABLE.
 
-Tercera vez de la misma familia en `probe.py`, y su propio código lo repite en cada backstop: es la
-implementación PARALELA del provider de voz, «cablear en AMBOS». Ya pasó con las tags de cron (V2-121) y con
-el traspaso de login (V2-176) — cuyo remedio, `web_auth`, es el molde de este módulo.
+This is the third member of the same family in `probe.py`, and its code repeats the rule at every backstop: it is
+the PARALLEL implementation of the voice provider, “wire both”. The same happened with cron tags (V2-121) and
+login handoff (V2-176), whose remedy, `web_auth`, is this module’s template.
 
 El rail es el MISMO que ejecuta la voz (`music_flow.run`), así que esto no añade una segunda forma de poner
 música: la enchufa.
@@ -21,9 +20,8 @@ from __future__ import annotations
 
 
 def request_from(tool_calls: list) -> dict:
-    """Lo que pidió `play_music`, normalizado: `{action, query}`. `play` es el defecto porque es la acción de
-    la inmensa mayoría de los turnos y porque un `action` vacío no puede quedarse sin ejecutar: sería el
-    defecto que este módulo cierra, con otra cara."""
+    """What `play_music` requested, normalized: `{action, query}`. `play` is the default because it is the action
+    for most turns and an empty `action` must not remain unexecuted: that is the gap this module closes."""
     pm = next((t for t in (tool_calls or []) if t.get("name") == "play_music"), None) or {}
     args = pm.get("args") or {}
     return {"action": (str(args.get("action") or "play").strip().lower() or "play"),

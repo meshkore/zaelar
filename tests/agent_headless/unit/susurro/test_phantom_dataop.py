@@ -1,6 +1,6 @@
-"""Tests de la señal de fricción `phantom_dataop` (V2-078): el ESPEJO de risky_decision — el rápido CHARLÓ (cero
-tools) pero su respuesta CLAMÓ una acción sobre un widget nombrado con acciones declaradas → data-op fantasma que
-Susurro re-rutea off-hot-path. Detección determinista de 3 capas (nada actuó · clama acción · resuelve widget)."""
+"""Tests for the `phantom_dataop` friction signal (V2-078): the MIRROR of risky_decision — the fast one CHATTED (zero
+tools) but its response CLAIMED an action on a named widget with declared actions → phantom data-op that
+Susurro reroutes off-hot-path. Deterministic 3-layer detection (nothing acted · claims action · resolves widget)."""
 import pytest
 
 from nucleo.susurro import friction
@@ -33,7 +33,7 @@ def test_nothing_acted_provider_shape():
 
 @pytest.fixture
 def widget_ctx(monkeypatch):
-    """Simula que 'la agenda' resuelve a un widget con acciones declaradas, sin tocar la BD ni el catálogo real."""
+    """Simulates that 'la agenda' resolves to a widget with declared actions, without touching the DB or the real catalog."""
     from memory import api as memapi
     from widgets import runtime
     monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": [], "recent_widgets": []})
@@ -60,7 +60,7 @@ def test_phantom_silent_without_claim(widget_ctx):
 
 
 def test_phantom_silent_without_widget(widget_ctx):
-    # "recuérdame comprar pan" no nombra un widget → no es data-op fantasma (recordatorio legítimo sin tool).
+    # "recuérdame comprar pan" does not name a widget → it is not a phantom data-op (legitimate reminder without a tool).
     dec = {"action": "chat", "tool_calls": [], "tags": [], "reply": "Vale, lo apunto"}
     assert not friction.phantom_dataop("recuérdame comprar pan mañana", dec)
 

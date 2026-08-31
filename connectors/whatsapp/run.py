@@ -3,7 +3,7 @@
 # inbox, triages each batch with the LOCAL model, and prints a digest of "only what matters", marking already
 # summarized content as read. Does NOT reply to anyone (read-only + mark-read).
 #
-# Uso:   python -m connectors.whatsapp
+# Usage:   python -m connectors.whatsapp
 # First time: scan the QR (WhatsApp -> Settings -> Linked devices). Then the session persists.
 # Stop with Ctrl-C.
 #

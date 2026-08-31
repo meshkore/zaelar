@@ -1,7 +1,7 @@
-"""Tests de nucleo/flash/memory_cache.py (V2-011 · T114) — el bloque de memoria se cachea FUERA del turno.
+"""Tests for nucleo/flash/memory_cache.py (V2-011 · T114) — the memory block is cached OUTSIDE the turn.
 
-Invariantes: (a) `get()` compone el bloque de ESTADO desde `memory.state()` y lo cachea; (b) NUNCA dispara el
-retriever (`memory.query`) — eso es on-demand y fuera del loop (T115/T116); (c) se invalida con `memory.updated`.
+Invariants: (a) `get()` composes the STATE block from `memory.state()` and caches it; (b) it NEVER triggers the
+retriever (`memory.query`) — that is on-demand and outside the loop (T115/T116); (c) it is invalidated by `memory.updated`.
 """
 import asyncio
 
@@ -27,12 +27,12 @@ def test_get_caches_state_block(fresh_db):
     memapi.set_state({"operator_name": "Ricart", "treatment": "directo"})
     block, op = memory_cache.get()
     assert op == "Ricart"
-    # V2-027: el bloque es el ESTADO compuesto (misión QUIÉN ERES + situacional) de memory.compose_state.
+    # V2-027: the block is the composed STATE (WHO YOU ARE mission + situational) from memory.compose_state.
     assert "Ricart" in block and "directo" in block and "QUIÉN ERES" in block
 
 
 def test_get_never_fires_the_retriever(fresh_db, monkeypatch):
-    """El bloque cacheado sale SOLO de state(); tocar memory.query() sería meter el retriever en el turno."""
+    """The cached block comes ONLY from state(); touching memory.query() would bring the retriever into the turn."""
     calls = {"n": 0}
     real_query = memapi.query
 
@@ -51,7 +51,7 @@ def test_invalidated_by_memory_updated(fresh_db):
     memapi.set_state({"operator_name": "Ricart"})
     _, op = memory_cache.get()
     assert op == "Ricart"
-    # set_state emite `memory.updated` → el sink marca sucio → el próximo get() recompone.
+    # set_state emits `memory.updated` → the sink marks it dirty → the next get() recomposes it.
     memapi.set_state({"operator_name": "Leo"})
     _, op2 = memory_cache.get()
     assert op2 == "Leo"
@@ -59,8 +59,8 @@ def test_invalidated_by_memory_updated(fresh_db):
 
 def test_empty_memory_no_crash(fresh_db):
     block, op = memory_cache.get()
-    # V2-027: sin perfil, la MISIÓN (identidad, sembrada desde langs) SIEMPRE está — el bloque nunca es vacío,
-    # pero el operator_name sí (aún no lo conocemos).
+    # V2-027: without a profile, the MISSION (identity, seeded from langs) is ALWAYS present — the block is never empty,
+    # but operator_name is (we do not know it yet).
     assert op == "" and "QUIÉN ERES" in block
 
 

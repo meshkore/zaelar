@@ -1,19 +1,19 @@
 #
-# server/memory_routes.py — HTTP para la memoria episódica (V2-003 · T54).
+# server/memory_routes.py — HTTP for episodic memory (V2-003 · T54).
 #
-# ⚠️ VIVÍA EN `memory/server_api.py` hasta la auditoría de arquitectura del 2026-08-23, y desde ahí importaba
-# `nucleo.dispatch` y `nucleo.memory_agent`: los DOS imports inversos más graves del paquete de memoria (dispatch
-# arrastra medio motor). No eran una fuga que tapar, eran la señal de que este fichero no es memoria — es
-# TRANSPORTE. Un router de FastAPI que verifica el token de un worker contra el registro del dispatcher está en
-# la capa de servidor por definición, y ahí esos imports son la dirección NORMAL. El paquete de memoria queda
-# autónomo sin perder nada: la memoria sigue siendo quien resuelve, esto solo la expone por HTTP.
+# ⚠️ IT LIVED IN `memory/server_api.py` until the architecture audit of 2026-08-23, and from there it imported
+# `nucleo.dispatch` and `nucleo.memory_agent`: the TWO most serious reverse imports in the memory package (dispatch
+# drags in half the engine). They were not a leak to plug; they were the signal that this file is not memory — it is
+# TRANSPORT. A FastAPI router that verifies a worker's token against the dispatcher's registry belongs in
+# the server layer by definition, and there those imports are the NORMAL direction. The memory package remains
+# autonomous without losing anything: memory is still what does the resolving, this only exposes it over HTTP.
 #
-# Reemplaza a files/server_api.py: el
-# operador pega una imagen o arrastra un fichero al frontend (frontend/app/main.js) y aterriza aquí. En vez de
-# la vieja bandeja plana files/uploads/ + una nota [SISTEMA] con la ruta (que era para las tools de fichero de
-# Hermes), ahora el binario va a la memoria EPISÓDICA (bytes en el data-dir, resumen buscable embebido) →
-# el retriever del cerebro lo encuentra por su cuenta, sin ruta absoluta ni tools de Hermes. Sin auth: mismo
-# modelo de confianza que el resto de la API local.
+# Replaces files/server_api.py: the
+# operator pastes an image or drags a file onto the frontend (frontend/app/main.js), and it lands here. Instead of
+# the old flat files/uploads/ tray plus a [SYSTEM] note containing the path (which was for Hermes file
+# tools), the binary now goes to EPISODIC memory (bytes in the data directory, searchable embedded summary) →
+# the brain's retriever finds it on its own, without an absolute path or Hermes tools. No auth: the same
+# trust model as the rest of the local API.
 #
 import asyncio
 import os
@@ -25,7 +25,7 @@ from memory import api as memapi
 
 router = APIRouter()
 
-_MAX_BYTES = 50 * 1024 * 1024   # 50 MB — holgado para capturas/PDFs, guarda barata contra llenar el disco
+_MAX_BYTES = 50 * 1024 * 1024   # 50 MB — ample for screenshots/PDFs, an inexpensive safeguard against filling the disk
 
 
 @router.post("/api/files/upload")
@@ -33,8 +33,8 @@ async def upload(file: UploadFile = File(...), source: str = Form("drop")):
     data = await file.read()
     if len(data) > _MAX_BYTES:
         raise HTTPException(413, "archivo demasiado grande")
-    # to_thread (auditoría 2026-07-19 P1-4): write_episode calcula el embedding del resumen SÍNCRONO
-    # (HTTP a Ollama, timeout 20s) — jamás en el event loop de uvicorn (SSE/cola/widgets viven ahí).
+    # to_thread (2026-07-19 P1-4 audit): write_episode computes the summary embedding SYNCHRONOUSLY
+    # (HTTP to Ollama, 20s timeout) — never in uvicorn's event loop (SSE/queue/widgets run there).
     ref = await asyncio.to_thread(
         memapi.write_episode, data, filename=file.filename or "archivo", mime=file.content_type or None,
     )
@@ -50,15 +50,16 @@ async def list_files():
 
 @router.post("/api/memory/recall")
 async def memory_recall(query: str = Body(..., embed=True), k: int = Body(8, embed=True)):
-    """Puente de MEMORIA para los agentes Claude Code del SlowBrain (V2-036): LECTURA directa (sin LLM, ms) de los
-    recuerdos relevantes a `query`. Es la mitad "pide un dato" de la pieza serial: el agente hace una llamada,
-    recibe las píldoras y sigue su ejecución. Read-only (no muta pesos aquí más que el refuerzo normal del query)."""
+    """MEMORY bridge for the SlowBrain Claude Code agents (V2-036): direct READ (no LLM, milliseconds) of the
+    memories relevant to `query`. It is the "ask for a fact" half of the serial component: the agent makes one call,
+    receives the nuggets, and continues execution. Read-only (it does not change weights here beyond the query's
+    normal reinforcement)."""
     q = (query or "").strip()
     if not q:
         return {"memories": [], "text": ""}
     try:
-        # to_thread (auditoría 2026-07-19 P1-4): query = embedding + retriever + reranker (cientos de ms) —
-        # fuera del event loop del server, como ya hace el FlashBrain (V2-011).
+        # to_thread (2026-07-19 P1-4 audit): query = embedding + retriever + reranker (hundreds of ms) —
+        # outside the server's event loop, as FlashBrain already does (V2-011).
         res = await asyncio.to_thread(memapi.query, q, limit=max(1, min(int(k or 8), 20)))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"recall falló: {e}")
@@ -72,10 +73,10 @@ async def memory_recall(query: str = Body(..., embed=True), k: int = Body(8, emb
 
 
 def _worker_source(task_id: str, token: str) -> str | None:
-    """Auth por-tarea del puente de escritura (auditoría 2026-07-14): mismo esquema que `/api/worker/act` —
-    el worker manda su `ZAELAR_TASK_ID`/`ZAELAR_TASK_TOKEN` (headers, los pone `mem_cli`) y se verifica contra
-    el registro RAM de dispatch. Devuelve la etiqueta de procedencia, o None si no autoriza.
-    `ZAELAR_MEM_API_OPEN=1` = escotilla para dev/scripts locales (queda estampado `source="local"`)."""
+    """Per-task auth for the write bridge (2026-07-14 audit): same scheme as `/api/worker/act` —
+    the worker sends its `ZAELAR_TASK_ID`/`ZAELAR_TASK_TOKEN` (headers, set by `mem_cli`), and they are verified
+    against the dispatch RAM registry. Returns the provenance label, or None if authorization fails.
+    `ZAELAR_MEM_API_OPEN=1` = hatch for local dev/scripts (`source="local"` is stamped)."""
     if task_id and token:
         try:
             from nucleo import dispatch
@@ -95,10 +96,10 @@ async def memory_remember(text: str = Body(..., embed=True), slot: str = Body(""
                           kind: str = Body("", embed=True), importance: float = Body(None, embed=True),
                           x_zaelar_task: str = Header("", alias="X-Zaelar-Task"),
                           x_zaelar_token: str = Header("", alias="X-Zaelar-Token")):
-    """Puente de MEMORIA para los Brain Workers (V2-036/V2-038): ESCRITURA por el ÚNICO escritor sancionado
-    (cola async), preservando el invariante de escritor único. Endurecido en la auditoría 2026-07-14:
-    exige el token POR-TAREA del worker (headers de `mem_cli`) y entra por `memory_agent.remember_external`
-    — mismos gates de precisión que la voz, sin acceso a `state` ni a los slots de identidad."""
+    """MEMORY bridge for Brain Workers (V2-036/V2-038): WRITING through the ONE authorized writer
+    (async queue), preserving the single-writer invariant. Hardened in the 2026-07-14 audit:
+    it requires the worker's PER-TASK token (headers from `mem_cli`) and goes through
+    `memory_agent.remember_external` — the same precision gates as voice, with no access to `state` or identity slots."""
     t = (text or "").strip()
     if not t:
         raise HTTPException(400, "text vacío")
@@ -124,7 +125,7 @@ async def memory_remember(text: str = Body(..., embed=True), slot: str = Body(""
 
 @router.get("/api/memory/map")
 async def memory_map():
-    """Mapa COMPLETO de la memoria para el VISOR (V2-014 · T129): estado + recuerdos por capa (corto/largo) +
-    grafo (`edges`) + metadatos completos (scoring, weight, access, recencia, ttl, pinned, fechas). Read-only,
-    `no-cache` — el visor lo re-lee al vuelo cuando llega la señal `memory.updated` por SSE (tiempo real)."""
+    """COMPLETE map of memory for the VIEWER (V2-014 · T129): state + memories by layer (short/long) +
+    graph (`edges`) + complete metadata (scoring, weight, access, recency, ttl, pinned, dates). Read-only,
+    `no-cache` — the viewer rereads it on the fly when the `memory.updated` signal arrives via SSE (real time)."""
     return JSONResponse(await asyncio.to_thread(memapi.map), headers={"Cache-Control": "no-cache"})

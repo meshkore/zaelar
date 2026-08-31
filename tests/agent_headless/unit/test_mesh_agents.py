@@ -1,4 +1,4 @@
-"""Asking the mesh before opening a browser (V2-167 · segunda mitad).
+"""Asking the mesh before opening a browser (V2-167 · second half).
 
 The three browser cases that failed did so against defences built to stop exactly what a browser does:
 Booking's `chal_t=` challenge, Google's CAPTCHA. The mesh serves those same domains over plain HTTP, and the
@@ -47,7 +47,7 @@ def _oracle(agents, intent="bookings.hotels"):
     return lambda url, body, timeout=None: (200, {"intent": intent, "query_id": 1, "agents": agents})
 
 
-# ── dinero ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── money ─────────────────────────────────────────────────────────────────────────────────────────────────
 def test_only_free_agents_come_back(monkeypatch):
     monkeypatch.setattr(m, "_post", _oracle([FREE, PAID]))
     monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
@@ -96,7 +96,7 @@ def test_the_oracle_is_asked_through_prompt_because_that_is_what_parses(monkeypa
     assert seen["query"] == seen["prompt"]
 
 
-# ── el contrato de la llamada ─────────────────────────────────────────────────────────────────────────────
+# ── the call contract ─────────────────────────────────────────────────────────────────────────────────────
 def test_the_free_text_field_is_prompt_not_query(monkeypatch):
     """The gotcha `integrations/openclaw-plugin` already paid for: real agents branch on `body.prompt` and
     ignore `query`, so a well-formed `{"query": …}` comes back 400. Both are sent."""
@@ -129,7 +129,7 @@ def test_an_endpoint_that_already_names_a_path_needs_no_card(monkeypatch):
     assert seen["url"] == "https://a.example/v1/custom"
 
 
-# ── degradar al navegador ─────────────────────────────────────────────────────────────────────────────────
+# ── fall back to the browser ──────────────────────────────────────────────────────────────────────────────
 def test_a_mesh_that_is_down_is_not_an_error(monkeypatch):
     """The whole point of the fallback: if this raised, a mesh outage would break every web errand — the
     browser has to stay the plan."""
@@ -145,7 +145,7 @@ def test_no_agent_says_so_in_words(monkeypatch):
     assert res["ok"] is False and "agente" in res["reason"]
 
 
-# ── la parte genética: la ruta aprendida ──────────────────────────────────────────────────────────────────
+# ── the genetic part: the learned route ───────────────────────────────────────────────────────────────────
 def test_a_successful_errand_teaches_the_route(monkeypatch, tmp_path):
     store: dict = {}
     monkeypatch.setattr(m, "_routes", lambda: store.get("r", {}))

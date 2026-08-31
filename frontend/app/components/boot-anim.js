@@ -1,8 +1,8 @@
 // ============================================================================
-// boot-anim.js — «Colmena sináptica»: the boot splash animation engine.
+// boot-anim.js — “Colmena sináptica”: the boot splash animation engine.
 //
 // A neural constellation that ASSEMBLES ITSELF IN PARTS — one cluster of nodes
-// lights up per boot phase (encendiendo → voz → memoria → reflejo) — then, on
+// lights up per boot phase (encendiendo → voz → memory → reflejo) — then, on
 // "listo", the whole mesh IMPLODES gracefully into the orb, handing off to the
 // live voice visualiser. Geometric (a Delaunay-ish neighbour mesh) AND liquid
 // (curl-noise drift + a gradient shimmer travelling the edges).
@@ -29,7 +29,7 @@ const CASCADE_DECAY = 0.52;      // energy kept when a spark arrives and re-fire
 const CASCADE_MIN = 0.12;        // below this energy a spark dies (stops the cascade)
 const MAX_PULSES = 90;           // hard cap on in-flight sparks (perf guard)
 const FIRE_DECAY = 2.8;          // how fast a neuron's flare fades (per second)
-// PIECE-BY-PIECE ASSEMBLY (V2-039): the brain COMPOSES itself gradually — ~240 tiny pieces revealed one after
+// PIECE-BY-PIECE ASSEMBLAnd (V2-039): the brain COMPOSES itself gradually — ~240 tiny pieces revealed one after
 // another, growing from the centre outward — like a 0→100 progress. Each boot phase sets a reveal target; the
 // progress CATCHES UP fast when a phase advances (quick load → pieces pop in fast) and TRICKLES slowly while we're
 // stuck on one initialisation (voice can take ~30s), so it never freezes "at half" — it keeps building. `soft` =

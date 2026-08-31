@@ -5,7 +5,7 @@
 // TWO sources of truth, merged so the panel is PRECISE:
 //   · SERVER (/api/status) — the pieces only the server knows (Hermes up, model
 //     credit, cluster). If the fetch FAILS (server restarting/crashed) we surface
-//     a RED "servidor no responde" → the ◉ blinks red immediately (no stale green).
+//     a RED "server not responding" → the ◉ blinks red immediately (no stale green).
 //   · CLIENT (this browser) — the VOICE row. The server's `active.count()` is the
 //     old Pipecat registry and is never updated by the LiveKit engine, so it always
 //     said "en espera". The browser is the ONLY thing that truly knows if voice is
@@ -45,8 +45,8 @@ export function overallStatus() {
 export async function refreshStatus() {
   try {
     store.setStatus(await api.getStatus());
-    // Saldos de APIs (V2-043): el server cachea la sonda (TTL) → llamarlo cada 15s es barato. Las alertas
-    // (warn/error de crédito) alimentan el diálogo de estado aunque nunca se haya abierto la configuración.
+    // API balances (V2-043): the server caches the probe (TTL) → calling it every 15s is cheap. Credit alerts
+    // (warn/error) feed the status dialog even if settings has never been opened.
     try { const a = await api.getApiSummary(false); store.setApiSummary(a.apis || []); store.setApiAlerts(a.alerts || []); } catch (_) {}
   } catch (_) {
     // Server unreachable (restarting / crashed) → RED alarm now, don't keep a stale green.

@@ -52,9 +52,9 @@ def _wall(role: str, text: str) -> None:
 async def say(text: str = Body(..., embed=True), session: str = Body("default", embed=True),
               ingest: bool = Body(True, embed=True), prompt: bool = Body(False, embed=True),
               model: str = Body("", embed=True), execute: bool = Body(False, embed=True)) -> dict:
-    """Inyecta un turno de texto al FlashBrain y devuelve su respuesta + acción + latencias (canal de prueba).
-    `model` (opcional) fuerza otro modelo rápido para A/B. `execute` (V2-049) EJECUTA de verdad las acciones de
-    worker (escalada/inyección/respuesta/stop) → test e2e de gestiones web por texto, sin voz."""
+    """Inject a text turn into FlashBrain and return its response, action, and timings (test channel).
+    `model` (optional) forces another fast model for A/B testing. `execute` (V2-049) REALLY EXECUTES worker
+    actions (escalation/injection/response/stop) → end-to-end testing of web tasks by text, without voice."""
     # FIRST-RUN LANGUAGE, on a channel that has no way to ASK (V2-170). The voice pipeline opens a brand-new
     # install with a blocking "what language should I use?" turn and locks the answer; a text channel gets no
     # such turn, so without this it stays on the product default (English) for as long as it lives. That is not
@@ -73,19 +73,18 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
         _lang_detect.ensure_for_text(text)
     except Exception:
         pass
-    # AL MURO, antes de nada: el turno puede tardar segundos y el operador tiene que ver ya lo que se ha
-    # pedido. Si se pintara al final, la pantalla estaría muda justo mientras el agente trabaja — que es el
-    # rato en el que se mira.
+    # TO THE WALL, before anything else: the turn may take seconds and the operator must see the request now.
+    # If it were rendered at the end, the screen would be silent while the agent works — exactly when it is watched.
     _wall("user", text)
     res = await run_turn(text, sid=session, ingest=ingest, model=model, execute=execute)
-    # `reply` es una LISTA de frases (el turno puede decir varias). Unirlas y no `str()`-earlas: un `str()`
-    # sobre la lista pintaría en el muro `['Te las busco ahora mismo.']`, corchetes y comillas incluidos.
+    # `reply` is a LIST of sentences (a turn may say several). Join them instead of calling `str()`: stringifying
+    # the list would render `['I will look for them now.']` on the wall, including brackets and quotes.
     _reply = res.get("reply")
     _wall("agent", " ".join(str(x) for x in _reply) if isinstance(_reply, list) else str(_reply or ""))
     if prompt and res.get("ok"):
-        # opcional: incluye el prompt compuesto (para inspeccionar qué estado/memoria vio el modelo)
-        # Misma guarda que el turno: esto corre en el loop del server, así que un recall lento aquí congela el
-        # motor igual — y encima por una opción de INSPECCIÓN, que es el peor sitio donde perder el proceso.
+        # optional: include the composed prompt (to inspect what state/memory the model saw)
+        # Same safeguard as the turn: this runs in the server loop, so a slow recall freezes the engine too — and
+        # this is only an INSPECTION option, the worst place to lose the process.
         from nucleo.flash.prompt import build_flash_system, needs_recall
         from nucleo.turn import recall_budget as _recall
         _rb, _ = await _recall.compose(text if needs_recall(text) else "")
@@ -97,7 +96,7 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
 
 @router.post("/api/flash/reset")
 async def reset(session: str = Body("default", embed=True)) -> dict:
-    """Limpia la ventana conversacional del probe (NO toca la memoria; para eso, `make reset`)."""
+    """Clear the probe conversation window (does NOT touch memory; use `make reset` for that)."""
     # A reset is an explicit causal barrier in headless tests: all completed memory writes must be visible in the
     # first turn of the new window. It does not run on the physical voice hot path.
     from nucleo.flash import memory_cache

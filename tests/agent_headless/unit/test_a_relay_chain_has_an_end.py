@@ -1,7 +1,7 @@
-"""Un relevo automático se relanza «UNA vez» — y el contador vivía en el sitio que no cuenta.
+"""An automatic relay is relaunched «ONCE» — and the counter lived where it does not count.
 
-MEDIDO en el motor del OPERADOR, no en un plató (`memory/_data/zaelar.db`, 2026-08-17): SEIS workers para una
-sola búsqueda de coches.
+MEASURED in the OPERATOR engine, not on a set (`memory/_data/zaelar.db`, 2026-08-17): SIX workers for a
+single car search.
 
     12:48:48  spawned id=1                       12:57:03  spawned id=3
     12:56:35  done    id=1  error  ($2.0897, 138155 tok, «context window limit»)
@@ -9,22 +9,22 @@ sola búsqueda de coches.
     12:57:00  done    id=2  error  ← 17 s        13:08:03  spawned id=5
                                                  13:08:26  spawned id=6
 
-Dos clases de worker: los que trabajan (7m47s, 10m53s) y CUATRO cadáveres de ~17 s que nacen 3-8 s después de que
-muera el anterior y mueren con el MISMO error. El primero se dejó dos dólares.
+Two kinds of worker: the ones that work (7m47s, 10m53s) and FOUR ~17-second corpses that are born 3–8 s after the
+previous one dies and die with the SAME error. The first one cost two dollars.
 
-`_finish` tiene dos relevos automáticos —contexto agotado (compactar y continuar) y proveedor sin cuota— y los dos
-se protegen con un booleano del RECORD (`context_retried`, `provider_retried`). Pero cada relevo crea un
-`SessionRecord` NUEVO en `run_listener`, así que el booleano nace en False otra vez: el «UNA vez» del comentario
-no acota la CADENA, solo el registro. `depth` tampoco contaba — viajaba en el contexto SIN incrementar.
+`_finish` has two automatic relays — exhausted context (compact and continue) and provider out of quota — and both
+are protected by a boolean on the RECORD (`context_retried`, `provider_retried`). But each relay creates a NEW
+`SessionRecord` in `run_listener`, so the boolean is born False again: the «ONCE» in the comment does not bound the
+CHAIN, only the record. `depth` did not count either — it traveled in the context WITHOUT being incremented.
 
-Es la misma forma que el id de hoja que se reiniciaba con el proceso: un contador de instancia leído como si
-fuera global. La diferencia es que aquí el error no es reintentable —una ventana de contexto llena no se
-descongestiona por volver a intentarlo— así que el bucle gasta dinero real hasta que alguien lo mira.
+It is the same pattern as the leaf ID that reset with the process: an instance counter read as though it were
+global. The difference is that here the error is not retryable — a full context window does not clear by trying
+again — so the loop spends real money until someone notices.
 
-Lo que se fija: que la generación VIAJE, que el tope corte, y que al cortar se diga la VERDAD. Esto último no es
-adorno: sin la frase honesta, el resumen capado sigue llevando el error crudo y `operator_safe_summary` lo
-traduce a «me he quedado sin espacio de contexto… LA RETOMO con lo que llevaba» — una promesa de reintento que ya
-no va a ocurrir, con el operador esperando a nadie.
+What is fixed: that the generation TRAVELS, that the cap cuts things off, and that the TRUTH is told when cutting
+things off. The latter is not decoration: without the honest phrase, the capped summary still carries the raw error
+and `operator_safe_summary` translates it to «I have run out of context space… I’LL RESUME IT with what I had» — a
+retry promise that will no longer happen, leaving the operator waiting for no one.
 """
 import asyncio
 import inspect
@@ -36,7 +36,7 @@ from nucleo.workers.session import SessionRecord, WorkerSession, _RELAY_CAP_DEFA
 
 
 class _Backend:
-    """`_finish` no habla con el backend: solo necesita existir para construir la sesión."""
+    """`_finish` does not talk to the backend: it only needs to exist to construct the session."""
 
 
 def _sesion(rec: SessionRecord) -> WorkerSession:
@@ -53,7 +53,7 @@ def _rec(gen: int = 0, **kw) -> SessionRecord:
 
 @pytest.fixture
 def relevos(monkeypatch):
-    """Captura lo que se re-escala, sin publicar nada en el bus real."""
+    """Capture what is re-escalated without publishing anything on the real bus."""
     vistos = []
 
     def _fake(request, context=None, **_kw):
@@ -69,7 +69,7 @@ def relevos(monkeypatch):
     return vistos
 
 
-# ── 1) la generación tiene que VIAJAR ────────────────────────────────────────────────────────────────────────
+# ── 1) the generation has to TRAVEL ──────────────────────────────────────────────────────────────────────────
 
 def test_the_relay_carries_its_generation_forward(relevos):
     rec = _rec(gen=0, context_full={"tokens": 138155})
@@ -80,19 +80,19 @@ def test_the_relay_carries_its_generation_forward(relevos):
 
 
 def test_the_dispatcher_reads_it_back_at_the_only_door(relevos):
-    """El otro filo del cable. `run_listener` es la ÚNICA puerta por la que pasan todas las escaladas; si no lo
-    lee ahí, el campo viaja y se tira a la basura al construir el record."""
+    """The other end of the cable. `run_listener` is the ONLY door through which all escalations pass; if it does not
+    read it there, the field travels and is thrown away when building the record."""
     from nucleo import dispatch
     src = inspect.getsource(dispatch.run_listener)
     assert 'relay_gen=int(ctx.get("relay_gen", 0) or 0)' in src
 
 
-# ── 2) el tope corta ─────────────────────────────────────────────────────────────────────────────────────────
+# ── 2) the cap cuts things off ───────────────────────────────────────────────────────────────────────────────
 
 def test_the_cap_is_a_small_number():
-    """Pinned on purpose. La primera versión de este fichero usaba `_RELAY_CAP_DEFAULT` como entrada Y como
-    referencia, así que subir el tope subía también el caso: con el tope en 999 los siete tests seguían VERDES.
-    Un test que se mide contra la constante que vigila no vigila nada."""
+    """Pinned on purpose. The first version of this file used `_RELAY_CAP_DEFAULT` as both input AND
+    reference, so raising the cap also raised the case: with the cap at 999 all seven tests stayed GREEN.
+    A test measured against the constant it watches guards nothing."""
     assert 1 <= _RELAY_CAP_DEFAULT <= 3, f"un tope de {_RELAY_CAP_DEFAULT} relanzamientos no es un tope"
 
 
@@ -103,8 +103,8 @@ def test_at_the_cap_the_chain_stops(relevos):
 
 
 def test_the_provider_relay_is_bounded_by_the_same_counter(relevos):
-    """Las dos causas comparten tope a propósito: lo que se acota es la CADENA de relanzamientos de un encargo,
-    no cada remedio por su lado. Un encargo que alterna las dos causas se relanzaría igual sin parar."""
+    """The two causes deliberately share a cap: what is bounded is the CHAIN of relaunches for a task,
+    not each remedy separately. A task alternating between the two causes would otherwise relaunch forever."""
     rec = _rec(gen=5, provider_down={"provider": "x", "next": "y", "text": "quota"})
     asyncio.run(_sesion(rec)._finish())
     assert not relevos
@@ -116,7 +116,7 @@ def test_under_the_cap_the_provider_relay_still_happens(relevos):
     assert len(relevos) == 1 and relevos[0]["context"].get("relay_gen") == 1
 
 
-# ── 3) y al cortar se dice la VERDAD ─────────────────────────────────────────────────────────────────────────
+# ── 3) and when cutting off, the TRUTH is told ───────────────────────────────────────────────────────────────
 
 def test_a_capped_chain_never_promises_a_retake(relevos):
     rec = _rec(gen=5, context_full={"tokens": 138155})
@@ -131,7 +131,7 @@ def test_a_capped_chain_never_promises_a_retake(relevos):
 
 
 def test_the_capped_chain_says_how_many_times_it_tried(relevos):
-    """Un «no he podido» sin número no distingue «lo intenté una vez» de «me gasté dos dólares intentándolo»."""
+    """A «I could not do it» without a number does not distinguish «I tried once» from «I spent two dollars trying»."""
     rec = _rec(gen=5, context_full={"tokens": 1})
     asyncio.run(_sesion(rec)._finish())
     assert "6 veces" in rec.result_summary, rec.result_summary

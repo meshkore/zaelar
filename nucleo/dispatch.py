@@ -1,15 +1,15 @@
-"""nucleo/dispatch.py — GESTOR de sesiones de Brain Workers (V2-038; reencuadra el dispatcher V2-006/V2-036).
+"""nucleo/dispatch.py — GESTOR of sessions of Brain Workers (V2-038; reencuadra the dispatcher V2-006/V2-036).
 
-Recibe las escaladas del FlashBrain (`bus:escalate.requested`) y las convierte en **Brain Workers** vivos
-(`nucleo/workers/`): backend agnóstico (`get_backend`) conducido por una `WorkerSession`. Mantiene el **ÚNICO
-REGISTRO EN RAM** de sesiones vivas (`_SESSIONS`), que es la **FUENTE DE VERDAD** (§v2·C) — absorbe y reemplaza los
-tres registros parciales de antes (`escalate._tasks`, `_INFLIGHT`, `_SESSIONS` viejos, §v3·G). Expone:
-  · `active_sessions()`/`has_active()`/`pending_summaries()` — proyección para ESTADO/prompt/`/api/tasks`.
-  · `inject(which, msg)` — inyecta a una sesión viva (↓, refinamiento; reemplaza el dedup-descartar de V2-029).
-  · `cancel_session(tid)`/`cancel_all()` — MATAR con cortesía (kill de grupo vía el backend).
-  · `resolve_sessions(query)` — "para ese proceso" → tid(s) deterministas.
+Recibe the escaladas of the FlashBrain (`bus:escalate.requested`) and the convierte in **Brain Workers** live
+(`nucleo/workers/`): backend agnostico (`get_backend`) conducido by a `WorkerSession`. Mantiene the **ÚNICO
+REGISTRO EN RAM** of sessions live (`_SESSIONS`), that es the **FUENTE DE VERDAD** (§v2·C) — absorbe and reemplaza the
+three registros parciales of before (`escalate._tasks`, `_INFLIGHT`, `_SESSIONS` viejos, §v3·G). Expone:
+  · `active_sessions()`/`has_active()`/`pending_summaries()` — proyeccion for ESTADO/prompt/`/api/tasks`.
+  · `inject(which, msg)` — inyecta a a session live (↓, refinamiento; reemplaza the dedup-descartar of V2-029).
+  · `cancel_session(tid)`/`cancel_all()` — MATAR with cortesia (kill of grupo via the backend).
+  · `resolve_sessions(query)` — "for ese proceso" → tid(s) deterministas.
 
-Confirm-gate de irreversibles (V2-007) y clasificación de kind se conservan. Diseño:
+Confirm-gate of irreversibles (V2-007) and clasificacion of kind is conservan. Diseno:
 initiatives/V2-038-brain-workers-interactivos.md.
 """
 from __future__ import annotations
@@ -39,20 +39,20 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
 from nucleo.dispatch_prompts import _build_prompt, _web_prompt  # noqa: F401
 
-# Heurística de clasificación (solo cuando el escalado no fija `kind`). Conservadora.
-# kind="web" = hay que ENTRAR a un sitio concreto y operarlo con un navegador real (modalidad 2 de la decisión
-# «búsqueda web» de CLAUDE.md: marketplaces, login, automatizar una gestión). NO es «el dato está en internet» —
-# eso es INVESTIGACIÓN (modalidad 3) y la hace un worker genérico con WebSearch/WebFetch, que es muchísimo más
-# rápido y no se pelea con banners de cookies.
+# Heuristica of clasificacion (only when the escalado no fija `kind`). Conservadora.
+# kind="web" = there is that ENTRAR a a site concreto and operarlo with a browser real (modalidad 2 of the decision
+# «search web» of CLAUDE.md: marketplaces, login, automatizar a operation). NO es «the dato esta in internet» —
+# eso es INVESTIGACIÓN (modalidad 3) and the does a worker generico with WebSearch/WebFetch, that es muchisimo mas
+# fast and no is pelea with banners of cookies.
 #
-# Se quitan de aquí «en la web» y «en internet» (2026-08-02): «investiga EN INTERNET y prepárame un informe»
-# casaba y mandaba la tarea al navegador. Observado en vivo con la narración del worker: 7 minutos peleándose con
-# el banner de cookies de aquopolis.es, clicando por coordenadas y pidiendo análisis de imagen, para sacar un
-# precio que `web_search` + `fetch` habían dado en segundos en la corrida anterior. Decir dónde vive un dato no es
-# pedir que se abra un navegador.
-# V2-289 — la CLASIFICACIÓN del encargo (qué clase es, cómo se rotula) vive en `nucleo/errand_kind.py`: son
-# funciones puras sobre el texto de la petición, sin registro ni pool detrás. Se re-exportan con sus nombres
-# privados porque son el contrato que ya usan los tests de higiene de escalada.
+# Se quitan of here «in the web» and «in internet» (2026-08-02): «investiga EN INTERNET and preparame a informe»
+# casaba and mandaba the task al browser. Observado in live with the narracion of the worker: 7 minutos peleandose with
+# the banner of cookies of aquopolis.es, clicando by coordenadas and pidiendo analisis of imagen, for sacar a
+# precio that `web_search` + `fetch` habian dado in segundos in the corrida anterior. Decir where lives a dato no es
+# pedir that is abra a browser.
+# V2-289 — the CLASIFICACIÓN of the errand (what clase es, how is rotula) lives in `nucleo/errand_kind.py`: son
+# funciones puras sobre the texto of the request, without record ni pool detras. Se re-exportan with sus names
+# privados because son the contrato that already usan the tests of higiene of escalada.
 from nucleo.errand_kind import (  # noqa: E402,F401 — re-export
     _ARCHITECT_RE, _DATA_NOT_CODE_RE, _MODIFY_CODE_RE, _WEB_RE,
     classify_kind as _classify_kind, default_label as _default_label)
@@ -60,7 +60,7 @@ from nucleo.errand_kind import (  # noqa: E402,F401 — re-export
 
 @dataclass
 class Task:
-    """Una escalada entrante del FlashBrain."""
+    """Una escalada entrante of the FlashBrain."""
     id: str
     request: str
     kind: str = "generic"
@@ -68,19 +68,19 @@ class Task:
     context: dict[str, Any] = field(default_factory=dict)
 
 
-# ── REGISTRO ÚNICO EN RAM = fuente de verdad (§v2·C, §v3·G) ─────────────────────────────────────────────────
+# ── REGISTRO ÚNICO EN RAM = source of truth (§v2·C, §v3·G) ─────────────────────────────────────────────────
 _SESSIONS: dict[str, SessionRecord] = {}
 
-# ── V2-049 CONTINUIDAD web: REANUDAR en vez de re-lanzar de cero ─────────────────────────────────────────────
-# Cuando un worker WEB muere sin COMPLETAR la gestión, guardamos cómo REANUDARLO por CLAVE de objetivo: la misma
-# pestaña (sigue en la página que alcanzó) + el session_id nativo a `--resume` (continúa el razonamiento). La
-# siguiente escalada de la MISMA gestión —un nudge del operador, su respuesta a un dato, o el auto-resume del
-# propio dispatch— CONTINÚA desde ahí, en vez de abrir la pestaña 2ª/3ª/5ª y re-teclear todo (bug ITV 17-jul: 5
-# workers, cero continuidad). Los datos reunidos ya viven en memoria (slots task.*), así que el worker reanudado
-# no los vuelve a pedir. TTL 30 min; cap de auto-reanudaciones para no respawnear algo roto en bucle.
-# ── CONTINUIDAD WEB (V2-049) — extraída a `nucleo/workers/resume.py` (trinquete, 2026-08-26). Los nombres
-# históricos quedan como ALIAS al MISMO objeto/función: quien mutaba `dispatch._WEB_RESUME` en sitio sigue
-# mutando el dict real, y los guardas de fuente miden las funciones reales estén donde estén.
+# ── V2-049 CONTINUIDAD web: REANUDAR in vez of re-launch of cero ─────────────────────────────────────────────
+# When a worker WEB dies without COMPLETAR the operation, guardamos how REANUDARLO by CLAVE of objetivo: the same
+# tab (continues in the pagina that alcanzo) + the session_id nativo a `--resume` (continua the razonamiento). La
+# siguiente escalada of the MISMA operation —a nudge of the operator, su response a a dato, or the auto-resume of the
+# own dispatch— CONTINÚA from there, in vez of open the tab 2ª/3ª/5ª and re-teclear todo (bug ITV 17-jul: 5
+# workers, cero continuidad). Los datos reunidos already viven in memory (slots task.*), so that the worker reanudado
+# no the vuelve a pedir. TTL 30 min; cap of auto-reanudaciones for no respawnear something roto in bucle.
+# ── CONTINUIDAD WEB (V2-049) — extraida a `nucleo/workers/resume.py` (trinquete, 2026-08-26). Los names
+# historicos quedan como ALIAS al MISMO objeto/funcion: quien mutaba `dispatch._WEB_RESUME` in site continues
+# mutando the dict real, and the guardas of source miden the funciones reales esten donde esten.
 from nucleo.workers import resume as _wres
 
 _WEB_RESUME = _wres._WEB_RESUME
@@ -95,9 +95,9 @@ _find_resume = _wres._find_resume
 
 
 def _schedule_auto_resume(req: str) -> None:
-    """V2-049: reanuda SOLA una gestión web incompleta tras una breve pausa (sin empujón del operador). Emite otra
-    escalada de la MISMA petición; el listener la casará con la entrada de `_WEB_RESUME` recién grabada y CONTINUARÁ
-    (misma pestaña + `--resume`). El cap de `_WEB_RESUME[count]` la corta si algo está roto de verdad."""
+    """V2-049: resumes SOLA a operation web incompleta tras a breve pausa (without empujon of the operator). Emite another
+    escalada of the MISMA request; the listener the casara with the entrada of `_WEB_RESUME` recien grabada and CONTINUARÁ
+    (same tab + `--resume`). El cap of `_WEB_RESUME[count]` the corta if something esta roto of truth."""
     async def _later() -> None:
         try:
             await asyncio.sleep(5.0)
@@ -111,8 +111,8 @@ def _schedule_auto_resume(req: str) -> None:
     except Exception:
         pass
 
-# Loop DUEÑO de las sesiones (uvicorn/server). El FlashBrain corre en OTRO loop (job-thread de LiveKit) → todo
-# comando de sesión disparado desde el turno de voz se MARSHALEA aquí (§v3·D), como browser_search.search_sync.
+# Loop DUEÑO of the sessions (uvicorn/server). El FlashBrain corre in OTRO loop (job-thread of LiveKit) → todo
+# comando of session disparado from the turn of voice is MARSHALEA here (§v3·D), como browser_search.search_sync.
 _LOOP: "asyncio.AbstractEventLoop | None" = None
 
 
@@ -122,12 +122,12 @@ def set_loop(loop) -> None:
 
 
 def _model_for(kind: str) -> str:
-    """Modelo del worker — PEGADO AL ESCALÓN DE PROVEEDOR que se vaya a usar, no al config global.
+    """Modelo of the worker — PEGADO AL ESCALÓN DE PROVEEDOR that is vaya a usar, no al config global.
 
-    `code_agent.model` (p.ej. `glm-5.2`) solo existe en SU proveedor. Al relevar a otro escalón hay que relevar
-    también el nombre del modelo: con la cuota de Z.AI agotada, el relevo a la licencia local seguía pidiendo
-    `glm-5.2` y el CLI moría al instante con «There's an issue with the selected model (glm-5.2)» — un relevo que
-    no releva. Con la licencia (o cualquier escalón sin modelo declarado) se devuelve "" y el CLI usa su default."""
+    `code_agent.model` (p.ej. `glm-5.2`) only exists in SU proveedor. Al relevar a another escalon there is that relevar
+    also the name of the model: with the cuota of Z.AI agotada, the relevo a the licencia local seguia pidiendo
+    `glm-5.2` and the CLI moria al instante with «There's an issue with the selected model (glm-5.2)» — a relevo that
+    no releva. Con the licencia (or any escalon without model declarado) is returns "" and the CLI usa su default."""
     def _configured() -> str:
         try:
             from config import v2 as _v2
@@ -136,12 +136,12 @@ def _model_for(kind: str) -> str:
         except Exception:
             return ""
 
-    # La cadena de relevo es de CLAUDE CODE (escalones `ANTHROPIC_BASE_URL`-compatible). Otro backend —Codex— se
-    # autentica con SU propia cuenta y esos escalones no significan nada para él: dejar que la cadena decidiera su
-    # modelo TIRABA el modelo configurado (2026-08-12, medido). El caso real: con `base_url` apuntando aún a Z.AI de
-    # cuando el proveedor era claude_code, y Z.AI en cooldown por cuota, `relayed()` daba True → se devolvía el
-    # modelo del escalón de relevo (vacío) → Codex caía a su propio `config.toml` (`gpt-5.6-sol`, que la API no
-    # sirve) y el worker moría en 2,8 s con un 400. El `gpt-5.5` que el operador había elegido no llegaba nunca.
+    # La cadena of relevo es of CLAUDE CODE (escalones `ANTHROPIC_BASE_URL`-compatible). Otro backend —Codex— is
+    # autentica with SU own cuenta and esos escalones no significan nothing for el: leave that the cadena decidiera su
+    # model TIRABA the model configurado (2026-08-12, measured). El caso real: with `base_url` apuntando aun a Z.AI of
+    # when the proveedor era claude_code, and Z.AI in cooldown by cuota, `relayed()` daba True → is devolvia the
+    # model of the escalon of relevo (empty) → Codex caia a su own `config.toml` (`gpt-5.6-sol`, that the API no
+    # sirve) and the worker moria in 2,8 s with a 400. El `gpt-5.5` that the operator habia elegido no llegaba never.
     try:
         from nucleo.workers import registry as _reg
         if _reg._provider_for(kind) != "claude_code":
@@ -159,12 +159,12 @@ def _model_for(kind: str) -> str:
 
 
 def _tools_for(kind: str, trusted: bool) -> list[str] | None:
-    """Allowlist de tools del worker por tipo. Un turno no confiable no llega aquí (deny_tools en el spec).
+    """Allowlist of tools of the worker by tipo. Un turn no confiable no arrives here (deny_tools in the spec).
 
-    NUNCA un `"Bash"` pelado (auditoría 2026-07-14): el Bash del worker queda acotado a los CLIs puente
-    (`_BRIDGE_TOOLS` de `claude_session`, que se añaden solos) — un Bash abierto permitiría a un worker
-    inducido por contenido web hostil abrir la SQLite en paralelo (`sqlite3 memory/_data/zaelar.db …`) y
-    romper el ESCRITOR ÚNICO. Es el invariante documentado en CLAUDE.md («Bash SOLO a esos CLIs»)."""
+    NUNCA a `"Bash"` pelado (auditoria 2026-07-14): the Bash of the worker queda acotado a the CLIs bridge
+    (`_BRIDGE_TOOLS` of `claude_session`, that is anaden solos) — a Bash abierto permitiria a a worker
+    inducido by contenido web hostil open the SQLite in paralelo (`sqlite3 memory/_data/zaelar.db …`) and
+    romper the ESCRITOR ÚNICO. Es the invariante documentado in CLAUDE.md («Bash SOLO a esos CLIs»)."""
     if not trusted:
         return []
     if kind == "code":
@@ -206,20 +206,20 @@ def _pool():
     return _sem
 
 
-# ── proyección para ESTADO / prompt / /api/tasks (la sincroniza el LOOP ~1 Hz, §v2·C) ───────────────────────
+# ── proyeccion for ESTADO / prompt / /api/tasks (the sincroniza the LOOP ~1 Hz, §v2·C) ───────────────────────
 def active_sessions() -> list[dict]:
-    """Snapshot serializable de las sesiones VIVAS (sin handles). Fuente de verdad para ESTADO y /api/tasks.
+    """Snapshot serializable of the sessions VIVAS (without handles). Fuente of truth for ESTADO and /api/tasks.
 
-    ⚠️ «VIVAS» lo decía el docstring y NO lo hacía el código (arreglado 2026-08-18): esto devolvía **todo**
-    `_SESSIONS`, incluidas las `done`/`cancelled` que aún no se habían sacado del registro. Era la única de las
-    tres proyecciones sin el filtro — `has_active()` y `pending_summaries()` lo llevan justo debajo, y hasta
-    `sync_state()` se lo re-aplica a mano sobre `_SESSIONS` en vez de fiarse de esta función, que es la señal más
-    clara de que faltaba. Y todos los consumidores la leen como si fuera de vivas: `loop.py` la mete en un set que
-    llama `live_ids`, `susurro/apply.py` dedupe contra ella (una tarea TERMINADA suprimiendo una re-ejecución
-    legítima) y `/api/tasks` alimenta los chips de la pestaña «Procesos» del operador, que pinta cada fila como
-    «en curso» — o sea que una tarea acabada podía verse trabajando. Es la desalineación PROCESOS↔FLUJOS que
-    reportó el operador: el tablero de flujos decía «ningún flujo activo» y Procesos seguía diciendo «creando un
-    widget… en curso». Lo TERMINADO se lee del ledger (`nucleo/workers/ledger.py`), que es su sitio."""
+    ⚠️ «VIVAS» it decia the docstring and NO it hacia the code (arreglado 2026-08-18): esto devolvia **todo**
+    `_SESSIONS`, incluidas the `done`/`cancelled` that aun no is habian sacado of the record. Era the only of the
+    three proyecciones without the filtro — `has_active()` and `pending_summaries()` it llevan justo debajo, and until
+    `sync_state()` is it re-aplica a mano sobre `_SESSIONS` in vez of fiarse of this funcion, that es the senal mas
+    clara of that was missing. Y all the consumidores the leen como if outside of live: `loop.py` the mete in a set that
+    calls `live_ids`, `susurro/apply.py` dedupe contra ella (a task TERMINADA suprimiendo a re-ejecucion
+    legitima) and `/api/tasks` alimenta the chips of the tab «Procesos» of the operator, that pinta each fila como
+    «in curso» — or sea that a task acabada could verse trabajando. Es the desalineacion PROCESOS↔FLUJOS that
+    reporto the operator: the tablero of flujos decia «ningun flujo activo» and Procesos seguia diciendo «creando a
+    widget… in curso». Lo TERMINADO is reads of the ledger (`nucleo/workers/ledger.py`), that es su site."""
     now = time.time()
     out = []
     for r in _SESSIONS.values():
@@ -228,14 +228,14 @@ def active_sessions() -> list[dict]:
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
             "phase": r.phase, "status": r.status, "age_s": int(now - r.started), "paused": r.paused,
-            # V2-227: dónde mira el operador. El frontend abre la hoja con esto ANTES de que haya un resultado,
-            # así que viaja en la proyección viva y no en la entrega.
+            # V2-227: where mira the operator. El frontend opens the sheet with esto ANTES of that haya a result,
+            # so that viaja in the proyeccion live and no in the entrega.
             "surface": r.surface,
-            # SILENCIO real desde el último evento del worker. Es lo que de verdad dice si está encallado — `age_s`
-            # solo dice si lleva rato trabajando, que no es lo mismo (ver el detector en nucleo/loop.py).
+            # SILENCIO real from the ultimo evento of the worker. Es it that of truth says if esta stalled — `age_s`
+            # only says if lleva rato trabajando, that no es it same (ver the detector in nucleo/loop.py).
             "silent_s": int(now - (r.last_event_at or r.started)),
             "waiting_on": r.waiting_on, "ask": r.ask[:160] if r.ask else "",
-            # V2-059: observabilidad estructurada — plan + progreso + últimos pasos reales.
+            # V2-059: observabilidad estructurada — plan + progreso + ultimos pasos reales.
             "plan": list(r.plan), "done": r.done, "total": len(r.plan), "pct": _progress_pct(r),
             "note": r.note, "steps": list(r.steps)[-6:],
             "considered": r.considered, "kept": r.kept,     # amplitud de una investigación (-1 = no aplica)
@@ -247,20 +247,20 @@ def has_active() -> bool:
     return any(r.status in LIVE_SESSION_STATES for r in _SESSIONS.values())
 
 
-# V2-354 — los RELOJES viven en `dispatch_thresholds` (trinquete); se re-exportan: `dispatch` es el contrato.
+# V2-354 — the RELOJES viven in `dispatch_thresholds` (trinquete); is re-exportan: `dispatch` es the contrato.
 from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 
 
-# V2-198 — los estados de una SESIÓN de worker, enumerados UNA vez. Había CUATRO filtros escribiendo
-# `("queued", "running")` a mano y ninguno para el otro lado: una sesión que termina, se cancela o falla
-# desaparecía del registro sin dejar NINGÚN hecho en el estado vivo. Es el mismo hueco que V2-150 cerró para
-# las tareas de navegador y V2-196/197 para sus estados… un nivel por encima, y peor: una tarea de navegador
-# solo existe con `kind=web`, mientras que **toda** escalada abre una sesión de worker. Los casos que se
-# resuelven por búsqueda (`cheapest-monitor`) o por memoria (`remember-and-remind-deadline`) no tienen tarea de
-# navegador en absoluto, así que para ellos el arreglo de V2-150 nunca se aplicó.
+# V2-198 — the estados of a SESIÓN of worker, enumerados UNA vez. Habia CUATRO filtros escribiendo
+# `("queued", "running")` a mano and ninguno for the another lado: a session that finishes, is cancela or falla
+# desaparecia of the record without leave NINGÚN hecho in the state live. Es the same hueco that V2-150 cerro for
+# the tasks of browser and V2-196/197 for sus estados… a nivel by encima, and peor: a task of browser
+# only exists with `kind=web`, mientras that **toda** escalada opens a session of worker. Los casos that is
+# resuelven by search (`cheapest-monitor`) or by memory (`remember-and-remind-deadline`) no have task of
+# browser in absoluto, so that for ellos the arreglo of V2-150 never is aplico.
 LIVE_SESSION_STATES = frozenset({"queued", "running"})
-# V2-238 — «relevada» es un final propio: la sesión se fue, pero el ENCARGO no. Vivía como `error`, y con eso
-# el motor le anunciaba al operador una muerte que no había ocurrido mientras el relevo trabajaba.
+# V2-238 — «relevada» es a final own: the session is fue, but the ENCARGO no. Vivia como `error`, and with eso
+# the motor le anunciaba al operator a muerte that no habia ocurrido mientras the relevo trabajaba.
 ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled", "relevada"})
 JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que el operador todavía pregunta
 
@@ -304,18 +304,18 @@ def _remember_ended(rec, resuming: bool = False) -> None:
         _ENDED_SESSIONS[str(rec.task_id)] = {
             "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
             "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time(),
-            # V2-224 — cuántos turnos han LLEVADO ya este final delante. Ver `mark_death_reported`.
+            # V2-224 — cuantos turnos han LLEVADO already this final delante. Ver `mark_death_reported`.
             "told": 0}
         for k in [k for k, v in _ENDED_SESSIONS.items()
                   if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
             _ENDED_SESSIONS.pop(k, None)
     except Exception:  # noqa: BLE001
         pass
-    # V2-222 — y si de verdad MURIÓ, se EMPUJA. Medido por el arnés sobre `hotel-under-15-days` con el contador
-    # de las dos vías: lo que se empuja como nota de sistema se dice en el turno siguiente 3 de 3 veces (3 s la
-    # pregunta del worker, 7 s el muro); lo que solo se RENDERIZA como línea de estado del prompt, 0 de 13, y con
-    # la redacción imperativa de V2-221 delante las trece veces. La línea de estado se queda (es el contexto de
-    # los cinco minutos siguientes); la orden viaja por el camino que sí llega.
+    # V2-222 — and if of truth MURIÓ, is EMPUJA. Medido by the arnes sobre `hotel-under-15-days` with the contador
+    # of the two vias: it that is empuja como nota of sistema is says in the turn siguiente 3 of 3 veces (3 s the
+    # question of the worker, 7 s the muro); it that only is RENDERIZA como linea of state of the prompt, 0 of 13, and with
+    # the redaccion imperativa of V2-221 delante the trece veces. La linea of state is queda (es the contexto of
+    # the five minutos siguientes); the orden viaja by the camino that si arrives.
     try:
         if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
                 and not str(getattr(rec, "handoff", "") or "")):     # V2-238: un relevo no ha muerto
@@ -331,29 +331,29 @@ def _remember_ended(rec, resuming: bool = False) -> None:
 
 
 def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[dict]:
-    """Sesiones de worker que ACABARON hace poco, y CÓMO acabaron.
+    """Sesiones of worker that ACABARON does poco, and CÓMO acabaron.
 
-    Espejo de `widgets/navegador/tasks.recently_finished()` (V2-150), cuya lección era: un final es un HECHO, y
-    una tarea que desaparece del estado al terminar deja al turno con su propia memoria de haberla arrancado.
-    Aquí faltaba entero.
+    Espejo of `widgets/browser/tasks.recently_finished()` (V2-150), cuya leccion era: a final es a HECHO, and
+    a task that desaparece of the state al finish leaves al turn with su own memory of haberla arrancado.
+    Aqui was missing entero.
 
-    V2-222 — y una gestión que está CORRIENDO no es una gestión que acabó, diga lo que diga el registro. Medido
-    por el arnés sobre `hotel-under-15-days` (sandbox `20260820-194231`), leyendo el system prompt de los ocho
-    turnos: siete llevaban la MISMA cadena de objetivo dos veces, en el mismo prompt —
+    V2-222 — and a operation that esta CORRIENDO no es a operation that acabo, diga it that diga the record. Medido
+    by the arnes sobre `hotel-under-15-days` (sandbox `20260820-194231`), leyendo the system prompt of the ocho
+    turnos: siete llevaban the MISMA cadena of objetivo two veces, in the same prompt —
 
-        TAREAS DE FONDO EN CURSO (… NO reinicies ni digas que ya está): «Busca hoteles de 4 estrellas…»
-            — abriendo una página… [paso 2/5, 40%] (llevas 64s)
-        TAREAS DE FONDO — YA ACABADAS: «Busca hoteles de 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO
+        TAREAS DE FONDO EN CURSO (… NO reinicies ni digas that already esta): «Busca hoteles of 4 estrellas…»
+            — abriendo a pagina… [step 2/5, 40%] (llevas 64s)
+        TAREAS DE FONDO — YA ACABADAS: «Busca hoteles of 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO
 
-    — porque el primer intento falló, `_remember_ended` lo archivó, y V2-049 relanzó el MISMO encargo con otro id.
-    Los dos bloques decían la verdad sobre sesiones distintas; el operador solo tenía UN encargo. El turno
-    contestó «sigo esperando resultados», que es la mitad CIERTA: no estaba desobedeciendo el imperativo, estaba
-    resolviendo una contradicción, y ninguna redacción de ninguna de las dos mitades podía arreglar eso.
+    — because the first intento failed, `_remember_ended` it archivo, and V2-049 relanzo the MISMO errand with another id.
+    Los two bloques decian the truth sobre sessions distintas; the operator only tenia UN errand. El turn
+    contesto «sigo waiting results», that es the mitad CIERTA: no estaba desobedeciendo the imperativo, estaba
+    resolviendo a contradiccion, and ninguna redaccion of ninguna of the two mitades could arreglar eso.
 
-    `_remember_ended(resuming=True)` lo cierra en el origen. Este filtro es el cinturón: la reanudación
-    automática no es la única forma de que dos sesiones lleven un mismo objetivo (una escalada repetida también
-    lo hace), y el modo de fallo es un prompt que se discute a sí mismo — invisible salvo que se lea entero,
-    como se leyó este.
+    `_remember_ended(resuming=True)` it closes in the origen. Este filtro es the cinturon: the reanudacion
+    automatica no es the only form of that two sessions lleven a same objetivo (a escalada repetida also
+    it does), and the modo of failure es a prompt that is discute a si same — invisible salvo that is lea entero,
+    como is leyo this.
     """
     now = time.time() if now is None else now
     _live = _live_goals()
@@ -366,17 +366,17 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
 
 
 def mark_death_reported(task_ids) -> None:
-    """Un turno ya ha llevado delante el final de estas tareas (V2-224).
+    """Un turn already ha llevado delante the final of these tasks (V2-224).
 
-    El arnés midió la cláusula anti-repetición de V2-221 en dos rondas del MISMO commit y falló en las dos
-    direcciones opuestas: en una lo dijo en el turno 2 y lo repitió en el 5, 6, 7, 8 y 9 —el disco rayado de
-    V2-189—, y en la otra lo dijo en el turno 2 y luego lo NEGÓ siete turnos («sigo con ello», «dame un
-    momento»). Misma cláusula, mismo commit, resultados opuestos: eso no es un umbral mal puesto, es que
-    «¿ya se lo dije?» no era un HECHO que el prompt tuviera, sino algo que el modelo deducía de la ventana.
+    El arnes midio the clausula anti-repeticion of V2-221 in two rondas of the MISMO commit and failed in the two
+    direcciones opuestas: in a it said in the turn 2 and it repitio in the 5, 6, 7, 8 and 9 —the disco rayado of
+    V2-189—, and in the another it said in the turn 2 and then it NEGÓ siete turnos («sigo with ello», «dame a
+    momento»). Misma clausula, same commit, results opuestos: eso no es a umbral mal puesto, es that
+    «¿already is it dije?» no era a HECHO that the prompt tuviera, sino something that the model deducia of the ventana.
 
-    Nosotros SÍ lo sabemos: contamos los turnos que se lo llevaron delante. Y la lección que dejó el arnés al
-    diagnosticarlo gobierna la redacción de la cara nueva — **callar la repetición no es callar el estado**: el
-    aviso deja de darse, la prohibición de «sigo con ello» se queda.
+    Nosotros SÍ it sabemos: contamos the turnos that is it llevaron delante. Y the leccion that dejo the arnes al
+    diagnosticarlo gobierna the redaccion of the cara new — **callar the repeticion no es callar the state**: the
+    aviso leaves of darse, the prohibicion of «sigo with ello» is queda.
     """
     for tid in (task_ids or []):
         row = _ENDED_SESSIONS.get(str(tid))
@@ -385,20 +385,20 @@ def mark_death_reported(task_ids) -> None:
 
 
 def pending_summaries() -> list[dict]:
-    """Reemplaza `escalate.pending()` (§v3·G): tareas EN CURSO para el filler del provider + el bloque del prompt."""
+    """Reemplaza `escalate.pending()` (§v3·G): tasks EN CURSO for the filler of the provider + the bloque of the prompt."""
     now = time.time()
     return [{"id": r.task_id, "request": r.goal, "secs": int(now - r.started),
              "phase": r.phase, "waiting_on": r.waiting_on,
              # V2-131: SILENCE since the worker's last event. `active_sessions()` has carried it for the loop's
-             # stall detector all along; the PROMPT never got it, so the brain answering "¿cómo va?" could only
-             # see "it started N seconds ago" and had to guess what counts as too long. It guessed "sigo en
+             # stall detector all along; the PROMPT never got it, so the brain answering "¿how va?" could only
+             # see "it started N seconds ago" and had to guess what counts as too long. It guessed "sigo in
              # marcha" six turns running over a task that had emitted nothing at all.
              "silent_s": int(now - (r.last_event_at or r.started)),
-             # V2-059: el FlashBrain puede decir el PASO real + progreso si el operador pregunta "¿cómo va?".
+             # V2-059: the FlashBrain can say the PASO real + progreso if the operator question "¿how va?".
              "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
-             # V2-354 — segundos sin COMPLETAR un paso del plan (≠ `silent_s`); el porqué, en `NO_STEP_SECS`.
+             # V2-354 — segundos without COMPLETAR a step of the plan (≠ `silent_s`); the porque, in `NO_STEP_SECS`.
              "no_step_s": int(now - (getattr(r, "last_step_at", 0) or r.started)),
-             # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.
+             # Amplitud in curso: leaves al cerebro contestar «va by 30 candidatos» and, al acabar, ofrecer continue.
              "considered": r.considered, "kept": r.kept,
              "sheet": sheet_of(r)}     # V2-451: la hoja es del ENCARGO, y sin esto solo viajaba con navegador
             for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
@@ -409,8 +409,8 @@ def get_record(tid) -> "SessionRecord | None":
 
 
 def record_by_nav_task(nav_tid) -> "SessionRecord | None":
-    """El worker que conduce la pestaña de navegador `nav_tid` (para sellar trace/span desde el puente hbweb,
-    que corre en el loop del server sin contexto de trace). V2-048."""
+    """El worker that conduce the tab of browser `nav_tid` (for sellar trace/span from the bridge hbweb,
+    that corre in the loop of the server without contexto of trace). V2-048."""
     nav_tid = str(nav_tid)
     for r in _SESSIONS.values():
         if getattr(r, "nav_task", "") == nav_tid:
@@ -420,11 +420,11 @@ def record_by_nav_task(nav_tid) -> "SessionRecord | None":
 
 
 
-# ── la HOJA de resultados como superficie del progreso (V2-227 ámbito C · extraída a `nucleo/sheets.py` el
+# ── the HOJA of results como superficie of the progreso (V2-227 ambito C · extraida a `nucleo/sheets.py` the
 # 2026-08-24, V2-276) ─────────────────────────────────────────────────────────────────────────────────────────
-# La sección vive ahora en su propio módulo HOJA, que no importa este fichero: las tres funciones que recorren
-# el registro vivo lo reciben, y estas envolturas se lo pasan. Se re-exporta todo porque hay producción y tests
-# que lo importan por nombre desde aquí — es una mudanza, no un cambio de interfaz.
+# La seccion lives ahora in su own module HOJA, that no importa this file: the three funciones that recorren
+# the record live it reciben, and these envolturas is it pasan. Se re-exporta todo because there is produccion and tests
+# that it importan by name from here — es a mudanza, no a cambio of interfaz.
 from nucleo.turn_marks import mark_stall_offered, stall_offered  # noqa: F401 — re-export
 from nucleo.sheets import (  # noqa: F401 — re-export
     PHASES_KEPT, _phrases, _sheet_close, _sheet_open, sheet_id_for, sheet_of,
@@ -437,7 +437,7 @@ def _sheet_sessions() -> list:
 
 
 def sheet_for_nav_task(nav_task: str) -> str:
-    """La hoja donde entregar lo que ESTA pestaña encuentre, abriéndola si su encargo aún no tiene (V2-290)."""
+    """La sheet donde entregar it that ESTA tab encuentre, abriendola if su errand aun no has (V2-290)."""
     return _sheets.sheet_for_delivery(nav_task, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
@@ -446,17 +446,17 @@ def sheet_progress(sheet: str = "") -> dict:
 
 
 def sheet_harvest(sheet: str = "") -> dict:
-    """Los NÚMEROS de la hoja (V2-296). Cuerpo en `nucleo/sheets.py`; aquí solo se le pasa el registro vivo."""
+    """Los NÚMEROS of the sheet (V2-296). Cuerpo in `nucleo/sheets.py`; here only is le pasa the record live."""
     return _sheets.sheet_harvest(sheet, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
 def record_phase(tid, phase: str) -> bool:
-    """Apunta una línea en el diario de PROCESO de `tid`. El cuerpo vive en `nucleo/sheets.py` (V2-281):
-    aquí solo se resuelve el registro, que es lo único que este módulo tiene y aquél no."""
+    """Apunta a linea in the diario of PROCESO of `tid`. El body lives in `nucleo/sheets.py` (V2-281):
+    here only is resuelve the record, that es it only that this module has and aquel no."""
     return _sheets.record_phase(_SESSIONS.get(str(tid)), phase, PHASES_KEPT)
 
 def session_phase(tid, phase: str) -> None:
-    """Compat V2-036: reporte de fase EXPLÍCITO del worker (hbnote). Actualiza el registro RAM."""
+    """Compat V2-036: reporte of fase EXPLÍCITO of the worker (hbnote). Actualiza the record RAM."""
     r = _SESSIONS.get(str(tid))
     if r is not None:
         _p = (phase or "").strip()
@@ -466,7 +466,7 @@ def session_phase(tid, phase: str) -> None:
     try:
         from voice.observer import emit
         extra = {"id": str(tid)}
-        # V2-044: el handler HTTP del CLI (hbnote) no tiene contexto de trace → sellar el de la sesión.
+        # V2-044: the handler HTTP of the CLI (hbnote) no has contexto of trace → sellar the of the session.
         if r is not None and r.trace_id:
             extra["trace"] = r.trace_id
             extra["span"] = f"worker:{tid}"
@@ -476,15 +476,15 @@ def session_phase(tid, phase: str) -> None:
 
 
 def session_alive(tid) -> str:
-    """A LATIDO: la misma fase, diciendo cuánto lleva. No toca el registro (V2-227 ámbito B2).
+    """A LATIDO: the same fase, diciendo how much lleva. No touches the record (V2-227 ambito B2).
 
-    Una tarjeta congelada en «recorriendo la página» durante noventa segundos es indistinguible de un worker
-    muerto, y esa ambigüedad es justo lo que el operador pidió quitar: el silencio se lee como avería. Pero el
-    remedio no puede ser reescribir `r.phase` con el texto decorado — el latido siguiente decoraría la
-    decoración («… lleva 1 min — lleva 2 min»). Así que se EMITE y no se guarda: el registro conserva la fase
-    limpia y el carril lleva la versión con el tiempo.
+    Una tarjeta congelada in «recorriendo the pagina» durante noventa segundos es indistinguible of a worker
+    dead, and esa ambiguedad es justo it that the operator pidio quitar: the silencio is reads como averia. Pero the
+    remedio no can ser reescribir `r.phase` with the texto decorado — the latido siguiente decoraria the
+    decoracion («… lleva 1 min — lleva 2 min»). Asi that is EMITE and no is guarda: the record preserves the fase
+    limpia and the carril lleva the version with the time.
 
-    Devuelve lo emitido (o "" si no había nada que latir), que es lo que hace esto comprobable sin un bus.
+    Devuelve it emitido (or "" if no habia nothing that latir), that es it that does esto comprobable without a bus.
     """
     r = _SESSIONS.get(str(tid))
     if r is None or r.status not in LIVE_SESSION_STATES or r.paused:
@@ -507,8 +507,8 @@ def session_alive(tid) -> str:
 
 
 def session_plan(tid, steps) -> None:
-    """V2-059: el worker DECLARA su lista de tareas al empezar (`hbnote plan "a|b|c"`). Observabilidad estructurada:
-    se ve el plan + cuántos pasos lleva → progreso real (no solo una fase coarse)."""
+    """V2-059: the worker DECLARA su lista of tasks al empezar (`hbnote plan "a|b|c"`). Observabilidad estructurada:
+    is ve the plan + cuantos pasos lleva → progreso real (no only a fase coarse)."""
     r = _SESSIONS.get(str(tid))
     if r is None:
         return
@@ -529,8 +529,8 @@ def session_plan(tid, steps) -> None:
 
 
 def session_progress(tid, note: str = "", done: int | None = None, pct: int | None = None) -> None:
-    """V2-059: el worker reporta PROGRESO (`hbnote progress "..." --done N` / `--pct P`). Actualiza done/pct/note
-    del registro → ESTADO/prompt del FlashBrain + /api/tasks + observabilidad. Fail-soft."""
+    """V2-059: the worker reporta PROGRESO (`hbnote progress "..." --done N` / `--pct P`). Actualiza done/pct/note
+    of the record → ESTADO/prompt of the FlashBrain + /api/tasks + observabilidad. Fail-soft."""
     r = _SESSIONS.get(str(tid))
     if r is None:
         return
@@ -561,11 +561,11 @@ def session_progress(tid, note: str = "", done: int | None = None, pct: int | No
 
 
 def session_considered(tid, considered: int | None = None, kept: int | None = None) -> None:
-    """AMPLITUD reportada por el worker (`hbnote considered N --kept M`): cuántos candidatos ha evaluado de verdad.
+    """AMPLITUD reportada by the worker (`hbnote considered N --kept M`): cuantos candidatos ha evaluado of truth.
 
-    Existe para que la SELECCIÓN sea auditable. Sin este dato, «te he encontrado las 3 mejores» es indistinguible
-    de «te he copiado las 3 primeras que salieron», y ni el operador ni el cerebro pueden juzgar si conviene seguir
-    buscando. Con él, el cerebro puede ofrecer la continuación con un número concreto delante."""
+    Existe for that the SELECCIÓN sea auditable. Sin this dato, «te he encontrado the 3 mejores» es indistinguible
+    of «te he copiado the 3 primeras that salieron», and ni the operator ni the cerebro can juzgar if conviene continue
+    buscando. Con el, the cerebro can ofrecer the continuacion with a number concreto delante."""
     r = _SESSIONS.get(str(tid))
     if r is None:
         return
@@ -589,7 +589,7 @@ def session_considered(tid, considered: int | None = None, kept: int | None = No
 
 
 def _progress_pct(r: "SessionRecord") -> int:
-    """% de progreso: el explícito si lo hay; si no, done/len(plan); -1 si desconocido."""
+    """% of progreso: the explicito if it there is; if no, done/len(plan); -1 if desconocido."""
     if getattr(r, "pct", -1) >= 0:
         return r.pct
     if r.plan:
@@ -601,21 +601,21 @@ _last_sync: tuple | None = None
 
 
 def sync_state() -> None:
-    """Proyecta el registro RAM al ESTADO de memoria (`activity` + `sessions`). La llama el LOOP (~1 Hz) y los
-    puntos de cambio grueso (start/end/cancel) — coalescada, nunca por-evento (§v2·C: no floodear SQLite).
-    SKIP-IF-UNCHANGED (2026-07-16): el loop la llama cada tick; si no hay workers vivos, escribía el estado —y
-    disparaba `memory.updated`→SSE— CADA SEGUNDO sin cambio, floodeando el visor/log y churneando SQLite. Ahora
-    solo escribe cuando la proyección REALMENTE cambia."""
+    """Proyecta the record RAM al ESTADO of memory (`activity` + `sessions`). La calls the LOOP (~1 Hz) and the
+    points of cambio grueso (start/end/cancel) — coalescada, never by-evento (§v2·C: no floodear SQLite).
+    SKIP-IF-UNCHANGED (2026-07-16): the loop the calls each tick; if no there is workers live, escribia the state —and
+    disparaba `memory.updated`→SSE— CADA SEGUNDO without cambio, floodeando the visor/log and churneando SQLite. Ahora
+    only writes when the proyeccion REALMENTE cambia."""
     global _last_sync
     try:
         from memory import api as memory
         sess = active_sessions()
         labels = [(r.phase or _default_label(r.kind)) for r in _SESSIONS.values()
                   if r.status in LIVE_SESSION_STATES]
-        # Detección de cambio SIN campos volátiles: `age_s` (y cualquier tiempo transcurrido) SUBE cada segundo →
-        # si se incluye, con una sesión viva el snapshot difiere SIEMPRE y se reescribe el estado cada tick
-        # (flood de MEMORY·state, el bug 2026-07-16). Comparo solo los campos ESTABLES; el estado escrito sí
-        # conserva age_s (lo usa el prompt), pero no dispara memory.updated si nada relevante cambió.
+        # Deteccion of cambio SIN fields volatiles: `age_s` (and any time transcurrido) SUBE each second →
+        # if is incluye, with a session live the snapshot difiere SIEMPRE and is reescribe the state each tick
+        # (flood of MEMORY·state, the bug 2026-07-16). Comparo only the fields ESTABLES; the state escrito si
+        # preserves age_s (it usa the prompt), but no dispara memory.updated if nothing relevante cambio.
         stable = [{k: v for k, v in s.items() if k not in ("age_s", "silent_s", "secs", "updated", "ts")}
                   for s in sess]
         snap = (tuple(labels), json.dumps(stable, sort_keys=True, default=str))
@@ -623,10 +623,10 @@ def sync_state() -> None:
             return                      # nada relevante cambió → no reescribir ni emitir memory.updated (~1 Hz)
         _last_sync = snap
         memory.set_state({"activity": labels, "sessions": sess})
-        # REHIDRATACIÓN (2026-08-12): el mismo cambio deja un rastro DURABLE en `sys_kv` con marca de tiempo. Es lo
-        # que permite que el arranque siguiente sepa qué había en vuelo si este proceso muere (un reinicio mató una
-        # búsqueda del operador SIN dejar constancia). Va aquí porque este es el único punto que ya sabe que la
-        # proyección cambió — no añade ni una escritura extra en reposo. Ver `nucleo/rehydrate.py`.
+        # REHIDRATACIÓN (2026-08-12): the same cambio leaves a rastro DURABLE in `sys_kv` with marca of time. Es it
+        # that allows that the arranque siguiente sepa what habia in vuelo if this proceso dies (a reinicio mato a
+        # search of the operator SIN leave constancia). Va here because this es the only point that already sabe that the
+        # proyeccion cambio — no adds ni a escritura extra in reposo. Ver `nucleo/rehydrate.py`.
         try:
             from nucleo import rehydrate as _rehydrate
             _rehydrate.remember(sess)
@@ -636,7 +636,7 @@ def sync_state() -> None:
         pass
 
 
-# ── resolución de "cuál" para inject / stop (determinista, §v2·B/§v3·M) ──────────────────────────────────────
+# ── resolucion of "which" for inject / stop (determinista, §v2·B/§v3·M) ──────────────────────────────────────
 def _norm(text: str) -> str:
     return matching.norm_text(text)
 
@@ -669,7 +669,7 @@ def live_traces() -> list[str]:
 
 # The tokenizer moved to `nucleo/matching.py` (F4, 2026-08-23) with its history — the punctuation lesson of
 # V2-123, the non-latin-alphabet note — because it stopped being this module's private business the day it turned
-# out `widgets/navegador/tasks._similar` was judging the SAME question with its own copy and the two disagreed
+# out `widgets/browser/tasks._similar` was judging the SAME question with its own copy and the two disagreed
 # about the same pair of texts. One yardstick, imported; the local names survive for the callers.
 def _content_words(text: str) -> set:
     return matching.content_words(text)
@@ -700,43 +700,43 @@ def has_live_trace(trace_id: str) -> bool:
 
 
 def find_duplicate(request: str, kind: str) -> str | None:
-    """tid de una sesión VIVA que ya atiende ESTA petición ('' → None). La REGLA vive en `nucleo/dedup.py`;
-    aquí solo se resuelve QUIÉN está vivo, que es lo único que este módulo sabe."""
+    """tid of a session VIVA that already atiende ESTA request ('' → None). La REGLA lives in `nucleo/dedup.py`;
+    here only is resuelve QUIÉN esta live, that es it only that this module sabe."""
     return dedup_scan(request, kind)[0]
 
 
 def _live_errands() -> list[tuple[str, str]]:
-    """(tid, goal) de cada sesión VIVA — el único punto que traduce el registro RAM para los dos jueces."""
+    """(tid, goal) of each session VIVA — the only point that traduce the record RAM for the two jueces."""
     return [(k, r.goal) for k, r in _SESSIONS.items() if r.status in LIVE_SESSION_STATES]
 
 
 def dedup_scan(request: str, kind: str) -> tuple[str | None, dict]:
-    """El veredicto del dedup Y la evidencia sobre la que lo tomó (`nucleo/dedup.scan`)."""
+    """El veredicto of the dedup Y the evidencia sobre the that it tomo (`nucleo/dedup.scan`)."""
     return _dedup.scan(request, kind, _live_errands())
 
 
-#: Re-exportado para que `run_listener` lo resuelva como global del módulo — así un test puede sustituirlo
-#: y el cableado real sigue siendo el que se prueba.
+#: Re-exportado for that `run_listener` it resuelva como global of the module — so a test can sustituirlo
+#: and the cableado real continues siendo the that is prueba.
 about_a_live_errand = _dedup.about_a_live_errand
 
 
-# ATRIBUCIÓN: qué palabras de una alusión sirven para reconocer una tarea, y cuándo dos son LA MISMA cosa.
+# ATRIBUCIÓN: what palabras of a alusion sirven for reconocer a task, and cuando two son LA MISMA cosa.
 #
-# V2-140 — criterio 2 del caso `three-tasks-at-once` («cada mensaje por alusión debe ir a la tarea CORRECTA»).
-# Medido con tres tareas vivas y las frases reales del caso, antes de tocar nada:
+# V2-140 — criterion 2 of the caso `three-tasks-at-once` («each mensaje by alusion must ir a the task CORRECTA»).
+# Medido with three tasks live and the frases reales of the caso, before of touch nothing:
 #
-#     «¿y el del coche?»                        → ['t1','t2','t3']   (t1 = «informe sobre COCHES eléctricos»)
-#     «el del monitor, que sea de 27 pulgadas»  → ['t1','t2','t3']   (t2 = «un MONITOR barato de segunda mano»)
+#     «¿and the of the coche?»                        → ['t1','t2','t3']   (t1 = «informe sobre COCHES electricos»)
+#     «the of the monitor, that sea of 27 pulgadas»  → ['t1','t2','t3']   (t2 = «a MONITOR barato of second mano»)
 #
-# Dos causas mecánicas, ninguna del modelo. La primera es la MISMA que costó dinero en V2-123 (`find_duplicate`
-# comparando «guitarra» con «(guitarra»): se troceaba por espacios sobre un `_norm` que solo quita acentos y
-# minusculiza, así que **la puntuación se quedaba pegada** — `coche?` y `monitor,`. Es la función hermana, en el
-# mismo fichero, y no se revisó entonces. La segunda es que el cruce era por igualdad exacta, así que `coche` no
-# reconocía `coches`: la persona alude en singular a algo que pidió en plural, que es lo normal al hablar.
+# Dos causas mecanicas, ninguna of the model. La first es the MISMA that costo money in V2-123 (`find_duplicate`
+# comparando «guitarra» with «(guitarra»): is troceaba by espacios sobre a `_norm` that only quita acentos and
+# minusculiza, so that **the puntuacion is quedaba pegada** — `coche?` and `monitor,`. Es the funcion hermana, in the
+# same file, and no is reviso entonces. La second es that the cruce era by igualdad exacta, so that `coche` no
+# reconocia `coches`: the persona alude in singular a something that pidio in plural, that es it normal al hablar.
 #
-# El emparejamiento por prefijo va ACOTADO a propósito — la atribución que se equivoca manda el refinamiento a
-# la tarea que no es, y eso es peor que no resolver: mínimo 4 caracteres de raíz y como mucho 3 de diferencia,
-# de modo que `coche`/`coches` e `informe`/`informes` casan y `coche`/`cocina` no.
+# El emparejamiento by prefijo va ACOTADO a purpose — the atribucion that is equivoca manda the refinamiento a
+# the task that no es, and eso es peor that no resolver: minimo 4 caracteres of raiz and como mucho 3 of diferencia,
+# of modo that `coche`/`coches` e `informe`/`informes` casan and `coche`/`cocina` no.
 _REF_WORD_RE = re.compile(r"\w+", re.UNICODE)
 
 
@@ -752,8 +752,8 @@ def _same_thing(a: str, b: str) -> bool:
 
 
 def resolve_sessions(query: str) -> list[str]:
-    """Referencia del operador → tid(s) vivos. '' / 'todo' → todas; una sola viva → esa; varias → por kind o
-    solape de palabras con el goal; nada casa → todas (mejor parar de más que dejar zombies)."""
+    """Referencia of the operator → tid(s) live. '' / 'todo' → all; a sola live → esa; varias → by kind or
+    solape of palabras with the goal; nothing casa → all (mejor parar of mas that leave zombies)."""
     keys = _live_keys()
     if not keys:
         return []
@@ -780,10 +780,10 @@ def resolve_sessions(query: str) -> list[str]:
     return list(keys)
 
 
-# ── inyección (↓) ────────────────────────────────────────────────────────────────────────────────────────
+# ── inyeccion (↓) ────────────────────────────────────────────────────────────────────────────────────────
 async def inject(which: str, message: str) -> list[str]:
-    """Inyecta `message` a la(s) sesión(es) que resuelva `which`. Devuelve los tid inyectados. Reemplaza el
-    dedup-descartar de V2-029: un refinamiento se INYECTA, no se tira (§v3·G)."""
+    """Inyecta `message` a the(s) session(es) that resuelva `which`. Devuelve the tid inyectados. Reemplaza the
+    dedup-descartar of V2-029: a refinamiento is INYECTA, no is tira (§v3·G)."""
     tids = resolve_sessions(which)
     done = []
     for tid in tids:
@@ -794,8 +794,8 @@ async def inject(which: str, message: str) -> list[str]:
             if r.session:
                 await r.session.inject(message)
             else:
-                # aún EN COLA del pool (sin proceso): la instrucción queda `pending` en el record y se entrega
-                # por piggyback en el primer contacto del worker (§v3·H) — nunca se pierde en silencio.
+                # aun EN COLA of the pool (without proceso): the instruccion queda `pending` in the record and is entrega
+                # by piggyback in the first contacto of the worker (§v3·H) — never is pierde in silencio.
                 from nucleo.workers.session import Inject
                 r.injects.append(Inject(text=message, ts=time.time()))
             done.append(tid)
@@ -805,8 +805,8 @@ async def inject(which: str, message: str) -> list[str]:
 
 
 def take_pending_injects(tid) -> list[str]:
-    """Piggyback: worker_api la llama al responder a un bridge → entrega las inyecciones pendientes (§v3·H).
-    Lee el RECORD (no la sesión): también entrega lo inyectado mientras la tarea esperaba en la cola del pool."""
+    """Piggyback: worker_api the calls al responder a a bridge → entrega the inyecciones pending (§v3·H).
+    Lee the RECORD (no the session): also entrega it inyectado mientras the task esperaba in the cola of the pool."""
     r = _SESSIONS.get(str(tid))
     if not r:
         return []
@@ -818,9 +818,9 @@ def take_pending_injects(tid) -> list[str]:
     return out
 
 
-# ── entradas SÍNCRONAS marshaladas al loop del server (las llama el FlashBrain desde el job-thread, §v3·D/O) ──
+# ── entradas SÍNCRONAS marshaladas al loop of the server (the calls the FlashBrain from the job-thread, §v3·D/O) ──
 def inject_soon(which: str, message: str) -> None:
-    """Fire-and-forget: inyecta a la(s) sesión(es) de `which`, en el loop dueño. NUNCA se await-ea en el turno."""
+    """Fire-and-forget: inyecta a the(s) session(es) of `which`, in the loop dueno. NUNCA is await-ea in the turn."""
     if _LOOP is None:
         return
     try:
@@ -830,7 +830,7 @@ def inject_soon(which: str, message: str) -> None:
 
 
 def cancel_soon(which: str) -> list[str]:
-    """Fire-and-forget: resuelve `which` y MATA en el loop dueño. Devuelve los tid que VA a matar (para la voz)."""
+    """Fire-and-forget: resuelve `which` and MATA in the loop dueno. Devuelve the tid that VA a kill (for the voice)."""
     tids = resolve_sessions(which)   # lectura de dict (barata); la cancelación real va al loop dueño
     if _LOOP is not None and tids:
         def _do():
@@ -843,10 +843,10 @@ def cancel_soon(which: str) -> list[str]:
     return tids
 
 
-# ── MATAR (con cortesía) ─────────────────────────────────────────────────────────────────────────────────
+# ── MATAR (with cortesia) ─────────────────────────────────────────────────────────────────────────────────
 def cancel_session(tid, *, reason: str = "operator") -> bool:
-    """Mata una sesión: cancela su asyncio.Task (→ el backend mata el grupo de procesos) y purga registro +
-    chip + estado de inmediato (reflejo instantáneo). Idempotente."""
+    """Mata a session: cancela su asyncio.Task (→ the backend mata the grupo of procesos) and purge record +
+    chip + state of inmediato (reflejo instantaneo). Idempotente."""
     key = str(tid)
     r = _SESSIONS.get(key)
     if not r:
@@ -887,11 +887,11 @@ def cancel_all(*, reason: str = "reset") -> int:
     return n
 
 
-# ── V2-065 (2026-07-23): PAUSAR ≠ matar — el botón ⏻ del operador. A diferencia de `cancel_all` (mata de verdad,
-# irreversible, usado por Reset), esto congela los workers VIVOS en el sitio (SIGSTOP al backend, ver
-# `workers/base.py::pause`) y los deja en el registro tal cual — `resume_all()` los continúa exactamente donde
-# estaban. Un backend que no soporta pausar de verdad (Codex stub, generator_session) simplemente no hace nada
-# (`pause()` devuelve False) — nunca rompe. Best-effort, síncrono (SIGSTOP/SIGCONT no son I/O).
+# ── V2-065 (2026-07-23): PAUSAR ≠ kill — the boton ⏻ of the operator. A diferencia of `cancel_all` (mata of truth,
+# irreversible, usado by Reset), esto congela the workers VIVOS in the site (SIGSTOP al backend, ver
+# `workers/base.py::pause`) and the leaves in the record tal cual — `resume_all()` the continua exactamente donde
+# estaban. Un backend that no soporta pausar of truth (Codex stub, generator_session) simplemente no does nothing
+# (`pause()` returns False) — never rompe. Best-effort, sincrono (SIGSTOP/SIGCONT no son I/O).
 def pause_all() -> int:
     n = 0
     for r in _SESSIONS.values():
@@ -923,8 +923,8 @@ def resume_all() -> int:
 
 
 async def stop_all_async(*, grace: float = 2.0) -> int:
-    """Apagado ORDENADO del lifespan (§v3·L): para los backends esperando su cierre (killpg) ANTES de tumbar el
-    loop. Devuelve cuántas sesiones había."""
+    """Apagado ORDENADO of the lifespan (§v3·L): for the backends waiting su cierre (killpg) ANTES of tumbar the
+    loop. Devuelve how many sessions habia."""
     recs = list(_SESSIONS.values())
     for r in recs:
         if r.session:
@@ -939,19 +939,19 @@ async def stop_all_async(*, grace: float = 2.0) -> int:
     return n
 
 
-# ── arranque de una sesión desde una escalada ────────────────────────────────────────────────────────────
+# ── arranque of a session from a escalada ────────────────────────────────────────────────────────────
 
 
 async def _seed_research_criteria(brief: dict) -> None:
-    """Vuelca el brief recién compuesto a la pestaña CRITERIOS de la hoja de resultados.
+    """Vuelca the brief recien compuesto a the tab CRITERIOS of the sheet of results.
 
-    Se hace AQUÍ, en el pre-vuelo, y no dentro del worker: si dependiera de que el ejecutor se acuerde de
-    escribirlo, faltaría justo en las búsquedas que peor van. Efecto de paso —y buscado—: el `goal` es la firma
-    del encargo, así que arrancar una investigación DISTINTA vacía la hoja de la anterior. El operador ya se comió
-    una vez quedarse mirando los resultados de la búsqueda de antes creyendo que eran los suyos. Una ronda 2
-    conserva el objetivo, así que «sigue buscando» no borra nada.
+    Se does AQUÍ, in the pre-vuelo, and no inside of the worker: if dependiera of that the ejecutor is acuerde of
+    escribirlo, faltaria justo in the busquedas that peor van. Efecto of step —and buscado—: the `goal` es the firma
+    of the errand, so that start a research DISTINTA empty the sheet of the anterior. El operator already is comio
+    a vez quedarse mirando the results of the search of before creyendo that eran the suyos. Una ronda 2
+    preserves the objetivo, so that «continues buscando» no borra nothing.
 
-    Best-effort duro: esto es la pantalla, no el trabajo. Si el widget falla, la investigación sigue igual."""
+    Best-effort duro: esto es the pantalla, no the work. If the widget falla, the research continues igual."""
     try:
         payload = research.to_criteria(brief)
         if not payload:
@@ -963,16 +963,16 @@ async def _seed_research_criteria(brief: dict) -> None:
 
 
 async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
-    """PRE-VUELO de una investigación: convierte la petición cruda en un BRIEF dirigido (nucleo/research.py).
+    """PRE-VUELO of a research: convierte the request cruda in a BRIEF dirigido (nucleo/research.py).
 
-    Por qué está AQUÍ y no en el turno de voz: dirigir bien una búsqueda —separar criterios duros de blandos,
-    añadir lo que un experto sabe que hará falta, fijar cuán ancho hay que buscar y con qué baremo juzgar— es un
-    trabajo de razonamiento, y el FlashBrain de voz tiene que contestar en milisegundos. Aquí ya estamos fuera de
-    ese reloj: la escalada es asíncrona, el operador ya sabe que esto tarda, así que este es el único punto del
-    sistema donde se puede pensar antes de empezar a trabajar.
+    Por what esta AQUÍ and no in the turn of voice: dirigir bien a search —separar criterios duros of blandos,
+    add it that a experto sabe that hara missing, fijar cuan wide there is that buscar and with what baremo juzgar— es a
+    work of razonamiento, and the FlashBrain of voice has that contestar in milisegundos. Aqui already estamos outside of
+    ese reloj: the escalada es asincrona, the operator already sabe that esto tarda, so that this es the only point of the
+    sistema donde is can pensar before of empezar a trabajar.
 
-    Si es una REANUDACIÓN, el brief de la ronda anterior se reutiliza tal cual: los criterios ya estaban acordados
-    y recomponerlos podría cambiarlos a mitad de una búsqueda que el operador cree que sigue el mismo guion."""
+    If es a REANUDACIÓN, the brief of the ronda anterior is reuses tal cual: the criterios already estaban acordados
+    and recomponerlos podria cambiarlos a mitad of a search that the operator cree that continues the same guion."""
     if not trusted:
         return None                       # perfil sin tools: no hay investigación que dirigir
     prev_tid = str((resume or {}).get("brief_task") or "")
@@ -980,10 +980,10 @@ async def _compose_brief(request: str, context: str, trusted: bool, resume: dict
         prev = research.load(prev_tid)
         if prev:
             return prev
-    # ¿Ya investigamos esto y el operador vuelve a la carga? Entonces es la RONDA SIGUIENTE de la misma búsqueda:
-    # hereda los criterios acordados y sube la amplitud, con su frase de ahora como motivo del rechazo. Sin esto,
-    # «esos no me valen, busca más» recomponía el brief desde cero y repetía la misma búsqueda con la misma
-    # amplitud — el operador habría visto llegar los mismos resultados y concluido, con razón, que no le escuchamos.
+    # ¿Ya investigamos esto and the operator vuelve a the load? Entonces es the RONDA SIGUIENTE of the same search:
+    # hereda the criterios acordados and sube the amplitud, with su frase of ahora como reason of the rechazo. Sin esto,
+    # «esos no me valen, busca mas» recomponia the brief from cero and repetia the same search with the same
+    # amplitud — the operator habria visto arrive the same results and concluido, with razon, that no le escuchamos.
     gk = _goal_key(request)
     prev = research.previous_round(gk)
     if prev:
@@ -994,8 +994,8 @@ async def _compose_brief(request: str, context: str, trusted: bool, resume: dict
     return await research.compose(request, context)
 
 
-#: Referencias vivas a compositores en segundo plano (V2-301): un Task sin referencia puede ser recolectado a
-#: mitad, y este muere en silencio — la clase de fallo que deja al worker sin dirección sin que nada avise.
+#: Referencias live a compositores in second plano (V2-301): a Task without referencia can ser recolectado a
+#: mitad, and this dies in silencio — the clase of failure that leaves al worker without address without that nothing avise.
 _BRIEF_BG_TASKS: set = set()
 
 
@@ -1008,7 +1008,7 @@ def _attach_brief_followup(task: "asyncio.Task", *, key: str, rec: "SessionRecor
 
     The callback runs in the owner loop (the composer task was created there), so `ensure_future` is safe.
     A composer that dies here changes nothing for the worker — it is already running, which is exactly the
-    fail-open the serial path promised («el worker arranca SIN brief»); only the budget promotion is still
+    fail-open the serial path promised («the worker starts SIN brief»); only the budget promotion is still
     honoured, same as the serial ComposerUnavailable branch.
     """
     _BRIEF_BG_TASKS.add(task)
@@ -1031,8 +1031,8 @@ def _attach_brief_followup(task: "asyncio.Task", *, key: str, rec: "SessionRecor
                 if block and rec.status in LIVE_SESSION_STATES:
                     inject_soon(key, ("Ya está compuesta la DIRECCIÓN de tu investigación — aplícala DESDE "
                                       "AHORA a lo que estás haciendo, sin reempezar lo ya andado:\n\n" + block))
-            # La promoción de presupuesto va con brief O con compositor caído (mismas dos ramas que el camino
-            # serial); un compose que devuelve None a secas dijo «esto no es una investigación» y no promociona.
+            # La promocion of budget va with brief O with compositor caido (same two ramas that the camino
+            # serial); a compose that returns None a secas said «esto no es a research» and no promociona.
             if (b or unavailable) and kind0 == "generic" and rec.kind == "generic":
                 rec.kind = "research"
                 rec.label = _default_label("research", req)
@@ -1044,11 +1044,11 @@ def _attach_brief_followup(task: "asyncio.Task", *, key: str, rec: "SessionRecor
     task.add_done_callback(_done)
 
 
-# ── contrato WEB restaurado (demo 2026-07-14: la búsqueda corrió INVISIBLE) ────────────────────────────────
-# En el refactor V2-038 (P2) el flujo `kind=web` se unificó bajo el WorkerSession genérico y se PERDIÓ el paso
-# de `web_cc` que creaba la tarea+TARJETA del navegador y daba al worker el contrato de cierre → el worker de la
-# demo navegó 12+ min sin superficie visible ni entrega. Se restaura AQUÍ, dentro del sustrato nuevo:
-# una tarea = una pestaña = una tarjeta (continuidad V2-032 incluida) + prompt web con criterio de CIERRE.
+# ── contrato WEB restaurado (demo 2026-07-14: the search corrio INVISIBLE) ────────────────────────────────
+# En the refactor V2-038 (P2) the flujo `kind=web` is unifico bajo the WorkerSession generico and is PERDIÓ the step
+# of `web_cc` that creaba the task+TARJETA of the browser and daba al worker the contrato of cierre → the worker of the
+# demo navego 12+ min without superficie visible ni entrega. Se restaura AQUÍ, inside of the sustrato new:
+# a task = a tab = a tarjeta (continuidad V2-032 incluida) + prompt web with criterion of CIERRE.
 _FORCE_NEW_RE = re.compile(
     r"\b(otro|otra|segundo|segunda|nuevo|nueva|aparte|adem[aá]s|en paralelo|a la vez)\b[^.]*"
     r"\b(navegador|pesta[ñn]a|ventana|b[uú]squeda|tarea)\b", re.I)
@@ -1056,15 +1056,15 @@ _COEXIST_RE = re.compile(r"\bsin (parar|detener|cerrar|tocar)\b", re.I)
 
 
 async def _prepare_web(rec: "SessionRecord", req: str, reuse_tid: str = "") -> str:
-    """kind=web: crea (o RE-USA, continuidad V2-032/V2-049) la tarea del navegador y ABRE su tarjeta ANTES de
-    arrancar el worker. Devuelve el id de navtask ('' si el subsistema no está). El id viaja al worker por
-    ZAELAR_NAV_TASK → sus capturas/acciones casan con ESTA tarjeta (y su pestaña, que persiste en el owner)."""
+    """kind=web: crea (or RE-USA, continuidad V2-032/V2-049) the task of the browser and ABRE su tarjeta ANTES of
+    start the worker. Devuelve the id of navtask ('' if the subsistema no esta). El id viaja al worker by
+    ZAELAR_NAV_TASK → sus capturas/actions casan with ESTA tarjeta (and su tab, that persiste in the owner)."""
     try:
         from widgets.navegador import tasks as navtasks
     except Exception:
         return ""
     try:
-        # V2-049: reanudación EXPLÍCITA → misma pestaña que alcanzó el worker anterior (sigue en su página).
+        # V2-049: reanudacion EXPLÍCITA → same tab that alcanzo the worker anterior (continues in su pagina).
         cont = None
         if reuse_tid and navtasks.get(reuse_tid):
             cont = (reuse_tid,)
@@ -1125,10 +1125,10 @@ async def _prepare_web(rec: "SessionRecord", req: str, reuse_tid: str = "") -> s
 
 
 async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
-    """Cierra la TARJETA del navegador con lo encontrado: extrae los anuncios que quedaron en pantalla (la
-    pestaña del owner sigue viva aunque el worker haya muerto/sido matado) y fija el estado final. Best-effort.
-    V2-049: si `keep_open` (gestión web incompleta que se va a REANUDAR), NO la marca «failed» — la deja en PAUSA
-    (working) para que la pestaña y su página se conserven y el worker reanudado continúe donde estaba."""
+    """Cierra the TARJETA of the browser with it encontrado: extrae the anuncios that quedaron in pantalla (the
+    tab of the owner continues live although the worker haya dead/sido matado) and fija the state final. Best-effort.
+    V2-049: if `keep_open` (operation web incompleta that is va a REANUDAR), NO the marca «failed» — the leaves in PAUSA
+    (working) for that the tab and su pagina is conserven and the worker reanudado continue donde estaba."""
     tid = getattr(rec, "nav_task", "")
     if not tid:
         return
@@ -1153,10 +1153,10 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
             navtasks.finish(tid, "done" if rec.ok else "failed",
                             ("✅ " if rec.ok else "") + ((rec.result_summary or "").strip()[:200]
                                                         or "sin resultado"))
-        # V2-257 — tercer y último camino por el que el navegador encuentra algo; los tres pasan ya por la misma
-        # puerta (`widgets/results/intake`). Va DESPUÉS del cierre por dos razones: mantiene pegados el
-        # `set_results` y el final que exige el invariante de V2-192 (una tarea VIVA no puede tener resultados),
-        # y deja fuera el caso `cancelled` — el operador dijo que parásemos, así que no le llenamos la hoja.
+        # V2-257 — tercer and ultimo camino by the that the browser encuentra something; the three pasan already by the same
+        # puerta (`widgets/results/intake`). Va DESPUÉS of the cierre by two razones: mantiene pegados the
+        # `set_results` and the final that exige the invariante of V2-192 (a task VIVA no can tener results),
+        # and leaves outside the caso `cancelled` — the operator said that parasemos, so that no le llenamos the sheet.
         if items and rec.status != "cancelled":
             try:
                 from widgets.results import intake as _intake
@@ -1164,11 +1164,11 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
                              source_url=str((navtasks.get(tid) or {}).get("url") or ""))
             except Exception:  # noqa: BLE001
                 pass
-            # …y el HECHO a la conversación. Escribir las filas y no contarlo es lo que medía el arnés el
-            # 2026-08-24: llegaban a la hoja 42-113 s antes del último turno y el agente seguía diciendo
-            # «todavía no tengo nada». `intake.push` no lleva nota a propósito —es la puerta compartida de los
-            # tres caminos y la nota la empuja el llamante— y de los tres éste era el único que no la empujaba.
-            # La condición de «solo si nadie lo ha contado ya» vive con el resto en `workers/findings.py`.
+            # …and the HECHO a the conversacion. Escribir the filas and no contarlo es it that media the arnes the
+            # 2026-08-24: llegaban a the sheet 42-113 s before of the ultimo turn and the agent seguia diciendo
+            # «still no tengo nothing». `intake.push` no lleva nota a purpose —es the puerta shared of the
+            # three caminos and the nota the empuja the caller— and of the three este era the only that no the empujaba.
+            # La condicion of «only if nadie it ha contado already» lives with the resto in `workers/findings.py`.
             try:
                 from nucleo.workers import findings as _find
                 _find.hand_sheet_finding(tid, items, rec.goal)
@@ -1179,9 +1179,9 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
 
 
 async def _compose_context(request: str, kind: str) -> str:
-    """Contexto mínimo de memoria para el worker (best-effort, off-voz). Fail-open a vacío, pero AVISANDO:
-    el fail-open silencioso escondió durante todo V2-038 un typo (`compose_task_context`, función inexistente)
-    que dejaba a TODOS los workers sin el bloque «CONTEXTO DE MEMORIA» (auditoría 2026-07-14)."""
+    """Contexto minimo of memory for the worker (best-effort, off-voice). Fail-open a empty, but AVISANDO:
+    the fail-open silencioso escondio durante todo V2-038 a typo (`compose_task_context`, funcion inexistente)
+    that dejaba a TODOS the workers without the bloque «CONTEXTO DE MEMORIA» (auditoria 2026-07-14)."""
     try:
         from nucleo import memory_agent
         return await memory_agent.compose_context(request, budget=2000)
@@ -1190,22 +1190,22 @@ async def _compose_context(request: str, kind: str) -> str:
         return ""
 
 
-# La dirección de este motor vive en `nucleo/engine_url.py` (V2-296): función pura de dos env vars, sin estado
-# del gestor de sesiones. Se re-exporta porque es una mudanza, no un cambio de interfaz.
+# La address of this motor lives in `nucleo/engine_url.py` (V2-296): funcion pura of two env vars, without state
+# of the gestor of sessions. Se re-exporta because es a mudanza, no a cambio of interfaz.
 from nucleo.engine_url import _own_base_url  # noqa: E402,F401 — re-export
 
 
 async def _run_session(task: "Task") -> None:
-    """Crea y conduce UNA sesión bajo el pool. Nunca lanza (corre como task suelta)."""
+    """Crea and conduce UNA session bajo the pool. Never lanza (corre como task suelta)."""
     from nucleo import danger
     from nucleo.flash import escalate
 
     key = str(task.id)
     req = (task.request or "").strip()
 
-    # TRAZABILIDAD (V2-044): adopta el trace de la frase que originó la escalada (viajó en task.context porque el
-    # bus no copia contexto). span=worker:<id> → TODOS los emits del ciclo (fases, chips, entrega, notify) quedan
-    # encadenados a esa frase en el árbol de Trazas.
+    # TRAZABILIDAD (V2-044): adopta the trace of the frase that origino the escalada (viajo in task.context because the
+    # bus no copia contexto). span=worker:<id> → TODOS the emits of the ciclo (fases, chips, entrega, notify) quedan
+    # encadenados a esa frase in the arbol of Trazas.
     try:
         from voice import trace as _trace
         _rec0 = _SESSIONS.get(key)
@@ -1221,7 +1221,7 @@ async def _run_session(task: "Task") -> None:
         kind = _classify_kind(req)
     trusted = bool(task.trusted)
 
-    # CONFIRM-GATE de irreversibles (V2-007) — antes de arrancar nada.
+    # CONFIRM-GATE of irreversibles (V2-007) — before of start nothing.
     if trusted and danger.is_dangerous(req) and not bool(task.context.get("confirmed")):
         logger.info(f"dispatch: tarea {key} PARA por confirm-gate: {req[:80]}")
         rec = _SESSIONS.get(key)
@@ -1230,13 +1230,13 @@ async def _run_session(task: "Task") -> None:
             rec.result_summary = danger.confirm_question(req)
             await _deliver_confirm(rec)
             _SESSIONS.pop(key, None)
-            # La pregunta se RECUERDA (V2-126). Hasta aquí el gate era un callejón sin salida: hablaba la
-            # pregunta por el raíl proactivo, tiraba el registro, y nadie ponía nunca `context["confirmed"]`
-            # — un `sí` del operador no tenía a qué volver. Peor: la tarea desaparecía de `pending_summaries`,
-            # así que el turno siguiente NO veía nada pendiente y volvía a narrar trabajo que no existía.
-            # Medido en `cancel-subscription-before-charge` y en `pay-known-bill` (tres tareas, las tres
-            # paradas por el gate, ninguna contada al operador).
-            # …con su HOJA: ya está abierta en pantalla y el «sí» tiene que volver a ELLA (V2-508).
+            # La question is RECUERDA (V2-126). Hasta here the gate era a callejon without salida: hablaba the
+            # question by the rail proactivo, tiraba the record, and nadie ponia never `context["confirmed"]`
+            # — a `si` of the operator no tenia a what volver. Peor: the task desaparecia of `pending_summaries`,
+            # so that the turn siguiente NO veia nothing pending and volvia a narrar work that no existia.
+            # Medido in `cancel-subscription-before-charge` and in `pay-known-bill` (three tasks, the three
+            # paradas by the gate, ninguna contada al operator).
+            # …with su HOJA: already esta abierta in pantalla and the «si» has that volver a ELLA (V2-508).
             remember_confirm(key, req, task, sheet=sheet_of(rec))
             sync_state()
         return
@@ -1248,7 +1248,7 @@ async def _run_session(task: "Task") -> None:
     rec.label = _default_label(kind, req)
     sync_state()
 
-    # LA CADENA ENTERA DORMIDA: no se lanza nada (V2-314). Spawning here is a GUARANTEED death — every tier of
+    # LA CADENA ENTERA DORMIDA: no is lanza nothing (V2-314). Spawning here is a GUARANTEED death — every tier of
     # the worker chain is in cooldown, and the CLI would burn ~30 s in the pool to die in two. What made this
     # invisible is that `providers.pick()` returns None both when the chain is EMPTY (self-host, no keys: run
     # the local license, the promised fail-open) and when every tier is asleep — so the cooldown we record for
@@ -1310,9 +1310,9 @@ async def _run_session(task: "Task") -> None:
             import tempfile as _tf
             _wd = _tf.mkdtemp(prefix="zaelar-dev-")   # cwd AISLADO para Read/Write/Edit (nunca el proyecto)
             env.update(_dev["env"])
-            # GUARD DE CONFINAMIENTO REAL (auditoría 2026-07-26, cierra el hallazgo "solo convención de prompt"):
-            # hook PreToolUse que deniega Read/Write/Edit/Glob/Grep fuera de `_wd` — fuera del propio workdir (no
-            # dentro: así el worker no puede tocar el fichero de settings que lo confina).
+            # GUARD DE CONFINAMIENTO REAL (auditoria 2026-07-26, closes the hallazgo "only convencion of prompt"):
+            # hook PreToolUse that deniega Read/Write/Edit/Glob/Grep outside of `_wd` — outside of the own workdir (no
+            # inside: so the worker no can touch the file of settings that it confina).
             env["ZAELAR_DEV_WORKER_ROOT"] = _wd
             _dev_settings_path = os.path.join(_tf.gettempdir(), f"zaelar-dev-settings-{key}.json")
             try:
@@ -1333,9 +1333,9 @@ async def _run_session(task: "Task") -> None:
             # work, ~62k of headroom, and the provider rejected the call 14 steps later. Measured again head-to-head
             # afterwards: 167,242 tokens in the repo root vs 25,352 in a scratch dir (-84.8%). See
             # `workers/workdir.py` for the three faults one directory per task fixes (context, `informe.json`
-            # collision, private CLAUDE.md). `read_dirs` declara la dependencia de lectura de la VISIÓN del
-            # navegador (la captura llega por ruta absoluta fuera del cwd, V2-049) — medido que el CLI ya la permite
-            # sin decírselo, así que es defensa en profundidad, no un requisito.
+            # collision, private CLAUDE.md). `read_dirs` declara the dependencia of lectura of the VISIÓN of the
+            # browser (the captura arrives by path absoluta outside of the cwd, V2-049) — measured that the CLI already the allows
+            # without decirselo, so that es defensa in profundidad, no a requisito.
             _wd = None
             if not workdir.needs_repo(kind):
                 _wd = workdir.for_task(key)
@@ -1348,15 +1348,15 @@ async def _run_session(task: "Task") -> None:
         backend = get_backend(spec)
         session = WorkerSession(backend, spec, rec)
         rec.session = session
-        # PRE-VUELO: ¿esto es una investigación/selección? Entonces se dirige con un brief (amplitud + baremo +
-        # forma del entregable) en vez de dejar que el worker se autoimponga el criterio mínimo. Un dev-worker de
-        # código no pasa por aquí: su dirección es el repo, no un espacio de candidatos.
+        # PRE-VUELO: ¿esto es a research/seleccion? Entonces is dirige with a brief (amplitud + baremo +
+        # form of the entregable) in vez of leave that the worker is autoimponga the criterion minimo. Un dev-worker of
+        # code no pasa by here: su address es the repo, no a espacio of candidatos.
         brief = None
         _brief_bg: asyncio.Task | None = None
         if not _dev:
             try:
                 # V2-301 — the composer is a REASONING call (15-30 s) and it ran IN SERIES before the spawn:
-                # measured across the guitar rounds (2026-08-24), the worker sat «en cola» 20-32 s doing
+                # measured across the guitar rounds (2026-08-24), the worker sat «in cola» 20-32 s doing
                 # nothing while the composer thought, and then spent its OWN first ~20 s on preamble (mesh
                 # PASO 0 + memory reads) — two stretches that overlap perfectly. A short head start keeps the
                 # instant paths fully-directed (a resumed/round-2 brief returns without any LLM); past it the
@@ -1374,12 +1374,12 @@ async def _run_session(task: "Task") -> None:
                     except asyncio.TimeoutError:
                         brief = None            # still thinking → spawn now, inject when ready
             except research.ComposerUnavailable:
-                # El compositor no pudo contestar. El fail-open (arrancar sin dirigir) es correcto, pero NO puede
-                # arrastrar consigo la mitad del presupuesto: que esto sea una investigación no depende de que el
-                # compositor esté vivo. Se promociona el kind IGUAL — cuesta DIRECCIÓN, no TIEMPO. Medido en el
-                # banco del 2026-08-13: el compositor tardó >30 s, la tarea se quedó en `generic` (600 s) y el
-                # worker murió a los 704 s con el navegador a medias, el mismo «agotó su tiempo» que la promoción
-                # de abajo existe para cerrar.
+                # El compositor no pudo contestar. El fail-open (start without dirigir) es correcto, but NO can
+                # arrastrar consigo the mitad of the budget: that esto sea a research no depende of that the
+                # compositor este live. Se promociona the kind IGUAL — cuesta DIRECCIÓN, no TIEMPO. Medido in the
+                # banco of the 2026-08-13: the compositor tardo >30 s, the task is quedo in `generic` (600 s) and the
+                # worker murio a the 704 s with the browser a medias, the same «agoto su time» that the promocion
+                # of abajo exists for close.
                 brief = None
                 _brief_bg = None    # falló DENTRO del head start: ya está manejado aquí, nada que inyectar luego
                 if kind == "generic":
@@ -1393,16 +1393,16 @@ async def _run_session(task: "Task") -> None:
                 research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
                 await _seed_research_criteria(brief)
                 rec.phase = "preparando la investigación"
-                # EL BRIEF ES LA PRUEBA de que esto es una INVESTIGACIÓN, y con ella se cobra el presupuesto que le
-                # corresponde. `loop._kind_budget_default` ya reservaba 1200s para `research`… pero NADIE asignaba
-                # nunca ese kind: `_classify_kind` solo devuelve web/code/generic, así que toda investigación que no
-                # nombrara Wallapop/Amazon caía en `generic` = 600s. Y ese medio presupuesto CONTRADICE el propio
-                # brief, que exige reunir ≥40 candidatos y ENTRAR en la ficha de cada finalista: 10 minutos no dan
-                # para eso, así que el worker moría conminado a «entrega ya» con la hoja a medias — es lo que le pasó
-                # al operador el 2026-08-12 dos veces («agotó su tiempo»). Solo se promociona `generic`: `web`
-                # (1200s, y con su reanudación por `native_sid`) y `code` conservan su ruta intacta. Y el `spec` del
-                # worker YA está construido con el kind viejo a propósito — aquí solo cambia lo que MIDE el
-                # supervisor y lo que LEE el operador en la tarjeta («Investigando…», no «Pensando…»).
+                # EL BRIEF ES LA PRUEBA of that esto es a INVESTIGACIÓN, and with ella is cobra the budget that le
+                # corresponde. `loop._kind_budget_default` already reservaba 1200s for `research`… but NADIE asignaba
+                # never ese kind: `_classify_kind` only returns web/code/generic, so that toda research that no
+                # nombrara Wallapop/Amazon caia in `generic` = 600s. Y ese medio budget CONTRADICE the own
+                # brief, that exige reunir ≥40 candidatos and ENTRAR in the ficha of each finalista: 10 minutos no dan
+                # for eso, so that the worker moria conminado a «entrega already» with the sheet a medias — es it that le paso
+                # al operator the 2026-08-12 two veces («agoto su time»). Only is promociona `generic`: `web`
+                # (1200s, and with su reanudacion by `native_sid`) and `code` conservan su path intacta. Y the `spec` of the
+                # worker YA esta construido with the kind viejo a purpose — here only cambia it that MIDE the
+                # supervisor and it that LEE the operator in the tarjeta («Investigando…», no «Pensando…»).
                 if kind == "generic":
                     rec.kind = "research"
                     rec.label = _default_label("research", req)
@@ -1413,10 +1413,10 @@ async def _run_session(task: "Task") -> None:
         if _dev:
             prompt = _dev_prompt(req, _dev["repo"])
         elif kind == "web" and trusted:
-            # V2-289 — el paso 1 del método le dice que la VISIÓN es su camino PRINCIPAL, y con un escalón que
-            # no lee imágenes eso es una orden imposible: la descubre haciendo `Read` de una PNG de medio mega y
-            # narrando el fallo. Quién puede ver lo resuelve el catálogo de escalones, que es el único que sabe
-            # quién sirve la sesión (`providers.worker_sees`, fail-open a SÍ ve).
+            # V2-289 — the step 1 of the metodo le says that the VISIÓN es su camino PRINCIPAL, and with a escalon that
+            # no reads imagenes eso es a orden imposible: the descubre haciendo `Read` of a PNG of medio mega and
+            # narrando the failure. Who can ver it resuelve the catalogo of escalones, that es the only that sabe
+            # who sirve the session (`providers.worker_sees`, fail-open a SÍ ve).
             prompt = _web_prompt(req, ctx, brief, vision=_worker_sees())
         else:
             prompt = _build_prompt(req, ctx, trusted, brief)
@@ -1425,7 +1425,7 @@ async def _run_session(task: "Task") -> None:
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
                       "`look` PRIMERO para ver dónde te quedaste y CONTINÚA desde ahí hasta terminar.\n\n") + prompt
         if _brief_bg is not None:
-            # V2-301 — el compositor sigue pensando: el worker arranca YA y la dirección le llega inyectada.
+            # V2-301 — the compositor continues pensando: the worker starts YA and the address le arrives inyectada.
             prompt += ("\n\nNOTA (dirección en camino): la DIRECCIÓN detallada de esta investigación — criterios "
                        "duros y blandos, amplitud mínima y baremo — se está componiendo y te llegará como "
                        "instrucción nueva en un momento. NO la esperes parado: haz ya los primeros pasos (PASO 0, "
@@ -1438,7 +1438,7 @@ async def _run_session(task: "Task") -> None:
         except Exception as e:  # noqa: BLE001
             logger.warning(f"dispatch: sesión {key} falló: {e}")
         finally:
-            # V2-049 CONTINUIDAD: ¿gestión web que quedó SIN completar? → reanudable (mantén la pestaña viva).
+            # V2-049 CONTINUIDAD: ¿operation web that quedo SIN complete? → reanudable (manten the tab live).
             _resumable = (kind == "web" and trusted and rec.status != "cancelled" and not rec.ok)
             _prev_count = int((resume or {}).get("count", 0))
             if nav_tid:
@@ -1447,8 +1447,8 @@ async def _run_session(task: "Task") -> None:
                 except Exception:
                     pass
             if _dev:
-                # limpieza del workdir temporal + el settings del guard (auditoría 2026-07-26, T-07: antes no se
-                # borraban nunca — fuga de disco acumulativa con escaladas de código de cluster repetidas).
+                # limpieza of the workdir temporary + the settings of the guard (auditoria 2026-07-26, T-07: before no is
+                # borraban never — fuga of disco acumulativa with escaladas of code of cluster repetidas).
                 try:
                     import shutil as _sh
                     _sh.rmtree(_wd, ignore_errors=True)
@@ -1468,20 +1468,20 @@ async def _run_session(task: "Task") -> None:
             except Exception:
                 pass
             _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
-            # V2-222 — ¿va a CONTINUAR sola? Se calcula aquí, ANTES de anotar el final, porque una sesión que se
-            # reanuda sola no ha terminado y anotarla como terminada es lo que partía el prompt en dos.
-            # V2-238 — DOS ESCALADAS PARA UNA MUERTE. `_finish` ya relanza el encargo cuando releva de proveedor
-            # o compacta el contexto (`escalate_to_slowbrain`), y deja `ok=False` a propósito para que no haya dos
-            # entregas. Pero `_resumable` lee exactamente ese `ok=False` y disparaba ADEMÁS el auto-resume de
-            # V2-049: dos workers sobre el mismo encargo, y —hasta V2-237— los dos reanudando la MISMA sesión del
-            # CLI, que es como morían a los 400 ms. El testigo ya está pasado: aquí no se pasa otra vez.
+            # V2-222 — ¿va a CONTINUAR sola? Se calcula here, ANTES of anotar the final, because a session that is
+            # resumes sola no ha terminado and anotarla como terminada es it that partia the prompt in two.
+            # V2-238 — DOS ESCALADAS PARA UNA MUERTE. `_finish` already relanza the errand when releva of proveedor
+            # or compacta the contexto (`escalate_to_slowbrain`), and leaves `ok=False` a purpose for that no haya two
+            # entregas. Pero `_resumable` reads exactamente ese `ok=False` and disparaba ADEMÁS the auto-resume of
+            # V2-049: two workers sobre the same errand, and —until V2-237— the two reanudando the MISMA session of the
+            # CLI, that es como morian a the 400 ms. El testigo already esta pasado: here no is pasa another vez.
             _handoff = str(getattr(rec, "handoff", "") or "")
             _will_resume = bool(_resumable and not _waiting_user
                                 and (_prev_count + 1) < _RESUME_CAP and not _handoff)
-            # …pero el ENCARGO continúa en las dos formas, así que lo que mira «¿esto se ha acabado?» mira esto.
+            # …but the ENCARGO continua in the two ways, so that it that mira «¿esto is ha acabado?» mira esto.
             _continues = bool(_will_resume or _handoff)
-            # V2-079: rastro DURABLE de la ejecución que se va (el registro vivo se purga aquí y desaparecía). El
-            # ledger conserva el histórico para la pestaña «Procesos» del ChatWall. Best-effort, fuera del hot-path.
+            # V2-079: rastro DURABLE of the ejecucion that is va (the record live is purge here and desaparecia). El
+            # ledger preserves the historico for the tab «Procesos» of the ChatWall. Best-effort, outside of the hot-path.
             try:
                 from nucleo.workers import ledger as _ledger
                 _ledger.record_finish(id=str(key), kind=str(kind or ""), goal=str(req or "")[:160],
@@ -1507,8 +1507,8 @@ async def _run_session(task: "Task") -> None:
                     pass
             _remember_ended(rec, resuming=_continues)     # V2-199: el final es un HECHO — antes de tirar el registro
             _SESSIONS.pop(key, None)
-            # V2-227 ámbito C — DESPUÉS del pop, nunca antes: la hoja lee el registro vivo, así que mientras esta
-            # sesión siguiera dentro `alive` seguiría diciendo que sí. Y no al reanudar: el encargo continúa.
+            # V2-227 ambito C — DESPUÉS of the pop, never before: the sheet reads the record live, so that mientras this
+            # session siguiera inside `alive` seguiria diciendo that si. Y no al resume: the errand continua.
             if not _continues and surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_close(rec)
             try:
@@ -1522,16 +1522,16 @@ async def _run_session(task: "Task") -> None:
             except Exception:
                 pass
             sync_state()
-            # V2-049 AUTO-RESUME: gestión web incompleta, SIN pregunta pendiente, bajo el cap → CONTINÚA sola (el
-            # FlashBrain no cesa la tarea ni espera un empujón del operador). Con pregunta pendiente NO: espera la
-            # respuesta (que, al llegar como turno, reanuda por la misma vía). Con `ask` la purga de arriba ya la
-            # quitó, por eso leímos _waiting_user ANTES.
+            # V2-049 AUTO-RESUME: operation web incompleta, SIN question pending, bajo the cap → CONTINÚA sola (the
+            # FlashBrain no cesa the task ni waits a empujon of the operator). Con question pending NO: waits the
+            # response (that, al arrive como turn, resumes by the same via). Con `ask` the purge of arriba already the
+            # quito, by eso leimos _waiting_user ANTES.
             if _will_resume:
                 _schedule_auto_resume(req)
 
 
 def rec_token(rec: "SessionRecord") -> str:
-    """Token de auth por-tarea para los bridges (§v2·D). Se guarda en el propio registro (atributo dinámico)."""
+    """Token of auth by-task for the bridges (§v2·D). Se guarda in the own record (atributo dinamico)."""
     tok = getattr(rec, "_token", "")
     if not tok:
         tok = secrets.token_urlsafe(18)
@@ -1539,7 +1539,7 @@ def rec_token(rec: "SessionRecord") -> str:
     return tok
 
 
-# ── CONFIRMACIÓN PENDIENTE de una tarea irreversible (V2-126) ─────────────────────────────────────────────
+# ── CONFIRMACIÓN PENDIENTE of a task irreversible (V2-126) ─────────────────────────────────────────────
 # Moved to `nucleo/dispatch_confirm.py` (F3, 2026-08-23) — the cleanest seam in this file: own registry, own TTL,
 # and zero reads of `_SESSIONS`. Re-exported so `dispatch.confirm_line()`, `dispatch.resolve_confirm(...)` and the
 # tests that mutate `dispatch._PENDING_CONFIRM` keep working unchanged.
@@ -1559,7 +1559,7 @@ from nucleo.dispatch_confirm import (  # noqa: E402,F401
 
 # ── compat: llamada directa (tester) ───────────────────────────────────────────────────────────────────────
 async def dispatch(task: "Task") -> str:
-    """Compat: arranca una sesión y espera su resultado (para tests/voice/e2e/agent/llamadas directas)."""
+    """Compat: starts a session and waits su result (for tests/voice/e2e/agent/llamadas directas)."""
     if not (task.request or "").strip():        # una petición vacía es un no-op, no una sesión
         return ""
     key = str(task.id)
@@ -1569,7 +1569,7 @@ async def dispatch(task: "Task") -> str:
     return "(tarea despachada)"
 
 
-# ── consumo de escalados del bus (FlashBrain → workers) ────────────────────────────────────────────────────
+# ── consumo of escalados of the bus (FlashBrain → workers) ────────────────────────────────────────────────────
 def _merge_dedup_flow(ctx: dict, dup: str) -> bool:
     """An escalation was just absorbed as a refinement of the live session `dup` — which is PROOF, not a guess,
     that the two are the same task (`find_duplicate` demands 60% content-word overlap with its goal). Fuse this
@@ -1642,10 +1642,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 continue
             key = str(tid or "?")
             kind = str(ctx.get("kind", "generic"))
-            # V2-092: con el agente PARADO (⏻) NO se abre trabajo nuevo. Los workers que ya estaban se congelan y
-            # continúan al arrancar (pause_all/resume_all), pero arrancar uno DESDE CERO sobre un agente parado es
-            # lo contrario de parar. Se rechaza VISIBLE (evento `task/blocked`), nunca en silencio: una escalada que
-            # desaparece sin rastro es la clase de fallo que cuesta una sesión de diagnóstico.
+            # V2-092: with the agent PARADO (⏻) NO is opens work new. Los workers that already estaban is congelan and
+            # continuan al start (pause_all/resume_all), but start uno DESDE CERO sobre a agent parado es
+            # it contrario of parar. Se rechaza VISIBLE (evento `task/blocked`), never in silencio: a escalada that
+            # desaparece without rastro es the clase of failure that cuesta a session of diagnostico.
             _halted = False
             try:
                 from nucleo import runstate
@@ -1662,19 +1662,19 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 _close_escalated_flow(ctx, ok=False, status="rejected_halted")
                 logger.info(f"dispatch: escalada RECHAZADA (agente parado): {request[:80]}")
                 continue
-            # DEDUP en la FUENTE DE VERDAD (§sesión 2026-07-15): si ya hay una sesión viva atendiendo esta misma
-            # petición, NO abrimos un 2º worker (el bug de los dos «creando un widget…»). Se INYECTA como
-            # refinamiento (el generador de widgets, build atómico, lo ignora con gracia; un worker vivo lo aprovecha).
+            # DEDUP in the FUENTE DE VERDAD (§session 2026-07-15): if already there is a session live atendiendo this same
+            # request, NO abrimos a 2º worker (the bug of the two «creando a widget…»). Se INYECTA como
+            # refinamiento (the generador of widgets, build atomico, it ignora with gracia; a worker live it aprovecha).
             dup, _ev = dedup_scan(request, kind if kind != "generic" else _classify_kind(request))
             # `by` now comes from the deciding loop instead of being assumed here: a same-widget hit used to
             # be filed as «containment», which is a number it never computed.
             _dup_by = _ev.get("by") or ""
             _model = "skipped"          # the second half only runs with something live to compare against
             if not dup:
-                # SEGUNDA MITAD DEL DEDUP, off-loop. `find_duplicate` responde «¿es una reformulación de lo
-                # mismo?» y no puede responder «¿es esto un encargo siquiera?» — ver `about_a_live_errand`.
-                # Solo corre con algo vivo, así que el primer encargo de una conversación no lo paga; y va en
-                # un hilo porque `chat_sync` es síncrono y este bucle es el del servidor.
+                # SEGUNDA MITAD DEL DEDUP, off-loop. `find_duplicate` responds «¿es a reformulacion of it
+                # same?» and no can responder «¿es esto a errand siquiera?» — ver `about_a_live_errand`.
+                # Only corre with something live, so that the first errand of a conversacion no it paga; and va in
+                # a hilo because `chat_sync` es sincrono and this bucle es the of the servidor.
                 _live = _live_errands()
                 if _live:
                     try:
@@ -1690,9 +1690,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             if dup:
                 try:
                     from voice.observer import emit
-                    # `by` separa las DOS mitades del dedup, y sin él no se pueden medir por separado:
-                    # `containment` es una reformulación del mismo encargo, `model` es un turno que no era un
-                    # encargo (una pregunta por cómo va). Contarlas juntas esconde cuál de las dos falla.
+                    # `by` separa the DOS mitades of the dedup, and without el no is can medir by separado:
+                    # `containment` es a reformulacion of the same errand, `model` es a turn that no era a
+                    # errand (a question by how va). Contarlas juntas esconde which of the two falla.
                     emit("task", "dedup", role="system", text=request[:120],
                          extra={"id": dup, "dropped_id": key, "by": _dup_by,
                                 "reason": ("no es un encargo nuevo: va sobre una tarea viva"
@@ -1723,13 +1723,13 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                        "encargo NUEVO: no casa con ninguna tarea viva")})
             except Exception:
                 pass
-            # V2-049 CONTINUIDAD: sin sesión viva que casar, ¿hay una gestión web INCOMPLETA reciente que ESTA
-            # petición reanuda? (nudge «sigue con la ITV», o el operador aportando el dato que faltaba). Reanuda esa
-            # misma pestaña + razonamiento en vez de arrancar de cero.
+            # V2-049 CONTINUIDAD: without session live that casar, ¿there is a operation web INCOMPLETA reciente that ESTA
+            # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
+            # same tab + razonamiento in vez of start of cero.
             _k = kind if kind != "generic" else _classify_kind(request)
             if _k == "web":
-                # take=True: la reanudación se CONSUME al entregarla. Sin eso, dos escaladas de la misma
-                # petición se llevan el mismo id de sesión del CLI y la segunda muere en el arranque.
+                # take=True: the reanudacion is CONSUME al entregarla. Sin eso, two escaladas of the same
+                # request is llevan the same id of session of the CLI and the second dies in the arranque.
                 _res = _find_resume(request, take=True)
                 if _res and (_res.get("nav_task") or _res.get("native_sid")):
                     ctx = dict(ctx)
@@ -1746,22 +1746,22 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             rec = SessionRecord(task_id=key, goal=request[:200], kind=task.kind,
                                 parent_task_id=str(ctx.get("parent_task_id", "")),
                                 depth=int(ctx.get("depth", 0) or 0),
-                                # La GENERACIÓN de relevo viaja con la cadena. Sin esto el tope de `_finish` no
-                                # existe: cada relevo estrena record y su contador vuelve a cero.
+                                # La GENERACIÓN of relevo viaja with the cadena. Sin esto the cap of `_finish` no
+                                # exists: each relevo estrena record and su contador vuelve a cero.
                                 relay_gen=int(ctx.get("relay_gen", 0) or 0),
                                 # …and the SHEET with it, for the same reason: a relay continues the errand, so
                                 # it keeps writing where the operator is already looking instead of opening a
                                 # second box beside it.
                                 sheet=str(ctx.get("sheet", "") or ""),
                                 trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
-            # V2-227 — la SUPERFICIE se sella aquí, que es el único punto por el que pasan TODAS las puertas de
-            # entrada al dispatcher (el cerebro con su `surface`, el auto-resume, el confirm-gate, el cluster, el
-            # Susurro). Lo que declaró el cerebro manda; si no declaró nada —o dijo algo que no es del
-            # vocabulario— se deriva del kind. Sellar tarde significaría abrir la hoja cuando ya hay respuesta,
-            # que es exactamente lo que este cambio existe para no hacer.
+            # V2-227 — the SUPERFICIE is sella here, that es the only point by the that pasan TODAS the puertas of
+            # entrada al dispatcher (the cerebro with su `surface`, the auto-resume, the confirm-gate, the cluster, the
+            # Susurro). Lo that declaro the cerebro manda; if no declaro nothing —or said something that no es of the
+            # vocabulario— is deriva of the kind. Sellar tarde significaria open the sheet when already there is response,
+            # that es exactamente it that this cambio exists for no do.
             surfaces.set_once(rec, ctx.get("surface"))
-            # …y si esa superficie es la hoja, se ABRE YA, vacía y con la pestaña de proceso. Aquí, y no en la
-            # entrega, es donde el operador deja de mirar una pantalla en blanco.
+            # …and if esa superficie es the sheet, is ABRE YA, empty and with the tab of proceso. Aqui, and no in the
+            # entrega, es donde the operator leaves of mirar a pantalla in blanco.
             if surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_open(rec)
             _SESSIONS[key] = rec
@@ -1772,7 +1772,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
         logger.info("dispatch: listener de escalados detenido")
 
 
-# ── ciclo de vida (lifespan, BRAIN=nucleo) ────────────────────────────────────────────────────────────────
+# ── ciclo of vida (lifespan, BRAIN=nucleo) ────────────────────────────────────────────────────────────────
 _listener_task: "asyncio.Task | None" = None
 _listener_stop: "asyncio.Event | None" = None
 

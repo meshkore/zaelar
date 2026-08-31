@@ -1,27 +1,28 @@
-"""nucleo/flash/probe.py — CANAL DE PRUEBA HEADLESS del FlashBrain (V2-032, 3ª forma de testing).
+"""nucleo/flash/probe.py — FlashBrain HEADLESS TEST CHANNEL (V2-032, the third testing approach).
 
-El PROBLEMA que resuelve: para arreglar la conversación del FlashBrain hacía falta una forma SÚPER RÁPIDA de
-inyectarle texto y leer su respuesta SIN la voz, la interfaz ni una sala LiveKit — para poder iterar desde Claude
-Code con ejemplos reales y evaluarlos al instante. Los otros dos canales (tests de memoria; tester de voz e2e
-INI-013) son más lentos y con ruido de STT.
+The PROBLEM it solves: fixing the FlashBrain conversation required a SUPER-FAST way to inject text and read its
+response WITHOUT voice, the interface, or a LiveKit room — so real examples could be iterated from Claude Code
+and evaluated immediately. The other two channels (memory tests; the INI-013 end-to-end voice tester) are slower
+and include STT noise.
 
 Este canal corre DENTRO del proceso vivo del server (que ya tiene memoria/bus/estado/widgets inicializados por el
 lifespan), así que la fidelidad es máxima: reproduce el NÚCLEO del turno del FlashBrain — el MISMO prompt
 (`build_flash_system` con estado+memoria+recall), el MISMO modelo (`FastClient`), las MISMAS tools (`router.TOOLS`)
-y las MISMAS defensas de diálogo (`dialog.py`) que el turno de voz (`nucleo.py::_run`) — pero sin transporte de
-audio ni ejecución real de widgets: en vez de ACTUAR, REPORTA qué haría (tool/tag elegido) + el texto + latencias.
-Con eso se evalúan los fallos del informe (bucles, degeneración, pérdida de hilo, qué estado/memoria vio el modelo).
+and the SAME dialogue safeguards (`dialog.py`) as the voice turn (`nucleo.py::_run`) — but without audio transport
+or real widget execution: instead of ACTING, it REPORTS what it would do (selected tool/tag), the text, and
+latencies. This makes it possible to evaluate the failures from the report (loops, degeneration, loss of thread,
+and which state/memory the model saw).
 
 Uso (con el server arrancado, memoria reseteada con `make reset`):
     curl -s localhost:43917/api/flash/say -H 'content-type: application/json' -d '{"text":"hola, ¿cómo te llamas?"}'
     python -m nucleo.flash.probe "hola"          # one-shot
     python -m nucleo.flash.probe                 # REPL interactivo
-    python -m nucleo.flash.probe --reset          # limpia la ventana de conversación del probe
+    python -m nucleo.flash.probe --reset          # clears the probe conversation window
     make flash T="me llamo Alex"                  # atajo one-shot
     make flash-repl                               # atajo REPL
 
-NO toca la sesión de voz (usa su propia ventana `_SESSIONS`). Por defecto INGIERE a memoria como el turno real
-(`ingest=true`) para que las pruebas de estado/memoria sean fidedignas; pásalo a false para charla aislada.
+It does NOT touch the voice session (it uses its own `_SESSIONS` window). By default it INGESTS into memory like
+the real turn (`ingest=true`) so state/memory tests are faithful; pass false for isolated conversation.
 """
 from __future__ import annotations
 
@@ -40,10 +41,10 @@ _WINDOW_MAX = 10
 
 @dataclass
 class ProbeSession:
-    """Estado conversacional de UNA sesión de prueba (aislado de la voz)."""
+    """Conversation state for ONE test session (isolated from voice)."""
     window: list[dict] = field(default_factory=list)
     directive: str = ""
-    seeded: bool = False   # ¿ventana sembrada desde memoria? (circuito de corto plazo, espejo de nucleo.py::_run)
+    seeded: bool = False   # window seeded from memory? (short-term circuit, mirror of nucleo.py::_run)
     last_action: str = ""  # surface/action produced by the preceding turn (for deictic continuity)
 
 
@@ -74,18 +75,18 @@ def _running_goals() -> list[str]:
 
 
 def _remember_what_was_said(sess, text: str) -> None:
-    """Record the operator's line in the window NOW, before anything left in the turn can fail.
+    """Record the operator's line in the window NOW, before anything remaining in the turn can fail.
 
     V2-167/V2-176, measured on `restaurant-tonight-madrid` and again on `book-hotel-night-known__es`: the window
     was only written at the very END of the turn (step (f)), so every early exit lost the sentence that had just
     been said. When the provider call failed, the turn returned `ok: False` — no reply at all — and the request
     went with it. Five turns later the operator asked how the booking was going and zaelar answered about the
     PREVIOUS errand it still remembered, then said «no tengo constancia de ese encargo en mi estado — no me
-    habías pedido que reservara una mesa». The judge called that hallucination and gaslighting; it was neither.
+    had asked me to reserve a table». The judge called that hallucination and gaslighting; it was neither.
     It was TRUE, and it was our doing.
 
     `dialog.push_user` already carries this exact principle for the voice channel — «lo que el operador dijo
-    OCURRIÓ; cancelar la RESPUESTA no borra la FRASE» — and the text channel called the very same function at the
+    HAPPENED; cancelling the RESPONSE does not erase the SENTENCE» — and the text channel called the very same function at the
     only point where it could not help. Calling it early also leaves the right shape behind: a user line with no
     assistant answer after it, which reads as «that one went unanswered», which is what happened.
 

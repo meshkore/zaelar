@@ -1,11 +1,12 @@
-"""nucleo/workers/registry.py — factoría AGNÓSTICA de backends de worker (V2-038).
+"""nucleo/workers/registry.py — AGNOSTIC factory for worker backends (V2-038).
 
-`get_backend(spec)` elige el motor por CONFIG (por tipo de tarea, mezclable), sin que dispatch/FlashBrain conozcan
-el CLI concreto. Es el único sitio que sabe qué clase instanciar → cambiar de motor = cambiar config; correr Claude
-para web + Codex para código a la vez = instanciar dos clases distintas. (Evolución de `nucleo/agentes/get_agent`.)
+`get_backend(spec)` chooses the engine from CONFIG (by task type, mixable), without dispatch/FlashBrain knowing
+the specific CLI. It is the only place that knows which class to instantiate → changing the engine = changing config;
+running Claude for web + Codex for code at the same time = instantiating two different classes. (Evolution of
+`nucleo/agentes/get_agent`.)
 
-Selección: env `WORKER_BACKEND` (global, para pruebas) → `config/v2.py §code_agent.provider[_<kind>]` → default
-`claude_code`. Sin acoplar el import (lazy) para no arrastrar dependencias si un backend no se usa.
+Selection: env `WORKER_BACKEND` (global, for tests) → `config/v2.py §code_agent.provider[_<kind>]` → default
+`claude_code`. Keep the import decoupled (lazy) so dependencies are not pulled in if a backend is not used.
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ def _provider_for(kind: str) -> str:
     try:
         from config import v2 as _v2
         ca = _v2.get("code_agent") or {}
-        # override por tipo (provider_web/provider_code/…) → provider global → claude_code
+        # per-type override (provider_web/provider_code/…) → global provider → claude_code
         prov = ca.get(f"provider_{kind}") or ca.get("provider") or ""
         prov = (prov or "").strip()
         if prov:
@@ -34,8 +35,8 @@ def _provider_for(kind: str) -> str:
 
 
 def _is_widget_task(spec: "WorkerSpec") -> bool:
-    """Una tarea `code` que es CREAR/MODIFICAR un widget → backend del generador (conserva contrato+validación,
-    §v3·Q4). Lee el request de spec.env (lo pone dispatch). Architect u otro `code` → backend genérico."""
+    """A `code` task that CREATES/MODIFIES a widget → generator backend (preserves contract+validation,
+    §v3·Q4). Reads the request from spec.env (dispatch puts it there). Architect or another `code` task → generic backend."""
     if (spec.kind or "") != "code":
         return False
     req = (spec.env or {}).get("ZAELAR_TASK_REQUEST") or ""
@@ -44,25 +45,25 @@ def _is_widget_task(spec: "WorkerSpec") -> bool:
         return bool(_code.is_widget_request(req) or _code._DELETE_RE.search(req)) \
             and not _code.is_architect_request(req)
     except Exception:
-        # sin los helpers, cae a heurística mínima
+        # without the helpers, fall back to a minimal heuristic
         return "widget" in req.lower() or "tarjeta" in req.lower()
 
 
 def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
-    """Devuelve una instancia NUEVA del backend para `spec` (una por sesión). Fail-safe a claude_code."""
-    # tarea de widget → generador unificado (matable + validado), salvo override explícito de backend.
+    """Returns a NEW backend instance for `spec` (one per session). Fail-safe to claude_code."""
+    # widget task → unified generator (killable + validated), unless there is an explicit backend override.
     if not (os.getenv("WORKER_BACKEND") or "").strip() and _is_widget_task(spec):
         from .generator_session import GeneratorBackend
         return GeneratorBackend()
     prov = _provider_for(spec.kind or "generic")
     if prov == "codex":
-        # MEZCLABLE por CAPACIDAD, no solo por tipo de tarea (2026-08-12): Codex no sabe acotar sus herramientas
-        # (solo tiene modos de sandbox), así que las dos tareas que EXISTEN para estar acotadas —entrada NO
-        # confiable (V2-010) y el dev worker de un peer de cluster— van al backend que SÍ puede, aunque la config
-        # diga Codex. La alternativa era fallar la tarea: peor, porque el operador elige un proveedor para su
-        # trabajo normal y perdería a la vez las capacidades del cluster sin relación aparente. Se DICE en el log
-        # (no es un silencio: es un enrutado por capacidad, y el invariante del escritor único manda sobre una
-        # preferencia de config). `codex_session` conserva su rechazo fail-closed como defensa en profundidad.
+        # MIXABLE by CAPABILITY, not only by task type (2026-08-12): Codex cannot restrict its tools
+        # (it only has sandbox modes), so the two tasks that MUST be restricted —UNTRUSTED input
+        # (V2-010) and a cluster peer's dev worker— go to the backend that CAN, even if the config
+        # says Codex. The alternative was to fail the task: worse, because the operator chooses a provider for normal
+        # work and would simultaneously lose the cluster capabilities for no apparent reason. It is STATED in the log
+        # (this is not silent: it is capability-based routing, and the single-writer invariant takes precedence over a
+        # config preference). `codex_session` retains its fail-closed rejection as defense in depth.
         if spec.deny_tools or (spec.kind or "") == "dev":
             import logging
             logging.getLogger(__name__).info(
@@ -72,9 +73,9 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
             from .codex_session import CodexSession
             return CodexSession()
     if prov == "grok_build":
-        # Grok Build NO necesita el desvío de arriba: acepta nuestras reglas `Bash(...)` y las APLICA (probado), así
-        # que puede sostener el invariante del escritor único igual que Claude Code — incluida una tarea con
-        # `deny_tools`, que arranca sin ninguna tool.
+        # Grok Build does NOT need the redirect above: it accepts our `Bash(...)` rules and ENFORCES them (tested), so
+        # it can uphold the single-writer invariant just like Claude Code — including a task with
+        # `deny_tools`, which starts without any tool.
         from .grok_session import GrokSession
         return GrokSession()
     # default + fail-safe

@@ -1,29 +1,29 @@
-"""«¿La paro o sigue?» y «la he parado» llegaron al MISMO prompt (V2-353).
+"""“Should I stop it or let it continue?” and “I stopped it” reached the SAME prompt (V2-353).
 
-Medido en `search-buy-used-car` ronda 13 (2026-08-26, plató ES), sesión `decce3cc`:
+Measured in `search-buy-used-car`, round 13 (2026-08-26, ES set), session `decce3cc`:
 
     1512,6 s  🔔 He parado «Busca coches de segunda mano…»: agotó su tiempo   ← la tarea muere
        …      (tres minutos de silencio: el operador no habla)
     1709,1 s  📩 «El proceso «Busca coches…» lleva ya 18 minutos. ¿Quieres que lo pare o que siga?»
     1709,1 s  📩 «He parado «Busca coches…»: agotó su tiempo»
 
-Los dos avisos, sobre la MISMA tarea, en el MISMO instante y en el mismo prompt: uno pregunta si pararla y el
-otro dice que ya está parada. El juez fichó [alta] el turno resultante — «narró la parada como si fuera una
-decisión propia» — y tenía razón en el síntoma y no en la causa: **un prompt que se contradice no tiene
-respuesta obediente** (V2-222, y van cuatro).
+The two notices, about the SAME task, at the SAME moment and in the same prompt: one asks whether to stop it and the
+other says it has already been stopped. The judge marked the resulting turn [high] — “described the stop as if it
+were its own decision” — and was right about the symptom but not the cause: **a contradictory prompt has no
+obedient response** (V2-222, and that makes four).
 
-POR QUÉ SE JUNTAN, con los números del bucle: la pregunta sale a `WORKER_MAX_SECS` (900 s = 15 min) y la
-muerte a `budget + gracia`, que para un worker `web` es 1200 + 90 = 21,5 min. Entre una y otra hay seis
-minutos, y ninguna de las dos se entrega al vuelo cuando no hay voz viva: **esperan al siguiente turno del
-operador**. Si no habla en esa ventana —y en la ronda medida tardó tres minutos— las dos se drenan juntas.
+WHY THEY JOIN, using the loop's numbers: the question is emitted at `WORKER_MAX_SECS` (900 s = 15 min) and the
+death at `budget + grace`, which for a `web` worker is 1200 + 90 = 21.5 min. There are six minutes between them,
+and neither is delivered on the fly when there is no live voice: **they wait for the operator's next turn**. If the
+operator does not speak during that window —and in the measured round it took three minutes— both are drained together.
 
-EL CORTE es que la pregunta sea RETRACTABLE. Una nota que afirma algo sobre estado VIVO puede dejar de ser
-verdad antes de entregarse, y quien la hace falsa —el que mata la tarea— es exactamente quien está en
-posición de retirarla. No es censura: el que retracta empuja la suya («la he parado») justo después. Lo que se
-evita es que lleguen las dos.
+THE KEY is for the question to be RETRACTABLE. A note that asserts something about a LIVE state can stop being
+true before delivery, and the one who makes it false —the one who kills the task— is exactly the one in a
+position to withdraw it. This is not censorship: the one retracting it pushes its own (“I stopped it”) immediately
+afterward. What is avoided is both arriving.
 
-Y una llave repetida SUSTITUYE: dos avisos de «lleva N minutos» sobre la misma tarea son el mismo aviso con el
-número actualizado, no dos cosas que contar.
+And a repeated key REPLACES: two “it has been running for N minutes” notices about the same task are the same notice
+with the updated number, not two things to count.
 """
 import pytest
 
@@ -42,7 +42,7 @@ PARADA = "[SISTEMA] He parado «Busca coches de segunda mano»: agotó su tiempo
 
 
 def test_la_pregunta_se_retracta_cuando_deja_de_tener_sentido():
-    """El caso medido, entero."""
+    """The complete measured case."""
     brain_notes.push(PREGUNTA, key="worker-timeout:t3")
     assert brain_notes.retract("worker-timeout:t3") == 1
     brain_notes.push(PARADA)
@@ -50,14 +50,14 @@ def test_la_pregunta_se_retracta_cuando_deja_de_tener_sentido():
 
 
 def test_sin_retractar_llegan_las_DOS_que_es_el_defecto():
-    """La sensibilidad del de arriba: sin la llamada, el buzón entrega las dos y el modelo elige."""
+    """The sensitivity test for the above: without the call, the mailbox delivers both and the model chooses."""
     brain_notes.push(PREGUNTA, key="worker-timeout:t3")
     brain_notes.push(PARADA)
     assert len(brain_notes.drain()) == 2
 
 
 def test_una_llave_repetida_SUSTITUYE_no_acumula():
-    """«lleva 15 minutos» y «lleva 18 minutos» son el mismo aviso, no dos."""
+    """“It has been running for 15 minutes” and “it has been running for 18 minutes” are the same notice, not two."""
     brain_notes.push("[SISTEMA] lleva ya 15 minutos. ¿La paro?", key="worker-timeout:t3")
     brain_notes.push("[SISTEMA] lleva ya 18 minutos. ¿La paro?", key="worker-timeout:t3")
     out = brain_notes.drain()
@@ -65,7 +65,7 @@ def test_una_llave_repetida_SUSTITUYE_no_acumula():
 
 
 def test_retractar_solo_toca_SU_tarea():
-    """Dos encargos vivos: matar uno no puede callar la pregunta del otro."""
+    """Two live jobs: killing one cannot silence the question for the other."""
     brain_notes.push("[SISTEMA] el coche lleva 18 min. ¿La paro?", key="worker-timeout:t3")
     brain_notes.push("[SISTEMA] el hotel lleva 16 min. ¿La paro?", key="worker-timeout:t7")
     brain_notes.retract("worker-timeout:t3")
@@ -73,7 +73,7 @@ def test_retractar_solo_toca_SU_tarea():
 
 
 def test_una_nota_SIN_llave_no_se_puede_retractar_por_accidente():
-    """La inmensa mayoría de las notas no llevan llave y tienen que quedarse donde están."""
+    """The vast majority of notes have no key and must remain where they are."""
     brain_notes.push("[SISTEMA] el widget ya está construido.")
     brain_notes.push(PREGUNTA, key="worker-timeout:t3")
     brain_notes.retract("worker-timeout:t3")
@@ -86,7 +86,7 @@ def test_retractar_algo_que_no_esta_no_rompe_ni_miente():
 
 
 def test_el_orden_de_las_notas_se_conserva():
-    """El buzón es una cola: la llave no puede reordenar lo que no toca."""
+    """The mailbox is a queue: the key cannot reorder what it does not affect."""
     brain_notes.push("primera")
     brain_notes.push("segunda", key="k")
     brain_notes.push("tercera")
@@ -94,8 +94,8 @@ def test_el_orden_de_las_notas_se_conserva():
 
 
 def test_el_bucle_CABLEA_la_llave_en_los_dos_lados():
-    """Guarda de cableado sobre la fuente sin comentarios: la retractación sin quien la llame es el arreglo que
-    no existe, y este repositorio ya se comió esa exacta forma dos veces (V2-199, V2-340)."""
+    """Wiring guard on the uncommented source: retraction without a caller is the fix that does not exist, and this
+    repository has already suffered that exact pattern twice (V2-199, V2-340)."""
     from pathlib import Path
     src = "\n".join(ln for ln in Path("nucleo/loop.py").read_text().splitlines()
                     if not ln.strip().startswith("#"))

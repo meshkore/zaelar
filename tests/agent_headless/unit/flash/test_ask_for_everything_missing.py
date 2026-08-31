@@ -1,17 +1,18 @@
-"""V2-149 (`reorder-prescription__es`) — cuatro turnos preguntando DÓNDE y ni uno preguntando QUÉ.
+"""V2-149 (`reorder-prescription__es`) — four turns asking WHERE and not a single one asking WHAT.
 
-El encargo era «pide la reposición de mi receta». zaelar gastó los turnos 1 a 4 en localizar la farmacia —de
-uno en uno: nombre, luego ciudad, luego el súper, luego la calle— y **nunca preguntó qué receta reponer**, que
-es el objeto del encargo. En el turno 5: «perfecto, con eso me basta… llamo para pedir la reposición de tu
-receta», sin saber cuál. El juez lo marca `alta` dos veces y el watchdog cuatro.
+The request was “ask for a refill of my prescription.” zaelar spent turns 1 through 4 locating the pharmacy — one
+item at a time: name, then city, then the supermarket, then the street — and **never asked which prescription to
+refill**, even though that is the object of the request. In turn 5: “perfect, that is enough for me… I’ll call to
+ask for a refill of your prescription,” without knowing which one. The judge marks it `alta` twice and the watchdog
+four times.
 
-Dos reglas simétricas de la que ya existía desde V2-120 (si te preguntan dos cosas, contesta las dos): pedir las
-dos mitades de lo que falta en la misma frase, y no dar por completo un encargo cuyo OBJETO sigue sin
-identificar.
+Two symmetrical rules from the one that has existed since V2-120 (if you are asked two things, answer both): ask
+for both halves of what is missing in the same sentence, and do not consider a request complete while its OBJECT
+remains unidentified.
 
-La otra mitad del caso ya venía arreglada y se pinta aquí para que no se pierda: la petición ya enruta a `web`
-(V2-144, `local_business`), así que la tarea tiene navegador — y narrar «lleva unos 70 segundos localizando la
-farmacia» sobre una tarea sin página abierta lo cerró V2-145. Las dos landed DESPUÉS de esta corrida.
+The other half of the case was already fixed and is pinned here so it is not lost: the request already routes to
+`web` (V2-144, `local_business`), so the task has a browser — and narrating “it has been locating the pharmacy for
+about 70 seconds” for a task with no page open was fixed by V2-145. Both landed AFTER this run.
 """
 from __future__ import annotations
 
@@ -58,7 +59,7 @@ def test_asking_is_still_the_correct_answer(fresh_db):
     assert "PÍDELO — preguntar es la respuesta" in system
 
 
-# ── lo que ya venía arreglado, pinchado para que no se pierda ────────────────────────────────────────────────
+# ── already-fixed behavior, pinned so it is not lost ─────────────────────────────────────────────────────────
 @pytest.mark.parametrize("text", [
     ASK,
     "pide la reposición de mi receta en la farmacia del barrio",
@@ -66,19 +67,19 @@ def test_asking_is_still_the_correct_answer(fresh_db):
     "busca la farmacia al lado del Día en Bravo Murillo, Chamberí",
 ])
 def test_the_errand_gets_a_browser(text):
-    """V2-144: sin categoría, esto era `generic` — un worker sin navegador, que es por lo que la tarea no podía
-    existir. La familia `widget` que el informe echaba en falta cuelga de aquí."""
+    """V2-144: without a category, this was `generic` — a worker without a browser, which is why the task could not
+exist. The `widget` family that the report found missing hangs off this."""
     assert sc.category_of(text) == "local_business"
     assert dispatch._classify_kind(text) == "web"
     assert g._needs_real_work(text) is True
 
 
 def test_and_the_brain_cannot_narrate_a_browser_that_opened_nothing(fresh_db, monkeypatch):
-    """V2-145: «lleva unos 70 segundos localizando la farmacia» sobre una tarea con `url=` vacía.
+    """V2-145: “it has been locating the pharmacy for about 70 seconds” for a task with an empty `url=`.
 
-    V2-152 cambió la FRASE, no la garantía: un registro vacío se dice como «aún no ha reportado» (que es
-    verdad sobre lo que sabemos) en vez de «no ha abierto ninguna página» (una afirmación sobre el mundo que
-    el registro no sostiene). Lo que este test protege —que no se narre lo que estaría haciendo— sigue igual.
+V2-152 changed the WORDING, not the guarantee: an empty record is described as “has not reported yet” (which is
+true about what we know) instead of “has not opened any page” (a claim about the world that the record does not
+support). What this test protects — not narrating what it would be doing — remains the same.
     """
     from widgets.navegador import tasks as nt
     monkeypatch.setattr(nt, "active_summaries", lambda limit=3: [("t9", "localizar la farmacia de Chamberí")])
@@ -90,18 +91,18 @@ def test_and_the_brain_cannot_narrate_a_browser_that_opened_nothing(fresh_db, mo
     assert "NO describas lo que estaría haciendo" in line
 
 
-# ── V2-158: preguntar y lanzar son EXCLUYENTES ───────────────────────────────────────────────────────────────
+# ── V2-158: asking and launching are MUTUALLY EXCLUSIVE ──────────────────────────────────────────────────────
 #
-# `reorder-prescription__es` sacó 5 en naturalidad, adaptación y resultado — la conducta hablada es exactamente
-# la que el caso pide, porque este encargo NO se puede completar sin datos que el operador no tiene. Y el
-# MECANISMO sacó un 1: en el turno 1, además de pedir los dos datos, se lanzó una tarea de navegador cuyo
-# objetivo era el TEXTO CRUDO del operador. Sin nombre de farmacia ni de medicamento no hay nada que conducir,
-# así que la tarea se quedó `status=working`, `url=''`, `events=[]` los ocho turnos: el informe afirmaba trabajo
-# en marcha mientras la conversación decía, con razón, que no se podía empezar.
+# `reorder-prescription__es` scored 5 for naturalness, adaptation, and outcome — the spoken behavior is exactly what
+# the case calls for, because this request CANNOT be completed without data the operator does not have. And the
+# MECHANISM scored 1: in turn 1, in addition to asking for the two data points, a browser task was launched whose
+# objective was the operator's RAW TEXT. Without a pharmacy or medication name there is nothing to drive, so the
+# task remained `status=working`, `url=''`, `events=[]` for all eight turns: the report claimed work was underway
+# while the conversation correctly said it could not be started.
 #
-# La regla va en el prompt y no en un guard determinista a propósito: lo que hay que decidir es si la petición
-# NOMBRA un objetivo concreto («la farmacia de siempre», «el de la tensión» no lo hacen), y eso es juicio
-# semántico — en este repo lo juzga un modelo, no un patrón (V2-075).
+# The rule is deliberately in the prompt rather than in a deterministic guard: what must be decided is whether the
+# request NAMES a concrete objective (“the usual pharmacy,” “the blood-pressure one” do not), and that is a
+# semantic judgment — in this repo a model judges it, not a pattern (V2-075).
 def test_asking_for_the_missing_datum_excludes_launching_the_task(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "NO lances la tarea en ese mismo turno" in system
@@ -109,14 +110,14 @@ def test_asking_for_the_missing_datum_excludes_launching_the_task(fresh_db):
 
 
 def test_and_it_says_why_a_task_without_the_datum_is_worse_than_none(fresh_db):
-    """Sin el porqué, la regla se lee como burocracia y el modelo la salta en cuanto tiene prisa."""
+    """Without the reason, the rule reads as bureaucracy and the model skips it as soon as it is in a hurry."""
     system, _ = prompt.build_flash_system()
     assert "no hay nada que conducir" in system
     assert "diciendo que trabajas mientras preguntas" in system
 
 
 def test_but_asking_is_still_the_right_answer(fresh_db):
-    """El caso puntúa PREGUNTAR como conducta correcta. La regla nueva no puede leerse como «no preguntes»."""
+    """The case scores ASKING as correct behavior. The new rule must not be read as “do not ask.”"""
     system, _ = prompt.build_flash_system()
     assert "PÍDELO — preguntar es la respuesta" in system
     assert "no un fallo" in system

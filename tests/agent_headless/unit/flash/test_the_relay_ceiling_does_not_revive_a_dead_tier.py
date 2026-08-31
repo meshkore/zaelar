@@ -1,24 +1,24 @@
-"""El techo del relevo por latencia levantaba el cooldown de un proveedor SIN CUOTA (V2-275).
+"""The latency relay ceiling lifted the cooldown of a provider with NO QUOTA (V2-275).
 
-Medido en `search-secondhand-monitor__es` (2026-08-24 00:56), leyendo la observabilidad de la ronda. En el
-MISMO proceso, con 260 segundos de diferencia:
+Measured in `search-secondhand-monitor__es` (2026-08-24 00:56), by reading the round's observability. In the
+SAME process, with 260 seconds between them:
 
-    +36,1 s  🔌 cerebro de cluster: «z.ai» (Z.AI GLM) sin cuota hasta el 25 Aug 01:39 → relevo a «aimlapi»
-    +300,3 s 🔌 fin del relevo por latencia: vuelve «z.ai» (techo de 40 turnos en «aimlapi»)
+    +36.1 s  🔌 cluster brain: «z.ai» (Z.AI GLM) with no quota until 25 Aug 01:39 → relay to «aimlapi»
+    +300.3 s 🔌 end of the latency relay: «z.ai» returns (ceiling of 40 turns on «aimlapi»)
 
-`pick()` agota el techo de turnos de un relevo por LATENCIA y le devuelve el turno al titular «aunque siga
-lento» — lo dice su propio comentario, así que la intención siempre fue esa. Lo que faltaba era poder
-decirlo: `CooldownStore` guardaba un número y nada más, y `lift()` borraba el cooldown fuera cual fuera su
-motivo. Así que el techo del relevo de latencia deshacía un castigo de 24 horas por falta de CUOTA y
-mandaba el turno siguiente a un proveedor que sabíamos que iba a contestar 429.
+`pick()` exhausts the turn ceiling of a LATENCY relay and gives the turn back to the owner «even if it is still
+slow» — its own comment says so, so that was always the intent. What was missing was the ability to
+say it: `CooldownStore` stored a number and nothing else, and `lift()` deleted the cooldown regardless of its
+reason. Thus the latency relay ceiling undid a 24-hour penalty for lack of QUOTA and
+sent the next turn to a provider we knew would answer with 429.
 
-Dos mecanismos del mismo módulo escribiendo un número y leyéndolo como si significara una sola cosa. Es la
-forma de V2-252 por el otro lado: allí el cooldown caía sobre un proveedor SANO, aquí se le quitaba a uno
-ROTO.
+Two mechanisms in the same module writing a number and reading it as though it meant only one thing. This is
+V2-252 in reverse: there, the cooldown fell on a HEALTHY provider; here, it was removed from a
+BROKEN one.
 
-Y el techo NO tenía ni un test — por eso vivió. Éstos cubren las dos direcciones, porque «no levantes
-nunca» arregla este caso y reintroduce el que el techo existe para evitar: quedarse indefinidamente en un
-escalón más caro.
+And the ceiling did not have a single test — that is why it survived. These cover both directions, because «never
+lift» fixes this case and reintroduces the problem the ceiling exists to prevent: remaining indefinitely on a
+more expensive tier.
 """
 import time
 
@@ -31,7 +31,7 @@ from nucleo.flash import provider_chain as pc
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     fresh = pc.CooldownStore(pc._KV)
-    fresh._loaded = True                              # sin tocar la memoria real
+    fresh._loaded = True                              # without touching real memory
     monkeypatch.setattr(fresh, "_save", lambda: None)
     monkeypatch.setattr(pc, "_store", fresh)
     pc._relay_turns.clear()
@@ -52,14 +52,14 @@ def _two_tiers(monkeypatch):
 
 
 def _burn_the_relay_budget():
-    """Deja al escalón de relevo con su presupuesto de turnos agotado, como tras una charla larga."""
+    """Leaves the relay tier with its turn budget exhausted, as after a long conversation."""
     pc._relay_turns["aimlapi"] = pc._RELAY_TURN_BUDGET
 
 
-# ── el defecto medido ──────────────────────────────────────────────────────────────────────────────────
+# ── the measured defect ──────────────────────────────────────────────────────────────────────────────────
 def test_el_techo_NO_resucita_a_un_titular_sin_cuota(monkeypatch):
     _two_tiers(monkeypatch)
-    pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)   # sin cuota semanal, como en la ronda
+    pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)   # no weekly quota, as in the round
     _burn_the_relay_budget()
     assert pc.pick()["name"] == "aimlapi", "le devolvió el turno al proveedor que no tiene cuota"
     assert pc._store.available("z.ai") is False, "el cooldown de SALUD se borró para resolver una latencia"
@@ -75,9 +75,9 @@ def test_y_no_se_queda_en_bucle_reintentando_el_techo(monkeypatch):
     assert pc._relay_turns.get("aimlapi", 0) < pc._RELAY_TURN_BUDGET
 
 
-# ── y la dirección contraria, que es lo que el techo existe para hacer ──────────────────────────────────
+# ── and the opposite direction, which is what the ceiling exists to do ──────────────────────────────────
 def test_pero_SI_lo_resucita_cuando_el_castigo_era_por_LENTITUD(monkeypatch):
-    """Si esto se rompe, el arreglo de arriba deja al agente clavado en un escalón más caro para siempre."""
+    """If this breaks, the fix above leaves the agent stuck on a more expensive tier forever."""
     _two_tiers(monkeypatch)
     pc._store.set("z.ai", time.time() + pc._SLOW_COOLDOWN_S, ph.REASON_LATENCY)
     _burn_the_relay_budget()
@@ -86,7 +86,7 @@ def test_pero_SI_lo_resucita_cuando_el_castigo_era_por_LENTITUD(monkeypatch):
 
 
 def test_un_titular_lento_Y_sin_cuota_esta_sin_cuota(monkeypatch):
-    """El orden en que llegan los dos castigos no puede decidir cuál manda."""
+    """The order in which the two penalties arrive must not decide which one prevails."""
     _two_tiers(monkeypatch)
     pc._store.set("z.ai", time.time() + pc._SLOW_COOLDOWN_S, ph.REASON_LATENCY)
     pc._store.set("z.ai", time.time() + 86400, ph.REASON_HEALTH)
@@ -103,9 +103,9 @@ def test_y_al_reves_un_castigo_de_salud_no_se_degrada_a_latencia(monkeypatch):
     assert pc.pick()["name"] == "aimlapi"
 
 
-# ── el motivo se guarda y sobrevive, y lo VIEJO se lee del lado seguro ──────────────────────────────────
+# ── the reason is stored and survives, and OLD data is read on the safe side ──────────────────────────────────
 def test_los_setters_reales_declaran_su_motivo(monkeypatch):
-    """Sin esto el reason lo pone el default y el arreglo depende de que nadie olvide pasarlo."""
+    """Without this, the default supplies the reason and the fix depends on nobody forgetting to pass it."""
     _two_tiers(monkeypatch)
     reset = time.strftime("%Y-%m-%d", time.localtime(time.time() + 2 * 86400))
     pc.note_failure(f"429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at {reset} 00:00:00]",
@@ -123,10 +123,10 @@ def test_los_setters_reales_declaran_su_motivo(monkeypatch):
 
 
 def test_una_entrada_VIEJA_sin_motivo_se_lee_como_SALUD():
-    """Lo que hay en disco AHORA es `{nombre: epoch}`. Leerla como latencia sería justo el defecto medido.
+    """What is on disk NOW is `{name: epoch}`. Reading it as latency would be precisely the measured defect.
 
-    Un cooldown que no se puede clasificar se trata como el lado del que no se puede levantar: martillear a
-    un proveedor roto cuesta el turno, quedarse en el relevo cuesta unos céntimos.
+    A cooldown that cannot be classified is treated as the side that cannot be lifted: hammering a
+    broken provider costs the turn, while staying on the relay costs a few cents.
     """
     st = ph.CooldownStore("t:legacy")
     st._loaded = True

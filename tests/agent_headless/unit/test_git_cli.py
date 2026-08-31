@@ -1,9 +1,9 @@
 #
-# Puente git acotado (V2-076). Run: .venv/bin/pytest tests/agent_headless/unit/test_git_cli.py -q
+# Scoped git bridge (V2-076). Run: .venv/bin/pytest tests/agent_headless/unit/test_git_cli.py -q
 #
-# Lo CRÍTICO de seguridad: el dev worker (que puede servir a una charla agente-agente) solo puede tocar el repo
-# AUTORIZADO por el operador; cualquier otro repo o la ausencia de autorización se RECHAZA. Se prueban las guardas
-# sin red (no clonan de verdad).
+# The security CRITICAL: the dev worker (which may serve an agent-to-agent conversation) can only touch the repo
+# AUTHORIZED by the operator; any other repo or absence of authorization is REJECTED. The guards are tested
+# without network access (they do not actually clone).
 #
 from nucleo import git_cli
 
@@ -17,7 +17,7 @@ def test_clone_refused_without_authorized_repo(monkeypatch, tmp_path):
     called = {"run": False}
     monkeypatch.setattr(git_cli, "_run", lambda *a, **k: called.__setitem__("run", True) or 0)
     rc = git_cli.cmd_clone(_NS(dir=str(tmp_path / "wd"), repo=""))
-    assert rc == 2 and called["run"] is False            # sin repo autorizado → NO ejecuta git
+    assert rc == 2 and called["run"] is False            # without an authorized repo → does NOT execute git
 
 
 def test_clone_refuses_non_allowlisted_repo(monkeypatch, tmp_path):
@@ -25,7 +25,7 @@ def test_clone_refuses_non_allowlisted_repo(monkeypatch, tmp_path):
     called = {"run": False}
     monkeypatch.setattr(git_cli, "_run", lambda *a, **k: called.__setitem__("run", True) or 0)
     rc = git_cli.cmd_clone(_NS(dir=str(tmp_path / "wd"), repo="atacante/otro-repo"))
-    assert rc == 2 and called["run"] is False            # repo distinto al autorizado → RECHAZADO
+    assert rc == 2 and called["run"] is False            # repo different from the authorized one → REJECTED
 
 
 def test_clone_allows_authorized_repo(monkeypatch, tmp_path):
@@ -44,14 +44,14 @@ def test_push_refused_without_authorized_repo(monkeypatch, tmp_path):
 
 def test_commit_refuses_non_git_dir(monkeypatch, tmp_path):
     monkeypatch.setattr(git_cli, "_run", lambda *a, **k: 0)
-    assert git_cli.cmd_commit(_NS(dir=str(tmp_path), message="x")) == 2   # no hay .git → falla limpio
+    assert git_cli.cmd_commit(_NS(dir=str(tmp_path), message="x")) == 2   # there is no .git → fails cleanly
 
 
-# --- Hallazgo P0 (auditoría 2026-07-26): commit/push deben RE-VERIFICAR el origin real, no solo que exista .git ---
+# --- P0 finding (audit 2026-07-26): commit/push must RE-VERIFY the actual origin, not merely that .git exists ---
 
 def test_commit_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
-    """El caso crítico: `dir` ES un repo git (p.ej. un clon de OTRO repo, o el propio repo del motor) pero su
-    `origin` NO es el autorizado — antes se aceptaba con solo comprobar que `.git` existiera."""
+    """The critical case: `dir` IS a git repo (e.g. a clone of ANOTHER repo, or the engine's own repo), but its
+    `origin` is NOT the authorized one — previously it was accepted by merely checking that `.git` existed."""
     monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
     (tmp_path / ".git").mkdir()
     monkeypatch.setattr(git_cli, "_origin_url", lambda d: "https://github.com/atacante/otro.git")
@@ -64,7 +64,7 @@ def test_commit_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
 def test_push_refuses_dir_with_wrong_origin(monkeypatch, tmp_path):
     monkeypatch.setenv("ZAELAR_ALLOWED_REPO", "meshkore/algo")
     (tmp_path / ".git").mkdir()
-    monkeypatch.setattr(git_cli, "_origin_url", lambda d: "")   # origin reescrito/ausente
+    monkeypatch.setattr(git_cli, "_origin_url", lambda d: "")   # origin rewritten/absent
     called = {"run": False}
     monkeypatch.setattr(git_cli, "_run", lambda *a, **k: called.__setitem__("run", True) or 0)
     rc = git_cli.cmd_push(_NS(dir=str(tmp_path)))

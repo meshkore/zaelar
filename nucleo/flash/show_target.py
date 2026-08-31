@@ -8,8 +8,8 @@ each docstring); keep in sync with `providers/nucleo.py`.
 from __future__ import annotations
 
 def _ctx_ids() -> tuple[list, list]:
-    """(open_ids, recent_ids) del ESTADO para acotar `runtime.identify` (V2-078) — ESPEJO de `providers/nucleo.py::
-    _identify`. Ante un empate el que está en pantalla / se usó hace poco gana. Best-effort (estado ausente → ([],[]))."""
+    """(open_ids, recent_ids) from STATE to narrow `runtime.identify` (V2-078) — MIRROR of
+    `providers/nucleo.py::_identify`. On a tie, the item on screen / used recently wins. Best-effort (missing state → ([], []))."""
     try:
         from memory import api as _memapi
         _st = _memapi.state() or {}
@@ -19,15 +19,15 @@ def _ctx_ids() -> tuple[list, list]:
 
 
 def _identify_ctx(rt, query: str) -> str | None:
-    """`rt.identify(query, open_ids, recent_ids)['match']` con el contexto del estado — el resolvedor con la misma
-    acotación open>reciente>catálogo que usa la voz. `rt` = módulo widgets.runtime ya importado por el llamante."""
+    """`rt.identify(query, open_ids, recent_ids)['match']` with state context — the resolver with the same
+    open>recent>catalogue narrowing used by voice. `rt` is the `widgets.runtime` module already imported by the caller."""
     _o, _r = _ctx_ids()
     return (rt.identify(query, open_ids=_o, recent_ids=_r) or {}).get("match")
 
 
 def _show_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
-    """Mismo criterio que `providers/nucleo.py::_show_guard_target` (impl PARALELA — mantener en sync): verbo de
-    MOSTRAR + NO crear + `runtime.identify` resuelve un widget existente → el turno real lo convierte en show."""
+    """Same criterion as `providers/nucleo.py::_show_guard_target` (PARALLEL implementation — keep in sync): a
+    SHOW verb + NO create + `runtime.identify` resolves an existing widget → the real turn converts it to show."""
     import re
     import unicodedata
     n = "".join(c for c in unicodedata.normalize("NFKD", text or "") if not unicodedata.combining(c)).lower()

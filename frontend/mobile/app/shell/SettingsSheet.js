@@ -1,5 +1,5 @@
 // ============================================================================
-// SettingsSheet.js — «un pequeño aparato de configuración» (operator's words), and small is the specification, not
+// SettingsSheet.js — «a small configuration device» (operator's words), and small is the specification, not
 // a shortcut.
 //
 // The desktop's ConfigPanel.js is 35 KB and full-screen: API keys per piece, a model per module, provider balances,

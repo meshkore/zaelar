@@ -1,27 +1,27 @@
-"""El canal de TEXTO no relevaba, y eso tuvo al arnés ocho horas sin poder medir (V2-252).
+"""The TEXT channel did not relay, leaving the harness unable to measure for eight hours (V2-252).
 
-Medido por él el 2026-08-21, con la cadena real sembrada en un sandbox nuevo
-(`deepseek-directo → aimlapi-failover`). Un turno:
+Measured by it on 2026-08-21, with the real chain seeded in a new sandbox
+(`deepseek-directo → aimlapi-failover`). One turn:
 
     POST /api/flash/say → {"ok":false,"error":"modelo: 402 Insufficient Balance","spec":"deepseek/deepseek-v4-pro"}
 
-y en el **mismo segundo**, en el mismo log:
+and in the **same second**, in the same log:
 
     10:05:35  cerebro de voz: «deepseek-directo» SIN SALDO → relevo a «aimlapi-failover»
     10:05:34  memllm[i18n]: relevo a deepseek/deepseek-v4-pro @ aimlapi tras 402
 
-**La voz relevaba. i18n relevaba. El texto no.** No faltaba la política: faltaba aplicarla. `probe.py` capturaba
-el error, apuntaba el cooldown y la salud… y devolvía, con un escalón sano esperando al lado.
+**Voice relayed. i18n relayed. Text did not.** The policy was not missing; applying it was. `probe.py` captured
+the error, recorded the cooldown and health… and returned, with a healthy tier waiting alongside it.
 
-memoria-dev trajo el precedente y es lo que convierte esto en estructural: **es la TERCERA vez que muerde la
-misma forma**. `probe.py` es la implementación PARALELA del provider de voz, y el arnés corre por ese canal
-(`channel='probe'`). El 2026-08-18 (V2-118…121, `22f3674`) el síntoma fue otro —las tags `[[cron.create]]` se
-capturaban y no se ejecutaban, así que un aviso programado era INALCANZABLE por esa vía— y el 2026-08-15 el
-relevo ante un fallo duro se añadió a la voz y no aquí.
+memoria-dev brought the precedent, which is what makes this structural: **this is the THIRD time it has bitten in
+the same way**. `probe.py` is the PARALLEL implementation of the voice provider, and the harness runs through that
+channel (`channel='probe'`). On 2026-08-18 (V2-118…121, `22f3674`) the symptom was different —the `[[cron.create]]`
+tags were captured but not executed, so a scheduled notification was UNREACHABLE through that route— and on
+2026-08-15 the relay on a hard failure was added to voice but not here.
 
-Por eso el arreglo no es solo el reintento: la DECISIÓN pasa a `nucleo/flash/provider_failure.py`, una vez, y la
-usan los dos canales. Dos copias de una decisión se separan sin avisar, y el aviso llega cuando alguien mide algo
-que sale mal por un motivo que no es el que está midiendo.
+That is why the fix is not just the retry: the DECISION moves to `nucleo/flash/provider_failure.py`, in one place,
+and both channels use it. Two copies of a decision diverge silently, and the warning arrives when someone measures
+something that goes wrong for a reason other than the one being measured.
 """
 import inspect
 import pathlib
@@ -47,7 +47,7 @@ def cadena(monkeypatch):
     monkeypatch.setenv("AIMLAPI_KEY", "k")
 
 
-# ── la decisión, una sola vez ────────────────────────────────────────────────────────────────────────────────
+# ── the decision, only once ──────────────────────────────────────────────────────────────────────────────────
 
 def test_un_402_devuelve_EL_ESCALON_al_que_ir(cadena):
     v = pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)
@@ -61,7 +61,7 @@ def test_y_deja_al_titular_en_COOLDOWN(cadena):
 
 
 def test_un_ATASCO_no_es_un_fallo_duro(cadena):
-    """V2-246: uno aislado es ruido y no releva; dos seguidos sí. La distinción la hace el módulo, no el canal."""
+    """V2-246: one isolated incident is noise and does not relay; two in a row do. The module makes the distinction, not the channel."""
     assert pf.handle("", role=pc.ROLE_VOICE, stalled=True)["relay"] is None
     assert pf.handle("", role=pc.ROLE_VOICE, stalled=True)["relay"]["name"] == "aimlapi"
 
@@ -73,21 +73,21 @@ def test_con_la_cadena_SECA_lo_dice(cadena, monkeypatch):
 
 
 def test_un_error_que_NO_es_del_proveedor_no_releva_a_nadie(cadena):
-    """Sensibilidad: relevar por un fallo nuestro cambiaría de proveedor sin motivo y encima taparía el fallo."""
+    """Sensitivity: relaying on one of our own failures would switch providers without cause and conceal the failure as well."""
     v = pf.handle("TypeError: 'NoneType' object is not subscriptable", role=pc.ROLE_VOICE)
     assert v["relay"] is None
     assert pc._store.available("z.ai"), "un error de código no puede poner a un proveedor sano en cooldown"
 
 
 def test_no_añade_una_excepcion_a_la_que_ya_hubo(monkeypatch):
-    """Corre DENTRO del manejador de errores de un turno: si revienta, se lleva el turno y además el diagnóstico."""
+    """Runs INSIDE a turn's error handler: if it blows up, it takes down the turn as well as the diagnosis."""
     monkeypatch.setattr(pc, "note_failure", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")), raising=False)
     assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"] is None
 
 
-# ── y que el canal de TEXTO la aplique ───────────────────────────────────────────────────────────────────────
-# GUARDA DE CABLEADO (V2-199), y aquí es el corazón del asunto: la política ya existía y el canal no la aplicaba.
-# Un test sobre el predicado habría pasado en verde las tres veces que esto mordió.
+# ── and have the TEXT channel apply it ───────────────────────────────────────────────────────────────────────
+# WIRING GUARD (V2-199), and this is the heart of the matter: the policy already existed and the channel did not apply it.
+# A test of the predicate would have passed three times while this was biting us.
 
 def _probe_src() -> str:
     return pathlib.Path(inspect.getfile(pc)).parent.joinpath("probe.py").read_text(encoding="utf-8")
@@ -101,40 +101,40 @@ def test_el_canal_de_texto_REINTENTA_con_el_relevo():
 
 
 def test_reintenta_UNA_vez_y_no_entra_en_bucle():
-    """Un proveedor roto no puede convertirse en un bucle de reintentos: un intento, un relevo, un reintento."""
+    """A broken provider cannot turn into a retry loop: one attempt, one relay, one retry."""
     src = _probe_src()
     assert "_relay_done = False" in src and "if _nxt and not _relay_done" in src
 
 
 def test_NO_reintenta_si_el_turno_ya_habia_dicho_algo():
-    """Con un 402 el stream muere antes del primer delta, que es el caso real. Pero si ya había salido texto o una
-    tool, repetir el turno lo diría DOS veces — y eso es peor que perder el turno."""
+    """With a 402 the stream dies before the first delta, which is the real case. But if text or a
+    tool had already been emitted, repeating the turn would say it TWICE — and that is worse than losing the turn."""
     src = _probe_src()
     assert "_virgen = not raw and not buf and not tool_calls" in src
     assert "and _virgen" in src
 
 
 def test_cuando_ni_asi_se_puede_lo_DICE(cadena):
-    """La respuesta lleva `sin_relevo` para que quien mida distinga «se rompió» de «no había a quién preguntar»."""
+    """The response includes `sin_relevo` so whoever measures can distinguish «it broke» from «there was nobody to ask»."""
     src = _probe_src()
     assert '"sin_relevo": bool(_v.get("dry"))' in src
 
 
 def test_los_DOS_canales_usan_la_MISMA_decision():
-    """Lo estructural, y es lo que evita la cuarta vez: la política vive en un sitio y la leen los dos."""
+    """The structural fix, and what prevents a fourth time: the policy lives in one place and both read it."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     assert "provider_failure" in voz.read_text(encoding="utf-8")
     assert "provider_failure" in _probe_src()
 
 
-# ── y el cooldown cae sobre el que FALLÓ, no sobre el que tocaría ahora ──────────────────────────────────────
-# Segunda trampa de la misma zona, medida por el arnés el 2026-08-21: hay DOS fuentes de «quién es el titular».
-# El turno compone su spec con `spec_from_config()` (que lee `fast.model` / `fast.base_url`) y la cadena se
-# ordena por `fast.providers`. Reordenó la escalera y **no cambió nada**, porque el turno no mira esa lista.
+# ── and the cooldown lands on the one that FAILED, not the one that would be next ───────────────────────────
+# Second trap in the same area, measured by the harness on 2026-08-21: there are TWO sources for «who is primary».
+# The turn builds its spec with `spec_from_config()` (which reads `fast.model` / `fast.base_url`) and the chain is
+# ordered by `fast.providers`. The ladder was reordered and **nothing changed**, because the turn does not consult that list.
 #
-# Importa porque `note_failure` sin `tier` pregunta a `pick()` — «el que se elegiría AHORA»—, que tras un reorden
-# puede no ser el que acaba de fallar: el cooldown cae sobre un proveedor SANO y el roto sigue elegido. Castigar
-# al inocente y dejar suelto al culpable, en silencio.
+# This matters because `note_failure` without `tier` asks `pick()` — «the one that would be chosen NOW»—, which after a reorder
+# may not be the one that just failed: the cooldown lands on a HEALTHY provider and the broken one remains selected. Punish
+# the innocent and leave the guilty loose, silently.
 
 class _Spec:
     def __init__(self, url):
@@ -145,7 +145,7 @@ class _Spec:
 
 
 def test_el_cooldown_cae_sobre_el_que_de_verdad_corrio(cadena):
-    """El turno corrió por el SEGUNDO escalón (el relevo) y falló. Sin el spec, se castigaría al primero."""
+    """The turn ran through the SECOND tier (the relay) and failed. Without the spec, the first would be punished."""
     v = pf.handle(SIN_SALDO, role=pc.ROLE_VOICE, spec=_Spec(DOS["base_url"]))
     assert not pc._store.available("aimlapi"), "el que falló tiene que quedar en cooldown"
     assert pc._store.available("z.ai"), "y el que NO corrió no puede pagarlo"
@@ -157,18 +157,18 @@ def test_una_barra_final_no_cambia_de_quien_hablamos(cadena):
 
 
 def test_un_endpoint_DESCONOCIDO_no_castiga_a_nadie_por_error(cadena):
-    """Si el turno corrió por un sitio que no está en la cadena, adivinar sería exactamente el fallo que esto
-    cierra. Se cae al comportamiento de antes —que lo decida `pick()`— y no se inventa un culpable."""
+    """If the turn ran through a site that is not in the chain, guessing would be exactly the failure this
+    closes. It falls back to the previous behavior —let `pick()` decide— and does not invent a culprit."""
     assert pf.tier_for(_Spec("https://otro.invalid/v1"), pc.ROLE_VOICE) is None
 
 
 def test_sin_spec_se_comporta_como_antes(cadena):
-    """Compatibilidad: los llamadores que no lo pasen siguen funcionando igual."""
+    """Compatibility: callers that do not pass it continue to work the same way."""
     assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"]["name"] == "aimlapi"
 
 
 def test_los_dos_canales_PASAN_el_spec():
-    """GUARDA DE CABLEADO: el predicado puede estar perfecto y los dos canales seguir sin decirle quién corrió."""
+    """WIRING GUARD: the predicate can be perfect while both channels still fail to say who ran."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     assert "spec=spec)" in voz.read_text(encoding="utf-8")
     assert "role=_pchain_err.ROLE_VOICE, spec=spec)" in _probe_src()
@@ -176,10 +176,10 @@ def test_los_dos_canales_PASAN_el_spec():
 
 # ── V2-307: DOS escalones en el MISMO endpoint — el culpable se resuelve por (endpoint, MODELO) ──────────────
 #
-# Medido a las 03:13-03:15 (2026-08-25): `deepseek-directo` (flash) cayó por SALDO, el relevo fue a
-# `deepseek-directo-pro` —misma cuenta, mismo base_url—, su 402 del reintento volvió a marcar al FLASH (ya en
-# cooldown) porque `tier_for` devolvía «el primero que casa por base_url», y el pro nunca entró en cooldown:
-# la cadena no avanzó JAMÁS al broker. Cuatro turnos mudos con un escalón con fondos esperando al lado.
+# Measured at 03:13-03:15 (2026-08-25): `deepseek-directo` (flash) failed for BALANCE, the relay went to
+# `deepseek-directo-pro` —same account, same base_url—, whose retry's 402 marked FLASH again (already in
+# cooldown) because `tier_for` returned «the first one matching by base_url», and pro never entered cooldown:
+# the chain NEVER advanced to the broker. Four silent turns with a funded tier waiting alongside.
 
 GEMELO_A = {"name": "ds-flash", "base_url": "https://api.deepseek.com", "model": "deepseek-v4-flash",
             "env": ["DEEPSEEK_API_KEY"]}
@@ -204,20 +204,20 @@ def test_twin_tiers_on_one_endpoint_are_told_apart_by_model(monkeypatch):
 
 
 def test_a_pinned_model_outside_the_chain_still_matches_by_endpoint(monkeypatch):
-    """El fallback se conserva: un pin manual del operador (modelo que no está en la cadena) sigue
-    resolviéndose por endpoint — quedarse sin culpable dejaría el fallo sin anotar en absoluto."""
+    """The fallback is preserved: an operator's manual pin (a model not in the chain) is still
+    resolved by endpoint — having no culprit would leave the failure entirely unrecorded."""
     monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(GEMELO_A), dict(GEMELO_B)])
     assert pf.tier_for(_SpecMM("deepseek-v5-experimental"), pc.ROLE_VOICE)["name"] == "ds-flash"
 
 
 def test_the_turn_STARTS_on_a_healthy_tier_when_the_pinned_titular_is_cooling(cadena, monkeypatch):
-    """La otra mitad de V2-307: con el titular en cooldown, cada turno quemaba un 402 antes de relevar. La
-    guarda vive en el probe (fuente sin comentarios) y la costura es pública (`tier_available`), no `_store`."""
+    """The other half of V2-307: with the primary in cooldown, every turn burned a 402 before relaying. The
+    guard lives in the probe (source without comments) and the seam is public (`tier_available`), not `_store`."""
     src = "\n".join(ln for ln in pathlib.Path("nucleo/flash/probe.py").read_text().splitlines()
                     if not ln.strip().startswith("#"))
     assert "tier_available(_t0)" in src, "el arranque del turno no consulta el cooldown del titular"
     assert "_pc0._store" not in src, "la costura tiene que ser pública, no el _store privado (V2-112)"
-    # y la costura dice la verdad:
+    # and the seam tells the truth:
     pc._store.set("z.ai", __import__("time").time() + 600, "health")
     assert pc.tier_available(UNO) is False
     assert pc.tier_available(DOS) is True

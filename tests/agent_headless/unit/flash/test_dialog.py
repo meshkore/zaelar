@@ -1,12 +1,12 @@
-"""Defensas de estabilidad conversacional del FlashBrain (V2-032). Deterministas, sin modelo → rápido en CI.
+"""FlashBrain conversational stability safeguards (V2-032). Deterministic, model-free → fast in CI.
 
-Cubren el bloqueante #1 del informe del 2026-07-12: bucles de repetición/negación y degeneración del texto del
-modelo pequeño. Ejecutar: .venv/bin/pytest tests/agent_headless/unit/flash/test_dialog.py
+Covers blocker #1 from the 2026-07-12 report: repetition/negation loops and text degeneration in the
+small model. Run: .venv/bin/pytest tests/agent_headless/unit/flash/test_dialog.py
 """
 from nucleo.flash import dialog
 
 
-# ── anti-degeneración del output ──────────────────────────────────────────────────────────────────────────
+# ── output anti-degeneration ─────────────────────────────────────────────────────────────────────────────
 def test_sanitize_collapses_repeated_phrase():
     assert dialog.sanitize_reply("Déjame comprobar Déjame comprobar") == "Déjame comprobar"
 
@@ -56,7 +56,7 @@ def test_no_loop_with_single_reply():
     assert dialog.loop_nudge(w) == ""
 
 
-# ── poda de historial ──────────────────────────────────────────────────────────────────────────────────
+# ── history pruning ─────────────────────────────────────────────────────────────────────────────────────
 def test_prune_collapses_twin_assistant_turns():
     w = _win("No tengo acceso a eso", "No tengo acceso a eso ahora")
     pruned = dialog.prune_window(w)
@@ -70,6 +70,6 @@ def test_prune_keeps_distinct_turns():
 
 
 def test_similar_short_exact_only():
-    # respuestas cortas ("sí"/"no") NO se fusionan por Jaccard
+    # Short responses ("sí"/"no") are NOT merged by Jaccard
     assert dialog.similar("sí", "no") is False
     assert dialog.similar("No encuentro precios de eso", "No encuentro precios de eso ahora") is True

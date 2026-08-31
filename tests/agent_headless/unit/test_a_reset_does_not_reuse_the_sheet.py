@@ -1,24 +1,23 @@
-"""Un RESET rebobinaba el contador y el sello no, así que la búsqueda siguiente heredaba —y borraba— la caja
-de la anterior (V2-283).
+"""A RESET rewound the counter but not the seal, so the next search inherited—and erased—the previous
+one's box (V2-283).
 
-Medido en la tanda del 2026-08-24 03:02: CUATRO casos en un solo proceso de plató, y los cuatro encargos
-cayeron en `results--c2567e-1`. La misma caja, estrenada con `begin_task(fresh=True)` cada vez, así que cada
-caso borró los hallazgos del anterior. En el informe del caso del MONITOR salieron seis títulos de GUITARRA y
-en el de la GUITARRA, títulos de BICICLETA.
+Measured in the 2026-08-24 03:02 batch: FOUR cases in a single studio process, and all four tasks
+landed in `results--c2567e-1`. The same box, started with `begin_task(fresh=True)` each time, so each
+case erased the previous one's findings. The MONITOR case report contained six GUITARRA titles, and
+the GUITARRA report contained BICICLETA titles.
 
-Es LITERALMENTE lo que el operador pidió quitar cuando pidió una hoja por encargo: «con esta regla no
-cometeremos errores de borrar búsquedas». Y no es de test: `nucleo/reset.py::reset_all()` es el ⏻ del
-operador —«empezamos de cero»— así que en producción, tras un reset, la siguiente búsqueda hereda la caja de
-la anterior y la estrena.
+This is LITERALLY what the operator asked us to eliminate when requesting one sheet per task: “with this rule we
+will not make mistakes by erasing searches.” And it is not test-only: `nucleo/reset.py::reset_all()` is the operator's
+⏻—“we start from zero”—so in production, after a reset, the next search inherits the previous one's box and starts it.
 
-La causa: `sheet_id_for` compone `boot_id()` con el `task_id`, y `escalate.reset()` rebobina ese contador
-mientras el sello sigue igual — sello estable × contador rebobinado = mismo id. V2-259 cerró la puerta del
-REINICIO DE PROCESO con `boot_id()`; ésta es la misma avería por la puerta del reset, y el sello no podía
-verla porque solo cambiaba al arrancar un proceso.
+The cause: `sheet_id_for` combines `boot_id()` with the `task_id`, and `escalate.reset()` rewinds that counter
+while the seal remains the same—stable seal × rewound counter = same id. V2-259 closed the PROCESS RESTART
+path with `boot_id()`; this is the same failure through the reset path, and the seal could not detect it because
+it only changed when a process started.
 
-⚠️ Y el módulo del sello lo afirmaba al revés: su docstring decía «for TESTS … production never rewinds a
-sequence», y era falso el día que se escribió — `reset_all` lo llamaba desde el primer momento. La clase que
-ese módulo existe para cerrar estaba ocurriendo por la puerta que su autor creía de test.
+⚠️ And the seal module stated the opposite: its docstring said “for TESTS … production never rewinds a
+sequence,” and that was false on the day it was written—`reset_all` had called it from the very beginning. The class
+of problem that module exists to prevent was occurring through the path its author thought was for tests.
 """
 from nucleo import runtime_ids as R
 from nucleo.flash import escalate
@@ -33,19 +32,19 @@ def test_rebobinar_el_contador_hace_ROTAR_el_sello():
 
 
 def test_y_por_eso_dos_encargos_separados_por_un_reset_NO_comparten_hoja():
-    """El caso medido, sobre la función que compone el id de verdad."""
+    """The measured case, using the function that actually composes the id."""
     from nucleo import sheets
     escalate.reset()
     primero = sheets.sheet_id_for(escalate._next_seq("escalate.task"))
-    escalate.reset()                                  # el ⏻ del operador, o el reset entre casos del arnés
+    escalate.reset()                                  # the operator's ⏻, or the reset between harness cases
     segundo = sheets.sheet_id_for(escalate._next_seq("escalate.task"))
     assert primero != segundo, (
         "la segunda búsqueda hereda la caja de la primera y `begin_task(fresh=True)` la borra")
 
 
 def test_el_contador_SIGUE_rebobinando_no_se_arregla_congelandolo():
-    """Sensibilidad por el otro lado: dejar de rebobinar haría los ids crecer para siempre tras cada reset y
-    no es lo que se pidió — lo que tiene que cambiar es el sello, no el contador."""
+    """Sensitivity from the other side: stopping the rewind would make the ids grow forever after each reset,
+which is not what was requested—the seal must change, not the counter."""
     escalate.reset()
     a = escalate._next_seq("escalate.task")
     escalate.reset()
@@ -53,8 +52,8 @@ def test_el_contador_SIGUE_rebobinando_no_se_arregla_congelandolo():
 
 
 def test_dentro_de_UNA_sesion_los_ids_siguen_siendo_estables():
-    """El sello NO puede rotar por respirar: si cambiara en cada llamada, la hoja de un encargo vivo se movería
-    debajo de quien la está mirando."""
+    """The seal must NOT rotate just from breathing: if it changed on every call, a live task's sheet would move
+out from under whoever is looking at it."""
     R.next_seq("prueba.estable")
     a = R.boot_id()
     for _ in range(5):
@@ -63,10 +62,10 @@ def test_dentro_de_UNA_sesion_los_ids_siguen_siendo_estables():
 
 
 def test_la_docstring_ya_NO_afirma_que_produccion_no_rebobina():
-    """La afirmación falsa era el motivo de que nadie mirara aquí. Se queda escrito que no lo es."""
+    """The false claim was why nobody looked here. It remains written down that it is not true."""
     d = R.reset_seq.__doc__ or ""
-    # Se comprueba la CORRECCIÓN, no la ausencia de la frase: la docstring nueva CITA la vieja para contar el
-    # fallo, y un guarda que confunda la explicación con la afirmación obliga a borrar el porqué (misma trampa
-    # que el mensaje de `--start-at` unas horas antes).
+    # We check the CORRECTION, not the absence of the phrase: the new docstring CITES the old one to explain the
+    # failure, and a guard that confuses the explanation with the claim would force us to delete the why (the same trap
+    # as the `--start-at` message a few hours earlier).
     assert "was FALSE" in d, "la docstring vuelve a afirmar, sin más, que producción no rebobina"
     assert "reset_all" in d, "hay que decir QUIÉN rebobina en producción"

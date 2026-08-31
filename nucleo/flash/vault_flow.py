@@ -1,19 +1,20 @@
-"""nucleo/flash/vault_flow.py — flujo de LECTURA de secretos del FlashBrain (V2-060 F1b).
+"""nucleo/flash/vault_flow.py — FlashBrain secret READ flow (V2-060 F1b).
 
-Cuando el operador pide un secreto guardado («dame la contraseña de Netflix»), el FlashBrain llama a la tool
-`reveal_secret(label)`. Este módulo resuelve la ETIQUETA a un secreto de la bóveda y decide el desenlace, SIN que
-el valor pase JAMÁS por el modelo:
+When the operator requests a stored secret (“give me the Netflix password”), FlashBrain calls the
+`reveal_secret(label)` tool. This module resolves the LABEL to a vault secret and decides the outcome, WITHOUT the
+value EVER passing through the model:
 
-  - `no_vault`   → no hay bóveda: el FlashBrain propone crearla.
-  - `empty`      → hay bóveda pero ningún secreto guardado.
-  - `not_found`  → no casa ninguna etiqueta: el FlashBrain lo dice (y sugiere las que hay).
-  - `locked`     → la bóveda está bloqueada: el FlashBrain pide la passphrase (el provider abre el modal nativo).
-  - `ok`         → desbloqueada: devuelve el VALOR para que el provider lo entregue **OUT-OF-BAND** (voz/pantalla
-                   según las reglas), nunca metiéndolo en un prompt.
+  - `no_vault`   → no vault exists: FlashBrain proposes creating one.
+  - `empty`      → a vault exists but no secrets are stored.
+  - `not_found`  → no label matches: FlashBrain says so (and suggests the available ones).
+  - `locked`     → the vault is locked: FlashBrain requests the passphrase (the provider opens the native modal).
+  - `ok`         → unlocked: returns the VALUE for the provider to deliver **OUT-OF-BAND** (voice/screen
+                   according to the rules), never putting it into a prompt.
 
-`reveal()` devuelve un dict; SOLO el caso `ok` incluye `value`. La resolución de etiqueta es difusa (stdlib
-`difflib` + solape de tokens, acento-insensible) y CONSERVADORA: si es ambiguo o no llega al umbral → `not_found`
-con candidatos, nunca sirve el secreto equivocado. Depende solo de `memory.vault` (no del provider) → testeable.
+`reveal()` returns a dict; ONLY the `ok` case includes `value`. Label resolution is fuzzy (stdlib
+`difflib` + token overlap, accent-insensitive) and CONSERVATIVE: if it is ambiguous or does not reach the threshold
+→ `not_found` with candidates; it never serves the wrong secret. It depends only on `memory.vault` (not the provider)
+→ testable.
 """
 from __future__ import annotations
 
@@ -41,11 +42,11 @@ def _tokens(s: str) -> set[str]:
 
 
 def resolve_label(query: str, secrets: list[dict]) -> dict | None:
-    """Devuelve el secreto ({memory_id,label,slot,sensitivity}) que mejor casa la query, o None si ambiguo/lejano.
+    """Return the secret ({memory_id,label,slot,sensitivity}) that best matches the query, or None if ambiguous/remote.
 
-    Prioriza el solape de tokens SIGNIFICATIVOS (el nombre del servicio: 'netflix', 'wifi'); desempata con la
-    similitud difusa del texto completo. Umbral conservador: sin señal clara → None (mejor preguntar que servir
-    el secreto equivocado)."""
+    Prioritize the overlap of SIGNIFICANT tokens (the service name: 'netflix', 'wifi'); break ties with the
+    fuzzy similarity of the full text. Conservative threshold: without a clear signal → None (better to ask than
+    serve the wrong secret)."""
     if not secrets:
         return None
     qt = _tokens(query)
@@ -57,9 +58,9 @@ def resolve_label(query: str, secrets: list[dict]) -> dict | None:
         scored.append((overlap, ratio, s))
     scored.sort(key=lambda x: (x[0], x[1]), reverse=True)
     best = scored[0]
-    # gana por token significativo compartido, o por alta similitud difusa
+    # wins by a shared significant token, or by high fuzzy similarity
     if best[0] >= 1 or best[1] >= 0.6:
-        # ambigüedad: dos candidatos empatados en el mejor solape de tokens → no adivinar
+        # ambiguity: two candidates tied for the best token overlap → do not guess
         if len(scored) > 1 and scored[1][0] == best[0] and best[0] >= 1 and \
                 abs(scored[1][1] - best[1]) < 0.08:
             return None
@@ -68,7 +69,7 @@ def resolve_label(query: str, secrets: list[dict]) -> dict | None:
 
 
 def reveal(query: str) -> dict:
-    """Resuelve una petición de secreto. SOLO el caso 'ok' trae `value` (para entrega out-of-band por el provider)."""
+    """Resolve a secret request. ONLY the 'ok' case contains `value` (for out-of-band delivery by the provider)."""
     try:
         if not _vault.exists():
             return {"status": "no_vault"}
@@ -87,5 +88,5 @@ def reveal(query: str) -> dict:
                 "sensitivity": hit.get("sensitivity", "high")}
     except _vault.VaultLocked:
         return {"status": "locked"}
-    except Exception:  # noqa: BLE001 — fail-safe: nunca revienta el turno de voz
+    except Exception:  # noqa: BLE001 — fail-safe: never crashes the voice turn
         return {"status": "error"}

@@ -32,7 +32,7 @@ from email.utils import formatdate
 # ── Provider presets (IMAP/SMTP host) ───────────────────────────────────────────────────────────────────────────
 # The SINGLE provider registry lives in `providers.py` (V2-055). Here we re-export the legacy hosts map `PRESETS`
 # for compatibility with callers that imported it from this module (config.py).
-from connectors.email.providers import PRESETS  # noqa: E402,F401  (re-export de compat)
+from connectors.email.providers import PRESETS  # noqa: E402,F401  (compatibility re-export)
 
 
 def xoauth2_sasl(user: str, token: str) -> str:
@@ -84,7 +84,7 @@ def strip_html(html: str) -> str:
 
 
 def extract_text_body(msg) -> str:
-    """Extrae el cuerpo de texto de un email posiblemente multipart (prefiere text/plain; cae a text/html→texto)."""
+    """Extract the text body from a possibly multipart email (prefer text/plain; fall back to text/html→text)."""
     if msg.is_multipart():
         for want_html in (False, True):
             for part in msg.walk():

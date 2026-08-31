@@ -16,20 +16,20 @@ from nucleo.memory_agent.gates import (  # noqa: F401
 
 
 async def remember(item: dict[str, Any]) -> None:
-    """Encola en la memoria lo que merece guardarse. **Único escritor** del SlowBrain.
+    """Queues in memory whatever is worth saving. **Only writer** for the SlowBrain.
 
     `item`:
-      - `text`         — el recuerdo (obligatorio para escribir un `memories`).
-      - `kind`         — 'fact'|'pref'|'summary'|'result'|'event'|'profile' (default: auto-clasificado).
-      - `level`        — 'short'|'mid'|'long' (default: auto-clasificado; `None` = skip).
-      - `importance`   — 0..1 opcional; `pinned` — bool.
-      - `slot`         — clave canónica del hecho singular (`operator.name`…) → supersede/dedup EXACTO (V2-013).
-      - `meta`         — dict/JSON: píldora de metadatos (source/path/raw/state_patch/said_at…) para visor/grafo.
-      - `ttl_days`     — float opcional: caducidad (None = no caduca).
-      - `state_patch`  — dict opcional: merge superficial en la tabla `state`.
-      - `auto`         — bool (default True): si el caller no fija `level`/`kind`/`state_patch`, se auto-clasifica
-                         `text` con `classify()` para no perder perfil (nombre, ubicación, etc.).
-    Best-effort: cualquier fallo se traga (la memoria no es crítica para cerrar el turno)."""
+      - `text`         — the memory (required to write a `memories` entry).
+      - `kind`         — 'fact'|'pref'|'summary'|'result'|'event'|'profile' (default: auto-classified).
+      - `level`        — 'short'|'mid'|'long' (default: auto-classified; `None` = skip).
+      - `importance`   — optional 0..1; `pinned` — bool.
+      - `slot`         — canonical key for the singular fact (`operator.name`…) → EXACT supersede/dedup (V2-013).
+      - `meta`         — dict/JSON: metadata capsule (source/path/raw/state_patch/said_at…) for the viewer/graph.
+      - `ttl_days`     — optional float: expiration (`None` = never expires).
+      - `state_patch`  — optional dict: shallow merge into the `state` table.
+      - `auto`         — bool (default True): if the caller does not set `level`/`kind`/`state_patch`, `text` is
+                         auto-classified with `classify()` so that profile data (name, location, etc.) is not lost.
+    Best effort: all failures are swallowed (memory is not critical to closing the turn)."""
     if not isinstance(item, dict):
         return
     try:
@@ -46,11 +46,11 @@ async def remember(item: dict[str, Any]) -> None:
     slot = item.get("slot")
     meta = item.get("meta")
     ttl_days = item.get("ttl_days")
-    concepts = item.get("concepts")   # V2-013 T126: etiquetas de concepto ligeras → nodos/aristas del grafo
+    concepts = item.get("concepts")   # V2-013 T126: lightweight concept labels → graph nodes/edges
 
-    # Auto-clasificación para DERIVAR el level cuando el caller no lo fijó (aunque haya dado kind/importance):
-    # `remember({text, kind:"result"})` DEBE escribirse — antes el guard `not kind` lo dejaba con level=None y no
-    # escribía nada (test_remember_writes_to_memory en rojo). Respeta lo que el caller SÍ fijó (kind/patch/…).
+    # Auto-classify to DERIVE the level when the caller did not set it (even if kind/importance were provided):
+    # `remember({text, kind:"result"})` MUST be written — previously the `not kind` guard left it with level=None
+    # and wrote nothing (`test_remember_writes_to_memory` was failing). Respect whatever the caller DID set (kind/patch/…).
     auto = bool(item.get("auto", True))
     if auto and text and level is None:
         plan = classify(text)
@@ -64,8 +64,8 @@ async def remember(item: dict[str, Any]) -> None:
         if slot is None:
             slot = plan.get("slot")
 
-    # Backstop de conceptos (T126): si es DURABLE y el LLM no etiquetó, deriva por keywords → cobertura garantizada
-    # del grafo (que el recall por categoría no dependa de la consistencia del modelo pequeño).
+    # Concept backstop (T126): if it is DURABLE and the LLM did not label it, derive from keywords → guaranteed graph
+    # coverage (so category recall does not depend on the small model's consistency).
     if not concepts and text and level in ("mid", "long"):
         concepts = _derive_concepts(text) or None
 
@@ -93,18 +93,18 @@ async def remember(item: dict[str, Any]) -> None:
 
 
 async def remember_external(item: dict, *, source: str = "external") -> dict:
-    """Escritura que llega de FUERA del proceso (Brain Workers vía `hbmem` → `POST /api/memory/remember`).
+    """Write arriving from OUTSIDE the process (Brain Workers via `hbmem` → `POST /api/memory/remember`).
 
-    Auditoría 2026-07-14: el endpoint enrutaba a `remember(auto=True)`, que clasifica el texto y podía derivar
-    un `state_patch` → un worker (o cualquier proceso local) PISABA la identidad del operador en `state` sin
-    pasar por la cuarentena V2-033 — cosa que el mismo texto dicho por VOZ no haría. Política de esta vía:
-      - **NUNCA toca `state`** (un worker no habla por el operador; `auto=False`, sin state_patch).
-      - **Gate de precisión** (P0a): una pregunta/petición reificada no se persiste.
-      - **Slots de IDENTIDAD vetados**: `--slot operator.name` y familia se DEGRADAN a hecho suelto (el linaje
-        de identidad solo lo escribe el turno del operador); los slots de trabajo (`goal.moto`, `weather:x`,
-        namespaced) pasan normal — el supersede exacto sigue siendo suyo.
-      - **Procedencia estampada** (`meta.source="worker:<id>"`): auditable y limpiable por origen.
-    Devuelve un dict-resumen para el endpoint (ok/reason)."""
+    Audit 2026-07-14: the endpoint routed to `remember(auto=True)`, which classifies the text and could derive
+    a `state_patch` → a worker (or any local process) OVERWROTE the operator's identity in `state` without
+    passing through the V2-033 quarantine — something the same text spoken by VOICE would not do. Policy for this path:
+      - **NEVER touches `state`** (a worker does not speak for the operator; `auto=False`, without state_patch).
+      - **Precision gate** (P0a): a reified question/request is not persisted.
+      - **Banned IDENTITY slots**: `--slot operator.name` and its family are DEGRADED to a standalone fact (the identity
+        lineage is written only by the operator's turn); work slots (`goal.moto`, `weather:x`, namespaced) pass normally
+        — exact superseding remains theirs.
+      - **Stamped provenance** (`meta.source="worker:<id>"`): auditable and cleanable by origin.
+    Returns a summary dict for the endpoint (ok/reason)."""
     if not isinstance(item, dict):
         return {"ok": False, "reason": "bad-item"}
     text = (item.get("text") or "").strip()
@@ -126,16 +126,16 @@ async def remember_external(item: dict, *, source: str = "external") -> dict:
         "ttl_days": item.get("ttl_days"),
         "slot": slot,
         "meta": meta,
-        "auto": False,                          # jamás re-clasificar: esta vía no deriva state_patch
+        "auto": False,                          # never re-classify: this path does not derive state_patch
     })
     return {"ok": True, "identity_slot_dropped": identity_dropped}
 
 
-# Serializa las llamadas a ingest_utterance en el ORDEN en que se dispararon (maratón de testing 2026-07-22):
-# tanto la voz real (nucleo.py) como el probe la lanzan `fire-and-forget` (asyncio.create_task) para no bloquear
-# el turno — correcto para latencia, pero sin esto dos turnos consecutivos y rápidos ("apunta que mi talla es
-# M" seguido a los 2s de "olvida eso de la talla") pueden completarse en el orden EQUIVOCADO: el olvido (rápido,
-# determinista, sin LLM) puede terminar y no encontrar nada que invalidar ANTES de que el recordatorio (lento,
-# pasa por el CORAZÓN/LLM) termine de escribirse — el dato "olvidado" sobrevive. Un lock module-level asegura
-# que cada ingesta se procesa de principio a fin antes de empezar la siguiente, en el mismo orden de llegada
-# (asyncio.Lock es FIFO); no afecta la latencia del turno (sigue siendo fire-and-forget desde el llamante).
+# Serializes calls to ingest_utterance in the ORDER in which they were launched (testing marathon 2026-07-22):
+# both real voice (nucleo.py) and the probe launch them as `fire-and-forget` (asyncio.create_task) to avoid blocking
+# the turn — correct for latency, but without this, two consecutive, rapid turns ("note that my size is
+# M" followed 2s later by "forget that about the size") can complete in the WRONG order: the forgetting action (fast,
+# deterministic, no LLM) can finish and find nothing to invalidate BEFORE the reminder (slow,
+# goes through the CORE/LLM) finishes writing — the "forgotten" data survives. A module-level lock ensures
+# that each ingestion is processed from start to finish before the next one begins, in arrival order
+# (asyncio.Lock is FIFO); it does not affect turn latency (it remains fire-and-forget from the caller).

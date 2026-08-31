@@ -39,7 +39,7 @@ from nucleo.cron_api import router as cron_router  # «Colmena» brain's own pro
 from .wizard_api import router as wizard_router  # first-run wizard: local/cloud profiles + detector (V2-040)
 from .spotify_api import router as spotify_router  # Spotify music connector (OAuth PKCE + state), V2-041
 from .config_api import router as config_router  # full-screen configuration area + API balances (V2-043)
-from .i18n_api import router as i18n_router  # UI multilingüe: state + bundles preset/generados (V2-089)
+from .i18n_api import router as i18n_router  # multilingual UI: state + preset/generated bundles (V2-089)
 from .feedback_api import router as feedback_router  # send a suggestion to the developers (V2-100)
 
 
@@ -287,7 +287,7 @@ async def _lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"widget generation resume failed (voice/chat unaffected): {e}")
     # Backed widgets (kind:"backed", zaelar-modules.md §Widget-apps): widget-apps with a live backend (the
-    # navegador's headless Chromium). The supervisor discovers them in the catalog and runs each owner under a
+    # browser's headless Chromium). The supervisor discovers them in the catalog and runs each owner under a
     # supervised task in THIS loop (mailbox drain + restart-with-backoff + disable-on-repeated-failure). Owners
     # start cheap (heavy backend launches lazily on first command), so an unused backed widget costs nothing.
     try:
@@ -502,11 +502,11 @@ def create_app() -> FastAPI:
         if active_brain() == "nucleo":
             from nucleo.flash.probe_api import router as flash_probe_router
             routers.append(flash_probe_router)
-            from nucleo.agent_api import router as agent_report_router   # V2-036: canal de reporte CC→FlashBrain
+            from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
             routers.append(agent_report_router)
-            from nucleo.worker_api import router as worker_router          # V2-038: plano request/response workers
+            from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
             routers.append(worker_router)
-            from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: puente de navegador
+            from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
             routers.append(navegador_act_router)
     except Exception as _e:
         logger.warning(f"flash probe router not mounted: {_e!r}")

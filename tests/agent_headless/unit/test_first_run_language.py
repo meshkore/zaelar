@@ -84,7 +84,7 @@ def test_and_a_classifier_that_explodes_does_not_take_the_turn_with_it(monkeypat
     assert detect.ensure_for_text("Búscame un hotel en Madrid") is None
 
 
-# ── y que el canal de texto lo LLAME ──────────────────────────────────────────────────────────────────────
+# ── and that the text channel actually CALLS it ────────────────────────────────────────────────────────────
 def test_the_text_channel_actually_calls_it():
     """The other half, and the one that would have kept this dead: a detector nobody invokes is exactly the
     state the engine was already in — `i18n.init.detect` existed and worked, and only the voice pipeline ever
@@ -155,20 +155,20 @@ def test_a_reply_yields_a_code_only_when_it_is_unambiguous(reply, expected):
 
 
 def test_the_token_ceiling_is_high_enough_that_a_sentence_stays_a_sentence():
-    """El agujero que dejó abierto el primer arreglo (2026-08-21, visto EN VIVO a las 10:12 con `extract_code`
-    ya en el árbol: el sandbox persistió `stt_language: "it"` en una corrida en español).
+    """The hole left open by the first fix (2026-08-21, seen LIVE at 10:12 with `extract_code`
+    already in the tree: the sandbox persisted `stt_language: "it"` in a Spanish run).
 
-    `extract_code` refuta una FRASE («It is Spanish (es)» tiene tres palabras de dos letras → ambiguo). Pero con
-    `max_tokens=4` esa frase no llega entera: llega **«It»**, una sola palabra que el ancla acepta porque `it`
-    ES el código de italiano. O sea que el recorte convertía una respuesta rechazable en una aceptada y
-    equivocada. El techo es parte del arreglo, no un parámetro de coste — por eso se vigila aquí.
+    `extract_code` rejects a SENTENCE («It is Spanish (es)» has three two-letter words → ambiguous). But with
+    `max_tokens=4` that sentence does not arrive in full: **«It»** arrives, a single word the anchor accepts because `it`
+    IS the Italian code. In other words, truncation turned a rejectable answer into an accepted and
+    wrong one. The ceiling is part of the fix, not a cost parameter — which is why it is monitored here.
     """
     import inspect
 
     fuente = inspect.getsource(detect._by_llm)
     assert "max_tokens=4," not in fuente, "un techo de 4 trunca la frase a «It» y eso se bloquea como italiano"
-    assert detect.extract_code("It") == "it"          # el ancla NO puede distinguirlo: `it` es un idioma real
-    assert detect.extract_code("It is Spanish (es)") is None   # entera, sí se refuta — de ahí que el techo importe
+    assert detect.extract_code("It") == "it"          # the anchor CANNOT distinguish it: `it` is a real language
+    assert detect.extract_code("It is Spanish (es)") is None   # in full, it is rejected — hence the ceiling matters
 
 
 def test_a_refusal_is_not_a_dead_end():

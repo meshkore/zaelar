@@ -24,7 +24,7 @@
 //      cards or dragging — which is why the ENTIRE widget catalog works here without touching a single widget,
 //      including widgets the agent generates tomorrow.
 //
-// PAGING IS TWO-FINGER, ON PURPOSE (operator: «el efecto de los dos deditos»). ONE finger belongs to the WIDGET:
+// PAGING IS TWO-FINGER, ON PURPOSE (operator: «the two-finger effect»). ONE finger belongs to the WIDGET:
 // scrolling a list, panning a map, dragging a slider. If one finger also paged, every scrollable widget would be
 // unusable — you could not scroll without changing cards. So a single touch is never intercepted here.
 //
@@ -72,7 +72,7 @@ function injectStyles() {
      justify-content:center in a SCROLL container clips the overflow above the top and makes it unreachable —
      auto margins collapse to 0 the moment the content is taller, so a long widget still scrolls from its first
      line. Compact widgets (a clock) then sit in the middle of the screen instead of hugging the header with two
-     thirds of a phone empty below them, which is what "casi todo a pantalla completa" has to mean when the
+     thirds of a phone empty below them, which is what "almost full screen" has to mean when the
      widget itself is small. */
   /* Targeted STRUCTURALLY (.zm-scroll > *) and not by .zm-body, because a widget.js does el.className="..." on
      the root it is handed and WIPES our class — the very thing the comment above warns about. A rule keyed to
@@ -232,7 +232,7 @@ export class Deck {
   // visibly (a silent no-op in a contract method is how a shell starts lying about what it did).
   resize(id) { return { ok: false, reason: "mobile: every card is full screen" }; }
 
-  // Already full screen. The contract method exists so «ponlo a pantalla completa» resolves to something true:
+  // Already full screen. The contract method exists so «put it full screen» resolves to something true:
   // bring that card to the front.
   fullscreen(id) { const i = this.order.indexOf(id); if (i >= 0) this._goTo(i, 0); }
 
@@ -309,7 +309,7 @@ export class Deck {
   }
 
   // Report the OPEN cards to memory STATE (POST /api/canvas/state) so they travel in the brain's prompt — that is
-  // what makes «cierra el de la música» work without asking which one. Called by session-lk.js on (re)connect and
+  // what makes «close the music one» work without asking which one. Called by session-lk.js on (re)connect and
   // by _persist(). Debounced, because _persist fires in bursts while a deck is being restored. No `layout` key:
   // there is no geometry in a deck, and sending a fake one would poison the desktop's safety net for the same
   // account (the server keeps ONE last-known layout per install).
@@ -653,8 +653,8 @@ export class Deck {
     //   · LIVE ERRANDS — the sheet/browser card of an errand running RIGHT NOW comes back even if this device
     //     never saved it. That is the start-on-the-computer, follow-on-the-phone story, and it is `srv.live`.
     //   · THE FOSSIL SWEEP — a bare BASE card next to its own instance is the pre-V2-261 ghost: every restore
-    //     resurrected an empty «Resultados» on top of the full sheet. A base card is legitimate ALONE.
-    //   · a navegador::tN with no live task behind it has nothing to reload (process state, not a sheet).
+    //     resurrected an empty «Results» on top of the full sheet. A base card is legitimate ALONE.
+    //   · a browser::tN with no live task behind it has nothing to reload (process state, not a sheet).
     let srv = { items: [], live: [] };
     try { srv = (await fetch("/api/canvas/layout").then((r) => r.json())) || srv; } catch (_) {}
     if (!items.length && Array.isArray(srv.items) && srv.items.length) {

@@ -1,24 +1,25 @@
-"""V2-290 — el navegador extraía filas reales y caían en la caja que no es de nadie.
+"""V2-290 — the browser extracted real rows and they fell into the box that belongs to no one.
 
-Medido en la tanda del 2026-08-24 12:03. `search-buy-bicycle__es`: el navegador navegó 6 veces, extrajo 3 veces
-y sacó SIETE bicis con precio y enlace de Wallapop —«Bicicleta Montaña Venta en Persona, 125 €», «Rock Shox
-Trutativ, 70 €»…— y las siete se escribieron en `results` PELADO, mientras `results::3fc631-1` —la hoja del
-encargo, abierta y con su título— se quedaba en cero. Lo mismo en `search-buy-camera__es`, con catorce. Y la
-caja pelada **no es de nadie desde V2-259**, así que aquello era invisible por construcción: el operador con una
-tarjeta en blanco delante y los resultados en una caja que nadie le abrió.
+Measured in the 2026-08-24 12:03 run. `search-buy-bicycle__es`: the browser navigated 6 times, extracted 3 times
+and pulled out SEVEN bikes with a price and Wallapop link —«Bicicleta Montaña Venta en Persona, 125 €», «Rock Shox
+Trutativ, 70 €»…— and all seven were written to bare `results`, while `results::3fc631-1` —the errand's sheet,
+opened and with its title— remained at zero. The same happened in `search-buy-camera__es`, with fourteen. And the
+bare box **has belonged to no one since V2-259**, so that was invisible by construction: the operator facing a blank
+card and the results in a box nobody had opened for them.
 
-DOS grietas encadenadas, y arreglar una sola deja el fallo entero en pie:
+TWO cracks in sequence, and fixing only one leaves the entire failure in place:
 
-  1. **La pestaña no se llama siempre igual.** `dispatch._prepare_web` crea la pestaña y guarda `rec.nav_task`
-     SOLO para `kind="web"`. Cualquier otro encargo que abra el navegador —el de INVESTIGACIÓN de la bici, sin
-     ir más lejos— cae al fallback de `nucleo/nav_cli.py` (`ZAELAR_NAV_TASK` o, si no, `ZAELAR_TASK_ID`), así
-     que su pestaña se llama como la TAREA. `sheet_for_nav_task` solo casaba por `nav_task`, y esa vuelta no
-     existía. Dos formas de nombrar lo mismo en dos sitios distintos es como nació la grieta.
+  1. **The tab is not always named the same way.** `dispatch._prepare_web` creates the tab and stores `rec.nav_task`
+     ONLY for `kind="web"`. Any other errand that opens the browser —the bicycle RESEARCH one, for example— falls
+     through to the `nucleo/nav_cli.py` fallback (`ZAELAR_NAV_TASK` or, if not, `ZAELAR_TASK_ID`), so its tab is named
+     after the TASK. `sheet_for_nav_task` only matched by `nav_task`, and that route did not exist. Two ways of naming
+     the same thing in two different places is how the crack was born.
 
-  2. **Y ese encargo puede no tener hoja.** Se abre al encargar solo si el cerebro declaró la hoja como
-     superficie, lo cual es correcto: no se le abre una caja vacía a quien no va a llenarla. Pero si acaba
-     extrayendo filas, la premisa se cae — hay hallazgos y no hay dónde ponerlos. Se abre al llegar el PRIMERO,
-     que es la diferencia entre una caja vacía que nadie pidió y una que aparece con algo dentro.
+  2. **And that errand may not have a sheet.** It is opened when the errand is assigned only if the brain declared
+     the sheet as a surface, which is correct: you do not open an empty box for someone who will not fill it. But if it
+     ends up extracting rows, the premise collapses — there are findings and nowhere to put them. It opens when the
+     FIRST one arrives, which is the difference between an empty box nobody asked for and one that appears with
+     something inside.
 """
 import pytest
 
@@ -26,7 +27,7 @@ from nucleo import dispatch, sheets
 
 
 class _Rec:
-    """Lo mínimo que las dos funciones miran de un record."""
+    """The minimum that the two functions inspect on a record."""
     def __init__(self, task_id, *, nav_task="", sheet="", status="running"):
         self.task_id, self.nav_task, self.sheet, self.status = task_id, nav_task, sheet, status
         self.goal, self.kind, self.surface = "busca una bici", "research", ""
@@ -38,41 +39,41 @@ def _clean_registry(monkeypatch):
     yield
 
 
-# ── 1) la RESOLUCIÓN, pura ────────────────────────────────────────────────────────────────────────────────
+# ── 1) pure RESOLUTION ─────────────────────────────────────────────────────────────────────────────────────
 def test_a_reserved_tab_still_resolves_by_its_nav_task():
-    """La vuelta que ya existía sigue mandando: se pregunta primero por la pestaña reservada."""
+    """The existing route still takes precedence: the reserved tab is checked first."""
     recs = [_Rec("1", nav_task="t1", sheet="b-1")]
     assert sheets.sheet_for_nav_task("t1", recs) == "b-1"
 
 
 def test_a_tab_named_after_its_errand_resolves_too():
-    """EL CASO MEDIDO: sin pestaña reservada, el puente la llama por el id de la TAREA."""
+    """THE MEASURED CASE: without a reserved tab, the bridge names it by the TASK id."""
     recs = [_Rec("3", sheet="b-3")]
     assert sheets.sheet_for_nav_task("3", recs) == "b-3"
 
 
 def test_the_nav_task_wins_when_both_could_match():
-    """Un id de tarea puede coincidir con la pestaña de OTRO encargo; la reserva explícita es la más específica
-    y tiene que ganar, o un hallazgo acabaría en la hoja del vecino."""
+    """A task id can coincide with the tab of ANOTHER errand; the explicit reservation is more specific
+    and must win, or a finding would end up in the neighbor's sheet."""
     recs = [_Rec("9", sheet="b-suyo"), _Rec("1", nav_task="9", sheet="b-reservada")]
     assert sheets.sheet_for_nav_task("9", recs) == "b-reservada"
 
 
 def test_a_tab_with_no_errand_behind_it_still_answers_nothing():
-    """El operador conduciendo el navegador a mano no tiene encargo, y eso NO es un fallo: devuelve "" y se
-    escribe la hoja de siempre (contrato de V2-259)."""
+    """The operator driving the browser manually has no errand, and that is NOT a failure: it returns "" and writes
+    to the usual sheet (V2-259 contract)."""
     assert sheets.sheet_for_nav_task("t9", [_Rec("1", nav_task="t1", sheet="b-1")]) == ""
     assert sheets.sheet_for_nav_task("", [_Rec("1", nav_task="t1", sheet="b-1")]) == ""
 
 
-# ── 2) y la APERTURA a demanda, que es la que necesita el registro vivo ───────────────────────────────────
+# ── 2) on-demand OPENING, which the live registry needs ─────────────────────────────────────────────────────
 def _opened(monkeypatch):
-    """Sella la hoja como lo haría `_sheet_open`, sin tocar el almacén de widgets.
+    """Stamps the sheet as `_sheet_open` would, without touching the widget store.
 
-    ⚠️ Se parchea en `nucleo.sheets`, que es DONDE SE USA, no en `dispatch`, que solo lo re-exporta por nombre:
-    reapuntar el nombre de `dispatch` deja al llamante real llamando al de verdad. Costó un rojo al mover el
-    cuerpo de una función entre módulos, y es la misma trampa que hace peligroso extraer cualquier cosa que un
-    test parchee por su nombre privado."""
+    ⚠️ It is patched in `nucleo.sheets`, which is WHERE IT IS USED, not in `dispatch`, which only re-exports it by name:
+    redirecting `dispatch`'s name leaves the real caller calling the real function. It caused a red test when the
+    body of a function was moved between modules, and it is the same trap that makes extracting anything a test
+    patches by its private name dangerous."""
     seen = []
 
     def _fake(rec):
@@ -83,15 +84,15 @@ def _opened(monkeypatch):
 
 
 def test_the_first_finding_opens_the_box_its_errand_never_had(monkeypatch):
-    """EL CASO MEDIDO ENTERO: encargo vivo, sin hoja, y una pestaña que acaba de extraer."""
+    """THE FULL MEASURED CASE: live errand, no sheet, and a tab that has just extracted data."""
     seen = _opened(monkeypatch)
-    dispatch._SESSIONS["3"] = _Rec("3")                    # sin `sheet`: su superficie no era la hoja
+    dispatch._SESSIONS["3"] = _Rec("3")                    # no `sheet`: its surface was not the sheet
     assert dispatch.sheet_for_nav_task("3") == "hoja-3"
     assert len(seen) == 1
 
 
 def test_an_errand_that_already_has_a_box_is_not_opened_again(monkeypatch):
-    """Estrenarla otra vez es el «error de borrar búsquedas» que V2-259 vino a quitar."""
+    """Opening it again is the “search deletion error” that V2-259 was intended to remove."""
     seen = _opened(monkeypatch)
     dispatch._SESSIONS["3"] = _Rec("3", sheet="b-3")
     assert dispatch.sheet_for_nav_task("3") == "b-3"
@@ -99,7 +100,7 @@ def test_an_errand_that_already_has_a_box_is_not_opened_again(monkeypatch):
 
 
 def test_a_finding_from_a_dead_errand_opens_nothing(monkeypatch):
-    """Un hallazgo que llega tarde no estrena una tarjeta en la pantalla de alguien que ya pasó a otra cosa."""
+    """A finding that arrives late does not open a card on the screen of someone who has already moved on."""
     seen = _opened(monkeypatch)
     dispatch._SESSIONS["3"] = _Rec("3", status="done")
     assert dispatch.sheet_for_nav_task("3") == ""
@@ -107,7 +108,7 @@ def test_a_finding_from_a_dead_errand_opens_nothing(monkeypatch):
 
 
 def test_nothing_is_opened_for_a_tab_nobody_owns(monkeypatch):
-    """El navegador a mano sigue escribiendo en la hoja de siempre, sin estrenar cajas por el camino."""
+    """The manually operated browser keeps writing to the usual sheet, without opening boxes along the way."""
     seen = _opened(monkeypatch)
     dispatch._SESSIONS["3"] = _Rec("3", sheet="b-3")
     assert dispatch.sheet_for_nav_task("t9") == ""

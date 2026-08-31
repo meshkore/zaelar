@@ -1,8 +1,8 @@
 """Generate the PWA icons — no external asset, no design tool in the loop.
 
-THE MARK IS THE EYE, and it is a SILHOUETTE (operator, 2026-08-18: «iconos super limpios sobre el
-fondo uniforme, idealmente negro, y son solo siluetas — los mas parecidos a los que ya existen en el
-frontend del UI»).
+THE MARK IS THE EYE, and it is a SILHOUETTE (operator, 2026-08-18: “very clean icons on a uniform
+background, ideally black, and silhouettes only — as close as possible to those already present in the
+UI frontend”).
 
 Why the eye and not a gradient orb: `engine/CLAUDE.md` already fixes it as zaelar's identity — the
 seven controls are the upper lid, the ECG is the lower lid, and the ORB IS THE IRIS. So the eye is

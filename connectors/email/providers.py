@@ -21,12 +21,12 @@ from dataclasses import dataclass, field
 class OAuthSpec:
     """Provider OAuth2 config (authorization-code). Public endpoints; the operator sets client_id/secret in the
     credential store (dormant until then, like Spotify V2-041)."""
-    authority: str                 # base del proveedor de identidad
+    authority: str                 # identity-provider base URL
     authorize_url: str             # authorization endpoint (consent)
-    token_url: str                 # endpoint de intercambio/refresh de token
+    token_url: str                 # token exchange/refresh endpoint
     scopes: tuple[str, ...]        # minimal scopes to read + send email (IMAP/SMTP XOAUTH2)
     pkce: bool = True              # PKCE S256 (recommended; Google/Microsoft support it for installed apps)
-    needs_client_secret: bool = False   # Microsoft "web" app exige secret; Google instalada/PKCE no
+    needs_client_secret: bool = False   # Microsoft "web" app requires a secret; installed Google/PKCE does not
 
 
 @dataclass(frozen=True)
@@ -70,7 +70,7 @@ _MICROSOFT_OAUTH = OAuthSpec(
             "https://outlook.office.com/SMTP.Send",
             "offline_access", "openid", "email"),
     pkce=True,
-    needs_client_secret=False,     # app "public/native" en Entra → PKCE sin secret
+    needs_client_secret=False,     # "public/native" app in Entra → PKCE without a secret
 )
 
 # ── THE LIST (all product email connectors) ───────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ PROVIDERS: dict[str, EmailProvider] = {
         note="Cualquier proveedor IMAP/SMTP (Fastmail, ProtonMail Bridge, corporativo…): host + app-password."),
 }
 
-# Alias legacy (V2-051 usaba mailbox.PRESETS = {id: {imap_host, imap_port, smtp_host, smtp_port}}).
+# Legacy alias (V2-051 used mailbox.PRESETS = {id: {imap_host, imap_port, smtp_host, smtp_port}}).
 PRESETS = {pid: {"imap_host": p.imap_host, "imap_port": p.imap_port,
                  "smtp_host": p.smtp_host, "smtp_port": p.smtp_port}
            for pid, p in PROVIDERS.items() if p.imap_host}

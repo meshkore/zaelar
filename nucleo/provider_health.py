@@ -27,9 +27,9 @@ class CooldownStore:
     The reason is not bookkeeping: measured on `search-secondhand-monitor__es` (2026-08-24 00:56), the same
     process put `z.ai` on cooldown until 2026-08-25 01:39 for having no weekly quota left, and 260 seconds
     later `provider_chain.pick()` lifted it — because the LATENCY relay had run out of turn budget and its
-    ceiling calls `lift()` unconditionally. Its own comment says «devuélvele el turno al titular aunque siga
-    lento», so the intent was always latency-only; nothing in the store could express that, so it handed the
-    next turn to a provider we already knew would answer 429.
+    ceiling calls `lift()` unconditionally. Its own comment says “give the turn back to the owner even if it
+    remains slow,” so the intent was always latency-only; nothing in the store could express that, so it
+    handed the next turn to a provider we already knew would answer 429.
 
     Two mechanisms in one module writing one number and reading it as if it meant one thing. Same shape as
     V2-252's trap by the other side: there a cooldown landed on a HEALTHY provider, here it was cleared off

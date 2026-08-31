@@ -19,24 +19,24 @@
 // English is guaranteed complete (it's the manifest), so it's always a safe net.
 // ============================================================================
 import * as store from "./store.js?v=2";
-import { createSignal } from "./reactive.js?v=2";   // MISMO especificador que store.js → misma instancia (lección V2-087)
+import { createSignal } from "./reactive.js?v=2";   // SAME specifier as store.js → same instance (V2-087 lesson)
 
 const BUNDLES = {};            // code -> { key: string }
 const _loading = {};           // code -> Promise (dedupe concurrent fetches)
 const CACHE_KEY = (code) => "hb_i18n_" + code;
 
-// CONTENIDO del bundle, no solo el CÓDIGO de idioma (fix 2026-08-09). `t()` dependía únicamente de `store.lang()`,
-// y `setLang` es no-op cuando el valor no cambia (semántica Solid, `Object.is`) → al arrancar la UI se pintaba con
-// el bundle CACHEADO en localStorage y, cuando la respuesta del backend traía claves NUEVAS, se guardaba en memoria
-// pero **no re-renderizaba nada**: los strings nuevos se quedaban como su clave cruda (`debug.col_time`) hasta que
-// el operador cambiara de idioma o vaciara el localStorage. Este contador se lee dentro de `t()` y se incrementa
-// cada vez que un bundle cambia de VERDAD → la UI se reconcilia sola. Cubre también el upgrade de un idioma
-// generado (mismo código, strings nuevos), que tenía el mismo punto ciego.
+// BUNDLE CONTENT, not just the language CODE (fix 2026-08-09). `t()` depended only on `store.lang()`, and
+// `setLang` is a no-op when the value is unchanged (Solid semantics, `Object.is`) → at startup the UI rendered
+// the CACHED localStorage bundle and, when the backend response brought NEW keys, stored them in memory but
+// **did not re-render anything**: new strings remained their raw key (`debug.col_time`) until the operator changed
+// language or cleared localStorage. This counter is read inside `t()` and incremented whenever a bundle REALLY
+// changes → the UI reconciles itself. It also covers an upgrade to a generated language (same code, new strings),
+// which had the same blind spot.
 const [bundleRev, setBundleRev] = createSignal(0);
 function bumpIfChanged(code, dict) {
   const prev = BUNDLES[String(code)];
   BUNDLES[String(code)] = dict;
-  // Comparación por contenido: un re-fetch idéntico (el caso normal) no debe invalidar el árbol entero.
+  // Compare content: an identical re-fetch (the normal case) must not invalidate the entire tree.
   if (JSON.stringify(prev) !== JSON.stringify(dict)) setBundleRev((n) => n + 1);
 }
 
@@ -53,17 +53,16 @@ export function available() { return Object.keys(BUNDLES); }
 })();
 
 // t(key, params?) — localized string. Reads store.lang() (reactive dependency).
-// V2-481 — EL SUELO DEL ARRANQUE EN FRÍO.
+// V2-481 — THE COLD-START FLOOR.
 //
-// `t()` cae al bundle inglés y, si tampoco está, muestra la CLAVE — visible a propósito, porque una cadena
-// que falta tiene que verse. Eso vale para una pantalla ya cargada y falla justo donde más se nota: en el
-// arranque en frío de una Machine, `/api/i18n/bundle` todavía no contesta, así que el PRIMER pantallazo que
-// ve alguien que acaba de instalar la PWA es `boot.encendiendo`. La primera impresión del producto.
+// `t()` falls back to the English bundle and, if that is missing too, shows the KEY—intentionally visible, because
+// a missing string must be seen. This works on an already-loaded screen and fails where it matters most: during a
+// Machine cold start, `/api/i18n/bundle` has not answered yet, so the FIRST screen someone who just installed the
+// PWA sees is `boot.encendiendo`. The product's first impression.
 //
-// El suelo es DELIBERADAMENTE estrecho: solo las cadenas que se pintan ANTES de que el motor conteste. No es
-// un segundo vocabulario —eso sería dos copias de una regla, que esta casa ya ha pagado— y hay un test que
-// exige que cada clave de aquí exista en el bundle base: si alguien renombra una, esto se pone rojo en vez de
-// quedarse sirviendo una cadena huérfana para siempre.
+// The floor is DELIBERATELY narrow: only strings rendered BEFORE the engine answers. It is not a second vocabulary—
+// that would be two copies of a rule, which this codebase has already paid for—and a test requires every key here
+// to exist in the base bundle: if someone renames one, this turns red instead of serving an orphaned string forever.
 const BOOT_FLOOR = {
   "boot.encendiendo": "Starting up zaelar…",
   "boot.voz": "Connecting voice…",
@@ -73,11 +72,11 @@ const BOOT_FLOOR = {
 
 export function t(key, params) {
   const code = store.lang();
-  bundleRev();                            // dependencia reactiva: re-renderiza cuando el bundle cambia de contenido
+  bundleRev();                            // reactive dependency: re-renders when bundle content changes
   const dict = BUNDLES[code] || BUNDLES.en || {};
   let s = dict[key];
   if (s == null) s = (BUNDLES.en || {})[key];
-  if (s == null) s = BOOT_FLOOR[key];     // V2-481: el arranque en frío no tiene bundle todavía
+  if (s == null) s = BOOT_FLOOR[key];     // V2-481: cold start has no bundle yet
   if (s == null) s = key;                 // last resort: show the key (visible = "needs a string")
   if (params) for (const k in params) s = s.split("{" + k + "}").join(String(params[k]));
   return s;
@@ -93,7 +92,7 @@ export async function loadBundle(code) {
       const r = await fetch("/api/i18n/bundle/" + encodeURIComponent(code), { cache: "no-cache" });
       const d = await r.json();
       if (d && d.strings && Object.keys(d.strings).length) {
-        bumpIfChanged(code, d.strings);   // ← la reconciliación que faltaba: el fetch puede traer claves nuevas
+        bumpIfChanged(code, d.strings);   // ← the missing reconciliation: the fetch can bring new keys
         try { localStorage.setItem(CACHE_KEY(code), JSON.stringify(d.strings)); } catch (_) {}
       }
     } catch (_) {}

@@ -3,7 +3,7 @@
 # (WhatsApp, Telegram, ...) write, and which the single widget READS. Reuses the atomic primitive from
 # widgets/store.py (tmp+rename write -> readers never see a half-written file).
 #
-# Forma:
+# Shape:
 #   { platforms: { whatsapp:{status,qr}, telegram:{status,qr} },
 #     updated,
 #     items:[{n, platform, from, group, isGroup, body, urgencia, dirigido_a_mi, motivo, messageId, chatId, senderId}],

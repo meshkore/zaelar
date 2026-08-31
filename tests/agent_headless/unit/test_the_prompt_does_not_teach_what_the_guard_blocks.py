@@ -5,7 +5,7 @@ errors — `Contains simple_expansion`, `Contains brace with quote character (ex
 `cheapest-monitor__us` they cost the round: three navigations, ten searches, **zero structured products**.
 
 The cause was ours. `worker_bridge act` is how the worker ASKS for a web search, and the prompt taught it as
-`act <accion> <json>` with the JSON pasted on the command line — which is precisely what the gate blocks. The
+`act <action> <json>` with the JSON pasted on the command line — which is precisely what the gate blocks. The
 same prompt already taught the correct two-step `@file` form for the results sheet, and `read_payload` had
 grown `@file` support for `act` on that same day (V2-379); only the sentence that teaches it was left behind.
 So the worker hit a wall it had been aimed at, improvised, and sometimes never recovered.
@@ -33,7 +33,7 @@ def _worker_prompt() -> str:
 
 
 def test_no_bridge_is_taught_with_inline_json():
-    """`act <accion> {json}` is the pattern the gate refuses. Any bridge shown that way is a trap we set."""
+    """`act <action> {json}` is the pattern the gate refuses. Any bridge shown that way is a trap we set."""
     text = _worker_prompt()
     offenders = re.findall(r"worker_bridge act [^\n@]*\{", text)
     assert not offenders, f"the prompt still teaches inline JSON to a bridge: {offenders}"
@@ -43,7 +43,7 @@ def test_the_file_form_is_taught_instead():
     text = _worker_prompt()
     assert "worker_bridge act" in text
     assert "@" in text and re.search(r"worker_bridge act [^\n]*@", text), \
-        "the worker is never shown the `@fichero` form for the bridge it uses to ask for searches"
+        "the worker is never shown the `@file` form for the bridge it uses to ask for searches"
 
 
 def test_and_the_two_rejections_it_will_meet_are_named():
@@ -67,7 +67,7 @@ def test_the_single_ampersand_is_forbidden_TOO_and_by_its_own_name():
 
     The rule listed `&&` and never a single `&`. They are different operators, and the rejection the worker
     reads for `&` is a THIRD message, unlike either of the two the prompt teaches — so a model that obeyed
-    «nada de `&&`» to the letter had nothing to connect its error to. Same defect as the one this file was
+    «no `&&`» to the letter had nothing to connect its error to. Same defect as the one this file was
     written for, one operator over.
     """
     text = _worker_prompt()
@@ -95,7 +95,7 @@ def test_the_cd_rejection_is_named_too_and_the_false_premise_is_answered():
     repo root, so changing into it is a correct inference from what we showed it; the environment already
     carries the path, and nothing said so.
 
-    The rule («no salgas de tu directorio») was there and still is. What was missing is the same thing that
+    The rule ("don't leave your directory") was there and still is. What was missing is the same thing that
     was missing for `&`: the words the worker actually reads when it gets stopped, so it can connect its
     error to the rule instead of trying another spelling of the same command.
     """
@@ -111,8 +111,8 @@ def test_the_cd_rejection_is_named_too_and_the_false_premise_is_answered():
 
 def test_and_it_says_there_is_no_way_around_it():
     """Some rejections are a wrong spelling and some are a closed door. Telling them apart is what stops the
-    worker burning turns on a rewrite that cannot work — the same failure as «si un comando te pide
-    aprobación, lo escribiste mal», applied to the case where it did NOT."""
+    worker burning turns on a rewrite that cannot work — the same failure as "if a command asks you for
+    approval, you wrote it incorrectly," applied to the case where it did NOT."""
     text = _worker_prompt()
     i = text.find("allowed working directories")
     assert i > 0 and "no hay rodeo" in text[i:i + 260]

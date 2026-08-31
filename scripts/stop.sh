@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# stop.sh — DELEGADOR. La lógica de parar vive ahora en `scripts/zaelar.py` (2026-08-12).
+# stop.sh — DELEGATOR. The stopping logic now lives in `scripts/zaelar.py` (2026-08-12).
 #
-# Por qué se movió: este script era bash con lsof/pkill/pgrep, así que en Windows no servía —y zaelar es un proyecto
-# PÚBLICO que la gente auto-hospeda. Además solo liberaba el puerto 43917 y nunca el 44317 (el listener HTTPS), con
-# lo que media instancia sobrevivía a cada parada, y no escalaba a kill cuando el proceso ignoraba SIGTERM (que pasa
-# de verdad: un hilo del worker de voz colgado no muere con un TERM).
+# Why it was moved: this script was bash with lsof/pkill/pgrep, so it did not work on Windows—and zaelar is a PUBLIC
+# project that people self-host. It also only freed port 43917 and never 44317 (the HTTPS listener), so half an
+# instance survived every stop, and it did not escalate to kill when the process ignored SIGTERM (which really
+# happens: a hung voice-worker thread does not die from a TERM).
 #
-# Se conserva este fichero para no romper a nadie que lo llame por su nombre. Entrada recomendada:
-#     make stop            (o, sin make:  python scripts/zaelar.py stop)
+# This file is retained so as not to break anyone who calls it by name. Recommended entry point:
+#     make stop            (or, without make:  python scripts/zaelar.py stop)
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ -f "$HERE/Makefile" && -d "$HERE/nucleo" ]] || { echo "✗ no parece el repo de zaelar ($HERE)"; exit 1; }

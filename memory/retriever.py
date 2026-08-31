@@ -1,4 +1,4 @@
-"""memory/retriever.py — retriever híbrido (RUTA CALIENTE · ms) (V2-002 · T47).
+"""memory/retriever.py — hybrid retriever (HOT PATH · ms) (V2-002 · T47).
 
 Compone el **contexto mínimo** ante un prompt, lo más rápido posible (lectura directa, WAL, sin bloquear al
 escritor). El **estado** se inyecta SIEMPRE aparte (sin búsqueda, `memory/state.py`); aquí va lo demás:

@@ -12,7 +12,7 @@ echo "▸ Instalando Whisper local (mlx-whisper + faster-whisper) en el venv…"
 "$PY" -m pip install -q --upgrade faster-whisper mlx-whisper
 
 # Pre-descarga del modelo MLX (opcional pero recomendado: evita el lag de la 1ª transcripción).
-MODEL="${WHISPER_MODEL_MLX:-mlx-community/whisper-large-v3-turbo}"   # multilingüe, rápido en Apple Silicon
+MODEL="${WHISPER_MODEL_MLX:-mlx-community/whisper-large-v3-turbo}"   # multilingual, fast on Apple Silicon
 echo "▸ Pre-descargando el modelo '$MODEL' (una vez)…"
 "$PY" - "$MODEL" <<'PY'
 import sys

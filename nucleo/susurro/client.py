@@ -1,8 +1,8 @@
-"""Cliente LLM del Susurro (V2-053) — una completion no-streaming contra config §susurro, fail-open.
+"""Susurro LLM client (V2-053) — a non-streaming completion against §susurro config, fail-open.
 
-Mismo patrón que el CORAZÓN (mem_processor): endpoint OpenAI-compatible, key resuelta POR ENDPOINT (la lección
-de V2-fast-brain: nunca asumir qué key hay en el store), timeout duro, y NUNCA lanza — cualquier fallo devuelve
-None y el ciclo de auditoría se anota como `error` y sigue la vida.
+Same pattern as the HEART (mem_processor): OpenAI-compatible endpoint, key resolved BY ENDPOINT (the lesson
+from V2-fast-brain: never assume which key is in the store), hard timeout, and NEVER raises — any failure returns
+None and the audit cycle is recorded as `error` and carries on.
 """
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ import time
 
 _TIMEOUT = float(os.getenv("SUSURRO_TIMEOUT", "45") or 45)
 
-# AIMLAPI (el endpoint por defecto desde 2026-08-09) va tras Cloudflare, que 403ea a clientes que no parecen
-# navegador. COMPROBADO hoy: el UA por defecto de aiohttp SÍ pasa (200) — el que se bloqueaba era el de urllib,
-# por eso `fast_client`/`memllm` lo llevan. Se manda igualmente: es gratis, iguala el patrón de los otros
-# clientes y el fail-open del Susurro es SILENCIOSO por diseño — no conviene depender de la política de un CDN.
+# AIMLAPI (the default endpoint since 2026-08-09) sits behind Cloudflare, which returns 403 to clients that do not
+# look like a browser. VERIFIED today: aiohttp's default UA DOES pass (200) — the one being blocked was urllib's,
+# which is why `fast_client`/`memllm` carry it. It is sent anyway: it is free, matches the pattern of the other
+# clients, and Susurro's fail-open is SILENT by design — it is unwise to depend on a CDN's policy.
 _UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                      "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
 
@@ -42,8 +42,8 @@ def resolved_api_key(base_url: str, explicit: str = "") -> str:
 
 
 async def audit_llm(window_text: str) -> tuple[str | None, dict]:
-    """→ (contenido crudo | None, meta {model, ms, tokens, error?}). El payload COMPLETO enviado va en
-    meta["request"] para la observabilidad total (regla del operador: registrar envío Y respuesta)."""
+    """→ (raw content | None, meta {model, ms, tokens, error?}). The COMPLETE payload sent is stored in
+    meta["request"] for full observability (operator rule: record both request AND response)."""
     from . import catalog
     c = cfg()
     # Last resort when §susurro cannot be read: it must MATCH the default in `config/v2.py` (AIMLAPI broker),
@@ -60,8 +60,8 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     payload = {"model": model, "temperature": 0, "messages": messages,
                "response_format": {"type": "json_object"}}
     meta: dict = {"model": model, "base_url": base, "request": payload}
-    # EGRESS (T304). `meta` conserva el base_url ORIGINAL a propósito: es lo que hace legible el visor
-    # («esta auditoría iba a AIMLAPI»), y el enrutado real es un detalle del despliegue, no del evento.
+    # EGRESS (T304). `meta` deliberately preserves the ORIGINAL base_url: it is what makes the viewer readable
+    # ("this audit was headed to AIMLAPI"), and the actual routing is a deployment detail, not part of the event.
     from nucleo import llm_egress
     base, key, _extra = llm_egress.route(base, key)
     if not key:
@@ -76,7 +76,7 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
                               headers={"Authorization": f"Bearer {key}", **_UA}, json=payload) as r:
                 data = await r.json()
         if not isinstance(data, dict) or "choices" not in data:
-            # algunos endpoints no soportan response_format → reintento sin él
+            # some endpoints do not support response_format → retry without it
             payload2 = {k: v for k, v in payload.items() if k != "response_format"}
             async with aiohttp.ClientSession(timeout=to) as s:
                 async with s.post(base + "/chat/completions",
@@ -86,11 +86,11 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
         usage = data.get("usage") or {}
         meta.update(ms=round((time.time() - t0) * 1000),
                     tokens={"in": usage.get("prompt_tokens"), "out": usage.get("completion_tokens")})
-        # A ENERGY (2026-08-13). Los tokens ya se leían aquí, pero solo para PINTARLOS en el evento del
-        # visor — el mismo defecto que tuvieron los Brain Workers antes de 2026-08-05: el número existía
-        # y moría en un chip de UI. Susurro corre ante fricción, con un modelo POTENTE y una ventana
-        # grande de conversación: es de las llamadas más caras por unidad. Un intento rechazado antes del
-        # reintento sin `response_format` no se cobra (un 400 no trae `usage`).
+        # A ENERGY (2026-08-13). Tokens were already read here, but only to DISPLAY THEM in the viewer event —
+        # the same defect Brain Workers had before 2026-08-05: the number existed and died in a UI chip. Susurro
+        # runs under friction, with a POWERFUL model and a large conversation window: it is among the most
+        # expensive calls per unit. An attempt rejected before the retry without `response_format` is not charged
+        # (a 400 does not include `usage`).
         from nucleo import energy_meter as _energy
         _energy.meter_openai_response({"usage": usage}, base_url=base, model=model)
         return content, meta

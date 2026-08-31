@@ -4,7 +4,7 @@ Measured 2026-08-27. At 18:55 DeepSeek answered `402 Insufficient Balance`, so b
 for six hours and the chain moved to the broker. The operator topped up at ~19:40. Nothing changed: a balance
 is not a quota, there is no reset date to wait for, and the engine has no way to learn that money arrived. At
 22:07 the broker itself started timing out — and the brain went silent with a provider that had been healthy
-for two and a half hours one rung above it. The engine's own warning said «no vuelve solo, hay que recargar»;
+for two and a half hours one rung above it. The engine's own warning said «it does not come back on its own; it has to be recharged»;
 the operator HAD recharged, and there was no way to tell it so.
 
 The old ceiling was right about the world and wrong about us: a balance really does not refill by itself, but

@@ -1,22 +1,22 @@
-"""V2-225 — el compositor LEÍA la cadena de proveedores y nunca la ESCRIBÍA.
+"""V2-225 — the composer READ the provider chain and never WROTE to it.
 
-`research._spec()` va por `provider_chain.pick()` y su docstring promete que «si el proveedor principal está sin
-cuota, releva en vez de morir». La promesa no se cumplía, y no porque faltara el relevo: `note_failure()` tenía UN
-solo llamador de producción en todo el árbol —`connectors/meshkore/brain.py`, el cerebro de cluster—, así que el
-cooldown que dispara el relevo solo existía si el CLUSTER había fallado antes por el mismo sitio. El compositor
-vivía de esa casualidad.
+`research._spec()` goes through `provider_chain.pick()` and its docstring promises that «if the primary provider is
+out of quota, it relays instead of dying». The promise was not fulfilled, and not because the relay was missing:
+`note_failure()` had only ONE production caller in the entire tree —`connectors/meshkore/brain.py`, the cluster
+brain—, so the cooldown that triggers the relay existed only if the CLUSTER had previously failed at the same
+point. The composer relied on that coincidence.
 
-Medido por el arnés en dos rondas de `hotel-under-15-days` (2026-08-20): a las 20:01, 20:07 y 20:10 se eligió el
-MISMO proveedor agotado las tres veces, con dos reintentos de FastClient cada una, y el worker salió a ciegas
-después de cada una —
+Measured by the harness in two rounds of `hotel-under-15-days` (2026-08-20): at 20:01, 20:07, and 20:10, the
+SAME exhausted provider was selected all three times, with two FastClient retries each time, and the worker came
+out blind after each one —
 
-    research: el compositor falló (429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at
-    2026-08-25 01:39:02]) — el worker sale SIN brief (búsqueda sin dirigir)
+    research: the composer failed (429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at
+    2026-08-25 01:39:02]) — the worker exits WITHOUT a brief (unguided search)
 
-Ese texto es exactamente la forma que `classify_failure` lee como `exhausted` CON fecha de reset, que es el caso
-que pone cooldown y devuelve relevo. No faltaba mecanismo: faltaba la llamada. Hasta el 2026-08-25 eso significaba
-que TODA escalada de investigación salía sin dirigir — por eso el mejor «resultado» de una ronda fue un
-espectáculo de flamenco de 25 €.
+That text is exactly the form that `classify_failure` reads as `exhausted` WITH a reset date, which is the case
+that sets a cooldown and returns a relay. The mechanism was not missing: the call was missing. Until 2026-08-25,
+that meant EVERY research escalation came out unguided — which is why the best «result» of one round was a €25
+flamenco show.
 """
 import asyncio
 
@@ -40,10 +40,10 @@ class _Spy:
 
 @pytest.fixture
 def wired(monkeypatch):
-    """La cadena y el cliente, mockeados; lo que se verifica es el contrato entre los dos.
+    """The chain and client are mocked; what is verified is the contract between them.
 
-    `ZAELAR_RESEARCH` se fija a mano porque el entorno de esta máquina lo trae a `0`, y con el compositor apagado
-    `compose()` sale por la primera línea sin tocar nada: los siete tests pasarían por el camino equivocado."""
+    `ZAELAR_RESEARCH` is set manually because this machine's environment sets it to `0`, and with the composer off
+    `compose()` exits on the first line without touching anything: all seven tests would pass along the wrong path."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
     spy = _Spy()
     from nucleo.flash import provider_chain as pc
@@ -69,22 +69,22 @@ def test_the_dead_provider_is_REPORTED_to_the_chain(wired):
 
 
 def test_and_the_message_that_travels_is_the_one_the_chain_knows_how_to_read(wired):
-    """`classify_failure` distingue un 429 pelado (se reintenta solo) de uno de cuota agotada CON fecha de reset
-    (releva y pone cooldown hasta el reset). Mandar otra cosa es no reportar."""
+    """`classify_failure` distinguishes a bare 429 (retry on its own) from an exhausted-quota one WITH a reset date
+    (relays and sets a cooldown until the reset). Sending anything else is not reporting."""
     asyncio.run(research.compose("hotel en Sevilla"))
     assert "Limit Exhausted" in wired.reported[0][0]
 
 
 def test_THIS_task_is_saved_too_not_only_the_next_one(wired):
-    """La evidencia son tres tareas seguidas a ciegas. Marcar el escalón arregla la siguiente; reintentar con el
-    relevo arregla también la que está en curso."""
+    """The evidence is three consecutive tasks running blind. Marking the tier fixes the next one; retrying with the
+    relay also fixes the one currently in progress."""
     asyncio.run(research.compose("hotel en Sevilla"))
     assert wired.used == [LEAD["name"], RELAY["name"]]
 
 
 def test_with_NO_relay_the_fail_open_is_untouched(monkeypatch, wired):
-    """El fail-open es correcto y no se toca: sin relevo, el worker sale sin brief, como siempre. Lo único que se
-    añadió es la línea que marca el proveedor antes de rendirse."""
+    """The fail-open behavior is correct and remains untouched: without a relay, the worker exits without a brief,
+    as always. The only thing added is the line that marks the provider before giving up."""
     wired.relay = None
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("hotel en Sevilla"))
@@ -92,8 +92,8 @@ def test_with_NO_relay_the_fail_open_is_untouched(monkeypatch, wired):
 
 
 def test_a_relay_that_is_the_SAME_tier_is_not_a_relay(monkeypatch, wired):
-    """Sensitivity, y el bucle que este módulo existe para cortar: reintentar contra el escalón que acaba de
-    fallar es gastar el presupuesto dos veces para el mismo 429."""
+    """Sensitivity, and the loop that this module exists to break: retrying against the tier that just failed is
+    spending the budget twice for the same 429."""
     wired.relay = LEAD
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("hotel en Sevilla"))
@@ -101,8 +101,8 @@ def test_a_relay_that_is_the_SAME_tier_is_not_a_relay(monkeypatch, wired):
 
 
 def test_a_model_PINNED_by_the_operator_is_never_reported(monkeypatch, wired):
-    """`config §research.model` no es una elección de la cadena. Poner en cooldown un escalón que el compositor no
-    usó relevaría al cerebro de cluster por culpa ajena."""
+    """`config §research.model` is not a choice made by the chain. Putting a tier that the composer did not use on
+    cooldown would relay the cluster brain because of someone else's fault."""
     monkeypatch.setattr("config.v2.get", lambda k, *a: ({"model": "mio", "base_url": "http://x"} if k == "research"
                                                         else {}), raising=False)
     with pytest.raises(research.ComposerUnavailable):
@@ -111,8 +111,8 @@ def test_a_model_PINNED_by_the_operator_is_never_reported(monkeypatch, wired):
 
 
 def test_a_timeout_is_not_a_dead_provider(wired, monkeypatch):
-    """Sensitivity en la otra dirección: un compositor lento no es un proveedor sin cuota, y ponerlo en cooldown
-    apagaría un escalón sano. El `except TimeoutError` sigue por delante y no pasa por aquí."""
+    """Sensitivity in the other direction: a slow composer is not an out-of-quota provider, and putting it on
+    cooldown would shut down a healthy tier. The `except TimeoutError` still comes first and does not pass through here."""
     async def _slow(*a, **k):
         raise asyncio.TimeoutError()
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient",

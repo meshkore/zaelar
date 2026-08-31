@@ -1,7 +1,7 @@
-// WizardModal — asistente de primer arranque (V2-040): elige perfil LOCAL/CLOUD (con el detector recomendando),
-// resuelve los HUECOS (instala con un clic lo del proyecto, o da el comando para lo de sistema) y valida las
-// CREDENCIALES. Se auto-abre cuando la config no está validada (first_run) y es reabrible desde el TopBar (🧭).
-// Estilo con las variables --hb-* (tema dark/light). Render por innerHTML + wiring por id, como SettingsModal.
+// WizardModal — asistente of primer arranque (V2-040): elige perfil LOCAL/CLOUD (con the detector recomendando),
+// resuelve the HUECOS (instala with un clic lo of the proyecto, or da the comando for lo of sistema) and valida las
+// CREDENCIALES. Se auto-abre when the config no está validada (first_run) and es reabrible from the TopBar (🧭).
+// Estilo with the variables --hb-* (tema dark/light). Render by innerHTML + wiring by id, as SettingsModal.
 import { h } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
@@ -13,7 +13,7 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&am
 const ok = b => b ? "✓" : "✗";
 
 export function WizardModal() {
-  let S = null;          // estado cacheado del server (/api/wizard/state)
+  let S = null;          // state cacheado of the server (/api/wizard/state)
   let chosen = "";       // perfil elegido
   let step = "perfil";   // perfil | huecos | credenciales
   let bodyEl, titleEl, ovl;
@@ -142,7 +142,7 @@ export function WizardModal() {
       if (st.status === "done") { if (cell) cell.innerHTML = '<span class="wiz-msg okk">' + t("wizard.installDone") + '</span>'; return; }
       if (st.status === "failed") { if (cell) cell.innerHTML = '<span class="wiz-msg err">' + t("wizard.installFailed") + '</span>'; return; }
     } catch (_) {}
-    setTimeout(() => pollInstall(job, i), 2000);   // sin Date.now: intervalo fijo
+    setTimeout(() => pollInstall(job, i), 2000);   // without Date.now: intervalo fijo
   }
 
   // ── ③ CREDENCIALES ─────────────────────────────────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ export function WizardModal() {
     bodyEl.querySelector("#wizDone").onclick = finish;
     bodyEl.querySelectorAll(".save").forEach(b => b.onclick = async () => {
       const key = b.dataset.key, inp = bodyEl.querySelector("#cred_" + key);
-      const provider = key;   // el catálogo usa el id de proveedor; el server lo resuelve a su env
+      const provider = key;   // the catálogo usa the id of proveedor; the server lo resuelve a su env
       b.disabled = true; b.textContent = "…";
       try {
         const r = await api.wizardCredential({ provider, value: inp ? inp.value : "" });

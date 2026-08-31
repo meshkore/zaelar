@@ -1,8 +1,8 @@
 #
-# files/server_api.py — SHIM de compatibilidad (V2-003 · T55). El router de subida vive ahora en
-# `server/memory_routes.py` (la memoria absorbió files/; el ROUTER se mudó a la capa de servidor
-# en la auditoría del 2026-08-23 — era transporte, no memoria). Se re-exporta desde aquí SOLO por si algún importador
-# externo aún hace `from files.server_api import router`. La nota [SISTEMA] de ruta se retiró: el resumen del
-# archivo ya está en la memoria y lo encuentra el retriever, sin tools de fichero de Hermes.
+# files/server_api.py — COMPATIBILITY SHIM (V2-003 · T55). The upload router now lives in
+# `server/memory_routes.py` (memory absorbed files/; the ROUTER moved to the server layer
+# in the 2026-08-23 audit — it was transport, not memory). It is re-exported here ONLY in case an external importer
+# still does `from files.server_api import router`. The [SYSTEM] path note was removed: the file summary
+# is already in memory and the retriever finds it, without Hermes file tools.
 #
 from server.memory_routes import router  # noqa: F401

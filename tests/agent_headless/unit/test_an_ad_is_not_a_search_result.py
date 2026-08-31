@@ -1,7 +1,7 @@
 """V2-469 · a search-engine AD is not a search result.
 
 Measured in `cheapest-monitor__us` (23:43): the sheet's first two «candidates» were DuckDuckGo ad
-redirects (`duckduckgo.com/y.js?ad_domain=idealo.es&ad_provider=bingv7aa&ad_type=txad`) with SPANISH
+redirects (`duckduckgo.com/y.js?ad_domain=idealo.es&ad_provider=bingv7aa&ad_type=txad`) with Spanish
 titles on the US engine — ads follow the machine's IP, not the engine's locale, so they poison every
 consumer downstream (brain notes, worker leads, the results sheet) with wrong-market rows that read like
 findings. `_ddg_href` already unwraps ORGANIC redirects; the ad rows passed through whole. An ad row is

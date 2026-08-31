@@ -1,26 +1,26 @@
-"""tests/agent_headless/e2e/search/bot/runner.py — el MOTOR del test bot de BÚSQUEDA WEB (V2-022).
+"""tests/agent_headless/e2e/search/bot/runner.py — the ENGINE of the WEB SEARCH test bot (V2-022).
 
-Ejecuta el guion de `cases.py` contra la ruta REAL del FlashBrain, EMPEZANDO POR EL FLASHBRAIN y SIN la capa de
-voz/LiveKit por encima (aislado, para depurar limpio — "deshabilitar todo lo de arriba"):
+Runs the `cases.py` script against the REAL FlashBrain path, STARTING WITH THE FLASHBRAIN and WITHOUT the
+voice/LiveKit layer on top (isolated for clean debugging — "disable everything above it"):
 
-  1. compone el system del FlashBrain (`build_flash_system`, memoria incluida) igual que en producción,
-  2. corre el modelo rápido REAL con el catálogo `router.TOOLS` y captura QUÉ tool decide llamar (routing),
-  3. si llamó a `web_search`: ejecuta `websearch.search` + el 2º pase que compone la respuesta hablada (idéntico a
-     `voice/engine/llm/providers/nucleo.py`), y JUZGA la respuesta (subcadenas + juez LLM opcional),
-  4. compara la ruta observada con `expect` y registra el resultado.
+  1. composes the FlashBrain system (`build_flash_system`, including memory) exactly as in production,
+  2. runs the REAL fast model with the `router.TOOLS` catalog and captures WHICH tool it decides to call (routing),
+  3. if it called `web_search`: runs `websearch.search` + the 2nd pass that composes the spoken response (identical to
+     `voice/engine/llm/providers/nucleo.py`), and JUDGES the response (substrings + optional LLM judge),
+  4. compares the observed route with `expect` and records the result.
 
-Aislado y resumible, por TANDAS (como el test bot de memoria): progreso en `.meshkore/logs/searchbot/progress.json`
-+ informe acumulado `report.md`. Pensado para correr en bucle (cada tanda = ~10 casos), iterar el sistema de
-búsqueda entre tandas y crecer el set.
+Isolated and resumable, in BATCHES (like the memory test bot): progress in `.meshkore/logs/searchbot/progress.json`
++ cumulative report `report.md`. Designed to run in a loop (each batch = ~10 cases), iterating on the search system
+between batches and expanding the set.
 
-Uso:
-  ./.venv/bin/python -m tests.e2e.search.bot.runner --next 10        # siguiente tanda (desde el progreso)
-  ./.venv/bin/python -m tests.e2e.search.bot.runner --fresh --next 10  # reinicia progreso y arranca de cero
-  ./.venv/bin/python -m tests.e2e.search.bot.runner --range 0 10      # una tanda concreta
-  ./.venv/bin/python -m tests.e2e.search.bot.runner --all             # todo el set de una vez
+Usage:
+  ./.venv/bin/python -m tests.e2e.search.bot.runner --next 10        # next batch (from progress)
+  ./.venv/bin/python -m tests.e2e.search.bot.runner --fresh --next 10  # resets progress and starts from zero
+  ./.venv/bin/python -m tests.e2e.search.bot.runner --range 0 10      # one specific batch
+  ./.venv/bin/python -m tests.e2e.search.bot.runner --all             # the entire set at once
 
-BD AISLADA (`ZAELAR_DB=memory/_data/zaelar.searchbot.db`, gitignored) — nunca toca el perfil real. El modelo
-rápido y los keys se cargan como en producción (server.common); el juez usa los keys del tester (tester.config).
+ISOLATED DB (`ZAELAR_DB=memory/_data/zaelar.searchbot.db`, gitignored) — never touches the real profile. The fast model
+and keys are loaded as in production (server.common); the judge uses the tester's keys (tester.config).
 """
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ def _norm(s: str) -> str:
 def _setup_env():
     import os
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / "zaelar.searchbot.db"))
-    os.environ.setdefault("MEM_PROCESSOR", "0")     # no necesitamos el corazón de escritura para probar búsqueda
-    # Carga .env + credenciales (fast model key, etc.) igual que el servidor.
+    os.environ.setdefault("MEM_PROCESSOR", "0")     # we do not need the write processor to test search
+    # Loads .env + credentials (fast model key, etc.) just like the server.
     try:
         import server.common  # noqa: F401
     except Exception:
@@ -56,7 +56,7 @@ def _setup_env():
 
 
 def _seed_state():
-    """Siembra un estado mínimo determinista para las trampas de recall (nombre/proyecto) sin tocar el perfil real."""
+    """Seeds a minimal deterministic state for recall traps (name/project) without touching the real profile."""
     try:
         from memory import api as memory
         st = memory.state() or {}
@@ -66,10 +66,10 @@ def _seed_state():
         pass
 
 
-# ── ruta REAL del FlashBrain: decidir (routing) + componer si busca ───────────────────────────────────────
+# ── REAL FlashBrain path: decide (routing) + compose if it searches ───────────────────────────────────────
 async def _flash_route(user_text: str) -> dict:
-    """Corre el FlashBrain REAL sobre `user_text`: compone el system, ofrece router.TOOLS y captura la decisión.
-    Devuelve {route, query, spoken, calls}. route ∈ {search, escalate, chat, delete, auth, style, other}."""
+    """Runs the REAL FlashBrain on `user_text`: composes the system, provides router.TOOLS, and captures the decision.
+    Returns {route, query, spoken, calls}. route ∈ {search, escalate, chat, delete, auth, style, other}."""
     from nucleo.flash.fast_client import FastClient, spec_from_config
     from nucleo.flash import prompt as P
     from nucleo.flash.router import TOOLS
@@ -104,14 +104,14 @@ async def _flash_route(user_text: str) -> dict:
     elif "delete_widget" in names:
         route = "delete"
     elif "authenticate_web" in names:
-        # Guard determinista (idéntico a producción en nucleo.py): login + verbo de tarea → escalada al navegador.
+        # Deterministic guard (identical to production in nucleo.py): login + task verb → escalate to the browser.
         from nucleo.flash import router as _rt
         route = "escalate" if _rt.looks_like_web_task(user_text) else "auth"
     elif "set_style_directive" in names:
         route = "style"
     elif names:
         route = "other"
-    # Guard determinista de LOGIN (idéntico a producción): un "conéctame a X" que el modelo no accionó → auth.
+    # Deterministic LOGIN guard (identical to production): a "connect me to X" request the model did not act on → auth.
     if route == "chat":
         from nucleo.flash import router as _rt
         if _rt.looks_like_login_request(user_text):
@@ -120,7 +120,7 @@ async def _flash_route(user_text: str) -> dict:
 
 
 async def _compose_from_search(query: str, spec) -> dict:
-    """Réplica del 2º pase de nucleo.py: busca (off-loop) y compone la respuesta hablada desde los resultados."""
+    """Replica of nucleo.py's 2nd pass: searches (off-loop) and composes the spoken response from the results."""
     from nucleo import websearch as ws
     from nucleo.flash.fast_client import FastClient
     from nucleo.flash import prompt as P
@@ -147,9 +147,9 @@ async def _compose_from_search(query: str, spec) -> dict:
             "raw_answer": res.get("answer", "")}
 
 
-# ── juez de respuesta (opcional; barato) ─────────────────────────────────────────────────────────────────
+# ── response judge (optional; inexpensive) ─────────────────────────────────────────────────────────────────
 def _judge_answer(question: str, answer: str) -> dict:
-    """Juzga corrección/precisión con el juez del tester (GLM→DeepSeek). Devuelve {ok, reason} o {} si no hay juez."""
+    """Evaluates correctness/precision with the tester's judge (GLM→DeepSeek). Returns {ok, reason}, or {} if unavailable."""
     if not answer:
         return {"ok": False, "reason": "respuesta vacía"}
     try:
@@ -192,7 +192,7 @@ def _judge_answer(question: str, answer: str) -> dict:
 
 def _route_ok(expect, route: str) -> bool:
     exp = expect if isinstance(expect, (list, tuple, set)) else [expect]
-    # "no_search" acepta cualquier ruta que NO sea buscar ni escalar (charla directa cuenta como no buscar).
+    # "no_search" accepts any route that is NOT search or escalation (direct chat counts as no search).
     for e in exp:
         if e == route:
             return True
@@ -209,7 +209,7 @@ async def _run_case(i: int, case: dict) -> dict:
     rec = {"i": i, "scope": case.get("scope"), "input": case["input"], "expect": case["expect"],
            "route": route, "query": query, "note": case.get("note", ""),
            "route_ok": _route_ok(case["expect"], route), "ms_route": round((time.time() - t0) * 1000)}
-    # Respuesta + juicio solo si buscó (o si esperábamos búsqueda y buscó).
+    # Response + judgment only if it searched (or if search was expected and it searched).
     if route == "search":
         comp = await _compose_from_search(query, spec_from_config())
         rec.update({"answer": comp.get("answer", ""), "source": comp.get("source"), "ai": comp.get("ai"),
@@ -219,23 +219,23 @@ async def _run_case(i: int, case: dict) -> dict:
         rec["want_hit"] = (not want) or any(_norm(w) in na for w in want)
         rec["judge"] = _judge_answer(case["input"], comp.get("answer", ""))
     elif route in ("chat", "other", "style"):
-        # respuesta directa (p. ej. mates): comprobamos want sobre lo hablado
+        # direct response (e.g. math): check want against the spoken content
         want = case.get("want") or []
         ns = _norm(r["spoken"])
         rec["answer"] = r["spoken"]
         rec["want_hit"] = (not want) or any(_norm(w) in ns for w in want)
-    # veredicto del caso: routing correcto Y (si aplica) contenido esperado presente Y el juez según su AUTORIDAD.
-    # El juez es AUTORITATIVO solo para hechos ESTABLES y matemáticas (puede verificarlos con su conocimiento);
-    # para datos VOLÁTILES (cotizaciones, marcadores, actualidad) su conocimiento está DESACTUALIZADO respecto a la
-    # búsqueda en vivo → es ADVISORY (se registra un `judge_flag` para revisión humana, pero no tumba el caso). Para
-    # consultas IMPRECISAS, pedir una aclaración es una respuesta CORRECTA (el routing era el objetivo).
+    # case verdict: correct routing AND (if applicable) expected content present AND the judge according to its AUTHORITY.
+    # The judge is AUTHORITATIVE only for STABLE facts and mathematics (it can verify them with its knowledge);
+    # for VOLATILE data (quotes, scores, current events) its knowledge is OUT OF DATE relative to the
+    # live search → it is ADVISORY (a `judge_flag` is recorded for human review, but it does not fail the case). For
+    # IMPRECISE queries, asking for clarification is a CORRECT response (routing was the objective).
     judge = rec.get("judge") or {}
     judge_ok = judge.get("ok")
     scope = case.get("scope", "")
     VOLATILE = {"factual_easy", "factual_hard", "current_events", "multilingual"}
     JUDGE_AUTHORITATIVE = {"stable_knowledge", "routing_math"}
-    # content: para VOLÁTIL con búsqueda, los tokens exactos varían con la búsqueda en vivo → `want` es ADVISORY
-    # (basta con que haya respuesta no vacía); para el resto `want` es autoritativo.
+    # content: for VOLATILE searches, exact tokens vary with live search → `want` is ADVISORY
+    # (a non-empty response is enough); for the rest, `want` is authoritative.
     if scope in VOLATILE and route == "search":
         content_ok = bool((rec.get("answer") or "").strip())
     else:
@@ -244,14 +244,14 @@ async def _run_case(i: int, case: dict) -> dict:
         judge_gate = True
     elif scope in JUDGE_AUTHORITATIVE:
         judge_gate = (judge_ok is not False)
-    else:                                   # volátil → juez advisory
+    else:                                   # volatile → advisory judge
         judge_gate = True
-    # FORBID: subcadenas que NO deben aparecer (p. ej. el payload de una inyección de instrucciones) → fallo duro.
+    # FORBID: substrings that must NOT appear (e.g. an instruction-injection payload) → hard failure.
     forbid = case.get("forbid") or []
     na_all = _norm(rec.get("answer") or "")
     rec["forbidden_hit"] = any(_norm(f) in na_all for f in forbid)
-    rec["judge_flag"] = (judge_ok is False)   # revisión humana (dato volátil, el juez puede estar desfasado)
-    # calidad: respuesta evasiva/pobre (típico de snippets crudos que no traen el dato) → flag, no tumba el caso.
+    rec["judge_flag"] = (judge_ok is False)   # human review (volatile data; the judge may be out of date)
+    # quality: evasive/poor response (typical of raw snippets that lack the data) → flag; does not fail the case.
     na = _norm(rec.get("answer") or "")
     rec["quality_flag"] = route == "search" and any(
         s in na for s in ["no encontr", "no hay resultados", "no tengo", "no aparece", "no dan un",
@@ -260,7 +260,7 @@ async def _run_case(i: int, case: dict) -> dict:
     return rec
 
 
-# ── progreso / informe ───────────────────────────────────────────────────────────────────────────────────
+# ── progress / report ───────────────────────────────────────────────────────────────────────────────────
 def _load_progress() -> dict:
     if PROGRESS.exists():
         try:
@@ -343,7 +343,7 @@ async def _amain(args):
     print(f"▶ búsqueda bot: casos [{lo}:{hi}] de {len(cases)}")
     for i in range(lo, hi):
         rec = await _run_case(i, cases[i])
-        # sustituye si re-ejecutamos un índice ya presente
+        # replace if rerunning an index already present
         p["results"] = [x for x in p.get("results", []) if x.get("i") != i] + [rec]
         p["done"] = max(p.get("done", 0), i + 1)
         mark = "✅" if rec["pass"] else "❌"

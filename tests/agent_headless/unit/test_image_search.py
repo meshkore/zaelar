@@ -1,9 +1,9 @@
-"""V2-457 — el parser de resultados de imagen, medido contra un payload REAL grabado.
+"""V2-457 — the image-results parser, measured against a recorded REAL payload.
 
-La forma del payload de Google es la parte frágil de todo esto, así que es la parte que tiene que poder
-probarse sin red. El fixture (`fixtures/google_images_ferrari_amalfi.txt`) es un recorte literal de la búsqueda
-que originó la iniciativa, grabado el 2026-08-28: si Google cambia su formato, estos casos se ponen rojos aquí y
-no en una ronda del plató tres días después.
+Google's payload shape is the fragile part of all this, so it must be testable without a network. The fixture
+(`fixtures/google_images_ferrari_amalfi.txt`) is a literal excerpt of the search that prompted the initiative,
+recorded on 2026-08-28: if Google changes its format, these cases turn red here rather than during a studio round
+three days later.
 """
 from __future__ import annotations
 
@@ -29,10 +29,10 @@ def test_saca_las_imagenes_con_su_procedencia():
 
 
 def test_la_fuente_de_cada_foto_viaja_con_ella():
-    """El operador pidió ver la FUENTE, y el sitio no se puede deducir de la URL de un CDN.
+    """The operator asked to see the SOURCE, and the site cannot be deduced from a CDN URL.
 
-    `cdn.ferrari.com` sí se parece a Ferrari, pero `hips.hearstapps.com` es Car and Driver y
-    `c.encycarpedia.com` es Encycarpedia: adivinar por el host acertaría en unos y mentiría en otros.
+    `cdn.ferrari.com` does look like Ferrari, but `hips.hearstapps.com` is Car and Driver and
+    `c.encycarpedia.com` is Encycarpedia: guessing from the host would be right for some and wrong for others.
     """
     items = image_search.parse_google_images(_blob())
     con_sitio = [it for it in items if it["site"]]
@@ -44,10 +44,10 @@ def test_la_fuente_de_cada_foto_viaja_con_ella():
 
 
 def test_un_titulo_con_comillas_escapadas_no_se_corta_a_medias():
-    """Una fila real se titula `El Ferrari Amalfi, la nueva \\"Dolce Vita\\"…`.
+    """A real row is titled `The Ferrari Amalfi, the new \\"Dolce Vita\\"…`.
 
-    Un `[^"]*` se para en la barra invertida y devuelve el título cortado a mitad de palabra, con una barra
-    suelta al final — y eso se lee en voz alta. La regla consume los escapes en vez de tropezar con ellos.
+    A pattern matching `[^"]*` stops at the backslash and returns the title cut off mid-word, with a stray
+    backslash at the end — and that is read aloud. The rule consumes the escapes instead of stumbling over them.
     """
     items = image_search.parse_google_images(_blob())
     drivek = [it for it in items if it["site"] == "www.drivek.es"]
@@ -69,9 +69,9 @@ def test_respeta_cuantas_se_le_piden():
 
 
 def test_un_blob_que_no_entiende_sale_vacio_y_no_revienta():
-    """Total por contrato: el plan B de «no hay fotos» y el de «cambió el formato» es el MISMO.
+    """Total by contract: the fallback for «there are no photos» and «the format changed» is the SAME.
 
-    Si esto lanzara, un cambio de formato de Google tumbaría el turno entero en vez de degradar a otro índice.
+    If this raised, a change in Google's format would bring down the entire turn instead of degrading to another index.
     """
     for basura in ("", "   ", "<html>nada</html>", "[[[", '["https://x.jpg",12]'):
         assert image_search.parse_google_images(basura) == []
@@ -91,8 +91,8 @@ def test_bing_saca_lo_mismo_con_el_mismo_contrato():
     assert it["thumb"].startswith("https://tse.mm.bing.net/")
     assert it["page"] == "https://revista.example/articulo"
     assert it["title"] == "Un coche muy rojo"
-    # El sitio se DERIVA del host de la página publicadora: Bing no lo da suelto, y una foto sin atribución
-    # ninguna es peor que una atribuida a quien la publica.
+    # The site is DERIVED from the publishing page's host: Bing does not provide it separately, and an unattributed
+    # photo is worse than one attributed to its publisher.
     assert it["site"] == "revista.example"
 
 

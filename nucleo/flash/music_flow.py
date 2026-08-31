@@ -1,25 +1,25 @@
-"""nucleo/flash/music_flow.py — cadena RESOLVER→VALIDAR→ACTUAR de la música (V2-042, 1ª instanciación del patrón).
+"""nucleo/flash/music_flow.py — RESOLVE→VALIDATE→ACT of the music pipeline (V2-042, first instantiation of the pattern).
 
-El operador no siempre da el nombre exacto ("ponme esa que dice 'vuela conmigo'… creo que era de Sinatra"). La
-cadena es DETERMINISTA y vive EN CÓDIGO (el FlashBrain sigue no-razonador; él solo llama a `play_music`):
+The operator does not always give the exact name ("play me that one that says 'fly with me'… I think it was by Sinatra"). The
+pipeline is DETERMINISTIC and lives IN CODE (the FlashBrain remains non-reasoning; it only calls `play_music`):
 
-  1. **actuar directo** — `music.control(play, query)`: los buscadores de los proveedores (Spotify/YouTube) ya son
-     tolerantes a lo difuso; si aciertan, listo (~1-2s).
-  2. **resolver** — si `no_track`: búsqueda web con el **Chromium CALIENTE** del arranque (`nucleo/websearch`,
-     prewarm V2-024) → "canción <pista>".
-  3. **validar/extraer** — 2º pase del MISMO modelo que el turno ya paga (patrón de `web_search`): de los snippets
-     extrae `Artista - Título` canónico (o NO si no está claro). El caller PRESTA el extractor (async) — este
-     módulo no conoce el cliente del modelo (testeable).
-  4. **re-actuar** — `music.control(play, canónico)`. La confirmación hablada dice QUÉ suena (validación por
-     anuncio: si no era, el operador corrige y ese turno reintenta con más datos).
+  1. **act directly** — `music.control(play, query)`: provider search engines (Spotify/YouTube) are already
+     tolerant of fuzziness; if they get it right, done (~1-2s).
+  2. **resolve** — if `no_track`: web search using the **WARM Chromium** from startup (`nucleo/websearch`,
+     V2-024 prewarm) → "song <track>".
+  3. **validate/extract** — 2nd pass of the SAME model already paid for by the turn (`web_search` pattern): from the snippets,
+     extract the canonical `Artist - Title` (or NO if it is unclear). The caller PROVIDES the extractor (async) — this
+     module does not know the model client (testable).
+  4. **act again** — `music.control(play, canonical)`. The spoken confirmation says WHAT is playing (validation by
+     announcement: if it was not the intended one, the operator corrects it and that turn retries with more data).
 
-Todo el estado del intento vive en el run del rail `music.search` (`nucleo/rails.py`): buscando → resuelto
-(desaparece) o `sin_resolver` AISLADO con la pista y los intentos — el siguiente turno ("era de Sinatra") lo ve en
-el prompt y reintenta con la query enriquecida. Lo que SUENA vive en el run `music.playing`, y cada
-reproducción se VUELCA A MEMORIA (`memory.ingest_message(source="music", entity=artista)`) → historial + gustos
-(`recent_by_source("music")` + recall del retriever: "pon algo que me guste").
+All attempt state lives in the `music.search` rail run (`nucleo/rails.py`): searching → resolved
+(disappears) or ISOLATED `sin_resolver` with the track and attempts — the next turn ("it was by Sinatra") sees it in
+the prompt and retries with the enriched query. What is PLAYING lives in the `music.playing` run, and each
+playback is WRITTEN TO MEMORY (`memory.ingest_message(source="music", entity=artist)`) → history + preferences
+(`recent_by_source("music")` + retriever recall: "play something I like").
 
-I/O SIEMPRE off-loop (`asyncio.to_thread`, V2-011). Fail-safe: nunca lanza al turno de voz.
+I/O ALWAYS off-loop (`asyncio.to_thread`, V2-011). Fail-safe: never raises into the voice turn.
 """
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ def _lang() -> str:
 
 
 def _parse_canonical(reply: str) -> str:
-    """`Artista - Título` de la respuesta del extractor; '' si dijo NO / vino sucio."""
+    """`Artist - Title` from the extractor response; '' if it said NO / was malformed."""
     line = (reply or "").strip().splitlines()[0].strip().strip('"«»') if (reply or "").strip() else ""
     if not line or line.upper().startswith("NO"):
         return ""
@@ -57,7 +57,7 @@ def _parse_canonical(reply: str) -> str:
 
 
 def _remember_play(res, query: str) -> None:
-    """Vuelca la reproducción a la MEMORIA (vía tipada, off-loop): historial musical + gustos. Best-effort."""
+    """Writes playback to MEMORY (via the typed path, off-loop): music history + preferences. Best-effort."""
     try:
         t = getattr(res, "track", None)
         if t is None:
@@ -77,7 +77,7 @@ def _remember_play(res, query: str) -> None:
 
 
 def _on_success(res, query: str) -> None:
-    """Actualiza actividades + memoria tras una reproducción OK (off-loop)."""
+    """Updates activities + memory after successful playback (off-loop)."""
     from nucleo import rails as acts
     acts.resolve("music.search")
     t = getattr(res, "track", None)
@@ -89,10 +89,10 @@ def _on_success(res, query: str) -> None:
 
 
 def _on_control(res, action: str) -> None:
-    """Refleja pausas/reanudaciones/cola en la actividad `music.playing` (si existe). Off-loop."""
+    """Reflects pauses/resumptions/queueing in the `music.playing` activity (if it exists). Off-loop."""
     from nucleo import rails as acts
     if action == "queue":
-        # V2-047 F4: la cola se ve en el run vivo (para el prompt y el visor) — cuántas quedan por sonar.
+        # V2-047 F4: the queue is visible in the live run (for the prompt and viewer) — how many remain to play.
         cur = acts.get("music.playing")
         n = int((getattr(res, "extra", {}) or {}).get("queue_len") or 0)
         if cur is not None:
@@ -108,30 +108,30 @@ def _on_control(res, action: str) -> None:
 
 
 async def run(action: str, query: str, *, extract=None):
-    """Ejecuta UNA acción de música con resolución difusa. Devuelve el `MusicResult` final (con `.resolved_from`
-    extra si hubo cadena). `extract(system, user) -> str` = 2º pase async del modelo, lo presta el caller (None =
-    sin resolución, solo el intento directo)."""
+    """Executes ONE music action with fuzzy resolution. Returns the final `MusicResult` (with an extra `.resolved_from`
+    if a chain occurred). `extract(system, user) -> str` = async 2nd model pass, provided by the caller (None =
+    no resolution, direct attempt only)."""
     from connectors import music
 
-    # 1 · ACTUAR directo (los buscadores de proveedor ya toleran lo difuso)
+    # 1 · ACT DIRECTLY (provider search engines already tolerate fuzziness)
     res = await asyncio.to_thread(music.control, action, query, "", 0, "")
     if getattr(res, "ok", False):
-        # 'ended' (avance de cola) trae una pista NUEVA sonando → refresca music.playing como un play.
+        # 'ended' (queue advancement) brings a NEW track into playback → refresh music.playing as a play.
         if action in ("play", "ended") and not (getattr(res, "extra", {}) or {}).get("noop"):
             await asyncio.to_thread(_on_success, res, query)
         else:
             await asyncio.to_thread(_on_control, res, action)
         return res
 
-    # solo la reproducción difusa entra en la cadena de resolución web. 'queue'/'ended' no se "resuelven" buscando;
-    # un pause fallido tampoco. Solo un play con query y no_track.
+    # only fuzzy playback enters the web-resolution chain. 'queue'/'ended' are not "resolved" by searching;
+    # neither is a failed pause. Only a play with a query and no_track.
     if action != "play" or not (query or "").strip() or getattr(res, "reason", "") != "no_track" or extract is None:
         return res
 
     from nucleo import rails as acts
     await asyncio.to_thread(acts.upsert, "music.search", query.strip(), status="searching", bump=True)
 
-    # 2 · RESOLVER — websearch (Chromium caliente del prewarm; cae por capas si no)
+    # 2 · RESOLVE — websearch (warm Chromium from prewarm; falls back in layers if unavailable)
     try:
         from nucleo import websearch
         web = await asyncio.to_thread(websearch.search, f"canción {query}")
@@ -140,7 +140,7 @@ async def run(action: str, query: str, *, extract=None):
         logger.warning(f"music_flow: websearch falló: {e!r}")
         ctx = ""
 
-    # 3 · VALIDAR/EXTRAER — 2º pase del modelo del turno (formato estricto 'Artista - Título' | NO)
+    # 3 · VALIDATE/EXTRACT — 2nd pass of the turn's model (strict format 'Artist - Title' | NO)
     canonical = ""
     if ctx:
         try:
@@ -149,18 +149,18 @@ async def run(action: str, query: str, *, extract=None):
         except Exception as e:  # noqa: BLE001
             logger.warning(f"music_flow: extractor falló: {e!r}")
 
-    # 4 · RE-ACTUAR con el nombre canónico
+    # 4 · ACT AGAIN with the canonical name
     if canonical:
         res2 = await asyncio.to_thread(music.control, "play", canonical, "", 0, "")
         if getattr(res2, "ok", False):
             await asyncio.to_thread(_on_success, res2, query)
             try:
-                res2.extra["resolved_from"] = query.strip()   # el caller anuncia QUÉ suena (validación por anuncio)
+                res2.extra["resolved_from"] = query.strip()   # the caller announces WHAT is playing (validation by announcement)
             except Exception:
                 pass
             return res2
 
-    # sin resolver → la actividad queda AISLADA (con la pista + intentos) para retomarla con más datos
+    # unresolved → the activity remains ISOLATED (with the track + attempts) to resume with more data
     await asyncio.to_thread(acts.fail, "music.search",
                             f"probado: {canonical}" if canonical else "la web no la identificó")
     try:

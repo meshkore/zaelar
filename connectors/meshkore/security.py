@@ -11,7 +11,7 @@
 #       rule: our prompt goes after everything that enters, so a peer's "ignore everything above" stays BEFORE our
 #       directives and cannot override them.
 #
-#   SALIDA (anti-fuga): scan_outbound(text) antes de que nada salga por [[cluster.send]].
+#   OUTBOUND (anti-leak): scan_outbound(text) before anything leaves via [[cluster.send]].
 #     • HARD secret (token/key/credential/IBAN/card) -> BLOCKS the entire message (not sent; operator is notified).
 #       This is the "they cannot steal our keys" guarantee.
 #     • IDENTITY/model/architecture term -> REDACTED to [redacted] and the rest may go out.

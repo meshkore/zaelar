@@ -16,11 +16,11 @@ _WEAK_SCORE = 0.35
 
 
 def _state_lines(st: dict) -> list[str]:
-    """Compone el bloque ESTADO del prompt a partir del state (todos los campos con valor).
+    """Compose the STATE block of the prompt from the state (all fields with a value).
 
-    Antes solo pintaba 5 campos fijos (name/treatment/location/recent/topics). Ahora pinta también CUALQUIER
-    otro campo custom con valor (p. ej. `hardware`, `car`, `language≠es`), así el prompt ve lo mismo que el
-    visor y no hay campos "invisibles"."""
+    Previously it rendered only 5 fixed fields (name/treatment/location/recent/topics). It now also renders ANY
+    other custom field with a value (e.g. `hardware`, `car`, `language≠es`), so the prompt sees the same thing as
+    the viewer and there are no "invisible" fields."""
     lines: list[str] = []
     op = (st.get("operator_name") or "").strip()
     if op:
@@ -29,9 +29,9 @@ def _state_lines(st: dict) -> list[str]:
         lines.append(f"Trato: {st['treatment']}.")
     if st.get("location"):
         lines.append(f"Ubicación: {st['location']}.")
-    # Campos custom (hardware, car, empresa, etc.): cualquier clave con valor escalar no en la lista canónica.
-    # `mission` fuera: es el prompt del ASISTENTE (identidad de zaelar), no perfil del operador — en el dossier
-    # de un worker era ruido de 900 chars (V2-056). `rules` lo pinta compose_context aparte (lista, no escalar).
+    # Custom fields (hardware, car, company, etc.): any key with a scalar value not in the canonical list.
+    # Exclude `mission`: it is the ASSISTANT's prompt (zaelar's identity), not the operator's profile — in a worker's
+    # dossier it was 900-character noise (V2-056). `rules` is rendered separately by compose_context (a list, not a scalar).
     _canonical = {"assistant_name", "operator_name", "language", "treatment", "location", "recent", "topics",
                   "mission", "rules", "open_widgets", "activity", "sessions", "rails"}
     for k, v in st.items():
@@ -49,8 +49,8 @@ def _state_lines(st: dict) -> list[str]:
 
 
 def _is_ambiguous(prompt: str, res: dict) -> bool:
-    """¿Merece el recall una segunda pasada con router LLM? Sí si la query es muy corta o los resultados son
-    pocos/flojos. Barato, sin red."""
+    """Does recall warrant a second pass with the LLM router? Yes if the query is very short or the results are
+    few/weak. Cheap, with no network."""
     mems = res.get("memories") or []
     if not mems:
         return True
@@ -61,12 +61,12 @@ def _is_ambiguous(prompt: str, res: dict) -> bool:
 
 
 async def _llm_expand_query(prompt: str) -> str:
-    """Router LLM BARATO: pide al modelo rápido 3-6 palabras clave para AMPLIAR la búsqueda en memoria. Modelo
-    POR INVOCACIÓN (spec de `config/v2`). Best-effort: sin modelo/credencial o ante cualquier fallo → ''."""
+    """CHEAP LLM router: asks the fast model for 3-6 keywords to EXPAND the memory search. Model
+    PER INVOCATION (`config/v2` spec). Best-effort: without a model/credential or on any failure → ''."""
     try:
         from nucleo.flash.fast_client import FastClient, spec_from_config
         spec = spec_from_config()
-        if not spec.resolved_api_key():        # sin credencial utilizable → nos quedamos con la heurística
+        if not spec.resolved_api_key():        # without a usable credential → fall back to the heuristic
             return ""
         msgs = [
             {"role": "system", "content": "Eres un ampliador de consultas para una búsqueda en memoria. "
@@ -86,8 +86,8 @@ async def _llm_expand_query(prompt: str) -> str:
 
 
 def _agenda_lines(limit: int = 6) -> list[str]:
-    """Citas próximas del widget agenda (read-only, best-effort) — un dossier de tarea sin las fechas del
-    operador planifica a ciegas (auditoría 2026-07-19 P1-2: la agenda vivía FUERA de la composición)."""
+    """Upcoming appointments from the agenda widget (read-only, best-effort) — a task dossier without the operator's
+    dates plans blindly (audit 2026-07-19 P1-2: the agenda lived OUTSIDE composition)."""
     try:
         import datetime as _dt
 
@@ -133,7 +133,7 @@ def _background_slot_off_topic(slot: str, prompt: str) -> bool:
 
 
 def _dossier_sync(prompt: str, budget: int) -> tuple[dict, dict, list, list, list, list]:
-    """Parte SÍNCRONA del dossier (todo el I/O de memoria) — pensada para `asyncio.to_thread`."""
+    """SYNCHRONOUS part of the dossier (all memory I/O) — intended for `asyncio.to_thread`."""
     from memory import api as memory
     try:
         st = memory.state()
@@ -147,9 +147,9 @@ def _dossier_sync(prompt: str, budget: int) -> tuple[dict, dict, list, list, lis
         critical = memory.critical_facts()
     except Exception:
         critical = []
-    # eje por CONCEPTOS (T178/T183 — by_concepts estaba construida y SIN caller de producción): los conceptos
-    # derivados de la petición afloran el cluster completo (vacaciones→viajes/familia/finanzas; restaurante→comida
-    # y con él la restricción del celíaco) aunque el embedding plano no los traiga.
+    # CONCEPT-BASED axis (T178/T183 — by_concepts had been built and had NO production caller): concepts
+    # derived from the request surface the complete cluster (vacation→travel/family/finances; restaurant→food
+    # and with it the celiac restriction) even when the plain embedding does not retrieve them.
     try:
         concepts = _derive_concepts(prompt) or []
         by_c = memory.by_concepts(concepts, limit=8) if concepts else []
@@ -161,19 +161,19 @@ def _dossier_sync(prompt: str, budget: int) -> tuple[dict, dict, list, list, lis
 
 
 async def compose_context(prompt: str, *, budget: int = 2000) -> str:
-    """DOSSIER del worker (v2, V2-056 — auditoría 2026-07-19 P1-2): contexto MULTI-EJE para una tarea, dentro de
-    `budget` tokens. Antes era estado + UNA query RRF: un «prepárame unas vacaciones» no traía familia, presupuesto,
-    alergias ni fechas. Ahora: §perfil (estado + reglas del operador) + §⚠️ CRÍTICOS SIEMPRE (una alergia debe
-    llegar al worker que reserva restaurante — nunca depende del ranking) + §recall semántico + §eje por CONCEPTOS
-    (`by_concepts`, T178/T183) + §agenda próxima. Solo DURABLES (el conv-buffer ya no compite por los huecos —
-    mismo fix que compose_recall en voz). TODO el I/O va en `asyncio.to_thread` (el loop del server no se bloquea).
-    Best-effort: si la memoria no está disponible, devuelve ''. Nunca lanza."""
+    """Worker DOSSIER (v2, V2-056 — audit 2026-07-19 P1-2): MULTI-AXIS context for a task, within
+    `budget` tokens. Previously it was state + ONE RRF query: a "prepare a vacation for me" request did not bring family, budget,
+    allergies, or dates. Now: §profile (state + operator rules) + §⚠️ ALWAYS-CRITICAL (an allergy must reach the worker
+    booking a restaurant — it never depends on ranking) + §semantic recall + §CONCEPT axis
+    (`by_concepts`, T178/T183) + §upcoming agenda. DURABLES only (the conv-buffer no longer competes for the slots —
+    same fix as compose_recall in voice). ALL I/O runs in `asyncio.to_thread` (the server loop is not blocked).
+    Best-effort: if memory is unavailable, returns ''. Never raises."""
     try:
         st, res, critical, by_c, agenda, rules = await asyncio.to_thread(_dossier_sync, prompt, budget)
     except Exception:
         return ""
 
-    # repesca: si el recall es ambiguo, una segunda pasada barata con el router LLM (best-effort, off-loop).
+    # Backfill: if recall is ambiguous, a cheap second pass with the LLM router (best-effort, off-loop).
     if _is_ambiguous(prompt, res):
         expanded = await _llm_expand_query(prompt)
         if expanded:
@@ -194,7 +194,7 @@ async def compose_context(prompt: str, *, budget: int = 2000) -> str:
     if critical:
         parts.append("── ⚠️ CRÍTICO (respetar SIEMPRE) ──\n" + "\n".join(f"· {c}" for c in critical))
 
-    # recall + eje conceptual, DEDUP por texto y SOLO durable (kind/level): la charla cruda fuera del dossier.
+    # Recall + conceptual axis, DEDUPLICATED by text and DURABLE only (kind/level): raw conversation stays out of the dossier.
     seen: set[str] = set()
     lines: list[str] = []
     for m in (res.get("memories") or []) + by_c:
@@ -204,7 +204,7 @@ async def compose_context(prompt: str, *, budget: int = 2000) -> str:
             continue
         txt = (m.get("text") or "").strip().replace("\n", " ")
         key = txt.lower()[:120]
-        if len(txt) < 8 or key in seen:     # fuera píldoras-ruido (un nodo suelto tipo 'familia')
+        if len(txt) < 8 or key in seen:     # exclude noise snippets (a standalone node such as 'family')
             continue
         seen.add(key)
         lines.append(f"· {txt[:200]}")
@@ -217,10 +217,10 @@ async def compose_context(prompt: str, *, budget: int = 2000) -> str:
     return "\n\n".join(parts)
 
 
-# Backstop DETERMINISTA de conceptos (T126): el LLM heart etiqueta bien a veces y otras devuelve concepts=[] (p. ej.
-# "ascendido a jefe de equipo en 2021" se quedó sin 'trabajo' → fuera del cluster). Este mapa keyword→concepto
-# GARANTIZA cobertura de los dominios de vida habituales cuando el LLM no aporta ninguno. Off-hot-path, barato,
-# multi-concepto (cap 3). No pretende ser exhaustivo — cubre lo común para que el recall por categoría no dependa
-# de la consistencia del modelo pequeño.
-# Vocabulario de conceptos: vive en el SUBSTRATO (`memory/concepts.py`) → un solo sitio para cómo se ESCRIBE y
-# cómo se DIBUJA la organización (el visor deriva el mapa de CORTO con el MISMO deriver). T126.
+# DETERMINISTIC concept backstop (T126): the LLM heart sometimes labels correctly and sometimes returns concepts=[] (e.g.
+# "promoted to team lead in 2021" was left without 'work' → outside the cluster). This keyword→concept map
+# GUARANTEES coverage of the usual life domains when the LLM contributes none. Off-hot-path, cheap,
+# multi-concept (cap 3). It is not intended to be exhaustive — it covers common cases so category recall does not depend
+# on the consistency of the small model.
+# Concept vocabulary: lives in the SUBSTRATE (`memory/concepts.py`) → one place for how the organization is WRITTEN and
+# how it is DRAWN (the viewer derives the SHORT map with the SAME deriver). T126.

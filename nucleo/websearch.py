@@ -1,27 +1,27 @@
-"""nucleo/websearch.py — BÚSQUEDA WEB de datos, COMPARTIDA por los dos cerebros (V2-022).
+"""nucleo/websearch.py — WEB SEARCH for data, SHARED by both brains (V2-022).
 
-Capacidad de búsqueda **model-agnóstica** (no dependemos de que el modelo traiga búsqueda nativa — Grok/GLM/Z.AI
-no la tienen; Claude Code sí): un primitivo propio que cualquier parte del sistema puede llamar.
+**Model-agnostic** search capability (we do not depend on the model having native search — Grok/GLM/Z.AI do not;
+Claude Code does): an internal primitive that any part of the system can call.
 
-TRES modalidades de "buscar", que NO se confunden:
-  1. **Dato directo + SÍNTESIS** (este módulo) — "¿quién ganó el partido?", el tiempo, un precio, una previsión.
-     Ruta ligera; el FlashBrain la usa por la tool `web_search`, resuelta EN el turno; el SlowBrain la usa para
-     alimentar informes con datos actuales. La calidad manda: si hay un proveedor de **respuesta-IA** (Perplexity /
-     Tavily / Brave summarizer / grounding de Gemini) la respuesta llega YA sintetizada y citada; si no, caemos a
-     snippets crudos (DuckDuckGo/Brave) y el cerebro los sintetiza con el modelo que ya paga por turno.
-  2. **Navegación de una web / marketplace** (Amazon, Wallapop…) — NO es esto: no hay un buscador que devuelva ese
-     dato, hay que ENTRAR y navegar. Lo hace el **navegador** (`widgets/navegador/`, `automate_web`, SlowBrain).
-  3. **Investigación profunda / informe** (estudio con muchos datos actuales) — el SlowBrain (CodeAgent) con
-     `WebSearch`/`WebFetch` nativos (Claude Code) y/o este primitivo en bucle; síntesis en el propio agente.
+THREE "search" modes, which must NOT be confused:
+  1. **Direct fact + SYNTHESIS** (this module) — "¿quién ganó el partido?", the weather, a price, a forecast.
+     Lightweight route; FlashBrain uses it through the `web_search` tool, resolved WITHIN the turn; SlowBrain uses it
+     to feed reports with current data. Quality comes first: if an **AI-answer** provider exists (Perplexity / Tavily /
+     Brave summarizer / Gemini grounding), the answer arrives ALREADY synthesized and cited; otherwise we fall back to
+     raw snippets (DuckDuckGo/Brave) and the brain synthesizes them with the model already paid for the turn.
+  2. **Web / marketplace navigation** (Amazon, Wallapop…) — this is NOT it: no search engine returns that data;
+     you must ENTER and browse. The **browser** does it (`widgets/navegador/`, `automate_web`, SlowBrain).
+  3. **Deep research / report** (a study with lots of current data) — SlowBrain (CodeAgent) with native
+     `WebSearch`/`WebFetch` (Claude Code) and/or this primitive in a loop; synthesis happens in the agent itself.
 
-DISEÑO por CAPAS (calidad primero, coste después; auto-upgrade por key):
-  - Orden de proveedores: **respuesta-IA** (Perplexity → Tavily, si hay key) → **snippets** (Brave, si hay key) →
-    **gratis** (DuckDuckGo HTML, sin key, siempre disponible). Override explícito con `WEBSEARCH_PROVIDER`.
-  - SIEMPRE fuera del event loop (el llamador usa `asyncio.to_thread`): es I/O de red bloqueante.
-  - Fail-open: ante error degrada al siguiente proveedor; si todo falla, vacío — el cerebro lo dice, nunca revienta.
+LAYERED DESIGN (quality first, cost second; auto-upgrade by key):
+  - Provider order: **AI answer** (Perplexity → Tavily, if keyed) → **snippets** (Brave, if keyed) →
+    **free** (DuckDuckGo HTML, no key, always available). Explicit override with `WEBSEARCH_PROVIDER`.
+  - ALWAYS outside the event loop (the caller uses `asyncio.to_thread`): this is blocking network I/O.
+  - Fail-open: on error, degrade to the next provider; if everything fails, empty — the brain says so, never crashes.
 
-Claves (env / `.meshkore/credentials/zaelar.env`, gestionable por UI más adelante):
-  `PERPLEXITY_API_KEY` · `TAVILY_API_KEY` · `BRAVE_SEARCH_KEY`. Sin ninguna → funciona gratis con DuckDuckGo.
+Keys (env / `.meshkore/credentials/zaelar.env`, manageable through the UI later):
+  `PERPLEXITY_API_KEY` · `TAVILY_API_KEY` · `BRAVE_SEARCH_KEY`. With none → works for free with DuckDuckGo.
 """
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ _TIMEOUT = float(os.getenv("WEBSEARCH_TIMEOUT", "12.0"))
 _MAX_RESULTS = 5
 
 
-# ── keys / selección de proveedor ────────────────────────────────────────────────────────────────────────
+# ── keys / provider selection ────────────────────────────────────────────────────────────────────────────
 def _key(*names: str) -> str:
     for n in names:
         v = (os.getenv(n) or "").strip()
@@ -55,7 +55,7 @@ def brave_key() -> str: return _key("BRAVE_SEARCH_KEY", "BRAVE_API_KEY")
 
 
 def _google_on() -> bool:
-    """La capa GRATIS de Google-vía-navegador (V2-024). ON salvo BROWSER_SEARCH=0."""
+    """The FREE Google-via-browser layer (V2-024). ON unless BROWSER_SEARCH=0."""
     try:
         from nucleo import browser_search
         return browser_search.enabled()
@@ -64,9 +64,9 @@ def _google_on() -> bool:
 
 
 def provider() -> str:
-    """Proveedor activo, CALIDAD primero. Override con WEBSEARCH_PROVIDER (perplexity|tavily|brave|google|ddg).
-    Sin keys de pago, el DEFAULT es **google** (gratis vía Chromium propio, mejor que DDG); DDG queda de último
-    recurso (fallback si Google bloquea)."""
+    """Active provider, QUALITY first. Override with WEBSEARCH_PROVIDER (perplexity|tavily|brave|google|ddg).
+    Without paid keys, the DEFAULT is **google** (free via our own Chromium, better than DDG); DDG remains the last
+    resort (fallback if Google blocks it)."""
     forced = (os.getenv("WEBSEARCH_PROVIDER") or "").strip().lower()
     if forced:
         return forced
@@ -82,7 +82,7 @@ def provider() -> str:
 
 
 def is_ai_answer(src: str | None = None) -> bool:
-    """¿La fuente devuelve ya una respuesta sintetizada (no solo snippets)?"""
+    """Does the source already return a synthesized answer (not just snippets)?"""
     return (src or provider()) in ("perplexity", "tavily", "google")
 
 
@@ -158,9 +158,9 @@ def recent_failure(now: float | None = None) -> dict:
     return dict(f)
 
 
-#: Cuánto vale una respuesta ya traída. CORTO a propósito — ver `_recent_answer`.
+#: How long an already-fetched answer remains valid. Deliberately SHORT — see `_recent_answer`.
 _REPEAT_TTL_S = 120
-#: Acotado: esto vive en el proceso del motor, no es un almacén.
+#: Bounded: this lives in the engine process; it is not a data store.
 _REPEAT_MAX = 64
 _recent: dict[str, tuple[float, dict, int]] = {}
 
@@ -170,20 +170,20 @@ def _norm_q(q: str) -> str:
 
 
 def _recent_answer(q: str, now: float | None = None) -> tuple[dict, int] | None:
-    """La respuesta que YA trajimos para esta misma consulta, si sigue fresca.
+    """The answer we ALREADY fetched for this same query, if it is still fresh.
 
-    Medido en `weekend-plan-barcelona__es` (2026-08-28): **56 búsquedas web, 31 consultas, 0 candidatos
-    verificados**, repitiendo la misma consulta sin cambiar un solo criterio. El juez: «eso no es diligencia,
-    es dar vueltas». Cada vuelta cuesta segundos del cliente, cuota del proveedor y un turno de conversación
-    en el que zaelar dice que sigue buscando.
+    Measured in `weekend-plan-barcelona__es` (2026-08-28): **56 web searches, 31 queries, 0 verified candidates**,
+    repeating the same query without changing a single criterion. The judge: «that is not diligence, it is going
+    around in circles». Each loop costs client seconds, provider quota, and a conversation turn in which zaelar says
+    it is still searching.
 
-    NO se bloquea la repetición, se CONTESTA — y se marca. Bloquear rompería un reintento legítimo; devolver
-    lo mismo al instante corta el bucle igual y además deja el hecho escrito (`repeated`) para quien lea la
-    ronda, que es lo que convierte «dio vueltas» de impresión en dato.
+    Repetition is NOT blocked; it is ANSWERED — and marked. Blocking would break a legitimate retry; returning the
+    same thing instantly cuts the loop just as well and also records the fact (`repeated`) for whoever reads the
+    round, turning «went around in circles» from an impression into data.
 
-    El TTL es corto (120 s) a propósito, y es todo el diseño: largo para matar un bucle apretado —56 búsquedas
-    en nueve minutos—, corto para que un «mira otra vez» a ritmo humano traiga mundo fresco. Una caché de
-    búsqueda que dure más que la paciencia de una persona sirve datos rancios justo a quien pidió lo contrario.
+    The TTL is deliberately short (120 s), and that is the whole design: long enough to kill a tight loop —56 searches
+    in nine minutes—, short enough for a human-paced «look again» to bring fresh information. A search cache that
+    lasts longer than a person's patience serves stale data to someone who asked for the opposite.
     """
     now = _time.time() if now is None else now
     hit = _recent.get(_norm_q(q))
@@ -201,20 +201,21 @@ def _remember_answer(q: str, res: dict, now: float | None = None) -> None:
     key = _norm_q(q)
     n = (_recent.get(key) or (0.0, {}, 0))[2]
     if len(_recent) >= _REPEAT_MAX and key not in _recent:
-        _recent.pop(min(_recent, key=lambda k: _recent[k][0]), None)   # la más vieja
+        _recent.pop(min(_recent, key=lambda k: _recent[k][0]), None)   # the oldest
     _recent[key] = (now, res, n + 1)
 
 
 def search(query: str, k: int = _MAX_RESULTS) -> dict:
-    """Busca y devuelve `{query, answer, results:[{title,snippet,url}], source, ai}`.
+    """Searches and returns `{query, answer, results:[{title,snippet,url}], source, ai}`.
 
-    `answer` = respuesta ya sintetizada si la fuente es de respuesta-IA (Perplexity/Tavily); si no, cadena vacía y
-    la compone el cerebro desde `results`. `ai` = True si `answer` viene pre-sintetizado (el cerebro solo lo adapta
-    a voz/idioma). BLOQUEANTE (red): llamar SIEMPRE con `asyncio.to_thread`. Fail-open (degrada por la cadena)."""
+    `answer` = already synthesized answer if the source is an AI-answer provider (Perplexity/Tavily); otherwise an
+    empty string, composed by the brain from `results`. `ai` = True if `answer` is pre-synthesized (the brain only
+    adapts it to voice/language). BLOCKING (network): ALWAYS call with `asyncio.to_thread`. Fail-open (degrades along
+    the chain)."""
     q = (query or "").strip()
     if not q:
         return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
-    # ¿YA CONTESTAMOS A ESTO? Antes de gastar red, cuota y segundos del cliente otra vez (ver `_recent_answer`).
+    # HAVE WE ALREADY ANSWERED THIS? Before spending network, quota, and client seconds again (see `_recent_answer`).
     _ya = _recent_answer(q)
     if _ya is not None:
         _res, _veces = _ya
@@ -227,8 +228,8 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
         try:
             r = _BACKENDS[src](q, k)
             if r["results"] or r["answer"]:
-                # respeta el flag `ai` que ponga el backend (google marca ai=True si trae AI Overview/featured);
-                # el resto por defecto = solo los de respuesta-IA de pago.
+                # respect the `ai` flag set by the backend (google marks ai=True if it returns AI Overview/featured);
+                # by default, the rest are only the paid AI-answer providers.
                 r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily")
                 _meter_search(src)
                 note_success()
@@ -250,28 +251,28 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
             "failure": {"kind": _classify_failure(detail), "detail": detail[:200]}}
 
 
-# Los de PAGO, por nombre de backend. `google` (nuestro Chromium) y `ddg` NO están y por eso no se
-# cobran — la gratuidad es una propiedad del proveedor, no una tarifa de cero que alguien pueda
-# equivocarse al mirar. Añadir un buscador de pago obliga a meterlo aquí Y a darle tarifa en
-# `energy_meter._SEARCH_USD_PER_REQUEST`; el gate de cobertura de Energy falla si no.
+# PAID ones, by backend name. `google` (our Chromium) and `ddg` are NOT included and therefore are not
+# charged — being free is a property of the provider, not a zero fee someone could misread. Adding a paid
+# search engine requires adding it here AND giving it a rate in `energy_meter._SEARCH_USD_PER_REQUEST`;
+# the Energy coverage gate fails otherwise.
 _PAID_BACKENDS = frozenset({"perplexity", "tavily", "brave"})
 
 
 def _meter_search(src: str) -> None:
-    """A ENERGY (2026-08-13). Esta familia se factura POR PETICIÓN, no por tokens. Hoy la cadena cae
-    casi siempre en Google/DDG (gratis) porque las keys de pago no se aprovisionan, así que en la
-    práctica no cobra nada — pero sin esto, poner una key sería gasto invisible. Solo se cobra lo que
-    RESPONDIÓ: un backend que revienta antes de contestar no se factura (si lo hiciera después de que
-    el proveedor ya lo contara, se detectaría en la reconciliación)."""
+    """A ENERGY (2026-08-13). This family is billed PER REQUEST, not by tokens. Today the chain almost always
+    falls to Google/DDG (free) because paid keys are not provisioned, so in practice it charges nothing — but
+    without this, adding a key would create invisible spending. Only what ANSWERED is charged: a backend that
+    fails before answering is not billed (if it failed after the provider had already counted it, reconciliation
+    would detect it)."""
     if src not in _PAID_BACKENDS:
         return
     from nucleo import energy_meter as _energy
-    _energy.report_search_usage(provider=src)   # el contador no lanza: `@_never_raises` vive en el módulo
+    _energy.report_search_usage(provider=src)   # the counter does not raise: `@_never_raises` lives in the module
 
 
 def _order() -> list[str]:
-    """Cadena de proveedores a intentar: el elegido primero, luego degradación por calidad hasta el gratis.
-    `google` (gratis, navegador) va por encima de `ddg` (último recurso sin key ni navegador)."""
+    """Provider chain to try: the selected one first, then quality degradation down to the free option.
+    `google` (free, browser) comes above `ddg` (last resort without a key or browser)."""
     chain = [provider()]
     for fb in ("perplexity", "tavily", "brave", "google", "ddg"):
         if fb not in chain and _usable(fb):
@@ -286,7 +287,7 @@ def _usable(src: str) -> bool:
                  "google": ("1" if _google_on() else ""), "ddg": "1"}.get(src, ""))
 
 
-# ── Perplexity Sonar (respuesta-IA sintetizada + citaciones) ─────────────────────────────────────────────
+# ── Perplexity Sonar (synthesized AI answer + citations) ──────────────────────────────────────────────────
 def _perplexity(q: str, k: int) -> dict:
     import httpx
     if not perplexity_key():
@@ -306,7 +307,7 @@ def _perplexity(q: str, k: int) -> dict:
     return {"query": q, "answer": answer, "results": results, "source": "perplexity"}
 
 
-# ── Tavily (search API para agentes: answer + fuentes limpias) ────────────────────────────────────────────
+# ── Tavily (search API for agents: answer + clean sources) ─────────────────────────────────────────────────
 def _tavily(q: str, k: int) -> dict:
     import httpx
     if not tavily_key():
@@ -322,7 +323,7 @@ def _tavily(q: str, k: int) -> dict:
     return {"query": q, "answer": _clean(data.get("answer") or ""), "results": results, "source": "tavily"}
 
 
-# ── Brave Search API (snippets limpios, opcional con key) ─────────────────────────────────────────────────
+# ── Brave Search API (clean snippets, optionally with key) ────────────────────────────────────────────────
 def _brave(q: str, k: int) -> dict:
     import httpx
     if not brave_key():
@@ -340,18 +341,18 @@ def _brave(q: str, k: int) -> dict:
     return {"query": q, "answer": answer, "results": results, "source": "brave"}
 
 
-# ── Google vía Chromium propio (GRATIS, AI Overview + snippets; V2-024) ───────────────────────────────────
+# ── Google via our own Chromium (FREE, AI Overview + snippets; V2-024) ─────────────────────────────────────
 def _google(q: str, k: int) -> dict:
-    """Búsqueda en Google en el navegador headless persistente (`nucleo/browser_search`). BLOQUEANTE desde el hilo
-    de `to_thread`: el puente `search_sync` agenda la corrutina en el loop del server. Lanza si el browser no está
-    listo o Google bloquea → la cadena degrada a DDG (fail-open)."""
+    """Google search in the persistent headless browser (`nucleo/browser_search`). BLOCKING from the `to_thread`
+    thread: the `search_sync` bridge schedules the coroutine on the server loop. Raises if the browser is not ready
+    or Google blocks → the chain degrades to DDG (fail-open)."""
     if not _google_on():
         return {"query": q, "answer": "", "results": [], "source": "google"}
     from nucleo import browser_search
     return browser_search.search_sync(q, k)
 
 
-# ── DuckDuckGo HTML (gratis, sin key, siempre disponible) ─────────────────────────────────────────────────
+# ── DuckDuckGo HTML (free, no key, always available) ───────────────────────────────────────────────────────
 _SNIPPET_RE = _re.compile(r'result__snippet[^>]*>(.*?)</a>', _re.S)
 _LINK_RE = _re.compile(r'result__a[^>]*href="(.*?)"[^>]*>(.*?)</a>', _re.S)
 
@@ -387,7 +388,7 @@ def _challenge_reason(body: str) -> str:
     """
     low = (body or "")[:4000].lower()
     hit = next((n for n in _CHALLENGE if n in low), "")
-    return f"captcha: DuckDuckGo sirvió un desafío anti-bot («{hit}»)" if hit else ""
+    return f"captcha: DuckDuckGo served an anti-bot challenge («{hit}»)" if hit else ""
 
 
 def _ddg(q: str, k: int) -> dict:
@@ -479,8 +480,8 @@ def _clean(s: str) -> str:
 
 
 def format_results(res: dict, limit: int = _MAX_RESULTS) -> str:
-    """Empaqueta la búsqueda como contexto para que el cerebro componga la respuesta (o la adapte a voz si ya
-    viene sintetizada). Si `answer` viene de un proveedor de respuesta-IA, va destacado como respuesta principal."""
+    """Packages the search as context so the brain can compose the answer (or adapt it to voice if already
+    synthesized). If `answer` comes from an AI-answer provider, it is highlighted as the main answer."""
     parts: list[str] = []
     if res.get("answer"):
         label = "RESPUESTA (ya sintetizada por el buscador IA)" if res.get("ai") else "Respuesta directa del buscador"

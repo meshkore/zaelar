@@ -114,7 +114,7 @@ def public() -> list[dict]:
 def requirements(name: str) -> dict:
     """What this profile needs to work — so the wizard can show the GAPS. Returns:
       {needs_ollama, ollama_models, needs_local_accel, credentials:[keys relevantes], claude_cli}
-    Todo derivado del propio paquete del perfil (no hay una lista aparte que pueda divergir)."""
+    Everything is derived from the profile package itself (there is no separate list that could diverge)."""
     p = get(name)
     n = canon(name)
     fast = p["v2"]["fast"]
@@ -140,7 +140,7 @@ def requirements(name: str) -> dict:
         "ollama_models": sorted(set(models)),
         "needs_local_accel": n == "local",
         "credentials": creds,
-        "needs_claude_cli": True,     # el SlowBrain/generador de widgets usa `claude` en AMBOS perfiles
+        "needs_claude_cli": True,     # the SlowBrain/widget generator uses `claude` in BOTH profiles
     }
 
 

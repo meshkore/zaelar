@@ -14,18 +14,18 @@ from __future__ import annotations
 
 import os
 
-# ── DEV WORKER ACOTADO (V2-076) — escalada ORIGINADA en un cluster con permiso de código ─────────────────────────
-# Una escalada de una charla agente-agente llega con trusted=False (nunca hereda la confianza del operador) PERO,
-# si el operador concedió `code` al cluster, debe poder ESCRIBIR código y SUBIRLO al repo autorizado — sin tocar
-# nada más. No usamos el `_tools_for(trusted)` binario: montamos un worker con alcance JUSTO:
-#   · Read/Write/Edit acotados a un DIRECTORIO TEMPORAL (cwd), nunca el proyecto (aislamiento de escritura).
-#   · git SOLO por el PUENTE `nucleo.git_cli` (nunca Bash git pelado) y SOLO al repo autorizado (ZAELAR_ALLOWED_REPO).
-#   · SIN puentes de memoria (ZAELAR_NO_BRIDGE_TOOLS) → un dev de cluster no lee/escribe la memoria del operador.
-#   · PYTHONPATH al engine para que el puente sea importable desde el cwd temporal.
+# ── DEV WORKER ACOTADO (V2-076) — escalada ORIGINADA in a cluster with permission of code ─────────────────────────
+# Una escalada of a charla agent-agent arrives with trusted=False (never hereda the confianza of the operator) PERO,
+# if the operator concedio `code` al cluster, must poder ESCRIBIR code and SUBIRLO al repo authorized — without touch
+# nothing mas. No usamos the `_tools_for(trusted)` binario: montamos a worker with alcance JUSTO:
+#   · Read/Write/Edit acotados a a DIRECTORIO TEMPORAL (cwd), never the proyecto (aislamiento of escritura).
+#   · git SOLO by the PUENTE `nucleo.git_cli` (never Bash git pelado) and SOLO al repo authorized (ZAELAR_ALLOWED_REPO).
+#   · SIN bridges of memory (ZAELAR_NO_BRIDGE_TOOLS) → a dev of cluster no reads/writes the memory of the operator.
+#   · PYTHONPATH al engine for that the bridge sea importable from the cwd temporary.
 _ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def _git_tools() -> list[str]:
-    """Mismo criterio que los puentes de `claude_session._BRIDGE_TOOLS`: TODAS las formas de escribir el intérprete,
-    para que el dev worker no se quede pidiendo una aprobación que en headless nadie va a dar."""
+    """Mismo criterion that the bridges of `claude_session._BRIDGE_TOOLS`: TODAS the ways of write the interprete,
+    for that the dev worker no is quede pidiendo a aprobacion that in headless nadie va a dar."""
     try:
         from nucleo.workers.claude_session import _INTERPRETERS
         return [f"Bash({py} -m nucleo.git_cli:*)" for py in _INTERPRETERS]
@@ -37,8 +37,8 @@ _DEV_TOOLS = ["Read", "Write", "Edit", *_git_tools()]
 
 
 def _dev_worker_params(context: dict) -> dict | None:
-    """Si el contexto de escalada pide un dev worker (V2-076: `dev` + `repo` autorizado), devuelve sus parámetros
-    ACOTADOS; si no, None (worker normal). Puro/testeable."""
+    """If the contexto of escalada pide a dev worker (V2-076: `dev` + `repo` authorized), returns sus parametros
+    ACOTADOS; if no, None (worker normal). Puro/testeable."""
     ctx = context or {}
     if not (ctx.get("dev") and ctx.get("repo")):
         return None

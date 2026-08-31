@@ -1,7 +1,7 @@
-"""nucleo/browser_search.py — búsqueda GRATIS en Google vía un Chromium headless persistente y CALIENTE (V2-024).
+"""nucleo/browser_search.py — FREE Google search via a persistent, WARM headless Chromium (V2-024).
 
-Idea del operador: en vez de pagar Perplexity/Tavily, usar un Chromium propio para buscar en Google y aprovechar
-su síntesis (AI Overview / featured snippet), parseando el resultado. Gratis "para siempre" — a cambio de fragilidad
+Operator's idea: instead of paying for Perplexity/Tavily, use a private Chromium to search Google and leverage
+its synthesis (AI Overview / featured snippet), parsing the result. Free "forever" — in exchange for fragility
 (Google castiga el scraping: CAPTCHA / "tráfico inusual" intermitente, DOM que cambia). Por eso es una CAPA MÁS de la
 cadena de `nucleo/websearch.py` (calidad primero), por ENCIMA de DuckDuckGo y con **fail-open a DDG** si Google
 bloquea. Con key de Perplexity/Tavily, esas ganan (respuesta-IA de pago, sin mantenimiento).
@@ -9,7 +9,7 @@ bloquea. Con key de Perplexity/Tavily, esas ganan (respuesta-IA de pago, sin man
 Diseño:
   - **UN contexto Chromium persistente** (perfil propio en `memory/_data/search_browser/`, aislado del Chrome del
     operador y del navegador-widget) que vive en el loop del servidor y se **calienta en el arranque** (mientras el
-    frontend pinta el loader) → la primera búsqueda real ya es rápida (~2-3s), sin arrancar el navegador en frío.
+    frontend renders the loader) → the first real search is already fast (~2-3s), without starting the browser cold.
   - `search_google()` es async (corre en el loop del server, dueño del browser). `search_sync()` es el puente para
     `websearch` (que corre en un hilo vía `asyncio.to_thread`): agenda la corrutina en el loop del server con
     `run_coroutine_threadsafe`. Si el browser no está listo o Google bloquea → lanza → `websearch` cae a DDG.
@@ -73,7 +73,7 @@ def set_loop(loop) -> None:
 
 
 def enabled() -> bool:
-    """La capa google está ON salvo que se apague por env (BROWSER_SEARCH=0)."""
+    """The Google layer is ON unless disabled through env (BROWSER_SEARCH=0)."""
     return os.getenv("BROWSER_SEARCH", "1") == "1"
 
 
@@ -390,8 +390,8 @@ async def images(query: str, k: int = 12) -> dict:
                     res["blocked"] = True
             return res
         intentados.append(name)
-    # Nadie contestó: se devuelve lo del PRIMERO (su error/bloqueo es el que explica el turno) diciendo a
-    # cuántos se preguntó — «no hay fotos de eso» y «los tres índices están caídos» piden cosas distintas.
+    # Nobody answered: return the FIRST result (its error/block is what explains the turn), saying how many
+    # were queried — “there are no photos of that” and “all three indexes are down” call for different responses.
     primero = dict(primero or {"query": query, "items": [], "source": "", "blocked": False})
     primero["tried"] = list(intentados)
     return primero
@@ -399,7 +399,7 @@ async def images(query: str, k: int = 12) -> dict:
 
 def search_sync(query: str, k: int = 5) -> dict:
     """Puente para `websearch` (corre en un hilo): agenda `search_google` en el loop del server. Lanza si el loop no
-    está enlazado (arranque aún no hecho) o si la búsqueda falla → websearch degrada a DDG."""
+    is linked (startup has not happened yet) or if the search fails → websearch falls back to DDG."""
     if not enabled():
         raise RuntimeError("browser_search off")
     if _loop is None or not _loop.is_running():

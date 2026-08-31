@@ -1,20 +1,20 @@
 """
 nucleo/workers/progress.py — turning what a worker DID into a line a person can read.
 
-Operator, 2026-08-20: «necesita ver EN TIEMPO REAL lo que está pasando: entro en esta web, aplico el filtro,
-lanzo, tengo resultados, estoy paseando, estoy haciendo triaje». Seven minutes of blank screen is the experience
+Operator, 2026-08-20: “needs to see what is happening IN REAL TIME: I enter this website, apply the filter,
+launch, get results, browse around, perform triage.” Seven minutes of blank screen is the experience
 we are fixing, and the fix is not more telemetry — it is telemetry that reads like a sentence.
 
 The raw material ALREADY exists: V2-048 gave every tool_use a rich `{where, action, target}` (`_tool_step`), so
 the browser layer has known it was on `booking.com` all along. What never reached the operator was that word:
-the phase said «abriendo una página…» while the structure right next to it held the host. This module is the
-half that turns one into the other, so nothing new has to be plumbed — see ámbito B4 of V2-227: the stream
+the phase said “opening a page…” while the structure right next to it held the host. This module is the
+half that turns one into the other, so nothing new has to be plumbed — see scope B4 of V2-227: the stream
 travels on the rail that already exists (`emit("task", "phase")` → SSE → `store.tasks` → `ActivityStrip`), never
 on a parallel one. A parallel channel is what V2-118/121 cost us.
 
 Two rules it has to keep:
 
-  · **A person, not a developer.** «entrando en booking.com», not «nav_cli navigate ok=true». If a line would
+  · **A person, not a developer.** “entering booking.com”, not “nav_cli navigate ok=true”. If a line would
     only make sense to whoever wrote the bridge, it is not a phase.
   · **Nothing about any domain.** Per the Brain Worker doctrine this is a RESOURCE: it must read the same for a
     hotel, a rocket's task list or a house in Los Angeles. It knows about BRIDGES (browser, memory, widgets,
@@ -25,8 +25,8 @@ from __future__ import annotations
 import re
 
 # The URL is SEARCHED FOR, not required at position zero: the targets that reach here are already decorated by
-# the layer that built them (`_nav_target` prefixes «→ », `type` wraps in guillemets), and a host_of that only
-# understood a bare URL silently returned the decoration — «entrando en → https://www.booking.com/search…»,
+# the layer that built them (`_nav_target` prefixes “→ ”, `type` wraps in angle quotes), and a host_of that only
+# understood a bare URL silently returned the decoration — “entering → https://www.booking.com/search…”,
 # which is the developer string the operator was never supposed to read.
 _URL_IN_RE = re.compile(r'''\w+://[^\s'"»\]]+''')
 
@@ -58,7 +58,7 @@ def _readable(target: str) -> str:
     """"" for a target only a developer can read.
 
     The browser identifies elements by SNAPSHOT REF (`ref12`, `e5`), which is exactly right for driving the page
-    and exactly wrong for a card: «pulsando «ref12»» tells the operator less than «pulsando en la página», and
+    and exactly wrong for a card: “clicking “ref12”” tells the operator less than “clicking on the page”, and
     tells him we are showing him our plumbing.
     """
     t = str(target or "").strip().strip("«»[]\'\"").strip()
@@ -120,7 +120,7 @@ _BY_WHERE = {
 def phrase(step) -> str:
     """`{where, action, target}` → the line the operator reads. "" when there is nothing worth saying.
 
-    `None` in means «do not emit a phase» and comes straight through: `hbnote` sets its own, richer phase and
+    `None` in means “do not emit a phase” and comes straight through: `hbnote` sets its own, richer phase and
     overwriting it with a generic one was the bug V2-048 left behind.
     """
     if not isinstance(step, dict):
@@ -139,8 +139,8 @@ def phrase(step) -> str:
 def found(n: int) -> str:
     """The one phase that is not about an action but about an OUTCOME: «12 resultados».
 
-    The operator asked for it by name («lanzo, tengo resultados»), and it is the moment the card stops looking
-    identical to the one before it. Zero is said too — «sin resultados en esta página» is information, and
+    The operator asked for it by name (“launch, get results”), and it is the moment the card stops looking
+    identical to the one before it. Zero is said too — “no results on this page” is information, and
     hiding it is how a page that gave nothing looks exactly like one that was never read.
     """
     n = max(0, int(n or 0))
@@ -150,9 +150,9 @@ def found(n: int) -> str:
 
 
 def still_alive(phase: str, seconds: int) -> str:
-    """A phase that has lasted a long time has to say so on its own (ámbito B2).
+    """A phase that has lasted a long time has to say so on its own (scope B2).
 
-    A card frozen on «recorriendo la página» for ninety seconds is indistinguishable from a dead worker, and
+    A card frozen on “browsing the page” for ninety seconds is indistinguishable from a dead worker, and
     that ambiguity is the whole reason the operator asked for this: silence reads as broken.
     """
     p = " ".join(str(phase or "").split()) or "trabajando"
@@ -164,22 +164,22 @@ def still_alive(phase: str, seconds: int) -> str:
 
 
 def narration_out(task_id: str, model: str, text: str, first_output_ms=None) -> None:
-    """La narración del worker sale al visor Y a la pestaña de Proceso (V2-345).
+    """The worker's narration appears in the viewer AND in the Process tab (V2-345).
 
-    Medido en la sesión `7575e81a` (21,6 min del encargo del coche): 82 de estas narraciones, una cada 16 s, y
-    ninguna llegaba a pantalla. Son la señal MÁS rica que tenemos —«Wallapop devuelve candidatos pero mayormente
-    coches viejos (pre-2016), necesito filtros de año», «tengo más opciones dentro del presupuesto, voy a revisar
-    el Renault Laguna Coupé (11.650 €)»— porque llevan el sitio, el precio, el modelo y el PORQUÉ del siguiente
-    paso, que es justo lo que ninguna frase generada por nosotros puede saber.
+    Measured in session `7575e81a` (21.6 min of the car assignment): 82 of these narrations, one every 16 s, and
+    none reached the screen. They are the richest signal we have —“Wallapop returns candidates but mostly
+    old cars (pre-2016), I need year filters”, “I have more options within the budget, I’m going to review
+    the Renault Laguna Coupé (€11,650)”— because they carry the site, price, model, and the WHY of the next
+    step, which is exactly what no phrase generated by us can know.
 
-    Va MARCADA con «💬», y el marcador no es decoración: el worker AFIRMA cosas, y esta casa ya pagó que una
-    afirmación suya se tomara por un hecho comprobado (V2-249 — escribió «Recordatorio PROGRAMADO» sin poder
-    programar nada). En este anillo conviven con lo que SÍ hemos verificado («14 resultados en la página»), así
-    que tienen que distinguirse a simple vista. Mismo patrón que el muro de chat, que prefija en vez de inventar
-    un canal.
+    It is MARKED with “💬”, and the marker is not decoration: the worker MAKES CLAIMS, and this house has already
+    paid for one of its claims to be taken as a verified fact (V2-249 — it wrote “REMINDER SCHEDULED” without
+    being able to schedule anything). In this ring they coexist with what we HAVE verified (“14 results on the
+    page”), so they must be distinguishable at a glance. Same pattern as the chat wall, which prefixes instead
+    of inventing a channel.
 
-    Se RECORTA a una línea legible: el evento del visor conserva los 600 caracteres enteros; la pestaña es para
-    mirar de reojo mientras trabaja, no para leer el razonamiento completo.
+    It is TRIMMED to one readable line: the viewer event keeps all 600 characters; the tab is for glancing at
+    while it works, not for reading the complete reasoning.
     """
     t = str(text or "")
     if not t:

@@ -1,12 +1,12 @@
-"""nucleo/engine_url.py — la dirección de ESTE motor, para los puentes con los que un worker le contesta.
+"""nucleo/engine_url.py — the address of ESTE motor, for the bridges with the that a worker le contesta.
 
-Extraído de `nucleo/dispatch.py` el 2026-08-24 para pagar el trinquete de arquitectura al añadir la cosecha de
-la hoja (V2-296). Sale entero porque no toca NADA del gestor de sesiones: es una función pura de dos variables
-de entorno, y quien la necesita —el `env` que se le pasa al worker— solo necesita el resultado.
+Extraido of `nucleo/dispatch.py` the 2026-08-24 for pagar the trinquete of arquitectura al add the cosecha of
+the sheet (V2-296). Sale entero because no touches NADA of the gestor of sessions: es a funcion pura of two variables
+of entorno, and quien the needs —the `env` that is le pasa al worker— only needs the result.
 
-Vive aparte además porque es la respuesta a V2-152, que costó una tanda entera: los seis puentes resuelven
-`ZAELAR_BASE` con un `localhost:43917` cableado por defecto y NADIE ponía esa variable, así que un motor en
-cualquier otro puerto lanzaba workers que conducían el navegador, la memoria y las tarjetas de OTRO motor.
+Vive aparte also because es the response a V2-152, that costo a tanda whole: the seis bridges resuelven
+`ZAELAR_BASE` with a `localhost:43917` cableado by defecto and NADIE ponia esa variable, so that a motor in
+any another puerto lanzaba workers that conducian the browser, the memory and the tarjetas of OTRO motor.
 """
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
-// BootOverlay — the first-load splash. Blocks the UI while zaelar boots and plays the «Colmena sináptica»
-// animation: a neural constellation that assembles ITSELF IN PARTS (one cluster per boot phase — voz → memoria →
-// reflejo) and then, on "listo", implodes into the orb. Phases are driven by REAL signals (store.bootPhase, set by
+// BootOverlay — the first-load splash. Blocks the UI while zaelar boots and plays the «Synaptic hive»
+// animation: a neural constellation that assembles ITSELF IN PARTS (one cluster per boot phase — voice → memory →
+// reflex) and then, on "ready", implodes into the orb. Phases are driven by REAL signals (store.bootPhase, set by
 // session-lk.js from mic/room milestones + the agent's "vl2" boot events); the veil lifts on store.bootReady.
 // Only the very first boot shows this — later reconnects never re-lock the UI (a safety timeout unblocks a stuck
 // boot; see session-lk.js). The render engine lives in boot-anim.js; this file owns the DOM + wiring.
@@ -10,12 +10,12 @@ import * as store from "../core/store.js?v=2";
 import { startBootAnim } from "./boot-anim.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
-// V2-481 — la leyenda se resuelve EN CADA PINTADO, no al importar el módulo.
+// V2-481 — resolve the legend ON EVERY PAINT, not when importing the module.
 //
-// Esto era un objeto literal, así que `t()` corría UNA vez, al cargar el fichero — antes de que el bundle
-// existiera. Cuando el motor por fin contestaba, la leyenda seguía diciendo `boot.encendiendo`: la cadena
-// buena llegaba y no la veía nadie. Es el mismo defecto que V2-124 midió en el móvil («un `textContent = t()`
-// en construcción congela lo que hubiera»), y aquí no falla con ruido — falla enseñando una clave.
+// This used to be a literal object, so `t()` ran ONCE while loading the file — before the bundle
+// existed. When the engine finally responded, the legend still said `boot.encendiendo`: the correct
+// string arrived and nobody saw it. This is the same defect measured by V2-124 on mobile (a
+// `textContent = t()` during construction freezes whatever was available), and here it fails silently — by showing a key.
 const LABEL_KEYS = {
   encendiendo: "boot.encendiendo",
   voz: "boot.voz",

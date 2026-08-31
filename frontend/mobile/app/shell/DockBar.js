@@ -1,8 +1,8 @@
 // ============================================================================
 // DockBar.js — EVERY control, at the very bottom, ARRANGED AROUND THE ORB.  The mobile counterpart of the desktop's
-// «eye» (Orb.js: an arc of 7 icons above the orb) and of the TopBar.  Operator's brief: «el orbe y todas las opciones
-// tendrán que estar abajo del todo», refined 2026-08-18 to «un orbe también en el centro del footer… y luego en los
-// laterales del orbe, pues el resto de botones».
+// «eye» (Orb.js: an arc of 7 icons above the orb) and of the TopBar.  Operator's brief: «the orb and all options
+// must be at the very bottom», refined 2026-08-18 to «an orb also in the centre of the footer… and then on the
+// orb's sides, the rest of the buttons».
 //
 // WHY BOTTOM, AND WHY THAT MATTERS FOR LAYOUT: a phone is held in one hand and the thumb reaches the bottom third.
 // So this bar is the ONLY chrome with a fixed position in this shell, and its height (--dock-h) is the ONE piece of
@@ -10,8 +10,8 @@
 // cover the last line of a widget. On iOS it also pads itself with env(safe-area-inset-bottom), or it would sit
 // under the home indicator and every tap would be a swipe-up instead.
 //
-// THE ORB IS THE CENTRE, AND IT IS ALSO THE SWITCH (operator, 2026-08-18: «cuando está parado solo está el botón de
-// on/off y cuando lo arrancamos sale el orbe, o tocamos el orbe y para»). One slot, two faces:
+// THE ORB IS THE CENTRE, AND IT IS ALSO THE SWITCH (operator, 2026-08-18: «when stopped there is only the
+// on/off button, and when we start it the orb appears; or we touch the orb and it stops»). One slot, two faces:
 //
 //   agentState() === "off"   →  a ⏻ button. Nothing else can be true about a stopped agent, so nothing else shows.
 //   anything else            →  the ORB, live, and tapping it STOPS (or, mid-«pausing», cancels the stop).
@@ -29,7 +29,7 @@
 //   💬 chat  → store.chatOpen                               (the same signal the desktop chat panel reads)
 //   ☰ menu   → store.mobileMenuOpen                         (mobile-only: account · profile · feedback · settings)
 //
-// THE GLYPHS ARE THE DESKTOP'S, BYTE FOR BYTE (operator: «los más parecidos a los que ya existen en el frontend del
+// THE GLYPHS ARE THE DESKTOP'S, BYTE FOR BYTE (operator: «as similar as possible to those already in the frontend of the
 // UI»): MIC/SPK_ON/SPK_OFF/CAP/CHAT/PWR are copied from `app/components/Orb.js` so an operator who knows one shell
 // reads the other without learning a second vocabulary. The ONE addition is MIC_OFF — the desktop only greys a
 // muted mic, which is legible next to six other icons on a big screen and ambiguous as a lone icon on a phone, so

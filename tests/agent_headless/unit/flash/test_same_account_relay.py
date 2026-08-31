@@ -1,9 +1,9 @@
-"""V2-458 — dos escalones que comparten cuenta no son dos escalones.
+"""V2-458 — two tiers sharing an account are not two tiers.
 
-Medido con el motor vivo el 2026-08-28: la cadena de voz del operador lleva `deepseek-v4-flash` y
-`deepseek-v4-pro`, los dos contra `DEEPSEEK_API_KEY`. Con la cuenta a cero el titular devolvió 402, el relevo
-fue al hermano, el hermano devolvió 402 — y ahí se agotó el único reintento que V2-252 concede, así que el turno
-salió mudo **con AIMLAPI respondiendo 200 una fila más abajo**.
+Measured with the live engine on 2026-08-28: the operator's voice chain contains `deepseek-v4-flash` and
+`deepseek-v4-pro`, both using `DEEPSEEK_API_KEY`. With the account at zero, the primary returned 402, the relay
+went to the sibling, the sibling returned 402 — and that exhausted the single retry granted by V2-252, so the turn
+came out silent **with AIMLAPI returning 200 one row below**.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ _429 = "429 — [1310][Weekly Limit Exhausted. Your limit will reset at 2027-01-
 
 @pytest.fixture()
 def cadena(monkeypatch):
-    """La cadena REAL del operador, en miniatura: dos escalones de una cuenta y uno de otra."""
+    """The operator's REAL chain, in miniature: two tiers from one account and one from another."""
     tiers = [
         {"name": "deepseek-directo", "base_url": "https://api.deepseek.com",
          "model": "deepseek-v4-flash", "api_key": "SECRETO-DEEPSEEK", "plan": "titular"},
@@ -45,10 +45,10 @@ def test_un_saldo_agotado_apaga_a_los_hermanos_de_la_MISMA_cuenta(cadena, monkey
 
 
 def test_una_CUOTA_agotada_NO_arrastra_a_nadie(cadena):
-    """La distinción de V2-243, que este cambio no puede borrar: una cuota es del MODELO y se repone sola.
+    """The distinction from V2-243, which this change must not erase: a quota belongs to the MODEL and replenishes itself.
 
-    Sin esta mitad, «apaga a los que comparten cuenta» apagaría media cadena cada vez que un modelo concreto
-    llega a su límite semanal — y ese límite no dice nada del modelo de al lado.
+    Without this half, “shut down those sharing an account” would shut down half the chain every time a specific model
+    reaches its weekly limit — and that limit says nothing about the model next to it.
     """
     pc.note_failure(_429, cadena[0], role=pc.ROLE_VOICE)
     assert not pc._store.available("deepseek-directo")
@@ -56,7 +56,7 @@ def test_una_CUOTA_agotada_NO_arrastra_a_nadie(cadena):
 
 
 def test_sin_credencial_resoluble_no_se_apaga_a_nadie(cadena, monkeypatch):
-    """«No lo sé» nunca puede apagar un escalón sano: sin credencial que comparar, no se empareja."""
+    """“I don't know” can never shut down a healthy tier: without a credential to compare, it is not paired."""
     monkeypatch.setattr(pc, "chain", lambda role=pc.ROLE_CLUSTER: [
         {**cadena[0], "api_key": ""}, dict(cadena[1]), dict(cadena[2])])
     monkeypatch.setattr(pc, "_token_for", lambda t: "")
@@ -65,12 +65,12 @@ def test_sin_credencial_resoluble_no_se_apaga_a_nadie(cadena, monkeypatch):
 
 
 def _aviso(cadena) -> str:
-    """Lo que se AVISA, capturado del emisor real.
+    """What is REPORTED, captured from the real emitter.
 
-    Se recoge por `emit`, no por `caplog`: este repo loguea con loguru, que no pasa por el logging de la
-    stdlib — así que un `caplog` aquí devuelve una cadena VACÍA y todo lo que se asserte sobre ella pasa sin
-    mirar nada. La primera versión de los dos casos de abajo hacía exactamente eso, y el del secreto es el que
-    duele: habría certificado que no se filtra una credencial sin haber leído una sola letra.
+    It is collected through `emit`, not `caplog`: this repo logs with loguru, which does not go through the stdlib's
+    logging — so a `caplog` here returns an EMPTY string and anything asserted about it passes without checking
+    anything. The first version of the two cases below did exactly that, and the secret case is the painful one:
+    it would have certified that a credential was not leaked without reading a single character.
     """
     visto = []
     import voice.observer as obs
@@ -84,7 +84,7 @@ def _aviso(cadena) -> str:
 
 
 def test_el_aviso_NOMBRA_a_los_que_se_lleva_por_delante(cadena):
-    """Dos escalones apagados y uno nombrado deja al operador buscando por qué el otro tampoco responde."""
+    """Two tiers shut down and one named leaves the operator looking for why the other one does not respond either."""
     texto = _aviso(cadena)
     assert texto, "el aviso tiene que existir, o los dos casos de abajo no miden nada"
     assert "deepseek-directo-pro" in texto and "misma cuenta" in texto
@@ -97,7 +97,7 @@ def test_el_secreto_no_sale_en_el_aviso(cadena):
 
 
 def test_dos_escalones_que_nombran_la_clave_distinto_pero_resuelven_igual_son_la_misma_cuenta(monkeypatch):
-    """Se comparan las credenciales RESUELTAS, no los nombres de las variables de entorno."""
+    """The RESOLVED credentials are compared, not the names of the environment variables."""
     tiers = [
         {"name": "a", "base_url": "https://api.mismo.com/v1", "env": ["CLAVE_UNO"], "plan": ""},
         {"name": "b", "base_url": "https://api.mismo.com/v2", "env": ["CLAVE_DOS"], "plan": ""},
@@ -108,11 +108,11 @@ def test_dos_escalones_que_nombran_la_clave_distinto_pero_resuelven_igual_son_la
 
 
 def test_la_misma_clave_en_PROVEEDORES_distintos_no_los_hace_la_misma_cuenta(monkeypatch):
-    """La mitad que hace segura la regla, y no es hipotética: lo destapó un test que ya existía.
+    """The part that makes the rule safe, and is not hypothetical: an existing test exposed it.
 
-    `test_the_text_channel_relays_too` siembra `Z_AI_API_KEY` y `AIMLAPI_KEY` con el MISMO literal, así que una
-    regla que mirase solo la credencial habría apagado Z.AI al fallar AIMLAPI — un proveedor sano fuera de
-    juego por una coincidencia de valores. Por eso hace falta también el host.
+    `test_the_text_channel_relays_too` seeds `Z_AI_API_KEY` and `AIMLAPI_KEY` with the SAME literal, so a rule
+    that looked only at the credential would have shut down Z.AI when AIMLAPI failed — a healthy provider removed from
+    the game because of a coincidence of values. That is why the host is also necessary.
     """
     tiers = [
         {"name": "zai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"], "plan": ""},

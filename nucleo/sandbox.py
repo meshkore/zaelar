@@ -1,17 +1,17 @@
 #
-# sandbox.py — ejecución AISLADA y LIGERA de código creado (V2-076, Parte B). El más FÁCIL y ligero (decisión del
-# operador), cross-platform Win/Mac, arranque instantáneo, sin runtime extra: un SUBPROCESO efímero acotado. Soporta
-# Python + SQLite (stdlib) de fábrica. Docker NO por defecto (consume/va mal); queda como fallback futuro para
-# aislamiento fuerte o toolchains pesados (p.ej. Rust).
+# sandbox.py — ISOLATED and LIGHTWEIGHT execution of generated code (V2-076, Part B). The EASIEST and lightest (operator
+# decision), cross-platform Win/Mac, instant startup, with no extra runtime: a bounded ephemeral SUBPROCESS. Supports
+# Python + SQLite (stdlib) out of the box. Docker is NOT the default (resource-heavy/problematic); it remains a future
+# fallback for strong isolation or heavyweight toolchains (e.g. Rust).
 #
-# Aísla por: (1) directorio de trabajo TEMPORAL dedicado (cwd ahí; el código solo ve ese dir); (2) entorno SCRUBBEADO
-# (solo PATH/HOME/LANG mínimos — sin secretos, sin claves API, sin ZAELAR_*); (3) topes de RECURSOS (CPU, memoria,
-# ficheros, procesos) vía `resource.setrlimit` en Mac/Linux; (4) TIMEOUT de pared que mata el grupo de procesos.
+# Isolation is provided by: (1) a dedicated TEMPORARY working directory (cwd there; code sees only that directory); (2) a SCRUBBED
+# environment (only minimal PATH/HOME/LANG — no secrets, API keys, or ZAELAR_*); (3) RESOURCE limits (CPU, memory,
+# files, processes) via `resource.setrlimit` on Mac/Linux; (4) a wall-clock TIMEOUT that kills the process group.
 #
-# LÍMITE HONESTO (documentado, no falso-verde): un subproceso NO es un aislamiento de kernel a prueba de balas —
-# no bloquea la RED de forma dura cross-platform ni impide todo acceso a disco fuera del cwd por rutas absolutas.
-# Es el primer nivel "ligero" para AUDITAR/observar código creado sin comprometer el host de forma casual; el
-# endurecimiento fuerte (contenedor/micro-VM sin red, FS de solo-lectura) es el paso siguiente (Docker fallback).
+# HONEST LIMIT (documented, not falsely reassuring): a subprocess is NOT bulletproof kernel isolation —
+# it does not hard-block the NETWORK cross-platform or prevent all disk access outside the cwd via absolute paths.
+# It is the first "lightweight" level for AUDITING/observing generated code without casually compromising the host; the
+# strong hardening (container/micro-VM without network, read-only FS) is the next step (Docker fallback).
 #
 from __future__ import annotations
 
@@ -22,13 +22,13 @@ import sys
 import tempfile
 import time
 
-# Topes por defecto (env-overridable, infra).
-_CPU_S = int(os.getenv("SANDBOX_CPU_S", "10"))            # segundos de CPU
-_WALL_S = float(os.getenv("SANDBOX_WALL_S", "15"))        # segundos de reloj de pared
-_MEM_MB = int(os.getenv("SANDBOX_MEM_MB", "512"))         # memoria (address space)
-_OUT_MAX = int(os.getenv("SANDBOX_OUT_MAX", str(256 * 1024)))  # recorte de stdout/stderr
+# Default limits (env-overridable, infrastructure).
+_CPU_S = int(os.getenv("SANDBOX_CPU_S", "10"))            # CPU seconds
+_WALL_S = float(os.getenv("SANDBOX_WALL_S", "15"))        # wall-clock seconds
+_MEM_MB = int(os.getenv("SANDBOX_MEM_MB", "512"))         # memory (address space)
+_OUT_MAX = int(os.getenv("SANDBOX_OUT_MAX", str(256 * 1024)))  # stdout/stderr truncation
 
-# Entorno MÍNIMO: nada del proceso padre salvo lo imprescindible. Sin secretos/claves/ZAELAR_*.
+# MINIMAL environment: nothing from the parent process except what is essential. No secrets/keys/ZAELAR_*.
 _ENV_KEEP = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "SYSTEMROOT", "PATHEXT")
 
 
@@ -37,8 +37,8 @@ def _clean_env() -> dict:
 
 
 def _rlimits():
-    """preexec_fn para Mac/Linux: acota CPU, memoria (address space), nº de ficheros y de procesos. En Windows
-    devuelve None (no hay `resource`; el timeout de pared es la red de seguridad)."""
+    """preexec_fn for Mac/Linux: limits CPU, memory (address space), number of files, and processes. On Windows
+    returns None (there is no `resource`; the wall-clock timeout is the safety net)."""
     try:
         import resource
     except Exception:
@@ -62,14 +62,14 @@ def _rlimits():
             resource.setrlimit(resource.RLIMIT_FSIZE, (64 * 1024 * 1024, 64 * 1024 * 1024))
         except Exception:
             pass
-        os.setsid()   # grupo propio → matable de una pieza al timeout
+        os.setsid()   # own group → can be killed as a unit on timeout
     return _apply
 
 
 def run(code: str, *, lang: str = "python", stdin: str = "", timeout: float | None = None,
         workdir: str | None = None) -> dict:
-    """Ejecuta `code` en un subproceso AISLADO y devuelve el resultado. NO lanza: siempre devuelve un dict
-    {ok, exit, stdout, stderr, elapsed_s, timed_out, workdir}. Hoy soporta lang='python' (SQLite incluido)."""
+    """Executes `code` in an ISOLATED subprocess and returns the result. Does NOT raise: always returns a dict
+    {ok, exit, stdout, stderr, elapsed_s, timed_out, workdir}. Currently supports lang='python' (including SQLite)."""
     if lang != "python":
         return {"ok": False, "exit": -1, "stdout": "", "stderr": f"lang '{lang}' no soportado aún (solo python)",
                 "elapsed_s": 0.0, "timed_out": False, "workdir": ""}
@@ -83,7 +83,7 @@ def run(code: str, *, lang: str = "python", stdin: str = "", timeout: float | No
     timed_out = False
     try:
         p = subprocess.run(
-            [sys.executable, "-I", "main.py"],       # -I: aislado (ignora env PYTHON*, no añade cwd del usuario)
+            [sys.executable, "-I", "main.py"],       # -I: isolated (ignores PYTHON* env, does not add the user's cwd)
             cwd=wd, input=stdin, capture_output=True, text=True,
             env=_clean_env(), timeout=wall,
             preexec_fn=_rlimits() if os.name != "nt" else None,
@@ -105,33 +105,33 @@ def run(code: str, *, lang: str = "python", stdin: str = "", timeout: float | No
 
 
 async def arun(code: str, **kwargs) -> dict:
-    """Envoltura async (corre `run` fuera del event loop) para llamadores async como el dispatcher."""
+    """Async wrapper (runs `run` outside the event loop) for async callers such as the dispatcher."""
     import asyncio
     return await asyncio.to_thread(run, code, **kwargs)
 
 
-# ── rlimits para el subproceso INTERACTIVO del dev-worker (auditoría 2026-07-26) ────────────────────────────────
-# `_rlimits()` de arriba está afinado para `run()` (script de UN turno, wall/CPU cortos): un dev-worker interactivo
-# (nucleo/workers/claude_session.py, sesión que puede durar minutos legítimamente) NO debe heredar ese CPU/wall
-# corto — su ciclo de vida ya lo gobierna dispatch.py (timeouts/cancelación propios), no un rlimit. Lo que SÍ tiene
-# sentido acotar sin límite de tiempo: memoria, nº de procesos y tamaño de fichero — defensa en profundidad contra
-# un runaway/fork-bomb, sin arriesgar matar a mitad una tarea real.
+# ── rlimits for the INTERACTIVE dev-worker subprocess (audit 2026-07-26) ─────────────────────────────────────────
+# `_rlimits()` above is tuned for `run()` (a single-turn script, with short wall/CPU limits): an interactive dev-worker
+# (nucleo/workers/claude_session.py, a session that may legitimately last minutes) must NOT inherit that short CPU/wall
+# limit — its lifecycle is already governed by dispatch.py (its own timeouts/cancellation), not an rlimit. What DOES make
+# sense to limit without a time limit: memory, number of processes, and file size — defense in depth against
+# a runaway/fork bomb, without risking killing a real task halfway through.
 _DEV_MEM_MB = int(os.getenv("ZAELAR_DEV_WORKER_MEM_MB", "2048"))
 _DEV_NPROC = int(os.getenv("ZAELAR_DEV_WORKER_NPROC", "128"))
 _DEV_FSIZE_MB = int(os.getenv("ZAELAR_DEV_WORKER_FSIZE_MB", "512"))
 
 
 def dev_worker_rlimits():
-    """preexec_fn para el subproceso del dev-worker. Mac/Linux only (Windows no tiene `resource` — mismo límite
-    honesto que `_rlimits()`). NO llama a `os.setsid()`: `claude_session.py` ya pasa `start_new_session=True`
-    (grupo propio para `killpg`); duplicarlo aquí podría chocar con eso.
+    """preexec_fn for the dev-worker subprocess. Mac/Linux only (Windows has no `resource` — same honest limit
+    as `_rlimits()`). Does NOT call `os.setsid()`: `claude_session.py` already passes `start_new_session=True`
+    (its own group for `killpg`); duplicating it here could conflict with that.
 
-    LÍMITE HONESTO (verificado empíricamente, no falso-verde): en macOS/Darwin `resource.setrlimit(RLIMIT_AS, …)`
-    lanza `ValueError: current limit exceeds maximum limit` — Darwin NO soporta acotar el address-space de un
-    proceso así, y punto (no es "más laxo", es un no-op silencioso, atrapado por el `except` de abajo). El tope
-    de MEMORIA solo protege de verdad en Linux (producción cloud). `RLIMIT_NPROC` y `RLIMIT_FSIZE` SÍ se aplican
-    en ambos (verificado). La protección REAL contra exfiltración/lectura fuera del cwd en CUALQUIER plataforma
-    es el jail de rutas (`nucleo/dev_worker_guard.py`, hook PreToolUse), no este rlimit."""
+    HONEST LIMIT (empirically verified, not falsely reassuring): on macOS/Darwin `resource.setrlimit(RLIMIT_AS, …)`
+    raises `ValueError: current limit exceeds maximum limit` — Darwin does NOT support limiting a process's address space
+    this way, period (it is not "more permissive"; it is a silent no-op, caught by the `except` below). The MEMORY limit
+    provides real protection only on Linux (cloud production). `RLIMIT_NPROC` and `RLIMIT_FSIZE` DO apply
+    on both (verified). REAL protection against exfiltration/reading outside the cwd on ANY platform
+    is the path jail (`nucleo/dev_worker_guard.py`, PreToolUse hook), not this rlimit."""
     try:
         import resource
     except Exception:

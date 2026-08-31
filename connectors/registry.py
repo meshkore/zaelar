@@ -25,7 +25,7 @@ def _messaging() -> list[dict]:
         live = store.load().get("platforms", {})
         meta = {
             "whatsapp": ("WhatsApp", "qr"),
-            "telegram": ("Telegram", "app-password"),   # api_id/api_hash → luego QR
+            "telegram": ("Telegram", "app-password"),   # api_id/api_hash → then QR
             "email": ("Email", "app-password"),
         }
         for p in control.PLATFORMS:

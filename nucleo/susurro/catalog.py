@@ -1,16 +1,16 @@
-"""Catálogo CERRADO de correcciones del Susurro (V2-053) + prompt del auditor + validación.
+"""CLOSED catalog of Susurro corrections (V2-053) + auditor prompt + validation.
 
-Como el CORAZÓN de la memoria: el LLM devuelve JSON contra un contrato estrecho y TODO lo que no encaje se
-degrada de forma segura. En F1 solo se APLICAN `repair_say` y `finding`; los tipos de fases futuras
-(user_rule/worker_action/state_patch/memory_fix) se aceptan del modelo pero se CONVIERTEN en `finding`
-(propuesta documentada, no acción) hasta que su aplicador exista — así el prompt no cambia entre fases.
+Like the HEART of memory: the LLM returns JSON against a narrow contract, and EVERYTHING that does not fit is
+safely downgraded. In F1, only `repair_say` and `finding` are APPLIED; future-phase types
+(user_rule/worker_action/state_patch/memory_fix) are accepted from the model but CONVERTED into `finding`
+(a documented proposal, not an action) until their applier exists — so the prompt does not change between phases.
 """
 from __future__ import annotations
 
 import json
 
-# F1 aplicaba solo repair_say+finding; F2 (V2-061) habilita worker_action (RE-RUTEAR: disparar el worker correcto
-# cuando el cerebro rápido tomó un camino equivocado). user_rule/state_patch/memory_fix siguen como fase futura.
+# F1 applied only repair_say+finding; F2 (V2-061) enables worker_action (RE-ROUTE: trigger the correct worker
+# when the fast brain took the wrong path). user_rule/state_patch/memory_fix remain future phases.
 APPLY_TYPES = {"repair_say", "finding", "worker_action"}
 APPLY_TYPES_F1 = {"repair_say", "finding"}      # compat
 KNOWN_TYPES = {"repair_say", "finding", "user_rule", "worker_action", "state_patch", "memory_fix"}
@@ -79,7 +79,7 @@ REGLAS DURAS:
 
 
 def parse(raw: str) -> dict | None:
-    """JSON del modelo → dict, tolerando fences accidentales. None si no hay JSON usable."""
+    """Model JSON → dict, tolerating accidental fences. None if there is no usable JSON."""
     s = (raw or "").strip()
     if s.startswith("```"):
         s = s.strip("`")
@@ -96,8 +96,8 @@ def parse(raw: str) -> dict | None:
 
 
 def validate(parsed: dict) -> tuple[list[dict], list[dict]]:
-    """→ (aplicables F1, degradadas). Campos capados; tipos desconocidos se descartan; tipos de fases futuras
-    se convierten en finding (proposal = la corrección que el modelo quería aplicar)."""
+    """→ (F1-applicable, downgraded). Fields are capped; unknown types are discarded; future-phase types
+    are converted into finding (proposal = the correction the model wanted to apply)."""
     ok: list[dict] = []
     downgraded: list[dict] = []
     said = False
@@ -112,7 +112,7 @@ def validate(parsed: dict) -> tuple[list[dict], list[dict]]:
                 ok.append({"type": "repair_say", "text": text})
                 said = True
         elif t == "worker_action":
-            # F2 (V2-061): RE-RUTEO — disparar el worker correcto. Máx 1 por auditoría; request obligatorio.
+            # F2 (V2-061): RE-ROUTE — trigger the correct worker. Max 1 per audit; request required.
             req = str(c.get("request") or "").strip()[:400]
             if req and not dispatched:
                 ok.append({"type": "worker_action", "request": req,
@@ -131,7 +131,7 @@ def validate(parsed: dict) -> tuple[list[dict], list[dict]]:
                 "proposal": str(c.get("proposal") or "")[:800],
             })
         elif t in KNOWN_TYPES:
-            # fase futura: se documenta como finding, no se actúa (escalera F1→F2→F3 de V2-053)
+            # future phase: document as finding, take no action (V2-053 F1→F2→F3 ladder)
             downgraded.append({
                 "type": "finding", "severity": "P2", "area": "susurro-fase-futura",
                 "title": f"corrección {t} propuesta (aplicador aún no habilitado)",

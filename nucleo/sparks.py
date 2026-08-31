@@ -1,17 +1,17 @@
-"""nucleo/sparks.py — 🔥 chispas: pensamiento espontáneo del cerebro v2 (V2-005 · T73).
+"""nucleo/sparks.py — 🔥 sparks: spontaneous thought from the brain v2 (V2-005 · T73).
 
-Una chispa es un pensamiento que zaelar tiene por su cuenta (retomar una tarea pendiente, un recordatorio
-suave) — NO una respuesta a un turno del operador. El riesgo es el RUIDO: una chispa molesta rompe la
-confianza. Por eso el gate es DELIBERADAMENTE conservador y tiene DOS candados:
+A spark is a thought that zaelar has on its own (resuming a pending task, a gentle reminder) — NOT a
+response to an operator turn. The risk is NOISE: an annoying spark breaks trust. That is why the gate is
+DELIBERATELY conservative and has TWO locks:
 
-  1. **Gate de frecuencia** (`SparkGate`): presupuesto diario + separación mínima entre chispas + probabilidad
-     baja por tick. Aunque el loop corra a 1 Hz, una chispa es un suceso raro.
-  2. **Gate de utilidad** (`propose`): "¿aporta?". Solo propone si hay un candidato REAL (una tarea pendiente
-     del journal que lleva tiempo sin tocarse). Si no hay nada que merezca interrumpir → devuelve None → se
-     descarta. Empezamos sin generación por modelo (cero latencia/coste, cero alucinación); el SlowBrain podrá
-     enriquecer las chispas más adelante (V2-007).
+  1. **Frequency gate** (`SparkGate`): daily budget + minimum separation between sparks + low probability
+     per tick. Even if the loop runs at 1 Hz, a spark is a rare event.
+  2. **Utility gate** (`propose`): "does it help?". It only proposes when there is a REAL candidate (a
+     pending journal task that has not been touched for some time). If there is nothing worth interrupting →
+     returns None → is discarded. We start without model generation (zero latency/cost, zero hallucination);
+     SlowBrain may enrich the sparks later (V2-007).
 
-Todo el reloj/azar es inyectable → testeable de forma determinista.
+The entire clock/randomness interface is injectable → deterministically testable.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ _DAY_S = 86400
 
 
 class SparkGate:
-    """Decide SI se permite una chispa ahora (frecuencia). No decide el contenido (eso es `propose`)."""
+    """Decides WHETHER a spark is allowed now (frequency). It does not decide the content (that is `propose`)."""
 
     def __init__(self, daily_max: int | None = None, min_gap_s: float | None = None,
                  prob: float | None = None, clock=None, rng=None):
@@ -32,9 +32,9 @@ class SparkGate:
         self.prob = float(os.getenv("ZAELAR_SPARK_PROB", "0.01")) if prob is None else prob
         self._clock = clock or time.time
         self._rng = rng or random.random
-        self._day = None            # día (epoch // 86400) del recuento actual
-        self._count = 0             # chispas emitidas hoy
-        self._last = 0.0            # epoch de la última chispa
+        self._day = None            # day (epoch // 86400) of the current count
+        self._count = 0             # sparks emitted today
+        self._last = 0.0            # epoch of the last spark
 
     def _roll_day(self, now: float) -> None:
         day = int(now // _DAY_S)
@@ -63,15 +63,15 @@ class SparkGate:
         self._last = now
 
 
-# Cuánto debe llevar "quieta" una tarea del journal para que valga la pena resurgirla como chispa.
+# How long a journal task must remain "quiet" for it to be worth resurfacing as a spark.
 _STALE_S = float(os.getenv("ZAELAR_SPARK_STALE_S", str(6 * 3600)))
 
 
 def propose(now: float | None = None) -> str | None:
-    """Gate de UTILIDAD: devuelve el texto de una chispa que MERECE interrumpir, o None (→ se descarta).
+    """UTILITY gate: returns the text of a spark that is WORTH interrupting for, or None (→ discarded).
 
-    Candidato conservador: una tarea `pending` del journal (NO una tarea programada — esas ya tienen su propio
-    disparo) que lleva `_STALE_S` sin actualizarse. Si no hay ninguna, no molesta."""
+    Conservative candidate: a `pending` journal task (NOT a scheduled task — those already have their own
+    trigger) that has gone `_STALE_S` without being updated. If there is none, it does not bother anyone."""
     now = time.time() if now is None else now
     try:
         from memory import journal
@@ -84,7 +84,7 @@ def propose(now: float | None = None) -> str | None:
     for e in pend:
         d = e.get("detail") or {}
         if d.get("kind") == "scheduled":
-            continue  # las programadas tienen su propio disparo; no son material de chispa
+            continue  # scheduled tasks have their own trigger; they are not spark material
         updated = e.get("updated") or 0
         if now - updated < _STALE_S:
             continue

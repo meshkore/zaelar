@@ -1,6 +1,6 @@
-"""One-shot: guarda la preferencia del operador (datos de identidad → ESTADO) en memoria de largo plazo
-y siembra las claves 'computer' y 'car' en state con placeholder None. Idempotente-ish (crea un
-recuerdo nuevo cada ejecución; el resto es merge)."""
+"""One-shot: saves the operator's preference (identity data → STATE) in long-term memory
+and seeds the 'computer' and 'car' keys in state with the None placeholder. Somewhat idempotent
+(creates a new memory on each execution; the rest is merged)."""
 import memory
 
 mid = memory.write_now(

@@ -1,10 +1,10 @@
-"""V2-132 — a promise whose request was made a turn or two back.
+"""V2-132 — a promise whose request was made a turn or two earlier.
 
-`find-theatre-tickets__es` described the task across TWO turns: «consígueme dos entradas para el musical de El
-Rey León» and then, after zaelar correctly asked for the missing detail, «este sábado, la sesión de tarde». The
-promise («dame un momento que lo miro») landed on the second one, whose text on its own describes no task — so
-the promise backstop, which only ever looked at THIS turn, could not fire. Eight turns of narrating a search
-that had never started, with `signals: empty` in the mechanism report.
+`find-theatre-tickets__es` described the task across TWO turns: «get me two tickets for the musical The Lion
+King» and then, after zaelar correctly asked for the missing detail, «this Saturday, the afternoon show». The
+promise («give me a moment while I look into it») landed on the second one, whose text on its own describes no
+task — so the promise backstop, which only ever looked at THIS turn, could not fire. Eight turns of narrating a
+search that had never started, with `signals: empty` in the mechanism report.
 
 Two independent gaps, both measured on the transcript before touching anything:
   · `_PROMISE_RE` did not know «me pongo A», «estoy con ello», «sigo con ello» — the plainest ways to say it.
@@ -82,13 +82,13 @@ def test_the_escalate_guard_reuses_the_catalog_instead_of_a_second_verb_list():
         assert dispatch._classify_kind(text) == "web"
 
 
-# ── V2-147: tres «¿alguna novedad?» borraban la petición del alcance ─────────────────────────────────────────
+# ── V2-147: three «any news?» checks erased the request from the scope ───────────────────────────────────────
 #
-# La corrida de `find-theatre-tickets__es` (17:04): zaelar propone parar la tarea atascada y probar de otra
-# forma, el operador dice que sí, zaelar contesta «Vale, dame un momento que lo miro» — y no se mueve nada.
-# `promises_action` SÍ detectaba la promesa; lo que devolvía vacío era el objetivo. La petición estaba en la
-# ventana y `_needs_real_work` la reconocía: el problema es que `max_back` recortaba ENTRADAS, así que cada
-# comprobación de estado costaba dos del presupuesto y con tres se perdía de vista lo que se había pedido.
+# The `find-theatre-tickets__es` run (17:04): zaelar proposes stopping the stuck task and trying another
+# approach, the operator agrees, zaelar replies «Okay, give me a moment while I look into it» — and nothing
+# moves. `promises_action` DID detect the promise; the empty result was the goal. The request was in the window
+# and `_needs_real_work` recognised it: the problem was that `max_back` counted ENTRIES, so each status check
+# cost two units of the budget and after three checks the original request was out of view.
 TEATRO = [
     {"role": "user", "content": "Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado."},
     {"role": "assistant", "content": "¿A qué hora te vendría bien? ¿Y qué presupuesto?"},
@@ -108,13 +108,13 @@ def test_asking_how_it_is_going_does_not_erase_what_was_asked_for():
 
 
 def test_and_the_budget_is_counted_in_the_operators_own_turns():
-    """La unidad es lo que importa: con entradas, una conversación normal —preguntar cómo va— gasta el doble."""
+    """The unit is what matters: with tickets, a normal conversation—asking how it is going—costs twice as much."""
     assert g.escalate_goal_from_window(TEATRO, ASSENT, max_back=4) != ""
     assert g.escalate_goal_from_window(TEATRO, ASSENT, max_back=3) == ""
 
 
 def test_but_a_conversation_with_no_task_in_it_still_finds_nothing():
-    """El presupuesto más largo no puede convertir una charla en una tarea."""
+    """A longer budget cannot turn a chat into a task."""
     charla = [{"role": "user", "content": "hola, buenas"},
               {"role": "assistant", "content": "¡hola!"},
               {"role": "user", "content": "¿qué tal todo?"},
