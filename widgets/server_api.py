@@ -416,6 +416,11 @@ async def confirm_widget(wid: str, payload: dict):
     if p.get("action") == "delete":
         res = await lifecycle.delete_widget(p["widget_id"], "user")   # V2-039: confirmed by operator Yes/No button
         return JSONResponse(res, status_code=200 if res.get("ok") else 500)
+    if p.get("action") == "restore":
+        # V2-515: same rule that bit `data` above — every confirmation class MUST execute from the button too,
+        # because resolve() has already consumed the pending by the time we branch.
+        res = await lifecycle.restore_widget(p["widget_id"], "user")
+        return JSONResponse(res, status_code=200 if res.get("ok") else 500)
     if p.get("action") == "data" and isinstance(p.get("op"), dict):
         op = p["op"]
         name = str(op.get("action") or "").strip()
@@ -427,6 +432,16 @@ async def confirm_widget(wid: str, payload: dict):
         return JSONResponse({"ok": not (isinstance(res, dict) and res.get("error")),
                              "id": p["widget_id"], "action": name, "result": res})
     return JSONResponse({"ok": False, "error": f"acción no soportada: {p.get('action')}"}, status_code=400)
+
+
+@router.post("/widgets/{wid}/restore")
+async def widget_restore(wid: str):
+    """Restore a widget to the (newest) SHIPPED version (V2-515): discard the fork, unhide the id. The UI
+    affordance keys on the registry's `forked` flag; voice goes through the `restore_widget` tool + the
+    confirmation gate instead."""
+    from . import lifecycle
+    res = await lifecycle.restore_widget(_safe(wid), "user")
+    return JSONResponse(res, status_code=200 if res.get("ok") else 404)
 
 
 def _emit_confirmed(wid: str, action: str) -> None:

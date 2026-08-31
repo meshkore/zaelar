@@ -58,7 +58,8 @@ def widget_identity(w: dict) -> dict:
     if not seed:                                   # no new field → seed from keywords (lazy migration)
         seed = w.get("keywords") or []
     aliases = _norm_aliases([name, *seed])
-    return {"id": wid, "name": name, "aliases": aliases, "surface": "user", "origin": origin_of(w)}
+    return {"id": wid, "name": name, "aliases": aliases, "surface": "user", "origin": origin_of(w),
+            "forked": bool(w.get("forked_from"))}
 
 
 def registry() -> list[dict]:
@@ -75,7 +76,7 @@ def project_state() -> list[dict]:
     """COMPACT version for projection to `memory/state.py` (`widget_registry`) — visibility, not source of truth.
     Only id/name/aliases/surface, already normalized. Written by the appropriate caller after catalog/alias changes."""
     return [{"id": r["id"], "name": r["name"], "aliases": r["aliases"], "surface": r["surface"],
-             "origin": r.get("origin", "user")} for r in registry()]
+             "origin": r.get("origin", "user"), "forked": bool(r.get("forked"))} for r in registry()]
 
 
 def refresh_state() -> list[dict]:

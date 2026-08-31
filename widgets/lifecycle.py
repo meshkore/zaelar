@@ -21,6 +21,7 @@ job-thread or the server loop: `delete_widget` is a coroutine that runs disk I/O
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import shutil
 import time
@@ -118,3 +119,76 @@ async def delete_widget(widget_id: str, src: str = "system") -> dict:
     )
     logger.info(f"widget lifecycle: DELETED '{wid}' (folder+store+memory tombstone)")
     return {"ok": True, "id": wid, "title": title}
+
+
+def restorable_ids() -> list[str]:
+    """Ids with something to RESTORE (V2-515): a fork shadowing shipped source, or a hidden ("deleted")
+    shipped widget. A purely user-created widget has no shipped version underneath — nothing to restore."""
+    gen = paths.generated_root()
+    try:
+        names = set(os.listdir(gen)) if os.path.isdir(gen) else set()
+    except OSError:
+        names = set()
+    out = []
+    for wid in sorted(names | set(hidden.ids())):
+        if not os.path.isfile(os.path.join(paths.BUILTIN_ROOT, wid, "manifest.json")):
+            continue
+        if wid in hidden.ids() or os.path.isfile(os.path.join(gen, wid, "manifest.json")):
+            out.append(wid)
+    return out
+
+
+def restorable_id(text: str) -> str:
+    """Loose match of the operator's words against what is restorable — by id, or by the SHIPPED manifest's
+    name/title/aliases. It must not lean on `runtime.identify`: a hidden widget is out of the catalog (that
+    is the point of hiding it), so the normal resolver cannot see exactly the widgets this verb exists for."""
+    q = runtime._norm(text or "")
+    if not q:
+        return ""
+    for wid in restorable_ids():
+        w = runtime._norm(wid)
+        if w and (w in q or q == w):
+            return wid
+        try:
+            man = json.load(open(os.path.join(paths.BUILTIN_ROOT, wid, "manifest.json"), encoding="utf-8"))
+        except Exception:
+            man = {}
+        names = [man.get("name") or "", man.get("title") or ""]
+        names += [str(a) for a in (man.get("aliases") or man.get("keywords") or [])]
+        if any(runtime._norm(n) and runtime._norm(n) in q for n in names):
+            return wid
+    return ""
+
+
+async def restore_widget(widget_id: str, src: str = "system") -> dict:
+    """Bring a widget back to the (newest) SHIPPED version (V2-515): discard the user's fork if one shadows
+    it, unhide the id if it was "deleted". Because the shipped folder was never touched while shadowed —
+    engine updates kept landing on it — restore always returns the LATEST system version, not the one the
+    fork was cut from. Deterministic, runs disk I/O in a thread, never raises."""
+    wid = (widget_id or "").strip().lower()
+    if not wid:
+        return {"ok": False, "error": "empty id"}
+    shipped = os.path.join(paths.BUILTIN_ROOT, wid)
+    if not os.path.isfile(os.path.join(shipped, "manifest.json")):
+        return {"ok": False, "id": wid, "error": "no shipped version to restore to"}
+    fork = os.path.join(paths.generated_root(), wid)
+    had_fork = os.path.isdir(fork)
+
+    def _restore() -> None:
+        if had_fork and not paths.is_repo_source(fork):
+            shutil.rmtree(fork, ignore_errors=True)
+        hidden.unhide(wid)
+
+    await asyncio.to_thread(_restore)
+    paths.forget_modules(wid)          # a live process must stop answering from the discarded fork
+    runtime.invalidate()
+    meta = runtime.get(wid) or {}
+    title = meta.get("title") or wid
+    _emit_widget("restore", wid, src)  # audit trail: what happened is a RESTORE…
+    _emit_widget("delete", wid, src)   # …and the open card (stale fork UI + cached code) must close/flush
+    when = time.strftime("%Y-%m-%d")
+    tail = " The customized fork was discarded at the operator's request." if had_fork else ""
+    _mem_write(f"[widget:{wid}] Widget '{title}' was RESTORED to the shipped version on {when}.{tail}",
+               importance=0.5)
+    logger.info(f"widget lifecycle: RESTORED '{wid}' to shipped (fork discarded: {had_fork})")
+    return {"ok": True, "id": wid, "title": title, "discarded_fork": had_fork}

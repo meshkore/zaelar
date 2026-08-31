@@ -5,7 +5,7 @@ from nucleo.flash.router import ANSWER, CHAT, ESCALATE, INJECT, MUSIC, STOP, STY
 
 def test_tools_are_openai_functions():
     names = {t["function"]["name"] for t in router.tools()}
-    assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget",
+    assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget", "restore_widget",
                      "manage_widget_alias", "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
                      "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",
@@ -131,7 +131,9 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # un incidente para proteger un número: cada una de ellas costó una ronda medida, y el catálogo existe para
 # llevarlas. El coste de la subida son ~50 tokens por turno; lo que compra es que enseñar una foto deje de ser
 # un encargo de seis minutos.
-MAX_CATALOG_CHARS = 21_200
+# V2-515 raised 21_200 → 21_800: one genuinely NEW tool (restore_widget), added with its description
+# already compacted — the +490 is the tool, not fat.
+MAX_CATALOG_CHARS = 21_800
 
 
 # ── "muéstrame una foto de X" NO se describe de palabra (incidente real 2026-08-03) ──────────────────────────

@@ -403,6 +403,24 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "restore_widget",
+            "description": (
+                "Devuelve un widget a su versión DE SISTEMA: descarta el fork personalizado del operador, o "
+                "recupera un widget de sistema borrado. Abre una confirmación (di una pregunta corta). Solo "
+                "para widgets con versión de sistema; no deshace una edición suelta."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "widget_id": {"type": "string", "description": "id o nombre dicho por el operador"}
+                },
+                "required": ["widget_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "confirm_widget_delete",
             "description": (
                 "Resuelve la CONFIRMACIÓN de borrado pendiente (la verás en tu estado) cuando el operador responda a "
@@ -654,8 +672,8 @@ TOOLS: list[dict] = [
 # vistazo qué bloque entra y cuál se queda fuera, en vez de 22 gates sueltos. NO es un clasificador de intención.
 FAMILIES: dict[str, tuple[str, ...]] = {
     "core":      ("escalate_to_slowbrain", "set_style_directive"),
-    "widgets":   ("show_widget", "widget_data", "delete_widget", "confirm_widget_delete", "fullscreen_widget",
-                  "manage_widget_alias", "show_panel"),
+    "widgets":   ("show_widget", "widget_data", "delete_widget", "restore_widget", "confirm_widget_delete",
+                  "fullscreen_widget", "manage_widget_alias", "show_panel"),
     "workers":   ("send_to_worker", "stop_worker", "answer_worker"),
     "cluster":   ("connect_cluster", "set_cluster_objective", "cluster_send"),
     "messaging": ("reply_message",),

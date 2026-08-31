@@ -499,6 +499,10 @@ def _resolve_pending_confirm(ok: bool) -> bool:
         elif p.get("action") == "delete":
             _spawn(_lifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
             emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
+        elif p.get("action") == "restore":
+            _spawn(_lifecycle.restore_widget(p["widget_id"], "flash"), "widget-restore")
+            emit("brain", "⟲ widget restaurado a la versión de sistema (confirmado)", text=p["widget_id"],
+                 role="system")
         return True
     except Exception:
         return False
@@ -1286,6 +1290,27 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"delete confirm request falló: {e}")
 
+        def _request_restore_confirm(widget_id: str, turn_text: str) -> None:
+            """FlashBrain asks to RESTORE a widget to its shipped version (V2-515) → open the CONFIRMATION:
+            discarding the operator's customized fork is destructive for THEIR work. Resolves the id against
+            what is RESTORABLE (forks + hidden shipped widgets) — a deleted widget is out of the catalog, so
+            the normal identify cannot see exactly the widgets this verb exists for."""
+            try:
+                from widgets import confirm as _confirm, lifecycle as _lc
+                wid = _lc.restorable_id(widget_id or turn_text)
+                if not wid:
+                    emit("brain", "⚠️ restaurar: nada que restaurar con ese nombre",
+                         text=(widget_id or turn_text)[:80], role="system")
+                    clarify["msg"] = "No encuentro ninguna versión personalizada o borrada que restaurar."
+                    return
+                _confirm.request("restore", wid,
+                                 f"¿Vuelvo el widget «{wid}» a la versión de sistema? Tu versión se descarta.",
+                                 notify_ui=_confirm_ui_paints(wid))
+                confirm_state["opened"] = f"¿Restauro el widget «{wid}» a la versión de sistema?"
+                emit("brain", "⟲ confirmación de restauración pedida", text=wid, role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"restore confirm request failed: {e}")
+
         def _request_data_confirm(widget_id: str, action_name: str, payload: dict) -> None:
             """El FlashBrain quiere ejecutar una data-op IRREVERSIBLE (`confirm:true` en el manifest, V2-025) →
             abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta) guardando la MUTACIÓN; solo al decir "sí" se
@@ -1794,6 +1819,8 @@ class NucleoLLMStream(llm.LLMStream):
                         clarify["msg"] = "¿A qué mensaje respondo y qué le digo?"
             elif name == "delete_widget":
                 _request_delete_confirm((args.get("widget_id") or "").strip(), text)
+            elif name == "restore_widget":
+                _request_restore_confirm((args.get("widget_id") or "").strip(), text)
             elif name == "confirm_widget_delete":
                 confirm_state["handled"] = _resolve_confirm(bool(args.get("confirmed")))
             elif name == "set_style_directive":

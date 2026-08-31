@@ -12,7 +12,8 @@ ALLOW, CONFIRM, DENY = "allow", "confirm", "deny"
 # desde contenido web hostil, §v3·B/J). Crece con marca explícita, nunca por accidente.
 _PRESTABLE_TOOLS = {"web_search"}
 # Nunca prestables (operator-only por semántica).
-_DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_style_directive", "delete_widget"}
+_DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_style_directive", "delete_widget",
+               "restore_widget"}
 
 # Acciones que el plano request/response entiende. Se declara AQUÍ, junto a la política, para que el mensaje de
 # denegación no pueda quedarse desactualizado respecto a lo que `classify_act` admite de verdad.
