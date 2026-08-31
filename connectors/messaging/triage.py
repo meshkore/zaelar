@@ -86,7 +86,18 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
             async with s.post(url.rstrip("/") + "/chat/completions",
                               headers={"Authorization": f"Bearer {config.triage_key()}"},
                               json=payload) as r:
-                data = await r.json()
+                status = r.status
+                data = await r.json(content_type=None)
+        # SAY WHAT HAPPENED. Reading `data["choices"]` straight off turned every provider-side refusal into a bare
+        # `KeyError: 'choices'` — a message that names neither the status nor the reason and points at our parsing
+        # instead of at the answer. Measured 2026-08-31: a bad bearer token produced `401 Authentication Fails,
+        # Your api key: ****ocal is invalid` for hours, logged as `triaje falló: 'choices'`, and the operator went
+        # looking at his account balance. A 401 (key), a 402 (balance) and a 400 (model) need three different
+        # actions from him and MUST NOT read alike. The provider already tells us which one it is.
+        if not isinstance(data, dict) or "choices" not in data:
+            err = data.get("error") if isinstance(data, dict) else None
+            detail = (err or {}).get("message") if isinstance(err, dict) else (err or str(data)[:200])
+            raise RuntimeError(f"HTTP {status} · {config.triage_model()} @ {url} · {detail}")
         content = data["choices"][0]["message"]["content"]
         verdicts = _parse(content)
         # ENERGY (2026-08-13). The default is LOCAL (Ollama) and `energy_meter` returns None for a local endpoint, so

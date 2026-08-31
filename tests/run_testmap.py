@@ -1641,6 +1641,14 @@ DOMAINS: list[dict] = [
         {"id": "5.2", "title": "Mensajería (ingest/reply)", "ch": UNIT, "paths": [
             "tests/connectors/unit/messaging/test_ingest.py", "tests/connectors/unit/messaging/test_reply.py",
             "tests/connectors/unit/messaging/test_memory_dump.py"]},
+        # 2026-08-31: el triaje llevaba horas fallando contra DeepSeek con `triaje falló: 'choices'`, y el
+        # operador se fue a mirar su SALDO. No era saldo: `triage_key()` tenía su propia copia del mapa
+        # endpoint→clave (la QUINTA; el docstring de `nucleo/provider_keys.py` nombra las cuatro que ya habían
+        # divergido) y no conocía DeepSeek, así que mandaba la cadena literal `local` como token → 401. Dos
+        # reglas: una sola lista la lee todo el mundo, y un 401/402/400 piden acciones DISTINTAS del operador,
+        # así que no pueden leerse igual.
+        {"id": "5.6", "title": "Triaje: la clave sale del mapa compartido · el fallo dice qué contestó el proveedor",
+            "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_triage_says_what_the_provider_answered.py"]},
         {"id": "5.3", "title": "Música / Spotify / YouTube-audio", "ch": UNIT, "paths": [
             "tests/connectors/unit/music/test_music.py", "tests/connectors/unit/music/test_youtube_audio.py",
             "tests/connectors/unit/spotify/test_auth.py", "tests/connectors/unit/spotify/test_provider.py"]},

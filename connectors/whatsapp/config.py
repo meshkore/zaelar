@@ -40,8 +40,15 @@ def triage_model() -> str:
 
 
 def triage_key() -> str:
-    # Ollama ignores the value but requires a non-empty one. For a remote backend, put the API key here.
-    return os.getenv("WA_TRIAGE_KEY", "local")
+    """Ollama ignores the value but requires a non-empty one. For a REMOTE backend the key comes from the shared
+    endpoint map (`nucleo/provider_keys.py`) rather than from nowhere: the default here is local Ollama, but
+    `WA_TRIAGE_URL` can point anywhere, and sending the literal `local` to a real provider fails auth silently —
+    the failure measured in the messaging triage on 2026-08-31, which cost hours because the 401 never surfaced."""
+    k = os.getenv("WA_TRIAGE_KEY", "")
+    if k:
+        return k
+    from nucleo import provider_keys
+    return provider_keys.key_for_endpoint(triage_url(), default="local")
 
 
 def operator_name() -> str:
