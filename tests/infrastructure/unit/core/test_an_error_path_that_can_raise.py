@@ -1,17 +1,17 @@
-"""Un manejador de error que puede reventar no es un manejador de error (2026-08-23).
+"""An error handler that can crash is not an error handler (2026-08-23).
 
-Lo reportó el arnés con la ronda que le mató: `cheapest-monitor` murió en el turno 10 con un HTTP 500, y el log
-del motor traía `IndexError: list index out of range` desde
+The harness reported it with the run that killed it: `cheapest-monitor` died on turn 10 with an HTTP 500, and the
+engine log contained `IndexError: list index out of range` from
 
     _err = str(e).splitlines()[0][:200]
 
-`"".splitlines()` es `[]`, así que CUALQUIER excepción sin mensaje —`TimeoutError()`, `CancelledError()`, un
-`RuntimeError('')` pelado— hace que la línea reviente ella sola.
+`"".splitlines()` is `[]`, so ANY exception without a message —`TimeoutError()`, `CancelledError()`, a bare
+`RuntimeError('')`— makes the line crash on its own.
 
-Lo que lo convierte en grave es DÓNDE estaba: las quince copias vivían dentro de un `except`, y la de `probe.py`
-es el manejador que clasifica el fallo de proveedor y decide el RELEVO de cadena. Un proveedor cayendo en
-silencio se llevaba por delante al manejador del fallo — el turno devolvía 500 y **el relevo no ocurría nunca**.
-La red de seguridad se rompía justo cuando hacía falta, y el síntoma señalaba a otra cosa.
+What makes it serious is WHERE it was: all fifteen copies lived inside an `except`, and the one in `probe.py`
+is the handler that classifies the provider failure and decides the chain RELAY. A provider failing silently took
+down the failure handler — the turn returned 500 and **the relay never happened**. The safety net broke precisely
+when it was needed, and the symptom pointed to something else.
 """
 import ast
 import asyncio
@@ -20,14 +20,14 @@ import re
 
 from nucleo.errors import brief
 
-# parents[4], no [3]: este fichero vive un nivel más hondo que `test_architecture_ratchet.py`. Con [3] el
-# barrido apuntaba a `tests/`, así que se auto-denunciaba con su propio docstring y no encontraba el motor.
+# parents[4], not [3]: this file lives one level deeper than `test_architecture_ratchet.py`. With [3] the
+# scan pointed to `tests/`, so it reported its own docstring and did not find the engine.
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
 def test_the_three_shapes_that_used_to_crash():
-    """Los tres reproducidos antes de escribir nada. Ninguno lanza, y ninguno devuelve vacío: un log que dice
-    «TimeoutError» sirve; uno en blanco es justo lo que la línea original intentaba evitar producir."""
+    """The three reproduced before writing anything. None raises, and none returns empty: a log that says
+    «TimeoutError» is useful; a blank one is precisely what the original line was trying to avoid producing."""
     for exc in (TimeoutError(), asyncio.CancelledError(), RuntimeError("")):
         got = brief(exc)
         assert got == type(exc).__name__, got
@@ -40,8 +40,8 @@ def test_a_normal_message_keeps_its_first_line_and_its_cap():
 
 
 def test_a_str_that_itself_raises_does_not_take_the_handler_down():
-    """Raro y real: errores envueltos de C con un `__str__` que revienta. Si `brief` lanzara ahí, habríamos
-    cambiado un modo de fallo por otro con el mismo efecto."""
+    """Rare and real: C-wrapped errors with a `__str__` that crashes. If `brief` raised there, we would have
+    changed one failure mode into another with the same effect."""
     class _Nasty(Exception):
         def __str__(self):
             raise RuntimeError("simulado")
@@ -50,17 +50,17 @@ def test_a_str_that_itself_raises_does_not_take_the_handler_down():
 
 
 def test_no_production_handler_slices_splitlines_without_a_guard():
-    """El guarda de la CLASE. Quince copias de una línea son quince ocasiones de arreglar catorce.
+    """The CLASS guard. Fifteen copies of one line are fifteen opportunities to fix fourteen.
 
-    Se permite la forma cuando está GUARDADA por un ternario que exige texto (es el caso de `music_flow.py`) o
-    cuando la lectura viene de un valor ya comprobado — por eso se mira si en la MISMA línea hay una condición,
-    en vez de prohibir el patrón a ciegas y obligar a rodearlo."""
+    The form is allowed when it is GUARDED by a ternary that requires text (as in `music_flow.py`) or
+    when the value comes from an already-checked source — therefore the same line is checked for a condition,
+    instead of blindly banning the pattern and requiring it to be wrapped."""
     ofensores = []
     for p in ENGINE.rglob("*.py"):
         rel = p.relative_to(ENGINE).as_posix()
-        # `tools/` queda fuera: son scripts de desarrollo que se lanzan a mano, no manejadores del motor vivo,
-        # que es de lo que va este guarda. Comprobado que su único caso ES seguro — la lectura va detrás de un
-        # `if text and …` en la línea anterior — así que no se está tapando nada, se está acotando el sujeto.
+        # `tools/` is excluded: these are development scripts run manually, not handlers for the live engine,
+        # which is what this guard concerns. Its only case has been confirmed to be safe — the read follows an
+        # `if text and …` on the previous line — so nothing is being hidden; the subject is being narrowed.
         if any(x in rel.split("/") for x in (".venv", "tests", "tools", "__pycache__")) \
                 or rel == "nucleo/errors.py":
             continue
@@ -71,7 +71,7 @@ def test_no_production_handler_slices_splitlines_without_a_guard():
         for n, line in enumerate(src.splitlines(), 1):
             if "splitlines()[0]" not in line:
                 continue
-            if " if " in line:            # ternario que exige contenido — guardado
+            if " if " in line:            # ternary that requires content — guarded
                 continue
             ofensores.append(f"{rel}:{n}: {line.strip()[:90]}")
     assert not ofensores, ("un manejador vuelve a cortar `splitlines()[0]` sin guarda — usa "
@@ -79,13 +79,13 @@ def test_no_production_handler_slices_splitlines_without_a_guard():
 
 
 def test_the_handler_that_decides_the_relay_uses_it():
-    """El sitio concreto que tumbó la ronda: si vuelve a construir su mensaje a mano, el relevo se vuelve a
-    romper cuando un proveedor cae en silencio.
+    """The specific site that brought down the run: if it builds its message by hand again, the relay will break
+    again when a provider fails silently.
 
-    La primera versión anclaba en «la PRIMERA aparición de `provider_failure`» y era una ventana de texto, no
-    una propiedad: V2-309 añadió una mención más arriba, la ventana se movió y el guarda acusó a código
-    correcto (2026-08-25). Lo que importa es que el MENSAJE del manejador salga del helper — así que se ancla
-    en la asignación concreta, que es lo que decide el relevo."""
+    The first version anchored on «the FIRST occurrence of `provider_failure`» and used a text window, not
+    a property: V2-309 added a mention higher up, the window moved, and the guard accused correct code
+    (2026-08-25). What matters is that the handler's MESSAGE comes from the helper — so it anchors
+    on the specific assignment, which is what decides the relay."""
     src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text()
     assert "provider_failure" in src, "desapareció el manejador de fallo de proveedor del probe"
     assert "_err = _brief(" in src, (

@@ -1,16 +1,17 @@
-"""Gate de COBERTURA de Energy (T299).
+"""Energy COVERAGE gate (T299).
 
-Por qué existe: la tabla de tarifas se ha arreglado tres veces (2026-08-05 el FlashBrain metraba a
-cero, 2026-08-13 cuatro agujeros más en los workers) y cada vez el fallo se encontró a mano, mirando
-un número que salía bajo. Ninguna de esas veces falló nada: **medir de menos es indistinguible de
-funcionar bien.** Los tests de `test_energy_meter.py` comprueban que la aritmética es correcta; este
-comprueba lo otro, que es lo que de verdad se rompe — que no haya nadie gastando FUERA del contador.
+Why it exists: the rate table has been fixed three times (on 2026-08-05 FlashBrain was metered at
+zero; on 2026-08-13 four more gaps were found in the workers), and each time the failure was found
+manually by looking at a number that was too low. None of those times did anything fail: **under-metering
+is indistinguishable from working correctly.** The tests in `test_energy_meter.py` check that the
+arithmetic is correct; this one checks the other thing, which is what actually breaks—that nobody is
+spending OUTSIDE the meter.
 
-La forma es deliberadamente tonta: buscar en el código quién habla con un proveedor de pago y exigir
-que ese mismo fichero nombre `energy_meter`. No prueba que la llamada esté bien medida (eso no lo
-puede saber un grep); prueba que ALGUIEN se acordó. La excepción es una entrada explícita en
-`_EXENTOS` con su motivo escrito, que es justo lo que se quiere: que saltarse el contador cueste un
-comentario que otro puede leer y discutir.
+The approach is deliberately simple: search the code for who talks to a paid provider and require
+that same file to mention `energy_meter`. It does not prove that the call is metered correctly (a grep
+cannot know that); it proves that SOMEONE remembered. The exception is an explicit entry in
+`_EXENTOS` with its reason written down, which is exactly what we want: bypassing the meter should cost
+a comment that someone else can read and debate.
 """
 from __future__ import annotations
 
@@ -20,7 +21,7 @@ import pytest
 
 RAIZ = Path(__file__).resolve().parents[4]
 
-# Señales de "este fichero llama a un proveedor externo de pago".
+# Signals that "this file calls a paid external provider."
 _SENALES = (
     "chat/completions", "chat.completions.create",
     "AsyncOpenAI", "OpenAI(",
@@ -29,15 +30,15 @@ _SENALES = (
     "api.perplexity.ai", "api.tavily.com", "api.search.brave.com",
 )
 
-# Prueba de que el fichero participa del sistema energético.
+# Proof that the file participates in the energy system.
 _MARCAS = ("energy_meter", "report_llm_usage", "report_worker_usage",
            "report_tts_usage", "report_stt_usage", "report_search_usage")
 
-# Carpetas que no son el motor en producción.
+# Folders that are not the production engine.
 _FUERA = ("tests/", ".venv/", "node_modules/", "widgets/_data/", "vendor/", "scripts/")
 
-# EXENCIONES, cada una con su motivo. Añadir una es una decisión, no un trámite: si el motivo no se
-# puede escribir en una línea honesta, probablemente el fichero deba medir.
+# EXEMPTIONS, each with its reason. Adding one is a decision, not a formality: if the reason cannot be
+# written in one honest line, the file probably needs to meter usage.
 _EXENTOS: dict[str, str] = {
     "nucleo/energy_meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
@@ -75,7 +76,7 @@ def _ficheros_py() -> list[Path]:
 
 
 def _sospechosos() -> dict[str, str]:
-    """rel_path → primera señal encontrada, para los ficheros SIN marca de medición."""
+    """rel_path → first signal found, for files WITHOUT a metering marker."""
     out: dict[str, str] = {}
     for p in _ficheros_py():
         rel = p.relative_to(RAIZ).as_posix()
@@ -102,8 +103,8 @@ def test_todo_lo_que_llama_a_un_proveedor_de_pago_reporta_a_energy():
 
 
 def test_las_exenciones_siguen_existiendo():
-    """Una exención sobre un fichero borrado o renombrado es un permiso que ya no protege nada, y peor:
-    hace creer que el gate cubre algo que no existe. Se caduca sola."""
+    """An exemption for a deleted or renamed file is a permission that no longer protects anything, and worse:
+    it makes people believe the gate covers something that does not exist. It expires on its own."""
     muertas = [rel for rel in _EXENTOS if not (RAIZ / rel).exists()]
     assert not muertas, f"exenciones de _EXENTOS que ya no apuntan a un fichero: {muertas}"
 
@@ -113,14 +114,14 @@ def test_una_exencion_lleva_motivo_de_verdad(rel):
     assert len(_EXENTOS[rel].strip()) > 20, f"la exención de {rel} no explica nada"
 
 
-# ── LA PUERTA (arquitectura, 2026-08-15) ─────────────────────────────────────────────────────────────────────
-# Petición del operador: *«el módulo de cobro tiene que ser un módulo totalmente separado, a modo de gateway, y
-# que cuando haya llamadas a servicios que consumen dinero se pase por ahí»*. Estaba separado, pero sin puerta:
-# los once llamantes repetían el mismo bloque de ocho líneas, y esa copia-pega tenía coste medible (solo uno de
-# los once leía `prompt_cache_hit_tokens`). Estos tests defienden la forma, no la aritmética.
+# ── THE GATEWAY (architecture, 2026-08-15) ──────────────────────────────────────────────────────────────────
+# Operator request: *"the billing module must be a completely separate module, acting as a gateway, and
+# calls to services that consume money must go through it"*. It was separate, but without a gateway:
+# all eleven callers repeated the same eight-line block, and that copy-paste had a measurable cost (only one
+# of the eleven read `prompt_cache_hit_tokens`). These tests defend the structure, not the arithmetic.
 def test_medir_una_llamada_es_UNA_linea_y_el_contador_sabe_de_cache():
-    """La puerta saca `usage` de la respuesta cruda del proveedor — el llamante no desempaqueta nada, que es
-    justo el conocimiento que se le escapaba a diez de los once."""
+    """The gateway extracts `usage` from the provider's raw response—the caller does not unpack anything, which is
+    exactly the knowledge that had been missed by ten of the eleven."""
     from nucleo import energy_meter as em
     visto = {}
     orig = em.report_llm_usage
@@ -136,16 +137,16 @@ def test_medir_una_llamada_es_UNA_linea_y_el_contador_sabe_de_cache():
 
 
 def test_la_puerta_traga_una_respuesta_rara_sin_tumbar_al_llamante():
-    """«Medir nunca tumba la llamada que estaba midiendo» es propiedad del MÓDULO. Antes era un `try/except`
-    copiado once veces: un llamante nuevo que se olvidara convertía un fallo de contabilidad en caída."""
+    """“Metering never brings down the call it was metering” is a property of the MODULE. Previously it was a
+    `try/except` copied eleven times: a new caller that forgot it turned an accounting failure into a crash."""
     from nucleo import energy_meter as em
     for payload in (None, "no soy una respuesta", {"usage": None}, object()):
         em.meter_openai_response(payload, base_url="https://api.x.ai/v1", model="grok-4-fast")
 
 
 def test_ninguna_puerta_publica_del_contador_puede_lanzar():
-    """Se comprueba la PROPIEDAD sobre todas a la vez, para que añadir una puerta nueva sin el decorador se note
-    aquí y no en producción."""
+    """The PROPERTY is checked across all of them at once, so adding a new gateway without the decorator is noticed
+    here rather than in production."""
     from nucleo import energy_meter as em
     puertas = [n for n in dir(em) if n.startswith("report_") or n.startswith("meter_")]
     assert len(puertas) >= 6, f"esperaba las puertas públicas del contador, encontré {puertas}"
@@ -155,9 +156,9 @@ def test_ninguna_puerta_publica_del_contador_puede_lanzar():
 
 
 def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
-    """La cadena de búsqueda degrada por CALIDAD, así que añadir un buscador de pago es tentador y
-    barato. Sin tarifa se cobraría al catch-all — que existe para que nada sea gratis, no para ser el
-    precio de nadie de forma permanente."""
+    """The search chain degrades by QUALITY, so adding a paid search provider is tempting and
+    cheap. Without a rate it would be charged at the catch-all—which exists so that nothing is free,
+    not to be anyone's permanent price."""
     from nucleo import energy_meter, websearch
     sin_tarifa = [p for p in websearch._PAID_BACKENDS
                   if p not in energy_meter._SEARCH_USD_PER_REQUEST]
@@ -168,8 +169,8 @@ def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
 
 
 def test_un_buscador_gratis_no_se_cobra():
-    """Google (nuestro Chromium) y DDG son el camino normal en producción. Cobrarlos por descuido
-    inflaría la factura de cada usuario en la operación más frecuente que hace el agente."""
+    """Google (our Chromium) and DDG are the normal path in production. Charging for them by mistake
+    would inflate every user's bill for the most frequent operation the agent performs."""
     from nucleo import websearch
     assert "google" not in websearch._PAID_BACKENDS
     assert "ddg" not in websearch._PAID_BACKENDS

@@ -1,7 +1,8 @@
-"""ARRIENDO DE ENERGÍA (ADR-0005) — el techo que la máquina se vigila sola.
+"""ENERGY LEASE (ADR-0005) — the ceiling by which the machine watches itself.
 
-Lo que se prueba no es que la resta reste. Es lo que el diseño existe para garantizar: que sin enlace
-con la nube esta máquina NO gasta sin techo, y que el fusible no le quite el control al operador.
+What is being tested is not that subtraction subtracts. It is what the design exists to guarantee: that
+without a link to the cloud this machine does NOT spend without a ceiling, and that the fuse does not
+take control away from the operator.
 """
 import time
 
@@ -26,8 +27,8 @@ def _con_arriendo(monkeypatch, granted=100.0, ttl=1800.0):
 
 
 def test_self_host_no_tiene_arriendo_ni_lo_necesita(monkeypatch):
-    """Sin cuenta de nube: siempre permitido, cero estado, cero red. Quien se auto-hospeda paga sus
-    propias APIs y no le arrienda energía nadie."""
+    """Without a cloud account: always allowed, zero state, zero network. Anyone who self-hosts pays for
+    their own APIs, and nobody leases them energy."""
     monkeypatch.setattr(energy_lease, "enabled", lambda: False)
     assert energy_lease.allowed() is True
     energy_lease.note_spend(999999)
@@ -36,16 +37,16 @@ def test_self_host_no_tiene_arriendo_ni_lo_necesita(monkeypatch):
 
 
 def test_sin_arriendo_una_cuenta_de_nube_NO_puede_gastar(monkeypatch):
-    """Fail-closed. La ausencia de arriendo es el estado CERRADO, no «adelante hasta que alguien diga
-    lo contrario» — que es el `guarded-until-configured` que costó nueve días de nube abierta."""
+    """Fail-closed. The absence of a lease is the CLOSED state, not “go ahead until someone says
+    otherwise”—which is the `guarded-until-configured` behavior that cost nine days of open cloud spend."""
     monkeypatch.setattr(energy_lease, "enabled", lambda: True)
     energy_lease._loaded = True
     assert energy_lease.allowed() is False
 
 
 def test_gastar_por_debajo_del_techo_no_toca_la_red(monkeypatch):
-    """El punto entero del diseño: en régimen, gastar es una resta. Si esto llamara a la nube, la
-    latencia que el arriendo existe para evitar estaría de vuelta."""
+    """The whole point of the design: in steady state, spending is a subtraction. If this called the
+    cloud, the latency that the lease exists to avoid would be back."""
     _con_arriendo(monkeypatch)
     llamadas = []
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: (llamadas.append(1), c.close()))
@@ -65,7 +66,7 @@ def test_a_la_mitad_se_pide_renovacion_ANTES_de_quedarse_sin_nada(monkeypatch):
 
 
 def test_agotarse_PARA_de_verdad(monkeypatch):
-    """Sin esto, «reactivo» es solo esperar que la nube conteste. El fusible es lo que acota el daño."""
+    """Without this, “reactive” just means waiting for the cloud to answer. The fuse is what limits the damage."""
     _con_arriendo(monkeypatch)
     parado = []
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
@@ -76,16 +77,16 @@ def test_agotarse_PARA_de_verdad(monkeypatch):
 
 
 def test_un_arriendo_caducado_no_sirve_aunque_le_quede_saldo(monkeypatch):
-    """La caducidad es la otra mitad del techo: una Machine dormida meses no puede despertar y gastar
-    contra una autorización de otra época."""
+    """Expiry is the other half of the ceiling: a machine that has slept for months cannot wake up and
+    spend against an authorization from another era."""
     _con_arriendo(monkeypatch, ttl=-1)
     assert energy_lease.expired() is True
     assert energy_lease.allowed() is False
 
 
 def test_pasarse_no_deja_el_restante_en_negativo(monkeypatch):
-    """Pasarse es NORMAL —una operación en vuelo puede cruzar el límite— y está presupuestado por el
-    margen del emisor. Lo que importa es que a partir de ahí no se empieza nada nuevo."""
+    """Going over is NORMAL—an in-flight operation can cross the limit—and is accounted for by the
+    issuer's margin. What matters is that nothing new starts after that point."""
     _con_arriendo(monkeypatch, granted=10.0)
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
     monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: None)
@@ -101,12 +102,12 @@ def test_contar_jamas_tumba_el_turno_que_lo_disparo(monkeypatch):
         raise RuntimeError("kv caído")
 
     monkeypatch.setattr(energy_lease, "_persist", revienta)
-    energy_lease.note_spend(1.0)          # no debe lanzar
+    energy_lease.note_spend(1.0)          # must not raise
 
 
 def test_al_renovar_se_reanuda_SOLO_lo_que_paramos_nosotros(monkeypatch):
-    """Asimetría deliberada, heredada de V2-092: si paró el OPERADOR, no se toca. Encender algo que una
-    persona apagó a mano es de las cosas que más desconfianza generan."""
+    """Deliberate asymmetry, inherited from V2-092: if the OPERATOR stopped it, leave it alone. Turning
+    on something a person switched off by hand is one of the things that most undermines trust."""
     from nucleo import runstate
 
     arrancados = []
@@ -123,11 +124,11 @@ def test_al_renovar_se_reanuda_SOLO_lo_que_paramos_nosotros(monkeypatch):
 
 
 def test_arrancando_no_es_agotado(monkeypatch):
-    """Al arrancar el arriendo se pide como tarea; una operación que llegue antes NO puede parar el
-    agente para que se rearranque un segundo después. Ese parpadeo no protege de nada."""
+    """When starting up, the lease is requested as a task; an operation that arrives first must NOT stop
+    the agent so it can restart a second later. That flicker protects against nothing."""
     monkeypatch.setattr(energy_lease, "enabled", lambda: True)
     energy_lease._loaded = True
-    energy_lease._renewing = True                      # petición en vuelo, sin arriendo todavía
+    energy_lease._renewing = True                      # request in flight, no lease yet
     parado = []
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: (parado.append(1), c.close()))
     energy_lease._blow_fuse()
@@ -140,8 +141,8 @@ def test_pero_agotado_de_verdad_SI_para(monkeypatch):
     from nucleo import runstate
     monkeypatch.setattr(energy_lease, "enabled", lambda: True)
     energy_lease._loaded = True
-    energy_lease._renewing = True                      # incluso renovando…
-    energy_lease._state.update({"granted": 10.0, "spent": 10.0})   # …pero YA tuvo arriendo y lo gastó
+    energy_lease._renewing = True                      # even while renewing…
+    energy_lease._state.update({"granted": 10.0, "spent": 10.0})   # …but it DID have and spend a lease
     parado = []
     monkeypatch.setattr(runstate, "stopped", lambda: False)
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: (parado.append(1), c.close()))
@@ -150,8 +151,8 @@ def test_pero_agotado_de_verdad_SI_para(monkeypatch):
 
 
 def test_el_fusible_arranca_un_reintento_o_seria_una_trampa(monkeypatch):
-    """Sin esto el fusible es irreversible en la práctica: la renovación se dispara al GASTAR, y parados
-    no se gasta — así que recargar el saldo no despertaría nunca a la máquina. Se encontró desplegándolo.
+    """Without this, the fuse is effectively irreversible: renewal is triggered by SPENDING, and stopped
+    machines do not spend—so replenishing the balance would never wake the machine. This was found in deployment.
     """
     from nucleo import runstate
     monkeypatch.setattr(energy_lease, "enabled", lambda: True)

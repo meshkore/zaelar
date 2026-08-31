@@ -1,4 +1,4 @@
-"""server/config_api.py — cloud profile locks provider/model selection (INI-019 addenda "Cambio B",
+"""server/config_api.py — cloud profile locks provider/model selection (INI-019 addenda "Change B",
 2026-08-05). Self-host (ZAELAR_USER_ID unset) must be COMPLETELY unaffected — this only restricts
 hosted cloud accounts, never the OSS product."""
 from fastapi import FastAPI
