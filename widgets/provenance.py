@@ -2,8 +2,8 @@
 # provenance.py — WHO ordered a widget change (V2-039 · frontend observability).
 #
 # Each observer canvas event (`kind="widget"`) carries a `src` field that says where the command came from:
-#   "flash"        → el FlashBrain, en un turno de voz/chat (tag [[show/close/move/widget.data]] o tool)
-#   "worker:<id>"  → a Brain Worker (nucleo/workers/) through bridges (hbweb/hbact/nav_cli / /api/worker/act)
+#   "flash"        → FlashBrain, in a voice/chat turn (tag [[show/close/move/widget.data]] or tool)
+#   "worker:<id>"  → a Brain Worker (core/workers/) through bridges (hbweb/hbact/nav_cli / /api/worker/act)
 #   "user"         → the operator touching the UI (open/close/move/resize/widget button)
 #   "system"       → lifecycle / background / reset / unknown origin
 #
@@ -23,7 +23,7 @@ _intent: dict[str, tuple[str, float]] = {}   # widget_id (base) → (src, ts)
 
 
 def _base(widget_id: str) -> str:
-    # normalize the instance id (navegador::t3 → navegador) so note and read match
+    # normalize the instance id (browser::t3 → browser) so note and read match
     return str(widget_id or "").split("::", 1)[0].strip().lower()
 
 

@@ -38,7 +38,7 @@ With this, three capabilities come free for ANY present or future widget:
   - **Stopped-agent gate** (`gate`): a stopped agent starts no playback. Not by voice, not by cron, not by a card
     button.
 
-## Invariantes
+## Invariants
 
   - **`active_when` is evaluated against `view_data()`**, which is the widget's truth (not our copy of its state).
     Dotted paths (`yt.paused`) are supported because a widget may keep playback under a nested block.

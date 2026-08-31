@@ -1,11 +1,10 @@
-"""widgets/navegador/walls.py — QUÉ ES UN MURO, definido una vez y leído por sus tres testigos (V2-358).
+"""widgets/navegador/walls.py — WHAT A WALL IS, defined once and read by its three witnesses (V2-358).
 
-Extraído de `tasks.py` el 2026-08-27 al pagar el trinquete de arquitectura (V2-358 añadía el tercer hermano
-—el status— y el fichero cruzó el umbral de nacimiento de la tabla). Es un concern cohesivo y PURO: tres
-clasificadores (URL / cuerpo / status HTTP) con sus agujas medidas, sin una gota de estado del registro de
-tareas. `tasks.py` conserva re-exports con los nombres históricos: los llamantes (`act_api`, `owner`, los
-tests) siguen nombrándolos desde allí, y la historia de los muros golpeados (`t["walls"]`) sigue siendo del
-registro, que es de quien es.
+Extracted from `tasks.py` on 2026-08-27 while paying off the architecture backlog (V2-358 added the third sibling
+—the status—and the file crossed the table's birth threshold). It is a cohesive and PURE concern: three
+classifiers (URL / body / HTTP status) with their measured needles, without a drop of task-record state.
+`tasks.py` retains re-exports under the historical names: callers (`act_api`, `owner`, the tests) continue to
+name them from there, and the history of walls hit (`t["walls"]`) remains the record's responsibility, where it belongs.
 """
 from __future__ import annotations
 
@@ -21,13 +20,13 @@ _WALL_URL_NEEDLES = (
 # The site's OWN error landing page — a wall too, and one the browser reports as a perfectly successful
 # navigation, because it IS one: status 200, real host, page renders. Measured on
 # `cancel-subscription-before-charge__es` (V2-176 round 3): the task ended on
-# `https://www.netflix.com/NotFound?prev=…` and zaelar told the operator, twice, that «la página no se ha
-# abierto del todo» and then that the login page was ready for him to type his credentials into. The judge
-# called it gaslighting; it was not — nothing in the state said the page was an error, so «still loading» was
+# `https://www.netflix.com/NotFound?prev=…` and zaelar told the operator, twice, that “the page has not fully
+# opened” and then that the login page was ready for him to type his credentials into. The judge
+# called it gaslighting; it was not — nothing in the state said the page was an error, so “still loading” was
 # the most reasonable thing left to say.
 #
-# Matched as a whole PATH SEGMENT, never as a substring: «/notfound» is an error page and
-# «/articles/404-ways-to-cook-eggs» is not. Query strings are excluded on purpose — the measured URL carries
+# Matched as a whole PATH SEGMENT, never as a substring: “/notfound” is an error page and
+# “/articles/404-ways-to-cook-eggs” is not. Query strings are excluded on purpose — the measured URL carries
 # `?prev=https://www.netflix.com/es-es/ContactUs`, so a substring match over the whole URL would fire on the
 # perfectly good page it came FROM.
 _ERROR_PATH_SEGMENTS = frozenset({"notfound", "not-found", "404", "page-not-found", "pagenotfound",
@@ -35,14 +34,14 @@ _ERROR_PATH_SEGMENTS = frozenset({"notfound", "not-found", "404", "page-not-foun
 
 # A wall served in the BODY, with a perfectly ordinary URL and a 200 status. V2-167 left this half open on purpose
 # after measuring it on a REAL run of the theatre case: `entradas.com` answered the event page with an Akamai
-# «Access Denied» bot-detection page. The URL said nothing, `wall_reason()` saw nothing, the card never opened and
+# “Access Denied” bot-detection page. The URL said nothing, `wall_reason()` saw nothing, the card never opened and
 # the operator was never told — the worker read it off the snapshot and re-routed by itself, which is why the task
 # did not get stuck and why the hole stayed invisible.
 #
 # This is a SECOND predicate over a DIFFERENT input, not a widening of the first one — `wall_reason` still answers
 # only about URLs. The caller decides which inputs it holds; the owner's tab holds both.
 #
-# The fragility the initiative warned about is «declaring a wall on any page that happens to mention the word», and
+# The fragility the initiative warned about is “declaring a wall on any page that happens to mention the word”, and
 # the guard against it is LENGTH, not a longer needle list: a bot wall is a nearly empty page (Akamai's is ~200
 # chars, Cloudflare's interstitial ~400), while an article that talks about access being denied is thousands. So a
 # needle only counts inside a page too short to be content. Measured on the run above: the wall page was 214 chars.
@@ -50,12 +49,12 @@ _WALL_BODY_MAX_CHARS = 1200
 
 # How much text a caller must read before asking. It is deliberately LARGER than the gate above, and single-sourced
 # here because getting it wrong is silent and inverts the guard: read exactly 1200 chars of a 50k-char article and
-# the text arrives «short», so the length gate — the whole defence against false positives — passes every page.
+# the text arrives “short”, so the length gate — the whole defence against false positives — passes every page.
 WALL_BODY_PEEK_CHARS = _WALL_BODY_MAX_CHARS + 400
 _WALL_BODY_NEEDLES = (
     ("access denied", "el sitio bloqueó el acceso (te tomó por un robot)"),
-    # V2-352 — the DataDome-style Spanish block, measured live on coches.net (2026-08-27): HTTP 403, SAME url,
-    # body «Algo en tu navegador nos hizo pensar que eres un bot». None of the needles below covered that
+    # V2-352 — the DataDome-style Spanish block, measured live on coches.net (2026-08-27): HTTP 403, SAME URL,
+    # body “Something in your browser made us think you are a bot”. None of the needles below covered that
     # phrasing, so the wall was eaten in silence: round 14 burned 7 navigations and 189 s before the worker
     # DEDUCED the block from screenshots (~14 s per look), and the sheet ended with 0 items.
     ("eres un bot", "el sitio bloqueó el acceso (te tomó por un robot)"),
@@ -100,8 +99,8 @@ def status_wall_reason(status: int) -> str:
 
     Third sibling (V2-358), and the one no needle can miss: the block travels in the response code even when
     the site changes the words. Measured on coches.net (2026-08-27): the same 403 arrives with two different
-    bodies — «…nos hizo pensar que eres un bot» (caught by V2-352's needle) and a bare «Ups! Parece que algo
-    no va bien…» (caught by nothing) — and in round 08:03 the worker re-tried the identical URL four times
+    bodies — “...we thought you were a bot” (caught by V2-352's needle) and a bare “Oops! Something seems
+    to be wrong...” (caught by nothing) — and in round 08:03 the worker re-tried the identical URL four times
     with no wall and no alternatives, ending the round with 0 candidates. Only the two anti-bot codes count:
     a 404 is the error-path segments' business, and a 500 is the site failing, not the site refusing us."""
     if status == 403:
@@ -113,7 +112,7 @@ def status_wall_reason(status: int) -> str:
 
 def host_of(url: str) -> str:
     """Host of a URL, without `www.` — what the operator recognises. Never the full URL: a query string read out
-    loud is noise, and the site is the part he can act on («pues mira en otra web»)."""
+    loud is noise, and the site is the part he can act on (“try another website”)."""
     try:
         from urllib.parse import urlparse
         h = (urlparse((url or "").strip()).netloc or "").lower()
@@ -126,7 +125,7 @@ def wall_reason(url: str) -> str:
     """Short, operator-facing reason why this URL is a WALL, or '' when it is an ordinary page.
 
     Deliberately mechanical: this recognises a SIGNAL in a URL, it does not judge what the page means. The phrasing
-    is what the operator hears, so it says what happened ("el sitio interpuso una verificación anti-robot"), never
+    is what the operator hears, so it says what happened ("the site inserted an anti-bot verification"), never
     an internal token.
     """
     u = (url or "").strip().lower()

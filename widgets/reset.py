@@ -15,7 +15,7 @@ RECORD**. A results sheet, report, or chart is the output of work — reproducib
 agenda, however, is their REAL projects, tasks, and appointments: that is not the output of anything, and deleting it
 would be loss. A widget declares this in its manifest:
 
-    "data": { "durable": true }     → el reset NO lo toca (es el registro del operador)
+    "data": { "durable": true }     → reset does NOT touch it (it is the operator's record)
 
 Without declaring it, it is emptied. That is the default the operator requested ("all result/visualization/etc.
 widgets must initialize blank"), and it leaves the exception explicit, reviewable, and in the widget itself instead

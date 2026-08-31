@@ -34,12 +34,12 @@ from __future__ import annotations
 DEFAULTS: dict = {
     "sheet_title": 70,       # sheet header: WHAT it is about, not the whole task statement
     "sheet_subtitle": 220,   # one or two context/caveat sentences
-    "title": 34,             # nombre del resultado. UNA idea
+    "title": 34,             # result name. ONE idea
     "subtitle": 70,          # one line of context
-    "price": 16,             # etiqueta destacada; no envuelve nunca
+    "price": 16,             # highlighted label; never wraps
     "badge": 16,             # etiqueta corta
-    "part_title": 40,        # el nombre de una pieza dentro de una propuesta
-    "fact_label": 22,        # la columna izquierda de la ficha de datos
+    "part_title": 40,        # the name of a component within a proposal
+    "fact_label": 22,        # the left column of the data record
     "fact_value": 90,
 }
 

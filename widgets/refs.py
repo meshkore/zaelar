@@ -97,7 +97,7 @@ def _score(ref_n: str, label_n: str) -> float:
 class RefResult:
     def __init__(self, ok, payload=None, needs=None, candidates=None):
         self.ok = ok                    # True if resolved (or no resolution was needed)
-        self.payload = payload          # payload actualizado con el id real (si ok)
+        self.payload = payload          # payload updated with the real id (if ok)
         self.needs = needs              # 'ref' | 'ambiguous' | 'no_match' when ok=False
         self.candidates = candidates or []   # candidate labels (to ask the operator)
 

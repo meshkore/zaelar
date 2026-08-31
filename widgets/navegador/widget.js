@@ -1,11 +1,11 @@
-// Navegador — client render. Contract: render(el, data, ctx).
+// Browser — client render. Contract: render(el, data, ctx).
 //
 // V2-257 — THIS CARD IS A MONITOR, NOT A RESULTS SURFACE. It answers one question: what is THIS browser doing
 // right now. Capture of its tab, and up to three lines of state. Findings — the listings, the prices, the phone
 // numbers — go to the `results` sheet, which is ONE per errand while browsers are N: with two tabs open, results
 // rendered per-card would be split across two boxes nobody can compare, and everything in one card ends as a
 // single impossible widget. What used to live here and does not any more: the results block (five rows that in
-// the operator's own capture were Google's local-pack buttons, «Sitio web» / «Cómo llegar», taken for listings)
+// the operator's own capture were Google's local-pack buttons, «Website» / «Directions», taken for listings)
 // and the sixteen-event log, which is a log and not a state.
 //   data = GET /widgets/navegador/data (written by backend owner.py). NO polling: desktop.js repaints when
 //   store.save emits the SSE notice. The page is shown as a live CAPTURE (GET /widgets/navegador/asset/shot.png,
@@ -88,7 +88,7 @@ function renderTask(root, data, ctx){
   root.textContent = "";
   // Only the STATUS chip. The card's title is the TASK's, and it is painted by the chrome header
   // (`live_title` in the manifest, desktop.js::_applyLiveTitle) — repeating it here is what left the operator
-  // reading the same sentence twice, once under a header that said «Navegador» and told him nothing.
+  // reading the same sentence twice, once under a header that said «Browser» and told him nothing.
   const head = el("div", "hb-navt-head");
   head.appendChild(el("span", "hb-navt-status s-" + (data.status || ""), STATUS_LABEL[data.status] || data.status || ""));
   root.appendChild(head);
@@ -118,7 +118,7 @@ function renderTask(root, data, ctx){
     root.appendChild(ph);
   }
 
-  // STATE: the last two or three things this browser did — «navegando a…», «leyendo la página», «extrayendo».
+  // STATE: the last two or three things this browser did — «navigating to…», «reading the page», «extracting».
   // No timestamps and no scroll: a bounded box cannot drift back into being the event log it replaced. The full
   // history is not lost, it goes to observability with its trace (tasks.milestone), where an audit belongs.
   const lines = Array.isArray(data.state) ? data.state : [];
