@@ -1,40 +1,40 @@
-"""memory/api.py — FACHADA pública de la memoria central (V2-002 · T52).
+"""memory/api.py — Public facade for central memory (V2-002 · T52).
 
-Único punto de entrada para el resto de zaelar (FlashBrain, agente de memoria + workers headless, widgets, server).
-Encaja con el transporte HÍBRIDO del sistema:
+The sole entry point for the rest of zaelar (FlashBrain, memory agent + headless workers, widgets, server).
+It fits the system's HYBRID transport:
 
-  - **async (cola)** — mutaciones NO urgentes: `write` · `reinforce` · `pin`/`unpin` · `link`. Entran por
-    `memory/queue.py` (único escritor → cero colisiones); no bloquean la ruta caliente.
-  - **directa (hot path · ms/µs)** — `query` (retriever) · `state` (tabla fija) · `load_episode` (lazy).
+  - **async (queue)** — NON-urgent mutations: `write` · `reinforce` · `pin`/`unpin` · `link`. They enter through
+    `memory/queue.py` (single writer → zero collisions); they do not block the hot path.
+  - **direct (hot path · ms/µs)** — `query` (retriever) · `state` (fixed table) · `load_episode` (lazy).
 
-Cada mutación emite la señal **`memory.updated`** por el `bus/` (loop-agnóstico, best-effort) para que la UI u
-otros suscriptores refresquen. `query()` compone el contexto mínimo = estado (SIEMPRE) + recuerdos relevantes
-truncados al presupuesto de tokens, y encola el **refuerzo por uso** de los recuerdos usados (escritura async,
-el acceso resetea el decay).
+Each mutation emits the **`memory.updated`** signal through `bus/` (loop-agnostic, best-effort) so the UI or
+other subscribers can refresh. `query()` composes the minimum context = state (ALWAYS) + relevant memories
+truncated to the token budget, and queues **use reinforcement** for used memories (async write; access resets decay).
 
-Ciclo de vida: `start()`/`stop()` arrancan/paran el consumidor de la cola en el loop del server (lo cablea
-V2-003 en el lifespan). Sin `start()`, las escrituras se aplican en línea (standalone/tests) — nunca se pierden.
+Lifecycle: `start()`/`stop()` start/stop the queue consumer in the server loop (wired by
+V2-003 in the lifespan). Without `start()`, writes are applied inline (standalone/tests) — they are never lost.
 """
 import asyncio
 import re
 
 from . import consolidator as _consolidator
+from .clock import now as _clock_now
 from . import db as _db  # noqa: F401  (asegura import del paquete; get_db perezoso)
 from . import episodic as _episodic
 from . import state as _state
 from . import writer as _writer
 from .queue import get_queue
 
-# tokens ≈ caracteres / 4 (aproximación barata para truncar al presupuesto).
+# tokens ≈ characters / 4 (cheap approximation for truncating to the budget).
 _CHARS_PER_TOKEN = 4
 DEFAULT_BUDGET_TOKENS = 1200
 
-# Contrato EXPLÍCITO de la fachada (audit de modularidad 2026-07-17): esto es lo público; el resto del repo no
-# debe importar internals (memory.db/writer/queue/slots/…) fuera de tests.
+# EXPLICIT facade contract (modularity audit 2026-07-17): this is the public surface; the rest of the repo must not
+# import internals (memory.db/writer/queue/slots/…) outside tests.
 __all__ = [
     "start", "stop",
     "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
-    "forget", "unforget",
+    "forget", "unforget", "clear_conversation", "clear_slot_prefix",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
@@ -44,14 +44,14 @@ __all__ = [
     "consolidate", "DEFAULT_BUDGET_TOKENS",
 ]
 
-# Stopwords (artículos/preposiciones/POSESIVOS) que se ignoran al hacer olvido GRANULAR por tokens de contenido:
-# el operador dice "olvida la matrícula de MI coche" pero el CORAZÓN guarda "matrícula de SU coche" → un LIKE
-# contiguo falla por el posesivo. El fallback token-AND compara solo los tokens con contenido (matrícula, coche).
+# Stopwords (articles/prepositions/POSSESSIVES) ignored when performing GRANULAR forgetting by content tokens:
+# the operator says "forget my car's license plate" but the CORE stores "your car's license plate" → a contiguous
+# LIKE fails because of the possessive. The token-AND fallback compares only content tokens (license plate, car).
 _FORGET_STOP = {
     "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas", "lo", "que", "te", "me", "se",
     "mi", "mis", "tu", "tus", "su", "sus", "nuestro", "vuestra", "esa", "ese", "eso", "esta", "este", "esto",
     "en", "con", "por", "para", "sobre", "como", "más", "muy", "ya", "no",
-    "todo", "toda", "todos", "todas", "cosa", "cosas",   # "olvida TODO lo de X" = olvido AMPLIO de X
+    "todo", "toda", "todos", "todas", "cosa", "cosas",   # "forget EVERYTHING about X" = BROAD forgetting of X
 }
 
 
@@ -63,9 +63,9 @@ def _emit(topic: str, payload=None):
         pass
 
 
-# ── ciclo de vida de la cola ─────────────────────────────────────────────────────────────────────────────
+# ── queue lifecycle ─────────────────────────────────────────────────────────────────────────────
 async def start():
-    """Arranca el consumidor único de la cola en el loop actual (server lifespan)."""
+    """Start the queue's sole consumer in the current loop (server lifespan)."""
     await get_queue().start()
 
 
@@ -73,16 +73,16 @@ async def stop(drain: bool = True):
     await get_queue().stop(drain=drain)
 
 
-# ── escrituras (async · cola) ────────────────────────────────────────────────────────────────────────────
+# ── writes (async · queue) ────────────────────────────────────────────────────────────────────────────
 def write(text: str, *, level: str = "short", kind: str = "event", importance: float | None = None,
           weight: float = 0.5, ttl_days: float | None = None, pinned: bool = False,
           slot: str | None = None, meta: dict | str | None = None,
           concepts: list[str] | None = None) -> None:
-    """Encola un recuerdo (fire-and-forget). El embedding se calcula en el escritor. Emite memory.updated.
+    """Queue a memory (fire-and-forget). The embedding is computed by the writer. Emits memory.updated.
 
-    PÍLDORA (V2-013): `slot` = clave canónica del hecho singular (`operator.name`…) → supersede/dedup EXACTO en el
-    writer; `meta` = envoltorio JSON libre (entity/source/said_at…) para el visor y el grafo; `concepts` = 1-3
-    etiquetas ligeras (salud/finanzas…) → el writer crea/enlaza nodos-concepto en el grafo (T126)."""
+    PILL (V2-013): `slot` = canonical key for the singular fact (`operator.name`…) → EXACT supersede/dedup in the
+    writer; `meta` = free-form JSON wrapper (entity/source/said_at…) for the viewer and graph; `concepts` = 1–3
+    lightweight labels (health/finance…) → the writer creates/links concept nodes in the graph (T126)."""
     get_queue().submit(
         "write", text, level=level, kind=kind, importance=importance,
         weight=weight, ttl_days=ttl_days, pinned=pinned, slot=slot, meta=meta, concepts=concepts,
@@ -91,7 +91,7 @@ def write(text: str, *, level: str = "short", kind: str = "event", importance: f
 
 
 def write_now(text: str, **kwargs) -> int:
-    """Escritura SÍNCRONA directa (para quien necesita el id ya: episódica, tests). Emite memory.updated."""
+    """Direct SYNCHRONOUS write (for callers that need the id immediately: episodic storage, tests). Emits memory.updated."""
     mid = _writer.insert_memory(text, **kwargs)
     _emit("memory.updated", {"op": "write", "id": mid})
     return mid
@@ -101,18 +101,18 @@ def ingest_message(source: str, entity: str | None, text: str, *, group: str | N
                    directed: bool = False, trust: str = "external", durable: bool = False,
                    importance: float | None = None, ttl_days: float | None = None,
                    concepts: list[str] | None = None, slot: str | None = None) -> None:
-    """INGESTA TIPADA de un dato entrante de una FUENTE externa — la vía ÚNICA por la que TODO conector alimenta la
-    memoria (V2-013 · multi-fuente 2026-07-10). Da igual 2 conectores que 200, o un peer de cluster («Zalo») que un
-    chat de WhatsApp: todos entran por aquí con su `source` (whatsapp/telegram/cluster/agent/email…) y su `entity`
-    (quién). El `source`/`entity` van INDEXADOS en `meta` (→ lectura directa por tipo con `recent_by_source`) **y**
+    """TYPED INGESTION of an incoming datum from an external SOURCE — the ONLY path through which every connector
+    feeds memory (V2-013 · multi-source 2026-07-10). Whether there are 2 connectors or 200, or a cluster peer («Zalo»)
+    or WhatsApp chat, all enter here with their `source` (whatsapp/telegram/cluster/agent/email…) and `entity`
+    (who). `source`/`entity` are INDEXED in `meta` (→ direct type-based reads with `recent_by_source`) **and**
     en el TEXTO (`[source] entity: body`) para que FTS/recall los encuentren sin trabajo extra. `trust`:
-    'operator' (el dueño) · 'external' (un conector personal del dueño) · 'untrusted' (peer de cluster no
-    confiable) — el lector puede distinguir la procedencia. `directed`=el mensaje va dirigido a zaelar (sube la
+    'operator' (the owner) · 'external' (the owner's personal connector) · 'untrusted' (an untrusted cluster peer) —
+    the reader can distinguish provenance. `directed`=the message is addressed to zaelar (raises
     importancia). `durable=True` → nivel `mid` (persiste, con conceptos para el grafo); por defecto `short`
     (recencia). `slot` (opcional) = clave canónica del hecho singular → el writer hace supersede/dedup EXACTO: cada
     ingesta con el MISMO slot SOBRESCRIBE la anterior (útil para una SÍNTESIS evolutiva por fuente/entidad que se
     reescribe, p. ej. `cluster:<cluster>:<peer>` — la conversación con un peer se comprime en UNA píldora viva).
-    Best-effort. Reemplaza el `_to_memory` ad-hoc de cada conector."""
+    Best-effort. Replaces each connector's ad-hoc `_to_memory`."""
     body = (text or "").strip()
     if not body:
         return
@@ -165,7 +165,7 @@ def recent_by_source(source: str | None = None, entity: str | None = None, limit
 
 
 def by_concepts(concepts: list[str], *, limit: int = 6) -> list[dict]:
-    """LECTURA por CONCEPTO (grafo T126, sin LLM): hechos DURABLES enlazados a los `concepts` dados vía las aristas
+    """CONCEPT-BASED READ (T126 graph, no LLM): DURABLE facts linked to the given `concepts` through
     píldora↔concepto. Para AGREGACIÓN por categoría (T178: "¿qué viajes he hecho?") y APLICACIÓN IMPLÍCITA cross-topic
     (T183: al pedir un "restaurante" aflorar la restricción "celíaco" por el concepto compartido 'comida'). Respeta
     valid + CUARENTENA (untrusted fuera) + excluye los propios nodos-concepto. Ordena por peso/importancia. Tolera
@@ -193,7 +193,7 @@ def by_concepts(concepts: list[str], *, limit: int = 6) -> list[dict]:
 
 
 def forget(match: str, *, hard: bool = False, include_pinned: bool = False) -> int:
-    """OLVIDO A PETICIÓN del operador (necesidad humana: "olvida lo del regalo", "bórrate mi contraseña vieja").
+    """FORGETTING AT THE OPERATOR'S REQUEST (human need: "forget the gift", "erase my old password").
     Invalida (soft, `valid=0`) los recuerdos VÁLIDOS cuyo texto contiene `match` (case-insensitive) → dejan de
     aparecer en el recall/lectura, pero se conservan para AUDITORÍA (nunca perdemos el histórico; el operador puede
     preguntar "¿qué te pedí que olvidaras?"). `hard=True` los borra de verdad (irreversible). `pinned` intocable
@@ -223,7 +223,6 @@ def forget(match: str, *, hard: bool = False, include_pinned: bool = False) -> i
         return 0
     ids = list(ids)
     ph = ",".join("?" * len(ids))
-    from .clock import now as _clock_now
     now = _clock_now()
     if hard:
         # DELEGA en writer.delete_memory (auditoría 2026-07-19 P1-3): el DELETE plano sobre fts_memories
@@ -240,7 +239,7 @@ def forget(match: str, *, hard: bool = False, include_pinned: bool = False) -> i
 
 
 def unforget(match: str, *, include_pinned: bool = False) -> int:
-    """DES-OLVIDO (dim N): revierte un olvido SOFT — necesidad humana "no, recupera lo de X / vuelve a acordarte".
+    """UNFORGET (dim N): reverses a SOFT forget — human need "no, recover X / remember again".
     Restaura (`valid=1`) los recuerdos INVALIDADOS cuyo texto contiene `match`. Contraparte exacta de `forget()`:
     como el soft-forget solo pone `valid=0` (no toca vec/fts) y el retriever filtra por `valid=1`, basta revertir
     el flag para que el dato vuelva a aflorar — sin reindexar. Solo afecta a soft-forgotten (los `hard` ya no
@@ -267,7 +266,6 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
         return 0
     ids = list(ids)
     ph = ",".join("?" * len(ids))
-    from .clock import now as _clock_now
     now = _clock_now()
     # invalidated_at vuelve a NULL: la fila vuelve a estar vigente, no puede seguir marcada como "cerrada" en
     # una fecha pasada — un `as_of()` posterior al unforget debe verla vigente desde ahora, no seguir leyéndola
@@ -284,7 +282,6 @@ def now() -> int:
     the wall clock would date its pills in 2026 while the rest of the run believes it is March. Re-exported for the
     same reason as `canon_slot`: the alternative is every module reaching into a memory internal, which the
     contract test counts as the boundary opening up."""
-    from .clock import now as _clock_now
     return _clock_now()
 
 
@@ -297,7 +294,7 @@ def canon_slot(slot: str | None) -> str | None:
 
 
 def as_of(slot: str, ts: int | None = None) -> dict | None:
-    """Bi-temporal (V2-111 §9.2): qué valor tenía un slot canónico en un instante PASADO — la pregunta que
+    """Bi-temporal (V2-111 §9.2): what value a canonical slot had at a PAST instant — the question that
     `updated` no puede responder de forma fiable (lo toca también el refuerzo y la promoción de nivel, así que
     no es "cuándo se invalidó"). Devuelve la fila más reciente cuyo `valid_at` ya había llegado en `ts` Y que
     todavía no se había invalidado en `ts` (o que nunca se invalidó). `None` si el slot no existía todavía en
@@ -308,7 +305,6 @@ def as_of(slot: str, ts: int | None = None) -> dict | None:
     fachada empujando su propio reloj al otro lado de la frontera, que es justo lo que el test de contrato
     (`test_memory_boundary.py`) señaló cuando P0d lo hizo. El reloj es asunto de la memoria, no del llamante."""
     if ts is None:
-        from .clock import now as _clock_now
         ts = _clock_now()
     canon = _writer.canon_slot(slot)
     if not canon:
@@ -366,9 +362,9 @@ def set_state(fields: dict) -> dict:
 
 
 def note_widgets_used(ids) -> list:
-    """Estampa widget(s) en el MRU `recent_widgets` (V2-078): la 2ª capa de acotación para "¿a qué widget se
-    refiere?" (abiertos > usados hace poco > catálogo). Lo llama el choke point del canvas cuando un widget pasa
-    a ABIERTO. Emite memory.updated para que el prompt cacheado se recomponga fuera del turno (V2-011)."""
+    """Stamp widget(s) in the `recent_widgets` MRU (V2-078): the second narrowing layer for "which widget does this
+    refer to?" (open > recently used > catalog). The canvas choke point calls it when a widget becomes OPEN. Emits
+    memory.updated so the cached prompt can be rebuilt outside the turn (V2-011)."""
     merged = _state.push_recent_widgets(ids)
     _emit("memory.updated", {"op": "state"})
     return merged
@@ -548,7 +544,7 @@ from ._prompt import (  # noqa: E402,F401
 
 
 def _pack(memories: list[dict], budget_tokens: int) -> list[dict]:
-    """Trunca la lista al presupuesto de tokens (aprox chars/4)."""
+    """Truncate the list to the token budget (approximately chars/4)."""
     out, used = [], 0
     for m in memories:
         cost = max(1, len(m.get("text", "")) // _CHARS_PER_TOKEN)
@@ -700,6 +696,48 @@ def map() -> dict:
                    "edges": len(edges), "total": len(mems)},
     }
 
+
+
+def clear_conversation() -> int:
+    """Invalidates the VERBATIM conversational buffer (`level='short'`, `meta.source='conv'` — what
+    `recent_window` reads and the voice provider re-seeds its window from after a reconnect).
+
+    Exists for the RESET (operator, 2026-08-31, measured live): he reset, the frontend chat cleared, the engine
+    restarted — and the first greeting said «sigo con lo del digestólogo» because the window was re-seeded from
+    this very buffer. «El chat se borra» has to include the seed, or the wiped conversation walks back in
+    through the side door. SOFT invalidation (`valid=0`), same doctrine as `forget`: gone from every read,
+    kept for audit. Touches ONLY conv records — facts, profile, triaged messages and worker results survive."""
+    db = _db.get_db()
+    rows = db.query("SELECT id FROM memories WHERE valid=1 AND level='short' "
+                    "AND json_extract(meta,'$.source')='conv'")
+    ids = [r["id"] for r in rows]
+    if not ids:
+        return 0
+    ph = ",".join("?" * len(ids))
+    db.execute(f"UPDATE memories SET valid=0, updated=? WHERE id IN ({ph})", (_clock_now(), *ids))
+    _emit("memory.updated", {"op": "clear_conversation", "n": len(ids)})
+    return len(ids)
+
+
+def clear_slot_prefix(prefix: str) -> int:
+    """Invalidates every pill whose SLOT starts with `prefix` (soft, `valid=0` — audit keeps them). The write
+    twin of `by_slot_prefix`, with the same LIKE escaping (slots carry `_` naturally; unescaped, `task.` would
+    also match `taskX`). Born for the reset wiping `task.*` — the durable «we are in the middle of X» pills that
+    made a fresh session claim to still be working (2026-08-31). Generic on purpose: any namespaced catalogue
+    can be retired by its prefix."""
+    pref = (prefix or "").strip()
+    if not pref:
+        return 0
+    db = _db.get_db()
+    esc = pref.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    rows = db.query("SELECT id FROM memories WHERE valid=1 AND slot LIKE ? ESCAPE '\\'", (esc + "%",))
+    ids = [r["id"] for r in rows]
+    if not ids:
+        return 0
+    ph = ",".join("?" * len(ids))
+    db.execute(f"UPDATE memories SET valid=0, updated=? WHERE id IN ({ph})", (_clock_now(), *ids))
+    _emit("memory.updated", {"op": "clear_slot_prefix", "prefix": pref, "n": len(ids)})
+    return len(ids)
 
 
 def by_slot_prefix(prefix: str, *, limit: int = 20, newest_first: bool = True) -> list[dict]:

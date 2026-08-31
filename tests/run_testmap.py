@@ -419,6 +419,14 @@ DOMAINS: list[dict] = [
             # `clear()` sella cuándo barrió y un registro NACIDO antes de ese instante se descarta llegue cuando
             # llegue — reordenar reset_all solo encogería la ventana, nunca la cierra.
             "tests/agent_headless/unit/test_ledger_reset_fence.py",
+            # PARAR ES DESCARTAR (2026-08-31, deroga la secuencia «congelar para reanudar» de 2026-07-10). Tras
+            # su reset, el PRIMER saludo de la sesión nueva dijo «sigo con lo del digestólogo» sin un worker
+            # vivo: el estado llevaba `trabajo_interrumpido` con la escalada congelada, quedaban slots `task.*`,
+            # el registro de corto decía «queda CONGELADO» (leído por un modelo, una invitación a retomar) y la
+            # siembra de la ventana re-importaba la conversación borrada. `abandon_work` = el núcleo compartido
+            # del botón Reset y de la orden de VOZ «para todo y quédate tranquilo» (esta NO cierra sesión ni
+            # borra chat/histórico). Lo que se mató viaja al evento RESET de observabilidad, no a la memoria.
+            "tests/agent_headless/unit/test_abandon_work_discards_the_marks.py",
             # V2-092 — el INTERRUPTOR GLOBAL (⏻). Su estado vivía solo en el localStorage, así que el backend no
             # sabía que el operador había parado: seguían los ciclos de background, los crons y la reproducción de
             # los widgets. Se fija la POLÍTICA, que es lo que se pierde en una refactorización: parar congela a

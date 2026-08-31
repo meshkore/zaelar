@@ -1962,23 +1962,20 @@ class NucleoLLMStream(llm.LLMStream):
             elif name == "stop_worker":
                 which = (args.get("which") or "").strip()
                 # ── GUARD 1: NO SE MATA A QUIEN ACABAS DE CONTESTAR (2026-08-14, sesión b70a45d0) ──────────────
-                # El fallo más caro de esa sesión, en un solo milisegundo: el turno emitió `answer_worker` con la
-                # autorización que el worker llevaba 30 s esperando («Sí, autorizado: borra TODA la agenda») Y
-                # `stop_worker` detrás, y la tarea murió `ok:False` con la respuesta ya entregada. Después le dijo
-                # al operador «Vale, se lo digo» — falso en el instante en que lo dijo. La agenda nunca se vació.
-                # Contestar y matar en el MISMO turno es incoherente por definición: si el operador acaba de dar la
-                # respuesta que el proceso pedía, no está pidiendo que lo mates. Gana la respuesta (no destructiva).
+                # El turno emitió `answer_worker` con la autorización que el worker llevaba 30 s esperando («Sí,
+                # autorizado: borra TODA la agenda») Y `stop_worker` detrás → la tarea murió `ok:False` con la
+                # respuesta ya entregada, y le dijo al operador «Vale, se lo digo» — falso al decirlo; la agenda
+                # nunca se vació. Contestar y matar en el MISMO turno es incoherente: gana la respuesta (no destructiva).
                 if worker_acted["v"] == "answer":
                     emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker",
                          text=f"{which or 'todo'}", role="system",
                          extra={"cat": "flash", "kind_diag": "stop_after_answer"})
                     return
                 # ── GUARD 2: MATAR EXIGE QUE EL OPERADOR LO HAYA DICHO ────────────────────────────────────────
-                # Mismo espíritu que el guarda de context-bleed de las data-ops (arriba, ~L797), pero para lo
-                # irreversible: si en el turno del operador NO hay una orden de parar, el `stop_worker` es arrastre
-                # del turno anterior. En la sesión, el stop nació de una queja de DOS TURNOS ANTES sobre widgets
-                # («los dos navegadores no se tenían que haber abierto para nada»), y ese turno lo había cancelado
-                # un barge-in. El modelo lo arrastró y lo convirtió en un hachazo.
+                # Mismo espíritu que el guarda de context-bleed de las data-ops (~L797), para lo irreversible:
+                # sin orden de parar EN el turno del operador, el `stop_worker` es arrastre del anterior. En la
+                # sesión, el stop nació de una queja de DOS TURNOS ANTES sobre widgets («los dos navegadores no se
+                # tenían que haber abierto»), cancelada por barge-in — el modelo la arrastró y la hizo un hachazo.
                 # OJO con «para»: en castellano es preposición mucho más a menudo que verbo («para nada», «para
                 # ti»), y por eso no entra suelto — de hecho «para» a secas solo calla la voz, nunca para tareas
                 # (regla del operador). Se piden formas inequívocas.
@@ -2013,6 +2010,9 @@ class NucleoLLMStream(llm.LLMStream):
                                      "explícito)", text=text[:100], role="system")
                                 return
                     tids = _d.cancel_soon(_w)
+                    if _w == "todo":     # «para todo y quédate tranquilo» → además LIMPIA las marcas de trabajo
+                        from nucleo import reset as _reset_mod
+                        _reset_mod.abandon_work_soon(source="voz")     # mismo núcleo que Reset; ver su docstring
                     worker_acted["v"] = "stop"
                     emit("brain", "🛑 stop worker", text=f"{_w} → {tids}"[:120], role="system")
                 except Exception as e:  # noqa: BLE001

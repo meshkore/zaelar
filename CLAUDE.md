@@ -6610,6 +6610,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `planned` manifests → **byte-identical**. It must fail loudly the first time someone helpfully adds "just a
     short list of names".
 
+- **Stopping is DISCARDING — abandon_work (V2-528, 2026-08-31; supersedes the 2026-07-10 freeze-to-resume
+  sequence)**: after his reset, the fresh session's FIRST greeting said «sigo con lo del digestólogo» with zero
+  workers alive. Four doors, all measured: `reset_all` froze the pending escalation into `trabajo_interrumpido`
+  BY DESIGN; durable `task.*` slots survived; the [RESET] short-term card said the work «queda CONGELADO» — read
+  by a model, an invitation to resume; and the window seeding (`memory.recent_window`) re-imported the wiped
+  conversation verbatim. The operator's ruling: «si he hecho un puto reset es para que me lo dejes limpio … si
+  en la memoria de corto plazo o en el estado estaba marcado que estábamos haciendo una tarea, eso también se
+  tiene que limpiar».
+  - **`reset.abandon_work(source)`** — the shared core (Reset button AND the voice order «para todo lo que
+    estamos haciendo y quédate tranquilo», via `stop_worker('todo')` → `abandon_work_soon`, off the hot path):
+    kills navegador/workers/escalations/queued notes, sets `trabajo_interrumpido={}` ALWAYS, wipes `task.*`
+    slots (`memory.clear_slot_prefix`), and leaves an instruction-shaped record (V2-214): nothing pending, do
+    not resume, do not claim to continue. WHAT was killed rides in the return → the RESET observability event
+    (archived with the session) — forensics move out of the memory the next session reads.
+  - **Only the reset** additionally blanks the ledger, forgets the rehydration trace, blanks widgets, and
+    invalidates the CONVERSATION buffer (`memory.clear_conversation`, soft) — «el chat se borra» includes the
+    SEED, or the wiped conversation walks back in through `recent_window`. The voice order keeps chat, session
+    and Histórico (what it just cancelled must be visible there as `cancelled`).
+  - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
+    tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
+
 - **The proactive delivery QUEUE — one message at a time (V2-527, 2026-08-31)**: the operator's spec, dictated
   after session c480413b: «tiene que tener un buffer … cuando ya se lo ha explicado le manda otro; si dos
   tareas terminan simultáneamente, primero se informa de una y después de la segunda». What existed: nothing
