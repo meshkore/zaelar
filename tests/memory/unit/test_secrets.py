@@ -1,13 +1,13 @@
 #
-# test_secrets.py — detección FAIL-CLOSED de secretos (V2-060). Sin red, stdlib puro.
-# Ejecutar: .venv/bin/pytest tests/memory/unit/test_secrets.py
+# test_secrets.py — FAIL-CLOSED secret detection (V2-060). No network, standard library only.
+# Run: .venv/bin/pytest tests/memory/unit/test_secrets.py
 #
 from memory import secrets
 
 
 def _one(text):
     d = secrets.detect(text)
-    assert len(d) == 1, f"esperaba 1 detección en {text!r}, hubo {len(d)}: {d}"
+    assert len(d) == 1, f"expected 1 detection in {text!r}, got {len(d)}: {d}"
     return d[0]
 
 
@@ -22,7 +22,7 @@ def test_password_with_service():
 
 def test_password_es_esta_filler():
     d = _one("mi contraseña de Spotify es esta: Zorro_2024")
-    assert d.value == "Zorro_2024"      # 'es esta:' se limpia
+    assert d.value == "Zorro_2024"      # 'es esta:' is cleaned up
 
 
 def test_pin_service():
@@ -36,7 +36,7 @@ def test_marker_without_service():
     assert d.value == "correochapa88"
 
 
-# ── marcador de servicio SIN conector "es" + token credencial (bug del operador 2026-07-21) ────────────────
+# ── service marker WITHOUT "es" connector + credential token (operator bug 2026-07-21) ────────────────
 def test_service_no_connector_password_after_question():
     d = _one("puedo guardarme la contraseña del mail? CASAXX66gg12")
     assert d.value == "CASAXX66gg12"
@@ -54,12 +54,12 @@ def test_service_no_connector_de_la_picks_service():
 
 
 def test_read_request_not_a_save():
-    # pedir un secreto (sin valor) NO es guardar → no se detecta nada que cifrar
+    # Requesting a secret (without a value) is NOT saving it → nothing to encrypt is detected
     assert secrets.detect("dame la contraseña del mail") == []
     assert secrets.detect("¿cuál es mi contraseña de Netflix?") == []
 
 
-# ── estructurales ─────────────────────────────────────────────────────────────────────────────────────────
+# ── structural ─────────────────────────────────────────────────────────────────────────────────────────
 def test_evm_private_key_critical():
     key = "0x" + "a1b2" * 16
     d = _one(f"apunta la private key {key}")
@@ -69,7 +69,7 @@ def test_evm_private_key_critical():
 
 def test_iban():
     d = _one("mi IBAN es ES9121000418450200051332")
-    # el marcador "cuenta/IBAN" no aplica; lo pilla el detector estructural de IBAN
+    # The "account/IBAN" marker does not apply; the structural IBAN detector catches it
     assert d.kind == "iban"
     assert "ES9121000418450200051332" in d.value.replace(" ", "")
 
@@ -88,7 +88,7 @@ def test_api_key():
     assert d.kind == "key" and d.sensitivity == "critical"
 
 
-# ── redacción (el LLM nunca ve el valor) ──────────────────────────────────────────────────────────────────
+# ── redaction (the LLM never sees the value) ──────────────────────────────────────────────────────────────────
 def test_redact_removes_value_keeps_context():
     red, found = secrets.redact("mi contraseña de Netflix es Perrito123")
     assert "Perrito123" not in red

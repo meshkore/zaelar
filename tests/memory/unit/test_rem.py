@@ -1,4 +1,4 @@
-"""Tests del sueño PROFUNDO «fase REM» (memory/rem.py, V2-056). Deterministas: backend hash, hook inyectado."""
+"""Tests of DEEP sleep «REM phase» (memory/rem.py, V2-056). Deterministic: hash backend, injected hook."""
 import time
 
 import pytest
@@ -14,8 +14,8 @@ from memory import writer as memwriter
 def _hash_backend(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "hash", "embed_model": ""})
-    # apaga el dedup semántico DEL WRITER (T125) — aquí probamos el de REM aislado (si no, el writer fusiona
-    # los duplicados de la fixture en el propio insert y REM nunca los ve)
+    # disable the WRITER's semantic deduplication (T125) — here we test REM's in isolation (otherwise, the writer merges
+    # the fixture duplicates during the insert itself and REM never sees them)
     monkeypatch.setenv("MEM_SEMANTIC_DEDUP", "0")
     mememb.reset()
     yield
@@ -33,22 +33,22 @@ def fresh_db(tmp_path, monkeypatch):
 
 def test_due_seeds_then_fires(fresh_db, monkeypatch):
     now = int(time.time())
-    assert memrem.due(now) is False                       # 1ª vez: siembra el marcador, no corre
-    assert memrem.due(now + 3600) is False                # dentro de la cadencia
+    assert memrem.due(now) is False                       # first time: seeds the marker, does not run
+    assert memrem.due(now + 3600) is False                # within the interval
     assert memrem.due(now + int(memrem.every_s()) + 10) is True
     monkeypatch.setenv("ZAELAR_REM", "0")
-    assert memrem.due(now + 10 * 86400) is False          # kill-switch
+    assert memrem.due(now + 10 * 86400) is False          # kill switch
 
 
 def test_semantic_dedup_merges_echoes(fresh_db):
-    # mismo multiconjunto de tokens, orden distinto → el embedding hash (léxico) los ve idénticos
+    # same multiset of tokens, different order → the (lexical) hash embedding sees them as identical
     a = memwriter.insert_memory("tiene cita para la ITV el jueves 23", level="mid", kind="fact", weight=0.8)
     b = memwriter.insert_memory("el jueves 23 tiene cita para la ITV", level="mid", kind="fact", weight=0.5)
     merged = memrem.semantic_dedup(threshold=0.95)
     assert merged == 1
     db = memdb.get_db()
     rb = db.query_one("SELECT valid, superseded_by FROM memories WHERE id=?", (b,))
-    assert rb["valid"] == 0 and rb["superseded_by"] == a   # gana el de mayor peso; histórico intacto
+    assert rb["valid"] == 0 and rb["superseded_by"] == a   # the higher-weight one wins; history remains intact
     ra = db.query_one("SELECT valid FROM memories WHERE id=?", (a,))
     assert ra["valid"] == 1
 
@@ -56,7 +56,7 @@ def test_semantic_dedup_merges_echoes(fresh_db):
 def test_semantic_dedup_respects_slots_and_pinned(fresh_db):
     memwriter.insert_memory("dato con slot", level="long", kind="fact", slot="goal.current")
     memwriter.insert_memory("con slot dato", level="long", kind="fact", slot="goal.current")
-    # con slot NO entra al dedup semántico (ya supersede exacto por slot en el writer)
+    # an item with a slot does NOT enter semantic deduplication (the writer already performs exact supersession by slot)
     assert memrem.semantic_dedup(threshold=0.9) == 0
 
 
@@ -76,7 +76,7 @@ def test_synthesize_writes_insight_with_supersede(fresh_db):
     assert len(rows) == 1 and rows[0]["valid"] == 1
     assert "música" in rows[0]["text"]
     assert hook_calls and hook_calls[0][0]["concept"] == "musica" and len(hook_calls[0][0]["pills"]) >= 4
-    # segundo sueño → el insight se REESCRIBE (supersede por slot), no se acumula
+    # second sleep → the insight is REWRITTEN (superseded by slot), not accumulated
     def hook2(groups):
         return [{"concept": "musica", "insight": "Su música de cabecera es la canción española de los ochenta."}]
     assert memrem.synthesize(hook2, min_group=4) == 1
@@ -89,8 +89,8 @@ def test_synthesize_failopen_without_hook(fresh_db):
 
 
 def test_synthesize_demotes_source_pills_without_invalidating(fresh_db):
-    # V2-103: REM debe RETIRAR lo que resume (demotar peso), no solo añadir el insight encima — las píldoras
-    # crudas siguen `valid=1` (histórico intacto) pero dejan de pesar tanto como el insight que las suplanta.
+    # V2-103: REM must RETIRE what it summarizes (demote its weight), not merely add the insight on top — the raw pills
+    # remain `valid=1` (history intact) but no longer carry as much weight as the insight that supersedes them.
     ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
            for t in ["escuchó a Mocedades por la tarde", "escuchó a Serrat mientras trabajaba",
                      "pidió música de los ochenta", "sonó Tómame o Déjame en YouTube"]]
@@ -103,8 +103,8 @@ def test_synthesize_demotes_source_pills_without_invalidating(fresh_db):
     insight = db.query_one("SELECT id FROM memories WHERE slot='insight:musica' AND valid=1")
     for mid in ids:
         row = db.query_one("SELECT valid, weight, meta FROM memories WHERE id=?", (mid,))
-        assert row["valid"] == 1                      # nunca se invalida ni se borra
-        assert row["weight"] < 0.8                     # pero pesa menos que antes
+        assert row["valid"] == 1                      # it is never invalidated or deleted
+        assert row["weight"] < 0.8                     # but weighs less than before
         assert f'"summarized_by": {insight["id"]}' in (row["meta"] or "")
 
 
@@ -124,15 +124,15 @@ def test_synthesize_never_demotes_pinned(fresh_db):
     assert "summarized_by" not in (row["meta"] or "")
 
 
-# V2-104 (2026-08-16): tras V2-103, `demote_summarized` hace que un insight desplace (no solo compita con) los
-# hechos correctos que resume — un insight INVENTADO ya no es ruido de bajo riesgo, es una fuente de error activa.
+# V2-104 (2026-08-16): after V2-103, `demote_summarized` makes an insight displace (rather than merely compete with)
+# correct facts that it summarizes — an INVENTED insight is no longer low-risk noise, but an active source of error.
 def test_synthesize_rejects_insight_with_fabricated_proper_noun(fresh_db):
     ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
            for t in ["escuchó a Mocedades por la tarde", "escuchó a Serrat mientras trabajaba",
                      "pidió música de los ochenta", "sonó Tómame o Déjame en YouTube"]]
 
     def hook(groups):
-        # "Rocío" no aparece en ninguna píldora fuente — fabricación clásica de resumen por LLM.
+        # "Rocío" does not appear in any source pill — classic LLM summary fabrication.
         return [{"concept": "musica", "insight": "A Rocío le gusta la música española clásica."}]
 
     assert memrem.synthesize(hook, min_group=4) == 0
@@ -140,7 +140,7 @@ def test_synthesize_rejects_insight_with_fabricated_proper_noun(fresh_db):
     assert db.query_one("SELECT id FROM memories WHERE slot='insight:musica' AND valid=1") is None
     for mid in ids:
         row = db.query_one("SELECT weight FROM memories WHERE id=?", (mid,))
-        assert row["weight"] == 0.8, "rechazado → las píldoras fuente NO se demotan"
+        assert row["weight"] == 0.8, "rejected → source pills are NOT demoted"
 
 
 def test_synthesize_rejects_insight_with_fabricated_number(fresh_db):
@@ -156,7 +156,7 @@ def test_synthesize_rejects_insight_with_fabricated_number(fresh_db):
 def test_synthesize_rejects_oversized_insight(fresh_db):
     for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción"]:
         memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
-    largo = "Le gusta la música española. " * 20  # muy por encima de MAX_INSIGHT_CHARS
+    largo = "Le gusta la música española. " * 20  # far above MAX_INSIGHT_CHARS
 
     def hook(groups):
         return [{"concept": "musica", "insight": largo}]
@@ -172,7 +172,7 @@ def test_synthesize_verify_fn_rejects_even_when_deterministic_backstop_passes(fr
         return [{"concept": "musica", "insight": "Le gusta escuchar música clásica española."}]
 
     def verify_fn(insight, pills):
-        return False  # segunda opinión: no lo respalda, aunque no haya cifras/nombres inventados
+        return False  # second opinion: does not support it, even though no figures/names are fabricated
 
     assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 0
     db = memdb.get_db()
@@ -215,12 +215,12 @@ def test_grounded_accepts_number_and_proper_noun_present_in_pills(fresh_db):
     assert memrem._grounded("Ricart visita al Dr. Soler cada 6 meses, cita el 23.", pills) is True
 
 
-# V2-104, corregido tras validación REAL contra DeepSeek V4 Flash (2026-08-16, live_rem_faithfulness.py): el
-# modelo convierte de forma CONSISTENTE una cantidad dicha en palabras en la fuente ("las nueve") a dígito en el
-# insight ("las 9") — paráfrasis fiel, pero `_grounded()` la rechaza por comparar substring literal sin
-# normalizar dígito↔palabra. Dejar que ese backstop vetara SIEMPRE, antes del `verify_fn`, significaba que un
-# insight fiel nunca llegaba a que el verificador REAL (que sí lo aceptaba en 3/3 intentos) tuviera la última
-# palabra. `verify_fn`, cuando existe, debe ser el ÁRBITRO — `_grounded()` solo decide sin él.
+# V2-104, fixed after REAL validation against DeepSeek V4 Flash (2026-08-16, live_rem_faithfulness.py): the
+# model CONSISTENTLY converts an amount written in words in the source ("nine") to a digit in the insight
+# ("9") — a faithful paraphrase, but `_grounded()` rejects it by comparing literal substrings without
+# normalizing digit↔word. Letting that backstop ALWAYS veto, before `verify_fn`, meant that a faithful
+# insight never reached the REAL verifier (which accepted it in 3/3 attempts) for the final say. When present,
+# `verify_fn` must be the ARBITER — `_grounded()` decides only without it.
 def test_verify_fn_overrides_deterministic_backstop_false_positive(fresh_db):
     ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["running"])
            for t in ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
@@ -231,15 +231,15 @@ def test_verify_fn_overrides_deterministic_backstop_false_positive(fresh_db):
                                                     "media maratón de Madrid con Vetusta Morla de fondo."}]
 
     def verify_fn(insight, pills):
-        return True  # el juicio REAL: "9" ≈ "nueve" es la misma cifra, no una fabricación
+        return True  # the REAL judgment: "9" ≈ "nine" is the same number, not a fabrication
 
     pills_for_check = ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
                        "escucha a Vetusta Morla mientras corre", "corre siempre antes de las nueve"]
     insight_text = ("Corre 8 km por el Retiro antes de las 9, entrenando la media maratón de Madrid con "
                     "Vetusta Morla de fondo.")
     assert memrem._grounded(insight_text, pills_for_check) is False, \
-        "precondición: el backstop determinista SÍ rechaza este caso (dígito vs palabra) — si esto deja de " \
-        "fallar, el escenario ya no reproduce el bug real y hay que revisar el test"
+        "precondition: the deterministic backstop DOES reject this case (digit vs word) — if this stops " \
+        "failing, the scenario no longer reproduces the real bug and the test must be reviewed"
 
     assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 1
     db = memdb.get_db()
@@ -249,7 +249,7 @@ def test_verify_fn_overrides_deterministic_backstop_false_positive(fresh_db):
 
 
 def test_grounded_alone_still_gates_when_no_verify_fn(fresh_db):
-    """Sin `verify_fn` (fail-safe sin LLM disponible), `_grounded()` sigue siendo el único gate."""
+    """Without `verify_fn` (fail-safe when no LLM is available), `_grounded()` remains the only gate."""
     for t in ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
              "escucha a Vetusta Morla mientras corre", "corre siempre antes de las nueve"]:
         memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["running"])
@@ -258,7 +258,7 @@ def test_grounded_alone_still_gates_when_no_verify_fn(fresh_db):
         return [{"concept": "running", "insight": "Corre 8 km por el Retiro antes de las 9, entrenando la "
                                                     "media maratón de Madrid con Vetusta Morla de fondo."}]
 
-    assert memrem.synthesize(hook, min_group=4) == 0  # sin verify_fn → el backstop rechaza, como antes
+    assert memrem.synthesize(hook, min_group=4) == 0  # without verify_fn → the backstop rejects, as before
 
 
 def test_repair_embeddings_limit_configurable(fresh_db, monkeypatch):
@@ -266,8 +266,8 @@ def test_repair_embeddings_limit_configurable(fresh_db, monkeypatch):
     for i in range(5):
         memwriter.insert_memory(f"dato sin vector {i}", level="mid", kind="fact")
     db = memdb.get_db()
-    db.execute("DELETE FROM vec_memories")   # simula backlog: todas sin vector
-    fixed = memrem.repair_embeddings()       # sin `limit=` explícito → usa el default configurable
+    db.execute("DELETE FROM vec_memories")   # simulate backlog: all without a vector
+    fixed = memrem.repair_embeddings()       # without explicit `limit=` → uses the configurable default
     assert fixed == 3
 
 
@@ -275,7 +275,7 @@ def test_repair_embeddings_default_raised_from_200(fresh_db):
     assert memrem._repair_limit_default() >= 1000
 
 
-# V2-031 T2 (2026-08-17): fase de backfill del índice de paráfrasis — mismo patrón inyectable que synthesize_fn.
+# V2-031 T2 (2026-08-17): paraphrase-index backfill phase — same injectable pattern as synthesize_fn.
 def test_index_paraphrases_backfills_pills_without_any(fresh_db):
     ids = [memwriter.insert_memory(t, level="mid", kind="fact")
            for t in ["toca la guitarra los sábados", "cocina platos italianos"]]
@@ -360,15 +360,14 @@ def test_index_paraphrases_stays_quiet_when_some_pills_do_succeed(fresh_db, monk
     assert recorded == []
 
 
-# V2-103 (2026-08-16): la formación de grupos de concepto (`_concept_groups`/`synthesize`) solo se había probado
-# con 4-12 píldoras de un único concepto limpio — nunca con una distribución RUIDOSA de cientos de píldoras en
-# más conceptos que `MAX_GROUPS`, que es donde un bug de ordenación/corte se volvería invisible en un fixture
-# pequeño pero real a escala de producción.
+# V2-103 (2026-08-16): concept-group formation (`_concept_groups`/`synthesize`) had only been tested with
+# 4–12 pills from one clean concept — never with a NOISY distribution of hundreds of pills across more concepts
+# than `MAX_GROUPS`, where an ordering/truncation bug would become invisible in a small but production-scale fixture.
 def test_concept_groups_at_scale_picks_largest_and_respects_cap(fresh_db):
     import random
     rnd = random.Random(7)
-    # 20 conceptos con tamaños de grupo DISTINTOS y solapados; solo los MAX_GROUPS=8 más poblados deben
-    # sintetizarse, y ninguno por debajo de MIN_GROUP=4 debe aparecer nunca.
+    # 20 concepts with DISTINCT, overlapping group sizes; only the 8 most populated MAX_GROUPS should be
+    # synthesized, and none below MIN_GROUP=4 should ever appear.
     sizes = {f"concepto{n}": n for n in range(1, 21)}   # concepto1→1 píldora … concepto20→20 píldoras
     for concept, n in sizes.items():
         for i in range(n):
@@ -378,7 +377,7 @@ def test_concept_groups_at_scale_picks_largest_and_respects_cap(fresh_db):
     groups = memrem._concept_groups(min_group=4, max_groups=8)
     assert len(groups) == 8
     got = {g["concept"]: len(g["pills"]) for g in groups}
-    # los 8 conceptos con MÁS píldoras (concepto13..concepto20) son los elegidos, en orden descendente
+    # the 8 concepts with the MOST pills (concepto13..concepto20) are selected, in descending order
     expected_top8 = sorted(sizes.items(), key=lambda kv: -kv[1])[:8]
     assert set(got) == {c for c, _ in expected_top8}
     assert all(n >= 4 for n in got.values()), "ningún grupo por debajo de MIN_GROUP debe colarse"
@@ -412,21 +411,21 @@ def test_run_full_cycle_reports(fresh_db):
     memwriter.insert_memory("un dato", level="mid", kind="fact")
     rep = memrem.run(synthesize_fn=None)
     assert set(rep) >= {"repaired", "sem_deduped", "insights", "hygiene", "ms"}
-    # el marcador queda sembrado → el próximo due() respeta cadencia
+    # the marker is seeded → the next due() respects the interval
     assert memrem.due() is False
 
 
-# ── V2-482 · un vector de ESPACIO AJENO se retira para que la reparación lo vea ─────────────────────────────
+# ── V2-482 · a vector from a FOREIGN SPACE is removed so repair can see it ─────────────────────────────────
 #
-# `repair_embeddings` solo busca filas SIN vector, que es lo que deja el guarda de firma del writer. Una fila
-# cuyo vector ajeno se coló ANTES del guarda tiene vector, así que la pasada de reparación no la selecciona
-# jamás: el daño es permanente por construcción. Medido 2026-08-29 sobre la memoria viva del operador — 15
-# filas durables con un `_hash_embed` literal dentro de un índice sellado `ollama:embeddinggemma:768`.
+# `repair_embeddings` only looks for rows WITHOUT a vector, which is what the writer's signature guard leaves behind. A row
+# whose foreign vector slipped in BEFORE the guard has a vector, so the repair pass never selects it: the damage is permanent
+# by construction. Measured 2026-08-29 on the operator's live memory — 15 durable rows with a literal `_hash_embed` inside a
+# sealed `ollama:embeddinggemma:768` index.
 
 @pytest.fixture
 def sellado_gemma(monkeypatch):
-    """El índice declara un espacio REAL, y el backend activo de los tests es `hash` → todo vector hash que
-    haya dentro es ajeno. Se declara la precondición en vez de heredarla del entorno."""
+    """The index declares a REAL space, and the active test backend is `hash` → every hash vector inside it
+    is foreign. The precondition is declared instead of inherited from the environment."""
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
     monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
@@ -463,7 +462,7 @@ def test_un_vector_del_espacio_BUENO_no_se_toca(fresh_db, sellado_gemma):
 
 
 def test_si_HASH_es_el_espacio_sellado_no_hay_nada_ajeno(fresh_db, monkeypatch):
-    """Dev, tests, una BD recién nacida: ahí los vectores hash son NATIVOS, no intrusos."""
+    """Dev, tests, a freshly created database: there, hash vectors are NATIVE, not intruders."""
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: "hash:hash:768")
     memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
@@ -471,8 +470,8 @@ def test_si_HASH_es_el_espacio_sellado_no_hay_nada_ajeno(fresh_db, monkeypatch):
 
 
 def test_sin_firma_sellada_no_se_llama_ajeno_a_nada(fresh_db, monkeypatch):
-    """Sin espacio declarado no hay nada respecto a lo que ser ajeno — borrar sería tirar el único canal
-    semántico que esa base tiene."""
+    """Without a declared space there is nothing against which to be foreign — deleting would throw away the only
+    semantic channel that database has."""
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: None)
     memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
@@ -480,10 +479,10 @@ def test_sin_firma_sellada_no_se_llama_ajeno_a_nada(fresh_db, monkeypatch):
 
 
 def test_repair_embeddings_AHORA_alcanza_la_fila_con_vector_ajeno(fresh_db, sellado_gemma, monkeypatch):
-    """El camino entero: retirar el vector ajeno es lo que hace que la MISMA pasada lo re-embeba bien.
+    """The whole path: removing the foreign vector is what lets the SAME pass re-embed it correctly.
 
     `embed` se sustituye por un vector denso porque en producción `_embed_sig_ok()` cierto significa que el
-    backend activo ES el sellado; con el `hash` de los tests, reparar devolvería otro vector ajeno."""
+    active backend IS the sealed one; with the test `hash`, repair would return another foreign vector."""
     mid = memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
     denso = [0.02] * mememb.dim()
     monkeypatch.setattr(mememb, "embed", lambda _t: list(denso))
@@ -495,11 +494,11 @@ def test_repair_embeddings_AHORA_alcanza_la_fila_con_vector_ajeno(fresh_db, sell
     assert row["p"] is None                                 # reparada → el marcador se limpia
 
 
-# ── V2-485 · el vector AJENO que no se puede reproducir desde el texto, pero cuya FORMA lo delata ───────────
+# ── V2-485 · the FOREIGN vector that cannot be reproduced from text, but whose SHAPE gives it away ─────────
 
 def _con_vector_rellenado(texto: str) -> int:
-    """Una píldora cuyo vector viene de un espacio de media dimensión, rellenado con ceros — la forma exacta
-    de un fastembed dentro de un índice de 768."""
+    """A pill whose vector comes from a half-dimensional space, padded with zeros — the exact shape
+    of a fastembed inside a 768-dimensional index."""
     mid = memwriter.insert_memory(texto, level="long", kind="fact")
     dim = mememb.dim()
     relleno = [0.05] * (dim // 2) + [0.0] * (dim // 2)
@@ -509,16 +508,16 @@ def _con_vector_rellenado(texto: str) -> int:
 
 
 def test_un_vector_RELLENADO_desde_un_espacio_menor_se_retira(fresh_db, sellado_gemma):
-    """Los 9 del índice del operador: 384 no-ceros + 384 ceros al final dentro de un índice de 768 sellado
-    embeddinggemma. Un fastembed no se reproduce desde su texto — su forma sí lo dice."""
+    """The operator's 9: 384 nonzeros + 384 trailing zeros inside a sealed 768-dimensional embeddinggemma index.
+    A fastembed cannot be reproduced from its text — its shape gives it away."""
     mid = _con_vector_rellenado("un dato cualquiera")
     memrem._drop_foreign_vectors(memdb.get_db(), 100)
     assert _vector_de(mid) is None
 
 
 def test_con_FASTEMBED_sellado_un_vector_rellenado_es_el_NATIVO(fresh_db, monkeypatch):
-    """La mitad que impide que el arreglo se coma una base sana: fastembed ES 384 rellenados a 768, así que
-    ahí la forma no delata nada y solo vale la huella de hash."""
+    """The safeguard that prevents the fix from consuming a healthy database: fastembed IS 384 padded to 768, so
+    in that case the shape gives nothing away and only the hash fingerprint is useful."""
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: "fastembed:bge-small:768")
     monkeypatch.setattr(memwriter, "_embed_sig_ok", lambda: True)
@@ -528,22 +527,22 @@ def test_con_FASTEMBED_sellado_un_vector_rellenado_es_el_NATIVO(fresh_db, monkey
 
 
 def test_la_frontera_del_relleno_es_la_MITAD_de_la_dimension():
-    """Deliberadamente gruesa: un modelo de 512 rellenado a 768 deja 256 ceros y NO se caza. Ensancharla
-    empezaría a adivinar sobre vectores meramente dispersos, y aquí un falso positivo tira un vector bueno."""
+    """Deliberately coarse: a 512-dimensional model padded to 768 leaves 256 zeros and is NOT caught. Widening it
+    would start guessing about merely sparse vectors, and here a false positive throws away a good vector."""
     assert memrem._looks_padded([0.1] * 384 + [0.0] * 384) is True
     assert memrem._looks_padded([0.1] * 385 + [0.0] * 383) is False
     assert memrem._looks_padded([0.1] * 768) is False
 
 
 def test_el_aviso_DESGLOSA_la_clase_de_vector_retirado(fresh_db, sellado_gemma, monkeypatch):
-    """Las dos clases entran por puertas distintas — hash por un permiso rancio (V2-484), rellenado por un
-    camino sin guarda (V2-485). Un aviso que las cuente juntas bajo una etiqueta manda el diagnóstico
-    siguiente a la puerta equivocada, que es lo que hacía cuando solo sabía de hash."""
+    """The two classes enter through different doors — hash through a stale permission (V2-484), padded through a
+    path without a guard (V2-485). An alert that counts them together under one label sends the next diagnosis
+    to the wrong door, which is what happened when it only knew about hash."""
     memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")   # vector hash real
     _con_vector_rellenado("otro dato cualquiera")                                     # forma de fastembed
     dicho: list[str] = []
-    # Se captura el logger del módulo y NO con `caplog`: aquí se escribe con loguru, que no propaga al
-    # `logging` de la stdlib — un caso montado sobre caplog saldría verde sin haber leído ni un aviso.
+    # Capture the module logger, NOT with `caplog`: this uses loguru, which does not propagate to stdlib
+    # `logging` — a case built on caplog would pass without having read a single alert.
     monkeypatch.setattr(memrem.logger, "warning", lambda m, *a, **k: dicho.append(str(m)))
     memrem._drop_foreign_vectors(memdb.get_db(), 100)
     aviso = " ".join(dicho)
@@ -551,22 +550,22 @@ def test_el_aviso_DESGLOSA_la_clase_de_vector_retirado(fresh_db, sellado_gemma, 
 
 
 def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fresh_db, monkeypatch):
-    """La misma forma de V2-484 en el peor sitio: la función que REPARA, en bucle. La firma se comprueba al
-    entrar y luego se reparan N filas; un backend que se resuelve a `hash` a mitad no se declara degradado
-    (un hash configurado es su propio espacio coherente) y el permiso de la entrada sigue en pie.
+    """The same V2-484 shape in the worst place: the function that REPAIRS, in a loop. The signature is checked on
+    entry and then N rows are repaired; a backend that resolves to `hash` halfway through is not declared degraded
+    (a configured hash is its own coherent space), and the entry permission remains in force.
 
-    Va con la firma REAL, no con `_embed_sig_ok` falseado: un doble que siempre dice que sí no puede medir un
-    guarda que existe justo para decir que no. (El primer intento usaba el fixture que lo falsea y salía en
-    rojo con el arreglo puesto Y sin él — o sea que no medía nada.)"""
+    It uses the REAL signature, not a falsified `_embed_sig_ok`: a double that always says yes cannot measure a
+    guard that exists precisely to say no. (The first attempt used the fixture that falsifies it and was
+    red with and without the fix — meaning it measured nothing.)"""
     from memory import embeddings as mememb
     from memory import reembed as memreembed
     monkeypatch.setattr(memreembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
-    monkeypatch.setattr(mememb, "active_backend", lambda: mememb._backend)   # sigue al backend, como el real
+    monkeypatch.setattr(mememb, "active_backend", lambda: mememb._backend)   # follows the backend, like the real one
     monkeypatch.setattr(mememb, "_active_model_name", lambda: "embeddinggemma")
     monkeypatch.setattr(memreembed, "_SPACE_CACHE", (0.0, True, None))
 
     ids = [memwriter.insert_memory(f"dato durable {i}", level="long", kind="fact") for i in range(4)]
-    memdb.get_db().execute("DELETE FROM vec_memories")           # todas pendientes de reparar
+    memdb.get_db().execute("DELETE FROM vec_memories")           # all pending repair
 
     denso = [0.02] * mememb.dim()
     llamadas = {"n": 0}
@@ -574,7 +573,7 @@ def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fres
     def _embed_que_cae_a_mitad(_t):
         llamadas["n"] += 1
         if llamadas["n"] > 2:
-            mememb._backend = "hash"                             # a mitad del bucle el espacio deja de casar
+            mememb._backend = "hash"                             # halfway through the loop the space stops matching
         return list(denso)
 
     monkeypatch.setattr(mememb, "_backend", "ollama")
@@ -584,4 +583,4 @@ def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fres
 
     con_vector = memdb.get_db().query_one(
         "SELECT COUNT(*) c FROM vec_memories WHERE memory_id IN (%s)" % ",".join("?" * len(ids)), tuple(ids))
-    assert con_vector["c"] == 2      # las dos de antes de la caída, y ni una después
+    assert con_vector["c"] == 2      # the two before the failure, and none afterward

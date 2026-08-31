@@ -1,12 +1,12 @@
-"""El prompt de la SÍNTESIS REM se compone sin reventar (regresión 2026-08-09).
+"""The REM SYNTHESIS prompt is composed without blowing up (regression 2026-08-09).
 
-Bug real que esto evita: `_REM_SYSTEM` termina con un ejemplo de JSON literal —`[{"concept": str, "insight":
-str|null}]`— y se interpolaba con `str.format(lang=…)`, que trata esas llaves como marcadores → `KeyError:
-'"concept"'` en CADA llamada. `memory/rem.py::synthesize` captura cualquier excepción del hook y devuelve 0, así
-que la fase de INSIGHTS del sueño profundo llevaba semanas sin escribir NADA, fallando abierta en silencio: el
-síntoma era "la memoria no consolida", no un error visible.
+The real bug this prevents: `_REM_SYSTEM` ends with a literal JSON example —`[{"concept": str, "insight":
+str|null}]`— and was interpolated with `str.format(lang=…)`, which treats those braces as placeholders → `KeyError:
+'"concept"'` on EVERY call. `memory/rem.py::synthesize` catches any exception from the hook and returns 0, so
+the deep-sleep INSIGHTS phase had been writing NOTHING for weeks, silently failing open: the
+symptom was "memory does not consolidate", not a visible error.
 
-La prueba NO llama a ningún modelo: ejercita la composición del prompt y el contrato de fail-open del hook.
+The test does NOT call any model: it exercises prompt composition and the hook's fail-open contract.
 """
 from __future__ import annotations
 
@@ -20,19 +20,19 @@ from nucleo import memllm  # noqa: E402
 
 
 def test_prompt_rem_se_compone_sin_reventar():
-    """La composición NO puede lanzar, y el idioma tiene que quedar sustituido de verdad."""
+    """Composition MUST NOT raise, and the language must actually be substituted."""
     system = memllm._REM_SYSTEM.replace("{lang}", "castellano")
     assert "castellano" in system
     assert "{lang}" not in system
-    # el ejemplo de JSON del contrato sigue intacto (es lo que ancla el formato de salida del modelo)
+    # the contract's JSON example remains intact (it anchors the model's output format)
     assert '"concept"' in system and '"insight"' in system
 
 
 def test_format_sobre_el_prompt_esta_prohibido():
-    """Guarda explícita: si alguien vuelve a meter `.format()` aquí, esto lo caza en vez de la producción.
+    """Explicit safeguard: if someone puts `.format()` back here, this catches it instead of production.
 
-    `str.format` sobre este prompt SIEMPRE lanza mientras el contrato lleve llaves literales — que es lo
-    correcto y no se va a quitar. Por eso la interpolación tiene que ser `.replace`.
+    `str.format` on this prompt ALWAYS raises while the contract contains literal braces—which is
+    correct and will not be removed. That is why interpolation must use `.replace`.
     """
     import pytest
     with pytest.raises(KeyError):
@@ -40,13 +40,13 @@ def test_format_sobre_el_prompt_esta_prohibido():
 
 
 def test_synthesize_no_llama_al_modelo_sin_grupos():
-    """Contrato barato: sin grupos no hay llamada ni excepción."""
+    """Cheap contract: with no groups, there is neither a call nor an exception."""
     assert memllm.synthesize_concept_groups([]) == []
 
 
 def test_synthesize_compone_el_prompt_de_verdad(monkeypatch):
-    """El camino REAL hasta el borde de la red: si la composición reventara, `chat_sync` no llegaría a
-    invocarse y el fallo volvería a esconderse tras el fail-open del llamador."""
+    """The REAL path to the network boundary: if composition blew up, `chat_sync` would not be
+    invoked and the failure would again be hidden behind the caller's fail-open behavior."""
     visto = {}
 
     def _fake_chat_sync(task, system, user, **kw):
@@ -58,6 +58,6 @@ def test_synthesize_compone_el_prompt_de_verdad(monkeypatch):
         [{"concept": "salud", "pills": ["Va al gimnasio los lunes.", "Dejó el café en enero."]}]
     )
     assert visto["task"] == "rem"
-    assert "{lang}" not in visto["system"]          # el idioma llegó sustituido
-    assert "gimnasio" in visto["user"]              # las píldoras llegaron al modelo
+    assert "{lang}" not in visto["system"]          # the language arrived substituted
+    assert "gimnasio" in visto["user"]              # the pills reached the model
     assert out == [{"concept": "salud", "insight": "Cuida su salud con rutina de gimnasio."}]

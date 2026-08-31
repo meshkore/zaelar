@@ -1,18 +1,17 @@
-"""V2-497 — la reparación de vectores DICE cuando no pudo hacer su trabajo.
+"""V2-497 — vector repair SAYS when it could not do its job.
 
-`repair_embeddings` devolvía `0` para dos situaciones opuestas: «no había nada que reparar» (sano) y «había 45
-píldoras esperando y el backend rechazó todas» (roto). Nada más las distinguía: el salto por fila era un
-`continue` pelado y `hygiene()` informa de `embed_pending` pero solo su porcentaje de escritura heurística llega
-a alertar. Salía la lectura tranquilizadora.
+`repair_embeddings` returned `0` for two opposite situations: “there was nothing to repair” (healthy) and “there were 45
+pills waiting and the backend rejected them all” (broken). Nothing else distinguished them: the per-row skip was a
+bare `continue` and `hygiene()` reports `embed_pending`, but only its heuristic write percentage ever raises an
+alert. The reassuring reading came out.
 
-MEDIDO el 2026-08-29 sobre una COPIA de la memoria del operador: 25 vectores de espacio ajeno retirados, 20
-filas ya pendientes, 45 esperando en total, `repair_embeddings` → **0**, y la única línea del log era la del
-purgado anunciando su éxito. Causa: `/api/embed` contestando `server busy` mientras un modelo de 40 GB ocupaba
-la GPU.
+MEASURED on 2026-08-29 on a COPY of the operator’s memory: 25 vectors from another space removed, 20
+rows already pending, 45 waiting in total, `repair_embeddings` → **0**, and the only log line was the purge line
+announcing its success. Cause: `/api/embed` responding `server busy` while a 40 GB model occupied the GPU.
 
-Los casos de conducta entran por `repair_embeddings`, NUNCA llamando a `_report_repair_backlog` a mano: un test
-que no recorre el camino real prueba que el código compila (V2-199), y aquí lo que se rompe con facilidad es
-justo la LLAMADA.
+The behavior cases enter through `repair_embeddings`, NEVER calling `_report_repair_backlog` by hand: a test
+that does not traverse the real path proves that the code compiles (V2-199), and here what breaks easily is
+the CALL itself.
 """
 import pytest
 
@@ -25,8 +24,8 @@ from voice import health_state
 
 @pytest.fixture(autouse=True)
 def _hash_backend(monkeypatch):
-    # El backend se DECLARA, nunca se hereda del ambiente (V2-484): con Ollama vivo el resolutor conserva el
-    # espacio y estos casos medirían otra cosa.
+    # The backend is DECLARED, never inherited from the environment (V2-484): with Ollama running, the resolver keeps the
+    # space and these cases would measure something else.
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "hash", "embed_model": ""})
     monkeypatch.setenv("MEM_SEMANTIC_DEDUP", "0")
@@ -52,7 +51,7 @@ def _clean_health():
 
 
 def _esperando(n: int) -> list[int]:
-    """`n` píldoras válidas SIN vector — el estado que la reparación existe para deshacer."""
+    """`n` valid pills WITHOUT a vector — the state that repair exists to undo."""
     ids = [memwriter.insert_memory(f"hecho durable número {i}", level="long", kind="fact") for i in range(n)]
     db = memdb.get_db()
     for i in ids:
@@ -61,19 +60,19 @@ def _esperando(n: int) -> list[int]:
 
 
 def _avisos(monkeypatch) -> list[str]:
-    """Se captura el logger del MÓDULO y no `caplog`: aquí se escribe con loguru, que no propaga al `logging`
-    de la stdlib — un caso montado sobre caplog sale verde sin haber leído ni un aviso (comprobado: los tres
-    primeros de este fichero pasaron así antes de mirar el stderr)."""
+    """Capture the MODULE logger rather than `caplog`: this uses loguru, which does not propagate to the stdlib `logging`
+    of the stdlib — a case built on caplog passes green without having read a single warning (confirmed: the first three
+    in this file passed that way before stderr was examined)."""
     dicho: list[str] = []
     monkeypatch.setattr(memrem.logger, "warning", lambda m, *a, **k: dicho.append(str(m)))
     return dicho
 
 
 def _degradado(monkeypatch, *, fallan: int = 10_000):
-    """Backend que contesta un vector pero DECLARA que cayó al hash de emergencia, como un Ollama saturado.
+    """Backend that returns a vector but DECLARES that it fell back to the emergency hash, like an overloaded Ollama.
 
-    Devuelve la lista de llamadas para poder medir que la pasada se rinde en vez de repetir la misma llamada
-    fallida una vez por fila que espera.
+    Return the list of calls so we can measure that the pass gives up instead of repeating the same call
+    failed call once for every waiting row.
     """
     llamadas: list[str] = []
     real = mememb.embed
@@ -95,15 +94,15 @@ def test_una_reparacion_que_no_pudo_lo_DICE(fresh_db, monkeypatch):
     assert memrem.repair_embeddings(limit=100) == 0
     aviso = " ".join(dicho)
     assert "sin vector" in aviso.lower(), aviso
-    assert "5" in aviso, aviso                                  # cuántas siguen esperando, no un genérico
+    assert "5" in aviso, aviso                                  # how many are still waiting, not a generic one
     salud = health_state.get("memory")
     assert salud and salud["kind"] == "degraded", salud
     assert "5" in salud["text"], salud
 
 
 def test_dice_la_CAUSA_porque_las_dos_piden_acciones_distintas(fresh_db, monkeypatch):
-    # Un backend caído se arregla liberando la GPU; una firma discordante, reindexando. Un aviso que no las
-    # separa manda el diagnóstico siguiente a la puerta equivocada (la lección de V2-485).
+    # A down backend is fixed by freeing the GPU; a mismatched signature, by reindexing. A warning that does not
+    # distinguish them sends the next diagnosis to the wrong door (the lesson of V2-485).
     _esperando(3)
     dicho = _avisos(monkeypatch)
     _degradado(monkeypatch)
@@ -113,7 +112,7 @@ def test_dice_la_CAUSA_porque_las_dos_piden_acciones_distintas(fresh_db, monkeyp
 
 
 def test_una_pasada_SANA_no_dice_NADA(fresh_db, monkeypatch):
-    # Sensibilidad: un aviso que sale también cuando todo va bien deja de leerse.
+    # Sensitivity: a warning that also appears when everything is fine stops being read.
     _esperando(4)
     dicho = _avisos(monkeypatch)
     assert memrem.repair_embeddings(limit=100) == 4
@@ -131,7 +130,7 @@ def test_sin_NADA_que_reparar_no_dice_nada(fresh_db, monkeypatch):
 def test_una_pasada_PARCIAL_reporta_solo_lo_que_QUEDA(fresh_db, monkeypatch):
     _esperando(6)
     dicho = _avisos(monkeypatch)
-    # las 2 primeras se curan; de la 3ª en adelante el backend se cae y la racha corta la pasada
+    # the first 2 are healed; from the 3rd onward the backend goes down and the streak cuts the pass short
     llamadas: list[str] = []
     real_embed = mememb.embed
 
@@ -147,8 +146,8 @@ def test_una_pasada_PARCIAL_reporta_solo_lo_que_QUEDA(fresh_db, monkeypatch):
 
 
 def test_se_RINDE_tras_la_racha_en_vez_de_repetir_la_misma_llamada_fallida(fresh_db, monkeypatch):
-    # Un backend degradado es una condición del PROCESO, no un accidente por fila: medido contra un Ollama
-    # saturado, 40 sondas en 30 s dieron 40 rechazos y cero aciertos. Seguir es repetir la misma llamada.
+    # A degraded backend is a PROCESS condition, not a per-row accident: measured against an overloaded Ollama,
+    # 40 probes in 30 s produced 40 rejections and zero successes. Continuing means repeating the same call.
     _esperando(30)
     llamadas = _degradado(monkeypatch)
     memrem.repair_embeddings(limit=100)
@@ -156,8 +155,8 @@ def test_se_RINDE_tras_la_racha_en_vez_de_repetir_la_misma_llamada_fallida(fresh
 
 
 def test_un_fallo_AISLADO_no_termina_la_pasada(fresh_db, monkeypatch):
-    # La otra dirección, y es la que impide que la racha sea 1: el resolutor deja a un backend saturado
-    # re-sondeando en la llamada siguiente, así que un bache suelto no puede costar la pasada entera.
+    # The converse, and what prevents the streak from being 1: the resolver keeps probing an overloaded backend
+    # on the next call, so an isolated dip cannot cost the entire pass.
     _esperando(5)
     llamadas: list[str] = []
     real = mememb.embed
@@ -165,16 +164,16 @@ def test_un_fallo_AISLADO_no_termina_la_pasada(fresh_db, monkeypatch):
     def _un_bache(text):
         llamadas.append(text)
         vec = real(text)
-        mememb.last_degraded = len(llamadas) == 2      # solo la segunda fila
+        mememb.last_degraded = len(llamadas) == 2      # only the second row
         return vec
 
     monkeypatch.setattr(mememb, "embed", _un_bache)
-    assert memrem.repair_embeddings(limit=100) == 4     # las otras cuatro SÍ se curan
+    assert memrem.repair_embeddings(limit=100) == 4     # the other four ARE healed
 
 
 def test_una_pasada_sana_NO_borra_el_aviso_de_OTRO(fresh_db):
-    # La clave `memory` la comparten el descuadre de espacio vectorial y los embeddings degradados (V2-311):
-    # limpiarla al salir bien borraría un aviso ajeno. Envejece con su TTL.
+    # The `memory` key is shared by the vector-space mismatch and degraded embeddings (V2-311):
+    # clearing it on a successful exit would erase someone else’s warning. It ages out with its TTL.
     health_state.record("memory", "degraded", "aviso de otra pieza")
     _esperando(2)
     assert memrem.repair_embeddings(limit=100) == 2

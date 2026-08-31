@@ -1,4 +1,4 @@
-"""Tests de memory/retriever.py (V2-002 · T47) — fusión RRF, score ponderado, graph_expand."""
+"""Tests for memory/retriever.py (V2-002 · T47) — RRF fusion, weighted score, graph_expand."""
 import time
 
 import pytest
@@ -27,12 +27,12 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def test_rrf_fuses_ranks():
-    # id 2 es el mejor (rank 1) en AMBAS listas → mayor score fusionado.
+    # id 2 is the best (rank 1) in BOTH lists → highest fused score.
     a = [(2, 0.1), (1, 0.2), (3, 0.3)]
     b = [(2, 5.0), (1, 6.0)]
     fused = memret.rrf(a, b, k=60)
     assert max(fused, key=fused.get) == 2
-    assert fused[1] > fused[3]  # 1 está en ambas listas; 3 solo en una
+    assert fused[1] > fused[3]  # 1 is in both lists; 3 is only in one
 
 
 def test_query_finds_relevant_by_keyword(fresh_db):
@@ -44,17 +44,17 @@ def test_query_finds_relevant_by_keyword(fresh_db):
 
 
 def test_query_empty_db_returns_empty(fresh_db):
-    # sin recuerdos, no hay candidatos (el recall vectorial devuelve vecinos SOLO si existen filas).
+    # With no memories, there are no candidates (vector recall returns neighbors ONLY if rows exist).
     res = memret.search("cualquier cosa", limit=5, expand=False)
     assert res == []
 
 
 def test_score_weights_importance_and_recency(fresh_db):
     now = int(time.time())
-    # dos recuerdos que casan el mismo keyword; uno más importante + más reciente
+    # Two memories matching the same keyword; one more important + more recent
     hi = memwriter.insert_memory("proyecto Colmena importante", kind="fact", level="long")  # imp 0.7
     lo = memwriter.insert_memory("proyecto Colmena trivial", kind="msg")                    # imp 0.4
-    # envejecer el 'lo' para bajar su recencia
+    # Age 'lo' to lower its recency
     memdb.get_db().execute("UPDATE memories SET last_access=? WHERE id=?", (now - 40 * 86400, lo))
     memdb.get_db().execute("UPDATE memories SET last_access=? WHERE id=?", (now, hi))
     res = memret.search("proyecto Colmena", limit=5, expand=False)
@@ -66,7 +66,7 @@ def test_graph_expand_pulls_neighbors(fresh_db):
     a = memwriter.insert_memory("tema central sobre Wallapop", kind="fact", level="long")
     b = memwriter.insert_memory("dato colateral vinculado", kind="event")
     memwriter.link(a, b, "about", 1.0)
-    # unidad: graph_expand añade el vecino b a un conjunto que solo trae a.
+    # Unit: graph_expand adds neighbor b to a set containing only a.
     seed = [{"id": a, "text": "tema central sobre Wallapop", "score": 1.0, "weight": 0.5,
              "importance": 0.7, "last_access": None}]
     expanded = memret.graph_expand(seed)
@@ -74,7 +74,7 @@ def test_graph_expand_pulls_neighbors(fresh_db):
     assert b in ids
     vb = next(r for r in expanded if r["id"] == b)
     assert vb.get("via", "").startswith("edge:")
-    assert vb["score"] < seed[0]["score"]  # score descontado
+    assert vb["score"] < seed[0]["score"]  # discounted score
 
 
 def test_reinforce_signal_emitted(fresh_db):
@@ -94,8 +94,8 @@ def test_reinforce_signal_emitted(fresh_db):
         bus.remove_sink(sink)
 
 
-# V2-031 T2 (2026-08-17): índice de paráfrasis — un memory_id debe aparecer en `search()` cuando la QUERY casa
-# con una de sus reformulaciones aunque comparta poco vocabulario con el texto original de la píldora.
+# V2-031 T2 (2026-08-17): paraphrase index — a memory_id must appear in `search()` when the QUERY matches
+# one of its reformulations, even if it shares little vocabulary with the pill's original text.
 def test_vec_search_paraphrases_maps_back_to_real_memory_id(fresh_db):
     mid = memwriter.insert_memory("toca la guitarra los sábados por la tarde", kind="fact", level="mid")
     memwriter.index_paraphrases(mid, ["es un músico aficionado"])
@@ -116,10 +116,10 @@ def test_search_surfaces_pill_via_paraphrase_vocab_gap(fresh_db):
 
 
 def test_search_never_returns_a_bare_concept_node(monkeypatch, tmp_path):
-    """V2-114 F4.1 — un nodo-concepto es SEMILLA de expansión, no respuesta. Su `text` es la palabra del
-    concepto («familia»), así que devolverlo gasta un hueco del top-3 con cero información. `graph_expand` los
-    necesita presentes para promocionar su cluster (T126), de ahí que el filtro vaya DESPUÉS de expandir: este
-    test fija que el resultado FINAL no los lleve, sin impedir que sigan sirviendo de semilla."""
+    """V2-114 F4.1 — a concept node is a SEED for expansion, not an answer. Its `text` is the concept word
+    ("family"), so returning it uses up a top-3 slot with zero information. `graph_expand` needs them present
+    to promote their cluster (T126), hence the filter comes AFTER expansion: this test ensures that the FINAL
+    result does not contain them, without preventing them from continuing to serve as seeds."""
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "z.db"))
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     from memory import db as _db
@@ -128,7 +128,7 @@ def test_search_never_returns_a_bare_concept_node(monkeypatch, tmp_path):
     from memory import api as memapi
     from memory import retriever as _ret
 
-    # Un hecho REAL sobre la familia + su nodo-concepto (lo crea el writer al enlazar conceptos).
+    # A REAL fact about the family + its concept node (the writer creates it when linking concepts).
     memapi.write_now("Su hermana se llama Marta y vive en Madrid.", level="long", kind="fact",
                      importance=0.7, concepts=["familia"])
     res = _ret.search("¿qué sabes de mi familia?", limit=10, expand=True, reinforce=False)
@@ -167,7 +167,7 @@ def test_search_drops_the_vector_channels_when_the_space_does_not_match(fresh_db
 
 
 def test_search_uses_the_vector_channels_when_the_space_matches(fresh_db, monkeypatch):
-    """La otra mitad: sin esto, un guard que apagara los canales SIEMPRE también pasaría el test de arriba."""
+    """The other half: without this, a guard that always turned off the channels would also pass the test above."""
     memwriter.insert_memory("mi perro se llama Toby", level="long", kind="fact")
 
     from memory import reembed as memreembed

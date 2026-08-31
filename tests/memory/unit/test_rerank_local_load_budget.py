@@ -35,7 +35,7 @@ def _clean_state():
 
 class _FakeEncoder:
     def rerank(self, query, texts):
-        # el ÚLTIMO texto es el "mejor" → una permutación inequívoca, invertida respecto al orden de entrada
+        # the LAST text is the "best" → an unambiguous permutation, reversed relative to the input order
         return [float(i) for i in range(len(texts))]
 
 
@@ -53,12 +53,12 @@ def _install_loader(monkeypatch, factory):
 
 
 def test_una_descarga_lenta_no_bloquea_el_recall(monkeypatch):
-    """El presupuesto se respeta y el recall sale SIN reordenar, no colgado."""
+    """The budget is respected and recall returns WITHOUT reordering, rather than hanging."""
     arrancada = threading.Event()
 
     def _lentisimo(_model):
         arrancada.set()
-        time.sleep(30)          # el hilo es daemon: la suite no lo espera
+        time.sleep(30)          # the thread is a daemon: the suite does not wait for it
         return _FakeEncoder()
 
     _install_loader(monkeypatch, _lentisimo)
@@ -77,7 +77,7 @@ def test_una_descarga_lenta_no_bloquea_el_recall(monkeypatch):
 
 
 def test_cuando_la_descarga_termina_el_reranker_se_engancha_solo(monkeypatch):
-    """La otra mitad: rendirse una vez no puede significar renunciar para siempre."""
+    """The other half: giving up once cannot mean giving up forever."""
     puerta = threading.Event()
 
     def _bloqueado(_model):
@@ -87,8 +87,8 @@ def test_cuando_la_descarga_termina_el_reranker_se_engancha_solo(monkeypatch):
     calls = _install_loader(monkeypatch, _bloqueado)
     monkeypatch.setenv("MEMORY_RERANK_LOAD_BUDGET_S", "0.2")
 
-    assert rerank_local.rank("q", ["a", "b"]) is None      # primer intento: aún cargando
-    puerta.set()                                            # "termina la descarga"
+    assert rerank_local.rank("q", ["a", "b"]) is None      # first attempt: still loading
+    puerta.set()                                            # "the download finishes"
     deadline = time.monotonic() + 5
     while rerank_local.loading() and time.monotonic() < deadline:
         time.sleep(0.02)
@@ -101,7 +101,7 @@ def test_cuando_la_descarga_termina_el_reranker_se_engancha_solo(monkeypatch):
 
 
 def test_un_fallo_duro_se_recuerda_y_no_se_reintenta_en_cada_llamada(monkeypatch):
-    """Antes, una máquina que no puede servir este modelo pagaba el fallo en CADA recall."""
+    """Previously, a machine unable to serve this model paid the failure cost on EVERY recall."""
     def _revienta(_model):
         raise RuntimeError("modelo inexistente")
 
@@ -116,7 +116,7 @@ def test_un_fallo_duro_se_recuerda_y_no_se_reintenta_en_cada_llamada(monkeypatch
 
 
 def test_status_distingue_listo_de_meramente_instalado(monkeypatch):
-    """`available` decía True con fastembed importable y CERO modelo en disco — la mentira que empezó todo."""
+    """`available` reported True when fastembed was importable and ZERO model was on disk — the lie that started it all."""
     monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "local"})
 
     st = rerank.status()
@@ -139,7 +139,7 @@ def test_tras_una_rendicion_dura_el_proveedor_deja_de_declararse_disponible(monk
 
 
 def test_off_no_carga_nada(monkeypatch):
-    """El proveedor apagado no puede tocar el cargador ni de refilón."""
+    """The disabled provider must not touch the loader, not even indirectly."""
     calls = _install_loader(monkeypatch, lambda _m: _FakeEncoder())
     monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "off"})
     rerank.rerank("q", [{"text": "a", "score": 1.0}, {"text": "b", "score": 0.5}])

@@ -1,8 +1,8 @@
 #
-# test_slots_audit.py — auditoría de memoria 2026-07-14 (cierre del retest V2-038): registro canónico de slots,
-# supersede AUTO-CURATIVO multi-fila, saneo de slots legacy en el consolidador, contrato v2 del procesador
-# (`value`/`change`), y la vía de escritura EXTERNA con gates (`remember_external`).
-# Sin red (embeddings hash) ni LLM (MEM_PROCESSOR=0). Ejecutar: .venv/bin/pytest tests/memory/unit/test_slots_audit.py
+# test_slots_audit.py — memory audit 2026-07-14 (closeout of V2-038 retest): canonical slot registry,
+# multi-row SELF-HEALING supersede, cleanup of legacy slots in the consolidator, processor v2 contract
+# (`value`/`change`), and the EXTERNAL write path with gates (`remember_external`).
+# No network (hash embeddings) or LLM (MEM_PROCESSOR=0). Run: .venv/bin/pytest tests/memory/unit/test_slots_audit.py
 #
 import asyncio
 
@@ -34,33 +34,33 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── registro canónico (memory/slots.py) ────────────────────────────────────────────────────────────────────
+# ── canonical registry (memory/slots.py) ──────────────────────────────────────────────────────────────────
 
 def test_canonical_collapses_aliases_and_case():
     assert memslots.canonical("ubicación") == "operator.location"
     assert memslots.canonical("City") == "operator.location"
     assert memslots.canonical("OPERATOR.NAME") == "operator.name"
     assert memslots.canonical("  Goal ") == "goal.current"
-    # namespaced/desconocidos: pasan lowercased/stripped, sin inventar
+    # namespaced/unknown: pass through lowercased/stripped, without inventing anything
     assert memslots.canonical("Cluster:Zalo:Peer") == "cluster:zalo:peer"
     assert memslots.canonical("weather:soria") == "weather:soria"
     assert memslots.canonical("") is None and memslots.canonical(None) is None
 
 
 def test_registry_protects_prompt_declared_identity_slots():
-    # phone/address/diet estaban declarados singulares en el prompt del procesador pero FUERA de _IDENTITY_SLOTS
-    # (tres listas divergentes). Con el registro único, quedan protegidos por el gate P0b.
+    # phone/address/diet were declared singular in the processor prompt but OUTSIDE _IDENTITY_SLOTS
+    # (three divergent lists). With the single registry, they are protected by the P0b gate.
     ids = memslots.identity_slots()
     for s in ("operator.phone", "operator.address", "operator.diet", "operator.name", "operator.location"):
         assert s in ids
     from nucleo import memory_agent
-    assert memory_agent._IDENTITY_SLOTS == ids                    # el agente deriva del registro, no de su copia
+    assert memory_agent._IDENTITY_SLOTS == ids                    # the agent derives from the registry, not its copy
 
 
 def test_prompt_catalog_reaches_processor_prompt():
     from nucleo import mem_processor
-    assert "{SLOT_CATALOG}" not in mem_processor._SYSTEM          # el placeholder se sustituyó
-    assert "operator.location" in mem_processor._SYSTEM           # con el catálogo real del registro
+    assert "{SLOT_CATALOG}" not in mem_processor._SYSTEM          # the placeholder was replaced
+    assert "operator.location" in mem_processor._SYSTEM           # with the registry's actual catalog
 
 
 def test_prompt_preserves_multi_fact_incidents_and_keeps_daily_noise_ephemeral():
@@ -72,20 +72,20 @@ def test_prompt_preserves_multi_fact_incidents_and_keeps_daily_noise_ephemeral()
     assert '"ttl_days":7' in mem_processor._FEWSHOT_ASSISTANT_8
 
 
-# ── writer: alias + supersede auto-curativo ────────────────────────────────────────────────────────────────
+# ── writer: alias + self-healing supersede ─────────────────────────────────────────────────────────────────
 
 def test_alias_slot_supersedes_canonical_lineage(fresh_db):
     a = writer.insert_memory("Vive en Soria.", level="long", kind="profile", slot="operator.location")
     b = writer.insert_memory("Vive en Valencia.", level="long", kind="profile", slot="ubicación")
     d = memdb.get_db()
     row = d.query_one("SELECT slot, valid FROM memories WHERE id=?", (b,))
-    assert row["slot"] == "operator.location"                     # el alias colapsó al canónico
+    assert row["slot"] == "operator.location"                     # the alias collapsed to the canonical form
     old = d.query_one("SELECT valid, superseded_by FROM memories WHERE id=?", (a,))
-    assert old["valid"] == 0 and old["superseded_by"] == b        # …y supersedió el linaje canónico
+    assert old["valid"] == 0 and old["superseded_by"] == b        # …and superseded the canonical lineage
 
 
 def test_supersede_collapses_all_stale_valids(fresh_db):
-    # Simula el estado del retest: 3 vigentes del MISMO slot (legacy/alias pre-normalización/unforget).
+    # Simulate the retest state: 3 valid entries for the SAME slot (legacy/pre-normalization alias/unforget).
     ids = [writer.insert_memory(f"Vive en {c}.", level="long", kind="profile", slot="operator.location")
            for c in ("Soria", "Bilbao", "Girona")]
     d = memdb.get_db()
@@ -93,7 +93,7 @@ def test_supersede_collapses_all_stale_valids(fresh_db):
     assert d.query_one("SELECT COUNT(*) c FROM memories WHERE slot='operator.location' AND valid=1")["c"] == 3
     new = writer.insert_memory("Vive en Valencia.", level="long", kind="profile", slot="operator.location")
     valid = d.query("SELECT id FROM memories WHERE slot='operator.location' AND valid=1")
-    assert [r["id"] for r in valid] == [new]                      # UNA sola píldora vigente (auto-curativo)
+    assert [r["id"] for r in valid] == [new]                      # a single valid memory (self-healing)
 
 
 def test_reinforce_also_collapses_stale_duplicates(fresh_db):
@@ -101,32 +101,32 @@ def test_reinforce_also_collapses_stale_duplicates(fresh_db):
     b = writer.insert_memory("Vive en Soria.", level="long", kind="profile", slot="operator.location")
     d = memdb.get_db()
     d.execute("UPDATE memories SET valid=1, superseded_by=NULL WHERE id IN (?,?)", (a, b))
-    # re-afirmar el dato MÁS RECIENTE (texto idéntico) → refuerza y colapsa el rezagado
+    # re-assert the MOST RECENT datum (identical text) → reinforces it and collapses the lagging entry
     again = writer.insert_memory("Vive en Soria.", level="long", kind="profile", slot="operator.location")
     assert again == b
     valid = d.query("SELECT id FROM memories WHERE slot='operator.location' AND valid=1")
     assert [r["id"] for r in valid] == [b]
 
 
-# ── consolidador: saneo de slots legacy ────────────────────────────────────────────────────────────────────
+# ── consolidator: legacy slot cleanup ─────────────────────────────────────────────────────────────────────
 
 def test_heal_slots_normalizes_legacy_and_collapses(fresh_db):
     d = memdb.get_db()
     a = writer.insert_memory("Vive en Soria.", level="long", kind="profile", slot="operator.location")
     b = writer.insert_memory("Vive en Valencia.", level="long", kind="profile", slot="operator.location")
-    # simula filas LEGACY pre-normalización: alias crudo + mayúsculas namespaced, ambas vigentes
+    # simulate LEGACY pre-normalization rows: raw alias + namespaced uppercase, both valid
     d.execute("UPDATE memories SET slot='ubicación', valid=1, superseded_by=NULL WHERE id=?", (a,))
     c = writer.insert_memory("Síntesis con el peer.", level="mid", kind="summary", slot="cluster:x:peer")
     d.execute("UPDATE memories SET slot='Cluster:X:Peer' WHERE id=?", (c,))
     rep = consolidator.heal_slots()
-    assert rep["normalized"] >= 2                                 # 'ubicación' y 'Cluster:X:Peer' normalizados
-    assert rep["collapsed"] >= 1                                  # el linaje reunificado colapsó a UN vigente
+    assert rep["normalized"] >= 2                                 # 'ubicación' and 'Cluster:X:Peer' normalized
+    assert rep["collapsed"] >= 1                                  # the reunified lineage collapsed to ONE valid entry
     valid = d.query("SELECT id FROM memories WHERE slot='operator.location' AND valid=1")
-    assert [r["id"] for r in valid] == [b]                        # gana el más reciente
+    assert [r["id"] for r in valid] == [b]                        # the most recent one wins
     assert d.query_one("SELECT slot FROM memories WHERE id=?", (c,))["slot"] == "cluster:x:peer"
 
 
-# ── contrato v2 del procesador: value + change ─────────────────────────────────────────────────────────────
+# ── processor v2 contract: value + change ─────────────────────────────────────────────────────────────────
 
 def test_parse_accepts_value_and_change():
     from nucleo import mem_processor
@@ -135,13 +135,13 @@ def test_parse_accepts_value_and_change():
         '"value":"Valencia","change":"update","state_patch":{}},'
         '{"text":"Le gusta el pádel.","dest":"long","kind":"pref","change":"garbage"}]')
     assert atoms[0]["value"] == "Valencia" and atoms[0]["change"] == "update"
-    assert atoms[1]["value"] is None and atoms[1]["change"] == "none"   # change inválido → none
+    assert atoms[1]["value"] is None and atoms[1]["change"] == "none"   # invalid change → none
 
 
 def test_llm_change_signal_updates_state_and_supersedes(fresh_db, monkeypatch):
-    """El caso de la incidencia, SIN regex: el procesador (mockeado) emite slot+value+change='update' para un
-    fraseo que ninguna regex del host contempla → el estado se actualiza (síntesis mecánica del patch) y la
-    píldora vieja queda superseded. La señal es del MODELO multilingüe, no del fraseo."""
+    """The incident case, with NO regex: the (mocked) processor emits slot+value+change='update' for wording
+    that no host regex covers → the state is updated (mechanical synthesis of the patch) and the old memory
+    remains superseded. The signal comes from the multilingual MODEL, not from the wording."""
     from nucleo import mem_processor, memory_agent
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Marta", "location": "Soria"})
@@ -157,20 +157,20 @@ def test_llm_change_signal_updates_state_and_supersedes(fresh_db, monkeypatch):
         await memapi.start()
         try:
             out = await memory_agent.ingest_utterance("m'acabo de traslladar a València, saps?")
-            await asyncio.sleep(0.3)                              # drena la cola
+            await asyncio.sleep(0.3)                              # drain the queue
             return out
         finally:
             await memapi.stop()
     asyncio.run(run())
-    assert memapi.state()["location"] == "Valencia"               # PERFIL→ESTADO mecánico (slot+value)
+    assert memapi.state()["location"] == "Valencia"               # mechanical PROFILE→STATE (slot+value)
     d = memdb.get_db()
     valid = d.query("SELECT text FROM memories WHERE slot='operator.location' AND valid=1")
-    assert len(valid) == 1 and "Valencia" in valid[0]["text"]     # una sola píldora vigente
+    assert len(valid) == 1 and "Valencia" in valid[0]["text"]     # a single valid memory
 
 
 def test_llm_without_change_signal_still_quarantines_garble(fresh_db, monkeypatch):
-    """Simetría: SIN señal de cambio ni corrección, un valor que contradice la identidad establecida sigue
-    yendo a CUARENTENA (P0b intacto) — la señal no abre la puerta al garble."""
+    """Symmetry: WITHOUT a change or correction signal, a value that contradicts the established identity still
+    goes to QUARANTINE (P0b intact) — the signal does not open the door to garble."""
     from nucleo import mem_processor, memory_agent
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Marta", "location": "Soria"})
@@ -189,14 +189,14 @@ def test_llm_without_change_signal_still_quarantines_garble(fresh_db, monkeypatc
         finally:
             await memapi.stop()
     asyncio.run(run())
-    assert memapi.state()["location"] == "Soria"                  # la identidad NO se pisó
+    assert memapi.state()["location"] == "Soria"                  # the identity was NOT overwritten
 
 
 def test_injection_preamble_cannot_override_identity_via_change(fresh_db, monkeypatch):
-    """SEGURIDAD (2ª auditoría 2026-07-14, hallazgo del corpus v2 con 7b): un turno con PREÁMBULO de inyección
-    ('ignora lo anterior…') que trae un átomo de IDENTIDAD con change='update' (como lo emitiría un modelo capaz
-    que OBEDECE la inyección) NO puede sobrescribir el nombre establecido → va a cuarentena. Un cambio legítimo
-    (mismo átomo, SIN preámbulo) sí pasa (ver test_llm_change_signal_*)."""
+    """SECURITY (2nd audit 2026-07-14, finding from the v2 corpus with 7b): a turn with an injection PREAMBLE
+    ('ignore the above…') that carries an IDENTITY atom with change='update' (as a capable model that OBEYS the
+    injection would emit) CANNOT overwrite the established name → it goes to quarantine. A legitimate change
+    (same atom, WITHOUT a preamble) does pass (see test_llm_change_signal_*)."""
     from nucleo import mem_processor, memory_agent
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Amaia"})
@@ -216,10 +216,10 @@ def test_injection_preamble_cannot_override_identity_via_change(fresh_db, monkey
         finally:
             await memapi.stop()
     asyncio.run(run())
-    assert memapi.state()["operator_name"] == "Amaia"             # la inyección NO pisó la identidad
+    assert memapi.state()["operator_name"] == "Amaia"             # the injection did NOT overwrite the identity
 
 
-# ── heurística: la mudanza sigue funcionando como backstop (es/en) ─────────────────────────────────────────
+# ── heuristic: relocation still works as a backstop (es/en) ────────────────────────────────────────────────
 
 def test_heuristic_relocation_still_updates_state(fresh_db):
     from nucleo import memory_agent
@@ -236,7 +236,7 @@ def test_heuristic_relocation_still_updates_state(fresh_db):
     assert memapi.state()["location"] == "Valencia"
 
 
-# ── escritura EXTERNA (workers): gates ─────────────────────────────────────────────────────────────────────
+# ── EXTERNAL writing (workers): gates ───────────────────────────────────────────────────────────────────────
 
 def test_remember_external_never_touches_identity_or_state(fresh_db):
     from nucleo import memory_agent
@@ -253,11 +253,11 @@ def test_remember_external_never_touches_identity_or_state(fresh_db):
             await memapi.stop()
     res = asyncio.run(run())
     assert res["ok"] is True and res["identity_slot_dropped"] is True
-    assert memapi.state()["operator_name"] == "Marta"             # la identidad del operador NO se pisó
+    assert memapi.state()["operator_name"] == "Marta"             # the operator's identity was NOT overwritten
     d = memdb.get_db()
     assert d.query_one("SELECT COUNT(*) c FROM memories WHERE slot='operator.name'")["c"] == 0
     row = d.query_one("SELECT meta FROM memories WHERE text LIKE '%Bartolo%'")
-    assert row is not None and "worker:t9" in (row["meta"] or "")  # procedencia estampada
+    assert row is not None and "worker:t9" in (row["meta"] or "")  # stamped provenance
 
 
 def test_remember_external_keeps_work_slots_and_rejects_questions(fresh_db):
@@ -277,6 +277,6 @@ def test_remember_external_keeps_work_slots_and_rejects_questions(fresh_db):
             await memapi.stop()
     ok, bad = asyncio.run(run())
     assert ok["ok"] is True and ok["identity_slot_dropped"] is False
-    assert bad["ok"] is False and bad["reason"] == "precision"     # pregunta reificada → no se persiste
+    assert bad["ok"] is False and bad["reason"] == "precision"     # reified question → not persisted
     d = memdb.get_db()
     assert d.query_one("SELECT COUNT(*) c FROM memories WHERE slot='goal.moto' AND valid=1")["c"] == 1

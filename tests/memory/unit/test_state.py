@@ -1,4 +1,4 @@
-"""Tests de memory/state.py (V2-002 · T48) — tabla fija, lectura directa sin búsqueda."""
+"""Tests for memory/state.py (V2-002 · T48) — fixed table, direct reads without searching."""
 import pytest
 
 from memory import db as memdb
@@ -39,14 +39,14 @@ def test_write_and_read_roundtrip(fresh_db):
     s = memstate.read()
     assert s["operator_name"] == "Ricart"
     assert s["location"] == "Barcelona"
-    assert s["language"] == "en"  # el default se conserva al escribir otros campos
+    assert s["language"] == "en"  # the default is preserved when writing other fields
 
 
 def test_patch_is_shallow_merge(fresh_db):
     memstate.write({"operator_name": "Ricart", "topics": ["colmena"]})
     memstate.patch({"treatment": "directo, sin narrar"})
     s = memstate.read()
-    assert s["operator_name"] == "Ricart"        # no se perdió
+    assert s["operator_name"] == "Ricart"        # it was not lost
     assert s["treatment"] == "directo, sin narrar"
     assert s["topics"] == ["colmena"]
 
@@ -55,12 +55,12 @@ def test_single_row_only(fresh_db):
     memstate.write({"operator_name": "A"})
     memstate.write({"operator_name": "B"})
     n = memdb.get_db().query_one("SELECT COUNT(*) c FROM state")["c"]
-    assert n == 1  # fila única (id=1)
+    assert n == 1  # single row (id=1)
     assert memstate.read()["operator_name"] == "B"
 
 
 def test_read_does_not_hit_index(fresh_db):
-    # sanity: read solo hace un SELECT por PK; no depende de vec/fts.
+    # sanity: read only performs one SELECT by PK; it does not depend on vec/fts.
     memstate.write({"operator_name": "Ricart"})
     assert memstate.read()["operator_name"] == "Ricart"
 

@@ -1,9 +1,9 @@
 """P0d — a third party's fact must not SUPERSEDE the operator's own identity pill (2026-08-19).
 
 The bug, reproduced end to end before writing a line of the fix: with the operator's birthday established,
-"El cumpleaños de Marta es el 3 de mayo." arrived as `dest="long"` with `slot="operator.birthday"`, the writer
-applied "the most recent MANDA", the operator's row went `valid=0`, and `query("¿cuándo es mi cumpleaños?")`
-answered with Marta's date. The operator's own birthday, silently gone from recall.
+"Marta's birthday is May 3" arrived as `dest="long"` with `slot="operator.birthday"`, the writer applied "the
+most recent MANDA", the operator's row went `valid=0`, and `query("When is my birthday?")` answered with Marta's
+date. The operator's own birthday, silently gone from recall.
 
 Why no existing gate caught it. `_plausibility_demote` (P0b) protects the `state` and does that well — verified in
 the same run: `operator_name` stayed Ricart and `birthday` stayed 12 February. But the destructive operation is
@@ -12,8 +12,9 @@ have a `state_field`. A third-party fact fails BOTH conditions. Five identity sl
 protection at all — `birthday`, `phone`, `email`, `address`, `diet` — because the guard is keyed on having a state
 field, which is an unrelated property.
 
-Why a deterministic backstop rather than a prompt fix: the prompt ALREADY forbids it ("slot: SOLO para ATRIBUTOS
-SINGULARES del operador"; "personas del entorno → slot=null SIEMPRE") and the model does it anyway. Measured with
+Why a deterministic backstop rather than a prompt fix: the prompt ALREADY forbids it ("slot: ONLY for the
+OPERATOR'S SINGULAR ATTRIBUTES"; "people in the operator's environment → slot=null ALWAYS") and the model does it
+anyway. Measured with
 real API calls: 0/5 with an empty profile, 3/5 with an identity established — it misfires precisely when there is
 something to destroy. Samples are small so no rate is claimed; a reproducible loss does not need one.
 
@@ -21,8 +22,8 @@ The disposal is what separates this from P0b: a garbled name is junk and gets QU
 birthday" is perfectly good information about someone else. So the pill is KEPT as a plain durable fact and only
 its `slot` is dropped. Quarantining would fix the overwrite by discarding the fact — the same data loss in a
 different hat. Verified against the real pipeline afterwards: both facts coexist, and with the memory language
-coherent "cuándo es mi cumpleaños" ranks the operator's pill first while "el cumpleaños de Marta" ranks Marta's
-first — the ranking needed no change.
+coherent "when is my birthday" ranks the operator's pill first while "Marta's birthday" ranks Marta's first — the
+ranking needed no change.
 """
 from __future__ import annotations
 
@@ -90,7 +91,7 @@ def test_the_five_slots_with_no_state_field_are_the_ones_this_covers(fresh_db):
 
 # ── what must still work ─────────────────────────────────────────────────────────────────────────────────────
 def test_an_explicit_correction_still_supersedes(fresh_db):
-    """The operator saying "no, mi cumpleaños es el 3 de mayo" MUST overwrite. A guard that blocks corrections
+    """The operator saying "no, my birthday is May 3" MUST overwrite. A guard that blocks corrections
     freezes the first thing it ever heard, which is a worse failure than the one it prevents."""
     _establish("operator.birthday", "Su cumpleaños es el 12 de febrero.", "12 de febrero")
     out = MA._slot_supersede_guard(_atom("operator.birthday", "3 de mayo", "Su cumpleaños es el 3 de mayo."),
