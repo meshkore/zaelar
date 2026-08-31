@@ -1,10 +1,10 @@
-"""Tests del detector de muro de login del navegador (INI-016, auth) — el arreglo que impide inventar credenciales
-(bug 2026-07-10: el bucle tecleó user@gmail.com en el login de Google). DETERMINISTA, sin red ni modelo."""
+"""Tests for the browser's login-wall detector (INI-016, auth) — the fix that prevents inventing credentials
+(bug 2026-07-10: the loop typed user@gmail.com into Google's login). DETERMINISTIC, with no network or model."""
 from widgets.navegador import agent
 
 
 def test_login_url_is_detected():
-    # URLs de login CONOCIDAS → muro de login (sin necesidad de mirar el DOM).
+    # KNOWN login URLs → login wall (without needing to inspect the DOM).
     assert agent._looks_like_login("https://accounts.google.com/v3/signin/identifier?x=1", "")
     assert agent._looks_like_login("https://es.wallapop.com/login", "")
     assert agent._looks_like_login("https://www.linkedin.com/checkpoint/lg/login", "")
@@ -12,17 +12,17 @@ def test_login_url_is_detected():
 
 
 def test_password_field_is_detected():
-    # URL cualquiera pero con campo de CONTRASEÑA + jerga de login en el snapshot → muro de login.
+    # Any URL with a PASSWORD field + login terminology in the snapshot → login wall.
     els = '[3] textbox "Contraseña"\n[4] button "Iniciar sesión"'
     assert agent._looks_like_login("https://ejemplo.com/x", els)
 
 
 def test_home_and_results_are_not_login():
-    # Portada con un simple botón «Iniciar sesión» (SIN campo password) → NO es login (no dispara falsos positivos).
+    # Home page with a simple «Iniciar sesión» button (WITHOUT a password field) → NOT a login page (does not trigger false positives).
     assert not agent._looks_like_login("https://www.youtube.com/", '[1] button "Iniciar sesión"')
-    # Página de resultados de búsqueda → NO es login.
+    # Search results page → NOT a login page.
     assert not agent._looks_like_login("https://es.wallapop.com/search?kw=moto", '[7] textbox "¿Qué buscas?"')
-    # Portada limpia.
+    # Clean home page.
     assert not agent._looks_like_login("https://www.google.com/", "")
 
 

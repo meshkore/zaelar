@@ -62,16 +62,16 @@ def test_a_tab_with_its_worker_alive_says_nothing_of_the_sort():
 
 
 def test_a_hand_driven_tab_without_an_errand_stamp_is_never_orphaned():
-    """El operador conduciendo a mano (`browse_web`) o un login abren pestaña SIN sello de encargo: ahí no hay
-    worker que pueda morir, y gritar «sin conductor» sería inventar un fallo."""
-    tid = T.create("Abrir Booking")           # sin sheet
+    """An operator driving manually (`browse_web`) or a login opens a tab WITHOUT an errand stamp: there is no
+    worker there that can die, and shouting «sin conductor» would be inventing a failure."""
+    tid = T.create("Abrir Booking")           # without a sheet
     T.set_status(tid, "working")
     assert "SIN CONDUCTOR" not in _state()
 
 
 def test_delivering_still_wins_but_the_fact_travels_with_it():
-    """Con filas delante, la cara correcta sigue siendo entregarlas — y aun así el hecho se dice, porque
-    «no está bloqueada ni esperando» sobre una pestaña sin conductor es la contradicción otra vez."""
+    """When rows are waiting, the correct response is still to deliver them — and the fact is stated anyway,
+    because saying «no está bloqueada ni esperando» about a tab without a driver is the contradiction again."""
     tid = _errand_tab(driver=False)
     SHEET.apply_action("present", {"sheet": "v310-1", "title": "R",
                                    "items": [{"title": "Fender CD-60", "price": "120 €"}]})
@@ -82,5 +82,5 @@ def test_delivering_still_wins_but_the_fact_travels_with_it():
 
 
 def test_unreadable_registries_mean_NO_orphan():
-    """Fail-open con dirección: decir que un encargo murió cuando sigue vivo es peor que callarlo."""
+    """Fail-open with direction: saying that an errand died when it is still alive is worse than keeping quiet."""
     assert LB._driver_is_gone("no-existe", {}) is False

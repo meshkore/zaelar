@@ -1,16 +1,16 @@
-"""V2-444 · el mismo defecto, en el SEGUNDO bloque — y era el que disparaba de verdad.
+"""V2-444 · the same defect, in the SECOND block — and it was the one that actually triggered it.
 
-V2-443 marcó `kept` como afirmación del worker en la cara del NAVEGADOR. El bloque de TAREAS DE FONDO lee el
-mismo campo y lo escribía igual de firme —«— YA HA ENCONTRADO N candidato(s)»— y además ordenaba tratarlo
-como entrega: «si dice … que YA HA ENCONTRADO candidatos, entonces la tarea SÍ ha traído eso — cuéntalo en
-este turno».
+V2-443 marked `kept` as the worker's assertion on the BROWSER side. The BACKGROUND TASKS block reads the
+same field and wrote it just as firmly —«— HAS ALREADY FOUND N candidate(s)»— and also instructed treating it
+as a delivery: «if it says … that it HAS ALREADY FOUND candidates, then the task HAS brought that — count it
+in this turn».
 
-Y es el que disparaba. Medido en `best-pediatric-dentists__us` (2026-08-28, plató 24/7): siete turnos (6 al
-12) con el prompt diciendo que había encontrado candidatos y **cero filas**, con la hoja teniendo veinte
-dentistas con nombre y valoración. La cara del navegador NO se encendió en esos siete —cuatro avisos en toda
-la ronda, todos anteriores— así que arreglar solo V2-443 habría dejado vivo el camino que se estaba midiendo.
+And it was the one that triggered it. Measured in `best-pediatric-dentists__us` (2026-08-28, 24/7 set): seven
+turns (6 through 12) with the prompt saying it had found candidates and **zero rows**, while the sheet had
+twenty dentists with names and ratings. The browser side did NOT light up in those seven —four notices in the
+entire round, all earlier— so fixing only V2-443 would have left alive the path being measured.
 
-Es la lección que esta casa lleva pagada cuatro veces: **el fallo no fue la regla, fue tenerla repetida.**
+It is the lesson this house has paid for four times: **the failure was not the rule, but having it repeated.**
 """
 import pytest
 
@@ -46,8 +46,8 @@ def test_el_recuento_se_ATRIBUYE_al_worker():
 
 
 def test_y_deja_de_contarse_como_ENTREGA():
-    """La mitad que cambia el turno: la orden decía que la tarea «SÍ ha traído eso» y mandaba contarlo. Con
-    veinte filas en la hoja que nunca viajaron al prompt, eso es pedir que nombre lo que no tiene."""
+    """The half that changes the turn: the instruction said that the task «HAS brought that» and ordered counting it. With
+    twenty rows in the sheet that never traveled to the prompt, that is asking it to name what it does not have."""
     _tarea_con_kept(20)
     st = "\n".join(LB.pending_task_lines())
     assert "es SU cuenta sin comprobar" in st
@@ -55,8 +55,8 @@ def test_y_deja_de_contarse_como_ENTREGA():
 
 
 def test_lo_que_SI_esta_entregado_sigue_ordenandose_contar():
-    """Sensibilidad: sin esto el arreglo se lleva por delante V2-222, que existe porque negar una entrega que
-    el operador tiene delante es peor que no haberla hecho."""
+    """Sensitivity: without this, the fix breaks V2-222, which exists because denying a delivery that
+    the operator has in front of them is worse than not having made it."""
     _tarea_con_kept(3)
     st = "\n".join(LB.pending_task_lines())
     assert "si dice que algo ya está ENTREGADO, ESCRITO o EN PANTALLA" in st
@@ -64,11 +64,11 @@ def test_lo_que_SI_esta_entregado_sigue_ordenandose_contar():
 
 
 def test_sin_kept_el_bloque_no_dice_nada_de_candidatos():
-    """Un cero no se anuncia: una línea que sale siempre deja de leerse.
+    """Zero is not announced: a line that always appears stops being read.
 
-    Se comprueba el RESUMEN de la tarea (el que lleva el guion largo delante), no el texto entero: la
-    instrucción del bloque nombra la frase para explicarla y está siempre — buscarla a secas daría rojo con
-    el motor correcto, que es un test midiendo lo que no cree medir.
+    The task SUMMARY (the one with the em dash in front) is checked, not the entire text: the block
+    instruction names the phrase to explain it and is always present — searching for it alone would fail with
+    the correct engine, which is a test measuring what it does not think it measures.
     """
     _tarea_con_kept(0)
     st = "\n".join(LB.pending_task_lines())

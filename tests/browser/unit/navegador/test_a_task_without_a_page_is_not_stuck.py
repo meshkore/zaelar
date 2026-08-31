@@ -1,4 +1,4 @@
-"""«SIN MOVERSE de esa página» exige que HAYA una página (V2-308).
+"""«NOT MOVING on that page» requires there to BE a page (V2-308).
 
 Measured on the 04:35 round (2026-08-25): the guitar task had reported no steps and had no URL, `stalled_s`
 counts from `last_progress or created` — so a task that has not taken its FIRST step accrues "stall" from
@@ -50,8 +50,8 @@ def test_no_page_and_no_steps_is_not_a_stall():
 
 
 def test_and_it_does_not_offer_to_abandon_the_search():
-    """El daño concreto: la salida de la cara bloqueada («probar en otro sitio, que entre él, o dejarlo»)
-    sobre una tarea que solo está arrancando es lo que hizo ofrecer el relanzamiento cuatro veces."""
+    """The concrete harm: the wording from the stuck side («try somewhere else, let him take over, or leave it»)
+    applied to a task that is only starting up is what caused it to offer relaunching four times."""
     _old_task()
     state = _state()
     assert "o dejarlo" not in state
@@ -59,15 +59,15 @@ def test_and_it_does_not_offer_to_abandon_the_search():
 
 
 def test_a_task_ON_a_page_that_stops_moving_IS_still_stuck():
-    """Sensibilidad, y es la mitad que protege a V2-167: con página delante, un atasco medido sigue siendo un
-    atasco y sigue diciéndose con su salida."""
+    """Sensitivity, and this is the half that protects V2-167: with a page in front of it, a measured stall is still a
+    stall and is still reported with its wording."""
     _old_task(url="https://es.wallapop.com/search?keywords=guitarra")
     state = _state()
     assert "SIN MOVERSE" in state and "ESTÁ BLOQUEADA" in state
 
 
 def test_steps_without_a_url_also_count_as_something_to_stall_on():
-    """Un worker que reportó pasos y luego se calló sí tiene movimiento del que hablar, aunque la captura no
-    haya dejado url (una tarea puede reportar fase antes de que el navegador registre página)."""
+    """A worker that reported steps and then went silent does have movement to talk about, even if the capture did not
+    leave a URL (a task can report a phase before the browser registers a page)."""
     _old_task(steps=3)
     assert "SIN MOVERSE" in _state()

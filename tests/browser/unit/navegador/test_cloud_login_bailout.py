@@ -1,11 +1,11 @@
-"""Muro de login del navegador en la NUBE — cierre en limpio en vez de bucle infinito (2026-08-03).
+"""Browser login wall in the CLOUD — clean shutdown instead of an infinite loop (2026-08-03).
 
-Incidente real: el operador pidió una búsqueda en Wallapop desde el deploy en la nube (contenedor headless, sin
-display); el sitio pidió login y todo se quedó embuclado para siempre — voz Y widget colgados, sin fallo ni aviso.
-Causa: `_authenticate` siempre intentaba abrir una ventana VISIBLE para que el operador tecleara sus credenciales;
-en un contenedor eso degrada a headless EN SILENCIO (`_ensure_page`) y la tarea se queda esperando un login que
-nunca puede llegar. `_in_container()` corta esto ANTES de intentarlo, con un mensaje claro (instala la versión
-local) en vez de un intento fantasma."""
+Real incident: the operator requested a Wallapop search from the cloud deployment (headless container, with no
+display); the site requested login and everything got stuck in an endless loop — voice AND widget hung, with no
+failure or warning. Cause: `_authenticate` always tried to open a VISIBLE window so the operator could type their
+credentials; in a container that silently degrades to headless (`_ensure_page`) and the task keeps waiting for a
+login that can never arrive. `_in_container()` stops this BEFORE trying, with a clear message (install the local
+version) instead of a phantom attempt."""
 import asyncio
 
 import pytest
@@ -34,15 +34,15 @@ def test_container_bails_out_instead_of_opening_a_visible_window(monkeypatch):
     asyncio.run(owner._authenticate(tid, "wallapop.com", site="wallapop.com", goal="buscar motos"))
 
     t = tasks.get(tid)
-    assert t["status"] == "failed"                 # no se queda en needs_input esperando para siempre
+    assert t["status"] == "failed"                 # does not remain in needs_input waiting forever
     assert not t["awaiting_login"]
     last_event = (t["events"][-1] or {}).get("text", "") if t["events"] else ""
     assert "nube" in last_event
 
 
 def test_other_paused_tasks_are_also_failed_not_left_hanging(monkeypatch):
-    """`_begin_login` pausa OTRAS tareas activas mientras se resuelve el login (needs_input) — si el login no
-    puede resolverse en la nube, esas tareas pausadas deben cerrarse también, no quedar colgadas para siempre."""
+    """`_begin_login` pauses OTHER active tasks while login is being resolved (needs_input) — if login cannot
+    be resolved in the cloud, those paused tasks must also be closed, rather than left hanging forever."""
     monkeypatch.setattr(owner, "_in_container", lambda: True)
     monkeypatch.setattr(owner, "_already_authenticated", lambda site: _no_op_async())
 
@@ -55,10 +55,10 @@ def test_other_paused_tasks_are_also_failed_not_left_hanging(monkeypatch):
 
     assert tasks.get(primary)["status"] == "failed"
     assert tasks.get(other)["status"] == "failed"
-    assert owner._auth_resume == {}                 # drenado, nada queda esperando
+    assert owner._auth_resume == {}                 # drained; nothing remains waiting
 
 
 def test_locally_the_visible_login_flow_is_not_short_circuited(monkeypatch):
-    """Fuera de un contenedor, `_in_container()` no debe interceptar nada — la guarda es SOLO para cloud."""
+    """Outside a container, `_in_container()` must not intercept anything — the guard is ONLY for the cloud."""
     monkeypatch.setattr(owner, "_in_container", lambda: False)
     assert owner._in_container() is False

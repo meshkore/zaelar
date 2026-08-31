@@ -1,24 +1,24 @@
-"""Una página vacía CON entrega detrás no es «la búsqueda no está dando nada» (V2-370).
+"""An empty page WITH prior delivery is not “the search is finding nothing” (V2-370).
 
-Medido en `search-buy-bicycle__es` (2026-08-27) — y lo que lo hace grave es que era la MEJOR ronda en días:
-resultado 4, mecanismo 4, dos bicis reales entregadas (Trek 6500 SLR a 290 €, Specialized a 290 €, las dos
-talla M y por debajo del tope). El último turno cerró así:
+Measured in `search-buy-bicycle__es` (2026-08-27) — and what makes it serious is that it was the BEST round in days:
+result 4, mechanism 4, two real bikes delivered (Trek 6500 SLR at €290, Specialized at €290, both
+size M and below the cap). The last turn ended like this:
 
     «La página esa no está trayendo lo que pediste, así que la dejo.»
 
-El juez lo archivó [alta] como afirmación falsa, y lo es. Pero **no la dijo el modelo: la dijimos nosotros.**
-La nota que empuja `_hand_over` cuando una página no da ni una fila con nombre dice, literal, «esa página no
-está dando lo que pidió», y el turno la repitió casi palabra por palabra.
+The judge filed it [high] as a false claim, and it is. But **the model did not say it: we did.**
+The note that drives `_hand_over` when a page returns not even one named row says, literally, “that page is not
+providing what was requested,” and the turn repeated it almost word for word.
 
-Leído el prompt de ese turno antes de acusar a nadie: llevaba las CINCO filas con nombre y precio y la orden
-de contarlas. No fue desobediencia — fue elegir entre dos hechos ciertos, y el que traía imperativo era el de
-la nota. Es la forma de V2-222 otra vez: dos registros describiendo UN encargo, y el prompt sin rama para el
-caso de en medio.
+Read that turn’s prompt before accusing anyone: it contained all FIVE rows with names and prices and the instruction
+to count them. It was not disobedience — it was choosing between two true facts, and the one carrying an imperative was the note’s.
+It is V2-222 all over again: two records describing ONE errand, and the prompt with no branch for the
+middle case.
 
-La nota se escribió para una búsqueda EN CURSO, donde decir «este sitio no da, cambio» es exactamente lo
-correcto (V2-234). Disparada al final, después de haber entregado, esa misma frase pasa a ser el veredicto
-del encargo entero y borra un resultado que sí existe. Lo que cambia no es el HECHO —la página sigue sin dar
-nada, y callarlo dejaría al turno sin poder explicar por qué no llega nada nuevo— sino su ALCANCE.
+The note was written for an IN-PROGRESS search, where saying “this site provides nothing; I’m switching” is exactly
+right (V2-234). Triggered at the end, after something has been delivered, that same sentence becomes the verdict
+on the entire errand and erases a result that does exist. What changes is not the FACT —the page still provides
+nothing, and omitting that would leave the turn unable to explain why nothing new is arriving— but its SCOPE.
 """
 import pytest
 
@@ -26,12 +26,12 @@ from voice import brain_notes
 from widgets.navegador import act_api, tasks
 from widgets.results import data as SHEET
 
-# La página que no da nada: enlaces de navegación de la propia web, sin un solo título.
+# The page that provides nothing: navigation links from the website itself, without a single title.
 CROMO = [
     {"title": "", "price": "300EUR", "url": "https://tienda.invalid/bicicletas/hasta-300"},
     {"title": "", "price": "", "url": "https://tienda.invalid/ayuda/envios"},
 ]
-# Lo que YA se había entregado antes, tal cual salió en la ronda.
+# What had ALREADY been delivered, exactly as it appeared in the round.
 ENTREGADO = [
     {"title": "Bicicleta montaña Trek 6500 SLR mejorada Talla M", "price": "290 €",
      "url": "https://tienda.invalid/anuncio/trek"},
@@ -67,9 +67,9 @@ def _sembrar_hoja(items):
 # ── con entrega detrás: el alcance es la PÁGINA ────────────────────────────────────────────────────────────
 
 def test_la_ronda_medida_ya_no_licencia_el_veredicto_falso(task):
-    """La frase SIGUE apareciendo, y tiene que aparecer: se NOMBRA para prohibirla. Un «no digas eso» sin
-    decir cuál es «eso» no le da al modelo con qué contrastarse (V2-221). Lo que se comprueba es que llega
-    como prohibición y no como orden, así que la distancia entre el «NUNCA» y la frase es el dato."""
+    """The phrase STILL appears, and it has to appear: it is NAMED in order to prohibit it. A “don’t say that” without
+    saying what “that” is gives the model nothing to compare against (V2-221). What is checked is that it arrives
+    as a prohibition and not as an instruction, so the distance between “NEVER” and the phrase is the data."""
     _sembrar_hoja(ENTREGADO)
     n = _nota(task)
     assert "no está dando lo que pidió" not in n, "la ORDEN vieja no puede seguir ahí"
@@ -79,8 +79,8 @@ def test_la_ronda_medida_ya_no_licencia_el_veredicto_falso(task):
 
 
 def test_el_HECHO_de_la_pagina_se_sigue_contando(task):
-    """Callarse la página vacía sería el fallo contrario: el turno se quedaría sin poder explicar por qué no
-    llega nada nuevo, que es justo lo que el operador está esperando oír."""
+    """Keeping quiet about the empty page would be the opposite failure: the turn would be unable to explain why
+    nothing new is arriving, which is exactly what the operator is waiting to hear."""
     _sembrar_hoja(ENTREGADO)
     n = _nota(task)
     assert "no ha salido ningún resultado con nombre" in n
@@ -97,9 +97,9 @@ def test_dice_que_la_busqueda_NO_ha_terminado(task):
 # ── sin nada entregado: la redacción de siempre, INTACTA ───────────────────────────────────────────────────
 
 def test_con_la_hoja_VACIA_la_nota_no_cambia(task):
-    """La sensibilidad que sostiene el arreglo. Sin entrega detrás, «esa página no está dando lo que pidió»
-    es CIERTO y es lo útil — es V2-234, y perderlo cambiaría un defecto por otro: el turno volvería a servir
-    enlaces de navegación como si fueran hallazgos."""
+    """The safeguard that supports the fix. Without prior delivery, “that page is not providing what was requested”
+    is TRUE and useful — this is V2-234, and losing it would trade one defect for another: the turn would once again serve
+    navigation links as though they were findings."""
     _sembrar_hoja([])
     n = _nota(task)
     assert "esa página no está dando lo que pidió" in n
@@ -107,15 +107,15 @@ def test_con_la_hoja_VACIA_la_nota_no_cambia(task):
 
 
 def test_una_fila_SIN_NOMBRE_no_cuenta_como_entrega(task, monkeypatch):
-    """Una fila sin título no tiene identidad de cosa (V2-234), así que no puede sostener «ya te he dado
-    algo»: si contara, bastaría con que la hoja tuviera cromo dentro para silenciar el aviso.
+    """A row without a title has no thing identity (V2-234), so it cannot support “I have already given you
+    something”: if it counted, merely having navigation links in the sheet would be enough to silence the warning.
 
-    ⚠️ Este caso se escribió primero sembrando la hoja con una fila sin título, y el desarme lo delató: quitar
-    el filtro de nombre NO lo ponía en rojo. La razón es que la propia hoja ya descarta las filas sin título
-    al escribirlas (`apply_action("present")` las tira), así que por esa vía el caso no podía tocar nunca la
-    rama que dice medir. Se mide donde el filtro vive, contra el dato que la hoja DEVUELVE. La comprobación
-    sigue valiendo la pena —es defensa en profundidad sobre un lector que no controla a su fuente— pero el
-    test tiene que decir la verdad sobre qué recorre."""
+    ⚠️ This case was first written by seeding the sheet with a row without a title, and dismantling it exposed the issue: removing
+    the name filter did NOT make it fail. The reason is that the sheet itself already discards untitled rows
+    when writing them (`apply_action("present")` throws them away), so through that path the case could never reach the
+    branch it claims to measure. It is measured where the filter lives, against the data the sheet RETURNS. The check
+    is still worthwhile —it is defense in depth around a reader that does not control its source— but the
+    test has to tell the truth about what it iterates over."""
     import widgets.results.data as _rd
     monkeypatch.setattr(_rd, "view_data",
                         lambda *a, **k: {"items": [{"title": "  ", "price": "10 €"}]})
@@ -123,7 +123,7 @@ def test_una_fila_SIN_NOMBRE_no_cuenta_como_entrega(task, monkeypatch):
 
 
 def test_una_pagina_QUE_SI_DA_sigue_por_su_rama(task):
-    """La tercera rama no se toca: con filas con nombre manda la nota de hallazgo de V2-223."""
+    """The third branch is untouched: with named rows, the V2-223 finding note takes precedence."""
     _sembrar_hoja(ENTREGADO)
     act_api._HANDED.pop(task, None)
     brain_notes.drain()
@@ -136,8 +136,8 @@ def test_una_pagina_QUE_SI_DA_sigue_por_su_rama(task):
 # ── el lector ──────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_sin_poder_leer_la_hoja_se_cae_a_la_redaccion_de_siempre(task, monkeypatch):
-    """Dirección conservadora, y está razonada: sin entrega la redacción vieja es CORRECTA, y este caso solo
-    existe cuando la hay. Al revés —callar la página vacía por si acaso— rompería el caso común."""
+    """A conservative direction, and a reasoned one: without prior delivery the old wording is CORRECT, and this case only
+    exists when there is prior delivery. The reverse —keeping the empty page quiet just in case—would break the common case."""
     import widgets.results.data as _rd
     monkeypatch.setattr(_rd, "view_data", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("hoja rota")))
     assert act_api._sheet_already_named(task) is False
@@ -147,9 +147,9 @@ def test_una_tarea_SIN_hoja_propia_no_hereda_la_entrega_de_otro_encargo():
     """La hoja PELADA es compartida (V2-259), así que leerla aquí dejaría que lo entregado por OTRO encargo
     callara el aviso de éste. Lo cazó un test que ya existía —la hoja pelada acumula filas dentro de la misma
     suite— y es el mismo defecto en producción, solo que ahí no se ve: `_sheet_of` cae a "" fail-soft."""
-    tid = tasks.create("una tarea sin encargo detrás")     # sin `sheet=`
-    _sembrar_hoja(ENTREGADO)                               # otra hoja, con entrega dentro
-    SHEET.apply_action("append", {"sheet": "", "items": ENTREGADO})   # y la PELADA, también
+    tid = tasks.create("una tarea sin encargo detrás")     # without `sheet=`
+    _sembrar_hoja(ENTREGADO)                               # another sheet, with delivery in it
+    SHEET.apply_action("append", {"sheet": "", "items": ENTREGADO})   # and the BARE one, too
     try:
         assert act_api._sheet_already_named(tid) is False
     finally:
@@ -158,8 +158,8 @@ def test_una_tarea_SIN_hoja_propia_no_hereda_la_entrega_de_otro_encargo():
 
 
 def test_el_lector_mira_la_HOJA_del_encargo_y_no_el_registro_de_la_tarea(task):
-    """Misma elección que V2-299 y por el mismo motivo: `has_results` solo existe si alguien llamó a
-    `set_results`, y ahí la línea llegó a decir «SIN traer nada» con 21 filas en la hoja."""
+    """The same choice as V2-299 and for the same reason: `has_results` exists only if someone called
+    `set_results`, and there the line came to say “WITHOUT bringing anything” with 21 rows in the sheet."""
     _sembrar_hoja(ENTREGADO)
     assert act_api._sheet_already_named(task) is True
     assert not (tasks.get(task) or {}).get("results"), "la premisa: el registro está vacío y la hoja no"
