@@ -13,17 +13,27 @@ checks `runstate.stopped()`, independent of category.
 import bus as busmod
 import pytest
 
+from memory import db as memdb
 from observability import identity
 from nucleo import runstate
 from voice import observer, trace
 
 
 @pytest.fixture(autouse=True)
-def _clean():
+def _clean(tmp_path, monkeypatch):
     # NOTE: does not reset `runstate` on the way IN — the root conftest's own autouse fixture already forces
     # RUNNING before every test (reading the operator's real DB here would leak whatever ⏻ state their actual
     # install happens to be in). It IS reset on the way OUT, so a test that stops the agent doesn't leak that
     # into whichever test runs next.
+    #
+    # ZAELAR_DB (2026-08-31): the note above worried about READING the operator's database and missed the far
+    # worse half — two tests here drive `runstate.stop("operator")` for real, and `_persist` WRITES the switch to
+    # `sys_kv`. `_reset_for_tests()` on the way out clears only the in-process cache, so the row stayed STOPPED
+    # and the operator's next engine restart obeyed it: running this suite quietly turned his agent off, with
+    # `src="operator"` so it did not even look like a test had done it. A unit test never touches a live artefact.
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+    memdb.get_db()
     busmod.reset()
     identity.end_session("test")
     observer.clear_log()
@@ -32,6 +42,7 @@ def _clean():
     identity.end_session("test")
     observer.clear_log()
     runstate._reset_for_tests()
+    memdb.reset_db()
 
 
 def test_cluster_origin_trace_is_classified_as_system_not_flash():

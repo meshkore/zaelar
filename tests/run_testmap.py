@@ -1840,6 +1840,13 @@ DOMAINS: list[dict] = [
         # EMPIEZA una nueva, y una sesión abandonada se cierra sola sin esperar a que vuelva la actividad.
         {"id": "7.27", "title": "Sesión de trabajo: fronteras (⏻ off no abre, ⏻ on abre, el cierre se graba)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_lifecycle_boundaries.py"]},
+        # 2026-08-31, encontrado al construir el nodo de arriba: un test que llama a `runstate.stop()` escribe el
+        # interruptor en `sys_kv`, y `_reset_for_tests()` solo limpia la caché EN PROCESO — la fila se quedaba
+        # parada y el siguiente arranque del motor del operador la obedecía. No falla con ruido: el agente
+        # simplemente aparece apagado, con el `src` que pasara el test. `test_trace_cluster_session.py` llevaba
+        # dos semanas haciéndolo con `src="operator"`. Trinquete: quien persista el interruptor, con su base.
+        {"id": "7.28", "title": "Ningún test persiste el ⏻ del operador (quien lo toque, con su propia base)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_test_never_persists_the_operators_switch.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [

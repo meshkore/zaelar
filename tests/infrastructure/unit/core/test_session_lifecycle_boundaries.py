@@ -22,6 +22,7 @@ import time
 
 import pytest
 
+from memory import db as memdb
 from observability import identity
 from voice import observer
 
@@ -29,9 +30,19 @@ _END_SESSION = identity.end_session
 
 
 @pytest.fixture(autouse=True)
-def _clean(monkeypatch):
+def _clean(tmp_path, monkeypatch):
     """Neither the timeline nor the control-plane is the subject here: silence both so a test never touches the
-    network or the operator's real log, and leave the switch RUNNING for whoever comes next."""
+    network or the operator's real log, and leave the switch RUNNING for whoever comes next.
+
+    And a database of its OWN. Two tests here drive `runstate.stop()`/`start()` for real, and `_persist` writes
+    the switch to `sys_kv` — the OPERATOR's `sys_kv` without this, which is not a hypothetical: the first run of
+    this file left his engine persisted as `stopped` with `src="test"`, and a restart obeyed it. The root
+    conftest only resets the in-process CACHE (it says so); pointing `ZAELAR_DB` at a temp file is the other half,
+    the same one `tests/agent_headless/unit/test_runstate.py` has always used. A unit test never touches a live
+    artefact."""
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+    memdb.get_db()
     monkeypatch.setattr(identity, "_report_to_control_plane", lambda *a, **k: None)
     monkeypatch.setattr(identity, "_bill_transport", lambda *a, **k: None)
     _END_SESSION("test")
@@ -40,6 +51,7 @@ def _clean(monkeypatch):
     _END_SESSION("test")
     observer.clear_log()
     _running()
+    memdb.reset_db()
 
 
 def _stopped():
