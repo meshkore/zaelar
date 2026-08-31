@@ -1,19 +1,19 @@
-"""V2-292 — una caja ESCRITA y nunca abierta no la ve el operador, y hasta hoy tampoco la veía este informe.
+"""V2-292 — a WRITTEN and never-opened box is not seen by the operator, and until today this report did not see it either.
 
-`sheet_instances` contaba solo los `show`, y esa era toda la pregunta hasta que dejó de serlo. Medido en la tanda
-del 2026-08-24 13:11, `search-buy-guitar__es`: en disco quedaron TRES cajas de ese caso —19, 45 y 12 filas, las
-dos últimas tituladas con frases de la CONVERSACIÓN («Ah, bien. ¿Y sabes si están cerca…», «Sí, porfa. Yo estoy
-en Madrid…»)— y solo la primera tenía `show`. El informe dijo **«18 candidatos»** sobre **76 que existían**.
+`sheet_instances` counted only the `show`s, and that was the whole question until it stopped being so. Measured in the batch
+from 2026-08-24 13:11, `search-buy-guitar__es`: THREE boxes for that case remained on disk —19, 45, and 12 rows, the
+last two titled with phrases from the CONVERSATION («Ah, bien. ¿Y sabes si están cerca…», «Sí, porfa. Yo estoy
+en Madrid…»)— and only the first had `show`. The report said **«18 candidatos»** out of **76 that existed**.
 
-Son DOS hechos distintos y el que importa es el HUECO entre ellos:
+These are TWO distinct facts, and what matters is the GAP between them:
 
-  · ABIERTA  → el operador la tiene delante.
-  · ESCRITA  → sus filas existen y son de este encargo.
+  · OPEN  → the operator has it in front of them.
+  · WRITTEN  → its rows exist and belong to this task.
 
-Sumarlas sin decir nada convertiría el defecto en un número más alto, que es la manera de esconderlo. Por eso el
-lector de la hoja lee TODAS las escritas —«entregó 18» y «entregó 76 repartidas en tres cajas, dos invisibles»
-son dos veredictos distintos sobre el mismo caso— y el juez recibe el hueco NOMBRADO, con la advertencia de que
-es del MECANISMO: si zaelar nombró un candidato que está en una caja invisible, lo tenía y lo dijo bien.
+Adding them without saying anything would turn the defect into a higher number, which is how it gets hidden. That is why the
+sheet reader reads ALL the written ones —«entregó 18» and «entregó 76 repartidas en tres cajas, dos invisibles»
+are two different verdicts about the same case— and the judge receives the NAMED gap, with the warning that it
+belongs to the MECHANISM: if zaelar named a candidate that is in an invisible box, it had it and said so correctly.
 """
 from tests.use_cases.e2e.agent import judge, verify
 
@@ -23,40 +23,40 @@ def _ev(label, wid, src="worker:1"):
 
 
 def test_a_box_written_without_being_shown_is_reported_apart():
-    """EL CASO MEDIDO: tres cajas escritas, una sola abierta."""
+    """THE MEASURED CASE: three written boxes, only one open."""
     out = verify.sheet_instances([
         _ev("show", "results::a-1"), _ev("data", "results::a-1"),
         _ev("data", "results::a-4"), _ev("data", "results::a-6"),
     ])
-    assert out["ids"] == ["results::a-1"]                       # lo ABIERTO no cambia
+    assert out["ids"] == ["results::a-1"]                       # the OPEN one does not change
     assert out["n_unseen"] == 2
     assert out["unseen_ids"] == ["results::a-4", "results::a-6"]
     assert out["written_ids"] == ["results::a-1", "results::a-4", "results::a-6"]
 
 
 def test_the_two_facts_do_not_get_mixed():
-    """`n_sheets` sigue contando CAJAS ABIERTAS. Inflarlo con las invisibles borraría la pregunta que contesta."""
+    """`n_sheets` continues to count OPEN BOXES. Inflating it with the invisible ones would erase the question it answers."""
     out = verify.sheet_instances([_ev("show", "results::a-1"), _ev("data", "results::a-4")])
     assert out["n_sheets"] == 1
     assert out["n_unseen"] == 1
 
 
 def test_a_box_both_written_and_shown_is_not_invisible():
-    """La contraria, y sin ella «hay cajas invisibles» se cumple con cualquier escritura."""
+    """The converse, without which «hay cajas invisibles» would hold for any writing."""
     out = verify.sheet_instances([_ev("show", "results::a-1"), _ev("data", "results::a-1")])
     assert out["n_unseen"] == 0
     assert out["unseen_ids"] == []
 
 
 def test_a_clean_round_says_nothing_about_invisible_boxes():
-    """Un aviso que sale siempre deja de ser un aviso."""
+    """A warning that always appears stops being a warning."""
     mech = {"sheet_instances": verify.sheet_instances([_ev("show", "results::a-1"), _ev("data", "results::a-1")])}
     assert "NADIE LAS ABRIÓ" not in judge.mechanism_facts(mech)
 
 
 def test_the_judge_is_told_and_told_whose_fault_it_is():
-    """El hueco se NOMBRA, con sus ids, y se le dice que es del MECANISMO: sin esa mitad, el juez apunta a las
-    respuestas de zaelar por filas que él sí tenía (la familia de `el instrumento acusa al producto`)."""
+    """The gap is NAMED, with its ids, and is identified as belonging to the MECHANISM: without that half, the judge points to zaelar's
+    answers for rows that it did have (the `the instrument accuses the product` family)."""
     mech = {"sheet_instances": verify.sheet_instances([
         _ev("show", "results::a-1"), _ev("data", "results::a-4"), _ev("data", "results::a-6")])}
     txt = judge.mechanism_facts(mech)

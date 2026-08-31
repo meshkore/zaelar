@@ -1,22 +1,23 @@
-"""V2-333 — una hoja vacía DETRÁS de un muro anti-robot no es un fallo de extracción.
+"""V2-333 — an empty page BEHIND an anti-bot wall is not an extraction failure.
 
-El hecho ya viajaba en el informe (`navegador_task.walls_hit` y `last_wall`, con el SITIO), y al juez solo se
-le decía cuándo NO había habido muro. Así que ante una hoja vacía concluía lo único que podía.
+The fact was already carried in the report (`navegador_task.walls_hit` and `last_wall`, with the SITE), and the
+judge was only told when there had NOT been a wall. So when faced with an empty page, it concluded the only thing
+it could.
 
-MEDIDO en `compare-insurance-quotes__es` (2026-08-26 01:39). La ronda recorrió rastreator, acierto, kelisto,
-lineadirecta y mutua, chocó con verificaciones anti-robot, y el veredicto fue:
+MEASURED in `compare-insurance-quotes__es` (2026-08-26 01:39). The round went through rastreator, acierto, kelisto,
+lineadirecta, and mutua, ran into anti-bot checks, and the verdict was:
 
-    «el bloqueador nº1 es el fallo grave en el mecanismo de extracción del navegador: el sistema no pudo leer
-     ni un solo precio ni nombre de aseguradora»   → mecanismo 2
+    «the #1 blocker is the serious failure in the browser's extraction mechanism: the system could not read
+     a single price or insurer name»   → mechanism 2
 
-La MISMA ronda del mismo caso, cuatro horas antes, había sacado **ocho opciones reales con mecanismo 4**. Lo
-que cambió no fue el código: fue lo que los sitios dejaron pasar.
+The SAME round for the same case, four hours earlier, had produced **eight real options with mechanism 4**. What
+changed was not the code: it was what the sites allowed through.
 
-Y se comprobó que NO era una regresión nuestra: la extracción sobre `acierto.com` devuelve 9 filas idénticas
-antes y después de toda la cadena V2-321…V2-326.
+And it was verified that this was NOT a regression on our part: extraction from `acierto.com` returns 9 identical
+rows before and after the entire V2-321…V2-326 chain.
 
-⚠️ NO exime de todo, y el bloque lo dice: lo que SÍ es puntuable es qué hizo zaelar con el obstáculo — si lo
-dijo, si probó otro sitio, o si siguió narrando normalidad. Un muro explica la hoja vacía, no el silencio.
+⚠️ It does NOT excuse everything, and the block says so: what IS scoreable is what zaelar did with the obstacle —
+whether it said so, tried another site, or kept narrating normally. A wall explains the empty page, not the silence.
 """
 from tests.use_cases.e2e.agent.judge import mechanism_facts
 
@@ -43,7 +44,7 @@ def test_y_se_le_PROHIBE_puntuarlo_como_fallo_de_extracción():
 
 
 def test_pero_NO_le_exime_de_juzgar_la_conducta():
-    """La sensibilidad que evita convertir esto en una amnistía: un muro explica la hoja vacía, no el silencio."""
+    """The safeguard that prevents turning this into an amnesty: a wall explains the empty page, not the silence."""
     txt = mechanism_facts({"navegador_task": {"walls_hit": 2, "last_wall": {"site": "y.com", "reason": "muro"}}})
     low = txt.lower()
     assert "sí es puntuable" in low

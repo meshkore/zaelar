@@ -1,16 +1,16 @@
-"""Un campo TERMINAL no puede contar un PROCESO — y un cero no dice por qué es cero (V2-512).
+"""A TERMINAL field cannot tell you about a PROCESS — and a zero does not say why it is zero (V2-512).
 
-Nace de dos errores del 2026-08-30 cometidos con horas de diferencia y la misma forma, los dos ya camino de
-otro agente cuando se cazaron:
+It stems from two errors on 2026-08-30, committed hours apart and in the same way, both already on their way to
+another agent when they were caught:
 
-1. El informe publicaba `navegador_task.url`, que es el ÚLTIMO url. Con eso escribí que el agente «se quedó en
-   la portada de Amazon sin buscar». Había pasado por `amazon.com/s?k=27+inch+4k+monitor` —la página de
-   resultados correcta— dos pasos antes, y por Best Buy después: 19 páginas en total.
-2. `search_health` decía `degraded: false` mientras `bhphotovideo.com/c/search` devolvía 403 con página
-   anti-robot (verificado con `curl`). Así que «no encontró nada» y «no le dejaron entrar» llegaban al juez
-   como el mismo hecho.
+1. The report published `navegador_task.url`, which is the LAST url. Based on that, I wrote that the agent «stayed on
+   Amazon's home page without searching». It had visited `amazon.com/s?k=27+inch+4k+monitor` —the correct results
+   page— two steps earlier, and Best Buy afterward: 19 pages in total.
+2. `search_health` said `degraded: false` while `bhphotovideo.com/c/search` returned 403 with an
+   anti-robot page (verified with `curl`). So «found nothing» and «was not allowed in» reached the judge
+   as the same fact.
 
-Lo que se fija aquí no es el detector: es que el RECORRIDO viaje entero y que un muro se diga como muro.
+What is fixed here is not the detector: it is that the JOURNEY travels in full and that a wall is reported as a wall.
 """
 from __future__ import annotations
 
@@ -50,18 +50,18 @@ def test_el_recorrido_viaja_ENTERO_no_solo_donde_acabo(tmp_path):
 
 @pytest.mark.parametrize("titulo", ["Page Not Found", "Access Denied", "Robot Check", "403 Forbidden",
                                    "Are you a human?", "Too Many Requests 429",
-                                   # Los INTERSTICIALES anti-bot no dicen que lo son, y son los que de verdad
-                                   # nos paran. «Just a moment…» (Cloudflare) se colo en la PRIMERA ronda que
-                                   # corrio con esta señal: newegg contaba como visitada, sin una sola ficha,
-                                   # y el informe la presentaba como un sitio que no tenia nada.
+                                   # Anti-bot INTERSTITIALS do not say that they are, and they are the ones that really
+                                   # stop us. «Just a moment…» (Cloudflare) slipped into the FIRST round that
+                                   # ran with this signal: newegg counted as visited, without a single product page,
+                                   # and the report presented it as a site that had nothing.
                                    "Just a moment...", "Checking your browser before accessing",
                                    "Attention Required! | Cloudflare", "Pardon Our Interruption"])
 def test_un_muro_se_dice_como_MURO(tmp_path, titulo):
-    """El título lo dice en cuatro palabras; el cuerpo de un muro son 5 KB de HTML que no dicen nada.
+    """The title says it in four words; the body of a wall is 5 KB of HTML that says nothing.
 
-    NO se fija CUÁL de los patrones casa: «403 Forbidden» casa con dos y cuál gana es el orden de una tupla,
-    un detalle de implementación. Lo que tiene que cumplirse es la propiedad — que el motivo publicado esté
-    de verdad en el título, para que quien lea el informe pueda comprobarlo sin abrir el código.
+    It does NOT matter WHICH pattern matches: «403 Forbidden» matches two, and which one wins is the order of a tuple,
+    an implementation detail. What must hold is the property — that the reported reason is
+    actually in the title, so that whoever reads the report can verify it without opening the code.
     """
     db = _db(tmp_path, [("Amazon.com : monitores", "https://www.amazon.com/s?k=x"), (titulo, "https://x.test/y")])
     j = verify.page_journey(db)
@@ -71,8 +71,8 @@ def test_un_muro_se_dice_como_MURO(tmp_path, titulo):
 
 
 def test_una_pagina_SANA_no_es_un_muro(tmp_path):
-    """El contrapeso, sin el cual esto es «marcar todo como bloqueado»: una ronda que fue bien no puede salir
-    con puertas cerradas, o el juez aprende a ignorar el aviso."""
+    """The counterweight, without which this becomes «mark everything as blocked»: a round that went well cannot come out
+    with its doors closed, or the judge learns to ignore the warning."""
     db = _db(tmp_path, [("Amazon.com : 27 inch 4k monitor", "https://www.amazon.com/s?k=x"),
                         ("Best Buy | Official Online Store", "https://www.bestbuy.com/")])
     j = verify.page_journey(db)
@@ -85,8 +85,8 @@ def test_la_misma_pagina_repetida_seguida_no_es_un_paso_nuevo(tmp_path):
 
 
 def test_sin_base_no_INVENTA_un_recorrido(tmp_path):
-    """`read: False` es la respuesta honesta. Un recorrido vacío que no se distingue de «no lo pude leer» es
-    cómo una ausencia se lee como un hecho."""
+    """`read: False` is the honest answer. An empty journey that cannot be distinguished from «I could not read it» is
+    how an absence gets read as a fact."""
     j = verify.page_journey(str(tmp_path / "no-existe.db"))
     assert j["read"] is False and j["n_pages"] == 0
 
@@ -103,11 +103,11 @@ def test_el_juez_recibe_el_MURO_y_la_orden_de_no_puntuarlo(tmp_path):
 
 
 def test_la_espera_al_silencio_es_PROPORCIONADA_al_trabajo(monkeypatch):
-    """Eran 60 s fijos, y en `cheapest-monitor__us` (2026-08-30) eso dejó **23 de 30 rondas sin asentar**: el
-    worker de ese caso vive 250-400 s, así que la lectura fotografiaba la mitad de la película.
+    """It was a fixed 60 s, and in `cheapest-monitor__us` (2026-08-30) that left **23 of 30 rounds unsettled**: the
+    worker in that case lives for 250-400 s, so the reading captured half the movie.
 
-    No era una mentira —el informe lo avisaba cada vez— pero sí una señal peor de la que hace falta, y con
-    ella construí tres series de entrega. Configurable porque el número correcto depende del caso.
+    It was not a lie —the report warned about it every time— but it was a worse signal than necessary, and with
+    it I built three delivery series. Configurable because the correct number depends on the case.
     """
     from tests.use_cases.e2e.agent import verify
 
@@ -119,11 +119,11 @@ def test_la_espera_al_silencio_es_PROPORCIONADA_al_trabajo(monkeypatch):
 
 
 def test_cada_cifra_de_entrega_dice_si_la_ronda_se_ASENTO():
-    """Un aviso AL LADO de la cifra se puede no pesar — pasó 23 veces el mismo día. Un campo DENTRO de la
-    cifra viaja con ella a cualquier tabla que alguien haga después.
+    """A warning NEXT TO the figure can go unnoticed — it happened 23 times on the same day. A field INSIDE the
+    figure travels with it to any table someone makes afterward.
 
-    Se comprueba sobre el runner porque es el único que tiene a la vez el veredicto de quiescencia y las
-    cifras: es donde se sella.
+    It is checked on the runner because it is the only one that has both the quiescence verdict and the
+    figures at the same time: that is where it is sealed.
     """
     import inspect
 
@@ -133,22 +133,22 @@ def test_cada_cifra_de_entrega_dice_si_la_ronda_se_ASENTO():
     assert '"delivery_completeness", "offered", "worker_outcome"' in src, (
         "alguna cifra de entrega vuelve a viajar sin decir si se leyó al final o a la mitad")
     assert '_asentado = (quiescence or {}).get("settled")' in src
-    # EL ORDEN, que es donde falló la primera versión: el sello tiene que ir DESPUÉS de la última cifra que
-    # sella. Puesto antes, `delivery_completeness` todavía no existe, el `isinstance` lo salta y no se queja:
-    # dos de tres selladas y la que más se lee, no. Medido en la ronda 20260830-1541.
+    # THE ORDER, which is where the first version failed: the seal has to go AFTER the last figure it
+    # seals. Put earlier, `delivery_completeness` does not exist yet, `isinstance` skips it and raises no complaint:
+    # two of three sealed, and the most-read one not. Measured in round 20260830-1541.
     assert src.index('mech["delivery_completeness"] = ') < src.index('_asentado = (quiescence'), (
         "el sello vuelve a ir ANTES de que exista la cifra que más se lee — y falla en silencio")
 
 
 def test_lo_que_el_agente_DIJO_no_es_provisional_igual_que_lo_que_el_worker_ESCRIBIO():
-    """Tratar todos los campos como igual de provisionales hacía descartar rondas enteras cuyo dato SÍ era
-    final, y con eso la serie no se llenaba nunca: un filtro que excluye todo no mide nada.
+    """Treating all fields as equally provisional caused entire rounds whose data WAS final to be discarded,
+    and so the series never filled up: a filter that excludes everything measures nothing.
 
-    Lo que el agente DIJO y lo que el prompt le puso delante están cerrados al acabar la conversación. Lo que
-    el worker escribe en la hoja sigue creciendo. `delivered_by_name` está en medio —casa el transcrito CONTRA
-    la hoja— así que con la hoja a medias es una COTA INFERIOR, no una cuenta: medido, la ronda 1630 esperó
-    155 s y detectó dos entregas que con el tope de 60 s no habrían aparecido, no porque el agente dijera más
-    sino porque había más hoja contra la que casar.
+    What the agent SAID and what the prompt put in front of it are closed when the conversation ends. What
+    the worker writes to the sheet keeps growing. `delivered_by_name` is in the middle —it matches the transcript AGAINST
+    the sheet— so with a partial sheet it is a LOWER BOUND, not a count: measured, round 1630 waited
+    155 s and detected two deliveries that would not have appeared with the 60 s limit, not because the agent said more
+    but because there was more sheet against which to match.
     """
     import inspect
 
@@ -157,5 +157,5 @@ def test_lo_que_el_agente_DIJO_no_es_provisional_igual_que_lo_que_el_worker_ESCR
     src = inspect.getsource(R)
     assert 'mech["delivered_by_name"]["lower_bound"] = not _asentado' in src, (
         "un recuento de entregas vuelve a viajar como si fuera exacto cuando la hoja estaba a medias")
-    # Y va DESPUÉS del sello, porque depende de la misma señal.
+    # And it goes AFTER the seal, because it depends on the same signal.
     assert src.index('_asentado = (quiescence') < src.index('"lower_bound"')

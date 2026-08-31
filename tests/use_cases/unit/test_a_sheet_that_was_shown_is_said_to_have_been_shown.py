@@ -3,7 +3,7 @@
 Measured in `find-videos-on-a-topic-no-ai-slop` (2026-08-28 22:11): the mechanism had already measured
 visibility (`sheet_instances.n_unseen: 0`, `unseen_ids: []`), but nothing said it in words. The judge,
 reading raw `widget_ops` — where a scoped box's `show` lands under its family key (`results`), never
-under `results::<id>` — filed [alta] «el widget de resultados nunca recibió la orden de mostrarse» over
+under `results::<id>` — filed [high] “the results widget never received the command to be shown” over
 a sheet the operator had on screen. Same family as the single-event span read as 0ms (V2-468/2): a raw
 counter without its meaning enunciated reads like evidence of the opposite.
 """

@@ -1,18 +1,18 @@
-"""V2-468 · un span de UN evento no dura cero, y leerlo así contradice el hecho que sí lo mide.
+"""V2-468 · a span for ONE event does not last zero, and reading it that way contradicts the fact that it does measure it.
 
-`audit.spans` viaja íntegro en el JSON que recibe el juez, con `first_ms` y `last_ms`. Para un span de UN
-solo evento los dos coinciden, y de ahí se lee «duración 0 ms». Un rail que anuncia el arranque una vez y
-se calla mientras trabaja tiene EXACTAMENTE esa forma — que es la del reproductor de música.
+`audit.spans` is carried in full in the JSON received by the judge, with `first_ms` and `last_ms`. For a span of ONE
+single event, the two coincide, and from that one reads “duration 0 ms.” A rail that announces the start once and
+falls silent while it works has EXACTLY that shape — which is the shape of the music player.
 
-MEDIDO en `play-music-and-build-playlist` (2026-08-28 21:38, plató ES). El informe traía
-`rail:music.playing` con `n: 1, first_ms: 7859, last_ms: 7859`, y `widgets_producing: ["musica"]` — el hecho
-que de verdad contesta «¿sonaba algo?», enunciado en palabras dos líneas más arriba con «diga lo que diga el
-resto». El juez escribió: «el span 'rail:music.playing' muestra una duración de 0ms (instantáneo) … se
-considera que solo se preparó el audio sin que sonara», y puntuó resultado 1.
+MEASURED in `play-music-and-build-playlist` (2026-08-28 21:38, ES studio). The report contained
+`rail:music.playing` with `n: 1, first_ms: 7859, last_ms: 7859`, and `widgets_producing: ["musica"]` — the fact
+that truly answers “was anything playing?”, stated in words two lines above with “regardless of what the
+rest says.” The judge wrote: “the span 'rail:music.playing' shows a duration of 0ms (instantaneous) … it is
+considered that the audio was only prepared without playing,” and scored the result 1.
 
-No se inventó la prueba: leyó un campo REAL cuya forma invita a esa lectura. Por eso el arreglo NO es
-prohibirle mirar spans ni afirmarle la conclusión contraria — es nombrar la forma y decirle dónde está la
-medida buena.
+The test was not invented: it read a REAL field whose shape invites that interpretation. That is why the fix is NOT
+to forbid it from looking at spans or tell it the opposite conclusion — it is to name the shape and tell it where the
+meaningful measurement is.
 """
 from tests.use_cases.e2e.agent import judge
 
@@ -36,15 +36,15 @@ def test_the_single_event_span_is_named_with_what_it_does_not_mean():
 
 
 def test_a_span_with_several_events_says_nothing():
-    """La mitad que impide que esto sea ruido: un span con duración REAL se lee como siempre."""
+    """The part that keeps this from being noise: a span with a REAL duration is read as usual."""
     au = {"n_events": 10, "n_evidence": 1, "errors": [], "tools_run": {},
           "spans": {"web:t1": {"n": 12, "first_ms": 100, "last_ms": 9000, "errors": 0}}}
     assert _line({"audit": au}) == ""
 
 
 def test_it_does_not_claim_the_opposite_either():
-    """No se le dice «entonces sonaba»: eso lo mide `widgets_producing`, y afirmarlo aquí sería fabricar
-    un aprobado desde el arnés — el fallo simétrico y peor."""
+    """It does not say “then it was playing”: `widgets_producing` measures that, and asserting it here would fabricate
+    a pass from the harness — the symmetrical and worse failure."""
     l = _line({"audit": AUDIT_REAL})
     assert "sonaba" not in l.lower() and "sí ocurrió" not in l
 

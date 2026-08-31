@@ -1,42 +1,42 @@
-"""El veredicto no cabía, y el reintento le pedía justo lo que no cabe (V2-373).
+"""The verdict did not fit, and the retry asked it for exactly what does not fit (V2-373).
 
-`two-searches-two-sheets` perdió su veredicto CUATRO veces. Instrumentadas las tres llamadas de una de esas
-pérdidas, con `max_tokens=2000`:
+`two-searches-two-sheets` lost its verdict FOUR times. The three calls from one of those
+failures were instrumented, with `max_tokens=2000`:
 
-    intento 1 → 6558 chars, cortado a mitad de palabra
-    intento 2 → 6368 chars, cortado a mitad de palabra
-    intento 3 → 6487 chars, cortado a mitad de palabra
+    attempt 1 → 6558 chars, cut off mid-word
+    attempt 2 → 6368 chars, cut off mid-word
+    attempt 3 → 6487 chars, cut off mid-word
 
-Y el veredicto COMPLETO de ese caso, medido subiendo el techo: **7238 chars**. No era mala suerte ni un JSON
-descuidado — ese caso no cabía, así que **no podía juzgarse nunca**, y cada intento gastaba una llamada para
-volver a no caber. Diez minutos y medio de navegador real a la basura, cada vez.
+And the COMPLETE verdict for that case, measured by raising the ceiling: **7238 chars**. It was not bad luck or a
+careless JSON — that case did not fit, so it **could never be judged**, and each attempt spent a call only to
+not fit again. Ten and a half minutes of real browser time wasted, each time.
 
-Dos correcciones, y la segunda importa tanto como la primera:
+Two fixes, and the second matters as much as the first:
 
-1. El techo. El comentario del bucle ya apuntaba a multiflow y le atribuía la causa equivocada —«más JSON
-   donde equivocarse»—: no son más oportunidades de error, es más TAMAÑO (siete dimensiones en vez de cinco,
-   cada una con su prosa).
-2. **CORTADO no es INVÁLIDO.** El reintento decía «tu respuesta no era JSON válido, devuelve EXACTAMENTE el
-   mismo veredicto» — a quien había escrito un JSON perfecto que nosotros truncamos. Le pedíamos que repitiera
-   lo que no cabe, así que los tres intentos eran el mismo intento. Es la familia de V2-171: una respuesta
-   cortada disfrazada de error de formato.
+1. The ceiling. The loop's comment already pointed to multiflow and attributed the wrong cause to it —“more JSON
+   to get wrong”—: there are not more opportunities for error, there is more SIZE (seven dimensions instead of
+   five, each with its prose).
+2. **CUT OFF is not INVALID.** The retry said “your response was not valid JSON, return EXACTLY the same
+   verdict” — to someone who had written perfect JSON that we truncated. We asked it to repeat what does not fit,
+   so all three attempts were the same attempt. It is the V2-171 family: a truncated response disguised as a
+   formatting error.
 """
 import pytest
 
 from tests.use_cases.e2e.agent import judge as J
 
 
-# ── distinguir CORTADA de MAL FORMADA ──────────────────────────────────────────────────────────────────────
+# ── distinguish CUT OFF from MALFORMED ──────────────────────────────────────────────────────────────────────
 
 def test_los_tres_cortes_medidos_se_reconocen():
-    """Los pares (chars, posición del fallo) de las pérdidas reales."""
+    """The (chars, failure position) pairs from the real failures."""
     for total, pos in ((6487, 6451), (6750, 6688)):
         assert J._parecia_cortada("x" * total, f"Expecting ',' delimiter: line 84 column 6 (char {pos})")
 
 
 def test_un_fallo_de_FORMA_no_se_confunde_con_un_corte():
-    """La pérdida de las 09:36 falló en el char 1159 de un texto mucho más largo: eso es una coma o una
-    comilla, y pedirle brevedad ahí sería mandarle recortar un veredicto que cabía perfectamente."""
+    """The 09:36 failure occurred at char 1159 in a much longer text: that is a comma or a
+    quote, and asking for brevity there would tell it to shorten a verdict that fit perfectly."""
     assert not J._parecia_cortada("x" * 6750, "Expecting ',' delimiter: line 22 column 6 (char 1159)")
 
 
@@ -50,9 +50,9 @@ def test_sin_respuesta_no_hay_corte_que_detectar():
 
 
 def test_NO_se_usa_termina_en_llave_y_esta_es_la_razon():
-    """Fue el primer intento y es un falso negativo medido: una respuesta de 7238 chars que SÍ se parseaba
-    bien daba False con ese criterio. Un guarda que se equivoca sobre el caso BUENO no sirve para decidir
-    sobre el malo — se deja fijado para que no vuelva."""
+    """It was the first attempt and is a measured false negative: a 7238-char response that DID parse
+    successfully returned False with that criterion. A guard that gets the GOOD case wrong cannot decide
+    about the bad one — this is fixed in place so it does not happen again."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
     i = src.index("def _parecia_cortada")
@@ -60,21 +60,21 @@ def test_NO_se_usa_termina_en_llave_y_esta_es_la_razon():
     assert 'endswith("}")' not in cuerpo
 
 
-# ── el techo ───────────────────────────────────────────────────────────────────────────────────────────────
+# ── the ceiling ─────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_techo_cabe_el_veredicto_medido():
-    """7238 chars a ~3,3 chars por token (el mismo número que el motor tiene medido para su facturación) son
-    ~2200 tokens. 2000 no llegaba; el techo tiene que dejar margen real, no rozarlo."""
+    """7238 chars at ~3.3 chars per token (the same number the engine has measured for billing) are
+    ~2200 tokens. 2000 was not enough; the ceiling must leave real headroom, not just scrape past it."""
     assert J.JUDGE_MAX_TOKENS * 3.3 > 7238 * 1.3
 
 
 def test_el_juez_USA_ese_techo_y_no_un_literal():
-    """El cableado: subir la constante y dejar el `2000` en la llamada es el fallo clásico."""
+    """The wiring: raising the constant while leaving `2000` in the call is the classic failure."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
-    # V2-382 — el techo ya no es UNO: la primera petición va con `JUDGE_MAX_TOKENS` y el reintento de una
-    # respuesta que no cupo sube a `JUDGE_MAX_TOKENS_AMPLIADO`. Lo que este guarda sostiene sigue siendo lo
-    # mismo: que el número salga de las constantes y no de un literal escrito a mano en la llamada.
+    # V2-382 — the ceiling is no longer ONE: the first request uses `JUDGE_MAX_TOKENS`, and the retry for a
+    # response that did not fit raises it to `JUDGE_MAX_TOKENS_AMPLIADO`. What this guard still enforces is the
+    # same: that the number come from the constants and not from a literal written by hand in the call.
     assert "llm.judge_call(msgs, max_tokens=techo, out=corte)" in src
     assert "techo = JUDGE_MAX_TOKENS" in src
     assert "llm.judge_call(msgs, max_tokens=2000)" not in src
@@ -83,7 +83,7 @@ def test_el_juez_USA_ese_techo_y_no_un_literal():
 # ── el reintento dice la verdad ────────────────────────────────────────────────────────────────────────────
 
 def _pedir(monkeypatch, raws, errs):
-    """Corre el bucle real capturando lo que se le pide al juez en cada reintento."""
+    """Run the real loop, capturing what is requested from the judge on each retry."""
     pedidos = []
     estado = {"i": 0}
 
@@ -109,14 +109,14 @@ def test_una_respuesta_CORTADA_pide_brevedad(monkeypatch):
     assert pedidos, "el bucle no llegó a reintentar"
     assert "se CORTÓ por longitud" in pedidos[0]
     assert "recorta la prosa" in pedidos[0]
-    # V2-382 — y no solo se le pide: se le DA sitio. Pedir lo mismo más corto con el mismo techo fue lo que
-    # perdió la ronda de las 11:00 del 2026-08-27 con los tres intentos cortados en el mismo carácter.
+    # V2-382 — and it is not merely requested: it is GIVEN room. Asking for the same thing more briefly with the
+    # same ceiling is what lost the 11:00 round on 2026-08-27, with all three attempts cut off at the same char.
     assert "MÁS SITIO" in pedidos[0]
 
 
 def test_una_respuesta_MAL_FORMADA_pide_el_mismo_veredicto(monkeypatch):
-    """La sensibilidad por el otro lado: mandarle recortar un veredicto que cabía le haría perder notas por
-    un error nuestro de diagnóstico."""
+    """The sensitivity in the other direction: telling it to shorten a verdict that fit would make it lose notes
+    because of an error in our diagnosis."""
     raws = ["x" * 6750] * 3
     errs = ["Expecting ',' delimiter: line 22 column 6 (char 1159)"] * 3
     pedidos = _pedir(monkeypatch, raws, errs)

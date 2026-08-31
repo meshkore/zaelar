@@ -1,17 +1,17 @@
-"""Un traceback recortado por delante conserva el andamiaje y tira la excepción.
+"""A traceback truncated from the front preserves the scaffolding and throws away the exception.
 
-Medido el 2026-08-28 sobre el tablero: los tres tracebacks guardados como anomalías de certeza «hecho»
-quedaron así —
+Measured on 2026-08-28 on the board: the three tracebacks recorded as «done» certainty anomalies
+ended up like this —
 
     Traceback (most recent call last): File "<frozen runpy>", line 198, in _run_module_as_main
     File "<frozen runpy>", line 88, in _run_code File "/Users…
 
-— cien caracteres de andamiaje **idéntico en cualquier fallo de Python**, y la línea de la excepción, que es
-la única que dice algo, cortada fuera. Tres hechos registrados y ninguno diagnosticable: el informe afirmaba
-que había un error interno y no permitía saber cuál, que es la forma más cara de tener razón.
+— one hundred characters of scaffolding **identical in any Python failure**, and the exception line, which is
+the only part that says anything, cut off. Three recorded facts and none diagnosable: the report stated
+that there was an internal error and did not allow anyone to know which one, which is the most expensive way to be right.
 
-En un traceback lo que sirve está al FINAL. En cualquier otro texto está al principio, y ahí el recorte de
-siempre es el correcto — por eso esto no es «recortar por detrás», es «recortar por donde toque».
+In a traceback, the useful part is at the END. In any other text it is at the beginning, and there the usual truncation
+is correct — which is why this is not «truncating from the back», but «truncating from whichever end is appropriate».
 """
 from __future__ import annotations
 
@@ -31,13 +31,13 @@ def test_de_un_traceback_se_queda_la_EXCEPCION():
 
 
 def test_y_se_MARCA_que_venía_recortado():
-    """Un error que empieza a media frase sin avisar se lee como un error distinto del que fue."""
+    """An error that begins halfway through a sentence without warning reads as a different error from the original."""
     assert _error_gist(_TB).startswith("…")
 
 
 def test_un_error_normal_se_recorta_por_DELANTE():
-    """La mitad de sensibilidad: en un mensaje corriente lo importante va primero, y darle la vuelta a todo
-    rompería los otros nueve errores del tablero para arreglar tres."""
+    """The sensitivity trade-off: in an ordinary message the important part comes first, and reversing everything
+    would break the other nine errors on the board to fix three."""
     largo = "ERROR: ref 30 no está en la mirada actual, que tiene 1..8. " + "detalle " * 60
     got = _error_gist(largo)
     assert got.startswith("ERROR: ref 30") and not got.startswith("…")
@@ -49,7 +49,7 @@ def test_lo_que_CABE_se_deja_entero():
 
 
 def test_el_auditor_lo_USA():
-    """La fontanería: si el auditor sigue cortando a pelo, la función existe y no arregla nada."""
+    """The plumbing: if the auditor keeps cutting blindly, the function exists and fixes nothing."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
     assert "_error_gist(e['text'])" in src
