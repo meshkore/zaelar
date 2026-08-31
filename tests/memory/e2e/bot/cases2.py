@@ -1,26 +1,26 @@
-"""tests/memory/e2e/bot/cases2.py — SEGUNDO corpus del test bot de memoria (auditoría V2-038, 2026-07-14).
+"""tests/memory/e2e/bot/cases2.py — SECOND corpus for the memory bot test (V2-038 audit, 2026-07-14).
 
-Un corpus NUEVO de ~1000 requests, hermano de `cases.py` (la GOLD de 1032) pero con **otra PERSONA** y **más
-originalidad**. Dos objetivos que `cases.py` no puede cumplir:
+An entirely NEW corpus of ~1000 requests, sibling to `cases.py` (the 1032-case GOLD) but with **a different PERSONA** and **more
+originality**. Two objectives that `cases.py` cannot fulfill:
 
-  1. **GENERICIDAD / multi-operador**: `cases.py` es 100 % "Ricart, de Barcelona, tech, en castellano" — justo el
-     sesgo que la auditoría 2026-07-14 quitó de los fewshots del procesador. Este corpus role-play a una PERSONA
-     COMPLETAMENTE DISTINTA (otro nombre, ciudad, oficio, familia, vida, trasfondo cultural) para verificar que la
-     memoria se sirve EN BLANCO y funciona igual de bien con quien sea, sin datos de fábrica incrustados.
-  2. **Capacidades NUEVAS de la auditoría** (cuatro dimensiones nuevas, AD–AG):
-       · **AD** — SEÑAL `change` del procesador multiidioma: un cambio de vida declarado en CUALQUIER fraseo/idioma
-         actualiza el ESTADO y supersede la píldora vieja (ya no depende de las regex es/en del host).
-       · **AE** — REGISTRO CANÓNICO de slots + colapso de linajes: el mismo hecho singular dicho de N formas
-         (alias distintos) queda en UNA sola píldora vigente (el bug de las 4 ubicaciones a la vez, cerrado).
-       · **AF** — ESCRITURA EXTERNA de Brain Workers (`remember_external`): gates que la voz no necesita — NUNCA
-         toca `state`, slots de identidad VETADOS, preguntas reificadas DESCARTADAS, procedencia estampada.
-       · **AG** — SANEO `heal_slots` del consolidador: colapsa linajes duplicados del stock ya existente.
+  1. **GENERICITY / multi-operator**: `cases.py` is 100% "Ricart, from Barcelona, tech, in Spanish" — precisely the
+     bias that the 2026-07-14 audit removed from the processor's few-shots. This corpus role-plays a COMPLETELY
+     DIFFERENT PERSONA (different name, city, occupation, family, life, cultural background) to verify that memory
+     is served BLANK and works equally well for anyone, with no baked-in data.
+  2. **NEW audit capabilities** (four new dimensions, AD–AG):
+       · **AD** — `change` SIGNAL from the multilingual processor: a declared life change in ANY phrasing/language
+         updates STATE and supersedes the old pill (it no longer depends on the host's es/en regexes).
+       · **AE** — CANONICAL slot REGISTRY + lineage collapse: the same singular fact stated in N forms
+         (different aliases) remains as ONE current pill (the four-locations-at-once bug, closed).
+       · **AF** — EXTERNAL WRITING by Brain Workers (`remember_external`): gates voice input does not need — it NEVER
+         touches `state`, BLOCKED identity slots, or ACCEPTED questions; provenance is stamped.
+       · **AG** — `heal_slots` CLEANUP by the consolidator: collapses duplicate lineages in the existing stock.
 
-Corre con el runner por corpus: `python -m tests.memory.e2e.bot.runner --corpus v2 --fresh --range 0 N`.
-BD/progreso/catálogo AISLADOS de v1 (zaelar.membot2.db / progress-v2.json / CATALOG2.md). Requiere Ollama local.
+Run with the corpus runner: `python -m tests.memory.e2e.bot.runner --corpus v2 --fresh --range 0 N`.
+DB/progress/catalog ISOLATED from v1 (zaelar.membot2.db / progress-v2.json / CATALOG2.md). Requires local Ollama.
 
 ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
-PERSONA v2 (ground truth — coherente y acumulativa; se pregunta en tandas posteriores lo dicho en las tempranas):
+PERSONA v2 (ground truth — coherent and cumulative; later batches query what was stated in earlier ones):
   · Nombre: **Amaia Etxeberria** · nacida en Donostia · vive en **Logroño** (se mudará → dims A/X/AD/AE).
   · Trato preferido: claro, sin tecnicismos.
   · Oficio: **profesora de física y química** en un instituto → luego PIVOTA a **divulgadora científica** (dim X).
@@ -32,15 +32,15 @@ PERSONA v2 (ground truth — coherente y acumulativa; se pregunta en tandas post
   · Números de perfil: mide 1,71 · alérgica desde los 6 años · maratón objetivo antes de los 45.
 ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-Formato de cada caso = idéntico a `cases.py` (ver su cabecera). Tipos de paso adicionales de la auditoría:
-  · worker_write — escritura EXTERNA de un worker (`text`,`slot`,`expect`=ok|rejected|identity_dropped,`state_key`,`marker`,`source`).
-  · slot_count   — cuenta píldoras VIGENTES de un slot (`slot`,`expect_valid`,`want`) → colapso de linajes (AE).
-  · heal_slots   — siembra linaje patológico y verifica que consolidate() lo colapsa (`slot`,`seed`,`want`) (AG).
+Format of each case = identical to `cases.py` (see its header). Additional audit step types:
+  · worker_write — EXTERNAL worker write (`text`,`slot`,`expect`=ok|rejected|identity_dropped,`state_key`,`marker`,`source`).
+  · slot_count   — counts CURRENT pills for a slot (`slot`,`expect_valid`,`want`) → lineage collapse (AE).
+  · heal_slots   — seeds a pathological lineage and verifies that consolidate() collapses it (`slot`,`seed`,`want`) (AG).
 """
 from __future__ import annotations
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE I — CIMIENTOS: identidad (A), recencia (B), durable (C), dedup (D), descarte/abstención (E), grafo (F).
+# BLOCK I — FOUNDATIONS: identity (A), recency (B), durable (C), dedup (D), discard/abstention (E), graph (F).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 BATCH_1 = [   # A — identidad → ESTADO (persona NUEVA, anclas sin colisión con la GOLD v1)
@@ -144,7 +144,7 @@ BATCH_7 = [   # AD — SEÑAL change: cambio de vida declarado → estado actual
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE II — SEÑAL DE CAMBIO multiidioma (AD), escritura de WORKERS (AF), multi-fuente (G), cuarentena (H).
+# BLOCK II — MULTILINGUAL change SIGNAL (AD), WORKER writing (AF), multi-source (G), quarantine (H).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 BATCH_8 = [   # AD — cambio declarado en fraseos que las regex es/en NO cubren (lo emite el procesador multiidioma)
@@ -241,7 +241,7 @@ BATCH_15 = [   # M — CONTRADICCIONES / correcciones explícitas
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE III — olvido (N), rutinas (O), adversarial (P), cross-source (Q), multilingüe (R), episódica (S).
+# BLOCK III — forgetting (N), routines (O), adversarial (P), cross-source (Q), multilingual (R), episodic (S).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 BATCH_16 = [   # N — OLVIDO a petición (soft) + DES-OLVIDO (round-trip)
@@ -342,8 +342,8 @@ BATCH_25 = [   # U — MULTI-HOP (el recall debe aflorar TODOS los eslabones)
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE IV — verbosidad (V), instrucciones (W), staleness (X), UI (Y), acción (Z), anti-alucinación (AA),
-#             validez temporal (AB), heal_slots (AG).
+# BLOCK IV — verbosity (V), instructions (W), staleness (X), UI (Y), action (Z), anti-hallucination (AA),
+#             temporal validity (AB), heal_slots (AG).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 BATCH_26 = [   # V — VERBOSIDAD (parrafada larga con la aguja enterrada)
@@ -438,8 +438,8 @@ BATCH_35 = [   # AF — más ESCRITURA de workers (procedencia + slot de trabajo
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE V — más arquetipos incisivos: near-dup (D), conflicto multi-fuente (M×G), rutina con excepción (O),
-#            preferencias contextuales (I), procedencia (I), inventario con atributos (C), identidad x-sesión (AC).
+# BLOCK V — more incisive archetypes: near-dup (D), multi-source conflict (M×G), routine with exception (O),
+#            contextual preferences (I), provenance (I), inventory with attributes (C), cross-session identity (AC).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 BATCH_36 = [   # D — NEAR-DUP que NO es dup (dos cosas parecidas pero distintas → no fundir)
@@ -514,13 +514,13 @@ BATCH_43 = [   # AC — IDENTIDAD cross-sesión (tras mucha conversación, el mo
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE VI — FAMILIAS PARAMÉTRICAS (donde el VOLUMEN es la prueba): retención profunda (C), multi-fuente a
-#             volumen (G), vocab-gap en anchura (T), preferencias en anchura (I), y ESCALA (K).
-#             Cada elemento es un HECHO DISTINTO (no relleno repetido): saves tempranos, queries diferidas.
+# BLOCK VI — PARAMETRIC FAMILIES (where VOLUME is the test): deep retention (C), multi-source at
+#             volume (G), breadth vocab-gap (T), breadth preferences (I), and SCALE (K).
+#             Each item is a DIFFERENT FACT (not repeated filler): early saves, deferred queries.
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-# (texto, marker, pregunta, want, dim) — inventario de VIDA distintivo; los saves entran ahora y las queries
-# se difieren al final del corpus (retención a profundidad real, no save→read inmediato).
+# (text, marker, question, want, dim) — distinctive LIFE inventory; saves enter now and queries are
+# deferred until the end of the corpus (real deep retention, not immediate save→read).
 _INVENTORY = [
     ("De joven fui campeona regional de ajedrez sub-16.", "ajedrez", "¿Qué se me daba bien de joven?", "ajedrez", "C"),
     ("Tengo el carné de conducir desde los 18 y nunca he tenido un accidente.", "carne", "¿Desde cuándo conduzco?", "carne", "C"),
@@ -544,7 +544,7 @@ _INVENTORY = [
     ("Tengo alergia al polen en primavera, estornudo sin parar.", "polen", "¿Qué alergia estacional tengo?", "polen", "F"),
 ]
 
-# — SAVES del inventario (entran PRONTO en el corpus) —
+# — Inventory SAVES (enter the corpus EARLY) —
 _INV_SAVES = []
 for _txt, _mk, _q, _want, _dim in _INVENTORY:
     if _want is None:                              # "no te lo digo" → DESCARTE (no es un hecho)
@@ -554,7 +554,7 @@ for _txt, _mk, _q, _want, _dim in _INVENTORY:
         _INV_SAVES.append({"t": "save", "text": _txt, "marker": _mk, "in": ["long"], "dim": _dim,
                            "note": f"inventario de vida: {_mk} (save temprano, query diferida → retención profunda)"})
 
-# — QUERIES del inventario (DIFERIDAS al final → recall a profundidad tras cientos de pasos) —
+# — Inventory QUERIES (DEFERRED to the end → deep recall after hundreds of steps) —
 _INV_QUERIES = []
 for _txt, _mk, _q, _want, _dim in _INVENTORY:
     if _want is None:
@@ -565,7 +565,7 @@ for _txt, _mk, _q, _want, _dim in _INVENTORY:
                              "note": f"retención profunda: '{_want}' se recupera muchos pasos después de guardarse"})
 
 
-# — MULTI-FUENTE a VOLUMEN (dim G): N remitentes por whatsapp/telegram + índice por fuente sin contaminación —
+# — MULTI-SOURCE at VOLUME (dim G): N senders via WhatsApp/Telegram + uncontaminated source index —
 _SENDERS = [
     ("whatsapp", "Leire", "Amaia, ¿te vienes el sábado a escalar a Nalda?", "nalda"),
     ("whatsapp", "Reyes", "Necesito el borrador del capítulo tres para el lunes.", "capitulo"),
@@ -583,7 +583,7 @@ for _plat, _snd, _txt, _mk in _SENDERS:
     _MULTISOURCE.append({"t": "connector", "platform": _plat, "sender": _snd, "text": _txt, "marker": _mk,
                          "trust": "external", "in": ["short"], "dim": "G",
                          "note": f"multi-fuente a volumen: {_plat}/{_snd}"})
-# consultas por fuente (el índice desambigua por remitente sin mezclar)
+# source queries (the index disambiguates by sender without mixing)
 _MULTISOURCE += [
     {"t": "source_query", "source": "whatsapp", "entity": "Leire", "want": ["nalda"], "dim": "G",
      "note": "índice de fuente: lo de Leire por WhatsApp (2 mensajes, sin colarse los de otros)"},
@@ -593,7 +593,7 @@ _MULTISOURCE += [
      "not_want": ["reforma"], "dim": "G", "note": "sin contaminación cruzada entre remitentes"},
 ]
 
-# — VOCAB-GAP en ANCHURA (dim T): recall por SIGNIFICADO sin solape léxico —
+# — BREADTH VOCAB-GAP (dim T): recall by MEANING without lexical overlap —
 _VOCAB = [
     (["Conduzco a diario un Dacia Duster diésel."], "¿Qué vehículo uso para ir al trabajo?", "duster"),
     (["Programo mis simulaciones de física en Python."], "¿Qué lenguaje de programación uso?", "python"),
@@ -605,7 +605,7 @@ _VOCAB_PROBES = [{"t": "recall_probe", "save": _s, "q": _q, "want": [_w], "dim":
                   "note": "vocab-gap: la pregunta usa la categoría, el hecho el término concreto"}
                  for _s, _q, _w in _VOCAB]
 
-# — ESCALA (dim K): needle-in-haystack + latencia a volumen creciente (BD temporal aislada, embeddings hash) —
+# — SCALE (dim K): needle-in-a-haystack + latency at increasing volume (isolated temporary DB, hashed embeddings) —
 _SCALE = [
     {"t": "scale", "noise": 300, "max_ms": 400, "distractors": [
         "Mi vecina tiene un gato persa que se llama Micifú.", "En el instituto hay un profesor de química nuevo."],
@@ -624,11 +624,11 @@ _SCALE = [
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE VII — EXPANSIÓN a volumen (~1000). Familias data-driven; CADA tupla es un HECHO/ESCENARIO DISTINTO
-#              (breadth incisiva, no relleno). Los saves entran pronto; las queries se difieren → retención real.
+# BLOCK VII — EXPANSION to volume (~1000). Data-driven families; EACH tuple is a DIFFERENT FACT/SCENARIO
+#              (incisive breadth, no filler). Saves enter early; queries are deferred → real retention.
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-# — C2 · retención profunda: más vida distintiva (text, marker, pregunta, want) —
+# — C2 · deep retention: more distinctive life (text, marker, question, want) —
 _C2 = [
     ("Mi primer trabajo fue de socorrista en la piscina de Logroño.", "socorrista", "¿Cuál fue mi primer trabajo?", "socorrista"),
     ("Tengo una tía monja en un convento de Ávila.", "monja", "¿Qué familiar religioso tengo?", "monja"),
@@ -652,7 +652,7 @@ _C2 = [
     ("Mi mayor logro es haber terminado un Ironman en Vitoria.", "ironman", "¿Cuál es mi mayor logro deportivo?", "ironman"),
 ]
 
-# — I2 · intereses/superlativos/aversiones/metas/decisiones —
+# — I2 · interests/superlatives/aversions/goals/decisions —
 _I2 = [
     ("Mi mejor viaje fue una vuelta a Islandia en furgoneta.", "islandia", "¿Cuál fue mi mejor viaje?", "islandia"),
     ("No soporto conducir de noche, me deslumbran los faros.", "faros", "¿Qué me molesta al conducir?", "faros"),
@@ -671,7 +671,7 @@ _I2 = [
     ("Prometí a Kattalin llevarla a Disneyland París si aprueba el curso.", "disneyland", "¿Qué le prometí a mi hija?", "disneyland"),
 ]
 
-# — M2 · correcciones (base, marker_base, corrección, marker_nuevo, pregunta, want_nuevo) —
+# — M2 · corrections (base, marker_base, correction, new_marker, question, new_want) —
 _M2 = [
     ("El instituto donde trabajo está en Logroño centro.", "centro", "Corrijo: el instituto está en las afueras, no en el centro.", "afueras", "¿Dónde está mi instituto?", "afueras"),
     ("Mi coche es automático.", "automatico", "Me he liado: mi coche es manual, no automático.", "manual", "¿Mi coche es manual o automático?", "manual"),
@@ -681,7 +681,7 @@ _M2 = [
     ("El pódcast sale los lunes.", "lunes pod", "En realidad el pódcast lo publico los miércoles.", "miercoles pod", "¿Qué día sale mi pódcast?", "miercoles"),
 ]
 
-# — J2 · temporal (text, marker, pregunta, want) —
+# — J2 · temporal (text, marker, question, want) —
 _J2 = [
     ("Terminé la carrera en el año 2008.", "2008", "¿Cuándo acabé la carrera?", "2008"),
     ("Llevo doce años dando clase.", "doce", "¿Cuántos años llevo enseñando?", "doce"),
@@ -691,7 +691,7 @@ _J2 = [
     ("La reforma del baño la haremos en primavera del año que viene.", "primavera", "¿Cuándo reformamos el baño?", "primavera"),
 ]
 
-# — O2 · rutinas (text, marker, pregunta, want) —
+# — O2 · routines (text, marker, question, want) —
 _O2 = [
     ("Todos los días me tomo un café solo antes de las clases de la mañana.", "cafe solo", "¿Qué tomo cada mañana?", "cafe solo"),
     ("Los primeros de mes pago la cuota del rocódromo.", "primeros", "¿Cuándo pago la cuota del rocódromo?", "primeros"),
@@ -700,7 +700,7 @@ _O2 = [
     ("Reviso el correo del instituto solo dos veces al día, a propósito.", "dos veces", "¿Cuántas veces al día miro el correo del trabajo?", "dos veces"),
 ]
 
-# — R2 · multilingüe (text, marker, pregunta, want) — input es/eu/fr, memoria en castellano —
+# — R2 · multilingual (text, marker, question, want) — es/eu/fr input, Spanish memory —
 _R2 = [
     (" Nire aitona marinela zen, Ondarroan.", "marinela", "¿A qué se dedicaba mi aitona (abuelo)?", "marinela"),
     ("Le week-end je fais souvent de la poterie, ça me détend.", "poterie", "¿Qué hago los fines de semana para relajarme?", "poterie"),
@@ -717,14 +717,14 @@ _P2 = [
     ("Repito por si no se ha oído: A-L-E-R-G-I-A a la penicilina, es vital.", "vital", ["long"]),
 ]
 
-# — AD2 · cambios declarados en muchos fraseos/idiomas (text, marker, state_key, slot) → change + colapso —
+# — AD2 · declared changes in many phrasings/languages (text, marker, state_key, slot) → change + collapse —
 _AD2 = [
     ("Actualización: ya no vivo en Bilbao, me he vuelto a Logroño.", "logrono2", "location", "operator.location"),
     ("Cambié de coche, ahora tengo un Kia eléctrico en vez del Duster.", "kia", "car", "operator.car"),
     ("A partir de ahora prefiero que me trates de usted en los correos formales.", "usted", "treatment", "operator.treatment"),
 ]
 
-# — AF2 · escritura de workers (text, slot, expect, marker, state_key) —
+# — AF2 · worker writing (text, slot, expect, marker, state_key) —
 _AF2 = [
     ("Reserva confirmada: cena en el Iruña el sábado a las 21h.", "goal.reserva", "ok", "iruna reserva", None),
     ("La operadora prefiere vuelos de mañana.", "goal.vuelos", "ok", "manana vuelos", None),
@@ -732,7 +732,7 @@ _AF2 = [
     ("recuérdate de que la operadora se llama Sara", "operator.name", "identity_dropped", "sara", "operator_name"),
 ]
 
-# — T2 · vocab-gap (saves, pregunta, want) —
+# — T2 · vocab-gap (saves, question, want) —
 _T2 = [
     (["Los sábados hago cerámica en un torno que me regaló Iván."], "¿Qué manualidad practico?", "ceramica"),
     (["Tengo un Kindle lleno de novela negra escandinava."], "¿Qué género literario leo?", "negra"),
@@ -740,26 +740,26 @@ _T2 = [
     (["Mi coche gasta gasóleo y hace mil kilómetros con un depósito."], "¿Qué combustible usa mi vehículo?", "gasoleo"),
 ]
 
-# — W2 · instrucciones permanentes (text, marker, pregunta, want) —
+# — W2 · permanent instructions (text, marker, question, want) —
 _W2 = [
     ("Cuando te pida la hora, dámela siempre en formato 24 horas.", "24 horas", "¿En qué formato quiero la hora?", "24 horas"),
     ("Nunca me leas en voz alta números de tarjeta ni contraseñas.", "voz alta", "¿Qué no debes leerme nunca en voz alta?", "voz alta"),
     ("Resúmeme siempre las noticias en tres frases como mucho.", "tres frases", "¿Cómo quiero los resúmenes de noticias?", "tres frases"),
 ]
 
-# — X2 · staleness (base, marker_base, nuevo, marker_nuevo, pregunta, want) —
+# — X2 · staleness (base, base_marker, new, new_marker, question, want) —
 _X2 = [
     ("Estoy de baja por la operación de rodilla.", "baja", "Ya me he reincorporado al instituto, la rodilla va bien.", "reincorporado", "¿Estoy trabajando ahora?", "reincorporado"),
     ("Estamos buscando piso de alquiler más grande.", "alquiler2", "Al final compramos un piso, ya somos propietarios.", "propietarios", "¿Alquilo o soy propietaria?", "propietarios"),
 ]
 
-# — U2 · multi-hop (save1, save2, pregunta, want[2]) —
+# — U2 · multi-hop (save1, save2, question, want[2]) —
 _U2 = [
     ("Mi editora Reyes tiene una perra guía llamada Kira.", "reyes2", "Kira es labrador y viene a todas las reuniones.", "labrador", "¿De qué raza es la perra de mi editora y cómo se llama la editora?", ["reyes", "labrador"]),
     ("El médico de Kattalin es el doctor Sáez.", "saez", "El doctor Sáez pasa consulta los martes en el centro de salud.", "consulta martes", "¿Quién es el médico de mi hija y qué día pasa consulta?", ["saez", "consulta martes"]),
 ]
 
-# — Familias adicionales cortas de anchura (Q/H/N/F/D/AA/Z/S/G) —
+# — Additional short breadth families (Q/H/N/F/D/AA/Z/S/G) —
 _EXTRA = [
     {"t": "connector", "platform": "whatsapp", "sender": "Iván", "text": "Compramos entradas para el concierto de Kortatu el 30.", "marker": "kortatu", "trust": "external", "durable": True, "in": ["long"], "dim": "Q", "note": "detalle de plan por fuente para síntesis cross-source"},
     {"t": "query", "q": "¿A qué concierto vamos?", "via": "long", "want": ["kortatu"], "dim": "Q", "note": "recall del plan"},
@@ -776,7 +776,7 @@ _EXTRA = [
 
 
 def _saves_queries(fam, dim_save, dim_query):
-    """Genera (save temprano, query diferida) por tupla (text, marker, q, want)."""
+    """Generate (early save, deferred query) for each tuple (text, marker, q, want)."""
     s, qy = [], []
     for txt, mk, q, want in fam:
         s.append({"t": "save", "text": txt, "marker": mk, "in": ["long"], "dim": dim_save,
@@ -793,33 +793,33 @@ _O2_S, _O2_Q = _saves_queries(_O2, "O", "O")
 _R2_S, _R2_Q = _saves_queries(_R2, "R", "R")
 _W2_S, _W2_Q = _saves_queries(_W2, "W", "W")
 
-# M2 → save base + corrección + query del valor nuevo
+# M2 → base save + correction + query for the new value
 _M2_STEPS = []
 for _bt, _bm, _ct, _cm, _q, _w in _M2:
     _M2_STEPS.append({"t": "save", "text": _bt, "marker": _bm, "in": ["long"], "dim": "C", "note": "M: base a corregir"})
     _M2_STEPS.append({"t": "save", "text": _ct, "marker": _cm, "in": ["long"], "dim": "M", "note": "M: corrección explícita"})
     _M2_STEPS.append({"t": "query", "q": _q, "via": "long", "want": [_w], "dim": "M", "note": "M: aflora el valor corregido"})
 
-# X2 → save base + hecho nuevo + query
+# X2 → base save + new fact + query
 _X2_STEPS = []
 for _bt, _bm, _nt, _nm, _q, _w in _X2:
     _X2_STEPS.append({"t": "save", "text": _bt, "marker": _bm, "in": ["long"], "dim": "C", "note": "X: estado que quedará obsoleto"})
     _X2_STEPS.append({"t": "save", "text": _nt, "marker": _nm, "in": ["long"], "dim": "X", "note": "X: staleness implícita"})
     _X2_STEPS.append({"t": "query", "q": _q, "via": "long", "want": [_w], "dim": "X", "note": "X: el hecho nuevo manda"})
 
-# U2 → dos saves + query multi-hop
+# U2 → two saves + multi-hop query
 _U2_STEPS = []
 for _s1, _m1, _s2, _m2, _q, _wants in _U2:
     _U2_STEPS.append({"t": "save", "text": _s1, "marker": _m1, "in": ["long"], "dim": "U", "note": "U: eslabón 1"})
     _U2_STEPS.append({"t": "save", "text": _s2, "marker": _m2, "in": ["long"], "dim": "U", "note": "U: eslabón 2"})
     _U2_STEPS.append({"t": "query", "q": _q, "via": "long", "want": _wants, "dim": "U", "note": "U: co-afloran ambos eslabones"})
 
-# P2 → saves con destino any/in
+# P2 → saves with any/in destination
 _P2_STEPS = [{"t": "save", "text": _t, "marker": _m, ("any" if _dest and _dest != [] else "in"): (_dest or []),
               "dim": "P", "note": "P: dato/ruido bajo STT roto"} for _t, _m, _dest in
              [(t, m, (d if d else [])) for t, m, d in _P2]]
 
-# AD2 → save de cambio (a estado) + slot_count colapso
+# AD2 → change save (to state) + collapse slot_count
 _AD2_STEPS = []
 for _t, _mk, _sk, _slot in _AD2:
     _AD2_STEPS.append({"t": "save", "text": _t, "marker": _mk, "in": ["state"], "state_key": _sk, "dim": "AD",
@@ -854,9 +854,9 @@ _K2 = [
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE VIII — segunda oleada de anchura (hechos distintos): más retención (C), intereses (I), temporal (J),
-#               rutinas (O), vocab-gap (T), instrucciones (W), correcciones (M), staleness (X), multi-hop (U),
-#               multilingüe (R), adversarial (P), y anchura de auditoría (AD/AE/AF/AG) + multi-fuente a volumen.
+# BLOCK VIII — second breadth wave (different facts): more retention (C), interests (I), temporal (J),
+#               routines (O), vocab-gap (T), instructions (W), corrections (M), staleness (X), multi-hop (U),
+#               multilingual (R), adversarial (P), and audit breadth (AD/AE/AF/AG) + multi-source at volume.
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 _C3 = [
@@ -994,7 +994,7 @@ _K3 = [
      "dim": "K", "note": "escala 6000: dato vital pinned aguanta el volumen extremo (estilo BEAM)"},
 ]
 
-# — construir los pasos de la 2ª oleada —
+# — build the steps for the second wave —
 _C3_S, _C3_Q = _saves_queries(_C3, "C", "C")
 _I3_S, _I3_Q = _saves_queries(_I3, "I", "I")
 _J3_S, _J3_Q = _saves_queries(_J3, "J", "J")
@@ -1040,7 +1040,7 @@ for _t, _slot, _exp, _mk, _skey in _AF3:
     _AF3_STEPS.append(_st)
 _G3_STEPS = [{"t": "connector", "platform": _p, "sender": _s, "text": _t, "marker": _m, "trust": "external",
               "in": ["short"], "dim": "G", "note": f"multi-fuente: {_p}/{_s}"} for _p, _s, _t, _m in _G3]
-# un par de heal_slots más (AG) y anti-alucinación (AA)
+# a couple more heal_slots (AG) and anti-hallucination (AA)
 _AG3 = [
     {"t": "heal_slots", "slot": "project.current",
      "seed": ["Su proyecto es un pódcast.", "Su proyecto es un blog.", "Su proyecto es un canal de YouTube."],
@@ -1051,8 +1051,8 @@ _AG3 = [
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# BLOQUE IX — tercera oleada (más anchura hacia ~1000). Hechos distintos; misma disciplina (save temprano/query
-#             diferida para retención; audit y multi-fuente a volumen).
+# BLOCK IX — third wave (more breadth toward ~1000). Different facts; same discipline (early save/deferred query
+#             for retention; audit and multi-source at volume).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 
 _C4 = [
@@ -1186,26 +1186,26 @@ _G4_STEPS = [{"t": "connector", "platform": _p, "sender": _s, "text": _t, "marke
 
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
-# AGREGACIÓN — el orden IMPORTA (persona acumulativa): cimientos → bloques → inventario(saves) → familias →
-# inventario(queries diferidas) → identidad cross-sesión al FINAL (ve toda la historia).
+# AGGREGATION — order MATTERS (cumulative persona): foundations → blocks → inventory (saves) → families →
+# inventory (deferred queries) → cross-session identity at the END (sees the whole history).
 # ══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 CASES = (
     BATCH_1 + BATCH_2 + BATCH_3 + BATCH_4 + BATCH_5 + BATCH_6 + BATCH_7 +
     BATCH_8 + BATCH_9 + BATCH_10 + BATCH_11 + BATCH_12 + BATCH_13 + BATCH_14 + BATCH_15 +
     BATCH_16 + BATCH_17 + BATCH_18 + BATCH_19 + BATCH_20 + BATCH_21 + BATCH_22 + BATCH_23 + BATCH_24 + BATCH_25 +
-    # SAVES tempranos (inventario + familias de retención) → se preguntan mucho después
+    # Early SAVES (inventory + retention families) → queried much later
     _INV_SAVES + _C2_S + _I2_S + _J2_S + _O2_S + _R2_S + _W2_S +
     _C3_S + _I3_S + _J3_S + _O3_S + _R3_S + _W3_S +
     _C4_S + _I4_S + _J4_S + _O4_S + _R4_S + _W4_S +
     BATCH_26 + BATCH_27 + BATCH_28 + BATCH_29 + BATCH_30 + BATCH_31 + BATCH_32 +
     BATCH_36 + BATCH_37 + BATCH_38 + BATCH_39 + BATCH_40 + BATCH_41 + BATCH_42 +
-    # familias autocontenidas (save+corrección/nuevo+query juntos, o probes/escala/worker)
+    # Self-contained families (save+correction/new+query together, or probes/scale/worker)
     _M2_STEPS + _X2_STEPS + _U2_STEPS + _P2_STEPS + _AD2_STEPS + _AF2_STEPS + _T2_STEPS + _EXTRA +
     _M3_STEPS + _X3_STEPS + _U3_STEPS + _P3_STEPS + _AD3_STEPS + _AF3_STEPS + _T3_STEPS + _G3_STEPS + _AG3 +
     _M4_STEPS + _AF4_STEPS + _T4_STEPS + _G4_STEPS +
     _MULTISOURCE + _VOCAB_PROBES + _SCALE + _K2 + _K3 + _K4 +
     BATCH_34 + BATCH_35 +           # AG heal_slots + AF workers (tras poblar bien la BD)
-    # QUERIES DIFERIDAS → retención profunda (cientos de pasos tras el save)
+    # DEFERRED QUERIES → deep retention (hundreds of steps after the save)
     _INV_QUERIES + _C2_Q + _I2_Q + _J2_Q + _O2_Q + _R2_Q + _W2_Q +
     _C3_Q + _I3_Q + _J3_Q + _O3_Q + _R3_Q + _W3_Q +
     _C4_Q + _I4_Q + _J4_Q + _O4_Q + _R4_Q + _W4_Q +
@@ -1214,7 +1214,7 @@ CASES = (
 )
 
 
-# ── Normalización de dimensión (idéntico patrón a cases.py) ─────────────────────────────────────────────────
+# ── Dimension normalization (same pattern as cases.py) ──────────────────────────────────────────────────────
 _STEP_DIM = {"turn": "B", "dedup": "D", "connector": "G", "source_query": "G", "cluster_exchange": "H",
              "forget": "N", "unforget": "N", "consolidate": "L", "weight_check": "L", "episode": "S",
              "scale": "K", "recall_probe": "C", "ui_state": "Y",
