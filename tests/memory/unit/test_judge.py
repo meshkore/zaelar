@@ -1,8 +1,8 @@
-"""Tests de tests/memory/judge/judge.py (V2-105) — mecánica del parseo/schema, con chat_sync mockeado.
+"""Tests for tests/memory/judge/judge.py (V2-105) — parsing/schema mechanics, with chat_sync mocked.
 
-El juez en sí (juicio REAL contra DeepSeek) se valida con coste real en
-`tests/memory/judge/calibrate.py`, no aquí — mismo patrón que V2-104's `live_rem_faithfulness.py` vs
-`test_rem.py`: mocks para la mecánica en cada commit, script aparte para el juicio real con coste.
+The judge itself (REAL evaluation against DeepSeek) is validated at real cost in
+`tests/memory/judge/calibrate.py`, not here — the same pattern as V2-104's `live_rem_faithfulness.py` vs
+`test_rem.py`: mocks for the mechanics in each commit, and a separate script for the real evaluation at a cost.
 """
 from nucleo import memllm
 from tests.memory.judge import judge as J

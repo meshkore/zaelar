@@ -1,21 +1,21 @@
-"""`meta.embed_pending` vale el MOTIVO, nunca un 1 — y quien lo consulte tiene que preguntarlo por ausencia.
+"""`meta.embed_pending` stores the REASON, never a 1—and anyone querying it must check for absence.
 
-Nadie probaba la FORMA de este marcador (2026-08-24: cero menciones en `tests/`), y el comentario que lo
-describe en `writer.py` decía `meta.embed_pending=1` mientras `_mark_embed_pending` escribe la cadena del
-motivo. La mentira costó un diagnóstico ese mismo día: consulté las bases del plató con
-`embed_pending = 1`, salió **0 pendientes** sobre una base que tenía una fila dañada, y estuve a punto de
-informar de «limpio». Lo cazó ir a mirar con qué predicado consulta el producto (`rem.py`, `IS NOT NULL`).
+No one tested the FORM of this marker (2026-08-24: zero mentions in `tests/`), and the comment describing it
+in `writer.py` said `meta.embed_pending=1` while `_mark_embed_pending` writes the reason string. The lie cost
+one diagnosis that same day: I queried the studio databases with
+`embed_pending = 1`, it returned **0 pending** on a database with a damaged row, and I nearly reported it as
+“clean.” I caught it by checking which predicate the product uses to query (`rem.py`, `IS NOT NULL`).
 
-La clase de fallo es la peor de las baratas: **una consulta que no puede encontrar nada informa igual que una
-base sana**. No falla, no avisa, y su respuesta es tranquilizadora justo cuando hay daño.
+This is the worst kind of cheap failure: **a query that cannot find anything reports the same as a healthy
+database**. It does not fail, does not warn, and its answer is reassuring precisely when there is damage.
 
-Así que aquí se clava lo que un consumidor puede dar por hecho:
-  · el marcador guarda el MOTIVO y no un booleano — si alguien lo «simplifica» a 1, esto se pone rojo;
-  · un `= 1` es estructuralmente ciego, y se comprueba EJECUTÁNDOLO contra una fila marcada de verdad;
-  · el motivo es legible, porque «esta píldora no tiene vector» y «no lo tiene porque el índice está sellado
-    con otro modelo» llevan a acciones distintas.
+So this pins down what a consumer may take for granted:
+  · the marker stores the REASON, not a Boolean—if someone “simplifies” it to 1, this turns red;
+  · `= 1` is structurally blind, and this is verified by RUNNING it against a genuinely marked row;
+  · the reason is readable, because “this pill has no vector” and “it lacks one because the index is sealed
+    with another model” lead to different actions.
 
-No se prueba el comentario (no se puede). Se prueba el contrato que el comentario describía mal.
+The comment is not tested (it cannot be). The contract that the comment described incorrectly is tested.
 """
 from __future__ import annotations
 
@@ -29,13 +29,13 @@ from memory import writer as memwriter
 
 @pytest.fixture(autouse=True)
 def _backend_declarado(monkeypatch):
-    """El backend se DECLARA, no se hereda del ambiente.
+    """The backend is DECLARED; it is not inherited from the environment.
 
-    Estos casos preguntan «¿casa el espacio activo con el sellado?», así que dependen de cuál es el activo — y
-    sin forzarlo, con Ollama en la máquina, V2-350 lo CONSERVA como `ollama` y la firma casa: `space_ok()`
-    devuelve True y los casos salen rojos por un motivo que no es el suyo. Salían verdes con
-    `ZAELAR_EMBED_BACKEND=hash` en el entorno y rojos por el runner oficial, que no lo fuerza. Misma trampa que
-    ya costó una tanda en V2-349."""
+    These cases ask “does the active space match the sealed one?”, so they depend on which one is active—and
+    without forcing it, with Ollama on the machine, V2-350 PRESERVES it as `ollama` and the signature matches: `space_ok()`
+    returns True and the cases fail for a reason unrelated to them. They passed with
+    `ZAELAR_EMBED_BACKEND=hash` in the environment and failed under the official runner, which does not force
+    it. The same trap already cost a batch in V2-349."""
     from memory import embeddings as mememb
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "hash", "embed_model": ""})
@@ -70,7 +70,7 @@ def test_el_marcador_guarda_el_MOTIVO_y_no_un_booleano(fresh_db):
 
 
 def test_una_consulta_por_IGUAL_A_1_es_CIEGA_y_se_demuestra_corriendola(fresh_db):
-    """El error real, reproducido: sobre una base CON daño, `= 1` cuenta cero y `IS NOT NULL` cuenta uno."""
+    """The real error, reproduced: on a database WITH damage, `= 1` counts zero and `IS NOT NULL` counts one."""
     mid = memwriter.insert_memory("otra sin vector", weight=0.5)
     memwriter._mark_embed_pending(memdb.get_db(), mid, "degraded")
 
@@ -88,7 +88,7 @@ def test_una_consulta_por_IGUAL_A_1_es_CIEGA_y_se_demuestra_corriendola(fresh_db
 
 
 def test_los_DOS_motivos_que_escribe_el_writer_son_legibles(fresh_db):
-    """Los motivos son los que el propio `insert_memory` produce; si nace un tercero, que se declare aquí."""
+    """These are the reasons produced by `insert_memory` itself; if a third one appears, declare it here."""
     for razon in ("sig_mismatch", "degraded"):
         mid = memwriter.insert_memory(f"pildora {razon}", weight=0.5)
         memwriter._mark_embed_pending(memdb.get_db(), mid, razon)
@@ -96,39 +96,39 @@ def test_los_DOS_motivos_que_escribe_el_writer_son_legibles(fresh_db):
 
 
 def test_marcar_NUNCA_lanza_aunque_la_fila_no_exista(fresh_db):
-    """Corre dentro de una escritura ya hecha: reventar aquí perdería la píldora, que sí se guardó bien."""
-    memwriter._mark_embed_pending(memdb.get_db(), 999_999, "sig_mismatch")   # no debe lanzar
+    """It runs inside an already completed write: failing here would lose the pill, which was saved correctly."""
+    memwriter._mark_embed_pending(memdb.get_db(), 999_999, "sig_mismatch")   # must not raise
 
 
-# ── V2-484 · el permiso caducaba con el BACKEND, no con el reloj ────────────────────────────────────────────
+# ── V2-484 · permission expired with the BACKEND, not with the clock ───────────────────────────────────────
 #
-# Los 15 vectores de otro espacio del índice del operador (V2-482) entraron por aquí, y la carrera se
-# reprodujo entera: el veredicto de `space_ok()` se cacheaba 60 s SOLO por tiempo, así que un backend que caía
-# a `hash` dentro de esa ventana escribía con el permiso de cuando Ollama estaba vivo. Sin marcador y sin
-# error: la fila queda indistinguible de una sana.
+# The 15 vectors from another space in the operator's index (V2-482) entered here, and the race was reproduced
+# in full: the verdict from `space_ok()` was cached for 60 s based ONLY on time, so a backend that fell back to
+# `hash` within that window wrote with the permission from when Ollama was alive. No marker and no error: the
+# row becomes indistinguishable from a healthy one.
 
 @pytest.fixture
 def sellado_gemma(tmp_path, monkeypatch):
-    """Un índice que declara un espacio REAL. El backend de los tests es `hash` → cualquier vector suyo es
-    ajeno, así que el guarda TIENE que refusar salvo que alguien le dé un permiso caducado."""
+    """An index that declares a REAL space. The test backend is `hash` → any vector from it is foreign,
+    so the guard MUST refuse it unless someone gives it an expired permission."""
     from memory import reembed as memreembed
     (tmp_path / "zaelar.db.embedsig").write_text("ollama:embeddinggemma:768", encoding="utf-8")
     memreembed._SPACE_CACHE = (0.0, True, None)
-    # La PRECONDICIÓN se declara, no se hereda: si la ruta de la firma resolviera a otro sitio, estos casos
-    # medirían el `.embedsig` de otra base y su verde no valdría nada.
+    # The PRECONDITION is declared, not inherited: if the signature path resolved elsewhere, these cases
+    # would measure another database's `.embedsig`, and their passing would mean nothing.
     assert memreembed.stored_signature() == "ollama:embeddinggemma:768"
     yield
     memreembed._SPACE_CACHE = (0.0, True, None)
 
 
 def _con_ollama_vivo():
-    """Calienta el caché en el instante en que la firma SÍ casaba (Ollama contestando embeddinggemma).
+    """Warms the cache at the instant when the signature DID match (Ollama responding with embeddinggemma).
 
-    Restaura A MANO y NO con `monkeypatch.undo()`: ese deshace todo lo que la función lleva puesto en ese
-    momento, **incluido el `ZAELAR_DB` de `fresh_db`**. Con él revertido, `_sig_path()` deja de apuntar a la
-    base del test y el guarda pasa a leer el `.embedsig` de la memoria REAL del operador — así que estos casos
-    salían verdes en solitario por leer una firma ajena y rojos en la suite entera según qué ruta tuvieran
-    delante. Un verde prestado, otra vez."""
+    Restores MANUALLY and NOT with `monkeypatch.undo()`: that undoes everything the function has set at that
+    moment, **including `fresh_db`'s `ZAELAR_DB`**. With it reverted, `_sig_path()` stops pointing to the test
+    database and the guard reads the `.embedsig` from the operator's REAL memory instead—so these cases passed
+    alone by reading a foreign signature and failed in the full suite depending on which path they encountered.
+    A borrowed pass, once again."""
     from memory import embeddings as mememb
     from memory import reembed as memreembed
     previo = (mememb.active_backend, mememb._active_model_name, mememb._backend)
@@ -145,58 +145,58 @@ def test_el_permiso_NO_sobrevive_a_una_caida_del_backend(fresh_db, sellado_gemma
     from memory import embeddings as mememb
     from memory import reembed as memreembed
     _con_ollama_vivo()
-    monkeypatch.setattr(mememb, "_backend", "hash")          # segundos después, dentro del TTL
+    monkeypatch.setattr(mememb, "_backend", "hash")          # seconds later, within the TTL
     assert memreembed.space_ok() is False
 
 
 def test_un_vector_de_otro_espacio_NO_se_escribe_con_el_permiso_de_antes(fresh_db, sellado_gemma, monkeypatch):
-    """La carrera COMPLETA por el camino real de escritura — es la que dejó 15 filas dañadas y mudas."""
+    """The COMPLETE race through the real write path—the one that left 15 damaged, silent rows."""
     from memory import embeddings as mememb
     _con_ollama_vivo()
     monkeypatch.setattr(mememb, "_backend", "hash")
     mid = memwriter.insert_memory("Le interesan los Ferrari.", level="long", kind="pref")
     fila = memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,))
-    assert fila is None                                      # sin vector: mejor sin él que de otro espacio
-    assert _marca(mid) == "sig_mismatch"                      # y CONTABLE, que es lo que faltaba
+    assert fila is None                                      # no vector: better none than one from another space
+    assert _marca(mid) == "sig_mismatch"                      # and COUNTABLE, which was what was missing
 
 
 def test_el_guarda_decide_DESPUES_de_saber_en_que_espacio_salio_el_vector(fresh_db, sellado_gemma, monkeypatch):
-    """El vuelco DENTRO de la misma llamada: la resolución del backend ocurre dentro de `_emb.embed()`, o sea
-    DESPUÉS de la primera comprobación. Sin la segunda, ese vector entra con el permiso ya concedido.
+    """The switch WITHIN the same call: backend resolution occurs inside `_emb.embed()`, that is,
+    AFTER the first check. Without the second one, that vector enters with permission already granted.
 
-    Va CON SLOT a propósito, y esto costó encontrarlo: sin slot, `insert_memory` consulta antes
-    `_semantic_dedup_on()`, que resuelve el backend por su cuenta — así que el vuelco ocurre ANTES del primer
-    guarda y ése ya lo caza. Con slot se salta ese paso y el backend sigue siendo el bueno cuando el guarda de
-    entrada mira. Medido en los dos sentidos: con la segunda comprobación el vector se refusa; sin ella se
-    escribe, sin marcador. Un caso sin slot habría salido verde con el arreglo DESARMADO."""
+    It deliberately uses a SLOT, and this was hard to find: without a slot, `insert_memory` queries
+    `_semantic_dedup_on()` first, which resolves the backend independently—so the switch occurs BEFORE the first
+    guard and that guard catches it. With a slot, that step is skipped and the backend is still the good one when
+    the entry guard looks. Measured both ways: with the second check the vector is refused; without it, it is
+    written without a marker. A case without a slot would have passed with the fix DISARMED."""
     from memory import embeddings as mememb
     _con_ollama_vivo()
-    monkeypatch.setattr(mememb, "_backend", "ollama")        # el guarda de ENTRADA aún ve el espacio bueno
+    monkeypatch.setattr(mememb, "_backend", "ollama")        # the ENTRY guard still sees the good space
 
     def _embed_que_cae(_t):
-        mememb._backend = "hash"                             # Ollama ocupado Y fastembed sin cargar
+        mememb._backend = "hash"                             # Ollama busy AND fastembed not loaded
         return mememb._l2_normalize(mememb._fit_dim(mememb._hash_embed(_t, 768), 768))
 
     monkeypatch.setattr(mememb, "embed", _embed_que_cae)
-    monkeypatch.setattr(mememb, "last_degraded", False)      # hash CONFIGURADO no se declara degradado
+    monkeypatch.setattr(mememb, "last_degraded", False)      # CONFIGURED hash is not declared degraded
     mid = memwriter.insert_memory("Le gusta la guitarra.", level="long", kind="pref", slot="operator.tastes")
     assert memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,)) is None
     assert _marca(mid) == "sig_mismatch"
 
 
 def test_con_el_espacio_ESTABLE_el_camino_sano_no_cambia(fresh_db, monkeypatch):
-    """La otra mitad: sin firma sellada (BD nueva) se sigue escribiendo el vector como siempre. Un guarda que
-    también parase esto no sería más seguro, sería una base sin canal semántico."""
+    """The other half: without a sealed signature (new database), the vector continues to be written as usual.
+    A guard that also stopped this would not be safer; it would be a database without a semantic channel."""
     mid = memwriter.insert_memory("Vive en Madrid.", level="long", kind="fact")
     assert memdb.get_db().query_one("SELECT 1 FROM vec_memories WHERE memory_id=?", (mid,)) is not None
     assert _marca(mid) is None
 
 
-# ── V2-485 · el nodo-concepto escribía su vector SIN ningún guarda ──────────────────────────────────────────
+# ── V2-485 · the concept node wrote its vector WITHOUT any guard ────────────────────────────────────────────
 #
-# Ni carrera ni permiso rancio: `_get_or_create_concept` insertaba en `vec_memories` sin mirar la firma ni la
-# degradación. Por ahí entraron los 9 vectores fastembed (384 rellenados a 768) del índice del operador, todos
-# nodos-concepto. El nodo tiene que seguir naciendo — es un hub del grafo — y lo que se difiere es su vector.
+# Neither race nor stale permission: `_get_or_create_concept` inserted into `vec_memories` without checking the
+# signature or degradation. The 9 fastembed vectors (384 padded to 768) from the operator's index entered there,
+# all concept nodes. The node must still be created—it is a graph hub—and its vector is what is deferred.
 
 def _concepto(nombre: str):
     return memdb.get_db().query_one(
@@ -206,24 +206,24 @@ def _concepto(nombre: str):
 def test_un_concepto_NO_recibe_vector_de_otro_espacio(fresh_db, sellado_gemma, monkeypatch):
     from memory import embeddings as mememb
     _con_ollama_vivo()
-    monkeypatch.setattr(mememb, "_backend", "hash")          # el índice dice gemma, el backend ya no
+    monkeypatch.setattr(mememb, "_backend", "hash")          # the index says gemma, but the backend no longer does
     memwriter.insert_memory("Toca la guitarra.", level="long", kind="fact", concepts=["guitarra"])
     c = _concepto("guitarra")
-    assert c is not None                                     # el HUB nace igual: sin él el grafo no cose
+    assert c is not None                                     # the HUB is still created: without it the graph cannot connect
     assert memdb.get_db().query_one(
         "SELECT 1 FROM vec_memories WHERE memory_id=?", (c["id"],)) is None
-    assert _marca(c["id"]) == "sig_mismatch"                 # y queda CONTABLE para el sueño
+    assert _marca(c["id"]) == "sig_mismatch"                 # and remains COUNTABLE for the sleeper
 
 
 def test_un_concepto_NO_recibe_vector_de_un_backend_caido_en_caliente(fresh_db, monkeypatch):
-    """La otra mitad del gate: `last_degraded` también faltaba en este camino.
+    """The other half of the gate: `last_degraded` was also missing from this path.
 
-    La bandera se pone DENTRO de `embed_batch`, así que dejarla puesta de antemano no sirve — la propia
-    llamada la recalcula. Se simula como ocurre de verdad: la caída se declara al producir el vector."""
+    The flag is set INSIDE `embed_batch`, so setting it beforehand is useless—the call recalculates it itself.
+    This is simulated as it really happens: the failure is declared while producing the vector."""
     from memory import embeddings as mememb
 
     def _embed_que_se_cae(t):
-        mememb.last_degraded = True                          # backend real caído en caliente → hash de emergencia
+        mememb.last_degraded = True                          # real backend failed live → emergency hash
         return mememb._l2_normalize(mememb._fit_dim(mememb._hash_embed(t, 768), 768))
 
     monkeypatch.setattr(mememb, "embed", _embed_que_se_cae)
@@ -236,8 +236,8 @@ def test_un_concepto_NO_recibe_vector_de_un_backend_caido_en_caliente(fresh_db, 
 
 
 def test_con_el_espacio_sano_el_concepto_SI_recibe_su_vector(fresh_db):
-    """Sin esto, «no escribas vectores malos» se satisface no escribiendo ninguno — y un concepto sin vector
-    no lo encuentra una consulta de categoría, que es para lo que existe el nodo."""
+    """Without this, “do not write bad vectors” is satisfied by writing none—and a concept without a vector
+    cannot be found by a category query, which is what the node exists for."""
     memwriter.insert_memory("Le gusta el buceo.", level="long", kind="fact", concepts=["ocio"])
     c = _concepto("ocio")
     assert c is not None

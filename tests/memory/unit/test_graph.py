@@ -1,4 +1,4 @@
-"""Tests de memory/graph.py (V2-002 · T50) — link + neighbors + expand (BFS acotado)."""
+"""Tests for memory/graph.py (V2-002 · T50) — link + neighbors + expand (bounded BFS)."""
 import pytest
 
 from memory import db as memdb
@@ -31,7 +31,7 @@ def test_link_and_neighbors(fresh_db):
     memgraph.link(a, b, "about", 0.5)
     memgraph.link(a, c, "about", 0.9)
     ns = memgraph.neighbors(a)
-    assert [n["to_id"] for n in ns] == [c, b]  # ordenado por peso desc
+    assert [n["to_id"] for n in ns] == [c, b]  # sorted by descending weight
 
 
 def test_neighbors_filter_by_type(fresh_db):
@@ -66,6 +66,6 @@ def test_expand_excludes_start_and_handles_cycles(fresh_db):
     a = memwriter.insert_memory("a")
     b = memwriter.insert_memory("b")
     memgraph.link(a, b, "about", 1.0)
-    memgraph.link(b, a, "about", 1.0)  # ciclo
+    memgraph.link(b, a, "about", 1.0)  # cycle
     reached = memgraph.expand([a], depth=3)
     assert a not in reached and reached == {b}

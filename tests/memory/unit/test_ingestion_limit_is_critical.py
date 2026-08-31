@@ -1,13 +1,13 @@
-"""V2-499 — una limitación de INGESTIÓN dicha sin palabra de categoría también es un hecho crítico.
+"""V2-499 — an INGESTION limitation stated without a category word is also a critical fact.
 
-El detector de seguridad médica casaba la CATEGORÍA («alérgico», «celíaco», «intolerante»), que es como la gente
-lo dice la mitad de las veces. La otra mitad dice lo que NO PUEDE HACER: «no puede comer gluten». Esa frase no
-contiene ninguna palabra del catálogo, así que no se marcaba `critical`, no llegaba a la línea ⚠️ CRÍTICO y
-quedaba compitiendo por una plaza del ranking — el fallo que V2-490 midió con macarrones ofrecidos a un celíaco.
+The medical-safety detector matched the CATEGORY («allergic», «celiac», «intolerant»), which is how people
+say it half the time. The other half says what they CANNOT DO: «cannot eat gluten». That sentence contains no
+catalog word, so it was not marked `critical`, did not reach the ⚠️ CRITICAL line, and remained competing for a
+ranking slot — the failure that V2-490 measured with macaroni offered to a celiac.
 
-Autorizado por el operador el 2026-08-29 ACEPTANDO los falsos positivos. Este fichero los deja MEDIDOS y por su
-nombre, en vez de dejarlos como una nota vaga: lo que se acepta se escribe, porque aquí un falso positivo gasta
-una plaza de una línea con cap y puede expulsar un marcapasos (V2-491).
+Authorized by the operator on 2026-08-29, ACCEPTING false positives. This file leaves them MEASURED and named,
+rather than leaving them as a vague note: what is accepted is written down, because here a false positive uses
+a slot in a capped line and can displace a pacemaker (V2-491).
 """
 from memory import writer as memwriter
 
@@ -48,15 +48,15 @@ def test_una_limitacion_de_ingestion_ES_critica():
 
 
 def test_una_restriccion_de_UN_MOMENTO_no_lo_es():
-    """Es la única acotación, y la que hace aceptable el resto: una frase que NOMBRA un momento habla de ese
-    momento, no de la persona. Sin esto, «hoy no puedo comer contigo» gasta una plaza de una línea con cap."""
+    """It is the only qualification, and the one that makes the rest acceptable: a sentence that NAMES a moment
+    speaks about that moment, not the person. Without this, «today I cannot eat with you» uses a slot in a capped line."""
     colados = [t for t in MOMENTOS if memwriter._is_critical_health(t)]
     assert not colados, colados
 
 
 def test_lo_que_no_va_de_ingerir_sigue_FUERA():
-    # Sensibilidad: sin esto, un detector que se ensanchara a «no puede …» convertiría media conversación en
-    # hechos críticos y la línea dejaría de significar nada.
+    # Sensitivity: without this, a detector broadened to «cannot …» would turn half the conversation into
+    # critical facts, and the line would stop meaning anything.
     colados = [t for t in NADA_QUE_VER if memwriter._is_critical_health(t)]
     assert not colados, colados
 
@@ -68,21 +68,22 @@ def test_las_categorias_de_SIEMPRE_no_se_tocan():
 
 
 def test_el_FALSO_POSITIVO_aceptado_queda_MEDIDO_y_con_nombre():
-    """Lo que el operador aceptó, dicho como número y no como «algunos falsos positivos».
+    """What the operator accepted, stated as a number rather than as «some false positives».
 
-    Sin marca temporal no se puede distinguir una saciedad de una restricción sin ENTENDER la frase, y ante la
-    duda esta línea existe para pecar de más — un plato que no se ofrece cuesta una pregunta, una alergia
-    olvidada cuesta otra cosa. Si alguien estrecha el detector, este caso le dirá qué está cambiando."""
+    Without a temporal marker, satiety cannot be distinguished from a restriction without UNDERSTANDING the
+    sentence, and in case of doubt this line exists to err on the side of excess — a dish that is not offered
+    costs one question; a forgotten allergy costs something else. If someone narrows the detector, this case
+    will show them what is changing."""
     aceptados = ["No puedo comer más.", "No puedo comer nada de eso, me sienta fatal."]
     assert all(memwriter._is_critical_health(t) for t in aceptados)
-    # y el precio total sobre el corpus de este fichero: solo esos, ninguno más
+    # and the total cost across this file's corpus: only those, and no others
     universo = LIMITACIONES_REALES + MOMENTOS + NADA_QUE_VER
     assert sum(memwriter._is_critical_health(t) for t in universo) == len(LIMITACIONES_REALES)
 
 
 def test_la_marca_llega_a_la_PILDORA_no_solo_al_predicado(tmp_path, monkeypatch):
-    """Por el camino real: el guard vive en el writer, el único punto por el que pasa TODA escritura. Un caso
-    sobre el predicado a secas pasaría igual con el guard desconectado del insert (V2-199)."""
+    """The real path: the guard lives in the writer, the only point through which ALL writes pass. A case
+    covering the predicate alone would pass just the same with the guard disconnected from the insert (V2-199)."""
     import json
     from memory import db as memdb
     from memory import embeddings as mememb

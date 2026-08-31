@@ -1,9 +1,10 @@
-"""tests/memory/unit/test_graph_ppr.py — Personalized PageRank sobre `edges` (V2-111 §9.1).
+"""tests/memory/unit/test_graph_ppr.py — Personalized PageRank over `edges` (V2-111 §9.1).
 
-`graph_expand()` (1-hop) no alcanza una conexión de 2 saltos por diseño; estos tests prueban primero el
-módulo puro (`graph_ppr.personalized_pagerank`) y luego la integración vía `retriever.graph_expand()`, con
-el caso que motiva la pieza: un candidato SOLO alcanzable en 2 saltos, invisible al 1-hop, visible al PPR.
-Sin red (embeddings hash). Ejecutar: .venv/bin/pytest tests/memory/unit/test_graph_ppr.py
+By design, `graph_expand()` (1-hop) does not reach a 2-hop connection; these tests first exercise the
+standalone module (`graph_ppr.personalized_pagerank`) and then the integration through
+`retriever.graph_expand()`, with the case that motivates the feature: a candidate reachable ONLY in 2 hops,
+invisible to 1-hop, visible to PPR. No network (hash embeddings). Run:
+`.venv/bin/pytest tests/memory/unit/test_graph_ppr.py`
 """
 import pytest
 
@@ -31,7 +32,7 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── módulo puro ────────────────────────────────────────────────────────────────────────────────────────────
+# ── standalone module ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_empty_seed_returns_empty(fresh_db):
     assert ppr.personalized_pagerank({}) == {}
@@ -40,27 +41,27 @@ def test_empty_seed_returns_empty(fresh_db):
 def test_isolated_node_never_proposes_a_neighbor(fresh_db):
     a = writer.insert_memory("nodo aislado, sin aristas")
     ranks = ppr.personalized_pagerank({a: 1.0})
-    # sin aristas no hay nada que proponer MÁS ALLÁ del propio sembrado — `_ppr_expand` lo filtra igualmente
-    # (un candidato nunca puede ser una de sus propias semillas), pero el módulo puro no debe inventar vecinos.
+    # With no edges there is nothing to propose BEYOND the seed itself — `_ppr_expand` filters it out anyway
+    # (a candidate can never be one of its own seeds), but the standalone module must not invent neighbors.
     assert set(ranks) <= {a}
 
 
 def test_two_hop_neighbor_gets_positive_mass(fresh_db):
     a = writer.insert_memory("a")
     b = writer.insert_memory("b")
-    c = writer.insert_memory("c")   # solo alcanzable DESDE a vía b (2 saltos)
+    c = writer.insert_memory("c")   # reachable ONLY FROM a through b (2 hops)
     writer.link(a, b, "about", 1.0)
     writer.link(b, c, "about", 1.0)
     ranks = ppr.personalized_pagerank({a: 1.0})
     assert c in ranks and ranks[c] > 0
-    # el vecino directo (1 salto) debe acumular más masa que el de 2 saltos.
+    # The direct neighbor (1 hop) should accumulate more mass than the 2-hop neighbor.
     assert ranks[b] > ranks[c]
 
 
 def test_unreachable_node_is_absent(fresh_db):
     a = writer.insert_memory("a")
     b = writer.insert_memory("b")
-    isolated = writer.insert_memory("isolated")   # sin ninguna arista hacia/desde a
+    isolated = writer.insert_memory("isolated")   # with no edge to/from a
     writer.link(a, b, "about", 1.0)
     ranks = ppr.personalized_pagerank({a: 1.0})
     assert isolated not in ranks
@@ -73,10 +74,10 @@ def test_broken_db_fails_open(fresh_db, monkeypatch):
     assert ppr.personalized_pagerank({1: 1.0}) == {}
 
 
-# ── integración con retriever.graph_expand() ──────────────────────────────────────────────────────────────
+# ── integration with retriever.graph_expand() ───────────────────────────────────────────────────────────────
 
 def _pill(text: str) -> dict:
-    """Fila mínima con la forma que espera `graph_expand()` como `results` de entrada."""
+    """Minimal row in the form that `graph_expand()` expects as input `results`."""
     mid = writer.insert_memory(text, level="long", kind="fact")
     db = memdb.get_db()
     row = db.query_one(
@@ -91,7 +92,7 @@ def _pill(text: str) -> dict:
 def test_graph_expand_finds_two_hop_candidate_one_hop_misses(fresh_db):
     seed = _pill("bicicleta Trek de carretera")
     mid = _pill("reparar la rueda trasera")
-    target = _pill("carrera ciclista en tres semanas")   # solo a 2 saltos del seed
+    target = _pill("carrera ciclista en tres semanas")   # only 2 hops from the seed
     writer.link(seed["id"], mid["id"], "about", 1.0)
     writer.link(mid["id"], target["id"], "about", 1.0)
 
@@ -109,7 +110,7 @@ def test_ppr_never_duplicates_what_one_hop_already_added(fresh_db):
 
     expanded = retriever.graph_expand([seed], top=6, max_add=8, ppr_max_add=6)
     ids = [r["id"] for r in expanded]
-    assert ids.count(direct["id"]) == 1   # el 1-hop ya lo trajo; PPR no lo repite
+    assert ids.count(direct["id"]) == 1   # 1-hop already added it; PPR does not repeat it
 
 
 def test_kill_switch_disables_ppr_channel(fresh_db, monkeypatch):
@@ -122,7 +123,7 @@ def test_kill_switch_disables_ppr_channel(fresh_db, monkeypatch):
 
     expanded = retriever.graph_expand([seed], top=6, max_add=0, ppr_max_add=6)
     ids = {r["id"] for r in expanded}
-    assert target["id"] not in ids   # sin el canal PPR, el 2-hop sigue invisible (comportamiento pre-pieza)
+    assert target["id"] not in ids   # without the PPR channel, 2-hop remains invisible (pre-feature behavior)
 
 
 def test_graph_expand_with_no_edges_at_all_is_unaffected(fresh_db):

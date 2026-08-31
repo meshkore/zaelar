@@ -3,7 +3,7 @@
 Measured on LoCoMo with the language matched in BOTH arms, so this is not a cross-lingual artefact: distilling
 loses **24.3pp** on the temporal category against keeping the raw turn (78.4% -> 54.1%). The cause was not
 retrieval. `_render` sent the distiller the state, the language and the utterance and NO notion of when "now" is,
-so "dejé de fumar hace tres días" could only be canonicalised as "quit smoking three days ago" — a pill that is
+so "I quit smoking three days ago" could only be canonicalised as "quit smoking three days ago" — a pill that is
 not merely harder to find but **wrong within a week**, with its real date unrecoverable once detached from the
 turn. Probed with real calls on LoCoMo-stamped turns (where the timestamp at least travels inside the text): 5 of
 6 relative expressions left unresolved. In production it is worse — no stamp in the text at all — so the model was
@@ -11,9 +11,9 @@ not failing, it was being asked the impossible. The FlashBrain has had the expli
 memory's own write path did not.
 
 Verified with real API calls after the fix: 0 of 6 unresolved on the stamped turns, and on production-shaped
-turns with no stamp at all, "hace tres días" -> "16 de agosto de 2026", "hace un mes" -> "19 de julio de 2026",
-"el jueves a las diez" -> "jueves 20 de agosto de 2026 a las 10:00", "la semana que viene" -> "semana del 24 de
-agosto de 2026". Those are LLM outputs and cannot be asserted deterministically; what IS asserted here is the
+turns with no stamp at all, "three days ago" -> "August 16, 2026", "a month ago" -> "July 19, 2026",
+"Thursday at ten" -> "Thursday, August 20, 2026 at 10:00", "next week" -> "week of August 24,
+2026". Those are LLM outputs and cannot be asserted deterministically; what IS asserted here is the
 mechanism they depend on — that the anchor is present, and that it follows the MEMORY's clock.
 """
 from __future__ import annotations

@@ -1,17 +1,17 @@
-"""tests/memory/e2e/bot/distiller_tape.py — la cinta del destilador (V2-114 F1).
+"""tests/memory/e2e/bot/distiller_tape.py — the distiller tape (V2-114 F1).
 
-Lo que se prueba, y por qué cada caso existe:
+What is tested, and why each case exists:
 
-- Grabar NO cambia el comportamiento: la corrida grabada tiene que seguir siendo válida, o grabar el fixture
-  contaminaría la medición que lo produce.
-- Los TRES retornos de `process()` se conservan (`None` / `[]` / `[átomos]`): son ramas distintas del llamador
-  (`None` cae a la heurística, `[]` es un descarte legítimo), y una cinta que los confunda replicaría un
-  camino de escritura que nunca ocurrió.
-- El REINTENTO se reproduce. `memory_agent` reintenta una vez tras un `None` (V2-103), así que una frase puede
-  generar dos llamadas. Es exactamente el motivo de que la cinta sea SECUENCIAL y no un dict texto→píldoras:
-  este test falla con la implementación de diccionario.
-- Un texto ausente degrada a la heurística (o lanza en `strict`), y queda CONTADO — una cobertura parcial
-  silenciosa daría un número que parece bueno y no es comparable.
+- Recording does NOT change behavior: the recorded run must remain valid, or recording the fixture would
+  contaminate the measurement that produces it.
+- All THREE `process()` return values are preserved (`None` / `[]` / `[atoms]`): they are distinct caller
+  branches (`None` falls back to the heuristic, `[]` is a legitimate discard), and a tape that confused them
+  would reproduce a write path that never occurred.
+- The RETRY is reproduced. `memory_agent` retries once after a `None` (V2-103), so one phrase can generate two
+  calls. This is precisely why the tape is SEQUENTIAL rather than a text→pills dict: this test fails with the
+  dictionary implementation.
+- A missing text falls back to the heuristic (or raises in `strict`), and is COUNTED — silent partial coverage
+  would produce a number that looks good but is not comparable.
 """
 from __future__ import annotations
 
@@ -24,8 +24,8 @@ from tests.memory.e2e.bot import distiller_tape as tape
 
 
 def test_record_delegates_and_preserves_all_three_return_shapes(tmp_path, monkeypatch):
-    """Grabar tiene que ser transparente: mismos valores devueltos que el original, y los tres tipos escritos
-    al fixture tal cual (incluido `None`, que NO es lo mismo que `[]`)."""
+    """Recording must be transparent: the same values returned as by the original, and all three types written
+    to the fixture exactly as they are (including `None`, which is NOT the same as `[]`)."""
     guion = {"con datos": [{"text": "Vive en Girona."}], "trivial": [], "caido": None}
 
     async def _fake(text, *, state=None):
@@ -82,9 +82,9 @@ def test_replay_needs_no_network_and_reproduces_the_recorded_decisions(tmp_path,
 
 
 def test_sequential_tape_reproduces_the_retry_after_a_none(tmp_path, monkeypatch):
-    """El caso que obliga a que la cinta sea secuencial: la MISMA frase produce dos llamadas porque el
-    llamador reintenta tras un `None`. Una cinta indexada por texto devolvería el `None` las dos veces y
-    el reintento nunca se recuperaría."""
+    """The case that requires the tape to be sequential: the SAME phrase produces two calls because the
+    caller retries after a `None`. A tape indexed by text would return `None` both times and the retry would
+    never recover."""
     secuencia = [None, [{"text": "Se llama Nala."}]]
 
     async def _fake(text, *, state=None):
@@ -96,7 +96,7 @@ def test_sequential_tape_reproduces_the_retry_after_a_none(tmp_path, monkeypatch
     async def _grabar():
         with tape.record(fixture):
             primero = await mem_processor.process("mi perra se llama Nala")
-            segundo = await mem_processor.process("mi perra se llama Nala")   # el reintento de V2-103
+            segundo = await mem_processor.process("mi perra se llama Nala")   # the V2-103 retry
             return primero, segundo
 
     assert asyncio.run(_grabar()) == (None, [{"text": "Se llama Nala."}])
@@ -111,8 +111,8 @@ def test_sequential_tape_reproduces_the_retry_after_a_none(tmp_path, monkeypatch
 
 
 def test_replay_forces_enabled_so_the_retry_path_stays_reachable(tmp_path):
-    """`memory_agent` solo reintenta si `mem_processor.enabled()`. Al replicar no hay clave ni endpoint, así
-    que sin forzarlo el reintento grabado sería inalcanzable y el camino de escritura divergiría."""
+    """`memory_agent` retries only if `mem_processor.enabled()`. During replay there is no key or endpoint, so
+    without forcing it, the recorded retry would be unreachable and the write path would diverge."""
     fixture = tmp_path / "t.jsonl"
     fixture.write_text('{"i":0,"text":"x","atoms":null}\n', encoding="utf-8")
 
@@ -123,8 +123,8 @@ def test_replay_forces_enabled_so_the_retry_path_stays_reachable(tmp_path):
             return mem_processor.enabled()
 
     assert asyncio.run(_run()) is True
-    # Y se restaura al SALIR: un `enabled()` forzado que se quedara pegado al proceso haría creer al resto de
-    # la suite (y a una corrida real posterior en el mismo proceso) que el CORAZÓN está vivo sin estarlo.
+    # It is also restored on EXIT: a forced `enabled()` that remained stuck on the process would make the rest
+    # of the suite (and a subsequent real run in the same process) believe the CORE is alive when it is not.
     assert mem_processor.enabled is antes, "replay() debe devolver enabled() a su implementación original"
 
 
@@ -155,15 +155,15 @@ def test_strict_mode_refuses_to_measure_with_an_incomplete_fixture(tmp_path):
 
 
 def test_out_of_order_lookup_finds_the_phrase_and_flags_it(tmp_path):
-    """Replicar un SUBRANGO desplaza las posiciones. La cinta debe encontrar la frase igualmente, pero
-    contarlo — para que una corrida desordenada no se presente como una réplica exacta."""
+    """Replaying a SUBRANGE shifts the positions. The tape must still find the phrase, but COUNT it — so that
+    an out-of-order run is not presented as an exact replay."""
     fixture = tmp_path / "t.jsonl"
     fixture.write_text('{"i":0,"text":"a","atoms":[]}\n'
                        '{"i":1,"text":"b","atoms":[{"text":"B"}]}\n', encoding="utf-8")
 
     async def _run():
         with tape.replay(fixture) as t:
-            got = await mem_processor.process("b")      # se salta "a"
+            got = await mem_processor.process("b")      # skips "a"
             return got, t.stats()
 
     got, st = asyncio.run(_run())

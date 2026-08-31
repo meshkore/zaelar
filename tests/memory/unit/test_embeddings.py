@@ -1,4 +1,4 @@
-"""Tests de memory/embeddings.py (V2-002 · T46) — dimensión + señal de similitud en castellano."""
+"""Tests for memory/embeddings.py (V2-002 · T46) — dimension + similarity signal in Spanish."""
 import math
 import time
 from unittest import mock
@@ -10,7 +10,7 @@ from memory.schema import EMBED_DIM
 
 
 def _cos(a, b):
-    # los vectores ya vienen L2-normalizados → coseno = producto punto
+    # the vectors are already L2-normalized → cosine = dot product
     return sum(x * y for x, y in zip(a, b))
 
 
@@ -44,7 +44,7 @@ def test_batch_matches_single(monkeypatch):
 
 
 def test_hash_backend_lexical_signal(monkeypatch):
-    """Aun el fallback determinista da señal léxica: textos que comparten palabras ⇒ más similares."""
+    """Even the deterministic fallback provides a lexical signal: texts that share words are more similar."""
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     emb.reset()
     q = emb.embed("el operador se llama Ricart")
@@ -57,20 +57,20 @@ def test_empty_batch():
     assert emb.embed_batch([]) == []
 
 
-# ── V2-103: re-intento del backend degradado (2026-08-16) ──────────────────────────────────────────────────
-# Un hipo TRANSITORIO de Ollama al arrancar el proceso resolvía `_backend` a 'fastembed'/'hash' y lo dejaba
-# cacheado ahí para SIEMPRE — aunque Ollama se recuperase segundos después. Auditoría en vivo: dos hechos
-# idénticos duplicados porque el dedup semántico (solo calibrado para 'ollama') quedó apagado toda la sesión.
+# ── V2-103: retrying the degraded backend (2026-08-16) ──────────────────────────────────────────────────
+# A TRANSIENT hiccup from Ollama when starting the process resolved `_backend` to 'fastembed'/'hash' and left it
+# cached there FOREVER — even if Ollama recovered seconds later. Live audit: two identical facts were duplicated
+# because semantic deduplication (calibrated only for 'ollama') remained disabled for the entire session.
 
 def test_auto_degraded_backend_rechecks_after_ttl(monkeypatch):
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})
-    monkeypatch.setattr(emb, "_BACKEND_RECHECK_S", 60.0)   # constante leída una vez al importar → parchea el valor
+    monkeypatch.setattr(emb, "_BACKEND_RECHECK_S", 60.0)   # constant read once at import → patch the value
     emb.reset()
 
     calls = {"ollama": 0}
 
-    def flaky_ollama(texts, *, timeout=None):   # `timeout` lo pasa la sonda (V2-349)
+    def flaky_ollama(texts, *, timeout=None):   # `timeout` is passed by the probe (V2-349)
         calls["ollama"] += 1
         return None if calls["ollama"] == 1 else [[0.1] * 768 for _ in texts]
 
@@ -81,14 +81,14 @@ def test_auto_degraded_backend_rechecks_after_ttl(monkeypatch):
     t0 = time.time()
     monkeypatch.setattr(time, "time", lambda: t0)
     emb._resolve_backend()
-    assert emb.active_backend() == "hash"           # dentro del TTL → no re-sondea
+    assert emb.active_backend() == "hash"           # within the TTL → no new probe
 
     monkeypatch.setattr(time, "time", lambda: t0 + 61)
-    assert emb.active_backend() == "ollama"         # TTL vencido + Ollama ya sano → se recupera solo
+    assert emb.active_backend() == "ollama"         # TTL expired + Ollama healthy again → recovers automatically
 
 
 def test_forced_backend_never_rechecks(monkeypatch):
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {})   # aísla del store real → manda el env var, no `config/v2.json`
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {})   # isolate from the real store → env var wins, not `config/v2.json`
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     emb.reset()
     assert emb.active_backend() == "hash"
@@ -101,19 +101,19 @@ def test_forced_backend_never_rechecks(monkeypatch):
     monkeypatch.setattr(emb, "_ollama_embed", would_succeed)
     real_time = time.time
     monkeypatch.setattr(time, "time", lambda: real_time() + 10_000)
-    assert emb.active_backend() == "hash"           # forzado por env → nunca se re-sondea
+    assert emb.active_backend() == "hash"           # forced by env → never probed again
     assert calls["n"] == 0
 
 
-# V2-031 (2026-08-17, cazado en validación con coste real): `config/v2.json` trae `embed_provider="auto"` de
-# fábrica — un string NO VACÍO — así que el `or` de precedencia lo tomaba como valor de config y NUNCA llegaba
-# a mirar `ZAELAR_EMBED_BACKEND`, aunque el comentario dijera "store > env > autodetección". El operador pidió
-# forzar `fastembed` para evitar Ollama en una tanda de pruebas y, con Ollama disponible, el env var era aire.
+# V2-031 (2026-08-17, caught during validation at real cost): `config/v2.json` ships with `embed_provider="auto"`
+# by default — a NON-EMPTY string — so the precedence `or` took it as the config value and NEVER reached
+# `ZAELAR_EMBED_BACKEND`, even though the comment said "store > env > autodetection". The operator asked to force
+# `fastembed` to avoid Ollama in a test run and, with Ollama available, the env var had no effect.
 def test_env_var_wins_when_config_says_auto_explicitly(monkeypatch):
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     emb.reset()
-    assert emb.active_backend() == "hash"  # antes del fix: "ollama"/autodetección, el env var se ignoraba
+    assert emb.active_backend() == "hash"  # before the fix: "ollama"/autodetection, the env var was ignored
 
 
 def test_healthy_ollama_backend_does_not_repoll(monkeypatch):
@@ -122,7 +122,7 @@ def test_healthy_ollama_backend_does_not_repoll(monkeypatch):
     emb.reset()
     calls = {"n": 0}
 
-    def ok_ollama(texts, *, timeout=None):     # `timeout` lo pasa la sonda (V2-349)
+    def ok_ollama(texts, *, timeout=None):     # `timeout` is passed by the probe (V2-349)
         calls["n"] += 1
         return [[0.1] * 768 for _ in texts]
 
@@ -131,13 +131,13 @@ def test_healthy_ollama_backend_does_not_repoll(monkeypatch):
     n_after_first = calls["n"]
     real_time = time.time
     monkeypatch.setattr(time, "time", lambda: real_time() + 10_000)
-    assert emb.active_backend() == "ollama"         # ya sano → no vuelve a pinguear
+    assert emb.active_backend() == "ollama"         # already healthy → no ping again
     assert calls["n"] == n_after_first
 
 
 @pytest.mark.skipif(emb.active_backend() != "ollama", reason="requiere Ollama con embeddinggemma")
 def test_ollama_spanish_semantics():
-    """Con embeddinggemma real: sinónimos/paráfrasis en castellano más cerca que un tema no relacionado."""
+    """With real embeddinggemma: synonyms/paraphrases in Spanish are closer than an unrelated topic."""
     emb.reset()
     q = emb.embed("¿dónde vive el usuario?")
     near = emb.embed("el operador reside en Barcelona")
@@ -187,7 +187,7 @@ def test_a_saturated_ollama_re_probes_on_the_very_next_call(monkeypatch):
 
     calls = {"n": 0}
 
-    def _ok(texts, *, timeout=None):            # `timeout` lo pasa la sonda (V2-349)
+    def _ok(texts, *, timeout=None):            # `timeout` is passed by the probe (V2-349)
         calls["n"] += 1
         return [[0.2] * 768 for _ in texts]
 
@@ -232,7 +232,7 @@ def test_the_busy_flag_never_leaks_from_a_previous_probe(monkeypatch):
     assert emb._ollama_busy is False
 
 
-# ── el degradado se VE, no solo se loguea (auditoría de arquitectura 2026-08-23, H7) ──────────────────────────
+# ── degradation is VISIBLE, not merely logged (architecture audit 2026-08-23, H7) ──────────────────────────
 @pytest.mark.parametrize("backend, forzado, hay_ambar, por_que", [
     ("hash",      False, True,  "Ollama caído: el recall por significado queda APAGADO y nada lo decía"),
     ("fastembed", False, True,  "degradado a escala (T176), misma clase de pérdida silenciosa"),
@@ -240,32 +240,31 @@ def test_the_busy_flag_never_leaks_from_a_previous_probe(monkeypatch):
     ("ollama",    False, False, "sano: no hay nada que reportar"),
 ])
 def test_un_backend_degradado_que_nadie_pidio_pone_la_salud_en_ambar(backend, forzado, hay_ambar, por_que):
-    """La regla que este módulo tenía a medias: avisaba, pero solo por `logging` de la stdlib — sin marca de
-    tiempo y en medio del ruido del arranque. El gemelo es el canal de paráfrasis mudo desde 2026-08-18."""
+    """The rule this module only partly had: it warned, but only through stdlib `logging` — without a timestamp
+    and amid startup noise. Its counterpart is the silent paraphrase channel since 2026-08-18."""
     with mock.patch("voice.health_state.record") as rec:
         emb._warn_if_degraded(backend, forzado)
         assert rec.called is hay_ambar, por_que
 
 
 def test_y_un_fallo_de_observabilidad_JAMAS_rompe_la_memoria():
-    """Sin esto, añadir un aviso convierte un recall degradado en un recall que revienta — peor que el fallo
-    que se quería hacer visible."""
+    """Without this, adding a warning turns degraded recall into recall that crashes — worse than the failure
+    that was meant to be made visible."""
     with mock.patch("voice.health_state.record", side_effect=RuntimeError("bus caído")):
-        emb._warn_if_degraded("hash", False)   # no debe lanzar
+        emb._warn_if_degraded("hash", False)   # must not raise
 
 
-# ── El reloj de la SONDA no es el reloj de una llamada REAL (V2-349, 2026-08-26) ──────────────────────────────
+# ── The PROBE clock is not the clock for a REAL call (V2-349, 2026-08-26) ──────────────────────────────
 #
-# Medido sobre el plató: el PRIMER acceso a memoria de un proceso fresco costaba **20,8 s**. No es el retriever
-# —la consulta tarda 25 ms sobre una BD vacía— sino que el DDL de la tabla vectorial necesita `dim()`, eso
-# resuelve el backend, y la sonda usaba el presupuesto de una llamada real (`ZAELAR_EMBED_TIMEOUT`, 20 s) contra
-# un Ollama vivo pero con la GPU ocupada por el CORAZÓN. El arnés lo estaba midiendo como «la memoria tarda 10 s
-# en no encontrar nada».
+# Measured on the platform: the FIRST memory access of a fresh process took **20.8 s**. It is not the retriever
+# —the query takes 25 ms on an empty database— but the vector table DDL needs `dim()`, which resolves the backend,
+# and the probe used the budget of a real call (`ZAELAR_EMBED_TIMEOUT`, 20 s) against a live Ollama whose GPU was
+# occupied by the CORE. The harness measured this as «memory takes 10 s to find nothing».
 #
-# Lo que hace SEGURO acortarlo es la otra mitad: con 20 s una petición encolada podía llegar a tiempo; con 1,5 s
-# no llegaría, y el camino de antes lo habría leído como AUSENCIA → fastembed → 384 rellenados a 768 contra un
-# índice sellado embeddinggemma:768. Abaratar la sonda a secas habría comprado 19 s a cambio de cambiar el
-# espacio vectorial más a menudo, que es el fallo que a V2-103 le costó una auditoría encontrar.
+# What makes shortening it SAFE is the other half: with 20 s a queued request could arrive in time; with 1.5 s it
+# would not, and the previous path would have read it as ABSENCE → fastembed → 384 padded to 768 against a sealed
+# embeddinggemma:768 index. Merely cheapening the probe would have bought 19 s at the cost of changing the vector
+# space more often, which is the failure that cost V2-103 an audit to uncover.
 
 def _timeout_error():
     import socket
@@ -273,7 +272,7 @@ def _timeout_error():
 
 
 def _presupuesto_visto(monkeypatch) -> list:
-    """Anota el `timeout` con el que se llama de verdad a la red, que es lo único que importa aquí."""
+    """Records the `timeout` used to actually call the network, which is the only thing that matters here."""
     vistos: list = []
 
     def _urlopen(req, timeout=None):
@@ -300,13 +299,13 @@ def test_la_SONDA_usa_su_presupuesto_corto_y_no_el_de_una_llamada_real(monkeypat
 
 
 def test_una_llamada_REAL_conserva_su_presupuesto_entero(monkeypatch):
-    """La contrapartida. Acortarlo TODO sería más fácil y sería otro fallo: en un embed de verdad esperar es
-    mejor que degradar el espacio, y esa es una decisión distinta de «¿estás ahí?»."""
+    """The counterpart. Shortening EVERYTHING would be easier and would be another failure: for a real embed,
+    waiting is better than degrading the space, and that is a different decision from «are you there?»."""
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setenv("ZAELAR_EMBED_TIMEOUT", "20")
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
     emb.reset()
-    emb._backend, emb._forced = "ollama", True          # backend ya resuelto: esto no es una sonda
+    emb._backend, emb._forced = "ollama", True          # backend already resolved: this is not a probe
     emb._ollama_timeout = False
 
     vistos: list = []
@@ -322,11 +321,11 @@ def test_una_llamada_REAL_conserva_su_presupuesto_entero(monkeypatch):
 
 
 def test_un_TIMEOUT_de_la_sonda_NO_degrada_el_espacio_vectorial(monkeypatch):
-    """El corazón del cambio. Un reloj agotado significa «no lo sé todavía», no «Ollama no está».
+    """The heart of the change. An exhausted clock means «I don't know yet», not «Ollama is not there».
 
     V2-350 le puso su precondición EXPLÍCITA: esto vale donde hay un índice sellado que defender. Antes el caso
     no la declaraba y pasaba por el ambiente — verde al correr el fichero solo, rojo en la suite entera, según
-    qué BD tuviera delante. Un test que depende de eso afirma menos de lo que parece."""
+    which database happened to be in front of it. A test that depends on this asserts less than it appears to."""
     from memory import reembed
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
@@ -343,9 +342,9 @@ def test_un_TIMEOUT_de_la_sonda_NO_degrada_el_espacio_vectorial(monkeypatch):
 
 
 def test_un_Ollama_AUSENTE_sigue_degradando(monkeypatch):
-    """El contrapeso, y la razón de que esto no sea «no degradar nunca»: un servidor que no está no va a
-    contestar, y esperarle dejaría la memoria sin recall semántico. La diferencia es que la ausencia se sabe en
-    MILISEGUNDOS (conexión rechazada) y el «no lo sé» tarda lo que dure el reloj."""
+    """The counterweight, and the reason this is not «never demote»: a server that is not there will not
+    respond, and waiting for it would leave memory without semantic recall. The difference is that absence is known
+    in MILLISECONDS (connection refused), while «I don't know» takes as long as the clock runs."""
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
     monkeypatch.setattr(emb.urllib.request, "urlopen",
@@ -356,22 +355,22 @@ def test_un_Ollama_AUSENTE_sigue_degradando(monkeypatch):
 
 
 def test_mientras_Ollama_no_conteste_tambien_las_llamadas_reales_usan_el_reloj_corto(monkeypatch):
-    """Sin esto, conservar el espacio se paga con un turno muerto: cada embed real esperaría 20 s contra un
-    Ollama que ya sabemos que no responde — justo la latencia que midió V2-311. El espacio se conserva igual;
-    lo que se difiere es el vector de ESA llamada, como en la rama de saturación."""
+    """Without this, preserving the space costs a dead turn: every real embed would wait 20 s for an Ollama
+    that we already know does not respond — exactly the latency measured by V2-311. The space is still preserved;
+    what is deferred is the vector for THAT call, as in the saturation branch."""
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setenv("ZAELAR_EMBED_TIMEOUT", "20")
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
     vistos = _presupuesto_visto(monkeypatch)
     emb.reset()
-    emb.active_backend()                                  # la sonda se queda sin tiempo → _ollama_timeout
+    emb.active_backend()                                  # the probe times out → _ollama_timeout
     vistos.clear()
 
     emb._ollama_embed(["un embed de verdad"])
     assert vistos == [emb.probe_budget_s()], (
         f"con Ollama mudo, una llamada real volvió a esperar 20 s: {vistos}")
 
-    # …y en cuanto conteste, vuelve el presupuesto entero.
+    # …and as soon as it responds, the full budget returns.
     def _urlopen_ok(req, timeout=None):
         vistos.append(timeout)
         import io
@@ -388,15 +387,15 @@ def test_mientras_Ollama_no_conteste_tambien_las_llamadas_reales_usan_el_reloj_c
     assert vistos == [20.0], f"tras una respuesta buena el presupuesto entero no volvió: {vistos}"
 
 
-# ── «Un timeout no es una ausencia» SOLO donde hay algo que defender (V2-350, 2026-08-27) ────────────────────
+# ── «A timeout is not an absence» ONLY where there is something to defend (V2-350, 2026-08-27) ────────────────────
 #
-# V2-349 conserva `ollama` cuando la sonda se queda sin tiempo, para no buscar vectores embeddinggemma con
-# consultas fastembed rellenadas. Verdadero cuando hay un índice sellado; MAL ACOTADO cuando no lo hay.
+# V2-349 keeps `ollama` when the probe runs out of time, to avoid looking up embeddinggemma vectors with
+# padded fastembed queries. Correct when there is a sealed index; TOO BROAD when there is not.
 #
-# Medido en el plató (ronda 13): el workspace ES tenía 6 píldoras, 1 vector y ningún `.embedsig`, y cada recall
-# salía «recall on FTS only» — o sea, memoria a medias en cada ronda por proteger un espacio que no existía.
-# Ahí fastembed da recall semántico REAL y coherente consigo mismo. El US sí trae firma, y ahí conservar es lo
-# correcto: es el caso que protege V2-103.
+# Measured on the platform (round 13): the workspace DID have 6 pills, 1 vector, and no `.embedsig`, and every recall
+# came out «recall on FTS only» — in other words, half-working memory each round because it protected a nonexistent
+# space. There fastembed provides REAL semantic recall consistent with itself. The US does have a signature, and
+# preserving it there is correct: that is the case V2-103 protects.
 
 def _sin_ollama_a_tiempo(monkeypatch):
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
@@ -407,7 +406,7 @@ def _sin_ollama_a_tiempo(monkeypatch):
 
 
 def test_SIN_indice_sellado_un_timeout_SI_degrada(monkeypatch):
-    """No hay espacio que corromper, y quedarse en solo-léxico es peor que un fastembed coherente consigo mismo."""
+    """There is no space to corrupt, and remaining lexical-only is worse than a fastembed consistent with itself."""
     from memory import reembed
     _sin_ollama_a_tiempo(monkeypatch)
     monkeypatch.setattr(reembed, "stored_signature", lambda: None)
@@ -419,7 +418,7 @@ def test_SIN_indice_sellado_un_timeout_SI_degrada(monkeypatch):
 
 
 def test_CON_indice_sellado_un_timeout_NO_degrada(monkeypatch):
-    """La otra dirección, y la que protege V2-103: aquí SÍ hay un espacio declarado y degradar lo corrompe."""
+    """The other direction, and the one that protects V2-103: here there IS a declared space and demoting corrupts it."""
     from memory import reembed
     _sin_ollama_a_tiempo(monkeypatch)
     monkeypatch.setattr(reembed, "stored_signature", lambda: "ollama:embeddinggemma:768")
@@ -432,8 +431,8 @@ def test_CON_indice_sellado_un_timeout_NO_degrada(monkeypatch):
 
 
 def test_ante_la_DUDA_se_defiende(monkeypatch):
-    """Si no se puede leer la firma no se sabe si hay algo que proteger. La asimetría es deliberada: degradar de
-    más corrompe en SILENCIO; conservar de más cuesta un recall léxico, que se ve y se pasa."""
+    """If the signature cannot be read, we do not know whether there is anything to protect. The asymmetry is
+    deliberate: demoting too much corrupts SILENTLY; preserving too much costs lexical recall, which is visible and passes."""
     from memory import reembed
     _sin_ollama_a_tiempo(monkeypatch)
     monkeypatch.setattr(reembed, "stored_signature",

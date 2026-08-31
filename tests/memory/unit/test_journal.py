@@ -1,4 +1,4 @@
-"""Tests de memory/journal.py (V2-005 · T71) — CRUD de la tabla journal (respaldo del scheduler)."""
+"""Tests for memory/journal.py (V2-005 · T71) — CRUD operations for the journal table (scheduler backing)."""
 import pytest
 
 from memory import db as memdb
@@ -36,7 +36,7 @@ def test_update_replaces_detail_and_bumps_updated(fresh_db):
     jid = memjournal.add("x", detail={"a": 1})
     memjournal.update(jid, detail={"b": 2}, status="in_progress")
     row = memjournal.get(jid)
-    assert row["detail"] == {"b": 2}          # reemplazo entero
+    assert row["detail"] == {"b": 2}          # complete replacement
     assert row["status"] == "in_progress"
 
 

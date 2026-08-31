@@ -1,4 +1,4 @@
-"""Tests de memory/db.py + memory/schema.py (V2-002 · T44)."""
+"""Tests for memory/db.py + memory/schema.py (V2-002 · T44)."""
 import sqlite3
 
 import pytest
@@ -33,16 +33,16 @@ def test_schema_version_set(fresh_db):
 
 
 def test_fts_table_present(fresh_db):
-    # FTS5 viene en la amalgama estándar → debe estar disponible en el sqlite del venv.
+    # FTS5 comes with the standard amalgamation → it should be available in the venv's sqlite.
     assert fresh_db.fts_available is True
     assert "fts_memories" in fresh_db.tables()
 
 
 def test_vec_table_present_when_available(fresh_db):
-    # sqlite-vec está instalado en el venv (requirements) → vec_available True + tabla creada.
+    # sqlite-vec is installed in the venv (requirements) → vec_available True + table created.
     assert fresh_db.vec_available is True
     assert "vec_memories" in fresh_db.tables()
-    # la columna vector tiene la dimensión del schema
+    # The vector column has the schema's dimension.
     ver = fresh_db.conn.execute("SELECT vec_version()").fetchone()[0]
     assert ver.startswith("v0.1")
 
@@ -68,7 +68,7 @@ def test_migrate_is_idempotent(tmp_path, monkeypatch):
         "INSERT INTO memories (level, kind, text, created, updated) VALUES ('short','fact','x',1,1)"
     )
     memdb.reset_db()
-    d2 = memdb.get_db()  # reabre el mismo fichero → migración no debe borrar nada
+    d2 = memdb.get_db()  # reopens the same file → migration must not delete anything
     assert d2.query_one("SELECT COUNT(*) c FROM memories")["c"] == 1
     assert d2.schema_version() == memschema.SCHEMA_VERSION
     memdb.reset_db()
@@ -108,7 +108,7 @@ def test_get_db_survives_reentrant_call_from_inside_migrate(tmp_path, monkeypatc
 
 
 def test_vec_search_smoke(fresh_db):
-    """La tabla vec0 acepta insertar/consultar un vector de la dimensión correcta."""
+    """The vec0 table accepts inserting/querying a vector of the correct dimension."""
     dim = memschema.EMBED_DIM
     import struct
 
@@ -126,10 +126,10 @@ def test_vec_search_smoke(fresh_db):
     assert rows and rows[0]["memory_id"] == 1
 
 
-# ── by_slot_prefix: leer un CATÁLOGO por clave, sin pagar el recall semántico (V2-260, 2026-08-21) ──────────
-# Pedida por el arnés para que «¿qué electricistas tenemos?» sea un SELECT por prefijo y no un embedding + RRF
-# + reranker. El caso de uso que sirve tiene como criterio de éxito que la familia `worker` NO aparezca, así
-# que un recall semántico aquí sería justamente el proceso caro que el catálogo existe para evitar.
+# ── by_slot_prefix: read a CATALOGUE by key, without paying for semantic recall (V2-260, 2026-08-21) ──────────
+# Requested by the harness so that «¿qué electricistas tenemos?» is a prefix SELECT rather than an embedding + RRF
+# + reranker. The use case it serves has the success criterion that the `worker` family must NOT appear, so
+# semantic recall here would be precisely the expensive process the catalogue exists to avoid.
 
 def test_by_slot_prefix_reads_a_catalogue_by_key(fresh_db):
     from memory import api as memapi
@@ -149,9 +149,9 @@ def test_by_slot_prefix_reads_a_catalogue_by_key(fresh_db):
 
 
 def test_by_slot_prefix_escapes_the_LIKE_wildcards(fresh_db):
-    """`_` y `%` son comodines de SQL y los slots llevan guiones bajos con naturalidad. Sin escapar,
-    `candidato:aire_acondicionado:` devuelve TAMBIÉN `candidato:aireXacondicionado:` — comprobado en sqlite
-    antes de escribir la función. Un catálogo que arrastra fichas de otra categoría no falla: contesta de más."""
+    """`_` and `%` are SQL wildcards, and slots naturally contain underscores. Without escaping,
+    `candidato:aire_acondicionado:` ALSO returns `candidato:aireXacondicionado:` — verified in sqlite
+    before writing the function. A catalogue that drags in entries from another category does not fail: it over-answers."""
     from memory import api as memapi
     memapi.write_now("Clima Sur — instalación", level="mid", kind="note",
                      slot="candidato:aire_acondicionado:a1", importance=0.5)
@@ -163,8 +163,8 @@ def test_by_slot_prefix_escapes_the_LIKE_wildcards(fresh_db):
 
 
 def test_by_slot_prefix_hides_what_the_writer_invalidated(fresh_db):
-    """La caducidad de un candidato es `ttl_days` + consolidador (`created + ttl_days`), no el decay. Aquí se
-    fija la mitad de la lectura: lo invalidado NO sale, pase lo que pase con su peso."""
+    """A candidate's expiration is `ttl_days` + consolidator (`created + ttl_days`), not decay. This fixes
+    half of the read behavior: invalidated entries do NOT appear, regardless of their weight."""
     from memory import api as memapi
     from memory import db as memdb
     memapi.write_now("Caducado S.L.", level="mid", kind="note", slot="candidato:electricista:old",
