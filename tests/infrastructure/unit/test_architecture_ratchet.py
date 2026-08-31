@@ -35,70 +35,72 @@ def _lazy_imports(p: Path) -> int:
 
 # ── the frozen table: {file: (max LOC, max lazy imports)} ────────────────────────────────────────────────────
 #
-# ⚠️ Un techo SUBIÓ el 2026-08-23, el segundo día de vida del trinquete, y conviene que quede escrito porque es
-# el proxy fallando y no la regla cediendo: `owner.py` y `probe.py` ganaron UNA línea cada uno —el `import` del
-# helper `nucleo.errors.brief`— al retirar 10 y 1 copias respectivamente de un idioma que reventaba con las
-# excepciones sin mensaje (nodo 7.24). LOC mide tamaño, no complejidad, y ahí midió al revés. La subida es
-# auditable: +1 línea, −11 copias frágiles. Si alguien invoca este precedente sin poder decir QUÉ duplicación
-# retiró y CUÁNTAS copias, está subiendo el techo, que es justo lo que la tabla existe para impedir.
+# ⚠️ A ceiling WENT UP on 2026-08-23, the ratchet's second day of life, and it is worth recording because it is
+# the proxy failing rather than the rule yielding: `owner.py` and `probe.py` each gained ONE line—the `import` of
+# helper `nucleo.errors.brief`—when 10 and 1 copies, respectively, were removed from a language that blew up on
+# exceptions without messages (node 7.24). LOC measures size, not complexity, and measured it backwards here. The
+# increase is auditable: +1 line, −11 fragile copies. If someone invokes this precedent without being able to say
+# WHAT duplication they removed and HOW MANY copies, they are raising the ceiling, which is exactly what this table
+# exists to prevent.
 # Measured 2026-08-23. Only ever edit DOWNWARD. If a change you are making pushes a file over its ceiling, the
 # ratchet is telling you to extract a module — which is the entire point of the audit this was born from.
 #
-# ── 2026-08-24: TRES techos BAJAN, y conviene decir por qué se subieron primero ────────────────────────────
-# El trinquete llevaba rojo desde la noche del 23 y lo rompí yo, en tres commits seguidos (`41355d9`,
-# `195a77a`, `58aba18`) — y no me enteré porque corrí las suites que creía tocadas (`agent_headless`,
-# `browser`, `use_cases`) y este guarda vive en `infrastructure`. Lección aparte del arreglo: un trinquete
-# COMPARTIDO no lo ve quien corre solo su vecindario.
+# ── 2026-08-24: THREE ceilings GO DOWN, and it is worth saying why they went up first ───────────────────────
+# The ratchet had been red since the night of the 23rd and I broke it, in three consecutive commits (`41355d9`,
+# `195a77a`, `58aba18`)—and did not notice because I ran the suites I thought were affected (`agent_headless`,
+# `browser`, `use_cases`), while this guard lives in `infrastructure`. Separate lesson from the fix: someone who
+# runs only their neighborhood does not see a SHARED ratchet.
 #
-# La tentación era invocar el precedente de `owner.py`/`probe.py` de arriba, y no se puede: ese exige poder
-# decir QUÉ duplicación se retiró y CUÁNTAS copias, y yo no había retirado ninguna — solo había escrito la
-# evidencia de tres arreglos, que en este repo se guarda a propósito y que LOC cuenta como si fuera
-# complejidad. Así que se extrae, que es lo que la tabla pide:
+# The temptation was to invoke the `owner.py`/`probe.py` precedent above, but that is not allowed: it requires being
+# able to say WHAT duplication was removed and HOW MANY copies, and I had removed none—I had only written the
+# evidence for three fixes, which this repo deliberately preserves and which LOC counts as though it were
+# complexity. So extract it, which is what the table requires:
 #
-#   nucleo/flash/prompt.py     1104 → 843   el bloque del NAVEGADOR (5 caras + 3 ayudantes) → flash/live_blocks.py
-#   nucleo/dispatch.py         2045 → 1910  la HOJA como superficie del progreso            → nucleo/sheets.py
+#   nucleo/flash/prompt.py     1104 → 843   the BROWSER block (5 facets + 3 helpers)       → flash/live_blocks.py
+#   nucleo/dispatch.py         2045 → 1910  the SHEET as the progress surface             → nucleo/sheets.py
 #
-# ── 2026-08-24, más tarde: 1910 → 1879 ────────────────────────────────────────────────────────────────────
-# `record_phase` se va con la hoja (V2-281). Es el mismo concern —lo que la pestaña de PROCESO pinta— y su
-# cuerpo es puro sobre el registro, así que `dispatch` se queda solo con resolverlo, que es lo único que él
-# tiene. Se extrae en vez de subir el techo por UNA línea (un campo nuevo en la pestaña del navegador): shavear
-# comentarios para cuadrar un número es exactamente el instinto que esta tabla existe para corregir.
-#   nucleo/workers/session.py   879 → 825   los dos constructores de texto del fallo        → workers/handoff.py
+# ── 2026-08-24, later: 1910 → 1879 ─────────────────────────────────────────────────────────────────────────
+# `record_phase` goes with the sheet (V2-281). It is the same concern—what the PROCESS tab renders—and its body
+# is pure over the record, so `dispatch` is left only to resolve it, which is all it has. It is extracted instead
+# of raising the ceiling by ONE line (a new field in the browser tab): shaving comments to make a number fit is
+# exactly the instinct this table exists to correct.
+#   nucleo/workers/session.py   879 → 825   the two failure-text constructors                 → workers/handoff.py
 #
 # ── 2026-08-24, V2-287: 1172 → 1062 ────────────────────────────────────────────────────────────────────────
-# `widgets/results/data.py` se pasó del techo por VEINTE líneas al añadir un hecho al digest del prompt (que la
-# fila lleva su enlace) con su evidencia detrás. Se extrae en vez de subir, y el corte estaba dado: el digest
-# es una función PURA de un dict de hoja —no lee el almacén ni escribe nada—, así que se lleva entero a
-# `widgets/results/digest.py` y `data.py` se queda con `prompt_digest()`, que es el único que necesita saber
-# QUÉ hojas existen y es el nombre que `widgets/refs.py` busca por convención.
-#   widgets/results/data.py    1172 → 1061  el digest del prompt (cabecera + hoja)        → widgets/results/digest.py
-#   widgets/results/data.py    1094 → 1030  el proceso EN VIVO (relato + números)         → widgets/results/live.py
-#   nucleo/dispatch.py         1768 → 1759  la dirección de este motor (función pura)     → nucleo/engine_url.py
+# `widgets/results/data.py` exceeded the ceiling by TWENTY lines when a fact was added to the prompt digest (that
+# the row carries its link), with its evidence behind it. It is extracted instead of raising the ceiling, and the
+# boundary was clear: the digest is a PURE function of a sheet dict—it reads neither the store nor writes anything—
+# so it moves in full to `widgets/results/digest.py`, while `data.py` keeps `prompt_digest()`, the only function
+# that needs to know WHICH sheets exist and the name that `widgets/refs.py` looks up by convention.
+#   widgets/results/data.py    1172 → 1061  the prompt digest (header + sheet)              → widgets/results/digest.py
+#   widgets/results/data.py    1094 → 1030  the LIVE process (narrative + numbers)         → widgets/results/live.py
+#   nucleo/dispatch.py         1768 → 1759  this engine's address (pure function)          → nucleo/engine_url.py
 #
 # ── 2026-08-24, V2-289: 1879 → 1763 ────────────────────────────────────────────────────────────────────────
-# `dispatch.py` se pasó del techo por CINCO líneas al resolver si el modelo que conduce lee imágenes. Se extrae, y
-# el corte llevaba tiempo dado: la CLASIFICACIÓN del encargo (`_classify_kind` + sus cinco regex + el rótulo) es
-# una función PURA sobre el TEXTO de la petición — no mira el registro de sesiones, no toca el pool, no escribe.
-#   nucleo/dispatch.py         1879 → 1762  qué CLASE de encargo es esto              → nucleo/errand_kind.py
+# `dispatch.py` exceeded the ceiling by FIVE lines when resolving whether the driving model reads images. It is
+# extracted, and the boundary had long been clear: the CLASSIFICATION of the errand (`_classify_kind` + its five
+# regexes + the label) is a PURE function over the request TEXT—it does not inspect the session record, touch the
+# pool, or write.
+#   nucleo/dispatch.py         1879 → 1762  what KIND of errand this is                → nucleo/errand_kind.py
 #
-# Los tres eran fronteras que YA estaban dibujadas —el bloque del navegador tenía su `try` propio, la sección
-# de la hoja su banner desde V2-227, y las dos funciones de texto son puras sobre el record— y en dos de los
-# tres había además una capa pidiéndole al vecino lo que no es suyo (`widgets/results/data.py` importando de
-# `dispatch` cómo se llama su caja). `sheets.py` nace HOJA: recibe el registro como argumento en vez de
-# importarlo, que es el ciclo que V2-112 ya pagó.
+# All three were boundaries that were ALREADY drawn—the browser block had its own `try`, the sheet section its
+# banner since V2-227, and the two text functions are pure over the record—and in two of the three there was also
+# a layer asking its neighbor for what is not its responsibility (`widgets/results/data.py` importing from
+# `dispatch` what its box is called). `sheets.py` is born SHEET: it receives the record as an argument instead of
+# importing it, which is the cycle V2-112 already paid for.
 _CEILINGS: dict[str, tuple[int, int]] = {
     # nucleo.py 3461→3475: 246007a («enséñamelo» resolves to the ERRAND's sheet — round 24 opened the bare
     # box beside a 20-row delivery) net of dde26a2's shared confirm gate (−9). F1/F2 still own this file's debt.
-    # …y 3475→3493 el 2026-08-28 (V2-457: `show_images`), subido CON la auditoría que la regla pide y después
-    # de extraer lo extraíble, no en su lugar. Lo que queda son 18 líneas netas de CABLEADO de una capacidad
-    # nueva en el canal de voz: la rama de la tool (7) vive dentro del cierre `_on_tool_call`, que comparte 13
-    # dicts de estado de turno por closure — moverla es el rediseño `TurnState` que V2-112 dejó escrito y
-    # aplazado A PROPÓSITO para su propia sesión; la declaración, la señal del gate de fallbacks y el bloque
-    # posterior al stream son una línea cada uno y no forman módulo. Lo que SÍ se extrajo se extrajo:
-    # `image_turn.voice_turn()` se llevó el cuerpo de la rama posterior al stream Y la resolución del idioma,
-    # así que este fichero tampoco gana un import perezoso (155 sigue en 155). La DEUDA sigue en pie y es la
-    # misma: F1/F2 de V2-112. Un techo que no se puede pagar sin tocar el camino caliente de la voz a las tres
-    # de la mañana se sube con su nombre encima, que es lo que esta tabla lleva haciendo desde el 24-08.
+    # …and 3475→3493 on 2026-08-28 (V2-457: `show_images`), raised WITH the audit the rule requires and after
+    # after extracting what could be extracted, rather than instead of it. What remains is 18 net lines of WIRING
+    # for a new capability in the voice channel: the tool branch (7) lives inside the `_on_tool_call` closure,
+    # which shares 13 turn-state dicts through the closure—moving it is the `TurnState` redesign that V2-112 left
+    # written and DELIBERATELY deferred to its own session; the declaration, fallback-gate signal, and post-stream
+    # block are one line each and do not form a module. What COULD be extracted was extracted:
+    # `image_turn.voice_turn()` took the body of the post-stream branch AND language resolution,
+    # so this file also gains no lazy import (155 remains 155). The DEBT remains and is the same: F1/F2 of V2-112.
+    # A ceiling that cannot be paid without touching the voice hot path at three in the morning is raised with its
+    # name above it, which is what this table has been doing since 24-08.
     "voice/engine/llm/providers/nucleo.py": (3493, 155),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
@@ -121,19 +123,20 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
     # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
     "widgets/navegador/owner.py": (1725, 44),
-    "nucleo/flash/router_guards.py": (1374, 15),   # 25-08: V2-306..310 walk guards (arnés)
+    "nucleo/flash/router_guards.py": (1374, 15),   # 25-08: V2-306..310 walk guards (harness)
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).
-    # probe.py 1214→1226 el 2026-08-28 (V2-457), misma auditoría y por la misma razón: este canal es la
-    # implementación PARALELA del provider de voz, así que una capacidad nueva se cablea en LOS DOS o diverge
-    # —lo que esta casa ya pagó cuatro veces (V2-121, V2-176, V2-380, V2-383)—. Son tres ramas de una cadena
-    # `elif` (clasificar, ejecutar, decir) que no forman módulo: lo compartible ya vive en `image_turn`.
+    # probe.py 1214→1226 on 2026-08-28 (V2-457), same audit and for the same reason: this channel is the
+    # PARALLEL implementation of the voice provider, so a new capability is wired into BOTH or they diverge—
+    # something this codebase has already paid for four times (V2-121, V2-176, V2-380, V2-383). They are three
+    # branches of an `elif` chain (classify, execute, speak) that do not form a module: shared code already lives
+    # in `image_turn`.
     "nucleo/flash/probe.py": (1226, 89),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
-    "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 paso 3 · 26-08: +3 V2-342 (la bifurcación
-    # de la QUEJA en la directiva de workers: inyectar antes que matar — prosa de directiva, nada extraíble)
+    "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
+    # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     "nucleo/workers/session.py": (825, 19),
     "nucleo/flash/router.py": (930, 1),   # +2 (V2-300 wiring)
 }
@@ -214,9 +217,9 @@ def test_no_new_parallel_mirror():
 
 
 def test_every_testmap_node_id_is_unique():
-    """El id de un nodo es cómo se le referencia desde CLAUDE.md y las iniciativas. Dos nodos con el mismo id son
-    dos cosas afirmando ser la misma: el 2026-08-23 había CINCO pares así (2.14, 2.15, 7.10, 7.11, 7.13), y el
-    sexto estuvo a punto de entrar sin que nadie lo viera. Se renumeraron los cinco menos citados."""
+    """A node's id is how it is referenced from CLAUDE.md and the initiatives. Two nodes with the same id are two
+    things claiming to be the same: on 2026-08-23 there were FIVE such pairs (2.14, 2.15, 7.10, 7.11, 7.13), and
+    a sixth nearly entered without anyone noticing. The five least-cited ones were renumbered."""
     from tests.platform.catalog import DOMAINS
 
     seen: dict[str, str] = {}

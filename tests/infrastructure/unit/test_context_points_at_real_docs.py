@@ -14,7 +14,7 @@ Only `.meshkore/docs/**` **of this repo** is checked, on purpose, and the two ex
 
 On its first run this guard caught a real one: `CLAUDE.md` cited
 `.meshkore/docs/ops/zaelar-energy-accounting.md` — a doc that lives in the PRIVATE root repo — as if it were an
-engine path. The sentence already said «de la RAÍZ del workspace»; the path did not, so anyone cloning the public
+engine path. The sentence already said «from the workspace ROOT»; the path did not, so anyone cloning the public
 repo was sent to a file that will never be there. Now it reads `../.meshkore/...`, which is both true and
 skipped by this test.
 """

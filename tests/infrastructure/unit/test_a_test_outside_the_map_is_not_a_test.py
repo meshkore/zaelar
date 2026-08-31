@@ -1,20 +1,20 @@
-"""Un fichero de test que ninguna suite ejecuta deja de ser verdad sin avisar (V2-245).
+"""A test file that no suite runs quietly stops being true (V2-245).
 
-Hay TRES formas de desaparecer, y las tres se midieron el 2026-08-21 en el mismo día:
+There are THREE ways to disappear, and all three were measured on 2026-08-21, on the same day:
 
-  1. **Sin mapear.** 14 ficheros míos, 183 tests verdes que `tests run all` no ejecutaba — incluidos los que
-     acababa de escribir para V2-243, o sea que el «suite verde» que reporté no los cubría. Y uno llevaba ROTO
-     desde el refactor de V2-098 sin que nadie lo viera.
-  2. **Mapeado a un nodo `live`.** Lo avisó memoria-dev tras auditar la suya (37 sin mapear): `deterministic_paths`
-     salta los nodos live, así que colgar un fichero determinista de uno lo SACA de la corrida. Mapear al nodo
-     equivocado se parece mucho a no mapear.
-  3. **En un capítulo que ninguna suite reclama.** La que nadie habría buscado: `deterministic_paths` filtra por
-     la unión de los `domain_ids` de las suites, así que un capítulo entero que no aparezca en ninguna se queda
-     fuera aunque sus nodos estén perfectos.
+  1. **Unmapped.** 14 of my files, 183 passing tests that `tests run all` did not execute—including the ones I
+     had just written for V2-243, meaning that the “green suite” I reported did not cover them. And one had been
+     BROKEN since the V2-098 refactor without anyone noticing.
+  2. **Mapped to a `live` node.** memoria-dev flagged this after auditing its own (37 unmapped): `deterministic_paths`
+     skips live nodes, so attaching a deterministic file to one REMOVES it from the run. Mapping to the wrong node
+     looks a lot like not mapping it.
+  3. **In a chapter that no suite claims.** The one nobody would have looked for: `deterministic_paths` filters by
+     the union of the suites’ `domain_ids`, so an entire chapter that does not appear in any of them is left out
+     even if its nodes are perfect.
 
-Es la avería de V2-158 —«un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar»— y ya
-lleva tres reincidencias. Un guarda que solo comprobara PRESENCIA certificaría exactamente el fallo que existe
-para evitar: por eso comprueba las tres.
+This is the V2-158 failure—“a test that no suite runs is a test that quietly stops being true”—and it has already
+recurred three times. A guard that checked only PRESENCE would certify exactly the failure it exists to prevent:
+that is why it checks all three.
 """
 import io
 import os
@@ -28,13 +28,13 @@ if ROOT not in sys.path:
 
 from tests.platform.catalog import DOMAINS, SUITES, deterministic_paths  # noqa: E402
 
-#: Árboles que este trinquete NO vigila, con su motivo. Un guarda que su dueño no espera es un guarda que se salta
-#: a la primera, así que esto solo crece con el OK del dueño — y el objetivo es que esté VACÍO.
+#: Trees that this ratchet does NOT watch, with the reason. A guard its owner does not expect is a guard that gets
+#: bypassed immediately, so this only grows with the owner's OK—and the goal is for it to be EMPTY.
 #:
-#: **Hoy está vacía, y ese es su estado correcto.** `tests/use_cases/` estuvo aquí unas horas del 2026-08-21, dos
-#: veces y por dos motivos distintos: primero su `suite.json` con `"domain_ids": []` —36 ficheros declarados y sin
-#: correr, rutas deterministas 277 → 313 al arreglarlo (`f0096c9`)—, y al vaciarla salieron 15 ficheros suyos sin
-#: declarar en ningún nodo. Las dos las cerró su dueño; los quince nodos los escribió él, con sus títulos.
+#: **Today it is empty, and that is its correct state.** `tests/use_cases/` was here for a few hours on 2026-08-21,
+#: twice and for two different reasons: first its `suite.json` with `"domain_ids": []`—36 declared files that were
+#: not run, deterministic paths 277 → 313 after fixing it (`f0096c`)—and, when it was emptied, 15 of its files
+#: emerged as undeclared in any node. Its owner closed both issues; he wrote the fifteen nodes, with their titles.
 FUERA_DEL_TRINQUETE: tuple[str, ...] = ()
 
 
@@ -53,7 +53,7 @@ def _ficheros_de_test() -> list[str]:
 
 
 def _declarados() -> dict[str, str]:
-    """ruta → id del nodo que la declara."""
+    """path → ID of the node that declares it."""
     out = {}
     for d in DOMAINS:
         for n in d["nodes"]:
@@ -70,8 +70,8 @@ def test_todo_fichero_de_test_esta_EN_EL_MAPA():
 
 
 def test_y_ADEMAS_lo_ejecuta_la_corrida_determinista():
-    """Estar en el mapa no basta: hay que estar en la corrida. Cubre las formas 2 y 3 de una vez, porque las dos
-    terminan igual —el fichero no aparece en `deterministic_paths`— y el mensaje dice cuál de las dos es."""
+    """Being in the map is not enough: it must be in the run. Covers forms 2 and 3 at once, because both
+    end the same way—the file does not appear in `deterministic_paths`—and the message says which one it is."""
     det = set(deterministic_paths("all"))
     decl = _declarados()
     fuera = [(p, decl[p]) for p in _ficheros_de_test() if p in decl and p not in det]
@@ -81,8 +81,8 @@ def test_y_ADEMAS_lo_ejecuta_la_corrida_determinista():
 
 
 def test_TODO_capitulo_del_mapa_lo_reclama_alguna_suite():
-    """La tercera forma, vigilada donde se origina. Sin esto, un capítulo entero desaparece de la corrida y sus
-    nodos siguen pareciendo perfectos — que es exactamente lo que le pasaba al capítulo 10 hasta `f0096c9`."""
+    """The third form, watched where it originates. Without this, an entire chapter disappears from the run and its
+    nodes continue to look perfect—which is exactly what happened to chapter 10 until `f0096c9`."""
     reclamados = {d for s in SUITES.values() for d in s.domain_ids}
     huerfanos = sorted((d["id"], d["name"]) for d in DOMAINS if d["id"] not in reclamados)
     assert not huerfanos, (
@@ -92,6 +92,6 @@ def test_TODO_capitulo_del_mapa_lo_reclama_alguna_suite():
 @pytest.mark.parametrize("ruta", ["tests/agent_headless/unit/flash/test_provider_chain.py",
                                   "tests/cluster/unit/test_brain_relay.py"])
 def test_los_que_estaban_invisibles_HOY_corren(ruta):
-    """Sensibilidad con nombre y apellidos: los dos peores casos de la auditoría. `test_provider_chain` llevaba
-    22 casos verdes sin correr —incluidos los de V2-243— y `test_brain_relay` llevaba además ROTO desde V2-098."""
+    """Named, concrete sensitivity: the two worst cases from the audit. `test_provider_chain` had
+    22 passing cases that were not run—including those from V2-243—and `test_brain_relay` had also been BROKEN since V2-098."""
     assert ruta in set(deterministic_paths("all"))

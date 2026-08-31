@@ -34,7 +34,7 @@ def _refs(p: Path) -> list[str]:
     m = re.match(r"^---\n(.*?)\n---", s, re.S)
     if not m:
         return []
-    # Solo la lista que sigue a `refs:` — el front-matter tiene otras listas y otros guiones.
+    # Only the list following `refs:` — the front matter contains other lists and other dashes.
     bloque = m.group(1).split("refs:", 1)
     if len(bloque) < 2:
         return []
@@ -60,15 +60,15 @@ def test_cada_ref_de_un_perfil_existe(perfil):
 
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
 def test_hay_perfiles_que_comprobar():
-    """Sensibilidad: si el glob dejara de encontrarlos, lo de arriba pasaría vacío y en silencio — las TRES
-    formas de que un test no corra, otra vez."""
+    """Sensitivity: if the glob stopped finding them, the test above would pass empty and silently — the THREE
+    ways for a test not to run, again."""
     assert len(_perfiles()) >= 5
 
 
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
 def test_el_de_casos_de_uso_existe_y_lleva_lo_que_hace_falta_para_arrancar():
-    """El perfil que permite retomar la medición desde un contexto vacío. Se comprueban las piezas SIN las que
-    esa sesión no puede empezar: el mapa, el arnés, los platós y el marcador."""
+    """The profile that allows the measurement to resume from an empty context. The pieces WITHOUT which
+    that session cannot start are checked: the map, harness, stages, and marker."""
     p = TEAM / "use-case-tester.md"
     assert p.exists(), "sin este perfil, retomar la medición exige reconstruir el contexto a mano"
     cuerpo = p.read_text(encoding="utf-8")
@@ -80,9 +80,9 @@ def test_el_de_casos_de_uso_existe_y_lleva_lo_que_hace_falta_para_arrancar():
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
 @pytest.mark.parametrize("perfil", ["use-case-tester.md", "dev-main.md", "dev-memory.md", "dev-mobile.md"])
 def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
-    """El tester mide y el developer arregla; se coordinan por un cluster privado. Si un perfil no dice dónde
-    están sus credenciales, esa sesión vuelve al copy-paste por el operador — que es justo lo que el cluster
-    existe para quitar. Se comprueba el PUNTERO, nunca un valor."""
+    """The tester measures and the developer fixes; they coordinate through a private cluster. If a profile does not say where
+    its credentials are, that session falls back to copy-paste by the operator — exactly what the cluster
+    exists to eliminate. The POINTER is checked, never a value."""
     cuerpo = (TEAM / perfil).read_text(encoding="utf-8")
     assert "cluster-use-cases.env" in cuerpo, f"«{perfil}» no dice dónde están las credenciales del cluster"
     for var in ("MESHKORE_UC_CLUSTER_ID", "MESHKORE_UC_TOKEN"):
@@ -93,10 +93,10 @@ def test_los_dos_que_se_hablan_saben_POR_DONDE(perfil):
 
 @pytest.mark.skipif(not TEAM.is_dir(), reason=".meshkore/team/ no viaja en el repo (gitignorado)")
 def test_el_perfil_de_MEMORIA_dice_por_donde_se_empieza():
-    """El perfil que permite retomar la memoria desde un contexto vacío. Se comprueban las piezas SIN las que
-    esa sesión no puede arrancar: el diseño del módulo, su territorio, la base REAL del operador (que solo se
-    toca en copia), los sandboxes con la EVIDENCIA del turno —lo único que separa «no le llegó» de «no
-    obedeció»— y la trampa del backend heredado, que hace salir verdes casos que no miden nada."""
+    """The profile that allows memory to resume from an empty context. The pieces WITHOUT which
+    that session cannot start are checked: the module design, its territory, the operator's REAL database (which is only
+    touched in a copy), the sandboxes with the turn's EVIDENCE —the only thing distinguishing «it did not reach it» from «it did not
+    obey»— and the inherited backend trap, which makes cases that measure nothing pass green."""
     p = TEAM / "dev-memory.md"
     assert p.exists(), "sin este perfil, retomar la memoria exige reconstruir el contexto a mano"
     cuerpo = p.read_text(encoding="utf-8")

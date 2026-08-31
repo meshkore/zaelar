@@ -1,12 +1,12 @@
 #
-# test_log.py — log durable de eventos del bus en SQLite (V2-001, T35). Verifica persistencia real a
-# disco (fichero temporal vía ZAELAR_DB), enganche como sink del bus, filtros y resiliencia.
+# test_log.py — durable log of bus events in SQLite (V2-001, T35). Verifies actual persistence to
+# disk (temporary file via ZAELAR_DB), attachment as the bus sink, filters, and resilience.
 #
-# 2026-08-09: el sink pasó a ser ASÍNCRONO (encola + hilo escritor). El bus lo llama en el hilo que PUBLICA, que
-# muchas veces es el de la voz, y un INSERT síncrono ahí era el motivo de que el log durable llevara desde V2-001
-# apagado por defecto. Por eso los tests ahora DRENAN antes de leer: `_write` ya no promete haber escrito, promete
-# no haber bloqueado.
-# Ejecutar: .venv/bin/pytest tests/infrastructure/unit/test_bus_log.py
+# 2026-08-09: the sink became ASYNCHRONOUS (queues + writer thread). The bus calls it on the thread that PUBLISHES, which
+# is often the voice thread, and a synchronous INSERT there was why the durable log had been disabled by default since V2-001.
+# Therefore the tests now DRAIN before reading: `_write` no longer promises to have written, it promises
+# not to have blocked.
+# Run: .venv/bin/pytest tests/infrastructure/unit/test_bus_log.py
 #
 import asyncio
 import importlib
@@ -20,7 +20,7 @@ import bus as busmod
 def log(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
     from bus import log as logmod
-    importlib.reload(logmod)   # re-lee ZAELAR_DB y resetea la conexión de módulo
+    importlib.reload(logmod)   # rereads ZAELAR_DB and resets the module connection
     busmod.reset()
     yield logmod
     logmod.detach()
@@ -35,14 +35,14 @@ def test_write_persists_and_reads_back(log):
     assert log.count() == 2
     log.drain()
     rows = log.recent(10)
-    assert rows[0]["topic"] == "widget.show"        # más nuevo primero
+    assert rows[0]["topic"] == "widget.show"        # newest first
     assert rows[0]["payload"] == {"id": "agenda"}
     assert rows[1]["payload"] == {"text": "hola"}
 
 
 def test_persists_across_connection_close(log, tmp_path):
     log._write({"topic": "memory.updated", "ts_ms": 1.0, "payload": {"n": 1}})
-    log.close()                                     # simula reinicio: nueva conexión al MISMO fichero
+    log.close()                                     # simulates restart: new connection to the SAME file
     log.drain()
     assert log.count() == 1
     assert log.recent(1)[0]["payload"] == {"n": 1}
@@ -73,14 +73,14 @@ def test_non_serializable_payload_does_not_crash(log):
         pass
     log._write({"topic": "x", "ts_ms": 1.0, "payload": Weird()})
     log.drain()
-    assert log.count() == 1           # se guarda como str, no revienta
+    assert log.count() == 1           # stored as str, does not crash
     assert log.recent(1)[0]["topic"] == "x"
 
 
 def test_attach_is_idempotent(log):
     async def run():
         log.attach()
-        log.attach()                  # segunda vez = no-op, no duplica el sink
+        log.attach()                  # second time = no-op, does not duplicate the sink
         await busmod.publish("memory.updated", {})
     asyncio.run(run())
     log.drain()
@@ -88,27 +88,27 @@ def test_attach_is_idempotent(log):
 
 
 def test_the_sink_never_blocks_the_publisher(log):
-    """El CONTRATO nuevo: `_write` encola y vuelve. Es lo que permite tener el log durable encendido sin que un
-    INSERT por evento se interponga en el hilo de la voz (el motivo por el que estuvo apagado desde V2-001).
+    """The new CONTRACT: `_write` queues and returns. This allows the durable log to remain enabled without an
+    INSERT per event interfering with the voice thread (the reason it had been disabled since V2-001).
 
-    2026-08-20: medía un UMBRAL ABSOLUTO (`< 200 ms`) y eso lo hacía rojo por la MÁQUINA y no por el código —
-    exactamente lo que `test_suite_isolation.py` existe para evitar. Encolar 2000 eventos cuesta ~2 ms medidos
-    aisladamente, así que el techo llevaba 100x de margen… y aun así saltó en 206 ms corriendo la suite entera,
-    con todo en un proceso. El número no estaba mal elegido: la FORMA de la prueba estaba mal elegida.
+    2026-08-20: it measured an ABSOLUTE THRESHOLD (`< 200 ms`), making it fail because of the MACHINE rather than the code —
+    exactly what `test_suite_isolation.py` exists to prevent. Queuing 2000 events takes ~2 ms when measured
+    in isolation, so the ceiling had 100x of headroom… and even so it reached 206 ms when running the entire suite,
+    with everything in one process. The number was not poorly chosen: the TEST'S FORM was poorly chosen.
 
-    Ahora se mide la PROPIEDAD, que es relativa y por tanto inmune a la carga: encolar tiene que ser
-    drásticamente más barato que la escritura que sustituye, y las dos sufren la misma máquina en el mismo
-    momento. El techo absoluto se queda solo como red de seguridad, holgadísimo: si alguien devuelve el sink a
-    síncrono, encolar y escribir pasan a ser la MISMA operación y el cociente se va a 1.
+    It now measures the PROPERTY, which is relative and therefore immune to load: queuing must be
+    dramatically cheaper than the write it replaces, and both experience the same machine at the same
+    moment. The absolute ceiling remains only as a very generous safety net: if someone makes the sink
+    synchronous again, queuing and writing become the SAME operation and the ratio approaches 1.
     """
     import time
 
-    # 2026-08-21, SEGUNDA reincidencia: el cociente relativo arregló la dependencia del MODELO de máquina, pero no
-    # la del INSTANTE. Con la suite entera en un proceso —esa noche pasó de 3.284 a 3.923 tests— una sola
-    # preempción del planificador durante los ~2 ms de encolado basta para hundir el cociente, y el test se pone
-    # rojo por el reloj y no por el código. Una medida de tiempo tomada UNA vez mide la máquina; tomada varias y
-    # quedándose con la MEJOR, mide el camino. La propiedad sigue siendo inalcanzable para un sink síncrono: ahí
-    # encolar y escribir son la MISMA operación, así que el cociente se va a 1 en las tres rondas.
+    # 2026-08-21, SECOND recurrence: the relative ratio fixed dependence on the MACHINE MODEL, but not
+    # dependence on the INSTANT. With the entire suite in one process —that night it grew from 3,284 to 3,923 tests— a single
+    # scheduler preemption during the ~2 ms of queuing is enough to sink the ratio, and the test fails
+    # because of the clock rather than the code. A time measurement taken ONCE measures the machine; taken several times and
+    # keeping the BEST, it measures the path. The property remains unattainable for a synchronous sink: there,
+    # queuing and writing are the SAME operation, so the ratio approaches 1 in all three rounds.
     mejor, escritos, encolar = 0.0, 0, 0.0
     for _ in range(3):
         t0 = time.perf_counter()
@@ -123,7 +123,7 @@ def test_the_sink_never_blocks_the_publisher(log):
         mejor = max(mejor, (escribir / encolar) if encolar > 0 else float("inf"))
         if mejor >= 5:
             break
-    # Medido en esta máquina: encolar ~2 ms, escribir ~116 ms (58x). Se exige 5x — deja un factor 10 de holgura.
+    # Measured on this machine: queuing ~2 ms, writing ~116 ms (58x). 5x is required — leaving a factor of 10 of headroom.
     assert mejor >= 5, (
         f"la mejor de 3 rondas dio escribir/encolar = {mejor:.1f}x — encolar ya no es dramáticamente más barato "
         f"que escribir, así que `_write` está pagando el INSERT en el hilo que publica (que muchas veces es el "
@@ -132,20 +132,20 @@ def test_the_sink_never_blocks_the_publisher(log):
 
 
 def test_retention_caps_the_table(log, monkeypatch):
-    """La otra razón de que estuviera apagado: crecimiento sin límite. Ahora hay techo de filas y poda por edad."""
+    """The other reason it had been disabled: unbounded growth. There is now a row ceiling and age-based pruning."""
     monkeypatch.setattr(log, "_MAX_ROWS", 10)
-    monkeypatch.setattr(log, "_RETENTION_DAYS", 0)      # aislar el techo de filas del corte por antigüedad
+    monkeypatch.setattr(log, "_RETENTION_DAYS", 0)      # isolate the row ceiling from age-based pruning
     for i in range(25):
         log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
     log.drain(timeout=5.0)
     log.prune()
-    assert log.count() == 10, "el techo debe dejar exactamente las N más recientes"
-    assert log.recent(1)[0]["payload"]["i"] == 24, "y las que quedan son las ÚLTIMAS, no las primeras"
+    assert log.count() == 10, "the ceiling must leave exactly the N most recent"
+    assert log.recent(1)[0]["payload"]["i"] == 24, "and the ones left are the LAST, not the first"
 
 
 def test_a_full_queue_drops_log_instead_of_slowing_the_caller(log, monkeypatch):
-    """Bajo saturación se pierde LOG, nunca velocidad: la prioridad es la voz. Y el descarte se CUENTA, para que
-    un hueco en los datos sea visible en vez de silencioso."""
+    """Under saturation, LOG is lost, never speed: voice has priority. And discards are COUNTED, so that
+    a gap in the data is visible rather than silent."""
     import queue as _q
     monkeypatch.setattr(log, "_q", _q.Queue(maxsize=2))
     log._dropped["n"] = 0
@@ -156,11 +156,11 @@ def test_a_full_queue_drops_log_instead_of_slowing_the_caller(log, monkeypatch):
 
 
 def test_the_heartbeat_is_not_persisted(log):
-    """El loop tiquea a ~1 Hz: persistir el latido serían ~140.000 filas al día de un evento SIN datos, que se
-    comerían la retención y ahogarían lo que sí importa. Para la UI en vivo sigue llegando por SSE."""
+    """The loop ticks at ~1 Hz: persisting the heartbeat would be ~140,000 rows per day of an event WITHOUT data, which would
+    consume retention and drown out what actually matters. It still reaches the live UI via SSE."""
     log._write({"topic": "loop.tick", "ts_ms": 1.0, "payload": {"n": 1}})
     log._write({"topic": "observer", "ts_ms": 2.0, "payload": {"kind": "pulse", "label": "tick"}})
     log._write({"topic": "observer", "ts_ms": 3.0, "payload": {"kind": "brain", "label": "decide"}})
     log.drain()
-    assert log.count() == 1, "solo el evento con contenido real debe quedar"
+    assert log.count() == 1, "only the event with real content should remain"
     assert log.recent(1)[0]["payload"]["kind"] == "brain"

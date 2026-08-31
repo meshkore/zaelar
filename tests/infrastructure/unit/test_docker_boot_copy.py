@@ -1,14 +1,14 @@
-"""La imagen de la nube tiene que traer TODO lo que el motor importa al arrancar.
+"""The cloud image must include EVERYTHING the engine imports at startup.
 
-Por qué existe: el 2026-08-12 se desplegó `observability/` (V2-090) y la Machine crash-loopeó en boot con
-`ModuleNotFoundError: No module named 'observability'` — faltaba su `COPY` en el `Dockerfile`. Lo desagradable
-del fallo es que **la imagen construye perfectamente**: no hay ningún import en tiempo de build, así que nada
-avisa hasta que el proceso arranca en producción. Lo cazó el smoke y revirtió, o sea que el coste fue un
-despliegue perdido en vez de una caída — pero el workflow de release lo dejó escrito como una **sonda manual
-antes de cortar el tag**, y una sonda manual es una que algún día no se corre.
+Why it exists: on 2026-08-12, `observability/` (V2-090) was deployed and the Machine crash-looped at boot with
+`ModuleNotFoundError: No module named 'observability'` — its `COPY` was missing from the `Dockerfile`. The unpleasant
+thing about the failure is that **the image builds perfectly**: there are no imports at build time, so nothing
+raises an alert until the process starts in production. The smoke test caught it and rolled it back, meaning the
+cost was a lost deployment rather than an outage — but the release workflow recorded it as a **manual probe
+before cutting the tag**, and a manual probe is one that eventually goes unrun.
 
-Esto la vuelve automática. No sustituye al smoke (que prueba la imagen de verdad); llega antes, que es donde
-sale barato.
+This makes it automatic. It does not replace the smoke test (which tests the actual image); it runs earlier, where
+the cost is low.
 """
 from __future__ import annotations
 
@@ -17,8 +17,8 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[3]
 
-# Paquetes top-level que NO tienen que estar en la imagen, cada uno con su motivo. Igual que `_EXENTOS` del gate
-# de Energy: saltarse la regla cuesta escribir por qué, y ese texto es lo que otro puede discutir.
+# Top-level packages that must NOT be in the image, each with its reason. As with Energy's gate `_EXENTOS`,
+# bypassing the rule requires writing down why, and that text is what someone else can challenge.
 _FUERA_DE_LA_IMAGEN: dict[str, str] = {
     "files":
         "SHIM de compatibilidad (V2-003 · T55): el módulo se plegó en la memoria central y el boot importa "
@@ -49,7 +49,7 @@ def test_todo_paquete_del_motor_viaja_en_la_imagen():
 
 
 def test_una_exencion_apunta_a_algo_que_existe():
-    """Una exención sobre un paquete borrado es un permiso que ya no protege nada y hace creer que el gate
-    cubre algo que no existe. Se caduca sola."""
+    """An exemption for a deleted package is a permission that no longer protects anything and makes it seem that
+    the gate covers something that does not exist. It expires on its own."""
     muertas = [n for n in _FUERA_DE_LA_IMAGEN if n != "tests" and not (RAIZ / n).is_dir()]
     assert not muertas, f"exenciones que ya no apuntan a un paquete: {muertas}"

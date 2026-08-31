@@ -1,8 +1,8 @@
 #
-# test_bus.py — el Sistema Nervioso in-process (V2-001). Cubre: pub/sub con wildcards, aislamiento por
-# patrón, entrega cross-loop de emit_sync (job-thread de LiveKit → loop de uvicorn), y los sinks síncronos.
-# Estilo del repo: tests SÍNCRONOS que envuelven lo async con asyncio.run (sin dependencia pytest-asyncio).
-# Ejecutar: .venv/bin/pytest tests/infrastructure/unit/test_bus.py
+# test_bus.py — the in-process Nervous System (V2-001). Covers: pub/sub with wildcards, isolation by
+# pattern, cross-loop delivery of emit_sync (LiveKit job thread → uvicorn loop), and synchronous sinks.
+# Repository style: SYNCHRONOUS tests that wrap async code with asyncio.run (without a pytest-asyncio dependency).
+# Run: .venv/bin/pytest tests/infrastructure/unit/test_bus.py
 #
 import asyncio
 import threading
@@ -32,7 +32,7 @@ def test_wildcard_pattern():
     async def run():
         sub = busmod.subscribe("widget.*")
         await busmod.publish("widget.show", {"id": "agenda"})
-        await busmod.publish("brain.reply", {"text": "x"})   # no debe llegar
+        await busmod.publish("brain.reply", {"text": "x"})   # must not arrive
         ev = await asyncio.wait_for(sub.get(), timeout=1)
         return ev, sub.queue.empty()
     ev, empty = asyncio.run(run())
@@ -88,13 +88,13 @@ def test_async_iteration():
 
 
 def test_emit_sync_cross_loop_delivery():
-    """El caso de producción: la voz corre en el job-thread de LiveKit (OTRO loop) y publica al bus; el
-    suscriptor vive en el loop de uvicorn. emit_sync debe cruzar de forma segura (call_soon_threadsafe)."""
+    """The production case: voice runs in the LiveKit job thread (a DIFFERENT loop) and publishes to the bus; the
+    subscriber lives in the uvicorn loop. emit_sync must cross safely (call_soon_threadsafe)."""
     async def run():
-        sub = busmod.subscribe("observer")           # creado en ESTE loop
+        sub = busmod.subscribe("observer")           # created in THIS loop
 
         def worker():
-            # otro hilo, SIN loop asyncio corriendo: exactamente el job-thread de LiveKit
+            # another thread, with NO asyncio loop running: exactly the LiveKit job thread
             busmod.emit_sync("observer", {"kind": "llm", "label": "token"})
 
         t = threading.Thread(target=worker)
@@ -124,7 +124,7 @@ def test_sink_exception_does_not_break_dispatch():
             raise RuntimeError("boom")
         busmod.add_sink(bad)
         sub = busmod.subscribe("x.*")
-        await busmod.publish("x.y", 1)             # el sink revienta pero la entrega debe seguir
+        await busmod.publish("x.y", 1)             # the sink fails but delivery must continue
         return await asyncio.wait_for(sub.get(), timeout=1)
     assert asyncio.run(run()) == 1
 

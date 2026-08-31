@@ -1,23 +1,24 @@
 """
-LA RAÍZ DEL REPO NO GUARDA DATOS — este repo es PÚBLICO y por aquí se escapó información personal.
+THE REPO ROOT DOES NOT STORE DATA — this repo is PUBLIC, and personal information escaped through here.
 
-FUGA REAL (2026-08-12, encontrada por una sesión al revisar ficheros sueltos). `informe.json` no solo estaba sin
-commitear: estaba **versionado**, dos veces (816efd7, 8a959b8), y la copia que quedaba en HEAD no era un ejemplo —
-era el informe de vacaciones del operador con las fechas del viaje, el presupuesto y las **edades de sus hijos**.
-En el repositorio público que cualquiera clona.
+REAL LEAK (2026-08-12, found during a session reviewing loose files). `informe.json` was not merely uncommitted:
+it was **versioned**, twice (816efd7, 8a959b8), and the copy remaining in HEAD was not an example — it was the
+operator's vacation report with the travel dates, the budget, and the **ages of their children**.
+In the public repository that anyone can clone.
 
-La causa es estructural, no un descuido: un Brain Worker escribe su entregable en un fichero de **ruta relativa de
-su directorio de trabajo**, y ese directorio es hoy la raíz del engine (se lo pide `dispatch` explícitamente,
-porque escribir fuera le pide una aprobación que en headless nadie va a dar). Nada lo ignoraba, así que cualquier
-`git add -A` de cualquier agente se lo llevaba.
+The cause is structural, not an oversight: a Brain Worker writes its deliverable to a file using a **relative path
+from its working directory**, and that directory is currently the engine root (`dispatch` explicitly requests this,
+because writing outside it requires approval that no one will provide in headless mode). Nothing ignored it, so any
+agent's `git add -A` would include it.
 
-Ignorar los tres nombres de aquel run no cierra la clase: el contrato dice «`informe.json` a secas» como EJEMPLO,
-y el worker siguiente puede llamarlo como quiera. Este test es el guarda que sí cierra la clase — comprueba lo
-único que importa de verdad: **que en la raíz no acabe versionado nada que no sea código o configuración del
-proyecto**, se llame como se llame y tenga la extensión que tenga.
+Ignoring the three names from that run does not close the class: the contract says «`informe.json` by itself» as an
+EXAMPLE, and the next worker can call it whatever it wants. This test is the guard that does close the class — it
+checks the only thing that truly matters: **that nothing ends up versioned at the root unless it is project code or
+configuration**, regardless of its name or extension.
 
-Cuando falle, la pregunta NO es «añado esto a la lista». Es: ¿esto es del proyecto (→ añádelo a `ALLOWED`, con un
-commit que lo justifique) o es un artefacto de trabajo (→ va a `.gitignore` o a `TMP/`, nunca al repo)?
+When it fails, the question is NOT “do I add this to the list?” It is: is this part of the project (→ add it to
+`ALLOWED`, with a commit that justifies it), or is it a work artifact (→ it belongs in `.gitignore` or `TMP/`, never
+in the repo)?
 """
 from __future__ import annotations
 
@@ -26,7 +27,7 @@ from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
 
-# Lo que la raíz del engine tiene derecho a versionar: entrada al proyecto, empaquetado y arranque. Nada de datos.
+# What the engine root is allowed to version: project entry points, packaging, and startup. No data.
 ALLOWED = {
     ".dockerignore", ".gitignore", "AGENTS.md", "CLAUDE.md", "Dockerfile", "Makefile", "README.md",
     "conftest.py", "fly.accounts.toml", "fly.toml", "requirements.txt", "version.py", "zaelar", "zaelar.ps1",
@@ -47,16 +48,16 @@ def test_no_data_file_is_versioned_at_the_repo_root():
 
 
 def test_the_workers_draft_names_are_ignored():
-    """Los nombres que el contrato de `dispatch` sugiere al worker tienen que estar ignorados HOY, sin depender de
-    que alguien se acuerde luego."""
+    """The names that the `dispatch` contract suggests to the worker must be ignored TODAY, without depending on
+    someone remembering later."""
     for name in ("informe.json", "fuentes.json", "resultados.json", "cualquier-cosa.json"):
         r = subprocess.run(["git", "check-ignore", "-q", name], cwd=ENGINE)
         assert r.returncode == 0, f"«{name}» en la raíz NO está ignorado — el próximo `git add -A` lo versiona"
 
 
 def test_a_real_source_file_is_still_versionable():
-    """El patrón no puede ser tan amplio que impida versionar código: si `.gitignore` empezara a tapar fuentes,
-    este guarda se convertiría en el problema."""
+    """The pattern must not be so broad that it prevents code from being versioned: if `.gitignore` started hiding
+    source files, this guard would become the problem."""
     for name in ("version.py", "conftest.py", "Makefile"):
         r = subprocess.run(["git", "check-ignore", "-q", name], cwd=ENGINE)
         assert r.returncode != 0, f"«{name}» está ignorado y es del proyecto"
