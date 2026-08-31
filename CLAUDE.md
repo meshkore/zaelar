@@ -6581,6 +6581,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **⏻ ON has to START it — the reload was the tell (V2-525, 2026-08-31)**: «al darle al botón de arranque se me
+  queda en amarillo parpadeando y creo que al cabo de un minuto o dos sí que arranca. Pero si hago un refresh de
+  la página, automáticamente ya se pone en marcha todo.» Two faults stacked:
+  - **Order.** The ⏻ ON handler called `session.start()` first and `api.runStart()` after. But `session.start()`
+    opens with a gate against the server's truth (`GET /api/run`, added 2026-08-15 to kill ghost sessions), so it
+    read the switch from BEFORE this very click, found `running:false`, aborted the startup and set `powerOff`
+    back to true. The server is commanded first now, and the session start hangs off its reply.
+  - **Nothing brought it back up.** The effect watching `powerOff` covered only the OFF direction since V2-092.
+    With the flag raised from outside the tab (the SSE `run` event, another window), the voice sat waiting for
+    the next `pointerdown` — the other road into `ensureVoice()`. That is the "minute or two": until he clicked
+    something else. A RELOAD was instant because the boot seeding calls `ensureVoice()` itself.
+  - **And the defence that already existed and was never applied here**: a `/api/run` reply is a snapshot of the
+    moment it was REQUESTED. main.js's seeding has dropped stale ones against `powerCmdAt` since 2026-08-14; the
+    startup gate did not. Ordering makes the race rare, the stamp makes it harmless — the command can arrive from
+    another tab, which no ordering here can prevent.
+  - **The tell to keep**: a state that only fixes itself by reloading the page is the state that lies. Node 4.91,
+    disarm verified (4 of 5 red).
+
 - **The BOUNDARIES of a work session (V2-524, 2026-08-31)**: the operator pressed ⏻ off, then Reset, and the
   master showed him a session **EN CURSO** on an engine whose own switch said `stopped`. The ⏻ was innocent —
   it HAD closed the session; the **Reset** opened a new one eleven minutes into the stop. Two independent

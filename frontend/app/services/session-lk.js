@@ -256,8 +256,16 @@ export async function start() {
   // down — that's the ghost session the master used to show. Asking the server's truth HERE, before touching
   // anything, makes "stopped" mean nothing happens, not "something happens and gets undone afterwards".
   try {
+    // Stamp BEFORE asking, and drop the reply if the operator commanded ⏻ meanwhile — the same rule main.js's
+    // seeding has followed since 2026-08-14, never applied here (2026-08-31). This reply is a snapshot of the
+    // moment it was REQUESTED: a ⏻ ON that reaches the server while this request is in flight makes it history,
+    // and obeying history here tears down the startup the operator just asked for and leaves ⏻ stuck amber. The
+    // ordering in Orb.js now makes that race rare; this makes it harmless — the command can also arrive from
+    // ANOTHER tab, which no ordering here can prevent.
+    const askedAt = Date.now();
     const rs = await api.runState();
-    if (rs && rs.running === false) {
+    if (store.powerCmdAt() > askedAt) { /* the operator commanded LATER: this snapshot is history */ }
+    else if (rs && rs.running === false) {
       store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);
       starting = false; store.setStarting(false); store.setConnState("—");
       if (!_everBooted) _unblockBoot();   // don't leave the UI stuck on the splash: there's nothing to wait for

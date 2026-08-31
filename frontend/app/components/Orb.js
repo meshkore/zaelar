@@ -167,11 +167,21 @@ export function Orb() {
             // operador quiere mic/altavoz mudos DE FORMA INDEPENDIENTE, ya tiene sus propios botones for eso.
             store.setMicMuted(false); localStorage.setItem("hb_mic_muted", "0");
             store.setBotMuted(false); localStorage.setItem("hb_bot_muted", "0");
-            try { session.start(); } catch (_) {}
-            // Arrancar CONTINÚA the trabajo congelado (SIGCONT) pero NO reanuda the widgets: volver a poner la
-            // música or the vídeo es un gesto of the operador, no a consecuencia of encender (asimetría deliberada,
-            // ver nucleo/runstate.py).
-            api.runStart().then(() => store.fetchTasks());
+            // ORDER: the SERVER first, the voice session AFTER (2026-08-31, operator: "al darle al botón de
+            // arranque se me queda en amarillo parpadeando… si hago un refresh de la página, automáticamente ya
+            // se pone en marcha todo"). `session.start()` opens with a ⏻ gate against the server's truth
+            // (`GET /api/run`, session-lk.js) — so starting it BEFORE `runStart()` had landed made that gate read
+            // the state from before this very click, abort the startup and set `powerOff` back to true. What then
+            // brought it up was the SSE `run` event undoing that flag plus the operator's NEXT pointer landing on
+            // `ensureVoice()` — which is exactly why it looked like "a minute or two" and why a RELOAD was
+            // instant: by then the server already said RUNNING and the gate let it through.
+            // Turning on CONTINUES frozen work (SIGCONT) but does NOT resume widgets: putting the music or the
+            // video back on is the operator's gesture, not a consequence of powering on (deliberate asymmetry,
+            // see nucleo/runstate.py).
+            api.runStart().then(() => {
+              store.fetchTasks();
+              try { session.start(); } catch (_) {}
+            });
           }
           api.uiEvent("orb:power", { state: off ? "off" : "on" });
         },

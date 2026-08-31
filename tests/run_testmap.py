@@ -1234,6 +1234,13 @@ DOMAINS: list[dict] = [
         # icono del micro, para saber que se te está escuchando sin medidor aparte.
         {"id": "4.12", "title": "Estado del agente: una sola verdad · parado = congelado (real y visible) · vúmetro",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_agent_state_freeze.py"]},
+        # 2026-08-31: el ⏻ ON se quedaba en ÁMBAR un minuto o dos, y RECARGAR la página lo arrancaba al instante
+        # — el síntoma que delata el fallo. Dos causas apiladas: el handler llamaba a `session.start()` ANTES de
+        # `api.runStart()`, así que el guarda de arranque leía el interruptor de ANTES del propio clic y abortaba;
+        # y `powerOff` volviendo a false desde fuera de la pestaña (SSE `run`, otra ventana) no lo miraba nadie —
+        # la voz esperaba al siguiente `pointerdown`. Un estado que solo se arregla recargando es el que miente.
+        {"id": "4.91", "title": "⏻ ON arranca de verdad: el servidor primero, y la voz vuelve sin recargar",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_power_on_brings_the_voice_up.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

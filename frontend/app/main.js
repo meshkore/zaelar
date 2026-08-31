@@ -185,6 +185,18 @@ createEffect(() => {
   if (store.started() || store.starting()) { try { session.stop(); } catch (_) {} }
 });
 
+// Y LA DIRECCIÓN CONTRARIA (2026-08-31). La de arriba llevaba desde V2-092 cubriendo solo el APAGADO: si el
+// `powerOff` se levantaba desde FUERA de esta pestaña —el evento SSE `run`/start (otra ventana pulsó ⏻, o el
+// propio servidor arrancó), o el guarda de `session-lk.js` deshaciendo un falso apagado— nadie volvía a llamar a
+// `session.start()`. La voz esperaba al SIGUIENTE `pointerdown`, que es el otro camino a `ensureVoice()`: el ⏻ se
+// quedaba en ámbar hasta que el operador tocaba cualquier otra cosa, y RECARGAR la página lo arreglaba al instante
+// (la siembra del arranque sí llama a `ensureVoice()`). Un estado que solo se arregla recargando es exactamente el
+// estado que miente. `ensureVoice()` es idempotente: si ya está en pie, no hace nada.
+createEffect(() => {
+  if (store.powerOff()) return;
+  ensureVoice();
+});
+
 // ---- ESTADO DEL CLIENTE → observabilidad (2026-08-10) ----------------------------------------------------------
 // Hasta ahora el log solo tenía la INTENCIÓN del operador (`orb:power` al pulsar ⏻), nunca la REALIDAD: un agente
 // caído que se pintaba vivo —el fallo que costó una sesión entera— era invisible desde el servidor. `agentState()`
