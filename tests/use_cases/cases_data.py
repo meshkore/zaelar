@@ -102,9 +102,9 @@ CASES: list[UseCase] = [
             "the agent's claim. No third-party site, login or payment involved, which is why this is a fair "
             "test of the generation path itself.",
             status="promoted"),
-    # Añadido 2026-08-29 (INI-026 frente B1): el listón de agenda del operador, LITERAL. Se diferencia de
-    # `remember-and-remind-deadline` en las dos cosas que aquel no mide: el aviso debe nacer POR DEFECTO
-    # (nadie lo pide) y la cita debe poder MANIPULARSE por voz después de creada.
+    # Added 2026-08-29 (INI-026, B1 front): the operator's agenda bar, LITERALLY. It differs from
+    # `remember-and-remind-deadline` in the two things that case does not measure: the reminder must be
+    # created BY DEFAULT (nobody asks for it), and the appointment must be MANIPULABLE by voice after creation.
     UseCase("dentist-appointment-into-agenda", "es", 1, "A told appointment lands whole in the agenda",
             "Oye, apúntate que tenemos cita para llevar a los niños al dentista el {FECHA_FUTURA_CERCANA} "
             "a las tres de la tarde.",
@@ -119,9 +119,10 @@ CASES: list[UseCase] = [
             "different subsystems (memory vs agenda/cron) and a pass requires BOTH, since 'I'll remind you' "
             "with nothing scheduled is the exact failure this case is for.",
             status="promoted"),
-    # Añadidos 2026-08-31: la mensajería pasó a widget PRINCIPAL (V2-521) y ningún caso medía sus básicos —
-    # el mismo día el operador reprodujo a mano el primero (el motor habló un tag interno en vez de abrir el
-    # widget, sesión acc5e85e). Y la agenda tenía crear+aviso (dentist) pero no el resto del ciclo de vida.
+    # Added 2026-08-31: messaging became a PRIMARY widget (V2-521), and no case measured its basics —
+    # that same day the operator reproduced the first one manually (the engine spoke an internal tag instead
+    # of opening the widget, session acc5e85e). And the agenda had create+reminder (dentist), but not the rest
+    # of the lifecycle.
     UseCase("show-my-messages", "es", 1, "Show my messages — the most basic messaging behavior",
             "¿Tengo mensajes nuevos de WhatsApp?",
             "The messaging card OPENS (a real widget/show), nothing internal reaches the voice, and the "
@@ -151,16 +152,16 @@ CASES: list[UseCase] = [
             "appointment is the central failure.",
             status="promoted"),
 
-    # Añadidos 2026-08-26 a petición del operador, y por el MISMO hueco de representación que los tres de
-    # arriba, segunda instancia: los 13 escenarios promovidos eran TODOS «entra en una web de terceros,
-    # busca, elige» — así que dos superficies enteras del producto (reproducir música y ver un vídeo) no se
-    # medían en absoluto. Ni una sola mención de música/vídeo en los 119 casos del catálogo.
+    # Added 2026-08-26 at the operator's request, and for the SAME representation gap as the three above,
+    # second instance: all 13 promoted scenarios were «enter a third-party website, search, choose» — so two
+    # entire product surfaces (playing music and watching a video) were not measured at all. Not a single
+    # mention of music/video appeared in the catalog's 119 cases.
     #
-    # Son buenos casos por lo mismo que `quick-fact-opening-hours`: se resuelven EN EL TURNO, sin worker, sin
-    # login y sin pagar — y ejercitan la frontera tool-vs-tool que ya se rompió una vez (V2-045: el modelo
-    # no-razonador agarraba `play_music` para «pon el vídeo de…», y la prosa dentro de play_music no lo movió
-    # en tres intentos; hizo falta una tool dedicada). Una frontera que costó tres intentos arreglar merece
-    # una medida permanente.
+    # They are good cases for the same reason as `quick-fact-opening-hours`: they are resolved IN-TURN, with no
+    # worker, login, or payment — and they exercise the tool-vs-tool boundary that already broke once (V2-045:
+    # the non-reasoning model grabbed `play_music` for «play the video of…», and the prose inside play_music did
+    # not move it in three attempts; a dedicated tool was needed). A boundary that took three attempts to fix
+    # deserves a permanent measure.
     UseCase("play-music-and-build-playlist", "es", 1, "Put music on and curate a playlist",
             "Ponme algo de música tranquila para trabajar.",
             "Sound ACTUALLY starts and then the operator's list is built: the mechanism report must show the "
@@ -211,10 +212,11 @@ CASES: list[UseCase] = [
             "state (worker + browser signals), not just the agent's claim — see "
             "tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
-    # 2026-08-28 — el caso lo probó el OPERADOR a mano y de ahí salió V2-457. Su lectura, literal: la calidad
-    # fue «soberbia» (fue a la web oficial, sacó datos oficiales, fue muy preciso) y falló en DOS cosas — tardó
-    # (355 s medidos, $1,96) y las fotos acabaron en la HOJA GENÉRICA de resultados, que es una tabla y no un
-    # visor. Este caso mide justo eso, así que su vara NO es «cuántos candidatos» sino DÓNDE aparecen y CUÁNDO.
+    # 2026-08-28 — the operator tested the case manually, which led to V2-457. Their literal assessment: the
+    # quality was «superb» (it went to the official website, retrieved official data, and was very precise),
+    # and it failed in TWO ways — it was slow (355 measured seconds, $1.96), and the photos ended up in the
+    # GENERIC results SHEET, which is a table rather than a viewer. This case measures exactly that, so its
+    # yardstick is NOT «how many candidates», but WHERE they appear and WHEN.
     UseCase("show-real-photo-of-a-new-car", "es", 2, "Show a real photo of a just-released car",
             "Enséñame una foto real del Ferrari Amalfi, el nuevo que ha salido.",
             "Real photographs of the Ferrari Amalfi are ON SCREEN in the dedicated image viewer (widget "
@@ -290,24 +292,24 @@ CASES: list[UseCase] = [
             status="promoted"),
 
     # --- ES / tier 3: a REAL measurement from the outside world, shown while it happens ----
-    # Escrito DESPUÉS de verlo fallar en vivo (sesión `ed9df756`, 2026-08-21 17:21-17:30, motor del
-    # operador). El caso no es «que sepa la distancia»: un modelo la estima de memoria y eso es justo lo
-    # que el operador rechazó dos veces («no me lo creo», «te he dicho que me des los tiempos con
-    # precisión, utilizando Google Maps»). El caso es que el dato venga de FUERA y con tráfico, y que el
-    # operador PUEDA VER que está pasando mientras pasa.
+    # Written AFTER seeing it fail live (session `ed9df756`, 2026-08-21 17:21-17:30, the operator's
+    # engine). The case is not about «knowing the distance»: a model estimates it from memory, and that is
+    # exactly what the operator rejected twice («I don't believe you», «I told you to give me the times
+    # precisely, using Google Maps»). The point is for the data to come from OUTSIDE and include traffic, and
+    # for the operator to BE ABLE TO SEE what is happening as it happens.
     #
-    # LO QUE YA FUNCIONA y no hay que rehacer, medido en esa sesión: escaló a los 17:26:10, abrió Google
-    # Maps Directions, cerró el overlay, hizo captura y snapshot, extrajo «2h08 / 210 km por AP-2» más una
-    # alternativa de 2h10, escribió el informe y lo presentó (`present`, `shown: 2`). Coste 0,9818 $.
-    # El mecanismo entero corrió y terminó `done`.
+    # WHAT ALREADY WORKS and does not need to be redone, measured in that session: it escalated at 17:26:10,
+    # opened Google Maps Directions, closed the overlay, took a screenshot and snapshot, extracted
+    # «2h08 / 210 km via AP-2» plus a 2h10 alternative, wrote the report, and presented it (`present`,
+    # `shown: 2`). Cost: $0.9818. The entire mechanism ran and finished `done`.
     #
-    # LO QUE FALLÓ es lo que el operador VE, y son tres cosas distintas:
-    #   1. Salieron DOS hojas de resultados y las dos vacías. La hoja instanciada (V2-259) lleva el dato;
-    #      la tarjeta base se queda encima y en blanco — el fantasma del canvas.
-    #   2. La pestaña de proceso decía «trabajando» y nada más, durante dos minutos y medio. Los pasos
-    #      reales existen en observabilidad (`navigate`, `dismiss_overlay`, `screenshot`, `🏁 hito`,
-    #      `click [29]`…): lo que falta es servirlos ahí, en orden cronológico inverso y en vivo.
-    #   3. El resultado llegó por `🔔 zaelar` a las 17:28:47 y el operador nunca oyó las cifras.
+    # WHAT FAILED is what the operator SEES, and there are three separate things:
+    #   1. TWO result sheets appeared, both empty. The instantiated sheet (V2-259) contains the data;
+    #      the base card remains on top and blank — the canvas ghost.
+    #   2. The process tab said «working» and nothing else for two and a half minutes. The real steps exist
+    #      in observability (`navigate`, `dismiss_overlay`, `screenshot`, `🏁 milestone`, `click [29]`…):
+    #      what is missing is serving them there, in reverse chronological order and live.
+    #   3. The result arrived through `🔔 zaelar` at 17:28:47, and the operator never heard the figures.
     UseCase("driving-time-with-traffic", "es", 3, "Real driving time between two cities, with traffic",
             "Dame la distancia y el tiempo en coche de Zaragoza a Valls, con tráfico, usando Google Maps.",
             "The time and distance come from a real maps source with live traffic — not a model estimate — "
@@ -449,7 +451,7 @@ CASES: list[UseCase] = [
             "content; and a follow-up voice adjustment («better remind me at noon») is applied for real.",
             status="promoted"),
     # US twins of the 2026-08-31 messaging basics — the two where language most shapes the behavior (the
-    # honest refusal and the state read-back), per the two-plató rule of INI-026.
+    # honest refusal and the state read-back), per INI-026's two-studio rule.
     UseCase("show-my-messages", "us", 1, "Show my messages — the most basic messaging behavior",
             "Hey, do I have any new WhatsApp messages?",
             "The messaging card OPENS (a real widget/show), nothing internal reaches the voice, and the "

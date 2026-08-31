@@ -1,17 +1,18 @@
-"""El contrato de aislamiento del motor desechable, y que nadie se lo salte levantando el suyo.
+"""The disposable engine's isolation contract, and ensuring nobody bypasses it by starting their own.
 
-Escrito el 2026-08-20, al unificar el arranque de `journey` con el de `use_cases`. Hasta entonces `journey`
-levantaba su propio engine —su puerto, su tempdir, su lista de variables— y a esa copia le faltaba
-`ZAELAR_LOG_DIR`. El `LOG_DIR` de `voice/observer.py` se resuelve desde la RAÍZ DEL REPO, no desde el
-workspace, así que **cada corrida de `journey` escribía sus eventos en el
-`.meshkore/logs/timeline-latest.jsonl` real del operador**: eventos de test leídos como una sesión viva, que
-es el incidente del 2026-07-25.
+Written on 2026-08-20, when unifying `journey`'s startup with `use_cases`'. Until then, `journey`
+started its own engine —its port, tempdir, and variable list—and that copy was missing
+`ZAELAR_LOG_DIR`. The `LOG_DIR` in `voice/observer.py` is resolved from the REPO ROOT, not from the
+workspace, so **every `journey` run wrote its events to the operator's real
+`.meshkore/logs/timeline-latest.jsonl`**: test events read as a live session, which
+is the incident from 2026-07-25.
 
-Y el aviso estaba escrito: `sandbox_engine.py` llevaba meses con una nota sobre esta fuga exacta, porque el
-helper se extrajo del runner de `journey`. Documentar una fuga en el módulo que NO la tiene no la arregla.
+And the warning was already written: `sandbox_engine.py` had contained a note about this exact leak for
+months, because the helper was extracted from `journey`'s runner. Documenting a leak in the module that does
+NOT have it does not fix it.
 
-Estos tests no arrancan ningún motor: interceptan el `Popen` y miran el ENTORNO que se le pasa, que es donde
-vive el contrato. Un test que levantara el engine de verdad tardaría un minuto y probaría menos.
+These tests do not start any engine: they intercept `Popen` and inspect the ENVIRONMENT passed to it, which is
+where the contract lives. A test that actually started the engine would take a minute and test less.
 """
 from __future__ import annotations
 
@@ -40,7 +41,7 @@ class _FakeProc:
 
 @pytest.fixture
 def captured_env(monkeypatch):
-    """Arranca `sandbox_engine` sin arrancar nada: devuelve el env con el que se habría lanzado el motor."""
+    """Starts `sandbox_engine` without starting anything: returns the env with which the engine would have been launched."""
     seen: dict = {}
 
     def _popen(argv, **kw):
@@ -55,7 +56,7 @@ def captured_env(monkeypatch):
 
 
 def test_the_operators_real_timeline_is_never_the_destination(captured_env):
-    """La fuga concreta: sin `ZAELAR_LOG_DIR`, los eventos del test acaban en el timeline del operador."""
+    """The specific leak: without `ZAELAR_LOG_DIR`, test events end up in the operator's timeline."""
     with SE.sandbox_engine() as eng:
         env = captured_env["env"]
         assert env.get("ZAELAR_LOG_DIR"), "sin esta variable el observer escribe en la raíz del repo"
@@ -64,8 +65,8 @@ def test_the_operators_real_timeline_is_never_the_destination(captured_env):
 
 
 def test_workspace_db_and_identity_are_all_isolated(captured_env):
-    """`ZAELAR_WORKSPACE` se lleva `config/identity.json` con él, o sea el `user_id` de la instalación: sin
-    aislarlo, una corrida de test aparece como una cuenta más en el histórico del Master."""
+    """`ZAELAR_WORKSPACE` takes `config/identity.json` with it, that is, the installation's `user_id`: without
+    isolating it, a test run appears as another account in the Master's history."""
     with SE.sandbox_engine() as eng:
         env = captured_env["env"]
         for var in ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_LOG_DIR"):
@@ -73,8 +74,8 @@ def test_workspace_db_and_identity_are_all_isolated(captured_env):
 
 
 def test_the_noisy_neighbours_are_all_off(captured_env):
-    """Un motor desechable no llama a los clusters reales del operador, no reaparece el worker de LiveKit y no
-    pelea por el segundo listener TLS. Cada una de estas costó una corrida en su día."""
+    """A disposable engine does not call the operator's real clusters, the LiveKit worker does not reappear, and it does not
+    compete for the second TLS listener. Each of these once cost a run."""
     with SE.sandbox_engine():
         env = captured_env["env"]
         assert env["ZAELAR_ENGINE"] != "livekit", "el worker embebido de LiveKit no va en un desechable"
@@ -85,8 +86,8 @@ def test_the_noisy_neighbours_are_all_off(captured_env):
 
 
 def test_credentials_are_deliberately_NOT_isolated(captured_env):
-    """Lo contrario de un descuido: el objetivo es una BASE limpia, no un motor tullido que no pueda llamar a
-    un modelo. `server/common.py` carga `.env` + `.meshkore/credentials/` desde la raíz a propósito."""
+    """The opposite of an oversight: the goal is a clean BASE, not a crippled engine that cannot call a
+    model. `server/common.py` deliberately loads `.env` + `.meshkore/credentials/` from the root."""
     with SE.sandbox_engine():
         env = captured_env["env"]
         assert "ZAELAR_CREDENTIALS_DIR" not in env
@@ -94,8 +95,8 @@ def test_credentials_are_deliberately_NOT_isolated(captured_env):
 
 
 def test_a_caller_owned_log_path_survives_the_workspace(captured_env, tmp_path):
-    """El log es la EVIDENCIA de un arranque roto, así que quien lo necesite después del derribo puede pedir
-    su sitio. `journey` pasa el `artifacts/` de su run por esto."""
+    """The log is the EVIDENCE of a broken startup, so whoever needs it after teardown can request
+    its location. `journey` passes its run's `artifacts/` through this."""
     mine = tmp_path / "artifacts" / "journey-engine.log"
     with SE.sandbox_engine(log_path=mine) as eng:
         assert eng.log_path == mine
@@ -103,10 +104,10 @@ def test_a_caller_owned_log_path_survives_the_workspace(captured_env, tmp_path):
 
 
 def test_journey_boots_through_the_shared_helper_and_not_its_own(monkeypatch):
-    """La otra mitad, y la que de verdad cierra la fuga: que `journey` USE el helper.
+    """The other half, and the one that actually closes the leak: making `journey` USE the helper.
 
-    Se afirma sobre el comportamiento —¿se llamó a `sandbox_engine`?— y no leyendo el fuente: un test que
-    busca texto en el código encuentra lo que busca también dentro del comentario que explica el cambio.
+    It asserts behavior —was `sandbox_engine` called?— rather than reading the source: a test that
+    searches for text in the code also finds what it is looking for inside the comment explaining the change.
     """
     from tests.journey import runner as R
 

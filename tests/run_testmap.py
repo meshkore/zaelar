@@ -1,18 +1,18 @@
-"""EL MAPA DE TESTS — «¿funciona todo?» respondido por DOMINIO → CASO DE USO → CANAL (2026-07-25).
+"""THE TEST MAP — “does everything work?” answered by DOMAIN → USE CASE → CHANNEL (2026-07-25).
 
-Petición del operador: que el testing esté tan ordenado que a "¿funciona todo bien?" se pueda responder
-"1.1 ✅, 1.2 ✅, 2.1 ✅…". Este fichero es la ÚNICA fuente de verdad de esa taxonomía: cada nodo N.M declara qué
-ficheros lo cubren, por qué CANAL entran (voz / chat-sobre-livekit / peer-de-cluster / http-api / unidad-directa) y
-si es DETERMINISTA (pytest, corre en CI sin servidor) o VIVO (e2e, exige `make run` + proveedores reales).
+Operator request: testing should be organized enough that “does everything work?” can be answered with
+“1.1 ✅, 1.2 ✅, 2.1 ✅…”. This file is the SINGLE source of truth for that taxonomy: each N.M node declares which
+files cover it, which CHANNEL they enter through (voice / chat-over-livekit / cluster peer / http-api / direct unit), and
+whether it is DETERMINISTIC (pytest, runs in CI without a server) or LIVE (e2e, requires `make run` + real providers).
 
-Correr:
-  ./.venv/bin/python tests/run_testmap.py                # todo lo DETERMINISTA (pytest), árbol numerado + veredicto
-  ./.venv/bin/python tests/run_testmap.py --domain 1     # solo el dominio 1 (MEMORIA)
-  ./.venv/bin/python tests/run_testmap.py --list         # solo listar la taxonomía (no ejecuta nada)
-  ./.venv/bin/python tests/run_testmap.py --live         # incluye los nodos VIVOS (los lista + su comando; no los lanza)
+Run:
+  ./.venv/bin/python tests/run_testmap.py                # all DETERMINISTIC tests (pytest), numbered tree + verdict
+  ./.venv/bin/python tests/run_testmap.py --domain 1     # domain 1 only (MEMORY)
+  ./.venv/bin/python tests/run_testmap.py --list         # list the taxonomy only (runs nothing)
+  ./.venv/bin/python tests/run_testmap.py --live         # include LIVE nodes (list them + their command; do not launch them)
 
-La narrativa (canales, huecos conocidos, duplicación) vive en tests/TESTMAP.md — este fichero es el ejecutable.
-Se EXTIENDE (1000→10000 casos) añadiendo ficheros a los nodos de abajo o nodos nuevos, no reescribiendo la espina.
+The narrative (channels, known gaps, duplication) lives in tests/TESTMAP.md — this file is the executable.
+It EXTENDS (1000→10000 cases) by adding files to the nodes below or adding new nodes, not by rewriting the spine.
 """
 from __future__ import annotations
 
@@ -24,9 +24,9 @@ import sys
 
 ENGINE = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-# ── LA TAXONOMÍA ────────────────────────────────────────────────────────────────────────────────────────────────
-# Cada nodo: (id, título, canal, ["ruta/pytest", ...] | comando-vivo). `live=True` = exige servidor vivo (no en CI).
-# Canales: unit=unidad-directa · http=http-api · voice=voz(livekit) · chat=chat-sobre-livekit · peer=peer-de-cluster.
+# ── THE TAXONOMY ────────────────────────────────────────────────────────────────────────────────────────────────
+# Each node: (id, title, channel, ["path/pytest", ...] | live command). `live=True` = requires a live server (not in CI).
+# Channels: unit=direct unit · http=http-api · voice=voice(livekit) · chat=chat-over-livekit · peer=cluster peer.
 UNIT = "unit"; HTTP = "http"; VOICE = "voice"; CHAT = "chat"; PEER = "peer"
 
 DOMAINS: list[dict] = [

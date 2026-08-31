@@ -102,8 +102,9 @@ def test_whole_system_journey_is_causal_mapped_and_primary():
     for case in plan["cases"]:
         assert set(case.get("consumes", [])) <= produced, case["id"]
         produced.update(case.get("produces", []))
-    # 26 originales + 3 de conexión a clusters (V2-086: reconocer sin actuar → autorizar → contrato de la
-    # superficie nativa). Al añadir un paso al viaje hay que tocar este número Y `case_count` en suite.json.
+    # 26 original cases + 3 for connecting to clusters (V2-086: recognize without acting → authorize →
+    # native-surface contract). When adding a step to the journey, this number AND `case_count` in suite.json
+    # must be updated.
     assert len(plan["cases"]) == 29
     assert {case["channel"] for case in plan["cases"]} >= {
         "headless", "browser-api", "observer", "meshkore-http", "meshkore", "http",
