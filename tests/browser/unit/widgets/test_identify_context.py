@@ -1,52 +1,52 @@
-"""Tests de la ACOTACIÓN por contexto del enrutado de widgets (V2-078, idea del operador): ante un EMPATE de
-score, el widget objetivo se desempata por prioridad **abiertos > usados hace poco > catálogo** — genérico, sin
-frases hardcodeadas. Cubre `runtime.identify` (tiebreak + score), `state.push_recent_widgets` (MRU) y el orden/
-anotación de `brief.for_prompt`."""
+"""Tests of context-based TIE-BREAKING in widget routing (V2-078, operator idea): when scores are TIED,
+the target widget is resolved by the priority **open > recently used > catalog** — generic, without
+hardcoded phrases. Covers `runtime.identify` (tiebreak + score), `state.push_recent_widgets` (MRU), and the
+ordering/annotation of `brief.for_prompt`."""
 from widgets import runtime
 
 
 def _row(wid: str, kw: str) -> dict:
-    """Fila del índice de identify (contrato V2-082: alias/nombre) para un widget ficticio con UN alias extra
-    (para forzar empates controlados). El nombre (id) va como alias implícito, igual que en `_aliases_of`."""
+    """Row from the identify index (V2-082 contract: alias/name) for a fictitious widget with ONE extra alias
+(to force controlled ties). The name (id) is included as an implicit alias, just as in `_aliases_of`."""
     aliases = [runtime._norm(wid), runtime._norm(kw)]
     return {"w": {"id": wid, "title": wid}, "aliases": aliases,
             "alias_tokens": {t for a in aliases for t in a.split()}}
 
 
 def test_tie_broken_by_open(monkeypatch):
-    # Dos widgets con la MISMA keyword → "cita" empata a ambos.
+    # Two widgets with the SAME keyword → "cita" ties them both.
     monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # Sin contexto: ambiguo, sin match.
+    # Without context: ambiguous, with no match.
     r = runtime.identify("una cita")
     assert r["match"] is None and r["ambiguous"] is True and r["score"] > 0
-    # Con 'agenda' ABIERTA: gana agenda.
+    # With 'agenda' OPEN: agenda wins.
     r = runtime.identify("una cita", open_ids=["agenda"])
     assert r["match"] == "agenda" and r["ambiguous"] is False
 
 
 def test_open_beats_recent(monkeypatch):
     monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # 'mensajeria' abierta, 'agenda' reciente → manda la ABIERTA (1ª capa).
+    # 'mensajeria' open, 'agenda' recent → the OPEN one wins (1st layer).
     r = runtime.identify("una cita", open_ids=["mensajeria"], recent_ids=["agenda"])
     assert r["match"] == "mensajeria"
 
 
 def test_recent_breaks_tie_when_nothing_open(monkeypatch):
     monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # Nada abierto, pero 'agenda' usada hace poco → gana por la 2ª capa.
+    # Nothing open, but 'agenda' recently used → it wins by the 2nd layer.
     r = runtime.identify("una cita", recent_ids=["agenda"])
     assert r["match"] == "agenda"
 
 
 def test_recent_normalises_instance_ids(monkeypatch):
     monkeypatch.setattr(runtime, "_identify_index", lambda: [_row("agenda", "cita"), _row("mensajeria", "cita")])
-    # ids de instancia (navegador::t1) se normalizan a la base.
+    # Instance ids (navegador::t1) are normalized to the base id.
     r = runtime.identify("una cita", recent_ids=["agenda::t9"])
     assert r["match"] == "agenda"
 
 
 def test_unambiguous_name_ignores_context(monkeypatch):
-    # 'agenda' gana por score (id-hit=3) aunque 'mensajeria' esté abierta → el contexto solo rompe EMPATES.
+    # 'agenda' wins by score (id-hit=3) even though 'mensajeria' is open → context only breaks TIES.
     monkeypatch.setattr(runtime, "_identify_index",
                         lambda: [_row("agenda", "cita"), _row("mensajeria", "mensaje")])
     r = runtime.identify("abre la agenda", open_ids=["mensajeria"])
@@ -54,7 +54,7 @@ def test_unambiguous_name_ignores_context(monkeypatch):
 
 
 def test_push_recent_widgets_mru(tmp_path, monkeypatch):
-    # MRU real contra el estado: dedup, la más reciente delante, cap.
+    # Real MRU behavior against state: deduplication, most recent first, cap.
     from memory import state
     seen = {}
 
@@ -68,12 +68,12 @@ def test_push_recent_widgets_mru(tmp_path, monkeypatch):
     monkeypatch.setattr(state, "write", _write)
     state.push_recent_widgets("agenda")
     state.push_recent_widgets(["mensajeria", "clock"])
-    state.push_recent_widgets("agenda")           # re-uso → sube al frente, sin duplicar
+    state.push_recent_widgets("agenda")           # Reuse → moves to the front, without duplication.
     out = _read()["recent_widgets"]
     assert out[0] == "agenda"
     assert out.count("agenda") == 1
     assert set(out) == {"agenda", "mensajeria", "clock"}
-    # cap: nunca crece sin límite
+    # Cap: never grows without limit.
     for i in range(20):
         state.push_recent_widgets(f"w{i}")
     assert len(_read()["recent_widgets"]) <= state._RECENT_CAP
@@ -82,9 +82,9 @@ def test_push_recent_widgets_mru(tmp_path, monkeypatch):
 def test_for_prompt_orders_and_marks():
     from widgets import brief
     txt = brief.for_prompt(open_ids=["agenda"], recent_ids=["clock"])
-    # El abierto se marca EN PANTALLA; el reciente, usado hace poco.
+    # The open widget is marked EN PANTALLA; the recent one, recently used.
     assert "EN PANTALLA" in txt and "usado hace poco" in txt
     lines = [l for l in txt.splitlines() if l.startswith("- ")]
     ids = [l.split()[1] for l in lines]
-    assert ids and ids[0] == "agenda"                 # el abierto va primero
-    assert ids.index("clock") < ids.index("mensajeria")  # el reciente antes que uno cualquiera del catálogo
+    assert ids and ids[0] == "agenda"                 # the open widget comes first
+    assert ids.index("clock") < ids.index("mensajeria")  # the recent one comes before any catalog item

@@ -1,16 +1,16 @@
-"""Tests del gate de sincronía actions↔apply_action del generador (V2-025)."""
+"""Tests for the generator's actions↔apply_action synchronization gate (V2-025)."""
 from widgets import generator
 
 
 def test_concise_id_strips_filler_and_caps():
-    """El id de un widget nuevo sale de las palabras de CONTENIDO, no de la instrucción entera (§2026-07-15:
-    'implementar en el widget youtube la capacidad…' daba el id-basura de 40 chars)."""
-    # sin verbo/relleno, 3 palabras de contenido como mucho
+    """A new widget's ID comes from the CONTENT words, not the entire instruction (§2026-07-15:
+    'implementar en el widget youtube la capacidad…' produced the 40-character junk ID)."""
+    # without verb/filler, at most 3 content words
     assert generator._concise_id("crea un widget del tiempo en Soria") == "tiempo-soria"
     got = generator._concise_id("Implementar en el widget youtube la capacidad de ampliarse a toda la pantalla")
     assert got == "youtube-ampliarse-toda"
     assert len(got) <= 40 and "implementar" not in got and "widget" not in got
-    # fallback: si todo es relleno, no revienta (cae al slug crudo)
+    # fallback: if everything is filler, it does not crash (falls back to the raw slug)
     assert generator._concise_id("crea un widget") != ""
 
 

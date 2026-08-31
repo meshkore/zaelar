@@ -1,7 +1,7 @@
-"""V2-457 — el visor de imágenes: un previsualizador, y nada más.
+"""V2-457 — the image viewer: a previewer, and nothing more.
 
-Se aísla el almacén en un tmp: un test unitario nunca escribe en los datos reales del operador — y este widget
-guarda en el mismo sitio del que `local` lee, así que sin aislar dejaría ficheros suyos en la máquina.
+The store is isolated in a tmp directory: a unit test never writes to the operator's real data — and this widget
+saves in the same place from which `local` reads, so without isolation it would leave its files on the machine.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ def _items(n=3):
              "page": "https://www.ferrari.com/x", "w": 1080, "h": 565, "weight": "68KB"} for i in range(n)]
 
 
-# ── enseñar un conjunto ─────────────────────────────────────────────────────────────────────────────────
+# ── show a set ───────────────────────────────────────────────────────────────────────────────────────────
 def test_show_deja_la_primera_en_grande_y_conserva_la_procedencia(data):
     r = data.apply_action("show", {"items": _items(3), "query": "Ferrari Amalfi", "source": "google"})
     assert r["ok"] and r["n"] == 3
@@ -52,30 +52,30 @@ def test_sin_miniatura_se_usa_la_grande(data):
 
 
 def test_un_show_vacio_NO_borra_lo_que_hay_en_pantalla(data):
-    """No encontrar nada no puede costarle al operador las fotos que ya tenía delante: se queda mirando una
-    caja vacía sin forma de volver. El parte honesto es que no se encontró nada (V2-377)."""
+    """Finding nothing must not cost the operator the photos that were already in front of them: they would be left looking at an
+    empty box with no way back. The honest report is that nothing was found (V2-377)."""
     data.apply_action("show", {"items": _items(2)})
     r = data.apply_action("show", {"items": []})
     assert r["ok"] is False
     assert data.view_data()["n"] == 2
 
 
-# ── moverse ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── navigate ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_siguiente_y_anterior_dan_la_vuelta(data):
     data.apply_action("show", {"items": _items(3)})
     assert data.apply_action("next")["i"] == 2
-    assert data.apply_action("previous")["i"] == 1     # de vuelta a la primera
-    assert data.apply_action("previous")["i"] == 3     # …y desde la primera, a la última
-    assert data.apply_action("next")["i"] == 1         # …y de la última a la primera
+    assert data.apply_action("previous")["i"] == 1     # back to the first
+    assert data.apply_action("previous")["i"] == 3     # …and from the first, to the last
+    assert data.apply_action("next")["i"] == 1         # …and from the last to the first
 
 
 def test_se_elige_por_numero_o_por_parte_del_titulo(data):
-    """El operador dice «la tercera» o «la de Ferrari», nunca un índice — y el modelo tampoco adivina ids
-    (V2-026), por eso la resolución vive aquí, al lado del dato contra el que resuelve."""
+    """The operator says «the third one» or «the Ferrari one», never an index — and the model does not guess ids
+    (V2-026), which is why resolution lives here, next to the data against which it resolves."""
     data.apply_action("show", {"items": _items(3)})
     assert data.apply_action("select", {"item": "3"})["i"] == 3
     assert data.apply_action("select", {"item": "vista 1"})["i"] == 2
-    assert data.apply_action("select", {"item": "ferrari.com"})["i"] == 1   # también por FUENTE
+    assert data.apply_action("select", {"item": "ferrari.com"})["i"] == 1   # also by SOURCE
     assert data.apply_action("select", {"item": "un koala"})["ok"] is False
 
 
@@ -94,8 +94,8 @@ def test_add_no_pierde_las_de_antes_ni_mueve_la_grande(data):
 
 
 def test_la_foto_actual_es_un_INDICE_no_una_copia(data):
-    """Guardar el item duplicado hace que la grande y la miniatura marcada se separen en cuanto el conjunto
-    se recarga: es el único fallo que un visor de fotos no puede tener."""
+    """Storing the duplicated item makes the large image and the selected thumbnail diverge as soon as the set
+    reloads: it is the one failure a photo viewer cannot have."""
     data.apply_action("show", {"items": _items(3)})
     data.apply_action("select", {"item": "2"})
     v = data.view_data()
@@ -112,7 +112,7 @@ def test_un_indice_fuera_de_rango_se_recorta_en_vez_de_reventar(data):
     assert v["i"] == 2 and v["current"]
 
 
-# ── lo guardado en este equipo ──────────────────────────────────────────────────────────────────────────
+# ── what is stored on this device ────────────────────────────────────────────────────────────────────────
 def test_local_lee_las_imagenes_del_disco_y_las_sirve_por_su_ruta(data, tmp_path):
     from widgets import store
     d = store.data_dir(data.WIDGET_ID)
@@ -126,8 +126,8 @@ def test_local_lee_las_imagenes_del_disco_y_las_sirve_por_su_ruta(data, tmp_path
 
 
 def test_un_svg_no_entra(data):
-    """Un SVG es un documento que puede llevar script dentro, no solo una imagen — y esto pinta ficheros que
-    vienen de resultados de búsqueda."""
+    """An SVG is a document that may contain a script, not just an image — and this renders files that
+    come from search results."""
     assert ".svg" not in data._EXT
 
 
@@ -138,10 +138,10 @@ def test_local_sin_nada_guardado_lo_dice_y_no_vacia_la_pantalla(data):
     assert data.view_data()["n"] == 2
 
 
-# ── contrato ────────────────────────────────────────────────────────────────────────────────────────────
+# ── contract ─────────────────────────────────────────────────────────────────────────────────────────────
 def test_las_acciones_declaradas_son_EXACTAMENTE_las_que_hace(data):
-    """Una acción declarada que `apply_action` no atiende es una entrada muerta; una que atiende y no declara
-    es invisible para el cerebro. El gate del generador rechaza las dos, así que se comprueba aquí también."""
+    """A declared action that `apply_action` does not handle is a dead entry; one that it handles but does not declare
+    is invisible to the brain. The generator gate rejects both, so this is checked here as well."""
     import json
     here = os.path.dirname(os.path.abspath(data.__file__))
     with open(os.path.join(here, "manifest.json"), encoding="utf-8") as fh:
@@ -165,21 +165,21 @@ def test_view_data_nunca_revienta(data):
     assert data.view_data("cualquier cosa")["items"] == []
 
 
-# ── V2-463 — el select entiende una frase y su fallo enseña el menú ─────────────────────────────────────
+# ── V2-463 — select understands a sentence and its failure shows the menu ───────────────────────────────
 def test_una_FRASE_con_el_titulo_dentro_resuelve(data):
-    """Medido: el modelo pide «la que sea claramente del Amalfi», nunca un fragmento limpio. La frase entera
-    no es subcadena de ningún título, pero su token con contenido («amalfi») sí — y resuelve a la PRIMERA
-    coincidencia, que con un conjunto homogéneo es la mejor lectura de «una que sea de ese coche»."""
+    """Measured: the model asks for «the one that is clearly from the Amalfi», never a clean fragment. The full sentence
+    is not a substring of any title, but its meaningful token («amalfi») is — and it resolves to the FIRST
+    match, which with a homogeneous set is the best interpretation of «one that is from that car»."""
     data.apply_action("show", {"items": _items(3)})
     r = data.apply_action("select", {"item": "la que sea claramente del Amalfi"})
     assert r["ok"] and r["i"] == 1
-    # …y el número 1-based sigue mandando cuando lo dan limpio (la ruta de siempre, intacta):
+    # …and the 1-based number still takes precedence when given cleanly (the usual path, unchanged):
     assert data.apply_action("select", {"item": "3"})["i"] == 3
 
 
 def test_un_select_sin_item_pide_y_ENSEÑA_el_menu(data):
-    """El literal medido era «no encuentro esa imagen (None)» — tres veces en una ronda, y el modelo contestó
-    «te la dejo puesta» sobre el fallo. Con las opciones en el error, el turno siguiente puede elegir."""
+    """The measured literal was «I can't find that image (None)» — three times in one round, and the model replied
+    «I'll leave it displayed» after the failure. With the options in the error, the next turn can choose."""
     data.apply_action("show", {"items": _items(2)})
     r = data.apply_action("select", {})
     assert r["ok"] is False
@@ -193,11 +193,11 @@ def test_un_select_imposible_dice_que_no_y_enseña_lo_que_hay(data):
     assert r["ok"] is False and "koala" in r["error"] and "1:" in r["error"]
 
 
-# ── V2-465 — teclado ────────────────────────────────────────────────────────────────────────────────────
+# ── V2-465 — keyboard ────────────────────────────────────────────────────────────────────────────────────
 def test_las_flechas_pasan_fotos_y_no_roban_al_que_escribe():
-    """El tercero de la familia sin teclas: `musica` y `youtube` ya las tenían. Se comprueba la FUENTE
-    porque el comportamiento vive en el navegador — y las dos mitades importan: que las flechas actúen, y
-    que NO se las quiten a un campo de texto (el chat vive en la misma pantalla)."""
+    """The third of the keyless family: `musica` and `youtube` already had them. The SOURCE is checked
+    because the behavior lives in the browser — and both halves matter: that the arrows work, and
+    that they are NOT taken away from a text field (the chat lives on the same screen)."""
     import pathlib
     js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "imagenes"
           / "widget.js").read_text(encoding="utf-8")

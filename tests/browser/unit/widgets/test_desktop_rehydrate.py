@@ -1,13 +1,13 @@
 """
-test_desktop_rehydrate.py — el ESCRITORIO tiene que volver como estaba.
+test_desktop_rehydrate.py — the DESKTOP must come back as it was.
 
-Incidente del 2026-08-12: con una búsqueda en marcha el canvas tenía `['navegador::t1', 'navegador']`; el operador
-recargó y se quedó en blanco. No fue un fallo de guardado — era el DISEÑO: `_persist()` excluía `navegador` por
-nombre, o sea justo el widget que está en pantalla durante una tarea web. Y el único almacén era el `localStorage`,
-que es **per-origen y per-navegador**: el mismo zaelar por `http://localhost:43917` y por
-`https://local.zaelar.com:44317` son dos escritorios distintos, así que cambiar de puerta de entrada también parece
-pérdida de datos. Aquí se fijan las tres piezas: qué se guarda, de dónde se restaura, y que Procesos no mienta
-sobre lo que se cortó.
+Incident on 2026-08-12: with a search in progress, the canvas contained `['navegador::t1', 'navegador']`; the operator
+reloaded and it came back blank. It was not a saving failure — it was the DESIGN: `_persist()` excluded `navegador` by
+name, namely the widget that is on screen during a web task. And the only storage was `localStorage`,
+which is **per-origin and per-browser**: the same zaelar at `http://localhost:43917` and at
+`https://local.zaelar.com:44317` are two different desktops, so changing the entry point also looks like data loss.
+This fixes the three pieces: what is saved, where it is restored from, and that Processes does not lie
+about what was interrupted.
 """
 import asyncio
 import json
@@ -43,26 +43,26 @@ def _desktop() -> str:
     return DESKTOP.read_text(encoding="utf-8")
 
 
-# ── 1. qué se guarda: la tarjeta del navegador SÍ, sus pestañas NO ───────────────────────────────────────────
+# ── 1. what is saved: the browser card YES, its tabs NO ───────────────────────────────────────────────────────
 def test_the_browser_card_is_no_longer_excluded_from_the_desktop():
-    """Era el ÚNICO widget excluido por nombre — y el que estaba en pantalla cuando todo se fue en blanco."""
+    """It was the ONLY widget excluded by name — and the one on screen when everything went blank."""
     src = _desktop()
     assert 'id==="navegador"' not in src.replace(" ", "")
 
 
 def test_instance_cards_persist_and_a_dead_tab_is_filtered_at_restore():
-    """DECISIÓN SUPERADA (V2-351, orden del operador 2026-08-26): las tarjetas-INSTANCIA también se guardan.
+    """SUPERSEDED DECISION (V2-351, operator instruction 2026-08-26): INSTANCE cards are also saved.
 
-    La regla vieja («navegador::t1 es UNA pestaña de UNA tarea: restaurarla pintaría algo que ya no existe»)
-    excluía TODO id con `::` — y con él la hoja del encargo (`results::ece70b-1`), cuyos datos SÍ persisten en
-    disco: el operador refrescó en mitad del trabajo y leyó «Sin resultados todavía» encima de una hoja con 12
-    candidatos reales (medido: /api/canvas/layout solo guardaba [{id:"results"}]). El espíritu de la regla vieja
-    se conserva DONDE era verdad: una instancia de navegador SIN tarea viva detrás se filtra en el restore
-    (contra la lista `live` del servidor), porque su tarjeta es estado de proceso, no una hoja persistida."""
+    The old rule ("navegador::t1 is ONE tab of ONE task: restoring it would paint something that no longer exists")
+    excluded EVERY id containing `::` — and with it the errand sheet (`results::ece70b-1`), whose data DOES persist on
+    disk: the operator refreshed mid-task and read "No results yet" over a sheet with 12
+    real candidates (measured: /api/canvas/layout only saved [{id:"results"}]). The spirit of the old rule
+    is preserved WHERE it was true: a browser instance with NO live task behind it is filtered during restore
+    (against the server's `live` list), because its card is process state, not a persisted sheet."""
     src = _desktop()
     layout = src[src.index("_layout()"):src.index("_persist()")]
     assert 'id.includes("::")' not in layout.split("//",1)[0] or True
-    # la EXCLUSIÓN ya no existe en _layout (el comentario puede nombrarla; el código no puede ejecutarla):
+    # The EXCLUSION no longer exists in _layout (the comment may mention it; the code must not execute it):
     code_lines = [l for l in layout.splitlines() if not l.strip().startswith("//")]
     assert not any('includes("::")' in l and "return" in l for l in code_lines), layout
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
@@ -70,9 +70,9 @@ def test_instance_cards_persist_and_a_dead_tab_is_filtered_at_restore():
 
 
 def test_a_fossil_base_card_next_to_its_instance_is_swept_at_restore():
-    """El FANTASMA del informe de ronda («la pieza BASE encima de su propia instancia, vacía»): una base pelada
-    junto a una instancia de su misma base es el fósil del eco pre-V2-261, y el restore lo barre. Una base SOLA
-    sigue siendo legítima (el operador abrió la pieza sin encargo detrás)."""
+    """The report's GHOST ("the BASE piece above its own, empty instance"): a bare base
+    next to an instance of that same base is the fossil of the pre-V2-261 echo, and restore sweeps it away. A base ALONE
+    remains legitimate (the operator opened the piece with no errand behind it)."""
     src = _desktop()
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
     assert "bases" in restore and 'split("::",1)[0]' in restore
@@ -80,37 +80,37 @@ def test_a_fossil_base_card_next_to_its_instance_is_swept_at_restore():
 
 
 def test_live_errands_come_back_even_if_this_desktop_never_saved_them():
-    """`live` del servidor se FUSIONA: la tarjeta que se abrió con la página cerrada también vuelve."""
+    """The server's `live` list is MERGED: the card opened with the page closed also comes back."""
     src = _desktop()
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
     assert "srv.live" in restore
 
 
 def test_the_geometry_travels_to_the_server_too():
-    """El server es la red de seguridad del localStorage: sin esto, otro navegador no puede restaurar nada."""
+    """The server is localStorage's safety net: without this, another browser cannot restore anything."""
     src = _desktop()
     report = src[src.index("_reportOpen()"):src.index("async restore()")]
     assert "layout:this._layout()" in report.replace(" ", "")
     assert "/api/canvas/state" in report
 
 
-# ── 2. de dónde se restaura: local primero, server como red ─────────────────────────────────────────────────
+# ── 2. where it is restored from: local first, server as the safety net ─────────────────────────────────────
 def test_restore_falls_back_to_the_server_when_this_browser_has_nothing():
     src = _desktop()
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
     assert "/api/canvas/layout" in restore
-    # …y SOLO como fallback: si este navegador tiene su escritorio, manda él (sigue siendo autoritativo del canvas).
+    # …and ONLY as a fallback: if this browser has its desktop, it wins (it remains authoritative for the canvas).
     assert restore.index("hb_desktop") < restore.index("/api/canvas/layout")
 
 
 def test_a_reset_still_wins_over_any_rehydration():
-    """La época de wipe se comprueba ANTES: un reset deja el escritorio en blanco y nadie lo resucita."""
+    """The wipe epoch is checked FIRST: a reset leaves the desktop blank and no one resurrects it."""
     src = _desktop()
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
     assert restore.index("/api/desktop/epoch") < restore.index("/api/canvas/layout")
 
 
-# ── 3. el viaje completo por el servidor (guardar → recuperar) ──────────────────────────────────────────────
+# ── 3. the full trip through the server (save → recover) ────────────────────────────────────────────────────
 def _body(resp) -> dict:
     return json.loads(bytes(resp.body).decode("utf-8"))
 
@@ -123,7 +123,7 @@ def test_the_server_remembers_the_desktop_across_a_restart(fresh_db):
     asyncio.run(canvas_state({"open": ["results::ab12cd-1", "navegador"], "layout": layout}))
 
     got = _body(asyncio.run(canvas_layout()))
-    # V2-351: la INSTANCIA viaja entera — es la tarjeta que el operador estaba mirando de verdad
+    # V2-351: the INSTANCE travels intact — it is the card the operator was actually looking at
     assert [it["id"] for it in got["items"]] == ["results::ab12cd-1", "navegador"]
     assert got["items"][0]["left"] == "120px"
 
@@ -132,11 +132,11 @@ def test_asking_for_a_desktop_that_was_never_saved_is_not_an_error(fresh_db):
     from server.voice_api import canvas_layout
     got = _body(asyncio.run(canvas_layout()))
     assert got["items"] == [] and got["at"] == 0
-    assert isinstance(got.get("live"), list)          # V2-351: lista vacía = «no sé», nunca ausente
+    assert isinstance(got.get("live"), list)          # V2-351: empty list = "I don't know", never absent
 
 
 def test_the_layout_reports_the_errands_running_right_now(fresh_db, monkeypatch):
-    """V2-351 — `live`: la hoja de cada encargo vivo con superficie de hoja + cada pestaña de navegador."""
+    """V2-351 — `live`: the sheet for each live errand with a sheet surface + each browser tab."""
     import server.voice_api as V
 
     class _Rec:
@@ -147,25 +147,25 @@ def test_the_layout_reports_the_errands_running_right_now(fresh_db, monkeypatch)
     monkeypatch.setattr(_d, "_sheet_sessions", lambda: [_Rec()], raising=False)
     from widgets.navegador import tasks as _t
     monkeypatch.setattr(_t, "all_ids", lambda: ["t1"], raising=False)
-    # Por el ENDPOINT, no por el helper: la guarda tiene que enrojecer también si el cableado se desconecta
-    # (medido construyéndola: gutting `live = _live_canvas_instances()` dejaba verde una cara que llamaba al
-    # helper a pelo).
+    # Through the ENDPOINT, not the helper: the guard must also turn red if the wiring is disconnected
+    # (measured by constructing it: gutting `live = _live_canvas_instances()` left a face green that called the
+    # helper directly).
     got = _body(asyncio.run(V.canvas_layout()))
     assert "results::ec70b-1" in got["live"] and "navegador::t1" in got["live"], got
 
 
 def test_the_desktop_geometry_never_reaches_the_prompt(fresh_db):
-    """Las coordenadas de una tarjeta son ruido para el cerebro: van a `sys_kv`, no al ESTADO raíz.
+    """A card's coordinates are noise for the brain: they go to `sys_kv`, not the root STATE.
 
-    No es cosmético: `memory.api.compose_state` VUELCA cada escalar suelto del estado al prompt como
-    «Clave: valor.» — un campo nuevo ahí se cuela en todos los turnos."""
+    This is not cosmetic: `memory.api.compose_state` DUMPS every loose scalar from the state into the prompt as
+    "Key: value." — a new field there leaks into every turn."""
     from memory import api as memapi
     from server.voice_api import canvas_state
     asyncio.run(canvas_state({"open": ["results"],
                               "layout": [{"id": "results", "left": "120px", "top": "80px", "z": "22"}]}))
     st = memapi.state()
-    assert st["open_widgets"] == ["results"]                     # esto SÍ (el cerebro lo necesita)
-    assert "120px" not in json.dumps(st, ensure_ascii=False, default=str)     # la geometría, NO
+    assert st["open_widgets"] == ["results"]                     # this YES (the brain needs it)
+    assert "120px" not in json.dumps(st, ensure_ascii=False, default=str)     # the geometry, NO
 
 
 def test_a_layout_report_without_geometry_still_works(fresh_db):
@@ -175,9 +175,9 @@ def test_a_layout_report_without_geometry_still_works(fresh_db):
     assert r.status_code == 200
 
 
-# ── 4. Procesos no puede mentir sobre lo que se cortó ───────────────────────────────────────────────────────
+    # ── 4. Processes cannot lie about what was interrupted ────────────────────────────────────────────────────
 def test_interrupted_work_is_not_painted_as_a_success():
-    """Antes CUALQUIER estado desconocido caía a "done" con un ✓: una tarea muerta se veía terminada bien."""
+    """Previously ANY unknown state fell back to "done" with a ✓: a dead task looked properly completed."""
     src = CHATWALL.read_text(encoding="utf-8")
     row = src[src.index("const histRow"):src.index("const procBody")]
     assert '"interrumpido"' in row
@@ -185,10 +185,10 @@ def test_interrupted_work_is_not_painted_as_a_success():
 
 
 # ── 5. ESCALAR la tarjeta a mano y que el esfuerzo no se pierda (2026-08-12) ─────────────────────────────────
-# Petición del operador para la hoja de resultados, resuelta en el CANVAS porque vale para cualquier widget: «si
-# yo lo quiero a pantalla completa tiene que ocupar gran parte del frontend, o lo puedo mover a mano pinchando en
-# las esquinas». Hasta hoy solo existía el fullscreen NATIVO (que tapa el orbe y el chat, así que agrandar la hoja
-# para hablar sobre ella con zaelar era imposible) y un `resize` por voz que ni siquiera se guardaba.
+# Operator request for the results sheet, resolved in the CANVAS because it applies to every widget: "if
+# I want it full-screen it has to occupy a large part of the frontend, or I can move it manually by grabbing
+# the corners". Until now there was only NATIVE fullscreen (which covers the orb and chat, making it impossible
+# to enlarge the sheet while talking about it with zaelar) and a voice-driven `resize` that was not even saved.
 def test_every_card_can_be_grabbed_by_its_corners_and_edges():
     src = _desktop()
     for dir_ in ("nw", "ne", "sw", "se", "n", "s", "e", "w"):
@@ -197,8 +197,8 @@ def test_every_card_can_be_grabbed_by_its_corners_and_edges():
 
 
 def test_the_size_the_operator_chose_survives_a_refresh():
-    """Sin esto, agrandar la hoja para leerla a gusto y recargar la devolvía a su tamaño de fábrica — la forma
-    más rápida de que una función no se use."""
+    """Without this, enlarging the sheet for comfortable reading and reloading returned it to its factory size — the
+    fastest way to ensure a feature is never used."""
     src = _desktop()
     layout = src[src.index("_layout()"):src.index("_persist()")]
     assert "w:c.style.width" in layout.replace(" ", "") and "h:c.style.height" in layout.replace(" ", "")
@@ -206,9 +206,9 @@ def test_the_size_the_operator_chose_survives_a_refresh():
 
 
 def test_fullscreen_keeps_the_voice_reachable_unless_the_widget_says_otherwise():
-    """«Pantalla completa» son DOS cosas. La nativa tapa el resto de zaelar: perfecta para un vídeo, pésima para
-    una hoja de resultados —el operador la agranda JUSTO para seguir corrigiendo la búsqueda por voz—. Así que
-    por defecto se maximiza DENTRO de la app, y la nativa la pide el widget en su manifest."""
+    """"Full-screen" means TWO things. Native full-screen covers the rest of zaelar: perfect for a video, awful for
+    a results sheet —the operator enlarges it PRECISELY to keep correcting the search by voice—. So
+    by default it is maximized INSIDE the app, and the widget requests native full-screen in its manifest."""
     src = _desktop()
     fs = src[src.index("\n  fullscreen(id){"):src.index("nativeFullscreen(id){")]
     assert 'fullscreen === "native"' in fs and "this.maximize(id)" in fs
@@ -219,15 +219,15 @@ def test_fullscreen_keeps_the_voice_reachable_unless_the_widget_says_otherwise()
 
 
 def test_maximizing_is_a_toggle_that_can_be_undone():
-    """Si no, «ponlo grande» sería una operación de ida sin vuelta y habría que recolocar la tarjeta a mano."""
+    """Otherwise, "make it big" would be a one-way operation and the card would have to be repositioned manually."""
     src = _desktop()
     mx = src[src.index("maximize(id){"):src.index("_addHandles(card){")]
     assert "card._restore" in mx and "card._restore = null" in mx
 
 
 def test_a_widget_can_declare_the_size_it_needs_to_be_readable():
-    """Una superficie de ancho fluido no puede deducir su tamaño del contenido: encogería a su tarjeta más
-    estrecha. Lo declara el manifest y lo aplica el canvas — y solo si el operador no dejó uno suyo."""
+    """A fluid-width surface cannot infer its size from its content: it would shrink to its narrowest card.
+    The manifest declares it and the canvas applies it — only if the operator has not set a size of their own."""
     src = _desktop()
     assert "_applyPreferred(w.card, baseId)" in src
     assert "!(pos && (pos.w || pos.h))" in src, "el tamaño guardado por el operador manda sobre el preferido"
@@ -238,11 +238,11 @@ def test_a_widget_can_declare_the_size_it_needs_to_be_readable():
 
 
 def test_the_scroller_is_a_wrapper_the_widget_cannot_clobber():
-    """Dos cosas a la vez. (a) Con la tarjeta ENTERA scrolleando, los tiradores —absolutos— se iban con el
-    contenido y no se podían agarrar. (b) El scroller no puede ser el div del propio widget: un `widget.js` hace
-    `el.className="hb-loquesea"` y se lleva por delante cualquier clase que le pongamos a su raíz, así que una
-    regla sobre `.hb-body` no aplicaba a NADIE (cazado en vivo el 2026-08-12, con el scroll ya escrito y sin
-    funcionar). El scroll es chrome de la tarjeta, como el grip o la ×."""
+    """Two things at once. (a) With the ENTIRE card scrolling, the —absolute— handles moved with the
+    content and could not be grabbed. (b) The scroller cannot be the widget's own div: a `widget.js` sets
+    `el.className="hb-loquesea"` and overwrites any class we put on its root, so a rule on `.hb-body` applied to
+    NOBODY (caught live on 2026-08-12, with scrolling already written and not working). Scrolling is card chrome,
+    like the grip or the ×."""
     src = _desktop()
     assert ".hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")
     assert "scroll.appendChild(body)" in src, "el widget monta DENTRO del scroller, no ES el scroller"
@@ -250,8 +250,8 @@ def test_the_scroller_is_a_wrapper_the_widget_cannot_clobber():
 
 
 def test_navigating_returns_to_the_top_but_live_data_does_not_move_the_page():
-    """«Ver detalle →» vive al final de una tarjeta: sin volver arriba el expediente se abre por la mitad. Pero un
-    `append` del worker mientras el operador lee NO puede arrancarle la página de las manos."""
+    """"View details →" lives at the bottom of a card: without returning to the top, the record opens halfway down. But an
+    `append` from the worker while the operator is reading must NOT yank the page out of their hands."""
     src = _desktop()
     assert "top:()=>{" in src.replace(" ", "").replace("top:()=>{", "top:()=>{"), "el canvas ofrece el «vuelve arriba»"
     assert ".hb-scroll" in src

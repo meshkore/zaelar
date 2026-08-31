@@ -1,4 +1,4 @@
-"""Expone a pytest/Test Observatory el contrato de PANTALLA de la rejilla de cosecha (el porqué, en el .mjs)."""
+"""Exposes the harvest grid's SCREEN contract to pytest/Test Observatory (the rationale is in the .mjs)."""
 
 import shutil
 import subprocess
