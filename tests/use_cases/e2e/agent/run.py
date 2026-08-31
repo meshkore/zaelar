@@ -89,7 +89,7 @@ def engine_autopsy(err: str) -> dict:
 
 
 def _await_seed_landing(probe: str, *, budget_s: float = 45.0, poll_s: float = 3.0) -> tuple:
-    """Sondea el recall hasta ver la siembra, y distingue al volver si ALGUIEN llegó a contestar (V2-400):
+    """Poll recall until the seed appears, and distinguish on return whether ANYONE managed to answer (V2-400):
     `recall` devuelve None cuando la petición cae, y sin `asked_ok` un motor caído 15 veces seguidas se
     reportaba como «se preguntó y no estaba». Extraída del cuerpo de `_run_scenario` para poder conducirla
     con un recall suplantado — la propiedad no se puede asertar sobre un bucle enterrado en 600 líneas."""
@@ -131,11 +131,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
     transcript: list[dict] = []
     mute_turns: list[int] = []
-    # LO QUE EL CEREBRO PIDIÓ EN CADA TURNO (V2-398). Llegaba en la respuesta del probe —`tool_calls`,
-    # `action`, `executed`— y se descartaba en la misma línea en que se leía el texto. Sin esto, «pidió A en
-    # vez de B» y «pidió A y B, y B lo rechazó el widget en silencio» se leen igual en el transcript, y son
-    # dos dueños distintos (V2-394). Medido en `play-music-and-build-playlist`: el juez escribió «subió el
-    # volumen en vez de guardar la canción» DEDUCIÉNDOLO del texto, porque `audit.tools_run` venía vacío.
+    # WHAT THE BRAIN REQUESTED ON EACH TURN (V2-398). It arrived in the probe response —`tool_calls`,
+    # `action`, `executed`— and was discarded on the same line that read the text. Without this, «requested A
+    # instead of B» and «requested A and B, and the widget silently rejected B» look identical in the transcript,
+    # yet have two different owners (V2-394). Measured in `play-music-and-build-playlist`: the judge wrote
+    # «raised the volume instead of saving the song» by DEDUCING it from the text, because `audit.tools_run` was empty.
     turn_actions: list[dict] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
@@ -156,10 +156,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
 
-    # ── siembra de memoria (solo casos de descubrimiento) ────────────────────────────────────────────────
-    # Se manda por el probe con `ingest=True` en una sesión APARTE y se comprueba con un recall que aterrizó.
-    # La sesión aparte es el punto: si las preferencias se dijeran en el mismo hilo, el agente las tendría en
-    # la ventana conversacional y el caso ya no probaría memoria.
+    # ── memory seeding (discovery cases only) ────────────────────────────────────────────────────────────────
+    # It is sent through the probe with `ingest=True` in a SEPARATE session and checked with recall that it landed.
+    # The separate session is the point: if the preferences were stated in the same thread, the agent would have
+    # them in its conversation window and the case would no longer test memory.
     seed_report: dict = {}
     if getattr(scenario, "memory_seed", None):
         seed_session = f"{session}-seed"
@@ -170,15 +170,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 probe_client.say(line, seed_session, execute=False, ingest=True)
             except Exception as e:
                 print(f"    ✗ siembra falló: {e}")
-        # El CORAZÓN de escritura es asíncrono a propósito (invariante: escribir puede ser lento). Se espera a
-        # verlo en el recall en vez de dormir un número inventado — y si no llega, se dice.
+        # The HEART of writing is intentionally asynchronous (invariant: writing may be slow). Wait to see it in
+        # recall instead of sleeping for an invented number — and say so if it never arrives.
         probe = scenario.seed_probe_query or (scenario.memory_seed[0][:40] if scenario.memory_seed else "")
         landed, asked_ok, waited = _await_seed_landing(probe)
         seed_report = seed_outcome(sown=len(scenario.memory_seed), landed=landed, asked_ok=asked_ok,
                                    waited=waited, probe=probe)
         print(f"    {'✓' if landed else '⚠️'} siembra {'verificada' if landed else 'NO verificada'} "
               f"en recall tras {waited:.0f}s")
-        probe_client.reset(session)      # la petición real arranca con la ventana LIMPIA
+        probe_client.reset(session)      # the real request starts with a CLEAN window
 
     utterance = driver.opening()
     note("tester", utterance)
@@ -292,12 +292,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # false "worker"/"widget" signal to a scenario that never actually triggered one itself.
     if concurrency is not None:
         concurrency.sample(at_turn=-1)      # final read: what was still in flight when the talking stopped
-    # ESPERAR AL SILENCIO ANTES DE LEER, NO DESPUÉS (V2-397). `wait_for_quiescence` existe exactamente para
-    # esto y su docstring lo dice —«so the mechanism is read after the round, not during it»— pero se llamaba
-    # DESPUÉS de componer el informe, así que protegía las columnas del final y dejaba a la intemperie el
-    # TRONCO: el flujo de eventos del que salen las familias, `widget_ops`, `sheet_instances`,
-    # `dropped_actions` y la auditoría entera. En 131 de las 215 rondas archivadas la espera acaba en el tope
-    # con trabajo vivo, así que la foto se sacaba a media faena y nadie lo decía.
+    # WAIT FOR QUIESCENCE BEFORE READING, NOT AFTER (V2-397). `wait_for_quiescence` exists exactly for
+    # this and its docstring says so —«so the mechanism is read after the round, not during it»— but it was called
+    # AFTER composing the report, so it protected the final columns while leaving the TRUNK exposed: the event
+    # flow from which families, `widget_ops`, `sheet_instances`, `dropped_actions`, and the entire audit emerge.
+    # In 131 of the 215 archived rounds, the wait reached the cap with live work, so the snapshot was taken
+    # mid-operation and nobody said so.
     quiescence = verifymod.wait_for_quiescence(config.SANDBOX_DB) if config.SANDBOX_DB else None
     live_session_id = probe_client.current_session_id()
     # `or []` and NOT a default inside the reader: both now answer `None` for "nobody answered", and that
@@ -320,9 +320,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         mech["widget_ops_by_turn"] = verifymod.widget_ops_by_turn(all_events, transcript)
     except Exception:  # noqa: BLE001
         pass
-    # V2-400 — el flujo CRUDO contra el techo del lector, ANTES del filtro por tiempo (el filtro esconde el
-    # recorte). Nunca ha mordido (máx histórico 1.128 sobre 4.000), pero el día que muerda sería invisible:
-    # familias, widget_ops y la auditoría entera saldrían de un flujo recortado sin que nada lo dijera.
+    # V2-400 — the RAW stream against the reader's ceiling, BEFORE the time filter (the filter hides the
+    # truncation). It has never hit (historical maximum 1,128 of 4,000), but the day it does it would be invisible:
+    # families, widget_ops, and the entire audit would come from a truncated stream without anything saying so.
     if len(_raw_events) >= 4000:
         mech["event_stream_at_cap"] = {"raw": len(_raw_events), "limit": 4000}
     # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
@@ -359,19 +359,19 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["progress"] = verifymod.progress_phases(config.SANDBOX_DB, since=started_at)
             mech["surfaces"] = verifymod.declared_surfaces(config.SANDBOX_DB, since=started_at)
             mech["sheet_timing"] = verifymod.sheet_timing(config.SANDBOX_DB, since=started_at)
-            # …Y CONTRA EL ÚLTIMO TURNO, que es lo que separa «no entregó nunca» de «llegó tarde». `sheet_timing`
-            # se medía desde V2-227 y NO LO LEÍA NADIE — ni el juez ni el informe. Medido en la tanda del
+            # …AND AGAINST THE LAST TURN, which is what separates «never delivered» from «arrived late». `sheet_timing`
+            # had been measured since V2-227 and NO ONE READ IT — neither the judge nor the report. Measured in the
             # 2026-08-24: tres casos entregaron en el turno 9 de 10 porque la hoja se llena a los 130-220 s y la
-            # conversación dura ~120; el juez, sin este dato, escribió «tuvo resultados y no los entregó» en dos
-            # de ellos. La distinción no es de matiz: una manda a arreglar la conducta y la otra la LATENCIA.
+            # conversation lasts ~120; without this datum, the judge wrote «had results and did not deliver them» for two
+            # of them. The distinction is not a nuance: one sends us to fix behavior and the other LATENCY.
             mech["sheet_timing"]["last_turn_ms"] = (transcript[-1].get("at") or 0) * 1000 if transcript else None
             _lt = mech["sheet_timing"].get("last_turn_ms")
-            # CONTRA LA HOJA, no contra la narración del navegador. `first_result_ms` mide cuándo el navegador
-            # CONTÓ una extracción; lo que decide si el operador pudo enterarse es cuándo la HOJA empezó a
+            # AGAINST THE SHEET, not the browser narration. `first_result_ms` measures when the browser
+            # COUNTED an extraction; what determines whether the operator could know is when the SHEET began to
             # recibir filas. Medido en la ronda de las 18:02 sobre la misma hoja: filas a las 18:02:39 y
             # narración a las 18:14:36 — DOCE MINUTOS de diferencia, y todo lo que se decidió con este campo
-            # («llegó antes» / «llegó tarde») se decidió contra el reloj equivocado. Se conserva el viejo con
-            # su propio nombre porque contesta otra pregunta que también interesa.
+            # («arrived early» / «arrived late») used the wrong clock. The old field keeps its own name
+            # because it answers another question that also matters.
             _rows = mech["sheet_timing"].get("sheet_rows_ms")
             mech["sheet_timing"]["after_last_turn_s"] = (
                 round((_rows - _lt) / 1000.0, 1) if (_rows and _lt) else None)
@@ -391,21 +391,21 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 [{"title": x} for x in offered.get("titles") or []], transcript)
             wo["n_offered"] = offered.get("n_offered", 0)
             mech["worker_outcome"] = wo
-            # POR DÓNDE ESTUVO, no dónde se quedó (V2-512). El informe publicaba el ÚLTIMO url y con eso yo
-            # conté que el agente «se quedó en la portada de Amazon»: había pasado por la página de resultados
-            # correcta dos pasos antes, y por Best Buy después. Un campo terminal no puede contar un proceso.
+            # WHERE IT WENT, not where it stopped (V2-512). The report published the LAST URL, leading me to
+            # count that the agent «stayed on Amazon's home page»: it had passed through the correct results page
+            # two steps earlier, and then through Best Buy. A terminal field cannot describe a process.
             mech["page_journey"] = verifymod.page_journey(config.SANDBOX_DB, since=started_at)
             # DELIVERY LAG, computed HERE and not left for the judge to infer (V2-300). Round 25: rows landed
             # 21:37:08, zaelar named them 21:37:36 — 28 s, the very next turn — and the judge, holding a raw
             # epoch it cannot cross with turn numbers, wrote «lo tuvo 123 segundos y calló» [alta]. A number
             # the harness can compute exactly must never be estimated by the model reading the report.
             try:
-                # V2-355 — el reloj ESTRICTO manda: `sheet_rows_ms` arranca con la primera escritura de un
-                # productor (criterios, título, el plan del worker) y con eso cronometró 130,8 s de
-                # «retención» en `search-buy-camera__es` con la primera página abierta a los 62,3 s. El
-                # intake del navegador es el único instante en que hay candidatos de verdad. El flojo queda
-                # de RESPALDO —una ronda sin intake pero con entrega por el puente sigue midiéndose— y se
-                # dice cuál se usó, porque un número sin su procedencia es el que nadie audita.
+                # V2-355 — the STRICT clock rules: `sheet_rows_ms` starts with the first write by a
+                # producer (criteria, title, the worker's plan) and thereby timed 130.8 s of
+                # «retention» in `search-buy-camera__es`, with the first page opened at 62.3 s. Browser intake
+                # is the only instant when real candidates exist. The weak clock remains as BACKUP —a round with
+                # no intake but delivery through the bridge is still measured— and we say which one was used,
+                # because nobody audits a number without its provenance.
                 _st = mech.get("sheet_timing") or {}
                 _rows_at = _st.get("sheet_named_ms") or _st.get("sheet_rows_ms")
                 _st["delivery_clock"] = "intake" if _st.get("sheet_named_ms") else "primera escritura"
@@ -424,11 +424,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # this report until 2026-08-21, when an audit found it was reading 490 of 1291 events — and both
             # were carrying the answer to the round that was failing.
             mech["worker_health"] = verifymod.worker_health(config.SANDBOX_DB, since=started_at)
-            # …Y CUÁNTOS DE ELLOS HACÍAN LO MISMO. «4 lanzados» se lee como concurrencia sana; cuatro
-            # workers sobre el MISMO encargo es una factura por cuatro y una pantalla llena de tarjetas.
+            # …AND HOW MANY OF THEM DID THE SAME THING. «4 launched» reads as healthy concurrency; four
+            # workers on the SAME assignment is a fourfold bill and a screen full of cards.
             mech["duplicate_errands"] = verifymod.duplicate_errands(config.SANDBOX_DB, since=started_at)
             # V2-378 — con el instante del ÚLTIMO turno delante, para no acusar de un fallo de entrega a una
-            # vuelta que llegó con la conversación ya cerrada. `sheet_timing` se compone antes, arriba.
+            # round that arrived after the conversation had already closed. `sheet_timing` is composed above.
             mech["search_returns"] = verifymod.search_returns(
                 config.SANDBOX_DB, since=started_at,
                 last_turn_ms=(mech.get("sheet_timing") or {}).get("last_turn_ms"))
@@ -441,15 +441,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # sin relevo». Reading the empty sheet and not the reason is the harness accusing the product for
             # something that happened outside it.
             mech["provider_exhausted"] = verifymod.provider_exhausted(config.SANDBOX_DB, since=started_at)
-            # …Y CON QUÉ PUENTES TRABAJÓ, leído de sus LOGS DE SESIÓN y no del bus (que solo ve una fracción:
+            # …AND WHICH BRIDGES IT USED, read from its SESSION LOGS rather than the bus (which sees only a fraction:
             # `nav_cli` sale 9 veces en los eventos para decenas de invocaciones reales). Es lo que distingue
             # «el worker no supo» de «el worker lo intentó y el puente lo echó» — la diferencia que decidió
             # tres rondas seguidas con mecanismo 4-5 y resultado 1-2 (V2-325).
             mech["worker_bridges"] = verifymod.worker_bridges(since=started_at)
-            # …Y QUÉ NOMBRÓ ZAELAR CON SUS PROPIAS PALABRAS. El informe ya decía lo que el SISTEMA le puso
+            # …AND WHAT ZAELAR NAMED IN ITS OWN WORDS. The report already said what the SYSTEM put in front of it
             # delante (`offered`), que responde a «¿se lo inventó?». Esto responde a la otra —«¿lo dijo?»—, que
             # es la que ha decidido mal tres veredictos hoy.
-            # Los títulos van CON su precio (V2-331): es lo que confirma de qué fila habla una frase que solo
+            # Titles include their price (V2-331): that confirms which row a sentence that only
             # dice la marca —«la Brixton a 1.200 €»— y sin él el hecho infra-detectaba entregas reales.
             _rs_v = mech.get("results_sheet") or {}
             _pares = list(zip([str(t) for t in (_rs_v.get("titles") or [])],
@@ -458,9 +458,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 transcript, _pares + [str(t) for t in ((mech.get("offered") or {}).get("named") or [])])
             # …y EL CRUCE: de lo que le dieron, cuánto nombró. «¿Entregó algo?» ya se sabía; esto responde a
             # «¿entregó lo que TENÍA?», que es la pregunta del operador (V2-332).
-            # …Y SI EL PRECIO QUE DIJO ES EL QUE TIENE. Nombrar el candidato bueno y colgarle un importe
+            # …AND WHETHER THE PRICE IT GAVE IS THE ONE IT HAS. Naming the right candidate and attaching an
             # inventado es peor que no nombrarlo: quien contrata con ese dato se lleva la sorpresa después.
-            # …Y SI LA HOJA ESTABA LLENA MIENTRAS SU PROMPT DECÍA QUE NO. Decide la atribución del
+            # …AND WHETHER THE SHEET WAS FULL WHILE ITS PROMPT SAID IT WAS NOT. This decides attribution of the
             # bloqueador más repetido del tablero: «negó lo que tenía» o «le contamos que no tenía nada».
             # …y AHORA que `sheet_timing` existe, se recalcula la señal de cajas separando la que estaba
             # vacía (camino normal: aún no hay nada) de la EQUIVOCADA (leyó otra distinta de la que tiene las
@@ -473,12 +473,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["sheet_hidden_from_the_prompt"] = verifymod.sheet_hidden_from_the_prompt(
                 mech.get("prompt_context"), mech.get("sheet_timing"))
             # …y su HERMANO, que cuenta la otra mitad: avisado de que había algo y servido con cero filas.
-            # Aquél se salta esos turnos a propósito (no estaban ciegos, se les dijo), así que sin esto la
+            # The former deliberately skips those turns (they were not blind; they were told), so without this the
             # trampa de V2-330 no la cuenta nadie y el tablero la lee como que el agente retiene lo que tiene.
             # V2-445 — la LISTA del reproductor es la entrega de un encargo multimedia (V2-402), y el arnés
-            # solo miraba la hoja: para esa familia está vacía por diseño y el informe publicaba «0».
+            # only looked at the sheet: for that family it is empty by design and the report published «0».
             mech["media_list"] = verifymod.media_list()
-            # V2-453 — el recall que NO llegó. Sin esto, «preguntó lo que ya sabía» no se puede atribuir.
+            # V2-453 — the recall that NEVER arrived. Without this, «asked for what it already knew» cannot be attributed.
             mech["recall_not_delivered"] = verifymod.recall_not_delivered(all_events)
             mech["market_claims_before_delivery"] = verifymod.market_claims_before_delivery(
                 transcript, mech.get("sheet_timing"), mech.get("results_sheet"),
@@ -494,7 +494,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # versión lo puso 100 líneas antes, donde `delivery_completeness` todavía no existía: selló
             # `offered` y `worker_outcome`, se saltó justo la cifra que más se lee, y NO se quejó — el
             # `isinstance` que puse por prudencia se tragó el fallo. Una guarda que convierte un error en
-            # silencio es peor que no tenerla, y es el defecto que llevo el día entero señalando en otros.
+            # silence is worse than not having it, and it is the defect I have been pointing out elsewhere all day.
             #
             # Qué sella: si la ronda se había ASENTADO al medirla. El arnés ya avisaba —«el motor SEGUÍA
             # trabajando al medir»— y salió en 23 de los 30 informes del 2026-08-30; aun así construí tres

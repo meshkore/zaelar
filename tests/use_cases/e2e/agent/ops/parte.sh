@@ -1,9 +1,9 @@
 #!/bin/zsh
-# El PARTE horario: cuatro números y las últimas averías. Corto a propósito.
+# The hourly REPORT: four numbers and the latest breakdowns. Deliberately short.
 #
-# El operador pidió «un resumen numérico cada hora, simple y corto» (2026-08-28). Lo que NO hace, y es
-# deliberado: no interpreta, no recomienda y no repite el veredicto del juez. Un parte que se alarga deja
-# de leerse, y entonces da igual lo bien escrito que esté.
+# The operator asked for “a simple, short numerical summary every hour” (2026-08-28). What it does NOT do, and
+# deliberately so: it does not interpret, recommend, or repeat the judge’s verdict. A report that grows longer stops
+# being read, and then it makes no difference how well written it is.
 set -u
 cd "$(dirname "$0")/../../../../.." || exit 1     # → engine/
 ./.venv/bin/python - "$@" <<'PY'
@@ -23,7 +23,7 @@ for loc in ("es", "us"):
     print(f"   {loc.upper()}   {cuenta('PASS',loc):>4}  {cuenta('FAIL',loc):>4}  "
           f"{cuenta('INFRA',loc):>5}  {cuenta('CAPPED',loc):>6}")
 
-# Rondas de la última hora, del diario del supervisor.
+# Rounds from the last hour, from the supervisor’s log.
 d = Path("tests/runs/use_cases/supervisor/diario.jsonl")
 filas = []
 if d.exists():
@@ -32,9 +32,9 @@ if d.exists():
             f = json.loads(l)
         except Exception:
             continue
-        # `t` es una MARCA FORMATEADA ('2026-08-27 07:20:40'), no epoch. Leerla como número no falla en
-        # silencio, revienta — pero un `except` perezoso aquí habría dejado el parte diciendo «0 rondas»
-        # para siempre, que sí es el fallo callado.
+        # `t` is a FORMATTED TIMESTAMP ('2026-08-27 07:20:40'), not epoch time. Reading it as a number does not fail
+        # silently; it blows up — but a lazy `except` here would have left the report saying “0 rounds” forever,
+        # which is the silent failure.
         try:
             ts = time.mktime(time.strptime(str(f.get("t") or ""), "%Y-%m-%d %H:%M:%S"))
         except Exception:
@@ -47,7 +47,7 @@ for f in filas:
     res[r] = res.get(r, 0) + 1
 print(f"   rondas en el tramo: {len(filas)}" + (f"  ({', '.join(f'{k}×{v}' for k, v in sorted(res.items()))})" if res else ""))
 
-# Con qué cerebro se está midiendo — el sello de V2-415. Si sale algo que no es el titular, se ve aquí.
+# Which brain is being measured — the V2-415 seal. If anything other than the headline appears, it is visible here.
 cerebros = {}
 for v in board.values():
     b = v.get("brain")

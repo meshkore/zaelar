@@ -1,19 +1,19 @@
-"""V2-464 — la GRABACIÓN de una ronda: lo que habría visto el usuario, en vídeo y sin manos.
+"""V2-464 — RECORDING a round: what the user would have seen, on video and hands-free.
 
-El operador lo pidió con la analogía exacta (2026-08-28): un espectador de pantalla mientras el caso corre
-en background — chat abierto para leer la conversación, widgets colocados «bien bonito, bien alineado» como
-el snap de ventanas de macOS/Windows — y el resultado guardado como vídeo sin sonido, enlazado desde el
-informe del caso junto a la sesión y sus flujos. Material directo para un showcase.
+The operator requested it with the exact analogy (2026-08-28): a screen viewer while the case runs
+in the background — chat open to read the conversation, widgets placed “nice and neatly aligned” like
+macOS/Windows window snapping — and the result saved as a silent video, linked from the case
+report alongside the session and its flows. Direct material for a showcase.
 
-CÓMO. Playwright graba vídeo de forma nativa (`record_video_dir` en el contexto): un Chromium headless de
-1920×1080 carga el plató con `?showcase=1` —que abre el chat acoplado y auto-ordena la rejilla en cada
-apertura (V2-464 en `sse.js`/`ChatWall.js`/`desktop.js`)— y se queda MIRANDO mientras el runner conduce la
-ronda por el canal probe. El vídeo solo se materializa al CERRAR el contexto, así que el espectador vive en
-un SUBPROCESO con un protocolo explícito de parada por stdin: matarlo a señales perdería el fichero entero,
-que es el modo de fallo más caro posible aquí (la ronda ya corrió y ya se pagó).
+HOW. Playwright records video natively (`record_video_dir` in the context): a headless Chromium at
+1920×1080 loads the stage with `?showcase=1` — which opens the docked chat and automatically arranges the grid on each
+opening (V2-464 in `sse.js`/`ChatWall.js`/`desktop.js`) — and stays WATCHING while the runner drives the
+round through the probe channel. The video is only materialized when the context is CLOSED, so the viewer runs in
+a SUBPROCESS with an explicit stdin stop protocol: killing it with signals would lose the entire file,
+which is the most expensive possible failure mode here (the round has already run and been paid for).
 
-Fail-soft de punta a punta: una grabación que no arranca NUNCA tira la medición — el vídeo es un espejo de
-la ronda, no parte de ella.
+Fail-soft end to end: a recording that does not start NEVER takes down the measurement — the video is a mirror of
+the round, not part of it.
 """
 from __future__ import annotations
 
@@ -26,8 +26,8 @@ from . import config
 
 VIDEO_DIR = config.RUNS_DIR / "videos"
 
-# El espectador, como TEXTO de un subproceso y no como función: Playwright sync no puede convivir con un
-# loop asyncio ya corriendo, y el runner tiene uno. Un proceso aparte no comparte loop ni GIL con la ronda.
+# The viewer as SUBPROCESS TEXT rather than a function: Playwright sync cannot coexist with an
+# asyncio loop that is already running, and the runner has one. A separate process shares neither loop nor GIL with the round.
 _WATCHER_SRC = r'''
 import json, sys
 from playwright.sync_api import sync_playwright
@@ -41,7 +41,7 @@ with sync_playwright() as p:
     page = ctx.new_page()
     page.goto(url, wait_until="domcontentloaded", timeout=45000)
     print("READY", flush=True)
-    # Espera la orden de parar por stdin. EOF cuenta como orden: si el runner muere, esto no queda huérfano.
+    # Wait for the stop command on stdin. EOF counts as a command: if the runner dies, this is not left orphaned.
     try:
         sys.stdin.readline()
     except Exception:
@@ -57,8 +57,8 @@ with sync_playwright() as p:
 
 
 class Recorder:
-    """Un espectador por ronda. `start()` espera a que la página esté cargada; `stop(nombre)` cierra, espera
-    el volcado y renombra el .webm a un nombre que diga QUÉ ronda es."""
+    """A viewer for each round. `start()` waits for the page to load; `stop(name)` closes it, waits
+    for the flush, and renames the .webm to a name that says WHICH round it is."""
 
     def __init__(self, base_url: str):
         self.base_url = base_url
@@ -114,7 +114,7 @@ class Recorder:
         finally:
             self.proc = None
         if path and name:
-            # El nombre dice QUÉ ronda es — el hash aleatorio de Playwright no se lo dice a nadie.
+            # The name says WHICH round it is — Playwright's random hash tells nobody.
             dst = VIDEO_DIR / f"{name}-{time.strftime('%Y%m%d-%H%M%S')}.webm"
             try:
                 Path(path).rename(dst)

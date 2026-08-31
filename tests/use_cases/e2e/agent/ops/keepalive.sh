@@ -1,20 +1,20 @@
 #!/bin/zsh
-# «El plató no para» sin launchd (V2-417).
+# “The set never stops” without launchd (V2-417).
 #
-# POR QUÉ NO LAUNCHD, escrito aquí para que nadie lo vuelva a intentar a ciegas: el repo vive bajo
-# `~/Documents`, y macOS (TCC) le niega a un agente de launchd la lectura de esa carpeta salvo que el
-# operador conceda Acceso Total al Disco a mano. Medido el 2026-08-28: el agente arrancó y murió con
-# `127 · can't open input file` sobre un fichero que existe y es ejecutable. `crontab` topa con lo mismo.
-# Así que el guardián es este bucle, arrancado desacoplado de cualquier sesión.
+# WHY NOT LAUNCHD, written here so no one tries it blindly again: the repo lives under
+# `~/Documents`, and macOS (TCC) denies a launchd agent access to that folder unless the
+# operator manually grants Full Disk Access. Measured on 2026-08-28: the agent started and died with
+# `127 · can't open input file` for a file that exists and is executable. `crontab` runs into the same issue.
+# So the guardian is this loop, started detached from any session.
 #
-# QUÉ CUBRE: que el supervisor muera (excepción, OOM, un `kill`, un plató que se lleva el proceso por
-# delante). Vuelve a levantarlo tras `ESPERA_S`.
-# QUÉ NO CUBRE: un REINICIO de la máquina. Para eso hace falta el plist de `ops/` y el permiso de disco
-# — está escrito y probado hasta donde TCC deja; es un gesto del operador, no algo que se pueda automatizar.
+# WHAT IT COVERS: the supervisor dying (exception, OOM, a `kill`, or a set process taking the process
+# down with it). It starts it again after `ESPERA_S`.
+# WHAT IT DOES NOT COVER: a machine RESTART. That requires the `ops/` plist and disk permission
+# — it is written and tested as far as TCC allows; it is an operator action, not something that can be automated.
 #
-# UNO Y SOLO UNO: hay un navegador por plató, y dos supervisores midiendo a la vez se pelean por la misma
-# pestaña y las dos rondas salen mal. El candado es un fichero con el PID, comprobado de verdad contra el
-# proceso — un fichero suelto no basta, porque un guardián matado deja el suyo detrás para siempre.
+# ONE AND ONLY ONE: there is one browser per set, and two supervisors running at once fight over the same
+# tab and both runs fail. The lock is a file containing the PID, actually checked against the
+# process — a stray file is not enough, because a killed guardian leaves its file behind forever.
 set -u
 cd "$(dirname "$0")/../../../../.." || exit 1     # → engine/
 

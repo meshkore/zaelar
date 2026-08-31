@@ -38,48 +38,48 @@ def _as_text(content) -> str:
     return "" if content is None else str(content)
 
 
-# ── Cadena de proveedores del DRIVE (norma del operador, 2026-08-19) ──────────────────────────────────────
-# ORDEN: DeepSeek V4 DIRECTO → broker AIMLAPI → Z.AI/GLM. CERO modelos de OpenAI (norma del operador).
+# ── DRIVE provider chain (operator rule, 2026-08-19) ──────────────────────────────────────────────────────
+# ORDER: DIRECT DeepSeek V4 → AIMLAPI broker → Z.AI/GLM. ZERO OpenAI models (operator rule).
 #
-# Los dos escalones existen por hechos medidos, no por precaución: el 2026-08-19 a las 02:34 la cuenta de
-# AIMLAPI devolvió 403 «You've run out of funds» (verificado contra el cuerpo de la respuesta, con la clave del
-# arnés Y la del motor) y el DRIVE —el que hace de persona— murió con él: INFRA con 0 turnos, dos veces
-# seguidas, sin un solo caso medible. Y el titular es el directo porque es ~30% más barato que el mismo modelo
-# por el broker y porque el broker ACEPTA `thinking:disabled` y razona igual (TTFT p50 4,24 s vs 1,01 s).
+# The two tiers exist because of measured facts, not caution: on 2026-08-19 at 02:34 the AIMLAPI account
+# returned 403 «You've run out of funds» (verified against the response body, with both the harness key
+# AND the engine key), and DRIVE—the one acting as the person—died with it: INFRA with 0 turns, twice
+# in a row, without a single measurable case. The primary is direct because it is ~30% cheaper than the same
+# model through the broker and because the broker ACCEPTS `thinking:disabled` and reasons the same (TTFT p50 4.24 s vs 1.01 s).
 #
-# El escalón que sirvió se ESTAMPA en la medida (`drive_model` → ledger + ronda de la iniciativa). Un relevo
-# cambia el INSTRUMENTO: la fila deja de ser comparable con las anteriores, y en el caso de Z.AI el DRIVE
-# pasaría a compartir proveedor con el JUEZ, que existe en otro proveedor precisamente para ser independiente.
-# Un relevo SILENCIOSO dejaría el tablero avanzando con dos instrumentos y sin saber qué fila usó cuál.
-# ── Escalón de LICENCIA: el CLI de Claude Code con la licencia local ──────────────────────────────────────
-# Es el ÚLTIMO escalón del tester, y existe por una razón que los otros dos no pueden dar: es de SUSCRIPCIÓN,
-# así que no puede caerse por saldo ni por cuota. El 2026-08-21 se perdieron horas de paseo con los dos
-# escalones de pago fuera a la vez (Z.AI sin cuota hasta el 25, y una caída de red que dejó al directo en
-# `Connection error`), y una ronda sin escalón no es un fallo del producto: es una factura, y el arnés la
-# apunta como INFRA. Con este escalón la corrida DEGRADA en vez de morir.
+# The tier that served is STAMPED in the measurement (`drive_model` → ledger + initiative round). A handoff
+# changes the INSTRUMENT: the row is no longer comparable with previous ones, and with Z.AI, DRIVE would
+# share a provider with the JUDGE, which exists on another provider precisely to remain independent.
+# A SILENT handoff would leave the board advancing with two instruments without knowing which row used which.
+# ── LICENSE tier: the Claude Code CLI with the local license ─────────────────────────────────────────────
+# It is the tester's LAST tier, and exists for a reason the other two cannot provide: it is a SUBSCRIPTION,
+# so it cannot fail because of balance or quota. On 2026-08-21, hours of runs were lost with both paid tiers
+# down at once (Z.AI without quota until the 25th, and a network outage that left direct in `Connection error`),
+# and a round without a tier is not a product failure: it is an invoice, and the harness records it as INFRA.
+# With this tier the run DEGRADES instead of dying.
 #
-# Va el último y no el primero por dos motivos, ninguno de calidad del modelo: consume la licencia del
-# operador (norma del 2026-08-02: forfait, nunca pago por token, y SOLO en local), y es más lento —medido,
-# ~7 s para un turno trivial— porque levanta un proceso por llamada. Como cualquier relevo, SELLA la ronda:
-# `drive_model()` devuelve `licencia-claude` y la fila deja de ser comparable con las de DeepSeek.
+# It comes last rather than first for two reasons, neither related to model quality: it consumes the
+# operator's license (2026-08-02 rule: flat rate, never pay per token, and ONLY locally), and it is slower—measured,
+# ~7 s for a trivial turn—because it starts a process per call. Like any handoff, it SEALS the round:
+# `drive_model()` returns `licencia-claude` and the row is no longer comparable with DeepSeek rows.
 #
-# Esto NO toca a los Brain Workers: el producto se mide con la cadena que el producto usa (DeepSeek/GLM, que
-# es lo único que hay en la nube). Aquí solo se cambia QUIÉN hace de persona y QUIÉN puntúa — el instrumento.
+# This does NOT affect the Brain Workers: the product is measured with the chain the product uses (DeepSeek/GLM,
+# which is all that exists in the cloud). This only changes WHO acts as the person and WHO scores—the instrument.
 def _claude_licence(messages: list[dict], max_tokens: int = 4000, model: str = "") -> str:
-    """Un turno por el CLI de Claude Code, con la licencia con la que el operador ya está logueado.
+    """One turn through the Claude Code CLI, using the license with which the operator is already logged in.
 
-    Tres cuidados, y los tres son trampas reales de este repo, no precaución:
+    Three precautions, all three real traps in this repo, not hypothetical caution:
 
-    1. **El entorno se limpia.** `ANTHROPIC_BASE_URL`/`_AUTH_TOKEN`/`_API_KEY` son justo las variables con las
-       que el motor redirige este mismo CLI a Z.AI o DeepSeek. Heredarlas aquí haría que el «escalón de
-       Anthropic» fuese en realidad el escalón que se acaba de caer — el relevo se anunciaría en el sello y no
-       habría relevado nada.
-    2. **Se ejecuta desde un directorio NEUTRO.** El CLI carga el `CLAUDE.md` del cwd; desde `engine/` cada
-       turno del conductor arrastraría el contexto del repo entero (V2-117 midió esa bomba: 167k → 25k tokens).
-       Además de caro, un conductor que ha leído el código del motor deja de hacer de PERSONA.
-    3. **Sin MCP y con nuestro system prompt.** `--strict-mcp-config` sin `--mcp-config` deja el proceso sin un
-       solo servidor MCP, y `--system-prompt` sustituye al del agente de código: aquí no queremos un agente
-       que edite ficheros, queremos un modelo que conteste una frase.
+    1. **The environment is cleaned.** `ANTHROPIC_BASE_URL`/`_AUTH_TOKEN`/`_API_KEY` are exactly the variables with which
+       the engine uses to redirect this same CLI to Z.AI or DeepSeek. Inheriting them here would make the
+       «Anthropic tier» actually be the tier that just failed—the handoff would be announced in the seal without
+       having handed off anything.
+    2. **It runs from a NEUTRAL directory.** The CLI loads `CLAUDE.md` from cwd; from `engine/` each
+       driver turn would drag in the entire repo context (V2-117 measured that bomb: 167k → 25k tokens).
+       Besides being expensive, a driver that has read the engine code stops acting as the PERSON.
+    3. **Without MCP and with our system prompt.** `--strict-mcp-config` without `--mcp-config` leaves the process with no
+       single MCP server, and `--system-prompt` replaces the code agent's: here we do not want an agent
+       that edits files; we want a model that answers one sentence.
     """
     import subprocess
     import tempfile
@@ -110,7 +110,7 @@ _used_drive = ""
 
 
 def drive_model() -> str:
-    """Qué escalón condujo la ÚLTIMA llamada de DRIVE. Lo consume `run.py` para sellar la ronda."""
+    """Which tier handled the LAST DRIVE call. `run.py` uses it to seal the round."""
     return _used_drive
 
 
@@ -119,27 +119,27 @@ def _override() -> str:
 
 
 def _nonempty(text: str, tier: str) -> str:
-    """Una respuesta VACÍA es un fallo del escalón, no una respuesta.
+    """An EMPTY response is a tier failure, not a response.
 
-    Sin esto la cadena da por bueno un `""` y el tester le dice NADA al agente: el escenario se degrada y el
-    informe lo lee como que el agente se quedó mudo. Un turno vacío del que hace de persona no es medible.
+    Without this, the chain accepts `""` and the tester tells the agent NOTHING: the scenario degrades and the
+    report reads it as the agent having gone silent. An empty turn from the one acting as the person is not measurable.
     """
     if not (text or "").strip():
         raise RuntimeError(f"{tier} devolvió una respuesta VACÍA")
     return text
 
 
-# El endpoint nativo RAZONA por defecto y el razonamiento se cobra contra `max_tokens`: medido, «Di solo OK»
-# con `max_tokens=8` gasta los 8 pensando y devuelve `content=''` con `finish_reason=length` — una respuesta
-# VACÍA sin ninguna excepción. Con el presupuesto de 200 del driver caben (24-38 tokens de razonamiento en las
-# sondas) pero un turno de negociación difícil es justo donde el razonamiento se alarga, o sea que el fallo
-# aparecería en el caso más complicado y se leería como que el agente no contestó. NO se apaga el razonamiento
-# —es lo que hizo elegir este tier para el DRIVE— se le da techo aparte, que es gratis si no se usa.
+# The native endpoint REASONS by default and reasoning is charged against `max_tokens`: measured, «Say only OK»
+# with `max_tokens=8` it spends all 8 thinking and returns `content=''` with `finish_reason=length`—an EMPTY
+# response without any exception. The driver's budget of 200 accommodates it (24–38 reasoning tokens in the
+# probes), but a difficult negotiation turn is exactly where reasoning becomes longer, so the failure would
+# appear in the most complicated case and be read as the agent not responding. Reasoning is NOT disabled
+#—it is what led us to choose this tier for DRIVE—so it gets a separate ceiling, which is free when unused.
 _REASONING_RESERVE = 512
 
 
 def _deepseek_direct(messages: list[dict], model: str, temperature: float, max_tokens: int) -> str:
-    """DeepSeek nativo (OpenAI-compatible). Nombre de modelo SIN el prefijo del broker — ver `config`."""
+    """Native DeepSeek (OpenAI-compatible). Model name WITHOUT the broker prefix—see `config`."""
     key = config.deepseek_key()
     if not key:
         raise RuntimeError("no DEEPSEEK_API_KEY")
@@ -171,22 +171,22 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
         return _claude_licence(messages, max_tokens=max_tokens)
 
     def _last() -> str:
-        # Tercer escalón = Z.AI/GLM, NO un modelo de OpenAI (ver `config.LAST_RESORT_MODEL`). Si algún día se
-        # fija un modelo ahí, va por el broker; vacío —el defecto— es Z.AI.
+        # Third tier = Z.AI/GLM, NOT an OpenAI model (see `config.LAST_RESORT_MODEL`). If one day a model is
+        # if a model is set there, it goes through the broker; empty—the default—is Z.AI.
         if config.LAST_RESORT_MODEL:
             return _as_text(_call(messages, model=config.LAST_RESORT_MODEL, temperature=temperature,
                                   max_tokens=max_tokens))
         return _zai()
 
-    # Escotilla manual: fijar UN escalón y no moverse de él (para medir un brazo concreto sin que un fallo
-    # lo releve por detrás y contamine la comparación).
+    # Manual hatch: pin ONE tier and do not move from it (to measure a specific arm without a failure
+    # handing off behind the scenes and contaminating the comparison).
     forced = {"direct": ("deepseek-directo", _direct), "deepseek": ("deepseek-directo", _direct),
               "aimlapi": ("aimlapi", _broker), "broker": ("aimlapi", _broker),
               "zai": ("zai/glm", _zai), "glm": ("zai/glm", _zai),
               "claude": ("licencia-claude", _licence), "licencia": ("licencia-claude", _licence)}.get(want)
     if forced:
         _used_drive = forced[0]
-        return _nonempty(forced[1](), forced[0])   # forzar un escalón no exime de que la respuesta exista
+        return _nonempty(forced[1](), forced[0])   # forcing a tier does not exempt it from providing a response
 
     chain = [("deepseek-directo", _direct), ("aimlapi", _broker),
              (f"último recurso · {config.LAST_RESORT_MODEL or 'zai/glm'}", _last),
@@ -199,8 +199,8 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
             return out
         except Exception as e:
             errs.append(f"{name}: {e}")
-            # Un reintento en el MISMO escalón antes de bajar: AIMLAPI va tras Cloudflare y blipea, y un blip
-            # no debería cambiar el instrumento de medida de la corrida entera.
+            # Retry on the SAME tier before falling back: AIMLAPI sits behind Cloudflare and blips, and a blip
+            # should not change the measurement instrument for the entire run.
             if not any(x in str(e).lower() for x in _FUNDS):
                 time.sleep(2.0)
                 try:
@@ -215,14 +215,14 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
 
 
 def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = None) -> tuple[str, str]:
-    """El JUEZ, con la licencia local debajo de todo.
+    """The JUDGE, with the local license at the bottom of the chain.
 
-    Perder al juez es perder la RONDA ENTERA: la conversación ya se pagó y ya ocurrió, y sin veredicto no
-    entra en el marcador. La cadena del arnés de voz (GLM → DeepSeek directo → broker) ya reintenta lo
-    transitorio; lo que no cubre es que los tres estén fuera a la vez, que es exactamente lo que pasó el
-    2026-08-21 (Z.AI sin cuota hasta el 25 + caída de red del directo).
+    Losing the judge means losing the ENTIRE ROUND: the conversation has already been paid for and occurred, and without a verdict it does not
+    it enters the scoreboard. The voice harness chain (GLM → direct DeepSeek → broker) already retries transient
+    failures; what it does not cover is all three being unavailable at once, which is exactly what happened on
+    2026-08-21 (Z.AI without quota until the 25th + a network outage affecting direct).
 
-    Devuelve el modelo que puntuó, como antes, porque una ronda juzgada por otro instrumento tiene que poder
+    It returns the model that scored, as before, because a round judged by another instrument must be distinguishable
     distinguirse en el tablero: la licencia es un modelo distinto y sus notas no son comparables sin decirlo.
     """
     import sys
@@ -232,8 +232,8 @@ def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = 
         print(f"[judge] cadena de pago sin escalón ({str(e)[:100]}) → licencia local de Claude Code",
               file=sys.stderr)
     txt = _claude_licence(messages, max_tokens=max_tokens)
-    # La licencia local NO dice si cortó: se apunta «no lo sé» en vez de dejar la lectura de la pata que
-    # acaba de fallar. Quien mire esto tiene que poder distinguir «cabía» de «no me consta».
+    # The local license does NOT say whether it cut off: record «I don't know» instead of leaving the reading from the leg that
+    # that just failed. Anyone inspecting this must be able to distinguish «it fit» from «not known to me».
     if out is not None:
         out["finish_reason"], out["cortada"] = "", False
     if not (txt or "").strip():

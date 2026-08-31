@@ -42,9 +42,9 @@ más repetidas de este arnés, medidas contra los eventos reales):
    usuario esperase ANTES es latencia del navegador, no ocultación — no lo puntúes contra eficiencia ni
    resultado. No cruces tú epochs con turnos: ya salió mal dos veces (123 s imaginarios sobre 28 reales)."""
 
-# Dimensiones EXTRA, solo para escenarios multi-flujo (`concurrent_tasks > 0`). Se añaden en vez de
-# reinterpretar las cinco de arriba: si "adaptacion" pasara a significar también "acertó la tarea", las notas
-# de los escenarios de una sola tarea dejarían de ser comparables con las históricas.
+# EXTRA dimensions, only for multi-flow scenarios (`concurrent_tasks > 0`). They are added rather than
+# reinterpreting the five above: if "adaptacion" also came to mean "identified the task correctly", scores
+# from single-task scenarios would no longer be comparable with historical scores.
 MULTIFLOW_RUBRIC = """
 - atribucion: cuando el usuario habló por ALUSIÓN de una de las tareas en marcha ("ese ponle que salte más
   alto", "¿y el del coche?"), ¿fue el mensaje a la tarea CORRECTA? Responder por otra tarea, mezclar dos, o
@@ -116,9 +116,9 @@ recordarlas ni por preguntar qué le gusta — sería puntuar una avería del in
 
 
 def seed_note_for(seed: dict) -> str:
-    """La nota de siembra del prompt del juez, con los TRES desenlaces separados (V2-400): aterrizó ·
-    no aterrizó (se preguntó y no estaba) · no se pudo preguntar. La versión de dos ramas afirmaba
-    «el recall NO las devuelve» también cuando ningún recall había contestado."""
+    """The judge-prompt seeding note, with the THREE outcomes kept separate (V2-400): landed ·
+    did not land (it was queried and was not present) · could not be queried. The two-branch version claimed
+    “recall does NOT return them” even when no recall request had received a response."""
     if not seed:
         return ""
     if seed.get("landed"):
@@ -129,28 +129,29 @@ def seed_note_for(seed: dict) -> str:
 
 
 def _clocks_relative(mech: dict) -> dict:
-    """Una COPIA del informe sin relojes CRUDOS: cada epoch-ms pasa a segundos desde el primer instante medido.
+    """A COPY of the report without RAW clocks: each epoch-ms becomes seconds from the first measured instant.
 
-    Medido en `find-direct-flight-budget__es` (2026-08-27, ronda 15). El juez archivó [alta] el fallo de
-    conducta más grave de la sesión —«tenía datos concretos delante y no los dio»— con esta prueba:
+    Measured in `find-direct-flight-budget__es` (2026-08-27, round 15). The judge filed [high] the session's
+    most serious behavior failure —“it had concrete data in front of it and did not provide it”—with this evidence:
 
         «first_result_ms 1787816928677 vs turno a 1787816914617» → «la hoja ya tenía filas desde hacía ~30 s»
 
-    928677 es MAYOR que 914617: las filas llegaron 14 segundos DESPUÉS del turno. Signo invertido y magnitud
-    doblada, y con eso se acusó al motor de retener lo que todavía no existía. El bloque de prompt de ese
-    turno, leído después, no llevaba ninguna fila.
+    928677 is GREATER than 914617: the rows arrived 14 seconds AFTER the turn. The sign was reversed and the
+    magnitude doubled, leading to the engine being accused of withholding something that did not yet exist. The
+    prompt block for that turn, read afterward, contained no rows.
 
-    La prohibición en prosa ya estaba escrita («NO uses `first_result_ms` para acusar») y no sirvió, porque el
-    número seguía en el JSON. Pedirle a un modelo que compare dos enteros de 13 cifras que solo difieren en la
-    quinta por la derecha, y confiar en que además respete una prohibición sobre ellos, es dejar a la lectura
-    del modelo una cuenta que el arnés hace exacta — justo lo que V2-300 dejó dicho para `delivery_lag_s`.
+    The prose prohibition was already written (“DO NOT use `first_result_ms` to make accusations”) and did not
+    help, because the number remained in the JSON. Asking a model to compare two 13-digit integers that differ
+    only in the fifth digit from the right, and trusting it to also respect a prohibition about them, leaves to
+    model reading a calculation that the harness performs exactly—the very thing V2-300 specified for
+    `delivery_lag_s`.
 
-    Se relativizan TODOS a la vez y contra el mismo cero, para que sigan siendo comparables entre sí: el juez
-    necesita poder cruzar el instante de una fila con el de un turno, y esa pregunta es legítima. Lo que no
-    puede es equivocarse de signo al hacerlo.
+    ALL are relativized at once against the same zero so they remain comparable: the judge needs to be able to
+    cross-reference a row's instant with a turn's, and that is a legitimate question. What it must not do is
+    get the sign wrong.
 
-    Un `_ms` que NO es un epoch (una DURACIÓN, como `first_output_ms`) se queda intacto: convertirlo lo
-    convertiría en un instante y sería inventar un hecho.
+    An `_ms` value that is NOT an epoch (a DURATION, such as `first_output_ms`) remains unchanged: converting it
+    would turn it into an instant and invent a fact.
     """
     import copy as _copy
 
@@ -198,15 +199,15 @@ JUDGE_MAX_TOKENS_AMPLIADO = 8000
 
 
 def _parecia_cortada(raw: str, err: str | None) -> bool:
-    """¿La respuesta se CORTÓ por longitud, en vez de venir mal formada? (V2-373)
+    """Was the response CUT OFF due to length, rather than malformed? (V2-373)
 
-    Se mira DÓNDE falló el parseo: un JSON truncado revienta a un pelo del final (medido: char 6451 de 6487,
-    y char 6688 de 6750), mientras que un fallo de forma —una coma de más, una comilla suelta— cae en cualquier
-    sitio (el de la ronda de las 09:36 cayó en el 1159 de un texto mucho más largo).
+    Look at WHERE parsing failed: truncated JSON breaks very close to the end (measured at char 6451 of 6487,
+    and char 6688 of 6750), while a structural error—an extra comma or a stray quote—can occur anywhere (the
+    one from the 09:36 round occurred at 1159 in a much longer text).
 
-    NO se usa «¿termina en llave?», que fue el primer intento y es un falso negativo: una respuesta que SÍ se
-    parseaba bien daba False ahí. Un guarda que se equivoca sobre el caso bueno no sirve para decidir sobre el
-    malo.
+    Do NOT use “does it end with a brace?”, which was the first attempt and produces a false negative: a response
+    that DID parse correctly returned False there. A guard that misclassifies the good case cannot decide about
+    the bad one.
     """
     import re as _r
     m = _r.search(r"char (\d+)", str(err or ""))

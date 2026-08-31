@@ -52,7 +52,7 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append("scores: " + ", ".join(f"{k} {val}" for k, val in sc.items())
                          + f"  · juez: {v.get('_judge_model','?')}")
         if r.get("video"):
-            # V2-464 — el vídeo de la ronda, al lado de la sesión y sus flujos: lo que habría visto el usuario.
+            # V2-464 — the round's video, alongside the session and its flows: what the user would have seen.
             lines.append(f"🎥 vídeo: {r['video']}")
         lines.append(f"informe de mecanismo: familias observadas = {mech.get('families_observed', [])}, "
                      f"esperadas = {mech.get('expected_signals', [])}, "
@@ -62,8 +62,8 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append(f"tarea de navegador {mech['navegador_task_id']}: status={nt.get('status','?')}, "
                          f"awaiting_login={nt.get('awaiting_login', False)}, "
                          f"resultados={len((nt.get('results') or {}).get('items', []) or [])}")
-        # La HOJA, aparte de la tarjeta y SIEMPRE — es la superficie que el operador mira, y con V2-257 pasa a
-        # ser la única que guarda hallazgos. «no la miré» no puede leerse igual que «estaba vacía».
+        # The SHEET, separate from the card and ALWAYS — it is the surface the operator looks at, and with V2-257 it becomes
+        # the only one that stores findings. “I did not look at it” cannot be read the same as “it was empty.”
         sh = mech.get("results_sheet") or {}
         if not sh.get("read"):
             lines.append("hoja de resultados: NO se pudo leer (no es lo mismo que vacía)")
@@ -75,15 +75,15 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
                             if sh.get("n_sites_reported") else "")
                          + (f" · leída en {', '.join(_boxes)}" if _boxes and _boxes != ["results"] else "")
                          + (f" · {', '.join(sh.get('titles') or [])}" if sh.get("titles") else ""))
-            # CADA CAJA POR SEPARADO cuando hay más de una: el total no dice si ESTE encargo fue servido —
-            # la caja de al lado puede llevar lo suyo. Es la línea que separa «no entregó» de «entregó en
-            # su sitio y el lector miraba en otro».
+            # EACH BOX SEPARATELY when there is more than one: the total does not say whether THIS task was served —
+            # the neighboring box may contain its own results. This is the line separating “did not deliver” from
+            # “delivered in its place while the reader was looking somewhere else.”
             _pb = sh.get("per_box") or []
             if len(_pb) > 1:
                 lines.append("   por encargo: " + " · ".join(
                     f"{b.get('id')}: {b.get('n_items', 0)} fila(s) «{b.get('title') or ''}»" for b in _pb))
-        # UNA CAJA POR ENCARGO. Solo se imprime si hubo alguna apertura: en un caso de un solo encargo no
-        # dice nada que no diga ya la línea de arriba, y en uno de dos es la línea que decide el veredicto.
+        # ONE BOX PER TASK. Printed only if there was at least one opening: for a single-task case it says
+        # nothing that the line above does not already say, while for two tasks it is the line that decides the verdict.
         si = mech.get("sheet_instances") or {}
         if si.get("n_opens"):
             line = (f"hojas de resultados ABIERTAS: {si.get('n_sheets', 0)} caja(s) para "
@@ -103,10 +103,10 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
                              f"su propia instancia, vacía. Último canvas: {', '.join(gw.get('last') or [])}")
             else:
                 lines.append(f"canvas limpio: {gw.get('max_cards', 0)} tarjeta(s) como mucho, ninguna sin dueño")
-        # LOS NÚMEROS DEL MECANISMO, en el informe que se LEE y no solo en el JSON. Hasta 2026-08-21 cada
-        # uno de éstos se sacaba a mano con un script suelto y se pegaba en un mensaje: servía mientras
-        # hubiera alguien delante haciéndolo, y no sobrevivía a un relevo. El agente que arregla abre este
-        # fichero, así que aquí es donde tienen que estar.
+        # THE MECHANISM NUMBERS, in the report that is READ and not only in the JSON. Until 2026-08-21, each
+        # of these was extracted manually with a standalone script and pasted into a message: it worked while
+        # someone was present to do it, and did not survive a handoff. The agent fixing the issue opens this
+        # file, so this is where they need to be.
         for line in _mechanism_numbers(mech):
             lines.append(line)
         wd = run.get("watchdog_log", [])
@@ -128,25 +128,25 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
 
 
 def _mechanism_numbers(mech: dict) -> list[str]:
-    """Las cifras que deciden a QUIÉN pertenece un fallo, en una línea cada una y solo si hay algo que decir.
+    """The figures that determine WHO a failure belongs to, one per line and only when there is something to report.
 
-    Cada una nació de un defecto que este arnés atribuyó mal antes de tenerla: `worker_health` porque
-    «4 lanzados, 0 ok» se leía como cuatro fallos cuando tres seguían trabajando; `worker_deaths` porque la
-    causa de una familia entera de casos estaba en cruzar el almacén con el log y nadie la veía;
-    `search_returns` porque la búsqueda contestaba bien y no llegaba a nadie; `quiescence` porque leer
-    demasiado pronto convierte «no ha terminado» en «ha fallado».
+    Each one arose from a defect that this harness misattributed before it existed: `worker_health` because
+    “4 launched, 0 ok” was read as four failures when three were still working; `worker_deaths` because the
+    cause of an entire family of cases was in correlating the warehouse with the log and no one could see it;
+    `search_returns` because the search responded correctly but reached no one; `quiescence` because reading
+    too early turns “it has not finished” into “it has failed.”
     """
     out: list[str] = []
-    # V2-362 — EL RELOJ, EN EL INFORME. `sheet_timing` se calcula desde V2-300 y se afinó en V2-355, y no
-    # se imprimía en ninguna parte: el juez lo recibe en el JSON, pero quien lee el informe —un humano o el
-    # agente que va a arreglar el caso— no podía ver el número. Una medida sin lector es una decisión sin
-    # llamante: existe y no cambia nada.
+    # V2-362 — THE CLOCK, IN THE REPORT. `sheet_timing` has been calculated since V2-300 and refined in V2-355, but it was not
+    # printed anywhere: the judge receives it in the JSON, but whoever reads the report —a human or the
+    # agent fixing the case— could not see the number. A measurement without a reader is a decision without
+    # a caller: it exists and changes nothing.
     #
-    # Y es EL número de la queja del operador («una búsqueda se hace en un minuto, dos o tres máximo»):
-    # cuánto tarda el encargo en poner su primera fila delante. Se dice CON el reloj que se usó, porque el
-    # flojo («primera escritura» del worker, que puede ser su plan) y el estricto (el intake del navegador,
-    # que son candidatos de verdad) no miden lo mismo — y confundirlos es lo que produjo los 130,8 s de
-    # «retención» inventados que V2-355 cortó.
+    # And it is THE number behind the operator's complaint (“a search takes one minute, two or three at most”):
+    # how long the task takes to put its first row in front of the user. It is stated WITH the clock used, because the
+    # loose one (“first write” by the worker, which may be its plan) and the strict one (the browser intake,
+    # which contains real candidates) do not measure the same thing — and confusing them produced the invented 130.8 s
+    # of “retention” that V2-355 eliminated.
     _st = mech.get("sheet_timing") or {}
     _t0, _named, _lag = _st.get("sheet_ms"), _st.get("sheet_named_ms"), _st.get("delivery_lag_s")
     if _t0 and _named:
@@ -176,27 +176,27 @@ def _mechanism_numbers(mech: dict) -> list[str]:
                    + ("…" if pj["n_pages"] > 6 else ""))
     if pj.get("n_walls"):
         _m = "; ".join(f"{(w.get('why') or '?')}: {(w.get('title') or '')[:30]}" for w in pj["walls"][:3])
-        # SE DICE APARTE del resto: un `found: 0` con un muro delante no significa lo mismo que sin él, y
-        # mezclarlo con los números de entrega es como se lee un bloqueo del mundo como un fallo del producto.
+        # STATED SEPARATELY from the rest: `found: 0` with a wall in front does not mean the same as without one, and
+        # mixing it with delivery numbers is how a world-side blockage gets read as a product failure.
         out.append(f"⛔ **{pj['n_walls']} página(s) nos cerraron la puerta**: {_m} — un «no encontró nada» "
                    f"con esto delante puede ser «no le dejaron entrar»")
     dup = mech.get("duplicate_errands") or {}
-    # Una CONTINUACIÓN se cuenta, con su motivo, y NO como un fallo de dedup: el coste en tokens es real y
-    # tiene que verse, pero llamarlo duplicado manda a mirar un mecanismo que se portó bien (V2-238/V2-117).
+    # A CONTINUATION is counted, with its reason, and NOT as a dedup failure: the token cost is real and
+    # must be visible, but calling it a duplicate sends people to inspect a mechanism that behaved correctly (V2-238/V2-117).
     for c in (dup.get("continuations") or [])[:3]:
         out.append(f"· un worker MÁS por continuación del mismo encargo — {c.get('why')}: paga tokens dos "
                    f"veces, pero NO es un duplicado ni un fallo del dedup")
-    # `g["n"]` CUENTA PETICIONES DE ESCALADA con el mismo texto (`text_source: escalate.requested`), no workers.
-    # Llamarlas «workers» inventaba un hecho, y lo inventaba con el desmentido en la línea de al lado: medido en
-    # `cheapest-monitor__us` (2026-08-30), el informe decía «2 workers para UN encargo … se paga entero cada vez»
-    # con `worker_health.spawned: 1` y `duplicate_errands.n_spawned: 1` en el mismo bloque. Un worker nació. No se
-    # pagó dos veces. La acusación llegó a un encargo antes de que dev-main la desmontara leyendo la base del
-    # plató — o sea que el instrumento gastó el tiempo de otro agente.
+    # `g["n"]` COUNTS ESCALATION REQUESTS with the same text (`text_source: escalate.requested`), not workers.
+    # Calling them “workers” invented a fact, and invented it alongside its own refutation: measured in
+    # `cheapest-monitor__us` (2026-08-30), the report said “2 workers for ONE task … each is paid in full”
+    # with `worker_health.spawned: 1` and `duplicate_errands.n_spawned: 1` in the same block. One worker was born. It was not
+    # paid for twice. The accusation reached a task before dev-main dismantled it by reading the set's database
+    # — meaning the instrument consumed another agent's time.
     #
-    # `n_spawned` es del conjunto de la ventana, así que como cota es CONSERVADORA: si un grupo dice más
-    # peticiones que workers nacidos en toda la ronda, esas peticiones no pueden haber sido workers. Y el hueco
-    # no es un detalle contable — es el hallazgo: una escalada que abre su hoja en pantalla y no llega a nacer
-    # deja una caja esperando trabajo que nadie empezó.
+    # `n_spawned` belongs to the window's aggregate, so as a bound it is CONSERVATIVE: if a group reports more
+    # requests than workers born during the entire round, those requests cannot have been workers. And the gap
+    # is not an accounting detail — it is the finding: an escalation that opens its sheet onscreen but never comes to life
+    # leaves a box waiting for work that no one started.
     _nacidos = dup.get("n_spawned")
     for g in (dup.get("groups") or [])[:3]:
         _bar, _met = g.get("engine_bar"), g.get("engine_metric") or "contención"
@@ -228,9 +228,9 @@ def _mechanism_numbers(mech: dict) -> list[str]:
             out.append(f"murieron en menos de 2 s: {quick} (ms) — una búsqueda no dura eso")
     sr = mech.get("search_returns") or {}
     if sr.get("queries"):
-        # V2-378 — el aviso solo vale si ALGUNA vuelta llegó con la conversación abierta. Si todas llegaron
-        # después del último turno no hubo a quién empujar, y decir «ninguna se le empujó» acusa al mecanismo
-        # de un fallo de entrega imposible — el mismo cuidado que la línea del motor que sigue trabajando.
+        # V2-378 — the warning is valid only if SOME result arrived while the conversation was open. If all arrived
+        # after the last turn, there was no one to push them to, and saying “none were pushed to it” accuses the mechanism
+        # of an impossible delivery failure — the same care as the line for the engine that is still working.
         _tarde = int(sr.get("returns_after_last_turn") or 0)
         _a_tiempo = max(0, int(sr.get("returns") or 0) - _tarde)
         if sr.get("notes_from_search"):

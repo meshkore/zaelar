@@ -1,6 +1,6 @@
 """Launch phases — the OPERATOR-OWNED boundary of what production v1 promises (INI-026, 2026-08-29).
 
-«Tener algún sitio donde yo diga: esto es TODO lo que se puede hacer en la versión de producción» — this
+“Have somewhere I can say: this is EVERYTHING that can be done in the production version” — this
 module is that place. PHASE 1 is the delimited v1 scope: the feature set the product guarantees at launch,
 each feature carried by its use case(s). Everything else promoted is PHASE 2: not yet proven, more complex,
 or deliberately later (two-agent meetings, connectors, tier 4-7). The boundary is membership by BARE id
