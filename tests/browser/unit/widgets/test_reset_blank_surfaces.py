@@ -1,17 +1,17 @@
 """
-UN RESET DEJA LAS SUPERFICIES EN BLANCO — pero no borra el registro del operador.
+RESET LEAVES THE SURFACES BLANK — but does not erase the operator's records.
 
-Fallo REAL (2026-08-12, reporte del operador). Apretó Reset «para que se pare todo y podamos empezar de cero»,
-pidió una búsqueda NUEVA de veleros, y al abrirse la hoja de resultados le salió ENTERA la búsqueda anterior —los
-ferrys a Ibiza del día 10— mientras el worker de la nueva seguía trabajando. El reset cerraba las tarjetas pero no
-tocaba sus DATOS: el contenido viejo seguía en `widgets/_data/<id>/state.json` esperando a que alguien abriera la
-tarjeta. Un widget que enseña el trabajo de antes como si fuera el de ahora engaña igual que un agente caído
-pintado en azul.
+REAL failure (2026-08-12, operator report). They pressed Reset “so everything would stop and we could start from
+scratch,” requested a NEW search for sailboats, and when the results sheet opened, the ENTIRE previous search appeared
+—the ferries to Ibiza from the 10th—while the worker for the new one was still working. Reset closed the cards but did
+not touch their DATA: the old content remained in `widgets/_data/<id>/state.json`, waiting for someone to open the
+card. A widget that shows yesterday's work as if it were today's is just as misleading as a failed agent painted
+blue.
 
-Las dos mitades que hay que sostener a la vez, y por eso está todo en el mismo fichero:
-  · lo DERIVADO se vacía (resultados, informes, gráficas, la lista de mensajes) — es reproducible;
-  · lo que es REGISTRO del operador NO (la agenda: sus proyectos, tareas y citas reales), y las credenciales,
-    conexiones y perfiles de navegador tampoco — es lo que el diálogo del reset le promete.
+The two halves that must be upheld at once, which is why everything is in the same file:
+  · DERIVED data is emptied (results, reports, charts, the message list) — it is reproducible;
+  · the operator's RECORD is NOT (the agenda: their real projects, tasks, and appointments), and neither are
+    credentials, connections, or browser profiles — that is what the reset dialog promises.
 """
 import json
 import os
@@ -23,7 +23,7 @@ from widgets import store
 
 @pytest.fixture
 def data_dir(tmp_path, monkeypatch):
-    """Aísla `widgets/_data/` — estos tests BORRAN estado de widgets; jamás contra los datos reales del operador."""
+    """Isolate `widgets/_data/` — these tests DELETE widget state; never touch the operator's real data."""
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     store._last_hash.clear()
     yield tmp_path
@@ -42,9 +42,9 @@ def _read(wid: str) -> dict:
         return json.load(f)
 
 
-# ── 1. lo derivado se va ──────────────────────────────────────────────────────────────────────────────────────
+# ── 1. derived data goes away ──────────────────────────────────────────────────────────────────────────────────
 def test_the_previous_search_does_not_survive_a_reset(data_dir):
-    """El caso exacto del incidente: la hoja de los ferrys no puede reaparecer en la búsqueda siguiente."""
+    """The exact case from the incident: the ferry sheet must not reappear in the next search."""
     from widgets import reset as wreset
     _seed("results", {"title": "Ferry a Ibiza · Ida lun 17 ago", "items": [{"title": "Dénia ↔ Ibiza · Baleària"}]})
     out = wreset.blank_all()
@@ -55,8 +55,8 @@ def test_the_previous_search_does_not_survive_a_reset(data_dir):
 
 
 def test_a_widget_without_a_data_module_is_blanked_too(data_dir):
-    """Los widgets que el operador se ha hecho (o los que ya no existen y dejaron datos) también se vacían: si no,
-    el único que quedaría limpio sería el que alguien se acordó de instrumentar."""
+    """Widgets the operator made (or ones that no longer exist but left data behind) are emptied too; otherwise,
+    the only one that would be clean would be the one someone remembered to instrument."""
     from widgets import reset as wreset
     _seed("no-existe-xyz", {"lo": "que sea", "items": [1, 2, 3]})
     out = wreset.blank_all()
@@ -65,20 +65,20 @@ def test_a_widget_without_a_data_module_is_blanked_too(data_dir):
 
 
 def test_blanking_does_not_leave_the_next_save_stuck(data_dir):
-    """`store.save` tiene un anti-flood por hash: si se toca el fichero por fuera sin olvidar la huella, el
-    siguiente guardado IDÉNTICO se salta y el widget se queda vacío en pantalla con datos que nunca se escribieron."""
+    """`store.save` has hash-based anti-flooding: if the file is changed externally without clearing the fingerprint,
+    the next IDENTICAL save is skipped and the widget remains empty on screen with data that was never written."""
     from widgets import reset as wreset
     payload = {"title": "Veleros", "items": [{"title": "Bavaria 50"}]}
     _seed("results", payload)
     wreset.blank_all()
-    store.save("results", payload)                     # el worker vuelve a publicar exactamente lo mismo
+    store.save("results", payload)                     # the worker publishes exactly the same thing again
     assert _read("results").get("items"), "el guardado posterior tiene que llegar al disco"
 
 
-# ── 2. lo que es del operador se queda ────────────────────────────────────────────────────────────────────────
+# ── 2. the operator's data stays ──────────────────────────────────────────────────────────────────────────────
 def test_the_operators_own_record_is_not_wiped(data_dir):
-    """La agenda declara `data.durable` en su manifest: son citas y proyectos REALES, no la salida de un trabajo.
-    Borrarlos sería pérdida de datos — del orden de borrar la memoria, que exige marcar su casilla."""
+    """The agenda declares `data.durable` in its manifest: these are REAL appointments and projects, not a job's output.
+    Deleting them would be data loss — comparable to erasing memory, which requires checking its box."""
     from widgets import reset as wreset
     assert wreset.is_durable("agenda") is True, "el manifest de la agenda tiene que declararlo"
     _seed("agenda", {"meetings": [{"title": "ITV del coche", "date": "2026-08-20"}], "projects": ["Zaelar"]})
@@ -88,16 +88,16 @@ def test_the_operators_own_record_is_not_wiped(data_dir):
 
 
 def test_the_default_is_to_blank_so_the_exception_has_to_be_declared(data_dir):
-    """Sin declaración → se vacía. Es lo que pidió el operador («todos los widgets de resultados, de
-    visualizaciones, etc. se tienen que inicializar en blanco») y deja la excepción explícita y revisable."""
+    """Without a declaration → it is emptied. That is what the operator requested (“all result, visualization, etc.
+    widgets must be initialized blank”) and it keeps the exception explicit and reviewable."""
     from widgets import reset as wreset
     assert wreset.is_durable("results") is False
     assert wreset.is_durable("mensajeria") is False
 
 
 def test_messages_go_but_the_connection_stays(data_dir):
-    """El reset promete NO tocar credenciales ni conexiones. Un vaciado a lo bruto dejaría las tres plataformas en
-    `off` → parecería que el reset te ha desconectado de WhatsApp con la cuenta todavía enlazada."""
+    """Reset promises NOT to touch credentials or connections. A brute-force wipe would leave all three platforms `off`
+    → it would look as though reset disconnected you from WhatsApp while the account was still linked."""
     from widgets import reset as wreset
     _seed("mensajeria", {"platforms": {"whatsapp": {"status": "linked", "qr": None},
                                        "telegram": {"status": "off", "qr": None},
@@ -112,9 +112,9 @@ def test_messages_go_but_the_connection_stays(data_dir):
 
 
 def test_the_browser_profile_and_media_survive(data_dir):
-    """Lo más caro de perder: `widgets/_data/navegador/profile/` guarda las sesiones que el operador abrió A MANO
-    (Wallapop, Google…). Se vacía `state.json`, NUNCA la carpeta — que es lo que hace `store.delete`, pensado para
-    cuando el widget MUERE."""
+    """The most expensive thing to lose: `widgets/_data/navegador/profile/` stores sessions the operator opened MANUALLY
+    (Wallapop, Google…). `state.json` is emptied, NEVER the folder — that is what `store.delete` does, intended for
+    when the widget DIES."""
     from widgets import reset as wreset
     _seed("navegador", {"mode": "page", "url": "https://wallapop.com", "title": "Wallapop"})
     prof = os.path.join(store.data_dir("navegador"), "profile")
@@ -138,11 +138,11 @@ def test_nothing_is_created_for_a_widget_that_had_no_data(data_dir):
     assert not os.listdir(str(data_dir))
 
 
-# ── 3. el ESTADO que describe todo eso ────────────────────────────────────────────────────────────────────────
+# ── 3. the STATE that describes all of this ──────────────────────────────────────────────────────────────────
 def test_the_reset_clears_the_state_that_describes_widgets_and_workers():
-    """«El estado tiene que limpiarse, al menos el estado que depende de los widgets, de los brainworkers.» Sin
-    esto el cerebro arrancaba la prueba nueva leyendo widgets abiertos que ya no están y un MRU que apunta a la
-    prueba anterior — y decidía sobre un mundo desmontado."""
+    """“The state must be cleared, at least the state that depends on widgets, from the brainworkers.” Without
+    this, the brain started the new test by reading open widgets that no longer existed and an MRU pointing to the
+    previous test — and made decisions about a dismantled world."""
     import inspect
 
     from nucleo import reset as nreset
@@ -153,10 +153,11 @@ def test_the_reset_clears_the_state_that_describes_widgets_and_workers():
     assert "blank_all()" in src, "el reset tiene que dejar las superficies en blanco"
 
 
-# ── 4. la hoja se llena MIENTRAS se trabaja (la otra mitad de la queja) ───────────────────────────────────────
+# ── 4. the sheet fills up WHILE work is in progress (the other half of the complaint) ─────────────────────────
 def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
-    """Una investigación tarda 5-15 min y el brief solo pedía entregar AL FINAL: el operador se quedaba mirando una
-    hoja vacía —o la de la búsqueda anterior— sin saber si pasaba algo, y sin poder corregir el rumbo a tiempo."""
+    """An investigation takes 5–15 minutes and the brief only asked for delivery AT THE END: the operator was left
+    staring at an empty sheet —or the previous search's— without knowing whether anything was happening or being able
+    to correct course in time."""
     from nucleo import research
     brief = {"goal": "veleros de 49 pies de segunda mano", "min_candidates": 40, "n_final": 3,
              "hard": ["velero", "segunda mano"], "soft": ["ubicación"]}
@@ -168,9 +169,9 @@ def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
 
 
 def test_the_sheet_documents_the_live_contract_for_whoever_reads_it():
-    """El worker aprende el contrato leyendo el manifest (`widget_cli read results`): si la convención no está ahí,
-    no existe. Vive en `worker_guide` —que solo se sirve BAJO DEMANDA en `read_widget`— y no en `usage`, por el
-    test de presupuesto de abajo."""
+    """The worker learns the contract by reading the manifest (`widget_cli read results`): if the convention is not
+    there, it does not exist. It lives in `worker_guide` —served ON DEMAND only by `read_widget`— and not in `usage`,
+    as required by the budget test below."""
     with open("widgets/results/manifest.json", encoding="utf-8") as f:
         man = json.load(f)
     assert "append" in (man.get("actions") or {})
@@ -179,12 +180,12 @@ def test_the_sheet_documents_the_live_contract_for_whoever_reads_it():
     assert "provisional" in guide.lower() and "@informe.json" in guide
 
 
-# ── PRESUPUESTO DE PROMPT: `usage` se paga en CADA turno con el widget abierto ─────────────────────────────────
-# `widgets/brief.py::for_prompt` mete el `usage` COMPLETO del widget en el prompt mientras esté en pantalla. La
-# hoja de resultados está abierta justamente durante una investigación larga, que es cuando el operador más habla:
-# un `usage` de 4,9 KB (donde llegó a estar) son ~1,2k tokens en cada «¿cómo va?». La norma del operador es la de
-# «las tools, de menos a más»: el contrato LARGO se sirve bajo demanda (`worker_guide` → `read_widget`), y en el
-# turno solo va lo que el cerebro no puede deducir. El techo obliga a recortar en vez de engordar el turno de todos.
+# ── PROMPT BUDGET: `usage` is paid on EVERY turn with the widget open ──────────────────────────────────────────
+# `widgets/brief.py::for_prompt` puts the widget's COMPLETE `usage` into the prompt while it is on screen. The
+# results sheet is open precisely during a long investigation, when the operator talks most:
+# a 4.9 KB `usage` (where it reached) means ~1.2k tokens on every “how is it going?”. The operator's rule is
+# “tools, from least to most”: the LONG contract is served on demand (`worker_guide` → `read_widget`), and each
+# turn contains only what the brain cannot infer. The ceiling forces trimming instead of bloating everyone's turn.
 _USAGE_BUDGET = 700
 
 
@@ -195,19 +196,19 @@ def test_the_per_turn_doc_stays_small_and_the_long_contract_is_on_demand():
     assert len(usage) <= _USAGE_BUDGET, (
         f"`usage` viaja en CADA turno con la hoja abierta: {len(usage)} chars > {_USAGE_BUDGET}. "
         "Lo que sea contrato de relleno va a `worker_guide`, que solo se lee con read_widget.")
-    # y lo que se movió NO puede seguir duplicado en el camino caro
+    # and what was moved must NOT remain duplicated in the expensive path
     for long_only in ("@informe.json", "kind:\"meter\"", "≤34"):
         assert long_only not in usage, f"«{long_only}» es del contrato largo: su sitio es worker_guide"
     assert len(man.get("worker_guide") or "") > len(usage), "el contrato largo existe, solo que bajo demanda"
 
 
 def test_the_turn_prompt_does_not_carry_the_long_contract(tmp_path, monkeypatch):
-    """Comprobado por el camino REAL (`brief.for_prompt`), no leyendo el JSON: es ahí donde se paga.
+    """Verified through the REAL path (`brief.for_prompt`), not by reading the JSON: that is where the cost is paid.
 
-    Con la hoja VACÍA a propósito, para medir lo que cuesta la DOCUMENTACIÓN y no lo que cuesta el CONTENIDO. Los
-    resultados que hay en pantalla también viajan (el digest), y eso es dinero bien gastado: es lo que permite
-    responder «¿ese lleva wifi?» sin volver a buscar. Lo que no puede colarse en cada turno es el manual de cómo
-    se rellena la hoja, que solo le importa a quien la rellena."""
+    With the sheet deliberately EMPTY, to measure the cost of DOCUMENTATION rather than CONTENT. Results on screen
+    also travel (the digest), and that is money well spent: it allows answering “does that one have Wi-Fi?” without
+    searching again. What must not slip into every turn is the manual for filling the sheet, which matters only to
+    whoever fills it."""
     from widgets import brief, store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     opened = brief.for_prompt(open_ids=["results"], query="")
@@ -218,15 +219,15 @@ def test_the_turn_prompt_does_not_carry_the_long_contract(tmp_path, monkeypatch)
     assert cost < 1000, f"tener la hoja abierta cuesta {cost} chars de prompt en CADA turno: es un manual, no una guía"
 
 
-# ── VACIAR UN WIDGET NO PUEDE SER SILENCIOSO (2026-08-10) ─────────────────────────────────────────────────────
-# Punto ciego encontrado en carne propia: a otra sesión se le vació la hoja de resultados DOS VECES en mitad de una
-# prueba (la causa fue un fixture de test que llamaba al reset real), y no había forma de saberlo — porque el
-# camino genérico de vaciado borra el `state.json` a mano y `store.save()` es el ÚNICO punto que anuncia «este
-# widget ha cambiado». Sin evento no hay fila en el registro, y sin señal el canvas sigue enseñando datos que en
-# disco ya no existen. Parecía un fallo de persistencia del widget: se fue un buen rato buscando una avería
-# inexistente. Un camino que MUTA datos sin anunciarlo es un agujero en la observabilidad, no un detalle.
+# ── WIPING A WIDGET MUST NOT BE SILENT (2026-08-10) ────────────────────────────────────────────────────────────
+# Blind spot discovered firsthand: in another session the results sheet was wiped TWICE in the middle of a
+# test (the cause was a test fixture that called the real reset), and there was no way to know — because the
+# generic wiping path manually deletes `state.json` and `store.save()` is the ONLY point that announces “this
+# widget changed.” Without an event there is no row in the log, and without a signal the canvas keeps showing data
+# that no longer exists on disk. It looked like a widget persistence failure: considerable time was spent looking
+# for a nonexistent fault. A path that MUTATES data without announcing it is an observability hole, not a detail.
 def _emitted(monkeypatch):
-    """Captura lo que se emite al observador, sin tocar el registro real."""
+    """Capture what is emitted to the observer without touching the real log."""
     seen = []
     import voice.observer as obs
     monkeypatch.setattr(obs, "emit",
@@ -251,8 +252,8 @@ def test_wiping_a_widget_leaves_an_audit_row_and_repaints_the_canvas(data_dir, m
 
 
 def test_the_widgets_own_blank_also_leaves_the_audit_row_without_duplicating_the_signal(data_dir, monkeypatch):
-    """El camino que pasa por `store.save()` ya avisa al canvas él solo; lo que le faltaba es DECIR que fue un
-    reset — un `data` a secas no distingue «lo vaciaron» de «lo actualizaron»."""
+    """The path through `store.save()` already notifies the canvas by itself; what it lacked was SAYING that it was a
+    reset — a bare `data` does not distinguish “it was emptied” from “it was updated.”"""
     from widgets import reset as wreset
 
     (data_dir / "msg").mkdir()
@@ -268,7 +269,7 @@ def test_the_widgets_own_blank_also_leaves_the_audit_row_without_duplicating_the
 
 
 def test_announcing_can_never_break_the_wipe(data_dir, monkeypatch):
-    """Vaciar un widget es la operación; contarlo es un efecto. Si el observador falla, el reset SIGUE."""
+    """Emptying a widget is the operation; reporting it is a side effect. If the observer fails, reset CONTINUES."""
     from widgets import reset as wreset
     import voice.observer as obs
 

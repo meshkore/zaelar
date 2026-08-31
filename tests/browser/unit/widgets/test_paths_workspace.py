@@ -1,7 +1,7 @@
 """Where a widget's CODE lives — `widgets/paths.py` (V2-125, 2026-08-18).
 
 The measured failure: a sandboxed use-case run generated `log-training-workouts` into the operator's REAL
-`engine/widgets/`, so the NEXT run of `build-workout-tracker-widget` opened with «ya tienes ese widget» about
+`engine/widgets/`, so the NEXT run of `build-workout-tracker-widget` opened with «you already have that widget» about
 something the simulated user had never asked for. It was a known leak — written down in
 `tests/platform/sandbox_engine.py` and deliberately left for the product, because a sandbox cannot sweep that
 directory afterwards without risking the operator's own live generation.

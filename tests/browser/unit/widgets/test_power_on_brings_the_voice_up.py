@@ -2,9 +2,8 @@
 
 Real report (operator, 2026-08-31, with a screenshot of the amber ⏻):
 
-  «apago el bot y hago el reset; al darle al botón de arranque se me queda en amarillo parpadeando y creo que al
-   cabo de un minuto o dos sí que arranca. Pero por alguna razón si hago un refresh de la página, automáticamente
-   ya se pone en marcha todo.»
+  “I turn off the bot and reset it; when I press the start button, it stays flashing yellow and I think it does
+   start up after a minute or two. But for some reason, if I refresh the page, everything starts up automatically.”
 
 Two faults stacked, and the reload is the tell — a state that only fixes itself by reloading is the state that
 lies:

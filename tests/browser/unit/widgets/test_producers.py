@@ -1,15 +1,15 @@
 #
-# test_producers.py — el CONTRATO de producción de un widget (V2-092).
+# test_producers.py — the widget production CONTRACT (V2-092).
 #
-# Nace de un fallo real reportado por el operador (2026-08-13) con el agente PARADO delante: un vídeo de YouTube
-# seguía reproduciéndose, al recargar la página volvía a arrancar solo, y encima sonaba a la vez que el reproductor
-# de música. Lo que faltaba no era un `if` para YouTube: era un contrato que cualquier widget —incluidos los que
-# GENERA el agente mañana— pueda declarar, para que la parada global y la exclusividad del altavoz salgan gratis.
+# It stems from a real failure reported by the operator (2026-08-13) with the agent STOPPED: a YouTube video
+# kept playing, restarted on its own when the page was reloaded, and also played at the same time as the music
+# player. What was missing was not an `if` for YouTube: it was a contract that any widget—including those the agent
+# GENERATES tomorrow—can declare, so global stopping and speaker exclusivity come for free.
 #
-# Se prueban las TRES capacidades que ese contrato tiene que dar, y una cuarta que es la que evita regresiones:
-# que los manifests REALES del catálogo la declaren bien (un contrato que nadie declara no protege de nada).
+# The THREE capabilities that contract must provide are tested, plus a fourth that prevents regressions:
+# the catalog's REAL manifests must declare it correctly (a contract nobody declares protects against nothing).
 #
-# Ejecutar: .venv/bin/pytest tests/browser/unit/widgets/test_producers.py
+# Run: .venv/bin/pytest tests/browser/unit/widgets/test_producers.py
 #
 from __future__ import annotations
 
@@ -24,25 +24,25 @@ from widgets import producers
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
-# ── lectura del contrato ────────────────────────────────────────────────────────────────────────────────────
+# ── contract reading ───────────────────────────────────────────────────────────────────────────────────────
 def test_spec_normaliza_el_manifest():
     sp = producers.spec({"id": "w", "runtime": {"output": "audio", "produce": ["play", "load"],
                                                "suspend": "pause", "active_when": {"paused": False}}})
     assert sp["id"] == "w"
     assert sp["output"] == "audio"
-    assert sp["produce"] == {"play", "load"}          # set: la pregunta real es «¿pertenece?»
+    assert sp["produce"] == {"play", "load"}          # set: the real question is «does it belong?»
     assert sp["suspend"] == "pause"
-    assert sp["active_when"] == [{"paused": False}]   # un dict suelto es una lista de una condición
+    assert sp["active_when"] == [{"paused": False}]   # a standalone dict is a list containing one condition
 
 
 def test_sin_runtime_no_hay_contrato():
     assert producers.spec({"id": "w"}) is None
-    assert producers.spec({"id": "w", "runtime": "audio"}) is None      # malformado, no revienta
+    assert producers.spec({"id": "w", "runtime": "audio"}) is None      # malformed, does not crash
 
 
 def test_runtime_sin_suspend_se_descarta():
-    """Un widget que declara que produce pero no CÓMO se para es peor que uno que no declara nada: entraría en el
-    inventario de la parada global y se quedaría sonando con el sistema convencido de haberlo apagado."""
+    """A widget that declares that it produces but not HOW it stops is worse than one that declares nothing: it would
+    enter the global-stop inventory and keep playing while the system believed it had shut it down."""
     assert producers.spec({"id": "w", "runtime": {"output": "audio", "produce": ["play"]}}) is None
 
 
@@ -51,32 +51,32 @@ def test_produce_admite_un_solo_string():
     assert sp["produce"] == {"play"}
 
 
-# ── ¿está produciendo? (función PURA: es la que decide a quién se calla) ─────────────────────────────────────
+# ── is it producing? (PURE function: it decides whom to silence) ────────────────────────────────────────────
 def _sp(active_when, **kw):
     return producers.spec({"id": "w", "runtime": {"suspend": "pause", "active_when": active_when, **kw}})
 
 
 def test_is_producing_verdad_no_identidad():
-    """`{"paused": false}` significa «el campo es falsy», no «es exactamente False»: un widget escribe `0`, `""` o
-    directamente no escribe el campo, y las tres cosas significan lo mismo."""
+    """`{"paused": false}` means «the field is falsy», not «it is exactly False»: a widget writes `0`, `""`, or
+    does not write the field at all, and all three things mean the same."""
     sp = _sp({"videoId": True, "paused": False})
     assert producers.is_producing({"videoId": "abc", "paused": False}, sp) is True
-    assert producers.is_producing({"videoId": "abc"}, sp) is True            # ausente = falsy
+    assert producers.is_producing({"videoId": "abc"}, sp) is True            # absent = falsy
     assert producers.is_producing({"videoId": "abc", "paused": 0}, sp) is True
     assert producers.is_producing({"videoId": "abc", "paused": True}, sp) is False
-    assert producers.is_producing({"videoId": "", "paused": False}, sp) is False   # sin vídeo no suena nada
+    assert producers.is_producing({"videoId": "", "paused": False}, sp) is False   # no video means nothing plays
 
 
 def test_is_producing_ruta_con_puntos():
     sp = _sp({"yt.videoId": True, "yt.paused": False})
     assert producers.is_producing({"yt": {"videoId": "x"}}, sp) is True
     assert producers.is_producing({"yt": {"videoId": "x", "paused": True}}, sp) is False
-    assert producers.is_producing({"yt": None}, sp) is False                 # rama ausente = no produce
+    assert producers.is_producing({"yt": None}, sp) is False                 # missing branch = does not produce
 
 
 def test_is_producing_varias_vias_es_un_O():
-    """La música puede sonar por Spotify (dispositivo remoto) o por YouTube-audio (iframe oculto). Son dos estados
-    distintos y basta uno: con `active_when` como Y único, la mitad de los casos quedaba sin cubrir."""
+    """Music can play through Spotify (remote device) or YouTube-audio (hidden iframe). They are two distinct states
+    and one is enough: with `active_when` as a single AND, half the cases went uncovered."""
     sp = _sp([{"yt.videoId": True, "yt.paused": False}, {"now_playing.playing": True}])
     assert producers.is_producing({"yt": {"videoId": "x"}}, sp) is True
     assert producers.is_producing({"now_playing": {"playing": True}}, sp) is True
@@ -90,21 +90,21 @@ def test_is_producing_igualdad_de_texto():
 
 
 def test_sin_active_when_no_produce_nunca():
-    """Adivinar sería suspender cosas que no estaban sonando. Quien quiere entrar en la parada global dice cómo se
-    le mira."""
+    """Guessing would suspend things that were not playing. Whoever wants to enter global stopping must say how it
+    is checked."""
     assert producers.is_producing({"paused": False}, _sp({})) is False
 
 
 def test_view_data_degradado_no_produce():
-    """Un widget que devuelve `{"error": …}` no sabe ni leerse: mandarle comandos no arregla nada."""
+    """A widget that returns `{"error": …}` cannot even read itself: sending it commands fixes nothing."""
     sp = _sp({"paused": False})
     assert producers.is_producing({"error": "timed out", "paused": False}, sp) is False
 
 
-# ── la PUERTA: con el agente parado nada empieza a producir ─────────────────────────────────────────────────
+# ── the GATE: with the agent stopped, nothing starts producing ───────────────────────────────────────────────
 @pytest.fixture
 def catalogo(monkeypatch):
-    """Catálogo sintético de dos widgets del MISMO canal (el altavoz) + uno que no produce."""
+    """Synthetic catalog of two widgets on the SAME channel (the speaker) + one that does not produce."""
     man = [
         {"id": "vid", "runtime": {"output": "audio", "produce": ["play", "load"], "suspend": "pause",
                                   "active_when": {"paused": False}}},
@@ -122,11 +122,11 @@ def test_gate_bloquea_solo_lo_que_produce(catalogo, monkeypatch):
     monkeypatch.setattr(runstate, "stopped", lambda: True)
     denied = producers.gate("vid", "play")
     assert denied and denied["error"] == "agent_stopped"
-    assert "⏻" in denied["message"]                       # el mensaje dice CÓMO salir del estado, no solo que no
-    # Parar el agente NO congela la interfaz: navegar la tarjeta, cambiar de vista o bajar el volumen siguen valiendo.
+    assert "⏻" in denied["message"]                       # the message says HOW to leave the state, not merely that it cannot
+    # Stopping the agent does NOT freeze the interface: navigating the card, changing views, or lowering the volume still work.
     assert producers.gate("vid", "pause") is None
     assert producers.gate("vid", "volume_down") is None
-    assert producers.gate("reloj", "cualquiera") is None   # un widget sin contrato no se gatea jamás
+    assert producers.gate("reloj", "cualquiera") is None   # a widget without a contract is never gated
 
 
 def test_gate_no_estorba_con_el_agente_en_marcha(catalogo, monkeypatch):
@@ -140,9 +140,9 @@ def test_starts_production_es_declarado(catalogo):
     assert producers.starts_production("vid", "mute") is False
 
 
-# ── parada global y exclusividad de canal ───────────────────────────────────────────────────────────────────
+# ── global stopping and channel exclusivity ─────────────────────────────────────────────────────────────────
 class _Bus:
-    """Sustituye las dos costuras de I/O de producers: leer el estado de un widget y mandarle una acción."""
+    """Replaces producers' two I/O seams: reading a widget's state and sending it an action."""
 
     def __init__(self, playing: set[str]):
         self.playing = set(playing)
@@ -182,14 +182,14 @@ def test_suspend_all_para_a_todos_por_su_accion_declarada(bus):
 def test_suspend_all_no_toca_a_quien_no_suena(bus):
     bus.playing = set()
     assert asyncio.run(producers.suspend_all()) == []
-    assert bus.sent == []                                  # ni un comando de más a un widget en reposo
+    assert bus.sent == []                                  # not even one extra command to an idle widget
 
 
 def test_exclusividad_el_ultimo_en_sonar_calla_al_otro(bus):
-    """El fallo tal cual lo vio el operador: música y vídeo sonando a la vez. El altavoz es UNO."""
+    """The failure exactly as the operator saw it: music and video playing at once. There is ONE speaker."""
     callados = asyncio.run(producers.enforce_exclusive("vid", "play"))
     assert callados == ["mus"]
-    assert bus.playing == {"vid"}                          # el que tomó el canal sigue sonando
+    assert bus.playing == {"vid"}                          # the one that took the channel keeps playing
 
 
 def test_exclusividad_no_se_aplica_a_una_accion_que_no_produce(bus):
@@ -198,8 +198,8 @@ def test_exclusividad_no_se_aplica_a_una_accion_que_no_produce(bus):
 
 
 def test_sin_canal_no_hay_exclusividad(monkeypatch):
-    """Un widget puede producir SIN competir (un proceso, una grabación): declarar producción no impone
-    exclusividad por accidente."""
+    """A widget can produce WITHOUT competing (a process, a recording): declaring production does not impose
+    exclusivity by accident."""
     man = [{"id": "grab", "runtime": {"produce": ["start"], "suspend": "stop", "active_when": {"on": True}}}]
     monkeypatch.setattr(producers.runtime, "catalog", lambda: man)
     monkeypatch.setattr(producers.runtime, "get", lambda wid: man[0] if wid == "grab" else None)
@@ -207,8 +207,8 @@ def test_sin_canal_no_hay_exclusividad(monkeypatch):
 
 
 def test_un_widget_roto_no_tumba_la_parada_global(catalogo, monkeypatch):
-    """Una parada a medias es peor que ninguna: el operador cree que paró y algo sigue sonando. Si un widget
-    revienta al ser consultado, se le da por parado y los DEMÁS se paran igual."""
+    """A partial stop is worse than none: the operator thinks it stopped and something keeps playing. If a widget
+    crashes when queried, it is treated as stopped and the OTHERS are stopped anyway."""
     async def view(wid):
         if wid == "vid":
             raise RuntimeError("data.py roto")
@@ -229,13 +229,13 @@ def test_una_suspension_rechazada_no_se_cuenta_como_hecha(bus, monkeypatch):
         return {"ok": False, "error": "no se pudo"}
     import widgets.server_api as sapi
     monkeypatch.setattr(sapi, "dispatch_raw", dispatch)
-    assert asyncio.run(producers.suspend_all()) == []      # lo que se reporta al operador son HECHOS
+    assert asyncio.run(producers.suspend_all()) == []      # what is reported to the operator are FACTS
 
 
-# ── el EMBUDO: que la política esté de verdad cableada en el camino que usan la UI y el cerebro ──────────────
+# ── the FUNNEL: ensure the policy is truly wired into the path used by the UI and the brain ─────────────────
 def test_el_embudo_rechaza_sin_llegar_al_widget(catalogo, monkeypatch):
-    """La puerta actúa ANTES de aplicar la acción. Aplicarla y deshacerla después dejaría rastro raro en el store
-    y, en algo como `load`, habría hecho ya el trabajo de red."""
+    """The gate acts BEFORE applying the action. Applying it and undoing it afterward would leave a strange trace in
+    the store and, for something like `load`, would already have done the network work."""
     import widgets.server_api as sapi
     from nucleo import runstate
     monkeypatch.setattr(runstate, "stopped", lambda: True)
@@ -246,21 +246,21 @@ def test_el_embudo_rechaza_sin_llegar_al_widget(catalogo, monkeypatch):
     monkeypatch.setattr(sapi, "dispatch_raw", raw)
     res = asyncio.run(sapi._dispatch("vid", "play", {}))
     assert res["error"] == "agent_stopped"
-    assert llegó == [], "la acción no debe llegar al widget"
+    assert llegó == [], "the action must not reach the widget"
 
 
 def test_el_embudo_aplica_la_exclusividad_despues_de_la_accion(bus, monkeypatch):
-    """Y en ese orden: quién ocupa el canal se lee del estado REAL, no de lo que creíamos que la acción iba a hacer."""
+    """And in that order: who occupies the channel is read from the REAL state, not from what we thought the action would do."""
     import widgets.server_api as sapi
     from nucleo import runstate
     monkeypatch.setattr(runstate, "stopped", lambda: False)
     asyncio.run(sapi._dispatch("vid", "play", {}))
-    assert ("mus", "pause") in bus.sent                    # el otro dueño del altavoz se calla
+    assert ("mus", "pause") in bus.sent                    # the other owner of the speaker is silenced
     assert bus.playing == {"vid"}
 
 
 def test_una_data_op_normal_no_paga_nada(bus, monkeypatch):
-    """Parar el agente no congela la interfaz, y la política no puede estorbar a las 20 acciones que no producen."""
+    """Stopping the agent does not freeze the interface, and the policy cannot interfere with the 20 actions that do not produce."""
     import widgets.server_api as sapi
     from nucleo import runstate
     monkeypatch.setattr(runstate, "stopped", lambda: True)
@@ -268,14 +268,14 @@ def test_una_data_op_normal_no_paga_nada(bus, monkeypatch):
     assert res == {"ok": True} and bus.sent == [("vid", "volume_down")]
 
 
-# ── los manifests REALES ────────────────────────────────────────────────────────────────────────────────────
+# ── the REAL manifests ──────────────────────────────────────────────────────────────────────────────────────
 def _manifest(wid):
     return json.loads((ENGINE / "widgets" / wid / "manifest.json").read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("wid", ["youtube", "musica"])
 def test_los_widgets_que_suenan_declaran_su_contrato(wid):
-    """Los dos widgets que HOY producen audio tienen que estar en el contrato, o el bug del operador vuelve."""
+    """The two widgets that produce audio TODAY must be in the contract, or the operator's bug returns."""
     man = _manifest(wid)
     sp = producers.spec(man)
     assert sp is not None, f"{wid} debe declarar 'runtime'"
@@ -286,9 +286,9 @@ def test_los_widgets_que_suenan_declaran_su_contrato(wid):
 
 @pytest.mark.parametrize("wid", ["youtube", "musica"])
 def test_el_contrato_solo_nombra_acciones_QUE_EXISTEN(wid):
-    """`suspend` y `produce` tienen que ser acciones declaradas de verdad en el manifest. Una errata aquí
-    (`"suspend": "stop"` en un widget que solo entiende `pause`) sería una parada que no para nada — y fallaría en
-    silencio, en el peor momento posible."""
+    """`suspend` and `produce` must be actions actually declared in the manifest. A typo here
+    (`"suspend": "stop"` in a widget that only understands `pause`) would be a stop that stops nothing—and would fail
+    silently, at the worst possible moment."""
     man = _manifest(wid)
     declared = set((man.get("actions") or {}).keys())
     sp = producers.spec(man)

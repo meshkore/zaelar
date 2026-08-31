@@ -1,8 +1,8 @@
-"""V2-082 — CERTEZA del resolver de widgets (`runtime.identify`). Reglas duras del operador:
-- solo NOMBRE/ALIAS abren (la descripción ya no); sin match → None (se pregunta, no se abre el más parecido);
-- la palabra "widget" acota a widgets de USUARIO; un objeto de SISTEMA nombrado no devuelve un widget;
-- tolerancia de voz solo sobre tokens de alias; desempate open>recent (V2-078) conservado.
-Corre contra el catálogo REAL migrado (widgets/*/manifest.json con name+aliases curados)."""
+"""V2-082 — CERTAINTY of the widget resolver (`runtime.identify`). Hard operator rules:
+- only NAME/ALIAS open (the description no longer does); without a match → None (ask, do not open the closest match);
+- the word "widget" scopes to USER widgets; a named SYSTEM object does not return a widget;
+- voice tolerance applies only to alias tokens; open>recent tie-break (V2-078) retained.
+Runs against the REAL migrated catalog (widgets/*/manifest.json with curated name+aliases)."""
 from widgets import runtime
 
 
@@ -10,7 +10,7 @@ def _m(q, **kw):
     return runtime.identify(q, **kw)
 
 
-# ── caso de aceptación del operador: mensajería vs chat ──────────────────────────────────────────────────────
+# ── operator acceptance case: messaging vs chat ────────────────────────────────────────────────────────────
 def test_widget_word_scopes_to_user_space():
     r = _m("abre el widget de mensajería")
     assert r["match"] == "mensajeria" and r["system"] is None
@@ -28,11 +28,11 @@ def test_chat_is_a_system_surface_not_a_widget():
 
 
 def test_chat_and_mensajeria_never_collide():
-    assert _m("abre el chat")["match"] is None            # chat → sistema
-    assert _m("abre los mensajes")["match"] == "mensajeria"  # mensajes → widget
+    assert _m("abre el chat")["match"] is None            # chat → system
+    assert _m("abre los mensajes")["match"] == "mensajeria"  # messages → widget
 
 
-# ── certeza: sin nombre/alias no se abre nada (se pregunta) ───────────────────────────────────────────────────
+# ── certainty: without a name/alias nothing opens (ask) ─────────────────────────────────────────────────────
 def test_unknown_phrase_returns_none():
     for q in ("enséñame el conversor de divisas", "muéstrame no sé qué cosa rara", "ábreme el panel de la bolsa"):
         r = _m(q)
@@ -40,12 +40,12 @@ def test_unknown_phrase_returns_none():
 
 
 def test_topical_overlap_does_not_open_a_widget():
-    # "clima"/"tiempo" genéricos ya NO son alias de ningún widget → no abren por parecido temático.
+    # Generic "clima"/"tiempo" are NO longer aliases for any widget → do not open based on topical similarity.
     r = _m("qué tiempo hace hoy")
     assert r["match"] is None
 
 
-# ── superficies de sistema por nombre ────────────────────────────────────────────────────────────────────────
+# ── system surfaces by name ──────────────────────────────────────────────────────────────────────────────────
 def test_system_surfaces_resolve_by_name():
     assert _m("ábreme la configuración")["system"] == "config"
     assert _m("enséñame el debug")["system"] == "debug"
@@ -53,12 +53,12 @@ def test_system_surfaces_resolve_by_name():
 
 
 def test_widget_word_ignores_system_surfaces():
-    # "el widget de configuración" NO debe caer en la superficie de sistema (el usuario dijo widget).
+    # "el widget de configuración" must NOT fall through to the system surface (the user said widget).
     r = _m("abre el widget de configuración")
     assert r["system"] is None
 
 
-# ── nombres/alias de widgets, únicos ─────────────────────────────────────────────────────────────────────────
+# ── unique widget names/aliases ─────────────────────────────────────────────────────────────────────────────
 def test_distinct_widgets_by_alias():
     # 2026-08-31: the operator's personal widgets (pomodoro, meteo-*) left the shipped catalog — the
     # distinct-alias property is now exercised on shipped widgets only.
@@ -71,11 +71,11 @@ def test_distinct_widgets_by_alias():
 
 
 def test_voice_typo_tolerance_on_alias():
-    # errata de voz sobre un alias distintivo ('watsap'≈'whatsapp'/'wasap') sigue resolviendo.
+    # A voice typo on a distinctive alias ('watsap'≈'whatsapp'/'wasap') still resolves.
     assert _m("abre el watsap")["match"] == "mensajeria"
 
 
-# ── fallback de contexto: operar sobre el único widget abierto (lo que tiene delante) ────────────────────────
+# ── context fallback: operate on the only open widget (the one in front) ─────────────────────────────────────
 def test_single_open_widget_is_context_fallback():
     r = _m("márcalo como hecho", open_ids=["agenda"])
     assert r["match"] == "agenda" and r["by_context"] is True

@@ -1,16 +1,16 @@
 #
-# test_presentation_quality.py — CONTROL DE CALIDAD de cómo se PRESENTAN los datos en una superficie en blanco.
+# test_presentation_quality.py — QUALITY CONTROL for how data is PRESENTED on a blank surface.
 #
-# Anclado al incidente del 2026-08-10 (sesión 14:08:26). El Brain Worker hizo un trabajo impecable —45 candidatos
-# comparados, 3 propuestas con ida y vuelta y hasta el sobrecoste por altura del 4x4— y lo pintó ilegible:
-#   · `columns: 2` con 3 tarjetas RICAS → una huérfana en la última fila, cuando lo correcto era 1 columna
-#     (tres filas horizontales). El widget YA tenía esa heurística: el parámetro del payload la pisaba.
-#   · títulos de 53 chars con tres ideas dentro («ruta · compañía · (barco)») → 4 líneas envueltas chocando
-#     con el precio.
-#   · y nuestro propio `[:200]` cortó un aviso a media palabra: «⚠️ Llevar tu c».
+# Anchored to the 2026-08-10 incident (14:08:26 session). The Brain Worker did impeccable work —45 candidates
+# compared, 3 round-trip proposals and even the 4x4 height surcharge— and rendered it illegibly:
+#   · `columns: 2` with 3 RICH cards → one orphaned in the last row, when the correct result was 1 column
+#     (three horizontal rows). The widget ALREADY had that heuristic: the payload parameter overrode it.
+#   · 53-character titles with three ideas inside (“route · company · (ship)”) → 4 wrapped lines colliding
+#     with the price.
+#   · and our own `[:200]` cut a warning in the middle of a word: «⚠️ Llevar tu c».
 #
-# El diagnóstico NO fue «al modelo le parece bonito así»: fue que nadie tomaba la decisión de layout y nadie le
-# había dicho al worker los presupuestos, que vivían solo en el CSS. Esto fija los tres mecanismos.
+# The diagnosis was NOT “the model thinks it looks nice this way”: it was that nobody was making the layout decision
+# and nobody had told the worker the budgets, which existed only in CSS. This locks down the three mechanisms.
 #
 import json
 import pathlib
@@ -38,12 +38,12 @@ REAL_PAYLOAD = {
 }
 
 
-# ── 1. Recortar en silencio está prohibido ────────────────────────────────────────────────────────────────────────
+# ── 1. Silent truncation is forbidden ───────────────────────────────────────────────────────────────────────────────
 
 def test_the_warning_that_got_cut_mid_word_now_survives():
-    """`[:200]` dejó «⚠️ Llevar tu c». Una salvedad amputada engaña más que su ausencia."""
+    """`[:200]` left «⚠️ Llevar tu c». An amputated caveat is more misleading than its absence."""
     from widgets import presentation
-    assert REAL_SUBTITLE[:200].endswith("Llevar tu c")      # así era antes
+    assert REAL_SUBTITLE[:200].endswith("Llevar tu c")      # this was the previous behavior
     out, cut = presentation.clip(REAL_SUBTITLE, 220)
     assert cut is True
     assert not out.endswith("Llevar tu c")
@@ -63,10 +63,10 @@ def test_clip_never_leaves_a_dangling_separator():
     assert not out.rstrip("…").endswith(("·", ",", "-", ":", ";", " "))
 
 
-# ── 2. El layout lo decide la SUPERFICIE, por la forma del contenido ──────────────────────────────────────────────
+# ── 2. The SURFACE decides the layout, based on the shape of the content ──────────────────────────────────────────
 
-# El hueco de la rejilla lo define el CSS (`--s3`) y `gridStyle` lo lee de ahí: la réplica hace lo mismo leyéndolo
-# del fichero, para que subir la escala no deje este test midiendo otra cosa que el widget.
+# The grid gap is defined by CSS (`--s3`) and `gridStyle` reads it from there: the replica does the same by reading it
+# from the file, so increasing the scale does not leave this test measuring anything other than the widget.
 def _gap():
     import re
     src = (WIDGET / "widget.js").read_text()
@@ -78,13 +78,12 @@ _GAP = _gap()
 
 
 def _grid(items, cap=None):
-    """Réplica de `widget.js::gridStyle` — devuelve `(ancho mínimo de columna, tope de columnas)`.
+    """Replica of `widget.js::gridStyle` — returns `(minimum column width, column cap)`.
 
-    Desde 2026-08-12 el reparto ya NO es un número fijo calculado en JS: la tarjeta es REDIMENSIONABLE (y puede
-    maximizarse), así que quien manda es el ancho REAL. La superficie declara dos cosas —cuánto necesita como
-    mínimo una tarjeta de esa riqueza, y cuántas columnas como máximo tienen sentido— y el CSS reparte. La
-    garantía que se comprueba abajo es la misma de siempre: el contenido rico no se estrangula y el payload
-    solo puede REDUCIR."""
+    Since 2026-08-12 the distribution is NO longer a fixed number calculated in JS: the card is RESIZABLE (and can
+    be maximized), so the REAL width is what matters. The surface declares two things —the minimum width a card of
+    that richness needs, and the maximum number of columns that makes sense— and CSS distributes them. The guarantee
+    checked below is the same as always: rich content is not squeezed and the payload can only REDUCE."""
     rich = any((it.get("parts") or it.get("images") or it.get("blocks")
                 or len(it.get("facts") or []) > 3 or len(it.get("lines") or []) > 4) for it in items)
     medium = not rich and any((it.get("lines") or it.get("image") or it.get("facts")) for it in items)
@@ -96,7 +95,7 @@ def _grid(items, cap=None):
 
 
 def _columns_at(items, width, cap=None):
-    """Cuántas columnas SALEN de verdad a un ancho de tarjeta dado (lo que hace `auto-fill` + `minmax`)."""
+    """How many columns ACTUALLY result at a given card width (what `auto-fill` + `minmax` do)."""
     min_w, max_cols = _grid(items, cap)
     floor = (width - (max_cols - 1) * _GAP) / max_cols
     track = max(min(width, min_w), floor)
@@ -104,40 +103,40 @@ def _columns_at(items, width, cap=None):
 
 
 def test_the_real_case_now_renders_as_three_horizontal_rows():
-    """Lo que pidió el operador: «esto yo lo hubiera presentado en tres filas horizontales». Sigue saliendo así,
-    pero ahora por una razón comprobable —no caben dos tarjetas de 400px en una hoja de 720— en vez de por una
-    regla de huérfanas escrita a mano."""
+    """What the operator asked for: “I would have presented this in three horizontal rows”. It still comes out that way,
+    but now for a verifiable reason —two 400px cards do not fit on a 720px sheet— rather than because of a
+    hand-written orphan rule."""
     rich = [{"parts": [1, 2], "facts": [1] * 8}] * 3
     assert _columns_at(rich, 720, cap=2) == 1, "3 propuestas ricas en la hoja por defecto = 1 columna"
 
 
 def test_widening_the_sheet_uses_the_space_instead_of_wasting_it():
-    """Y esta es la razón de ser del cambio: si el operador la agranda o la maximiza, las mismas tres propuestas
-    se ponen en paralelo. Con el número de columnas fijo, maximizar solo estiraba una columna."""
+    """And this is the reason for the change: if the operator enlarges or maximizes it, the same three proposals
+    are placed side by side. With a fixed number of columns, maximizing only stretched one column."""
     rich = [{"parts": [1, 2], "facts": [1] * 8}] * 3
     assert _columns_at(rich, 1600) == 2, "hay sitio para dos columnas de 400: úsalo"
     assert _columns_at([{}] * 8, 1600) == 4, "tarjetas simples aprovechan más, pero con tope"
 
 
 def test_a_payload_hint_can_only_reduce_never_force():
-    """`columns` es un TOPE. Antes MANDABA y pisaba la decisión correcta de la superficie."""
+    """`columns` is a CAP. It used to CONTROL the result and override the surface's correct decision."""
     assert _grid([{}] * 8)[1] == 4
     assert _grid([{}] * 8, cap=2)[1] == 2, "puede reducir"
     assert _grid([{"parts": [1]}] * 4, cap=3)[1] == 2, "no puede forzar columnas sobre contenido rico"
 
 
 def test_rich_content_is_never_squeezed_however_narrow_the_card_gets():
-    """El fallo original («Valenci / a → / Palma»): una tarjeta rica en una columna estrecha. Ahora es imposible
-    por construcción — a cualquier ancho por debajo de dos columnas de 400px solo cabe una."""
+    """The original failure (“Valenci / a → / Palma”): a rich card in a narrow column. It is now impossible
+    by construction —at any width below two 400px columns, only one fits."""
     rich = [{"parts": [1, 2]}] * 4
     for width in (320, 480, 620, 720, 800):
         assert _columns_at(rich, width) == 1
 
 
 def test_the_gap_has_a_single_source_of_truth():
-    """Tenerlo dos veces costó una columna: al subir la rejilla de 12 a 14px, `gridStyle` siguió restando 12, el
-    suelo de cada pista quedó 2px por encima de lo que cabía y `auto-fill` bajó de dos columnas a UNA en una hoja
-    de 1.420px. Se ve como «maximizar ya no aprovecha el ancho» y no se deduce leyendo el diff."""
+    """Having it twice cost one column: when the grid increased from 12 to 14px, `gridStyle` kept subtracting 12, the
+    floor of each track ended up 2px above what fit, and `auto-fill` dropped from two columns to ONE on a 1,420px
+    sheet. It appears as “maximizing no longer uses the width” and cannot be inferred by reading the diff."""
     src = (WIDGET / "widget.js").read_text()
     fn = src[src.index("function gridStyle("):src.index("function makeCard(")]
     assert "var(--s3)" in fn, "el hueco sale de la variable que lo pinta"
@@ -154,7 +153,7 @@ def test_the_widget_really_delegates_the_layout():
     assert "auto-fill" in src, "el reparto lo hace el ancho REAL, no un número calculado al pintar"
 
 
-# ── 3. Los presupuestos se declaran, no se adivinan ───────────────────────────────────────────────────────────────
+# ── 3. Budgets are declared, not guessed ──────────────────────────────────────────────────────────────────────────
 
 def test_the_blank_sheet_declares_its_contract():
     m = json.loads((WIDGET / "manifest.json").read_text())
@@ -165,7 +164,7 @@ def test_the_blank_sheet_declares_its_contract():
 
 
 def test_a_rigid_widget_is_not_subject_to_this():
-    """Un widget del tiempo puede seguir siendo un formato fijo: no declara nada y aquí no pasa nada."""
+    """A weather widget can remain a fixed format: it declares nothing, and nothing happens here."""
     from widgets import presentation
     assert presentation.is_blank_sheet("clock") is False
     assert presentation.is_blank_sheet("no-existe") is False
@@ -181,7 +180,7 @@ def test_blank_sheets_are_discovered_from_manifests_not_a_hardcoded_list():
     assert '"results"' not in src, "el módulo debe ser agnóstico del catálogo"
 
 
-# ── 4. La directiva es el PRESET que garantiza la calidad, y viaja con la tarea ────────────────────────────────────
+# ── 4. The directive is the PRESET that guarantees quality, and travels with the task ─────────────────────────────
 
 def test_the_directive_carries_the_real_budgets():
     from widgets import presentation
@@ -192,7 +191,7 @@ def test_the_directive_carries_the_real_budgets():
 
 
 def test_the_directive_is_domain_agnostic():
-    """Mecanismo genérico: sirve para propuestas de viaje, para un informe o para un gráfico."""
+    """Generic mechanism: it works for travel proposals, a report, or a chart."""
     from widgets import presentation
     d = presentation.directive("results").lower()
     for domain in ("ferry", "hotel", "vuelo", "ibiza", "viaje"):
@@ -209,14 +208,14 @@ def test_it_only_reaches_prompts_that_will_display_data():
 def test_the_worker_prompt_wires_it_in():
     import inspect
     # Prompt composition (_build_prompt/_web_prompt/_with_presentation) moved to its own module (V2-098) — the
-    # source lives in dispatch_prompts.py now, dispatch.py just imports and calls it.
+    # source now lives in dispatch_prompts.py; dispatch.py only imports and calls it.
     from nucleo import dispatch_prompts
     src = inspect.getsource(dispatch_prompts)
     assert "_with_presentation" in src
     assert src.count("_with_presentation(") >= 3, "el genérico Y el de web, más la definición"
 
 
-# ── 5. Un payload que rompe la tarjeta deja RASTRO (un prompt no es una garantía) ─────────────────────────────────
+# ── 5. A payload that breaks the card leaves a TRACE (a prompt is not a guarantee) ────────────────────────────────
 
 def test_the_audit_catches_every_defect_of_the_real_payload():
     from widgets import presentation
@@ -231,8 +230,8 @@ def test_the_audit_catches_every_defect_of_the_real_payload():
 
 
 def test_the_audit_is_honest_about_what_actually_happens():
-    """La cabecera de la hoja SÍ se recorta; un título de item se conserva entero y ENVUELVE. Decir «se recortará»
-    de algo que no se recorta manda a buscar una pérdida de datos inexistente."""
+    """The sheet header IS truncated; an item title is kept whole and WRAPS. Saying “it will be truncated”
+    about something that is not truncated sends people looking for nonexistent data loss."""
     from widgets import presentation
     issues = presentation.audit("results", REAL_PAYLOAD)
     sheet = next(i for i in issues if i.startswith("título de la hoja"))
@@ -259,8 +258,8 @@ def test_a_clean_payload_raises_nothing():
 
 
 def test_present_reports_its_presentation_issues_back(monkeypatch, tmp_path):
-    """Las incidencias vuelven en la respuesta de la acción: así el worker puede corregir sin que el operador
-    tenga que opinar sobre el diseño."""
+    """Issues return in the action response: this lets the worker correct them without the operator
+    having to comment on the design."""
     from widgets import store
     from widgets.results import data as rd
 
@@ -271,7 +270,7 @@ def test_present_reports_its_presentation_issues_back(monkeypatch, tmp_path):
     out = rd.apply_action("present", dict(REAL_PAYLOAD))
     assert out["ok"] is True
     assert out["presentation"], "un payload que rompe la tarjeta no puede pasar en silencio"
-    # y la cabecera guardada ya viene recortada por palabra, con marca
+    # and the saved header is already truncated at a word boundary, with a marker
     assert saved["results"]["title"].endswith("…")
 
 
