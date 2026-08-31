@@ -60,13 +60,14 @@ def test_widget_word_ignores_system_surfaces():
 
 # ── nombres/alias de widgets, únicos ─────────────────────────────────────────────────────────────────────────
 def test_distinct_widgets_by_alias():
+    # 2026-08-31: the operator's personal widgets (pomodoro, meteo-*) left the shipped catalog — the
+    # distinct-alias property is now exercised on shipped widgets only.
     assert _m("ponme el temporizador")["match"] == "timer"
     assert _m("cuenta atrás de cinco minutos")["match"] == "timer"
-    assert _m("abre el pomodoro")["match"] == "temporizador-pomodoro-ayudar"
     assert _m("abre el navegador")["match"] == "navegador"
     assert _m("pon un vídeo")["match"] == "youtube"
-    assert _m("el tiempo de soria")["match"] == "meteo-soria"
-    assert _m("tiempo en tarragona")["match"] == "meteo-tarragona-grafico"
+    assert _m("abre la agenda")["match"] == "agenda"
+    assert _m("pon música")["match"] == "musica"
 
 
 def test_voice_typo_tolerance_on_alias():

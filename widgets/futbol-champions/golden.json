@@ -1,9 +1,0 @@
-{
-  "view_data_shape": {
-    "competition": "str",
-    "live": "bool",
-    "matchday": "str",
-    "matches": "list",
-    "note": "str"
-  }
-}

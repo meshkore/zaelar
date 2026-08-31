@@ -169,7 +169,7 @@ def test_code_delete_never_creates(monkeypatch):
     from nucleo.agentes import code
     from nucleo.dispatch import Task
 
-    monkeypatch.setattr(code, "_catalog_ids", lambda: ["meteo-tarragona"])
+    # 2026-08-31: resolves against the REAL shipped catalog (the operator's personal meteo widget left it)
 
     async def _fake_delete(widget_id, src="system"):                                   # V2-039: procedencia
         return {"ok": True, "id": widget_id, "title": widget_id}
@@ -184,7 +184,7 @@ def test_code_delete_never_creates(monkeypatch):
     from widgets import generator
     monkeypatch.setattr(generator, "generate_widget", _fake_generate)
 
-    task = Task(id="1", request="borra el widget de meteo-tarragona", kind="code")
+    task = Task(id="1", request="borra el widget del reloj", kind="code")
     wr = asyncio.run(code.run(task))
     assert wr.ok and wr.meta.get("deleted") is True
     assert created["called"] is False                              # NUNCA se llamó al generador
