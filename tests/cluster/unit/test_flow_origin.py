@@ -1,13 +1,13 @@
 #
 # A task/flow only ever opens from one of FOUR legitimate sources (operator ask, 2026-08-16 — see CLAUDE.md's
-# "Una tarea/flujo SOLO nace de CUATRO fuentes" decision): the operator, a REAL cluster peer message, a cron, or
+# "A task/flow ONLY originates from FOUR sources" decision): the operator, a REAL cluster peer message, a cron, or
 # a connector. The pulse (bridge.py::_heartbeat, the evaluator's off-timer hand-back) must never manufacture a
 # visible task just because it ticked. Real incident: a "[cluster:commons · heartbeat] no reply for a while"
 # nudge sat "en curso" in the master with the SAME origin ("cluster") as a genuine inbound peer message, minutes
 # after the operator had asked for nothing — indistinguishable from real work.
 #
 # Two separate bugs, two separate regression sets below: (1) the heartbeat/evaluator mislabeled itself as
-# origin="cluster" instead of a distinct "pulso"; (2) no cluster turn EVER explicitly closed its flow, so even a
+# origin="cluster" instead of a distinct "pulse"; (2) no cluster turn EVER explicitly closed its flow, so even a
 # REAL cluster turn depended entirely on the 15-minute stale-flow safety net to stop showing "en curso".
 #
 # Run: .venv/bin/pytest tests/cluster/unit/test_flow_origin.py -q
@@ -56,7 +56,7 @@ def _bridge(monkeypatch, reply="ok"):
     return br
 
 
-# ── origin tagging: pulso vs cluster ────────────────────────────────────────────────────────────────────────────
+# ── origin tagging: pulse vs cluster ────────────────────────────────────────────────────────────────────────────
 def test_heartbeat_nudge_opens_its_trace_with_pulso_not_cluster(fresh_db, monkeypatch):
     br = _bridge(monkeypatch)
     seen_origins = []

@@ -1,9 +1,9 @@
-"""Relevo de proveedor DENTRO de un turno de cluster (`connectors/meshkore/brain.py`, 2026-08-03).
+"""Provider failover WITHIN a cluster turn (`connectors/meshkore/brain.py`, 2026-08-03).
 
-Antes: `make_brain()` fijaba el tier UNA VEZ al arrancar el server; con la cuota de Z.AI agotada, CADA turno
-(el heartbeat insistiendo en responder a un peer) repetía la MISMA llamada rota → 429 en bucle, sin relevo, sin
-aviso. Ahora `_brain()` consulta `provider_chain.pick()` en cada turno y, si el turno falla por el proveedor,
-se releva y reintenta ESE MISMO turno una vez antes de rendirse.
+Before: `make_brain()` fixed the tier ONCE when the server started; with the Z.AI quota exhausted, EVERY turn
+(the heartbeat insisting on responding to a peer) repeated the SAME broken call → 429 in a loop, with no failover and no
+warning. Now `_brain()` queries `provider_chain.pick()` on every turn and, if the turn fails because of the provider,
+it fails over and retries THAT SAME turn once before giving up.
 """
 import asyncio
 
@@ -20,11 +20,12 @@ REAL_429_EXHAUSTED = ("429 Too Many Requests — {\"error\":{\"message\":"
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    # El estado del cooldown dejó de ser un dict del MÓDULO y pasó a `CooldownStore` (V2-098), que es lo que
-    # comparten esta cadena y la de los workers. Este fichero siguió aislando `pc._store._cooldown`, un atributo que ya
-    # no existe, así que sus tres casos llevaban desde entonces reventando en el `setup` — y no se veía porque
-    # **el fichero no estaba en el testmap**: `tests run all` no lo ejecutaba. Es la avería de V2-158 otra vez
-    # (2026-08-21). Se aísla el store REAL, que es lo que hoy hay que aislar para no tocar el `sys_kv` de nadie.
+    # The cooldown state stopped being a MODULE-level dict and became a `CooldownStore` (V2-098), which is what
+    # this chain and the workers' chain share. This file continued isolating `pc._store._cooldown`, an attribute that
+    # no longer exists, so its three cases had been crashing in `setup` ever since — and this was not visible because
+    # **the file was not in the testmap**: `tests run all` did not execute it. It is the V2-158 failure again
+    # (2026-08-21). The REAL store is isolated, which is what must be isolated today to avoid touching anyone's
+    # `sys_kv`.
     monkeypatch.setattr(pc._store, "_cooldown", {})
     monkeypatch.setattr(pc._store, "_loaded", True)
     monkeypatch.setattr(pc._store, "_save", lambda: None)
@@ -32,10 +33,10 @@ def _clean(monkeypatch):
 
 
 def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
-    """El turno con z.ai revienta con un 429 de cuota agotada → se releva a aimlapi y el MISMO turno se reintenta
-    (el mensaje real-time al peer no se pierde solo porque el tier de cabecera esté sin cuota)."""
-    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI, AIMLAPI])   # pick()/note_failure() se dejan REALES: el punto
-    # del test es que, tras el fallo, la cadena real recalcule el relevo contra el cooldown que acaba de anotar.
+    """The turn with z.ai fails with an exhausted-quota 429 → it fails over to aimlapi and the SAME turn is retried
+    (the real-time message to the peer is not lost merely because the primary tier is out of quota)."""
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI, AIMLAPI])   # pick()/note_failure() are left REAL: the point
+    # of the test is that, after the failure, the real chain recalculates the failover against the cooldown it just recorded.
 
     calls = []
 
@@ -50,13 +51,13 @@ def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
     out = asyncio.run(b("hola"))
 
     assert out == "hola desde el relevo"
-    assert calls == [Z_AI["base_url"], AIMLAPI["base_url"]]      # un intento, un relevo, un reintento — no más
-    assert pc._store._cooldown.get("z.ai", 0) > 0                        # z.ai queda en cooldown (STICKY para el próximo turno)
+    assert calls == [Z_AI["base_url"], AIMLAPI["base_url"]]      # one attempt, one failover, one retry — no more
+    assert pc._store._cooldown.get("z.ai", 0) > 0                        # z.ai remains on cooldown (STICKY for the next turn)
 
 
 def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
-    """Un 429 desnudo (sin texto de cuota) es rate-limit pasajero — no releva, se propaga (el bridge ya lo loguea
-    y el heartbeat lo reintentará solo más tarde, no hay que quemar el proveedor por esto)."""
+    """A bare 429 (without quota text) is a transient rate limit — it does not fail over and is propagated (the bridge
+    already logs it, and the heartbeat will retry it later; the provider should not be penalized for this)."""
     monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI])
 
     async def fake_respond(text, *, spec, **kw):
@@ -66,7 +67,7 @@ def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
     b = brain.make_brain()
     with pytest.raises(RuntimeError):
         asyncio.run(b("hola"))
-    assert pc._store._cooldown == {}                                     # no se penaliza un blip pasajero
+    assert pc._store._cooldown == {}                                     # a transient blip is not penalized
 
 
 def test_no_tier_available_raises_before_calling_the_engine(monkeypatch):

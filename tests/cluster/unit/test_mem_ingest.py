@@ -1,10 +1,10 @@
 #
-# Tests de la OBSERVACIÓN PASIVA cluster→memoria (connectors/meshkore/mem_ingest.py, V2-021 T170).
+# Tests of PASSIVE OBSERVATION cluster→memory (connectors/meshkore/mem_ingest.py, V2-021 T170).
 # Run: .venv/bin/pytest tests/cluster/unit/test_mem_ingest.py -q
 #
-# Verifica el invariante central: un intercambio con un peer produce una SÍNTESIS COMPRIMIDA recuperable por
-# `recent_by_source("cluster", <peer>)`, CUARENTENADA (nunca en `recent_short`/`salient_long` ni en el recall),
-# y EVOLUTIVA (un solo registro por peer, se sobrescribe por slot).
+# Verifies the central invariant: an exchange with a peer produces a COMPRESSED SYNTHESIS retrievable by
+# `recent_by_source("cluster", <peer>)`, QUARANTINED (never in `recent_short`/`salient_long` or recall),
+# and EVOLVING (a single record per peer, overwritten by slot).
 #
 import asyncio
 
@@ -35,7 +35,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 async def _observe(cluster, peer, inbound, outbound):
-    """Corre _run (el trabajo real) con la cola arrancada y drenada, para que la escritura quede en la BD."""
+    """Runs _run (the actual work) with the queue started and drained so that the write remains in the database."""
     await memapi.start()
     await mem_ingest._run(cluster, peer, inbound, outbound)
     await get_queue().join()
@@ -43,7 +43,7 @@ async def _observe(cluster, peer, inbound, outbound):
 
 
 def test_exchange_becomes_quarantined_synthesis(fresh_db, monkeypatch):
-    # Sintetizador determinista (sin depender de un LLM local en CI).
+    # Deterministic synthesizer (without depending on a local LLM in CI).
     async def fake_summarize(peer, prev, inbound, outbound):
         return "Hablan de un sistema de riego con ESP32; acuerdan compartir el esquema."
     monkeypatch.setattr(mem_ingest, "_summarize", fake_summarize)
@@ -52,19 +52,19 @@ def test_exchange_becomes_quarantined_synthesis(fresh_db, monkeypatch):
                          "tengo un sistema de riego con esp32, ¿me ayudas con el esquema?",
                          "claro, te paso un esquema base con relés"))
 
-    # RECUPERABLE por índice de fuente (consulta EXPLÍCITA).
+    # RETRIEVABLE by source index (EXPLICIT query).
     cluster = " ".join(r["text"] for r in memapi.recent_by_source("cluster", "Zalo"))
     assert "riego" in cluster and "esp32" in cluster.lower()
-    # marcada untrusted
+    # marked untrusted
     rows = memapi.recent_by_source("cluster", "Zalo")
     assert rows and rows[0]["trust"] == "untrusted" and rows[0]["source"] == "cluster"
 
-    # CUARENTENA: NO en el bloque pasivo del FlashBrain.
+    # QUARANTINE: NOT in FlashBrain's passive block.
     passive_short = " ".join(r["text"] for r in memapi.recent_short(limit=50))
     passive_long = " ".join(r["text"] for r in memapi.salient_long(limit=8))
     assert "riego" not in passive_short and "riego" not in passive_long
 
-    # CUARENTENA: tampoco por recall semántico (el retriever excluye untrusted).
+    # QUARANTINE: not through semantic recall either (the retriever excludes untrusted).
     recall = " ".join(m["text"] for m in memapi.query("sistema de riego esp32")["memories"])
     assert "riego" not in recall
 
@@ -74,23 +74,23 @@ def test_synthesis_is_evolutive_one_row_per_peer(fresh_db, monkeypatch):
 
     async def fake_summarize(peer, prev, inbound, outbound):
         calls["n"] += 1
-        # la 2ª vez integra lo previo → síntesis actualizada (supersede)
+        # The 2nd time it incorporates the previous result → updated synthesis (supersede)
         return f"v{calls['n']}: temas acumulados con {peer}"
     monkeypatch.setattr(mem_ingest, "_summarize", fake_summarize)
 
     asyncio.run(_observe("obra", "Zalo", "hola, hablemos de sensores", "vale"))
     asyncio.run(_observe("obra", "Zalo", "y también de bombas de agua", "de acuerdo"))
 
-    # UNA sola fila VÁLIDA bajo el slot (supersede exacto), con la síntesis MÁS RECIENTE.
+    # A single VALID row under the slot (exact supersede), with the MOST RECENT synthesis.
     rows = memapi.recent_by_source("cluster", "Zalo")
     assert len(rows) == 1
     assert "v2" in rows[0]["text"]
-    # y el sintetizador vio la síntesis previa en la 2ª llamada (evolutiva)
+    # And the synthesizer saw the previous synthesis on the 2nd call (evolving)
     assert calls["n"] == 2
 
 
 def test_fail_open_deterministic_merge_stays_bounded(fresh_db, monkeypatch):
-    # modelo NO disponible → _summarize devuelve None → fusión determinista ACOTADA (nunca crece sin límite).
+    # Model NOT available → _summarize returns None → BOUNDED deterministic merge (never grows without limit).
     async def no_model(peer, prev, inbound, outbound):
         return None
     monkeypatch.setattr(mem_ingest, "_summarize", no_model)
@@ -99,9 +99,9 @@ def test_fail_open_deterministic_merge_stays_bounded(fresh_db, monkeypatch):
         asyncio.run(_observe("obra", "Bee", f"mensaje larguísimo número {i} " * 30, "ok"))
 
     rows = memapi.recent_by_source("cluster", "Bee")
-    assert len(rows) == 1                                   # sigue siendo UNA fila (supersede)
+    assert len(rows) == 1                                   # remains a SINGLE row (supersede)
     synth = rows[0]["text"].split(": ", 1)[-1]
-    assert len(synth) <= mem_ingest._MAX_SYNTH + 5          # acotada pese a 40 intercambios enormes
+    assert len(synth) <= mem_ingest._MAX_SYNTH + 5          # bounded despite 40 huge exchanges
 
 
 def test_disabled_is_noop(fresh_db, monkeypatch):

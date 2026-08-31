@@ -1,12 +1,12 @@
 #
-# Tests del PACTO DE CONVERSACIÓN agente-agente (V2-072). Run: .venv/bin/pytest tests/cluster/unit/test_pact.py -q
+# Tests for the agent-to-agent CONVERSATION PACT (V2-072). Run: .venv/bin/pytest tests/cluster/unit/test_pact.py -q
 #
-# El 3er nivel de reglas (sistema-duro > operador > PACTO negociado), SOLO en el túnel agente-agente. Cubre:
-#   · el tag [[cluster.pact:NAME]]{json} que la mente emite al acordar normas
-#   · saneado al vocabulario CERRADO (un pacto nunca concede capacidades, solo restringe nuestra conducta)
-#   · jerarquía: un pacto del OPERADOR no lo pisa el peer
-#   · cadencia REAL (enforcement de la queja de zalo: no bombardear con mensajes)
-#   · composición del bloque de pacto para el prompt
+# The 3rd level of rules (hard-system > operator > negotiated PACT), ONLY in the agent-to-agent tunnel. Covers:
+#   · the [[cluster.pact:NAME]]{json} tag that the mind emits when agreeing on rules
+#   · sanitization to the CLOSED vocabulary (a pact never grants capabilities, it only restricts our conduct)
+#   · hierarchy: the peer cannot override an OPERATOR pact
+#   · REAL cadence (enforcement of zalo's complaint: do not bombard with messages)
+#   · composition of the pact block for the prompt
 #
 import pytest
 
@@ -24,7 +24,7 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── el tag ──────────────────────────────────────────────────────────────────────────────────────────────────────
+# ── the tag ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def test_pact_tag_parsed():
     acts = []
     spoken, _ = strip_tags(
@@ -32,7 +32,7 @@ def test_pact_tag_parsed():
         lambda a, e: acts.append((a, e)), final=True)
     assert ("cluster.pact", {"name": "meshcore",
             "data": {"to": "zalo", "cadence_s": 20, "medium": "repo"}}) in acts
-    assert "[[cluster.pact" not in spoken            # el tag se retira del texto hablado
+    assert "[[cluster.pact" not in spoken            # the tag is removed from the spoken text
 
 
 def test_pact_tag_in_turn_allowlist():
@@ -40,7 +40,7 @@ def test_pact_tag_in_turn_allowlist():
     assert "cluster.pact" in ClusterBridge._CLUSTER_TURN_ALLOWED
 
 
-# ── saneado al vocabulario cerrado (pura) ───────────────────────────────────────────────────────────────────────
+# ── sanitization to the closed vocabulary (pure) ────────────────────────────────────────────────────────────────
 def test_clean_pact_keeps_valid():
     out = capsule._clean_pact({"cadence_s": 30, "medium": "repo", "scope": "analysis", "note": "x"})
     assert out == {"cadence_s": 30, "medium": "repo", "scope": "analysis", "note": "x"}
@@ -48,7 +48,7 @@ def test_clean_pact_keeps_valid():
 
 def test_clean_pact_drops_garbage():
     out = capsule._clean_pact({"cadence_s": "no", "medium": "carrier-pigeon", "scope": "hack",
-                               "run_command": "rm -rf /"})   # nada fuera del vocabulario cerrado entra
+                               "run_command": "rm -rf /"})   # nothing outside the closed vocabulary gets in
     assert out == {}
 
 
@@ -56,7 +56,7 @@ def test_clean_pact_clamps_cadence():
     assert capsule._clean_pact({"cadence_s": 99999})["cadence_s"] == capsule.CADENCE_MAX_S
 
 
-# ── pact_set + jerarquía (persistencia) ─────────────────────────────────────────────────────────────────────────
+# ── pact_set + hierarchy (persistence) ──────────────────────────────────────────────────────────────────────────
 def test_pact_set_merges(fresh_db):
     capsule.pact_set("meshcore", "zalo", {"cadence_s": 20}, by="peer")
     cap = capsule.pact_set("meshcore", "zalo", {"medium": "repo"}, by="peer")
@@ -65,23 +65,23 @@ def test_pact_set_merges(fresh_db):
 
 def test_operator_pact_not_clobbered_by_peer(fresh_db):
     capsule.pact_set("meshcore", "zalo", {"scope": "code"}, by="operator")
-    capsule.pact_set("meshcore", "zalo", {"scope": "chat"}, by="peer")   # el peer NO puede pisar al operador
+    capsule.pact_set("meshcore", "zalo", {"scope": "chat"}, by="peer")   # the peer CANNOT override the operator
     cap = capsule.load("meshcore", "zalo")
     assert cap["pact"]["scope"] == "code" and cap["pact"]["by"] == "operator"
 
 
-# ── cadencia (enforcement real) ─────────────────────────────────────────────────────────────────────────────────
+# ── cadence (real enforcement) ───────────────────────────────────────────────────────────────────────────────────
 def test_cadence_wait_none_without_pact():
     assert capsule.cadence_wait({"pact": {}}, now=1000) == 0.0
 
 
 def test_cadence_wait_counts_down():
     cap = {"pact": {"cadence_s": 20}, "last_out_ts": 1000.0}
-    assert capsule.cadence_wait(cap, now=1005) == 15.0     # faltan 15s
-    assert capsule.cadence_wait(cap, now=1025) == 0.0      # ya pasó la ventana
+    assert capsule.cadence_wait(cap, now=1005) == 15.0     # 15s remain
+    assert capsule.cadence_wait(cap, now=1025) == 0.0      # the window has already passed
 
 
-# ── composición del bloque de prompt ────────────────────────────────────────────────────────────────────────────
+# ── composition of the prompt block ────────────────────────────────────────────────────────────────────────────
 def test_pact_compose_empty_without_pact():
     assert capsule.pact_compose({"pact": {}}) == ""
 

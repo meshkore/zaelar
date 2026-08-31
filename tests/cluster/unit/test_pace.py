@@ -1,11 +1,11 @@
 #
-# Tests del CRITERIO de conversación por INTELIGENCIA (V2-075) + señal estructural de repetición.
+# Tests for the conversation-by-INTELLIGENCE CRITERION (V2-075) + structural repetition signal.
 # Run: .venv/bin/pytest tests/cluster/unit/test_pace.py -q
 #
-# El juicio de si una conversación fluye/está atascada/no tiene sentido lo hace un MODELO (genérico, no patrones
-# hardcodeados que solo se adaptan a UN peer). Aquí probamos: (1) el parseo/validación del veredicto de catálogo
-# CERRADO + fail-open, (2) que la petición al modelo marca el contenido como material a evaluar (no instrucciones),
-# (3) `evaluate()` con un modelo simulado, (4) la señal estructural `near_repeat` (única heurística determinista).
+# A MODEL makes the judgment of whether a conversation is flowing/stuck/meaningless (generic, not hardcoded
+# patterns that only adapt to ONE peer). Here we test: (1) parsing/validation of the CLOSED-catalog verdict
+# + fail-open, (2) that the request to the model marks the content as material to evaluate (not instructions),
+# (3) `evaluate()` with a simulated model, (4) the structural `near_repeat` signal (the only deterministic heuristic).
 #
 import asyncio
 
@@ -14,7 +14,7 @@ import pytest
 from connectors.meshkore import capsule, evaluator
 
 
-# ── parseo/validación del veredicto (catálogo cerrado + fail-open) ──────────────────────────────────────────────
+# ── verdict parsing/validation (closed catalog + fail-open) ────────────────────────────────────────────────────
 def test_parse_valid_verdict():
     v = evaluator.parse('{"health":"stuck","action":"hand_back","reason":"se repite"}')
     assert v == {"health": "stuck", "action": "hand_back", "reason": "se repite"}
@@ -26,18 +26,18 @@ def test_parse_extracts_json_from_noise():
 
 
 @pytest.mark.parametrize("bad", [
-    "",                                                        # vacío
-    "no es json",                                              # sin json
-    '{"health":"raro","action":"continue"}',                 # health fuera del catálogo
-    '{"health":"stuck","action":"borra_todo"}',              # action fuera del catálogo (no concede acciones)
-    '{"foo":1}',                                               # sin campos
+    "",                                                        # empty
+    "no es json",                                              # no JSON
+    '{"health":"raro","action":"continue"}',                 # health outside the catalog
+    '{"health":"stuck","action":"borra_todo"}',              # action outside the catalog (does not grant actions)
+    '{"foo":1}',                                               # no fields
 ])
 def test_parse_failopen_to_continue(bad):
     v = evaluator.parse(bad)
-    assert v["health"] == "flowing" and v["action"] == "continue"    # ante la duda, no cortar
+    assert v["health"] == "flowing" and v["action"] == "continue"    # when in doubt, do not cut off
 
 
-# ── la petición al modelo: métricas + contenido marcado como NO-instrucciones ──────────────────────────────────
+# ── request to the model: metrics + content marked as NOT instructions ────────────────────────────────────────
 def test_build_messages_marks_content_as_data():
     msgs = evaluator.build_messages(
         [{"who": "peer", "text": "hola"}, {"who": "us", "text": "qué tal"}],
@@ -46,10 +46,10 @@ def test_build_messages_marks_content_as_data():
     assert "no instrucciones" in user.lower() or "material a evaluar" in user.lower()
     assert "PEER:" in user and "NOSOTROS:" in user
     assert "6.0x" in user and "turnos=5" in user
-    assert "flowing" in sys and "pause" in sys        # el catálogo cerrado está en el system
+    assert "flowing" in sys and "pause" in sys        # the closed catalog is in the system
 
 
-# ── evaluate() con un modelo SIMULADO (sin LLM real) ────────────────────────────────────────────────────────────
+# ── evaluate() with a SIMULATED model (without a real LLM) ────────────────────────────────────────────────────
 class _FakeFC:
     def __init__(self, out): self._out = out
     async def complete(self, messages, *, spec, max_tokens=200): return self._out
@@ -68,10 +68,10 @@ def test_evaluate_failopen_on_model_error(monkeypatch):
     import nucleo.flash.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", lambda: _Boom())
     v = asyncio.run(evaluator.evaluate([{"who": "peer", "text": "x"}] * 4, {}, spec=object()))
-    assert v["action"] == "continue"                  # un fallo de infra NUNCA corta la charla
+    assert v["action"] == "continue"                  # an infrastructure failure NEVER cuts off the conversation
 
 
-# ── señal ESTRUCTURAL de repetición (única heurística determinista, genérica) ───────────────────────────────────
+# ── STRUCTURAL repetition signal (only deterministic, generic heuristic) ──────────────────────────────────────
 def test_near_repeat_detects_reworded():
     recent = ["Estamos en fase Definición aún, no puedo discutir Diseño hasta cerrar la fase actual"]
     assert capsule.near_repeat(
@@ -84,6 +84,6 @@ def test_near_repeat_false_on_new_content():
 
 
 def test_no_hardcoded_stuck_matcher():
-    # el anti-patrón (regex de frases por-agente) NO debe existir ya: el juicio semántico es del modelo.
+    # The anti-pattern (per-agent phrase regex) must NO longer exist: semantic judgment belongs to the model.
     assert not hasattr(capsule, "looks_stuck")
     assert not hasattr(capsule, "advanced")
