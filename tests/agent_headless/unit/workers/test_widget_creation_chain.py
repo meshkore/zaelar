@@ -1,4 +1,4 @@
-"""V2-139 (`build-workout-tracker-widget`) — the chain from «móntame un widget» to a card on screen, walked.
+"""V2-139 (`build-workout-tracker-widget`) — the chain from «móntame un widget» to a card on screen, traced.
 
 V2-115 left this written down as its own primary open task, in CLAUDE.md: *«Creating a new widget has no
 end-to-end test at all — that's what let failure (2) live indefinitely. Every link is tested in isolation; the
@@ -51,7 +51,7 @@ def _spec(req: str, kind: str = "code") -> WorkerSpec:
 # ── link 1: the sentence is a widget CREATION ───────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("ask", [
     ASK,
-    "móntame un panel de entrenamientos",          # «panel», no «widget»
+    "móntame un panel de entrenamientos",          # «panel», not «widget»
     "créame un widget para mis gastos",
     "hazme un widget de peso diario",
     "constrúyeme un widget de hábitos",

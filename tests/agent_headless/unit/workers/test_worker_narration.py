@@ -1,8 +1,8 @@
-"""Observabilidad EN VIVO de un Brain Worker: que se vea qué hace desde el primer segundo.
+"""LIVE observability for a Brain Worker: make it possible to see what it does from the first second.
 
-Medido en la sesión del 2026-08-02: 21 s desde que nacía el worker hasta su primera fila visible, y un hueco de
-2m21s sin una sola línea en mitad de una tarea de 5 min. El worker SÍ estaba hablando todo ese rato (dice qué va a
-hacer, qué encuentra, por qué cambia de plan) pero `_map` solo traducía los bloques `tool_use` y tiraba el texto.
+Measured in the 2026-08-02 session: 21 s from the worker being spawned to its first visible row, and a gap of
+2m21s with not a single line in the middle of a 5 min task. The worker WAS talking the whole time (it says what it is
+going to do, what it finds, and why it changes plans), but `_map` only translated the `tool_use` blocks and discarded the text.
 """
 from nucleo.workers.claude_session import ClaudeCodeSession
 
@@ -25,11 +25,11 @@ def test_assistant_text_becomes_a_visible_note():
     notes = [e for e in evs if e.type == "note"]
     assert len(notes) == 1
     assert notes[0].data["text"] == "Voy a buscar parques acuáticos abiertos hoy."
-    assert notes[0].task_id == "7"          # sellado con el ID de la sesión
+    assert notes[0].task_id == "7"          # sealed with the session ID
 
 
 def test_narration_is_never_spoken():
-    """Sigue siendo observabilidad, no voz: `say` es SIEMPRE explícito por los puentes (§v2·E)."""
+    """It remains observability, not voice: `say` is ALWAYS explicit through the bridges (§v2·E)."""
     evs = _map(_assistant({"type": "text", "text": "creo que empezaré por Aquopolis"}))
     assert not [e for e in evs if e.type == "say"]
 
@@ -41,7 +41,7 @@ def test_text_and_tools_coexist_in_order():
     ))
     kinds = [e.type for e in evs]
     assert "note" in kinds and "step" in kinds
-    assert kinds.index("note") < kinds.index("step")     # la narración llega ANTES que la herramienta
+    assert kinds.index("note") < kinds.index("step")     # the narration arrives BEFORE the tool
 
 
 def test_whitespace_is_collapsed_and_empties_dropped():

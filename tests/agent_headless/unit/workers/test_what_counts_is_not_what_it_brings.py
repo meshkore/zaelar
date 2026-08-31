@@ -10,7 +10,7 @@
 #   11 the CLI's own SEARCH ENVELOPE             («Web search results for query: … Links: [{"title":…»)
 #   0 listings.
 #
-# The judge had spent four rounds filing «presenta candidatos irrelevantes» [alta]. The agent was not choosing
+# The judge had spent four rounds filing «presents irrelevant candidates» [high]. The agent was not choosing
 # badly — that is what it was handed.
 #
 # Run: .venv/bin/pytest tests/agent_headless/unit/workers/test_what_counts_is_not_what_it_brings.py

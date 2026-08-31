@@ -6,7 +6,7 @@ source assertion green, because the string it greps for was still in the file.
 
 Drives the operator's real engine: calls the `open_connectors` data-op the brain would call, then looks at
 the pixels — the channels panel present, and the EMAIL form (with its provider picker: Gmail / Outlook /
-otro) expanded inside it.
+other) expanded inside it.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def main() -> int:
         pg.wait_for_selector(".hb-msg", timeout=10000)
         pg.wait_for_timeout(800)
 
-        # What the brain does for "conéctame el correo": show the card + the declared data-op.
+        # What the brain does for "connect my email": show the card + the declared data-op.
         pg.evaluate("""fetch('/widgets/mensajeria/action', {method:'POST',
             headers:{'Content-Type':'application/json'},
             body: JSON.stringify({action:'open_connectors', payload:{platform:'email'}})})""")

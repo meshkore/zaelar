@@ -1,4 +1,4 @@
-"""Tests del sustrato de Brain Workers (V2-038): contrato, registro/resolución de dispatch, política de act."""
+"""Tests of the Brain Workers substrate (V2-038): contract, dispatch registration/resolution, and act policy."""
 import asyncio
 
 from nucleo import dispatch, worker_api
@@ -20,12 +20,12 @@ def test_event_and_spec_contract():
 
 
 def test_backend_selection_agnostic(monkeypatch):
-    """El DEFAULT del registro es `claude_code`, y una tarea de widget va al generador — pase lo que pase.
+    """The registry DEFAULT is `claude_code`, and a widget task goes to the generator—regardless of circumstances.
 
-    El proveedor se fuerza a propósito: sin fijarlo, este test leía `config/v2.json`, o sea la config REAL de la
-    máquina donde corre. Pasaba solo mientras el operador tuviera ahí `claude_code`, y en cuanto probó Codex empezó
-    a fallar un test que no habla de su elección sino del DEFAULT del código. Misma clase que la fuga de
-    `store.DATA_DIR` de 2026-08-12: un test no puede depender del estado real del operador."""
+    The provider is deliberately forced: without fixing it, this test read `config/v2.json`, that is, the REAL config
+    of the machine where it runs. It passed only while the operator had `claude_code` there, and as soon as they tried
+    Codex it started failing a test that is not about their choice but about the code's DEFAULT. Same class as the
+    `store.DATA_DIR` leak from 2026-08-12: a test cannot depend on the operator's real state."""
     monkeypatch.setattr("nucleo.workers.registry._provider_for", lambda kind: "claude_code")
     assert get_backend(WorkerSpec(kind="web", task_id="1")).name == "claude_code"
     assert get_backend(WorkerSpec(kind="code", task_id="1",
@@ -64,7 +64,7 @@ def test_ask_answer_cycle():
     dispatch._SESSIONS.clear()
 
 
-# ── V2-048: observabilidad RICA de los pasos del worker (dónde + qué concreto) ────────────────────────────────
+# ── V2-048: RICH observability of worker steps (where + what specifically) ────────────────────────────────────
 from nucleo.workers.claude_session import _tool_step  # noqa: E402
 from nucleo.workers.session import _PLACE             # noqa: E402
 
@@ -80,25 +80,25 @@ def test_tool_step_native_tools():
 
 
 def test_tool_step_bridges_from_bash():
-    # navegador: URL, ref numérica y texto tecleado
+    # browser: URL, numeric ref, and typed text
     nav = _tool_step("Bash", {"command": 'python -m nucleo.nav_cli navigate "https://sitios.dgt.es/cita"'})
     assert nav["where"] == "navegador" and nav["action"] == "navigate" and "sitios.dgt.es" in nav["target"]
     clk = _tool_step("Bash", {"command": ".venv/bin/python -m nucleo.nav_cli click 12"})
     assert clk["where"] == "navegador" and clk["action"] == "click" and clk["target"] == "[12]"
     typ = _tool_step("Bash", {"command": 'python -m nucleo.nav_cli type 7 "moto enduro" --submit'})
     assert typ["action"] == "type" and "moto enduro" in typ["target"]
-    # memoria: recall (query) y remember (slot)
+    # memory: recall (query) and remember (slot)
     rc = _tool_step("Bash", {"command": 'python -m nucleo.mem_cli recall "ubicación del operador"'})
     assert rc["where"] == "memoria" and rc["action"] == "recall" and "ubicación" in rc["target"]
     rm = _tool_step("Bash", {"command": 'python -m nucleo.mem_cli remember --slot itv.cita "cita el martes"'})
     assert rm["action"] == "guarda" and "[itv.cita]" in rm["target"]
-    # zaelar (worker_bridge) y agent_report (None → no duplica la fase de hbnote)
+    # zaelar (worker_bridge) and agent_report (None → does not duplicate the hbnote phase)
     assert _tool_step("Bash", {"command": "python -m nucleo.worker_bridge ask '¿matrícula?'"})["where"] == "zaelar"
     assert _tool_step("Bash", {"command": "python -m nucleo.agent_report phase 'buscando'"}) is None
 
 
 def test_every_place_maps_to_a_known_kind():
-    # todo `where` que emite _tool_step debe tener entrada en _PLACE (si no, la fila caería a sistema en silencio)
+    # every `where` emitted by _tool_step must have an entry in _PLACE (otherwise the row would silently fall to system)
     kinds = {"search", "memory", "navegador", "task"}
     for where in ("web", "memoria", "navegador", "codigo", "archivo", "zaelar", "sistema"):
         assert where in _PLACE
@@ -106,8 +106,8 @@ def test_every_place_maps_to_a_known_kind():
 
 
 def test_base_backend_pause_resume_default_noop():
-    # workers/base.py::WorkerBackend — un backend que no sobreescribe pause/resume (Codex stub, generator_session)
-    # debe ser un no-op inerte, nunca romper el contrato agnóstico (V2-065).
+    # workers/base.py::WorkerBackend—a backend that does not override pause/resume (Codex stub, generator_session)
+    # must be an inert no-op and never break the agnostic contract (V2-065).
     from nucleo.workers.base import WorkerBackend
 
     class _Dummy(WorkerBackend):
@@ -127,9 +127,9 @@ def test_base_backend_pause_resume_default_noop():
 
 
 def test_claude_session_pause_resume_real_process():
-    # V2-065 (petición del operador, botón ⏻: "pausa, no mata, para que puedan continuar"): verifica SIGSTOP/
-    # SIGCONT de verdad contra un proceso REAL (no el binario `claude` — un `sleep` largo en su propio grupo,
-    # igual que start_new_session=True deja el proceso real) — sin esto la garantía es solo de lectura de código.
+    # V2-065 (operator request, ⏻ button: "pause, don't kill it, so they can continue"): verifies real SIGSTOP/
+    # SIGCONT against a REAL process (not the `claude` binary—a long `sleep` in its own group,
+    # just as start_new_session=True leaves the real process)—without this, the guarantee is only code inspection.
     import os
     import signal
     import time
@@ -145,16 +145,16 @@ def test_claude_session_pause_resume_real_process():
         assert s.alive and not s.paused
 
         assert s.pause() is True and s.paused is True
-        assert s.pause() is False   # idempotente: ya estaba pausado
-        # el grupo de verdad recibió SIGSTOP — su estado en /proc pasa a "T" (stopped). En macOS no hay /proc,
-        # así que verificamos por comportamiento: NO termina aunque esperemos más de lo que dura "sleep 5" entero.
+        assert s.pause() is False   # idempotent: it was already paused
+        # the real group received SIGSTOP—its state in /proc becomes "T" (stopped). macOS has no /proc,
+        # so we verify by behavior: it does NOT terminate even if we wait longer than the entire "sleep 5" duration.
         await asyncio.sleep(0.3)
-        assert s._proc.returncode is None   # sigue vivo (congelado, no muerto)
+        assert s._proc.returncode is None   # still alive (frozen, not dead)
 
         assert s.resume() is True and s.paused is False
-        assert s.resume() is False   # idempotente: no había nada que reanudar
+        assert s.resume() is False   # idempotent: there was nothing to resume
 
-        # tras reanudar, el proceso sigue vivo y corriendo normalmente (lo matamos limpio, no hace falta esperar 5s)
+        # after resuming, the process remains alive and runs normally (we kill it cleanly; no need to wait 5s)
         assert s._proc.returncode is None
         os.killpg(os.getpgid(s._proc.pid), signal.SIGKILL)
         try:
@@ -165,11 +165,11 @@ def test_claude_session_pause_resume_real_process():
     asyncio.run(_run())
 
 
-# ── DENEGAR TIENE QUE ENSEÑAR (incidente en vivo 2026-08-12, búsqueda de veleros) ────────────────────────────
-# Con la cuota del buscador de su proveedor agotada, el worker fue a pedir prestada la `web_search` del cerebro
-# —que SÍ es prestable— con la forma equivocada (`act web_search {...}` en vez de `act use_tool {"tool":…}`).
-# La política devolvía la MISMA frase para todo, «acción no permitida para un worker», el worker la creyó y
-# abandonó su única vía de reserva: la búsqueda se quedó sin buscador.
+# ── DENIAL MUST TEACH (live incident 2026-08-12, sailboat search) ─────────────────────────────────────────────
+# With the provider's search quota exhausted, the worker tried to borrow the brain's `web_search`
+#—which IS lendable—in the wrong form (`act web_search {...}` instead of `act use_tool {"tool":…}`).
+# The policy returned the SAME phrase for everything, "action not permitted for a worker"; the worker believed it
+# and abandoned its only fallback: the search was left without a search engine.
 def test_a_malformed_call_is_not_reported_as_a_forbidden_capability():
     from nucleo.worker_api import deny_reason
     msg = deny_reason("web_search", {"query": "velero 42 pies"})
@@ -192,7 +192,7 @@ def test_a_tool_outside_the_lendable_catalogue_names_what_is_lendable():
 
 
 def test_the_deny_message_lists_the_real_action_vocabulary():
-    """El mensaje no puede quedarse desactualizado respecto a lo que la política admite de verdad."""
+    """The message must not become outdated relative to what the policy actually allows."""
     from nucleo import worker_api as W
     msg = W.deny_reason("noexiste", {})
     for a in W._KNOWN_ACTS:
@@ -202,13 +202,13 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
             or a in ("widget_data",), f"«{a}» está en el vocabulario pero la política no lo conoce"
 
 
-# ── UN WORKER MATADO SE COBRA IGUAL (agujero de facturación, banco 2026-08-13) ─────────────────────────────────
-# El reporte a Energy vivía DENTRO del `if rec.status != "cancelled"` de `_finish` — un `if` que existe por una
-# razón de INTERFAZ (no pintar dos filas `end` contradictorias, demo 2026-07-14) y que se llevaba por delante una
-# de FACTURACIÓN sin relación: un worker matado por presupuesto había gastado tokens REALES y se metraba a CERO.
-# Medido: 704 s, 256 pasos, 39 capturas, ~$0,20 de tokens de xAI → €0 facturados.
+# ── A KILLED WORKER IS STILL BILLED (billing hole, bank 2026-08-13) ────────────────────────────────────────────
+# The Energy report lived INSIDE `_finish`'s `if rec.status != "cancelled"`—an `if` that exists for an
+# INTERFACE reason (not to display two contradictory `end` rows, 2026-07-14 demo) and that swept away an
+# unrelated BILLING concern: a worker killed due to budget had spent REAL tokens and was billed ZERO.
+# Measured: 704 s, 256 steps, 39 captures, ~$0.20 in xAI tokens → €0 billed.
 def test_the_energy_report_is_not_gated_by_the_ui_concern():
-    """Las dos preocupaciones van SEPARADAS en el código: el chip sigue bajo el guard de cancelación, el cobro no."""
+    """The two concerns are SEPARATE in the code: the chip remains under the cancellation guard, billing does not."""
     import pathlib
     src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
     code = src.read_text(encoding="utf-8")
@@ -218,8 +218,8 @@ def test_the_energy_report_is_not_gated_by_the_ui_concern():
 
 
 def test_partial_usage_survives_a_worker_that_never_says_goodbye():
-    """El `usage` del `result` final no existe si matamos el proceso, así que se acumula mensaje a mensaje. El
-    `result` manda cuando llega (el CLI ya lo trae sumado); el parcial es el MÍNIMO declarado cuando no llega."""
+    """The final `result`'s `usage` does not exist if we kill the process, so it accumulates message by message. The
+    `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported when it does not."""
     import pathlib
     src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
     code = src.read_text(encoding="utf-8")
@@ -228,22 +228,22 @@ def test_partial_usage_survives_a_worker_that_never_says_goodbye():
 
 
 def test_the_stream_emits_usage_per_message_not_only_at_the_end():
-    """Verificado sondeando el CLI: cada mensaje `assistant` trae su `usage` y el del `result` es la SUMA
-    (61.969+127 = 62.096). Sin emitirlo por mensaje, matar a un worker seguiría siendo gratis."""
+    """Verified by polling the CLI: each `assistant` message carries its `usage`, and the `result`'s is the SUM
+    (61.969+127 = 62.096). Without emitting it per message, killing a worker would still be free."""
     import pathlib
     src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "claude_session.py"
     code = src.read_text(encoding="utf-8")
     assert 'self._ev("usage"' in code
-    # …y lo hereda Grok, que es donde se vio el agujero (no reimplementa `_map`)
+    # …and Grok inherits it, which is where the hole was found (it does not reimplement `_map`)
     grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
             ).read_text(encoding="utf-8")
     assert "def _map" not in grok
 
 
-# ── un widget recién creado tiene que APARECER en pantalla (2026-08-18) ────────────────────────────────────────
+# ── a newly created widget must APPEAR on screen (2026-08-18) ──────────────────────────────────────────────────
 def _drive_generator(monkeypatch, *, req, gen_result, action=None):
-    """Corre `GeneratorBackend._drive()` con el generador REAL sustituido (nada de lanzar un `claude`) y devuelve
-    los `emit()` de observabilidad que produjo, más los WorkerEvent que encoló."""
+    """Runs `GeneratorBackend._drive()` with the REAL generator replaced (without launching `claude`) and returns
+    the observability `emit()` calls it produced, plus the WorkerEvents it queued."""
     from nucleo.workers.generator_session import GeneratorBackend
     from widgets import generator as _gen
 
@@ -265,10 +265,10 @@ def _drive_generator(monkeypatch, *, req, gen_result, action=None):
 
 
 def test_a_created_widget_is_actually_opened_on_screen(monkeypatch):
-    """Reportado en vivo: «no ha salido ningún widget nuevo, ni nada en pantalla». El widget se construía bien y se
-    anunciaba por voz («He creado el widget «X»»), pero NADIE lo abría — el `wid` viajaba dentro del `data` del
-    `result` y `session.py::_handle` se queda con `summary`/`ok`/`usage` y descarta `data`. El único camino que
-    abría un widget de un worker era el del navegador. Tres minutos de trabajo entregados a una pantalla vacía."""
+    """Reported live: "no new widget appeared, nor anything on screen." The widget was built correctly and
+    announced by voice ("I created the widget \"X\""), but NOBODY opened it—the `wid` traveled inside the `data` of
+    the `result`, and `session.py::_handle` keeps `summary`/`ok`/`usage` and discards `data`. The only path that
+    opened a worker's widget was the browser path. Three minutes of work delivered to a blank screen."""
     seen, evs = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
                                  gen_result={"ok": True, "id": "meteo-soria"})
     assert ("widget", "show", {"id": "meteo-soria", "src": "worker:T1"}) in seen
@@ -276,16 +276,16 @@ def test_a_created_widget_is_actually_opened_on_screen(monkeypatch):
 
 
 def test_an_already_existing_widget_is_opened_too(monkeypatch):
-    """El copy de este caso dice literalmente «ya existía, TE LO MUESTRO» — prometía en voz una acción que no
-    ocurría. Es el mismo bug con la peor de las dos redacciones posibles."""
+    """The copy for this case literally says "it already existed, I'LL SHOW IT TO YOU"—it promised an action by
+    voice that did not happen. It is the same bug with the worse of the two possible wordings."""
     seen, _ = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
                                gen_result={"ok": True, "id": "meteo-soria", "existed": True})
     assert ("widget", "show", {"id": "meteo-soria", "src": "worker:T1"}) in seen
 
 
 def test_deleting_a_widget_does_not_open_it(monkeypatch):
-    """La otra cara: abrir lo que acabas de borrar. Por eso el show vive en el backend (que sabe QUÉ acción fue) y
-    no en el bombeo agnóstico de `session.py`."""
+    """The flip side: opening what you just deleted. That is why show lives in the backend (which knows WHAT action
+    occurred), not in the agnostic pumping of `session.py`."""
     async def _fake_delete(wid, who):
         return {"ok": True}
     monkeypatch.setattr("widgets.lifecycle.delete_widget", _fake_delete, raising=False)
@@ -297,7 +297,7 @@ def test_deleting_a_widget_does_not_open_it(monkeypatch):
 
 
 def test_a_failed_generation_opens_nothing(monkeypatch):
-    """Un fallo no puede dejar una tarjeta fantasma abierta."""
+    """A failure must not leave a phantom card open."""
     seen, _ = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
                                gen_result={"ok": False, "error": "boom"})
     assert not [s for s in seen if s[1] == "show"]

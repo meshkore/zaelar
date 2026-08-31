@@ -38,7 +38,7 @@ with sync_playwright() as pw:
         if not pg.query_selector(".hb-msg .expand"):
             problems.append("the dimmed icon's form was not expanded")
         pg.screenshot(path=f"{OUT}/vf_2_connect_from_header.png")
-        pg.click(".hb-msg .back")           # ← Mensajes
+        pg.click(".hb-msg .back")           # ← Messages
         pg.wait_for_timeout(400)
 
     # 3) clicking a BRIGHT icon applies the lens (underline marks it), clicking again removes it

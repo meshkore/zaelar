@@ -1,18 +1,18 @@
-"""Lo que un worker averigua tiene que sobrevivir a que lo maten (V2-344, 2026-08-26).
+"""What a worker finds out has to survive being killed (V2-344, 2026-08-26).
 
-Medido por el arnés en `search-buy-used-car` (sesión 7575e81a): worker 1 llegó a milanuncios y capturó, muerto
-a los 2 min; worker 2 muerto a los 8; el 3 entregó. En la BD del plató, la ÚNICA fila con `source=worker:*` en
-toda la ventana 13:33-13:54 es la del que entregó — **los 21 minutos de los dos primeros no dejaron rastro**, y
-cada relanzamiento renavegó, rebuscó y refiltró desde cero.
+Measured by the harness in `search-buy-used-car` (session 7575e81a): worker 1 reached milanuncios and captured data, then died
+after 2 min; worker 2 died at 8; worker 3 delivered. In the studio DB, the ONLY row with `source=worker:*` in
+the entire 13:33-13:54 window is the one from the worker that delivered — **the first two workers' 21 minutes left no trace**, and
+each restart navigated, searched, and re-filtered from scratch.
 
-La capacidad estaba entera (el puente `mem_cli` viaja en el prompt, la ruta exige token por tarea y el gate de
-precisión PASA hallazgos). Lo que faltaba era PEDIRLO — y la orden existía: decía literalmente «aunque el flujo
-se reinicie», o sea la protección anti-relanzamiento, pero vivía dentro del punto 3, acotado en su encabezado a
-«para una GESTIÓN: reservar, pedir cita, rellenar un formulario, tramitar». Una búsqueda cae en la otra rama.
-**Misma forma que V2-257 y que V2-277: la instrucción correcta, en la rama equivocada.**
+The capability was intact (the `mem_cli` bridge travels in the prompt, the route requires a token per task, and the precision
+gate PASSES findings). What was missing was ASKING FOR IT — and the instruction existed: it literally said “even if the flow
+restarts,” i.e. the anti-restart protection, but it lived inside point 3, narrowed in its heading to
+“for a TRANSACTION: make a reservation, request an appointment, fill out a form, process paperwork.” A search falls into the other branch.
+**Same pattern as V2-257 and V2-277: the right instruction in the wrong branch.**
 
-Por eso el guarda mira el prompt RENDERIZADO y no el fichero: que la orden exista en `dispatch_prompts.py` es
-justo lo que ya pasaba el día del fallo. Lo que hay que afirmar es que LLEGA, y que llega UNA vez.
+That is why the guard checks the RENDERED prompt rather than the file: the instruction existing in `dispatch_prompts.py` is
+exactly what was already true on the day of the failure. What must be asserted is that it ARRIVES, and that it arrives ONCE.
 """
 import re
 
@@ -27,7 +27,7 @@ def _render(brief=None):
 
 
 def test_la_orden_de_guardar_LLEGA_al_prompt_renderizado():
-    """Las dos rutas reales del builder: con brief de investigación y sin él."""
+    """The builder's two real routes: with and without a research brief."""
     for brief in (None, {"baremo": "precio y km"}):
         txt = _render(brief)
         assert ORDEN in txt, f"el worker no recibe la orden de guardar (brief={bool(brief)})"
@@ -35,8 +35,8 @@ def test_la_orden_de_guardar_LLEGA_al_prompt_renderizado():
 
 
 def test_la_orden_NO_vive_dentro_de_la_rama_de_GESTION():
-    """El defecto exacto. El punto 3 se abre con «para una GESTIÓN: …» y ahí dentro estaba la única orden de
-    guardar; una BÚSQUEDA nunca la leía como suya. Se mide por POSICIÓN, que es lo que el fallo tenía de malo."""
+    """The exact defect. Point 3 opens with “for a TRANSACTION: …”, and the only instruction to save data was inside it;
+    a SEARCH never read it as applying to itself. This is measured by POSITION, which is what was wrong with the failure."""
     txt = _render()
     abre_gestion = txt.index("para una GESTIÓN")
     cierra = txt.index("BUSCAR/COMPARAR", abre_gestion)
@@ -46,8 +46,8 @@ def test_la_orden_NO_vive_dentro_de_la_rama_de_GESTION():
 
 
 def test_es_UNA_instruccion_con_la_bifurcacion_dentro_y_no_una_por_rama():
-    """Norma de la casa (V2-226, y ya costó V2-224): dos órdenes en dos sitios salen a cara o cruz y se separan
-    la una de la otra sin avisar. La bifurcación va DENTRO del imperativo."""
+    """House rule (V2-226, and V2-224 already cost us): two instructions in two places become a coin toss and separate
+    from each other without warning. The branching belongs INSIDE the imperative."""
     txt = _render()
     assert txt.count(ORDEN) == 1, "la orden aparece más de una vez: se duplicó en vez de bifurcarse dentro"
     imperativos = len(re.findall(r"GUARDA cada dato que reúnas", txt))
@@ -58,8 +58,8 @@ def test_es_UNA_instruccion_con_la_bifurcacion_dentro_y_no_una_por_rama():
 
 
 def test_la_orden_dice_tambien_lo_que_NO_se_guarda():
-    """Sin techo, «guarda lo que averigües» son las 40 filas de un listado y la memoria se vuelve ruido para
-    todos. El límite viaja DENTRO del mismo imperativo, no como una segunda regla que se pueda perder."""
+    """Without a ceiling, “save whatever you find out” means the 40 rows in a listing, and memory becomes noise for
+    everyone. The limit travels INSIDE the same imperative, not as a second rule that can be lost."""
     txt = _render()
     bloque = txt[txt.index(ORDEN):txt.index(ORDEN) + 1200]
     assert "NO se guarda" in bloque, "la orden no pone techo: invita a volcar el listado entero"
@@ -67,8 +67,8 @@ def test_la_orden_dice_tambien_lo_que_NO_se_guarda():
 
 
 def test_el_catalogo_de_puentes_no_lleva_una_SEGUNDA_media_orden():
-    """La línea del catálogo describe la capacidad; el porqué y el qué viven UNA vez, en el imperativo. Dos
-    mitades en dos sitios es exactamente cómo una decisión se separa de sí misma."""
+    """The catalog line describes the capability; the why and the what live ONCE, in the imperative. Two
+    halves in two places are exactly how a decision separates from itself."""
     txt = _render()
     catalogo = [l for l in txt.splitlines() if l.strip().startswith("• GUARDAR un dato")]
     assert len(catalogo) == 1, f"la entrada de catálogo se duplicó o desapareció: {catalogo}"
