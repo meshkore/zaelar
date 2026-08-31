@@ -6581,6 +6581,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     dead `_data`) — commit 609f689; history rewrite not requested. The restore affordance shipped as
     V2-518 (below).
 
+- **Messaging is a MAIN widget now — the operator's spec (V2-521/522/523, 2026-08-31)**: direction given in
+  one long instruction; phase 1 shipped the same day, the rest is RECORDED so it cannot evaporate.
+  - **Replies reach every platform**: the `msg.reply` seam existed since V2-051 and only email subscribed —
+    the WhatsApp bridge had `POST /send` all along, Telethon sends in one line, and nobody drained the
+    topic, so a confirmed dictated reply to WhatsApp was enqueued forever. Both connectors now drain and
+    send, with email's failure policy (the operator is TOLD via brain_notes; nothing requeues — one honest
+    "no pude enviarlo" beats a bad send retried forever). `reply` stays `confirm:true`: dictating is
+    guided, SENDING still asks first.
+  - **The visual formula**: ONE unified inbox by default (deliberately unfiltered — the operator trains
+    the algorithm later), plus a per-platform LENS toggled from the header icons; email's lens is its
+    natural shape (flat mails, expandable in place), WhatsApp/Telegram keep chats→thread. The header shows
+    EVERY channel — dimmed = unconnected, and tapping a dimmed icon opens its connect form (same door as
+    the voice, V2-520). Per-provider app-password guidance with the exact URL in the email form. Node 4.90
+    RENDERS it.
+  - **Memory policy (measured, and the rule to hold)**: only TRIAGED items reach central memory
+    (`ingest_message`, short level) — that is "relevant + recent", not a mailbox dump, and the operator's
+    rule is explicit: **never duplicate the platforms' archives — they hold the originals**. The gap is
+    reach-back (IMAP search, WA/TG history on demand), not more copying.
+  - **Two planned pieces, not to lose**: V2-522 write permissions per platform — with the principle that
+    **an explicit order IS the permission** (naming 10 people to invite authorises every mapped channel
+    for that errand; the permission system gates the UNPROMPTED, the confirm gate covers the dictated),
+    and no personality impersonation for now. V2-523 the CONTACTS AGENDA as first-class memory/state (one
+    person ↔ many handles incl. their cluster AGENT; merges are identity claims → operator-confirmed).
+
 - **Connecting a channel can be ASKED FOR (V2-520, 2026-08-31)**: "conéctame el correo" opened the messaging
   card on the MESSAGE list and nothing else — no dialog, no question about which provider. Everything the
   operator asked for already existed (`connectors/email/providers.py` ships Gmail and Outlook/Hotmail with

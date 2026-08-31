@@ -74,6 +74,10 @@ let _connectorsOpen = false;         // "Available channels" panel opened from t
 // in the DATA with a timestamp. Remembering which one we acted on is what lets the operator close the panel
 // again: without it, the next repaint — a new message arriving — would re-open it forever.
 let _focusDone = 0;
+// V2-521 — the visual formula: ONE inbox by default ("everything, no filters" is the deliberate start),
+// and a per-platform lens on demand. null = todo. Local UI state like _profile: the brain reads the full
+// list either way, so filtering is a viewing choice, not data.
+let _platFilter = null;
 const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
 const _expanded = new Set();   // claves de mensajes con el cuerpo desplegado
@@ -87,6 +91,7 @@ function injectStyles(){
   .hb-msg .dots{display:flex;gap:6px;margin-left:auto}
   .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto}
   .hb-msg .picon.on{opacity:1}
+  .hb-msg .picon.filt{box-shadow:0 2px 0 currentColor;border-radius:2px}
   .hb-msg .pdot{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
     font-size:9.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c);opacity:.5;flex:0 0 auto}
   .hb-msg .pdot.on{opacity:1;background:var(--hb-accent2,#16B8A6)}
@@ -379,10 +384,33 @@ function emailCard(platform, ctx){
   smtp.className="f"; smtp.type="text"; smtp.placeholder="smtp.tudominio.com";
   smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
   const hostsWrap=el("div"); hostsWrap.append(imapL, imap, smtpL, smtp);
+  // Per-provider guidance (V2-521): the generic app-password sentence never said WHERE to get one. One
+  // line + the exact page, switching with the dropdown — the operator asked to be told the process, the
+  // token, whatever the provider needs, right here.
+  const GUIDE={
+    gmail:   {txt:"Gmail: activa la verificación en 2 pasos y crea una contraseña de aplicación en ",
+              url:"https://myaccount.google.com/apppasswords", lbl:"myaccount.google.com/apppasswords"},
+    outlook: {txt:"Outlook/Hotmail: con la verificación en 2 pasos activada, crea una contraseña de aplicación en ",
+              url:"https://account.live.com/proofs/AppPassword", lbl:"account.live.com/proofs/AppPassword"},
+    icloud:  {txt:"iCloud: genera una contraseña de app en ",
+              url:"https://appleid.apple.com/account/manage", lbl:"appleid.apple.com"},
+    yahoo:   {txt:"Yahoo: genera una contraseña de app en ",
+              url:"https://login.yahoo.com/account/security", lbl:"login.yahoo.com/account/security"},
+    otro:    {txt:"Cualquier buzón IMAP/SMTP: usa la contraseña (o contraseña de app) de tu proveedor y "
+                   +"rellena sus servidores abajo.", url:"", lbl:""},
+  };
+  const guide=el("div","cap");
+  const syncGuide=()=>{
+    guide.textContent="";
+    const g=GUIDE[prov.value]||GUIDE.otro;
+    guide.appendChild(document.createTextNode(g.txt));
+    if(g.url){ const a=document.createElement("a"); a.href=g.url; a.target="_blank"; a.rel="noopener";
+      a.textContent=g.lbl; guide.appendChild(a); }
+  };
   const syncHosts=()=>{ hostsWrap.style.display = (prov.value==="otro") ? "block" : "none"; };
-  prov.onchange=()=>{ d.provider=prov.value; syncHosts(); }; syncHosts();
+  prov.onchange=()=>{ d.provider=prov.value; syncHosts(); syncGuide(); }; syncHosts(); syncGuide();
 
-  card.append(provL, prov, addrL, addr, pwL, pw, hostsWrap);
+  card.append(provL, prov, guide, addrL, addr, pwL, pw, hostsWrap);
 
   const err=el("div","err"); err.style.display="none";
   const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
@@ -737,8 +765,24 @@ export function render(root, data, ctx){
   hd.append(el("b",null,"Mensajería"),
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
   const dots=el("div","dots");
-  ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").forEach(pl=> dots.appendChild(brandIcon(pl, true)));
-  if(dots.childNodes.length) hd.appendChild(dots);
+  // V2-521: every channel is VISIBLE up here — connected bright, unconnected dimmed (the operator's ask:
+  // seeing the catalogue at a glance). A bright icon toggles that platform's lens; a dimmed one opens the
+  // connectors panel with its form ready — the same door the voice takes.
+  ORDER.forEach(pl=>{
+    const on=(platforms[pl]||{}).status==="connected";
+    const ic=brandIcon(pl, on);
+    ic.style.cursor="pointer";
+    if(on){
+      ic.title=(PLAT[pl]||{}).label+(_platFilter===pl?": quitar filtro":": ver solo este canal");
+      if(_platFilter===pl) ic.classList.add("filt");
+      ic.onclick=()=>{ _platFilter = (_platFilter===pl ? null : pl); rerender(); };
+    } else {
+      ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
+      ic.onclick=()=>{ _connectorsOpen=true; _expandConnect.add(pl); rerender(); };
+    }
+    dots.appendChild(ic);
+  });
+  hd.appendChild(dots);
   const connBtn=el("button","connbtn"+(_connectorsOpen?" active":""),"🔌"); connBtn.title="Canales / conectores";
   connBtn.onclick=()=>{ _connectorsOpen=!_connectorsOpen; if(!_connectorsOpen){ _expandConnect.clear(); _confirmDisconnect=null; } rerender(); };
   hd.appendChild(connBtn);
@@ -761,18 +805,31 @@ export function render(root, data, ctx){
     return;
   }
 
-  // MESSAGES view, reached whenever at least one channel is connected.
+  // MESSAGES view, reached whenever at least one channel is connected. The lens (V2-521) narrows every
+  // shape below to one platform; an open thread wins over it (it already IS one conversation).
+  const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items;
+  const emptyMsg = _platFilter
+    ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
+    : "Nada que atender ahora ✓";
   if(_profile==="completo"){
-    if(items.length) root.appendChild(richList(items, ctx));
-    else root.appendChild(el("div","empty","Nada que atender ahora ✓"));
+    if(fItems.length) root.appendChild(richList(fItems, ctx));
+    else root.appendChild(el("div","empty",emptyMsg));
     return;
   }
   const activeChat = data.active_chat || null;
   if(activeChat){
     root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender));
-  } else {
-    const chats = data.chats || [];
-    if(chats.length) root.appendChild(chatList(chats, ctx));
-    else root.appendChild(el("div","empty","Nada que atender ahora ✓"));
+    return;
   }
+  if(_platFilter==="email"){
+    // Email's NATURAL shape (the operator's spec): a flat list of mails, each expandable in place to read
+    // its content — not conversations. messageRow already carries the clamp/«mostrar más» machinery.
+    const list = el("div","tl");
+    fItems.forEach(it=> list.appendChild(messageRow(it, ctx, rerender)));
+    root.appendChild(fItems.length ? list : el("div","empty",emptyMsg));
+    return;
+  }
+  const chats = (data.chats || []).filter(c=>!_platFilter || c.platform===_platFilter);
+  if(chats.length) root.appendChild(chatList(chats, ctx));
+  else root.appendChild(el("div","empty",emptyMsg));
 }

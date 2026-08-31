@@ -1599,6 +1599,13 @@ DOMAINS: list[dict] = [
                                 "selector con Gmail y Outlook",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_connect_panel.py"},
+        # V2-521 — la fórmula visual del widget principal: una sola bandeja por defecto, lente por
+        # plataforma a demanda, y TODOS los canales visibles en cabecera (apagado = sin conectar, y tocarlo
+        # es la misma puerta que la voz). Tolerante al estado vivo de conexiones.
+        {"id": "4.90", "title": "La fórmula visual de mensajería RENDERIZADA: canales en cabecera, lente por "
+                                "plataforma, y el icono apagado abre su conexión",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_visual_formula.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
