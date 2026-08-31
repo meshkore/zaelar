@@ -1,21 +1,13 @@
-"""nucleo/danger.py — confirm-gate de acciones IRREVERSIBLES del SlowBrain (V2-007 · T88).
-
-Antes de que el SlowBrain EJECUTE una tarea que pueda tener consecuencias irreversibles (comprar/pagar/publicar/
-borrar), el dispatcher PARA y pide OK al operador (voz+feed); sin OK, no se ejecuta. Es el MISMO criterio, y a
-propósito la MISMA lista de verbos, que el gate por-acción del navegador (`widgets/navegador/owner.py::_DANGER_RE`),
-pero aquí aplicado al TEXTO de la petición escalada — para tareas de código/genéricas que ejecutan de una, no solo
-a los clics del navegador (que conservan su gate por-acción propio). Conservador a propósito: solo compra/pago/
-publicación/borrado EXPLÍCITOS, nunca navegación ni consultas normales.
-"""
+"""Documentation translated to English."""
 from __future__ import annotations
 
 import re
 
-# Hermano de widgets/navegador/owner.py::_DANGER_RE (un solo criterio de "irreversible" en todo zaelar), pero
-# algo MÁS AMPLIO: aquí gateamos el TEXTO de una petición en lenguaje natural, así que cubrimos las conjugaciones
-# comunes del imperativo/3ª persona (comprar/compra/compre, borrar/borra/borre, …). Evitamos stems ciegos que
-# den falsos positivos (p. ej. "pag*" pillaría "página"). Duplicado a propósito para no acoplar el cerebro nuevo
-# al módulo de widgets.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _DANGER_RE = re.compile(
     r"\b(comprar|compra|compre|pagar|paga|pague|pagó|finalizar compra|realizar pedido|tramitar pedido|"
     r"confirmar pedido|confirmar compra|proceder al pago|publicar|publica|publique|eliminar cuenta|"
@@ -25,27 +17,27 @@ _DANGER_RE = re.compile(
 )
 
 
-# IMPERATIVO CON CLÍTICO (V2-128, 2026-08-18). En castellano la forma en que de verdad se manda algo lleva el
-# pronombre pegado —«págala», «cómpralo», «bórralo», «cancélala»— y `_DANGER_RE` compara formas desnudas con
-# `\b`, así que TODAS ellas escapaban del gate. Es el tercer sitio donde muerde el mismo despiste (ya pasó con
-# «resérvame» en site_catalog y con «renuévame» aquí arriba): el patrón está escrito con el infinitivo, y el
-# operador habla en imperativo. Se exige AL MENOS un clítico, de modo que ni «compras» ni «publicas» ni
-# «cancelan» —que no son órdenes— entren por aquí.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _DANGER_CLITIC_RE = re.compile(
     r"\b(?:paga|compra|borra|elimina|publica|cancela|anula|contrata|renueva|renuev[ae])"
     r"(?:me|te|se|nos|le|les|l[oa]s?)+\b", re.I)
 
-# La MISMA falta, un modo verbal más allá (V2-141, `pay-known-bill` ronda 2). La forma cortés de mandar algo en
-# castellano no es el imperativo sino la pregunta con modal, y ahí el verbo va en INFINITIVO con el pronombre
-# pegado: «¿puedes pagarLA antes del día 5?». Medido sobre el transcript: `is_dangerous` daba False justo en el
-# turno en que el operador manda pagar, así que el confirm-gate —que este caso puntúa como conducta correcta y
-# cuya ausencia es «el fallo más grave posible»— no podía dispararse. Es la tercera cara del mismo despiste que
-# ya costó «resérvame» y «págala»: el patrón lleva formas desnudas con `\b` y la persona habla pegando el
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 # pronombre.
 #
-# Se exige el MARCO DE PETICIÓN (puedes/podrías/quieres/vas a/me haces el favor de…) y no el infinitivo suelto,
-# a propósito: «no quiero comprarlo» o «pagarlo sale caro» MENCIONAN la acción, no la mandan, y un gate que
-# salta donde no toca deja la tarea parada esperando un OK que el operador no entiende (incidente 2026-08-02).
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _REQUEST_FRAME = (r"puedes|puede|podrias|podria|podras|podra|quieres|quiere|"
                   r"vas a|va a|te importa|me haces el favor de|hazme el favor de|"
                   r"can you|could you|would you|will you|please")
@@ -55,37 +47,37 @@ _DANGER_ASK_CLITIC_RE = re.compile(
     rf"\b(?:{_REQUEST_FRAME})\b[^.!?]{{0,30}}?"
     rf"\b(?:{_DANGER_VERB_STEM})(?:me|te|se|nos|le|les|l[oa]s?)+\b", re.I)
 
-# Y la variante con el pronombre DELANTE en presente de 2ª persona — «¿me la cancelas?», «¿me lo compras?» —,
-# que es igual de imperativa aunque la gramática diga pregunta. Exige los DOS pronombres seguidos del verbo, de
-# modo que «cancelas» a secas (que no es una orden) no entra.
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _DANGER_PROCLITIC_RE = re.compile(
     r"\b(?:me|te|se|nos)\s+(?:l[oa]s?)\s+"
     r"(?:pagas|compras|borras|eliminas|publicas|cancelas|anulas|contratas|renuevas|abonas|transfieres)\b",
     re.I)
 
-# Dos correcciones de PRECISIÓN (incidente 2026-08-02: una escalada de INVESTIGACIÓN —«termina la búsqueda ampliada
-# del operador (proyecto compra y venta de motos): completa el informe…»— disparó el confirm-gate y dejó la tarea
-# parada esperando un OK que nadie entendía por qué se pedía). Ninguna de las dos afloja el gate para una orden real:
-#  (1) lo que va entre PARÉNTESIS es CONTEXTO, no la orden — la acción vive en el texto principal;
-#  (2) un término que aquí es SUSTANTIVO y no verbo ("compra y venta", "compraventa") nombra un tema, no manda comprar.
-# COMPROMISOS RECURRENTES Y BAJAS (V2-133, tanda de casos de uso del 2026-08-18). `_DANGER_RE` cubría el pago
-# EXPLÍCITO ("paga la factura" → gate, y funcionó), pero no la forma en que un humano pide gastar dinero de
-# verdad: "renuévame la cuota del gimnasio" no lleva el verbo pagar y salía SIN gate — el caso
-# `renew-gym-membership__es` lo midió, y fue el TESTER quien tuvo que frenarlo («no me has dicho cuánto vas a
-# pagar ni me has pedido confirmación»). Lo mismo por el otro lado: dar de baja o cancelar una suscripción es
-# irreversible, y el criterio de `cancel-subscription-before-charge__es` dice con todas las letras que pedir
-# confirmación ahí es la conducta CORRECTA, no un defecto.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 #
-# Se exige VERBO + OBJETO de compromiso, no el verbo suelto, por la misma razón que las dos correcciones de
-# precisión de abajo: "cancela la búsqueda" o "renueva el gráfico" no mueven dinero de nadie, y un gate que
-# salta donde no toca deja la tarea parada esperando un OK que el operador no entiende. `dar(se) de baja` va
-# solo: esa locución no significa otra cosa.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _COMMIT_OBJECT = (r"suscripcion|subscripcion|suscripciones|cuota|cuotas|membresia|abono|mensualidad|"
                   r"contrato|tarifa|domiciliacion|pedido|"
                   r"subscription|membership|contract|policy|order")
-# `renov-` NO cubre el imperativo real: el operador dice «renuévame», que diptonga a `renuev-`. Es la misma
-# clase de despiste que costó el acento de «resérvame» en site_catalog — la forma que se DICE es justo la que
-# el stem del infinitivo no casa.
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _COMMIT_VERB = (r"renov\w*|renuev\w*|renew\w*|contrat\w*|suscrib\w*|subscrib\w*|sign\s+up|"
                 r"cancel\w*|anul\w*|unsubscribe")
 _COMMITMENT_RE = re.compile(
@@ -96,14 +88,14 @@ _COMMITMENT_RE = re.compile(
     re.I,
 )
 
-# Tercera corrección de PRECISIÓN, hermana de las dos de abajo: lo que va DENTRO de un «apúntame que…» /
-# «recuérdame que…» es un recado, no una orden. «Apúntame que el jueves tengo que renovar el seguro del coche»
-# (el caso de uso `remember-and-remind-deadline`) pide una NOTA; gatearlo dejaría un recordatorio esperando un
-# OK para algo que nadie iba a ejecutar. La orden de verdad es «apúntame», y esa no mueve dinero.
-# Se recorta hasta el FIN DE LA FRASE, no hasta el final del texto (2026-08-18, V2-128): con `.*` un
-# «recuérdame pagar la factura. Y de paso págala tú» perdía la orden real que venía detrás. El corte por
-# `.!?;` conserva «apúntame que el jueves tengo que renovar el seguro, y recuérdamelo el miércoles» entero
-# (una sola frase con comas) y deja intacta cualquier orden que vaya en frase aparte.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _REMINDER_RE = re.compile(
     r"\b(?:apunta|apuntame|apuntalo|anota|anotame|recuerda|recuerdame|acuerdate|no\s+olvides|"
     r"remind\s+me|note\s+that|make\s+a\s+note)\b[^.!?;]*", re.I)
@@ -113,11 +105,47 @@ _NOUN_COMPOUND_RE = re.compile(
     r"\bcompra\s*[-/y]\s*venta\b|\bventa\s*[-/y]\s*compra\b|\bcompraventa\b|\bbuying\s+and\s+selling\b", re.I)
 
 
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+#
+# translated implementation note
+# translated implementation note
+# translated implementation note
+#
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
+_LOOKUP_HEAD_RE = re.compile(
+    r"^\W*(?:me\s+)?(?:puedes\s+|podrias\s+|quiero\s+que\s+)?"
+    r"(?:investiga\w*|busca\w*|compara\w*|mira\w*|encuentra\w*|localiza\w*|recomienda\w*|"
+    r"research\w*|find\w*|search\w*|compare\w*|look\w*|investigate\w*|recommend\w*)\b", re.I)
+
+# translated implementation note
+_PURCHASE_ADJUNCT_RE = re.compile(
+    r"\b(?:para\s+comprar\w*|a\s+la\s+venta|en\s+venta|de\s+compra|que\s+comprar\w*|"
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    r"(?:cual|cuales|que)\s+comprar\w*|which\s+(?:one\s+)?to\s+buy|what\s+to\s+buy|"
+    r"available\s+for\s+purchase|for\s+purchase|for\s+sale|to\s+buy|worth\s+buying)\b", re.I)
+
+
+def _drop_lookup_adjuncts(order: str) -> str:
+    """Documentation translated to English."""
+    return _PURCHASE_ADJUNCT_RE.sub(" ", order) if _LOOKUP_HEAD_RE.search(order) else order
+
+
 def _order_text(text: str) -> str:
-    """El texto sobre el que se juzga la irreversibilidad: la ORDEN, sin contexto entre paréntesis ni sustantivos
-    compuestos que solo nombran un tema."""
+    """Documentation translated to English."""
     t = (text or "").lower()
-    for _ in range(3):                      # paréntesis anidados: colapsa de dentro afuera
+    for _ in range(3):                      # translated implementation note
         t2 = _PAREN_RE.sub(" ", t)
         if t2 == t:
             break
@@ -126,40 +154,38 @@ def _order_text(text: str) -> str:
 
 
 def is_dangerous(text: str) -> bool:
-    """True si la petición describe una acción irreversible que exige OK explícito del operador antes de ejecutarse."""
-    # El recorte del recado se aplica a LOS DOS patrones (V2-128). Antes solo lo veía `_COMMITMENT_RE`, así que
-    # «recuérdame PAGAR la factura antes del día 5» disparaba el gate por `_DANGER_RE`: una petición de
-    # recordatorio quedaba esperando un OK para un pago que nadie iba a ejecutar. La orden ahí es «recuérdame»,
-    # y esa no mueve dinero — es la misma frontera que el propio caso `pay-known-bill` marca al revés (una ORDEN
-    # de pagar NO es pedir un recordatorio).
-    # Los acentos se quitan UNA vez y antes de todo: `_REMINDER_RE` está escrito sin ellos («recuerdame») y
-    # `_order_text` solo minusculiza, así que el imperativo REAL —«recuérdame», con tilde— no casaba y el recado
-    # se colaba como orden. Es el mismo despiste que ya costó «resérvame» en site_catalog y «renuévame» aquí
-    # mismo: la forma que el operador DICE es justo la que el patrón sin normalizar no ve.
-    order = _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))
+    """Documentation translated to English."""
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
+    order = _drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
                 or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order))
 
 
 def _strip_accents(text: str) -> str:
-    """`_COMMITMENT_RE` se escribe sin acentos (membresia, poliza, domiciliacion) para no duplicar cada variante:
-    el operador dice «membresía» y el patrón tiene que casar igual. `_DANGER_RE` no lo necesita — sus términos no
-    llevan acento — y se deja como estaba para no cambiar su comportamiento por un refactor."""
+    """Documentation translated to English."""
     import unicodedata as _ud
     return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c))
 
 
-# ¿Esta orden MUEVE DINERO, o solo es irreversible? Los dos paran en el gate, pero no se preguntan igual
-# (V2-129, medido). El caso `renew-gym-membership` acabó con el propio tester frenando la ejecución:
+# translated implementation note
+# translated implementation note
 #
-#   «un momento, no me has dicho cuánto vas a pagar ni me has pedido confirmación.
-#    No hagas el cargo hasta que me pases el importe y te confirme.»
+# translated implementation note
+# translated implementation note
 #
-# Y tenía razón dos veces: no había importe, y no podía haberlo — nadie había mirado la cuota todavía. Una
-# pregunta genérica («esto puede ser irreversible, ¿confirmas?») no dice lo único que el operador necesita oír
-# antes de autorizar un cargo: que NADA se paga sin que él vea la cifra primero. Se dice, y así la promesa
-# existe aunque el importe aún no.
+# translated implementation note
+# translated implementation note
+# translated implementation note
+# translated implementation note
 _MONEY_RE = re.compile(
     r"\b(?:pagar|paga|pague|pagas|comprar|compra|compre|abonar|abona|transferir|transfiere|"
     r"recargar|recarga|renovar|renueva|renuev\w*|contratar|contrata|suscrib\w*|"
@@ -167,44 +193,32 @@ _MONEY_RE = re.compile(
     r"|\b(?:cuota|factura|recibo|cargo|importe|mensualidad|abono|bill|invoice|fee)\b", re.I)
 
 
-# Los verbos de la forma clítica que además MUEVEN DINERO (borrar o publicar no cuestan nada).
+# translated implementation note
 _MONEY_VERB_RE = re.compile(r"\b(?:pagar|comprar|abonar|transferir|adquirir|contratar|renovar|"
                             r"pagas|compras|abonas|transfieres|contratas|renuevas)", re.I)
 
 
 def ends_a_commitment(text: str) -> bool:
-    """Does this order END or START a standing commitment — a subscription, a fee, a contract, an order?
-
-    Exposed for V2-138: `is_dangerous` is too wide to decide whether something needs a WORKER (it is also True
-    for «borra el widget de música», which is resolved inside the turn, V2-017), and `moves_money` is too narrow
-    (cancelling costs nothing). This middle predicate is exactly the right width, and it was already computed
-    inside `is_dangerous` — measured on both classes:
-
-        cancela mi suscripción a Netflix · dame de baja de Movistar · anula el pedido de Amazon   → True
-        borra el widget de música · cancela la búsqueda · borra la tarea del jueves · cierra el widget → False
-
-    Uses the same reminder clipping as the rest of the module, so «recuérdame dar de baja Netflix» stays a note.
-    """
+    """Documentation translated to English."""
     return bool(_COMMITMENT_RE.search(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
 
 
 def moves_money(text: str) -> bool:
-    """True si la orden implica un CARGO. Subconjunto de `is_dangerous`: todo lo que mueve dinero es
-    irreversible, pero borrar un widget o publicar un anuncio no cuesta nada."""
-    # Acentos fuera ANTES de recortar el recado — el mismo orden que `is_dangerous`, y por el mismo motivo:
-    # `_REMINDER_RE` está escrito sin tildes y «recuérdame» es la forma que se dice.
-    order = _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))
+    """Documentation translated to English."""
+    # translated implementation note
+    # translated implementation note
+    order = _drop_lookup_adjuncts(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text))))
     if _MONEY_RE.search(order):
         return True
-    # Mismo hueco que en `is_dangerous` (V2-141): «¿puedes pagarLA?» no lleva ninguna forma desnuda del verbo.
-    # Sin esto el gate sí paraba la orden pero con la pregunta genérica, no con la de dinero — y la única frase
-    # que un operador necesita oír antes de un cargo es que nada se paga sin que él vea la cifra.
+    # translated implementation note
+    # translated implementation note
+    # translated implementation note
     m = _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
     return bool(m and _MONEY_VERB_RE.search(m.group(0)))
 
 
 def confirm_question(text: str) -> str:
-    """Frase con la que zaelar pide confirmación de una acción irreversible (operator-facing, castellano)."""
+    """Documentation translated to English."""
     t = (text or "").strip()
     short = (t[:120] + "…") if len(t) > 120 else t
     if moves_money(t):

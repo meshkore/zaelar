@@ -6518,6 +6518,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **No añade señal, quita ruido**: si la vuelta siguiente sale con `offered` casi a cero y la hoja SIGUE
     vacía, lo que falta está aguas arriba —el worker no extrae— y es otro fichero.
 
+- **The gate reads the ORDER, not the words (V2-509, 2026-08-30)**: the ROOT of the V2-507/V2-508 chain. The
+  confirm-gate judges the TEXT of the escalated request, **and that text is written by the BRAIN**: the operator
+  said "my work monitor is dying and I need a new one" and our brief composer wrote "…available for purchase in
+  San Francisco". `purchase` sits bare in `_DANGER_RE`, so **the engine fired its own confirmation gate on a
+  word it had just written itself** — and with it the parked session, the dropped record, the ghost sheet, the
+  blind dedup, and a question ("do I really pay for it?") over an errand that only asked to LOOK.
+  - **MIRROR form of V2-128**, fixed the same way: by asking which clause is the ORDER. There "remind me to PAY
+    the bill" commands REMINDING; here "research monitors FOR SALE" commands RESEARCHING. **Not one detection
+    pattern was touched** — a test guards that, because deleting a word from a safety pattern is how a guardrail
+    becomes a hole.
+  - **The CONJUNCTION is what makes it safe** and neither half works alone, both under test: the head verb alone
+    would let "find the IBAN and **PAY** the bill" through; the adjunct alone would kill "go to the store **TO
+    BUY** milk". It requires a lookup head **and** purchase said only as an adjunct — a real purchase order is
+    never phrased "to buy".
+  - **The interrogative form had to be covered or the fix missed its own case**: the measured brief ends
+    "…y dime **cuál comprar**", and the order there is *dime* (tell me).
+  - **`moves_money` learned it too**: it is documented as a subset of `is_dangerous` and trims the same way, for
+    the same reason — a subset that fires where its superset would not means asking a money confirmation over an
+    errand the gate already let through. The invariant sat in its docstring and nothing checked it.
+  - Node 2.5, 32 cases, disarm verified in four directions (4/1/1/4).
+  - **Still open, and it is not code**: whether the gate should judge the OPERATOR's words or the brief the
+    engine composes. This makes the brief harmless for the lookup case, which is the measured one; it does not
+    answer the general question.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

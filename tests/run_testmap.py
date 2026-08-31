@@ -464,6 +464,10 @@ DOMAINS: list[dict] = [
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py",
+            # V2-509 — the gate reads the ORDER, not the words. The TEXT it judges is written by the BRAIN,
+            # so "...available for purchase" — written by our brief composer, not by the operator — fired the
+            # confirmation over an errand that only asked to LOOK. Mirror form of V2-128.
+            "tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py",
             # V2-508 — el gate aparca el encargo y TIRA su registro, pero su hoja ya está en pantalla:
             # el «sí» relanzaba sin ella y abría una caja SEGUNDA al lado de la primera, que se quedaba
             # vacía para siempre. Un confirmado es una CONTINUACIÓN, como el relevo de proveedor.
