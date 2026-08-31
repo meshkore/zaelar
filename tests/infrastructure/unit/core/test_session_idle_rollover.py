@@ -1,12 +1,12 @@
 """
-Techo de INACTIVIDAD REAL de la sesión de trabajo (2026-08-13, petición del operador: una sesión que se queda
-parada/cerrada no puede seguir viva para siempre acumulando eventos de tramos de trabajo distintos).
+REAL INACTIVITY ceiling for the work session (2026-08-13, operator request: a session that remains
+stopped/closed must not stay alive forever accumulating events from different work periods).
 
-`observability.identity.note_real_activity()` es la pieza nueva: cierra la sesión abierta si lleva más de
-`IDLE_TIMEOUT_MS` sin actividad REAL, y `voice.observer.stamp_identity` la llama para todo evento que NO sea
-ruido de fondo (`system`/`pulse`) antes de resolver `sid`. Estos tests controlan el reloj a mano (sin
-`time.sleep`) y verifican las tres garantías: rota tras un hueco real, el ruido de fondo no lo dispara ni lo
-extiende, y una reconexión normal (hueco corto) sigue sin partir la sesión en dos.
+`observability.identity.note_real_activity()` is the new piece: it closes the open session if it has gone more than
+`IDLE_TIMEOUT_MS` without REAL activity, and `voice.observer.stamp_identity` calls it for every event that is NOT
+background noise (`system`/`pulse`) before resolving `sid`. These tests control the clock manually (without
+`time.sleep`) and verify the three guarantees: it rotates after a real gap, background noise neither triggers nor
+extends it, and a normal reconnection (short gap) still does not split the session in two.
 """
 from __future__ import annotations
 
@@ -18,12 +18,12 @@ from voice import observer
 
 @pytest.fixture(autouse=True)
 def _clean_identity_state(monkeypatch):
-    """Cada test parte de una sesión abierta y un reloj propio — nunca del estado real del proceso."""
+    """Each test starts with an open session and its own clock—never the process's actual state."""
     monkeypatch.setattr(identity, "_session", {"id": "s0", "started_ms": 0, "source": "test"})
     monkeypatch.setattr(identity, "_last_real_activity_ms", {"v": 0})
     monkeypatch.setattr(identity, "IDLE_TIMEOUT_MS", 5 * 60_000)
-    # `end_session`/`begin_session` emiten al observer y reportan al control-plane — ninguno de los dos debe
-    # tocar red ni el bus real en un test unitario.
+    # `end_session`/`begin_session` emit to the observer and report to the control plane—neither must
+    # touch the network or the real bus in a unit test.
     monkeypatch.setattr(identity, "_emit_session", lambda *a, **k: None)
     monkeypatch.setattr(identity, "_report_to_control_plane", lambda *a, **k: None)
 
@@ -42,20 +42,20 @@ def _stamp(cat: str, clock: dict, ms: int) -> dict:
 def test_a_real_gap_past_the_timeout_rotates_the_session(_clean_identity_state):
     clock = _clean_identity_state
     first = _stamp("flash", clock, 0)
-    later = _stamp("flash", clock, 6 * 60_000)  # 6 min > 5 min de techo
+    later = _stamp("flash", clock, 6 * 60_000)  # 6 min > 5 min ceiling
     assert first["sid"] == "s0"
     assert later["sid"] != "s0"
-    assert later["sid"], "la rotación deja la sesión NUEVA ya abierta, no huérfana"
+    assert later["sid"], "rotation leaves the NEW session already open, not orphaned"
 
 
 def test_background_noise_never_extends_nor_triggers_rotation(_clean_identity_state):
     clock = _clean_identity_state
     _stamp("flash", clock, 0)
-    # Puro ruido de fondo durante 20 min — ninguno es actividad real.
+    # Pure background noise for 20 min—none of it is real activity.
     for minute in range(1, 21):
         pulse = _stamp("pulse" if minute % 2 else "system", clock, minute * 60_000)
-        assert pulse["sid"] == "s0", "el ruido de fondo no puede disparar una rotación por sí solo"
-    # Y tampoco tuvo que extender el reloj: la actividad real que llega después del mismo hueco largo SÍ rota.
+        assert pulse["sid"] == "s0", "background noise cannot trigger a rotation on its own"
+    # Nor should it have extended the clock: real activity arriving after the same long gap DOES rotate.
     real = _stamp("worker", clock, 20 * 60_000 + 1)
     assert real["sid"] != "s0"
 
@@ -63,8 +63,8 @@ def test_background_noise_never_extends_nor_triggers_rotation(_clean_identity_st
 def test_reconnection_within_the_window_keeps_the_same_session(_clean_identity_state):
     clock = _clean_identity_state
     _stamp("flash", clock, 0)
-    soon = _stamp("flash", clock, 2 * 60_000)  # 2 min < 5 min de techo
-    assert soon["sid"] == "s0", "una reconexión por un bache no puede partir la sesión en dos"
+    soon = _stamp("flash", clock, 2 * 60_000)  # 2 min < 5 min ceiling
+    assert soon["sid"] == "s0", "a reconnection after a brief gap cannot split the session in two"
 
 
 # ── background noise NEVER fabricates a session by itself (2026-08-15) ─────────────────────────────────────

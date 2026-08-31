@@ -1,6 +1,6 @@
 """z.ai has TWO wallets, and the panel must tell them apart (V2-517).
 
-Measured live 2026-08-31: the worker row said "z.ai · sin cuota hasta el 01 Sep 01:39" — a flat red the
+Measured live 2026-08-31: the worker row said "z.ai · sin cuota hasta el 01 Sep 01:39" — a flat red that the
 operator read as "z.ai dead" — while the OTHER purse (pay-per-use credits, paas/v4) served a real
 completion. The coding-plan quota and the credits balance are separate wallets (V2-462 routes them by
 URL segment); when the plan tier is in cooldown, the panel measures the second wallet with a 1-token

@@ -14,7 +14,7 @@ engine whose own switch said `stopped`. Two independent defects met there, and b
      say how or why it ended.
 
 And the rule that ties them together, which is what the operator asked for: **stopping ENDS the session,
-starting BEGINS a new one** — the session is the tramo in which the agent could work, so nothing else may open
+starting BEGINS a new one** — the session is the span in which the agent could work, so nothing else may open
 one, and an idle stretch closes it on its own instead of leaving it open forever.
 """
 import asyncio

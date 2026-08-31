@@ -1,17 +1,17 @@
-"""La captura forense de un turno tiene que guardar la parte que CAMBIA (V2-195).
+"""The forensic capture of a turn must preserve the part that CHANGES (V2-195).
 
-`observer.turn_detail` existe para responder «¿qué vio el modelo?» — su propio docstring lo dice: «¿por qué
-re-escaló en un turno ambiente? = mirar qué ventana/prompt vio». Y guardaba `system[:8000]` de un prompt que
-mide ~19.000 caracteres.
+`observer.turn_detail` exists to answer “what did the model see?”—its own docstring says: “why did it
+re-escalate during an ambient turn? = look at which window/prompt it saw.” And it was saving `system[:8000]`
+from a prompt measuring ~19,000 characters.
 
-La persona estática va al principio y **`prompt.live_state()` se compone al FINAL**, así que lo que se cortaba
-era exactamente la mitad que cambia cada turno: la hora, las tareas de fondo, el bloque del navegador, un
-muro, una confirmación pendiente.
+The static persona comes first and **`prompt.live_state()` is composed at the END**, so what got cut was
+exactly the half that changes every turn: the time, background tasks, the browser block, a wall, a pending
+confirmation.
 
-El 2026-08-20 ese truncamiento hizo que cinco turnos de una corrida medida parecieran no tener nunca el bloque
-del navegador — con el navegador emitiendo 74 eventos en esa misma corrida. Tres pasos dentro de concluir que
-una noche entera de arreglos era invisible para el modelo, cuando lo único que faltaba era el artefacto. Un
-diagnóstico que trunca justo la evidencia que le piden es peor que no tenerlo: parece una respuesta.
+On 2026-08-20, that truncation made five turns from a measured run appear never to have the browser block—
+while the browser emitted 74 events in that same run. Three steps into concluding that an entire night of
+fixes was invisible to the model, when the only thing missing was the artifact. A diagnosis that truncates
+the very evidence it is asked for is worse than having none: it looks like an answer.
 """
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def test_and_the_head_too_because_the_rules_live_there():
 
 
 def test_and_the_gap_is_NAMED_so_a_hole_is_not_read_as_an_absence():
-    """Es la lección entera del hallazgo: leí un hueco como una ausencia. Si el extracto dice cuánto falta y
-    dónde está el estado, nadie más lo hace."""
+    """That is the entire lesson of the finding: I read a gap as an absence. If the excerpt says how much is
+    missing and where the state is, nobody else will make that mistake."""
     ex = observer._prompt_excerpt(_prompt())
     assert "OMITIDOS" in ex and "el estado vivo va al final" in ex
 
@@ -43,7 +43,7 @@ def test_a_short_prompt_is_kept_whole():
 
 
 def test_and_a_REAL_turn_keeps_its_browser_block():
-    """La comprobación que importa, con el prompt de verdad y no con relleno."""
+    """The check that matters, using the real prompt rather than filler."""
     from nucleo.flash import prompt as _p
     from widgets.navegador import tasks
 

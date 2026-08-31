@@ -94,4 +94,4 @@ def test_the_canvas_report_route_still_points_at_the_handler():
     assert hit, "la ruta del informe del canvas desapareció"
     assert hit[0].endpoint.__name__ == "canvas_state"
     assert "payload" in hit[0].endpoint.__annotations__, "el endpoint del canvas tiene que recibir el informe"
-    assert voice_api.open_instances() is not None      # el helper sigue existiendo, pero SIN ruta
+    assert voice_api.open_instances() is not None      # the helper still exists, but has NO route
