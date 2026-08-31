@@ -6631,35 +6631,52 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
-- **The lead-in filler sounds BEFORE the reply — audio inside the reply's own speech (V2-529, 2026-08-31)**:
+- **The lead-in filler sounds BEFORE the reply — it IS the reply's first segment (V2-529, 2026-08-31)**:
   operator's report, verbatim: «la voz lo hace al revés: primero reproduce la respuesta y después el nexo …
   "Vale, empiezo con la tarea" y luego "Espera, espera"». Both defects measured. (1) The reversal was
   STRUCTURAL: the filler spoke via `session.say()`, and when it fires the reply is already the scheduler's
-  CURRENT speech — LiveKit strictly serializes, so the say is only authorized when the reply FINISHES playing.
-  Proof in the live timeline (session e081f343): the filler's synthesis fired at the exact millisecond the
-  reply's playout ended. Via `say`, the filler could NEVER sound first — v1 (ChatChunk into the stream) died
-  on the tokenizer's retention, v2 (`say`) fixed that and inherited the serialization; each fix correct
-  against the previous failure, blind to the next. (2) It fired on nearly every turn: timer at 600 ms vs
-  measured TTFT of 1.9-2.8 s.
-  - **v3** (`voice/engine/speech/filler_audio.py` + a `ZaelarAgent.tts_node` override): the filler is
-    PRE-SYNTHESIZED AUDIO FRAMES yielded as the first audio of the reply's OWN speech. Inside the current
-    speech there is no scheduler to fight: it plays during the model's silence, always before the reply, and
-    a barge-in kills it WITH the turn — no lifecycle left to cancel. The wrapper watches the reply's TEXT
-    stream and only fires when no text arrived within `ZAELAR_FILLER_MS` (default **600 → 1100 ms** — a reply
-    within ~a second gets no filler, the operator's rule; 0 stays the kill-switch).
-  - **ARM/CONSUME**: only a brain turn arms one (never kickoff/probe); `say` speeches (greeting, proactive)
-    never arm and their text is instant anyway. Consumed AT FIRE TIME (the tts_node can start before the
-    brain arms), TTL 20 s, once. Old guards travel: never over the operator's voice, varied phrase,
-    anti-echo updated (never the directed-judge's reply-context field — source guard). Frames come from the
-    session's own TTS (same voice/sample rate), cached per (provider, voice, lang, phrase); `prime_soon()`
-    pre-synthesizes the pool at session start; a cold synthesis slower than 2.5 s skips the turn and fills
-    the cache for the next. The V2-122-addenda visibility contract is intact (marked `filler` chat event +
-    `brain` trail, synchronous at the decision).
-  - `lead_in_filler.py` DELETED; nucleo only ARMS now. Node **3.19**, 10 cases, four disarms verified red —
-    one came back green at first because the fake impl yielded frames before the timer and masked the
-    mutation: the fast-reply test must model synthesis latency (first FRAME lags first TEXT) or the
-    first-text gate is untestable. **Live listen pending** — the timeline signature: `filler` (path `audio`)
-    → `speaking` → reply, and never a filler event after the reply's playout.
+  CURRENT speech — LiveKit serializes on GENERATION, which for a reply includes its playout. Proof in the
+  live timeline (session e081f343): the filler's synthesis fired at the exact millisecond the reply's
+  playout ended. Via `say` it could NEVER sound first. (2) It fired on nearly every turn: timer at 600 ms
+  vs measured TTFT of 1.9-2.8 s.
+  - ⚠️ **The first attempt (pre-synthesized frames from a `tts_node` wrapper) was ALSO wrong, and only a
+    LIVE turn could show it**: unit tests green, five disarms red, and **zero fillers** on a real turn with
+    TTFT 2.51 s against a 1.1 s timer. This pipeline SEGMENTS the reply, so `perform_tts_inference` — hence
+    `tts_node` — is only called from `_start_segment()`, which runs **when the first text chunk arrives**.
+    A node that only exists once text exists can never observe that the text is LATE. Guarded
+    (`test_the_wiring_uses_llm_node_and_NOT_tts_node`). The lesson, third time in this file's history for
+    this one feature: **a filler's injection point is a claim about WHEN the pipeline instantiates it, and
+    that claim is only testable live.**
+  - **v3** (`voice/engine/speech/filler_audio.py` + `ZaelarAgent.llm_node`/`transcription_node`): the
+    `llm_node` wrapper races the model's first chunk against `ZAELAR_FILLER_MS` (default **600 → 1100 ms**;
+    0 stays the kill-switch — a reply within ~a second gets no filler, the operator's rule). Timer first →
+    yield the filler text **plus a `FlushSentinel`**, which CLOSES the segment: the phrase is synthesized
+    and played on its own while the model still thinks, with the reply as segment two, in order, in the
+    same speech. v1's failure (the tokenizer retaining a short unpunctuated phrase until the reply glued to
+    it) cannot return, because **v1 had no flush**. A barge-in cancels the whole speech, filler included —
+    no lifecycle left to cancel.
+  - **`transcription_node` strips it** from what LiveKit FORWARDS — that node's output is the subtitle
+    stream AND the text written into `chat_ctx` (`forwarded_text`, not the LLM's raw `generated_text`). The
+    filler is spoken and shown in the chat wall by our own marked `kind="filler"` event (V2-122 addenda),
+    never inside the reply's bubble or the model's history. The strip is consumed ONCE, so a reply that
+    genuinely opens with the same interjection survives.
+  - **ARM/CONSUME**: only a brain turn arms one (never the kickoff); `say` speeches don't go through
+    `llm_node` at all. Consumed at fire time, TTL 20 s, once. Old guards travel: never over the operator's
+    voice, varied phrase, anti-echo updated (never the directed-judge's reply-context field — source guard).
+  - ⚠️ **A RACE that only a SECOND live turn could show**: one turn fired the filler and the very next did
+    not, with TTFT 3.26 s. The arm and the deadline race — this node is entered before `_run_inner` reaches
+    `arm()` (prompt build + tool selection in between) and the gap varies: measured, one turn armed **150 ms
+    before** the deadline and the next **~400 ms after** it. So the deadline is not a single sleep: past it
+    we keep polling for the arm while still racing the model's first chunk. `_ARM_GRACE_S` bounds the spin
+    and is **not** a behavioural bound — its disarm leaves every test green (the first-chunk future always
+    resolves), and the test says that out loud instead of crediting coverage that does not exist.
+  - `lead_in_filler.py` DELETED; nucleo only ARMS. Node **3.19**, 14 cases, six disarms verified red.
+    **VERIFIED LIVE, both halves** — 21:57 (`zaelar-79cc37c2`): `thinking` 10.412 → filler «Veamos…» 11.512
+    (the 1.1 s delay, exactly) → **`speaking` 11.789 with the filler's own 0.81 s segment** → first token
+    16.456 (ttft 3.20 s) → the reply's 31 s segment, i.e. **4.7 s of real silence covered, in order**. And
+    22:02 (`zaelar-c1fa7ca0`, the very turn that had failed): armed 53.452 → filler 53.456 → speaking 53.722
+    → ttft 3.29 s at 55.380 → **transcript «Me llamo Zaelar.» with no filler inside it**. Pending: the
+    operator's own ear on a spoken turn.
 
 - **The proactive delivery QUEUE — one message at a time (V2-527, 2026-08-31)**: the operator's spec, dictated
   after session c480413b: «tiene que tener un buffer … cuando ya se lo ha explicado le manda otro; si dos

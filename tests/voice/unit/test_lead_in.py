@@ -163,8 +163,8 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
 def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARMA():
     """Guarda de CÓDIGO sobre el cableado V2-529 (montar el proveedor entero exige media sesión de LiveKit):
     (1) nucleo.py ya no construye ningún LeadInFiller ni habla por `say` — solo ARMA el filler de audio;
-    (2) agent.py sobreescribe `tts_node` delegando en `filler_audio.tts_node_with_filler`, que es el único
-    sitio donde el relleno puede sonar ANTES de la respuesta (dentro de su misma locución)."""
+    (2) agent.py sobreescribe `llm_node` delegando en `filler_audio.llm_node_with_filler`, que es el único
+    sitio donde el relleno puede sonar ANTES de la respuesta (como su primer SEGMENTO)."""
     from pathlib import Path
 
     nucleo_body = (Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text()
@@ -174,8 +174,8 @@ def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARM
         "el camino say del relleno volvió — ese say se autoriza DETRÁS de la respuesta y suena tarde SIEMPRE"
 
     agent_body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
-    assert "tts_node_with_filler" in agent_body, \
-        "sin el override de tts_node, el relleno no tiene por dónde entrar a la locución de la respuesta"
+    assert "llm_node_with_filler" in agent_body, \
+        "sin el override de llm_node, el relleno no tiene por dónde entrar como PRIMER segmento de la respuesta"
 
 
 def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():

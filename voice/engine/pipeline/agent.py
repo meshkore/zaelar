@@ -707,24 +707,27 @@ async def entrypoint(ctx: JobContext) -> None:
     _lang = langs.current_language()
 
     class ZaelarAgent(Agent):
-        # V2-529: the lead-in filler is AUDIO INSIDE the reply's own speech. A `say()`-based filler is
-        # structurally late — the reply is already the scheduler's current speech, so the say only gets
-        # authorized when the reply FINISHES playing (measured live: «Vale, empiezo» … «Espera, espera»).
-        # The wrapper yields pre-synthesized filler frames first, only when the turn armed one and the
-        # model's first token is late; everything else passes through byte-identical. See
-        # `voice/engine/speech/filler_audio.py` for the full history and the arm/consume contract.
-        def tts_node(self, text, model_settings):
+        # V2-529: the lead-in filler is the reply's FIRST SEGMENT. A `say()`-based filler is structurally
+        # late (the reply is already the scheduler's current speech, so the say is only authorized when the
+        # reply finishes playing — measured live: «Vale, empiezo» … «Espera, espera»), and a `tts_node`
+        # wrapper cannot work either: this pipeline only calls tts_node from `_start_segment()`, i.e. once
+        # the first text chunk exists, so it can never observe that the text is LATE. Emitting the filler
+        # from `llm_node` with a FlushSentinel closes a segment of its own → synthesized and played while
+        # the model still thinks, with the reply as segment two. `transcription_node` strips it from what
+        # LiveKit forwards (subtitles + chat_ctx); its chat-wall visibility is our own marked event.
+        # Full history and the arm/consume contract: `voice/engine/speech/filler_audio.py`.
+        def llm_node(self, chat_ctx, tools, model_settings):
             from voice.engine.speech import filler_audio as _fa
-            return _fa.tts_node_with_filler(self, Agent.default.tts_node, text, model_settings)
+            return _fa.llm_node_with_filler(self, Agent.default.llm_node, chat_ctx, tools, model_settings)
+
+        def transcription_node(self, text, model_settings):
+            from voice.engine.speech import filler_audio as _fa
+            return _fa.transcription_node_without_filler(self, Agent.default.transcription_node,
+                                                         text, model_settings)
 
     agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
     logger.info("Session started.")
-    try:
-        from voice.engine.speech import filler_audio as _fa
-        _fa.prime_soon(tts)   # pre-synthesize the filler pool so the first one doesn't pay a cold synthesis
-    except Exception:
-        pass
 
     # BOOT SEQUENCE — INIT then PROCESS. The voice must NOT run under the splash: we report the ordered backend
     # milestones over the "vl2" channel (the frontend's «Colmena» splash lights one cluster per phase), emit the
