@@ -1,7 +1,7 @@
 #
-# test_vault_flow.py — flujo de LECTURA de secretos del FlashBrain (V2-060 F1b): resolución difusa de etiqueta +
-# los desenlaces (no_vault/empty/not_found/locked/ok). El valor solo en 'ok'. Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_flow.py
+# test_vault_flow.py — FlashBrain secret READ flow (V2-060 F1b): fuzzy label resolution +
+# the outcomes (no_vault/empty/not_found/locked/ok). The value only in 'ok'. No network (hash embeddings).
+# Run: .venv/bin/pytest tests/memory/unit/test_vault_flow.py
 #
 import pytest
 
@@ -33,14 +33,14 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── la tool está en el router ──────────────────────────────────────────────────────────────────────────────
+# ── the tool is in the router ──────────────────────────────────────────────────────────────────────────────
 def test_reveal_tool_registered():
     names = {t["function"]["name"] for t in router.tools()}
     assert "reveal_secret" in names
     assert router.decide("reveal_secret", {"label": "netflix"}).kind == router.REVEAL
 
 
-# ── desenlaces ───────────────────────────────────────────────────────────────────────────────────────────
+# ── outcomes ───────────────────────────────────────────────────────────────────────────────────────────
 def test_no_vault(fresh_db):
     assert vault_flow.reveal("la contraseña de Netflix")["status"] == "no_vault"
 
@@ -56,7 +56,7 @@ def test_locked(fresh_db):
     vault.lock()
     r = vault_flow.reveal("dame la contraseña de Netflix")
     assert r["status"] == "locked" and r["label"] == "contraseña de Netflix"
-    assert "value" not in r                     # jamás el valor en 'locked'
+    assert "value" not in r                     # never the value in 'locked'
 
 
 def test_ok_returns_value_when_unlocked(fresh_db):
@@ -76,7 +76,7 @@ def test_not_found_when_no_match(fresh_db):
     assert "contraseña de Netflix" in r["candidates"]
 
 
-# ── resolución difusa ─────────────────────────────────────────────────────────────────────────────────────
+# ── fuzzy resolution ─────────────────────────────────────────────────────────────────────────────────────
 def test_resolve_picks_right_service(fresh_db):
     vault.create("clave")
     vault.unlock("clave")

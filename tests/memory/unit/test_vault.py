@@ -1,7 +1,7 @@
 #
-# test_vault.py — bóveda de secretos cifrados (V2-060): crypto asimétrica + sobre passphrase, storage partido,
-# supersede, invariantes (valor jamás en claro en `memories`). Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault.py
+# test_vault.py — encrypted secret vault (V2-060): asymmetric crypto + passphrase envelope, split storage,
+# supersede, invariants (value never in plaintext in `memories`). No network (hash embeddings).
+# Run: .venv/bin/pytest tests/memory/unit/test_vault.py
 #
 import pytest
 
@@ -21,7 +21,7 @@ def _hash_backend(monkeypatch):
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    # KDF rápido en tests (Argon2id MODERATE tarda ~0.7s; INTERACTIVE/MIN es de sobra para el test)
+    # Fast KDF in tests (Argon2id MODERATE takes ~0.7s; INTERACTIVE/MIN is more than enough for the test)
     from nacl import pwhash
     monkeypatch.setattr(vault, "_OPS", pwhash.argon2id.OPSLIMIT_MIN, raising=False)
     monkeypatch.setattr(vault, "_MEM", pwhash.argon2id.MEMLIMIT_MIN, raising=False)
@@ -33,7 +33,7 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── ciclo de vida ──────────────────────────────────────────────────────────────────────────────────────────
+# ── lifecycle ───────────────────────────────────────────────────────────────────────────────────────────────
 def test_create_and_status(fresh_db):
     assert not vault.exists()
     vault.create("mi-passphrase-secreta")
@@ -59,10 +59,10 @@ def test_unlock_right_and_wrong(fresh_db):
     assert vault.is_unlocked() is False
 
 
-# ── escritura sin desbloqueo (clave pública) + storage partido ─────────────────────────────────────────────
+# ── writing without unlocking (public key) + split storage ──────────────────────────────────────────────────
 def test_store_secret_without_unlock(fresh_db):
     vault.create("passphrase")
-    vault.lock()                                    # bloqueada: aun así se puede GUARDAR
+    vault.lock()                                    # locked: it is still possible to STORE
     mid = vault.store_secret("contraseña de Netflix", "Perrito123", slot="secret:netflix:password")
     assert vault.is_sealed(mid)
     assert vault.status()["secret_count"] == 1
@@ -71,18 +71,18 @@ def test_store_secret_without_unlock(fresh_db):
 def test_value_never_plaintext_in_memories(fresh_db):
     vault.create("passphrase")
     vault.store_secret("contraseña de Netflix", "Perrito123", slot="secret:netflix:password")
-    # el VALOR no puede aparecer en NINGUNA fila de `memories` ni en su meta
+    # The VALUE must not appear in ANY `memories` row or in its metadata
     rows = memdb.get_db().query("SELECT text, meta FROM memories")
     blob = " ".join((r["text"] or "") + " " + (r["meta"] or "") for r in rows)
     assert "Perrito123" not in blob
-    # la ETIQUETA sí está (buscable)
+    # The LABEL is present (searchable)
     assert any("Netflix" in (r["text"] or "") for r in rows)
-    # el ciphertext tampoco contiene el valor en claro
+    # The ciphertext does not contain the plaintext value either
     ct = memdb.get_db().query_one("SELECT ciphertext FROM vault_secrets")["ciphertext"]
     assert b"Perrito123" not in bytes(ct)
 
 
-# ── lectura ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── reading ─────────────────────────────────────────────────────────────────────────────────────────────────
 def test_open_requires_unlock(fresh_db):
     vault.create("passphrase")
     mid = vault.store_secret("contraseña de Netflix", "Perrito123", slot="secret:netflix:password")
@@ -102,7 +102,7 @@ def test_open_transient_with_passphrase_strict_mode(fresh_db):
     vault.create("passphrase")
     mid = vault.store_secret("clave", "SuperSecreto!", slot="secret:x:password")
     vault.lock()
-    # modo estricto: pasa la passphrase directamente, NO cachea
+    # strict mode: pass the passphrase directly; do NOT cache it
     assert vault.open_secret(mid, passphrase="passphrase") == "SuperSecreto!"
     assert vault.is_unlocked() is False
 
@@ -115,25 +115,25 @@ def test_open_wrong_transient_passphrase(fresh_db):
         vault.open_secret(mid, passphrase="no-es")
 
 
-# ── supersede: re-guardar la misma etiqueta reemplaza el valor ─────────────────────────────────────────────
+# ── supersede: storing the same label again replaces the value ───────────────────────────────────────────────
 def test_supersede_same_slot_replaces_value(fresh_db):
     vault.create("passphrase")
     vault.unlock("passphrase")
     mid1 = vault.store_secret("contraseña de Netflix", "vieja", slot="secret:netflix:password")
     mid2 = vault.store_secret("contraseña de Netflix", "nueva", slot="secret:netflix:password")
-    assert mid1 == mid2                              # misma etiqueta → misma píldora
+    assert mid1 == mid2                              # same label → same pill
     assert vault.open_secret(mid2) == "nueva"
     assert vault.status()["secret_count"] == 1
 
 
-# ── rotación de passphrase ─────────────────────────────────────────────────────────────────────────────────
+# ── passphrase rotation ──────────────────────────────────────────────────────────────────────────────────────
 def test_change_passphrase(fresh_db):
     vault.create("vieja-clave")
     mid = vault.store_secret("clave", "dato", slot="secret:x:password")
     vault.change_passphrase("vieja-clave", "nueva-clave")
     assert vault.unlock("vieja-clave") is False
     assert vault.unlock("nueva-clave") is True
-    assert vault.open_secret(mid) == "dato"          # el secreto sobrevive a la rotación
+    assert vault.open_secret(mid) == "dato"          # the secret survives the rotation
 
 
 def test_change_passphrase_wrong_old(fresh_db):
@@ -142,19 +142,19 @@ def test_change_passphrase_wrong_old(fresh_db):
         vault.change_passphrase("no-es-la-vieja", "nueva")
 
 
-# ── passkeys (WebAuthn PRF, cripto server-side) ────────────────────────────────────────────────────────────
+# ── passkeys (WebAuthn PRF, server-side crypto) ──────────────────────────────────────────────────────────────
 def test_passkey_enroll_and_unlock(fresh_db):
     import os
     vault.create("passphrase")
     vault.store_secret("clave", "SecretoPasskey", slot="secret:x:password")
-    # enrolar exige la bóveda desbloqueada (solo quien ya tiene acceso añade un método)
+    # enrollment requires the vault to be unlocked (only someone who already has access can add a method)
     vault.unlock("passphrase")
-    prf = os.urandom(32)                         # simula el secreto que devuelve el autenticador
+    prf = os.urandom(32)                         # simulates the secret returned by the authenticator
     vault.add_passkey(prf, cred_id="cred-abc")
     assert "passkey" in vault.status()["methods"]
-    # bloquea y desbloquea SOLO con el PRF (sin passphrase)
+    # lock and unlock using ONLY the PRF (without a passphrase)
     vault.lock()
-    assert vault.unlock_with_prf(os.urandom(32)) is False    # PRF equivocado
+    assert vault.unlock_with_prf(os.urandom(32)) is False    # wrong PRF
     assert vault.unlock_with_prf(prf) is True
     secs = vault.list_secrets()
     assert vault.open_secret(secs[0]["memory_id"]) == "SecretoPasskey"
@@ -172,11 +172,11 @@ def test_passkey_salt_is_stable_and_from_pubkey(fresh_db):
     vault.create("passphrase")
     m1 = vault.passkey_meta()
     m2 = vault.passkey_meta()
-    assert m1["prf_salt"] and m1["prf_salt"] == m2["prf_salt"]   # estable
+    assert m1["prf_salt"] and m1["prf_salt"] == m2["prf_salt"]   # stable
     assert m1["cred_ids"] == []
 
 
-# ── listado (etiquetas, nunca valores) ─────────────────────────────────────────────────────────────────────
+# ── listing (labels, never values) ──────────────────────────────────────────────────────────────────────────
 def test_list_secrets_labels_only(fresh_db):
     vault.create("passphrase")
     vault.store_secret("contraseña de Netflix", "a", slot="secret:netflix:password")
@@ -185,5 +185,5 @@ def test_list_secrets_labels_only(fresh_db):
     assert len(lst) == 2
     labels = {x["label"] for x in lst}
     assert "contraseña de Netflix" in labels and "IBAN" in labels
-    # ningún valor en el listado
+    # no values in the listing
     assert all("value" not in x for x in lst)

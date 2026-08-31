@@ -1,8 +1,8 @@
 #
-# test_vault_ingest.py — auto-vaulting en la ingesta (V2-060 F1): un turno con un secreto se CIFRA y se REDACTA
-# antes del destilador; sin bóveda pide crearla; el valor jamás llega al LLM ni a una píldora en claro.
-# Sin red (embeddings hash; mem_processor forzado OFF para aislar la heurística).
-# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_ingest.py
+# test_vault_ingest.py — auto-vaulting during ingestion (V2-060 F1): a turn containing a secret is ENCRYPTED and REDACTED
+# before the distiller; without a vault it asks to create one; the value never reaches the LLM or a plaintext pill.
+# No network (hash embeddings; mem_processor forced OFF to isolate the heuristic).
+# Run: .venv/bin/pytest tests/memory/unit/test_vault_ingest.py
 #
 import asyncio
 
@@ -21,7 +21,7 @@ def _ingest(text):
 @pytest.fixture(autouse=True)
 def _hash_backend(monkeypatch):
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    # apaga el CORAZÓN LLM (sin red): la ingesta cae a la heurística, suficiente para el gate de secretos
+    # Turn off the LLM CORE (no network): ingestion falls back to the heuristic, which is sufficient for the secret gate
     monkeypatch.setenv("MEM_PROCESSOR", "0")
     mememb.reset()
     yield
@@ -50,7 +50,7 @@ def _all_text():
 def test_secret_without_vault_asks_to_create(fresh_db):
     res = _ingest("guárdame la contraseña de Netflix, es Perrito123")
     assert res["source"] == "secret_needs_vault"
-    # NADA en claro: ni una píldora con el valor
+    # NOTHING in plaintext: not even a pill containing the value
     assert "Perrito123" not in _all_text()
 
 
@@ -58,12 +58,12 @@ def test_secret_with_vault_is_encrypted(fresh_db):
     vault.create("clave-maestra")
     res = _ingest("guárdame la contraseña de Netflix, es Perrito123")
     assert res["source"] == "vault" and res["atoms"] == 1
-    # cifrado y recuperable
+    # encrypted and recoverable
     assert vault.status()["secret_count"] == 1
     assert vault.unlock("clave-maestra")
     secs = vault.list_secrets()
     assert vault.open_secret(secs[0]["memory_id"]) == "Perrito123"
-    # el valor jamás en claro en memories ni en el ciphertext
+    # the value is never in plaintext in memories or in the ciphertext
     assert "Perrito123" not in _all_text()
     ct = memdb.get_db().query_one("SELECT ciphertext FROM vault_secrets")["ciphertext"]
     assert b"Perrito123" not in bytes(ct)

@@ -1,6 +1,6 @@
 #
-# test_vault_rules.py — user rules DURAS de seguridad (V2-060 F2): detección de comandos de config por voz +
-# aplicación (persistencia en state.security). Sin red. Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_rules.py
+# test_vault_rules.py — user rules HARDENED for security (V2-060 F2): detection of voice config commands +
+# application (persistence in state.security). No network. Run: .venv/bin/pytest tests/memory/unit/test_vault_rules.py
 #
 import pytest
 
@@ -27,7 +27,7 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-# ── detección ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── detection ─────────────────────────────────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("txt", [
     "no me digas los secretos por voz",
     "no leas mis contraseñas en voz alta",
@@ -60,23 +60,23 @@ def test_detect_english():
     assert vault_rules.detect("don't read my secrets out loud") == ("secrets_voice", False)
 
 
-# ── aplicación + persistencia ───────────────────────────────────────────────────────────────────────────
+# ── application + persistence ───────────────────────────────────────────────────────────────────────────
 def test_apply_persists_flag(fresh_db):
-    assert mstate.security_flag("secrets_voice", True) is True     # default cómodo
+    assert mstate.security_flag("secrets_voice", True) is True     # convenient default
     off = vault_rules.apply(("secrets_voice", False))
-    assert mstate.security_flag("secrets_voice", True) is False    # persistió
+    assert mstate.security_flag("secrets_voice", True) is False    # persisted
     on = vault_rules.apply(("secrets_voice", True))
     assert mstate.security_flag("secrets_voice", True) is True
-    # La confirmación es LOCALIZADA (`apply` la traduce según el idioma del operador), así que aquí solo se
-    # comprueba el contrato agnóstico del idioma: que confirme algo y que las dos direcciones NO digan lo mismo.
-    # Antes se afirmaba `"no" in off.lower()` —cierto solo en castellano— y el test se puso rojo el día que el
-    # producto pasó a arrancar en INGLÉS por defecto (c615ee4): fallo del test, no del código.
+    # The confirmation is LOCALIZED (`apply` translates it according to the operator's language), so here we only
+    # check the language-agnostic contract: that it confirms something and that the two directions do NOT say the same thing.
+    # Previously, the assertion was `"no" in off.lower()` —true only in Spanish— and the test failed when the
+    # product began starting in ENGLISH by default (c615ee4): a test failure, not a code failure.
     assert off.strip() and on.strip()
     assert off != on
 
 
 def test_security_flag_isolated_from_style_rules(fresh_db):
-    # las reglas de seguridad NO tocan las de estilo (state.rules) ni al revés
+    # security rules do NOT touch style rules (state.rules), nor vice versa
     mstate.set_security_flag("secrets_voice", False)
     st = mstate.read()
     assert st["security"]["secrets_voice"] is False

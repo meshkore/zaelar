@@ -1,18 +1,19 @@
-"""La suite declara su entorno, y ese gana DENTRO de la suite (auditoría de arquitectura 2026-08-23, H4).
+"""The suite declares its environment, and that takes precedence INSIDE the suite (architecture audit 2026-08-23, H4).
 
-Medido con coste real: `memory/rerank.py::_cfg()` lee `config/v2.py` antes que el entorno —norma del producto,
-«el store MANDA sobre `.env`», y aquí no se toca— pero ese fichero está GITIGNOREADO, o sea que es la config de
-CADA máquina. Con `rerank_provider='local'` y el modelo fuera de la caché, `MEMORY_RERANK=off` no apagaba nada:
-cualquier test que llegara al reranker se ponía a DESCARGAR de HuggingFace. La suite de memoria pasó de 34 s a
-COLGADA sin que cambiara una línea de test, y tres procesos de pytest se quedaron bloqueados por el lock del
-fichero, esperándose entre ellos.
+Measured with real cost: `memory/rerank.py::_cfg()` reads `config/v2.py` before the environment — product rule,
+“the store OVERRIDES `.env`,” and that is not touched here—but that file is GITIGNORED, meaning it is the config of
+EACH machine. With `rerank_provider='local'` and the model outside the cache, `MEMORY_RERANK=off` did not turn
+anything off: any test that reached the reranker would start DOWNLOADING from HuggingFace. The memory suite went
+from 34 s to HUNG without a single line of test code changing, and three pytest processes became blocked on the
+file lock, waiting for one another.
 
-Lo que hace esto peligroso no es que falle, es CÓMO falla: un test que se anuncia «determinista, sin red» no da
-un error al salir a la red — se cuelga, o mide otra cosa. Misma familia que un suelo absoluto calibrado contra un
-corpus vivo o un test dormido bajo su propio skip: verde, y sin cubrir lo que dice cubrir.
+What makes this dangerous is not that it fails, but HOW it fails: a test advertised as “deterministic, no network”
+does not raise an error when it reaches the network—it hangs, or measures something else. Same family as an absolute
+floor calibrated against a live corpus or a test asleep beneath its own skip: green, while not covering what it says
+it covers.
 
-El guarda vive aquí y no en el conftest porque comprueba el EFECTO del fixture, no su código: parchea la fuente
-de config por debajo del envoltorio, así sigue midiendo aunque el fixture se reescriba.
+The guard lives here rather than in conftest because it checks the EFFECT of the fixture, not its code: it patches
+the config source beneath the wrapper, so it keeps measuring even if the fixture is rewritten.
 """
 from __future__ import annotations
 
@@ -23,8 +24,8 @@ from memory import rerank
 
 @pytest.fixture
 def config_pidiendo_el_reranker_local(monkeypatch):
-    """La config del operador el día que colgó la suite. Se parchea `config.v2.get`, que es lo que `_cfg()`
-    consulta — parchear `_cfg` sería pisar el envoltorio del conftest y el test dejaría de probarlo."""
+    """The operator's config on the day the suite hung. `config.v2.get`, which is what `_cfg()` queries, is patched
+    —patching `_cfg` would overwrite the conftest wrapper and the test would stop testing it."""
     from config import v2
     real_get = v2.get
     monkeypatch.setattr(
@@ -39,7 +40,8 @@ def test_una_config_local_NO_enciende_el_reranker_en_la_suite(config_pidiendo_el
 
 
 def test_pero_un_test_que_lo_pida_EXPLICITAMENTE_manda_el(monkeypatch, config_pidiendo_el_reranker_local):
-    """La otra mitad, y sin ella el arreglo sería «el reranker ya no se puede medir nunca». Quien quiera
-    ejercitarlo de verdad lo pide y manda él — que es lo que hace `scale_eval` al comparar rerankers."""
+    """The other half; without it, the fix would be “the reranker can never be measured again.” Anyone who wants to
+    exercise it for real requests it explicitly and takes precedence—which is what `scale_eval` does when comparing
+    rerankers."""
     monkeypatch.setenv("MEMORY_RERANK", "local")
     assert rerank.provider() == "local"
