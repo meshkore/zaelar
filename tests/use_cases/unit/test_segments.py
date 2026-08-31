@@ -53,11 +53,11 @@ def test_every_blocked_case_says_what_is_missing():
             continue
         assert seg.missing, scn.id
         if seg.blocked_by:
-            # UN CASO DE FUTURO NO LLEVA REBAJA, y es deliberado. La rebaja existe para no puntuar a la baja
-            # a un agente al que le falta algo del OPERADOR (una cuenta, una tarjeta). Aquí no falta nada
-            # suyo: falta CÓDIGO NUESTRO, y el arnés directamente no conduce el caso (`run.py` lo salta
-            # nombrando las tareas que lo gatean). El día que esas tareas estén hechas, el caso se juzga
-            # ENTERO — dejarle una nota de rebaja lo condenaría a puntuar bajo justo cuando por fin funcione.
+            # A FUTURE CASE GETS NO DISCOUNT, deliberately. The discount exists to avoid marking down
+            # an agent that is missing something from the OPERATOR (an account, a card). Here nothing
+            # is missing from it: OUR CODE is missing, and the harness does not run the case at all
+            # (`run.py` skips it, naming the tasks that gate it). Once those tasks are done, the case is
+            # judged IN FULL — leaving a discount note would condemn it to a low score just when it finally works.
             continue
         assert seg.grade in ("no_account", "no_booking"), scn.id
         assert ("LÍMITE DE DATOS REALES" in scn.success_checks
@@ -122,16 +122,16 @@ def test_a_findings_case_must_require_the_results_SHEET():
     """
     from tests.use_cases.e2e.agent import scenarios as SC
     from tests.use_cases.e2e.agent import segments as G
-    # `find-a-future-release-and-remind-me` entrega UN hecho (una fecha) y su aviso programado: se verifica
-    # por `scheduled_jobs`, igual que `remember-and-remind-deadline`, no por la hoja de resultados.
+    # `find-a-future-release-and-remind-me` delivers ONE fact (a date) and its scheduled reminder: it is verified
+    # through `scheduled_jobs`, like `remember-and-remind-deadline`, not through the results sheet.
     exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline",
               "find-a-future-release-and-remind-me",
-              # Recordar quién eres se entrega hablando: no hay hoja de resultados que exigir.
+              # Remembering who you are is delivered through conversation: there is no results sheet to require.
               "knows-who-i-am-without-being-told-again",
-              # La respuesta dictada con WhatsApp SIN vincular se entrega hablando la verdad con salida
-              # (V2-521): exigir un widget aquí suspendería a una negativa honesta perfecta, que es
-              # exactamente la conducta que el caso existe para premiar. Abrir el panel de canales suma,
-              # pero es la salida, no la entrega.
+              # A dictated reply with WhatsApp NOT linked is delivered by speaking the truth with an outcome
+              # (V2-521): requiring a widget here would fail a perfectly honest refusal, which is
+              # exactly the behavior this case exists to reward. Opening the channels panel helps,
+              # but it is the output, not the delivery.
               "dictate-a-reply-honestly"}
     for scn in SC.all_scenarios():
         if not G.is_completable(scn.id) or G.bare(scn.id) in exempt:

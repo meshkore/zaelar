@@ -1,7 +1,7 @@
 """One well-aimed search is the target; ten is thrashing, zero is a broken resource.
 
-Operator's norm, 2026-08-20: "un caso de uso es UNA búsqueda — te piensas unas cuantas cosas y haces
-una única búsqueda". The judge sees a number and tends to read more as more effort; in the round that
+Operator's norm, 2026-08-20: "a use case is ONE search — you think through a few things and do
+a single search". The judge sees a number and tends to read more as more effort; in the round that
 did fifteen, the worker was circling the same query without changing its criteria. And zero is not
 "found nothing" — it is never having gone out to look, which is a different defect with a different
 owner and must not be graded as a failed search.

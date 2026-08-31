@@ -1,17 +1,17 @@
-"""V2-442 · un encargo pedido dos veces y ABSORBIDO no es trabajo duplicado.
+"""V2-442 · an errand requested twice and ABSORBED is not duplicated work.
 
-El dedup (`dispatch.find_duplicate`) absorbe la segunda escalada sin lanzar worker. Cuando eso ocurre no hay
-navegación duplicada: hay una decisión de escalar de más, que cuesta un turno. El juez recibía «el mismo
-encargo se lanzó 2 veces … puntúa EFICIENCIA abajo» sin saber cuántos workers NACIERON, y lo archivó como
-«duplica trabajo de navegación».
+Deduplication (`dispatch.find_duplicate`) absorbs the second escalation without launching a worker. When that
+happens, there is no duplicated navigation: there is an unnecessary escalation decision, which costs one turn.
+The judge received «the same errand was launched twice … score EFFICIENCY down» without knowing how many workers
+were BORN, and filed it as «duplicates navigation work».
 
-Medido el 2026-08-28 en `buy-known-product__us`: dos escaladas de texto IDÉNTICO (jaccard 1.0) y
-`n_spawned: 1` — un solo worker. Cuarto caso esa noche de un instrumento acusando al producto de algo que no
-hizo, y el que más veces se ha repetido en el barrido: de 214 rondas con la señal, 15 traen un duplicado
-idéntico y en las cuatro últimas el dedup lo absorbió.
+Measured on 2026-08-28 in `buy-known-product__us`: two escalations with IDENTICAL text (Jaccard 1.0) and
+`n_spawned: 1` — a single worker. Fourth case that night of an instrument accusing the product of something it
+did not do, and the one repeated most often in the sweep: of 214 rounds with the signal, 15 contain an identical
+duplicate, and in the last four deduplication absorbed it.
 
-Y NO se absuelve en bloque, porque el caso real existe y está medido: el 24 y el 25 de agosto hubo grupos de
-dos y tres encargos con TRES workers nacidos. Lo que decide es cuántos nacieron.
+And it is NOT absolved wholesale, because the real case exists and is measured: on August 24 and 25 there were
+groups of two and three errands with THREE workers born. What matters is how many were born.
 """
 from tests.use_cases.e2e.agent import judge
 
@@ -36,22 +36,22 @@ def test_absorbido_por_el_dedup_NO_se_puntua_como_trabajo_duplicado():
 
 
 def test_si_NACIERON_los_dos_sigue_siendo_el_defecto_de_siempre():
-    """La mitad que impide que el arreglo sea una amnistía: con dos workers vivos el trabajo SÍ se hizo dos
-    veces, y eso costó minutos de navegación reales el 24 y el 25 de agosto."""
+    """The part that prevents the fix from being an amnesty: with two live workers, the work really WAS done two
+    times, and that cost real minutes of navigation on August 24 and 25."""
     l = _linea(_mech(3))
     assert "DUPLICADOS" in l and "SÍ se hizo por duplicado" in l
 
 
 def test_sin_saber_cuantos_nacieron_se_mantiene_la_ADVERTENCIA():
-    """Fail-closed: «no lo sé» no puede absolver. Una ronda vieja sin el campo tiene que seguir leyéndose
-    como antes, o el arreglo borraría hallazgos ya archivados."""
+    """Fail-closed: «I don't know» cannot absolve. An old round without the field must continue to be read
+    as before, or the fix would erase findings already archived."""
     m = _mech(1)
     m["duplicate_errands"].pop("n_spawned")
     assert "DUPLICADOS" in _linea(m)
 
 
 def test_la_linea_DICE_cuantos_nacieron_en_las_dos_ramas():
-    """Sin el número hay que volver a abrir el informe para saber de qué se habla — que es exactamente lo que
-    costó descubrir este falso positivo."""
+    """Without the number, the report has to be reopened to know what is being discussed — which is exactly what
+    it took to discover this false positive."""
     assert "1 worker" in _linea(_mech(1))
     assert "3 worker" in _linea(_mech(3))
