@@ -418,7 +418,11 @@ DOMAINS: list[dict] = [
             # los widgets. Se fija la POLÍTICA, que es lo que se pierde en una refactorización: parar congela a
             # TODOS y persiste; arrancar continúa el TRABAJO pero NO reanuda la música (asimetría pedida por el
             # operador); y un fallo de una pieza no puede dejar la parada a medias.
-            "tests/agent_headless/unit/test_runstate.py"]},
+            "tests/agent_headless/unit/test_runstate.py",
+            # V2-516 — the ⏻ ON gesture revives a dead heartbeat: the lifespan's loop.start() is one-shot
+            # (a broken import instant leaves the engine up with no pulse), and a DONE task must not block
+            # the revive. Measured 2026-08-31: translation pass rewrote loop.py as the engine imported it.
+            "tests/agent_headless/unit/test_the_power_button_revives_the_heartbeat.py"]},
         # V2-227 ámbito A — DÓNDE va a mirar el operador, decidido al ENCARGAR y no al entregar. Sin este campo
         # no hay nada que abrir mientras el worker trabaja, y la pestaña de proceso es una pestaña vacía. Aquí se
         # fijan las tres reglas (se decide al encargar · vocabulario CERRADO de cinco · se decide UNA vez) y que

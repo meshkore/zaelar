@@ -1,46 +1,48 @@
-"""nucleo/runstate.py — ¿ESTÁ EL AGENTE EN MARCHA O PARADO? La verdad ÚNICA, del lado del servidor (V2-092).
+"""nucleo/runstate.py — IS THE AGENT RUNNING OR STOPPED? The single source of truth, server-side (V2-092).
 
-## El fallo que corrige
+## The bug it fixes
 
-El botón ⏻ existía desde V2-039 y desde V2-065 ya congelaba los Brain Workers (SIGSTOP), pero su estado vivía
-SOLO en el `localStorage` del navegador (`hb_power_off`). Consecuencias reales, reportadas por el operador con el
-agente PARADO delante:
+The ⏻ button had existed since V2-039 and since V2-065 already froze the Brain Workers (SIGSTOP), but its state lived
+ONLY in the browser’s `localStorage` (`hb_power_off`). Real consequences, reported by the operator with the
+agent STOPPED in front of them:
 
-  - Un vídeo de YouTube seguía reproduciéndose, y al RECARGAR la página volvía a arrancar solo (su estado
-    persistido decía «reproduciendo» y su `<iframe>` nace con `autoplay=1`).
-  - La música sonaba AL MISMO TIEMPO que el vídeo — dos widgets peleándose por el altavoz.
-  - Los `tick()` de background seguían corriendo: un agente «parado» que seguía sondeando conectores.
+  - A YouTube video kept playing, and when the page was RELOADED it started again on its own (its persisted state
+    said “playing” and its `<iframe>` is created with `autoplay=1`).
+  - Music played AT THE SAME TIME as the video — two widgets fighting over the speaker.
+  - Background `tick()` calls kept running: a “stopped” agent that continued polling connectors.
 
-O sea: el ⏻ paraba la VOZ y los WORKERS, y nada más. Lo demás ni se enteraba, porque no había a quién preguntar:
-el servidor no sabía que el operador había parado el agente. Un estado que gobierna todo el sistema no puede vivir
-en un `localStorage` — es per-navegador, per-origen, y el backend (widgets, background, crons, la nube) no lo ve.
+In other words: ⏻ stopped the VOICE and the WORKERS, and nothing else. The rest did not even know, because there
+was nobody to ask: the server did not know that the operator had stopped the agent. State that governs the whole
+system cannot live in `localStorage` — it is per-browser, per-origin, and the backend (widgets, background, crons,
+the cloud) cannot see it.
 
-## El modelo
+## The model
 
-**Un solo interruptor, en el servidor, persistido** (`sys_kv`, sobrevive a un reinicio del motor porque es una
-INTENCIÓN del operador, no un estado de proceso). Todo lo que puede «estar en marcha» lo consulta o lo recibe:
+**A single switch, on the server, persisted** (`sys_kv`, survives an engine restart because it is the operator’s
+INTENTION, not a process state). Everything that can be “running” consults it or receives it:
 
-    PARAR  →  workers CONGELADOS (SIGSTOP, reversible) · widgets productores SUSPENDIDOS · background sin ticks
-              · crons que no disparan · nada nuevo se arranca · SESIÓN DE OBSERVABILIDAD CERRADA (2026-08-16)
-    ARRANCAR → workers CONTINÚAN donde estaban · background vuelve · crons vuelven
-              · **los widgets NO se reanudan** (decisión explícita del operador, ver abajo)
+    STOP  →  workers FROZEN (SIGSTOP, reversible) · producer widgets SUSPENDED · background without ticks
+             · crons do not fire · nothing new starts · OBSERVABILITY SESSION CLOSED (2026-08-16)
+    START → workers CONTINUE where they were · background returns · crons return
+             · **widgets are NOT resumed** (explicit operator decision, see below)
 
-**Asimetría deliberada.** Parar es total; arrancar NO resucita la reproducción. Palabras del operador
-(2026-08-13): «si digo que arranque el sistema no necesariamente hay que volver a arrancar los widgets, que ya sea
-el usuario a mano el que decide si quiere volver a seguir escuchando música o un podcast o reproduciendo un
-vídeo». Lo que SÍ debe continuar es el TRABAJO: un Brain Worker a mitad de crear un widget o de una búsqueda
-compleja se congela y sigue exactamente donde estaba. La diferencia es quién es el dueño de la intención: la
-música la puso el operador para él, la tarea la encargó y espera su resultado.
+**Deliberate asymmetry.** Stopping is total; starting does NOT revive playback. Operator’s words
+(2026-08-13): “if I say to start the system, that does not necessarily mean the widgets should be started again;
+the user should decide manually whether they want to resume listening to music or a podcast or playing a
+video.” What MUST continue is the WORK: a Brain Worker halfway through creating a widget or performing a
+complex search is frozen and continues exactly where it was. The difference is who owns the intent: the operator
+started the music for themselves; they commissioned the task and are waiting for its result.
 
 ## Frontera
 
-Este módulo NO sabe pausar nada: sabe QUIÉN hay que avisar y en qué orden. El cómo vive en su dueño
-(`dispatch.pause_all` para los workers, `widgets/producers.py` para el canvas, `widgets/background.py` para los
-ciclos). Así una pieza nueva que pueda «estar en marcha» se engancha aquí en una línea y no reimplementa la
-política.
+This module does NOT know how to pause anything: it knows WHO must be notified and in what order. The how lives in
+its owner (`dispatch.pause_all` for workers, `widgets/producers.py` for the canvas, `widgets/background.py` for the
+cycles). This lets a new component that can be “running” hook in here with one line without reimplementing the
+policy.
 """
 from __future__ import annotations
 
+import os
 import time
 
 from loguru import logger
@@ -50,9 +52,9 @@ STOPPED = "stopped"
 
 _KV_KEY = "run:state"
 
-# Caché en proceso: `stopped()` lo consultan caminos CALIENTES (cada acción de widget, cada tick de background),
-# y no puede costar una lectura de SQLite cada vez. El `sys_kv` es el respaldo durable, no la fuente de cada
-# lectura: este proceso es el único que escribe el interruptor.
+# In-process cache: `stopped()` is queried by HOT paths (every widget action, every background tick),
+# and cannot incur a SQLite read every time. `sys_kv` is the durable backup, not the source for every
+# read: this process is the only one that writes the switch.
 _state: dict = {"value": None, "at": 0.0, "src": ""}
 
 # ── DEFERRED stop (V2-092 addenda, 2026-08-15) ─────────────────────────────────────────────────────────────
@@ -96,7 +98,7 @@ def _load() -> str:
     val = RUNNING
     try:
         from memory import api as memory
-        d = memory.kv_get(_KV_KEY)          # kv_get/kv_set ya hacen el JSON: se guarda el dict tal cual
+        d = memory.kv_get(_KV_KEY)          # kv_get/kv_set already handle JSON: the dict is stored as-is
         if isinstance(d, dict) and d.get("value") in (RUNNING, STOPPED):
             val = d["value"]
             _state["at"] = float(d.get("at") or 0.0)
@@ -113,14 +115,14 @@ def _persist(value: str, src: str) -> None:
         from memory import api as memory
         memory.kv_set(_KV_KEY, {"value": value, "at": _state["at"], "src": src})
     except Exception as e:  # noqa: BLE001
-        # Un fallo de persistencia NO puede impedir la parada: el interruptor en memoria ya está puesto y todo el
-        # sistema lo obedece YA. Lo único que se pierde es sobrevivir a un reinicio del motor.
+        # A persistence failure cannot prevent stopping: the in-memory switch is already set and the whole
+        # system obeys it NOW. The only thing lost is surviving an engine restart.
         logger.warning(f"runstate: el estado no se pudo persistir ({e!r}) — vale para esta ejecución")
 
 
 def state() -> str:
-    """`"running"` | `"stopped"`. Nunca lanza: ante cualquier duda, «en marcha» (un fallo de lectura no puede
-    dejar al operador con un agente que se niega a trabajar)."""
+    """`"running"` | `"stopped"`. Never raises: when in doubt, “running” (a read failure must not leave the
+    operator with an agent that refuses to work)."""
     try:
         return _load()
     except Exception:
@@ -174,23 +176,23 @@ async def stop(src: str = "operator") -> dict:
 
 
 async def _do_stop(src: str = "operator") -> dict:
-    """PARA EL AGENTE de verdad. Congela a todo el que pueda estar trabajando o produciendo, en un orden que
-    importa:
+    """STOP THE AGENT for real. Freezes everything that may be working or producing, in an order that
+    matters:
 
-    1. **El interruptor primero.** Mientras se para todo lo demás pueden llegar acciones nuevas; con el flag ya
-       puesto, el embudo de acciones (`widgets/server_api.py`) las rechaza en vez de arrancar algo justo detrás
-       de la parada.
-    2. **La sesión de observabilidad se cierra** (2026-08-16, hallazgo real: con el agente parado y el navegador
-       abierto, el ruido de fondo —pulso ~1Hz, proyección de estado— seguía llegando a la sesión que ya estaba
-       abierta y la mantenía «EN CURSO» para siempre en el master, con sus flujos creciendo). `end_session` emite
-       su propio evento `system` de cierre —`stamp_identity` solo LEE la sesión para esa categoría, nunca la
-       reabre— así que lo que llegue DESPUÉS de parar queda sin sesión, tal como debe ser una parada deliberada.
-    3. **Workers** (SIGSTOP, reversible) — congelados en el sitio exacto, no muertos.
-    4. **Widgets productores** — cada uno por su acción declarada de suspensión (ver `widgets/producers.py`).
+    1. **The switch first.** While everything else is stopping, new actions may arrive; with the flag already
+       set, the action funnel (`widgets/server_api.py`) rejects them instead of starting something right behind
+       the stop.
+    2. **The observability session is closed** (2026-08-16, real finding: with the agent stopped and the browser
+       open, background noise —~1Hz pulse, state projection— kept reaching the session that was already open and
+       kept it “IN PROGRESS” forever in the master, with its flows growing). `end_session` emits its own closing
+       `system` event —`stamp_identity` only READS the session for that category; it never reopens it—so anything
+       arriving AFTER the stop remains sessionless, as a deliberate stop should be.
+    3. **Workers** (SIGSTOP, reversible) — frozen at the exact spot, not dead.
+    4. **Producer widgets** — each through its declared suspension action (see `widgets/producers.py`).
 
-    Idempotente: parar dos veces no rompe nada (una sesión ya cerrada no tiene nada que cerrar). Nunca lanza —
-    cada paso está aislado, porque una parada a medias es peor que ninguna: el operador cree que paró y algo
-    sigue sonando."""
+    Idempotent: stopping twice breaks nothing (an already closed session has nothing to close). Never raises —
+    each step is isolated, because a half-completed stop is worse than none: the operator believes they stopped it and something
+    keeps playing."""
     _persist(STOPPED, src)
     try:
         from observability import identity
@@ -216,10 +218,10 @@ async def _do_stop(src: str = "operator") -> dict:
 
 
 async def start(src: str = "operator") -> dict:
-    """ARRANCA EL AGENTE. Continúa el TRABAJO congelado (SIGCONT) y vuelve a permitir background/crons/acciones.
+    """START THE AGENT. Continues frozen WORK (SIGCONT) and allows background/crons/actions again.
 
-    **NO reanuda los widgets a propósito** — ver la asimetría documentada arriba. Volver a poner la música es un
-    gesto del operador, no una consecuencia de encender.
+    **Does NOT resume widgets on purpose** — see the asymmetry documented above. Starting the music again is an
+    operator action, not a consequence of powering on.
 
     This is also how a DEFERRED stop gets CANCELLED (`_pending`, see `stop()`): the frontend, on a second ⏻
     click while it's blinking "pausing", calls this same endpoint (it's the "turn on" button from its point of
@@ -236,10 +238,26 @@ async def start(src: str = "operator") -> dict:
         resumed = dispatch.resume_all()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate.start: los workers no se pudieron reanudar: {e!r}")
+    # V2-516: STARTING the agent also revives a dead HEARTBEAT (nucleo/loop.py). The lifespan starts it
+    # exactly once and never retries, so any import-time failure leaves the engine up with no pulse — crons
+    # silent, ECG flat — and before this, the operator's ⏻, the one gesture that should fix a stopped state
+    # (feedback: visible state over silent state), did nothing. Measured 2026-08-31: a syntax-broken instant
+    # of loop.py (a translation pass writing the file as the engine imported it) produced exactly that.
+    heartbeat = False
+    try:
+        from config.v2 import active_brain
+        if active_brain() == "nucleo" and os.getenv("ZAELAR_LOOP", "1") == "1":
+            from nucleo import loop as _loop
+            if not _loop.is_running():
+                _loop.start()
+                logger.info(f"runstate.start: heartbeat was DOWN — revived by {src}")
+            heartbeat = _loop.is_running()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"runstate.start: heartbeat revive failed: {e!r}")
     logger.info(f"runstate: EN MARCHA por {src} — {resumed} worker(s) continúan donde estaban "
                 f"(los widgets NO se reanudan: los reanuda el operador)")
     _emit("start", f"en marcha por {src}: {resumed} worker(s) continúan", {"src": src, "workers": resumed})
-    return {"ok": True, "state": RUNNING, "workers": resumed}
+    return {"ok": True, "state": RUNNING, "workers": resumed, "heartbeat": heartbeat}
 
 
 def _reset_for_tests() -> None:

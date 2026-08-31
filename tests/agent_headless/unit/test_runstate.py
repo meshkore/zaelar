@@ -44,6 +44,10 @@ def piezas(monkeypatch):
     """Sustituye las dos piezas que la parada gobierna, y registra lo que se les pidió."""
     log = {"pause": 0, "resume": 0, "suspend": [], "reason": ""}
 
+    # V2-516: start() now also revives the heartbeat — a unit test must never spawn the REAL loop
+    # (it ticks the scheduler and double-fires the cron under test). The product flag turns it off.
+    monkeypatch.setenv("ZAELAR_LOOP", "0")
+
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "pause_all", lambda: log.__setitem__("pause", log["pause"] + 1) or 3)
     monkeypatch.setattr(dispatch, "resume_all", lambda: log.__setitem__("resume", log["resume"] + 1) or 3)
