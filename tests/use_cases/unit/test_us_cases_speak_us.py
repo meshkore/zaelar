@@ -66,6 +66,6 @@ def test_the_debt_of_shared_answers_only_goes_down():
     assert not new, (
         f"US cases newly falling back to the shared Spanish answers: {new}. Write them into `_US_ANSWERS` — "
         "this list is a ratchet and does not grow.")
-    # Y lo contrario: quien pague deuda tiene que borrarla de la lista, o el trinquete deja de apretar.
+    # And conversely: whoever pays down debt has to remove it from the list, or the ratchet stops tightening.
     stale = sorted(_SHARED_ANSWERS_DEBT - pending)
     assert not stale, f"these were fixed and are still declared as debt: {stale}"

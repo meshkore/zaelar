@@ -1,10 +1,10 @@
 """A worker whose bridges are denied is not a product failure — and it reads exactly like one.
 
 MEASURED 2026-08-21 on the pinned measuring worktree: every `python -m nucleo.<bridge>` call came back
-«This command requires approval», in headless where nobody approves. The worker said so precisely — «el
-entorno donde estoy corriendo ha bloqueado todas las herramientas… aquí nadie puede aprobarlas» — and the
-judge's top finding became «zaelar afirmó haber localizado opciones cuando el entorno bloqueó TODAS las
-herramientas». The blockade belonged to the measuring rig: `_BRIDGE_TOOLS` is built from `_ZAELAR`
+«This command requires approval», in headless where nobody approves. The worker said so precisely — «the
+environment where I am running has blocked all the tools… nobody can approve them here» — and the
+judge's top finding became «zaelar claimed to have located options when the environment blocked ALL the
+tools». The blockade belonged to the measuring rig: `_BRIDGE_TOOLS` is built from `_ZAELAR`
 (`__file__` → the worktree) while the prompt hands the worker `bridge_python()` (`sys.executable` → the real
 venv, because Python resolves a symlinked `.venv`). Five earlier rounds carried it: every worktree round that
 spawned a worker shows 18-27 denials.

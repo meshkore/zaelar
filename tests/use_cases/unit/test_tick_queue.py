@@ -23,7 +23,7 @@ def test_the_queue_only_ever_holds_runnable_cases(live_board):
 
 
 def test_and_the_blocked_ones_are_genuinely_excluded():
-    """La otra mitad: sin esto, «filtra» y «la cola está vacía» pasan el mismo test."""
+    """The other half: without this, “filters” and “the queue is empty” pass the same test."""
     queued = {s.id for s in T._unrun_scenarios()}
     blocked = [s.id for s in SC.all_scenarios() if not SG.is_completable(s.id)]
     assert blocked, "la tabla de segmentos dice que no hay ningún caso bloqueado — eso ya sería el bug"
@@ -31,10 +31,10 @@ def test_and_the_blocked_ones_are_genuinely_excluded():
 
 
 def test_the_queue_is_not_empty_while_runnable_cases_remain_untried(live_board):
-    """Y que el filtro no se pase de listo: mientras quede un caso ejecutable sin veredicto, la cola lo tiene.
+    """And the filter must not get too clever: while an executable case remains without a verdict, the queue has it.
 
-    Si algún día pasan los 47, esto se apaga solo — el catálogo se habría agotado de verdad, que es la
-    condición que `_top_up` ya sabe decir.
+    If one day all 47 have passed, this switches off by itself—the catalogue will genuinely be exhausted, which is the
+    condition that `_top_up` already knows how to report.
     """
     from tests.use_cases.e2e.agent import status as statusmod
 
@@ -45,9 +45,9 @@ def test_the_queue_is_not_empty_while_runnable_cases_remain_untried(live_board):
 
 
 def test_es_and_us_are_never_mixed_in_one_batch():
-    """El idioma es de PROCESO (`ZAELAR_LANGUAGE`), así que una tanda mixta puntuaría casos ES contra respuestas
-    en inglés — el artefacto que casi produjo informes de bug falsos el 2026-08-18. La cola va ordenada con ES
-    delante justo para que el corte por `MAX_PER_TICK` caiga siempre dentro de un solo locale."""
+    """The language is a PROCESS setting (`ZAELAR_LANGUAGE`), so a mixed batch would score ES cases against answers
+    in English—the artifact that nearly produced false bug reports on 2026-08-18. The queue is ordered with ES
+    first precisely so that the `MAX_PER_TICK` cutoff always falls within a single locale."""
     q = T._unrun_scenarios()
     if not q:
         return
@@ -57,12 +57,12 @@ def test_es_and_us_are_never_mixed_in_one_batch():
 
 
 def test_a_case_that_only_ever_died_in_INFRA_stays_in_the_queue(live_board):
-    """Un `INFRA` no es un veredicto: el arnés se murió antes de juzgar, así que ese caso NO se ha medido.
+    """An `INFRA` is not a verdict: the harness died before judging, so that case has NOT been measured.
 
-    Contarlo como probado retiró en silencio `build-workout-tracker-widget` —el único caso ejecutable que
-    cubre la generación de widgets— porque murió con un 403 del broker y desde entonces cada tick lo saltaba
-    como ya-intentado. Un caso que desaparece de la cola sin que nada se ponga rojo es la clase de fallo que
-    solo se nota semanas después, contando por qué la cobertura no sube.
+    Counting it as tested silently removed `build-workout-tracker-widget`—the only executable case covering widget
+    generation—because it died with a 403 from the broker, and every tick skipped it thereafter as already attempted.
+    A case disappearing from the queue without anything turning red is the kind of failure noticed only weeks later,
+    when someone asks why coverage is not increasing.
     """
     from tests.use_cases.e2e.agent import status as statusmod
 
@@ -74,7 +74,7 @@ def test_a_case_that_only_ever_died_in_INFRA_stays_in_the_queue(live_board):
 
 
 def test_but_a_real_verdict_does_retire_a_case(live_board):
-    """La otra mitad: PASS y FAIL sí son mediciones, y re-correrlas es lo que hace el camino de verify."""
+    """The other half: PASS and FAIL are measurements, and re-running them is what the verify path does."""
     from tests.use_cases.e2e.agent import status as statusmod
 
     led = statusmod.load().get("scenarios") or {}
@@ -85,14 +85,13 @@ def test_but_a_real_verdict_does_retire_a_case(live_board):
 
 
 def test_a_verify_task_that_points_at_NO_case_is_reported_not_swallowed(monkeypatch):
-    """`scenarios_awaiting_verification` promete en su docstring que un slug irresoluble «se REPORTA, nunca se
-    salta en silencio». Hasta el 2026-08-20 esa promesa se rompía justo aquí: `_retest_pending` filtraba
-    `if p["scenario"]` y dos tareas (`progreso-fabricado`, `progreso-fabricado-idioma`) —que pedían re-probar un
-    PATRÓN, no un caso— se quedaron en `status: next` desde el 2026-08-18 esperando una corrida imposible.
+    """`scenarios_awaiting_verification` promises in its docstring that an unresolvable slug “is REPORTED, never
+    skipped silently.” Until 2026-08-20 that promise broke right here: `_retest_pending` filtered with
+    `if p["scenario"]`, and two tasks (`progreso-fabricado`, `progreso-fabricado-idioma`)—which requested a retest of a
+    PATTERN, not a case—remained at `status: next` from 2026-08-18, waiting for an impossible run.
 
-    El coste no es un error: es que el agente que arregla espera un re-test que nunca va a correr, y
-    «esperando re-test: 4» informa de un número que era mayormente ficción. El tick no puede ACTUAR sobre
-    ellas, pero sí decir sus nombres.
+    The cost is not an error: it is that the fixing agent waits for a retest that will never run, and
+    “waiting for retest: 4” reports a number that was mostly fiction. The tick cannot ACT on them, but it can name them.
     """
     from pathlib import Path
 
@@ -114,8 +113,8 @@ def test_a_verify_task_that_points_at_NO_case_is_reported_not_swallowed(monkeypa
 
 
 def test_but_a_resolvable_task_is_not_reported_as_an_orphan(monkeypatch):
-    """La mitad de sensibilidad: sin esto, «reporta las huérfanas» y «reporta todas» pasan igual, y el log del
-    tick se llenaría de avisos sobre tareas que sí se están corriendo."""
+    """The sensitivity half: without this, “report orphans” and “report everything” pass equally, and the tick log
+    would fill with warnings about tasks that are actually being run."""
     from tests.use_cases.e2e.agent import status as statusmod
 
     logged: list[str] = []
@@ -134,10 +133,10 @@ def test_but_a_resolvable_task_is_not_reported_as_an_orphan(monkeypatch):
 
 
 def test_two_verify_tasks_for_the_SAME_case_are_measured_once(monkeypatch):
-    """El 2026-08-20 el agente que arregla respondió `find-theatre-tickets__es` en DOS tareas separadas
-    (T434 y T438), y el tick anunció el caso dos veces y recorrió su contabilidad dos veces sobre UN solo
-    veredicto: la misma ronda escrita dos veces en el paraguas y un `re-probados` inflado. No es un segundo
-    gasto de corrida —`run.py --verify` mide una vez y cierra las dos tareas—, es el libro mayor duplicando.
+    """On 2026-08-20 the fixing agent responded with `find-theatre-tickets__es` in TWO separate tasks
+    (T434 and T438), and the tick announced the case twice and processed its accounting twice for ONE verdict:
+    the same round written twice in the umbrella and an inflated `retested` count. It is not a second run cost—
+    `run.py --verify` measures once and closes both tasks—it is the ledger duplicating the entry.
     """
     from pathlib import Path
 
@@ -166,7 +165,7 @@ def test_two_verify_tasks_for_the_SAME_case_are_measured_once(monkeypatch):
 
 
 def test_but_distinct_cases_are_all_kept(monkeypatch):
-    """La mitad de sensibilidad: un dedup por CASO no puede convertirse en «solo se re-prueba el primero»."""
+    """The sensitivity half: deduplicating by CASE must not turn into “only the first one is retested.”"""
     from pathlib import Path
 
     from tests.use_cases.e2e.agent import status as statusmod
@@ -186,17 +185,17 @@ def test_but_distinct_cases_are_all_kept(monkeypatch):
 
 
 def test_run_verify_drives_one_case_ONCE_and_closes_BOTH_of_its_tasks():
-    """La otra mitad del dedup, en `run.py`. El tick colapsaba su CONTABILIDAD, pero el que conduce la
-    conversación es el runner, y ahí el caso duplicado se corría de verdad dos veces.
+    """The other half of deduplication, in `run.py`. The tick collapsed its ACCOUNTING, but the component driving the
+    conversation is the runner, and there the duplicated case was actually run twice.
 
-    Medido el 2026-08-20 10:00: T434 y T438 pedían las dos `find-theatre-tickets__es`, y el paraguas V2-167
-    acabó con las rondas 13 y 15 idénticas — misma medición, ~4 minutos del turno tirados, y la evidencia de
-    la iniciativa contando el doble de intentos de los que hubo. Y como el mapa era `{caso: tarea}`, de las
-    dos tareas solo se cerraba UNA: la otra se quedaba en `next` pidiendo un re-test ya hecho.
+    Measured on 2026-08-20 10:00: T434 and T438 both requested `find-theatre-tickets__es`, and umbrella V2-167
+    ended with identical rounds 13 and 15—same measurement, ~4 minutes of the shift wasted, and the initiative
+    evidence counting twice as many attempts as actually occurred. And because the map was `{case: task}`, only ONE
+    of the two tasks was closed: the other remained in `next`, requesting a retest that had already happened.
 
-    Se afirma sobre el COMPORTAMIENTO de `_verify_batch`, no leyendo el fuente: un test que busca texto en el
-    código ya falló una vez en esta suite encontrando lo que buscaba... dentro del comentario que explicaba
-    por qué no había que hacerlo.
+    This asserts the BEHAVIOR of `_verify_batch`, rather than reading the source: a test that searches for text in the
+    code has already failed once in this suite by finding what it was looking for... inside the comment explaining
+    why it should not be done.
     """
     from pathlib import Path
     from types import SimpleNamespace
@@ -217,8 +216,8 @@ def test_run_verify_drives_one_case_ONCE_and_closes_BOTH_of_its_tasks():
 
 
 def test_and_a_task_naming_an_unknown_case_never_reaches_the_batch():
-    """La mitad de sensibilidad: colapsar por caso no puede colarse una clave que no está en el catálogo —
-    `registry[sid]` reventaría la tanda entera por una tarea mal nombrada."""
+    """The sensitivity half: collapsing by case must not let a key absent from the catalogue slip through—
+    `registry[sid]` would blow up the entire batch because of a misnamed task."""
     from pathlib import Path
 
     from tests.use_cases.e2e.agent import run as R
@@ -228,11 +227,10 @@ def test_and_a_task_naming_an_unknown_case_never_reaches_the_batch():
 
 
 def test_a_verify_task_named_with_the_RAW_scenario_id_still_resolves(monkeypatch):
-    """El agente que arregla escribe estos nombres a mano, y el 2026-08-20 CUATRO de sus ocho peticiones de
-    re-test eran invisibles: dos llevaban el id crudo (`book-hotel-night-known__es`, donde la convención
-    colapsa `__` a `-`) y dos un slug a medias. Rechazarlas es técnicamente correcto e inútil en la práctica
-    —el otro agente espera un re-test que nunca corre y este lado informa de una huérfana que en realidad es
-    una diferencia de ortografía.
+    """The fixing agent writes these names by hand, and on 2026-08-20 FOUR of its eight retest requests
+    were invisible: two used the raw ID (`book-hotel-night-known__es`, where the convention collapses `__` to `-`)
+    and two used a partial slug. Rejecting them is technically correct and practically useless—the other agent waits
+    for a retest that never runs, while this side reports an orphan that is actually just a spelling difference.
     """
     from pathlib import Path
 
@@ -249,9 +247,9 @@ def test_a_verify_task_named_with_the_RAW_scenario_id_still_resolves(monkeypatch
 
 
 def test_but_an_AMBIGUOUS_slug_is_refused_and_says_between_which(monkeypatch):
-    """La mitad que importa: `find-theatre-tickets` casa con __es y __us. Elegir uno da un veredicto que parece
-    bueno y no prueba nada —se habría verificado el arreglo contra el otro idioma—, así que no se elige. Pero
-    hay que DECIR entre cuáles duda, que es lo único que permite renombrar la tarea y seguir.
+    """The half that matters: `find-theatre-tickets` matches __es and __us. Choosing one gives a verdict that looks
+    good but proves nothing—the fix would have been verified against the other language—so neither is chosen. But
+    it must SAY which two it is uncertain between, as that is the only thing that allows renaming the task and moving on.
     """
     from pathlib import Path
 

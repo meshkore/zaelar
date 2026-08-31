@@ -1,18 +1,19 @@
-"""DOS búsquedas son DOS hojas — y el arnés tiene que poder CONTAR las cajas, no solo mirar dentro de una.
+"""TWO searches are TWO sheets—and the harness must be able to COUNT the boxes, not merely look inside one.
 
-Regla del operador (2026-08-21): dos encargos a la vez son dos navegadores y dos hojas de resultados, cada una
-con su correlation_id; y una hoja terminada NO se reutiliza para el encargo siguiente. El motivo es que
-reutilizar la caja BORRA una búsqueda, y una búsqueda borrada no se recupera.
+Operator rule (2026-08-21): two errands at once are two browsers and two result sheets, each with its
+correlation_id; and a finished sheet is NOT reused for the next errand. The reason is that reusing the box
+ERASES a search, and an erased search cannot be recovered.
 
-`widget_ops` no puede contestar a esto y no es un descuido suyo: colapsa la instancia a propósito
-(`raw.split("::")[0]`) porque la pregunta que contesta es «qué widget se tocó». Aquí la pregunta es «cuántas
-CAJAS hubo del mismo widget», y colapsar la instancia la borra — diría «results tocado 9 veces» tanto con una
-hoja como con tres, y esa respuesta es igual de creíble en los dos casos.
+`widget_ops` cannot answer this, and that is not an oversight on its part: it deliberately collapses the
+instance (`raw.split("::")[0]`) because the question it answers is “which widget was touched?”. Here the
+question is “how many BOXES were there for the same widget?”, and collapsing the instance erases that—it
+would say “results touched 9 times” both with one sheet and with three, and that answer is equally credible
+in both cases.
 
-HOY el motor abre UNA sola hoja (`dispatch._sheet_open()` emite el id pelado y `widgets/results/data.py`
-guarda en una clave), así que el lector devuelve `shared: true` — que es la firma exacta del defecto y lo que
-convierte la regla de producto en un hecho comprobable. El día que la instanciación aterrice, el mismo lector
-devuelve 2 sin tocar una línea.
+TODAY the engine opens only ONE sheet (`dispatch._sheet_open()` emits the bare id and `widgets/results/data.py`
+stores it under one key), so the reader returns `shared: true`—which is the exact signature of the defect and
+what turns the product rule into a verifiable fact. Once instantiation lands, the same reader returns 2 without
+changing a line.
 """
 from __future__ import annotations
 
@@ -20,13 +21,13 @@ from tests.use_cases.e2e.agent import scenarios as SC, verify as V
 
 
 def _ev(wid: str, label: str = "show", src: str = "") -> dict:
-    """La forma REAL del evento, no una inventada: `observer.emit` hace `ev.update(extra)`, así que `id` y
-    `src` aterrizan PLANOS en el payload, y el payload llega como cadena JSON desde la API."""
+    """The REAL shape of the event, not an invented one: `observer.emit` does `ev.update(extra)`, so `id` and
+    `src` land FLAT in the payload, and the payload arrives as a JSON string from the API."""
     import json
     return {"payload": json.dumps({"cat": "widget", "label": label, "id": wid, "src": src})}
 
 
-# ── lo que el motor hace HOY ────────────────────────────────────────────────────────────────────────────
+# ── what the engine does TODAY ───────────────────────────────────────────────────────────────────────────
 def test_one_box_for_two_errands_is_reported_as_SHARED():
     got = V.sheet_instances([_ev("results", src="worker:t1"), _ev("results", src="worker:t2")])
     assert got["n_sheets"] == 1
@@ -35,8 +36,8 @@ def test_one_box_for_two_errands_is_reported_as_SHARED():
 
 
 def test_reopening_the_same_sheet_is_not_a_second_sheet():
-    """Lo que se cuenta son CAJAS, no aperturas. Volver a mostrar la misma hoja no abre ninguna nueva, y
-    contar aperturas daría 3 cajas para un solo encargo."""
+    """What is counted is BOXES, not openings. Showing the same sheet again does not open a new one, and
+    counting openings would give 3 boxes for a single errand."""
     got = V.sheet_instances([_ev("results", src="worker:t1")] * 3)
     assert got["n_sheets"] == 1
     assert got["n_opens"] == 3
@@ -44,7 +45,7 @@ def test_reopening_the_same_sheet_is_not_a_second_sheet():
     assert got["shared"] is False
 
 
-# ── lo que tiene que dar cuando la pieza exista ────────────────────────────────────────────────────────
+# ── what it must return when the component exists ────────────────────────────────────────────────────────
 def test_two_instances_are_two_sheets_and_carry_their_errand():
     got = V.sheet_instances([_ev("results::c1", src="worker:t1"), _ev("results::c2", src="worker:t2")])
     assert got["n_sheets"] == 2
@@ -54,7 +55,7 @@ def test_two_instances_are_two_sheets_and_carry_their_errand():
 
 
 def test_a_finished_sheet_is_not_reused_by_the_next_errand():
-    """La segunda mitad de la regla: hoja cerrada + encargo nuevo = caja NUEVA, nunca la de antes."""
+    """The second half of the rule: closed sheet + new errand = NEW box, never the previous one."""
     got = V.sheet_instances([_ev("results::c1", src="worker:t1"),
                              _ev("results::c1", label="close"),
                              _ev("results::c2", src="worker:t2")])
@@ -63,10 +64,10 @@ def test_a_finished_sheet_is_not_reused_by_the_next_errand():
     assert got["shared"] is False
 
 
-# ── contrapesos: lo que NO debe contar ─────────────────────────────────────────────────────────────────
+# ── counterweights: what it must NOT count ──────────────────────────────────────────────────────────────
 def test_other_widgets_are_not_sheets():
-    """SENSIBILIDAD, y es el lado por el que este lector se rompe de más: `navegador::t3` lleva `::` y es
-    del MISMO flujo. Un prefijo mal casado convertiría cada pestaña del navegador en una hoja."""
+    """SENSITIVITY, and this is the side on which this reader overcounts: `navegador::t3` contains `::` and is
+    part of the SAME flow. A wrongly matched prefix would turn every browser tab into a sheet."""
     got = V.sheet_instances([_ev("navegador::t3", src="worker:t1"), _ev("results", src="worker:t1"),
                              _ev("resultados-viejos", src="worker:t2")])
     assert got["ids"] == ["results"]
@@ -74,8 +75,8 @@ def test_other_widgets_are_not_sheets():
 
 
 def test_an_errand_with_no_src_does_not_invent_one():
-    """Sin `src` no se sabe de qué encargo salió la apertura, y un encargo inventado es lo que haría que
-    UNA búsqueda pareciera dos compartiendo caja — el defecto reportado al revés."""
+    """Without `src` there is no way to know which errand the opening came from, and an invented errand is what
+    would make ONE search appear to be two sharing a box—the reported defect in reverse."""
     got = V.sheet_instances([_ev("results"), _ev("results")])
     assert got["n_errands"] == 0
     assert got["shared"] is False
@@ -83,14 +84,14 @@ def test_an_errand_with_no_src_does_not_invent_one():
 
 def test_a_stream_with_no_widget_events_says_nothing():
     got = V.sheet_instances([{"payload": '{"cat": "worker", "label": "start"}'}, "no soy un dict"])
-    # La FORMA entera a propósito: si aparece una clave nueva, este caso lo dice en vez de dejar que un lector
-    # la lea como `None`. V2-292 añadió las tres de «escrita pero nunca abierta», y su vacío tiene que seguir
-    # significando «no había nada que contar», no «no lo miré».
+    # The entire SHAPE is intentional: if a new key appears, this case reports it instead of letting a reader
+    # treat it as `None`. V2-292 added the three for “written but never opened”, and their absence must continue
+    # to mean “there was nothing to count”, not “I did not look”.
     assert got == {"n_sheets": 0, "ids": [], "n_opens": 0, "n_errands": 0, "srcs": [], "shared": False,
                    "n_closes": 0, "written_ids": [], "unseen_ids": [], "n_unseen": 0}
 
 
-# ── el lector viaja en el informe de mecanismo, que es lo que lee el juez ───────────────────────────────
+# ── the reader travels in the mechanism report, which is what the judge reads ───────────────────────────
 def test_the_reader_reaches_the_mechanism_report(monkeypatch):
     monkeypatch.setattr(V, "results_sheet", lambda ids=None: {"read": False, "n_items": 0, "titles": [],
                                                      "n_sources": 0})
@@ -100,7 +101,7 @@ def test_the_reader_reaches_the_mechanism_report(monkeypatch):
 
 
 def test_the_report_names_the_shared_box(tmp_path):
-    """El informe que se LEE tiene que decirlo: un hecho que solo vive en el JSON no lo lee el que arregla."""
+    """The report that is READ has to say it: whoever fixes it cannot read a fact that exists only in the JSON."""
     from tests.use_cases.e2e.agent import report as reportmod
     mech = {"sheet_instances": {"n_sheets": 1, "ids": ["results"], "n_opens": 2, "n_errands": 2,
                                 "srcs": ["worker:t1", "worker:t2"], "shared": True, "n_closes": 0}}
@@ -121,9 +122,9 @@ def test_the_judge_is_told_it_is_a_mechanism_fact_not_a_confused_agent():
     assert "no lo cuentes como que zaelar se" in facts
 
 
-# ── el escenario ───────────────────────────────────────────────────────────────────────────────────────
+# ── the scenario ────────────────────────────────────────────────────────────────────────────────────────
 def test_the_scenario_asks_for_the_ambiguous_close():
-    """Sin la orden ambigua el caso mediría concurrencia y nada más — el cierre ES la mitad del encargo."""
+    """Without the ambiguous instruction, the case would measure concurrency and nothing else—the closing IS half of the errand."""
     s = SC.BY_ID["two-searches-two-sheets"]
     assert s.concurrent_tasks == 2
     assert "cierra los resultados" in s.persona_brief

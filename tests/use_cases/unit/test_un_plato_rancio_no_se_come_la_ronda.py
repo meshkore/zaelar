@@ -1,14 +1,15 @@
-"""V2-389 — el guarda se niega a medir, y después NADIE reinicia nada.
+"""V2-389 — the guard refuses to measure, and afterward NOBODY restarts anything.
 
-`run.stale_engine_refusal` hace lo correcto: si el plató corre código más viejo que el árbol, se NIEGA. Lo que
-faltaba es lo de después. La ronda entra en el diario como INFRA en ~45 s, el supervisor pasa al siguiente
-escenario… y ese también se niega, y el siguiente, y el siguiente. El bucle parece vivo —el diario se llena,
-los escenarios rotan, ninguna ronda se cuelga— y no mide NADA.
+`run.stale_engine_refusal` does the right thing: if the stage runs code older than the tree, it REFUSES. What
+was missing was what happens afterward. The round enters the journal as INFRA in ~45 s, the supervisor moves to
+the next scenario… and that one refuses too, and the next one, and the next one. The loop looks alive —the journal
+fills up, the scenarios rotate, no round hangs— and it measures NOTHING.
 
-Medido el 2026-08-27: `search-buy-camera__es` INFRA en 45 s, y solo siguió porque yo estaba delante y reinicié
-a mano en un minuto. Con dos agentes empujando motor cada ~20 minutos eso no es una rareza: es el estado por
-defecto de una tanda desatendida. Y es justo lo contrario del encargo del operador («que el sistema no se
-detenga»), con el agravante de que un bucle parado que sigue escribiendo en el diario no se ve como parado.
+Measured on 2026-08-27: `search-buy-camera__es` INFRA in 45 s, and it continued only because I was watching and
+manually restarted it within a minute. With two agents pushing engine changes every ~20 minutes, that is not an
+oddity: it is the default state of an unattended batch. And it is exactly the opposite of the operator's request
+("that the system not stop"), made worse by the fact that a stopped loop that keeps writing to the journal does not
+look stopped.
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ from tests.use_cases.e2e.agent import supervisor as S
 
 @pytest.fixture
 def bucle(monkeypatch):
-    """Conduce UNA vuelta del bucle real, con la ronda y el reinicio sustituidos por testigos."""
+    """Drives ONE iteration of the real loop, with the round and restart replaced by witnesses."""
     visto = {"rondas": [], "reinicios": 0, "apuntes": []}
 
     def _reinicia(lab="es"):
@@ -28,7 +29,7 @@ def bucle(monkeypatch):
 
     def _una_ronda(esc, lab="es"):
         visto["rondas"].append(esc)
-        # el primer intento sale rancio; el de después de reiniciar, no
+        # the first attempt is stale; the one after restarting is not
         rancio = visto.get("_rancio_siempre", False) or len(visto["rondas"]) == 1
         return {"escenario": esc, "resultado": "INFRA" if rancio else "FAIL",
                 "segundos": 45, "sha": "abc", "motivo": "", "log": "", "_rancio": rancio}
@@ -44,7 +45,7 @@ def bucle(monkeypatch):
 
 
 class _Basta(Exception):
-    """Corta el `while True` al final de la primera vuelta."""
+    """Stops the `while True` at the end of the first iteration."""
 
 
 def _una_vuelta():
@@ -53,44 +54,44 @@ def _una_vuelta():
 
 
 def test_una_ronda_perdida_por_plato_rancio_se_REPITE(bucle):
-    """El corazón: sin esto la ronda se da por gastada y el escenario no se mide hasta la vuelta siguiente."""
+    """The heart of it: without this, the round is treated as spent and the scenario is not measured until the next iteration."""
     _una_vuelta()
-    assert bucle["reinicios"] == 1, "hay que reiniciar el plató, no seguir midiendo contra código viejo"
-    assert bucle["rondas"] == ["un-caso", "un-caso"], "la ronda que se comió el rancio se repite"
+    assert bucle["reinicios"] == 1, "the stage must be restarted, rather than continuing to measure against old code"
+    assert bucle["rondas"] == ["un-caso", "un-caso"], "the round that encountered stale code is repeated"
 
 
 def test_el_reinicio_queda_APUNTADO(bucle):
-    """Un reinicio silencioso deja el diario diciendo que la ronda simplemente falló dos veces."""
+    """A silent restart leaves the journal saying that the round simply failed twice."""
     _una_vuelta()
     assert any(a.get("resultado") == "RECARGA-PLATO" for a in bucle["apuntes"])
 
 
 def test_si_el_plato_NO_levanta_no_se_repite_la_ronda(bucle):
-    """Repetir contra un plató que no arrancó mide lo mismo: nada."""
+    """Repeating against a stage that did not start measures the same thing: nothing."""
     bucle["_reinicio_ok"] = False
     _una_vuelta()
     assert bucle["rondas"] == ["un-caso"]
 
 
 def test_un_plato_que_sigue_rancio_NO_entra_en_bucle(bucle):
-    """La bifurcación al otro lado: reintentar hasta que cuadre convierte un plató que no arranca en un bucle
-    infinito que no mide — el mismo fallo con otra cara."""
+    """The branch on the other side: retrying until it works turns a stage that does not start into an infinite
+    loop that measures nothing — the same failure in another guise."""
     bucle["_rancio_siempre"] = True
     _una_vuelta()
-    assert bucle["rondas"] == ["un-caso", "un-caso"], "UNA repetición, no N"
+    assert bucle["rondas"] == ["un-caso", "un-caso"], "ONE repetition, not N"
     assert bucle["reinicios"] == 1
 
 
 def test_una_ronda_SANA_no_reinicia_nada(bucle):
-    """Y el otro sentido: un FAIL normal no puede costar un reinicio del plató, que le tira al operador la
-    sesión que está mirando."""
-    bucle["rondas"].append("—ya-hubo-una—")     # así la primera ronda real no sale rancia
+    """And the other direction: a normal FAIL must not cost a stage restart, which throws the session the operator
+    is watching out from under them."""
+    bucle["rondas"].append("—ya-hubo-una—")     # so the first real round is not stale
     _una_vuelta()
     assert bucle["reinicios"] == 0
 
 
 class _ProcesoQueImprime:
-    """Popen de mentira: escribe en el log de la ronda lo que imprimiría el runner y termina."""
+    """Fake Popen: writes to the round log what the runner would print and then exits."""
 
     def __init__(self, texto):
         self._texto, self.pid = texto, 424242
@@ -115,11 +116,11 @@ _REHUSA = ("✗ el motor que va a contestar corre d5771e5 y el arbol esta en 188
     ("  tester  · hola\n  zaelar  · qué tal\nPASSED 0/1 (overall>=4)\n", False),
 ])
 def test_una_ronda_REAL_dice_si_el_plato_salio_rancio(monkeypatch, tmp_path, salida, rancio):
-    """La `una_ronda` de verdad, no el testigo del bucle.
+    """The real `una_ronda`, not the loop's witness.
 
-    Al escribir esto la primera vez, desarmar el `_rancio` de `una_ronda` NO mordía: los guardas de arriba
-    sustituyen `una_ronda` entera por un doble, así que medían mi doble y no la función. Sin esto, el bucle
-    puede estar perfecto y no enterarse nunca de que hubo rancio.
+    When writing this the first time, disabling `una_ronda`'s `_rancio` did NOT work: the fixtures above replace
+    all of `una_ronda` with a double, so they measured my double rather than the function. Without this, the loop
+    can be perfect and never learn that stale code was encountered.
     """
     monkeypatch.setattr(S, "_SALIDA", tmp_path)
     monkeypatch.setattr(S, "_apunta", lambda **kw: None)
@@ -130,7 +131,7 @@ def test_una_ronda_REAL_dice_si_el_plato_salio_rancio(monkeypatch, tmp_path, sal
 
 
 def test_una_ronda_rancia_se_reconoce_por_lo_que_IMPRIME_el_runner():
-    """El marcador tiene que ser el texto real del guarda, no una paráfrasis: si el runner cambia la frase y
-    esto no, el supervisor deja de ver el rancio y vuelve el defecto entero, en silencio."""
+    """The marker must be the guard's actual text, not a paraphrase: if the runner changes the phrase and this does
+    not, the supervisor stops seeing stale code and the entire defect silently returns."""
     from pathlib import Path
     assert S._PLATO_RANCIO in Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")

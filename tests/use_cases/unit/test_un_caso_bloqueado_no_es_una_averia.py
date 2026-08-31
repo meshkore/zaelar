@@ -1,16 +1,16 @@
-"""V2-448 · un caso de FUTURO no es una avería del arnés, ni un turno que gastar cada vuelta.
+"""V2-448 · a FUTURE case is not a harness failure, nor a turn to spend on every cycle.
 
-El runner se niega a conducir un escenario cuyas tareas de roadmap siguen pendientes (norma del operador,
-2026-08-21: «así ahora mismo jamás lo ejecutarías, porque sabrías que esas tareas están pendientes»), imprime
-por qué y sale. Eso son 3 segundos y CERO medida.
+The runner refuses to drive a scenario whose roadmap tasks are still pending (operator rule,
+2026-08-21: «you would never run it right now, because you would know those tasks are pending»), prints
+why, and exits. That is 3 seconds and ZERO measurement.
 
-El supervisor lo archivaba como **INFRA**, que es la etiqueta de «el instrumento se rompió» y manda a mirar
-donde no hay nada roto — la misma lección de V2-363 un escalón más abajo: la ausencia de medida tiene varias
-causas y no sirven para lo mismo. Y como un caso bloqueado nunca llega al marcador, la rama de
-«nunca medidos» (V2-367) volvía a elegirlo **en cada vuelta, para siempre**.
+The supervisor filed it as **INFRA**, which is the label for «the instrument broke» and sends you looking
+where nothing is broken — the same lesson as V2-363 one level lower: the absence of a measurement has several
+causes, and they are not interchangeable. And because a blocked case never reaches the scoreboard, the
+«never measured» branch (V2-367) kept choosing it **on every cycle, forever**.
 
-Medido el 2026-08-28: `repeat-a-finished-search`, pendiente de V2-260 F1 y F2, INFRA de 3 segundos en el
-diario del plató 24/7.
+Measured on 2026-08-28: `repeat-a-finished-search`, pending V2-260 F1 and F2, 3-second INFRA in the
+24/7 studio log.
 """
 from tests.use_cases.e2e.agent import supervisor as S
 
@@ -23,13 +23,13 @@ def test_el_diario_lo_llama_BLOQUEADO_y_no_INFRA():
 
 
 def test_una_averia_de_VERDAD_sigue_siendo_INFRA():
-    """La mitad que impide que el arreglo esconda averías: si esto se tragara un INFRA real, el bucle dejaría
-    de avisar de que el instrumento está roto — que es lo único que no se puede medir desde dentro.
+    """The half that keeps the fix from hiding failures: if this swallowed a real INFRA, the loop would stop
+    warning that the instrument is broken — which is the one thing that cannot be measured from inside.
 
-    La cola es la del caso REAL de V2-363, con las DOS marcas: el runner imprime «PASSED 0/1» aunque la ronda
-    se corriera entera y quien no contestara fuera el juez. Una cola con solo la marca de INFRA no prueba
-    nada —caería en el `else`, que también es INFRA— y así estaba escrita la primera versión: verde con la
-    rama BORRADA, comprobado desarmando.
+    The queue is that of the REAL V2-363 case, with BOTH markers: the runner prints «PASSED 0/1» even if the round
+    ran to completion and the judge was the one that failed to answer. A queue with only the INFRA marker proves
+    nothing —it would fall into the `else`, which is also INFRA— and that is how the first version was written:
+    green with the branch DELETED, verified by dismantling it.
     """
     cola = ("… 10,7 min de navegador; el juez no devolvió JSON tras tres intentos\n"
             "PASSED 0/1\n")
@@ -45,8 +45,8 @@ def test_y_uno_que_pasa_sigue_pasando():
 
 
 def test_la_rotacion_NO_vuelve_a_elegir_un_caso_bloqueado():
-    """Sin esto gasta un turno cada vuelta y deja una fila falsa cada vez. Mismo trato que los `capped`:
-    trabajo que nadie puede cerrar hoy no entra en el bucle de mejora."""
+    """Without this, it spends a turn on every cycle and leaves a false queue entry each time. Same treatment as
+    the `capped`: work that nobody can close today does not enter the improvement loop."""
     from tests.use_cases.e2e.agent import segments as G
     bloqueados = [s.id for s in S._con_runner() if G.blocked_by(s.id)]
     assert bloqueados, "el catálogo ya no tiene casos de futuro: este guarda dejó de medir algo"

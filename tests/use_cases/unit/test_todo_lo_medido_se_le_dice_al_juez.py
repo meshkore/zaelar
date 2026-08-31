@@ -1,18 +1,18 @@
-"""Todo lo que el arnés MIDE tiene que llegarle al juez EN PALABRAS — o estar exento con motivo (V2-399).
+"""Everything the MIDE harness measures must reach the judge IN WORDS—or be exempted with a reason (V2-399).
 
-La clase está probada con medición, dos veces en dos días:
-  · V2-395 — `widgets_producing` viajaba en el JSON crudo del prompt y el juez puntuó 2/5 «ni sonó la
-    música» con la música sonando. En cuanto se dijo en palabras, la acusación desapareció.
-  · V2-398 — `tool_calls` ni siquiera se guardaba; el juez dedujo del texto y dedujo mal.
+The class is tested with measurement, twice on two days:
+  · V2-395 — `widgets_producing` was carried in the prompt's raw JSON, and the judge scored 2/5: “the
+    music did not even play” while the music was playing. As soon as it was stated in words, the accusation disappeared.
+  · V2-398 — `tool_calls` was not even saved; the judge inferred it from the text and inferred wrongly.
 
-Auditado el informe entero (2026-08-27): SEIS campos más estaban en ese estado. El peor,
-`delivery_completeness`, decía en la ronda de Bilbao **«tenía 24 resultados y nombró 1 (4 %)»** — el hecho
-central del veredicto— y solo existía en JSON. `worker_bridges` llevaba errores de puente dentro. El juez
-ignora lo que no se le dice: está medido, no supuesto.
+The entire report was audited (2026-08-27): SIX more fields were in that state. The worst,
+`delivery_completeness`, said in the Bilbao round **“it had 24 results and named 1 (4%)”**—the central
+fact of the verdict—and existed only in JSON. `worker_bridges` contained bridge errors. The judge
+ignores what is not told to it: it is measured, not assumed.
 
-El arreglo no es añadir seis líneas: es el TRINQUETE. Cada campo que el informe produce, o se renderiza en
+The fix is not to add six lines: it is the RATCHET. Every field the report produces is either rendered in
 `mechanism_facts` (directo o por delegación a `verify`), o está en `judge.RAW_ONLY` con el motivo escrito.
-Un campo nuevo sin decisión rompe este test — que es exactamente lo que les faltó a los seis.
+A new field without a decision breaks this test—which is exactly what was missing for the six.
 """
 import ast
 import re
@@ -29,7 +29,7 @@ def _texto(x) -> str:
     return x if isinstance(x, str) else "\n".join(x)
 
 
-# ── qué produce el informe (leído del CÓDIGO productor, no de un informe de ejemplo) ───────────────────────
+# ── what the report produces (read from the producer CODE, not from a sample report) ───────────────────────
 
 def _campos_producidos() -> set[str]:
     campos: set[str] = set()
@@ -52,11 +52,11 @@ def _cadenas_de(tree: ast.AST) -> set[str]:
 
 
 def _campos_visibles_para_el_juez() -> set[str]:
-    """Cadenas del AST de judge.py (los comentarios NO cuentan: no son código) + las de cada función de
-    `verify` a la que el juez delega (p. ej. `measured_in_flight` lee `quiescence` por él)."""
+    """Strings from the AST of judge.py (comments do NOT count: they are not code), plus those from each
+    `verify` function to which the judge delegates (e.g. `measured_in_flight` reads `quiescence` for it)."""
     jtree = ast.parse((BASE / "judge.py").read_text())
-    # el propio diccionario RAW_ONLY no cuenta como «renderizado»: sus claves son cadenas del AST, y sin
-    # excluirlas la prueba de exclusión mutua se contradice a sí misma (todo exento parecería también dicho)
+    # The RAW_ONLY dictionary itself does not count as “rendered”: its keys are AST strings, and without
+    # excluding them the mutual-exclusion test contradicts itself (everything exempt would also appear stated)
     _raw_only_nodes = set()
     for n in ast.walk(jtree):
         if (isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "RAW_ONLY"
@@ -91,13 +91,13 @@ def test_toda_exencion_lleva_su_motivo():
 
 
 def test_una_exencion_no_puede_tapar_un_campo_que_ya_se_dice():
-    """Si alguien renderiza un campo exento, la exención sobra y hay que quitarla — dos verdades derivan."""
+    """If someone renders an exempt field, the exemption is unnecessary and must be removed—two truths follow."""
     visibles = _campos_visibles_para_el_juez()
     de_mas = sorted(set(J.RAW_ONLY) & visibles)
     assert not de_mas, f"exentos Y renderizados a la vez: {de_mas}"
 
 
-# ── los cuatro que la auditoría encontró mudos, ahora en palabras ──────────────────────────────────────────
+# ── the four the audit found silent, now in words ──────────────────────────────────────────────────────────
 
 def test_entrego_1_de_24_se_dice():
     txt = _texto(J.mechanism_facts({"delivery_completeness": {
@@ -141,9 +141,9 @@ def test_puentes_sanos_callan():
 
 
 def test_un_lector_de_seccion_averiado_se_dice():
-    """`prompt_context_error` y `proactive_notes_error` son la avería de V2-381 en pequeño: el lector de UNA
-    sección revienta y su ausencia se leería como un hecho. El trinquete de arriba no basta aquí — cuenta que
-    la cadena exista en el AST, no que el aviso DISPARE (un `if False` lo deja verde)."""
+    """`prompt_context_error` and `proactive_notes_error` are V2-381's failure in miniature: the reader for ONE
+    section crashes, and its absence would be read as a fact. The ratchet above is not enough here—it matters that
+    the string exists in the AST, not that the warning FIRES (an `if False` leaves it green)."""
     txt = _texto(J.mechanism_facts({"prompt_context_error": "boom en sqlite"}))
     assert "no pudo componer" in txt and "prompt_context" in txt and "NO se puntúa" in txt
     txt2 = _texto(J.mechanism_facts({"proactive_notes_error": "columna que falta"}))

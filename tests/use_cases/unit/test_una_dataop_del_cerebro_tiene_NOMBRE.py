@@ -1,21 +1,21 @@
-"""V2-390 — desde fuera, todas las data-ops del cerebro se veían iguales.
+"""V2-390 — from the outside, all of the brain's data-ops looked the same.
 
-La ruta de la UI (el operador toca un botón) YA emitía `widget/action` con el nombre de la acción dentro. La
-del CEREBRO no: solo salía el `widget/data` anónimo que dispara `store.save`, así que un `add_to_playlist` y
-un `set_volume` eran el mismo evento.
+The UI path (the operator touches a button) ALREADY emitted `widget/action` with the action name inside. The
+BRAIN path did not: only the anonymous `widget/data` that triggers `store.save` came out, so an
+`add_to_playlist` and a `set_volume` were the same event.
 
-Medido en `play-music-and-build-playlist` (2026-08-27 13:29). Comprobado a mano contra el plató vivo, con la
-ronda recién terminada:
+Measured in `play-music-and-build-playlist` (2026-08-27 13:29). Checked by hand against the live studio, with the
+round just completed:
 
     yt        → {"videoId": "0iLF_rtUbq0", "title": "Música relajante para trabajar…", "paused": false}
     playlists → [{"id": "curro", "name": "Curro", "tracks": []}]
 
-O sea: la música SONABA y la lista «Curro» EXISTÍA. El veredicto fue **1/5, «alucinación de éxito»**, y su
-razón textual: *«el mecanismo prueba (sin `create_playlist`, sin evidencias de audio) que ninguna de las dos
-cosas ocurrió»*, citando «solo operaciones genéricas de datos». El instrumento acusando al producto, otra vez,
-y con la nota más baja posible en dos dimensiones.
+In other words: the music WAS PLAYING and the «Curro» playlist EXISTED. The verdict was **1/5, «hallucination of
+success»**, and its textual reason: *«the mechanism proves (without `create_playlist`, without audio evidence)
+that neither thing happened»*, citing «only generic data operations». The instrument blaming the product again,
+and with the lowest possible score on two dimensions.
 
-Dos mitades, porque una sola no arregla nada: el motor NOMBRA la op, y el arnés la LEE por su nombre.
+Two halves, because either one alone fixes nothing: the engine NAMES the op, and the harness READS it by name.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def _ev(label, wid, action=None, cat="widget"):
     return e
 
 
-# ── el arnés lo LEE por su nombre ───────────────────────────────────────────────────────────────────────────
+# ── the harness READS it by name ───────────────────────────────────────────────────────────────────────────────
 
 def test_una_op_con_nombre_se_cuenta_por_su_NOMBRE():
     ops = V.widget_ops([_ev("action", "musica", "add_to_playlist")])
@@ -41,27 +41,26 @@ def test_una_op_con_nombre_se_cuenta_por_su_NOMBRE():
 
 
 def test_dos_ops_DISTINTAS_no_se_confunden():
-    """El corazón: contarlas por la etiqueta daba `{action: 2}`, que es tanto como no decir nada."""
+    """The heart of it: counting them by label produced `{action: 2}`, which is tantamount to saying nothing."""
     ops = V.widget_ops([_ev("action", "musica", "add_to_playlist"),
                         _ev("action", "musica", "set_volume")])
     assert ops == {"musica": {"add_to_playlist": 1, "set_volume": 1}}
 
 
 def test_una_op_que_FALLO_se_cuenta_APARTE():
-    """Que el widget se negara y que el cambio entrara son hechos opuestos."""
+    """The widget refusing and the change taking effect are opposite facts."""
     ops = V.widget_ops([_ev("action", "musica", "add_to_playlist"),
                         _ev("action_failed", "musica", "add_to_playlist")])
     assert ops == {"musica": {"add_to_playlist": 1, "add_to_playlist✗": 1}}
 
 
 def test_una_op_SIN_nombre_lo_DICE():
-    """Un hueco silencioso se rellena; hay que nombrarlo (V2-127/V2-133)."""
+    """A silent gap is filled in; it must be named (V2-127/V2-133)."""
     assert V.widget_ops([_ev("action", "musica")]) == {"musica": {"(op sin nombre)": 1}}
 
 
 def test_los_eventos_de_SIEMPRE_siguen_contandose_igual():
-    """La otra dirección: `data`/`show`/`close` no pueden cambiar de forma, que es de lo que vive el resto
-    del informe."""
+    """The other direction: `data`/`show`/`close` cannot change shape, because the rest of the report depends on it."""
     ops = V.widget_ops([_ev("data", "musica"), _ev("show", "youtube"), _ev("close", "youtube")])
     assert ops == {"musica": {"data": 1}, "youtube": {"show": 1, "close": 1}}
 
@@ -70,11 +69,11 @@ def test_la_instancia_se_sigue_colapsando_al_widget():
     assert V.widget_ops([_ev("action", "navegador::t2", "open")]) == {"navegador": {"open": 1}}
 
 
-# ── el motor la NOMBRA ──────────────────────────────────────────────────────────────────────────────────────
+# ── the engine NAMES it ───────────────────────────────────────────────────────────────────────────────────────
 
 @pytest.fixture
 def emisiones(monkeypatch):
-    """Captura lo que el motor emite al ejecutar una data-op del cerebro."""
+    """Captures what the engine emits when executing a brain data-op."""
     vistos = []
     import voice.observer as _obs
     monkeypatch.setattr(_obs, "emit",
@@ -93,7 +92,7 @@ def _corre(monkeypatch, resultado):
 
 
 def test_el_cerebro_NOMBRA_la_op_que_lanza(monkeypatch, emisiones):
-    """El guarda que habría bastado: la ruta de la UI ya lo hacía y la del cerebro no."""
+    """The safeguard that would have been enough: the UI path already did this, but the brain path did not."""
     _corre(monkeypatch, {"ok": True, "playlist": "curro"})
     con_nombre = [e for e in emisiones if e["label"] == "action"]
     assert len(con_nombre) == 1
@@ -101,8 +100,8 @@ def test_el_cerebro_NOMBRA_la_op_que_lanza(monkeypatch, emisiones):
 
 
 def test_una_op_que_el_widget_RECHAZA_emite_su_propio_evento(monkeypatch, emisiones):
-    """«No suena nada» es un hecho que el juez necesita; plegarlo en el evento de éxito es cómo sobrevive un
-    «Hecho.» que no es verdad."""
+    """«Nothing is playing» is a fact the judge needs; folding it into the success event is how a
+    «Done.» that is not true survives."""
     _corre(monkeypatch, {"ok": False, "error": "nothing_playing", "message": "No suena nada ahora."})
     fallos = [e for e in emisiones if e["label"] == "action_failed"]
     assert len(fallos) == 1
@@ -111,15 +110,15 @@ def test_una_op_que_el_widget_RECHAZA_emite_su_propio_evento(monkeypatch, emisio
 
 
 def test_una_op_que_SALE_BIEN_no_emite_fallo(monkeypatch, emisiones):
-    """La bifurcación al otro lado: marcar fallo siempre haría el evento inútil."""
+    """The branch on the other side: always marking failure would make the event useless."""
     _corre(monkeypatch, {"ok": True})
     assert not [e for e in emisiones if e["label"] == "action_failed"]
 
 
 def test_el_is_error_viaja_DENTRO_de_extra():
-    """`emit` no acepta `is_error` como kwarg y los extras se aplanan al evento. Con el kwarg suelto salta un
-    TypeError que el `except` de alrededor se traga: el evento de fallo no se emitiría NUNCA. Cometido al
-    escribir esto, y por eso el guarda existe."""
+    """`emit` does not accept `is_error` as a kwarg, and extras are flattened into the event. With the standalone
+    kwarg, a TypeError is raised and swallowed by the surrounding `except`: the failure event would NEVER be
+    emitted. Committed while writing this, which is why the safeguard exists."""
     import inspect
 
     import voice.observer as _obs
