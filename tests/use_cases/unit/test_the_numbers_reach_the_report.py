@@ -49,21 +49,21 @@ def test_a_settled_round_says_nothing_about_it():
     assert M({"quiescence": {"settled": True, "waited_s": 6.0, "pending_workers": 0}}) == []
 
 
-# ── V2-362: el RELOJ de la entrega, en el informe ───────────────────────────────────────────────────────
+# ── V2-362: the delivery CLOCK, in the report ───────────────────────────────────────────────────────────
 #
-# `sheet_timing` se calcula desde V2-300 y se afinó en V2-355… y no se imprimía en ninguna parte. El juez lo
-# recibe en el JSON, pero quien lee el informe —un humano, o el agente que va a arreglar el caso— no podía ver
-# el número. Una medida sin lector es una decisión sin llamante: existe y no cambia nada. Se descubrió al
-# intentar sacar la latencia de catorce rondas y encontrar la columna vacía en las catorce.
+# `sheet_timing` has been calculated since V2-300 and was refined in V2-355… yet it was not printed anywhere. The judge
+# receives it in the JSON, but whoever reads the report—a human or the agent who is going to fix the case—could not see
+# the number. A measurement without a reader is a decision without a caller: it exists and changes nothing. This was
+# discovered when trying to extract the latency from fourteen rounds and finding the column empty in all fourteen.
 #
-# Y es EL número de la queja del operador («una búsqueda se hace en un minuto, dos o tres máximo»): cuánto
-# tarda el encargo en poner su primera fila delante. Con «eficiencia 2» en once de esas catorce rondas, ese
-# dato es lo único que dice dónde apuntar.
+# And it is THE number in the operator's complaint (“a search is done in one minute, two or three at most”): how long
+# the assignment takes to put its first row in front. With “efficiency 2” in eleven of those fourteen rounds, that
+# datum is the only thing that says where to aim.
 
 def test_el_reloj_sale_con_su_numero_y_con_QUE_reloj_es():
-    """El reloj FLOJO (primera escritura del worker, que puede ser su plan) y el ESTRICTO (el intake, que son
-    candidatos de verdad) no miden lo mismo — confundirlos es lo que produjo los 130,8 s de «retención»
-    inventados que V2-355 cortó. Un número sin su procedencia es el que nadie audita."""
+    """The LOOSE clock (the worker's first write, which may be its plan) and the STRICT one (the intake, which contains
+    genuine candidates) do not measure the same thing—confusing them is what produced the invented 130.8 s of
+    “retention” that V2-355 cut. A number without its provenance is one nobody audits."""
     out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0, "sheet_named_ms": 71000.0,
                                        "delivery_lag_s": 12.8, "delivery_clock": "intake"}}))
     assert "primera fila de candidatos: 70.0s" in out
@@ -72,7 +72,7 @@ def test_el_reloj_sale_con_su_numero_y_con_QUE_reloj_es():
 
 
 def test_una_hoja_que_se_abrio_y_nunca_recibio_nada_lo_DICE():
-    """«No llegó» y «no medido» son cosas distintas: callar aquí deja la ronda sin explicación."""
+    """“Did not arrive” and “not measured” are different things: staying silent here leaves the round unexplained."""
     out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0}}))
     assert "NUNCA llegó" in out
 
@@ -83,7 +83,7 @@ def test_sin_medida_no_se_inventa_una_linea():
 
 
 def test_el_retraso_de_CERO_se_imprime_y_no_se_confunde_con_ausente():
-    """Un `delivery_lag_s` de 0 es una entrega inmediata —la mejor noticia posible— y un `None` es que no se
-    midió. Un `if _lag:` los habría colapsado en silencio."""
+    """A `delivery_lag_s` of 0 is an immediate delivery—the best possible news—and a `None` means it was not
+    measured. An `if _lag:` would have silently collapsed them together."""
     out = " ".join(M({"sheet_timing": {"sheet_ms": 1000.0, "sheet_named_ms": 5000.0, "delivery_lag_s": 0.0}}))
     assert "0.0s después de que existieran" in out

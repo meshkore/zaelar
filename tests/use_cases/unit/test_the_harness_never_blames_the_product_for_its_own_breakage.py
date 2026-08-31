@@ -1,27 +1,27 @@
-"""Diez minutos de navegador apuntados como «el caso falla», y fue el JUEZ (V2-363).
+"""Ten minutes of browser time recorded as “the case fails,” when it was the JUDGE (V2-363).
 
-Medido en `two-searches-two-sheets` (2026-08-27, ronda del supervisor). La conversación corrió ENTERA —641 s,
-navegador real, dos encargos en vuelo— y el veredicto se perdió porque el juez no devolvió JSON válido tras
-sus tres tentativas. Dos consecuencias, y las dos son del instrumento:
+Measured in `two-searches-two-sheets` (2026-08-27, supervisor round). The conversation ran to COMPLETION —641 s,
+real browser, two jobs in flight— and the verdict was lost because the judge did not return valid JSON after
+its three attempts. Two consequences, and both belong to the harness:
 
-1. EL DIARIO LO APUNTÓ COMO `FAIL`. El runner imprime «PASSED 0/1» también cuando la ronda se corrió y no
-   hubo veredicto, y el supervisor leía esa línea. El diario es la lista con la que se decide dónde trabajar y
-   con la que se leen las tendencias: una avería del arnés metida ahí es el instrumento acusando al producto —
-   el mismo defecto que V2-355 cortó en el reloj de retención, ahora en mi propio cuaderno.
+1. THE LOG RECORDED IT AS `FAIL`. The runner also prints “PASSED 0/1” when the round ran but there was no
+   verdict, and the supervisor read that line. The log is the list used to decide where to work and
+   to read the trends: a harness failure entered there is the instrument blaming the product —
+   the same defect that V2-355 cut out of the retention clock, now in my own notebook.
 
-2. Y NO SE PODÍA DIAGNOSTICAR. El error decía «Expecting ',' delimiter: line 22 column 6 (char 1159)» y el
-   mensaje adjuntaba `raw[:200]` — los primeros doscientos caracteres, un JSON impecable, mil caracteres antes
-   del sitio del fallo. Para ver la causa había que volver a correr diez minutos de navegador. Un fallo del
-   instrumento que no deja ver su causa se repite entero cada vez.
+2. AND IT COULD NOT BE DIAGNOSED. The error said “Expecting ',' delimiter: line 22 column 6 (char 1159)” and the
+   message attached `raw[:200]` — the first two hundred characters, flawless JSON, one thousand characters before
+   the failure location. To see the cause, ten minutes of browser time had to be run again. An instrument failure
+   that does not show its cause repeats in full every time.
 
-Son la misma decisión con dos mitades: el arnés no puede convertir su avería en un veredicto del producto, ni
-dejarla sin evidencia para arreglarla.
+They are the same decision in two halves: the harness cannot turn its failure into a product verdict, nor
+leave it without evidence needed to fix it.
 """
 from tests.use_cases.e2e.agent import supervisor as S
 
 
 def _veredicto(cola: str) -> str:
-    """La clasificación que hace el supervisor con la cola del log, aislada de correr una ronda."""
+    """The classification the supervisor makes from the log tail, isolated from running a round."""
     if "PASSED 1/1" in cola:
         return "PASS"
     if "INFRA" in cola or "el juez no devolvió JSON" in cola:
@@ -40,21 +40,21 @@ def test_un_caso_que_pasa_sigue_siendo_PASS():
 
 
 def test_el_juez_sin_JSON_es_INFRA_aunque_el_runner_imprima_PASSED_0_1():
-    """La línea medida: las dos frases conviven en el mismo log y la de abajo llegaba primero al clasificador."""
+    """The measured line: both phrases coexist in the same log, and the one below reached the classifier first."""
     cola = ("[judge] el juez no devolvió JSON válido tras 3 intentos\n"
             "✓ report → x.md\nPASSED 0/1 (overall>=4)")
     assert _veredicto(cola) == "INFRA", "una avería del arnés en el diario decide dónde NO se trabaja"
 
 
 def test_la_clasificacion_del_supervisor_es_LA_MISMA_que_esta():
-    """Guarda contra la divergencia: si el supervisor cambia su orden y este test no, el test estaría
-    afirmando una conducta que el código ya no tiene.
+    """Guard against divergence: if the supervisor changes its order and this test does not, the test would be
+    asserting behavior that the code no longer has.
 
-    V2-448 — la clasificación salió a `_veredicto_de_cola`, así que la guarda mira ESA función en vez de las
-    líneas sueltas de la ronda. La propiedad no cambia y el ORDEN sigue siendo lo que se protege: «PASSED
-    0/1» aparece también en la ronda que el juez no supo puntuar, así que INFRA tiene que ir antes que FAIL —
-    y BLOQUEADO antes que INFRA, porque la cola de un caso de futuro no trae «PASSED» de ninguna clase y
-    caería en el `else`, que es INFRA.
+    V2-448 — the classification moved to `_veredicto_de_cola`, so the guard checks THAT function instead of the
+    round's individual lines. The property is unchanged, and the ORDER remains what is being protected: “PASSED
+    0/1” also appears in the round that the judge could not score, so INFRA must come before FAIL —
+    and BLOQUEADO before INFRA, because the tail of a future case contains no “PASSED” of any kind and
+    would fall into the `else`, which is INFRA.
     """
     from pathlib import Path
     src = "\n".join(ln for ln in Path("tests/use_cases/e2e/agent/supervisor.py").read_text().splitlines()
@@ -68,7 +68,7 @@ def test_la_clasificacion_del_supervisor_es_LA_MISMA_que_esta():
 
 
 def test_el_error_del_juez_lleva_la_VENTANA_del_fallo_no_el_principio():
-    """Sin esto, diagnosticar cuesta otra corrida entera de navegador."""
+    """Without this, diagnosis costs another full browser run."""
     from pathlib import Path
     src = "\n".join(ln for ln in Path("tests/use_cases/e2e/agent/judge.py").read_text().splitlines()
                     if not ln.strip().startswith("#"))

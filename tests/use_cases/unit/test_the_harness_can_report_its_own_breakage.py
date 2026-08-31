@@ -1,21 +1,21 @@
-"""V2-291 — el único camino que existe para decir «esta ronda no mide al producto» estaba roto.
+"""V2-291 — the only existing path for saying “this round does not measure the product” was broken.
 
-`_run_scenario` marca la ronda como avería del ARNÉS cuando el modelo que hace de usuario se sale de su papel más
-de una vez (V2-285: su reacción a un turno imposible no dice nada de zaelar). Esa marca se escribía en `run_data`
-**treinta y siete líneas antes de que `run_data` existiera**, así que la rama entera reventaba con un
+`_run_scenario` marks the round as a HARNESS failure when the model acting as the user steps out of its role more
+than once (V2-285: its reaction to an impossible turn says nothing about zaelar). That marker was written to
+`run_data` **thirty-seven lines before `run_data` existed**, so the entire branch blew up with an
 `UnboundLocalError`.
 
-Medido el 2026-08-24 12:35 en `search-buy-camera__es`: la ronda salió
+Measured on 2026-08-24 12:35 in `search-buy-camera__es`: the round came out as
 
     INFRA: cannot access local variable 'run_data' where it is not associated with a value
 
-con **0 turnos, sin transcript y sin informe de mecanismo** — o sea que además se llevó por delante la evidencia
-de todo lo que SÍ había pasado en esa ronda. El camino escrito para reconocer una avería del arnés era él mismo
-una avería del arnés, y no había corrido nunca desde que se escribió.
+with **0 turns, no transcript, and no mechanism report** — meaning it also wiped out the evidence of everything
+that had actually happened in that round. The path written to recognize a harness failure was itself a harness
+failure, and it had never run since it was written.
 
-Lo que este fichero guarda son las dos mitades: que el marcador llega a `run_data` (y que el marcador es lo que
-`status.py` lee para no contar la ronda contra el caso), y que **ninguna escritura en `run_data` precede a su
-definición** — que es la clase, no la instancia.
+What this file preserves are the two halves: that the marker reaches `run_data` (and that the marker is what
+`status.py` reads so it does not count the round against the case), and that **no write to `run_data` precedes its
+definition** — which is the class, not the instance.
 """
 import ast
 import pathlib
@@ -32,10 +32,10 @@ def _fn(name: str) -> ast.FunctionDef:
 
 
 def test_nothing_writes_run_data_before_it_exists():
-    """LA CLASE, no el caso: `_run_scenario` es una función larga y de un solo uso —no hay forma de instanciarla
-    sin motor, sandbox y modelo— así que lo que se puede comprobar barato es el ORDEN. Un `run_data[...]` por
-    encima de su asignación es un `UnboundLocalError` esperando a que se cumpla su condición, y aquí la condición
-    era «el arnés se rompió», o sea la que menos se ejercita y más caro cuesta perder."""
+    """THE CLASS, not the case: `_run_scenario` is a long, single-use function — there is no way to instantiate it
+    without an engine, sandbox, and model — so what can be checked cheaply is the ORDER. A `run_data[...]` above
+    its assignment is an `UnboundLocalError` waiting for its condition to occur, and here the condition was “the
+    harness broke”, meaning the one exercised least and most costly to lose."""
     fn = _fn("_run_scenario")
     born = [n.lineno for n in ast.walk(fn)
             if isinstance(n, ast.Assign)
@@ -50,8 +50,9 @@ def test_nothing_writes_run_data_before_it_exists():
 
 
 def test_the_breakage_marker_is_the_one_the_scoreboard_reads():
-    """El marcador no vale por existir: `status.py` decide con ÉL si la ronda cuenta contra el caso. Si alguien
-    lo renombra en un lado, la ronda vuelve a puntuar al producto por un fallo nuestro — en silencio."""
+    """The marker is not enough simply to exist: `status.py` uses IT to decide whether the round counts against the
+    case. If someone renames it on one side, the round starts scoring the product again for a failure of ours —
+    silently."""
     src = RUN.read_text(encoding="utf-8")
     status = (RUN.parent / "status.py").read_text(encoding="utf-8")
     assert 'run_data["crashed"] = crashed' in src
@@ -59,9 +60,9 @@ def test_the_breakage_marker_is_the_one_the_scoreboard_reads():
 
 
 def test_the_marker_survives_next_to_the_evidence():
-    """La ronda averiada tiene que llegar al informe CON su transcript y su mecanismo. La versión rota no solo no
-    marcaba: se llevaba por delante los 0 turnos y todo lo medido, que es lo que hace falta para entender qué
-    pasó."""
+    """The failed round must reach the report WITH its transcript and mechanism. The broken version not only failed
+    to mark it: it wiped out the 0 turns and everything measured, which is what is needed to understand what
+    happened."""
     src = RUN.read_text(encoding="utf-8")
     i = src.index('run_data = {"transcript": transcript')
     j = src.index('run_data["crashed"] = crashed')

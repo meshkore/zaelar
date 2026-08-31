@@ -1,18 +1,17 @@
-"""V2-462 — el juez gasta el PLAN de Z.AI antes que los CRÉDITOS, y los créditos antes que cambiar de modelo.
+"""V2-462 — the judge spends the Z.AI PLAN before the CREDITS, and the credits before switching models.
 
-Norma del operador (2026-08-28): «usar el plan básico y cuando se acaba o se bloquea pasamos a usar los
-créditos que tenemos disponibles en ZAI». Medido ese día con el plan agotado y $20 de créditos recién
-puestos:
+Operator rule (2026-08-28): “use the basic plan and when it runs out or is blocked, switch to using the
+credits available in ZAI”. Measured that day with the plan exhausted and $20 in newly added credits:
 
-  · el endpoint del plan (Anthropic-compatible) devuelve `1310 Weekly/Monthly Limit Exhausted … reset at
-    2026-09-01` y NO cae a créditos solo — el forfait es un muro, no una cuesta;
-  · los créditos NO sirven el endpoint del plan: viven en paas/v4, OpenAI-compatible, con la MISMA key;
-  · en paas/v4 glm-4.6 RAZONA por defecto: una sonda de 10 tokens volvió con `content: ""` y todo en
-    `reasoning_content` — un 200 con forma de respuesta que parsea como nada. `thinking: disabled` es
-    parte del contrato de la pata, no una opción.
+  · the plan endpoint (Anthropic-compatible) returns `1310 Weekly/Monthly Limit Exhausted … reset at
+    2026-09-01` and does NOT fall back to credits alone — the forfait is a wall, not a slope;
+  · credits do NOT serve the plan endpoint: they live at paas/v4, OpenAI-compatible, with the SAME key;
+  · at paas/v4 glm-4.6 REASONS by default: a 10-token probe returned `content: ""` and everything in
+    `reasoning_content` — a 200 with the shape of a response that parses as nothing. `thinking: disabled` is
+    part of the leg’s contract, not an option.
 
-La pata va ENTRE el plan y DeepSeek y no después, por comparabilidad: es el MISMO modelo con otra cartera,
-así que las notas del tablero siguen siendo comparables — que es justo lo que caer a DeepSeek no da.
+The leg goes BETWEEN the plan and DeepSeek, not after it, for comparability: it is the SAME model with a
+different wallet, so the board’s scores remain comparable — exactly what falling back to DeepSeek does not provide.
 """
 from __future__ import annotations
 
@@ -40,7 +39,7 @@ def _plan_bloqueado(*a, **k):
     raise RuntimeError("HTTP Error 429: [1310][Weekly/Monthly Limit Exhausted. reset at 2026-09-01]")
 
 
-# ── el orden ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the order ────────────────────────────────────────────────────────────────────────────────────────────
 def test_plan_agotado_los_creditos_juzgan_ANTES_que_deepseek(monkeypatch):
     order: list[str] = []
     monkeypatch.setattr(L, "glm_call", lambda *a, **k: order.append("plan") or _plan_bloqueado())
@@ -52,8 +51,8 @@ def test_plan_agotado_los_creditos_juzgan_ANTES_que_deepseek(monkeypatch):
 
 
 def test_el_modelo_reportado_es_EL_MISMO_porque_solo_cambio_la_cartera(monkeypatch):
-    """La razón de que la pata vaya aquí y no detrás de DeepSeek: el tablero compara notas por modelo, y un
-    relevo que cambia de cartera sin cambiar de modelo mantiene las rondas comparables."""
+    """Why the leg goes here and not behind DeepSeek: the board compares scores by model, and a
+    handoff that changes wallets without changing models keeps the rounds comparable."""
     monkeypatch.setattr(L, "glm_call", _plan_bloqueado)
     monkeypatch.setattr(L, "glm_credits_call", lambda *a, **k: '{"ok":true}')
     _, model = L.judge_call([{"role": "user", "content": "x"}])
@@ -61,8 +60,8 @@ def test_el_modelo_reportado_es_EL_MISMO_porque_solo_cambio_la_cartera(monkeypat
 
 
 def test_con_el_plan_VIVO_los_creditos_no_se_gastan(monkeypatch):
-    """La mitad de sensibilidad, y la que protege los $20: mientras el forfait responda, la cartera de pago
-    por uso no se toca."""
+    """The more sensitive half, and the one that protects the $20: while the forfait responds, the
+    pay-as-you-go wallet is not touched."""
     called: list[str] = []
     monkeypatch.setattr(L, "glm_call", lambda *a, **k: called.append("plan") or '{"ok":true}')
     monkeypatch.setattr(L, "glm_credits_call", lambda *a, **k: called.append("créditos") or "{}")
@@ -86,8 +85,8 @@ def test_creditos_agotados_se_cae_a_deepseek_sin_perder_la_ronda(monkeypatch):
 
 
 def test_un_200_vacio_de_los_creditos_NO_es_un_veredicto(monkeypatch):
-    """La regla que las otras dos patas ya llevan (2026-08-20/26): un cuerpo vacío se relanza, no se
-    devuelve. Sin esto, el 200-con-nada de un razonador pararía la cadena justo en la pata nueva."""
+    """The rule already implemented by the other two legs (2026-08-20/26): an empty body is retried, not
+    returned. Without this, the reasoner’s 200-with-nothing would stop the chain at the new leg."""
     order: list[str] = []
     monkeypatch.setattr(L, "glm_call", _plan_bloqueado)
     monkeypatch.setattr(L, "glm_credits_call", lambda *a, **k: order.append("créditos") or "   ")
@@ -107,11 +106,11 @@ def test_sin_key_de_zai_no_hay_pata_de_creditos():
             LL.config.ZAI_KEY = _saved
 
 
-# ── el contrato de la petición ──────────────────────────────────────────────────────────────────────────
+# ── the request contract ──────────────────────────────────────────────────────────────────────────
 def test_la_pata_va_a_paas_v4_con_el_razonamiento_APAGADO(monkeypatch):
-    """Las dos cosas que se midieron el 2026-08-28 y que, faltando cualquiera, la pata contesta nada:
-    la URL (los créditos no viven en el endpoint del plan) y `thinking: disabled` (glm-4.6 razona por
-    defecto en paas/v4 y se come el presupuesto entero sin error)."""
+    """The two things measured on 2026-08-28 that, if either is missing, cause the leg to answer nothing:
+    the URL (credits do not live at the plan endpoint) and `thinking: disabled` (glm-4.6 reasons by
+    default at paas/v4 and consumes the entire budget without an error)."""
     seen: dict = {}
 
     def _urlopen(req, timeout=0):

@@ -1,24 +1,24 @@
-"""La persona NO PUEDE saber cómo se llama un anuncio: si lo recita, la línea la escribió el asistente (V2-285).
+"""The person MUST NOT know an ad's name: if they recite it, the assistant wrote the line (V2-285).
 
-Medido en `search-buy-guitar__es` (2026-08-24 03:48), turno 18 — en el slot del USUARIO:
+Measured in `search-buy-guitar__es` (2026-08-24 03:48), turn 18 — in the USER slot:
 
-    «He estado mirando y tengo un par de opciones de cuerdas de metal que encajan con lo que pides: la
-     Yamaha F370BL por 100 € y la Fender CD-60 por 120 €.»
+    «I have been looking and I have a couple of metal-string options that fit what you are asking for: the
+     Yamaha F370BL for 100 € and the Fender CD-60 for 120 €.»
 
-y el turno siguiente de zaelar contestando como usuario: «Perfecto, me quedo con la Yamaha F370 a 100 €… Me
-pasas el enlace cuando puedas». Las SEIS caras del conductor no la vieron: no lleva el nombre de la persona,
-no ofrece nada, y «he estado mirando» no es «he mirado».
+and zaelar's next turn replying as the user: «Perfect, I'll take the Yamaha F370 at 100 €… Send me
+the link when you can». The driver's SIX faces did not see it: it does not contain the person's name,
+offers nothing, and «I have been looking» is not «I have looked».
 
-Ensanchar la séptima regex es la cinta de correr — van cuatro. Esto no es una regla de redacción: **«Yamaha
-F370BL Negra» lo produjo nuestro worker leyendo una página y vive en NUESTRA hoja.** Que aparezca en una línea
-del tester es un hecho del sistema, no un parecido.
+Widening the seventh regex is the treadmill — there are four now. This is not a wording rule: **«Yamaha
+F370BL Negra» was produced by our worker reading a page and lives in OUR sheet.** Its appearance in a tester line
+is a system fact, not a resemblance.
 
-Corre en el barrido POSTERIOR a la ronda y no en el guarda vivo del conductor, porque ahí ya está el informe
-de mecanismo con los títulos: el guarda vivo no puede pagar una lectura de la hoja en cada turno.
+It runs in the POST-ROUND sweep and not in the driver's live guard, because the mechanism report with the titles
+already exists there: the live guard cannot afford to read the sheet on every turn.
 """
 from tests.use_cases.e2e.agent import verify as V
 
-# Los títulos REALES de esa ronda, tal como los devolvió la hoja.
+# The REAL titles from that round, exactly as returned by the sheet.
 _KNOWN = ["Yamaha F370BL Negra", "Fender CD-60", "Yamaha F310P + funda", "Acústica con funda",
           "Greg Bennett Sunburst", "Clásica acústica nylon"]
 _FLIP = ("He estado mirando y tengo un par de opciones de cuerdas de metal que encajan con lo que pides: "
@@ -30,7 +30,7 @@ def test_la_linea_medida_se_reconoce():
 
 
 def test_y_ese_era_el_agujero_las_seis_caras_no_la_ven():
-    """La sensibilidad del de arriba: sin esta señal, esa línea es indistinguible de una del usuario."""
+    """The sensitivity of the test above: without this signal, that line is indistinguishable from a user's."""
     from tests.use_cases.e2e.agent import driver as D
     assert D.looks_like_the_assistant(_FLIP, "Marc") is False
 
@@ -44,14 +44,14 @@ def test_lo_que_la_persona_SI_puede_decir_no_dispara():
 
 
 def test_un_titulo_GENERICO_no_identifica_nada():
-    """«Monitor 27» es lo que la persona dice al pedir: contarlo como recital acusaría al tester de existir."""
+    """«Monitor 27» is what the person says when making the request: counting it as a recital would accuse the tester of existing."""
     assert V.recites_our_candidates("busco un monitor 27 barato", ["Monitor 27", "Monitor"]) == []
     assert V.recites_our_candidates("quiero una guitarra acústica", ["Guitarra acústica"]) == []
 
 
 def test_la_cabecera_generica_del_titulo_se_descarta():
-    """Los títulos reales empiezan por el tipo de cosa («Guitarra Acústica Yamaha F370BL»); la identidad es lo
-    que viene DESPUÉS. Sin quitarla, el título casaría con la propia petición del usuario."""
+    """Real titles begin with the type of thing («Guitarra Acústica Yamaha F370BL»); the identity is what comes
+    AFTERWARD. Without removing it, the title would match the user's own request."""
     assert V.recites_our_candidates("la Yamaha F370BL por 100 €",
                                     ["Guitarra Acústica Yamaha F370BL Negra"])
 
@@ -67,7 +67,7 @@ def test_sin_titulos_conocidos_no_se_inventa_nada():
 
 
 def test_el_barrido_de_la_ronda_LO_USA():
-    """La mitad de cableado: el predicado puede acertar y no llegar al informe (V2-199)."""
+    """The wiring half: the predicate can get it right and still fail to reach the report (V2-199)."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
@@ -76,34 +76,34 @@ def test_el_barrido_de_la_ronda_LO_USA():
     i_known = src.find("_known = [str(t) for t in")
     i_use = src.find("verifymod.recites_our_candidates")
     assert 0 <= i_known < i_use, "los títulos se componen después de usarlos"
-    # Y QUE EL BARRIDO REAL MARQUE LA APERTURA (V2-427). El test de al lado reimplementa el bucle, así que
-    # puede seguir verde con `run.py` roto: medido al desarmarlo el 2026-08-28 — puse `opening=False` en el
-    # barrido de verdad y las 25 comprobaciones siguieron pasando sobre el defecto restaurado.
+    # AND THAT THE REAL SWEEP MARKS THE OPENING (V2-427). The neighboring test reimplements the loop, so it
+    # can remain green with broken `run.py`: measured while dismantling it on 2026-08-28 — I set `opening=False`
+    # in the real sweep and all 25 checks kept passing against the restored defect.
     assert "opening=(i == 0)" in src, "el barrido real ya no distingue la primera línea del tester"
 
 
 def test_un_CODIGO_DE_MODELO_identifica_aunque_sea_corto():
-    """`fender cd60` mide once caracteres y es lo más reconocible del catálogo: el corte por longitud lo tiraba
-    por UNO. La longitud es un proxy de identidad; el modelo ES la identidad."""
+    """`fender cd60` is eleven characters long and is the most recognizable catalog entry: the length cutoff
+    discarded it by ONE. Length is a proxy for identity; the model IS the identity."""
     assert V.recites_our_candidates("me quedo con la Fender CD-60", ["Fender CD-60 acústica con funda"])
 
 
 def test_el_guion_va_DENTRO_del_modelo():
-    """`CD-60` es una palabra para quien la lee y la dice; partirla dejaba «fender cd», que no identifica."""
+    """`CD-60` is one word to someone reading and saying it; splitting it left «fender cd», which is not identifying."""
     assert V._norm_title("Fender CD-60") == "fender cd60"
     assert V._norm_title("Yamaha F310P + funda") == "yamaha f310p funda"
 
 
 def test_sin_modelo_y_corto_NO_identifica():
-    """Sensibilidad de la regla nueva: dos palabras sueltas sin código no bastan."""
+    """Sensitivity of the new rule: two standalone words without a code are not enough."""
     assert V.recites_our_candidates("una silla roja", ["Silla roja"]) == []
 
 
 def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
-    """El número que importa de un detector así no es que cace el caso, es a cuántos inocentes acusa.
+    """The number that matters for a detector like this is not whether it catches the case, but how many innocents it accuses.
 
-    Barrido sobre las líneas del TESTER de todos los informes de la noche: UNA marcada, la del turno 18. Se
-    deja escrito porque la tentación al ensanchar esto es mirar solo si el caso conocido sale.
+    Sweep over the TESTER lines in all of the night's reports: ONE marked, the one from turn 18. This is written
+    down because when widening this, the temptation is to look only at whether the known case appears.
     """
     import glob
     import json
@@ -119,43 +119,43 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
             known += [str(t) for t in ((m.get("offered") or {}).get("named") or [])]
             tr = r.get("run", {}).get("transcript", []) or []
             for i, t in enumerate(tr):
-                # `heard` igual que en `run.py`: repetir UN nombre que zaelar acaba de decir es elegir, no
-                # hacer de asistente. Medido 2026-08-24: 3 de las 4 marcadas eran esos ecos («la Fender esa
-                # suena bien», «la valoración de la Casa Boutique»), y la única REAL —el turno 18 del 03:48,
-                # que recita DOS títulos con precios— sigue cazada, como exige el test de al lado.
+                # `heard`, just as in `run.py`: repeating ONE name that zaelar has just said is choosing, not
+                # acting as the assistant. Measured 2026-08-24: 3 of the 4 marked lines were those echoes («that Fender one
+                # sounds good», «the Casa Boutique rating»), and the only REAL one —turn 18 at 03:48,
+                # reciting TWO titles with prices— is still caught, as required by the neighboring test.
                 heard = " ".join((x.get("text") or "") for x in tr[:i] if x.get("who") == "zaelar")
                 if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
                                                                         heard=heard, opening=(i == 0)):
                     marcadas += 1
-    # CUATRO, y las cuatro son flips REALES — el umbral sube cuando el corpus crece con otro flip, nunca porque el
-    # detector se haya ensanchado. Las líneas, para que una cuarta se vea:
-    #   · guitarra    03:48 (24-08) — «tengo un par de opciones … la Yamaha F370BL por 100 € y la Fender CD-60»
-    #   · plumber US  01:42 (28-08) — «if Fast Response can't do today maybe check Magic Plumbing too». La
-    #     CUARTA, y sube el umbral por la razón buena: zaelar nunca dijo «Magic Plumbing» —lo introduce el
-    #     tester en el turno 12—, así que el conductor conocía un nombre que solo puede salir de nuestra hoja.
-    #     «Fast Response» sí es eco (turno 1), y por eso no es lo que dispara.
-    #   · cámara      04:41 (25-08) — «de las que tengo, la más clara es la Canon EOS 4000D: 2.019 disparos y 205€»
-    #   · things-todo 12:25 (25-08) — «te saco tres planes concretos … 1. Concierto de jazz en Café Central … 15€»
-    # ⚠️ La de la cámara vivía en una ronda que PASÓ (4/3/5/3/3): el arnés aprobó una medida contaminada, que es
-    # exactamente lo que este detector existe para impedir. La tercera SÍ salió declarada INFRA por V2-313.
+    # FOUR, and all four are REAL flips — the threshold rises when the corpus grows with another flip, never because the
+    # detector was widened. The lines, so that a fourth one is visible:
+    #   · guitar       03:48 (24-08) — «I have a couple of options … the Yamaha F370BL for 100 € and the Fender CD-60»
+    #   · plumber US  01:42 (28-08) — «if Fast Response can't do today maybe check Magic Plumbing too». The
+    #     FOURTH one raises the threshold for the right reason: zaelar never said «Magic Plumbing» —the
+    #     tester introduces it in turn 12—, so the driver knew a name that could only come from our sheet.
+    #     «Fast Response» is an echo (turn 1), and therefore is not what triggers it.
+    #   · camera       04:41 (25-08) — «of the ones I have, the clearest is the Canon EOS 4000D: 2,019 shots and 205€»
+    #   · things-todo 12:25 (25-08) — «I'll give you three concrete plans … 1. Jazz concert at Café Central … 15€»
+    # ⚠️ The camera one was in a round that PASSED (4/3/5/3/3): the harness approved a contaminated measurement, which is
+    # exactly what this detector exists to prevent. The third one WAS declared INFRA by V2-313.
     #
-    # Y hubo una CUARTA que no lo era (guitarra, ronda 37, 15:51): «esas no me valen… como te dije… a ver si me
-    # confirmas zona y estado», la persona rechazando por nombre lo que acababa de oír. La sacó de aquí el
-    # eximente de POSTURA de V2-319, no un umbral más alto — ver
-    # `test_the_person_choosing_is_not_the_assistant.py`. Anotarlo importa porque el reflejo al ver este número
-    # subir es tocar el `<=`, y esa cuarta línea NO debía contarse a ningún umbral.
+    # And there was a FOURTH one that was not (guitar, round 37, 15:51): «those don't work for me… as I told you… let's see if you
+    # confirm the area and condition», the person rejecting by name what they had just heard. The POSTURE exception from
+    # V2-319 removed it from here, not a higher threshold — see
+    # `test_the_person_choosing_is_not_the_assistant.py`. This matters because the reflex on seeing this number
+    # rise is to change the `<=`, and that fourth line was NOT supposed to count toward any threshold.
     #
-    # Lo que dice el patrón de las tres reales: todas llegan en casos de CATÁLOGO (elige entre opciones con
-    # precio). El conductor tiene una lista delante y la reflex de un modelo con una lista delante es
-    # presentarla. Ensanchar la regex no arregla eso; el sitio donde se arregla es su ancla (V2-315).
+    # What the pattern of the three real ones says: they all occur in CATALOG cases (choose among options with
+    # prices). The driver has a list in front of it, and the reflex of a model with a list in front of it is to
+    # present it. Widening the regex does not fix that; the place to fix it is its anchor (V2-315).
     assert marcadas <= 4, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
 
 
 def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():
-    """V2-313 — el barrido nombraba las líneas y no cambiaba nada: `search-buy-camera__es` (2026-08-25 04:41)
-    salió overall 4 = PASS con el tester recitando nuestros candidatos, y subió el tablero con una medida
-    contaminada por su propio arnés. Es la MISMA avería que `role_flips > 1`, vista por el barrido en vez de
-    por el guard vivo, así que se trata igual: INFRA, no nota."""
+    """V2-313 — the sweep identified the lines and changed nothing: `search-buy-camera__es` (2026-08-25 04:41)
+    came out overall 4 = PASS with the tester reciting our candidates, and raised the scoreboard with a measurement
+    contaminated by its own harness. It is the SAME failure as `role_flips > 1`, seen by the sweep instead of
+    the live guard, so it is handled the same way: INFRA, not a score."""
     import inspect
 
     from tests.use_cases.e2e.agent import run as R
@@ -169,12 +169,12 @@ def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():
 
 
 def test_y_el_ANCLA_del_conductor_se_lo_dice_EN_SUS_DOS_IDIOMAS():
-    """La otra mitad: detectarlo después de la ronda solo sirve para tirar la medida. Los TRES flips del corpus
-    son casos de CATÁLOGO —el conductor tiene una lista delante y la presenta—, así que el ancla ahora nombra el
-    HECHO («no tienes ninguna lista delante») en vez de prohibir otra forma más.
+    """The other half: detecting it after the round only serves to discard the measurement. The THREE flips in the corpus
+    are CATALOG cases —the driver has a list in front of it and presents it—, so the anchor now names the
+    FACT («you have no list in front of you») instead of prohibiting another form.
 
-    En los DOS idiomas, y esa es la trampa que ya costó una vez: hasta el 2026-08-23 un ancla en castellano
-    servía a los 60 escenarios US, cuyas personas están escritas en inglés.
+    In BOTH languages, and that is the trap that already cost us once: until 2026-08-23 a Spanish anchor
+    served the 60 US scenarios, whose users are written in English.
     """
     from tests.use_cases.e2e.agent import driver as D
     for ancla in (D._ANCHOR, D._ANCHOR_EN):
@@ -186,7 +186,7 @@ def test_y_el_ANCLA_del_conductor_se_lo_dice_EN_SUS_DOS_IDIOMAS():
 
 
 def test_el_ancla_VIAJA_al_prompt_de_la_ronda():
-    """Un ancla correcta que no llega al system prompt es una regla que nadie lee (V2-199)."""
+    """A correct anchor that does not reach the system prompt is a rule nobody reads (V2-199)."""
     import inspect
 
     from tests.use_cases.e2e.agent import driver as D
@@ -195,13 +195,13 @@ def test_el_ancla_VIAJA_al_prompt_de_la_ronda():
 
 
 def test_la_APERTURA_del_tester_no_puede_recitar_nada_nuestro():
-    """`known_titles` es la hoja del FINAL de la ronda y esto se evalúa turno a turno: contra la primera línea
-    se estaba comparando con títulos que en ese momento no existían.
+    """`known_titles` is the sheet from the END of the round, and this is evaluated turn by turn: the first line
+    was being compared against titles that did not exist at that point.
 
     Medido el 2026-08-28 en `search-buy-camera__us`, y el falso positivo fue **el encargo mismo** — «Find me a
     used DSLR camera with a low shutter count for under $400»— contra un anuncio titulado en inglés con esas
-    mismas palabras. En castellano no salía: el encargo y el anuncio se parecen mucho más cuando los dos están
-    en el idioma del sitio, así que fue el plató US lo que lo destapó.
+    same words. It did not occur in Spanish: the request and the ad look much more alike when both are
+    in the site's language, so it was the US setting that exposed it.
     """
     titulos = ["Used DSLR Camera Canon EOS 4000D low shutter count 2019 shots"]
     linea = "Find me a used DSLR camera with a low shutter count for under $400."
@@ -209,17 +209,17 @@ def test_la_APERTURA_del_tester_no_puede_recitar_nada_nuestro():
 
 
 def test_y_con_zaelar_habiendo_hablado_se_sigue_cazando():
-    """La mitad de sensibilidad: la frontera temporal no puede apagar el detector, solo acotarlo."""
+    """The sensitivity half: the temporal boundary cannot turn off the detector, only limit it."""
     titulos = ["Yamaha F370BL guitarra acústica negra"]
     linea = "tengo un par de opciones: la Yamaha F370BL por 100 €"
     assert V.recites_our_candidates(linea, titulos, heard="dame un momento que lo miro")
 
 
 def test_es_la_APERTURA_y_no_el_silencio_lo_que_hace_inocente():
-    """Primer intento fallido, y lo cazó el test de al lado: puse la frontera en «`heard` vacío», y una línea
-    a media conversación que nombra un título que zaelar NUNCA dijo también llega con `heard` sin ese título —
-    y ésa sí es un flip, el caso fuerte de la regla entera. Lo que hace inocente a la apertura no es que no se
-    haya oído nada: es que todavía no hay nada NUESTRO que se pueda haber leído."""
+    """First failed attempt, and the neighboring test caught it: I set the boundary to «empty `heard`», and a line
+    midway through a conversation naming a title zaelar NEVER said also arrives with `heard` without that title —
+    and that is a flip, the strong case for the entire rule. What makes the opening innocent is not that nothing
+    has been heard: it is that there is not yet anything of OURS that could have been read."""
     titulos = ["Epiphone DR-100 Nat"]
     linea = "no me vale la Epiphone DR-100, porfa busca otra"
     assert V.recites_our_candidates(linea, titulos, heard="") != [], "a media conversación SÍ delata"

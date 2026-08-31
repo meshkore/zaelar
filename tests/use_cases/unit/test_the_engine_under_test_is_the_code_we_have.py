@@ -58,10 +58,10 @@ def test_the_lab_path_actually_calls_the_guard():
         "la guarda tiene que correr ANTES de apuntar el arnés al motor"
 
 
-# ── Un commit del ARNÉS no es un motor distinto ───────────────────────────────────────────────────────
-# La guarda refusaba ante CUALQUIER sha distinto, y en este árbol viven el motor y el arnés: el arnés
-# commitea varias veces por hora, así que el paseo se paraba a pedir un reinicio del plató que habría
-# medido exactamente el mismo código. Lo que decide es si se movió el PRODUCTO.
+# ── A harness commit is not a different engine ───────────────────────────────────────────────────────
+# The guard refused on ANY different sha, and the engine and harness live in this tree: the harness
+# commits several times an hour, so the run would stop to request a studio restart that would have
+# measured exactly the same code. What matters is whether the PRODUCT moved.
 
 
 def test_a_tests_only_commit_is_the_same_engine(monkeypatch):
@@ -71,8 +71,9 @@ def test_a_tests_only_commit_is_the_same_engine(monkeypatch):
 
 
 def test_a_tests_only_commit_still_SAYS_the_shas_differ(monkeypatch, capsys):
-    """Seguir no es callarse. Sin la línea, el informe de la ronda se lee como que el plató corre justo el
-    árbol que hay — y la próxima vez que un sha desencaje de verdad nadie tendrá con qué compararlo."""
+    """Continuing is not the same as staying silent. Without the line, the round report reads as though the
+    studio is running exactly the current tree—and the next time a sha really diverges, no one will have
+    anything to compare it with."""
     monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
     monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: False)
     run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
@@ -81,24 +82,24 @@ def test_a_tests_only_commit_still_SAYS_the_shas_differ(monkeypatch, capsys):
 
 
 def test_an_engine_commit_still_REFUSES(monkeypatch):
-    """Sensibilidad. Sin este caso, «no refuses por tests» y «no refuses nunca» pasan igual de verdes."""
+    """Sensitivity. Without this case, “does not refuse for tests” and “never refuses” both pass equally green."""
     monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
     monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: True)
     assert "no es el mismo codigo" in run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
 
 
 def test_an_UNANSWERABLE_diff_refuses(monkeypatch):
-    """`None` no es «no cambió nada»: es un sha que este árbol no tiene (clon superficial, commit sin
-    traer). Ante eso se conserva la respuesta que era segura antes de existir esta función."""
+    """`None` does not mean “nothing changed”: it is a sha this tree does not have (shallow clone, commit
+    not fetched). In that case, retain the response that was safe before this function existed."""
     monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
     monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: None)
     assert "no es el mismo codigo" in run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
 
 
 def test_the_diff_is_read_from_git_and_a_doc_counts_as_engine(tmp_path):
-    """Contra un repo git REAL, no contra un mock: lo que se comprueba es que la lectura del árbol
-    funciona. Y un cambio fuera de `tests/` cuenta AUNQUE sea documentación — adivinar qué rutas son
-    inertes es como se cuela un cambio real."""
+    """Against a REAL git repo, not a mock: what is being checked is that reading the tree works. And a
+    change outside `tests/` counts EVEN if it is documentation—guessing which paths are inert is how a
+    real change slips through."""
     import subprocess
     g = lambda *a: subprocess.run(["git", *a], cwd=tmp_path, capture_output=True, text=True, check=True)
     g("init", "-q")
@@ -124,32 +125,33 @@ def test_the_diff_is_read_from_git_and_a_doc_counts_as_engine(tmp_path):
         _R.__file__ = real
 
 
-# ── Un árbol sucio no contamina un PLATÓ ──────────────────────────────────────────────────────────────
-# Costó 23 minutos de paseo parado el 2026-08-21: otro agente tenía `server/voice_api.py` sin commitear y
-# la ronda se negaba a correr, cuando el plató llevaba desde su arranque con el código ya cargado en
-# memoria y no iba a leer ese fichero. Las dos preguntas son distintas y solo una decide qué se mide.
+# ── A dirty tree does not contaminate a STUDIO ─────────────────────────────────────────────────────────
+# It cost 23 minutes of a stalled run on 2026-08-21: another agent had `server/voice_api.py` uncommitted,
+# and the round refused to run, even though the studio had had the code already loaded in memory since
+# startup and was not going to read that file. The two questions are distinct, and only one determines
+# what gets measured.
 
 
 def test_the_lab_path_does_NOT_refuse_on_a_dirty_tree():
-    """Guarda de CABLEADO: se mira el fuente porque el camino real necesita un plató vivo. Un test de
-    conducta aquí exigiría levantar un motor, y sin él la comprobación no existe."""
+    """WIRING guard: inspect the source because the real path needs a live studio. A behavioral test here
+    would require starting an engine, and without one the check does not exist."""
     import inspect
     src = inspect.getsource(run._lab_batch)
     assert "dirty_tree_refusal" not in src, "el camino del plató volvió a esperar por un árbol sucio"
 
 
 def test_the_sandbox_path_STILL_refuses_on_a_dirty_tree():
-    """Sensibilidad, y es el lado que importa: en el sandbox el motor se levanta DEL ÁRBOL en ese momento,
-    así que ahí medir a mitad de una edición sí mide código a medias. Sin este caso, «no esperes en el
-    plató» y «no esperes nunca» pasan igual de verdes."""
+    """Sensitivity, and it is the side that matters: in the sandbox the engine is started FROM THE TREE at
+    that moment, so measuring there halfway through an edit really does measure partial code. Without
+    this case, “do not wait in the studio” and “never wait” both pass equally green."""
     import inspect
     assert "dirty_tree_refusal" in inspect.getsource(run._sandbox_batch)
 
 
 def test_a_stale_lab_exits_with_its_OWN_code():
-    """El 5 existe para que quien llama pueda distinguir «reinicia el plató» de cualquier otra negativa.
-    Compartir el 3 hizo que el paseo anunciara «plató rancio» durante 23 minutos mientras pasaba otra
-    cosa — un diagnóstico equivocado, y encima verosímil."""
+    """The 5 exists so the caller can distinguish “restart the studio” from any other refusal. Sharing the 3
+    made the run report “stale studio” for 23 minutes while something else was happening—an incorrect
+    diagnosis, and a plausible one at that."""
     import inspect
     src = inspect.getsource(run._lab_batch)
     i = src.index("stale_engine_refusal(")
