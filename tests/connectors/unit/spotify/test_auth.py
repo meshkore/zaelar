@@ -1,4 +1,4 @@
-"""Tests de OAuth PKCE + token store de Spotify (V2-041). Sin red: httpx mockeado, STORE en tmp."""
+"""Spotify OAuth PKCE and token store tests (V2-041). No network: httpx is mocked, and STORE is in tmp."""
 import base64
 import hashlib
 import json
@@ -13,7 +13,7 @@ from connectors.spotify import auth
 def _tmp_store(tmp_path, monkeypatch):
     monkeypatch.setattr(auth, "STORE", tmp_path / "spotify.json")
     monkeypatch.setenv("SPOTIFY_CLIENT_ID", "cid_test")
-    # config.credentials.get puede leer otra cosa; forzamos el fallback de env aislando el store real
+    # config.credentials.get may read something else; force the env fallback while isolating the real store
     monkeypatch.setattr(auth, "client_id", lambda: "cid_test")
     yield
 
@@ -64,11 +64,11 @@ def test_complete_login_exchanges_and_stores_tokens(monkeypatch):
 
 def test_access_token_refreshes_when_expiring(monkeypatch):
     auth._save({"tokens": {"access_token": "OLD", "refresh_token": "RT",
-                           "expires_at": int(time.time()) - 5}})       # ya caducado
+                           "expires_at": int(time.time()) - 5}})       # already expired
     monkeypatch.setattr(auth.httpx, "post",
                         lambda *a, **k: _Resp(200, {"access_token": "NEW", "expires_in": 3600}))
     assert auth.access_token() == "NEW"
-    # el refresh conserva el refresh_token viejo si el server no manda uno nuevo
+    # The refresh preserves the old refresh_token if the server does not send a new one
     assert json.loads(auth.STORE.read_text())["tokens"]["refresh_token"] == "RT"
 
 

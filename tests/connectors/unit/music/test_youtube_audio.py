@@ -1,4 +1,4 @@
-"""Tests del proveedor YouTube-audio (V2-041): fallback gratis en el navegador. Store y resolución mockeados."""
+"""Tests for the YouTube-audio provider (V2-041): free browser fallback. Store and resolution are mocked."""
 import pytest
 
 import connectors.music.youtube_audio as ya
@@ -36,13 +36,13 @@ def test_play_no_track(_store, monkeypatch):
 
 
 def test_queue_and_ended_advances(_store, monkeypatch):
-    # V2-047 F4: play arranca; queue apila (no interrumpe); ended avanza a la siguiente; cola vacía = empty_queue.
+    # V2-047 F4: play starts playback; queue stacks items (without interrupting); ended advances to the next item; an empty queue = empty_queue.
     monkeypatch.setattr(ya, "_resolve", lambda q: ("V" + q[:10].ljust(10, "0"), q.title()))
     p = ya.YouTubeAudioProvider()
     p.play(query="beatles")
     assert p.enqueue(query="shakira").extra["queue_len"] == 1
     assert p.enqueue(query="bruce").extra["queue_len"] == 2
-    assert _store["yt"]["videoId"].startswith("Vbeatles")      # sigue sonando Beatles, no lo pisó
+    assert _store["yt"]["videoId"].startswith("Vbeatles")      # Beatles is still playing; it was not replaced
     r = p.on_ended()
     assert r.action == "ended" and _store["yt"]["videoId"].startswith("Vshakira") and r.extra["queue_len"] == 1
     r = p.on_ended()
@@ -51,14 +51,14 @@ def test_queue_and_ended_advances(_store, monkeypatch):
 
 
 def test_enqueue_with_nothing_playing_plays(_store, monkeypatch):
-    # encolar sin nada sonando = reproducir (encolar mudo sería inútil)
+    # Enqueuing when nothing is playing = play immediately (silently enqueuing it would be useless)
     monkeypatch.setattr(ya, "_resolve", lambda q: ("VID00000001", "x"))
     r = ya.YouTubeAudioProvider().enqueue(query="x")
     assert r.ok and r.action == "play" and _store["yt"]["videoId"] == "VID00000001"
 
 
 def test_no_restart_same_query_playing(_store, monkeypatch):
-    # V2-047 F5: re-play de la MISMA query que ya suena → no-op (no re-resuelve, no recarga → no corta la canción).
+    # V2-047 F5: replaying the SAME query that is already playing → no-op (does not resolve again or reload → does not interrupt the song).
     calls = {"n": 0}
 
     def _res(q):
@@ -68,11 +68,11 @@ def test_no_restart_same_query_playing(_store, monkeypatch):
     p = ya.YouTubeAudioProvider()
     p.play(query="shakira")
     seq0 = _store["yt"]["cmd_seq"]
-    r = p.play(query="shakira")                    # misma query, sonando
+    r = p.play(query="shakira")                    # same query, already playing
     assert r.ok and r.extra.get("noop") is True
-    assert _store["yt"]["cmd_seq"] == seq0         # NO recargó el iframe (mismo cmd_seq)
-    assert calls["n"] == 1                         # NO re-resolvió
-    r2 = p.play(query="otra de shakira")           # query distinta → sí reproduce nueva
+    assert _store["yt"]["cmd_seq"] == seq0         # Did NOT reload the iframe (same cmd_seq)
+    assert calls["n"] == 1                         # Did NOT resolve again
+    r2 = p.play(query="otra de shakira")           # different query → plays the new one
     assert r2.extra.get("noop") is not True and calls["n"] == 2
 
 
@@ -100,7 +100,7 @@ def test_extract_id_from_uri():
 
 
 def test_registry_prefers_spotify_when_connected(monkeypatch):
-    # Spotify conectado → gana; si no, cae al fallback youtube (siempre disponible).
+    # Connected Spotify wins; otherwise, it falls back to YouTube (always available).
     registry._PROVIDERS.clear()
     registry._loaded = False
     from connectors.spotify.provider import SpotifyProvider

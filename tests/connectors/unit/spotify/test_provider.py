@@ -1,4 +1,4 @@
-"""Tests del SpotifyProvider (V2-041): mapeo a Track/NowPlaying + recuperación de NO_ACTIVE_DEVICE. Cliente mockeado."""
+"""Tests for SpotifyProvider (V2-041): mapping to Track/NowPlaying + recovery from NO_ACTIVE_DEVICE. Mocked client."""
 import pytest
 
 from connectors.spotify import client as spclient
@@ -51,7 +51,7 @@ def test_no_active_device_recovers_with_device_id(prov, monkeypatch):
     monkeypatch.setattr(spclient, "play", _play)
     monkeypatch.setattr(spclient, "devices", lambda: [{"id": "dev9", "is_active": False}])
     r = prov.play(query="frank sinatra")
-    assert r.ok and tried == ["", "dev9"]          # 1º sin device (404) → 2º con el device encontrado
+    assert r.ok and tried == ["", "dev9"]          # 1st without a device (404) → 2nd with the device found
 
 
 def test_no_device_at_all_reports_reason(prov, monkeypatch):
