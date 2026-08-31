@@ -31,7 +31,7 @@ from widgets.results import data as results
 
 @pytest.fixture(autouse=True)
 def _isolated_sheet(tmp_path, monkeypatch):
-    """Store AISLADO — un test nunca escribe la hoja REAL que el operador tiene delante."""
+    """Store ISOLATED — a test never writes to the REAL sheet in front of the operator."""
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     store._last_hash.pop("results", None)
     yield
@@ -39,7 +39,7 @@ def _isolated_sheet(tmp_path, monkeypatch):
 
 
 def _present(items, **extra):
-    """Por el MISMO choke point que usa el worker (`hbwidget data results present …`)."""
+    """Through the SAME choke point used by the worker (`hbwidget data results present …`)."""
     from widgets.server_api import brain_action
     payload = {"title": "Búsqueda", "items": items}
     payload.update(extra)
@@ -53,18 +53,18 @@ _CON_ENLACE = [
 
 
 def test_the_digest_says_the_row_carries_its_link():
-    """El hecho que faltaba: hay enlace, está en la ficha, y no hay que volver a buscarlo."""
+    """The missing fact: there is a link, it is on the card, and there is no need to search for it again."""
     _present(_CON_ENLACE)
     dg = results.prompt_digest()
     assert "ENLACE" in dg, dg
-    assert "TODOS" in dg                                  # los dos lo llevan
-    # Y dice qué hacer con él, porque el fallo medido no fue callarlo: fue relanzar la búsqueda.
+    assert "TODOS" in dg                                  # both items carry it
+    # It also says what to do with it, because the measured failure was not omitting it: it was relaunching the search.
     assert "NO busques otra vez" in dg, dg
 
 
 def test_a_sheet_without_links_does_not_claim_one():
-    """La ausencia se respeta: afirmar un enlace que no está es la familia de V2-209 («Aquí lo tienes» sobre
-    una tarjeta vacía), y la habríamos reabierto por el otro lado."""
+    """The absence is respected: claiming a link that is not there is the same family as V2-209 («Aquí lo tienes» over
+    an empty card), and we would have reopened it from the other side."""
     _present([{"title": "Guitarra sin anuncio", "price": "90 €"},
               {"title": "Otra sin anuncio", "price": "95 €"}])
     dg = results.prompt_digest()
@@ -72,7 +72,7 @@ def test_a_sheet_without_links_does_not_claim_one():
 
 
 def test_a_partial_sheet_says_how_many_carry_it():
-    """Con la mitad enlazada, «todos» sería falso y «ninguno» también: el turno tiene que poder decir de CUÁL."""
+    """With half the items linked, «todos» would be false and «ninguno» would be false too: the turn must be able to say WHICH ONE."""
     _present(_CON_ENLACE + [{"title": "Tercera sin anuncio", "price": "80 €"}])
     dg = results.prompt_digest()
     assert "2 de los 3" in dg, dg
@@ -80,21 +80,21 @@ def test_a_partial_sheet_says_how_many_carry_it():
 
 
 def test_the_fact_survives_the_clip_with_several_errands_open():
-    """EL CASO QUE MOTIVÓ TODO, con su forma REAL: TRES hojas vivas. Una sola hoja nunca recorta —el digest la
-    corta ella misma en 12 items, ~1.500 caracteres—, así que un test de «hoja grande» habría estado verde con
-    la línea colgada detrás de la lista. Lo que recorta es lo que había en producción: varios encargos a la vez
-    (`_sheets_for_brain(None)` las recorre TODAS) y la hoja con contenido detrás de las vacías.
+    """THE CASE THAT MOTIVATED EVERYTHING, in its REAL form: THREE live sheets. A single sheet never clips —the digest
+    clips itself at 12 items, ~1,500 characters—, so a «large sheet» test would have passed with the line hanging
+    behind the list. What clips is what existed in production: several errands at once
+    (`_sheets_for_brain(None)` iterates over ALL of them) and the sheet with content behind the empty ones.
 
-    Medido en el caso de la guitarra: 3.742 caracteres de digest, recortados a 1.846 — con la cola dentro."""
-    for n in range(2):                                     # dos encargos anteriores, todavía sin resultados
+    Measured in the guitar case: 3,742 digest characters, clipped to 1,846 — with the tail still included."""
+    for n in range(2):                                     # two earlier errands, still without results
         _present([], sheet=f"vieja-{n}", title=f"Encargo anterior {n}")
     grandes = [{"title": f"Guitarra número {n} de la búsqueda", "price": f"{100 + n} €",
                 "subtitle": "Estado como nuevo · envío a domicilio · vendedor verificado",
                 "url": f"https://es.wallapop.com/item/guitarra-acustica-de-segunda-mano-numero-{n}-12914924{n}"}
                for n in range(42)]
     _present(grandes, sheet="guitarra-1", title="Guitarras acústicas 2.ª mano")
-    # La pestaña «Fuentes» de la hoja real: cinco webs, y va en la CABECERA del digest —o sea, delante de todo
-    # lo que se pueda recortar. Sin ella el digest no llega al techo y el caso mediría otra cosa.
+    # The «Fuentes» tab of the real sheet: five websites, and it goes in the digest HEADER —that is, before anything
+    # that might be clipped. Without it, the digest would not reach the limit and the case would measure something else.
     from widgets.server_api import brain_action
     asyncio.run(brain_action("results", "sources", {
         "sheet": "guitarra-1",
@@ -105,6 +105,6 @@ def test_the_fact_survives_the_clip_with_several_errands_open():
 
     entero = results.prompt_digest()
     recortado = refs.prompt_digest("results")
-    assert len(entero) > refs._MAX_DIGEST_CHARS, len(entero)          # de verdad hay que recortar
-    assert len(recortado) < len(entero)                               # y de verdad se recortó
+    assert len(entero) > refs._MAX_DIGEST_CHARS, len(entero)          # it really must be clipped
+    assert len(recortado) < len(entero)                               # and it really was clipped
     assert "ENLACE" in recortado, recortado[-500:]

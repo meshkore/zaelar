@@ -1,16 +1,16 @@
-"""Todo `widget.js` del catálogo tiene que PARSEAR como módulo ES.
+"""Every `widget.js` in the catalog must PARSE as an ES module.
 
-Por qué existe (2026-08-12, el mismo fallo dos veces en un día). Un `widget.js` mete su CSS en un template literal
-(`s.textContent = \\`…\\``), y basta UN acento grave dentro —en un comentario, describiendo un campo— para cerrar la
-cadena y romper el fichero entero. El síntoma no es un error legible: el módulo no importa, `desktop.js` cae en su
-`catch`, y la tarjeta enseña «no se pudo cargar este widget». Nada en la suite lo veía, porque los tests de frontend
-son contratos de string y un string roto sigue siendo un string.
+Why it exists (2026-08-12, the same failure twice in one day). A `widget.js` puts its CSS in a template literal
+(`s.textContent = \\`…\\``), and a single backtick inside it —in a comment, describing a field— is enough to close the
+string and break the entire file. The symptom is not a readable error: the module fails to import, `desktop.js` falls
+into its `catch`, and the card displays «this widget could not be loaded». The suite saw nothing, because frontend tests
+are string contracts and a broken string is still a string.
 
-El coste de la comprobación es un `node --check` por fichero. La regresión que evita es una tarjeta muerta en
-producción, y encima con una causa que no se adivina leyendo el diff (el diff parece un comentario inocente).
+The cost of the check is one `node --check` per file. The regression it prevents is a dead card in
+production, caused moreover by something that cannot be guessed by reading the diff (the diff looks like an innocent comment).
 
-Se salta si no hay `node` en la máquina: el motor no lo requiere para arrancar, así que su ausencia no puede
-convertirse en un fallo de la suite — pero cuando está (CI, y el Mac del operador), esto es el guard.
+It is skipped if `node` is not available on the machine: the engine does not require it to start, so its absence cannot
+become a suite failure — but when it is available (CI and the operator's Mac), this is the guard.
 """
 import pathlib
 import shutil
@@ -24,7 +24,7 @@ ENTRIES = sorted(WIDGETS.glob("*/widget.js"))
 
 
 def _template_literals(src: str):
-    """Los bloques `…` que abre el fichero con `s.textContent=` — donde vive el CSS y donde muerde el fallo."""
+    """The `…` blocks that the file opens with `s.textContent=` — where the CSS lives and where the failure bites."""
     out, needle = [], "textContent=`"
     at = 0
     while True:
@@ -42,7 +42,7 @@ def _template_literals(src: str):
 @pytest.mark.skipif(NODE is None, reason="sin node en esta máquina (el motor no lo requiere)")
 @pytest.mark.parametrize("entry", ENTRIES, ids=lambda p: p.parent.name)
 def test_every_widget_js_parses_as_an_es_module(entry):
-    """`node --check` a secas trata el fichero como script y falla en el `export`: hay que declararlo módulo."""
+    """Bare `node --check` treats the file as a script and fails on the `export`: it must be declared as a module."""
     r = subprocess.run([NODE, "--input-type=module", "--check"],
                        stdin=entry.open("rb"), capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, f"{entry} no parsea como módulo ES:\n{r.stderr.strip()[:600]}"
@@ -50,8 +50,8 @@ def test_every_widget_js_parses_as_an_es_module(entry):
 
 @pytest.mark.parametrize("entry", ENTRIES, ids=lambda p: p.parent.name)
 def test_no_backtick_inside_a_css_template_literal(entry):
-    """El mismo fallo, dicho donde se entiende: un acento grave dentro del bloque de CSS lo cierra. Este test da el
-    diagnóstico EXACTO (fichero + línea + texto) en vez de un SyntaxError con un número de línea del stdin."""
+    """The same failure, stated where it makes sense: a backtick inside the CSS block closes it. This test gives the
+    EXACT diagnosis (file + line + text) instead of a SyntaxError with a line number from stdin."""
     src = entry.read_text(encoding="utf-8")
     for block in _template_literals(src):
         offenders = [ln.strip()[:120] for ln in block.split("\n") if "`" in ln]
@@ -61,6 +61,6 @@ def test_no_backtick_inside_a_css_template_literal(entry):
 
 
 def test_the_catalog_is_actually_being_checked():
-    """Si el glob dejara de encontrar ficheros, los dos tests de arriba pasarían por vacío y el guard sería humo."""
+    """If the glob stopped finding files, the two tests above would pass on an empty set and the guard would be smoke."""
     assert len(ENTRIES) >= 5, f"solo {len(ENTRIES)} widget.js encontrados: ¿cambió el layout del catálogo?"
     assert any(p.parent.name == "results" for p in ENTRIES)

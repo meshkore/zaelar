@@ -1,8 +1,8 @@
 #
-# V2-082 — el espejo backend `widgets/system_surfaces.py` debe mantenerse SINCRONIZADO con la fuente de verdad
-# `frontend/app/core/system-surfaces.js`. Este test FALLA si divergen: añadir/editar una superficie dirigible por
-# voz obliga a tocar los dos sitios. Parse tolerante (substring), suficiente para cazar la deriva típica (editar el
-# JS sin tocar el .py, o al revés).
+# V2-082 — the backend mirror `widgets/system_surfaces.py` must remain SYNCHRONIZED with the source of truth,
+# `frontend/app/core/system-surfaces.js`. This test FAILS if they diverge: adding/editing a voice-addressable
+# surface requires touching both places. Tolerant parsing (substring), sufficient to catch typical drift (editing
+# the JS without touching the .py, or vice versa).
 #
 import re
 from pathlib import Path
@@ -27,10 +27,10 @@ def test_every_backend_surface_and_alias_is_in_the_js():
 
 
 def test_every_voice_addressable_js_surface_is_mirrored_in_backend():
-    """Cada entrada del JS con name!=null debe existir en el espejo backend (no puede haber una superficie
-    dirigible por voz que el resolver del backend no conozca)."""
+    """Every JS entry with name!=null must exist in the backend mirror (there cannot be a voice-addressable surface
+    that the backend resolver does not know about)."""
     js = _js_text()
-    # ids del JS que tienen un name no-null: `id: "X", ... name: "…"` (name null => no dirigible).
+    # JS ids with a non-null name: `id: "X", ... name: "…"` (name null => not addressable).
     ids_with_name = set(re.findall(r'id:\s*"([^"]+)"[^}]*?name:\s*"', js, re.S))
     for sid in ids_with_name:
         assert sid in system_surfaces.SYSTEM_SURFACES, \

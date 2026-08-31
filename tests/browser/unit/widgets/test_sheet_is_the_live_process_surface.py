@@ -1,22 +1,22 @@
-"""V2-227 ámbito C — el CABLEADO de la hoja como superficie del progreso en vivo.
+"""V2-227 scope C — the sheet WIRING as the live progress surface.
 
-El contrato de PANTALLA ya estaba en verde (`tests/browser/e2e/results/render_process_tab.py`, 6/6): ese fichero
-monta `widget.js` en una página en blanco y le pasa a mano tres cargas útiles, así que prueba que la hoja SE
-COMPORTA cuando le llegan los datos. Lo que no puede probar —y es justo lo que faltaba para que el operador viera
-algo— es que alguien PRODUZCA esos datos: `view_data()` no devolvía `progress` en absoluto, y nadie abría la hoja
-al encargar. Un contrato cumplido en un test y ausente en el producto.
+The SCREEN contract was already green (`tests/browser/e2e/results/render_process_tab.py`, 6/6): that file mounts
+`widget.js` on a blank page and manually passes it three payloads, so it tests that the sheet BEHAVES when the data
+arrives. What it cannot test —and what was precisely missing for the operator to see anything— is that someone
+PRODUCES that data: `view_data()` did not return `progress` at all, and nobody opened the sheet when placing an
+order. A contract fulfilled in a test and absent from the product.
 
-Lo que se fija aquí, en el orden en que ocurre un encargo:
+What is fixed here, in the order in which an order occurs:
 
-  1. Con nada en marcha la hoja no afirma trabajo (`alive: False`), que es distinto de callarse.
-  2. Al ENCARGAR se abre — y se abre VACÍA y sin la pestaña que el operador eligió para el encargo anterior.
-  3. Está viva ANTES de la primera fase: ese hueco de segundos es la pantalla en blanco que el operador pidió
-     quitar, así que es la parte que más importa.
-  4. Las fases del registro VIVO llegan a la hoja en orden, sin guardarse en ella.
-  5. Al TERMINAR el loader para y la historia se queda — persistida, porque el informe también lo está.
+  1. With nothing running, the sheet does not claim work (`alive: False`), which is different from saying nothing.
+  2. When an order is PLACED, it opens — and opens EMPTY, without the tab the operator chose for the previous order.
+  3. It is alive BEFORE the first phase: that gap of seconds is the blank screen the operator asked to remove, so
+     it is the part that matters most.
+  4. The phases from the LIVE record reach the sheet in order, without being stored in it.
+  5. When it FINISHES, the loader stops and the history remains — persisted, because the report is too.
 
-Y las dos direcciones en cada sitio donde el arreglo podría pasarse de frenada: una superficie que NO es la hoja
-no pinta aquí, y un encargo que llega con otro trabajando no le borra a ése lo que ya había entregado.
+And both directions at every point where the fix could overreach: a surface that is NOT the sheet does not render
+here, and an order that arrives while another is working does not erase what that one has already delivered.
 """
 import time
 
@@ -30,12 +30,12 @@ from widgets.results import data as sheet
 
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
-    """Store AISLADO y registro de sesiones AISLADO.
+    """ISOLATED store and ISOLATED session registry.
 
-    Lo segundo no es simetría: `sheet_progress()` lee `dispatch._SESSIONS`, que es estado de PROCESO — sin
-    vaciarlo, un test que deja una sesión dentro le pinta un «Trabajando…» al siguiente y el fallo no señala a
-    nada suyo. Y lo primero ya costó caro en este mismo directorio: la primera versión de los tests de la hoja
-    limpiaba el store REAL y le borró al operador el informe que tenía en pantalla.
+    The second is not symmetry: `sheet_progress()` reads `dispatch._SESSIONS`, which is PROCESS state — without
+    clearing it, a test that leaves a session inside paints «Trabajando…» on the next one and the failure points to
+    nothing of its own. And the first already proved costly in this same directory: the first version of the sheet
+    tests cleared the REAL store and deleted the report the operator had on screen.
     """
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     monkeypatch.setattr(dispatch, "_SESSIONS", {})
@@ -45,10 +45,10 @@ def _isolated(tmp_path, monkeypatch):
 
 
 def _live(tid: str, goal: str, surface: str = "lista", phases=()) -> SessionRecord:
-    """Una sesión VIVA en el registro, sellada por la misma puerta que la sella en producción."""
+    """A LIVE session in the registry, sealed through the same gate that seals it in production."""
     rec = SessionRecord(task_id=tid, goal=goal, kind="web")
     surfaces.set_once(rec, surface)
-    rec.sheet = dispatch.sheet_id_for(tid)      # lo sella `_sheet_open` en producción; aquí igual
+    rec.sheet = dispatch.sheet_id_for(tid)      # `_sheet_open` seals it in production; same here
     rec.status = "running"
     dispatch._SESSIONS[tid] = rec
     for ph in phases:
@@ -56,25 +56,25 @@ def _live(tid: str, goal: str, surface: str = "lista", phases=()) -> SessionReco
     return rec
 
 
-# ── 1) sin nada en marcha, la hoja no afirma trabajo ─────────────────────────────────────────────────────────
+# ── 1) with nothing running, the sheet does not claim work ───────────────────────────────────────────────────
 
 def test_sin_encargo_vivo_la_hoja_no_dice_que_trabaja():
     assert sheet.view_data()["progress"] == {"alive": False, "phases": []}
 
 
-# ── 2) al ENCARGAR se abre la hoja ───────────────────────────────────────────────────────────────────────────
+# ── 2) the sheet opens when an order is PLACED ───────────────────────────────────────────────────────────────
 
 def test_encargar_abre_SU_hoja_y_la_anterior_no_se_toca(monkeypatch):
-    """V2-259 — antes esto se llamaba «abre la hoja VACÍA»: la hoja era única, así que estrenarla significaba
-    BORRAR la búsqueda anterior, que es literalmente el «error de borrar búsquedas» que el operador pidió quitar.
-    Ahora un encargo abre la SUYA (`results::<task_id>`) y la de antes sigue entera donde estaba. La propiedad no
-    se ha relajado: se ha vuelto más fuerte, y por eso se comprueban las dos hojas."""
+    """V2-259 — this used to be called «open the EMPTY sheet»: the sheet was unique, so opening it for the first
+    time meant DELETING the previous search, which is literally the «error of deleting searches» the operator asked
+    to remove. Now an order opens ITS OWN (`results::<task_id>`) and the previous one remains intact where it was.
+    The property has not been relaxed: it has become stronger, which is why both sheets are checked."""
     shown = []
     monkeypatch.setattr("voice.observer.emit",
                         lambda k, l, **kw: shown.append((k, l, kw.get("extra", {}).get("id"))))
     sheet.apply_action("present", {"title": "Coches en Levante",
                                    "items": [{"title": "de la búsqueda ANTERIOR"}]})
-    sheet.apply_action("tab", {"tab": "sources"})       # …y el operador mirando otra pestaña
+    sheet.apply_action("tab", {"tab": "sources"})       # …and the operator looking at another tab
 
     rec = SessionRecord(task_id="t1", goal="Busca hoteles de 4 estrellas en Sevilla", kind="web")
     surfaces.set_once(rec, "lista")
@@ -95,10 +95,10 @@ def test_encargar_abre_SU_hoja_y_la_anterior_no_se_toca(monkeypatch):
 
 
 def test_dos_encargos_a_la_vez_son_dos_hojas_y_ninguno_pisa_al_otro():
-    """La petición del operador, palabra por palabra: «si hacemos 2 búsquedas a la vez, se abrirán 2 browsers y 2
-    widgets de results, cada uno con su correlation_id». Antes esto era un compromiso —la hoja era única, así que
-    el segundo encargo la reutilizaba sin vaciarla para no borrarle al primero— y el precio era que el operador
-    veía los resultados de una búsqueda bajo el título de la otra."""
+    """The operator's request, word for word: «if we do 2 searches at once, 2 browsers and 2 results widgets will
+    open, each with its own correlation_id». Before, this was a compromise —the sheet was unique, so the second
+    order reused it without emptying it to avoid deleting the first one's data— and the price was that the operator
+    saw the results of one search under the title of the other."""
     _live("t1", "Busca hoteles en Sevilla")
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Hoteles en Sevilla",
                                    "items": [{"title": "Bécquer"}]})
@@ -114,16 +114,16 @@ def test_dos_encargos_a_la_vez_son_dos_hojas_y_ninguno_pisa_al_otro():
     assert sheet.sheet_key(dispatch.sheet_id_for("t1")) != sheet.sheet_key("t2"), "dos encargos, dos claves"
 
 
-# ── 3) viva ANTES de la primera fase ─────────────────────────────────────────────────────────────────────────
+# ── 3) alive BEFORE the first phase ───────────────────────────────────────────────────────────────────────────
 
 def test_la_hoja_esta_viva_antes_de_la_primera_fase():
-    """El hueco entre encargar y la primera fase son segundos de pantalla en blanco — exactamente lo que el
-    operador pidió quitar. `alive` es «hay un encargo en marcha», no «ha dicho algo»."""
+    """The gap between placing an order and the first phase is seconds of blank screen — exactly what the operator
+    asked to remove. `alive` means «an order is in progress», not «it has said something»."""
     _live("t1", "Busca hoteles en Sevilla")
     assert sheet.view_data()["progress"] == {"alive": True, "phases": []}
 
 
-# ── 4) las fases del registro vivo llegan a la hoja ──────────────────────────────────────────────────────────
+# ── 4) phases from the live record reach the sheet ───────────────────────────────────────────────────────────
 
 def test_las_fases_llegan_en_orden_desde_el_registro_vivo():
     _live("t1", "Busca hoteles en Sevilla",
@@ -135,8 +135,8 @@ def test_las_fases_llegan_en_orden_desde_el_registro_vivo():
 
 
 def test_una_superficie_que_no_es_la_hoja_no_pinta_aqui():
-    """Sensibilidad. Un encargo que se cuenta por voz no tiene por qué abrir ni mover la hoja: si `alive` se
-    encendiera con cualquier worker, la hoja diría «Trabajando…» sobre trabajo que no va a aterrizar en ella."""
+    """Sensitivity. An order handled by voice does not need to open or move the sheet: if `alive` turned on for any
+    worker, the sheet would say «Trabajando…» about work that will not land in it."""
     for surface in ("voz", "silenciosa", "widget"):
         dispatch._SESSIONS.clear()
         _live("t1", "Ponme música", surface=surface, phases=["buscando la canción…"])
@@ -144,8 +144,8 @@ def test_una_superficie_que_no_es_la_hoja_no_pinta_aqui():
 
 
 def test_el_progreso_es_DERIVADO_y_no_se_guarda_en_la_hoja():
-    """Guardarlo sería tener el mismo estado en dos sitios, y el que se queda en pantalla siempre es el rancio —
-    un «Trabajando…» congelado sobre un worker que ya no existe."""
+    """Storing it would mean having the same state in two places, and the one left on screen is always stale — a
+    frozen «Trabajando…» over a worker that no longer exists."""
     _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     sheet.apply_action("present", {"title": "Hoteles", "items": [{"title": "Bécquer"}]})
     guardado = store.load("results", {})
@@ -154,9 +154,9 @@ def test_el_progreso_es_DERIVADO_y_no_se_guarda_en_la_hoja():
 
 
 def test_la_hoja_SIN_instancia_sigue_entrelazando_los_encargos_vivos():
-    """V2-259 le da a cada encargo su hoja, y ahí `sheet_progress(task_id)` cuenta solo lo suyo. Pero la hoja SIN
-    instancia sigue existiendo —es la que el operador abre a mano, sin encargo detrás— y para ELLA el entrelazado
-    en orden de tiempo sigue siendo la respuesta honesta: quedarse con un encargo escondería que hay otro."""
+    """V2-259 gives each order its own sheet, and there `sheet_progress(task_id)` counts only its own data. But the
+    sheet WITHOUT an instance still exists —it is the one the operator opens manually, with no order behind it— and
+    for THAT sheet, interleaving in time order remains the honest answer: keeping one order would hide the other."""
     a = _live("t1", "Busca hoteles en Sevilla")
     b = _live("t2", "Busca restaurantes en Madrid")
     a.phases.append({"t": 100.0, "s": "entrando en booking.com…"})
@@ -166,7 +166,7 @@ def test_la_hoja_SIN_instancia_sigue_entrelazando_los_encargos_vivos():
         "entrando en booking.com…", "entrando en thefork.es…", "aplicando filtro 4 estrellas…"]
 
 
-# ── 5) al TERMINAR ───────────────────────────────────────────────────────────────────────────────────────────
+# ── 5) when it FINISHES ──────────────────────────────────────────────────────────────────────────────────────
 
 def test_al_terminar_el_loader_para_y_la_historia_se_queda():
     rec = _live("t1", "Busca hoteles en Sevilla",
@@ -183,8 +183,8 @@ def test_al_terminar_el_loader_para_y_la_historia_se_queda():
 
 
 def test_la_historia_sobrevive_al_informe_porque_se_PERSISTE():
-    """La hoja sobrevive a un reinicio; un informe cuya explicación de cómo se llegó a él ha desaparecido cuenta
-    la mitad de lo que pasó."""
+    """The sheet survives a restart; a report whose explanation of how it was produced has disappeared tells only
+    half of what happened."""
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
@@ -201,9 +201,9 @@ def test_un_encargo_que_no_dijo_una_sola_fase_no_inventa_historia():
 
 
 def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
-    """Un relato viejo debajo de un encargo nuevo es peor que ninguno: explica un resultado que ya no está. Con
-    hojas separadas eso se cumple sin borrar nada — y la comprobación tiene que mirar LAS DOS, porque después de
-    V2-259 preguntarle a la hoja pelada da vacío siempre y el caso pasaría sin probar nada."""
+    """An old account beneath a new order is worse than none: it explains a result that is no longer there. With
+    separate sheets this is achieved without deleting anything — and the check has to look at BOTH, because after
+    V2-259 asking the bare sheet always returns empty and the case would pass without testing anything."""
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
@@ -216,12 +216,12 @@ def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
         "…y el viejo conserva el suyo: estrenar dejó de significar borrar")
 
 
-# ── el clic del operador en «Proceso» tiene que PERSISTIR ────────────────────────────────────────────────────
+# ── the operator's click on «Process» must PERSIST ───────────────────────────────────────────────────────────
 
 def test_el_operador_puede_quedarse_en_la_pestana_de_proceso():
-    """`process` faltaba de `_TABS`, así que el clic volvía `ok:false` y no se guardaba. La pestaña se pintaba
-    igual (el widget conmuta en el acto) y al siguiente refresco de datos —que durante un encargo vivo llega con
-    CADA fase— el derivado se lo llevaba de vuelta a Resultados."""
+    """`process` was missing from `_TABS`, so the click returned `ok:false` and was not saved. The tab was rendered
+    anyway (the widget switches immediately), and on the next data refresh —which arrives with EVERY phase during
+    a live order— the derived state switched it back to Results."""
     sheet.apply_action("present", {"title": "Hoteles", "items": [{"title": "Bécquer"}]})
     assert sheet.apply_action("tab", {"tab": "process"})["ok"] is True
     assert sheet.view_data().get("tab") == "process"
@@ -232,11 +232,11 @@ def test_una_pestana_inventada_sigue_rechazandose():
     assert sheet.apply_action("tab", {"tab": "inventada"})["ok"] is False
 
 
-# ── fail-soft: la hoja se monta también sin dispatcher ───────────────────────────────────────────────────────
+# ── fail-soft: the sheet also mounts without a dispatcher ───────────────────────────────────────────────────
 
 def test_sin_dispatcher_la_hoja_ensena_lo_guardado_y_no_revienta(monkeypatch):
-    """Un test de la hoja sola, o el widget montado fuera del motor: eso es `alive: False` con su historia, que
-    es exactamente lo que se ve — no un error."""
+    """A test of the sheet alone, or the widget mounted outside the engine: that is `alive: False` with its history,
+    which is exactly what is shown — not an error."""
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
@@ -248,11 +248,12 @@ def test_sin_dispatcher_la_hoja_ensena_lo_guardado_y_no_revienta(monkeypatch):
     assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"] == {"alive": False, "phases": ["entrando en booking.com…"]}
 
 
-# ── guarda de ORDEN: la hoja lee el registro vivo, así que el final se escribe DESPUÉS del pop ───────────────
+# ── ORDER guard: the sheet reads the live record, so the end is written AFTER the pop ─────────────────────────
 
 def test_el_cierre_de_la_hoja_va_despues_de_sacar_la_sesion_del_registro():
-    """Al revés, `sheet_progress()` seguiría viendo la sesión y la hoja se guardaría diciendo que trabaja. Es una
-    guarda de ORDEN sobre el código: reordenar dos líneas no falla con ruido, deja el loader girando para siempre."""
+    """Otherwise, `sheet_progress()` would still see the session and the sheet would be saved saying that it is
+    working. This is an ORDER guard on the code: reordering two lines does not fail noisily; it leaves the loader
+    spinning forever."""
     import inspect
     src = inspect.getsource(dispatch._run_session)
     pop = src.rindex('_SESSIONS.pop(key, None)')

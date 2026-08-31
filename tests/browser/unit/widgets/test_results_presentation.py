@@ -1,17 +1,17 @@
-"""Contrato de la SUPERFICIE GENÉRICA DE PRESENTACIÓN (`widgets/results`).
+"""Contract for the GENERIC PRESENTATION SURFACE (`widgets/results`).
 
-Reproduce el caso de uso que falló entero el 2026-08-02 ("busca piscinas con ambiente cerca de Tarragona y ponme
-un informe con fotos en pantalla"): el operador nunca vio un resultado. Tres averías encadenadas, una por bloque:
+Reproduces the use case that failed completely on 2026-08-02 ("search for lively pools near Tarragona and put a
+report with photos on screen"): the operator never saw a result. Three chained failures, one per block:
 
-  1. `view_data()` devolvía una lista DEMO hardcodeada de proyectos del operador (Pricewaterhouse/Mage Core/…) →
-     abrir el widget para una búsqueda de piscinas pintaba "Proyectos". Una hoja en blanco no tiene contenido propio.
-  2. No había forma de RELLENARLO: el único canal documentado era el tag `[[push:results]]`, que el provider de voz
-     bloquea y convierte en escalada, y el widget solo declaraba la acción `choose` → un Brain Worker con los datos
-     en la mano no tenía por dónde entregarlos, así que los recitaba por voz y ya.
-  3. Lo pusheado era efímero: cualquier re-render volvía a `view_data()` y borraba de pantalla lo obtenido.
+  1. `view_data()` returned a hardcoded DEMO list of the operator's projects (Pricewaterhouse/Mage Core/…) →
+     opening the widget for a pool search displayed "Projects". A blank sheet has no content of its own.
+  2. There was no way to FILL IT: the only documented channel was the `[[push:results]]` tag, which the voice
+     provider blocks and turns into an escalation, and the widget declared only the `choose` action → a Brain Worker
+     holding the data had no way to deliver it, so it merely recited it by voice.
+  3. Pushed content was ephemeral: any re-render called `view_data()` again and erased the obtained content.
 
-El test es AGNÓSTICO DEL TEMA a propósito (piscinas, coches, cuentos open-source): el widget nunca sabe de qué van
-los items. Va por el MISMO camino que usa un worker (`brain_action` → `apply_action`), no por atajos.
+The test is intentionally TOPIC-AGNOSTIC (pools, cars, open-source stories): the widget never knows what the items
+are about. It follows the SAME path used by a worker (`brain_action` → `apply_action`), with no shortcuts.
 """
 import asyncio
 
@@ -23,38 +23,38 @@ from widgets.results import data as results
 
 @pytest.fixture(autouse=True)
 def _isolated_sheet(tmp_path, monkeypatch):
-    """Store AISLADO. La primera versión de estos tests limpiaba el store REAL entre casos y le borró al operador
-    el informe que tenía en pantalla en mitad de una regresión — exactamente el fallo que venimos a arreglar."""
+    """ISOLATED store. The first version of these tests cleared the REAL store between cases and erased the report
+    the operator had on screen in the middle of a regression — exactly the failure we are fixing."""
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    store._last_hash.pop("results", None)          # el gate de "contenido idéntico" es por proceso, no por dir
+    store._last_hash.pop("results", None)          # the "identical content" gate is per process, not per directory
     yield
     store._last_hash.pop("results", None)
 
 
 def _present(**payload):
-    """Entrega por el MISMO choke point que el puente del worker (`hbwidget data results present …`)."""
+    """Delivers through the SAME choke point as the worker bridge (`hbwidget data results present …`)."""
     from widgets.server_api import brain_action
     return asyncio.run(brain_action("results", "present", payload))
 
 
-# ── 1) hoja en blanco: sin nada entregado, NO se inventa contenido ────────────────────────────────────────
+# ── 1) blank sheet: with nothing delivered, NO content is invented ────────────────────────────────────────
 def test_empty_sheet_has_no_content_of_its_own():
     d = results.view_data()
     assert d["items"] == []
-    assert d.get("note")                       # dice "sin resultados", no pinta datos de otro tema
+    assert d.get("note")                       # says "no results", does not display data from another topic
     blob = repr(d).lower()
     for leak in ("pricewaterhouse", "mage core", "meshkore", "cryptoknight"):
-        assert leak not in blob, "la superficie de presentación no puede traer datos demo propios"
+        assert leak not in blob, "the presentation surface must not contain its own demo data"
 
 
-# ── 2) el conjunto de resultados entra por una ACCIÓN DECLARADA, no reescribiendo el widget ───────────────
+# ── 2) the result set enters through a DECLARED ACTION, not by rewriting the widget ───────────────
 def test_present_is_a_declared_fast_action():
     man = runtime.get("results")
-    assert man, "el widget results debe existir en el catálogo"
+    assert man, "the results widget must exist in the catalog"
     declared = man.get("actions") or {}
     for name in ("present", "append", "clear", "choose"):
-        assert name in declared, f"«{name}» debe estar DECLARADA para que el puente del worker la admita"
-        # FAST = se aplica ya. Si cayera en CONFIRM, enseñar un informe pediría OK y volveríamos a la avería.
+        assert name in declared, f"«{name}» must be DECLARED for the worker bridge to accept it"
+        # FAST = applied immediately. If it fell into CONFIRM, showing a report would require approval and recreate the failure.
         assert actions.classify(declared[name], name) == actions.FAST
 
 
@@ -75,11 +75,11 @@ def test_worker_fills_the_sheet_through_the_bridge():
     assert d["title"] == "Piscinas con ambiente cerca de Tarragona"
     assert [i["title"] for i in d["items"]] == ["INFINITUM Beach Club", "Aquopolis Costa Dorada"]
     top = d["items"][0]
-    assert top["image"] and top["url"] and top["price"] and top["primary"] is True   # foto+enlace+precio REALES
+    assert top["image"] and top["url"] and top["price"] and top["primary"] is True   # REAL photo+link+price
 
 
 def test_any_domain_fits_the_same_surface():
-    """Nada del widget conoce el tema: el mismo contrato sirve para coches o para cuentos open-source."""
+    """Nothing in the widget knows the topic: the same contract works for cars or open-source stories."""
     for title, item in (
         ("Coches de segunda mano en Bilbao", {"title": "Golf GTI 2019", "price": "18.500€"}),
         ("Cuentos infantiles open-source", {"title": "The Wandering Fox", "url": "https://example.com/fox"}),
@@ -89,17 +89,17 @@ def test_any_domain_fits_the_same_surface():
         assert d["title"] == title and d["items"][0]["title"] == item["title"]
 
 
-# ── 3) lo entregado PERSISTE y se puede ir llenando en vivo ───────────────────────────────────────────────
+# ── 3) delivered content PERSISTS and can be filled progressively ───────────────────────────────────────────────
 def test_delivered_results_survive_a_re_render():
     _present(title="Informe", items=[{"title": "Uno"}, {"title": "Dos"}])
-    # el canvas re-pinta llamando OTRA VEZ a view_data(): lo obtenido no puede desaparecer entre pintadas
+    # the canvas repaints by calling view_data() AGAIN: obtained content must not disappear between repaints
     assert [i["title"] for i in results.view_data()["items"]] == ["Uno", "Dos"]
     assert [i["title"] for i in results.view_data()["items"]] == ["Uno", "Dos"]
 
 
 def test_append_fills_progressively_and_dedups():
     _present(title="Informe", items=[{"title": "Uno", "url": "https://a"}])
-    results.apply_action("append", {"items": [{"title": "Uno", "url": "https://a"},      # mismo hallazgo
+    results.apply_action("append", {"items": [{"title": "Uno", "url": "https://a"},      # same finding
                                               {"title": "Dos", "url": "https://b"}]})
     assert [i["title"] for i in results.view_data()["items"]] == ["Uno", "Dos"]
     assert results.apply_action("append", {"items": []})["ok"] is False
@@ -108,10 +108,10 @@ def test_append_fills_progressively_and_dedups():
 def test_choose_persists_the_operators_pick():
     _present(title="Informe", items=[{"title": "Uno"}, {"title": "Dos"}], choosable=True)
     assert results.apply_action("choose", {"title": "Dos"})["ok"]
-    assert results.view_data()["chosen"] == "Dos"          # sobrevive al re-render, como la lista
+    assert results.view_data()["chosen"] == "Dos"          # survives the re-render, like the list
 
 
-# ── 4) el payload viene de la web abierta → esquema CERRADO ───────────────────────────────────────────────
+# ── 4) the payload comes from the open web → CLOSED schema ───────────────────────────────────────────────
 def test_payload_schema_is_closed():
     _present(title="Informe", items=[
         {"title": "Bueno", "onclick": "alert(1)", "__proto__": "x"},
@@ -127,9 +127,9 @@ def test_unknown_action_is_refused_not_ignored():
     assert r["ok"] is False and "present" in r["error"]
 
 
-# ── 5) "muéstrame una foto/imagen de X" — un solo item con SOLO `image`, sin url/price (2026-08-03) ─────────
-# El fallo real: pedida una foto, el cerebro narraba una descripción en vez de mostrarla porque nada le decía que
-# ESTO es lo que hay que rellenar (ver el fix del router en nucleo/flash/router.py). El widget en sí ya lo aceptaba.
+# ── 5) "show me a photo/image of X" — one item with ONLY `image`, without url/price (2026-08-03) ─────────
+# The actual failure: when asked for a photo, the brain narrated a description instead of showing it because nothing told it that
+# THIS is what needs to be filled (see the router fix in nucleo/flash/router.py). The widget itself already accepted it.
 def test_a_single_photo_request_is_a_valid_item():
     assert _present(title="Plato de quinoa", items=[{"title": "Plato de quinoa", "image": "https://example.com/quinoa.jpg"}]).get("ok")
     top = results.view_data()["items"][0]
@@ -144,9 +144,9 @@ def test_several_photos_are_several_items():
     assert all(i.get("image") for i in results.view_data()["items"])
 
 
-# ── 6) `lines` alcanza para un bloque de texto COMPLETO, no solo 4 bullets (2026-08-03) ──────────────────────
-# El cap de 4 líneas bastaba para una ficha técnica pero no para "muéstrame la letra de una canción" (una canción
-# real tiene decenas de versos) — otro caso real que la superficie ya podía cubrir con un tope más generoso.
+# ── 6) `lines` accommodates a COMPLETE block of text, not just 4 bullets (2026-08-03) ──────────────────────
+# The cap of 4 lines was enough for a technical spec but not for "show me the lyrics of a song" (a real song
+# has dozens of verses) — another real case the surface could already cover with a more generous limit.
 def test_lines_hold_a_full_block_of_text_like_song_lyrics():
     lyrics = [f"Verso {i} de la canción" for i in range(60)]
     _present(title="Letra de una canción", items=[{"title": "Mi canción", "lines": lyrics}])
@@ -159,10 +159,10 @@ def test_lines_are_still_bounded_not_unlimited():
     assert len(results.view_data()["items"][0]["lines"]) == results._MAX_LINES
 
 
-# ── 7) PROPUESTAS COMPUESTAS: un resultado hecho de piezas (2026-08-09) ──────────────────────────────────────
-# Caso del operador: "queremos ir de vacaciones… hotel + ferry", y la respuesta útil no es una lista de hoteles y
-# otra de ferries, sino TRES PROPUESTAS COMPLETAS comparables entre sí. Con el esquema plano anterior eso solo se
-# podía escribir disolviéndolo en prosa dentro de `lines`, que es justo lo que impide comparar.
+# ── 7) COMPOSITE PROPOSALS: one result made of pieces (2026-08-09) ──────────────────────────────────────
+# Operator's case: "we want to go on vacation… hotel + ferry", and the useful answer is not a list of hotels and
+# another of ferries, but THREE COMPLETE PROPOSALS comparable with one another. With the previous flat schema this could only be
+# written by dissolving it into prose inside `lines`, which is precisely what prevents comparison.
 def _plan(title="Plan A", **extra):
     it = {"title": title, "price": "1.840€ total", "parts": [
         {"kind": "Hotel", "title": "Insotel Tarida Beach", "price": "1.200€",
@@ -179,7 +179,7 @@ def test_one_result_can_bundle_several_pieces():
     it = results.view_data()["items"][0]
     kinds = [p["kind"] for p in it["parts"]]
     assert kinds == ["Hotel", "Ferry"], "cada pieza conserva su ROL, que es lo que hace comparables dos propuestas"
-    # cada pieza lleva su PROPIO precio: sin esto el operador no puede ver de dónde sale el total
+    # each piece carries its OWN price: without this the operator cannot see where the total comes from
     assert [p["price"] for p in it["parts"]] == ["1.200€", "640€"]
 
 
@@ -194,7 +194,7 @@ def test_pieces_follow_the_same_closed_schema_as_items():
 
 
 def test_facts_accept_the_shapes_an_llm_actually_emits():
-    """`facts` lo escribe un modelo, y un modelo emite las tres formas. Las tres deben llegar ORDENADAS e iguales."""
+    """A model writes `facts`, and a model emits all three forms. All three must arrive ORDERED and identical."""
     want = [{"label": "Desayuno", "value": "Incluido"}, {"label": "Wifi", "value": "Sí"}]
     for shape in ({"Desayuno": "Incluido", "Wifi": "Sí"},
                   [["Desayuno", "Incluido"], ["Wifi", "Sí"]],
@@ -214,7 +214,7 @@ def test_composite_payload_is_bounded():
     assert len(it["facts"]) == results._MAX_FACTS
 
 
-# ── 8) SEGUNDA PÁGINA: "enséñame en detalle la propuesta uno" ────────────────────────────────────────────────
+# ── 8) SECOND PAGE: "show me proposal one in detail" ────────────────────────────────────────────────
 def test_detail_and_list_are_declared_fast_actions():
     declared = (runtime.get("results") or {}).get("actions") or {}
     for name in ("detail", "list"):
@@ -223,8 +223,8 @@ def test_detail_and_list_are_declared_fast_actions():
 
 
 def test_detail_by_ordinal_because_that_is_how_voice_refers_to_it():
-    """Por VOZ el operador dice «la propuesta número uno», no el nombre comercial del hotel: el ordinal sobrevive
-    al STT mucho mejor que «Insotel Tarida Beach», así que la acción tiene que aceptarlo."""
+    """By VOICE the operator says «proposal number one», not the hotel's commercial name: the ordinal survives
+    STT much better than «Insotel Tarida Beach», so the action must accept it."""
     _present(title="Propuestas", items=[_plan("Plan A"), _plan("Plan B")])
     assert results.apply_action("detail", {"index": 2}).get("detail") == "Plan B"
     d = results.view_data()
@@ -252,24 +252,24 @@ def test_detail_of_something_not_there_is_refused_not_guessed():
 
 
 def test_emptying_the_sheet_drops_a_stale_detail_page():
-    """Si el detalle sobreviviera a un `present` que ya no trae ese item, la hoja apuntaría a un resultado
-    inexistente — pantalla en blanco sin explicación."""
+    """If the detail survived a `present` that no longer includes that item, the sheet would point to a nonexistent
+    result — a blank screen without explanation."""
     _present(title="Propuestas", items=[_plan("Plan A")])
     results.apply_action("detail", {"index": 1})
     _present(title="Otra búsqueda", items=[])
     assert results.view_data().get("view") is None
 
 
-# ── 9) el cerebro SABE lo que hay en pantalla (prompt_digest) ────────────────────────────────────────────────
-# Sin esto, preguntado "¿el hotel de la propuesta 2 tiene wifi?" —un dato ESCRITO en la tarjeta que el operador
-# está mirando— el cerebro tenía que adivinar o escalar una búsqueda nueva para recuperar algo que ya poseía.
+# ── 9) the brain KNOWS what is on screen (prompt_digest) ────────────────────────────────────────────────
+# Without this, when asked "does the hotel in proposal 2 have Wi-Fi?" —a fact WRITTEN on the card the operator
+# is viewing— the brain had to guess or escalate a new search to retrieve something it already possessed.
 def test_digest_carries_the_hard_facts_so_followups_need_no_new_search():
     _present(title="Propuestas", items=[
         _plan("Plan A", facts={"Wifi": "Sí, gratis"}),
         _plan("Plan B", facts={"Wifi": "De pago, 5€/día"}),
     ])
     dig = results.prompt_digest()
-    assert "#1" in dig and "#2" in dig, "el ordinal tiene que estar: es como el operador se refiere a cada una"
+    assert "#1" in dig and "#2" in dig, "the ordinal must be present: it is how the operator refers to each one"
     assert "Sí, gratis" in dig and "De pago, 5€/día" in dig
     assert "Check-in: 15:00" in dig, "los datos de cada PIEZA también, no solo los del conjunto"
 
@@ -286,18 +286,18 @@ def test_digest_is_bounded_even_with_a_huge_result_set():
 
 
 def test_digest_is_reached_through_the_generic_hook_not_a_special_case():
-    """`widgets/brief.py` no puede conocer al widget «results»: el digest se recoge por el hook genérico, así que
-    cualquier widget futuro que lo implemente aparece sin tocar el puente."""
+    """`widgets/brief.py` cannot know about the «results» widget: the digest is collected through the generic hook, so
+    any future widget that implements it appears without touching the bridge."""
     from widgets import refs
     _present(title="Propuestas", items=[_plan("Plan A")])
     assert refs.prompt_digest("results").startswith("#1")
     assert refs.prompt_digest("agenda") == "" or isinstance(refs.prompt_digest("agenda"), str)
 
 
-# ══ 10) LAS OTRAS TRES PESTAÑAS (2026-08-12) ═══════════════════════════════════════════════════════════════════
-# Norma del operador: esta superficie se va a usar para MUCHAS búsquedas complejas, y una búsqueda compleja no es
-# solo su resultado — es también con qué criterio se hizo, cómo va y de dónde salen los datos. Esas tres cosas
-# solo existían de palabra (había que preguntárselas al agente), así que no se podían comprobar.
+# ══ 10) THE OTHER THREE TABS (2026-08-12) ═══════════════════════════════════════════════════════════════════
+# Operator rule: this surface will be used for MANY complex searches, and a complex search is not just its result
+# — it also includes the criteria used, its progress, and where the data comes from. Those three things existed only verbally
+# (the agent had to be asked about them), so they could not be checked.
 import pathlib
 
 WIDGET_JS = pathlib.Path("widgets/results/widget.js")
@@ -311,16 +311,16 @@ def test_the_four_tabs_are_declared_fast_actions():
 
 
 def test_the_open_tab_lives_in_the_payload_so_voice_can_drive_it():
-    """Como `view`/`focus`: la pestaña NO es estado del navegador. Si lo fuera, «enséñame de dónde has sacado
-    esto» no podría mover la pantalla y una recarga perdería dónde estaba mirando el operador."""
+    """Like `view`/`focus`: the tab is NOT browser state. If it were, «show me where you got this» could not move the
+    screen, and a reload would lose where the operator was looking."""
     _present(title="P", items=[{"title": "Uno"}])
     assert results.apply_action("tab", {"tab": "sources"})["ok"]
     assert results.view_data()["tab"] == "sources"
 
 
 def test_the_tab_name_survives_coming_from_voice():
-    """Llega por STT y en el idioma del operador. Normalizar el argumento que el modelo YA eligió es el mismo
-    papel que juega el ordinal en `detail` — no es una tabla de intención."""
+    """It arrives through STT and in the operator's language. Normalizing the argument the model has ALREADY chosen plays
+    the same role as the ordinal in `detail` — it is not an intent table."""
     for said in ("fuentes", "Fuentes", "webs"):
         assert results.apply_action("tab", {"tab": said})["tab"] == "sources"
     assert results.apply_action("tab", {"tab": "resumen"})["tab"] == "summary"
@@ -333,8 +333,8 @@ def test_an_unknown_tab_is_refused_not_guessed():
 
 
 def test_leaving_the_results_tab_closes_the_detail_page():
-    """Si el detalle sobreviviera a un cambio de pestaña, volver a «Resultados» pintaría un expediente en vez de
-    la lista que el operador espera."""
+    """If the detail survived a tab change, returning to «Results» would display a case file instead of
+    the list the operator expects."""
     _present(title="P", items=[_plan("Plan A")])
     results.apply_action("detail", {"index": 1})
     results.apply_action("tab", {"tab": "sources"})
@@ -342,7 +342,7 @@ def test_leaving_the_results_tab_closes_the_detail_page():
     assert d["tab"] == "sources" and "view" not in d
 
 
-# ── FUENTES: lo que convierte «no encontré nada» en un dato auditable ─────────────────────────────────────────
+# ── SOURCES: what turns «I found nothing» into an auditable fact ─────────────────────────────────────────
 def test_a_source_records_what_happened_there_not_just_that_it_was_visited():
     assert results.apply_action("sources", {"sources": [
         {"name": "Wallapop", "url": "https://es.wallapop.com", "status": "auth",
@@ -359,8 +359,8 @@ def test_a_source_records_what_happened_there_not_just_that_it_was_visited():
 
 
 def test_reporting_the_same_source_twice_updates_it_instead_of_duplicating():
-    """Una fuente se anuncia al entrar y se cierra al salir. Si cada reporte creara una fila, la pestaña sería un
-    log en vez del ESTADO de cada sitio."""
+    """A source is announced on entry and closed on exit. If each report created a row, the tab would be a
+    log instead of the STATE of each site."""
     results.apply_action("sources", {"sources": [{"name": "Yachtworld", "url": "https://yachtworld.es",
                                                   "status": "pending"}]})
     results.apply_action("sources", {"sources": [{"name": "Yachtworld", "url": "https://yachtworld.es",
@@ -383,10 +383,10 @@ def test_sources_are_refused_when_there_is_nothing_to_record():
     assert results.apply_action("sources", {"sources": [{"status": "ok"}]})["ok"] is False
 
 
-# ── SUMARIO: lo reportado y lo derivado, separados ────────────────────────────────────────────────────────────
+# ── SUMMARY: reported and derived data kept separate ────────────────────────────────────────────────────────────
 def test_the_summary_never_passes_off_card_count_as_breadth():
-    """«Cuántos ha explorado» solo lo sabe quien trabajó. Sin reportar, la hoja lo DICE en vez de enseñar el
-    número de tarjetas como si fuera la amplitud — que es justo el conformismo que el brief existe para evitar."""
+    """Only the worker knows «how many it explored». Without a report, the sheet SAYS so instead of showing the
+    number of cards as breadth — exactly the complacency the brief exists to prevent."""
     _present(title="P", items=[{"title": f"R{i}"} for i in range(3)])
     c = results.view_data()["counts"]
     assert c["shown"] == 3 and c["explored"] is None
@@ -412,7 +412,7 @@ def test_progress_is_refused_when_it_says_nothing():
     assert results.apply_action("progress", {})["ok"] is False
 
 
-# ── CRITERIOS: el encargo tal y como se ejecuta, corregible por voz ───────────────────────────────────────────
+# ── CRITERIA: the brief as executed, correctable by voice ───────────────────────────────────────────
 def test_criteria_hold_the_brief_and_accumulate_the_operators_corrections():
     results.apply_action("criteria", {"goal": "velero de segunda mano", "hard": ["eslora 40-50 pies"]})
     results.apply_action("criteria", {"changes": ["que sean de 42 a 49 pies"]})
@@ -423,8 +423,8 @@ def test_criteria_hold_the_brief_and_accumulate_the_operators_corrections():
 
 
 def test_a_correction_does_not_wipe_the_work_in_progress():
-    """Corregir un criterio a mitad de camino NO puede tirar lo ya encontrado: el operador está afinando, no
-    empezando otra cosa."""
+    """Correcting a criterion halfway through must NOT discard what was already found: the operator is refining, not
+    starting something else."""
     results.apply_action("criteria", {"goal": "velero de segunda mano"})
     _present(title="Veleros", items=[{"title": "Bavaria 46"}])
     results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok"}]})
@@ -434,8 +434,8 @@ def test_a_correction_does_not_wipe_the_work_in_progress():
 
 
 def test_a_different_goal_is_a_different_investigation_and_clears_the_stale_sheet():
-    """El operador ya se comió una vez quedarse mirando los resultados de la búsqueda ANTERIOR creyendo que eran
-    los suyos. El objetivo es la firma del encargo: si cambia, la hoja se vacía."""
+    """The operator has already experienced being left looking at the results of the PREVIOUS search, believing they were
+    theirs. The goal is the brief's signature: if it changes, the sheet is emptied."""
     results.apply_action("criteria", {"goal": "velero de segunda mano"})
     _present(title="Veleros", items=[{"title": "Bavaria 46"}])
     results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok"}]})
@@ -447,9 +447,9 @@ def test_a_different_goal_is_a_different_investigation_and_clears_the_stale_shee
 
 
 def test_the_goal_becomes_a_headline_not_a_paragraph():
-    """Visto en vivo el 2026-08-12: el `goal` del brief es un párrafo autocontenido («…y reportar el estado de
-    cada fuente consultada»). Puesto crudo como título ocupaba cinco líneas antes de enseñar un solo resultado.
-    El texto íntegro sigue completo en la pestaña CRITERIOS, que es su sitio."""
+    """Seen live on 2026-08-12: the brief's `goal` is a self-contained paragraph («…and report the status of
+    each consulted source»). Used raw as a title, it occupied five lines before showing a single result.
+    The full text remains complete in the CRITERIA tab, where it belongs."""
     goal = ("Encontrar los mejores veleros de segunda mano a la venta ahora mismo que cumplan: precio ≤ 50.000 €, "
             "eslora ≤ 20 m, listos para navegar, con amarre en Mediterráneo y motor en buen estado")
     results.apply_action("criteria", {"goal": "algo anterior"})
@@ -461,8 +461,8 @@ def test_the_goal_becomes_a_headline_not_a_paragraph():
 
 
 def test_a_second_round_keeps_the_same_goal_so_it_never_clears():
-    """«No me convence, sigue buscando» sube la amplitud sobre el MISMO objetivo (research.expand). Si eso
-    limpiara la hoja, continuar una búsqueda borraría lo que llevaba encontrado."""
+    """«I'm not convinced, keep searching» increases breadth for the SAME goal (research.expand). If that
+    cleared the sheet, continuing a search would erase what had already been found."""
     results.apply_action("criteria", {"goal": "velero de segunda mano"})
     _present(title="Veleros", items=[{"title": "Bavaria 46"}])
     r = results.apply_action("criteria", {"goal": "velero de segunda mano", "min_candidates": 60})
@@ -471,8 +471,8 @@ def test_a_second_round_keeps_the_same_goal_so_it_never_clears():
 
 
 def test_present_preserves_the_other_three_tabs():
-    """Un trabajo largo hace varios `present` (provisional → final). Borrar en cada uno las fuentes y el sumario
-    ya reportados perdería datos que costaron minutos de navegación."""
+    """A long task makes several `present` calls (provisional → final). Clearing the already reported sources and
+    summary on each call would lose data that took minutes of browsing."""
     results.apply_action("criteria", {"goal": "veleros"})
     results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok", "found": 128}]})
     results.apply_action("progress", {"explored": 47})
@@ -489,7 +489,7 @@ def test_clear_wipes_every_tab():
     assert d["items"] == [] and d["sources"] == [] and d["criteria"] == {} and d["summary"] == {}
 
 
-# ── el cerebro VE las tres pestañas, así que responde sin volver a buscar ─────────────────────────────────────
+# ── the brain SEES all three tabs, so it answers without searching again ─────────────────────────────────────
 def test_digest_carries_the_sources_so_why_didnt_you_find_it_has_an_answer():
     results.apply_action("criteria", {"goal": "velero de 42-49 pies", "hard": ["eslora 42-49 pies"]})
     results.apply_action("sources", {"sources": [
@@ -502,8 +502,8 @@ def test_digest_carries_the_sources_so_why_didnt_you_find_it_has_an_answer():
 
 
 def test_digest_of_an_empty_sheet_still_shows_the_criteria_being_worked_on():
-    """El caso de los primeros dos minutos: aún no hay ni un resultado, pero el cerebro ya puede contar con qué
-    se está buscando en vez de decir que no sabe nada."""
+    """The first two minutes case: there is not yet a single result, but the brain can already say what
+    is being searched for instead of saying it knows nothing."""
     results.apply_action("criteria", {"goal": "velero de segunda mano"})
     dig = results.prompt_digest()
     assert "velero de segunda mano" in dig and "VAC" in dig.upper()
@@ -518,7 +518,7 @@ def test_digest_stays_bounded_with_every_tab_full():
     assert len(refs.prompt_digest("results")) <= refs._MAX_DIGEST_CHARS + 80
 
 
-# ══ 11) FICHA DINÁMICA: cada tipo de resultado se enseña distinto, SIN aceptar HTML ════════════════════════════
+# ══ 11) DYNAMIC CARD: each result type is shown differently, WITHOUT accepting HTML ════════════════════════════
 def test_a_card_can_be_composed_of_blocks():
     _present(title="Veleros", items=[{"title": "Bavaria 46", "blocks": [
         {"kind": "facts", "title": "Ficha técnica", "facts": {"Eslora": "14,27 m", "Motor": "Volvo 75cv"}},
@@ -533,8 +533,8 @@ def test_a_card_can_be_composed_of_blocks():
 
 
 def test_html_is_not_a_block_kind():
-    """El payload viene de la web abierta. Un `kind` desconocido se DESCARTA entero — no se degrada a texto, que
-    sería colar contenido de un tercero por otra puerta."""
+    """The payload comes from the open web. An unknown `kind` is DISCARDED entirely — it is not degraded to text,
+    which would smuggle third-party content through another door."""
     _present(title="P", items=[{"title": "X", "blocks": [
         {"kind": "html", "html": "<img src=x onerror=alert(1)>"},
         {"kind": "raw", "text": "<script>alert(1)</script>"},
@@ -561,7 +561,7 @@ def test_an_empty_block_is_dropped_instead_of_painting_a_hole():
     assert "blocks" not in results.view_data()["items"][0]
 
 
-# ── LA VALORACIÓN: estaba en el esquema desde hace meses y no se pintaba en ningún sitio ──────────────────────
+# ── RATING: it had been in the schema for months and was not rendered anywhere ──────────────────────
 def test_the_score_accepts_the_shapes_a_researcher_actually_writes():
     for raw, want in ((8.7, 8.7), ("8,7/10", 8.7), ({"value": 87, "max": 100}, 87)):
         _present(title="P", items=[{"title": "X", "score": raw}])
@@ -586,17 +586,17 @@ def test_a_garbage_score_is_dropped_not_painted_as_zero():
 
 
 def test_the_detail_page_shows_the_score_and_the_dynamic_card():
-    """Contrato de render (los tests de frontend son de string): el operador pidió que el expediente incluyera
-    «la valoración y todos los datos de la ficha»."""
+    """Render contract (frontend tests are string-based): the operator asked for the case file to include
+    «the rating and all card data»."""
     src = WIDGET_JS.read_text()
     assert "function scoreBlock(" in src
     assert "scoreBlock(it.score)" in src, "la valoración tiene que salir en el DETALLE, no solo en la tarjeta"
     assert "renderBlocks(it.blocks)" in src, "la ficha a medida también se despliega en el detalle"
 
 
-# ══ 12) es una superficie DE SERIE, no un widget que se hizo el usuario ════════════════════════════════════════
+# ══ 12) it is a BUILT-IN surface, not a user-created widget ════════════════════════════════════════
 def test_the_sheet_ships_with_the_product():
-    """Estaba en la lista curada `_BUILTINS` y a la vez su manifest declaraba `origin:"user"` — y el explícito
+    """It was in the curated `_BUILTINS` list while its manifest declared `origin:"user"` — and the explicit
     manda, así que Config la listaba como «tuyo». Es la superficie con la que zaelar entrega CUALQUIER búsqueda:
     de serie. (Sigue siendo un widget full-stack a propósito: es su `data.py` + acciones declaradas lo que permite
     que un Brain Worker la rellene; una superficie nativa del frontend no tendría por dónde recibir los datos.)"""
@@ -606,9 +606,9 @@ def test_the_sheet_ships_with_the_product():
     assert "results" in registry._BUILTINS
 
 
-# ══ 13) el DIGEST cabe en el prompt sin comerse los resultados ══════════════════════════════════════════════════
+# ══ 13) the DIGEST fits in the prompt without consuming the results ══════════════════════════════════════════════════
 def test_the_head_never_squeezes_the_results_out_of_the_digest():
-    """El encabezado (sumario+fuentes+criterios) va DELANTE, así que sin techo propio unos criterios largos
+    """The header (summary+sources+criteria) comes FIRST, so without its own cap, long criteria
     empujarían los resultados fuera del recorte: el cerebro sabría con qué se busca pero no qué se ha encontrado,
     que es exactamente al revés de lo útil."""
     results.apply_action("criteria", {"goal": "velero " + "x" * 400,
@@ -624,7 +624,7 @@ def test_the_head_never_squeezes_the_results_out_of_the_digest():
 
 
 def test_when_the_head_is_squeezed_it_keeps_the_sources_and_drops_the_criteria():
-    """Orden por IRREEMPLAZABILIDAD: el estado de una fuente solo lo sabe esta pantalla; los criterios se dijeron
+    """Order by IRREPLACEABILITY: only this screen knows a source's status; the criteria were spoken
     en voz alta y el cerebro los tiene en la conversación reciente. Recortar el criterio se puede permitir."""
     results.apply_action("criteria", {"goal": "g" * 300, "hard": ["h" * 200] * 14})
     results.apply_action("sources", {"sources": [
@@ -643,10 +643,10 @@ def test_failed_sources_lead_because_they_are_the_ones_that_change_an_answer():
     assert head.index("Wallapop") < head.index("BienA")
 
 
-# ══ 14) LA VISTA: la lista se BARRE, el expediente se LEE (2026-08-12, visto en pantalla) ═══════════════════════
-# Con las fichas pintando todos sus bloques, UNA tarjeta llenaba la hoja entera — y desde que la entrega por defecto
-# son diez resultados, eso convierte la lista en algo que no se puede recorrer. Contratos de render (los tests de
-# frontend son de string): en la lista van los bloques LIGEROS; los pesados son lo que uno va a buscar al abrir.
+# ══ 14) THE VIEW: the list is SCANNED, the case file is READ (2026-08-12, seen on screen) ═══════════════════════
+# With cards rendering all their blocks, ONE card filled the entire sheet — and since the default delivery is ten
+# results, that makes the list impossible to scan. Render contracts (frontend tests are string-based): the list gets
+# the LIGHT blocks; the heavy ones are what you look for when opening a card.
 def test_the_list_shows_a_summary_card_not_the_whole_dossier():
     src = WIDGET_JS.read_text()
     assert "renderBlocks(blocks, {compact: true})" in src, "la LISTA pinta la ficha en modo compacto"
@@ -657,7 +657,7 @@ def test_the_list_shows_a_summary_card_not_the_whole_dossier():
 
 
 def test_the_badge_travels_with_the_title_not_with_the_button():
-    """«Mejor conjunto» CALIFICA el resultado. Al pie acababa junto a «Ver detalle» y se leía como otro botón."""
+    """«Best overall» QUALIFIES the result. At the bottom it ended up beside «View details» and read like another button."""
     src = WIDGET_JS.read_text()
     assert "hr-metarow" in src
     i_meta, i_more = src.index("hr-metarow"), src.index('elem("button","hr-more"')
@@ -665,7 +665,7 @@ def test_the_badge_travels_with_the_title_not_with_the_button():
 
 
 def test_the_numbers_that_get_compared_are_tabular():
-    """Detalle de composición, no capricho: en una superficie cuyo trabajo es poner precios y notas unos debajo de
+    """Composition detail, not whim: on a surface whose job is to place prices and notes one below another,
     otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor."""
     src = WIDGET_JS.read_text()
     i = src.index("font-variant-numeric:tabular-nums")
@@ -675,15 +675,15 @@ def test_the_numbers_that_get_compared_are_tabular():
 
 
 def test_the_type_scale_and_spacing_are_a_system_not_ad_hoc_numbers():
-    """La versión anterior acumulaba trece tamaños de letra y márgenes elegidos uno a uno. Eso no se lee como una
+    """The previous version accumulated thirteen font sizes and individually chosen margins. That does not read as a
     superficie, se lee como parches. Un techo de magnitudes crudas obliga a usar la escala."""
     src = WIDGET_JS.read_text()
     css = src[src.index("s.textContent=`"):src.index("`; document.head.appendChild(s)")]
     for token in ("--f-body", "--f-micro", "--s3", "--r-md", "--line:"):
         assert token in css, f"falta el token {token} de la escala"
     import re
-    # Magnitudes crudas EN USO, excluyendo la definición de los propios tokens (ahí los px son obligatorios) y los
-    # valores por debajo de 4px (hilos, semitonos ópticos: no hay escala que los cubra sin quedar peor).
+    # Raw magnitudes IN USE, excluding the token definitions themselves (px are mandatory there) and
+    # values below 4px (hairlines, optical half-tones: no scale covers them without looking worse).
     body = "\n".join(ln for ln in css.split("\n") if not re.match(r"\s*--[a-z0-9-]+:", ln))
     raw = [m for m in re.findall(r":\s*(\d+(?:\.\d+)?)px", body) if float(m) > 3]
     # 26 y no menos: lo que queda son alturas de imagen (128/168/100/62) y desplazamientos ópticos de 4-7px, que son
@@ -699,16 +699,16 @@ def test_the_type_scale_and_spacing_are_a_system_not_ad_hoc_numbers():
     assert "color:#" not in css.replace("color:#fff", ""), "ningún color fuera del contrato --hb-*"
 
 
-# ══ 15) LA CABECERA DICE LA TAREA, NO EL NOMBRE DE LA PIEZA (2026-08-12) ════════════════════════════════════════
-# Norma del operador, literal: «no hace falta que la gente sepa que eso es el visor o que eso es la muestra de
-# resultados, sino es lo que le hemos pedido puesto ahí». En una superficie GENÉRICA el nombre del catálogo
+# ══ 15) THE HEADER STATES THE TASK, NOT THE PIECE NAME (2026-08-12) ════════════════════════════════════════
+# Literal operator rule: «people do not need to know that it is the viewer or that it is the results display,
+# but rather that it is what we asked for placed there». On a GENERIC surface the catalog name
 # («Resultados») no identifica nada — lo que identifica esa tarjeta es el ENCARGO que está mostrando.
 DESKTOP_JS = pathlib.Path("frontend/app/widgets/desktop.js")
 
 
 def test_the_sheet_opts_into_a_live_title():
-    """Opt-in POR WIDGET, no global: el reloj o la agenda sí se identifican por su nombre, y cambiárselo a todos
-    sería una regresión."""
+    """Opt-in PER WIDGET, not global: the clock or agenda are identified by name, and changing it for all
+    would be a regression."""
     man = runtime.get("results") or {}
     assert man.get("live_title") is True
     assert "live_title" in pathlib.Path("widgets/server_api.py").read_text(), \
@@ -724,14 +724,14 @@ def test_the_canvas_puts_the_task_in_the_card_header():
 
 
 def test_the_canonical_name_is_not_lost_only_moved():
-    """Es como se dirige la pieza por voz: no puede desaparecer, solo dejar de ocupar el sitio principal."""
+    """This is how the piece is addressed by voice: it cannot disappear, only stop occupying the main position."""
     src = DESKTOP_JS.read_text()
     fn = src[src.index("async _applyLiveTitle("):src.index("_wireDrag(card, grip)")]
     assert "nameBtn.title" in fn and "alias" in fn
 
 
 def test_the_title_is_said_once_not_twice():
-    """Con la tarea ya en la cabecera de la tarjeta, repetirla dentro en cuerpo mayor era el mismo texto dos veces
+    """With the task already in the card header, repeating it inside in larger text was the same text twice
     a 4px de diferencia: ruido, y una línea perdida en la parte más valiosa de la hoja."""
     src = WIDGET_JS.read_text()
     assert 'el.dataset.hostTitle !== "1"' in src
@@ -741,7 +741,7 @@ def test_the_title_is_said_once_not_twice():
 
 
 def test_the_header_does_not_run_under_the_window_buttons():
-    """Los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a 64): con la cabecera acabando en 40 un
+    """There have been TWO buttons on the right since ⤢ was added (it occupies 38 to 64): with the header ending at 40, a
     título largo se le metía por debajo — invisible con un nombre corto y centrado, evidente con una frase."""
     src = DESKTOP_JS.read_text()
     head = src[src.index(".hb-head{"):src.index(".hb-head{") + 200]
@@ -749,7 +749,7 @@ def test_the_header_does_not_run_under_the_window_buttons():
 
 
 def test_the_sticky_header_has_a_bounded_height():
-    """Cada línea de la cabecera pegajosa se la quita a los resultados en TODO el scroll. El subtítulo real llegaba
+    """Every line in the sticky header takes space away from the results throughout the ENTIRE scroll. The real subtitle reached
     a tres líneas: se acota a dos EN PANTALLA y el texto íntegro queda en el tooltip — controlar el espacio no es
     lo mismo que recortar el dato."""
     src = WIDGET_JS.read_text()
