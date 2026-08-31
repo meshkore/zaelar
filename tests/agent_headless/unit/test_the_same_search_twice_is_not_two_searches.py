@@ -1,17 +1,17 @@
-"""56 búsquedas web, 31 consultas, 0 candidatos: eso no es diligencia, es dar vueltas.
+"""56 web searches, 31 queries, 0 candidates: that is not diligence, it is going in circles.
 
-Medido en `weekend-plan-barcelona__es` (2026-08-28, plató 24/7). El juez lo escribió con esas palabras:
-*«repitiendo la misma consulta sin cambiar de criterio… una petición se piensa, se busca una vez con las
-condiciones puestas y se entrega»*. Cada vuelta cuesta segundos del cliente, cuota del proveedor y un turno
-de conversación en el que zaelar dice que sigue buscando.
+Measured on `weekend-plan-barcelona__es` (2026-08-28, 24/7 set). The judge wrote it in these words:
+*«repeating the same query without changing the criteria… a request is considered, searched once with the
+conditions in place, and delivered»*. Each turn costs the client seconds, the provider's quota, and a turn
+of conversation in which zaelar says it is still searching.
 
-NO se bloquea la repetición, se CONTESTA — y se marca. Bloquear rompería un reintento legítimo; devolver lo
-mismo al instante corta el bucle igual, y además deja el hecho escrito (`repeated`), que es lo que convierte
-«dio vueltas» de impresión en dato.
+The repetition is NOT blocked, it is ANSWERED — and marked. Blocking it would break a legitimate retry; returning
+the same thing instantly cuts the loop just as well, and also records the fact (`repeated`), which is what turns
+«went in circles» from an impression into data.
 
-El TTL corto (120 s) ES el diseño, no un parámetro suelto: largo para matar un bucle apretado —56 búsquedas
-en nueve minutos—, corto para que un «mira otra vez» a ritmo humano traiga mundo fresco. Una caché de
-búsqueda que dure más que la paciencia de una persona sirve datos rancios justo a quien pidió lo contrario.
+The short TTL (120 s) IS the design, not an isolated parameter: long enough to kill a tight loop —56 searches
+in nine minutes—, short enough for a «look again» at a human pace to bring fresh information. A search cache
+that lasts longer than a person's patience serves stale data to precisely the person who asked for the opposite.
 """
 from __future__ import annotations
 
@@ -46,7 +46,7 @@ def test_la_segunda_vez_no_sale_a_la_red(monkeypatch):
 
 
 def test_y_lo_DICE(monkeypatch):
-    """Sin la marca, «dio vueltas» sigue siendo una impresión del juez en vez de un dato del informe."""
+    """Without the marker, «went in circles» remains an impression of the judge rather than a fact in the report."""
     veces: list = []
     _backend_contador(monkeypatch, veces)
     W.search("hoteles en sevilla", 5)
@@ -55,7 +55,7 @@ def test_y_lo_DICE(monkeypatch):
 
 
 def test_la_primera_no_lleva_marca(monkeypatch):
-    """La mitad de sensibilidad: una marca que sale siempre deja de ser una marca."""
+    """The sensitivity half: a marker that always appears stops being a marker."""
     _backend_contador(monkeypatch, [])
     assert "repeated" not in W.search("algo nuevo", 5)
 
@@ -77,7 +77,7 @@ def test_la_misma_consulta_con_otro_espaciado_o_mayusculas_es_la_misma(monkeypat
 
 
 def test_pasado_el_TTL_se_vuelve_a_buscar(monkeypatch):
-    """Un «mira otra vez» a ritmo humano tiene que traer mundo fresco."""
+    """A «look again» at a human pace has to bring fresh information."""
     veces: list = []
     _backend_contador(monkeypatch, veces)
     W.search("conciertos este finde", 5)
@@ -88,7 +88,7 @@ def test_pasado_el_TTL_se_vuelve_a_buscar(monkeypatch):
 
 
 def test_no_se_cobra_dos_veces_por_una_sola_peticion(monkeypatch):
-    """`_meter_search` cobra lo que RESPONDIÓ un proveedor. Una respuesta servida de memoria no lo hizo."""
+    """`_meter_search` charges for what a provider ANSWERED. A response served from memory did not do so."""
     cobros: list = []
     monkeypatch.setattr(W, "_meter_search", lambda src: cobros.append(src))
     _backend_contador(monkeypatch, [])
@@ -98,7 +98,7 @@ def test_no_se_cobra_dos_veces_por_una_sola_peticion(monkeypatch):
 
 
 def test_esta_acotado(monkeypatch):
-    """Vive en el proceso del motor: no es un almacén y no puede crecer sin freno."""
+    """It lives in the engine process: it is not a store and cannot grow without limit."""
     _backend_contador(monkeypatch, [])
     for i in range(W._REPEAT_MAX + 20):
         W.search(f"consulta numero {i}", 5)
