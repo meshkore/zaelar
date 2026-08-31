@@ -1,20 +1,21 @@
-"""V2-500 — el reparto de modelos vive en UN sitio, y las superficies de nube son copias que no pueden derivar.
+"""V2-500 — the model allocation lives in ONE place, and the cloud surfaces are copies that cannot diverge.
 
-Norma del operador (2026-08-30): *«la configuración debe estar en un archivo por defecto, público y en el
-repositorio… quiero que ese archivo sea único y no quiero que estos datos estén en mil sitios a la vez»*.
+Operator rule (2026-08-30): *“the configuration must be in one default file, public and in the
+repository… I want that file to be unique, and I do not want this data to be in a thousand places at once.”*
 
-Estaban en SEIS: `config/v2.py::_DEFAULTS`, `nucleo/flash/provider_chain.py`,
-`nucleo/workers/providers.py`, `voice/engine/core/config.py`, `engine/fly.accounts.toml` y
-`cloud/provisioner/src/machineConfig.js`. Los cuatro primeros ya LEEN la tabla, así que no pueden derivar por
-construcción. Los dos últimos no son Python —son un TOML de Fly y un módulo JS de otro repo— así que la única
-forma de que no se separen es comprobarlo, y ésa es la razón de este fichero.
+They were in SIX: `config/v2.py::_DEFAULTS`, `nucleo/flash/provider_chain.py`,
+`nucleo/workers/providers.py`, `voice/engine/core/config.py`, `engine/fly.accounts.toml`, and
+`cloud/provisioner/src/machineConfig.js`. The first four already READ the table, so they cannot diverge by
+construction. The last two are not Python —they are a Fly TOML file and a JS module from another repo— so the only
+way to keep them from diverging is to check them, which is why this file exists.
 
-Y derivaban de verdad: el 2026-08-30, con la norma «DeepSeek directo titular, AIMLAPI solo failover» dicha
-varias veces, la nube tenía **AIMLAPI de titular de voz** y la memoria iba por el broker en los dos lados.
-Nadie comparaba nada, así que la norma vivía únicamente en el `config/v2.json` del operador — gitignorado, y
-por tanto invisible para cualquier instalación nueva.
+And they really did diverge: on 2026-08-30, despite the rule “DeepSeek direct primary, AIMLAPI failover only” being
+stated several times, the cloud had **AIMLAPI as the voice primary** and memory went through the broker on both sides.
+Nobody compared anything, so the rule lived only in the operator’s `config/v2.json` — gitignored, and
+therefore invisible to any new installation.
 
-El fichero de la nube puede no estar (es otro repo, privado): entonces se SALTA, nunca se inventa un verde.
+The cloud file may not be present (it is another, private repo): in that case it is SKIPPED; a green result is never
+invented.
 """
 import json
 import re
@@ -33,7 +34,7 @@ def _titular(servicio: str, campo: str) -> str:
     return str(t.get(campo) or "")
 
 
-#: Lo que las dos superficies de nube tienen que decir, sacado de la tabla.
+#: What the two cloud surfaces must say, taken from the table.
 def _esperado() -> dict[str, str]:
     return {
         "FAST_PROVIDER": _titular("voice_brain", "provider"),
@@ -56,7 +57,7 @@ def _esperado() -> dict[str, str]:
 
 
 def _leidos(texto: str) -> dict[str, str]:
-    """Vale para el TOML (`X = "v"`) y para el JS (`X: 'v'`) — la forma cambia, el par no."""
+    """Works for TOML (`X = "v"`) and JS (`X: 'v'`) — the form changes, the pair does not."""
     out = {}
     for k in _esperado():
         m = re.search(rf"\b{k}\s*[:=]\s*['\"]([^'\"]*)['\"]", texto)
@@ -78,20 +79,20 @@ def test_la_superficie_de_nube_dice_lo_MISMO_que_la_tabla(fichero):
 
 @pytest.mark.parametrize("fichero", [FLY, CLOUD], ids=["fly.accounts.toml", "cloud/machineConfig.js"])
 def test_la_superficie_NOMBRA_lo_que_tiene_que_nombrar(fichero):
-    """Sensibilidad: si el regex dejara de casar, lo de arriba pasaría con un diccionario vacío — la forma
-    exacta de un test que se cree verde porque no midió nada."""
+    """Sensitivity: if the regex stopped matching, the above would pass with an empty dictionary — the exact
+    form of a test that thinks it is green because it measured nothing."""
     if not fichero.exists():
         pytest.skip("repo privado")
     faltan = set(_esperado()) - set(_leidos(fichero.read_text(encoding="utf-8")))
     assert not faltan, f"{fichero.name} no declara {sorted(faltan)}: la máquina saldría con otro reparto"
 
 
-# ── la norma que gobierna la tabla ───────────────────────────────────────────────────────────────────────
+# ── the rule governing the table ──────────────────────────────────────────────────────────────────────────
 
 def test_UN_SOLO_failover_por_servicio():
-    """Norma del operador: titular y suplente, y si el suplente cae esa parte deja de funcionar. Una cadena de
-    cuatro no se puede razonar, ni configurar, ni depurar — y no llega a estar seca nunca, así que el turno no
-    puede decirle al operador «no queda nadie, esto lo arreglas tú»."""
+    """Operator rule: primary and backup, and if the backup goes down that part stops working. A chain of
+    four cannot be reasoned about, configured, or debugged — and it never gets exhausted, so the turn cannot
+    tell the operator “there is nobody left; you fix this.”"""
     servicios = json.loads(TABLA.read_text(encoding="utf-8"))["services"]
     for nombre, s in servicios.items():
         assert "titular" in s, f"«{nombre}» no declara titular"
@@ -101,10 +102,10 @@ def test_UN_SOLO_failover_por_servicio():
 
 
 def test_NADA_de_la_tabla_depende_de_un_servidor_LOCAL():
-    """Todo tiene que poder correr en la nube. Ollama es un servidor local: dentro de un contenedor no existe,
-    así que un default que lo nombre convierte la nube en una instalación degradada en silencio."""
-    # Solo los CAMPOS que deciden a quién se llama. La prosa de `why` nombra Ollama justo para explicar por
-    # qué está fuera, y un guarda que leyera el fichero entero se dispararía con su propia documentación.
+    """Everything must be able to run in the cloud. Ollama is a local server: it does not exist inside a container,
+    so a default that names it turns the cloud into a silently degraded installation."""
+    # Only the FIELDS that decide whom to call. The `why` prose names Ollama specifically to explain why
+    # it is excluded, and a guard that read the entire file would trigger on its own documentation.
     servicios = json.loads(TABLA.read_text(encoding="utf-8"))["services"]
     for nombre, s in servicios.items():
         for cual in ("titular", "failover"):
@@ -116,7 +117,7 @@ def test_NADA_de_la_tabla_depende_de_un_servidor_LOCAL():
 
 
 def test_ZAI_solo_aparece_en_el_BRAIN_WORKER():
-    """V2-496, aplicado a la tabla: es donde ahora se decidiría volver a colarlo."""
+    """V2-496, applied to the table: this is where someone might now decide to slip it back in."""
     servicios = json.loads(TABLA.read_text(encoding="utf-8"))["services"]
     for nombre, s in servicios.items():
         for cual in ("titular", "failover"):
@@ -126,8 +127,8 @@ def test_ZAI_solo_aparece_en_el_BRAIN_WORKER():
 
 
 def test_lo_RETIRADO_no_ha_vuelto():
-    """Cada entrada de `retired` dice por qué se quitó. Sin esto, el siguiente lo añade creyendo que falta —
-    que es exactamente cómo volvió Z.AI a la cadena de voz."""
+    """Each `retired` entry says why it was removed. Without this, the next person adds it thinking it is missing —
+    which is exactly how Z.AI returned to the voice chain."""
     tabla = json.loads(TABLA.read_text(encoding="utf-8"))
     retirados = {k for k in tabla.get("retired", {}) if k != "_"}
     assert {"xai", "groq", "ollama"} <= retirados, "falta declarar por qué se quitó algo que sí se quitó"

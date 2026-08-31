@@ -203,9 +203,9 @@ class Journey:
             absent = set(expected["widget_ids"]) - ids
             if absent:
                 failures.append(f"widgets ausentes: {sorted(absent)}")
-        # `cluster_fields` (V2-086): el CONTRATO que consume la 4ª pestaña nativa «Clusters». Comprobar solo que
-        # la clave `clusters` existe no sirve: la pestaña necesita estado, visibilidad y tráfico por fila, y si
-        # alguien recorta un campo el frontend se queda mudo sin que ningún test se entere.
+        # `cluster_fields` (V2-086): the CONTRACT consumed by the 4th native «Clusters» tab. Checking only that
+        # the `clusters` key exists is not enough: the tab needs state, visibility, and traffic per row, and if
+        # someone trims a field, the frontend goes silent without any test noticing.
         if expected.get("cluster_fields"):
             rows = output.get("clusters") if isinstance(output, dict) else None
             if not isinstance(rows, list):
@@ -222,10 +222,10 @@ class Journey:
         actions = [output.get("action"), *(output.get("tool_calls") or [])]
         if expected.get("actions_any") and not _contains_any(actions, expected["actions_any"]):
             failures.append(f"acción observada {actions!r} no casa con {expected['actions_any']}")
-        # `forbid_actions` (V2-086): afirmar que el turno NO disparó algo. Hacía falta para poder EXPRESAR la
-        # invariante de seguridad del canal de cluster —un bloque de texto pegado con instrucciones NO debe
-        # conectar nada por sí solo— que hasta ahora no era comprobable: solo se podía exigir que una acción
-        # ocurriera, nunca que no ocurriera.
+        # `forbid_actions` (V2-086): assert that the turn did NOT trigger something. This was needed to EXPRESS
+        # the cluster channel's security invariant—a block of pasted text containing instructions must NOT
+        # connect anything on its own—which had not been testable until now: it was only possible to require
+        # that an action occur, never that it not occur.
         if expected.get("forbid_actions") and _contains_any(actions, expected["forbid_actions"]):
             failures.append(f"acción PROHIBIDA disparada: {actions!r} contiene {expected['forbid_actions']}")
         if expected.get("tags_any") and not _contains_any(output.get("tags", []), expected["tags_any"]):
@@ -300,23 +300,23 @@ def _validate_plan(cases: list[dict[str, Any]]) -> None:
         produced.update(case.get("produces", []))
 
 
-# Campos que se MIRAN para decidir PASS/FAIL — el resumen de un fallo empieza por ellos, no por el volcado.
+# Fields INSPECTED to decide PASS/FAIL—the failure summary starts with them, not with the dump.
 _SUMMARY_KEYS = ("ok", "status", "action", "reply", "detail", "error", "open_widgets", "tool_calls", "tags",
                  "match", "widgets", "items")
 
 
 def _dump_failure(case: dict[str, Any], output: Any, artifacts: Path) -> str:
-    """Guarda el output ÍNTEGRO como artefacto descargable y devuelve un resumen accionable para la terminal.
+    """Save the COMPLETE output as a downloadable artifact and return an actionable summary for the terminal.
 
-    Regla: la evidencia no se recorta, la PRESENTACIÓN sí. El fichero lleva el JSON completo (indentado, para
-    poder diffearlo y grepearlo); la consola lleva tamaño, campos de veredicto y la ruta."""
+    Rule: the evidence is not trimmed; the PRESENTATION is. The file contains the complete JSON (indented, so it
+    can be diffed and grepped); the console contains the size, verdict fields, and path."""
     raw = json.dumps(output, ensure_ascii=False, default=str, indent=2, sort_keys=True)
     path = artifacts / f"journey-{case['id']}-output.json"
     try:
         artifacts.mkdir(parents=True, exist_ok=True)
         path.write_text(raw, encoding="utf-8")
         where = str(path)
-    except OSError as exc:                                   # nunca dejar al agente sin evidencia por un fallo de I/O
+    except OSError as exc:                                   # never leave the agent without evidence because of an I/O failure
         where = f"(no se pudo escribir el artefacto: {exc})"
     lines = [f"  output: {len(raw):,} chars · raw completo → {where}"]
     if isinstance(output, dict):
@@ -353,8 +353,8 @@ def run(until: int) -> dict[str, Any]:
     # session), and `tests/platform/sandbox_engine.py` had been carrying a written note about this exact leak
     # («noted here rather than silently fixed in another suite's file») since it was extracted from THIS file.
     #
-    # Two isolations maintained apart, and the agujero was in the one nobody re-read. The engine boot is not
-    # what makes journey journey — the causal plan is — so it moves to the shared helper and the leak closes
+    # Two isolations were maintained separately, and the hole was in the one nobody reread. The engine boot is not
+    # what makes journey journey—the causal plan is—so it moves to the shared helper and the leak closes
     # for every future caller at once.
     #
     # `ZAELAR_ENGINE` used to be `headless` here and is `off` in the helper: verified identical, since
@@ -390,15 +390,15 @@ def run(until: int) -> dict[str, Any]:
                                   status="passed" if ok else "failed", duration_ms=elapsed)
                 print(f"{'✓' if ok else '×'} {case['id']} · {case['phase']} · {case['title']} · {detail}", flush=True)
                 if not ok:
-                    # EVIDENCIA COMPLETA, TERMINAL LEGIBLE (V2-085). Antes: `json.dumps(output)[:12000]` — un dump
-                    # que a la vez inundaba la consola Y **recortaba** la prueba justo cuando más falta hacía (el
-                    # peor de los dos mundos). Ahora el raw íntegro se guarda como ARTEFACTO del run y la terminal
-                    # imprime el resumen accionable + la ruta. Nada se pierde; deja de ser ilegible.
+                    # COMPLETE EVIDENCE, READABLE TERMINAL (V2-085). Before: `json.dumps(output)[:12000]`—a dump
+                    # that both flooded the console AND **trimmed** the evidence exactly when it was most needed (the
+                    # worst of both worlds). Now the complete raw output is saved as a run ARTIFACT and the terminal
+                    # prints the actionable summary + path. Nothing is lost; it is no longer unreadable.
                     print(_dump_failure(case, output, log_path.parent), flush=True)
                     break
-        # Sin `finally` de derribo a mano: el contextmanager mata el proceso, espera, y ADEMÁS borra el código
-        # de los widgets que este motor haya generado — un residuo que estaba medido que CORROMPE corridas
-        # posteriores, no solo que ensucia el repo.
+        # No manual teardown `finally`: the context manager kills the process, waits, and ALSO removes the code
+        # for any widgets this engine generated—a residue that had been measured to CORRUPT later runs,
+        # rather than merely cluttering the repo.
         passed = sum(item["ok"] for item in results)
         return {"total": len(results), "passed": passed, "failed": len(results) - passed, "results": results}
 

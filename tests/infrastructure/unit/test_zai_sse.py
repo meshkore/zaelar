@@ -1,8 +1,8 @@
-"""Unit — parser SSE de Anthropic Messages para el streaming de Z.AI directo (V2-077, `_stream_zai`).
+"""Unit — Anthropic Messages SSE parser for direct Z.AI streaming (V2-077, `_stream_zai`).
 
-El transporte HTTP se prueba end-to-end contra un GLM-4.5-Air vivo (pendiente de fondos); AQUÍ se prueba la
-pieza PURA y determinista: `_AnthropicSSE.feed()` reconstruye el texto y las tool-calls a partir de los objetos
-`data:` del stream, incluido el caso realista de un `input_json` de tool_use FRAGMENTADO en varios deltas.
+The HTTP transport is tested end-to-end against a live GLM-4.5-Air (pending funding); HERE we test the
+PURE and deterministic component: `_AnthropicSSE.feed()` reconstructs the text and tool calls from the
+stream's `data:` objects, including the realistic case of a `tool_use` `input_json` FRAGMENTED across multiple deltas.
 """
 from nucleo.flash.fast_client import _AnthropicSSE
 
@@ -47,5 +47,5 @@ def test_malformed_tool_json_yields_empty_input_not_crash():
 
 
 def test_ignores_envelope_events():
-    # message_start/message_delta/message_stop y bloques desconocidos no producen eventos ni rompen.
+    # message_start/message_delta/message_stop and unknown blocks produce no events and do not break.
     assert _drive([{"type": "message_start"}, {"type": "message_delta"}, {"type": "message_stop"}]) == []

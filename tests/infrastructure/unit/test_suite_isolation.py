@@ -1,19 +1,19 @@
 """
-LA SUITE NO DEPENDE DE LA MÁQUINA EN LA QUE CORRE — un guarda sobre los guardas.
+THE SUITE DOES NOT DEPEND ON THE MACHINE IT RUNS ON — a guard over the guards.
 
-Esto nace de un test verde que MENTÍA (2026-08-10). Dos casos (`test_music_flow`, `test_prompt`) comprobaban frases
-que se le dicen al operador sin fijar el idioma: pasaban en una máquina con el castellano configurado y habrían
-fallado en cualquier otra y en CI. Al arreglarlo apareció que la causa era más ancha que el idioma —
-`config/settings.load_into_env()` copia `config/settings.json` ENCIMA del entorno, sin condición, porque en
-producción el store MANDA sobre el env (regla correcta allí). En un test eso significa que la configuración
-personal del operador —idioma, proveedor de STT/TTS, modo de atención, perfil del motor— decide el resultado de la
-suite en cuanto algo del grafo de imports llama a esa función.
+This originated with a green test that LIED (2026-08-10). Two cases (`test_music_flow`, `test_prompt`) checked phrases
+spoken to the operator without fixing the language: they passed on a machine configured for Spanish and would have
+failed anywhere else and in CI. Fixing it revealed that the cause was broader than the language —
+`config/settings.load_into_env()` copies `config/settings.json` ON TOP OF the environment unconditionally, because in
+production the store OVERRIDES the env (the correct rule there). In a test, that means the operator's personal
+configuration —language, STT/TTS provider, attention mode, engine profile— determines the suite's result as soon as
+something in the import graph calls that function.
 
-No es que fallara: es que **no se podía confiar en el verde**, que es peor. La misma familia que un fixture sin
-aislar que borraba los datos reales de los widgets, o dos nodos del mapa de tests con el mismo número.
+It was not that it failed: it was that **the green result could not be trusted**, which is worse. The same family as an
+unisolated fixture that deleted the widgets' real data, or two nodes in the test map with the same number.
 
-Este fichero fija las invariantes de aislamiento de la sesión de test. Si alguna se rompe, la suite vuelve a poder
-mentir — y no se enteraría nadie hasta que un test pasara aquí y fallara en otro sitio.
+This file establishes the test-session isolation invariants. If any of them breaks, the suite can lie again — and no one
+would find out until a test passed here and failed somewhere else.
 """
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ from pathlib import Path
 
 
 def test_the_language_is_the_products_own_default_not_the_operators():
-    """Se corre en el idioma con el que ARRANCA el producto, que es el estado de cualquier instalación nueva. Un
-    test que quiera otro idioma lo declara él — y entonces lo que prueba es explícito."""
+    """It runs in the language with which the product STARTS, which is the state of any new installation. A test that
+    wants another language declares it itself — and then what it tests is explicit."""
     from voice.engine.core import langs
 
     assert langs.current_code() == langs.DEFAULT_LANG == "en"
@@ -40,7 +40,7 @@ def test_the_operators_settings_file_is_not_the_one_the_suite_reads():
 
 
 def test_loading_the_settings_cannot_flip_the_suite():
-    """La prueba del algodón: llamar a lo que hace el arranque real no puede cambiar el idioma bajo los pies."""
+    """The acid test: calling what the real startup does cannot change the language out from under the suite."""
     from config import settings
     from voice.engine.core import langs
 
@@ -49,28 +49,27 @@ def test_loading_the_settings_cannot_flip_the_suite():
 
 
 def test_the_logs_of_a_test_never_land_in_the_operators_timeline():
-    """Ya existía (2026-07-25: un «kind:error boom» de un test se leyó como incidente real) y se comprueba aquí
-    para que las invariantes de aislamiento vivan juntas y se lean de una."""
+    """It already existed (2026-07-25: a test's «kind:error boom» was read as a real incident) and is checked here
+    so that the isolation invariants live together and can be read in one place."""
     d = os.getenv("ZAELAR_LOG_DIR") or ""
     assert "zaelar-test-logs-" in d, f"los eventos de la suite irían al timeline real: {d!r}"
 
 
 def test_the_operators_widget_data_is_not_the_one_the_suite_writes():
-    """Los DATOS de los widgets eran el último sitio donde el invariante de este fichero —«un test nunca lee ni
-    escribe el estado real del operador»— no estaba aplicado a nivel de SESIÓN. El propio `conftest.py` ya
-    citaba `store.DATA_DIR` como la misma lección, pero solo dentro de los tests de widgets: cualquier otro
-    test que despachara una data-op escribía en la agenda REAL.
+    """The widgets' DATA was the last place where this file's invariant —«a test never reads or writes the operator's
+    real state»— was not enforced at the SESSION level. `conftest.py` itself already cited `store.DATA_DIR` as the same
+    lesson, but only within the widget tests: any other test that dispatched a data-op wrote to the REAL agenda.
 
-    Medido el 2026-08-20: **328 citas** «renovar el seguro del coche» acumuladas en la agenda del operador, y
-    **2 más por cada corrida completa**. Ninguna falló nada — la basura se queda ahí y solo se nota cuando
-    alguien mira su agenda, o cuando un arreglo nuevo empieza a LEERLA y de pronto nueve tests dependen del
-    orden en que corrieron los anteriores. Que es exactamente lo que pasó.
+    Measured on 2026-08-20: **328 appointments** «renovar el seguro del coche» accumulated in the operator's agenda, and
+    **2 more for each full run**. None of them broke anything — the junk stays there and is noticed only when
+    someone looks at their agenda, or when a new fix starts to READ IT and suddenly nine tests depend on the
+    order in which the previous ones ran. Which is exactly what happened.
     """
     from widgets import store
 
-    # Se comprueba lo que IMPORTA —que no sea la del operador— y no un prefijo concreto: los tests de widgets
-    # reapuntan `DATA_DIR` a SU propio temporal y no lo restauran, así que exigir el prefijo de `conftest`
-    # convertía el orden de ejecución en el fallo. Cualquier temporal vale; la real, no.
+    # Check what MATTERS —that it is not the operator's— rather than a specific prefix: the widget tests
+    # point `DATA_DIR` at THEIR own temporary directory and do not restore it, so requiring the `conftest`
+    # prefix made execution order the source of the failure. Any temporary directory is fine; the real one is not.
     real = Path(__file__).resolve().parents[3] / "widgets" / "_data"
     assert Path(store.DATA_DIR).resolve() != real.resolve(), (
         "la suite está escribiendo en los datos de widgets REALES del operador: una data-op de cualquier test "

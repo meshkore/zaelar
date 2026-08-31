@@ -1,8 +1,8 @@
 #
-# Sello de versión (V2-074). Run: .venv/bin/pytest tests/infrastructure/unit/test_version.py -q
+# Version stamp (V2-074). Run: .venv/bin/pytest tests/infrastructure/unit/test_version.py -q
 #
-# Certeza de qué código corre y qué versión generó cada línea de observabilidad: version.info() bien formado y el
-# observer sella CADA evento con `ver`.
+# Certainty about what code is running and which version generated each observability line: version.info() is well
+# formed and the observer stamps EVERY event with `ver`.
 #
 import json
 import os
@@ -19,16 +19,16 @@ def test_version_info_shape():
 
 
 def test_short_is_stable():
-    assert version.short() == version.short()          # cacheado, estable dentro del proceso
+    assert version.short() == version.short()          # cached, stable within the process
 
 
 def test_observer_stamps_version(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_LOG_DIR", str(tmp_path))
     import importlib
     from voice import observer
-    importlib.reload(observer)                          # relee LOG_DIR
+    importlib.reload(observer)                          # rereads LOG_DIR
     observer.emit("test", "hola", "mundo")
-    observer._write_q.join()                            # espera al writer OFF-THREAD (V2-035) antes de leer
+    observer._write_q.join()                            # waits for the OFF-THREAD writer (V2-035) before reading
     line = (tmp_path / "timeline-latest.jsonl").read_text().strip().splitlines()[-1]
     ev = json.loads(line)
     assert ev.get("ver") == version.short()

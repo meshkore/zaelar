@@ -1,32 +1,32 @@
 """
-CIERRE de iniciativa: que el contexto no se quede atrás del código (2026-08-14).
+Initiative CLOSURE: ensuring the context does not fall behind the code (2026-08-14).
 
-Petición del operador: *«añade al plan la actualización del contexto, la doc y los diagramas… debería haber
-workflows para ayudar en esto»*. La deuda era medible: el log de alineación de contenido iba por la 2.88 y el motor
-estaba en la 2.94 — **seis versiones de deriva**, con V2-092 y todo el bloque de latencia sin reflejar.
+Operator request: *“add updating the context, docs, and diagrams to the plan… there should be
+workflows to help with this”*. The debt was measurable: the content-alignment log was at 2.88 and the engine
+was at 2.94 — **six versions of drift**, with V2-092 and the entire latency block unreflected.
 
-Un workflow que hay que acordarse de correr se olvida. Esto es la mitad AUTOMÁTICA: un guarda determinista de lo
-que se puede comprobar sin salir del repo del motor.
+A workflow that someone has to remember to run gets forgotten. This is the AUTOMATIC half: a deterministic guard for
+what can be checked without leaving the engine repo.
 
-Lo que comprueba:
-  1. Toda iniciativa `V2-xxx` citada como decisión en `CLAUDE.md` tiene su fichero en `.meshkore/roadmap/`.
-     (El fallo típico: se escribe la decisión, se olvida la iniciativa — o al revés.)
-  2. Los ids no se repiten entre ficheros. Ya pasó: V2-090 y V2-091 estaban cogidos y el trabajo nuevo empezó
-     numerado como V2-090, que además pisó por sed dos ficheros ajenos.
-  3. El `id:` del frontmatter coincide con el nombre del fichero.
-  4. Toda iniciativa `delivered` está citada en `CLAUDE.md`. Entregar sin dejar la decisión escrita es exactamente
-     cómo se acumulan seis versiones de deriva.
+What it checks:
+  1. Every `V2-xxx` initiative cited as a decision in `CLAUDE.md` has its file in `.meshkore/roadmap/`.
+     (The typical failure: the decision is written down and the initiative is forgotten — or vice versa.)
+  2. IDs are not repeated across files. It has happened before: V2-090 and V2-091 were taken, and the new work started
+     numbered as V2-090, which also overwrote two unrelated files via sed.
+  3. The `id:` in the frontmatter matches the filename.
+  4. Every `delivered` initiative is cited in `CLAUDE.md`. Delivering without leaving the decision written down is
+     exactly how six versions of drift accumulate.
 
-Lo que NO puede comprobar desde aquí (y por qué): la alineación con `web/` y con el log de contenido vive en el
-repo PRIVADO de la raíz, y este repo es PÚBLICO — un test de aquí no puede depender de un fichero que no viaja con
-él. Esa mitad la cubre `.meshkore/docs/ops/zaelar-initiative-closure.md` en la raíz.
+What it CANNOT check from here (and why): alignment with `web/` and the content log lives in the
+PRIVATE root repo, and this repo is PUBLIC — a test here cannot depend on a file that does not travel with
+it. That half is covered by `.meshkore/docs/ops/zaelar-initiative-closure.md` in the root.
 
-⚠️ **`.meshkore/roadmap/` está GITIGNOREADO a propósito** (`.gitignore`: «roadmap/iniciativas (el futuro)»), así que
-las iniciativas son LOCALES a la máquina del operador y no viajan con el repo público. Esto es, por tanto, un guarda
-de HIGIENE LOCAL, no una puerta de CI: donde no hay roadmap, se salta entero en vez de fallar. La primera versión de
-este fichero no lo hacía y se commiteó un test que reventaba en cualquier clon limpio — el mismo error que ya se
-había cazado dos veces hoy (el arnés del lead-in sin event loop, y el `_DATA_DIR` inexistente del test de youtube):
-**un test que solo se ha probado en una máquina no está probado.**
+⚠️ **`.meshkore/roadmap/` is intentionally GITIGNORED** (`.gitignore`: “roadmap/iniciativas (el futuro)”), so
+the initiatives are LOCAL to the operator’s machine and do not travel with the public repo. This is therefore a
+LOCAL HYGIENE guard, not a CI gate: where there is no roadmap, it skips entirely instead of failing. The first version
+of this file did not do that, and a test was committed that blew up in any clean clone — the same mistake that had
+already been caught twice today (the lead-in harness without an event loop, and the nonexistent `_DATA_DIR` in the
+YouTube test): **a test that has only been tested on one machine is not tested.**
 """
 from __future__ import annotations
 
@@ -42,17 +42,17 @@ CLAUDE = ENGINE / "CLAUDE.md"
 _ID_RE = re.compile(r"\bV2-(\d{3})\b")
 
 
-# Anexos de una iniciativa, no iniciativas: `V2-046-PROMPT-encargo-…` es el encargo que acompaña a
-# `V2-046-sistema-arena.md`. Comparten id a propósito.
+# Initiative annexes, not initiatives: `V2-046-PROMPT-encargo-…` is the assignment accompanying
+# `V2-046-sistema-arena.md`. They intentionally share an ID.
 _ANNEX = "-PROMPT-"
 
 
 def _initiative_files() -> dict[str, Path]:
     out: dict[str, Path] = {}
-    # RECURSIVO: una iniciativa ARCHIVADA sigue existiendo. El 2026-08-20 se movieron 110 a
-    # `initiatives/archive/` y este guarda —que solo miraba la raíz— pasó a decir que 55 decisiones citadas en
-    # `CLAUDE.md` no tenían iniciativa. Lo que comprueba es que la decisión tiene su fichero, no dónde está
-    # guardado; archivar no es borrar. Verificado sin ambigüedad: ningún id aparece en los dos sitios.
+    # RECURSIVE: an ARCHIVED initiative still exists. On 2026-08-20, 110 were moved to
+    # `initiatives/archive/`, and this guard — which only looked at the root — started saying that 55 decisions cited
+    # in `CLAUDE.md` had no initiative. It checks that the decision has its file, not where it is
+    # stored; archiving is not deletion. Verified unambiguously: no ID appears in both places.
     for f in sorted(ROADMAP.rglob("V2-*.md")):
         if _ANNEX in f.name:
             continue
@@ -62,14 +62,14 @@ def _initiative_files() -> dict[str, Path]:
     return out
 
 
-# ── EL TRINQUETE ──────────────────────────────────────────────────────────────────────────────────────────────
-# Al montar este guarda salieron 21 decisiones citadas en `CLAUDE.md` sin fichero de iniciativa. Es deuda vieja y
-# real, de cuando la iniciativa no era parte del cierre. NO se inventan 21 iniciativas retroactivas: eso sería
-# fabricar historia que nadie vivió, y una iniciativa escrita a posteriori sin la sesión delante no vale nada.
+# ── THE RATchet ───────────────────────────────────────────────────────────────────────────────────────────────
+# When this guard was added, 21 decisions cited in `CLAUDE.md` had no initiative file. This is old, real debt
+# from when the initiative was not part of closure. We do NOT invent 21 retroactive initiatives: that would be
+# fabricating history nobody lived, and a post hoc initiative written without the session in front of you is worthless.
 #
-# Así que el guarda funciona como TRINQUETE: la deuda conocida se declara aquí, a la vista, y el test falla si
-# alguien AÑADE una nueva. Cada vez que se documente una de estas de verdad, se borra de la lista y el listón sube.
-# Un guarda que exige limpiar el pasado antes de proteger el futuro no se adopta nunca.
+# So the guard works as a RATCHET: known debt is declared here, in plain sight, and the test fails if
+# someone ADDS a new one. Whenever one of these is properly documented, it is removed from the list and the bar rises.
+# A guard that requires cleaning up the past before protecting the future is never adopted.
 _DEUDA_SIN_INICIATIVA = {
     "V2-017", "V2-022", "V2-024", "V2-025", "V2-026", "V2-027", "V2-028", "V2-029", "V2-030", "V2-039",
     "V2-045", "V2-063", "V2-065", "V2-067", "V2-078", "V2-080", "V2-082", "V2-083", "V2-084", "V2-087",
@@ -91,8 +91,8 @@ def _status(p: Path) -> str:
     return ""
 
 
-# El roadmap no viaja con el repo (ver la nota del docstring): sin él no hay nada que comprobar y saltar es la
-# respuesta correcta — no fallar, y desde luego no «pasar» en silencio fingiendo que se verificó algo.
+# The roadmap does not travel with the repo (see the docstring note): without it there is nothing to check, and skipping is
+# the correct response — do not fail, and certainly do not silently “pass” while pretending something was verified.
 pytestmark = pytest.mark.skipif(
     not ROADMAP.is_dir() or not list(ROADMAP.glob("V2-*.md")),
     reason="`.meshkore/roadmap/` es local a la máquina del operador (gitignoreado): nada que verificar aquí")
@@ -103,8 +103,8 @@ def test_hay_iniciativas():
 
 
 def test_cada_id_esta_una_sola_vez():
-    """Ya pasó y salió caro: V2-090/091 estaban cogidos, el trabajo nuevo se numeró V2-090 y un `sed` de
-    renumerado pisó dos ficheros ajenos (la iniciativa de observabilidad y la de frontera pública)."""
+    """It happened before and cost us: V2-090/091 were taken, the new work was numbered V2-090, and a `sed` renumbering
+    overwrote two unrelated files (the observability initiative and the public-boundary initiative)."""
     vistos: dict[str, list[str]] = {}
     for f in sorted(ROADMAP.glob("V2-*.md")):
         if _ANNEX in f.name:
@@ -126,8 +126,8 @@ def test_el_frontmatter_coincide_con_el_nombre_del_fichero():
 
 
 def test_toda_decision_citada_en_CLAUDE_tiene_su_iniciativa():
-    """Se escribe la decisión en `CLAUDE.md` y se olvida el fichero — o al revés. Cualquiera de las dos mitades
-    sola deja el contexto contando media historia."""
+    """The decision is written in `CLAUDE.md` and the file is forgotten — or vice versa. Either half
+    on its own leaves the context telling half a story."""
     body = CLAUDE.read_text(encoding="utf-8")
     files = _initiative_files()
     citados = {f"V2-{m}" for m in _ID_RE.findall(body)}
@@ -139,8 +139,8 @@ def test_toda_decision_citada_en_CLAUDE_tiene_su_iniciativa():
 
 
 def test_la_deuda_no_crece_ni_se_queda_rancia():
-    """El trinquete, por los dos lados: la lista de deuda no puede engordar, y si alguien documenta una de estas
-    tiene que BORRARLA de aquí (si no, el guarda dejaría de vigilar un id que ya está cubierto)."""
+    """The ratchet works both ways: the debt list cannot grow, and if someone documents one of these,
+    they must DELETE it from here (otherwise the guard would stop watching an ID that is already covered)."""
     files = _initiative_files()
     ya_cubiertas = sorted(i for i in _DEUDA_SIN_INICIATIVA if i in files)
     assert not ya_cubiertas, (
@@ -150,25 +150,25 @@ def test_la_deuda_no_crece_ni_se_queda_rancia():
 
 @pytest.mark.parametrize("iid", sorted(i for i, f in _initiative_files().items() if _status(f) == "delivered"))
 def test_toda_iniciativa_entregada_esta_citada_en_CLAUDE(iid):
-    """`delivered` sin cita en `CLAUDE.md` = trabajo hecho que el próximo agente no va a encontrar. Así se
-    acumularon seis versiones de deriva."""
+    """`delivered` without a citation in `CLAUDE.md` = completed work that the next agent will not find. That is how
+    six versions of drift accumulated."""
     body = CLAUDE.read_text(encoding="utf-8")
     assert iid in body, (
         f"{iid} está entregada y no se menciona en CLAUDE.md — añade su decisión clave o baja el status")
 
 
-# ── la tarea de verificación se cuelga del CASO, no del arreglo (2026-08-20) ──────────────────────────────
+# ── the verification task hangs off the CASE, not the fix (2026-08-20) ─────────────────────────────────────
 #
-# El arnés de casos de uso recoge la mitad de vuelta del contrato leyendo `T<n>-uc-<slug>-verify.md` con
-# `status: next` y casando `<slug>` contra ids de ESCENARIO. Una tarea nombrada por el DEFECTO —
-# «abrir-pagina», «sesion-acabada», «narrar-trabajo», «login-pendiente»— no resuelve, y entonces anuncia
-# trabajo que nadie va a coger: el tablero dice que hay verificación pendiente y no la hay.
+# The use-case harness picks up the contract’s return half by reading `T<n>-uc-<slug>-verify.md` with
+# `status: next` and matching `<slug>` against SCENARIO IDs. A task named after the DEFECT —
+# “abrir-pagina”, “sesion-acabada”, “narrar-trabajo”, “login-pendiente” — does not resolve, and then announces
+# work nobody will pick up: the board says verification is pending when it is not.
 #
-# Cometido CUATRO veces la misma noche (T428, T429, T435, T437). El arnés ya avisa, pero solo cuando alguien
-# corre `--verify`; esto lo caza al cerrar, que es cuando se comete.
+# Done FOUR times the same night (T428, T429, T435, T437). The harness already warns, but only when someone
+# runs `--verify`; this catches it during closure, which is when the mistake is made.
 #
-# Si un arreglo no tiene NINGÚN caso que lo ejercite, eso es un dato en sí mismo y hay que escribirlo — no
-# inventarle un nombre de escenario.
+# If a fix has NO case exercising it, that is itself useful information and must be written down — do not
+# invent a scenario name for it.
 TASKS = ENGINE / ".meshkore/modules/nucleo/tasks"
 
 
@@ -200,12 +200,12 @@ def test_toda_tarea_de_verificacion_pendiente_apunta_a_un_caso_real():
 
     huerfanas = []
     for name, slug in _pending_verify_slugs():
-        # SALIDA EXPLÍCITA. Hay defectos transversales cuyo re-test legítimo es la tanda entera y no un caso
-        # (V2-133: «el progreso fabricado» apareció en 8 de 12). Forzarles un id de escenario falso sería peor
-        # que el problema. Pero tiene que estar DICHO en la tarea, porque el daño no es el nombre: es que el
-        # tablero anuncie una verificación que nadie va a recoger.
+        # EXPLICIT EXIT. Some cross-cutting defects are legitimately re-tested across the entire batch rather than in one case
+        # (V2-133: “fabricated progress” appeared in 8 of 12). Forcing a fake scenario ID onto them would be worse
+        # than the problem. But it must be STATED in the task, because the harm is not the name: it is that the
+        # board announces verification nobody will pick up.
         try:
-            # sin backticks: la salida se escribe en prosa y a veces con `--verify` en código
+            # no backticks: the exit is written in prose and sometimes includes `--verify` as code
             _txt = (TASKS / name).read_text(encoding="utf-8", errors="replace").replace("`", "")
             if "NO la recoge --verify" in _txt:
                 continue
