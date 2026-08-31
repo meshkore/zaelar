@@ -578,13 +578,13 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "set_cluster_objective",
-            # T-02 (auditoría 2026-07-26, remediación INI-020): el guard `perms.gate_dev_by_objective` (V2-076)
-            # exige que el OPERADOR haya fijado el objetivo de una relación de cluster antes de dejar que un
-            # permiso 'code' concedido dispare un dev-worker — pero hasta esta tool no existía NINGUNA vía para
-            # fijarlo (capsule.objective solo se LEÍA, nunca se ESCRIBÍA). Operator-only por construcción: el
-            # turno de cluster (perfil untrusted) tiene su PROPIO catálogo filtrado (nucleo/flash/cluster.py
-            # `_gated_tools_and_handler`, solo escalate_to_slowbrain/web_search) — un peer NUNCA puede alcanzar
-            # esta tool, esté o no en router.TOOLS.
+            # T-02 (audit 2026-07-26, INI-020 remediation): the `perms.gate_dev_by_objective` guard (V2-076)
+            # requires the OPERATOR to set the objective of a cluster relationship before an allowed 'code'
+            # permission may launch a dev-worker — but until this tool there was NO way to set it
+            # (capsule.objective was only READ, never WRITTEN). Operator-only by construction: the cluster turn
+            # (untrusted profile) has its OWN filtered catalog (nucleo/flash/cluster.py
+            # `_gated_tools_and_handler`, only escalate_to_slowbrain/web_search) — a peer can NEVER reach
+            # this tool, whether or not it is in router.TOOLS.
             "description": (
                 "Fija —o borra, con `objective` vacío— el OBJETIVO de la colaboración con un peer de un cluster, "
                 "SOLO cuando el OPERADOR dice con sus palabras y en ESTE turno hacia dónde va. Es lo que permite "
@@ -707,19 +707,19 @@ _SITUATIONAL = {
     "confirm_widget_delete": lambda ctx: ctx.get("confirm_pending", False),  # solo con un borrado en el aire
     "login_done":            lambda ctx: ctx.get("auth_pending", False),     # solo durante un login en curso
     "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # operator-only; se puede apagar
-    # `cluster_send` SÍ es situacional, pero por ESTADO REAL: sin un cluster conectado no hay a quién escribir.
+    # `cluster_send` IS situational, but based on REAL STATE: without a connected cluster there is nobody to write to.
     "cluster_send":          lambda ctx: ctx.get("cluster_connected", False),
-    # V2-086: `connect_cluster`/`set_cluster_objective` YA NO se gatean. El gate de V2-064 (widget
-    # `cluster-registro` abierto) volvía la capacidad INDESCUBRIBLE: para conectar un cluster nuevo había que
-    # saber de antemano que primero tocaba abrir un widget — y ese widget ya no existe (la red es superficie
-    # NATIVA, pestaña «Clusters»). La protección contra el disparo espurio nunca fue el gate sino el confirm
-    # Sí/No determinista con el cluster_id a la vista, que sigue intacto.
-    # V2-038: las tools de worker solo si hay algo que dirigir (§v3·D: gated a has_workers / ask_pending).
+    # V2-086: `connect_cluster`/`set_cluster_objective` are NO LONGER gated. The V2-064 gate (the
+    # `cluster-registro` widget being open) made the capability UNDISCOVERABLE: connecting a new cluster required
+    # knowing in advance that a widget had to be opened first — and that widget no longer exists (the network is a
+    # NATIVE surface, Clusters tab). Protection against spurious activation was never the gate, but the deterministic
+    # Yes/No confirmation with the cluster_id visible, which remains intact.
+    # V2-038: worker tools only when there is something to direct (§v3·D: gated by has_workers / ask_pending).
     "send_to_worker":        lambda ctx: ctx.get("has_workers", False),
     "stop_worker":           lambda ctx: ctx.get("has_workers", False),
     "answer_worker":         lambda ctx: ctx.get("ask_pending", False),
-    # V2-085 — tres gates NUEVOS, todos por CAPACIDAD REAL del sistema (si no existe, la tool no puede funcionar y
-    # ofrecerla solo invita a que el modelo prometa algo imposible):
+    # V2-085 — three NEW gates, all based on REAL SYSTEM CAPABILITY (if it does not exist, the tool cannot work and
+    # offering it only invites the model to promise something impossible):
     "reply_message":         lambda ctx: ctx.get("messaging_on", True),   # sin conector de mensajería no hay a quién
     "reveal_secret":         lambda ctx: ctx.get("has_vault", True),      # V2-060: sin bóveda no hay secreto que leer
     "play_video":            lambda ctx: ctx.get("has_video_widget", True),  # play_video CARGA el widget `youtube`
@@ -729,15 +729,15 @@ _SITUATIONAL = {
 
 def tools(context: dict | None = None) -> list[dict]:
     """The function catalog to offer the fast model THIS turn. CONTEXTUAL set (V2-035): tools
-    situacionales (confirmar-borrado, login-hecho, y las de widget si no hay widgets) se OMITEN cuando su estado no
-    aplica → prompt más corto, menos ruido de decisión, mismo comportamiento. `context` (best-effort, todo opcional):
+    situational (delete-confirmation, login-complete, and widget tools when there are no widgets) are OMITTED when
+    their state does not apply → shorter prompt, less decision noise, same behavior. `context` (best-effort, all optional):
       · has_widgets (def True) · confirm_pending (def False) · auth_pending (def False) · allow_auth (def True)
       · messaging_on / has_vault / has_video_widget (def True — V2-085, capacidades reales).
-    Sin contexto devuelve el set COMPLETO (compat con tests/prewarm).
+    Without context, returns the COMPLETE set (compatibility with tests/prewarm).
 
-    NOTA DE ESCALA (V2-085): este catálogo es **O(1)** — 22 tools fijas, ~29,7 KB completo / ~22,5 KB con el gating
-    típico. No crece con el catálogo de widgets, así que NO es el cuello de botella de escalabilidad (ese es el
-    catálogo, ver `widgets/selection.py`); sí es coste y ruido fijos por turno, y por eso se poda por estado."""
+    SCALING NOTE (V2-085): this catalog is **O(1)** — 22 fixed tools, ~29.7 KB complete / ~22.5 KB with typical
+    gating. It does not grow with the widget catalog, so it is NOT the scalability bottleneck (that is the catalog,
+    see `widgets/selection.py`); it is fixed cost and noise per turn, which is why it is pruned by state."""
     ctx = context or {}
     if not context:
         return TOOLS
@@ -757,12 +757,12 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
                  has_vault: bool = True, has_video_widget: bool = True, has_image_widget: bool = True,
                  cluster_connected: bool = False) -> dict:
     """Builds the `tools()` `context` from inexpensive state signals. `has_widgets` = a widget catalog exists
-    (siempre lo hay hoy) O alguno abierto. `has_workers` = hay Brain Workers vivos (→ send/stop_worker). `ask_pending`
-    = un worker espera respuesta (→ answer_worker). `messaging_on`/`has_vault`/`has_video_widget` (V2-085) =
-    capacidades REALES del sistema; el default es True (fail-OPEN) para que un fallo al sondear una capacidad
-    nunca le quite al operador una tool que sí tenía.
-    `cluster_widget_open` — OBSOLETO desde V2-086: ya no gatea nada (las tools de cluster se ofrecen siempre, la
-    protección es el confirm Sí/No). Se conserva en la firma para no romper a quien lo pase."""
+    (there is always one today) OR one is open. `has_workers` = live Brain Workers exist (→ send/stop_worker).
+    `ask_pending` = a worker awaits a response (→ answer_worker). `messaging_on`/`has_vault`/`has_video_widget`
+    (V2-085) = REAL system capabilities; the default is True (fail-OPEN) so a capability-probe failure never
+    removes a tool the operator had.
+    `cluster_widget_open` — OBSOLETE since V2-086: it gates nothing anymore (cluster tools are always offered;
+    protection is Yes/No confirmation). Retained in the signature so callers passing it do not break."""
     return {"has_widgets": has_catalog or bool(open_widgets),
             "confirm_pending": confirm_pending, "auth_pending": auth_pending, "allow_auth": True,
             "has_workers": bool(has_workers), "ask_pending": bool(ask_pending),
@@ -774,8 +774,8 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
 
 def tools_report(offered: list[dict]) -> dict:
     """OBSERVABLE breakdown of a turn's tool set: count, size, and which families entered/remained
-    fuera. Alimenta `llm_metrics` (misma vía que `sz_*` del prompt) para poder atribuir coste y detectar que una
-    familia se cuela en turnos donde no pinta nada."""
+    omitted. Feeds `llm_metrics` (same path as the prompt's `sz_*`) to attribute cost and detect when a family
+    slips into turns where it does not belong."""
     import json as _json
     names = [t.get("function", {}).get("name", "") for t in offered]
     fams: dict[str, int] = {}
@@ -789,12 +789,12 @@ def tools_report(offered: list[dict]) -> dict:
 
 def _canon_panel_action(v) -> str:
     """'open' | 'close' for the `show_panel` action. Default OPEN: it is the majority case, and a model that is
-    el argumento no puede acabar cerrándole el panel al operador.
+    the argument cannot end up closing the operator's panel.
 
-    Existe desde 2026-08-10 porque la tool solo sabía ABRIR: el operador pidió cerrar el chat cinco veces seguidas
-    («cierra también el chat», «cierra el chat de sistema», «cierra la ventana de chat»), zaelar contestó «vale,
-    cerrado» cada vez, y el chat seguía abierto — tuvo que cerrarlo él con la ✕. Peor que no poder es decir que sí:
-    ahora la capacidad existe de verdad."""
+    Exists since 2026-08-10 because the tool only knew how to OPEN: the operator asked to close the chat five times in a row
+    (“close the chat too”, “close the system chat”, “close the chat window”), zaelar replied “okay, closed” each time,
+    and the chat remained open — he had to close it himself with the ✕. Saying yes is worse than being unable to:
+    now the capability genuinely exists."""
     a = str(v or "").strip().lower()
     if any(k in a for k in ("clos", "cerr", "cierra", "quita", "oculta", "hide", "off")):
         return "close"
@@ -803,14 +803,14 @@ def _canon_panel_action(v) -> str:
 
 def _canon_panel(v) -> str:
     """Normalizes the `show_panel` `panel` to a canonical ChatWall tab (chat|procesos|crons|clusters).
-    Tolera sinónimos que el modelo pueda soltar en el argumento (workers→procesos, cron→crons, texto/muro→chat,
-    red/malla/mesh→clusters). Es solo para el ARGUMENTO ya elegido por el modelo — el 'cuándo' (los sinónimos de
-    la petición) vive en la descripción de la tool, no aquí. Default 'procesos' (el caso más pedido)."""
+    Accepts synonyms the model may produce in the argument (workers→procesos, cron→crons, text/wall→chat,
+    network/mesh→clusters). This is only for the ARGUMENT already chosen by the model — the 'when' (synonyms in
+    the request) lives in the tool description, not here. Default 'procesos' (the most requested case)."""
     p = str(v or "").strip().lower()
     if p in ("chat", "procesos", "crons", "clusters"):
         return p
-    # 'clusters' ANTES que 'crons': "cluster" contiene la subcadena "clus", no "cron", pero el orden deja
-    # explícito que la red se evalúa primero — y evita que un futuro sinónimo ambiguo caiga en el lado equivocado.
+    # 'clusters' BEFORE 'crons': "cluster" contains the substring "clus", not "cron", but the order makes
+    # explicit that the network is evaluated first — and prevents a future ambiguous synonym from landing on the wrong side.
     if any(k in p for k in ("cluster", "meshkore", "mesh", "red", "malla", "peer", "network", "conexion", "conexión")):
         return "clusters"
     if any(k in p for k in ("cron", "programad", "recordatorio", "agendad")):

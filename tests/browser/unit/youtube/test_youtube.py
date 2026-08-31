@@ -1,13 +1,13 @@
 #
-# test_youtube.py — V2-057: el widget devuelve un resultado VERIFICABLE (orden por fecha + canal/fecha).
-# Ejecutar: .venv/bin/pytest tests/browser/unit/youtube/test_youtube.py
+# test_youtube.py — V2-057: the widget returns a VERIFIABLE result (sort by date + channel/date).
+# Run: .venv/bin/pytest tests/browser/unit/youtube/test_youtube.py
 #
 import io
 import urllib.request
 
 from widgets.youtube import data as yt
 
-# Fragmento realista del videoRenderer de una búsqueda de YouTube (el orden de campos que parseamos).
+# Realistic fragment of the videoRenderer from a YouTube search (the field order that we parse).
 _HTML = (
     '{"videoRenderer":{"videoId":"6V2lKeUE8YA",'
     '"title":{"runs":[{"text":"Las 4 claves de la semana"}]},'
@@ -29,9 +29,9 @@ def test_search_extracts_channel_and_published(monkeypatch):
     r = yt._search_id("el último vídeo de José Luis Cárpatos")
     assert r["videoId"] == "6V2lKeUE8YA"
     assert r["channel"] == "José Luis Cárpatos"
-    assert r["published"] == "hace 2 días"      # ← el dato VERIFICABLE (es de hace 2 días, no de hace un mes)
+    assert r["published"] == "hace 2 días"      # ← the VERIFIABLE data (it is from 2 days ago, not a month ago)
     assert r["latest"] is True
-    assert "sp=CAI%3D" in seen[0]               # «el último» → orden por fecha de subida
+    assert "sp=CAI%3D" in seen[0]               # «el último» → sort by upload date
 
 
 def test_search_relevance_when_not_latest(monkeypatch):
@@ -39,17 +39,17 @@ def test_search_relevance_when_not_latest(monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen(seen))
     r = yt._search_id("Despacito")
     assert r["latest"] is False
-    assert "sp=CAI%3D" not in seen[0]           # sin «último» → orden normal por relevancia
+    assert "sp=CAI%3D" not in seen[0]           # without «último» → normal sort by relevance
 
 
 def test_load_stores_verifiable_metadata(monkeypatch, tmp_path):
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen([]))
     from widgets import store
-    # El global se llama `DATA_DIR`; esto decía `_DATA_DIR` con `raising=False`, así que monkeypatch CREABA un
-    # atributo nuevo y el aislamiento no aislaba nada: este test llevaba escribiendo en el store REAL del operador
-    # (`widgets/_data/youtube/state.json`), pisándole el vídeo cargado en cada corrida de la suite. Se descubrió el
-    # 2026-08-13 porque el interruptor global (V2-092) hizo visible el efecto: la suite dejaba el widget del operador
-    # en «reproduciendo» con el agente parado. Misma forma que el resto de la suite (ver test_rehydrate.py).
+    # The global is called `DATA_DIR`; this used to say `_DATA_DIR` with `raising=False`, so monkeypatch CREATED a
+    # new attribute and the isolation isolated nothing: this test had been writing to the operator's REAL store
+    # (`widgets/_data/youtube/state.json`), overwriting the video loaded on each suite run. It was discovered on
+    # 2026-08-13 because the global switch (V2-092) made the effect visible: the suite left the operator's widget
+    # in «playing» with the agent stopped. Same approach as the rest of the suite (see test_rehydrate.py).
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     out = yt.apply_action("load", {"query": "el último de Cárpatos"})
     assert out["ok"] is True
