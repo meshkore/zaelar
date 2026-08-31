@@ -78,6 +78,8 @@ widgets/_data/cluster-registro/
 # un widget nuevo no debe requerir tocar este fichero. (agenda/state.json estaba trackeado por accidente; el
 # reset de memoria lo borra y eso dejaba el árbol sucio.)
 widgets/_data/*/
+# V2-515: the self-host GENERATED root (user-created + forked widgets) — per-tenant content, never repo source
+widgets/_user/
 
 # temporales / benchmarks efímeros (no-core)
 scratchpad/

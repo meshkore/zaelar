@@ -27,12 +27,74 @@ def workspace(tmp_path, monkeypatch):
     return tmp_path
 
 
-def test_without_a_workspace_nothing_moves(monkeypatch):
-    """Every self-host install. `workspace.root()` IS the repo root, so both roots collapse into one and the
-    behaviour is byte identical to before this module existed — no migration, no moved folder."""
+def test_without_a_workspace_generated_widgets_get_their_own_yard(monkeypatch):
+    """Every self-host install (V2-515 — this DELIBERATELY replaces the old "both roots collapse into one"
+    contract). The collapse left a user's fork nowhere to live and made modify/delete operate on engine
+    source: a lab deleted `widgets/clock` and `widgets/musica` from the tree (measured 2026-08-30). Now the
+    generated root is `widgets/_user/` (gitignored), the built-ins keep resolving, and existing folders in
+    either root keep being scanned — no migration."""
     monkeypatch.delenv("ZAELAR_WORKSPACE", raising=False)
-    assert paths.roots() == [paths.BUILTIN_ROOT]
-    assert paths.new_dir("nuevo") == os.path.join(paths.BUILTIN_ROOT, "nuevo")
+    user_root = os.path.join(paths.BUILTIN_ROOT, "_user")
+    assert paths.roots() == [user_root, paths.BUILTIN_ROOT]
+    assert paths.new_dir("nuevo") == os.path.join(user_root, "nuevo")
+    assert paths.dir_for("agenda") == os.path.join(paths.BUILTIN_ROOT, "agenda")
+
+
+def _write_py_widget(folder, wid: str, marker: str) -> None:
+    folder.mkdir(parents=True)
+    (folder / "manifest.json").write_text(json.dumps({"id": wid}), encoding="utf-8")
+    (folder / "widget.js").write_text("export function render(){}", encoding="utf-8")
+    (folder / "__init__.py").write_text("", encoding="utf-8")
+    (folder / "data.py").write_text(f"def view_data(q=''):\n    return {{'marker': '{marker}'}}\n",
+                                    encoding="utf-8")
+
+
+def test_the_import_path_follows_the_catalog(workspace):
+    """V2-515: `import widgets.<id>.data` must find a widget living in the GENERATED root. Before, the
+    package only ever searched the repo folder, so every generated widget's python half was silently dead
+    (`_data_module` swallowed the ImportError) — the widget rendered, its hooks never ran."""
+    import importlib
+    wid = "solo-del-workspace-py"
+    _write_py_widget(workspace / "widgets" / wid, wid, "workspace")
+    paths.roots()                                          # any catalog access keeps the import path in step
+    try:
+        mod = importlib.import_module(f"widgets.{wid}.data")
+        assert mod.view_data()["marker"] == "workspace"
+    finally:
+        paths.forget_modules(wid)
+
+
+def test_a_fork_shadows_the_builtin_on_import_too(workspace):
+    """The two shadows must agree. If the catalog serves the fork but `import widgets.agenda.data` still
+    answers from the built-in (a cached module, or the repo-only search path), the brain drives one widget
+    while the screen shows another."""
+    import importlib
+    _write_py_widget(workspace / "widgets" / "agenda", "agenda", "fork")
+    paths.forget_modules("agenda")                         # a long-lived process has the built-in cached
+    paths.roots()
+    try:
+        assert importlib.import_module("widgets.agenda.data").view_data()["marker"] == "fork"
+    finally:
+        paths.forget_modules("agenda")
+
+
+def test_forgetting_a_widget_makes_the_next_import_resolve_again(workspace):
+    """`importlib.reload` re-reads the OLD spec's file — it does not re-resolve the folder. Eviction is what
+    moves a live process from the fork back to the built-in (restore) or the other way (fork)."""
+    import importlib
+    fork = workspace / "widgets" / "agenda"
+    _write_py_widget(fork, "agenda", "fork")
+    paths.forget_modules("agenda")
+    paths.roots()
+    try:
+        assert importlib.import_module("widgets.agenda.data").view_data()["marker"] == "fork"
+        import shutil
+        shutil.rmtree(fork)                                # restore: the fork is discarded…
+        paths.forget_modules("agenda")                     # …and the process must forget it
+        mod = importlib.import_module("widgets.agenda.data")
+        assert paths.BUILTIN_ROOT in str(getattr(mod, "__file__", ""))
+    finally:
+        paths.forget_modules("agenda")
 
 
 def test_a_generated_widget_goes_to_the_workspace(workspace):

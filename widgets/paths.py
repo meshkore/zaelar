@@ -37,16 +37,60 @@ BUILTIN_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 def generated_root() -> str:
-    """`<workspace>/widgets` — where a NEWLY generated widget's code goes. Resolved per call, not at import:
-    the workspace is an env knob and a test (or a sandbox boot) may set it after this module is imported."""
-    return os.path.join(str(_workspace.root()), "widgets")
+    """Where a NEWLY generated (or forked) widget's code goes. Resolved per call, not at import: the
+    workspace is an env knob and a test (or a sandbox boot) may set it after this module is imported.
+
+    `<workspace>/widgets` when a workspace is mounted (the cloud Volume). On self-host — where the
+    workspace IS the repo root — it is `widgets/_user/` instead of the repo folder itself (V2-515):
+    the two roots must never collapse, because the collapse left a user's fork nowhere to live and
+    made "delete/modify a widget" operate on engine source (measured 2026-08-30: a lab deleted
+    `widgets/clock` and `widgets/musica` from the tree). `_user/` is gitignored, which also ends the
+    old nuisance of generated widgets landing as untracked folders inside the checkout."""
+    gen = os.path.join(str(_workspace.root()), "widgets")
+    if os.path.abspath(gen) == BUILTIN_ROOT:
+        return os.path.join(BUILTIN_ROOT, "_user")
+    return gen
 
 
 def roots() -> list[str]:
-    """Every directory that can hold widget folders, generated first. One entry when they coincide (the
-    self-host default) — so no caller ever scans the same directory twice."""
+    """Every directory that can hold widget folders, generated first — the generated root shadows the
+    built-in one. Also keeps the PYTHON import path in step (see `_sync_import_path`), so that
+    `import widgets.<id>.data` resolves through the same two roots, in the same order, as the catalog."""
     gen = generated_root()
-    return [gen] if os.path.abspath(gen) == os.path.abspath(BUILTIN_ROOT) else [gen, BUILTIN_ROOT]
+    out = [gen] if os.path.abspath(gen) == BUILTIN_ROOT else [gen, BUILTIN_ROOT]
+    _sync_import_path(out)
+    return out
+
+
+def _sync_import_path(rts: list[str]) -> None:
+    """Make the `widgets` package search modules through the SAME roots as the catalog (V2-515). Every
+    consumer of a widget's python half does `import widgets.<id>.data` (server_api, background, refs,
+    harness, validator, supervisor's `.owner`) — with the package's default `__path__` that only ever
+    found folders inside the repo, so any widget living in the generated root (every cloud-generated
+    widget, every fork) silently lost its backend: `_data_module` swallowed the ImportError and the
+    widget ran with dead hooks. Idempotent, cheap (a list compare), refreshed on every `roots()` call
+    because the workspace env can change after import (sandbox boots do exactly that)."""
+    try:
+        import widgets as _pkg
+        if list(_pkg.__path__) != rts:
+            _pkg.__path__[:] = rts
+    except Exception:
+        pass
+
+
+def forget_modules(widget_id: str) -> None:
+    """Evict a widget's imported python modules (`widgets.<id>` and below) so the NEXT import resolves
+    the folder AGAIN through `roots()` (V2-515). Without this, a long-lived process that already
+    imported the BUILT-IN's data.py keeps answering from it after a fork appears (or keeps answering
+    from a deleted fork): `importlib.reload` re-reads the OLD spec's file, it does not re-resolve.
+    Call it on every lifecycle transition that moves which folder owns the id — fork, delete, restore."""
+    import sys
+    wid = (widget_id or "").strip()
+    if not wid:
+        return
+    prefix = f"widgets.{wid}"
+    for name in [n for n in list(sys.modules) if n == prefix or n.startswith(prefix + ".")]:
+        sys.modules.pop(name, None)
 
 
 def dir_for(widget_id: str) -> str | None:

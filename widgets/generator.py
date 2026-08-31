@@ -152,24 +152,27 @@ ALSO read **widgets/AGENTS.md** (the house style + hard rules — palette, layou
 _CREATE_PROMPT = (
     "You are extending the zaelar voice-assistant WIDGET CATALOG.\n" + _CONTRACT +
     "\n\nCREATE a new widget with id \"{wid}\" that does:\n{spec}\n\n"
-    "Write ALL of widgets/{wid}/manifest.json, widgets/{wid}/widget.js, widgets/{wid}/data.py and "
-    "widgets/{wid}/__init__.py. Small, robust, self-contained. ALSO create widgets/{wid}/notes.md with a first "
+    "Write ALL of {folder}/manifest.json, {folder}/widget.js, {folder}/data.py and "
+    "{folder}/__init__.py. Small, robust, self-contained. ALSO create {folder}/notes.md with a first "
     "bullet recording what this widget should do + any style/format constraint the user stated (so future edits "
-    "don't regress it). Do NOT modify any other file. Do NOT run shell commands. Reply with just: DONE {wid}."
+    "don't regress it). Do NOT create or modify anything outside {folder}/. Do NOT run shell commands. "
+    "Reply with just: DONE {wid}."
 )
 
 _MODIFY_PROMPT = (
-    "You are editing an EXISTING, WORKING zaelar widget. Read widgets/{wid}/ first (manifest.json, widget.js, "
-    "data.py, AND widgets/{wid}/notes.md — the log of past decisions; NEVER undo/regress anything recorded there).\n"
+    "You are editing an EXISTING, WORKING zaelar widget. Its folder is {folder}/ — work THERE and only there "
+    "(same id \"{wid}\", but do not assume the folder from the id). Read {folder}/ first (manifest.json, "
+    "widget.js, data.py, AND {folder}/notes.md — the log of past decisions; NEVER undo/regress anything recorded "
+    "there).\n"
     + _CONTRACT +
     "\n\nMake ONLY this change, as a SURGICAL edit:\n{change}\n\n"
-    "After editing, APPEND one terse bullet to widgets/{wid}/notes.md recording this change + any constraint "
+    "After editing, APPEND one terse bullet to {folder}/notes.md recording this change + any constraint "
     "stated (what the user wants / rejected), so the next session keeps the same direction.\n"
     "CRITICAL: make the SMALLEST possible edit. PRESERVE everything else — the existing CSS/styling, the layout, "
     "the data handling, the polish. Do NOT rewrite the widget from scratch, do NOT drop styles or features, do "
     "NOT regress the design. The result must look as polished as before, just with the requested change applied. "
     "Keep the same id \"{wid}\" and the contract (export function render; self-contained; textContent for "
-    "untrusted data). Only touch files INSIDE widgets/{wid}/. Do NOT run shell commands. Reply with just: DONE {wid}."
+    "untrusted data). Only touch files INSIDE {folder}/. Do NOT run shell commands. Reply with just: DONE {wid}."
 )
 
 
@@ -299,7 +302,9 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
     _job_start("create", wid, {"spec": spec.strip(), "title": title})
     try:
         with _lock:                                    # one agent at a time
-            ran, err = _run_agent(_CREATE_PROMPT.format(wid=wid, spec=spec.strip()), token=token)
+            ran, err = _run_agent(
+                _CREATE_PROMPT.format(wid=wid, spec=spec.strip(), folder=_folder_ref(paths.new_dir(wid))),
+                token=token)
         if not ran:
             _discard(wid)                              # a killed/timed-out agent may leave a half-written folder
             return {"ok": False, "id": wid, "error": err}
@@ -311,6 +316,16 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
         return {"ok": True, "id": wid}
     finally:
         _job_end(wid)
+
+
+def _folder_ref(d: str) -> str:
+    """The target folder as the headless agent must address it: relative to its cwd (the repo root) when it
+    lives inside it, absolute otherwise (a workspace mounted elsewhere — the cloud Volume). Before V2-515 the
+    prompts hardcoded `widgets/<id>/`, which silently pointed the agent at ENGINE SOURCE whenever the real
+    target was the generated root — in the cloud that meant every generated widget landed in the ephemeral
+    checkout instead of the Volume."""
+    rel = os.path.relpath(d, ZAELAR)
+    return d if rel.startswith("..") else rel
 
 
 def _discard(wid: str) -> None:
@@ -348,7 +363,8 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
     _job_start("modify", wid, {"change": change.strip()})
     try:
         with _lock:
-            ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip()), token=token)
+            ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip(), folder=_folder_ref(d)),
+                                  token=token)
         ok, verr = (_validate(wid, stamp_origin=True) if ran else (False, err))
         if not ok and bak:                              # bad edit → roll back to the version that worked
             shutil.rmtree(d, ignore_errors=True)

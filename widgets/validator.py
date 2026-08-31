@@ -339,6 +339,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
         # a widget that blows up at runtime never reaches the catalog (a friendly {"error": ...} state is fine).
         try:
             import importlib
+            paths.forget_modules(wid)                   # a cached import may still point at ANOTHER folder (fork)
             mod = importlib.import_module(f"widgets.{wid}.data")
             mod = importlib.reload(mod)                 # test the just-written code, not a cached import (modify)
             if hasattr(mod, "view_data"):
