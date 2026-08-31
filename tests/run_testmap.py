@@ -413,6 +413,12 @@ DOMAINS: list[dict] = [
             # sin dejar rastro — ni evento, ni ledger, ni aviso. Aquí se fija qué se reanuda solo, qué se reporta y
             # por qué, y que un reset NO resucite el trabajo que el operador acaba de mandar parar.
             "tests/agent_headless/unit/test_rehydrate.py",
+            # LA VALLA del ledger (2026-08-31, visto en vivo): el reset limpiaba el histórico (V2-084) y aun así
+            # el operador vio UNA entrada tras resetear — la lápida de la tarea que el propio reset mató, escrita
+            # milisegundos DESPUÉS del barrido (el kill es una señal; el cierre del worker es asíncrono).
+            # `clear()` sella cuándo barrió y un registro NACIDO antes de ese instante se descarta llegue cuando
+            # llegue — reordenar reset_all solo encogería la ventana, nunca la cierra.
+            "tests/agent_headless/unit/test_ledger_reset_fence.py",
             # V2-092 — el INTERRUPTOR GLOBAL (⏻). Su estado vivía solo en el localStorage, así que el backend no
             # sabía que el operador había parado: seguían los ciclos de background, los crons y la reproducción de
             # los widgets. Se fija la POLÍTICA, que es lo que se pierde en una refactorización: parar congela a
