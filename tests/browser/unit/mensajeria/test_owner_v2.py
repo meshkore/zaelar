@@ -1,9 +1,9 @@
 #
-# test_owner_v2.py — el owner backed del widget mensajería (V2-008). Verifica el reshape v2 END-TO-END en la
-# frontera del bus (sin red, con triaje stub): un connector.msg entrante RELEVANTE se tría, aflora al store de UI
-# y (por el mismo upsert) a la memoria; uno irrelevante NO aflora; connector.status se refleja en la tarjeta; y
-# una acción "read" publica msg.mark_read al bus (para que el conector correcto marque leído en su app).
-# Ejecutar: .venv/bin/python -m pytest tests/browser/unit/mensajeria/test_owner_v2.py
+# test_owner_v2.py — the messaging widget's owner backend (V2-008). Verifies the v2 reshape END-TO-END at the
+# bus boundary (no network, with stubbed triage): an incoming RELEVANT connector.msg is triaged, surfaces in the UI store
+# and (through the same upsert) in memory; an irrelevant one does NOT surface; connector.status is reflected in the card; and
+# a "read" action publishes msg.mark_read to the bus (so the correct connector marks it as read in its app).
+# Run: .venv/bin/python -m pytest tests/browser/unit/mensajeria/test_owner_v2.py
 #
 import asyncio
 
@@ -18,8 +18,8 @@ from widgets.mensajeria import data, owner as owner_mod, triage_agent
 
 @pytest.fixture
 def iso(monkeypatch, tmp_path):
-    """Aísla el store del widget (widgets/_data → tmp), silencia el volcado a memoria y el aviso hablado, y
-    limpia el bus. Deja intacta la lógica real de triage_batch/handle/apply_action."""
+    """Isolates the widget store (widgets/_data → tmp), silences the memory dump and spoken notification, and
+    clears the bus. Leaves the real triage_batch/handle/apply_action logic intact."""
     monkeypatch.setattr(wstore, "DATA_DIR", str(tmp_path))
     wstore._last_hash.clear()
     monkeypatch.setattr(msgstore, "_to_memory", lambda items: None)
@@ -101,8 +101,8 @@ def test_read_action_publishes_mark_read(iso, monkeypatch):
         await o.handle("read", {"n": 1})
 
     asyncio.run(run())
-    # el item se fue del widget...
+    # the item was removed from the widget...
     assert data.view_data()["count"] == 0
-    # ...y su clave salió al bus para que Telegram lo marque leído.
+    # ...and its key was sent to the bus so Telegram marks it as read.
     key = marks.queue.get_nowait()
     assert key["platform"] == "telegram" and key["messageId"] == "m1"

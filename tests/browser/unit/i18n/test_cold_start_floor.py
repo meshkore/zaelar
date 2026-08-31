@@ -1,4 +1,4 @@
-"""Expone a pytest/Test Observatory el suelo del arranque en frío (ver el .mjs para el porqué)."""
+"""Exposes the cold-start floor to pytest/Test Observatory (see the .mjs file for why)."""
 
 import shutil
 import subprocess

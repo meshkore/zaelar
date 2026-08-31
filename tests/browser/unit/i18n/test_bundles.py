@@ -38,13 +38,13 @@ def test_placeholders_match():
 
 
 def test_el_suelo_del_arranque_en_frio_dice_lo_MISMO_que_el_bundle_base():
-    """V2-481 — el suelo compilado no puede ser un SEGUNDO vocabulario.
+    """V2-481 — the compiled fallback cannot be a SECOND vocabulary.
 
-    En el arranque en frío de una Machine `/api/i18n/bundle` todavía no contesta, así que el primer pantallazo
-    de quien acaba de instalar la PWA salía como `boot.encendiendo`. El suelo lo evita; lo que este test evita
-    es lo siguiente: que se separe del bundle. Si el suelo dijera algo DISTINTO, la leyenda cambiaría de frase
-    a mitad del arranque —peor que el defecto original— y si alguien renombra una clave, esto se pone rojo en
-    vez de servir una cadena huérfana para siempre.
+    During the cold start of a Machine, `/api/i18n/bundle` still does not respond, so the first screen shown
+    to someone who has just installed the PWA appeared as `boot.encendiendo`. The fallback prevents that; what
+    this test prevents is the following: the fallback drifting away from the bundle. If the fallback said
+    something DIFFERENT, the label would change wording halfway through startup —worse than the original bug—
+    and if someone renames a key, this turns red instead of serving an orphaned string forever.
     """
     import json
     import re
@@ -66,11 +66,11 @@ def test_el_suelo_del_arranque_en_frio_dice_lo_MISMO_que_el_bundle_base():
 
 
 def test_la_leyenda_del_arranque_se_resuelve_en_cada_pintado():
-    """La otra mitad: el suelo no sirve de nada si la leyenda se congela al importar el módulo.
+    """The other half: the fallback is useless if the label is frozen when the module is imported.
 
-    `LABELS = {encendiendo: t("boot.encendiendo"), …}` corría `t()` UNA vez, al cargar el fichero — antes de
-    que el bundle existiera — así que cuando el motor por fin contestaba la cadena buena llegaba y no la veía
-    nadie. Es el defecto que V2-124 midió en el móvil, y no falla con ruido: falla enseñando una clave.
+    `LABELS = {encendiendo: t("boot.encendiendo"), …}` ran `t()` ONCE, when loading the file — before the
+    bundle existed — so when the engine finally responded, the correct string arrived but nobody saw it. This
+    is the bug that V2-124 measured on mobile, and it does not fail noisily: it fails by displaying a key.
     """
     from pathlib import Path
 

@@ -1,20 +1,20 @@
-"""V2-259 — dos búsquedas son dos hojas, y estrenar deja de significar borrar.
+"""V2-259 — two searches are two sheets, and starting fresh no longer means deleting.
 
-LO QUE PIDIÓ EL OPERADOR (2026-08-21, literal): «si tenemos un widget de results abierto, búsqueda terminada, y
-lanzamos otra, se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas.»
+WHAT THE OPERATOR REQUESTED (2026-08-21, verbatim): “if we have an open results widget, a completed search, and
+launch another one, a new widget opens. With this rule we will not make mistakes by deleting searches.”
 
-Y el borrado que temía ESTABA EN EL CÓDIGO, con su comentario: `dispatch._sheet_open()` llamaba a
-`begin_task(fresh=True)`, que estrenaba la hoja —título nuevo, sin resultados ni historial— en cuanto llegaba el
-encargo siguiente. La hoja era única (`store.load(WIDGET_ID)`, una sola clave), así que la disyuntiva era: o
-estrenar y borrarle lo entregado a quien siguiera escribiendo, o reutilizar y enseñar los resultados de la
-búsqueda anterior bajo el título de ésta. Ninguna de las dos es buena; las dos estaban medidas.
+And the deletion the operator feared WAS IN THE CODE, with its comment: `dispatch._sheet_open()` called
+`begin_task(fresh=True)`, which started the sheet —new title, with no results or history— as soon as the next
+errand arrived. There was only one sheet (`store.load(WIDGET_ID)`, a single key), so the choice was: either start
+fresh and delete what had been delivered to whoever kept writing, or reuse it and show the previous search’s
+results under this one’s title. Neither is good; both had been measured.
 
-LA CLAVE ES EL ENCARGO, NO EL NAVEGADOR. Es la continuación exacta de V2-257: la tarjeta del navegador MUESTRA
-(N tarjetas) y la hoja GUARDA los hallazgos vengan del navegador que vengan. Así que dos navegadores del mismo
-encargo siguen cayendo en la misma hoja, y dos encargos son dos hojas.
+THE KEY IS THE ERRAND, NOT THE BROWSER. This is the exact continuation of V2-257: the browser card SHOWS
+(N cards), and the sheet STORES the findings regardless of which browser they come from. Thus two browsers for the
+same errand still land in the same sheet, and two errands are two sheets.
 
-Lo que se fija aquí es la frontera y sus dos filos: que dos encargos no se pisen, y que quien ESCRIBE sepa en
-cuál — un escritor sin hoja escribe en la de nadie mientras el operador mira la suya, que es un fallo mudo.
+What is fixed here is the boundary and its two edges: two errands must not overwrite one another, and whoever WRITES
+must know which one — a writer without a sheet writes into nobody’s while the operator watches theirs, a silent bug.
 """
 from pathlib import Path
 
@@ -40,7 +40,7 @@ def _aislado(tmp_path, monkeypatch):
 def _encargo(tid: str, goal: str, nav: str = "") -> SessionRecord:
     rec = SessionRecord(task_id=tid, goal=goal, kind="web")
     surfaces.set_once(rec, "lista")
-    rec.sheet = dispatch.sheet_id_for(tid)      # lo sella `_sheet_open` en producción; aquí igual
+    rec.sheet = dispatch.sheet_id_for(tid)      # `_sheet_open` seals it in production; same here
     rec.status = "running"
     if nav:
         rec.nav_task = nav
@@ -48,11 +48,11 @@ def _encargo(tid: str, goal: str, nav: str = "") -> SessionRecord:
     return rec
 
 
-# ── 1) la clave ──────────────────────────────────────────────────────────────────────────────────────────────
+# ── 1) the key ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_the_bare_sheet_keeps_its_key_byte_for_byte():
-    """La hoja de hoy tiene datos en disco bajo la clave vieja. Cambiarla dejaría DOS linajes vivos — la forma
-    exacta de V2-242, donde `weather:soria` y `meteo-soria:weather:soria` convivieron los dos con `valid=1`."""
+    """Today’s sheet has data on disk under the old key. Changing it would leave TWO live lineages — exactly the
+    situation in V2-242, where `weather:soria` and `meteo-soria:weather:soria` both coexisted with `valid=1`."""
     assert sheet.sheet_key("") == "results"
     assert sheet.sheet_key("t1") == "results--t1"
     assert sheet.instance_id("t1") == "results::t1", "el canvas usa «::»; el disco no lo admite"
@@ -64,7 +64,7 @@ def test_a_hostile_correlation_id_cannot_escape_its_directory():
     assert sheet.sheet_key("   ") == "results", "un id en blanco no es una instancia"
 
 
-# ── 2) dos encargos no se pisan ──────────────────────────────────────────────────────────────────────────────
+# ── 2) two errands do not overwrite one another ────────────────────────────────────────────────────────────────
 
 def test_two_errands_do_not_overwrite_each_other():
     _encargo("t1", "Busca fontaneros en Madrid")
@@ -80,7 +80,7 @@ def test_two_errands_do_not_overwrite_each_other():
 
 
 def test_the_next_errand_no_longer_wipes_the_finished_one():
-    """El caso EXACTO del operador: búsqueda terminada, llega otra. Antes esto borraba la primera."""
+    """The operator’s EXACT case: a search is complete, another arrives. Previously this deleted the first one."""
     rec1 = _encargo("t1", "Busca fontaneros en Madrid")
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     rec1.status = "done"
@@ -94,8 +94,8 @@ def test_the_next_errand_no_longer_wipes_the_finished_one():
 
 
 def test_each_card_tells_ITS_own_story():
-    """Con la hoja única las fases se entrelazaban en orden de tiempo, y era la respuesta honesta. Con hojas
-    separadas, dos cajas contando la misma historia mezclada es mentir con más superficie."""
+    """With a single sheet, the phases were interleaved in time order, which was the honest answer. With separate
+    sheets, two boxes telling the same mixed-up story is lying with a larger surface area."""
     a, b = _encargo("t1", "hoteles"), _encargo("t2", "restaurantes")
     a.phases.append({"t": 100.0, "s": "entrando en booking.com…"})
     b.phases.append({"t": 101.0, "s": "entrando en thefork.es…"})
@@ -105,21 +105,21 @@ def test_each_card_tells_ITS_own_story():
         "la hoja SIN encargo detrás —la que el operador abre a mano— sigue mereciendo el relato completo")
 
 
-# ── 3) quien ESCRIBE sabe en cuál ────────────────────────────────────────────────────────────────────────────
+# ── 3) whoever WRITES knows which one ─────────────────────────────────────────────────────────────────────────
 
 def test_two_browsers_of_the_SAME_errand_land_in_the_SAME_sheet():
-    """La frontera de V2-257 sigue en pie: la hoja es del ENCARGO, no del navegador."""
+    """The V2-257 boundary still stands: the sheet belongs to the ERRAND, not the browser."""
     _encargo("t1", "Busca fontaneros", nav="nav-A")
     assert dispatch.sheet_for_nav_task("nav-A") == dispatch.sheet_id_for("t1")
     intake.push([{"title": "Relatores", "tel": "910"}], sheet=dispatch.sheet_for_nav_task("nav-A"))
-    _encargo("t1b", "otro navegador del mismo encargo")     # ruido: no cuelga de nav-A
+    _encargo("t1b", "otro navegador del mismo encargo")     # noise: it is not attached to nav-A
     dispatch._SESSIONS["t1"].nav_task = "nav-A"
     intake.push([{"title": "GASFONCLIMA", "tel": "911"}], sheet=dispatch.sheet_for_nav_task("nav-A"))
     assert [i["title"] for i in sheet.view_data(dispatch.sheet_id_for("t1"))["items"]] == ["Relatores", "GASFONCLIMA"]
 
 
 def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
-    """El operador conduciendo el navegador a mano: no hay encargo, así que la hoja de siempre es la correcta."""
+    """The operator driving the browser manually: there is no errand, so the usual sheet is the right one."""
     assert dispatch.sheet_for_nav_task("suelto") == ""
     intake.push([{"title": "algo"}], sheet=dispatch.sheet_for_nav_task("suelto"))
     assert [i["title"] for i in sheet.view_data()["items"]] == ["algo"]
@@ -128,8 +128,8 @@ def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
 @pytest.mark.parametrize("rel", ["widgets/navegador/act_api.py", "widgets/navegador/owner.py",
                                  "nucleo/dispatch.py"])
 def test_no_writer_pushes_without_naming_its_sheet(rel):
-    """El guardarraíl que hace falta aquí y no en V2-257: entonces sobraba con que llamaran a la puerta; ahora
-    tienen que decir a QUÉ hoja. Un `push` sin `sheet=` no falla — escribe en la caja que no mira nadie."""
+    """The guardrail needed here and not in V2-257: back then, knocking on the door was enough; now they have to
+    say WHICH sheet. A `push` without `sheet=` does not fail — it writes into the box nobody is watching."""
     src = (ENGINE / rel).read_text(encoding="utf-8", errors="replace")
     for i, line in enumerate(src.splitlines()):
         if "intake.push(" in line and "def " not in line:
@@ -138,18 +138,18 @@ def test_no_writer_pushes_without_naming_its_sheet(rel):
 
 
 def test_the_worker_bridge_resolves_the_sheet_so_the_worker_never_has_to():
-    """El prompt del worker dice «entrega en la hoja `results`» (V2-257) y con instancias ese nombre pelado deja
-    de ser una dirección. Lo resuelve el PUENTE: un worker no debería conocer ids de instancia."""
+    """The worker’s prompt says “deliver to the `results` sheet” (V2-257), and with instances that bare name is no
+    longer an address. The BRIDGE resolves it: a worker should not need to know instance IDs."""
     src = (ENGINE / "nucleo/worker_api.py").read_text(encoding="utf-8")
     assert 'wid == "results"' in src and '"sheet"' in src, (
         "sin esto el worker escribe en la hoja de nadie mientras el operador mira la de su encargo")
 
 
-# ── 4) el cerebro ve TODAS las hojas ─────────────────────────────────────────────────────────────────────────
+# ── 4) the brain sees ALL sheets ───────────────────────────────────────────────────────────────────────────────
 
 def test_the_brain_sees_every_open_sheet_and_says_which_is_which():
-    """Leer solo una no avisa de nada: el turno contestaría con seguridad sobre la búsqueda que no era. «La
-    número dos» con dos hojas en pantalla son dos cosas distintas."""
+    """Reading only one gives no warning: the turn would confidently answer about the wrong search. “Number two”
+    with two sheets on screen means two different things."""
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t2"), "title": "Coches", "items": [{"title": "Ibiza 2019"}]})
 
@@ -166,18 +166,18 @@ def test_the_brain_sees_every_open_sheet_and_says_which_is_which():
 
 
 def test_with_one_sheet_the_digest_says_nothing_about_sheets():
-    """Sin dos búsquedas no hay ambigüedad que desambiguar, y meter la cabecera igualmente sería ruido en cada
-    prompt de cada turno."""
+    """Without two searches there is no ambiguity to disambiguate, and adding the heading anyway would be noise in
+    every prompt of every turn."""
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     assert "── HOJA" not in sheet.prompt_digest()
     assert all("de «" not in r["hint"] for r in sheet.ref_index())
 
 
-# ── 5) la hoja persiste, así que N hojas necesitan techo ─────────────────────────────────────────────────────
+# ── 5) the sheet persists, so N sheets need a ceiling ──────────────────────────────────────────────────────────
 
 def test_the_sheets_do_not_grow_without_a_ceiling():
-    """La hoja PERSISTE a propósito (un informe sobrevive a un reinicio, V2-233). N instancias persistidas crecen
-    sin fin, y un recorte silencioso es peor que uno contado."""
+    """The sheet PERSISTS deliberately (a report survives a restart, V2-233). N persisted instances grow without
+    end, and silent trimming is worse than an announced one."""
     for n in range(sheet._MAX_SHEETS + 3):
         sheet.apply_action("present", {"sheet": f"t{n}", "title": f"Búsqueda {n}",
                                        "items": [{"title": f"r{n}"}]})
@@ -190,7 +190,7 @@ def test_the_sheets_do_not_grow_without_a_ceiling():
 
 
 def test_pruning_never_touches_the_bare_sheet():
-    """No es de ningún encargo: no le toca a nadie borrarla."""
+    """It belongs to no errand: no one should delete it."""
     sheet.apply_action("present", {"title": "la de siempre", "items": [{"title": "x"}]})
     for n in range(sheet._MAX_SHEETS + 2):
         sheet.apply_action("present", {"sheet": f"t{n}", "items": [{"title": f"r{n}"}]})
@@ -198,33 +198,33 @@ def test_pruning_never_touches_the_bare_sheet():
     assert [i["title"] for i in sheet.view_data()["items"]] == ["x"]
 
 
-# ── 6) el id de hoja tiene que sobrevivir a un REINICIO ──────────────────────────────────────────────────────
+# ── 6) the sheet ID has to survive a RESTART ──────────────────────────────────────────────────────────────────
 
 def test_the_sheet_id_does_not_repeat_across_restarts():
-    """Lo cazó el arnés sobre esta misma iniciativa recién construida, y es el defecto que V2-259 existe para
-    quitar, reintroducido por la puerta de atrás: `escalate._seq` arranca en 0 en CADA proceso, así que los
-    `task_id` se repiten entre reinicios. Con la hoja nombrada por el `task_id` a secas, el primer encargo de un
-    arranque nuevo caía en `results--1` —la hoja de la sesión anterior— y `begin_task(fresh=True)` la ESTRENA,
-    o sea la borra. Un informe que el operador quería conservar, destruido en silencio.
+    """The harness caught it in this same newly built initiative, and it is the defect V2-259 exists to remove,
+    reintroduced through the back door: `escalate._seq` starts at 0 in EACH process, so `task_id` values repeat
+    across restarts. With the sheet named by the bare `task_id`, the first errand of a new startup landed in
+    `results--1` —the previous session’s sheet— and `begin_task(fresh=True)` STARTED it fresh, effectively deleting
+    it. A report the operator wanted to preserve, silently destroyed.
 
-    Así que el id lleva un sello del PROCESO. La hoja se guarda en disco y sobrevive al reinicio (V2-233): su
-    nombre tiene que sobrevivir igual de bien.
+    So the ID carries a PROCESS stamp. The sheet is stored on disk and survives a restart (V2-233): its name must
+    survive just as well.
     """
     assert dispatch.sheet_id_for("1") != "1", "el id de hoja no puede ser el task_id a pelo"
     assert dispatch.sheet_id_for("1").endswith("-1")
-    # F5 (2026-08-23): el sello ya no es un `_BOOT` privado de este módulo — lo emite el DUEÑO de la identidad
-    # de proceso (`nucleo/runtime_ids.py`), que es lo que impide que nazca el siguiente contador suelto. Lo que
-    # este caso afirma no cambia: el id de hoja compone un sello que es distinto en cada arranque.
+    # F5 (2026-08-23): the stamp is no longer a private `_BOOT` in this module — it is emitted by the OWNER of
+    # process identity (`nucleo/runtime_ids.py`), which prevents the next standalone counter from being created.
+    # What this case asserts is unchanged: the sheet ID includes a stamp that differs on every startup.
     from nucleo import runtime_ids
     assert runtime_ids.boot_id() and runtime_ids.boot_id() in dispatch.sheet_id_for("1")
-    # dos «arranques» distintos, el mismo task_id, dos hojas
+    # two different “startups”, the same task_id, two sheets
     otro = "otroboot"
     assert sheet.sheet_key(dispatch.sheet_id_for("1")) != sheet.sheet_key(f"{otro}-1")
 
 
 def test_the_sheet_is_stamped_ONCE_like_the_surface():
-    """Mismo criterio que `surfaces.set_once`: cambiar de hoja a mitad no es corregir, es mover lo que el
-    operador ya está mirando."""
+    """Same principle as `surfaces.set_once`: changing sheets halfway through is not correcting; it is moving what
+    the operator is already watching."""
     rec = _encargo("t1", "Busca fontaneros")
     primero = dispatch.sheet_of(rec)
     dispatch._sheet_open(rec)
@@ -232,8 +232,8 @@ def test_the_sheet_is_stamped_ONCE_like_the_surface():
 
 
 def test_an_errand_with_no_sheet_writes_the_bare_one():
-    """`sheet_of` NO reconstruye el id desde el task_id: un encargo cuya hoja nunca se abrió no tiene hoja, y
-    fabricarle una haría que un encargo de voz —sin superficie— escribiera en una caja que nadie abrió."""
+    """`sheet_of` does NOT reconstruct the ID from the task_id: an errand whose sheet was never opened has no sheet,
+    and fabricating one would make a voice errand —with no surface— write into a box nobody opened."""
     from nucleo.workers.session import SessionRecord
     rec = SessionRecord(task_id="t9", goal="dime la hora", kind="generic")
     assert dispatch.sheet_of(rec) == ""

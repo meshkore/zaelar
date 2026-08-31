@@ -1,4 +1,4 @@
-"""Expone a pytest/Test Observatory el contrato de reactividad de i18n (ver el .mjs para el porqué)."""
+"""Exposes the i18n reactivity contract to pytest/Test Observatory (see the .mjs file for the rationale)."""
 
 import shutil
 import subprocess

@@ -1,22 +1,22 @@
-// V2-481 — EL ARRANQUE EN FRÍO NO PUEDE ENSEÑAR CLAVES.
+// V2-481 — COLD START MUST NOT SHOW KEYS.
 //
-// `t()` cae al bundle inglés y, si tampoco está, muestra la CLAVE. Eso es correcto para una pantalla ya
-// cargada —una cadena que falta tiene que verse— y falla justo donde más se nota: en el arranque en frío de
-// una Machine, `/api/i18n/bundle` todavía no contesta, así que el PRIMER pantallazo de quien acaba de instalar
-// la PWA era `boot.encendiendo`.
+// `t()` falls back to the English bundle and, if that is unavailable too, shows the KEY. That is correct for an already
+// loaded screen —a missing string must be visible— and fails precisely where it is most noticeable: during a Machine's
+// cold start, `/api/i18n/bundle` has not responded yet, so the FIRST screen seen by someone who has just installed
+// the PWA was `boot.encendiendo`.
 //
-// Este test enchufa el módulo REAL sin ningún bundle (ni en localStorage ni por red) y exige las dos mitades:
-// una clave de arranque sale como TEXTO, y una clave cualquiera sigue saliendo como CLAVE — porque el suelo
-// tiene que ser estrecho, o dejaría de verse lo que de verdad falta.
+// This test wires in the REAL module without any bundle (neither in localStorage nor over the network) and requires both halves:
+// a startup key is returned as TEXT, while an arbitrary key is still returned as the KEY — because the fallback floor
+// must be narrow, or genuinely missing content would no longer be visible.
 import assert from "node:assert/strict";
 
-const mem = new Map([["hb_lang", "en"]]);            // sin bundle cacheado: instalación NUEVA
+const mem = new Map([["hb_lang", "en"]]);            // no cached bundle: NEW installation
 globalThis.localStorage = {
   getItem: (k) => (mem.has(k) ? mem.get(k) : null),
   setItem: (k, v) => mem.set(k, String(v)),
   removeItem: (k) => mem.delete(k),
 };
-globalThis.fetch = async () => { throw new Error("motor todavía dormido"); };   // arranque en frío
+globalThis.fetch = async () => { throw new Error("motor todavía dormido"); };   // cold start
 globalThis.window = { addEventListener() {}, location: { pathname: "/" } };
 globalThis.document = { documentElement: { lang: "" }, addEventListener() {} };
 
