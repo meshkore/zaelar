@@ -127,9 +127,13 @@ def test_confirm_classify_reply_es_en():
 
 
 # ── lifecycle.delete_widget (integración: crea una carpeta de widget temporal y la borra) ─────────────────
-def test_delete_widget_removes_folder_and_tombstones(monkeypatch):
+def test_delete_widget_removes_folder_and_tombstones(tmp_path, monkeypatch):
+    # V2-515: a DELETABLE widget lives in the generated root — a folder inside the repo would now be
+    # (correctly) protected as engine source and hidden instead of removed.
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    from widgets import paths as _paths
     wid = "tmptest_del_zz"
-    folder = os.path.join(lifecycle.HERE, wid)
+    folder = os.path.join(_paths.generated_root(), wid)
     os.makedirs(folder, exist_ok=True)
     with open(os.path.join(folder, "manifest.json"), "w") as f:
         json.dump({"id": wid, "title": "Prueba", "whenToUse": "test"}, f)

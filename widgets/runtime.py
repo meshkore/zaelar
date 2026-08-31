@@ -9,7 +9,7 @@ import os
 import re
 import unicodedata
 
-from widgets import paths
+from widgets import hidden, paths
 
 HERE = paths.BUILTIN_ROOT      # kept for callers that import it; new code asks `paths` instead
 
@@ -23,7 +23,12 @@ def _signature() -> tuple:
     # root (see widgets/paths.py) and the catalog below has to read the manifest it actually signed — not
     # re-resolve the id and risk reading a different one.
     sig = []
+    hid = hidden.ids()
     for name, folder in paths.iter_folders():
+        # V2-515: a HIDDEN id (a "deleted" shipped widget) is out of the catalog exactly as if the folder
+        # were gone — the folder itself stays on disk so engine updates keep reaching it and restore works.
+        if name in hid:
+            continue
         man = os.path.join(folder, "manifest.json")
         js = os.path.join(folder, "widget.js")
         # A widget needs BOTH a manifest AND a widget.js to be usable. A folder with only a manifest is debris from
@@ -35,6 +40,8 @@ def _signature() -> tuple:
             sig.append((name, folder, os.path.getmtime(man)))
         except OSError:
             pass
+    # The hidden set is part of the signature: hiding/unhiding must invalidate the cache like an mtime change.
+    sig.append(("__hidden__", "", tuple(sorted(hid))))
     return tuple(sig)
 
 
@@ -45,6 +52,8 @@ def catalog() -> list[dict]:
         return _cache["list"]
     out = []
     for _name, folder, _mtime in sig:
+        if _name == "__hidden__":
+            continue
         try:
             out.append(json.load(open(os.path.join(folder, "manifest.json"), encoding="utf-8")))
         except Exception:

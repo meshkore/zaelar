@@ -78,6 +78,21 @@ def _sync_import_path(rts: list[str]) -> None:
         pass
 
 
+def is_repo_source(folder: str) -> bool:
+    """True when `folder` is ENGINE SOURCE: inside the built-in root and NOT inside the generated root.
+    (On self-host the generated root lives INSIDE the built-in one — `widgets/_user/` — so a bare prefix
+    check on BUILTIN_ROOT would claim the forks too.) This is the criterion the destructive lifecycle ops
+    key on (V2-515): it reads the FOLDER, never the manifest — a manifest field is written by the very code
+    being guarded against (a modify pass once relabelled 15 shipped widgets as user-created)."""
+    f = os.path.abspath(folder or "")
+    if not f:
+        return False
+    gen = os.path.abspath(generated_root())
+    if f == gen or f.startswith(gen + os.sep):
+        return False
+    return f == BUILTIN_ROOT or f.startswith(BUILTIN_ROOT + os.sep)
+
+
 def forget_modules(widget_id: str) -> None:
     """Evict a widget's imported python modules (`widgets.<id>` and below) so the NEXT import resolves
     the folder AGAIN through `roots()` (V2-515). Without this, a long-lived process that already

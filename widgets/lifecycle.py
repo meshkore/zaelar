@@ -27,7 +27,7 @@ import time
 
 from loguru import logger
 
-from . import runtime, store
+from . import hidden, runtime, store
 
 from widgets import paths
 
@@ -84,17 +84,27 @@ async def delete_widget(widget_id: str, src: str = "system") -> dict:
     what = (meta.get("whenToUse") or "").strip()
 
     def _rm() -> None:
-        if os.path.isdir(folder):
+        # V2-515: ENGINE SOURCE is never removed from disk (measured 2026-08-30: a lab's delete took
+        # `widgets/clock` and `widgets/musica` out of the tree). A deletable folder — a generated widget,
+        # a fork — is removed as before; a shipped one survives on disk and gets HIDDEN below instead.
+        if os.path.isdir(folder) and not paths.is_repo_source(folder):
             try:
                 shutil.rmtree(folder)
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"widget lifecycle: rmtree {folder} falló: {e}")
+                logger.warning(f"widget lifecycle: rmtree {folder} failed: {e}")
+        # Whatever still resolves for this id after the rmtree is repo source (the shipped widget itself,
+        # or the shipped counterpart a deleted fork was shadowing) → hide it. "Delete" must mean GONE from
+        # the catalog, never "back to stock" — coming back is `restore_widget`'s job, on explicit request.
+        left = paths.dir_for(wid)
+        if left and paths.is_repo_source(left):
+            hidden.hide(wid)
         try:
             store.delete(wid)          # its private store dies with it (state.json + media)
         except Exception:
             pass
 
     await asyncio.to_thread(_rm)
+    paths.forget_modules(wid)          # a live process must not keep answering from the deleted code
     runtime.invalidate()               # catalog/identify stop knowing it immediately; the brain will not show it
     _emit_widget("delete", wid, src)   # close the open card on the canvas, with provenance
 
