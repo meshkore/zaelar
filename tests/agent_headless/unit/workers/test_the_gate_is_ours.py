@@ -126,7 +126,7 @@ def test_a_denial_gets_a_corrective_turn(text):
 def test_the_correction_NAMES_the_command_that_was_stopped(text="This Bash command contains multiple operations."
                                                                 " The following part requires approval: curl -s"
                                                                 ' "https://x.invalid/p"'):
-    """Repetir las reglas generales no le dice CUÁL de sus comandos sobra. El CLI sí lo nombra; se le devuelve."""
+    """Repeating the general rules does not tell it WHICH of its commands is unnecessary. The CLI names it; that is returned to it."""
     async def go():
         s = _session()
         s._maybe_unstick_permission({"text": text})
@@ -140,8 +140,9 @@ def test_the_correction_NAMES_the_command_that_was_stopped(text="This Bash comma
 def test_el_TERCER_choque_pide_ENTREGAR_en_vez_de_reescribir(
         text="cd in '/Users/x/zaelar/engine' was blocked. For security, Claude Code may only change directories"
              " to the allowed working directory"):
-    """Si tres reescrituras no han bastado, seguir corrigiendo es pedirle lo mismo por cuarta vez. Lo que hace
-    falta es que ENTREGUE lo que tiene: es la diferencia entre una tarea incompleta y una tarea muda."""
+    """If three rewrites have not been enough, continuing to correct it means asking it for the same thing a fourth
+    time. What is needed is for it to DELIVER what it has: that is the difference between an incomplete task and a
+    silent one."""
     async def go():
         s = _session()
         for _ in range(3):
@@ -150,7 +151,7 @@ def test_el_TERCER_choque_pide_ENTREGAR_en_vez_de_reescribir(
             await asyncio.sleep(0)
         assert len(s._b.sent) == 3
         assert "DEJA esa vía" in s._b.sent[-1] and "Entrega AHORA" in s._b.sent[-1]
-        # …y a partir de ahí se calla: un bucle de avisos se come el contexto que le queda para entregar.
+        # …and from that point it stays silent: a loop of notices consumes the context it has left to deliver.
         s._maybe_unstick_permission({"text": text})
         await asyncio.sleep(0)
         await asyncio.sleep(0)
@@ -166,8 +167,8 @@ def test_el_TERCER_choque_pide_ENTREGAR_en_vez_de_reescribir(
     ("todo ha ido bien, 12 resultados", ""),
 ])
 def test_el_trozo_parado_se_LEE_y_no_se_inventa(crudo, esperado):
-    """Sensibilidad: sin el último caso, inventar un fragmento mandaría al worker a reescribir un comando que no
-    escribió — peor que no nombrar ninguno."""
+    """Sensitivity: without the final case, inventing a fragment would send the worker to rewrite a command it did
+    not write — worse than naming none."""
     from nucleo.workers.session import denied_fragment
     assert denied_fragment(crudo) == esperado
 

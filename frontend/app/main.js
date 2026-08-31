@@ -15,9 +15,9 @@ import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
 import { initI18n, t } from "./core/i18n.js?v=1";
 
-// SUPERFICIES NATIVAS del frontend (widgets de SISTEMA, intocables): la LISTA CANÓNICA ÚNICA vive en
-// core/system-surfaces.js — main.js las MONTA desde ahí (sin lista duplicada). `submitChat` es el único símbolo
-// de un componente que main.js usa aparte de montar (el handler de pegar del portapapeles).
+// NATIVE frontend SURFACES (untouchable SYSTEM widgets): the SINGLE CANONICAL LIST lives in
+// core/system-surfaces.js — main.js MOUNTS them from there (with no duplicated list). `submitChat` is the only symbol
+// from a component that main.js uses apart from mounting (the clipboard-paste handler).
 import { submitChat } from "./components/ChatWall.js?v=5";
 import { SYSTEM_SURFACES } from "./core/system-surfaces.js?v=1";
 import * as api from "./services/api.js?v=2";
@@ -26,69 +26,69 @@ import { Desktop } from "./widgets/desktop.js?v=3";
 
 // ---- theme (dark/light) — apply before mounting anything, so nothing flashes the wrong palette ----
 initTheme();
-// ---- active UI language (V2-089): the store seeded instantly from the localStorage mirror; reconcile with the
+// ---- active UI language (V2-089): the store is seeded instantly from the localStorage mirror; reconcile with the
 // backend's active language (ZAELAR_LANGUAGE). t() is reactive, so any correction re-renders the UI in place. ----
 initI18n();
 
-// ---- #desk = EL ESCRITORIO como UNA sola unidad (V2-062) — la "columna central" del layout de 3 columnas.
-// Todo el escritorio (fondo, widgets, cámara, orbe, TopBar, estado) vive DENTRO. Cuando el chat se acopla a un
-// borde, #desk se encoge de ese lado (CSS: left/right = --chatdock-*, con `transform` que lo hace bloque contenedor)
-// → TODOS sus hijos position:fixed se recolocan relativos a #desk y se desplazan JUNTOS, incluidos los que tienen
-// posición inline arrastrada (orbe, cámara) que el offset por-elemento NO podía mover. Los overlays/paneles/modales
-// y el propio chat se montan FUERA de #desk (a nivel de body), por encima. ----
+// ---- #desk = THE DESKTOP as ONE single unit (V2-062) — the "central column" of the 3-column layout.
+// The entire desktop (backdrop, widgets, camera, orb, TopBar, status) lives INSIDE. When chat docks to an
+// edge, #desk shrinks on that side (CSS: left/right = --chatdock-*, with `transform` making it a containing block)
+// → ALL its position:fixed children are repositioned relative to #desk and move TOGETHER, including those with
+// dragged inline positions (orb, camera) that the per-element offset could NOT move. Overlays/panels/modals
+// and chat itself are mounted OUTSIDE #desk (at body level), above it. ----
 const desk = mount(h("div", { id: "desk" }));
 
 // ---- static scaffold (backdrop, widget stage, bot audio sink) ----
 mount(h("div", { class: "canvas" }), desk);
-// superficies de sistema de FASE scaffold (hoy: el panal de actividad) — van justo encima de .canvas y DEBAJO del
-// widget stage (V2-039: todo pinta por encima del panal). Se montan desde la lista canónica.
+// PHASE-scaffold system surfaces (today: the activity honeycomb) — go just above .canvas and BELOW the
+// widget stage (V2-039: everything paints above the honeycomb). They are mounted from the canonical list.
 for (const s of SYSTEM_SURFACES.filter(s => s.phase === "scaffold")) mount(s.comp(), desk);
 mount(h("div", { class: "wstage", id: "wstage" }), desk);   // widgets pop onto the canvas here
 const botAudio = mount(h("audio", { id: "botaudio", autoplay: true }));
 session.attachBotAudio(botAudio);
-// Vinculación reactiva icono↔audio: el <audio> SIEMPRE refleja botMuted() (lo mismo que pinta el icono 🔊 del
-// cuenco) — el switch on/off aplica al instante y nunca queda "icono silenciado pero suena" (bug de arranque V2-043).
+// Reactive icon↔audio binding: <audio> ALWAYS reflects botMuted() (the same state painted by the bowl's 🔊 icon)
+// — the on/off switch applies instantly and never leaves "muted icon but still playing" (V2-043 startup bug).
 createEffect(() => { try { botAudio.muted = store.botMuted(); } catch (_) {} });
 
-// ---- SUPERFICIES DE SISTEMA (nativas, intocables) — montadas desde la LISTA CANÓNICA ÚNICA
-// (core/system-surfaces.js), en su orden de apilado. chrome del escritorio → #desk (se desplaza al acoplar el
-// chat); paneles/overlays/modales/chat/banners → body (por encima). Añadir una superficie nativa = añadirla a
-// esa lista; aquí no se toca nada. Todo lo DEMÁS que aparece en pantalla son widgets de USUARIO (catálogo
-// widgets/<id>/, aunque se distribuyan de serie) — variables, creados por/para el usuario, como los conectores. ----
+// ---- SYSTEM SURFACES (native, untouchable) — mounted from the SINGLE CANONICAL LIST
+// (core/system-surfaces.js), in its stacking order. desktop chrome → #desk (moves when chat docks);
+// panels/overlays/modals/chat/banners → body (above it). Adding a native surface = adding it to
+// that list; nothing is changed here. EVERYTHING ELSE shown on screen is a USER widget (catalog
+// widgets/<id>/, even when distributed by default) — variable, created by/for the user, like connectors. ----
 for (const s of SYSTEM_SURFACES.filter(s => s.phase === "overlay")) {
   mount(s.comp(), s.target === "desk" ? desk : undefined);
 }
 
-// ---- primer arranque: si la config no está validada, abre el wizard ANTES de nada (config gestionada por la UI) ----
+// ---- first startup: if the config is not validated, open the wizard BEFORE anything else (config managed by the UI) ----
 api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }).catch(() => {});
 
-// El splash inline (#preboot en index.html) ya cumplió su papel (loader desde el PRIMER byte); los módulos han
-// cargado y el BootOverlay (velo de neuronas) toma el relevo → quítalo para no solapar dos loaders. Si main.js
-// hubiera fallado al cargar, #preboot se queda (mejor un loader que una pantalla negra).
+// The inline splash (#preboot in index.html) has served its purpose (loader from the FIRST byte); the modules have
+// loaded and BootOverlay (neuron veil) takes over → remove it to avoid overlapping two loaders. If main.js
+// had failed to load, #preboot remains (a loader is better than a black screen).
 try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 
-// ---- perfil CLOUD (cuenta de pago): /api/config expone `cloud_profile` (= ZAELAR_USER_ID puesto por el
-// provisioner). En cloud el header se reduce a PERFIL + tema (TopBar lo gatea); en self-host es false y nada cambia.
-// REINTENTO (2026-08-13): en el ARRANQUE EN FRÍO de la Machine de cuenta, /api/config devuelve 503 hasta que el
-// FastAPI termina de subir. Con un solo intento fallido, cloud_profile se quedaba en false PARA SIEMPRE y el header
-// pintaba el menú LOCAL en la nube. Se reintenta hasta que responde — el estado real manda. ----
+// ---- CLOUD profile (paid account): /api/config exposes `cloud_profile` (= ZAELAR_USER_ID set by the
+// provisioner). In cloud the header is reduced to PROFILE + theme (TopBar gates it); in self-host it is false and nothing changes.
+// RETRY (2026-08-13): during a cold START of the account Machine, /api/config returns 503 until
+// FastAPI finishes starting. With one failed attempt, cloud_profile stayed false FOREVER and the header
+// rendered the LOCAL menu in the cloud. Retry until it responds — the actual state prevails. ----
 (async () => {
   for (let i = 0; i < 45; i++) {
     try { const cfg = await api.getConfig(); if (cfg) { store.setCloudProfile(!!cfg.cloud_profile); return; } }
-    catch { /* 503 mientras la Machine arranca: reintentar */ }
+    catch { /* 503 while the Machine starts: retry */ }
     await new Promise((r) => setTimeout(r, 2000));
   }
 })();
 
-// ---- SALDO DE ENERGY: siembra la PILA de la barra superior (EnergyGauge.js). Después vive del SSE (`kind:"energy"`),
-// que trae el saldo nuevo con cada gasto — así baja en vivo sin ningún polling. Mismo reintento que arriba, por la
-// misma razón: en el arranque en frío de la Machine el endpoint aún no está. ----
+// ---- ENERGY BALANCE: seeds the top bar's STACK (EnergyGauge.js). Afterwards it lives off SSE (`kind:"energy"`),
+// which brings the new balance with each spend — so it drops live without any polling. Same retry as above, for the
+// same reason: on a cold Machine startup the endpoint is not available yet. ----
 (async () => {
   for (let i = 0; i < 45; i++) {
     try {
       const r = await fetch("/api/energy", { cache: "no-store" });
       if (r.ok) { store.setEnergy(await r.json()); return; }
-    } catch { /* la Machine sigue subiendo: reintentar */ }
+    } catch { /* the Machine is still starting: retry */ }
     await new Promise((r) => setTimeout(r, 2000));
   }
 })();
@@ -110,21 +110,21 @@ createEffect(() => {
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this
-// V2-092: el estado del agente llega a TODO widget por su `ctx.running`. Reactivo, así que un ⏻ (aquí o en otra
-// pestaña, vía SSE) lo ve al instante y un widget que reproduce algo no arranca solo sobre un agente parado.
+// V2-092: the agent state reaches EVERY widget through its `ctx.running`. Reactive, so a ⏻ (here or in another
+// tab, via SSE) sees it instantly and a widget playing something does not start on a stopped agent.
 createEffect(() => desktop.setRunning(!store.powerOff()));
 
-// ---- eventos del server → escritorio, DESDE EL ARRANQUE y sin depender de la voz (2026-08-09) ----
-// `openSSE` se llamaba SOLO dentro de `session.start()` (services/session.js), o sea después de conseguir el
-// micrófono y montar el WebRTC. Consecuencia: sin voz no llegaba NINGÚN evento de widget, y "sin voz" son casos
-// reales y cotidianos — el operador con ⏻ apagado (store.powerOff, que ya usa la app a propósito así desde que
-// chat y voz son independientes), un navegador que niega el micro, o cualquier arranque en el que la voz aún no
-// ha subido. En todos ellos un widget abierto se quedaba CONGELADO en la foto de su primer render: un worker
-// podía estar empujando resultados uno a uno y la pantalla no se enteraba. Justo lo contrario de lo que se pide
-// de esta superficie —ver llenarse el informe en vivo— y sin ningún síntoma que lo delatara.
-// El bus de observabilidad (services/debugbus.js) ya resolvió esto igual: suscriptor propio a /events,
-// independiente de la sesión. `openSSE` es idempotente, así que la llamada de `session.start()` sigue ahí sin
-// abrir una segunda conexión.
+// ---- server events → desktop, FROM STARTUP and without depending on voice (2026-08-09) ----
+// `openSSE` was called ONLY inside `session.start()` (services/session.js), that is, after obtaining the
+// microphone and setting up WebRTC. Consequence: without voice NO widget event arrived, and "without voice" includes
+// real, everyday cases — the operator with ⏻ off (store.powerOff, which the app has intentionally used this way since
+// chat and voice became independent), a browser that denies the microphone, or any startup where voice has not
+// come up yet. In all of them an open widget remained FROZEN in the snapshot of its first render: a worker
+// could be pushing results one by one and the screen would not know. Exactly the opposite of what this surface is
+// meant to provide —watching the report fill in live— and with no symptom to reveal it.
+// The observability bus (services/debugbus.js) solved this the same way: its own subscriber to /events,
+// independent of the session. `openSSE` is idempotent, so the `session.start()` call remains without
+// opening a second connection.
 openSSE(desktop);
 
 // ---- always-on render loop (orb = zaelar's voice, viz = the person's voice) ----
@@ -136,25 +136,25 @@ session.startVisuals({ orbCanvas: $("#orb"), vizCanvas: $("#viz") });
 // persisted operator off (store.powerOff) that this auto-connect must respect, or the very click on ⏻ would
 // re-arm the session it just stopped. To just silence zaelar keep using 🔊 (mute; agent keeps running).
 function ensureVoice() { if (store.powerOff()) return; if (!store.started() && !store.starting()) session.start().catch(() => {}); }
-// Bug real 2026-07-24 (reporte del operador: "no pasa de Encendiendo a zaelar…"): con ⏻ apagado desde una sesión
-// anterior (persistido en localStorage), `ensureVoice()` no llama NUNCA a `session.start()` — y es `start()` el
-// único sitio que arma el temporizador de seguridad y llama a `_unblockBoot()`. Sin él, `store.bootReady()` se
-// queda en `false` PARA SIEMPRE y el BootOverlay se queda clavado en el primer rótulo ("Encendiendo a zaelar…")
-// en cada carga/recarga de la página — no hay nada que arrancar (voz apagada a propósito), así que no hay nada
-// que esperar tampoco: quita el velo YA en vez de fingir un arranque que nunca vendrá.
+// Real bug 2026-07-24 (operator report: "does not progress from Starting to zaelar…"): with ⏻ off from a previous
+// session (persisted in localStorage), `ensureVoice()` NEVER calls `session.start()` — and `start()` is the
+// only place that arms the safety timer and calls `_unblockBoot()`. Without it, `store.bootReady()` stays
+// `false` FOREVER and BootOverlay remains stuck on the first label ("Starting zaelar…")
+// on every page load/reload — there is nothing to start (voice intentionally off), so there is nothing
+// to wait for either: remove the veil NOW instead of pretending a startup will ever come.
 if (store.powerOff()) store.setBootReady(true);
 ensureVoice();
 window.addEventListener("pointerdown", ensureVoice);
 
-// ---- V2-092: RECONCILIAR con la verdad del SERVIDOR (`nucleo/runstate.py`) --------------------------------------
-// El ⏻ vivía solo en el localStorage, que es per-navegador y per-origen y al que el backend no puede preguntar.
-// Consecuencia real (operador, 2026-08-13): con el agente parado, RECARGAR la página volvía a arrancar el vídeo.
-// Ahora el servidor guarda si el agente está parado y aquí se reconcilia, en la dirección SEGURA:
-//   · servidor PARADO → obedecer: apagar aquí también y tumbar la sesión si ya había subido (la siembra es async,
-//     así que `ensureVoice()` de arriba puede haberla arrancado antes de que llegue esta respuesta).
-//   · servidor EN MARCHA con el ⏻ apagado AQUÍ → propagar nuestra intención al servidor (POST /api/run/stop) en vez
-//     de encender solos. Nunca al revés: un arranque que el operador no pidió es peor que un estado desactualizado,
-//     y esto cubre además la migración (un ⏻ apagado antes de que el servidor supiera de esto).
+// ---- V2-092: RECONCILE with the SERVER truth (`nucleo/runstate.py`) --------------------------------------
+// ⏻ lived only in localStorage, which is per-browser and per-origin and cannot be queried by the backend.
+// Real consequence (operator, 2026-08-13): with the agent stopped, RELOADING the page started the video again.
+// The server now stores whether the agent is stopped and reconciliation happens here, in the SAFE direction:
+//   · server STOPPED → obey: shut down here too and tear down the session if it had already started (seeding is async,
+//     so `ensureVoice()` above may have started it before this response arrives).
+//   · server RUNNING with ⏻ off HERE → propagate our intent to the server (POST /api/run/stop) instead
+//     of starting on our own. Never the reverse: a startup the operator did not request is worse than stale state,
+//     and this also covers migration (⏻ off before the server knew about it).
 //
 // And a third rule, learned from a failure the operator captured (2026-08-14): this reply is a SNAPSHOT of the
 // moment it was requested, not of the moment it arrives. On a machine waking from cold that takes seconds, and the
@@ -172,41 +172,41 @@ window.addEventListener("pointerdown", ensureVoice);
     if (store.powerCmdAt() > askedAt) return;   // the operator commanded LATER: this snapshot is history
     if (!r.running) { store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true); }
     else if (store.powerOff()) api.runStop();
-  } catch { /* el servidor aún no responde: manda el estado local, que ya está aplicado */ }
+  } catch { /* the server is not responding yet: local state prevails, as it is already applied */ }
 })();
 
-// PARADO ⇒ SIN SESIÓN DE VOZ, venga la orden de donde venga. El ⏻ ya llama a `session.stop()` en su propio click,
-// pero desde V2-092 el estado puede llegar de FUERA de esta pestaña: de la siembra de arriba (el servidor dice que
-// el agente estaba parado) o del evento SSE `run` (otra ventana pulsó ⏻). Sin esto, esa pestaña se pintaría
-// apagada con el micro abierto — el estado que miente, otra vez. Idempotente: paramos solo si había algo en pie.
+// STOPPED ⇒ NO VOICE SESSION, regardless of where the command comes from. ⏻ already calls `session.stop()` on its own click,
+// but since V2-092 the state can arrive from OUTSIDE this tab: from the seeding above (the server says the
+// agent was stopped) or the SSE `run` event (another window pressed ⏻). Without this, that tab would render
+// off with the microphone open — the state lying again. Idempotent: stop only if something was running.
 createEffect(() => {
   if (!store.powerOff()) return;
-  store.setBootReady(true);                       // nada que esperar: no hay arranque en curso ni lo habrá
+  store.setBootReady(true);                       // nothing to wait for: no startup is in progress and none will be
   if (store.started() || store.starting()) { try { session.stop(); } catch (_) {} }
 });
 
-// Y LA DIRECCIÓN CONTRARIA (2026-08-31). La de arriba llevaba desde V2-092 cubriendo solo el APAGADO: si el
-// `powerOff` se levantaba desde FUERA de esta pestaña —el evento SSE `run`/start (otra ventana pulsó ⏻, o el
-// propio servidor arrancó), o el guarda de `session-lk.js` deshaciendo un falso apagado— nadie volvía a llamar a
-// `session.start()`. La voz esperaba al SIGUIENTE `pointerdown`, que es el otro camino a `ensureVoice()`: el ⏻ se
-// quedaba en ámbar hasta que el operador tocaba cualquier otra cosa, y RECARGAR la página lo arreglaba al instante
-// (la siembra del arranque sí llama a `ensureVoice()`). Un estado que solo se arregla recargando es exactamente el
-// estado que miente. `ensureVoice()` es idempotente: si ya está en pie, no hace nada.
+// AND THE OPPOSITE DIRECTION (2026-08-31). The one above had covered only SHUTDOWN since V2-092: if
+// `powerOff` was lifted from OUTSIDE this tab —the SSE `run`/start event (another window pressed ⏻, or the
+// server itself started), or the `session-lk.js` guard undoing a false shutdown— nobody called
+// `session.start()` again. Voice waited for the NEXT `pointerdown`, the other path to `ensureVoice()`: ⏻ stayed
+// amber until the operator touched anything else, and RELOADING the page fixed it instantly
+// (startup seeding does call `ensureVoice()`). A state fixed only by reloading is exactly the state that lies.
+// `ensureVoice()` is idempotent: if it is already running, it does nothing.
 createEffect(() => {
   if (store.powerOff()) return;
   ensureVoice();
 });
 
-// ---- ESTADO DEL CLIENTE → observabilidad (2026-08-10) ----------------------------------------------------------
-// Hasta ahora el log solo tenía la INTENCIÓN del operador (`orb:power` al pulsar ⏻), nunca la REALIDAD: un agente
-// caído que se pintaba vivo —el fallo que costó una sesión entera— era invisible desde el servidor. `agentState()`
-// es la verdad única (off/starting/live/stalled, ver store.js), así que su TRANSICIÓN es el evento que faltaba:
-// `stalled` con `prev:"live"` es «se ha caído en marcha»; con `prev:"starting"` es «no llegó a subir». Dos lecturas
-// muy distintas que antes había que adivinar.
+// ---- CLIENT STATE → observability (2026-08-10) ----------------------------------------------------------
+// Until now the log contained only the operator's INTENT (`orb:power` when pressing ⏻), never REALITY: an agent
+// that had crashed but was rendered alive —the failure that cost an entire session— was invisible from the server. `agentState()`
+// is the single source of truth (off/starting/live/stalled, see store.js), so its TRANSITION is the missing event:
+// `stalled` with `prev:"live"` means «it crashed while running»; with `prev:"starting"` it means «it never came up». Two
+// very different readings that previously had to be guessed.
 //
-// Un `createEffect` sobre una señal DERIVADA se re-ejecuta cuando cambia cualquiera de sus dependencias
-// (`powerOff`/`started`/`starting`/`bootReady`), y varias de esas combinaciones dan el MISMO estado — de ahí el
-// guarda: se emite en el cambio real, no en cada re-evaluación. Es la regla de estos eventos: estado, no actividad.
+// A `createEffect` over a DERIVED signal reruns when any of its dependencies changes
+// (`powerOff`/`started`/`starting`/`bootReady`), and several of those combinations produce the SAME state — hence the
+// guard: emit on the actual change, not on every reevaluation. That is the rule for these events: state, not activity.
 let _prevAgentState = null;
 createEffect(() => {
   const s = store.agentState();
@@ -216,9 +216,9 @@ createEffect(() => {
   api.uiState("agent:state", { state: s, prev: prev || "none" });
 });
 
-// La pestaña en segundo plano NO ejecuta `requestAnimationFrame`, y de rAF dependen el bucle del visualizador y
-// varios guardas del frontend. Sin esta línea, «se quedó congelado» y «estabas en otra aplicación» son
-// indistinguibles en el log — y esa confusión ya nos costó un diagnóstico entero.
+// A background tab does NOT run `requestAnimationFrame`, and the visualizer loop and several frontend guards depend
+// on rAF. Without this line, «it froze» and «you were in another application» are indistinguishable in the log —
+// and that confusion has already cost us an entire diagnosis.
 try {
   document.addEventListener("visibilitychange", () => {
     api.uiState("tab:visibility", { state: document.hidden ? "hidden" : "visible" });
@@ -232,8 +232,8 @@ window.zaelar = {
   gate: (on) => session.setGate(on),
   retrain: () => session.retrain(),
   orb: (s) => session.setOrb(s),
-  vault: (mode = "manage") => store.openVault(mode),   // 🔐 bóveda de secretos (V2-060): crear/desbloquear/gestionar
-  panel: (tab = "chat") => { store.setChatTab(["chat", "procesos", "crons"].includes(tab) ? tab : "chat"); store.setChatOpen(true); },  // V2-079: abre el panel nativo (chat/procesos/crons)
+  vault: (mode = "manage") => store.openVault(mode),   // 🔐 secrets vault (V2-060): create/unlock/manage
+  panel: (tab = "chat") => { store.setChatTab(["chat", "procesos", "crons"].includes(tab) ? tab : "chat"); store.setChatOpen(true); },  // V2-079: opens the native panel (chat/procesos/crons)
 };
 
 // ---- files: paste an image / drop a file → lands in the central memory's EPISODIC layer (V2-003); the brain

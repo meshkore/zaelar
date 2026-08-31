@@ -1,18 +1,18 @@
-"""Le pedíamos escribir un fichero y no le dábamos la tool para hacerlo.
+"""We asked it to write a file and did not give it the tool to do so.
 
-El payload de los puentes va por `@fichero` desde V2-379, y el prompt lo dice con todas las letras:
-*«escríbelo con Write a un fichero de tu directorio y pásalo con `@fichero.json`»*. Pero `Write` no estaba en
-la allowlist que se le pasa al CLI, así que el CLI pedía una aprobación que en headless **nadie va a dar**.
+The payload from the bridges is passed via `@fichero` since V2-379, and the prompt spells it out:
+*«escríbelo con Write a un fichero de tu directorio y pásalo con `@fichero.json`»*. But `Write` was not in
+the allowlist passed to the CLI, so the CLI requested approval that in headless **nobody is going to grant**.
 
-Medido el 2026-08-28 en `find-best-hotel-city__us` (plató 24/7), con la cadena entera visible por primera vez
-gracias a los arreglos de la misma noche:
+Measured on 2026-08-28 in `find-best-hotel-city__us` (24/7 set), with the entire chain visible for the first time
+thanks to the fixes from that same night:
 
     ⚠️ Claude requested permissions to write to …/zaelar-workers/6b9810-1/informe.json,
        but you haven't granted it yet.
     ⚠️ Exit code 2 · no puedo leer el payload de informe.json: [Errno 2] No such file or directory
 
-Nueve turnos ciegos y nota 1/5 en esa ronda. Una instrucción que el sistema hace imposible de cumplir no es
-una instrucción: es una trampa para el modelo Y para quien lea el transcript.
+Nine blind turns and a score of 1/5 in that round. An instruction that the system makes impossible to follow is not
+an instruction: it is a trap for the model AND for whoever reads the transcript.
 """
 from __future__ import annotations
 
@@ -24,23 +24,23 @@ def test_el_worker_PUEDE_escribir():
 
 
 def test_y_solo_Write():
-    """Ni `Edit` ni `NotebookEdit`: un worker estrena directorio de usar y tirar, y escribir su propio JSON es
-    la operación más pequeña que hay. MODIFICAR ficheros que ya existen es otra cosa y nadie la ha pedido."""
+    """Neither `Edit` nor `NotebookEdit`: a worker gets a fresh disposable directory, and writing its own JSON is
+    the smallest operation there is. MODIFYING files that already exist is another matter, and nobody has asked for it."""
     assert "Edit" not in CS._DEFAULT_TOOLS and "NotebookEdit" not in CS._DEFAULT_TOOLS
     assert set(CS._DEFAULT_TOOLS) == {"Read", "Write"}
 
 
 def test_el_prompt_y_la_allowlist_dicen_lo_MISMO():
-    """La mitad que importa: el defecto no era que faltara una tool, era que faltaba **la que el prompt pide**.
-    Si mañana el prompt enseña otra forma, esto tiene que volver a mirarse."""
+    """The important half: the defect was not that a tool was missing, but that **the one the prompt requests** was missing.
+    If the prompt shows another way tomorrow, this needs to be checked again."""
     from nucleo import dispatch_prompts as DP
     reglas = DP._drawer_rules("/x/.venv/bin/python")
     assert "Write" in reglas, "el prompt dejó de pedir Write y esta allowlist se quedó sin motivo"
 
 
 def test_con_deny_tools_sigue_SIN_NADA():
-    """Input no confiable (§v3·P): la puerta de arriba no se toca — un worker sin confianza no gana una tool
-    porque el de al lado la necesite."""
+    """Untrusted input (§v3·P): the upper gate is not touched — an untrusted worker does not gain a tool
+    because the one next to it needs it."""
     import inspect
     src = inspect.getsource(CS)
     i = src.index("if spec.deny_tools:")

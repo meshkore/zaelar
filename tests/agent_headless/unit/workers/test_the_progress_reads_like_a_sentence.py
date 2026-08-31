@@ -1,13 +1,13 @@
-"""V2-227 ámbito B — el caudal de progreso, en frases que entiende una persona.
+"""V2-227 scope B — the progress stream, in sentences a person can understand.
 
-Operator, 2026-08-20: «necesita ver EN TIEMPO REAL lo que está pasando: entro en esta web, aplico el filtro,
-lanzo, tengo resultados, estoy paseando, estoy haciendo triaje». Siete minutos de pantalla en blanco es la
-experiencia que se arregla, y no se arregla con más telemetría sino con telemetría que se lee.
+Operator, 2026-08-20: «they need to see IN REAL TIME what is happening: I enter this website, apply the filter,
+launch it, get results, am browsing, am triaging». Seven minutes of blank screen is the
+experience being fixed, and it is not fixed with more telemetry but with telemetry that can be read.
 
-La materia prima YA existía: V2-048 le dio a cada `tool_use` un `{where, action, target}`, así que la capa del
-navegador sabía desde siempre que estaba en `booking.com`. Lo que no llegaba al operador era esa palabra — la
-fase decía «abriendo una página…» con el host justo al lado. Aquí se prueba la mitad que convierte una cosa en
-la otra, y que viaja por el carril que ya existe (B4).
+The raw material ALREADY existed: V2-048 gave each `tool_use` a `{where, action, target}`, so the browser layer
+always knew that it was on `booking.com`. What did not reach the operator was that word — the
+phase said «opening a page…» with the host right beside it. This tests the half that turns one thing into
+the other, and that travels along the existing channel (B4).
 """
 import pytest
 
@@ -33,32 +33,32 @@ def test_the_web_search_says_WHAT_it_searched():
 
 
 def test_a_snapshot_REF_is_never_shown_to_the_operator():
-    """El navegador identifica los elementos por ref de snapshot (`ref12`), que es lo correcto para conducir la
-    página y lo contrario de legible: «pulsando «ref12»» dice menos que «pulsando en la página» y además le
-    enseña al operador nuestra fontanería."""
+    """The browser identifies elements by snapshot ref (`ref12`), which is the right way to drive the
+page and the opposite of readable: «clicking «ref12»» says less than «clicking on the page» and also
+shows the operator our plumbing."""
     assert _tool_phase("Bash", {"command": "-m nucleo.nav_cli click ref12"}) == "pulsando en la página…"
 
 
 def test_the_url_is_reduced_to_its_HOST_even_when_it_arrives_decorated():
-    """`_nav_target` entrega «→ https://…»; un `host_of` que solo entendiera una URL pelada devolvía la
-    decoración entera, que es la cadena de desarrollador que el operador no tenía que leer nunca."""
+    """`_nav_target` returns «→ https://…»; a `host_of` that understood only a bare URL would return the
+entire decoration, which is developer text the operator should never have had to read."""
     assert P.host_of("→ https://www.booking.com/searchresults?ss=Sevilla&checkin=2026-08-28") == "booking.com"
-    assert P.host_of("Buscar") == "Buscar"          # el target de un clic es una etiqueta, no una dirección
+    assert P.host_of("Buscar") == "Buscar"          # the target of a click is a label, not an address
 
 
 def test_hbnote_still_sets_its_OWN_phase():
-    """Sensibilidad, y el contrato que V2-048 dejó escrito: el reporte del worker es MÁS rico que cualquier cosa
-    que podamos derivar de la tool, así que pisarlo con una fase genérica es perder información."""
+    """Sensitivity, and the contract V2-048 established: the worker report is RICHER than anything
+we can derive from the tool, so overwriting it with a generic phase loses information."""
     assert _tool_phase("Bash", {"command": "python -m nucleo.agent_report phase \"aplicando el filtro\""}) == ""
 
 
 def test_an_unknown_tool_still_says_something():
-    """Fail-open: una fase genérica es peor que una concreta y muchísimo mejor que ninguna — la tarjeta muda es
-    justo el fallo que esto arregla."""
+    """Fail-open: a generic phase is worse than a specific one and much better than none — the silent card is
+exactly the failure this fixes."""
     assert _tool_phase("HerramientaQueNoConocemos", {}) != ""
 
 
-# ── «lanzo, tengo resultados»: el hito que pidió por su nombre ───────────────────────────────────────────────
+# ── «I launch it, get results»: the milestone requested by name ─────────────────────────────────────────────
 @pytest.mark.parametrize("n,expected", [
     (12, "12 resultados en la página"), (1, "1 resultado en la página"),
     (0, "sin resultados en esta página"),
@@ -68,21 +68,21 @@ def test_the_outcome_of_an_extraction_is_a_phase_too(n, expected):
 
 
 def test_ZERO_is_said_out_loud():
-    """Esconderlo dejaría una página que no dio nada exactamente igual que una que no se llegó a leer, que es la
-    familia de silencios que llevamos todo el día cerrando."""
+    """Hiding it would make a page that returned nothing look exactly like one that was never read, which is the
+family of silences we have been eliminating all day."""
     assert P.found(0) and "sin resultados" in P.found(0)
 
 
 def test_the_browser_bridge_ACTUALLY_reports_it():
-    """La mitad que lo convierte en conducta. Y por la puerta de `dispatch.session_phase`, la misma que usa
-    `hbnote`: B4 dice que el caudal viaja por el carril que existe, nunca por uno paralelo.
+    """The half that turns it into behavior. And through the `dispatch.session_phase` gateway, the same one used by
+`hbnote`: B4 says the stream travels along the existing channel, never through a parallel one.
 
-    Casa por la LLAMADA y no por la expresión entera al carácter. La primera versión exigía
-    `_say_phase(task_id, _progress.found(len(items)))` literal y se puso roja el 2026-08-20 cuando V2-234 pasó a
-    contar los resultados CON NOMBRE en vez de las filas crudas — un cambio que no toca en absoluto lo que este
-    test dice medir (que el puente reporte, y por el carril que existe). Es la misma trampa que ya se pagó en
-    V2-222 con un assert de V2-199: un test pegado a la sintaxis convierte cualquier refactor en un falso rojo, y
-    enseña a mirar para otro lado cuando el rojo sí importa. Qué se cuenta lo fija su propio nodo (4.31).
+Match the CALL and not the entire expression character by character. The first version required the literal
+`_say_phase(task_id, _progress.found(len(items)))` and went red on 2026-08-20 when V2-234 switched to
+counting NAMED results instead of raw rows — a change that does not affect at all what this
+test says it measures (that the bridge reports, and through the existing channel). It is the same trap already paid for in
+V2-222 with a V2-199 assert: a test tied to syntax turns any refactor into a false red, and
+teaches people to look the other way when the red actually matters. Its own node determines what is counted (4.31).
     """
     import inspect
     import re
@@ -100,8 +100,8 @@ def test_a_long_phase_says_how_long():
 
 
 def test_the_heartbeat_does_NOT_rewrite_the_phase():
-    """Si el latido guardara su propio texto, el siguiente decoraría la decoración («… lleva 1 min — lleva 2
-    min»). Se EMITE y no se guarda: el registro conserva la fase limpia."""
+    """If the heartbeat stored its own text, the next one would decorate the decoration («… 1 min elapsed — 2
+min elapsed»). It is EMITTED and not stored: the record retains the clean phase."""
     import time as _t
 
     from nucleo import dispatch as d
@@ -122,8 +122,8 @@ def test_the_heartbeat_does_NOT_rewrite_the_phase():
 
 @pytest.mark.parametrize("status,paused", [("done", False), ("cancelled", False), ("running", True)])
 def test_nothing_that_is_not_WORKING_beats(status, paused):
-    """Sensibilidad: un latido de una tarea acabada dice que sigue viva, que es exactamente la mentira que este
-    día entero ha ido quitando del sistema. Y una PAUSADA (⏻ del operador) no está trabajando: no late."""
+    """Sensitivity: a heartbeat from a finished task says it is still alive, which is exactly the lie this
+entire day has been removing from the system. And a PAUSED task (the operator's ⏻) is not working: it does not beat."""
     import time as _t
 
     from nucleo import dispatch as d
@@ -141,8 +141,8 @@ def test_nothing_that_is_not_WORKING_beats(status, paused):
 
 
 def test_the_loop_beats_on_a_TIMER_not_every_tick():
-    """El bucle corre a ~1 Hz. Sin la marca por tarea emitiría un latido por SEGUNDO y ahogaría el carril que el
-    latido existe para hacer legible."""
+    """The loop runs at ~1 Hz. Without the per-task marker it would emit a heartbeat every SECOND and drown out the channel the
+heartbeat exists to make readable."""
     import inspect
 
     from nucleo import loop
@@ -152,24 +152,24 @@ def test_the_loop_beats_on_a_TIMER_not_every_tick():
 
 
 def test_the_beat_is_forgotten_when_the_task_dies():
-    """Un diccionario indexado por tarea que nadie poda es una fuga, y este bucle vive lo que vive el proceso."""
+    """A task-indexed dictionary that nobody prunes is a leak, and this loop lives as long as the process does."""
     import inspect
 
     from nucleo import loop
     assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(loop)
 
 
-# ── la doctrina, hecha test ──────────────────────────────────────────────────────────────────────────────────
+# ── the doctrine, made into a test ───────────────────────────────────────────────────────────────────────────
 def test_the_phrasing_knows_about_BRIDGES_and_not_about_errands():
-    """Es un RECURSO: tiene que leerse igual para un hotel, para la lista de tareas de un cohete y para una casa
-    en Los Ángeles. Sabe de navegador, memoria, widgets y ficheros; de encargos, nada."""
-    # Se mira lo que el operador LEE —las frases del vocabulario— y no el fichero entero: los docstrings citan a
-    # propósito los ejemplos del operador (hoteles, una casa en Los Ángeles, `ss=Sevilla` en una URL de muestra)
-    # para decir que ninguno de ellos puede aparecer en una frase.
+    """It is a RESOURCE: it must read the same for a hotel, a rocket's task list, and a house
+in Los Angeles. It knows about browsers, memory, widgets, and files; nothing about errands."""
+    # Check what the operator READS—the vocabulary phrases—not the entire file: the docstrings deliberately cite
+    # the operator's examples (hotels, a house in Los Angeles, `ss=Sevilla` in a sample URL)
+    # to say that none of them may appear in a sentence.
     said = " ".join([f(t) for table in P._SAY.values() for f in table.values() for t in ("", "X")]).lower()
     said += " " + " ".join(P._BY_WHERE.values()).lower()
     said += " " + " ".join([P.found(0), P.found(3), P.still_alive("leyendo", 30)]).lower()
     for domain in ("hotel", "restaurante", "coche", "casa", "vuelo", "wallapop", "sevilla", "booking"):
         assert domain not in said, f"«{domain}» en una frase de progreso: lo general convertido en atajo"
-    # Y los LUGARES que conoce son puentes, no encargos.
+    # And the PLACES it knows are bridges, not errands.
     assert set(P._SAY) == {"navegador", "web", "memoria", "widget", "zaelar", "archivo", "codigo", "sistema"}

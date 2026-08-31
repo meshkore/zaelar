@@ -1,23 +1,23 @@
-"""La búsqueda dio la respuesta perfecta y murió dentro del worker (V2-236).
+"""The search produced the perfect answer and died inside the worker (V2-236).
 
-Medido por el arnés el 2026-08-21 en `cheapest-monitor`, leyendo la observabilidad ENTERA (antes solo miraba el
-38 % de 1291 eventos). Los eventos `kind='search'` (`🌐 web ↩`) traían, en texto limpio:
+Measured by the harness on 2026-08-21 in `cheapest-monitor`, reading the COMPLETE observability output (previously it only looked at
+38% of 1291 events). The `kind='search'` events (`🌐 web ↩`) contained, in clean text:
 
     «Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €»
     «Alurin CoreVision 27" IPS 4K Freesync — 149,99 €»
 
-exactamente lo que el operador pidió. Y el recuento, con su corrección incluida: **búsquedas 7 · respuestas 5 ·
-notas al cerebro desde ese canal 0**. Los tres modelos que sí se dijeron en voz alta (`27US500-W`, `S2725QS`)
-llegaron por la URL del NAVEGADOR, no por la respuesta de búsqueda: ese canal no tenía camino de entrega.
+exactly what the operator asked for. And the count, including its correction: **searches 7 · answers 5 ·
+brain notes from that channel 0**. The three models that were actually spoken aloud (`27US500-W`, `S2725QS`)
+came through the BROWSER URL, not the search answer: that channel had no delivery path.
 
-El porqué: **5 de 8 workers devolvieron `ok:false`**. El worker se cae antes de entregar y el texto bueno se va
-con él. Zaelar dijo «la búsqueda se ha caído sin terminar» — decía LA VERDAD, y el arnés se lo había puntuado
-como vaguedad.
+Why: **5 of 8 workers returned `ok:false`**. The worker crashes before delivering, and the good text goes
+with it. Zaelar said “the search crashed before finishing” — it was telling THE TRUTH, and the harness had scored it
+as vagueness.
 
-Es el mismo agujero que V2-223 cerró para lo que extrae el NAVEGADOR, por la otra puerta. Aquí se cierra en el
-sustrato (`WorkerSession._on_event`), que es donde `where` ya viene normalizado, así que cubre a Claude Code, a
-Codex y a Grok —y a las tools NATIVAS de cada CLI, que es donde el arnés midió la pérdida— con un solo sitio; y
-además en `worker_api`, que es NUESTRA búsqueda prestada al worker.
+It is the same hole that V2-223 closed for what the BROWSER extracts, through the other door. Here it is closed in the
+substrate (`WorkerSession._on_event`), where `where` is already normalized, so it covers Claude Code, Codex, and Grok
+—and each CLI’s NATIVE tools, where the harness measured the loss— in one place; and
+and also in `worker_api`, which is OUR search lent to the worker.
 """
 import pytest
 
@@ -61,10 +61,10 @@ def _web(text, **kw):
     return {"where": "web", "text": text, "tool": "WebSearch", **kw}
 
 
-# ── el caso medido, POR EL CAMINO REAL ───────────────────────────────────────────────────────────────────────
-# El primer intento de estos tests llamaba a `_maybe_hand_web` a mano: con el enganche BORRADO de `_on_event`
-# pasaban los dieciséis. Es la lección de V2-199 —un test que no recorre el camino real prueba que el código
-# compila— y aquí el camino es el evento `step_result` del stream, que es el único que existe en producción.
+# ── the measured case, THROUGH THE REAL PATH ─────────────────────────────────────────────────────────────────
+# The first attempt at these tests called `_maybe_hand_web` by hand: with the hook in `_on_event` DELETED,
+# all sixteen passed. This is the lesson of V2-199 —a test that does not traverse the real path only proves that the code
+# compiles— and here the path is the stream’s `step_result` event, the only one that exists in production.
 
 def test_un_step_result_de_web_llega_a_la_conversacion(sesion):
     from nucleo.workers.base import WorkerEvent
@@ -74,7 +74,7 @@ def test_un_step_result_de_web_llega_a_la_conversacion(sesion):
     assert "Philips 27E1N1800A" in notas[0]
 
 
-# ── el resto, sobre el predicado ─────────────────────────────────────────────────────────────────────────────
+# ── the rest, about the predicate ───────────────────────────────────────────────────────────────────────────
 
 def test_lo_que_devuelve_la_busqueda_llega_a_la_conversacion(sesion):
     sesion._maybe_hand_web(_web(RESPUESTA))
@@ -84,8 +84,8 @@ def test_lo_que_devuelve_la_busqueda_llega_a_la_conversacion(sesion):
 
 
 def test_va_por_el_camino_que_SI_llega(sesion):
-    """Nota EMPUJADA y no línea de prompt: medido 3 de 3 contra 0 de 13 (V2-222). Y con su encargo delante, que
-    es lo que permite al turno juzgar si la respuesta sirve."""
+    """PUSHED note, not a prompt line: measured 3 out of 3 versus 0 out of 13 (V2-222). And with its task in front of it, which
+    is what lets the turn judge whether the answer is useful."""
     sesion._maybe_hand_web(_web(RESPUESTA))
     n = brain_notes.drain()[0]
     assert n.startswith("[SISTEMA]")
@@ -93,32 +93,32 @@ def test_va_por_el_camino_que_SI_llega(sesion):
 
 
 def test_el_JUICIO_se_queda_en_el_cerebro(sesion):
-    """No se ordena anunciarlo: se entrega el hecho y se nombra la prueba. Una orden de «di esto» acabaría
-    ofreciendo el primer resultado de una búsqueda fallida como si fuera la respuesta — es exactamente lo que
-    V2-223 evitó con el espectáculo de flamenco de 25 €."""
+    """It is not instructed to announce it: the fact is delivered and the evidence is named. An instruction to “say this” would end up
+    offering the first result of a failed search as though it were the answer — exactly what
+    V2-223 avoided with the €25 flamenco show."""
     sesion._maybe_hand_web(_web(RESPUESTA))
     n = brain_notes.drain()[0]
-    # V2-510 reescribió la REDACCIÓN («di si sirve» → «diciendo lo que ES», con la rama de la página
-    # explícita) porque el imperativo viejo ordenaba entregar lo que fuera con nombre y precio, y lo que
-    # vuelve de una búsqueda suele ser un artículo. El INVARIANTE de este test no cambia y es el que se
-    # afirma ahora: se pide un JUICIO —qué es y si sirve—, nunca un anuncio a secas. Fijarlo al literal
-    # habría obligado a elegir entre arreglar el defecto y conservar la guarda.
+    # V2-510 rewrote the WORDING (“say whether it is useful” → “saying what it IS”, with the page branch
+    # made explicit) because the old imperative ordered delivery of anything with a name and price, and what
+    # comes back from a search is usually an item. The INVARIANT of this test does not change and is what it
+    # now asserts: a JUDGMENT is requested —what it is and whether it is useful—, never an advertisement alone. Pinning it to the literal
+    # would have forced a choice between fixing the defect and preserving the guard.
     assert "NÓMBRALO EN ESTE TURNO" in n
-    assert "diciendo lo que ES" in n              # el juicio se le PIDE
-    assert "si es un artículo" in n               # …y la rama de «no responde» sigue ahí
-    assert "NUNCA lo ofrezcas como una opción" in n   # más fuerte que antes: no se ordena anunciar
+    assert "diciendo lo que ES" in n              # the judgment is REQUESTED
+    assert "si es un artículo" in n               # …and the “does not respond” branch is still there
+    assert "NUNCA lo ofrezcas como una opción" in n   # stronger than before: it is not instructed to advertise
 
 
 def test_un_FALLO_de_la_tool_no_es_un_hallazgo(sesion):
-    """Sensibilidad. Un `is_error` tiene su propio camino (el chip del panel, la puerta de permiso de V2-211);
-    empujarlo como hallazgo metería un error de herramienta en la conversación como si fuera un resultado."""
+    """Sensitivity. An `is_error` has its own path (the panel chip, V2-211’s permission gate);
+    pushing it as a finding would put a tool error into the conversation as though it were a result."""
     sesion._maybe_hand_web(_web("Error: quota exceeded", is_error=True))
     assert brain_notes.drain() == []
 
 
 def test_un_paso_que_no_es_web_no_empuja_nada(sesion):
-    """La otra dirección: si esto disparara con cualquier `step_result`, cada lectura de fichero y cada consulta
-    a memoria del worker acabaría en la conversación."""
+    """The reverse direction: if this fired on every `step_result`, every file read and every query
+    to the worker’s memory would end up in the conversation."""
     for donde in ("memoria", "codigo", "archivo", "navegador", "sistema", ""):
         sesion._maybe_hand_web({"where": donde, "text": RESPUESTA})
     assert brain_notes.drain() == []
@@ -132,7 +132,7 @@ def test_la_misma_respuesta_dos_veces_no_son_dos_hallazgos(sesion):
 
 
 def test_una_respuesta_DISTINTA_si_se_empuja(sesion):
-    """Y la contraria, porque si no el dedup convertiría este arreglo en «solo la primera búsqueda cuenta»."""
+    """And the converse, because otherwise deduplication would turn this fix into “only the first search counts”."""
     sesion._maybe_hand_web(_web(RESPUESTA))
     brain_notes.drain()
     sesion._maybe_hand_web(_web('MSI MP273U — 27" IPS — 164,00 €'))
@@ -146,17 +146,17 @@ def test_un_ok_pelado_no_es_un_hallazgo(sesion):
 
 
 def test_no_puede_tumbar_al_worker(sesion):
-    """Corre DENTRO del bucle de eventos de una sesión viva: una excepción aquí mataría el worker que la trajo."""
+    """Runs INSIDE the event loop of a live session: an exception here would kill the worker that brought it."""
     sesion._maybe_hand_web(None)
     sesion._maybe_hand_web({"where": "web"})
     assert True
 
 
-# ── se recorta, no se resume ─────────────────────────────────────────────────────────────────────────────────
+# ── clipped, not summarized ─────────────────────────────────────────────────────────────────────────────────
 
 def test_una_respuesta_larga_se_RECORTA_y_dice_cuanto_falta():
-    """Doctrina de `observability/evidence.py`: se recorta, no se resume, y nunca se calla que había más. Una
-    respuesta de búsqueda puede ser una página entera y la conversación no es un volcado."""
+    """Doctrine of `observability/evidence.py`: clip it, do not summarize it, and never hide that there was more. A
+    search answer can be an entire page, and the conversation is not a dump."""
     largo = "dato " * 400
     out = findings.clip(largo)
     assert len(out) < len(largo)
@@ -168,11 +168,11 @@ def test_lo_que_cabe_entero_no_se_toca():
     assert findings.clip("  Philips  27E1N1800A  —  159,00 €  ") == "Philips 27E1N1800A — 159,00 €"
 
 
-# ── el renderizador de NUESTRA búsqueda ──────────────────────────────────────────────────────────────────────
+# ── the renderer for OUR search ─────────────────────────────────────────────────────────────────────────────
 
 def test_si_la_fuente_ya_sintetizo_se_entrega_ESO():
-    """Perplexity/Tavily/AI Overview devuelven la respuesta ya compuesta: reescribirla sería meter una versión
-    nuestra donde había una de la fuente."""
+    """Perplexity/Tavily/AI Overview return the answer already composed: rewriting it would insert one of
+    our versions where there was a source version."""
     assert findings.render_search({"answer": "El Prado abre de 10:00 a 20:00", "results": [{"title": "x"}]}) \
         == "El Prado abre de 10:00 a 20:00"
 
@@ -186,13 +186,13 @@ def test_sin_respuesta_sintetizada_van_las_filas_TAL_CUAL():
 
 
 def test_una_respuesta_vacia_no_produce_nota(sesion):
-    """La cadena caída ya tiene su propio camino (`websearch.note_failure` + la línea de estado): empujar una
-    nota vacía diría «he encontrado esto: nada»."""
+    """The failure string already has its own path (`websearch.note_failure` + the status line): pushing an
+    empty note would say “I found this: nothing”."""
     sesion._maybe_hand_web(_web(findings.render_search({"answer": "", "results": []})))
     assert brain_notes.drain() == []
 
 
-# ── la memoria de hallazgos se va con la sesión ──────────────────────────────────────────────────────────────
+# ── the findings memory goes away with the session ──────────────────────────────────────────────────────────
 
 def test_al_terminar_la_sesion_se_olvida_lo_entregado(sesion):
     sesion._maybe_hand_web(_web(RESPUESTA))
@@ -203,9 +203,9 @@ def test_al_terminar_la_sesion_se_olvida_lo_entregado(sesion):
 
 
 def test_el_dispatcher_lo_olvida_de_verdad():
-    """GUARDA DE CABLEADO: sin la llamada en `_run_session`, el diccionario crece durante toda la vida del
-    proceso y una búsqueda repetida en OTRO encargo se tragaría en silencio. Es la lección de V2-199 — un test
-    que no recorre el camino real prueba que el código compila."""
+    """WIRING GUARD: without the call in `_run_session`, the dictionary grows for the entire lifetime of the
+    process and a repeated search in ANOTHER task would be silently swallowed. This is the lesson of V2-199 — a test
+    that does not traverse the real path only proves that the code compiles."""
     import inspect
 
     from nucleo import dispatch

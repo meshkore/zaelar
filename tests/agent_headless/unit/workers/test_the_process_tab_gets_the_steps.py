@@ -47,8 +47,8 @@ def _phase(ws, label, *, quiet=True):
 
 
 def test_a_step_phrase_reaches_the_diary(live):
-    """THE CASE THAT JUSTIFIES THE FILE. `progress.phrase()` produced this sentence for every browser step and
-    the tab never saw one of them."""
+    """THE CASE THAT JUSTIFIES THE FILE. `progress.phrase()` produced this sentence for every browser step, and
+    the tab never saw any of them."""
     ws, rec = live
     _phase(ws, "entrando en google.com/maps…")
     assert [p["s"] for p in rec.phases] == ["entrando en google.com/maps…"]
@@ -79,7 +79,7 @@ def test_the_same_line_twice_is_not_progress(live):
 
 
 def test_a_QUIET_phase_still_reaches_the_diary(live):
-    """Sensitivity, and it is the whole bug: `quiet` decides whether the OBSERVABILITY row is duplicated next to
+    """This is the key point, and it is the whole bug: `quiet` decides whether the OBSERVABILITY row is duplicated next to
     a richer `step`. It says nothing about the diary — and every browser step carries a step, so `quiet` is true
     exactly when the operator most needs the line."""
     ws, rec = live
@@ -96,7 +96,7 @@ def test_an_empty_label_does_not_write_a_blank_line(live):
 
 
 def test_the_ring_is_bounded(live):
-    """This is what the operator MIRA, not the audit — that lives whole in observability with its evidence."""
+    """This is what the operator SEES, not the audit — that lives whole in observability with its evidence."""
     ws, rec = live
     for i in range(dispatch.PHASES_KEPT + 10):
         _phase(ws, f"paso {i}…")
@@ -115,7 +115,7 @@ def test_hbnote_still_writes_the_same_diary(live):
 
 
 def test_the_wiring_is_in_the_event_handler():
-    """Guard on the wiring. A test that called `record_phase` directly would pass with this line deleted — which
+    """Guard the wiring. A test that called `record_phase` directly would pass with this line deleted — which
     is precisely how the feature shipped inert: every piece existed and nobody joined two of them."""
     import inspect
     src = inspect.getsource(wsession.WorkerSession._on_event)

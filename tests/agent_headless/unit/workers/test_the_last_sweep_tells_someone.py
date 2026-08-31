@@ -1,16 +1,16 @@
-"""Lo que la ÚLTIMA barrida del navegador deja en la hoja tiene que llegar a la conversación.
+"""What the browser's FINAL sweep leaves in the sheet has to reach the conversation.
 
-Medido por el arnés el 2026-08-24 en tres casos (guitarra 49 s, hotel 42 s, vuelos 113 s): las filas entraban en
-la hoja DECENAS DE SEGUNDOS antes del último turno y el agente seguía diciendo «todavía no tengo nada».
+Measured by the harness on 2026-08-24 in three cases (guitar 49 s, hotel 42 s, flights 113 s): the rows entered the
+sheet TENS OF SECONDS before the last turn and the agent kept saying «I still don't have anything».
 
-La causa es estructural y no es un olvido puntual. `results.intake.push` es la puerta ÚNICA de las filas
-(V2-257) pero NO lleva nota: la nota la empuja el llamante. De los tres llamantes, dos la empujan
-(`act_api._hand_over`, `owner.py`) y el tercero —`dispatch._finalize_web`, que hace su propia extracción final
-cuando el worker termina o muere— escribía las filas y no decía nada.
+The cause is structural and is not a one-off omission. `results.intake.push` is the rows' ONLY entry point
+(V2-257) but does NOT carry a note: the caller pushes the note. Of the three callers, two push it
+(`act_api._hand_over`, `owner.py`) and the third —`dispatch._finalize_web`, which performs its own final extraction
+when the worker finishes or dies— wrote the rows and said nothing.
 
-La otra mitad, y por eso el test la fija igual de fuerte: NO puede contarlo dos veces. Si la extracción de esa
-pestaña ya salió por la nota de `_hand_over`, la barrida final es casi la misma página otra vez, y una segunda
-nota se lee como «ha encontrado más» cuando ha encontrado lo mismo.
+The other half, and why the test enforces it just as strongly: it must NOT report it twice. If the extraction from that
+tab has already gone out in `_hand_over`'s note, the final sweep is almost the same page again, and a second note is
+read as «it found more» when it found the same thing.
 """
 from __future__ import annotations
 
@@ -42,38 +42,38 @@ def test_la_barrida_final_lo_cuenta(_limpio):
 
 
 def test_no_lo_cuenta_DOS_veces_si_ya_salio_por_la_otra_puerta(_limpio):
-    """`act_api._HANDED` marca las pestañas cuya extracción ya salió como nota. La condición es sobre la
-    PESTAÑA y no sobre estas filas a propósito: la barrida final es casi la misma página otra vez."""
+    """`act_api._HANDED` marks the tabs whose extraction has already gone out as a note. The condition is on the
+    TAB and deliberately not on these rows: the final sweep is almost the same page again."""
     act_api._HANDED["nav1"] = "una-firma-cualquiera"
     assert findings.hand_sheet_finding("nav1", FILAS, "una guitarra") is False
     assert _limpio == []
 
 
 def test_una_pestana_DISTINTA_no_queda_callada_por_la_de_al_lado(_limpio):
-    """El defecto simétrico: mirar el diccionario entero en vez de ESTA pestaña dejaría mudo un encargo porque
-    otro, en paralelo, ya habló."""
+    """The symmetric defect: looking at the entire dictionary instead of THIS tab would leave a request silent because
+    another one, in parallel, has already spoken."""
     act_api._HANDED["otra"] = "firma"
     assert findings.hand_sheet_finding("nav1", FILAS, "una guitarra") is True
 
 
 def test_sin_filas_no_se_dice_nada(_limpio):
-    """Una nota que dice «he terminado y no traigo nada» ya la da el cierre del worker. Aquí, callarse."""
+    """A note saying «I'm done and I have nothing» is already provided by the worker's shutdown. Here, stay silent."""
     assert findings.hand_sheet_finding("nav1", [], "una guitarra") is False
     assert findings.hand_sheet_finding("nav1", [{"nada": "util"}], "una guitarra") is False
     assert _limpio == []
 
 
 def test_dice_cuantas_MAS_hay_sin_soltarlas_todas(_limpio):
-    """La nota entra en el prompt del turno: van tres y se dice cuántas quedan. Perder en silencio la
-    información de que había más es la doctrina de `observability/evidence.py`."""
+    """The note enters the turn's prompt: there are three, and it says how many remain. Silently losing the
+    information that there were more is the doctrine of `observability/evidence.py`."""
     muchas = FILAS + [{"title": f"Guitarra {i}", "price": "100 €"} for i in range(5)]
     findings.hand_sheet_finding("nav1", muchas, "una guitarra")
     assert "y 4 más" in _limpio[0], _limpio[0]
 
 
 def test_si_no_puede_saber_si_ya_se_contó_lo_cuenta(monkeypatch, _limpio):
-    """Fail-soft con criterio: no poder mirar el marcador no puede significar callarse. Una nota repetida es
-    ruido; una nota que falta es el operador esperando delante de una hoja llena."""
+    """Fail-soft with good judgment: being unable to check the marker cannot mean staying silent. A repeated note is
+    noise; a missing note is the operator waiting in front of a full sheet."""
     import builtins
     real = builtins.__import__
 
@@ -86,11 +86,11 @@ def test_si_no_puede_saber_si_ya_se_contó_lo_cuenta(monkeypatch, _limpio):
     assert findings.hand_sheet_finding("nav1", FILAS, "una guitarra") is True
 
 
-# ── el CABLEADO: que `_finalize_web` la llame ────────────────────────────────────────────────────────────────
+# ── the WIRING: ensure `_finalize_web` calls it ────────────────────────────────────────────────────────────────
 
 def test_finalize_web_llama_a_la_nota_justo_donde_escribe_las_filas():
-    """Guarda de cableado por AST. La función puede estar perfecta y no servir de nada si el único camino que
-    la necesitaba no la llama — que es literalmente el defecto que arregla."""
+    """AST wiring guard. The function can be perfect and still be useless if the only path that
+    needed it does not call it — which is literally the defect it fixes."""
     import ast
     src = ast.parse(open("nucleo/dispatch.py", encoding="utf8").read())
     fn = next(n for n in ast.walk(src)
