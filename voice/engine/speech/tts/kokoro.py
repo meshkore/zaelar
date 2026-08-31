@@ -165,7 +165,7 @@ class MlxKokoroStream(tts.ChunkedStream):
                 output_emitter.push(c)
         except Exception as e:  # noqa: BLE001
             # Metal tripped the mlx shape bug on THIS phrase. Fall back to in-process kokoro-onnx (CPU, no server,
-            # no mlx bug) so local TTS NEVER goes mute — "el software local no puede fallar". FastAPI only if onnx also fails.
+            # no mlx bug) so local TTS NEVER goes mute — "local software must not fail". FastAPI only if onnx also fails.
             lang = _ONNX_LANG.get(langs.current_language().code, "es")
             try:
                 pcm = await asyncio.get_event_loop().run_in_executor(

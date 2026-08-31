@@ -15,6 +15,6 @@ def build_turn_detection():
 
 
 from . import livekit  # noqa: E402,F401
-from . import semantic  # noqa: E402,F401  (V2-095: fin de turno por SENTIDO, no solo por silencio)
+from . import semantic  # noqa: E402,F401  (V2-095: end of turn by MEANING, not only by silence)
 
 __all__ = ["build_turn_detection", "registry"]
