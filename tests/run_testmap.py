@@ -982,6 +982,8 @@ DOMAINS: list[dict] = [
         # no alcanza el turno degrada a nota [SISTEMA] y abandona el ticket — la cola no se puede atascar.
         {"id": "3.17", "title": "Cola de entregas proactivas: de una en una, en orden, con respiro y sin perder ninguna",
             "ch": UNIT, "paths": ["tests/voice/unit/test_proactive_delivery_queue.py"]},
+        {"id": "3.18", "title": "El proceso vuelca sus propias pilas (/api/debug/stacks ve la corutina aparcada)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_debug_stacks.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en

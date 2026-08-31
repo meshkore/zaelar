@@ -531,6 +531,13 @@ async def entrypoint(ctx: JobContext) -> None:
     # spoken. `coro_fn` MUST be an `async def` whose BODY makes the call: creating the coroutine object is free
     # anywhere, but its body — the `say` call included — executes on the session's loop.
     _session_loop = asyncio.get_running_loop()
+    try:
+        # Make this session's loop introspectable from `/api/debug/stacks` (see `voice/debug_stacks.py`) —
+        # the ONLY way to see where a wedged playout coroutine is parked without root for py-spy.
+        from voice import debug_stacks as _debug_stacks
+        _debug_stacks.register_loop(f"voice-session:{ctx.room.name}", _session_loop)
+    except Exception:
+        pass
 
     async def _on_session_loop(coro_fn) -> None:
         try:

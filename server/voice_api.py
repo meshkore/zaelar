@@ -93,6 +93,15 @@ async def debug(kind: str = "", limit: int = 0):
     return JSONResponse({"session": session_info(), "events": debug_events(kind, limit)})
 
 
+@router.get("/api/debug/stacks")
+async def debug_stacks():
+    """Every thread's stack + every asyncio task (with await stack) of each registered loop — the question
+    «where exactly is this coroutine parked?» answered by the live process itself. Born for the 2026-08-31
+    playout wedge (speech synthesized, never played, no exception); see `voice/debug_stacks.py`."""
+    from voice import debug_stacks as _stacks
+    return JSONResponse(_stacks.collect())
+
+
 @router.get("/api/providers")
 async def providers():
     """The provider CATALOG actually wired in code: per function, the current default + the alternatives we have
