@@ -1,15 +1,15 @@
-"""El plató se limpia ANTES de CADA caso — también antes del primero.
+"""The stage is cleared BEFORE EVERY case — also before the first one.
 
-Hasta 2026-08-21 el reset entre casos vivía tras un `if results:`, o sea que solo corría a partir del
-SEGUNDO. En una tanda de un solo caso no corría nunca, y en el plató —que es persistente a propósito: mismo
-puerto, se mira en vivo— eso significa que **el primer caso de cada ronda heredaba el canvas, las tareas y los
-workers de la ronda ANTERIOR**. El operador cargó el test ES y lo primero que vio fue pantalla sucia de la
-corrida de antes.
+Until 2026-08-21, the reset between cases lived after an `if results:`, meaning it only ran starting with the
+SECOND one. In a single-case batch it never ran, and on the stage —which is deliberately persistent: same
+port, viewed live— that meant **the first case of each round inherited the canvas, tasks, and workers from the
+PREVIOUS round**. The operator loaded the ES test and the first thing they saw was the previous run's dirty
+screen.
 
-La regla que pidió es exactamente lo que `hard_reset()` hace y lo que NO hace: mata el trabajo vivo y borra el
-canvas, y deja EN PIE la memoria y el estado (`/reset/hard`, no `/api/reset/full` con `wipe_memory`). Los dos
-lados se comprueban aquí, porque «limpiar más» es la regresión fácil: borrar memoria exigiría matar el proceso
-y, además, los casos de descubrimiento siembran preferencias que tienen que sobrevivir al reset.
+The requested rule is exactly what `hard_reset()` does and does NOT do: it kills live work and clears the
+canvas, while LEAVING memory and state IN PLACE (`/reset/hard`, not `/api/reset/full` with `wipe_memory`). Both
+sides are checked here, because “cleaning more” is the easy regression: clearing memory would require killing
+the process and, in addition, discovery cases seed preferences that must survive the reset.
 """
 from __future__ import annotations
 
@@ -25,10 +25,10 @@ def _s(sid: str):
 
 
 def _batch(monkeypatch, tmp_path, ids: list[str]) -> list[str]:
-    """Corre `_run_batch` de verdad con el mundo exterior desarmado, y devuelve el ORDEN de lo que pasó.
+    """Runs `_run_batch` for real with the outside world disarmed, and returns the ORDER of what happened.
 
-    Se llama a la función REAL en vez de comprobar la fuente: un guarda de `grep` seguiría verde el día que
-    alguien vuelva a meter el reset detrás de una condición, que es justo el fallo que esto cierra.
+    It calls the REAL function instead of checking the source: a `grep` guard would remain green on the day
+    someone puts the reset behind a condition again, which is exactly the failure this closes.
     """
     order: list[str] = []
     monkeypatch.setattr(config, "RUNS_DIR", tmp_path)
@@ -37,16 +37,17 @@ def _batch(monkeypatch, tmp_path, ids: list[str]) -> list[str]:
     monkeypatch.setattr(R, "_run_scenario", lambda scn, **k: (
         order.append(f"run:{scn.id}") or {"scenario": scn.id, "tier": scn.tier, "channel": "probe",
                                           "run": {}, "verdict": {"overall": 5}}))
-    # El marcador y el informe son artefactos VIVOS del operador: un test unitario no los toca (conftest ya
-    # aísla lo suyo, esto cierra los dos que quedan por fuera).
+    # The marker and report are LIVE operator artifacts: a unit test does not touch them (conftest already
+    # isolates its own artifacts; this closes off the two that remain outside it).
     monkeypatch.setattr(statusmod, "record", lambda *a, **k: None)
     monkeypatch.setattr(statusmod, "attach_workspaces", lambda *a, **k: None)
     monkeypatch.setattr(statusmod, "summary_line", lambda: "")
     monkeypatch.setattr(reportmod, "build", lambda *a, **k: tmp_path / "r.md")
-    # EL SELLO DEL ÁRBOL, FIJADO. `_run_batch` lo relee entre casos desde V2-282 (una tanda dura horas y las
-    # guardas de arranque no ven lo que pasa durante), así que sin fijarlo estos tests preguntan por el estado
-    # de git de la máquina que los corre: verdes con el árbol limpio, rojos con una edición en curso. Es el
-    # «un test verde por el ENTORNO» que el conftest raíz ya persigue por el idioma y por la config.
+    # THE TREE STAMP, PINNED. `_run_batch` rereads it between cases from V2-282 (a batch lasts hours and the
+    # startup guards do not see what happens during it), so without pinning it these tests ask for the git
+    # state of the machine running them: green with a clean tree, red with an edit in progress. It is the
+    # “a test made green by the ENVIRONMENT” that the root conftest already guards against by language and
+    # config.
     monkeypatch.setattr(config, "code_stamp", lambda: {"sha": "fijo", "dirty": [], "n_dirty": 0})
     R._run_batch([_s(i) for i in ids], sandboxed=True, args_no_file=True)
     return order
@@ -62,7 +63,7 @@ def test_every_case_gets_its_own_reset_and_it_comes_first(monkeypatch, tmp_path)
 
 
 def test_a_failed_reset_does_not_lose_the_batch(monkeypatch, tmp_path):
-    """El reset es best-effort: un motor que no contesta al reset deja el caso sucio, no la tanda muerta."""
+    """The reset is best-effort: an engine that does not respond to the reset leaves the case dirty, not the batch dead."""
     def boom():
         raise RuntimeError("motor mudo")
     monkeypatch.setattr(config, "RUNS_DIR", tmp_path)
@@ -82,12 +83,12 @@ def test_a_failed_reset_does_not_lose_the_batch(monkeypatch, tmp_path):
 
 
 def test_the_reset_that_runs_is_the_one_that_keeps_memory():
-    """CONTRAPESO, y es el lado por el que esto se rompe «mejorándolo».
+    """COUNTERWEIGHT, and this is the side through which it breaks when “improved.”
 
-    `hard_reset()` pega a `/reset/hard`. `/api/reset/full` con `wipe_memory` es OTRO endpoint: exige matar el
-    proceso (SQLite en uso) y se llevaría por delante las preferencias que los casos de descubrimiento
-    siembran ANTES de hablar — el caso mediría al destilador de memoria y lo reportaría como que el agente no
-    razona. Si alguien cambia el endpoint «para limpiar del todo», esto se pone rojo.
+    `hard_reset()` calls `/reset/hard`. `/api/reset/full` with `wipe_memory` is ANOTHER endpoint: it requires
+    killing the process (SQLite is in use) and would wipe out the preferences that discovery cases seed BEFORE
+    speaking — the case would measure the memory distiller and report it as the agent failing to reason. If
+    someone changes the endpoint “to clean everything,” this turns red.
     """
     body = inspect.getsource(probe_client.hard_reset)
     call = [ln.strip() for ln in body.splitlines() if "_post(" in ln]

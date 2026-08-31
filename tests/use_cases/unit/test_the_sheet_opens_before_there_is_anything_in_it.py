@@ -56,7 +56,7 @@ def test_a_background_write_is_not_an_opening(tmp_path):
         (1_000, "widget", json.dumps({"id": "results", "label": "data"})),
         (9_000, "navegador", json.dumps({"text": _REAL}))]))
     assert got["sheet_ms"] is None and got["opened_before"] is None
-    assert got["sheet_any_ms"] == 1_000        # se registra, pero no cuenta como apertura
+    assert got["sheet_any_ms"] == 1_000        # it is recorded, but does not count as an opening
 
 
 def test_another_widget_is_not_the_sheet(tmp_path):

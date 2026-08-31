@@ -1,7 +1,7 @@
 """Progress is judged by the longest SILENCE, not by how many phases were emitted.
 
-The requirement is about a person: "si el worker tarda, el usuario se aburre; no puede mirar una pantalla
-en blanco siete minutos". Twenty phases in the first ten seconds followed by four minutes of nothing is
+The requirement is about a person: "if the worker takes a long time, the user gets bored; they cannot stare at a
+blank screen for seven minutes". Twenty phases in the first ten seconds followed by four minutes of nothing is
 exactly that failure, and any average hides it — which is why the headline number here is the gap.
 """
 import json
@@ -14,7 +14,7 @@ def _db(tmp_path, rows):
     p = tmp_path / "sandbox.db"
     con = sqlite3.connect(p)
     con.execute("CREATE TABLE events (topic TEXT, ts_ms INT, kind TEXT, label TEXT, payload TEXT)")
-    # La forma REAL, copiada de la BD de una ronda: topic `worker.phase` y el texto en `phase`.
+    # The REAL format, copied from a round's database: topic `worker.phase` and the text in `phase`.
     con.executemany("INSERT INTO events VALUES ('worker.phase',?,'','',?)",
                     [(ms, json.dumps({"id": "2", "phase": t})) for ms, t in rows])
     con.commit()

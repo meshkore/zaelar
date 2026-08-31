@@ -1,8 +1,8 @@
 """Losing the instrument is not a finding about the product, and the ledger cannot tell them apart.
 
 2026-08-21: both paid rungs of the tester were down AT THE SAME TIME — Z.AI out of quota until the 25th and
-a network outage that left DeepSeek direct on `Connection error` — and the walk spent hours printing «EL
-CEREBRO NO PUEDE HABLAR» without measuring a single case. A subscription rung cannot fail that way, so the
+a network outage that left DeepSeek direct on `Connection error` — and the walk spent hours printing «THE
+BRAIN CANNOT SPEAK» without measuring a single case. A subscription rung cannot fail that way, so the
 local Claude Code licence is the net under both the DRIVE and the JUDGE.
 
 The operator's separation (2026-08-21) is what these tests pin: the Brain WORKERS keep running DeepSeek/GLM
@@ -50,10 +50,10 @@ def _all_paid_rungs_down(monkeypatch):
     monkeypatch.setattr(llm, "_deepseek_direct", _boom)
     monkeypatch.setattr(llm, "_call", _boom)
     monkeypatch.setattr(llm, "glm_call", _boom)
-    monkeypatch.setattr(llm.time, "sleep", lambda _s: None)   # los reintentos no cuestan minutos aquí
+    monkeypatch.setattr(llm.time, "sleep", lambda _s: None)   # retries do not cost minutes here
 
 
-# ── El relevo ocurre, y se declara ────────────────────────────────────────────────────────────────────
+# ── The handoff occurs, and is declared ───────────────────────────────────────────────────────────────
 
 
 def test_when_every_paid_rung_is_out_the_licence_drives(monkeypatch):
@@ -63,8 +63,8 @@ def test_when_every_paid_rung_is_out_the_licence_drives(monkeypatch):
 
 
 def test_the_relay_is_STAMPED(monkeypatch):
-    """Un relevo silencioso deja el tablero avanzando con dos instrumentos y sin saber qué fila usó cuál.
-    La licencia es un modelo distinto: sus notas no son comparables con las de DeepSeek sin decirlo."""
+    """A silent handoff leaves the board moving forward with two instruments without knowing which rung used which one.
+    The licence is a different model: its scores are not comparable with DeepSeek's without saying so."""
     _all_paid_rungs_down(monkeypatch)
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: "x")
     llm.call([{"role": "user", "content": "hola"}])
@@ -72,8 +72,9 @@ def test_the_relay_is_STAMPED(monkeypatch):
 
 
 def test_the_licence_is_NOT_used_while_a_paid_rung_answers(monkeypatch):
-    """Sensibilidad, y es el lado que cuesta dinero: la licencia va la última porque consume el forfait del
-    operador. Sin este caso, «hay red debajo» y «siempre corre por la red» pasan igual de verdes."""
+    """Sensitivity, and this is the side that costs money: the licence comes last because it consumes the
+    operator's allowance. Without this case, “there is network underneath” and “it always runs over the
+    network” both pass equally green."""
     monkeypatch.setattr(llm, "_deepseek_direct", lambda *a, **k: "titular")
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: pytest.fail("la licencia no debía correr"))
     assert llm.call([{"role": "user", "content": "hola"}]) == "titular"
@@ -81,7 +82,7 @@ def test_the_licence_is_NOT_used_while_a_paid_rung_answers(monkeypatch):
 
 
 def test_the_forced_hatch_pins_the_licence(monkeypatch):
-    """La escotilla manual: medir un brazo concreto sin que un fallo lo releve por detrás."""
+    """The manual hatch: measure a specific arm without a failure handing it off behind the scenes."""
     monkeypatch.setenv("ZAELAR_UC_DRIVE", "claude")
     monkeypatch.setattr(llm, "_deepseek_direct", lambda *a, **k: pytest.fail("fijado a la licencia"))
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: "fijada")
@@ -89,17 +90,17 @@ def test_the_forced_hatch_pins_the_licence(monkeypatch):
     assert llm.drive_model() == "licencia-claude"
 
 
-# ── La licencia tiene que ser LA LICENCIA ─────────────────────────────────────────────────────────────
+# ── The licence has to be THE LICENCE ─────────────────────────────────────────────────────────────────
 
 
 def test_the_licence_does_not_inherit_the_redirect(monkeypatch, spawned):
-    """EL CASO QUE JUSTIFICA EL FICHERO. `ANTHROPIC_BASE_URL` y compañía son las variables con las que el
-    motor manda este mismo CLI a Z.AI o a DeepSeek. Heredadas aquí, el «escalón de Anthropic» sería el
-    escalón que se acaba de caer — y el sello de la ronda diría que hubo relevo cuando no lo hubo."""
+    """THE CASE THAT JUSTIFIES THE FILE. `ANTHROPIC_BASE_URL` and company are the variables with which the
+    engine sends this same CLI to Z.AI or DeepSeek. Inherited here, the “Anthropic rung” would be the rung
+    that just fell — and the round's stamp would say there was a handoff when there was not."""
     monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic")
     monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "no-debe-viajar")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "tampoco")
-    monkeypatch.setenv("PATH", "/usr/bin")            # el resto del entorno SÍ viaja: hace falta para ejecutar
+    monkeypatch.setenv("PATH", "/usr/bin")            # the rest of the environment DOES travel: it is needed to execute
     llm._claude_licence([{"role": "user", "content": "hola"}])
     env = spawned[0]["env"]
     assert "ANTHROPIC_BASE_URL" not in env and "ANTHROPIC_AUTH_TOKEN" not in env
@@ -108,9 +109,9 @@ def test_the_licence_does_not_inherit_the_redirect(monkeypatch, spawned):
 
 
 def test_the_licence_runs_from_a_NEUTRAL_directory(spawned):
-    """El CLI carga el `CLAUDE.md` del cwd. Desde `engine/`, cada turno del conductor arrastraría el repo
-    entero — V2-117 midió esa bomba en 167k tokens por petición — y, peor que el coste, un conductor que ha
-    leído el código del motor deja de hacer de PERSONA que no sabe nada."""
+    """The CLI loads `CLAUDE.md` from the cwd. From `engine/`, every turn by the driver would drag in the
+    entire repo — V2-117 measured that blast at 167k tokens per request — and, worse than the cost, a driver
+    that has read the engine code stops acting as a PERSON who knows nothing."""
     llm._claude_licence([{"role": "user", "content": "hola"}])
     cwd = Path(spawned[0]["cwd"])
     assert cwd.is_absolute()
@@ -120,15 +121,15 @@ def test_the_licence_runs_from_a_NEUTRAL_directory(spawned):
 
 
 def test_no_mcp_server_is_loaded(spawned):
-    """`--strict-mcp-config` sin `--mcp-config` deja el proceso sin un solo servidor MCP. Aquí se quiere un
-    modelo que conteste una frase, no un agente con herramientas."""
+    """`--strict-mcp-config` without `--mcp-config` leaves the process without a single MCP server. Here we want a
+    model that answers one sentence, not an agent with tools."""
     llm._claude_licence([{"role": "user", "content": "hola"}])
     assert "--strict-mcp-config" in spawned[0]["argv"]
 
 
 def test_the_system_prompt_travels_and_the_roles_survive(spawned):
-    """El conductor lleva su brief en el `system`, y la conversación anterior en los turnos. Aplanar sin
-    decir quién habló convierte la negociación en un monólogo y el tester repite lo que ya dijo."""
+    """The driver carries its brief in `system`, and the previous conversation in the turns. Flattening without
+    saying who spoke turns the negotiation into a monologue and the tester repeats what it already said."""
     llm._claude_licence([{"role": "system", "content": "Haces de persona."},
                          {"role": "user", "content": "quiero un hotel"},
                          {"role": "assistant", "content": "¿en qué ciudad?"}])
@@ -140,8 +141,8 @@ def test_the_system_prompt_travels_and_the_roles_survive(spawned):
 
 
 def test_a_nonzero_exit_is_an_error_and_not_an_answer(monkeypatch):
-    """Un `rc != 0` con stdout vacío devolvería `""`, y un turno vacío del que hace de persona se lee en el
-    informe como que el AGENTE se quedó mudo — un hallazgo contra el producto fabricado por el instrumento."""
+    """An `rc != 0` with empty stdout would return `""`, and an empty turn from the person role reads in the
+    report as the AGENT having gone silent — a finding against the product fabricated by the instrument."""
     class _R:
         returncode = 1
         stdout = ""
@@ -152,9 +153,9 @@ def test_a_nonzero_exit_is_an_error_and_not_an_answer(monkeypatch):
         llm._claude_licence([{"role": "user", "content": "hola"}])
 
 
-# ── El JUEZ también tiene red ─────────────────────────────────────────────────────────────────────────
-# Perder al juez es perder la RONDA ENTERA: la conversación ya ocurrió y ya se pagó, y sin veredicto no entra
-# en el marcador. Costó dos rondas de ocho minutos el 2026-08-20 con un 429 y un 503.
+# ── The JUDGE also has network access ─────────────────────────────────────────────────────────────────
+# Losing the judge means losing the ENTIRE ROUND: the conversation already happened and was paid for, and without a verdict it does not enter
+# the scoreboard. It cost two eight-minute rounds on 2026-08-20 with a 429 and a 503.
 
 
 def test_the_judge_falls_back_to_the_licence(monkeypatch):
@@ -166,12 +167,12 @@ def test_the_judge_falls_back_to_the_licence(monkeypatch):
 
 
 def test_the_judge_prefers_the_paid_chain(monkeypatch):
-    """Sensibilidad: el juez vive fuera del proveedor del conductor a propósito, para ser independiente.
+    """Sensitivity: the judge deliberately lives outside the driver's provider, to be independent.
 
-    El doble acepta `out` porque la cadena se lo pasa (V2-382). Y conviene saber por qué importa: si una pata
-    NO acepta el kwarg, el `TypeError` cae en el mismo `except Exception` que las caídas de proveedor y la
-    cadena baja a la licencia local — un error de programación disfrazado de proveedor caído. Se ve en el log
-    («cadena de pago sin escalón (… unexpected keyword argument …)»), pero no falla: degrada.
+    The double accepts `out` because the chain passes it (V2-382). It is worth knowing why this matters: if one leg
+    does NOT accept the kwarg, the `TypeError` falls into the same `except Exception` as provider failures and the
+    chain drops to the local licence — a programming error disguised as a provider outage. It appears in the log
+    (“paid chain without a rung (… unexpected keyword argument …)”), but does not fail: it degrades.
     """
     monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000, out=None: ("ok", "glm-4.6"))
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: pytest.fail("la licencia no debía correr"))
@@ -179,8 +180,8 @@ def test_the_judge_prefers_the_paid_chain(monkeypatch):
 
 
 def test_an_EMPTY_licence_answer_is_not_a_verdict(monkeypatch):
-    """Un juez que devuelve `""` no falla: el analizador no encuentra JSON, reintenta contra el mismo escalón
-    mudo y la ronda muere sin nota. Ya pasó con la pata directa de DeepSeek el 2026-08-20."""
+    """A judge that returns `""` does not fail: the parser finds no JSON, retries against the same silent rung,
+    and the round dies without a score. It already happened with the direct DeepSeek leg on 2026-08-20."""
     monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000: (_ for _ in ()).throw(
         RuntimeError("fuera")))
     monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: "   ")
@@ -189,8 +190,8 @@ def test_an_EMPTY_licence_answer_is_not_a_verdict(monkeypatch):
 
 
 def test_the_licence_is_the_LAST_rung_and_not_the_first():
-    """Guarda de cableado sobre el ORDEN. La conducta de arriba pasaría igual si la licencia estuviera la
-    primera y los de pago debajo — y eso es gastar el forfait del operador en cada ronda."""
+    """Wiring guard for the ORDER. The behavior above would pass just the same if the licence were first and the
+    paid ones below — and that would spend the operator's allowance on every round."""
     import inspect
     src = inspect.getsource(llm.call)
     i_chain = src.index("chain = [")

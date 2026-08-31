@@ -1,24 +1,24 @@
-"""Un proceso de Python no vuelve a leer su propio fichero (V2-372).
+"""A Python process does not reread its own file (V2-372).
 
-El supervisor llevaba desde las 08:03 corriendo el código de las 07:59, así que DOS arreglos suyos de esa
-misma mañana estuvieron inertes sin que nada lo dijera:
+The supervisor had been running the 07:59 code since 08:03, so TWO fixes made that
+same morning remained inert without anything saying so:
 
     09:42  V2-363 — una avería del arnés no es un caso que falla
     10:12  V2-367 — los 103 escenarios que nunca habían corrido entran en la rotación
 
-Medido a las 11:00: la ronda de `things-to-do-nearby-weekend__es` es INFRA en su propio informe —el juez no
-devolvió JSON tras tres intentos, la conversación había ido bien y quedó guardada en `pending/`— y el diario
-la apuntó **FAIL**, exactamente lo que V2-363 había arreglado tres horas antes. Y la rotación seguía siendo
-la de 32 escenarios, no la de 132.
+Measured at 11:00: the `things-to-do-nearby-weekend__es` round is INFRA in its own report—the judge did not
+return JSON after three attempts, the conversation had gone well and was saved in `pending/`—and the diary
+recorded it as **FAIL**, exactly what V2-363 had fixed three hours earlier. And the rotation was still the
+32-scenario one, not the 132-scenario one.
 
-Lo que lo hace MUDO es la asimetría: `una_ronda` lanza la ronda como SUBPROCESO, así que el runner, el juez,
-los escenarios y el motor entero SÍ se recargan en cada vuelta. El único que se queda atrás es este fichero
-— el que CLASIFICA el resultado y ELIGE el orden. Desde fuera todo parece al día, y el parte hasta lleva el
-`sha` de HEAD leído al empezar la ronda: **el diario afirma haber medido un commit cuyo clasificador no
-estaba cargado.**
+What makes it SILENT is the asymmetry: `una_ronda` launches the round as a SUBPROCESS, so the runner, the judge,
+the scenarios, and the entire engine DO reload on every cycle. The only thing left behind is this file—the one
+that CLASSIFIES the result and CHOOSES the order. From the outside everything looks up to date, and the report
+even carries the `sha` of HEAD read when the round began: **the diary claims to have measured a commit whose
+classifier was not loaded.**
 
-Cuarta vez de la misma familia («árbol limpio no es proceso al día») y la primera en la que quien lo paga es
-el instrumento con el que se decide dónde trabajar.
+Fourth time in the same family (“a clean tree is not an up-to-date process”) and the first in which the one
+that pays the price is the instrument used to decide where to work.
 """
 import pytest
 
@@ -27,7 +27,7 @@ from tests.use_cases.e2e.agent import supervisor as S
 
 @pytest.fixture
 def espia(monkeypatch):
-    """Sustituye lo IRREVERSIBLE (el re-exec) y lo compartido (el diario) por testigos."""
+    """Replaces the IRREVERSIBLE part (the re-exec) and the shared part (the diary) with witnesses."""
     visto = {"exec": None, "diario": []}
     monkeypatch.setattr(S.os, "execv", lambda *a: visto.__setitem__("exec", a))
     monkeypatch.setattr(S, "_apunta", lambda **f: visto["diario"].append(f))
@@ -51,8 +51,8 @@ def test_la_fuente_CAMBIADA_se_recarga(espia, monkeypatch):
 
 
 def test_la_recarga_DEJA_RASTRO_en_el_diario(espia, monkeypatch):
-    """Un reinicio silencioso convierte «llevo tres horas midiendo» en una afirmación imposible de auditar:
-    quien lea el diario tiene que poder ver dónde cambió el código con el que se estaba midiendo."""
+    """A silent restart turns “I have been measuring for three hours” into an impossible-to-audit claim:
+    whoever reads the diary must be able to see where the code being used for measurement changed."""
     monkeypatch.setattr(S, "_huella", lambda: "nueva")
     monkeypatch.setattr(S, "_fuente_utilizable", lambda: True)
     S._recargar_si_cambie("vieja")
@@ -62,9 +62,9 @@ def test_la_recarga_DEJA_RASTRO_en_el_diario(espia, monkeypatch):
 
 
 def test_una_fuente_ROTA_no_mata_el_bucle(espia, monkeypatch):
-    """El bucle no puede pararse — es el único requisito que el operador ha repetido. Re-ejecutar sobre un
-    fichero a medio escribir sería justo eso, y medir con código desfasado es peor defecto que quedarse sin
-    medir solo si uno cree que las dos cosas cuestan igual. No cuestan igual."""
+    """The loop must not stop—it is the only requirement the operator has repeated. Re-executing over a
+    half-written file would do exactly that, and measuring with stale code is a worse defect than going without
+    measurement only if one believes the two things cost the same. They do not cost the same."""
     monkeypatch.setattr(S, "_huella", lambda: "nueva")
     monkeypatch.setattr(S, "_fuente_utilizable", lambda: False)
     S._recargar_si_cambie("vieja")
@@ -73,7 +73,7 @@ def test_una_fuente_ROTA_no_mata_el_bucle(espia, monkeypatch):
 
 
 def test_una_huella_ILEGIBLE_tampoco_reinicia(espia, monkeypatch):
-    """`_huella()` devuelve "" si no puede leerse el fichero. Tratar eso como «cambió» reiniciaría en bucle."""
+    """`_huella()` returns "" if the file cannot be read. Treating that as “it changed” would restart in a loop."""
     monkeypatch.setattr(S, "_huella", lambda: "")
     S._recargar_si_cambie("vieja")
     assert espia["exec"] is None
@@ -93,13 +93,13 @@ def test_la_fuente_real_compila_y_tiene_huella():
 
 
 def test_la_recarga_va_ENTRE_rondas_y_nunca_dentro():
-    """A mitad de ronda hay un subproceso vivo con su navegador: re-ejecutar ahí lo dejaría huérfano y la
-    ronda se perdería. El sitio es después del `sleep`, con la vuelta ya cerrada.
+    """In the middle of a round there is a live subprocess with its browser: re-executing there would orphan it and
+    the round would be lost. The place is after the `sleep`, with the cycle already closed.
 
-    Reescrito 2026-08-28, NO volteado: el ancla era el texto EXACTO `una_ronda(esc)` y se rompió al pasar el
-    plató en la llamada (`una_ronda(esc, plato_de(esc))`, nodo 10.104). La propiedad protegida —el orden
-    ronda → sleep → recarga— no cambió ni un ápice; lo que cambió es que ahora se busca la LLAMADA y no una
-    de sus firmas posibles, para que el próximo argumento no vuelva a tumbar un test que no va de eso.
+    Rewritten 2026-08-28, NOT flipped: the anchor was the EXACT text `una_ronda(esc)` and broke when the
+    studio was passed in the call (`una_ronda(esc, plato_de(esc))`, node 10.104). The protected property—the
+    round → sleep → reload order—did not change one bit; what changed is that the CALL is now sought rather than
+    one of its possible signatures, so the next argument does not bring down a test that is not about that.
     """
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
@@ -109,17 +109,17 @@ def test_la_recarga_va_ENTRE_rondas_y_nunca_dentro():
 
 
 def test_el_arranque_DICE_con_qué_fuente_corre():
-    """Sin esta línea, «llevo tres horas midiendo» y «llevo tres horas midiendo con el código de hace tres
-    horas» se ven exactamente igual en el terminal del operador."""
+    """Without this line, “I have been measuring for three hours” and “I have been measuring for three hours
+    with the code from three hours ago” look exactly the same in the operator's terminal."""
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
     assert "fuente {_mia}" in src and "HEAD {_sha()}" in src
 
 
-# ── El 24/7: lo que arranca al supervisor y lo vuelve a arrancar (V2-417) ────────────────────────────────
-# Es shell y un plist, o sea lo que se rompe SIN HACER RUIDO: un `exec` que se cae deja a launchd vigilando
-# un padre muerto, un candado sin comprobación real deja dos supervisores peleándose por UN navegador, y un
-# `cd` con un nivel de más deja el envoltorio arrancando desde la carpeta equivocada. Nada de eso lanza.
+# ── 24/7: what starts the supervisor and starts it again (V2-417) ───────────────────────────────────────
+# It is a shell script and a plist, meaning exactly what breaks WITHOUT MAKING A SOUND: a failed `exec` leaves
+# launchd watching a dead parent, a lock without a real check leaves two supervisors fighting over ONE browser, and
+# a `cd` with one level too many leaves the wrapper starting from the wrong directory. None of that raises an alert.
 
 _OPS = "tests/use_cases/e2e/agent/ops"
 _ENV = "tests/use_cases/e2e/agent/supervisor_24x7.sh"
@@ -140,26 +140,26 @@ def test_los_tres_ficheros_del_247_existen_y_son_ejecutables():
 
 
 def test_el_envoltorio_entra_al_bucle_con_exec():
-    """Sin `exec`, quien vigila (launchd o el guardián) vigila a un shell padre que ya terminó, y el
-    supervisor queda huérfano y sin nadie que lo levante cuando muera — que es justo para lo que existe."""
+    """Without `exec`, the watcher (launchd or the guardian) watches a parent shell that has already finished, and the
+    supervisor is left orphaned with no one to bring it back when it dies—which is exactly what it exists for."""
     src = _lee(_ENV)
     assert "exec caffeinate" in src and "exec ./.venv/bin/python" in src
 
 
 def test_el_envoltorio_levanta_los_platos_antes_del_bucle():
-    """Tras un reinicio no hay ningún plató vivo. Un supervisor contra puertos muertos no falla: escribe una
-    fila INFRA por cada escenario de la rotación a toda velocidad, que es peor que estar parado."""
+    """After a restart there is no live studio. A supervisor against dead ports does not fail: it writes an
+    INFRA row for every scenario in the rotation at full speed, which is worse than being stopped."""
     src = _lee(_ENV)
-    # La línea tiene que EJECUTARSE, no solo aparecer. Medido al desarmarlo el 2026-08-28: comentarla dejaba
-    # el test verde sobre el defecto, porque el texto seguía ahí dentro del comentario.
+    # The line has to EXECUTE, not merely appear. Measured while dismantling it on 2026-08-28: commenting it out
+    # left the test green despite the defect, because the text was still there inside the comment.
     viva = [l for l in src.splitlines() if "tests.use_cases.lab up all" in l and not l.lstrip().startswith("#")]
     assert viva, "el envoltorio tiene que levantar los platós, no mencionarlos"
     assert src.index(viva[0]) < src.index("exec caffeinate")
 
 
 def test_el_candado_del_guardian_se_comprueba_contra_el_proceso():
-    """Un fichero de PID suelto NO basta: un guardián matado deja el suyo detrás y bloquea para siempre.
-    Y dos guardianes son dos supervisores peleándose por el único navegador de cada plató."""
+    """A lone PID file is NOT enough: a killed guardian leaves its own behind and blocks forever.
+    And two guardians are two supervisors fighting over each studio's only browser."""
     src = _lee(f"{_OPS}/keepalive.sh")
     assert "kill -0" in src, "el candado tiene que preguntarle al SO si ese pid sigue vivo"
     assert "trap" in src and "rm -f" in src, "y soltarse al salir"
@@ -173,8 +173,8 @@ def test_el_plist_vigila_de_verdad():
 
 
 def test_esta_escrito_por_que_launchd_no_basta_hoy():
-    """El siguiente que lea esto va a intentar el plist. Que se entere aquí y no tras media hora: el repo
-    vive bajo ~/Documents y TCC le niega la lectura a un agente de launchd (medido: `127 · can't open input
-    file` sobre un fichero que existe y es ejecutable)."""
+    """The next person who reads this will try the plist. Let them find out here, not after half an hour: the repo
+    lives under ~/Documents and TCC denies read access to a launchd agent (measured: `127 · can't open input
+    file` for a file that exists and is executable)."""
     src = _lee(f"{_OPS}/keepalive.sh")
     assert "TCC" in src and "Documents" in src and "127" in src

@@ -1,18 +1,18 @@
-"""V2-459 — tres agentes en esta máquina, tres puertos, y ninguno se mueve.
+"""V2-459 — three agents on this machine, three ports, and none of them moves.
 
-El operador volvió a `http://127.0.0.1:43921/` esperando encontrar ahí el agente ES y no había nada
-escuchando. No era un fallo del arranque: esa dirección solo existía para `--lab`, mientras que la tanda
-desatendida (`--sandbox`) arrancaba en `preferred_port(43918)` — UN número para los dos idiomas, y encima
-uno que se deslizaba a un puerto efímero cuando estaba ocupado. Así que «el agente español» tenía dos
-direcciones según qué comando lo hubiera levantado, y la que se deslizaba no tenía ninguna: la ronda corría
-donde cupiera y nadie podía mirarla.
+The operator returned to `http://127.0.0.1:43921/` expecting to find the ES agent there, but nothing was
+listening. It was not a startup failure: that address existed only for `--lab`, while the unattended batch
+(`--sandbox`) started at `preferred_port(43918)` — ONE number for both languages, and on top of that one
+that slid to an ephemeral port when it was occupied. So «the Spanish agent» had two addresses depending on
+which command had started it, and the sliding one had none: the round ran wherever it fit and nobody could
+watch it.
 
-Lo que se blinda aquí es lo que el operador pidió con esas palabras — que los puertos se respeten de una
-ejecución a otra:
+What is locked down here is exactly what the operator asked for — that ports remain consistent from one
+run to the next:
 
-  · una sola tabla (`tests/platform/ports.py`), no un número en cada sitio que lo necesite,
-  · el puerto sale del IDIOMA del caso, no de quién arrancó la tanda, y
-  · un puerto ocupado es un ERROR que dice quién lo tiene, nunca una razón para moverse.
+  · a single table (`tests/platform/ports.py`), not a number in every place that needs one,
+  · the port comes from the case LANGUAGE, not from whoever started the batch, and
+  · an occupied port is an ERROR that says who has it, never a reason to move.
 """
 from __future__ import annotations
 
@@ -28,10 +28,10 @@ from tests.platform import ports as PORTS
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
 
-# ── la tabla ────────────────────────────────────────────────────────────────────────────────────────────
+# ── the table ───────────────────────────────────────────────────────────────────────────────────────────
 def test_son_tres_y_estos_son_sus_numeros():
-    """Clavados a mano a propósito: el operador los tiene en marcadores del navegador, así que cambiar uno
-    tiene que costar tocar un test que dice por qué, no editar una constante de paso."""
+    """Intentionally hard-coded: the operator has them in browser bookmarks, so changing one
+    must require touching a test that explains why, not editing a pass-through constant."""
     assert PORTS.OPERATOR == 43917
     assert PORTS.SANDBOX_ES == 43921
     assert PORTS.SANDBOX_US == 43922
@@ -40,9 +40,9 @@ def test_son_tres_y_estos_son_sus_numeros():
 
 
 def test_el_puerto_del_operador_es_EL_QUE_EL_MOTOR_ARRANCA_SOLO():
-    """La fila que no controla esta tabla: el 43917 lo decide `server/__main__.py`. Si alguien cambia ahí el
-    defecto, el sandbox podría acabar peleándose con la instalación del operador — y esa colisión se paga
-    con la sesión de trabajo de una persona, no con un test rojo."""
+    """The row this table does not control: `server/__main__.py` decides 43917. If someone changes the
+    default there, the sandbox could end up fighting with the operator installation — and that collision is
+    paid for with a person's work session, not a red test."""
     src = (ENGINE / "server" / "__main__.py").read_text(encoding="utf-8")
     m = re.search(r'os\.getenv\("PORT",\s*"(\d+)"\)', src)
     assert m, "no encuentro el puerto por defecto del motor en server/__main__.py"
@@ -50,9 +50,9 @@ def test_el_puerto_del_operador_es_EL_QUE_EL_MOTOR_ARRANCA_SOLO():
 
 
 def test_el_puerto_sale_del_IDIOMA_y_entiende_las_dos_formas_de_decirlo():
-    """El catálogo dice `es`/`us`; el motor dice `ZAELAR_LANGUAGE=es`/`en`. Las dos viajan por este arnés y
-    un mapeo que entendiera solo una mandaría la mitad de las rondas al agente del otro país — que es
-    exactamente el fallo que justifica tener dos agentes (ver la cabecera de lab/profiles.py)."""
+    """The catalog says `es`/`us`; the engine says `ZAELAR_LANGUAGE=es`/`en`. Both pass through this harness and
+    a mapping that understood only one would send half the rounds to the other country's agent — exactly the
+    failure that justifies having two agents (see the header of lab/profiles.py)."""
     for spanish in ("es", "es-ES", "ES"):
         assert PORTS.sandbox_port(spanish) == PORTS.SANDBOX_ES, spanish
     for english in ("us", "en", "en-US", ""):
@@ -60,9 +60,9 @@ def test_el_puerto_sale_del_IDIOMA_y_entiende_las_dos_formas_de_decirlo():
 
 
 def test_el_laboratorio_LEE_la_tabla_en_vez_de_tener_su_propia_copia():
-    """Dos copias del mismo número se separan, y separarse aquí significa que el operador abra el puerto que
-    recuerda y encuentre otra cosa. Se comprueba el valor Y la fuente: iguales hoy por casualidad no
-    demuestra nada."""
+    """Two copies of the same number diverge, and divergence here means the operator opens the port they
+    remember and finds something else. Both the value AND the source are checked: matching by coincidence
+    today proves nothing."""
     from tests.use_cases.lab import profiles as LP
     assert LP.ES.port == PORTS.SANDBOX_ES and LP.US.port == PORTS.SANDBOX_US
     src = (ENGINE / "tests" / "use_cases" / "lab" / "profiles.py").read_text(encoding="utf-8")
@@ -70,7 +70,7 @@ def test_el_laboratorio_LEE_la_tabla_en_vez_de_tener_su_propia_copia():
     assert not re.search(r"port\s*=\s*\d{4,5}", src), "un literal de puerto ha vuelto a profiles.py"
 
 
-# ── la tanda desatendida ────────────────────────────────────────────────────────────────────────────────
+# ── the unattended batch ────────────────────────────────────────────────────────────────────────────────
 def _scn(locale: str):
     from tests.use_cases.e2e.agent import scenarios as SC
     return SC.UseCaseScenario(id=f"x__{locale}", locale=locale, tier=1, persona_brief="p",
@@ -78,7 +78,7 @@ def _scn(locale: str):
 
 
 def _boot_port(monkeypatch, tmp_path, locale: str) -> int:
-    """Arranca `_sandbox_batch` con un motor de mentira y devuelve el puerto que PIDIÓ."""
+    """Starts `_sandbox_batch` with a fake engine and returns the port it REQUESTED."""
     from tests.use_cases.e2e.agent import config, run as R
     import tests.platform.sandbox_engine as SE
 
@@ -105,23 +105,23 @@ def _boot_port(monkeypatch, tmp_path, locale: str) -> int:
 
 
 def test_una_tanda_ES_arranca_en_43921_y_una_US_en_43922(monkeypatch, tmp_path):
-    """El caso del operador, tal cual: abre 43921 mientras corre la tanda española y ve al agente trabajar.
-    Antes las dos caían en el mismo 43918 (cuando caían ahí)."""
+    """The operator's exact scenario: they open 43921 while the Spanish batch runs and watch the agent work.
+    Previously both landed on the same 43918 (when they landed there)."""
     assert _boot_port(monkeypatch, tmp_path, "es") == PORTS.SANDBOX_ES
     assert _boot_port(monkeypatch, tmp_path, "us") == PORTS.SANDBOX_US
 
 
 def test_un_puerto_OCUPADO_para_la_tanda_en_vez_de_mudarla(monkeypatch, tmp_path):
-    """La mitad que de verdad blinda: sin esto, «el puerto es fijo» dura hasta el primer huérfano.
+    """The part that really locks it down: without this, «the port is fixed» lasts until the first orphan.
 
-    Sale con 4 (NO SE PUEDE MEDIR) y no con 3 (NO SE DEBE, árbol sucio): a la tanda no la han prohibido, la
-    han bloqueado, y quien lea el log necesita distinguirlas.
+    It exits with 4 (CANNOT MEASURE) rather than 3 (MUST NOT, dirty tree): the batch has not been forbidden,
+    it has been blocked, and whoever reads the log needs to distinguish them.
     """
     from tests.use_cases.e2e.agent import config, run as R
     import tests.platform.sandbox_engine as SE
 
     @contextlib.contextmanager
-    def _never(**kw):  # pragma: no cover — no debe llegar a arrancar
+    def _never(**kw):  # pragma: no cover — must never reach startup
         raise AssertionError("arrancó un motor con el puerto ocupado")
         yield
 
@@ -137,10 +137,10 @@ def test_un_puerto_OCUPADO_para_la_tanda_en_vez_de_mudarla(monkeypatch, tmp_path
 
 
 def test_la_negativa_dice_QUIEN_tiene_el_puerto_y_como_seguir():
-    """Un EADDRINUSE pelado manda a alguien a buscar de cero. Con tres agentes en la máquina, lo que hace
-    falta saber es CUÁLES DOS se están peleando y qué hacer con eso."""
+    """A bare EADDRINUSE sends someone searching from scratch. With three agents on the machine, what needs
+    to be known is WHICH TWO are fighting and what to do about it."""
     ocupado = PORTS.busy_refusal(PORTS.SANDBOX_ES, want="el sandbox ES de esta tanda")
-    if not ocupado:                       # el agente ES no está levantado en esta máquina ahora mismo
+    if not ocupado:                       # the ES agent is not running on this machine right now
         ocupado = PORTS.busy_refusal(PORTS.OPERATOR, want="el sandbox ES de esta tanda")
     if not ocupado:
         pytest.skip("ningún puerto conocido está ocupado en esta máquina; la forma del mensaje se ve abajo")
@@ -149,8 +149,8 @@ def test_la_negativa_dice_QUIEN_tiene_el_puerto_y_como_seguir():
 
 
 def test_un_puerto_LIBRE_no_inventa_una_negativa():
-    """La mitad de sensibilidad del caso de arriba: sin esto, un `busy_refusal` que devolviera siempre texto
-    pararía todas las tandas y los dos casos pasarían igual."""
+    """The sensitivity counterpart to the case above: without this, a `busy_refusal` that always returned text
+    would stop every batch and both cases would pass anyway."""
     import socket
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
@@ -160,15 +160,15 @@ def test_un_puerto_LIBRE_no_inventa_una_negativa():
 
 
 def test_ya_no_queda_forma_de_DESLIZARSE_a_otro_puerto():
-    """El trinquete. `preferred_port()` era la función que hacía justo lo que el operador prohibió, y
-    mientras exista alguien la volverá a llamar «solo para que no falle el arranque»."""
+    """The ratchet. `preferred_port()` was the function that did exactly what the operator prohibited, and
+    as long as it exists someone will call it again «just so startup does not fail»."""
     import tests.platform.sandbox_engine as SE
     assert not hasattr(SE, "preferred_port")
     src = (ENGINE / "tests" / "use_cases" / "e2e" / "agent" / "run.py").read_text(encoding="utf-8")
     boot = src[src.index("def _sandbox_batch"):]
     boot = boot[:boot.index("\ndef ", 10)]
-    # Sin comentarios: la explicación de POR QUÉ se quitó el deslizamiento nombra la función que se quitó, y
-    # un trinquete que se dispare con su propia nota de defunción no es un trinquete.
+    # Without comments: the explanation of WHY sliding was removed names the removed function, and
+    # a ratchet triggered by its own obituary is not a ratchet.
     codigo = "\n".join(l for l in boot.splitlines() if not l.strip().startswith("#"))
     assert "free_port" not in codigo and "preferred_port(" not in codigo
     assert "ports.sandbox_port(" in codigo, "el puerto tiene que salir de la tabla, no de un número aquí"

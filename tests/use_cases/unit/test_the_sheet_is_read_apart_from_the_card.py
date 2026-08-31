@@ -35,9 +35,9 @@ SHEET = {
 def sheet(monkeypatch):
     """Patch the ONE seam the reader uses, so the test exercises the real assembly and not a copy of it."""
     def _install(payload):
-        # `q` es el sufijo de instancia (V2-259): este fichero mide la caja PELADA, así que el doble solo
-        # contesta cuando no se pide ninguna instancia — si contestara a todas, taparía justo el defecto
-        # que el nodo 10.61 existe para cazar (leer la caja equivocada).
+        # `q` is the instance suffix (V2-259): this file measures the BARE box, so the stub only
+        # answers when no instance is requested — if it answered all of them, it would hide precisely the defect
+        # that node 10.61 exists to catch (reading the wrong box).
         monkeypatch.setattr(probe_client, "widget_data",
                             lambda wid, q="": payload if (wid == "results" and not q) else None)
     return _install
@@ -48,18 +48,18 @@ def test_a_sheet_with_candidates_is_reported_with_its_named_rows(sheet):
     out = verifymod.results_sheet()
     assert out["read"] is True
     assert out["n_items"] == 3
-    assert out["n_named"] == 2, "una fila sin nombre no es un candidato (misma regla que la nota del navegador)"
-    # RESPALDO POR FILA, que es la pregunta «¿de dónde salió ESTE candidato?». Este assert leía
-    # `counts.sources` —la PESTAÑA «Fuentes», donde el worker declara qué sitios probó— y por eso la
-    # confusión pasó sus tests: las tres filas de aquí llevan `url`, y el número que se comprobaba era 4.
-    # Medido el 2026-08-24 con seis anuncios reales con enlace vivo: el informe dijo «0 fuentes» y el juez
-    # fichó dos [alta] por invención contra una entrega correcta.
-    assert out["n_backed"] == 3, "las tres filas llevan `url`: su respaldo NO depende de la pestaña Fuentes"
-    assert out["n_sites_reported"] == 4, "la pestaña sigue contándose, con su nombre de verdad"
+    assert out["n_named"] == 2, "a row without a name is not a candidate (same rule as the browser note)"
+    # ROW-LEVEL BACKING, which is the question “where did THIS candidate come from?”. This assert read
+    # `counts.sources` —the “Sources” TAB, where the worker declares which sites it tried—so the
+    # confusion passed its tests: all three rows here have `url`, and the number being checked was 4.
+    # Measured on 2026-08-24 with six real listings with a live link: the report said “0 sources” and the judge
+    # flagged two [high] invention findings against a correct delivery.
+    assert out["n_backed"] == 3, "all three rows have `url`: their backing does NOT depend on the Sources tab"
+    assert out["n_sites_reported"] == 4, "the tab is still counted, under its actual name"
 
 
 def test_una_fila_SIN_procedencia_no_cuenta_como_respaldada(sheet):
-    """Sensibilidad: si `n_backed` contara filas, un candidato inventado pasaría por respaldado."""
+    """Sensitivity: if `n_backed` counted rows, an invented candidate would pass as backed."""
     sheet({"items": [{"title": "Fontanero inventado"}, {"title": "Real", "url": "https://x.example/1"}],
            "counts": {"sources": 0}})
     out = verifymod.results_sheet()
@@ -67,7 +67,7 @@ def test_una_fila_SIN_procedencia_no_cuenta_como_respaldada(sheet):
 
 
 def test_el_sitio_de_origen_tambien_es_respaldo(sheet):
-    """Una fila puede traer el sitio sin enlace directo (`badge`), y eso SÍ se puede comprobar."""
+    """A row can provide the site without a direct link (`badge`), and that CAN be verified."""
     sheet({"items": [{"title": "Monitor", "badge": "Wallapop"}], "counts": {}})
     assert verifymod.results_sheet()["n_backed"] == 1
 
@@ -101,7 +101,7 @@ def test_the_report_prints_the_named_candidates_the_sheet_ended_with(tmp_path):
                                            "titles": ["fontanero24h O'Donnell", "Fontanero Centro Madrid"]}},
                         tmp_path)
     assert "hoja de resultados: 2 candidato(s) con nombre de 3 fila(s) · 3 con enlace/fuente" in text
-    assert "pestaña Fuentes: 4 sitio(s)" in text, "las dos cifras son distintas y se dicen aparte"
+    assert "pestaña Fuentes: 4 sitio(s)" in text, "the two figures are different and are stated separately"
     assert "fontanero24h O'Donnell" in text
 
 
@@ -133,18 +133,18 @@ def test_widget_data_tells_a_failed_request_apart_from_an_empty_widget(monkeypat
     assert probe_client.widget_data("results") == {"items": [], "title": "x"}
 
 
-# ── el caso MEDIDO: seis anuncios reales leídos como inventados ────────────────────────────────────────
-# `search-secondhand-monitor__es` (2026-08-24 01:35). La hoja acabó con SEIS anuncios, cada uno con su
-# enlace vivo a milanuncios.com o es.wallapop.com, su precio y su ubicación. El informe dijo «6 candidato(s)
-# con nombre de 6 fila(s) · 0 fuente(s)» y el juez —leyéndolo como había que leerlo— fichó DOS [alta]:
+# ── MEASURED case: six real listings read as invented ────────────────────────────────────────
+# `search-secondhand-monitor__es` (2026-08-24 01:35). The sheet ended with SIX listings, each with its
+# live link to milanuncios.com or es.wallapop.com, its price, and its location. The report said “6 candidate(s)
+# named out of 6 row(s) · 0 source(s)” and the judge —reading it as it should be read—flagged TWO [high]:
 #
-#     «Los 6 títulos no tienen ninguna fuente asociada (n_sources: 0) … Los nombres parecen inventados o
-#      rellenados sin lectura real de la página, lo que es el fallo MÁS GRAVE de este caso.»
+#     “The 6 titles have no associated source (n_sources: 0) … The names appear to be invented or
+#      filled in without actually reading the page, which is the MOST SERIOUS failure in this case.”
 #
-# Era una entrega CORRECTA. El número venía de `counts.sources`, que es la PESTAÑA «Fuentes» —donde el
-# worker declara qué sitios probó— y estaba vacía porque es opcional. Tercera vez de esta clase en dos días
-# (`results: null`, `duplicate_errands`) y la más cara: las otras exageraban un defecto, ésta fabricó uno
-# encima de un acierto.
+# It was a CORRECT delivery. The number came from `counts.sources`, which is the “Sources” TAB —where the
+# worker declares which sites it tried— and it was empty because it is optional. Third time of this kind in two days
+# (`results: null`, `duplicate_errands`) and the costliest: the others exaggerated a defect; this one fabricated one
+# on top of a success.
 
 _MEDIDO = {
     "title": 'Monitores 27" de segunda mano por menos de 150 €',
@@ -162,7 +162,7 @@ _MEDIDO = {
         {"title": "Monitor Xiaomi 27 Negro", "price": "50 €", "badge": "Wallapop",
          "url": "https://es.wallapop.com/item/monitor-xiaomi-27-negro-1291145854"},
     ],
-    "counts": {"sources": 0},          # la pestaña, vacía — y eso no dice nada de las filas
+    "counts": {"sources": 0},          # the tab, empty — and that says nothing about the rows
 }
 
 
@@ -170,7 +170,7 @@ def test_seis_anuncios_con_enlace_vivo_NO_son_una_hoja_sin_respaldo(sheet):
     sheet(_MEDIDO)
     out = verifymod.results_sheet()
     assert out["n_named"] == 6
-    assert out["n_backed"] == 6, "cada fila trae su enlace: esta hoja está respaldada entera"
+    assert out["n_backed"] == 6, "each row has its link: this entire sheet is backed"
     assert out["n_sites_reported"] == 0
 
 
@@ -179,12 +179,12 @@ def test_y_al_JUEZ_se_le_dice_que_la_pestana_vacia_NO_es_invencion(sheet):
     facts = judgemod.mechanism_facts({"results_sheet": verifymod.results_sheet()})
     assert "las 6 llevan enlace o sitio de origen" in facts
     assert "No lo puntúes como invención" in facts, (
-        "sin esta frase el juez vuelve a leer una pestaña opcional vacía como resultados fabricados")
+        "without this phrase the judge again reads an empty optional tab as fabricated results")
 
 
 def test_pero_una_hoja_de_verdad_SIN_respaldo_se_sigue_diciendo(sheet):
-    """Sensibilidad: quitar el falso positivo no puede quitar el verdadero — un título sin nada detrás SÍ es
-    lo que este caso prohíbe."""
+    """Sensitivity: removing the false positive cannot remove the true one — a title with nothing behind it IS
+    what this case prohibits."""
     sheet({"items": [{"title": "Fontanero 4,7 sobre 5"}, {"title": "Otro fontanero"}], "counts": {}})
     facts = judgemod.mechanism_facts({"results_sheet": verifymod.results_sheet()})
     assert "solo 0 de 2 llevan enlace o sitio de origen" in facts

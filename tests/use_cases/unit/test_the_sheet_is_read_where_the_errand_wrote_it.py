@@ -124,15 +124,15 @@ def test_the_row_reader_builds_the_same_path(monkeypatch):
     assert seen == ["/widgets/agenda/data", "/widgets/results/data?q=2"]
 
 
-# ── la forma REAL que entrega `sheet_instances`: la pelada Y la instancia ──────────────────────────────
-# El guarda de arriba se escribió con `ids=["results::1"]`, y con eso el filtro viejo ya excluía la pelada
-# «sola». Pero `sheet_instances` la incluye en cuanto el canvas la abrió, y la tanda del 2026-08-24 03:02
-# entregó exactamente `["results", "results::c2567e-1"]`: el filtro partía por `::` y se quedaba con las dos,
-# así que las 38 filas acumuladas en la caja de nadie se sumaron a CADA caso. El del monitor salió con seis
-# títulos de guitarra; el de la guitarra, con bicicletas.
+# ── the REAL shape delivered by `sheet_instances`: the bare box AND the instance ───────────────────────
+# The guard above was written with `ids=["results::1"]`, and with that the old filter already excluded the bare
+# box on its own. But `sheet_instances` includes it as soon as the canvas opened it, and the batch at 2026-08-24
+# 03:02 delivered exactly `["results", "results::c2567e-1"]`: the filter split on `::` and kept both,
+# so the 38 rows accumulated in nobody's box were added to EVERY case. The monitor case came out with six
+# guitar titles; the guitar case, with bicycles.
 #
-# Este caso no es una variante del de arriba: es la entrada que producción produce, que es la que hay que
-# probar (la lección de V2-199/V2-200 aplicada a un lector).
+# This case is not a variant of the one above: it is the input production produces, which is the one that must be
+# tested (the V2-199/V2-200 lesson applied to a reader).
 
 _MEDIDO = ["results", "results::c2567e-1"]
 
@@ -148,7 +148,7 @@ def test_con_la_pelada_EN_la_lista_tampoco_se_lee(monkeypatch):
 
 
 def test_y_lo_que_NO_se_pudo_mirar_se_dice_None_no_cero(monkeypatch):
-    """«No lo sé» y «vacía» no pueden verse igual — con instancias abiertas la pelada no se lee a propósito."""
+    """“I don't know” and “empty” must not look the same — with instances open, the bare box is deliberately not read."""
     _fake(monkeypatch, {"c2567e-1": {"items": [{"title": "Monitor Dell 27"}]},
                         "": {"items": [{"title": "Guitarra"}] * 18}})
     assert verify.results_sheet(_MEDIDO)["bare_box"] is None
