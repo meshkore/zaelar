@@ -7309,6 +7309,50 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     the reads look flaky (the server holds its own cached db) — drive and read through the server, or the
     result says nothing.
 
+- **What a pure show may RUN is decided by the ACTION, not by the words — and the lens phrases resolve before
+  any model (V2-545, 2026-09-01)**: «Ábreme el Telegram» left the card unmoved, three live turns, while
+  «muéstrame SOLO LOS MENSAJES de Telegram» worked — and the difference was an accident. V2-544's guard
+  classified the object of a show verb by matching the text against the widget's manifest ALIASES, and
+  mensajeria's aliases ARE its lens names (`whatsapp`, `telegram`, `correo`, `gmail`, `outlook`), so the terse
+  form read as «show the card» and the longer one only passed because its extra words failed the match. The
+  distinction is not in the phrasing; it is in the ACTION, and the widget is the one that knows.
+  - **`widgets/actions.py::is_view` — a SECOND axis, orthogonal to FAST/CONFIRM/ESCALATE.** `classify` answers
+    «how much friction does running this cost»; this one answers «is running it the same thing the operator
+    asked for when they only asked to LOOK». Opt-in and EXPLICIT (`"view": true` per action): **nothing is
+    inferred from the name**, because the same `open` is display-only in mensajeria (opens a chat) and a
+    real-world side effect in navegador (loads a URL) — a name heuristic would be wrong in exactly the cases
+    that matter. A widget that declares nothing keeps the old behavior. An action needing confirmation is never
+    a view, whatever the manifest says.
+  - **The rail does BOTH on a view action** — shows the card AND applies the view. That is what «ábreme el
+    Telegram» means, and it dissolves the card-vs-inside ambiguity instead of guessing it. The discarded action
+    now travels in the event: the previous version logged only the widget id, so three live turns of «Aquí lo
+    tienes» over an unmoved card left no trace of WHAT had been thrown away, and the model was suspected before
+    the guard was.
+  - **Even with the guard fixed, the model still narrated the terse forms**: measured live, «Ábreme el Telegram»
+    called NO tool and replied «Hecho, ya lo tienes filtrado a solo Telegram». So the deterministic layer takes
+    them: the seed pack gains a **VERB × OBJECT grid** expanded at import into ordinary exact-match entries
+    (bookkeeping, not understanding — nothing at match time gets smarter). The literal `show_widget` entries it
+    now owns were REMOVED, or a fresh install and an upgraded one would disagree about what «abre el whatsapp»
+    does. A view op run from the map brings the card up as well, and the loop is acquired BEFORE any emit so a
+    run without one falls through WHOLE instead of half-executing.
+  - **And the seed pack could not be upgraded at all**: `ensure_seeded` imported once per INSTALL («any seed row
+    exists» = done), so a pack fixed later reached nobody — every engine kept the phrases of its first boot,
+    including every cloud Machine. It imports once per pack VERSION now, inserting what is new and RETARGETING a
+    phrase that is still an untouched shipped row; a row the operator disabled, or one the map learned, is never
+    moved. Live: `433 entries · 11 retargeted`.
+  - **The probe reported the mapped action and never RAN it** — right while the map only spoke canvas verbs (a
+    show is meaningless headless), wrong the day it could drive a widget's DATA. With `execute` it now runs it
+    and reports the hit only if it ran, the voice rail's contract. Eighth instance of «cablear en AMBOS».
+  - **VERIFIED LIVE** (engine restarted): «ábreme el Telegram» · «ábreme el WhatsApp» · «muéstrame ahora el
+    Telegram» · «enséñame el correo» · «muéstrame todos los mensajes» all resolve pre-LLM to
+    `widget_data:mensajeria:show_view` with the lens applied in the store; «abre el mensaje de Francisco» still
+    reaches `open{name}` (3/3 in isolation) and «abre la agenda» still goes to `show_widget`. ⚠️ Reading the
+    store 1.2 s after a `backed` op reports the state BEFORE the owner applied it — the queue takes ~3 s, and a
+    short sleep makes a working op look like a dead one.
+  - **Left with the model on purpose**: a bare «vuelve a la lista principal» is genuinely ambiguous (`results`
+    declares a `list` action meaning exactly that), and the pack's own doctrine keeps ambiguous whole utterances
+    out. Nodes 2.1 and the actionmap node; disarms verified in both directions.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

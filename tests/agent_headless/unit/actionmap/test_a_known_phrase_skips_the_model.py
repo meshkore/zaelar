@@ -414,3 +414,17 @@ def test_an_upgrade_never_moves_what_the_operator_touched(fresh_map, monkeypatch
     assert _mapi.action_map_retarget_seed("es", "abre el whatsapp", body) is False
     _mapi.action_map_add("es", "una frase mia", body, source="learned")
     assert _mapi.action_map_retarget_seed("es", "una frase mia", json.dumps({"do": "show_widget", "widget": "agenda"})) is False
+
+
+def test_the_probe_channel_runs_the_action_when_asked_to_execute():
+    """The probe reported the mapped action and never ran it — correct while the map only spoke canvas verbs
+    (a show is meaningless headless), wrong the day it could drive a widget's DATA: a lens change reported but
+    not made is a decision the product does not take. A dry run still only reports."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    i = src.index("from nucleo import actionmap as _amap")
+    window = src[i:i + 900]
+    assert "_amap.execute(" in window, "the probe must RUN the mapped action, not only describe it"
+    assert "and execute" in window, "and only when the caller asked for execution — a dry run stays dry"
+    assert "_amap_hit = None" in window, \
+        "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"

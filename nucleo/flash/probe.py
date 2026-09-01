@@ -163,13 +163,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 pass
 
     # ACTION MAP (V2-539) — MIRROR of the provider (nucleo.py, parallel impl: wire BOTH channels): a known
-    # whole-utterance command resolves WITHOUT the model. The probe REPORTS the mapped action (it does not
-    # drive the canvas — headless channel); the verdict is what matters: 'this phrase is a direct hit'.
+    # whole-utterance command resolves WITHOUT the model.
+    # V2-545 — with `execute`, the map RUNS its action here too, and the hit is only reported if it ran (the
+    # voice rail's contract: `if hit is not None and execute(...)`). It used to report and never run, which
+    # was right while the map only spoke canvas verbs — a show is meaningless headless. It stopped being
+    # right the day the map could drive a widget's DATA: «ábreme el Telegram» changes a lens, and a channel
+    # that reports the change without making it reports a decision the product does not take. A dry run
+    # (`execute=False`) still only reports, which is what a dry run means.
     # Same fail-open contract: any problem here and the turn proceeds to the model as always.
     try:
         from nucleo import actionmap as _amap
         if _amap.enabled():
             _amap_hit = _amap.match(text)
+            if _amap_hit is not None and execute:
+                from voice.observer import emit as _emit_amap
+                if not _amap.execute(_amap_hit, _emit_amap, phrase=text):
+                    _amap_hit = None      # could not run it (no live loop, undeclared op) → on to the model
             if _amap_hit is not None:
                 _desc = _amap.describe(_amap_hit)
                 _amap.record_hit(int(_amap_hit.get("id") or 0))
