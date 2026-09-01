@@ -1,5 +1,55 @@
 {
   "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
+  "version": 2,
+  "grids": [
+   {
+      "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
+      "verbs": [
+         "open",
+         "show",
+         "show me",
+         "show me now",
+         "bring up",
+         "let me see",
+         "display"
+      ],
+      "objects": {
+         "whatsapp": "whatsapp",
+         "the whatsapp": "whatsapp",
+         "my whatsapps": "whatsapp",
+         "only whatsapp": "whatsapp",
+         "the whatsapp messages": "whatsapp",
+         "telegram": "telegram",
+         "the telegram": "telegram",
+         "only telegram": "telegram",
+         "the telegram messages": "telegram",
+         "the email": "email",
+         "my email": "email",
+         "the mail": "email",
+         "my emails": "email",
+         "the inbox": "email",
+         "gmail": "email",
+         "outlook": "email",
+         "the email messages": "email",
+         "the main list": "all",
+         "all the messages": "all",
+         "the unified list": "all",
+         "the messages": "all",
+         "my messages": "all",
+         "all chats": "all",
+         "messages": "all",
+         "messaging": "all"
+      },
+      "action": {
+         "do": "widget_data",
+         "widget": "mensajeria",
+         "action": "show_view",
+         "payload": {
+            "platform": "$"
+         }
+      }
+   }
+  ],
   "entries": [
     { "phrase": "clear the screen", "action": { "do": "close_all" } },
     { "phrase": "clear screen", "action": { "do": "close_all" } },
@@ -12,15 +62,6 @@
     { "phrase": "close all the widgets", "action": { "do": "close_all" } },
     { "phrase": "remove all widgets", "action": { "do": "close_all" } },
     { "phrase": "close everything", "action": { "do": "close_all" } },
-
-    { "phrase": "open whatsapp", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open telegram", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open the messages", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open messages", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open messaging", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "show me the messages", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open the email", "action": { "do": "show_widget", "widget": "mensajeria" } },
-    { "phrase": "open the mail", "action": { "do": "show_widget", "widget": "mensajeria" } },
     { "phrase": "close whatsapp", "action": { "do": "close_widget", "widget": "mensajeria" } },
     { "phrase": "close telegram", "action": { "do": "close_widget", "widget": "mensajeria" } },
     { "phrase": "close the messages", "action": { "do": "close_widget", "widget": "mensajeria" } },

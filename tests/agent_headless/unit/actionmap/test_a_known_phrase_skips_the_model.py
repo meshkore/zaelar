@@ -43,9 +43,11 @@ MUST_HIT_ES = [
     ("vacía la pantalla", "close_all"),
     ("Despeja la pantalla", "close_all"),
     ("borra todos los widgets", "close_all"),
-    ("¡Abre WhatsApp!", "show_widget"),
-    ("abre el whatsapp", "show_widget"),
-    ("Abre Telegram", "show_widget"),
+    ("¡Abre WhatsApp!", "widget_data"),          # a LENS of mensajeria, not a card of its own (V2-545)
+    ("abre el whatsapp", "widget_data"),
+    ("Abre Telegram", "widget_data"),
+    ("Muéstrame ahora el Telegram", "widget_data"),
+    ("enséñame el correo", "widget_data"),
     ("abre la agenda", "show_widget"),
     ("abre el calendario", "show_widget"),
     ("abre las alarmas", "show_panel"),
@@ -55,8 +57,9 @@ MUST_HIT_EN = [
     ("Clear the screen", "close_all"),
     ("clear screen", "close_all"),
     ("close all widgets", "close_all"),
-    ("Open WhatsApp", "show_widget"),
-    ("open the messages", "show_widget"),
+    ("Open WhatsApp", "widget_data"),
+    ("open the messages", "widget_data"),
+    ("show me the telegram messages", "widget_data"),
     ("open the agenda", "show_widget"),
     ("open the crons", "show_panel"),
 ]
@@ -142,11 +145,11 @@ def test_close_all_goes_through_the_widget_funnel(fresh_map, monkeypatch):
 def test_show_widget_resolves_and_emits(fresh_map, monkeypatch):
     _lang(monkeypatch, "es")
     events, emit = _collect()
-    hit = actionmap.match("abre el whatsapp")
-    assert actionmap.execute(hit, emit, phrase="abre el whatsapp") is True
+    hit = actionmap.match("abre la agenda")
+    assert actionmap.execute(hit, emit, phrase="abre la agenda") is True
     ev = events[-1]
     assert (ev["kind"], ev["label"]) == ("widget", "show")
-    assert ev["extra"]["id"] == "mensajeria" and ev["extra"]["src"] == "actionmap"
+    assert ev["extra"]["id"] == "agenda" and ev["extra"]["src"] == "actionmap"
 
 
 def test_panel_tab_emits_panel_event(fresh_map, monkeypatch):
@@ -175,7 +178,7 @@ def test_the_origin_is_stamped_on_every_event(fresh_map, monkeypatch):
     painted «FlashBrain» / tagged «LLM» — the timeline claiming a model ran when none did."""
     _lang(monkeypatch, "es")
     events, emit = _collect()
-    for phrase in ("abre el whatsapp", "limpia la pantalla", "abre el chat"):
+    for phrase in ("abre la agenda", "limpia la pantalla", "abre el chat"):
         hit = actionmap.match(phrase)
         assert actionmap.execute(hit, emit, phrase=phrase)
     assert all(e["extra"].get("origin") == "actionmap" for e in events)
@@ -194,7 +197,7 @@ def test_a_chain_of_commands_is_n_lookups_zero_models(fresh_map, monkeypatch):
     """The operator's usage model: short commands separated by silences — each one a direct action."""
     _lang(monkeypatch, "es")
     events, emit = _collect()
-    for phrase in ("abre el whatsapp", "abre la agenda", "abre los procesos", "limpia la pantalla"):
+    for phrase in ("abre el calendario", "abre la agenda", "abre los procesos", "limpia la pantalla"):
         hit = actionmap.match(phrase)
         assert hit is not None and actionmap.execute(hit, emit, phrase=phrase) is True
     assert [(e["kind"], e["label"]) for e in events] == [
@@ -328,3 +331,86 @@ def test_both_channels_are_wired(path):
     root = Path(__file__).resolve().parents[4]
     src = (root / path).read_text(encoding="utf-8")
     assert "from nucleo import actionmap" in src, f"{path}: action map not wired"
+
+
+# ── (5) the lens grid, and a pack that can be UPGRADED (V2-545) ──────────────────────────────────────────
+
+def test_the_lens_grid_covers_the_phrasings_that_failed_live(fresh_map, monkeypatch):
+    """The three utterances that got «Aquí lo tienes» over an unmoved card, and the one that worked. All
+    four are the same order and now resolve to the same action, before any model runs."""
+    _lang(monkeypatch, "es")
+    for phrase, platform in (("Ábreme el Telegram.", "telegram"),
+                             ("Muéstrame ahora el Telegram.", "telegram"),
+                             ("Ábreme el WhatsApp.", "whatsapp"),
+                             ("Muéstrame solo los mensajes de WhatsApp.", "whatsapp"),
+                             ("Enséñame el correo.", "email"),
+                             ("Muéstrame la lista principal.", "all")):
+        hit = actionmap.match(phrase)
+        assert hit is not None, f"{phrase!r} must be a direct hit"
+        assert hit["action"]["action"] == "show_view"
+        assert hit["action"]["payload"]["platform"] == platform, phrase
+
+
+def test_a_lens_order_shows_the_card_too(fresh_map, monkeypatch):
+    """«Ábreme el WhatsApp» is one order with two halves. Applying the lens to a card nobody can see would
+    be the mirror of the bug this replaces. Needs a running loop: the data half is dispatched on it, and
+    without one the whole action falls through to the model rather than half-executing."""
+    import asyncio
+    _lang(monkeypatch, "es")
+    events, emit = _collect()
+
+    async def go():
+        hit = actionmap.match("ábreme el whatsapp")
+        return actionmap.execute(hit, emit, phrase="ábreme el whatsapp")
+
+    assert asyncio.run(go()) is True
+    assert [(e["kind"], e["label"]) for e in events] == [("widget", "show")]
+    assert events[0]["extra"]["id"] == "mensajeria"
+
+
+def test_a_view_op_without_a_loop_falls_through_WHOLE(fresh_map, monkeypatch):
+    """Half-executing is worse than not executing: the card must not be shown by an action that then
+    reports False and hands the same turn to the model."""
+    _lang(monkeypatch, "es")
+    events, emit = _collect()
+    hit = actionmap.match("ábreme el whatsapp")
+    assert actionmap.execute(hit, emit, phrase="ábreme el whatsapp") is False
+    assert events == [], "no emit may escape an action that did not execute"
+
+
+def test_a_better_pack_reaches_an_already_seeded_install(fresh_map, monkeypatch):
+    """The upgrade path that did not exist: `ensure_seeded` imported once per INSTALL, so every engine that
+    had booted kept the phrases of its first day. Now it imports once per PACK VERSION, adds what is new and
+    retargets a shipped phrase whose action changed."""
+    import json
+
+    from memory import api as _mapi
+    _lang(monkeypatch, "es")
+    assert actionmap.match("abre la agenda") is not None            # v2 imported by the fixture
+    assert _mapi.action_map_seed_version("es") == 2
+
+    old = json.dumps({"do": "show_widget", "widget": "mensajeria"}, ensure_ascii=False)
+    assert _mapi.action_map_retarget_seed("es", "abre el whatsapp", old) is True   # pretend it is a v1 row
+    _mapi.action_map_set_seed_version("es", 1)
+    from memory import db as _db
+    row = _db.get_db().query_one("SELECT action FROM action_map WHERE lang='es' AND phrase='abre el whatsapp'")
+    assert "show_widget" in row["action"], "the install now looks like one seeded by the older pack"
+
+    store.ensure_seeded("es")                                        # the upgrade
+    actionmap.invalidate()
+    assert actionmap.match("abre el whatsapp")["action"]["do"] == "widget_data"
+    assert _mapi.action_map_seed_version("es") == 2
+
+
+def test_an_upgrade_never_moves_what_the_operator_touched(fresh_map, monkeypatch):
+    """A phrase the operator disabled, or one the map LEARNED, is theirs: the veto survives every pack."""
+    import json
+
+    from memory import api as _mapi
+    from memory import db as _db
+    _lang(monkeypatch, "es")
+    body = json.dumps({"do": "close_all"}, ensure_ascii=False)
+    _db.get_db().execute("UPDATE action_map SET status='disabled' WHERE lang='es' AND phrase='abre el whatsapp'")
+    assert _mapi.action_map_retarget_seed("es", "abre el whatsapp", body) is False
+    _mapi.action_map_add("es", "una frase mia", body, source="learned")
+    assert _mapi.action_map_retarget_seed("es", "una frase mia", json.dumps({"do": "show_widget", "widget": "agenda"})) is False

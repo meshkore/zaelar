@@ -123,12 +123,19 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         try:
             import asyncio
 
-            from nucleo.flash.frontend import action_mode
+            from nucleo.flash.frontend import action_is_view, action_mode
             from widgets import server_api as _sapi
             if str(action_mode(wid, action["action"]) or "").lower() != "fast":
                 return False
-            asyncio.get_running_loop().create_task(
-                _sapi.brain_action(wid, action["action"], dict(action.get("payload") or {})))
+            loop = asyncio.get_running_loop()   # BEFORE any emit: no loop = no live session to act on, and
+            #                                     this must fall through WHOLE, not half-executed.
+            # A VIEW op brings the card up as well — the same rule the voice rail applies (V2-545). «Ábreme el
+            # WhatsApp» is one order with two halves: the card in front and that lens selected. Applying the
+            # lens to a card nobody can see would be the mirror of the bug this replaces (a card shown with
+            # the lens ignored).
+            if action_is_view(wid, action["action"]):
+                emit("widget", "show", text=said, extra={"id": wid, **src})
+            loop.create_task(_sapi.brain_action(wid, action["action"], dict(action.get("payload") or {})))
             return True
         except Exception as e:  # noqa: BLE001
             logger.warning(f"actionmap widget_data failed ({wid}:{action['action']}): {e!r}")

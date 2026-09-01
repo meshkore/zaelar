@@ -49,18 +49,52 @@ def invalidate() -> None:
     _cache["index"] = {}
 
 
+def _pack_entries(pack: dict) -> list[dict]:
+    """The pack's literal `entries` plus the expansion of its `grids` (V2-545).
+
+    A grid is a verb × object table for ONE family of orders — «{abre|ábreme|muéstrame|…} {el WhatsApp|el
+    Telegram|el correo}» — expanded here into ordinary, exact-match entries. It is bookkeeping, not
+    understanding: nothing at match time gets smarter, the table just stops being written by hand. Which
+    matters because these families are precisely where a small model is unreliable and where the phrasings
+    are many and boring: «ábreme el Telegram» left the card unmoved live while «muéstrame solo los mensajes
+    de Telegram» worked, three turns apart (V2-544/545).
+
+    `objects` maps each object phrase to the value that fills `$` in the action's payload, so one grid
+    covers every lens of a widget. Any widget with a declared view action can use it.
+    """
+    out = list(pack.get("entries") or [])
+    for g in (pack.get("grids") or []):
+        verbs = [str(v).strip() for v in (g.get("verbs") or []) if str(v).strip()]
+        objects = g.get("objects") or {}
+        action = g.get("action") or {}
+        for obj, value in objects.items():
+            body = json.loads(json.dumps(action).replace('"$"', json.dumps(value)))
+            for v in verbs:
+                out.append({"phrase": f"{v} {obj}".strip(), "action": body})
+    return out
+
+
 def ensure_seeded(lang: str) -> None:
-    """Import the shipped pack for `lang` once. Idempotent; respects every row already in the table."""
+    """Import the shipped pack for `lang`, once per PACK VERSION. Respects every row the operator touched.
+
+    It used to import once per install and never again («any seed row exists» = done), so a pack fixed later
+    reached nobody: an engine seeded on day one kept day-one phrases forever. Now the pack carries a
+    `version` and an upgrade re-runs the import: new phrases are inserted, and a phrase that is still an
+    untouched shipped row is RETARGETED to what the pack now says. A row the operator disabled, or one the
+    map learned, is never moved (V2-545)."""
     try:
         from memory import api as _mapi
-        if _mapi.action_map_has_seed(lang):
-            return
         path = SEEDS_DIR / f"{lang}.json"
         if not path.exists():
             return  # no pack for this language yet — the map simply stays empty (generated packs: Phase 3)
-        entries = json.loads(path.read_text(encoding="utf-8")).get("entries") or []
+        pack = json.loads(path.read_text(encoding="utf-8"))
+        version = int(pack.get("version") or 1)
+        have = _mapi.action_map_seed_version(lang)
+        if have >= version:
+            return
+        entries = _pack_entries(pack)
         from . import executor
-        ok, bad = 0, 0
+        ok, bad, moved = 0, 0, 0
         for e in entries:
             phrase = normalize(str(e.get("phrase") or ""))
             action = e.get("action")
@@ -69,12 +103,18 @@ def ensure_seeded(lang: str) -> None:
                 bad += 1
                 logger.warning(f"actionmap seed refused ({lang}): {e.get('phrase')!r} — {why}")
                 continue
-            _mapi.action_map_add(lang, phrase, json.dumps(action, ensure_ascii=False))
+            body = json.dumps(action, ensure_ascii=False)
+            _mapi.action_map_add(lang, phrase, body)
+            if have and _mapi.action_map_retarget_seed(lang, phrase, body):
+                moved += 1
             ok += 1
-        # Loud either way: the import is a one-time event worth a timeline row; refusals are an ALERT.
-        _emit("alert" if bad else "system", f"action map seeded ({lang}): {ok} entries" +
-              (f" · {bad} REFUSED" if bad else ""), role="system",
-              extra={"cat": "flash", "lang": lang, "ok": ok, "refused": bad})
+        _mapi.action_map_set_seed_version(lang, version)
+        # Loud either way: the import is an event worth a timeline row; refusals are an ALERT.
+        _emit("alert" if bad else "system",
+              f"action map seeded ({lang}, pack v{version}): {ok} entries" +
+              (f" · {moved} retargeted" if moved else "") + (f" · {bad} REFUSED" if bad else ""),
+              role="system",
+              extra={"cat": "flash", "lang": lang, "ok": ok, "refused": bad, "moved": moved, "version": version})
     except Exception as e:  # noqa: BLE001
         _emit("alert", "action map seeding FAILED", text=repr(e)[:200], role="system",
               extra={"cat": "flash", "lang": lang})

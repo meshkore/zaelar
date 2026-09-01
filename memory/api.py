@@ -465,6 +465,47 @@ def action_map_has_seed(lang: str) -> bool:
         return True  # fail CLOSED for the importer: better to skip a re-import than to double-write blindly
 
 
+def action_map_seed_version(lang: str) -> int:
+    """Which version of the shipped pack this install already imported (0 = none, V2-545).
+
+    `action_map_has_seed` only ever answered «was ANY pack imported», so a better pack shipped later reached
+    nobody: every engine that had booted once kept the phrases of the day it was first seeded. This is the
+    upgrade key. Legacy installs (rows present, no version recorded) report 1, which is what they hold."""
+    try:
+        v = kv_get("actionmap.seed_version." + (lang or ""), None)
+        if isinstance(v, int):
+            return v
+        return 1 if action_map_has_seed(lang) else 0
+    except Exception:
+        return 999   # fail CLOSED for the importer: skipping an upgrade beats re-writing rows blindly
+
+
+def action_map_set_seed_version(lang: str, version: int) -> None:
+    try:
+        kv_set("actionmap.seed_version." + (lang or ""), int(version))
+    except Exception:
+        pass
+
+
+def action_map_retarget_seed(lang: str, phrase: str, action_json: str) -> bool:
+    """Point an UNTOUCHED shipped phrase at a new action (pack upgrade). Returns whether a row changed.
+
+    Only `source='seed'` AND `status='active'` rows move: a phrase the operator disabled, or one the map
+    LEARNED, is theirs and survives every upgrade — the same veto rule `action_map_add`'s OR IGNORE encodes."""
+    try:
+        cur = _db.get_db().query_one(
+            "SELECT action FROM action_map WHERE lang=? AND phrase=? AND source='seed' AND status='active'",
+            (lang, phrase))
+        if not cur or (cur["action"] or "") == action_json:   # sqlite3.Row: index, not .get
+            return False
+        _db.get_db().execute(
+            "UPDATE action_map SET action=? WHERE lang=? AND phrase=? AND source='seed' AND status='active'",
+            (action_json, lang, phrase))
+        return True
+    except Exception:
+        return False
+
+
 def action_map_add(lang: str, phrase: str, action_json: str, *, source: str = "seed",
                    status: str = "active") -> None:
     """Insert one action-map row (idempotent: UNIQUE(lang, phrase) + OR IGNORE — an existing row, including

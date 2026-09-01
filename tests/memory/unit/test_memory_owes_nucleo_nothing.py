@@ -121,6 +121,12 @@ DECLARED_SURFACE = {
 UNDECLARED_PUBLIC = {
     "now", "canon_slot", "as_of", "kv_keys", "kv_del", "note_widgets_used", "background_slot_off_topic",
     "by_slot_prefix",
+    # The action-map storage family (V2-539/V2-545): `memory` owns the table, `nucleo/actionmap/store.py` is the
+    # single caller. Inventoried rather than declared for the same reason as the rest of this set — the ratchet
+    # was already red on the four that shipped with V2-539, so promoting them into the frozen surface is F2's
+    # call with its callers checked, not a side effect of adding two more.
+    "action_map_active", "action_map_add", "action_map_has_seed", "action_map_hit",
+    "action_map_seed_version", "action_map_set_seed_version", "action_map_retarget_seed",
 }
 
 
