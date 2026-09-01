@@ -18,7 +18,7 @@ def test_big_prompt_is_named_with_its_worst_block():
     v = tp.verdict({"total_ms": 4200, "prompt_tokens": 12892, "tools_chars": 31458,
                     "sz_resources": 8408, "sz_memory": 2569, "tok_per_s": 30})
     assert v["slow"] and v["cause"] == "prompt"
-    assert v["top_block"] == "catálogo de tools"      # nombra al culpable, no solo "prompt grande"
+    assert v["top_block"] == "catálogo de tools"      # names the culprit, not just "large prompt"
     assert "12892" in v["label"]
 
 
@@ -127,3 +127,23 @@ def test_la_fraccion_de_ttft_viaja_en_el_veredicto():
     v = tp.verdict({"total_ms": 10000, "ttft_ms": 9000, "prompt_tokens": 9500, "tok_per_s": 120})
     assert v["ttft_frac"] == 0.9
     assert tp.verdict({})["ttft_frac"] == 0.0, "sin datos no se afirma nada"
+
+
+def test_cache_hit_fraction_rides_on_the_verdict():
+    """Session 701fcc1b (2026-09-01): TTFT went 953 → 2280 ms on a near-constant ~10k-token prompt, and the
+    verdict could not say whether the provider re-prefilled the whole prompt — fast_client captured
+    `prompt_cache_hit_tokens` for billing but the verdict never saw it. The fraction must reach both the
+    event (the series) and the label (the viewer line)."""
+    v = tp.verdict({"total_ms": 900, "prompt_tokens": 10000, "tok_per_s": 40,
+                    "prompt_cache_hit_tokens": 9000})
+    assert v["cache_hit_tokens"] == 9000
+    assert v["cache_hit_frac"] == 0.9
+    assert "caché 90%" in v["label"]
+
+
+def test_no_cache_data_means_no_cache_claim():
+    """Providers that do not report the field (or estimate-only turns) must yield None, not 0 — a 0 would read
+    as a measured full miss and send us chasing prefix stability that was never measured."""
+    v = tp.verdict({"total_ms": 900, "prompt_tokens": 10000, "tok_per_s": 40})
+    assert v["cache_hit_tokens"] is None and v["cache_hit_frac"] is None
+    assert "caché" not in v["label"]

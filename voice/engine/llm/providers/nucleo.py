@@ -106,14 +106,14 @@ _CHAIN_GRACE_S = float(os.getenv("ZAELAR_CHAIN_GRACE_S", "3.0"))
 
 
 def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> None:
-    """Decide si este turno abre un trace NUEVO o ADOPTA el de una cadena de fragmentos ya a medias (V2-096
-    addenda, 2026-08-15). LiveKit cierra un turno por CADA segmento final del STT, así que una frase larga dicha
-    sin pausas abría un flujo nuevo por trozo — cada uno cancelado por el siguiente (barge-in) hasta que el
-    último se completaba. El ACUMULADOR (`nucleo/flash/accumulator.py`) ya sabe si hay una cadena en curso
-    (`.pending()`): mientras la tenga, este turno es esa misma frase creciendo → adopta su trace en vez de abrir
-    uno nuevo, sin repetir aquí el juicio de completitud (ya es su trabajo). Un turno que empieza cadena nueva
-    (buffer vacío) abre trace con `begin()` como siempre, y ese id pasa a ser el de la cadena hasta que se
-    resuelva (`brain._acc_trace_id`, limpiado por el llamador cuando `offer()` devuelve "act").
+    """Decide whether this turn opens a NEW trace or ADOPTS the one from a partially completed fragment chain (V2-096
+    addendum, 2026-08-15). LiveKit closes a turn for EACH final STT segment, so a long sentence spoken without
+    pauses used to open a new flow for each fragment — each cancelled by the next (barge-in) until the last one
+    completed. The ACCUMULATOR (`nucleo/flash/accumulator.py`) already knows whether a chain is in progress
+    (`.pending()`): while it has one, this turn is that same sentence growing → adopt its trace instead of opening
+    a new one, without repeating the completeness judgment here (that is its job). A turn that starts a new chain
+    (empty buffer) opens a trace with `begin()` as usual, and that id becomes the chain's until it is resolved
+    (`brain._acc_trace_id`, cleared by the caller when `offer()` returns "act").
 
     ⚠️ ESO SOLO NO BASTA, y volvió a romperse el 2026-08-18 (sesión b403c979, V2-116). La adopción se apoyaba
     ENTERAMENTE en que el acumulador tuviera la cadena abierta (`.pending()`), o sea en que la capa LÉXICA
@@ -124,7 +124,7 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     (rama "act") y el trozo siguiente abre un flujo nuevo. En producción salieron CUATRO corr_ids de una sola
     frase, cada uno cancelando al anterior por barge-in.
 
-    La continuidad del FLUJO no puede depender de acertar la completitud de la frase: son dos preguntas
+    FLOW continuity cannot depend on correctly judging sentence completeness: they are two different questions,
     distintas, y el flujo es el esqueleto («cualquier acción continua que pueda durar minutos se asocia a un
     flujo», norma del operador). Por eso, al resolverse una cadena, su trace no se tira: queda en GRACIA unos
     segundos (`_CHAIN_GRACE_S`) y un turno que llegue dentro de esa ventana lo ADOPTA. Es estructural y
@@ -134,7 +134,7 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     cancelado) queda documentada y reproducida en V2-116; tocar esas listas exige la medición contra el corpus
     que V2-095 dejó montada, no un parche a ojo.
 
-    Función aparte (no inline en `_run_inner`) para que sea comprobable SIN un stream de LiveKit real — ver
+    Separate function (not inline in `_run_inner`) so it can be tested WITHOUT a real LiveKit stream — see
     `tests/voice/unit/providers/test_nucleo_trace_merge.py`."""
     from voice import trace as _trace
     if first_turn:
@@ -154,7 +154,7 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
 def _resolve_acc_chain(brain: "NucleoLLM") -> None:
     """A fragment chain has just been RESOLVED (`offer()` returned "act"): its trace stops being active but
     enters GRACE instead of being discarded, so the next fragment of the same phrase adopts it
-    (`_begin_or_adopt_trace`) en vez de abrir un flujo nuevo.
+    (`_begin_or_adopt_trace`) instead of opening a new flow.
 
     It exists as a function —rather than two lines inside `_run_inner`— so the test can exercise THE SAME
     code that runs in production. A test that re-implements the caller’s accounting can pass while production does
@@ -436,7 +436,7 @@ def _release_acc_trace_if_fresh(brain: "NucleoLLM") -> None:
 
 def _resolve_pending_confirm(ok: bool) -> bool:
     """Resolve the pending confirmation (any widget). If `ok`, EXECUTE what was confirmed: a widget DELETION
-    (determinista, memoria incluida) o una DATA-OP irreversible (despacho por `apply_action`, NUNCA código).
+    (deterministic, including memory) or an irreversible DATA-OP (dispatched by `apply_action`, NEVER code).
     Return True if there was something to resolve.
 
     MODULE function (not a closure of `_run_inner`, V2-090 addendum 2026-08-15), specifically so it can be called
@@ -493,14 +493,13 @@ def _resolve_pending_confirm(ok: bool) -> bool:
 
 
 def _surface_is_empty(widget_id: str) -> bool:
-    """¿La tarjeta que acabamos de abrir no tiene NADA que enseñar?
+    """Does the card we just opened have NOTHING to show?
 
-    Nace del incidente de la sesión 13:20:50: el operador pidió resultados de una búsqueda que nunca se hizo, el
-    cerebro abrió una hoja en blanco y dijo «Aquí lo tienes». En el log no quedaba ni una pista de que la pantalla
-    estaba vacía — había que estar mirando. Marcarlo en el evento `show_widget` convierte ese acuse falso en un dato
-    consultable (y en algo que un test puede exigir). Genérico y sin catálogo de widgets: mira el estado GUARDADO,
-    así que vale igual para resultados, mensajes o cualquier superficie futura. Fail-open a `False` (no afirmamos
-    que esté vacía si no lo podemos saber).
+    It comes from the 13:20:50 session incident: the operator asked for results from a search that never happened,
+    the brain opened a blank sheet and said “Here you go.” The log gave no indication that the screen was empty —
+    someone had to be watching. Marking it on the `show_widget` event turns that false acknowledgement into queryable
+    data (and something a test can require). Generic and catalog-free: it checks SAVED state, so it works equally for
+    results, messages, or any future surface. Fail-open to `False` (we do not claim it is empty if we cannot know).
     """
     try:
         from widgets import store
@@ -3045,6 +3044,11 @@ class NucleoLLMStream(llm.LLMStream):
             "completion_chars": llm_metrics.get("completion_chars"),
             "n_tools": llm_metrics.get("n_tools"), "tools_chars": llm_metrics.get("tools_chars"),
             "n_msgs": llm_metrics.get("n_msgs"), "usage_source": llm_metrics.get("usage_source"),
+            # Prefix-cache hit (DeepSeek usage). fast_client captured it for billing since 2026-08-14; the
+            # latency verdict needs it too — a cold prefill of a ~10k-token prompt is the one TTFT cause
+            # that is OURS (prefix instability), and without this field it was indistinguishable from
+            # hidden reasoning or provider queueing (see turn_perf.verdict).
+            "prompt_cache_hit_tokens": llm_metrics.get("prompt_cache_hit_tokens"),
             # desglose de QUÉ hace grande el prompt (chars por bloque)
             "sz_memory": timings.get("sz_memory"), "sz_recent": timings.get("sz_recent"),
             "sz_recall": timings.get("sz_recall"), "sz_resources": timings.get("sz_resources"),
