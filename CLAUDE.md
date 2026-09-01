@@ -6707,6 +6707,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     not the claim. `_flash_layer` still varies with open/recent widgets and the `named` selection —
     event-driven cache misses, accepted.
 
+- **The MURAL — placement that dodges the chat, the widget RAIL, and auto-arrange (V2-537, 2026-09-01)**:
+  the operator, with his screenshot in front of him: a new widget opened UNDER the floating chat and «el
+  usuario no sabría que está ahí». Measured first: `Desktop._place()` already scanned for free space and
+  `_bringFront()` already put a new card on top — what was broken was the OBSTACLE LIST (cards + camera +
+  orb, nothing else), while the chat wall sits at z 9001, ABOVE the cards' 8000 cap by design, so the scan
+  happily placed underneath it. Now `#chatwall.open`, `.cronpanel` and the rail itself are obstacles, and a
+  MINIMIZED card is not (an invisible hole is not an obstacle).
+  - **Minimize is a first-class state** (`.hb-minned` + `minimize/reveal/minimizeAll/revealAll`): open but
+    without pixels — the card stays in `wins` and in the brain's open set ON PURPOSE (an OS-minimized window
+    is still open; its data lives, `widget_data` still works), and the flag persists in the layout.
+  - **The widget RAIL** (`components/WidgetRail.js`, system surface `wrail`, name:null like the top bar): a
+    thin fixed bar on the left, z 9002 — above the chat, because the rule the operator set is that nothing on
+    the canvas may be fully hidden without a visible trace. One chip per open card with taskbar semantics
+    (minimized→reveal · buried→to front · already on top→minimize), ▦ auto-arrange (V2-464's `arrange()`,
+    which now REVEALS minimized cards first and respects the rail's edge) and ⊟/⊞ minimize/show all. Only
+    visible with ≥1 card; repaints on the `hb:canvas-changed` event the Desktop fires from its persistence
+    chokepoints — no polling, no import cycle. Generic taskbar concept, own glyphs — no OS trade dress.
+  - Import versions bumped (`desktop.js?v=4`, `system-surfaces.js?v=2`) — V2-087's lesson both ways.
+  - **Node 4.92 RENDERS it** (`tests/browser/e2e/widgets/render_mural.py`, self-contained preview + fake
+    widget backend by interception, 15 checks including the exact incident). Disarms verified in three
+    directions — ⚠️ and two early disarms came back «green» as a DOUBLE lie: a mutation that commented half a
+    line crashed `_obstacles` while a `grep -c` swallowed the traceback (a disarm's mutation is ASSERTED and
+    its output read whole), and the fake card was too short to touch the chat even when placed on top of it
+    (it now stands 300px tall, like the incident's).
+  - **Open**: the rail is not voice-addressable in v1; the floating chat can visually overlap the rail (the
+    rail wins by z); the mobile shell needs none of this (deck + pips, V2-474).
+
 - **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
   operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
   must be configurable per connector. Audited first: ingest was already token-free (own 5s/5s/20s loops → bus →

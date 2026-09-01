@@ -38,6 +38,7 @@ import { StatusPanel } from "../components/StatusPanel.js?v=2";
 import { TopBar } from "../components/TopBar.js?v=3";
 import { VaultModal } from "../components/VaultModal.js?v=1";
 import { WizardModal } from "../components/WizardModal.js?v=1";
+import { WidgetRail } from "../components/WidgetRail.js?v=1";
 
 // The ORDER is the actual DOM mount order (it matters for stacking). Scaffold first, then overlay.
 export const SYSTEM_SURFACES = [
@@ -57,6 +58,11 @@ export const SYSTEM_SURFACES = [
       "the eye", "eye", "controls", "subtitles"] },
   { id: "topbar",     comp: TopBar,       target: "desk", phase: "overlay", kind: "chrome",
     toggle: "always visible (◉ status · ⌗ docs · ◷ debug · ⚙ · 🧭 · Reset)", label: "Top bar",
+    name: null, aliases: null },
+  // V2-537 — the widget rail: one chip per open card (always on top), ▦ auto-arrange, minimize/show all.
+  // Not voice-addressable in v1 (like the top bar); it only shows itself while at least one card is open.
+  { id: "wrail",      comp: WidgetRail,   target: "desk", phase: "overlay", kind: "chrome",
+    toggle: "auto (visible while any widget card is open)", label: "Widget rail",
     name: null, aliases: null },
   { id: "connstatus", comp: ConnStatus,   target: "desk", phase: "overlay", kind: "chrome",
     toggle: "always visible (connection line)", label: "Connection status",

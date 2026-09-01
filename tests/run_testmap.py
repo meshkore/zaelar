@@ -1290,6 +1290,15 @@ DOMAINS: list[dict] = [
         # la voz esperaba al siguiente `pointerdown`. Un estado que solo se arregla recargando es el que miente.
         {"id": "4.91", "title": "⏻ ON arranca de verdad: el servidor primero, y la voz vuelve sin recargar",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_power_on_brings_the_voice_up.py"]},
+        # V2-537 (2026-09-01): el mural. Un widget nuevo aterrizó DEBAJO del chat flotante (z 9001, encima del
+        # tope 8000 de las tarjetas por diseño) y el operador no tenía forma de saber que existía. Renderiza el
+        # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,
+        # el nuevo arriba, el raíl de widgets (un chip por tarjeta, siempre visible), minimizar/mostrar todo y
+        # el ▦ de auto-orden. Autocontenido (su propio preview server); live solo por Chromium/Playwright.
+        {"id": "4.92", "title": "El MURAL renderizado: colocación que esquiva el chat, raíl de widgets con chips, "
+                                "minimizar/mostrar todo y auto-orden",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/widgets/render_mural.py"},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

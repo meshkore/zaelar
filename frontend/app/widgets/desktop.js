@@ -138,6 +138,9 @@ function injectStyles(){
     border:1px solid var(--hb-line,#232e3d);border-radius:10px;padding:9px 18px;cursor:pointer;background:var(--hb-bg,#141d29);color:var(--hb-ink,#e8edf5)}
   .hb-confirm-row .hb-confirm-yes{border-color:transparent;background:var(--hb-risk,#e5484d);color:#fff}
   .hb-confirm-row button:hover{filter:brightness(1.08)}
+  /* V2-537: a MINIMIZED card is open (the brain still sees it; its data survives) but off the canvas.
+     The widget rail is the only door back in — its chip stays lit, so nothing on screen is ever unknowable. */
+  .hb-win.hb-minned{display:none}
   `; document.head.appendChild(s);
 }
 
@@ -189,6 +192,7 @@ export class Desktop {
     this.wins.forEach((w,id)=>{
       const c=w.card;
       items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||"",
+                  min:c.classList.contains("hb-minned")?1:0,
                   w:c.style.width||"", h:c.style.height||""}); });
     return items;
   }
@@ -196,6 +200,7 @@ export class Desktop {
     if(this._restoring) return;
     try{ localStorage.setItem("hb_desktop", JSON.stringify(this._layout())); }catch(_){}
     this._reportOpen();     // STATE: the canvas is authoritative → the server reflects what is open in the prompt
+    try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){}   // V2-537: the rail repaints
   }
   // Reporta los widgets ABIERTOS al ESTADO de la memoria (POST /api/canvas/state) para que viajen en el prompt del
   // cerebro ("modifica el widget de X" sin preguntar) y se vean en el mapa. Debounce ligero (los arrastres/moves
@@ -203,6 +208,7 @@ export class Desktop {
   // Lleva ADEMÁS la geometría, que el server guarda como red de seguridad del localStorage (que es per-origen y
   // per-navegador: el mismo zaelar por :43917 y por :44317 son dos escritorios distintos). Ver `restore()`.
   _reportOpen(){
+    try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){}   // V2-537 (closeAll/restore too)
     clearTimeout(this._openTimer);
     this._openTimer=setTimeout(()=>{
       try{ fetch("/api/canvas/state",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -438,6 +444,7 @@ export class Desktop {
         const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else this._bringFront(card);
       } else { this._place(card); this._bringFront(card); }   // fit into free space without overlapping anything
       if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
+      if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
       this._wireDrag(card, grip);
       this._wireResize(card, id);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
@@ -448,6 +455,9 @@ export class Desktop {
       w={card, body, q, id, base:baseId, nameBtn, head}; this.wins.set(id, w);
       nameBtn.onclick=()=>this._toggleAliases(w); cfg.onclick=()=>this._toggleAliases(w);
       this._applyName(w);                               // populate the name from the registry (async, best-effort)
+      // V2-537: the rail paints the chip NOW, not when the module finishes loading — a card whose code fails
+      // to load still occupies the canvas, and a card on the canvas without a chip is exactly what the rail forbids.
+      try{ document.dispatchEvent(new CustomEvent("hb:canvas-changed")); }catch(_){}
     } else {
       this._bringFront(w.card);
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
@@ -885,10 +895,13 @@ export class Desktop {
   // The area avoids a DOCKED chat wall and the orb strip at the bottom; every card gets the same cell so a
   // recording reads clean. Sizes clamp to the card's own max-width/height, so nothing distorts.
   arrange(){
+    this.revealAll();          // "ordénalo todo" is a show-all gesture: a grid with invisible holes is not a grid
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
     const pad=this.tile.pad, y0=this.tile.top, y1=innerHeight-150;   // 150 = orb/status strip
     let x0=pad, x1=innerWidth-pad;
+    const rail=document.querySelector("#wrail");                     // V2-537: the widget rail owns the left edge
+    if(rail){ const rr=rail.getBoundingClientRect(); if(rr.width) x0=Math.max(x0, rr.right+pad); }
     const cw=document.querySelector("#chatwall");
     if(cw && cw.classList.contains("open")){
       const r=cw.getBoundingClientRect();
@@ -911,10 +924,30 @@ export class Desktop {
   }
 
   // Live rects to avoid: every OTHER open widget + the camera unit + the voice orb (so widgets never sit on them).
+  // ── V2-537: MINIMIZE — open but off the canvas. The card stays in `wins` and in the brain's open set on
+  // purpose (an OS-minimized window is still open: its data lives, widget_data still works); only the pixels go.
+  // The widget rail's chip is the way back, so a minimized card is never unknowable — which is the operator's
+  // rule: nothing on screen may be fully hidden without a visible trace of it.
+  minimize(id){
+    const w = this.wins.get(id); if(!w || !w.card) return false;
+    w.card.classList.add("hb-minned"); this._persist(); return true;
+  }
+  reveal(id){
+    const w = this.wins.get(id); if(!w || !w.card) return false;
+    w.card.classList.remove("hb-minned"); this._bringFront(w.card); this._persist(); return true;
+  }
+  isMinimized(id){ const w = this.wins.get(id); return !!(w && w.card && w.card.classList.contains("hb-minned")); }
+  minimizeAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.add("hb-minned"); }); this._persist(); }
+  revealAll(){ [...this.wins.keys()].forEach(id=>{ const w=this.wins.get(id); if(w&&w.card)w.card.classList.remove("hb-minned"); }); this._persist(); }
+
   _obstacles(exceptCard){
     const rects=[];
-    this.wins.forEach(w=>{ if(w.card!==exceptCard){ const r=w.card.getBoundingClientRect(); if(r.width)rects.push(r); } });
-    for(const sel of ["#me", "#orbwrap"]){ const e=document.querySelector(sel);
+    this.wins.forEach(w=>{ if(w.card!==exceptCard && !w.card.classList.contains("hb-minned")){
+      const r=w.card.getBoundingClientRect(); if(r.width)rects.push(r); } });
+    // V2-537 — the OPEN CHAT WALL (and the cron panel, and the widget rail) are obstacles too. Measured on the
+    // operator's screen 2026-09-01: a new card landed exactly under the floating chat (z 9001, above every card's
+    // 8000 cap by design) and was invisible — the scan avoided widgets, camera and orb, and nothing else.
+    for(const sel of ["#me", "#orbwrap", "#chatwall.open", ".cronpanel", "#wrail"]){ const e=document.querySelector(sel);
       if(e){ const r=e.getBoundingClientRect(); if(r.width)rects.push(r); } }
     return rects;
   }
