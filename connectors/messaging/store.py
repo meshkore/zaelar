@@ -33,6 +33,7 @@ def _empty() -> dict:
         "pending_reply": [],
         "pending_control": [],
         "muted_channels": [],
+        "notify_policy": {},
     }
 
 
@@ -54,6 +55,7 @@ def load() -> dict:
     db.setdefault("pending_reply", [])
     db.setdefault("pending_control", [])
     db.setdefault("muted_channels", [])
+    db.setdefault("notify_policy", {})
     db.setdefault("updated", "")
     return db
 
@@ -180,7 +182,7 @@ def take_pending_read(platform: str | None = None) -> list[dict]:
 def take_pending_reply(platform: str | None = None) -> list[dict]:
     """Return (and REMOVE) pending replies to send; if `platform` is given, only its own. Each send-capable connector
     (email today) calls with its platform, sends in its app, and if it fails, re-enqueues.
-    Cada orden: {platform, chatId, to, messageId, subject, msgid, text}."""
+    Each order: {platform, chatId, to, messageId, subject, msgid, text}."""
     db = load()
     pending = db.get("pending_reply", [])
     if platform is None:
