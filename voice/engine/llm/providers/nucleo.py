@@ -1071,6 +1071,14 @@ class NucleoLLMStream(llm.LLMStream):
             # de seguimiento — incluida la queja «te acabo de hacer preguntas ahora» — descartadas de seguido,
             # cada una justo tras un filler).
             brain._last_reply = "".join(spoken)
+            # A real reply KEEPS THE CONVERSATION ALIVE (2026-09-01): the attention window opens on the
+            # operator's handled turn, but a long narration can outlast `window_s()` — and then his answer to
+            # what Zaelar just said lands on the cold-turn judge. Refreshed here, per chunk, because this path
+            # only runs for real model output on a turn that already passed the gate; the kickoff (`first_turn`)
+            # deliberately does NOT open the window (a session starting mid-meeting must not let ambient speech
+            # in through an initial gap — the same rule written at the gate call site).
+            if not first_turn:
+                attention.note_directed()
             self._event_ch.send_nowait(
                 ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
             )

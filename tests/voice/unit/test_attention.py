@@ -199,7 +199,7 @@ def test_evaluate_content_empty_text_is_ambient_without_calling_the_judge():
     ("not json at all", None),
     ("", None),
     (None, None),
-    ('{"directed": "yes"}', None),   # no es un bool real — fail-open, no se adivina
+    ('{"directed": "yes"}', None),   # not a real bool — fail-open; do not guess
 ])
 def test_parse_directed(raw, expected):
     assert attention._parse_directed(raw) is expected
@@ -250,8 +250,8 @@ def test_stop_with_the_pronoun_stuck_to_the_verb():
     The detail lives in `tests/voice/unit/test_paralo_lleva_objeto.py` (node 3.14).
     """
     assert attention.hard_interrupt("páralo todo ahora mismo y espera") == "stop"   # «todo» → global
-    assert attention.hard_interrupt("párate ahora mismo y espera") == "stop"        # reflexivo → es él
-    assert attention.hard_interrupt("párala") is None                               # acusativo → una cosa
+    assert attention.hard_interrupt("párate ahora mismo y espera") == "stop"        # reflexive → it refers to him
+    assert attention.hard_interrupt("párala") is None                               # accusative → a thing
     assert attention.hard_interrupt("detenlo") is None
 
 
@@ -296,3 +296,59 @@ def test_clamp_truncates_when_no_command():
     long = "ruido ambiente " * 500
     txt, clipped = attention.clamp_input(long, 300)
     assert clipped and len(txt) == 300
+
+
+# ── the active window BEATS the judge in `always` mode (2026-09-01, session 701fcc1b) ───────────────────
+# Live incident: mid-dialogue, the DeepSeek judge returned {"directed": false} on 8 consecutive operator turns
+# («Veo que ya la has abierto», «¿Me estás escuchando?», «Te he dicho que ya la has abierto», «no hay ningún
+# mensaje en la lista») — 15/15 on replay — and the agent went deaf until the operator gave up. `always` mode
+# maintained the conversation window and never consulted it; now, inside the window, nobody judges.
+def test_always_mode_active_window_never_consults_the_judge():
+    async def _judge(text, context):
+        raise AssertionError("inside the active conversation window no judge is consulted")
+    attention.set_directed_judge(_judge)
+    now = 1000.0
+    attention.note_directed(now=now)
+    v = _run(attention.evaluate_content("Te he dicho que ya la has abierto.", now=now + 5))
+    assert v.directed and v.reason == "active_window"
+
+
+def test_always_mode_cold_turn_is_still_judged():
+    """Outside the window the judge keeps its original job — the 'session sitting in a meeting' case."""
+    seen = {}
+
+    async def _judge(text, context):
+        seen["called"] = True
+        return False
+    attention.set_directed_judge(_judge)
+    now = 1000.0
+    attention.note_directed(now=now)
+    v = _run(attention.evaluate_content("bla bla de fondo", now=now + attention.window_s() + 1))
+    assert seen.get("called"), "a COLD turn does go through the judge"
+    assert not v.directed and v.reason == "llm_ambient"
+
+
+def test_session_701fcc1b_the_agent_never_goes_deaf_mid_conversation():
+    """Replay of the real incident with the judge answering exactly what it answered live: false, every time.
+    The contract under test is the pair gate+caller: a handled directed turn refreshes the window
+    (`note_directed`, the call nucleo.py makes at the gate), so one handled turn keeps the whole exchange
+    alive and NONE of the 8 turns the operator actually said can be dropped again."""
+    async def _judge(text, context):
+        return False   # measured live: 8/8, and 15/15 on replay
+    attention.set_directed_judge(_judge)
+    t0 = 1000.0
+    attention.note_directed(now=t0)             # «I have a message.» was handled at 09:12:29
+    turns = [
+        (15, "Que es la que está trabajando"),
+        (17, "Que es la que está trabajando Veo que ya la has abierto."),
+        (28, "Lo ha publicado hace unos días, un compañero anteayer,"),
+        (33, "Lo ha publicado hace unos días, un compañero anteayer, que habla especialmente, etcétera. ¿Me estás escuchando?"),
+        (60, "Te he dicho que ya la has abierto."),
+        (83, "Pero no veo ningún mensaje."),
+        (102, "Vamos a ver, te he dicho que la mensajería ya la has abierto, hace rato."),
+        (106, "Vamos a ver, te he dicho que la mensajería ya la has abierto, hace rato. Te he dicho también que no hay ningún mensaje en la lista."),
+    ]
+    for dt, phrase in turns:
+        v = _run(attention.evaluate_content(phrase, now=t0 + dt))
+        assert v.directed, f"REAL turn from the session dropped again: «{phrase[:60]}»"
+        attention.note_directed(now=t0 + dt)    # the caller's side of the contract when it handles the turn

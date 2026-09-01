@@ -31,7 +31,7 @@ from loguru import logger
 
 # ── configuration (UI-managed; env = fallback) ──────────────────────────────────────────────────────────
 _VALID_MODES = ("smart", "wakeword", "ptt", "always")
-_DEFAULT_MODE = "always"   # robot OFF = escucha y responde siempre; el toggle de la UI pasa a wake-word
+_DEFAULT_MODE = "always"   # robot OFF = always listens and responds; the UI toggle switches to wake-word
 _DEFAULT_WINDOW_S = 30.0
 
 # Wake word: "zaelar". Extendable via env (`ZAELAR_WAKEWORDS`, comma-separated) with phonetic variants that STT
@@ -103,7 +103,7 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
 # ── CONTENT, not just mode (2026-08-16) ────────────────────────────────────────────────────────────────────
 # `evaluate()` in `always` mode (the default: microphone ALWAYS open, WITHOUT a wake word — a permanent decision by the
 # operator, not something to revert) is a no-op: EVERY turn is directed. With a real family in the room, this caused
-# background noise ("Mira donde tú quieras, pero dame el ya...", phrases involving "hija") to run through the
+# background noise ("Look wherever you want, but give me the go-ahead...", phrases involving "daughter") to run through the
 # FULL turn — prompt, tool decision, and in one real case a `web_search` that took 3.3s and completed —
 # before being discarded as superseded. Real cost, zero value.
 #
@@ -112,14 +112,23 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
 # the phrase: question, concrete fact, continuation of an ongoing task = directed; unrelated conversation/noise = no —.
 # `evaluate()` (synchronous, without network access) remains unchanged for callers that cannot afford a round trip (tests, probe,
 # accumulator, agent.py's non-hot-path uses) — the REAL voice turn is its only caller.
+# ⚠️ FRAMING measured 2026-09-01 (session 701fcc1b): the old prompt presented the phrase as loose audio plus a
+# note of "what was being done" — and the judge returned {"directed": false} on «I told you that you have already
+# opened it.» and «Are you listening to me?», 15/15 reproductions, because without the DIALOGUE frame a second-person
+# sentence reads as two people in the room talking to each other. Presenting the assistant's own last utterance
+# as "Zaelar acaba de decir …" flips those exact phrases to directed (3/3 each). The judge is still fallible —
+# which is why `evaluate_content` no longer consults it at all inside an active conversation (see below) — but
+# for the cold-start turns it does keep judging, this frame is the one that was measured to read replies-to-Zaelar
+# as replies-to-Zaelar.
 _DIRECTED_SYSTEM = (
-    "Eres un filtro rápido para un asistente de voz con el MICRÓFONO SIEMPRE ABIERTO — no hay palabra de "
-    "activación, así que además de al operador oye conversación de fondo (familia, TV, terceros) que NO va "
-    "dirigida a ti.\n\n"
-    "Te doy la última frase transcrita y, si la hay, un apunte de qué se estaba haciendo. Decide si la frase va "
-    "DIRIGIDA a ti: es una pregunta, da datos concretos para algo, o continúa una tarea que ya estabais "
-    "haciendo. O si es AMBIENTE: conversación ajena, ruido, algo sin sentido como petición.\n\n"
-    "Ante la duda, marca DIRIGIDO — dejar sin atender una petición real es peor que procesar un poco de ruido.\n\n"
+    "Eres el filtro de atención de Zaelar, un asistente de voz con el MICRÓFONO SIEMPRE ABIERTO — no hay "
+    "palabra de activación, así que además de a su operador oye conversación de fondo (familia, TV, terceros, "
+    "llamadas) que NO va dirigida a él.\n\n"
+    "Te doy lo último que dijo Zaelar (si habló) y la frase que se acaba de transcribir. Decide si la frase es "
+    "el operador hablándole A ZAELAR: le contesta, le pregunta, le corrige, se queja de lo que Zaelar ha hecho "
+    "o dicho, le da datos o le pide algo. Es AMBIENTE solo si claramente habla con OTRA persona o es ruido sin "
+    "relación con la conversación con Zaelar.\n\n"
+    "Ante la duda, marca DIRIGIDO — dejar sin atender al operador es peor que procesar un poco de ruido.\n\n"
     'Responde SOLO con JSON: {"directed": true} o {"directed": false}. Nada más.'
 )
 
@@ -129,7 +138,9 @@ async def _default_directed_judge(text: str, context: str) -> bool | None:
     real turn thanks to `asyncio.to_thread` — same pattern as `segmenter.judge()`."""
     try:
         from nucleo import memllm
-        user = f"Se estaba haciendo: {context}\n\nFrase: «{text}»" if context else f"Frase: «{text}»"
+        # Dialogue frame, not an activity note — see the measurement above `_DIRECTED_SYSTEM`.
+        user = (f"Zaelar acaba de decir: «{context}»\n\nEl micrófono ha oído: «{text}»" if context
+                else f"El micrófono ha oído: «{text}»")
         raw = await asyncio.to_thread(
             memllm.chat_sync, "directed", _DIRECTED_SYSTEM, user,
             max_tokens=20, temperature=0.0, timeout=4.0,
@@ -173,7 +184,20 @@ def set_directed_judge(fn) -> None:
 
 async def evaluate_content(text: str, *, context: str = "", now: float | None = None) -> Verdict:
     """Like `evaluate()`, but in `always` mode judges CONTENT instead of treating everything as directed — see the
-    comment above. `smart`/`wakeword`/`ptt` do not change (their heuristic already discriminates without needing the network)."""
+    comment above. `smart`/`wakeword`/`ptt` do not change (their heuristic already discriminates without needing the network).
+
+    INSIDE AN ACTIVE CONVERSATION, NOBODY JUDGES (2026-09-01, session 701fcc1b). `always` mode maintained the
+    conversation window (`note_directed()` on every handled turn) and never consulted it: EVERY turn went to the
+    LLM judge, including the operator's answer four seconds after Zaelar itself asked him a question. Measured
+    live: the judge returned {"directed": false} on 8 consecutive directed turns — «I see you have already opened it»,
+    «Are you listening to me?», «I told you that you have already opened it», «there are no messages in the list» — 15/15 on
+    replay, and the agent went deaf mid-dialogue until the operator gave up. Third occurrence of this family
+    (2026-08-16 noise-cost incident created the judge; 2026-08-17 filler-context dropped 4 follow-ups; today).
+    A binary coin-flip must not sit between the operator and an agent that JUST spoke to him: within the window
+    the turn is directed, full stop, and the judge only decides COLD turns — session start, or speech after
+    `window_s()` of silence, which is exactly the "session sitting in a meeting" case it was built for. The
+    known cost is honest: background noise within the window now runs a turn, and the module's own rule already
+    chose that side — better to process some noise than to leave the operator unattended."""
     m = mode()
     if m != "always":
         return evaluate(text, now=now)
@@ -182,11 +206,14 @@ async def evaluate_content(text: str, *, context: str = "", now: float | None = 
     t = (text or "").strip()
     if not t:
         return Verdict(False, "ambient")
+    now = time.time() if now is None else now
+    if _state["last_directed"] and (now - _state["last_directed"]) <= window_s():
+        return Verdict(True, "active_window")
     try:
         directed = await _directed_judge(t, context)
     except Exception as e:  # noqa: BLE001 — fail-open here ALSO covers an injected judge (set_directed_judge)
         # if it blows up, not just the default: nothing replacing the judge may leave the agent mute.
-        logger.warning(f"attention.evaluate_content: juez roto ({str(e)[:160]}) — fail-open a dirigido")
+        logger.warning(f"attention.evaluate_content: judge failed ({str(e)[:160]}) — fail-open to directed")
         directed = None
     if directed is None:
         return Verdict(True, "always")     # fail-open: a broken judge must never leave the agent mute
@@ -211,9 +238,9 @@ def reset() -> None:
 
 # ── HARD interruption (T136): STOP always handled, BYPASSES the gate, DETERMINISTIC (does not depend on the LLM) ────
 # ENCLITIC PRONOUN (fix 2026-08-12, REAL live failure): in Spanish, the imperative is ATTACHED to the pronoun —
-# «ciérraLO todo», «páraLO todo», «quítaLOS» — and `\bcierra\b` does NOT match «cierralo» (after 'cierra' come
-# more word characters, so there is no boundary). Measured result (13:01:51): the operator said «Ciérralo todo
-# y páralo todo», the detector returned None, the command ENDED UP IN THE MODEL — which stalled on that turn — and nothing was closed.
+# «close-it all», «stop-it all», «remove-them» — and `\bcierra\b` does NOT match «cierralo» (after 'cierra' come
+# more word characters, so there is no boundary). Measured result (13:01:51): the operator said «Close it all
+# and stop it all», the detector returned None, the command ENDED UP IN THE MODEL — which stalled on that turn — and nothing was closed.
 # Exactly what this deterministic path exists to prevent: closing and stopping cannot depend on the LLM.
 # This is not a phrase table: it is the MORPHOLOGY of the Spanish imperative (up to two pronouns: «devuélveMeLO»), so it
 # covers any verb in the list and any that are added.
@@ -224,22 +251,22 @@ _CLOSE_VERB_RE = re.compile(
     r"|\b(?:close|hide|clear)\b")
 _ALL_RE = re.compile(
     r"\b(todo|todos|todas|all|widgets|tarjetas|ventanas|pantalla|escritorio|everything)\b")
-# REAL BUG 2026-07-23 (new fullscreen feature): "quita la pantalla completa" (exit fullscreen for ONE
-# widget) matched "cierra/quita la PANTALLA" (closing verb + 'pantalla' from _ALL_RE) and triggered closing
-# ALL widgets — "pantalla completa"/"full screen" is a mode of ONE widget, not a synonym for "everything".
+# REAL BUG 2026-07-23 (new fullscreen feature): "exit fullscreen" (exit fullscreen for ONE
+# widget) matched "close/remove the SCREEN" (closing verb + 'pantalla' from _ALL_RE) and triggered closing
+# ALL widgets — "fullscreen"/"full screen" is a mode of ONE widget, not a synonym for "everything".
 _FULLSCREEN_RE = re.compile(r"\bpantalla\s+completa\b|\bfull\s*screen\b", re.I)
 # Unambiguous STOP (triggers even if the turn is long).
 _STOP_HARD_RE = re.compile(
     r"\b(silencio|calla(?:te|os|d)?|basta|stop|shh+|quiet[oa]|detente|para\s+ya|para\s+de|parate|shut\s*up)\b"
     # An attached pronoun is NOT the preposition «para», so it is unambiguous AS A VERB — but that is not the
-    # same as being unambiguous ABOUT WHAT. V2-393: only the REFLEXIVE/DATIVE («párate», «detente», «páreme») refers
-    # to zaelar; the 3rd-person ACCUSATIVE («páralo», «párala») has a DIRECT OBJECT, meaning it refers to a THING — and a
+    # same as being unambiguous ABOUT WHAT. V2-393: only the REFLEXIVE/DATIVE («stop yourself», «stop», «stop me») refers
+    # to zaelar; the 3rd-person ACCUSATIVE («stop it», «stop her») has a DIRECT OBJECT, meaning it refers to a THING — and a
     # barge-in has no object: it means silence. Measured in `watch-a-video-not-listen-to-it` (2026-08-27 14:04), which
-    # had passed 5/5 two hours earlier: «Ahora páralo, porfa» about a loaded video consumed the ENTIRE turn
-    # — the hard stop generates no response — and the backstop «¿me lo repites?» appeared. The tester repeated it with other
-    # words («Que pares el vídeo») and it worked on the first try: the command was clear, the guard was ours.
+# had passed 5/5 two hours earlier: «Stop it now, please» about a loaded video consumed the ENTIRE turn
+# — the hard stop generates no response — and the backstop «Can you repeat that?» appeared. The tester repeated it with other
+# words («Stop the video») and it worked on the first try: the command was clear, the guard was ours.
     r"|\b(?:para|pare|deten|detenga)(?:me|te|se|nos|os|le|les){1,2}\b"
-    # …unless the object is EVERYTHING: «páralo todo» is global, and there the object is not a specific thing.
+    # …unless the object is EVERYTHING: «stop it all» is global, and there the object is not a specific thing.
     r"|\b(?:para|pare|deten|detenga)(?:lo|la|los|las)\s+(?:todo|toda|todos|todas)\b")
 # Ambiguous STOP ("para"/"pare"/"espera" — also a preposition): only as a SHORT imperative (avoids "para la cena").
 _STOP_SOFT_RE = re.compile(r"\b(para|pare|espera)\b")
@@ -247,8 +274,8 @@ _STOP_SOFT_RE = re.compile(r"\b(para|pare|espera)\b")
 
 def hard_interrupt(text: str) -> str | None:
     """Detects a hard STOP that is ALWAYS executed immediately (bypasses the attention gate):
-      - 'close'  → cerrar TODOS los widgets ("cierra los widgets / cierra todo").
-      - 'stop'   → callar/parar (el barge-in de LiveKit ya cortó el TTS; no se genera respuesta nueva).
+      - 'close'  → close ALL widgets ("close the widgets / close everything").
+      - 'stop'   → silence/stop (LiveKit's barge-in already cut the TTS; no new response is generated).
     Returns the type or None. The 'close' case was the real bug: it was buried in a huge turn and truncated."""
     n = _norm(text)
     if _CLOSE_VERB_RE.search(n) and _ALL_RE.search(n) and not _FULLSCREEN_RE.search(n):
