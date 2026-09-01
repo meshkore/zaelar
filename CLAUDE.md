@@ -7256,6 +7256,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     el error que enseña, y el OWNER aplicó el push (`view.n=1` en el store real). Pendiente de tráfico
     real: una foto de WhatsApp entrante pintándose y un archivado contra su buzón.
 
+- **The INSIDE of a widget belongs to widget_data — the prompt no longer contradicts the catalog (V2-544,
+  2026-09-01)**: four live turns, one shape — with the mensajeria card ON SCREEN, «Sí» to the model's own
+  «¿Quieres que lo abra?», «Abre el mensaje.» and «Abre el mensaje de Francisco.» each produced a bare
+  `show_widget` over an unmoved card plus «Aquí lo tienes». The decision records prove the model had
+  everything (the brief with `[[msg.open:N]]`, «1. Francisco» in the list, `widget_data` in its tool set all
+  four turns, `data_done: False` everywhere) — and on the last turn it even called `need_capability` asking
+  for the `messaging` family, hunting for an open-message tool that does not exist (that family only carries
+  `reply_message`). **It was OBEYING**: the canvas block commanded «"abre X" = [[show:X]], jamás widget_data»
+  (written for the canvas level, it swallowed the item level), `widget_data` described itself as data-MUTATION
+  only and disowned "abrir", and its parameter docs cited catalogs («Available widgets», «ACCIONES POR
+  WIDGET») that the built prompt NEVER renders — while the resources block taught «abre el chat de X» →
+  open{name}. A self-contradicting prompt loses to its own imperative (V2-222, 0/13).
+  - Fixed in the three places that misteach it: the widget-vs-inside bifurcation lives INSIDE the [[show]]
+    imperative with a concrete example (and «jamás widget_data» is gone, with a test forbidding its return);
+    `widget_data` owns NAVEGAR DENTRO and disowns only the WHOLE-widget open/close; `show_widget` points
+    inside-requests back («repetir show no cambia nada»); the parameter docs cite the block names the prompt
+    actually renders («Widgets del canvas», «datos:»). Plus: a «sí/vale/hazlo» to the model's OWN offer
+    executes the offered action — never another show (the first failure of the night).
+  - Ruled OUT before touching anything: the action_map (no phrase swallows «abre el mensaje»; its seeds are
+    canvas-level on purpose) and the tool-family trimming (`widgets`, with `widget_data`, was KEPT every turn).
+  - Catalog ceiling 21_800 → 22_050 (compacted +434 → +140 first); an escalate NO-list clause was tried and
+    REVERTED — the 2_000/tool cap caught it, and escalation was never the observed failure path.
+  - `mensajeria.open`'s primary payload key is `name` now (the `widget_data` item convention lands a natural
+    reference in the action's FIRST key, V2-467), and `_open_ref` coerces `n:"1"` / reroutes `n:"francisco"`.
+  - Node 2.1 gained the contradiction gate (`test_the_inside_of_a_widget_is_widget_data.py`, incl. a
+    cross-check that renders `widgets.brief.for_prompt` so the cited catalog names must really exist); node
+    4.98 the n-as-reference case. Four disarms verified red with mutations asserted. **NOT verified live**
+    (the operator's session blocked the restart); first check: «abre el mensaje de Francisco» →
+    `widget_data(mensajeria, open, {name})`. Open: the «sí» resolution is still model judgement — the
+    deterministic upgrade is the pending-offer carry of V2-539's family.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
