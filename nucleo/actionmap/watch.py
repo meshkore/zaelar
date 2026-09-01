@@ -32,12 +32,35 @@ _DISQUALIFYING = ("escalated", "searched", "worker_acted", "data_done", "confirm
 _MAX_REPLY_CHARS = 60
 
 
+# The probe channel writes a DIFFERENT decision dict through the same seam (it reports an `action` string
+# instead of the voice provider's flags), so a reader that knows only one shape is blind to a whole channel —
+# and the probe is the one the use-case platform drives, i.e. where most measuring happens. Caught live:
+# «muéstrame la mensajería» resolved to a single `show_widget` and produced no candidate at all.
+_PROBE_OK_TOOLS = {"show_widget", "widget_data", "show_panel"}
+
+
+def _probe_candidate(decision: dict) -> str:
+    """Probe shape: `{action, tool_calls, tags, reply}`. The `action` string already collapses the turn."""
+    action = str(decision.get("action") or "")
+    if not (action.startswith("canvas:show:") or action == "canvas:close"):
+        return ""
+    # A canvas verb reached alongside anything heavier is not one entry's job. `_PRIORITY` in the router
+    # already collapses, so an extra tool here means the turn did more than open a card.
+    if any(t not in _PROBE_OK_TOOLS for t in (decision.get("tool_calls") or [])):
+        return ""
+    if len(str(decision.get("reply") or "")) > _MAX_REPLY_CHARS:
+        return ""
+    return action
+
+
 def _candidate_reason(decision: dict) -> str:
-    """'' if this turn is not a map candidate, else the action it resolved to."""
+    """'' if this turn is not a map candidate, else the action it resolved to. Understands BOTH channels."""
     if not isinstance(decision, dict):
         return ""
     if decision.get("actionmap"):
         return ""                                   # the map already served it — that is a hit, not a miss
+    if "widget_acted" not in decision:              # not the voice shape → the probe's
+        return _probe_candidate(decision)
     if any(decision.get(k) for k in _DISQUALIFYING):
         return ""
     if not decision.get("widget_acted"):

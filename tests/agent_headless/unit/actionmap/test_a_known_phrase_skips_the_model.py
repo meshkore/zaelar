@@ -277,6 +277,37 @@ def test_turns_that_needed_understanding_are_not_candidates(decision):
     assert _candidate_reason(decision) == ""
 
 
+# ── the PROBE channel writes a different decision shape through the same seam ───────────────────────────
+
+def _probe(**kw):
+    base = {"action": "chat", "tool_calls": [], "tags": [], "reply": ""}
+    base.update(kw)
+    return base
+
+
+def test_the_probe_channels_own_shape_is_understood():
+    """Caught LIVE: «muéstrame la mensajería» resolved to one show_widget and produced NO candidate — the
+    reader knew only the voice provider's flags, so the channel the use-case platform drives was invisible."""
+    from nucleo.actionmap.watch import _candidate_reason
+    assert _candidate_reason(_probe(action="canvas:show:mensajeria",
+                                    tool_calls=["show_widget"])) == "canvas:show:mensajeria"
+    assert _candidate_reason(_probe(action="canvas:close")) == "canvas:close"
+
+
+@pytest.mark.parametrize("decision", [
+    _probe(action="escalate", tool_calls=["escalate_to_slowbrain"]),
+    _probe(action="search", tool_calls=["web_search"]),
+    _probe(action="chat", reply="pura charla"),
+    _probe(action="canvas:show:mensajeria", tool_calls=["show_widget", "web_search"]),
+    _probe(action="canvas:show:mensajeria",
+           reply="Claro, te cuento: en la bandeja tienes tres mensajes de ayer y uno de hoy"),
+    _probe(action="canvas:show:mensajeria", actionmap=14),      # the map already served it
+])
+def test_probe_turns_that_did_more_than_open_a_card_are_not_candidates(decision):
+    from nucleo.actionmap.watch import _candidate_reason
+    assert _candidate_reason(decision) == ""
+
+
 # ── the observability contract: both surfaces must know the kind (the two-surfaces rule) ────────────────
 
 def test_the_engine_classifies_the_actionmap_kind():
