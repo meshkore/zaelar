@@ -236,10 +236,34 @@ async def entrypoint(ctx: JobContext) -> None:
     # comment in voice/trace.py).
     _STATE_TRACE_SAFE = {"speaking", "listening", "interrupted"}
 
+    _ONSET_MAX_S = 30.0        # past this the "speaking" edge belongs to a proactive delivery, not to an answer
+    _onset = {"voice_ended": 0.0}
+
     def on_state_change(state: State) -> None:
         logger.info("STATE -> %s", state.value)
         speaking = (getattr(state, "value", state) == "speaking")
         _busy["bot"] = speaking
+        # RESPONSE ONSET (V2-535) — the clock the PERSON lives: from the moment their voice ends to the moment
+        # audio actually sounds. Both edges were already emitted, in two different handlers, and nobody paired
+        # them: TTFT and the TTS ttfb each measure a leg, and neither is the wait. Reported ONCE per wait (the
+        # edge is cleared) so a segmented reply does not report its second segment as a second onset, and only
+        # when the wait is plausibly this turn's — a proactive delivery minutes later is not an answer to
+        # anything. `covered` says whether what sounded first was the filler or the reply itself, which is the
+        # difference between «it answered in 2 s» and «it made a noise in 1.1 s and answered in 2 s».
+        if speaking and _onset.get("voice_ended"):
+            _ended = _onset["voice_ended"]
+            _gap = time.monotonic() - _ended
+            _onset["voice_ended"] = 0.0
+            if _gap <= _ONSET_MAX_S:
+                try:
+                    from voice.engine.speech import filler_audio as _fa
+                    _cov = _fa.last_fired_at() >= _ended       # it sounded DURING this wait, not in an older one
+                except Exception:
+                    _cov = False
+                _emit("perf", f"⏱ primer audio {int(_gap * 1000)} ms desde que dejó de hablar"
+                              + (" (relleno)" if _cov else ""),
+                      role="system", extra={"cat": "system", "module": "voice", "func": "onset",
+                                            "onset_ms": round(_gap * 1000, 1), "covered_by_filler": _cov})
         # This handler runs in the pipeline's LiveKit task, a SIBLING of the one that sets the turn trace — the
         # ambient ContextVar never sees it (source audit 2026-08-16, see voice/trace.py::active()).
         _tid = ""
@@ -362,6 +386,7 @@ async def entrypoint(ctx: JobContext) -> None:
                 _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False})
         elif new == "listening":
             _emit("vad", "… fin de voz", role="user", extra={})
+            _onset["voice_ended"] = time.monotonic()   # the near end of the wait the operator is about to live
 
     # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3, extended by V2-101): on a brand-new install, detect the
     # operator's language from their first utterance(s) and lock it — no trip to settings. Fires at most once
@@ -422,7 +447,7 @@ async def entrypoint(ctx: JobContext) -> None:
             _emit("transcript", "🗣", text=ev.transcript, role="user")
             _maybe_detect_language(ev.transcript)
         else:
-            _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk en observer)
+            _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk in observer)
 
     @session.on("conversation_item_added")
     def _on_item(ev) -> None:
