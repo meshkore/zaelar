@@ -59,6 +59,24 @@ def test_the_three_actions_are_declared_and_showing_is_a_view():
     assert wactions.classify(acts["clear"], "clear") == wactions.FAST
 
 
+def test_the_line_that_routes_to_this_sheet_arrives_whole():
+    """The frontier clause is the half that does the routing, and it is the half a cap eats first.
+
+    V2-547 measured the cost: `contactos` lost «o por sus favoritos ("mi restaurante favorito")» to the trim
+    and the very phrase its manifest named reached a model that could not see it. This sheet's borders
+    (`results` / `imagenes` / `navegador`) are worth nothing if they are the part that gets cut, so the
+    `whenToUse` is written to FIT — checked against the real budget, not against a number copied here.
+    """
+    from widgets import brief
+    when = _manifest()["whenToUse"]
+    assert brief._purpose(when) == when, (
+        f"whenToUse is {len(when)} chars and the routing cap is {brief._PURPOSE_CAP}: the frontier clause "
+        f"never reaches the model. Shorten it — do not raise the cap, the catalog is a shared budget."
+    )
+    for border in ("results", "imagenes", "navegador"):
+        assert border in when, f"the border with `{border}` is what keeps this widget from becoming it"
+
+
 def test_the_sheet_ships_with_the_agent():
     from widgets import registry
     assert "documento" in registry._BUILTINS, "a shipped widget that is not in _BUILTINS reads as user-created"

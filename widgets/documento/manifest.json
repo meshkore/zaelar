@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Documento",
   "description": "Una hoja en blanco donde cabe UNA cosa para leer: una receta, un informe, unas instrucciones, un texto con formato o un PDF. No busca ni calcula; alguien la rellena y esto la presenta bien, con su título, su fuente y sitio de sobra para leer.",
-  "whenToUse": "Cuando la respuesta es UNA cosa que se LEE y no una lista que se compara: una receta, un informe o resumen que hemos escrito, unas instrucciones o un manual, un texto largo, o un PDF que hay que ver. Si el operador pidió UNA (una receta, no recetas) esto es su sitio: se elige la mejor y se pone aquí entera. FRONTERA: varias opciones para comparar → `results`; fotos → `imagenes`; una web que se navega en vivo → `navegador`.",
+  "whenToUse": "Cuando la respuesta es UNA cosa que se LEE, no una lista que se compara: una receta, un informe, unas instrucciones, un texto largo o un PDF. Si pidió UNA (una receta, no recetas), se elige la mejor y va aquí. FRONTERA: varias opciones → `results`; fotos → `imagenes`; web en vivo → `navegador`.",
   "keywords": [
     "documento",
     "pdf",
