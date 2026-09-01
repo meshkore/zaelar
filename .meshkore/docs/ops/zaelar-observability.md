@@ -272,6 +272,18 @@ Diseño: `.meshkore/roadmap/initiatives/V2-048-observabilidad-workers.md`.
   tamaño + poda archivos viejos), **`evict`** (desaloja cápsulas concluidas/viejas, `sys_kv` `capsule:*`) y
   **`alert`** (aviso único al operador cuando detecta degradación pero NO es seguro actuar). Motivada por el
   incidente 2026-07-25 (el worker LiveKit embebido se degradó tras ~7h → voz/chat mudos hasta reinicio manual).
+- **`actionmap`** (V2-539, family `flash`) — the deterministic layer in FRONT of the FlashBrain
+  (`nucleo/actionmap/`, doc `.meshkore/docs/modules/zaelar-action-map.md`). It answers **which layer resolved
+  this turn**, which used to be unanswerable: ten real voice turns were served by the map while the viewer, the
+  Master and the Susurro all reported the model. Labels: **`⚡ action map: direct action (no model)`** (a hit —
+  with `action`, `entry`, `source`, `match_ms` and the phrase that produced it), **`🕵️ map candidate…`** (the
+  model resolved a turn with a single canvas action, i.e. what the table is MISSING; `known_entry` tells a
+  missing entry from one that exists and did not fire), **`🗺️ action map WATCHING`** (`watch.py` subscribed to
+  `turn.completed`) and the seeding line, which is an **`alert`** if the pack refused any row. Provenance is a
+  FIELD, not an inference: every event stamps `engine: "actionmap"` + `origin: "actionmap"` (a model turn stamps
+  `origin: "flash"`), the LAYER column of the viewer reads exactly `engine`, and the match cost is folded into
+  `pre_ms` as `amap_ms`. The canvas orders it issues are ordinary `kind="widget"` events with `src="actionmap"`,
+  so «¿se abrió el widget?» keeps its single source of truth.
 - `worker_start` — arranque de sesión: `profile`, `stt`, **`stt_device`** (metal/cuda/cpu), `llm_provider`, `tts`, `turn`.
 - `state` — máquina de 5 estados (idle/listening/thinking/speaking…). Marcado "ruido" en `/debug` (colapsable).
 - `transcript` (role=user|bot) — lo que se **dijo** (STT del usuario / respuesta del brain). `interim` = parcial en vivo,

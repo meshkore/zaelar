@@ -1,7 +1,7 @@
 ---
 title: Zaelar Modules
 category: modules
-updated: 2026-08-16
+updated: 2026-09-02
 owner: ricart
 status: current
 ---
@@ -10,6 +10,7 @@ status: current
 |------------|----------------|-----------------------------------------------------------------------------|
 | voice      | voice/         | Voice pipeline core (LiveKit engine in `voice/engine/`): providers, turn control, observer, tag protocol, STT, audio filter, TTS |
 | nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `flash/` = FlashBrain (sub-second voice, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers, V2-022); `dispatch.py`+`memory_agent.py`+`agentes/` = SlowBrain (async Claude Code/Codex `CodeAgent`, web search via native WebSearch/WebFetch); `loop.py` (orchestrator ~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py`. Exposed to voice as `voice/engine/llm/providers/nucleo.py`. |
+| action map | nucleo/actionmap/ | **A known phrase skips the model** (V2-539/545) — deterministic layer IN FRONT of the FlashBrain: exact whole-utterance lookup in a per-language table (`action_map` in `zaelar.db`, seeded from `seeds/<lang>.json`), executing an allowlisted direct action through the SAME emit funnels the model uses. Wired in both channels (voice provider + probe). Anything that is not a verbatim hit falls through to the model. Doc: `zaelar-action-map.md` |
 | memory     | memory/        | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Absorbed the old `files/` as an episodic layer. `server_api.py` = `/api/files/*` + `/api/memory/map` (memory-map visualizer, V2-014). |
 | bus        | bus/           | **Event bus** — in-process pub/sub (generalizes `voice/observer.py`) + durable SQLite log + SSE bridge. |
 | observability | observability/ | **WHO · WHEN · in which FLOW** (V2-090) — completes the event log (`bus/log.py`, which already records WHAT happens) with the axes needed to ANALYZE it: `identity.py` (stable per-install `user_id` + per-session `session_id`), `flows.py` (read by correlation id — end-to-end flows with real duration, families, actors, tokens, errors), `api.py` (`/api/observability/*`). Read-only: the bus's sink stays the sole writer to `events`. |
@@ -32,6 +33,10 @@ All modules declared in `.meshkore/public/cluster.yaml`.
 `nucleo/` is zaelar's brain — its own, with no external agent. Default `BRAIN=nucleo` (`config/v2.py:active_brain()`,
 env-first). It runs at two speeds:
 
+- **The action map** (`nucleo/actionmap/`, V2-539) — comes BEFORE the FlashBrain and is not a brain: a known
+  short command, matched verbatim against a per-language table, executes its direct action in silence and the
+  model is never called. Everything else — a longer phrasing, a compound sentence, a negation, anything new —
+  falls through untouched: **when in doubt, the model.** Doc: `zaelar-action-map.md`.
 - **FlashBrain** (`nucleo/flash/`) — the sub-second, non-reasoning **voice** layer. It occupies the LLM slot of the
   voice engine as the provider `voice/engine/llm/providers/nucleo.py` (a `livekit.agents.llm.LLM` in streaming): the
   stream reads the last user turn, runs the fast model, and emits `ChatChunk`s already cleaned by

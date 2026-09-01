@@ -7395,6 +7395,62 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     a bare `{"queued": true}`. **Real traffic NOT verified** — a reply from the phone, a Telegram read receipt
     and an email flag all need the operator to do it. Detail: `V2-546-the-widget-follows-the-real-app.md`.
 
+- **A KNOWN phrase skips the model — the ACTION MAP (V2-539, 2026-09-01)**: the operator says «limpia la
+  pantalla» / «abre el WhatsApp» twenty times a day, and every one of them was a full model turn. A short
+  command whose meaning has already been verified does not need to be understood again. `nucleo/actionmap/`
+  sits IN FRONT of the FlashBrain: one finalized utterance, normalized, looked up verbatim in a per-language
+  table; a hit executes a direct action in SILENCE (the screen is the feedback) in 0.02–0.16 ms. Canonical doc:
+  **`.meshkore/docs/modules/zaelar-action-map.md`**.
+  - **It does not violate «no hardcoded, understand» (V2-095) because of what it may NOT do.** It matches the
+    WHOLE utterance and nothing else — no keywords, no fuzzy distance, no stemming; it **never splits** a
+    sentence («ponte a buscar un restaurante y abre el WhatsApp» goes to the model whole, the operator's own
+    example); and **every** failure path falls through — unknown phrase, unresolvable target, undeclared
+    data-op, no running loop, a broken index. `execute()` returning `False` is a routing decision, never an
+    error. **When in doubt, the model.** Its certainty comes from the PROVENANCE of the row, not from string
+    similarity. The unit is a phrase bounded by silence, so a chain of commands is N lookups and zero model
+    calls — which is the workload that motivated it.
+  - **Wired in BOTH channels through one module** (voice `nucleo.py::_run_inner`, guarded against a pending
+    fragment chain, and `flash/probe.py::run_turn`), with a wiring guard in the testmap. The probe had to be
+    taught to RUN the action and not merely report it: harmless while the map only spoke canvas verbs, a false
+    green the day it could drive a widget's data (V2-545).
+  - **The vocabulary is a CLOSED allowlist** (`executor.py`: show/close/close-all/panel/move/fullscreen +
+    FAST-declared `widget_data`), executed through **the same emit funnels the model's own output uses** —
+    never a parallel executor. Nothing destructive, content-carrying or credential-adjacent is representable,
+    whatever a row says, and `validate()` refuses a bad seed **loudly at import** (`alert`): a module whose
+    seeds silently fail to load is a module born dead. Named multi-step **workflows are deliberately not an
+    action kind**.
+  - **The pack upgrades; the operator's veto does not move.** `seeds/<lang>.json` ships with the repo and is
+    imported once per pack VERSION (it used to be once per INSTALL, so a pack fixed later reached nobody —
+    every engine, cloud Machines included, kept its first-boot phrases). New phrases are inserted and an
+    UNTOUCHED shipped row is retargeted; a row the operator disabled, or one the map learned, is never
+    rewritten. One install, one language: only the active language is indexed. Kill switches:
+    `ZAELAR_ACTIONMAP=0` (first, off-only) + `actionmap.enabled`. DB access goes through the `memory/api.py`
+    facade — the boundary guard refused the direct import, and the facade was the right answer.
+  - **Which layer acted is a FIELD now, not an inference — and all three surfaces had been lying.** Ten real
+    voice turns were served by the map while the viewer printed «FlashBrain» (it reads `engine`, which was not
+    stamped), the Master printed «LLM», and **the Susurro said out loud «el cerebro rápido ejecutó
+    correctamente cada orden»** over six turns with no model in them — an auditor reasoning about the wrong
+    layer, whose repair would have gone to the model for something it never said. Now: `kind="actionmap"`
+    (family `flash`), `engine`/`origin: "actionmap"` on every event (a model turn stamps `origin: "flash"`),
+    `amap_ms` inside `pre_ms`, the causing PHRASE on every canvas order (close/move/panel dropped it), the
+    Susurro's window naming map turns and its catalog telling it that a map fault is a `finding` with
+    `area=routing`. Second surface (the Master) updated in the same pass, with a mirror guard that immediately
+    caught three PRE-EXISTING drifts.
+  - **`watch.py` measures what the map is MISSING** — a bus subscriber on `turn.completed` (the Susurro
+    pattern) that marks a turn the model resolved with a single canvas action as a **candidate**, flagging
+    whether the phrase is already in the table (an entry that exists and did not fire is a different problem).
+    It observes only; nothing is promoted. ⚠️ **It was born blind to the probe channel**: `turn_detail` is one
+    seam but each channel writes a different `decision` SHAPE (voice = flags, probe = a collapsed `action`), and
+    a reader that knows one shape **fails by returning nothing**. Sixth instance of the parallel-implementation
+    trap, and this time the docstring ASSERTED it covered both «for free». A live turn caught it; reading the
+    code did not.
+  - **Not built, on purpose**: `actionmap_define` + shadow-mode promotion + demotion (Phase 2), generated
+    language packs (Phase 3), and workflows (out of scope). Until Phase 2 the table only grows at release time —
+    so that the phase where the system teaches itself starts from measured evidence instead of intuition. Node
+    2.41 (hits, misses, closed allowlist, both kill switches, both decision shapes, wiring in both channels);
+    node 2.7 for the auditor knowing which layer acted. Live: 424 active `es` rows, 55 hits on the operator's
+    engine.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
