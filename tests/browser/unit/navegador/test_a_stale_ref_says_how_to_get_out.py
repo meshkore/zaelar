@@ -57,7 +57,10 @@ def test_no_se_reintenta_SOLO_con_la_mirada_nueva():
     from widgets.navegador import owner
     src = inspect.getsource(owner.TaskBrowser)
     assert "_stale_ref_reason(" in src
-    assert "Reintentar sería clicar otra cosa" in src
+    # 2026-09-01: the concurrent i18n pass translated this comment (correctly — comments are English in
+    # this repo). The guard follows the WORDING, because what it protects is that the reasoning stays
+    # written down next to the code that must not be "improved" into a retry.
+    assert "Retrying would click something else" in src
 
 
 @pytest.mark.parametrize("ref", [0, -1, 9999])
