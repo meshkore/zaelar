@@ -118,6 +118,63 @@ def _horizon(db: dict, span: int = 7) -> list[dict]:
     return out
 
 
+# CALENDAR CONNECTORS shown in the agenda's header (V2-540). Deliberately a READ of the real inventory, never a
+# hardcoded «off»: the day a calendar connector is registered under this family it lights up here with nothing
+# else to change. Today `connectors/` has SIX and not one of them is a calendar, so the honest answer for all
+# three is «not built yet» — and per INI-027 showing what we do NOT have is the point, not an embarrassment.
+#
+# WHY THESE THREE and not the famous ones: Google Calendar is the one everybody has; iCloud's CALENDAR is
+# reachable over CalDAV with an app-specific password (unlike iCloud Drive, which CloudKit makes impossible);
+# and a generic CalDAV covers Outlook/Fastmail/Nextcloud with one connector instead of three brands.
+_CALENDARS = (("google", "Google Calendar"), ("icloud", "iCloud (Apple)"), ("caldav", "CalDAV (Outlook, Fastmail…)"))
+
+
+# How long a pushed view stays worth OBEYING (V2-540). It is not the mounted widget that needs this — that one
+# keeps whatever is on screen and only moves when the token changes — it is a widget mounting FRESH.
+#
+# The flow that matters happens in seconds: `show_day` writes, then `show_widget` opens the card, and its first
+# fetch has to arrive already pointing at tomorrow (opening the widget can never select a day by itself, which
+# is the whole defect). But a push kept forever would mean that reopening the agenda NEXT WEEK lands on a
+# «tomorrow» that is now the past — a stale answer wearing the face of a deliberate one. Expiring it server-side
+# is the one place with a trustworthy clock, and it costs the open widget nothing: when `view` goes away the
+# token merely stops moving, so nothing snaps back and the operator's own tab survives.
+_VIEW_TTL_S = 600
+
+
+def _fresh_view(db: dict) -> dict | None:
+    v = db.get("view") or None
+    if not v:
+        return None
+    import time as _tm
+    at = float(v.get("at") or 0)
+    return v if at and (_tm.time() - at) <= _VIEW_TTL_S else None
+
+
+def calendars() -> list[dict]:
+    """Connection state of each calendar provider, for the header strip.
+
+    `status`: "connected" | "off" (built, not linked) | "unavailable" (no connector exists yet). The widget
+    must be able to tell the last two apart — «you have not linked it» and «we have not built it» are different
+    sentences, and showing the first when the second is true is the same class of lie as promising a view."""
+    live: dict[str, dict] = {}
+    try:
+        from connectors import registry
+        for d in registry.descriptors():
+            if str(d.get("family") or "") in ("agenda", "calendar"):
+                live[str(d.get("id") or "")] = d
+    except Exception:
+        pass                                          # a registry that cannot be read is not a linked calendar
+    known = dict(_CALENDARS)
+    out = [{"id": cid, "label": (live.get(cid, {}).get("label") or label),
+            "status": ("connected" if live[cid].get("connected") else str(live[cid].get("status") or "off"))
+                      if cid in live else "unavailable"}
+           for cid, label in _CALENDARS]
+    out += [{"id": cid, "label": str(d.get("label") or cid),
+             "status": "connected" if d.get("connected") else str(d.get("status") or "off")}
+            for cid, d in live.items() if cid not in known]
+    return out
+
+
 def view_data(q: str = "") -> dict:
     """Everything the render needs: the day horizon (today + upcoming days for tabs), today's plan, the active
     live block, projects, warnings/coaching."""
@@ -132,6 +189,11 @@ def view_data(q: str = "") -> dict:
         "days": days, "todayIndex": 0,
         "meetings": db.get("meetings", []),           # dated meetings -> full MONTH view (client-side calendar)
         "projects": db.get("projects", []),
+        # The pushed VIEW (show_day). The widget honours it when its token moves and otherwise leaves the
+        # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
+        "view": _fresh_view(db),
+        "calendars": calendars(),        # header strip: which calendar providers are linked
+
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
     }
@@ -411,6 +473,31 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # The day's FRAME (working hours, lunch time) is NOT touched: it comes from its configuration
         # (`lunchStart`/`lunchEnd`), not from anything the operator scheduled. Deleting it when asking for an empty
         # agenda would leave the schedule broken tomorrow without explaining why. Changing the frame is «cambia mi horario».
+
+    elif action == "show_day":
+        # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
+        # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times
+        # for tomorrow, the brain replied «Te abro la agenda con la vista de mañana» — and the only thing that
+        # ever fired was a bare `show:agenda`, which opens on TODAY. It answered right and did nothing, because
+        # the day tabs were pure DOM state (`el._agSel`) with no name in the manifest: there was no wrong tool
+        # to pick, there was NO tool. An undeclared capability is not a capability the model can decline; it is
+        # one it will narrate.
+        #
+        # `n` is a monotonic PUSH COUNTER, and it is what makes this work twice. The canvas re-renders on a
+        # store write only when the data's JSON signature CHANGES, and the widget re-applies the view only when
+        # the token moves — so without `n`, asking for tomorrow, clicking back to today and asking again would
+        # write the identical `sel`, change no signature and move nothing, which is the exact failure being
+        # fixed here wearing a different mask.
+        _raw = str(payload.get("day") or payload.get("date") or "").strip()
+        _n = _strip_accents(_raw.lower())
+        if "seman" in _n or "week" in _n:
+            _sel = "week"
+        elif "mes" in _n or "month" in _n:
+            _sel = "month"
+        else:
+            _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
+        import time as _tm
+        db["view"] = {"sel": _sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
 
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation

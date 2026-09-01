@@ -1,6 +1,6 @@
 {
   "id": "agenda",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "title": "Agenda del día",
   "description": "Tu agenda viva del día con rol de coach de productividad: franja activa por reloj, tarea en curso con contador, y nudges hacia tu objetivo global.",
   "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
@@ -29,7 +29,7 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting (cada cita crea su aviso por defecto ~2h antes; muévelo con set_reminder), cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso.",
+  "usage": "Añade citas con add_meeting (cada cita crea su aviso por defecto ~2h antes; muévelo con set_reminder), cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso. Para CAMBIAR LA VISTA que se ve en pantalla («muéstrame mañana», «enséñame el jueves», «ponme la semana», «vista de mes») usa show_day: es la ÚNICA forma de mover el día que se ve — abrir el widget otra vez NO lo cambia, siempre abre por hoy.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día — crea SOLO su aviso por defecto (~2h antes), no hace falta pedirlo; para moverlo o quitarlo usa set_reminder",
@@ -92,6 +92,12 @@
       "payload": {},
       "confirm": true,
       "confirm_q": "¿Vacío la agenda entera? Es permanente."
+    },
+    "show_day": {
+      "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",
+      "payload": {
+        "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes» para esas dos vistas"
+      }
     }
   },
   "name": "Agenda del día",
