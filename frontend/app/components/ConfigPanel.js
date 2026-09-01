@@ -208,8 +208,23 @@ export function ConfigPanel() {
     const cloudNote = cloudProfile
       ? `<p class="cf-hint">${esc(t("config.voice.cloud_locked"))}</p>`
       : "";
+    // THIS BROWSER's capture, which the rest of this panel is not: everything above is server configuration
+    // saved with the button below, while these two are the device the mic opens on and how the OS cleans it —
+    // per-browser, held in localStorage, applied by reconnecting. They arrived here when the bottom-left
+    // connection line was deleted (V2-542): a device choice belongs in Settings, and hiding it in a diagnostic
+    // strip is why it sat on the desktop for months looking like clutter. The ids stay `micsel`/`micmode`
+    // because the session's own helpers drive them by id; `wire()` asks the session to fill them, and empties
+    // the block when it cannot (the legacy Pipecat engine has no such helper) rather than showing two dead
+    // selects.
+    // Its OWN card, BELOW the save button, and that placement is the point: everything above is server
+    // configuration that «Guardar voz» writes, while these two are already applied the moment they change.
+    // Sitting them inside that card would put a Save button under two controls it does not save.
+    const device = panel("voice_device", t("config.voice.device_title"), t("config.voice.device_sub"),
+      row(t("config.voice.device"), `<select id="micsel"></select>`, esc(t("config.voice.device_hint"))) +
+      row(t("config.voice.capture"), `<select id="micmode"></select>`, esc(t("config.voice.capture_hint"))));
     return panel("voice", t("config.voice.title"), t("config.voice.sub"),
-      cloudNote + rows + `<div class="cf-foot"><button class="cf-save-voice">${t("config.voice.save")}</button></div>`);
+      cloudNote + rows + `<div class="cf-foot"><button class="cf-save-voice">${t("config.voice.save")}</button></div>`)
+      + device;
   }
 
   function sec_search() {
@@ -299,6 +314,22 @@ export function ConfigPanel() {
     };
     bodyEl.querySelectorAll(".cf-save").forEach(b => b.onclick = () => saveV2(b.dataset.sec, b));
     const bv = bodyEl.querySelector(".cf-save-voice"); if (bv) bv.onclick = () => saveVoice(bv);
+    // The capture block is filled by the session engine, which owns the device list and the reconnect. If this
+    // engine has no such helper, REMOVE the block: two empty selects that do nothing are worse than no block.
+    const dev = bodyEl.querySelector("#cf_voice_device");   // the browser-capture card (sec_voice)
+    if (dev) {
+      // Filling is ASYNC (the device list comes from `enumerateDevices`), so the pruning has to wait for it.
+      // A select nobody filled is a control that does nothing — drop its row instead of showing it empty. That
+      // is also what keeps this honest across the two engines: the legacy one has no capture-MODE picker, so
+      // its row disappears on its own without this panel having to know which engine it is talking to.
+      const filled = session.mountMicPickers ? session.mountMicPickers() : Promise.resolve();
+      Promise.resolve(filled).catch(() => {}).then(() => {
+        dev.querySelectorAll("select").forEach(sel => {
+          if (!sel.options.length) { const r = sel.closest(".cf-row2"); if (r) r.remove(); }
+        });
+        if (!dev.querySelector("select")) dev.remove();
+      });
+    }
     bodyEl.querySelectorAll(".cf-save-keys").forEach(b => b.onclick = () => saveKeys(b.dataset.envs.split(","), b));
     const rf = bodyEl.querySelector(".cf-refresh-apis"); if (rf) rf.onclick = () => refreshApis(rf);
     const bb = bodyEl.querySelector(".cf-benchmarks-btn"); if (bb) bb.onclick = () => store.setBenchmarksOpen(true);

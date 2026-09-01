@@ -263,6 +263,37 @@ def run(url):
               all(v["x"] >= rail_right - 1 for v in rr.values()),
               json.dumps({"rail_right": rail_right, "cards": rr}))
 
+        # ── V2-542: the bottom-left connection line is GONE, and nothing it carried was lost ────────────────
+        # The operator, with the desktop in front of him: «ya tenemos una barra a la izquierda, las opciones
+        # principales arriba a la derecha… no hace falta más mierda en pantalla. Si quieres poner un icono de
+        # conexión, que sea el mismo que el del servidor». Whether a strip is still painting pixels at the
+        # bottom of the desktop is a question only a browser can answer.
+        chrome = pg.evaluate("""() => {
+          const dot = document.querySelector('#statusBtn');
+          const cs  = dot ? getComputedStyle(dot) : null;
+          return {
+            line_present: !!document.querySelector('.conn'),
+            stray_ids: ['connv','latv','micv','micbar','micbarwrap'].filter(i => document.getElementById(i)),
+            // `#desk` is the container (main.js), not a `.desk` class — and the selects were HIDDEN, so
+            // a visibility-based count would have passed with the strip fully restored. Count the nodes.
+            loose_selects: [...document.querySelectorAll('#desk select')].length,
+            dot_present: !!dot,
+            dot_visible: !!(cs && cs.display !== 'none' && cs.visibility !== 'hidden'),
+            dot_classes: dot ? dot.className : '',
+          };
+        }""")
+        check("the bottom connection line is GONE from the desktop",
+              not chrome["line_present"] and not chrome["stray_ids"], json.dumps(chrome))
+        check("no mic selector is left loose on the desktop (they live in Settings now)",
+              chrome["loose_selects"] == 0, json.dumps(chrome))
+        # And the half that makes the deletion safe: connection health did not disappear with the line. The ◉
+        # already reads the SAME `store.conn()` through `overallStatus()` = worst(server, voice, offline) —
+        # exactly the «mismo icono que el del servidor» he asked for — so it must be up there carrying a health
+        # class, or the desktop would have LOST the signal instead of relocating it.
+        check("connection health still has a home: the ◉ beacon, carrying its state class",
+              chrome["dot_present"] and chrome["dot_visible"] and "st-" in chrome["dot_classes"],
+              json.dumps(chrome))
+
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()
 

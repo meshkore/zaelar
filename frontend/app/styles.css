@@ -462,8 +462,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
    V2-233 D. A task's story lives in ONE place: the “Process” tab of the surface where its result will
    land, or the chat's “Processes” tab when there is none. See system-surfaces.js. */
 /* widget desktop styling lives in app/widgets/desktop.js (the independent canvas module) */
-.conn{position:fixed;left:20px;bottom:14px;z-index:20;font-family:var(--mono);font-size:11px;color:var(--hb-muted-2)}
-.conn b{color:var(--hb-muted)}
+/* (The bottom-left connection line is gone — V2-542. Health is the ◉ up top, mic level is the orb.) */
 /* (Proactive pushes no longer float a toast — they surface as a live caption over the orb + a chat-wall entry.) */
 /* CRON PANEL — manage zaelar's proactive tasks (native Hermes crons). */
 .cronpanel{position:fixed;top:64px;right:18px;z-index:9001;width:360px;max-width:92vw;height:min(64vh,560px);

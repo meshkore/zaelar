@@ -7187,6 +7187,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   en la COLUMNA y «Volver» habría montado el widget dentro de sí mismo sin error. Verificado en vivo
   (`3.16+4806ce1`): el catálogo lo vio sin reinicio, el dato sobrevive al restart y el ⏻ parado se respeta.
 
+- **Borrar una superficie es MUDAR lo que llevaba, o es perderlo (V2-542, 2026-09-01)**: el operador, con el
+  borde inferior del escritorio delante — «toda esta mierda que aparece abajo no tiene sentido tenerla… ya
+  tenemos una barra a la izquierda y las opciones principales arriba a la derecha. Si quieres poner un icono de
+  conexión, que sea el mismo que el del servidor. No quiero selectores de micrófono **aquí**». La línea
+  `ConnStatus` (conexión · latencia · micro) desaparece entera: componente, superficie y CSS.
+  - **El «icono de conexión igual que el del servidor» YA EXISTÍA, y eso se comprobó ANTES de borrar.** El ◉ de
+    arriba pinta `overallStatus()` = peor(servidor, voz de ESTE navegador, offline), y su mitad de voz sale de
+    `voiceStatus()`, que lee **el mismo `store.conn()`** que pintaba la línea. No hubo que añadir nada. Igual
+    con el nivel de micro: el orbe ya lo mueve desde `store.micLevel()`, la misma señal. La barrita era un
+    duplicado más pequeño del medidor que él ya mira. Solo la latencia pierde su chip, y los tiempos por turno
+    están en el ◷ con mucho más detalle.
+  - **«Aquí» es la palabra que aguanta la frase.** Quitar una tira de diagnóstico del escritorio es el encargo;
+    quitar la capacidad de elegir micrófono no lo es, y la diferencia entre las dos es tener un sitio a donde
+    llevarla: los dos selectores se van a **⚙ → Voz**, en su propia tarjeta **debajo** del botón «Guardar voz»
+    — porque lo de arriba es config del servidor que ese botón escribe y estos se aplican al cambiar, y en la
+    misma tarjeta el botón estaría prometiendo guardar dos controles que no guarda.
+  - ⚠️ **El panel se CONSTRUYE al abrirlo y la tira existía siempre**, así que ya no basta con que `start()`
+    rellene los selectores una vez: el panel tiene que poder PEDIRLO (`mountMicPickers()`), en los dos motores.
+    El panel no sabe cuál le habla, así que **tira la fila de cualquier select que nadie rellenó** — así la del
+    modo de captura desaparece sola en el motor legado, que no lo tiene. Y la poda espera al relleno, que es
+    asíncrono: podar antes habría borrado las dos filas justo antes de que llegaran sus opciones.
+  - ⚠️ **Un guarda que no sabe nombrar lo que busca afirma sobre la nada**: «no queda ningún selector suelto
+    abajo» pasó en VERDE con la tira entera restaurada, porque buscaba `.desk select` y el contenedor es `#desk`
+    (id, no clase) — y porque los selects estaban **ocultos**, de modo que cualquier medida por visibilidad
+    también habría pasado. Se cuentan los NODOS. Mismo error de forma que ya costó dos guardas en V2-538.
+  - Nodos **4.92** (tres comprobaciones nuevas, incluida la que convierte el borrado en mudanza: la salud de
+    conexión sigue teniendo casa) y **4.97**. Cinco desarmes: 1/2/1/2/2 rojos.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

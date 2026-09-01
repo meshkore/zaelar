@@ -199,6 +199,15 @@ export async function toggleCam() {
   applyCam();
 }
 
+// Fill the two capture selects wherever they currently live. They used to sit in the desktop's bottom-left
+// diagnostic line, which existed permanently, so `start()` could populate them once and forget. Since V2-542
+// they live in ⚙ → Voz, which is BUILT WHEN OPENED — so the panel has to be able to ask for them to be filled,
+// and `start()` keeps asking too (the panel may be open while the session reconnects).
+export async function mountMicPickers() {
+  await populateMicPicker();
+  populateMicModePicker();
+}
+
 async function populateMicPicker() {
   try {
     const devs = await navigator.mediaDevices.enumerateDevices();
@@ -206,7 +215,6 @@ async function populateMicPicker() {
     const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
     const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
     ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || t("voice.mic_fallback", { id: d.deviceId.slice(0, 6) }); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
-    sel.style.display = "inline-block";
     sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState(t("voice.conn_switching_mic")); stop(); setTimeout(start, 350); };
   } catch (e) { console.warn("enumerateDevices failed:", e); }
 }
@@ -222,7 +230,9 @@ function populateMicModePicker() {
   ];
   sel.innerHTML = "";
   opts.forEach(([v, label]) => { const o = document.createElement("option"); o.value = v; o.textContent = label; if (v === cur) o.selected = true; sel.appendChild(o); });
-  sel.style.display = "inline-block";
+  // No `style.display` any more: these selects used to live hidden in the desktop's diagnostic line and had to
+  // unhide themselves. In ⚙ → Voz they are ordinary rows, and forcing a display here would only be a leftover
+  // instruction pretending to reveal something that was never covered.
   sel.onchange = () => {
     localStorage.setItem("zaelar_micmode", sel.value);
     store.setConnState(t("voice.conn_switching_capture")); stop(); setTimeout(start, 350);

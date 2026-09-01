@@ -1316,7 +1316,8 @@ DOMAINS: list[dict] = [
         # el nuevo arriba, el raíl de widgets (un chip por tarjeta, siempre visible), minimizar/mostrar todo y
         # el ▦ de auto-orden. Autocontenido (su propio preview server); live solo por Chromium/Playwright.
         {"id": "4.92", "title": "El MURAL renderizado: raíl ACOPLADO que reserva el borde, colocación que esquiva "
-                                "el chat, plegado, minimizar/mostrar todo, auto-orden y tamaño por defecto",
+                                "el chat, plegado, minimizar/mostrar todo, tamaño por defecto — y que ABAJO ya no "
+                                "queda nada (V2-542)",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/widgets/render_mural.py"},
         # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo
@@ -1367,6 +1368,21 @@ DOMAINS: list[dict] = [
                                 "que contesta (renderizado + manifest + datos)",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_one_directory_for_every_identity.py",
                                   "tests/browser/e2e/widgets/test_contactos_render.py"]},
+        # V2-542 — la línea de conexión de abajo a la izquierda, BORRADA a petición del operador («ya tenemos
+        # una barra a la izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en
+        # pantalla»). Borrar la tira era el encargo; borrar la capacidad de elegir micrófono NO, y la diferencia
+        # entre las dos es un sitio a donde llevarla: los dos selectores se mudan a ⚙ → Voz. Este nodo dice que
+        # LLEGARON — que el panel los construye, que la sesión los RELLENA (asíncrono; un select vacío es un
+        # control muerto) y que su tarjeta cae DESPUÉS del botón «Guardar voz», que no los guarda. Lo que se
+        # borró de verdad no se perdió: la salud de conexión ya era el ◉ de arriba (`overallStatus()` =
+        # peor(servidor, voz de ESTE navegador, offline) lee el mismo `store.conn()`) y el nivel de micro ya era
+        # el orbe. Que abajo no quede nada lo comprueba el 4.92, que renderiza el escritorio entero.
+        {"id": "4.97", "title": "Los selectores de captura VIVEN en ⚙ → Voz, rellenos y usables, y ya no en el "
+                                "escritorio",
+            # NO es `live`: arranca su PROPIO servidor de preview, así que no necesita `make run`. Marcarlo live
+            # lo dejaba FUERA de la corrida determinista — verde e invisible, que es la trampa del nodo 10.99.
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_capture_lives_in_settings.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

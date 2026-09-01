@@ -136,6 +136,11 @@ function auditMicCapture() {
   }, 2500);
 }
 
+// Same entry point the LiveKit engine exposes (V2-542): ⚙ → Voz is built when opened, so the panel has to be
+// able to ask for the capture selects to be filled. This engine has no capture-MODE picker, and the panel drops
+// any select that nobody filled rather than showing an empty control.
+export async function mountMicPickers() { await populateMicPicker(); }
+
 async function populateMicPicker() {
   try {
     const devs = await navigator.mediaDevices.enumerateDevices();

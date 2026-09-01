@@ -28,7 +28,6 @@ import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
 import { BootOverlay } from "../components/BootOverlay.js?v=2";
 import { ChatWall } from "../components/ChatWall.js?v=5";
 import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
-import { ConnStatus } from "../components/ConnStatus.js?v=2";
 import { DebugPanel } from "../components/DebugPanel.js?v=4";
 import { FeedbackWidget } from "../components/FeedbackWidget.js?v=1";
 import { LanguageOnboarding } from "../components/LanguageOnboarding.js?v=1";
@@ -66,9 +65,13 @@ export const SYSTEM_SURFACES = [
   { id: "wrail",      comp: WidgetRail,   target: "desk", phase: "overlay", kind: "chrome",
     toggle: "auto (visible while any widget card is open)", label: "Widget rail",
     name: null, aliases: null },
-  { id: "connstatus", comp: ConnStatus,   target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "always visible (connection line)", label: "Connection status",
-    name: null, aliases: null },
+  // V2-542 — the bottom-left CONNECTION LINE is GONE, at the operator's request: «ya tenemos una barra a la
+  // izquierda, las opciones principales arriba a la derecha… no hace falta más mierda en pantalla». Nothing was
+  // lost by deleting it. Connection health was already the ◉ dot up top — `overallStatus()` is
+  // worst(server, THIS browser's voice connection, offline), so the beacon reads the very same `store.conn()`
+  // the line did, and blinks besides. The mic LEVEL was already the orb (its `--vu` is `store.micLevel()`).
+  // The two selectors moved to ⚙ → Voz, where a device choice belongs; only reply latency lost its chip, and
+  // the real per-turn timings live in ◷ with far more detail than «resp — ms».
   // ── PANELES / OVERLAYS / MODALES (a nivel de body, por encima del escritorio) ──
   // OJO: el chat tiene 4 pestañas (Chat/Procesos/Crons/Clusters). "abre el chat" → pestaña Chat; "procesos",
   // "crons" y "clusters" (la RED MeshKore, V2-086) son las OTRAS, ruteadas por la tool show_panel
