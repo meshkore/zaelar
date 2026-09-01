@@ -6631,6 +6631,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
+- **Inside an active conversation, NOBODY judges — the attention gate went deaf mid-dialogue (V2-531,
+  2026-09-01)**: session 701fcc1b — «tengo algún mensaje» opened the widget, and then **8 of the operator's ~12
+  turns were dropped as `llm_ambient`**, including «¿Me estás escuchando?» and «te he dicho que ya la has
+  abierto», seconds after the agent itself had asked HIM a question; he repeated himself four times and gave up.
+  Reproduced **15/15**: the DeepSeek `directed` judge answers `{"directed": false}` on those exact second-person
+  phrases — cleanly, not fail-open. Third of this family (2026-08-16 created the judge, 2026-08-17 filler
+  context, today). The deafness also DROVE the visible symptom: his corrections («ya la has abierto») never
+  reached the model, so it kept offering to open the already-open widget against the state line.
+  - **`always` mode maintained the conversation window and never consulted it** — every turn went to a binary
+    coin-flip even four seconds after the agent spoke. Now the window BEATS the judge (`active_window` within
+    30s of a handled turn, `evaluate_content`); the judge only decides COLD turns, the "sitting in a meeting"
+    case it was built for. Stated cost: noise inside the window runs a turn — the module's own rule already
+    chose that side.
+  - **A real reply refreshes the window** (`send()`, per chunk, kickoff excluded): a narration longer than
+    `window_s()` must not land the operator's answer on the cold judge.
+  - **The cold judge gets a DIALOGUE frame**, measured: «Se estaba haciendo: …» reads a second-person sentence
+    as two people in the room; «Zaelar acaba de decir: … El micrófono ha oído: …» flips the measured phrases to
+    directed 3/3. Still fallible — which is why it no longer decides mid-conversation.
+  - ⚠️ **A disarm on an uncommitted file is restored by RE-APPLYING the edit, never `git checkout`** — checkout
+    restores HEAD, and here it wiped my edits AND two in-flight comment translations of the concurrent i18n
+    pass (re-applied verbatim, attributed in the commit).
+  - Nodes 3.x (`test_attention.py` +3, incl. the 8-turn replay with the judge answering what it answered live)
+    + the send() source guard. **Not verified live yet**: the fix needs an engine restart and a session was open.
+
 - **An errand has a NAME, and it is not a slice of the conversation (V2-530, 2026-08-31)**: the operator, with
   the screen in front of him — «los dos widgets de resultados tenían un título… más un comentario parte del
   diálogo». Session `7cab1afd`: his two sheets were titled «Sanidad con Sanitas en Soria» and **«Me parece bien.
