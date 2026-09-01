@@ -31,21 +31,21 @@ UNIT = "unit"; HTTP = "http"; VOICE = "voice"; CHAT = "chat"; PEER = "peer"
 
 DOMAINS: list[dict] = [
     {"id": "1", "name": "MEMORIA", "nodes": [
-        # 2026-08-26: el bloque de estado presentaba un ENCARGO igual que un hecho permanente de la persona,
-        # bajo la misma orden («dalo por sabido sin buscar»). Medido: el agente arrancó hablando de coches al
-        # preguntarle por un monitor, y en la memoria VIVA del operador 3 de 5 plazas eran encargos (V2-337).
+        # 2026-08-26: the state block presented an ERRAND like a permanent fact about the person,
+        # under the same instruction (“take it as known without searching”). Measured: the agent started
+        # talking about cars when asked about a monitor, and 3 of the operator's 5 LIVE-memory slots were errands (V2-337).
         {"id": "1.1", "title": "BD y primitivas de estado, y un ENCARGO no se presenta como hecho de la persona",
             "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
             "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
-            # V2-498 (2026-08-29): los gustos son estado ACTIVO (norma del operador) y no llegaban al bloque
-            # pasivo — se escriben bien y PIERDEN el ranking. Línea propia, fuera del cap, como los críticos.
+            # V2-498 (2026-08-29): tastes are ACTIVE state (the operator's rule) and were not reaching the
+            # passive block—they were written correctly and LOST their ranking. A dedicated line, outside the cap, like critical items.
             "tests/memory/unit/test_tastes_are_active_state.py",
-            # V2-490 (2026-08-29): el hecho crítico SÍ llegaba (píldoras pineadas, `critical=health`, línea
-            # «⚠️ CRÍTICO» en el estado) y aun así 2 de 4 rondas propusieron macarrones a un celíaco. Es
-            # OBEDIENCIA, no fontanería: el límite se repite AL FINAL y dicho como comprobación sobre lo que
-            # se va a decir, no como biografía. Sin una palabra de dominio — gobierna la CLASE del hecho.
+            # V2-490 (2026-08-29): the critical fact DID arrive (pinned pills, `critical=health`, an
+            # “⚠️ CRITICAL” line in the state), yet 2 of 4 rounds suggested macaroni to a celiac. This is
+            # COMPLIANCE, not plumbing: the limit is repeated AT THE END and phrased as a check on what
+            # will be said, not as biography. Without a domain word—the fact's CLASS governs.
             "tests/memory/unit/test_the_limit_is_the_last_thing_read.py",
             "tests/memory/unit/test_memory_boundary.py",
             "tests/memory/unit/test_memory_owes_nucleo_nothing.py",
@@ -62,8 +62,8 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
             "tests/memory/unit/test_model_cache.py",
-            # 2026-08-25: `query()` decide QUÉ píldoras cuentan como usadas; el CUÁNDO se lo lleva quien
-            # entrega (V2-311). 21 de 27 recalls vivos se abandonaban y reforzaban igual.
+            # 2026-08-25: `query()` decides WHICH pills count as used; the WHEN belongs to whoever
+            # delivers them (V2-311). 21 of 27 live recalls were abandoned and reinforced anyway.
             "tests/memory/unit/test_reinforce_follows_delivery.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
@@ -94,9 +94,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_secrets.py", "tests/memory/unit/test_pill_slot.py",
             "tests/memory/unit/test_slots_audit.py", "tests/memory/unit/test_location_grounding.py",
             "tests/memory/unit/test_critical_health.py",
-            # V2-499 (2026-08-29): la línea crítica casaba la CATEGORÍA («celíaco») y no lo que la persona dice
-            # que NO PUEDE hacer («no puede comer gluten») — autorizado por el operador aceptando los falsos
-            # positivos, que ese fichero deja medidos y con nombre.
+            # V2-499 (2026-08-29): the critical line matched the CATEGORY (“celiac”) rather than what the person says
+            # they CANNOT do (“cannot eat gluten”)—authorized by the operator, accepting the false positives
+            # that this file measures and names.
             "tests/memory/unit/test_ingestion_limit_is_critical.py",
             "tests/memory/integration/test_seed_from_hermes.py"]},
         {"id": "1.7", "title": "API HTTP de memoria", "ch": HTTP, "paths": [
@@ -104,10 +104,10 @@ DOMAINS: list[dict] = [
             "tests/memory/e2e/test_server_api.py"]},
         {"id": "1.8", "title": "Contexto de UI en el estado", "ch": UNIT, "paths": [
             "tests/memory/integration/test_ui_context.py"]},
-        # El ARNÉS de evaluación tiene sus PROPIOS tests: mide la memoria, así que un fallo suyo no sale
-        # como error — sale como un número creíble y equivocado (cuatro instrumentos rotos en una sola
-        # noche, 2026-08-20/21). Nodo propio y NO `live`: son deterministas y tienen que correr en CI,
-        # cosa que no pasaría colgados del 1.4, porque `deterministic_paths` salta los nodos live.
+        # The evaluation HARNESS has its OWN tests: it measures memory, so one of its failures does not appear
+        # as an error—it appears as a plausible but wrong number (four broken instruments in a single
+        # night, 2026-08-20/21). A dedicated node and NOT `live`: they are deterministic and must run in CI,
+        # which would not happen if attached to 1.4, because `deterministic_paths` skips live nodes.
         {"id": "1.9", "title": "El arnés de evaluación se prueba a sí mismo", "ch": UNIT, "paths": [
             "tests/memory/unit/test_bot_runner_setup.py", "tests/memory/unit/test_judge.py",
             "tests/memory/unit/test_timeline_cases.py"]},
