@@ -103,22 +103,44 @@ def test_la_cola_sigue_cubriendo_el_estado_vivo(cabeza, cola):
 # some time.
 
 def test_el_MARGEN_hasta_el_recorte_se_mide_y_no_se_agota():
-    """Sensitivity for the test above: fitting TODAY is not enough."""
+    """Sensitivity for the test above: fitting TODAY is not enough.
+
+    REWRITTEN with V2-536 (2026-09-01), keeping what it protected. The stable-prefix reorder moved every
+    per-turn block — the recall included — to the END of the prompt, so the capture window that holds the
+    shown memory is now the TAIL, not the head. What eats this margin today is whatever sits AFTER the
+    recall (the directive and the live state, which V2-479 already let grow to 12 sheet rows): when that
+    region outgrows the tail, the shown memory falls into the omitted middle and a verifier says “clean”
+    about a prompt it never saw — the exact failure V2-255 closed, from the other side."""
     s = _prompt("CONVERSACIÓN RECIENTE:\n" + ("· una línea de charla previa\n" * 60))
     pos = s.find(MARCA)
     assert pos >= 0
-    margen = ob._HEAD_CHARS - pos
+    inicio_cola = len(s) - ob._TAIL_CHARS
+    margen = pos - inicio_cola
     assert margen > 400, (
-        f"la memoria enseñada queda a {margen} caracteres de caerse del artefacto. No ha fallado todavía, y por "
-        f"eso hay que mirarlo ahora: cuando falle, un verificador dirá «limpio» sobre un prompt sucio.")
+        f"la memoria enseñada queda a {margen} caracteres de caerse del artefacto (cola de {ob._TAIL_CHARS}). "
+        f"No ha fallado todavía, y por eso hay que mirarlo ahora: cuando falle, un verificador dirá «limpio» "
+        f"sobre un prompt sucio.")
 
 
-def test_un_ESTADO_grande_empuja_la_memoria_fuera_y_hay_que_saberlo():
-    """The other direction, and the one that occurs in production: an operator with a lot of durable memory has a
-    long state block. This does NOT claim that it passes today — it claims that truncation is by POSITION, so the
-    risk exists and does not depend on anything that can be fixed with a higher ceiling."""
+def test_un_ESTADO_grande_ya_NO_empuja_la_memoria_fuera_pero_un_estado_vivo_enorme_si():
+    """Truncation is still by POSITION — this test states WHERE the risk lives after V2-536's reorder.
+
+    Before, a long state block (an operator with lots of durable memory) pushed the recall past the head and
+    out of the artifact. With the per-turn blocks at the END, a long state pushes the recall TOWARD the tail
+    — INTO the capture — so that direction is closed and the first assertion says so. What can still push the
+    shown memory into the omitted middle is a huge LIVE block after it. That has never been measured in
+    production (live is bounded by its own budgets), but position-based truncation means the risk exists and
+    does not depend on anything a higher ceiling can fix — stated here so nobody reads the capture as
+    complete by construction."""
+    import unittest.mock as _mock
     enorme = _ESTADO + "\n" + ("· un hecho durable más sobre la persona\n" * 300)
     s = _prompt(estado=enorme)
     assert MARCA in s, "el bloque de recall ya no viaja en el prompt: esto sería otro fallo"
-    assert MARCA not in ob._prompt_excerpt(s), (
-        "si esto pasa a ser verde, el recorte ha dejado de ser por posición y este aviso sobra")
+    assert MARCA in ob._prompt_excerpt(s), (
+        "un estado largo ya no puede costarle la memoria al artefacto: si esto se pone rojo, el orden de "
+        "bloques ha vuelto a cambiar y hay que re-derivar dónde vive el riesgo")
+    with _mock.patch.object(fp, "live_state", lambda: "· una línea de estado vivo\n" * 900):
+        s2 = _prompt()
+        assert MARCA in s2
+        assert MARCA not in ob._prompt_excerpt(s2), (
+            "si esto pasa a ser verde, el recorte ha dejado de ser por posición y este aviso sobra")
