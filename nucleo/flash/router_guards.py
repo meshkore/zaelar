@@ -222,9 +222,36 @@ def promises_music(reply: str) -> bool:
 _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w*)\b")
 
 
+# V2-534's open item #1 (2026-09-01): a NEGATED clause is not a promise. Measured over every firing of the
+# promise gate in the operator's sessions (2026-08-17 -> 2026-09-01): four of ten were «ahora mismo NO tengo
+# ninguna tarea corriendo» and siblings — the time adverb matched and the negation sitting right next to it
+# was ignored. The rule is STRUCTURAL (a negator inside the SAME clause as the matched span), never a phrase
+# list (V2-095 measured what hand-tuning those lists costs). Clause-bounded on purpose, in both directions:
+# «No, ahora mismo lo miro» still promises (the «no» answers the PREVIOUS clause), and «me pongo con ello,
+# no te preocupes» is not un-promised by its neighbour. `nada` is deliberately NOT a negator here: «en nada
+# te lo miro» is a promise, and losing one is the expensive direction (six measured minutes of silence).
+_NEGATOR_RE = _re.compile(r"\b(no|ni|tampoco|nunca|jamas|ningun\w*)\b")
+_CLAUSE_BREAKS = ".,;:!?¿¡()\n"
+
+
+def clause_negated(normalized: str, start: int, end: int) -> bool:
+    """True if the clause containing [start:end) of an already-normalized text carries a negator."""
+    lo = max([normalized.rfind(c, 0, start) for c in _CLAUSE_BREAKS] + [-1]) + 1
+    his = [i for i in (normalized.find(c, end) for c in _CLAUSE_BREAKS) if i != -1]
+    hi = min(his) if his else len(normalized)
+    return bool(_NEGATOR_RE.search(normalized[lo:hi]))
+
+
+def unnegated_match(rx, normalized: str) -> bool:
+    """Any match of `rx` whose own clause is NOT negated. The shared mechanic for the promise gates —
+    `promises_action` here and `promise_backstop.committed` in the voice provider read the same rule, because
+    two copies of this decision is how the last one drifted (V2-252's lesson, applied before it repeats)."""
+    return any(not clause_negated(normalized, m.start(), m.end()) for m in rx.finditer(normalized))
+
+
 def promises_action(reply: str) -> bool:
     """True if zaelar's REPLY promises a first-person action (it committed to doing something)."""
-    return bool(_PROMISE_RE.search(_norm_txt(reply)))
+    return unnegated_match(_PROMISE_RE, _norm_txt(reply))
 
 
 
@@ -713,10 +740,10 @@ def holding_line(window, lang=None) -> str:
             # this fixes, and one that must not be reintroduced through the back door.
             if not recent or waited != recent[-1]:
                 return waited
-    for line in lines:                      # agota las variantes ANTES de reutilizar ninguna
+    for line in lines:                      # exhaust the variants BEFORE reusing any of them
         if line not in recent:
             return line
-    for line in lines:                      # y si ya se dijeron todas, al menos no la de justo antes
+    for line in lines:                      # and if all have already been said, at least not the immediately previous one
         if not recent or line != recent[-1]:
             return line
     return lines[-1]
@@ -1148,11 +1175,11 @@ def looks_like_stop_work(text: str) -> bool:
     n = _norm_txt(text)
     if len(n) > _STOP_MAX_CHARS or len(n.split()) > _STOP_MAX_WORDS:
         return False
-    if _REQUEST_START_RE.match(n):        # (a) el turno empieza PIDIENDO algo → no es una parada
+    if _REQUEST_START_RE.match(n):        # (a) the turn starts by REQUESTING something → it is not a stop
         return False
     if _STOP_VERB_STRONG_RE.search(n) and _STOP_WORK_RE.search(n):
-        return True                       # detén/cancela/deja de/aborta + referencia a trabajo (inequívoco)
-    return bool(_STOP_PARA_RE.match(n))   # (b) "para <complemento de parada real>" AL INICIO
+        return True                       # detén/cancela/deja de/aborta + work reference (unambiguous)
+    return bool(_STOP_PARA_RE.match(n))   # (b) "para <actual stop complement>" AT THE START
 
 
 def login_site(text: str) -> str:
