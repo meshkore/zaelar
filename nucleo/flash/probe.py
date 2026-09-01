@@ -7,7 +7,7 @@ and include STT noise.
 
 This channel runs INSIDE the server's live process (which already has memory/bus/state/widgets initialized by the
 lifespan), so fidelity is maximal: it reproduces the CORE of the FlashBrain turn — the SAME prompt
-(`build_flash_system` con estado+memoria+recall), el MISMO modelo (`FastClient`), las MISMAS tools (`router.TOOLS`)
+(`build_flash_system` with state+memory+recall), the SAME model (`FastClient`), the SAME tools (`router.TOOLS`)
 and the SAME dialogue safeguards (`dialog.py`) as the voice turn (`nucleo.py::_run`) — but without audio transport
 or real widget execution: instead of ACTING, it REPORTS what it would do (selected tool/tag), the text, and
 latencies. This makes it possible to evaluate the failures from the report (loops, degeneration, loss of thread,
@@ -118,29 +118,29 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if not text:
         return {"ok": False, "error": "texto vacío"}
 
-    # BÓVEDA: config de seguridad + secreto hablado, decididos por la puerta COMPARTIDA (F1, 2026-08-23).
-    # Eran tres marcas de espejo y ya habían derivado: esta copia devolvía la acotación
-    # «(secreto cifrado)» donde la voz decía una frase localizada, y V2-141 hubo que arreglarlo dos veces. La
-    # DECISIÓN vive ahora en `nucleo/turn/vault_gate.py`; lo que sigue siendo de este canal es la ENTREGA (un
-    # dict, no una voz) y el `ingest`, que es la razón real por la que aquí no siempre se cifra: una corrida en
-    # seco no puede escribir los secretos de verdad del operador en la bóveda de verdad.
+    # VAULT: security config + spoken secret, decided by the SHARED gate (F1, 2026-08-23).
+    # There were three mirror implementations and they had already drifted: this copy returned the note
+    # “(encrypted secret)” where voice spoke a localized sentence, and V2-141 had to fix it twice. The
+    # DECISION now lives in `nucleo/turn/vault_gate.py`; what remains specific to this channel is the DELIVERY (a
+    # dict, not a voice) and `ingest`, which is why this path does not always encrypt: a dry run cannot write the
+    # operator’s real secrets to the real vault.
     from nucleo.turn import vault_gate as _vault_gate
     _vg = await _vault_gate.inspect(text, store=bool(ingest))
     if _vg.kind == "config":
         return {"ok": True, "reply": [_vg.line], "action": "vault_config", "tool_calls": [], "tags": [],
                 "security": {_vg.config[0]: _vg.config[1]}}
     if _vg.consumed:
-        # REDACTADO, nunca la línea cruda: esta salida existe justo porque el turno ENTERO era un secreto. Lo
-        # que la ventana conserva es la FORMA de lo que pasó, para que el turno siguiente sepa que el operador
-        # habló y de qué.
+        # REDACTED, never the raw line: this output exists precisely because the ENTIRE turn was a secret. What
+        # the window preserves is the SHAPE of what happened, so the next turn knows that the operator spoke and
+        # what it concerned.
         _remember_what_was_said(sess, _vg.text)
         return {"ok": True, "reply": [_vg.line],
                 "action": "vault_save" if _vg.has_vault else "vault_need_create", "tool_calls": [], "tags": [],
                 "secret": {"n": len(_vg.labels), "labels": _vg.labels, "vault": _vg.has_vault}}
     text = _vg.text          # el valor NO sobrevive; la petición que lo acompañaba sí se atiende
 
-    # TRAZABILIDAD (V2-044, espejo de nucleo.py::_run): el turno del probe también nace con trace id — el canal
-    # de PRUEBA valida la cadena texto→acción→eventos igual que la voz. El id vuelve en la respuesta (evaluable).
+    # TRACEABILITY (V2-044, mirror of nucleo.py::_run): the probe turn also starts with a trace ID — the TEST
+    # channel validates the text→action→events chain just like voice. The ID returns in the response (evaluable).
     _trace_id = ""
     try:
         from voice import trace as _trace
@@ -148,9 +148,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     except Exception:
         pass
 
-    # CIRCUITO DE CORTO PLAZO (B, espejo de nucleo.py::_run): siembra la ventana desde el buffer conversacional
-    # persistente la primera vez — así el probe reproduce FIEL el arranque tras reconectar (ventana sembrada), no
-    # una sesión artificialmente vacía. Best-effort.
+    # SHORT-TERM CIRCUIT (B, mirror of nucleo.py::_run): seed the window from the persistent conversation buffer
+    # the first time — this lets the probe faithfully reproduce startup after reconnecting (seeded window), not
+    # an artificially empty session. Best-effort.
     if not sess.seeded:
         sess.seeded = True
         if not sess.window:
@@ -236,7 +236,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         tags.append({"action": action, "extra": {k: v for k, v in (extra or {}).items() if k != "data"}
                      or (extra or {})})
 
-    # (d) stream del modelo real
+    # (d) stream from the real model
     buf = ""
     raw = ""
     spec = spec_from_config()
@@ -556,7 +556,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if action == "chat" and spoken:
         try:
             from . import router as _routerc
-            if _routerc.promises_action(spoken):
+            # Mirror of the voice provider: a reply that ASKS the operator for the detail it needs is not a
+            # promise it failed to keep, so nothing is re-derived from it (V2-534). Wired in BOTH channels
+            # because this class of defect survives by diverging between them.
+            if _routerc.promises_action(spoken) and not _routerc.asks_for_missing_detail(spoken):
                 if (_routerc.looks_like_create_widget(text) or _routerc.looks_like_escalate_task(text)
                         or _routerc.looks_like_create_widget(spoken) or _routerc.looks_like_escalate_task(spoken)):
                     action = "escalate"
