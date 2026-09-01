@@ -85,28 +85,48 @@ def test_mensajeria_open_declares_name_as_its_primary_key():
 
 # ── The execution guard that was undoing the model's correct choice ─────────────────────────────────────────
 
-def test_a_show_verb_over_an_inside_element_is_not_a_pure_widget_show():
-    """The second half of the incident, and the one the prompt fix cannot reach on its own: the voice rail
-    rewrites EVERY `is_pure_show_request` into [[show:widget]], and «abre el mensaje de Francisco» is one
-    (show verb, no change verb). So the correct `open {name:'Francisco'}` became a re-show of a card that
-    was already on screen. The object of the verb is what tells them apart."""
-    assert router.is_pure_show_request("abre el mensaje de Francisco"), \
-        "the older guard still classifies it as a pure show — that is precisely why the second one is needed"
-    assert router.show_object_is_the_widget("abre la mensajería", "mensajeria")
-    assert router.show_object_is_the_widget("enséñame la mensajería, por favor", "mensajeria")
-    assert router.show_object_is_the_widget("abre el whatsapp", "mensajeria")
-    assert not router.show_object_is_the_widget("abre el mensaje de Francisco", "mensajeria")
-    assert not router.show_object_is_the_widget("ábreme el chat de Jose Vicente", "mensajeria")
-    assert not router.show_object_is_the_widget("muéstrame la lista principal", "mensajeria")
+def test_a_pure_show_may_run_a_declared_VIEW_action():
+    """The whole incident in one assertion. «Ábreme el Telegram» is a pure show order, and the RIGHT answer to
+    it is a data-op — `show_view {platform:'telegram'}` — because that is how this widget changes what it
+    displays. Deciding it from the WORDS is impossible and was measured failing live (2026-09-01): the first
+    version matched the text against the manifest aliases, and mensajeria's aliases ARE its lens names
+    («whatsapp», «telegram», «correo»), so three turns of «ábreme el Telegram» / «muéstrame ahora el Telegram»
+    got «Aquí lo tienes» over a card that never moved, while «muéstrame SOLO LOS MENSAJES de Telegram» worked
+    by accident — the extra words failed the match. The decision now reads the ACTION the widget declared."""
+    assert router.is_pure_show_request("ábreme el telegram"), \
+        "still a pure show order — that is the point: the phrasing cannot tell the two apart"
+    for phrase in ("ábreme el telegram", "muéstrame ahora el telegram", "ábreme el whatsapp",
+                   "muéstrame solo los mensajes de whatsapp"):
+        assert not router.show_request_blocks_data_action(phrase, "mensajeria", "show_view"), \
+            f"«{phrase}» + show_view is exactly what the operator asked for; it must run"
+    assert not router.show_request_blocks_data_action("abre el mensaje de Francisco", "mensajeria", "open")
+    assert not router.show_request_blocks_data_action("vuelve a la lista", "mensajeria", "close")
 
 
 def test_the_original_hallucination_still_lands_on_show():
     """The guard exists because «abre la agenda» once executed an invented `add_meeting` («Reunión con Axa
-    Seguros»). Naming nothing but the widget must keep going to the card, and an unreadable catalog must
-    fail CLOSED — the invented data-op is worse than a show that does nothing."""
-    assert router.show_object_is_the_widget("abre la agenda", "agenda")
-    assert router.show_object_is_the_widget("ponme en pantalla la agenda", "agenda")
-    assert router.show_object_is_the_widget("abre la agenda", "widget-que-no-existe")
+    Seguros»). A pure show may drive a VIEW action and nothing else: a mutation, an action the widget never
+    declared, or an unreadable catalog all fall back to showing the card."""
+    assert router.show_request_blocks_data_action("abre la agenda", "agenda", "add_meeting")
+    assert router.show_request_blocks_data_action("muéstrame la mensajería", "mensajeria", "clear")
+    assert router.show_request_blocks_data_action("ábreme el correo", "mensajeria", "trash")
+    assert router.show_request_blocks_data_action("abre la agenda", "agenda", "accion-inventada")
+    assert not router.show_request_blocks_data_action("abre la agenda", "widget-que-no-existe", "show_day")
+    assert not router.show_request_blocks_data_action("apunta cena con Ana mañana", "agenda", "add_meeting"), \
+        "not a pure show order — this guard must not touch it"
+
+
+def test_a_view_action_is_declared_never_inferred():
+    """`view` is opt-in per action and cannot be inferred from the name: the SAME `open` is display-only in
+    mensajeria (opens a chat) and a real-world side effect in navegador (loads a URL). An action that needs
+    confirmation is never a view whatever the manifest says."""
+    from widgets import actions
+    assert actions.is_view({"desc": "x", "view": True}, "show_view")
+    assert not actions.is_view({"desc": "x"}, "show_view"), "silence means NO — no name heuristic"
+    assert not actions.is_view({"desc": "BORRA el correo", "view": True, "confirm": True}, "trash"), \
+        "a confirm/irreversible action must not become runnable by a phrasing"
+    assert router.show_request_blocks_data_action("ábreme el navegador", "navegador", "open"), \
+        "navegador.open loads a URL: a pure show must NOT run it"
 
 
 def test_the_probe_channel_mirrors_the_pure_show_guard():
@@ -114,5 +134,18 @@ def test_the_probe_channel_mirrors_the_pure_show_guard():
     into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
     channel gave a FALSE GREEN on the defect it was being used to diagnose."""
     src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
-    assert "show_object_is_the_widget" in src and "is_pure_show_request" in src, \
+    assert "show_request_blocks_data_action" in src, \
         "a guard that only one of the two rails carries makes the probe report a decision the product never takes"
+
+
+def test_the_voice_rail_shows_the_card_AND_applies_the_view():
+    """«Ábreme el Telegram» asks for two things at once: the card in front and that lens selected. The rail
+    does both instead of guessing which one was meant — that is what dissolves the card-vs-inside ambiguity
+    the text-matching version tried (and failed) to resolve."""
+    src = (ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py").read_text(encoding="utf-8")
+    i = src.index("show_request_blocks_data_action")
+    window = src[i:i + 1200]
+    assert window.count('_tag_emit("show"') >= 2, \
+        "the VIEW branch must also show the card, not only apply the data-op"
+    assert "descartada" in window, \
+        "the discarded action must be in the event: logging only the widget id left the live incident traceless"

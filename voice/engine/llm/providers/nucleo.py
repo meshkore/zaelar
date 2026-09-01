@@ -1503,16 +1503,25 @@ class NucleoLLMStream(llm.LLMStream):
             # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la
             # agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
             from nucleo.flash import router as _router
-            # V2-544 — "pure" must mean it points at the CARD, not at something INSIDE it. Measured live
-            # 2026-09-01: «abre el mensaje de Francisco» passes this guard (show verb, no change verb), so the
-            # CORRECT data-op the model had already chosen — `open {name:'Francisco'}` — was rewritten into a
-            # [[show]] over a card that was already on screen, and the mouth said «Aquí lo tienes».
-            # `show_object_is_the_widget` tells the two apart using the widget manifest's own vocabulary.
-            if (_router.is_pure_show_request(text) and runtime.get(wid) is not None
-                    and _router.show_object_is_the_widget(text, wid)):
-                emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)", text=wid, role="system")
+            # V2-545 — what a pure show order may run is decided by the ACTION, not by the words. The widget
+            # declares which of its actions are display-only (`"view": true`); one of those IS the right answer
+            # to «ábreme el Telegram» (show_view) or «abre el mensaje de Francisco» (open), so it runs — and the
+            # card is shown too, which is the other half of what was asked and removes the card-vs-inside
+            # guess. Anything else on a pure show is the invented mutation this guard exists for.
+            # The discarded action goes in the event: the previous version logged only the widget id, so three
+            # live turns of «ábreme el Telegram» → «Aquí lo tienes» over an unmoved card left no trace of WHAT
+            # had been thrown away, and the model was suspected before the guard was.
+            if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
+                if _router.show_request_blocks_data_action(text, wid, action_name):
+                    emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)",
+                         text=f"{wid} (descartada {action_name})", role="system",
+                         extra={"id": wid, "action": action_name, "payload": payload or {}})
+                    _tag_emit("show", {"id": wid})
+                    return
+                emit("brain", "🪟 'abrir/mostrar' puro + acción de VISTA → la tarjeta Y la vista",
+                     text=f"{wid}:{action_name}", role="system",
+                     extra={"id": wid, "action": action_name, "payload": payload or {}})
                 _tag_emit("show", {"id": wid})
-                return
             # GUARD cerrar≠data-op (sesión 22:40 2026-07-16, espejo del guard cerrar≠borrar): «Vale, ciérralo» →
             # el modelo ejecutó `widget_data(youtube, mute)` (una data-op DECLARADA) en vez de emitir [[close]] →
             # el vídeo quedó MUTEADO, no cerrado, y el operador tuvo que corregir. Una orden CORTA que es

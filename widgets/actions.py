@@ -86,3 +86,39 @@ def classify(spec: dict | None, name: str = "") -> str:
 def label(mode: str) -> str:
     """Return the human-readable label shown beside each action in the brain brief."""
     return {FAST: "(directa)", CONFIRM: "(confirmar)", ESCALATE: "(escala)"}.get(mode, "(directa)")
+
+
+def is_view(spec: dict | None, name: str = "") -> bool:
+    """Whether the action only changes WHAT IS DISPLAYED inside the card (V2-545).
+
+    A SECOND axis, orthogonal to the execution mode above. `classify` answers «how much friction does running
+    this cost»; this one answers «is running it the same thing the operator asked for when they only asked to
+    LOOK». A view action switches a lens, opens or closes an element, moves between the widget's own screens —
+    it never writes anything the operator would have to undo and never reaches the outside world.
+
+    ## Why it exists
+
+    «Ábreme el Telegram» is a pure show order, and the correct answer to it is `show_view {platform:'telegram'}`
+    — a data-op. But a pure show order is also exactly where a small model invents a mutation («abre la agenda»
+    → `add_meeting` «Reunión con Axa Seguros», measured live 2026-07-16), so the voice rail refuses to run a
+    data-op on one. Telling those two apart by reading the TEXT does not work: the first attempt (V2-544)
+    compared the words against the widget's manifest aliases, and mensajeria's aliases ARE the names of its
+    lenses («whatsapp», «telegram», «correo»), so «ábreme el Telegram» read as «show the card» and the card sat
+    there — measured live 2026-09-01, three turns, while «muéstrame SOLO LOS MENSAJES de Telegram» worked only
+    because the extra words failed the match. The distinction is not in the phrasing; it is in the ACTION, and
+    the widget is the one that knows.
+
+    ## The contract
+
+    Opt-in and EXPLICIT: `"view": true` in the action's manifest spec. Nothing is inferred from the name — the
+    same `open` is display-only in mensajeria (opens a chat) and a real-world side effect in navegador (loads a
+    URL), so a name heuristic would be wrong in exactly the cases that matter. A widget that declares nothing
+    keeps the old behavior (a pure show order only shows its card), which is what every widget did before this.
+
+    An action that needs confirmation or escalates is NEVER a view, whatever the manifest says: `trash` («BORRA
+    el correo en el buzón real») must not become runnable by a phrasing.
+    """
+    spec = spec if isinstance(spec, dict) else {}
+    if spec.get("view") is not True:
+        return False
+    return classify(spec, name) == FAST

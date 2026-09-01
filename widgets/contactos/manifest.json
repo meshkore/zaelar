@@ -75,11 +75,13 @@
         "city": "ciudad (opcional)",
         "favorites": "true para solo favoritos (opcional)",
         "query": "texto libre a buscar (opcional)"
-      }
+      },
+      "view": true
     },
     "show_contact": {
       "desc": "abre la FICHA de un contacto concreto: sus datos, sus etiquetas y su gente o sitios conectados",
-      "payload": { "contactId": "string" }
+      "payload": { "contactId": "string" },
+      "view": true
     }
   },
   "name": "Contactos",

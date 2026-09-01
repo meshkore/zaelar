@@ -499,15 +499,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _act = str(_wd["args"].get("action") or "").strip()
             if _wid and _rt.get(_wid) is None:   # id flojito → resuélvelo contra el catálogo, como la voz
                 _wid = (_identify_ctx(_rt, _wid) or _identify_ctx(_rt, text) or _wid)
-            # MIRROR of the voice guard «'abrir/mostrar' puro → show» (V2-544). It was NOT mirrored here, and
-            # that absence made this channel give a FALSE GREEN on the very defect it was being used to
-            # diagnose: the probe reported `widget_data open {name:'Francisco'}` while the voice rail turned
-            # that same call into a bare [[show]] over an unmoved card. A test channel that does not carry a
-            # guard reports the decision the product does not take.
-            if (_router.is_pure_show_request(text) and _rt.get(_wid) is not None
-                    and _router.show_object_is_the_widget(text, _wid)):
+            # MIRROR of the voice guard «'abrir/mostrar' puro → show» (V2-544, rewritten in V2-545). It was NOT
+            # mirrored here at first, and that absence made this channel give a FALSE GREEN on the very defect
+            # it was being used to diagnose: the probe reported `widget_data open {name:'Francisco'}` while the
+            # voice rail turned that same call into a bare [[show]] over an unmoved card. A test channel that
+            # does not carry a guard reports the decision the product does not take.
+            # The blocked branch stops here exactly like the voice rail's early return; a VIEW action falls
+            # through as `widget_data` (the rail runs it, and also shows the card).
+            if _router.show_request_blocks_data_action(text, _wid, _act) and _rt.get(_wid) is not None:
                 action = f"canvas:show:{_wid}"
-            if _fe.action_mode(_wid, _act) is None:
+            elif _fe.action_mode(_wid, _act) is None:
                 _cv = _fe.canvas_verb(_act)
                 if _cv and _rt.get(_wid) is not None:
                     action = f"canvas:{_cv}:{_wid}"

@@ -46,19 +46,23 @@
       "desc": "pone en grande una foto concreta (por número 1-N o por parte de su título/fuente)",
       "payload": {
         "item": "número 1-N o texto del título/fuente"
-      }
+      },
+      "view": true
     },
     "next": {
       "desc": "pasa a la foto siguiente",
-      "payload": {}
+      "payload": {},
+      "view": true
     },
     "previous": {
       "desc": "vuelve a la foto anterior",
-      "payload": {}
+      "payload": {},
+      "view": true
     },
     "local": {
       "desc": "abre las imágenes guardadas en este equipo (no busca en la web)",
-      "payload": {}
+      "payload": {},
+      "view": true
     },
     "clear": {
       "desc": "vacía el visor",

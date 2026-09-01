@@ -895,7 +895,7 @@ def is_escalation(name: str) -> bool:
 # Re-exported here so every existing call site (`router.looks_like_close(...)`, etc. — all of them import the
 # whole module, none import individual names) keeps working unchanged. See router_guards.py's docstring for why.
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
-    looks_like_web_task, looks_like_login_request, is_pure_show_request, show_object_is_the_widget,
+    looks_like_web_task, looks_like_login_request, is_pure_show_request, show_request_blocks_data_action,
     is_music_service, looks_like_close,
     looks_like_create_widget, promises_music, promises_action, asks_for_missing_detail,
     looks_like_show_strict, looks_like_escalate_task,

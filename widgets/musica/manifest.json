@@ -73,11 +73,13 @@
       "payload": {
         "kind": "home|playlist",
         "id": "nombre/id de la lista (si kind=playlist)"
-      }
+      },
+      "view": true
     },
     "back": {
       "desc": "vuelve a la vista Home",
-      "payload": {}
+      "payload": {},
+      "view": true
     },
     "connect": {
       "desc": "inicia la conexión de Spotify (devuelve la URL de login para abrir en una ventana)",

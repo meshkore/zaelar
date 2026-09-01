@@ -46,7 +46,8 @@
    "payload": {
     "platform": "string ('all' = lista principal | whatsapp | telegram | email)"
    },
-   "safe": true
+   "safe": true,
+   "view": true
   },
   "open": {
    "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats",
@@ -54,12 +55,14 @@
     "name": "string opcional (nombre del chat/persona tal como aparece)",
     "n": "int opcional (número del chat en la lista)"
    },
-   "safe": true
+   "safe": true,
+   "view": true
   },
   "close": {
    "desc": "Cierra el chat abierto y VUELVE a la lista de chats",
    "payload": {},
-   "safe": true
+   "safe": true,
+   "view": true
   },
   "read": {
    "desc": "Con un chat ABIERTO: marca como leído el mensaje N de ese chat (propaga a su app real — quita el no-leído en WhatsApp/Telegram/correo)",
@@ -131,7 +134,8 @@
    "payload": {
     "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
    },
-   "safe": true
+   "safe": true,
+   "view": true
   },
   "set_notify": {
    "desc": "Configura cómo puede interrumpir un canal: qué mensajes avisan proactivamente (never|direct|important|all) y si el aviso puede hablarse en voz alta (speak). No borra ni oculta nada: los mensajes siguen entrando al widget.",

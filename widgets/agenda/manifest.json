@@ -97,7 +97,8 @@
       "desc": "CAMBIA EL DÍA O LA VISTA que se está viendo en la agenda («muéstrame mañana», «el jueves», «la semana», «el mes»). No modifica ningún dato: solo mueve lo que se ve. Es obligatoria para eso — mostrar el widget de nuevo lo abre siempre por HOY",
       "payload": {
         "day": "«hoy», «mañana», «pasado mañana», un día de la semana, YYYY-MM-DD, o «semana»/«mes» para esas dos vistas"
-      }
+      },
+      "view": true
     }
   },
   "name": "Agenda del día",

@@ -89,6 +89,27 @@ def action_mode(widget_id: str, action: str) -> str | None:
         return None
 
 
+def action_is_view(widget_id: str, action: str) -> bool:
+    """True if the action is DECLARED by that widget and only changes what is DISPLAYED (V2-545).
+
+    The catalog-side half of the pure-show rule: a «muéstrame/ábreme X» may drive a widget's own view (switch a
+    lens, open an element, go back to its list) but never a mutation the model invented. The semantics live in
+    `widgets/actions.py::is_view`; this is the cached-catalog lookup, shared by the voice provider and the probe
+    exactly like `action_mode`. Fails CLOSED (False = only show the card) on anything it cannot read."""
+    try:
+        from widgets import actions, runtime
+        wid = (widget_id or "").strip().lower()
+        name = (action or "").strip()
+        if not wid or not name:
+            return False
+        declared = (runtime.get(wid) or {}).get("actions") or {}
+        if name not in declared:
+            return False
+        return actions.is_view(declared.get(name), name)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def is_safe_action(widget_id: str, action: str) -> bool:
     """Compat: True si la acción es una data-op que la capa rápida ejecuta SIN confirmación (modo `FAST`). Se
     conserva para llamantes/tests antiguos; el gate real usa `action_mode` para distinguir FAST/CONFIRM/ESCALATE."""

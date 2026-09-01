@@ -132,17 +132,20 @@
       "desc": "Abre el EXPEDIENTE completo de UN item: galería, valoración con su porqué, todos sus `facts`, la ficha a medida y cada pieza con su enlace y horarios. Acepta `title` o `index` 1-based — el ordinal sobrevive al STT mucho mejor que un nombre comercial largo.",
       "payload": {
         "index": 1
-      }
+      },
+      "view": true
     },
     "list": {
       "desc": "Vuelve del expediente a la lista.",
-      "payload": {}
+      "payload": {},
+      "view": true
     },
     "tab": {
       "desc": "Cambia de pestaña: `results` · `summary` (estado y recuentos) · `sources` (webs consultadas y qué pasó en cada una) · `criteria` (con qué se busca). Responde a «de dónde has sacado esto», «¿cómo va?», «con qué criterios buscas».",
       "payload": {
         "tab": "sources"
-      }
+      },
+      "view": true
     },
     "sources": {
       "desc": "Reporta una web/origen y QUÉ PASÓ ahí, sobre la marcha. `status`: ok · partial (te limitó los resultados) · auth (pedía sesión) · blocked · error · pending. Upsert por url/nombre. Es lo que convierte «no encontré nada» en un dato que el operador puede auditar y arreglar.",
