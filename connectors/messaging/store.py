@@ -13,11 +13,54 @@
 # no await in the middle -> no interleaving inside one operation. `n` is NOT persisted as identity: view_data/_renumber
 # assigns it by urgency order, so the number the operator sees == the number the brain uses.
 #
+import os
+import re
+import shutil
 import time
 
 WIDGET_ID = "mensajeria"
 PLATFORMS = ("whatsapp", "telegram", "email")  # email: V2-051 (IMAP/SMTP, same unified shape)
 _RANK = {"alta": 0, "media": 1, "baja": 2}
+
+# ── MEDIA (V2-543) ──────────────────────────────────────────────────────────
+# The WhatsApp bridge has downloaded every image/video/audio/document to disk since day one and pushed the
+# absolute paths in `mediaUrls` — this whitelist was the single line where they died (measured 2026-09-01:
+# the strings mediaUrls/hasMedia/mediaType appeared in bridge.js and NOWHERE in Python). To be visible, a
+# file must live DIRECTLY in the widget's own data dir (`widgets/_data/mensajeria/`): that is the only place
+# `GET /widgets/mensajeria/asset/{name}` serves, and its namespace is FLAT (basename-only, path-safe).
+_MEDIA_MAX_PER_MSG = 6
+_MEDIA_SAFE = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _media_dir() -> str:
+    from widgets import store
+    return store.data_dir(WIDGET_ID)
+
+
+def _media_entries(m: dict) -> list[dict]:
+    """Local media paths → asset URLs the widget can render. A file already inside the widget's data dir is
+    referenced in place; one elsewhere (e.g. a legacy ~/.hermes cache from an old bridge process) is COPIED
+    in. Best-effort per file: a missing/unreadable file is skipped, never an error — the message must land
+    with or without its picture."""
+    urls: list[dict] = []
+    mtype = str(m.get("mediaType") or "")
+    for path in (m.get("mediaUrls") or [])[:_MEDIA_MAX_PER_MSG]:
+        try:
+            p = str(path or "")
+            if not p or not os.path.isfile(p):
+                continue
+            name = _MEDIA_SAFE.sub("", os.path.basename(p))
+            if not name:
+                continue
+            dest_dir = _media_dir()
+            dest = os.path.join(dest_dir, name)
+            if os.path.abspath(os.path.dirname(p)) != os.path.abspath(dest_dir):
+                if not os.path.isfile(dest):
+                    shutil.copy2(p, dest)
+            urls.append({"url": f"/widgets/{WIDGET_ID}/asset/{name}", "type": mtype, "name": name})
+        except Exception:
+            continue
+    return urls
 
 
 def _now() -> str:
@@ -125,11 +168,23 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
             entry["subject"] = m.get("subject")
         if m.get("msgid"):
             entry["msgid"] = m.get("msgid")
+        # V2-543 — media + real timestamp. The store had "no timestamp" written as a known gap since V2-051
+        # ("most recent by appearance order"); connectors send it now and the widget shows real times.
+        try:
+            entry["ts"] = float(m.get("timestamp") or time.time())
+        except (TypeError, ValueError):
+            entry["ts"] = time.time()
+        if m.get("hasMedia") or m.get("mediaUrls"):
+            entry["mediaType"] = str(m.get("mediaType") or "")
+            media = _media_entries(m)
+            if media:
+                entry["media"] = media
         items.append(entry)
         fresh.append(entry)
     if not added:
         return db      # nothing new to triage -> do not re-save (avoids `updated` bump + emit from unchanged poll)
-    items.sort(key=lambda it: _RANK.get(it.get("urgencia"), 3))
+    # Urgency first, newest first within the same urgency (ts=0 for legacy rows keeps them at the tail).
+    items.sort(key=lambda it: (_RANK.get(it.get("urgencia"), 3), -float(it.get("ts") or 0)))
     db["items"] = items
     db["updated"] = _now()
     out = save(db)     # UI SSE intact: the per-widget store still sends the face
@@ -176,6 +231,24 @@ def take_pending_read(platform: str | None = None) -> list[dict]:
         rest = [k for k in pending if k.get("platform") != platform]
     db["pending_read"] = rest
     save(db)
+    return mine
+
+
+def take_pending_disposal(kind: str, platform: str | None = None) -> list[dict]:
+    """Return (and REMOVE) pending archive/trash keys (V2-543). `kind` in ('archive','trash') → the store keys
+    `pending_archive`/`pending_trash`, enqueued by the widget's actions and drained through the owner into the
+    bus (msg.archive / msg.trash), where the platform's connector executes them for real."""
+    field = f"pending_{kind}"
+    db = load()
+    pending = db.get(field, [])
+    if platform is None:
+        mine, rest = list(pending), []
+    else:
+        mine = [k for k in pending if k.get("platform") == platform]
+        rest = [k for k in pending if k.get("platform") != platform]
+    if pending:
+        db[field] = rest
+        save(db)
     return mine
 
 

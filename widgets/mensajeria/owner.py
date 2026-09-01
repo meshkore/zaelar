@@ -153,6 +153,14 @@ class _Owner:
                 ingest.publish_reply(rep)
         except Exception as e:
             logger.debug(f"mensajeria reply flush: {e}")
+        # And for archive/delete orders (V2-543): the platform's connector executes them in the real mailbox.
+        try:
+            for key in msgstore.take_pending_disposal("archive"):
+                ingest.publish_archive(key)
+            for key in msgstore.take_pending_disposal("trash"):
+                ingest.publish_trash(key)
+        except Exception as e:
+            logger.debug(f"mensajeria disposal flush: {e}")
 
 
 # Single instance governed by the supervisor (contract: async start()/stop()/handle(action,payload)).

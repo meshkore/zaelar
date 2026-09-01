@@ -87,6 +87,21 @@
    "payload": {},
    "safe": true
   },
+  "archive": {
+   "desc": "ARCHIVA el correo N en el buzón REAL (sale de Recibidos allí también). Solo email; para WhatsApp/Telegram usa read o dismiss",
+   "payload": {
+    "n": "int (número del correo en la lista)"
+   },
+   "safe": true
+  },
+  "trash": {
+   "desc": "BORRA el correo N en el buzón REAL (a la papelera del proveedor). Solo email. Es permanente en la práctica",
+   "payload": {
+    "n": "int (número del correo en la lista)"
+   },
+   "confirm": true,
+   "confirm_q": "¿Borro ese correo de tu buzón real? Irá a la papelera del proveedor."
+  },
   "hide": {
    "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
    "payload": {

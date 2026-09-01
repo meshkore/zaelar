@@ -25,6 +25,18 @@ _published: set[str] = set()     # v2: UIDs already published to the bus (dedup 
 _shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
+_archive_inbox = None            # V2-543: msg.archive subscription
+_trash_inbox = None              # V2-543: msg.trash subscription
+
+
+def _media_dir() -> str | None:
+    """Where attachments land (V2-543): the messaging widget's own data dir — the one place its asset route
+    serves. None on any failure → the mail still arrives, text-only, like before."""
+    try:
+        from widgets import store as wstore
+        return wstore.data_dir("mensajeria")
+    except Exception:
+        return None
 
 
 def enabled() -> bool:
@@ -61,7 +73,7 @@ def _friendly_error(why: str) -> str:
 
 async def _ingest_new(mb) -> None:
     """Read INBOX in a thread, publish/triage new emails. Updates `_seen`/`_published`."""
-    msgs = await asyncio.to_thread(mb.fetch_new, _seen)
+    msgs = await asyncio.to_thread(mb.fetch_new, _seen, _media_dir())
     if not msgs:
         return
     for m in msgs:
@@ -133,8 +145,36 @@ async def _drain_replies(mb) -> None:
                 pass
 
 
+async def _drain_disposals(mb) -> None:
+    """Drain archive/delete orders (V2-543) and execute them in the REAL mailbox. The widget already removed
+    the item and (for trash) the confirm gate already asked; a failure is TOLD, never silently retried — same
+    policy as replies."""
+    if not ingest.v2_enabled():
+        return
+    for inbox, verb in ((_archive_inbox, "archive"), (_trash_inbox, "trash")):
+        if inbox is None:
+            continue
+        keys = inbox.drain()
+        if not keys:
+            continue
+        uids = [k.get("messageId") for k in keys if k.get("messageId")]
+        fn = mb.archive if verb == "archive" else mb.trash
+        ok, why = await asyncio.to_thread(fn, uids)
+        label = "archivar" if verb == "archive" else "borrar"
+        if ok:
+            logger.info(f"Email: {label} {len(uids)} → {why}")
+        else:
+            logger.warning(f"Email: fallo al {label}: {why}")
+            try:
+                from voice import brain_notes
+                brain_notes.push(f"[SISTEMA] No se pudo {label} el correo en el buzón real ({why}). "
+                                 "Avísale al operador.")
+            except Exception:
+                pass
+
+
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox
+    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox
     _set_status("starting", None, "Conectando con el servidor de correo…")
     mb = config.mailbox()
     if mb is None:
@@ -153,6 +193,10 @@ async def _loop() -> None:
             _mark_inbox = ingest.MarkReadInbox(PLATFORM)
         if _reply_inbox is None:
             _reply_inbox = ingest.ReplyInbox(PLATFORM)
+        if _archive_inbox is None:
+            _archive_inbox = ingest.ArchiveInbox(PLATFORM)
+        if _trash_inbox is None:
+            _trash_inbox = ingest.TrashInbox(PLATFORM)
     _set_status("connected", None, f"Conectado como {config.address()}.")
     logger.info(f"Email conectado ({config.address()}) — escuchando tu buzón")
     while True:
@@ -168,6 +212,10 @@ async def _loop() -> None:
             await _drain_replies(mb)
         except Exception as e:
             logger.debug(f"Email reply tick: {e}")
+        try:
+            await _drain_disposals(mb)
+        except Exception as e:
+            logger.debug(f"Email disposal tick: {e}")
         await asyncio.sleep(config.poll_interval())
 
 
@@ -189,17 +237,17 @@ def start() -> None:
 
 
 async def stop() -> None:
-    global _task, _mark_inbox, _reply_inbox
+    global _task, _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox
     if _task:
         _task.cancel()
         _task = None
-    for inbox in (_mark_inbox, _reply_inbox):
+    for inbox in (_mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox):
         try:
             if inbox is not None:
                 inbox.close()
         except Exception:
             pass
-    _mark_inbox = _reply_inbox = None
+    _mark_inbox = _reply_inbox = _archive_inbox = _trash_inbox = None
     _seen.clear()
     _published.clear()
     _shown.clear()

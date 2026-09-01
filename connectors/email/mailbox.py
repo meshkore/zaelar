@@ -179,9 +179,61 @@ def verify_sender_authentication(msg, from_addr: str) -> tuple[bool, str]:
     return False, f"unauthenticated ({trusted[:80]})"
 
 
-def parse_message(uid: str, raw_bytes: bytes) -> dict | None:
+# ── Attachments (V2-543) ────────────────────────────────────────────────────
+# BODY.PEEK[] already fetches the WHOLE MIME message; until now `extract_text_body` explicitly skipped every
+# attachment and the bytes were discarded. This second walk saves them to `media_dir` (the messaging widget's
+# own data dir, the one place its asset route serves) so the widget can preview a photo or link a PDF.
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
+MAX_ATTACHMENTS = 5
+_ATT_SAFE = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def extract_attachments(msg, uid: str, media_dir: str) -> tuple[str | None, list[str]]:
+    """Save attachment + inline-image parts to `media_dir`. Returns (mediaType, paths) — mediaType uses the
+    shared connector vocabulary: 'image' when every saved part is an image, else 'document'. Pure enough to
+    test with a built Message; only touches the filesystem it is handed. Best-effort per part."""
+    import os
+    if not media_dir or not msg.is_multipart():
+        return None, []
+    paths: list[str] = []
+    all_images = True
+    n = 0
+    for part in msg.walk():
+        if n >= MAX_ATTACHMENTS:
+            break
+        ctype = part.get_content_type()
+        disp = str(part.get("Content-Disposition", ""))
+        filename = part.get_filename()
+        is_attachment = "attachment" in disp
+        is_inline_image = ctype.startswith("image/") and (filename or part.get("Content-ID"))
+        if not (is_attachment or is_inline_image):
+            continue
+        try:
+            payload = part.get_payload(decode=True)
+            if not payload or len(payload) > MAX_ATTACHMENT_BYTES:
+                continue
+            base = decode_header_value(filename or "") or f"adjunto.{(ctype.split('/') + ['bin'])[1]}"
+            safe = _ATT_SAFE.sub("_", base)[-80:] or "adjunto"
+            name = f"eml_{uid}_{n}_{safe}"
+            path = os.path.join(media_dir, name)
+            with open(path, "wb") as fh:
+                fh.write(payload)
+            paths.append(path)
+            if not ctype.startswith("image/"):
+                all_images = False
+            n += 1
+        except Exception:
+            continue
+    if not paths:
+        return None, []
+    return ("image" if all_images else "document"), paths
+
+
+def parse_message(uid: str, raw_bytes: bytes, media_dir: str | None = None) -> dict | None:
     """Raw email (RFC822) → normalized dict for triage/store, or None if it should be ignored (automatic).
-    `uid` = IMAP UID (str) → used as messageId (stable per mailbox). RFC Message-ID goes in `msgid`."""
+    `uid` = IMAP UID (str) → used as messageId (stable per mailbox). RFC Message-ID goes in `msgid`.
+    `media_dir` (V2-543): where to save attachments; None (tests/legacy callers) skips them — parsing stays
+    pure unless a destination is handed in."""
     msg = email_lib.message_from_bytes(raw_bytes)
     from_raw = msg.get("From", "")
     from_addr = extract_email_address(from_raw)
@@ -191,7 +243,7 @@ def parse_message(uid: str, raw_bytes: bytes) -> dict | None:
     subject = decode_header_value(msg.get("Subject", "(sin asunto)"))
     body = (extract_text_body(msg) or "").strip()[:MAX_BODY_LENGTH]
     authok, why = verify_sender_authentication(msg, from_addr)
-    return {
+    out = {
         "senderName": display_name(from_raw, from_addr),
         "isGroup": False,                     # personal email is 1:1 (the thread is the "chat")
         "chatName": None,
@@ -204,6 +256,23 @@ def parse_message(uid: str, raw_bytes: bytes) -> dict | None:
         "authenticated": authok,
         "auth_reason": why,
     }
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(msg.get("Date", ""))
+        if dt is not None:
+            out["timestamp"] = dt.timestamp()
+    except Exception:
+        pass
+    if media_dir:
+        try:
+            mtype, paths = extract_attachments(msg, uid, media_dir)
+        except Exception:
+            mtype, paths = None, []
+        if mtype:
+            out["hasMedia"] = True
+            out["mediaType"] = mtype
+            out["mediaUrls"] = paths
+    return out
 
 
 # ── SMTP with IPv4 fallback (networks without IPv6 route hang until timeout) ────────────────────────────────────
@@ -307,9 +376,10 @@ class Mailbox:
             pass
         return out
 
-    def fetch_new(self, seen: set[str]) -> list[dict]:
+    def fetch_new(self, seen: set[str], media_dir: str | None = None) -> list[dict]:
         """Return INBOX emails whose UID is not in `seen`, parsed and normalized (without marking \\Seen — uses
-        BODY.PEEK). Does NOT mutate `seen` (caller does it after publishing). Never raises upward."""
+        BODY.PEEK). Does NOT mutate `seen` (caller does it after publishing). Never raises upward.
+        `media_dir` (V2-543): destination for attachments; None keeps the old text-only behavior."""
         results: list[dict] = []
         try:
             im = self._imap()
@@ -328,7 +398,7 @@ class Mailbox:
                 if st != "OK" or not msg_data or not msg_data[0]:
                     continue
                 try:
-                    parsed = parse_message(uid, msg_data[0][1])
+                    parsed = parse_message(uid, msg_data[0][1], media_dir=media_dir)
                 except Exception:
                     parsed = None
                 if parsed is not None:
@@ -341,6 +411,107 @@ class Mailbox:
             except Exception:
                 pass
         return results
+
+    # -- Archive / delete (V2-543) ---------------------------------------------------------------------------------
+    # Before this, the connector's ONLY IMAP verbs were search/fetch/store+\Seen — archiving or deleting a mail
+    # from the widget had nowhere to go, so the operator had to open his real mailbox anyway. Folder discovery is
+    # RFC 6154 SPECIAL-USE first (Gmail/iCloud/Outlook all advertise it), common names second; Gmail's archive is
+    # its own case: it advertises \All (All Mail) and no \Archive — there, expunging from INBOX IS archiving
+    # (label removal), the documented default behavior of its IMAP bridge.
+    _FALLBACK_ARCHIVE = ("Archive", "Archivo")
+    _FALLBACK_TRASH = ("Trash", "[Gmail]/Trash", "Deleted Messages", "Deleted Items", "Papelera")
+
+    @staticmethod
+    def _folders(im) -> list[tuple[str, str]]:
+        """LIST → [(attrs lowercase, folder name)]. Best-effort parse; unparseable lines are skipped."""
+        out: list[tuple[str, str]] = []
+        try:
+            status, data = im.list()
+            if status != "OK" or not data:
+                return out
+            for raw in data:
+                line = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+                m = re.match(r'\(([^)]*)\)\s+"?[^"]*"?\s+"?(.+?)"?\s*$', line)
+                if m:
+                    out.append((m.group(1).lower(), m.group(2)))
+        except Exception:
+            pass
+        return out
+
+    def _dispose_uids(self, im, uids: list[str], folder: str | None) -> bool:
+        """Move `uids` out of INBOX: to `folder` when given (UID MOVE where advertised, else COPY+\\Deleted),
+        plain \\Deleted otherwise; one EXPUNGE at the end. INBOX must already be selected."""
+        moved_any = False
+        caps = tuple((c if isinstance(c, str) else c.decode("ascii", "ignore")).upper()
+                     for c in (getattr(im, "capabilities", None) or ()))
+        can_move = "MOVE" in caps
+        quoted = f'"{folder}"' if folder else None
+        for uid in uids:
+            try:
+                if folder and can_move:
+                    st, _ = im.uid("MOVE", uid, quoted)
+                    moved_any = moved_any or st == "OK"
+                    continue
+                if folder:
+                    st, _ = im.uid("COPY", uid, quoted)
+                    if st != "OK":
+                        continue
+                im.uid("store", uid, "+FLAGS", "(\\Deleted)")
+                moved_any = True
+            except Exception:
+                continue
+        try:
+            im.expunge()
+        except Exception:
+            pass
+        return moved_any
+
+    def _dispose(self, uids: list[str], kind: str) -> tuple[bool, str]:
+        uids = [u for u in (uids or []) if u]
+        if not uids:
+            return True, "nada que hacer"
+        try:
+            im = self._imap()
+        except Exception as e:
+            return False, f"IMAP: {e}"
+        try:
+            folders = self._folders(im)
+            by_attr = {name for attrs, name in folders}
+            def attr_folder(flag: str) -> str | None:
+                return next((name for attrs, name in folders if flag in attrs), None)
+            im.select("INBOX")
+            if kind == "archive":
+                dest = attr_folder("\\archive")
+                if dest is None and attr_folder("\\all") is not None:
+                    # Gmail: no \Archive folder exists; expunging from INBOX removes the label and the mail
+                    # stays in All Mail — that IS its archive.
+                    ok = self._dispose_uids(im, uids, None)
+                    return ok, ("archivado (fuera de Recibidos)" if ok else "no pude archivar")
+                if dest is None:
+                    dest = next((n for n in self._FALLBACK_ARCHIVE if n in by_attr), None)
+                if dest is None:
+                    return False, "el buzón no tiene carpeta de archivo"
+                ok = self._dispose_uids(im, uids, dest)
+                return ok, (f"archivado en {dest}" if ok else "no pude archivar")
+            # trash
+            dest = attr_folder("\\trash") or next((n for n in self._FALLBACK_TRASH if n in by_attr), None)
+            ok = self._dispose_uids(im, uids, dest)   # dest None → plain \Deleted+EXPUNGE (true delete)
+            return ok, ((f"movido a {dest}" if dest else "borrado del buzón") if ok else "no pude borrar")
+        except Exception as e:
+            return False, str(e)
+        finally:
+            try:
+                im.logout()
+            except Exception:
+                pass
+
+    def archive(self, uids: list[str]) -> tuple[bool, str]:
+        """Archive the given INBOX UIDs in the REAL mailbox. Returns (ok, human reason)."""
+        return self._dispose(uids, "archive")
+
+    def trash(self, uids: list[str]) -> tuple[bool, str]:
+        """Delete the given INBOX UIDs in the REAL mailbox (to Trash where one exists). Returns (ok, reason)."""
+        return self._dispose(uids, "trash")
 
     def mark_seen(self, uids: list[str]) -> bool:
         """Mark the given UIDs as \\Seen (read on the server). True if OK (batch best-effort)."""

@@ -39,6 +39,17 @@ class _Bridge:
         env = dict(os.environ)
         env["WHATSAPP_MODE"] = "observe"
         env.setdefault("WHATSAPP_REPLY_PREFIX", "")  # in observe we do not reply; no prefix
+        # V2-543 — received media lands DIRECTLY in the messaging widget's own data dir, the one place
+        # `GET /widgets/mensajeria/asset/{name}` can serve (flat namespace). Without this the bridge wrote to
+        # ~/.hermes/*_cache — downloaded on every receive, served by nothing, garbage-collected by nobody.
+        # setdefault: an explicit HERMES_*_CACHE_DIR from the environment still wins (power-user escape hatch).
+        try:
+            from widgets import store as _wstore
+            media_dir = _wstore.data_dir("mensajeria")
+            for var in ("HERMES_IMAGE_CACHE_DIR", "HERMES_DOCUMENT_CACHE_DIR", "HERMES_AUDIO_CACHE_DIR"):
+                env.setdefault(var, media_dir)
+        except Exception as e:
+            logger.debug(f"WhatsApp media dir: {e}")   # bridge still runs; media just lands in ~/.hermes
 
         logger.info(f"WhatsApp bridge → node bridge.js (observe) port={config.bridge_port()}")
         self.proc = await asyncio.create_subprocess_exec(

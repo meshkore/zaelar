@@ -76,6 +76,54 @@ def _ensure_deps() -> bool:
             return False
 
 
+# ── Media capture (V2-543) ──────────────────────────────────────────────────
+# Telegram used to capture NOTHING for media: a photo with no caption arrived as an empty bubble
+# (`event.raw_text or ""`) — worse than WhatsApp, which at least had a placeholder. MTProto gives the bytes in
+# one call; they land in the messaging widget's own data dir so `GET /widgets/mensajeria/asset/{name}` can
+# serve them. A file over the cap is not downloaded (the type still travels, so the widget says WHAT it is).
+_TG_MEDIA_MAX_BYTES = 20 * 1024 * 1024
+
+
+def _media_dir() -> str:
+    from widgets import store as wstore
+    return wstore.data_dir("mensajeria")
+
+
+def _tg_media_type(msg) -> str | None:
+    """Same vocabulary as the WhatsApp bridge (image|video|audio|ptt|document), so the store and the widget
+    read ONE set of values."""
+    if getattr(msg, "photo", None) is not None:
+        return "image"
+    if getattr(msg, "voice", None) is not None:
+        return "ptt"
+    if getattr(msg, "video", None) is not None or getattr(msg, "video_note", None) is not None:
+        return "video"
+    if getattr(msg, "audio", None) is not None:
+        return "audio"
+    if getattr(msg, "document", None) is not None:
+        return "document"
+    if getattr(msg, "media", None) is not None:
+        return "document"
+    return None
+
+
+async def _capture_media(msg, chat_id) -> tuple[str | None, list[str]]:
+    mtype = _tg_media_type(msg)
+    if mtype is None:
+        return None, []
+    try:
+        size = int(getattr(getattr(msg, "file", None), "size", 0) or 0)
+        if size > _TG_MEDIA_MAX_BYTES:
+            return mtype, []                       # too big: say what it is, do not pull the bytes
+        import os
+        base = os.path.join(_media_dir(), f"tg_{chat_id}_{msg.id}")
+        path = await msg.download_media(file=base)  # telethon appends the right extension
+        return mtype, ([str(path)] if path else [])
+    except Exception as e:
+        logger.debug(f"Telegram media: {e}")
+        return mtype, []
+
+
 async def _normalize(event) -> dict:
     """events.NewMessage -> dict understood by triage ({senderName, chatName?, isGroup, body} + ids)."""
     from telethon import utils
@@ -93,12 +141,25 @@ async def _normalize(event) -> dict:
         except Exception:
             chat_name = "grupo"
     chat_id = event.chat_id
-    return {
+    media_type, media_paths = await _capture_media(msg, chat_id)
+    body = event.raw_text or ""
+    if not body and media_type:
+        body = f"[{media_type} received]"           # the WhatsApp bridge's exact placeholder, one vocabulary
+    out = {
         "senderName": sender_name, "chatName": chat_name, "isGroup": is_group,
-        "body": event.raw_text or "",
+        "body": body,
         "messageId": f"{chat_id}:{msg.id}",          # globally unique (Telegram id is per-chat)
         "chatId": chat_id, "senderId": getattr(sender, "id", None),
     }
+    try:
+        out["timestamp"] = msg.date.timestamp()
+    except Exception:
+        pass
+    if media_type:
+        out["hasMedia"] = True
+        out["mediaType"] = media_type
+        out["mediaUrls"] = media_paths
+    return out
 
 
 async def _drain_inbox() -> None:
@@ -122,6 +183,18 @@ async def _drain_inbox() -> None:
     await notify.announce("Telegram", surfaced)
 
 
+def _tg_msg_id(raw) -> int | None:
+    """Our wire messageId is the composite '<chat_id>:<msg_id>' (service-made, `_normalize`). The per-chat
+    Telegram id is the part AFTER the colon. int('<chat>:<id>') raises — which is exactly how replies silently
+    lost their threading (V2-543: `reply_to` always fell back to None) and mark-read ignored the message."""
+    s = str(raw or "")
+    part = s.rsplit(":", 1)[-1] if ":" in s else s
+    try:
+        return int(part)
+    except (TypeError, ValueError):
+        return None
+
+
 async def _drain_reads() -> None:
     v2 = ingest.v2_enabled()
     keys = (_mark_inbox.drain() if _mark_inbox else []) if v2 else store.take_pending_read("telegram")
@@ -130,7 +203,9 @@ async def _drain_reads() -> None:
     failed = []
     for k in keys:
         try:
-            await _client.send_read_acknowledge(int(k["chatId"]))   # mark chat read up to latest
+            # Precise watermark (V2-543): as a USER account this genuinely propagates. max_id marks read UP TO
+            # that message; with no parseable id it degrades to the old whole-chat acknowledge (max_id=None).
+            await _client.send_read_acknowledge(int(k["chatId"]), max_id=_tg_msg_id(k.get("messageId")))
         except Exception as e:
             logger.warning(f"Telegram mark-read falló (reintento luego): {e}")
             failed.append(k)
@@ -156,10 +231,7 @@ async def _drain_replies() -> None:
             continue
         if not text:
             continue
-        try:
-            reply_to = int(r.get("messageId"))
-        except (TypeError, ValueError):
-            reply_to = None
+        reply_to = _tg_msg_id(r.get("messageId"))   # composite-aware: replies land THREADED, not loose
         try:
             await _client.send_message(chat_id, text, reply_to=reply_to)
             logger.info(f"Telegram: respuesta enviada a {chat_id}")

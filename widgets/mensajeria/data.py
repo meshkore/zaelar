@@ -148,6 +148,8 @@ def _group_chats(items: list) -> list:
             "isGroup": g["isGroup"], "count": g["count"], "dirigido_a_mi": g["dirigido_a_mi"],
             "urgencia": rank_to_urg.get(g["rank"], "media"),
             "lastFrom": last.get("from"), "lastBody": last.get("body", ""), "lastMotivo": last.get("motivo", ""),
+            # V2-543: real time + media class of the preview (0/"" for legacy rows without them).
+            "lastTs": last.get("ts", 0), "lastMediaType": last.get("mediaType", ""),
         })
     return chats
 
@@ -413,6 +415,34 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 db["pending_read"] = pending
                 store.save(WIDGET_ID, db)
         return view_data()
+
+    # ARCHIVE / DELETE in the REAL mailbox (V2-543; email only today). Same `n` addressing as read/dismiss.
+    # The item leaves the widget AND the order travels to the platform's connector: archiving here without
+    # archiving there would make the widget a lie about the real inbox — the whole point is not having to
+    # open the real app afterwards.
+    if action in ("archive", "trash"):
+        n = payload.get("n")
+        mid = payload.get("messageId")
+        db = load_db()
+        items = _renumber(db.get("items", []))
+        hit = next((it for it in items
+                    if (n is not None and it.get("n") == n) or (mid and it.get("messageId") == mid)), None)
+        if hit is None:
+            return {"ok": False,
+                    "error": f"no encuentro ese mensaje — vuelve a llamar a {action} con el `n` de la lista",
+                    **view_data()}
+        if hit.get("platform") != "email":
+            return {"ok": False,
+                    "error": ("archivar/borrar en la app real solo está soportado para EMAIL hoy — para "
+                              "WhatsApp/Telegram usa read (marcar leído) o dismiss (descartar del widget)"),
+                    **view_data()}
+        db.setdefault(f"pending_{action}", []).append(_key(hit))
+        db["items"] = [it for it in db.get("items", []) if it is not hit]
+        store.save(WIDGET_ID, db)
+        verb = "archivado" if action == "archive" else "enviado a borrar"
+        return {"ok": True, "result": {"action": action, "from": hit.get("from"),
+                                       "subject": hit.get("subject", ""), "detail": verb},
+                **view_data()}
 
     db = load_db()
     items = _renumber(db.get("items", []))   # align n with what the widget displayed; view_data numbers by order

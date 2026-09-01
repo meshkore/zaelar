@@ -20,6 +20,8 @@ TOPIC_MSG = "connector.msg"
 TOPIC_STATUS = "connector.status"
 TOPIC_MARK_READ = "msg.mark_read"
 TOPIC_REPLY = "msg.reply"          # V2-051: widget asks to SEND a reply; that platform's connector sends it
+TOPIC_ARCHIVE = "msg.archive"      # V2-543: widget asks to ARCHIVE in the real mailbox (email today)
+TOPIC_TRASH = "msg.trash"          # V2-543: widget asks to DELETE in the real mailbox (email today)
 
 
 def v2_enabled() -> bool:
@@ -102,9 +104,37 @@ class _PlatformInbox:
             pass
 
 
+def publish_archive(key: dict) -> None:
+    """Widget asks to ARCHIVE in the real app (V2-543): {platform, chatId, messageId, senderId}. That platform's
+    connector (email today) drains it and moves the mail out of the inbox for real."""
+    try:
+        bus.emit_sync(TOPIC_ARCHIVE, dict(key or {}))
+    except Exception:
+        pass
+
+
+def publish_trash(key: dict) -> None:
+    """Widget asks to DELETE in the real app (V2-543). Irreversible on the platform side — the widget's action
+    is confirm-gated before it ever reaches here."""
+    try:
+        bus.emit_sync(TOPIC_TRASH, dict(key or {}))
+    except Exception:
+        pass
+
+
 class MarkReadInbox(_PlatformInbox):
     """Per-platform subscription to `msg.mark_read`. Replaces `store.take_pending_read(platform)` in the v2 path."""
     _TOPIC = TOPIC_MARK_READ
+
+
+class ArchiveInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.archive` (V2-543)."""
+    _TOPIC = TOPIC_ARCHIVE
+
+
+class TrashInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.trash` (V2-543)."""
+    _TOPIC = TOPIC_TRASH
 
 
 class ReplyInbox(_PlatformInbox):

@@ -166,6 +166,15 @@ function injectStyles(){
   .hb-msg .thd .back:hover{text-decoration:underline}
   .hb-msg .thdname{font-size:15px}
 
+  /* Media previews (V2-543): same-origin asset route only, elements not requests (isolation contract). */
+  .hb-msg .mediaw{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .hb-msg .mediaw .matt{max-width:220px;max-height:170px;border-radius:10px;border:1px solid var(--hb-line,#e3e8f0);display:block}
+  .hb-msg .mediaw video.mvid{max-width:260px;max-height:200px;border-radius:10px;background:#000}
+  .hb-msg .mediaw audio.maud{width:230px;height:32px}
+  .hb-msg .mediaw a.mdoc,.hb-msg .mediaw span.mdoc{font-size:12.5px;color:var(--hb-accent,#3D6FE0);text-decoration:none;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:4px 9px}
+  .hb-msg .mediaw a.mdoc:hover{border-color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .twhen{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin-left:auto;flex:0 0 auto}
+
   .hb-msg .empty{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px;padding:22px 0}
   .hb-msg .linkcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:13px 14px;margin-bottom:10px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .linkcard .ch{display:flex;align-items:center;gap:8px;margin-bottom:9px}
@@ -283,6 +292,61 @@ function splitBody(body){
 // emojis/links/content, only spacing.
 function cleanBody(text){
   return String(text==null?"":text).replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// ── Media (V2-543) ──────────────────────────────────────────────────────────
+// The bridge/connectors store `[<type> received]` as an internal English placeholder; on screen it becomes a
+// human label. The bytes themselves are served by the widget's own asset route — an <img>/<audio>/<video>
+// element with a same-origin src is NOT a fetch (isolation contract, same reading as navegador/imagenes).
+const MEDIA_LABEL = {image:"📷 Foto", video:"🎥 Vídeo", audio:"🎵 Audio", ptt:"🎤 Nota de voz", document:"📄 Documento"};
+const PLACEHOLDER_RE = /^\[(image|video|audio|ptt|document) received\]$/;
+
+function displayBody(body, mediaType){
+  const b = cleanBody(body);
+  const m = b.match(PLACEHOLDER_RE);
+  if(m) return MEDIA_LABEL[m[1]] || b;
+  if(!b && mediaType) return MEDIA_LABEL[mediaType] || "";
+  return b;
+}
+
+function fmtWhen(ts){
+  const t = Number(ts||0);
+  if(!t) return "";
+  const d = new Date(t*1000), now = new Date();
+  const hm = d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+  if(d.toDateString() === now.toDateString()) return hm;
+  return d.toLocaleDateString([], {day:"numeric", month:"short"}) + " " + hm;
+}
+
+function mediaBlock(it){
+  const list = it.media || [];
+  if(!list.length) return null;
+  const w = el("div","mediaw");
+  list.forEach(u=>{
+    const url = String((u&&u.url)||"");
+    if(!url.startsWith("/widgets/")) return;             // our own asset route only, never an arbitrary origin
+    const t = (u&&u.type) || it.mediaType || "";
+    if(t==="image"){
+      const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener";
+      const img=document.createElement("img"); img.className="matt"; img.src=url;
+      img.loading="lazy"; img.decoding="async"; img.alt=(u&&u.name)||"imagen";
+      img.onerror=()=>{ a.replaceWith(el("span","mdoc","📷 (no disponible)")); };
+      a.appendChild(img); w.appendChild(a);
+    } else if(t==="video"){
+      const v=document.createElement("video"); v.className="mvid"; v.controls=true; v.preload="metadata"; v.src=url;
+      w.appendChild(v);
+    } else if(t==="audio"||t==="ptt"){
+      // User-gesture playback only (controls, preload=none, never autoplay): a received voice note is passive
+      // content like the QR image, not agent production — the ⏻ producer contract governs what the AGENT plays.
+      const au=document.createElement("audio"); au.className="maud"; au.controls=true; au.preload="none"; au.src=url;
+      w.appendChild(au);
+    } else {
+      const a=document.createElement("a"); a.className="mdoc"; a.href=url; a.target="_blank"; a.rel="noopener";
+      a.textContent="📄 "+((u&&u.name)||"documento");
+      w.appendChild(a);
+    }
+  });
+  return w.childNodes.length ? w : null;
 }
 
 const URL_RE = /(https?:\/\/[^\s]+)/g;
@@ -536,7 +600,9 @@ function richList(items, ctx){
     if(mine) from.appendChild(el("span","tag","para ti"));
     if(urg.lb) from.appendChild(el("span","tag",urg.lb));
     body.appendChild(from);
-    const msgEl = el("div","msg"); linkify(msgEl, cleanBody(it.body)); body.appendChild(msgEl);
+    const msgEl = el("div","msg"); linkify(msgEl, displayBody(it.body, it.mediaType)); body.appendChild(msgEl);
+    const media = mediaBlock(it);
+    if(media) body.appendChild(media);
     if(it.motivo) body.appendChild(el("div","why", it.motivo));
     row.appendChild(body);
 
@@ -566,15 +632,19 @@ function messageRow(it, ctx, rerender){
   const head = el("div","thead");
   head.appendChild(el("span","tfrom", it.from!=null?it.from:"?"));
   if(mine) head.appendChild(el("span","tpara","· para ti"));
+  const when = fmtWhen(it.ts);
+  if(when) head.appendChild(el("span","twhen", when));
   main.appendChild(head);
 
-  const {title, rest} = splitBody(cleanBody(it.body));
+  const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
   const isLong = rest.length > 220 || rest.split("\n").length > 4;
   const expanded = _expanded.has(key);
   if(title) main.appendChild(el("div","ttitle", title));
   const bodyEl = el("div","tbody"+(title?" sub":"")+(isLong && !expanded ? " clamp" : ""));
   linkify(bodyEl, rest);
   main.appendChild(bodyEl);
+  const media = mediaBlock(it);
+  if(media) main.appendChild(media);
 
   if(isLong){
     const more = el("span","more", expanded ? "mostrar menos" : "mostrar más");
@@ -586,9 +656,19 @@ function messageRow(it, ctx, rerender){
   const acts = el("div","tacts");
   const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
   const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+  acts.append(read,dis);
+  if(it.platform==="email"){
+    // Email-only affordances (V2-543): they act on the REAL mailbox, which is the whole point of the widget
+    // being a substitute — other platforms have no archive/delete API and get no fake buttons.
+    const arc=el("button",null,"🗄"); arc.title="Archivar en tu buzón real";
+    arc.onclick=()=>{ arc.textContent="…"; ctx.action("archive",{n:it.n}); };
+    const del=el("button",null,"🗑"); del.title="Borrar en tu buzón real (pide confirmación)";
+    del.onclick=()=>ctx.action("trash",{n:it.n});
+    acts.append(arc,del);
+  }
   const mute=el("button",null,"🔇"); mute.title="Silenciar este canal";
   mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
-  acts.append(read,dis,mute);
+  acts.append(mute);
   row.appendChild(acts);
   return row;
 }
@@ -611,9 +691,11 @@ function chatList(chats, ctx){
     head.appendChild(el("span","tfrom", c.name));
     if(c.count > 1) head.appendChild(el("span","tcount", String(c.count)));
     if(c.dirigido_a_mi) head.appendChild(el("span","tpara","· para ti"));
+    const when = fmtWhen(c.lastTs);
+    if(when) head.appendChild(el("span","twhen", when));
     main.appendChild(head);
 
-    const {title, rest} = splitBody(cleanBody(c.lastBody));
+    const {title, rest} = splitBody(displayBody(c.lastBody, c.lastMediaType));
     main.appendChild(el("div","tprev", title ? (title+" — "+rest) : rest));
     row.appendChild(main);
     row.onclick = ()=> ctx.action("open", {n:c.n});
