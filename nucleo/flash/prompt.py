@@ -1,27 +1,27 @@
-"""nucleo/flash/prompt.py — system prompt del FlashBrain (la "prefrontal" del cerebro v2, V2-004 · T67).
+"""nucleo/flash/prompt.py — FlashBrain system prompt (the "prefrontal cortex" of brain v2, V2-004 · T67).
 
-REDISEÑO V2-027 — **[ESTADO compuesto dinámicamente] + [petición del usuario]**, ~30 líneas (antes ~280). El
-prompt YA NO lleva prompts estáticos sueltos (fuera la persona inglesa de `voice/prompt.py` y el `_FAST_RULES` de
-~75 líneas que duplicaba las descripciones de las tools). Se ensambla así, en este orden (ESTABLE primero,
-VOLÁTIL al final — el prefijo estable es lo que deja al proveedor cachear el prefill, 2026-09-01):
+V2-027 REDESIGN — **[dynamically composed STATE] + [user request]**, ~30 lines (previously ~280). The prompt
+NO LONGER carries standalone static prompts (the English persona from `voice/prompt.py` and the ~75-line
+`_FAST_RULES` that duplicated tool descriptions are gone). It is assembled as follows, in this order (STABLE
+first, VOLATILE last—the stable prefix is what lets the provider cache the prefill, 2026-09-01):
 
-  1. `_lang_lock()` — lock de idioma DURO (leído en vivo del catálogo). Pequeño y crítico.
-  2. **CAPA DE RECURSOS del FlashBrain** (`_flash_layer`) — TERSA y data-driven, y el bloque GRANDE y ESTABLE
-     (~73% de los chars del system): va delante para que el prefijo cacheable cubra el grueso del prompt.
-  3. **ESTADO COMPARTIDO** (`memory.compose_state` vía `memory_cache.get()`) — la MISIÓN/identidad (sembrada en la
-     memoria, NO en un `.py`), el situacional (operador + widgets abiertos + tareas + perfil saliente) y la
-     síntesis TENSA de la conversación reciente. Lo comparten AMBOS cerebros. Cacheado FUERA del turno (V2-011):
-     el turno lee un string ya compuesto, refrescado async e invalidado por `memory.updated` — nunca dispara el
-     retriever ni I/O de memoria síncrono.
-  4. **RECALL** semántico (`compose_recall`) — bajo demanda y fuera del event loop (T115/T116); el llamador lo
-     compone en un hilo SOLO cuando el turno lo pide.
-  5. `live_state()` — estado VIVO (hora, tareas de fondo, confirmaciones pendientes). SIEMPRE al final.
+  1. `_lang_lock()` — HARD language lock (read live from the catalog). Small and critical.
+  2. **FlashBrain RESOURCE LAYER** (`_flash_layer`) — CONCISE and data-driven, and the LARGE, STABLE block
+     (~73% of system characters): it comes first so the cacheable prefix covers most of the prompt.
+  3. **SHARED STATE** (`memory.compose_state` via `memory_cache.get()`) — the MISSION/identity (seeded in memory,
+     NOT in a `.py`), situational data (operator + open widgets + tasks + outgoing profile), and the TIGHT
+     synthesis of the recent conversation. BOTH brains share it. Cached OUTSIDE the turn (V2-011): the turn
+     reads an already composed string, refreshed asynchronously and invalidated by `memory.updated`; it never
+     triggers the retriever or synchronous memory I/O.
+  4. Semantic **RECALL** (`compose_recall`) — on demand and outside the event loop (T115/T116); the caller
+     composes it in a thread ONLY when the turn requests it.
+  5. `live_state()` — LIVE state (time, background tasks, pending confirmations). ALWAYS last.
 
-  (El detalle de la capa de recursos: cómo opera —voz, canvas, delega—, catálogo de widgets (id + 1 línea) +
-  acciones (nombres) desde `widgets.brief.for_prompt`, y una línea de web_search y del navegador. El "cuándo
-  SÍ/NO" de cada tool vive en su descripción (`router.TOOLS`), única fuente por tool — no se duplica aquí.)
+  (Resource-layer details: how it operates—voice, canvas, delegation—the widget catalog (id + one line) plus
+  action names from `widgets.brief.for_prompt`, and one line each for web_search and the browser. Each tool's
+  "when YES/NO" lives in its description (`router.TOOLS`), the single source for that tool; it is not duplicated here.)
 
-El escalado, la búsqueda y las data-ops van por **function-calling** (`router.TOOLS`), no por texto-tag.
+Escalation, search, and data operations use **function calling** (`router.TOOLS`), not text tags.
 """
 from __future__ import annotations
 
@@ -32,12 +32,12 @@ from nucleo.flash.recall_heuristics import (  # noqa: F401 — re-export
     needs_recall, needs_recent, compose_recent_block,
 )
 
-# V2-276 — el umbral de atasco, el nombre legible del sitio y la señal de «ya encontró algo» se fueron con
-# el bloque que los usa (`live_blocks.py`). Se re-exportan porque hay tests que los importan por nombre
-# desde aquí: la extracción es una mudanza, no un cambio de interfaz.
+# V2-276 — the stall threshold, human-readable site name, and "already found something" signal moved with
+# the block that uses them (`live_blocks.py`). They are re-exported because tests import them by name from
+# here: the extraction is a move, not an interface change.
 from nucleo.flash import live_blocks as _live_blocks
-# V2-348: `_short_note` viajó con su único llamante a `live_blocks`; se re-exporta porque hay tests que
-# lo importan por nombre desde aquí y porque el contrato público sigue siendo `live_state()` (igual que V2-276).
+# V2-348: `_short_note` moved with its sole caller to `live_blocks`; it is re-exported because tests import it
+# by name from here and because the public contract remains `live_state()` (as in V2-276).
 from nucleo.flash.live_blocks import _short_note  # noqa: F401
 from nucleo.flash.live_blocks import (  # noqa: F401 — re-export
     _STALLED_S, _found_candidates, _site_of,
@@ -45,8 +45,8 @@ from nucleo.flash.live_blocks import (  # noqa: F401 — re-export
 
 
 def _observability_on() -> bool:
-    """¿Está activa la capa de observabilidad de memoria (tintado en vivo del visor)? UI-managed
-    (`config/settings.py::memory_observability`), default ON; env fallback `ZAELAR_MEM_OBSERVABILITY`."""
+    """Is the memory observability layer (live viewer highlighting) active? UI-managed
+    (`config/settings.py::memory_observability`), ON by default; env fallback `ZAELAR_MEM_OBSERVABILITY`."""
     try:
         from config import settings as _s
         v = _s.get("memory_observability")
@@ -59,11 +59,11 @@ def _observability_on() -> bool:
 
 
 def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple[str, list[int]]:
-    """Recall SEMÁNTICO específico del turno (`memory.query`). Devuelve (bloque_recall, ids_usados). El bloque de
-    ESTADO (nombre/trato/ubicación/temas) NO va aquí: sale del caché de sesión (`memory_cache`, T114). Best-effort.
+    """Turn-specific SEMANTIC recall (`memory.query`). Returns (recall_block, used_ids). The STATE block
+    (name/form of address/location/topics) does NOT go here: it comes from the session cache (`memory_cache`, T114). Best-effort.
 
-    ⚠️ Hace I/O bloqueante (embeddings HTTP a Ollama): el llamador lo corre FUERA del event loop
-    (`asyncio.to_thread`, T115) y SOLO cuando el turno lo necesita (T116). `timings` rellena `mem_query_ms` (T113)."""
+    ⚠️ Performs blocking I/O (HTTP embeddings to Ollama): the caller runs it OUTSIDE the event loop
+    (`asyncio.to_thread`, T115) and ONLY when the turn needs it (T116). `timings` fills `mem_query_ms` (T113)."""
     if not recall_query.strip():
         return "", []
     import time as _t
@@ -72,47 +72,45 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
     used_ids: list[int] = []
     try:
         from memory import api as memory
-        # Pedimos un POOL PROFUNDO (limit alto) y nos quedamos con la memoria DURABLE (mid/long): la recencia
-        # (CORTO, conv-buffer, mensajes efímeros) YA va ENTERA en el prompt vía `memory_cache._compose` — incluirla
-        # aquí es doble-conteo y, peor, la charla reciente (muchas filas `kind='conv'`) copa el top del retriever
-        # y ENTIERRA la tarea/hecho durable que el operador pregunta ("¿qué te pedí que escribieras?"). Con limit
-        # bajo esas filas durables ni se recuperan; por eso pedimos hondo y filtramos a mid/long → 8 huecos para
-        # el archivo durable.
-        # `reinforce_used=False` a propósito (V2-311, 2026-08-25): el refuerzo dispara al ENTREGAR, no al
-        # CALCULAR. Componer este bloque ya NO cuenta como usar la memoria — 21 de cada 27 recalls vivos se
-        # abandonaban al vencer el presupuesto y el hilo terminaba igualmente, así que subían el peso y
-        # reseteaban la caducidad de píldoras por preguntas que nunca se contestaron con ellas. Quien entrega
-        # (`nucleo/turn/recall_budget`) es quien refuerza, y lo hace con `reinforce_ids` — la selección sigue
-        # siendo de `memory/`, aquí solo viaja.
+        # Request a DEEP POOL (high limit) and retain DURABLE memory (mid/long): recency (SHORT, conversation
+        # buffer, ephemeral messages) is ALREADY included IN FULL via `memory_cache._compose`. Including it here
+        # double-counts it and, worse, recent chat (many `kind='conv'` rows) fills the retriever's top results and
+        # BURIES the durable task/fact the operator asks about ("what did I ask you to write?"). With a low limit,
+        # those durable rows are not retrieved at all; hence the deep request and mid/long filter → 8 durable slots.
+        # `reinforce_used=False` intentionally (V2-311, 2026-08-25): reinforcement fires on DELIVERY, not
+        # COMPUTATION. Composing this block no longer counts as using memory—21 of every 27 live recalls were
+        # abandoned when the budget expired while the thread still finished, increasing weight and resetting
+        # pill expiry for questions never answered with them. The delivery layer (`nucleo/turn/recall_budget`)
+        # reinforces via `reinforce_ids`; selection still belongs to `memory/`, and only travels through here.
         res = memory.query(recall_query, limit=40, reinforce_used=False)
         if timings is not None:
             timings["recall_reinforce_ids"] = list(res.get("reinforce_ids") or [])
         mems = res.get("memories") or []
         used_ids = res.get("ids") or []
         durable = [m for m in mems if m.get("level") in ("mid", "long")]
-        # V2-254 — LA TERCERA SUPERFICIE. Una píldora que escribió un cron de widget no es un hecho sobre la
-        # persona, y este bloque —que corre CADA TURNO— las mezclaba: medido el 2026-08-21, «Weather in Soria
-        # now: 14.5C» salía POR ENCIMA de «Vive en el centro de Madrid» bajo «puede que venga a cuento (de tu
-        # memoria)», y el turno acabó buscando un fontanero en Soria.
+        # V2-254 — THE THIRD SURFACE. A pill written by a widget cron is not a fact about the person, yet this
+        # block—which runs EVERY TURN—mixed them: measured on 2026-08-21, "Weather in Soria now: 14.5C" ranked
+        # ABOVE "Lives in central Madrid" under "this may be relevant (from your memory)," and the turn ended up
+        # searching for a plumber in Soria.
         #
-        # La regla tiene UNA casa (`memory.api.background_slot_off_topic`) y aquí se APLICA, no se reescribe: es
-        # el mismo defecto que V2-252 —una decisión repetida en dos sitios se separa sin avisar— y el propio
-        # docstring de la regla enumera las tres superficies que deben aplicarla. Vivió cinco semanas en una sola
-        # y las otras dos hubo que descubrirlas con un fallo en vivo CADA UNA.
+        # The rule has ONE home (`memory.api.background_slot_off_topic`) and is APPLIED, not rewritten, here. This
+        # is the V2-252 defect: a decision repeated in two places silently diverges. The rule's own docstring lists
+        # all three surfaces that must apply it. It lived on only one for five weeks; each other surface required
+        # a separate live failure to discover.
         #
-        # Condicional a propósito: si el operador NOMBRA el tema («¿qué tiempo hace en Soria?»), la píldora entra.
+        # Deliberately conditional: if the operator NAMES the topic ("what is the weather in Soria?"), the pill enters.
         try:
             from memory.api import background_slot_off_topic as _off_topic
             durable = [m for m in durable if not _off_topic(m.get("slot"), recall_query)]
         except Exception:  # noqa: BLE001
-            pass                     # sin la regla se enseña de más, nunca de menos: no se pierde memoria
+            pass                     # without the rule, too much is shown, never too little: no memory is lost
         for m in durable[:8]:
             txt = (m.get("text") or "").strip().replace("\n", " ")
             if txt:
                 lines.append(f"· {txt[:160]}")
-        # Observabilidad en vivo (V2-014, gated): una query ILUMINA en el visor las piezas que tocó
-        # (azul). Señal aparte `op:"query"` → no refresca datos, solo tiñe. Gated por `memory_observability`
-        # (default ON) porque añade tráfico fino; off = el visor sigue funcionando sin el resaltado de query.
+        # Live observability (V2-014, gated): a query HIGHLIGHTS the pieces it touched in the viewer (blue).
+        # Separate `op:"query"` signal → does not refresh data, only colors it. Gated by `memory_observability`
+        # (ON by default) because it adds fine-grained traffic; off leaves the viewer working without highlighting.
         if used_ids and _observability_on():
             try:
                 import bus
@@ -130,7 +128,7 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
 
 
 def _lang_lock() -> str:
-    """Lock de idioma DURO, leído EN VIVO del catálogo (si el operador cambia de idioma en el ⚙ se re-alinea)."""
+    """HARD language lock, read LIVE from the catalog (realigns if the operator changes language in ⚙)."""
     try:
         from voice.engine.core import langs
         spec = langs.current_language()
@@ -144,12 +142,12 @@ def _lang_lock() -> str:
         f"ATIÉNDELO con total normalidad (responde/actúa igual) y SIEMPRE en {native} — venir en otro idioma NO es "
         f"motivo para pedir que lo repitan. Solo pide en {native} que te lo repitan si el turno es de verdad "
         f"ININTELIGIBLE (cortado, ruido del micrófono, sin sentido), nunca por el mero hecho de estar en otra lengua.\n"
-        # V2-452 — LO QUE LEES ESTÁ EN OTRA LENGUA QUE LO QUE ESCRIBES, y hasta hoy no se decía. Todos los
-        # bloques de este prompt están en castellano, también cuando el operador habla inglés, y el modelo
-        # copiaba su idioma: medido sobre las 40 rondas US guardadas, **8 (20 %) llevan castellano en la voz
-        # de zaelar** y en TRES contesta entero en castellano a un angloparlante. El lock ya decía «responde
-        # SIEMPRE en inglés» y no bastaba, porque no nombraba lo que NO hay que copiar — la lección de V2-221:
-        # sin la frase dentro, el modelo no tiene con qué contrastarse.
+        # V2-452 — WHAT YOU READ IS IN A DIFFERENT LANGUAGE FROM WHAT YOU WRITE, which had never been stated.
+        # Every block in this prompt is Spanish even when the operator speaks English, and the model copied that
+        # language: across 40 saved US rounds, **8 (20%) contain Spanish in Zaelar's voice**, and in THREE it
+        # answers an English speaker entirely in Spanish. The lock already said "ALWAYS answer in English," but
+        # that was insufficient because it did not name what must NOT be copied—the V2-221 lesson: without the
+        # sentence in the prompt, the model has nothing against which to contrast itself.
         + ("" if str(native).lower().startswith("espa") else
            f"⚠️ ESTAS INSTRUCCIONES ESTÁN EN CASTELLANO A PROPÓSITO: son NOTAS INTERNAS del sistema, NO el "
            f"idioma de la conversación. NUNCA copies su lengua — ni una palabra suelta («Bueno», «todavía», "
@@ -159,16 +157,16 @@ def _lang_lock() -> str:
 
 
 def build_cluster_system(directive: str = "") -> str:
-    """Perfil UNTRUSTED del MISMO motor (V2-069 «una sola mente»): el FlashBrain conduciendo una conversación con
-    OTRO agente por un cluster. Es identidad-SAFE por CONSTRUCCIÓN — a diferencia de `build_flash_system` (perfil
-    operador), NO llama a `compose_state`/`memory_cache` ni vuelca recursos del canvas: un peer no confiable no
-    puede ver el nombre/PII del operador ni el catálogo de widgets/tools. La misión (identidad-safe) y el contexto
-    de la RELACIÓN los aporta el bridge en el propio turno (bloque de cápsula, contenido NUESTRO destilado). Las
-    tools van APAGADAS en código en el llamador (no aquí) — este perfil ni las menciona.
+    """UNTRUSTED profile of the SAME engine (V2-069 "one mind"): FlashBrain conducting a conversation with
+    ANOTHER agent over a cluster. It is identity-SAFE BY CONSTRUCTION—unlike `build_flash_system` (operator
+    profile), it does NOT call `compose_state`/`memory_cache` or expose canvas resources: an untrusted peer cannot
+    see the operator's name/PII or the widget/tool catalog. The bridge supplies the identity-safe mission and
+    RELATIONSHIP context in the turn itself (capsule block, distilled content of OURS). Tools are DISABLED in
+    code by the caller (not here)—this profile does not even mention them.
 
-    La regla de idioma es la del CANAL (no `_lang_lock`, que forzaría todo al idioma del operador): los ASIDES para
-    el operador van en su idioma; el texto DENTRO de [[cluster.send]] (lo que recibe el peer) va en INGLÉS POR
-    DEFECTO (lingua franca de la red), y solo se pasa a otro idioma si el peer escribió en ese otro idioma."""
+    The language rule belongs to the CHANNEL (not `_lang_lock`, which would force everything into the operator's
+    language): ASIDES for the operator use their language; text INSIDE [[cluster.send]] (what the peer receives)
+    is in ENGLISH BY DEFAULT (the network's lingua franca), switching only if the peer wrote in another language."""
     try:
         from voice.engine.core import langs
         op_lang = langs.current_language().native
@@ -199,14 +197,14 @@ def _directive_block(directive: str) -> str:
 
 
 def _cron_line() -> str:
-    """Una línea de proactividad (tags de cron) + lo ya programado, si hay. Terso (V2-027).
+    """One line of proactivity (cron tags) plus anything already scheduled, if present. Concise (V2-027).
 
-    La REGLA de «un aviso hablado no es un aviso» viene del caso de uso `remember-and-remind-deadline` (V2-121,
-    corrida 2026-08-18): ante «apúntame el jueves… y recuérdamelo el miércoles» el cerebro contestó «Done» y
-    siguió afirmando en turnos posteriores que estaba programado, con CERO mecanismo detrás. No fue un despiste
-    del modelo: el catálogo le decía literalmente que un recordatorio se «reconoce sin tool», así que la conducta
-    medida era la que el prompt pedía. Aquí se dice lo contrario, y con el formato de fecha absoluta que
-    `scheduler.parse_schedule` ya entiende para que un día concreto sea EXPRESABLE de una sola vez."""
+    The RULE that "a spoken reminder is not a reminder" comes from the `remember-and-remind-deadline` use case
+    (V2-121, run 2026-08-18): when told "write it down for Thursday… and remind me on Wednesday," the brain
+    answered "Done" and kept claiming in later turns that it was scheduled, with ZERO mechanism behind it. This
+    was not model oversight: the catalog literally said a reminder was "acknowledged without a tool," so the
+    measured behavior was what the prompt requested. This says the opposite, using the absolute-date format
+    `scheduler.parse_schedule` already understands so a specific day can be EXPRESSED in one pass."""
     line = ('Proactividad (recordatorios/tareas programadas): [[cron.create]]'
             '{"schedule":"30m|every 2h|2026-08-19 09:00|0 9 * * *","prompt":"qué avisar","name":"…"}'
             '[[/cron.create]] · [[cron.cancel:name]]. `schedule` admite un plazo relativo, una FECHA ABSOLUTA '
@@ -229,13 +227,12 @@ def _cron_line() -> str:
 
 
 def _connector_briefs(open_ids: set[str]) -> str:
-    """Briefs de conector para el turno del FlashBrain — culpable #6 del prompt inflado (V2-027): iban EN CADA
-    turno aunque no se tocaran. Ahora el turno normal NO los lleva; solo el de **mensajería**, y SOLO cuando su
-    widget está ABIERTO (el operador lo tiene delante). Los briefs de **architect** y **cluster/meshkore** son
-    tag-protocolos operator-only y raros → fuera del prompt caliente: el canal de cluster usa su propio brief
-    (`bridge.for_brain`, stateless) y una tarea de código/proyecto se resuelve por `escalate_to_slowbrain`. Si en
-    el futuro se quiere voz→architect/cluster, se re-activa aquí gated por trabajo EN CURSO, no por 'configurado'.
-    Best-effort."""
+    """Connector briefs for the FlashBrain turn—#6 contributor to prompt bloat (V2-027): they appeared in EVERY
+    turn even when unused. Normal turns now omit them; only **messaging** gets one, and ONLY while its widget is
+    OPEN (in front of the operator). **architect** and **cluster/meshkore** briefs are rare, operator-only tag
+    protocols, so they stay out of the hot prompt: the cluster channel uses its own brief (`bridge.for_brain`,
+    stateless), and code/project tasks use `escalate_to_slowbrain`. If voice→architect/cluster is wanted later,
+    reactivate it here gated by work IN PROGRESS, not by being 'configured'. Best-effort."""
     try:
         _msg_on = False
         try:
@@ -250,10 +247,10 @@ def _connector_briefs(open_ids: set[str]) -> str:
             pass
         if _msg_on:
             from connectors.messaging import brief as _mb
-            # Widget ABIERTO → brief completo (protocolo + lista viva, el operador lo tiene delante). CERRADO pero
-            # mensajería CONFIGURADA → solo el ESTADO de conexión (terso, ~2 líneas): así el FlashBrain sabe si puede
-            # leer y NO ALUCINA "no tienes mensajes" cuando no está conectada o no lo ha comprobado (hallazgo del
-            # test headless: con el widget cerrado inventaba "no tienes mensajes importantes").
+            # OPEN widget → full brief (protocol + live list, visible to the operator). CLOSED but messaging
+            # CONFIGURED → connection STATE only (concise, ~2 lines): FlashBrain then knows whether it can read and
+            # does NOT HALLUCINATE "you have no messages" when disconnected or unchecked (the headless test found
+            # that it invented "you have no important messages" while the widget was closed).
             return _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
     except Exception:
         pass
@@ -261,8 +258,8 @@ def _connector_briefs(open_ids: set[str]) -> str:
 
 
 def _open_widget_ids() -> set[str]:
-    """ids de los widgets ABIERTOS ahora, del ESTADO (lectura µs, un SELECT — no toca el retriever, respeta
-    V2-011). Los usa la capa de recursos para incluir items/coach SOLO de lo que el operador tiene delante."""
+    """IDs of widgets OPEN now, from STATE (µs read, one SELECT—does not touch the retriever, honoring V2-011).
+    The resource layer uses them to include items/coaching ONLY for what is in front of the operator."""
     try:
         from memory import api as memory
         return {str(w).strip().lower() for w in (memory.state().get("open_widgets") or []) if str(w).strip()}
@@ -271,8 +268,8 @@ def _open_widget_ids() -> set[str]:
 
 
 def _recent_widget_ids() -> list[str]:
-    """ids de widgets USADOS HACE POCO (MRU `state.recent_widgets`, V2-078), en orden de recencia. 2ª capa de
-    acotación para elegir/resolver el widget objetivo (abiertos > recientes > catálogo). Lectura µs, sin retriever."""
+    """IDs of RECENTLY USED widgets (MRU `state.recent_widgets`, V2-078), in recency order. Second narrowing
+    layer for selecting/resolving the target widget (open > recent > catalog). µs read, no retriever."""
     try:
         from memory import api as memory
         return [str(w).strip().lower() for w in (memory.state().get("recent_widgets") or []) if str(w).strip()]
@@ -281,10 +278,10 @@ def _recent_widget_ids() -> list[str]:
 
 
 def _workers_directive() -> str:
-    """Directiva de DIRECCIÓN de Brain Workers (V2-038 §v3·F) — solo cuando hay workers vivos. Antes vivía
-    incrustada en `memory.compose_state()` (auditoría 2026-07-14): esa prosa es del FlashBrain (V2-027: la
-    memoria compone el ESTADO compartido; cada cerebro añade SU capa de recursos). Los DATOS de las sesiones
-    («PROCESOS DE FONDO en marcha» + marcadores ESPERA) siguen viniendo del ESTADO."""
+    """Brain Worker MANAGEMENT directive (V2-038 §v3·F)—only while workers are live. It used to be embedded in
+    `memory.compose_state()` (2026-07-14 audit): that prose belongs to FlashBrain (V2-027: memory composes shared
+    STATE; each brain adds ITS resource layer). Session DATA ("BACKGROUND PROCESSES running" + WAIT markers)
+    still comes from STATE."""
     try:
         from nucleo import dispatch
         if not dispatch.has_active():
@@ -301,9 +298,9 @@ def _workers_directive() -> str:
 
 
 def _rails_directive() -> str:
-    """GUÍA situacional de los RAILS (V2-042) — cada rail con un run vivo aporta SU línea, y solo entonces
-    (`nucleo/rails.prompt_lines()`): prompts aislados por comportamiento, cero coste cuando el rail está en
-    reposo (idea del operador; mismo patrón situacional que `_workers_directive`)."""
+    """Situational RAILS GUIDE (V2-042)—each rail with a live run contributes ITS line, and only then
+    (`nucleo/rails.prompt_lines()`): prompts isolated by behavior, zero cost while the rail is idle (the
+    operator's idea; the same situational pattern as `_workers_directive`)."""
     try:
         from nucleo import rails
         lines = rails.prompt_lines()
@@ -314,22 +311,22 @@ def _rails_directive() -> str:
 
 def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
                  turn_text: str = "", stats: dict | None = None) -> str:
-    """CAPA DE RECURSOS del FlashBrain (D) — TERSA (V2-027). Reemplaza al `_FAST_RULES` de ~75 líneas: las reglas
-    de VOZ esenciales caben en 3-4 frases; el "cómo se usa cada tool" NO va aquí (vive en `router.TOOLS`, única
-    fuente por tool). Los RECURSOS (widgets/web/navegador) son data-driven, no prosa hardcodeada.
+    """FlashBrain RESOURCE LAYER (D)—CONCISE (V2-027). Replaces the ~75-line `_FAST_RULES`: essential VOICE
+    rules fit in 3–4 sentences; "how each tool is used" does NOT go here (it lives in `router.TOOLS`, the single
+    source per tool). RESOURCES (widgets/web/browser) are data-driven, not hard-coded prose.
 
-    `turn_text` (V2-085) = la frase del operador ESTE turno. No se usa para clasificar la intención (invariante:
-    nada de tablas de verbos) sino para RECUPERAR: `brief.for_prompt` promociona al top-K el widget que el
-    operador nombra, de modo que el bloque de widgets sea O(K) y no O(N) por muy grande que sea el catálogo."""
+    `turn_text` (V2-085) = the operator's sentence THIS turn. It is not used to classify intent (invariant: no
+    verb tables), but for RETRIEVAL: `brief.for_prompt` promotes the widget named by the operator into the top K,
+    keeping the widget block O(K), not O(N), regardless of catalog size."""
     from widgets.brief import for_prompt as _widgets
     ops = (
         "── CÓMO OPERAS (capa rápida, tiempo real) ──\n"
         "Respondes SIEMPRE al instante en 1-2 frases habladas (sin markdown, emojis ni símbolos que leer), UNA "
         "ACCIÓN por turno; nunca te quedas mudo. «Una» es de ACCIONES, no de RESPUESTAS: si en la misma frase te "
         "preguntan DOS cosas (la hora Y el precio, el sitio Y cómo llegar), las contestas LAS DOS en ese turno — "
-        # V2-135: y eso empieza en la BÚSQUEDA. Si buscas «horario Museo del Prado» para una frase que también
-        # pedía el precio, la otra mitad ya no está en los resultados: no es que se te olvide contestarla, es
-        # que no tienes con qué. La query tiene que cubrir lo que te preguntó, no una parte.
+        # V2-135: this starts with SEARCH. If a sentence also asks for the price but you search only "Prado Museum
+        # hours," the other half is absent from the results: it is not merely forgotten; there is no material to
+        # answer it. The query must cover everything asked, not just one part.
         "y si para eso buscas, que la BÚSQUEDA cubra las dos: con media query no hay con qué contestar la otra "
         "mitad. "
         "dejarte media pregunta obliga al operador a repetirla y es de las cosas que más molestan. Antes de "
@@ -464,8 +461,8 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "para que el operador los VEA, ábrele su widget. Escalar, buscar y operar datos son TOOL CALLS invisibles; "
         "las tags de canvas van CALLADAS y al final, tras tu frase. Si el turno parece ruido del micro, pide que "
         "lo repita — no inventes.\n"
-        # Round headless V2-038 (2026-07-14): estados tipo dump ("WhatsApp: conectado Telegram: conectado") +
-        # jerga interna ("escalo la creación…") en la voz. Dos reglas cortas, disciplina V2-027.
+        # Headless round V2-038 (2026-07-14): dump-like states ("WhatsApp: connected Telegram: connected") plus
+        # internal jargon ("I am escalating creation…") in speech. Two short rules, following V2-027 discipline.
         "Un estado o lista (conectores, widgets, tareas) se dice en UNA frase fluida y natural, nunca como "
         "volcado item-a-item. Y la cocina interna NO existe para el operador: nunca digas «escalar», «worker», "
         # V2-129 — el turno 1 salió con TRES conceptos internos en una frase: «necesito ESCALAR esto al EQUIPO
@@ -485,7 +482,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "Un JUEGO del catálogo (Snake/serpiente, etc.) es un WIDGET: \"abre/saca/muéstrame el juego de X\", "
         "\"juega a / quiero jugar a X\" = [[show:ID]] de ese widget — NUNCA play_music ni play_video (jugar a un "
         "JUEGO no es reproducir audio/vídeo).\n"
-        # Micro SIEMPRE abierto (sesión 2026-07-15): un comentario ambiente NO debe disparar acciones. Guard de prompt.
+        # Microphone ALWAYS open (2026-07-15 session): an ambient remark must NOT trigger actions. Prompt guard.
         "Un COMENTARIO u observación (\"ese vídeo es antiguo\", \"qué pequeño se ve\", \"hoy juega tal equipo\") NO "
         "es una orden: NO abras ni cierres NADA por un comentario. Actúa solo ante una PETICIÓN con su verbo "
         "(abre/cierra/muestra/pon/quita/amplía). Ante la duda, no hagas nada de canvas y sigue la conversación.\n"
@@ -495,8 +492,8 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "fuente de verdad, cítala con seguridad. Si te pregunta por un widget que NO abriste tú este turno (p. ej. "
         "quedó de antes), NO lo niegues ni digas que \"no ves la pantalla\": di que no lo abriste tú y ofrece "
         "cerrarlo. Responde SIEMPRE a lo que se te pregunta AHORA, no al tema del turno anterior.\n"
-        # V2-061: continuidad + frontera espejo/realidad. Un pronombre suelto se ancla en la conversación, no en un
-        # widget ausente; cancelar un COMPROMISO real es acción del mundo (escala), no un tweak de datos locales.
+        # V2-061: continuity + mirror/reality boundary. A standalone pronoun anchors to the conversation, not an
+        # absent widget; canceling a real COMMITMENT is a world action (escalation), not a local-data tweak.
         "CONTINUIDAD: un pronombre o una orden CORTA («cancélalo», «quítalo», «anúlala», «eso») se refiere a lo "
         "ÚLTIMO que hablasteis (mira «DE QUÉ ÍBAIS HABLANDO»), NO a un item de un widget que no está en pantalla ni "
         "has nombrado — no metas mano en un widget ausente solo para encajar el verbo. Y si lo que hay que "
@@ -510,11 +507,11 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids, query=turn_text, stats=stats) + (
         "\n\nweb_search (tool): un DATO factual y actual del mundo (resultado, tiempo, precio, noticia); "
         "NO para navegar tiendas/marketplaces. Un dato ligado a un LUGAR (el tiempo, tráfico…) sin ciudad "
-        # V2-127 — la cláusula ORDENABA usar «la ciudad del operador» sin contemplar que su ESTADO no la tenga.
-        # En el caso `reorder-prescription` el estado del sandbox no tenía `location` (verificado con BD fresca:
-        # `state.read()["location"] is None`) y el turno salió pidiendo «la zona exacta de Soria» — una ciudad
-        # que el operador no había nombrado nunca en esa conversación. Un hueco silencioso se rellena; hay que
-        # nombrarlo, igual que con la fase de worker que no se había reportado (V2-133).
+        # V2-127 — the clause ORDERED use of "the operator's city" without allowing for STATE to omit it. In
+        # `reorder-prescription`, sandbox state had no `location` (verified with a fresh DB:
+        # `state.read()["location"] is None`), yet the turn requested "the exact area of Soria," a city the
+        # operator had never named. A silent gap gets filled; it must be named, like an unreported worker phase
+        # (V2-133).
         "explícita va SIEMPRE con la ciudad ACTUAL del operador (la de su estado) — y si su estado NO dice dónde "
         "vive, no te la inventes: pregúntasela. Un dato que tengas guardado "
         "de OTRA ciudad o de hace horas NO vale como respuesta — busca el actual. Un hecho PÚBLICO y conocido (un "
@@ -535,24 +532,23 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
 
 
 def live_state() -> str:
-    """Lecturas baratas, sin tools, que el FlashBrain responde al instante."""
+    """Cheap, tool-free reads that FlashBrain answers instantly."""
     import time as _t
-    # Fecha EXPLÍCITA (hoy + mañana en YYYY-MM-DD) para que el modelo NO tenga que buscar la fecha ni la invente
-    # al poner una cita "mañana" (V2-026: el modelo llegó a llamar a web_search para saber qué día era mañana).
+    # EXPLICIT date (today + tomorrow in YYYY-MM-DD) so the model need NOT search for or invent a date when adding
+    # an appointment "tomorrow" (V2-026: the model once called web_search to learn tomorrow's date).
     _tm = _t.strftime("%Y-%m-%d", _t.localtime(_t.time() + 86400))
     lines = [f"Hora local: {_t.strftime('%H:%M')} · hoy es {_t.strftime('%A %d %b')} ({_t.strftime('%Y-%m-%d')}); "
              f"mañana es {_tm}."]
-    # PRÓXIMOS 7 DÍAS con su fecha (V2-121). Mismo motivo que la línea de arriba, un paso más allá: para programar
-    # un aviso «el miércoles» hay que saber QUÉ FECHA es ese miércoles, y hacer esa cuenta de cabeza es justo el
-    # tipo de aritmética en la que un modelo pequeño se equivoca en silencio — y un aviso mal fechado no se nota
-    # hasta el día que no suena. Con la lista delante, traducir un día nombrado a la fecha absoluta que pide
-    # `[[cron.create]]` es una LECTURA. ~90 chars/turno; se calcula sin I/O.
+    # NEXT 7 DAYS with dates (V2-121). Same reason as above, extended: scheduling "Wednesday" requires knowing
+    # WHICH DATE that Wednesday is, and mental date arithmetic is exactly where a small model silently errs—a
+    # misdated reminder is unnoticed until it fails to fire. With this list, mapping a named day to the absolute
+    # date required by `[[cron.create]]` is a LOOKUP. ~90 chars/turn; computed without I/O.
     _now = _t.time()
     _days = "; ".join(f"{_t.strftime('%A', _t.localtime(_now + i * 86400)).lower()} "
                       f"{_t.strftime('%Y-%m-%d', _t.localtime(_now + i * 86400))}" for i in range(1, 8))
-    # V2-473 (ronda 4): la lista es un TRADUCTOR de días nombrados, y sin decirlo el modelo la leyó como el
-    # límite de su calendario — «en mi lista de próximos días solo tengo hasta el 5», rechazando una cita
-    # válida a 10 días y preguntando después «¿es 2026?».
+    # V2-473 (round 4): the list TRANSLATES named days, but without that explanation the model treated it as the
+    # calendar limit—"my upcoming-days list only reaches the 5th"—rejecting a valid appointment ten days away
+    # and then asking "is it 2026?".
     lines.append(f"Próximos días (para traducir un día NOMBRADO —«el miércoles»— a su fecha): {_days}. "
                  "NO es el límite de tu agenda: una fecha explícita («el 8 de septiembre») se apunta tal "
                  "cual, a cualquier distancia, y sin año es del año en curso (o del siguiente si ya pasó) "
@@ -710,21 +706,22 @@ def live_state() -> str:
 def build_flash_system(directive: str = "", recall_query: str = "", recall_block: str = "",
                        recent_block: str = "", timings: dict | None = None,
                        turn_text: str = "") -> tuple[str, list[int]]:
-    """El system message del FlashBrain, recompuesto por turno (REDISEÑO V2-027): **[ESTADO compuesto] + capa de
-    recursos TERSA**, ~30 líneas. Devuelve (prompt, ids_de_memoria_usados). Ensamblado:
+    """FlashBrain system message, recomposed per turn (V2-027 REDESIGN): **[composed STATE] + CONCISE resource
+    layer**, ~30 lines. Returns (prompt, used_memory_ids). Assembly:
 
         _lang_lock() + [_flash_layer D, ESTABLE] + [ESTADO compartido A+B+C] + [recall opcional] + [directiva] + live_state()
 
-    - El **ESTADO compartido** (misión + situacional + convo sintetizada) lo compone `memory.compose_state()` y
-      sale del **caché de sesión** (`memory_cache.get()`, T114): lectura INSTANTÁNEA de un string ya compuesto,
-      refresco async fuera del turno e invalidación por `memory.updated`. El turno NUNCA dispara el retriever.
-    - El **recall** semántico específico es opcional y viene YA compuesto en `recall_block` (el llamador lo saca
-      fuera del event loop y bajo demanda — T115/T116); `recall_query` = ruta de compatibilidad (tests) que lo
-      compone en línea.
-    - La **capa de recursos** (`_flash_layer`) es TERSA y data-driven; el "cómo se usa cada tool" vive en
-      `router.TOOLS`, no aquí.
+    - **Shared STATE** (mission + situational data + synthesized conversation) is composed by
+      `memory.compose_state()` and comes from the **session cache** (`memory_cache.get()`, T114): an INSTANT read
+      of an already composed string, refreshed asynchronously outside the turn and invalidated by
+      `memory.updated`. The turn NEVER triggers the retriever.
+    - Specific semantic **recall** is optional and arrives ALREADY composed in `recall_block` (the caller obtains
+      it outside the event loop and on demand—T115/T116); `recall_query` is the compatibility path (tests) that
+      composes it inline.
+    - The **resource layer** (`_flash_layer`) is CONCISE and data-driven; "how each tool is used" lives in
+      `router.TOOLS`, not here.
 
-    `timings` (T113) — desglose de latencia por fase (memoria, recursos, estado vivo, build total) para `/debug`."""
+    `timings` (T113)—latency breakdown by phase (memory, resources, live state, total build) for `/debug`."""
     import time as _t
     _t0 = _t.perf_counter()
     from . import memory_cache
