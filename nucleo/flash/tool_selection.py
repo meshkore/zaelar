@@ -57,12 +57,30 @@ _HINTS: dict[str, tuple[str, ...]] = {
     "widgets": ("widget", "tarjeta", "panel", "pantalla", "ventana", "abre", "abre", "cierra", "muestra",
                 "muestrame", "ensename", "borra", "alias", "llama", "lista", "agenda", "card", "screen",
                 "show", "close", "open", "delete"),
+    # PHOTOS live in `media` too (`show_images`, V2-457 — music and video's third sibling), and this line had
+    # only music and video words. Measured live on the operator's engine (2026-09-01, three turns): «Enséñame la
+    # foto de un Ferrari F cuarenta» and «show me a ferrari f40 picture» retrieved `widgets` (from «enséñame» /
+    # «show») and NOT `media`, so `show_images` — the only tool that puts a photo on screen — was trimmed away
+    # from the very turns asking for one. Asking for MUSIC kept it; asking for a PHOTO did not.
+    #
+    # And the escape hatch could not absorb it, which is the part worth remembering: `need_capability` works when
+    # the model can tell it is missing something, and here it kept `show_widget` and `widget_data` over the
+    # `imagenes` card — tools that LOOK like they do the job. It used them, opened the viewer empty, and said
+    # «Aquí lo tienes». A retrieval miss is invisible exactly when a plausible neighbour survives the trim.
     "media": ("musica", "cancion", "suena", "spotify", "video", "youtube", "pon", "reproduce", "volumen",
-              "podcast", "play", "music", "song", "sube", "baja"),
+              "podcast", "play", "music", "song", "sube", "baja",
+              "foto", "fotos", "fotografia", "fotografias", "imagen", "imagenes",
+              "photo", "photos", "picture", "pictures", "pic", "image", "images"),
     "workers": ("para", "paralo", "cancela", "cancelalo", "detente", "worker", "tarea", "proceso", "busqueda",
                 "informe", "responde", "contesta", "stop", "task"),
     "cluster": ("cluster", "meshkore", "peer", "agente", "invitacion", "commons", "conecta"),
-    "messaging": ("mensaje", "whatsapp", "telegram", "correo", "email", "responde", "contesta", "mail"),
+    # Spanish-only seeds until V2-548: `reply_message` was lost by «reply to the message from Claudia» and by
+    # «show me my messages», while the Spanish forms worked. The operator writes in English often enough that
+    # the very turn that exposed the photo gap was «show me a ferrari f40 picture» — the same night.
+    # These are the SAME seeds in the other language, not a longer verb list: the list the operator rejected is
+    # what this module deliberately does not build.
+    "messaging": ("mensaje", "mensajes", "whatsapp", "telegram", "correo", "email", "responde", "contesta",
+                  "mail", "message", "messages", "reply", "chat"),
 }
 
 

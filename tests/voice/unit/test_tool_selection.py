@@ -105,6 +105,77 @@ def test_families_used_alimenta_la_capa_reciente():
     assert ts.families_used(["no_existe"]) == set()
 
 
+def test_pedir_una_FOTO_conserva_la_tool_que_ensena_fotos():
+    """V2-548 — la petición que el operador dio por rota, en un solo test.
+
+    Medido en su motor el 2026-09-01, tres turnos, dos idiomas:
+
+        23:21:43  «Enséñame la foto de un Ferrari F cuarenta.»   → tools sin `show_images`
+        23:22:04  (la repite tras corregir)                       → tools sin `show_images`
+        23:53:52  «show me a ferrari f40 picture»                 → tools sin `show_images`
+                  → «Te lo abro, aunque de momento está vacío.»
+
+    Las FOTOS viven en la familia `media` (`show_images`, V2-457 — el tercer hermano de música y vídeo), y esta
+    línea de pistas solo tenía palabras de música y de vídeo. Así que «enséñame» recuperaba `widgets` y nadie
+    recuperaba `media`: la única tool que pone una foto en pantalla se podaba **justo en los turnos que pedían
+    una**. Pedir MÚSICA la conservaba; pedir una FOTO no.
+
+    Y la escotilla no pudo absorberlo, que es lo que hay que recordar: `need_capability` funciona cuando el
+    modelo NOTA que le falta algo, y aquí le quedaban `show_widget` y `widget_data` sobre la tarjeta `imagenes`
+    —tools que PARECEN hacer el trabajo—. Las usó, abrió el visor vacío y dijo «Aquí lo tienes». Un fallo de
+    recuperación es invisible precisamente cuando sobrevive al recorte un vecino plausible."""
+    for phrase in ("Enséñame la foto de un Ferrari F cuarenta.", "show me a ferrari f40 picture",
+                   "muéstrame fotos de Roma", "enséñame una imagen del Everest",
+                   "ábreme las imágenes que tengo guardadas"):
+        kept, report = ts.select(FULL, turn_text=phrase)
+        assert "show_images" in _names(kept), \
+            f"«{phrase}» pierde la única tool que enseña fotos — el visor se abre vacío: {report}"
+
+
+def test_y_la_charla_sigue_sin_arrastrar_la_familia_de_fotos():
+    """Arreglar una recuperación no es dejar de recuperar. Las palabras nuevas son SEMILLAS, no un clasificador
+    de intención: un turno que no habla de imágenes sigue sin cargar `media`."""
+    for phrase in ("hola, ¿qué tal?", "¿qué tiempo hace mañana?", "apunta cena con Ana el jueves"):
+        kept, report = ts.select(FULL, turn_text=phrase)
+        assert "show_images" not in _names(kept), f"«{phrase}» no debería arrastrar media: {report}"
+        assert "media" in report["omitted"], report
+
+
+def test_una_tool_NUEVA_no_puede_entrar_en_una_familia_que_no_sabe_nombrarla():
+    """El trinquete de la CLASE entera, no del caso (V2-548).
+
+    Lo que pasó de verdad: la familia `media` GANÓ una tool —`show_images` (V2-457)— y las pistas de esa
+    familia se quedaron con el vocabulario de música y vídeo de antes. Nadie tocó nada roto; simplemente la
+    lista de semillas dejó de cubrir a uno de sus miembros, y ese miembro solo se podía recuperar por estado o
+    por familia reciente. Un mes después el operador pidió una foto y el visor se abrió vacío.
+
+    La comprobación es barata y no clasifica intención: las palabras del NOMBRE de la tool tienen que aparecer
+    en las pistas de su familia. Es el mínimo — que la familia sepa nombrar a lo que contiene— y basta para que
+    añadir una tool sin su semilla sea rojo en el mismo commit. Encontró un segundo agujero al escribirla:
+    `reply_message` con pistas solo en castellano, perdido por «reply to the message from Claudia».
+    """
+    import re
+    import unicodedata
+
+    def _norm(x):
+        n = unicodedata.normalize("NFKD", x or "")
+        return "".join(c for c in n if not unicodedata.combining(c)).lower()
+
+    huerfanas = []
+    for fam, names in router.FAMILIES.items():
+        if fam in ts.ALWAYS:
+            continue                                   # nunca se recortan: no necesitan que nadie las recupere
+        hints = set(ts._HINTS.get(fam) or ())
+        assert hints, f"la familia «{fam}» es recortable y no tiene NINGUNA pista: solo entra por estado"
+        for name in names:
+            words = {w for w in re.split(r"[^a-z0-9]+", _norm(name)) if len(w) > 2}
+            if not (words & hints):
+                huerfanas.append((fam, name, sorted(words)))
+    assert not huerfanas, (
+        "tools que su propia familia no sabe recuperar — se podarán justo en los turnos que las piden: "
+        f"{huerfanas}")
+
+
 def test_toda_tool_del_catalogo_tiene_familia():
     """A tool without a family would ALWAYS slip through (the selector lets it pass by default, which is the safe
     side) and could never be trimmed. It is silent debt: better for it to be caught here."""

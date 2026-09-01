@@ -7485,6 +7485,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     da falsa tranquilidad; la lección se guardó en el contrato, que es donde sí sirve.
   - Nodos **2.1** (fichero existente) y **4.100**. Dos desarmes: 1 y 3 rojos.
 
+- **Un fallo de RECUPERACIÓN es invisible cuando sobrevive un vecino plausible (V2-548, 2026-09-02)**: la causa
+  de fondo de lo que el operador reportó como «not working a simple request», y de la que V2-547 solo arregló
+  los síntomas. Sus tres turnos de foto de esa noche —dos en castellano y el último, ya en inglés por el chat,
+  «show me a ferrari f40 picture» → *«Te lo abro, aunque de momento está vacío»*— llegaron al modelo **sin
+  `show_images` en la lista de herramientas**. La única tool que pone una foto en pantalla se había podado.
+  - **Las fotos viven en la familia `media`** (`show_images`, V2-457, el tercer hermano de música y vídeo) y las
+    pistas léxicas de esa familia tenían solo vocabulario de música y de vídeo: ni «foto», ni «imagen», ni
+    «picture». Así que «enséñame» recuperaba `widgets` y nadie recuperaba `media`. Medido: pedir MÚSICA
+    conservaba `show_images`; pedir una FOTO no.
+  - **La escotilla no podía absorberlo.** `need_capability` funciona cuando el modelo NOTA que le falta algo, y
+    aquí le quedaban `show_widget` y `widget_data` sobre la tarjeta `imagenes` — tools que PARECEN hacer el
+    trabajo. Las usó, abrió el visor vacío y dijo «Aquí lo tienes». Nadie rompió nada: la familia GANÓ una tool
+    y la lista de semillas se quedó atrás sola.
+  - **Trinquete de la CLASE**: las palabras del NOMBRE de una tool deben aparecer en las pistas de su familia —
+    el mínimo, que la familia sepa nombrar lo que contiene. Añadir una tool sin semilla es rojo en el mismo
+    commit. Al escribirlo encontró un segundo agujero: `reply_message` con pistas **solo en castellano**,
+    perdida por «reply to the message from Claudia».
+  - ⚠️ **El canal `probe` NO recorta herramientas** — no importa `tool_selection` en ningún sitio. Sondeando la
+    frase del operador para verificar el arreglo, el probe eligió `show_images` bien: **verde falso sobre el
+    defecto que estaba diagnosticando**. Y como la plataforma de casos de uso conduce el probe, **ningún caso de
+    uso podía cazar esto**. Espejarlo mueve los números de todos los casos a la vez: queda ABIERTO.
+  - Nodo **3.10**, dos desarmes. ⚠️ Uno **no llegó a aplicarse** por comillas anidadas en un `python -c` y sus
+    15 verdes no significaban nada: los desarmes van a FICHERO y con la mutación AFIRMADA antes de medir.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
