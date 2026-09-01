@@ -8,11 +8,55 @@
 # operator's actions enqueue the key, including `platform`, into `pending_read`; the correct connector drains it and
 # marks the message read in its app. A platform failure does not bring down another platform or voice.
 #
+import time
+import unicodedata
+
 from .. import store
 
 WIDGET_ID = "mensajeria"
 _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
 _URG_RANK = {"alta": 0, "media": 1, "baja": 2}   # local copy; data.py is stdlib-only and does not import connectors
+
+# ── The VIEW is a declared ACTION (V2-543 — the V2-540/V2-541 lesson applied here) ──────────────────────────────
+# The platform lens used to be widget.js-local state the voice could not touch, and "back to the main list" had no
+# action at all: measured live (2026-09-01 18:39), «ve a la lista principal de los mensajes» could only re-show the
+# widget, which changes nothing. The requested view is pushed with a MONOTONIC witness counter (`n`) so asking for
+# the same view twice still lands (the token moves even when the value repeats), and it EXPIRES server-side: a
+# pushed lens kept forever would yank next week's reopen back to a stale filter.
+_VIEW_TTL_S = 600
+# Spoken platform names as the operator says them; "" = the unified main list. Structural aliases only — never a
+# per-language synonym table beyond what names these three channels.
+_PLAT_ALIASES = {
+    "whatsapp": "whatsapp", "wasap": "whatsapp", "wa": "whatsapp",
+    "telegram": "telegram", "tg": "telegram",
+    "email": "email", "correo": "email", "mail": "email", "gmail": "email", "outlook": "email",
+    "all": "", "todo": "", "todos": "", "": "", "inbox": "", "principal": "", "general": "", "lista": "",
+}
+
+
+def _norm_txt(s) -> str:
+    """Accent-stripped lowercase, for matching a spoken chat name against the list."""
+    s = unicodedata.normalize("NFD", str(s or "").strip().lower())
+    return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
+
+
+def _push_view(db: dict, platform: str) -> None:
+    prev = db.get("view") or {}
+    db["view"] = {"platform": platform, "n": int(prev.get("n", 0) or 0) + 1, "at": time.time()}
+
+
+def _fresh_view(db: dict):
+    """The pushed view, or None once it has expired. Expiry costs an open widget nothing: `view` merely stops
+    arriving, the client token stops moving, and whatever the operator chose by hand survives."""
+    v = db.get("view")
+    if not isinstance(v, dict):
+        return None
+    try:
+        if time.time() - float(v.get("at", 0) or 0) > _VIEW_TTL_S:
+            return None
+    except (TypeError, ValueError):
+        return None
+    return v
 
 
 def _empty() -> dict:
@@ -155,6 +199,8 @@ def view_data(q: str = "") -> dict:
         # the operator saw no form at all (measured 2026-08-31). Carried with a timestamp, not consumed on read:
         # view_data runs on every render, and clearing it here would lose the request on the first repaint.
         "connect_focus": db.get("connect_focus") or None,
+        # V2-543 — the requested VIEW (platform lens / main list), witness-countered + server-expired.
+        "view": _fresh_view(db),
     }
 
 
@@ -177,6 +223,29 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         db["connect_focus"] = {"platform": platform, "ts": int(_time.time() * 1000)}
         store.save(WIDGET_ID, db)
         return view_data()
+
+    # CHANGE WHAT IS SHOWN and ANSWER (V2-543). «Vuelve a la lista principal» / «muéstrame solo el WhatsApp»
+    # are THIS action — re-showing the widget changes nothing (measured live 2026-09-01: two such orders got a
+    # bare show_widget and «Aquí lo tienes» over an unmoved screen). Returns the matching chats so the turn can
+    # answer with names instead of promising.
+    if action == "show_view":
+        raw = str(payload.get("platform") or payload.get("view") or "").strip().lower()
+        if raw not in _PLAT_ALIASES:
+            return {"ok": False,
+                    "error": "no reconozco esa vista — vuelve a llamar a show_view con `platform`: 'all' "
+                             "(la lista principal unificada), 'whatsapp', 'telegram' o 'email'"}
+        platform = _PLAT_ALIASES[raw]
+        db = load_db()
+        db["active_chat"] = None            # every list view exits an open thread ("volver" included)
+        _push_view(db, platform)
+        store.save(WIDGET_ID, db)
+        out = view_data()
+        chats = [c for c in out.get("chats", []) if not platform or c.get("platform") == platform]
+        return {"ok": True,
+                "result": {"platform": platform or "all", "count": len(chats),
+                           "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
+                                      "count": c.get("count")} for c in chats[:12]]},
+                **out}
 
     # Connection control, executed by the supervisor, not the widget.
     if action in ("connect", "disconnect"):
@@ -293,15 +362,29 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         return view_data()
 
     # Open/close a chat thread: pure navigation, addressable by click or voice
-    # ([[msg.open:N]]/[[msg.close]], N = the CHAT `n`; see _group_chats).
+    # ([[msg.open:N]]/[[msg.close]], N = the CHAT `n`; see _group_chats). V2-543: also by NAME — the operator
+    # says «abre el chat de Jose Vicente», not a number; containment over accent-stripped forms, both ways.
     if action == "open":
         n = payload.get("n")
+        name = str(payload.get("name") or payload.get("chat") or "").strip()
+        db = load_db()
+        chats = _group_chats(_visible_items(db))
+        match = None
         if n is not None:
-            db = load_db()
-            match = next((c for c in _group_chats(_visible_items(db)) if c.get("n") == n), None)
-            if match:
-                db["active_chat"] = {"platform": match["platform"], "chatId": match["chatId"]}
-                store.save(WIDGET_ID, db)
+            match = next((c for c in chats if c.get("n") == n), None)
+        elif name:
+            want = _norm_txt(name)
+            if want:
+                match = next((c for c in chats
+                              if want in _norm_txt(c.get("name")) or _norm_txt(c.get("name")) in want), None)
+        if match is None and (n is not None or name):
+            return {"ok": False,
+                    "error": "no encuentro ese chat — vuelve a llamar a open con el `n` de la lista o con "
+                             "`name` tal como aparece en ella",
+                    **view_data()}
+        if match:
+            db["active_chat"] = {"platform": match["platform"], "chatId": match["chatId"]}
+            store.save(WIDGET_ID, db)
         return view_data()
 
     if action == "close":

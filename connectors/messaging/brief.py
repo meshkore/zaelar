@@ -20,7 +20,8 @@ PROTOCOL = """[MENSAJERÍA] Buzón personal UNIFICADO del operador (WhatsApp + T
   [[msg.clear]] — marca como leído TODO lo que hay ahora en el widget (todos los chats).
   [[widget.data:mensajeria]]{"action":"hide","payload":{"n":N}} — silencia TODO el canal/chat del mensaje N (con un chat abierto) o del chat N (con la lista de chats): oculta sus mensajes actuales y futuros, sin marcar leído en la app. Seguro de usar (safe).
   [[widget.data:mensajeria]]{"action":"unhide","payload":{"platform":"...","chatId":...}} — reactiva un canal silenciado.
-Si el operador se refiere a alguien por nombre ("lo de mi madre", "el chat de fulano"), busca su número en la lista de abajo — NO le pidas que diga el número él."""
+  [[widget.data:mensajeria]]{"action":"show_view","payload":{"platform":"all"}} — VOLVER a la lista principal unificada («la lista general/principal de mensajes»); con "whatsapp"|"telegram"|"email" filtra SOLO ese canal. Es la única forma de cambiar la vista: volver a mostrar el widget NO la cambia. Devuelve los chats que casan en `result.chats` — contesta con sus nombres.
+Si el operador se refiere a alguien por nombre ("lo de mi madre", "el chat de fulano"), busca su número en la lista de abajo — NO le pidas que diga el número él (también vale {"action":"open","payload":{"name":"..."}})."""
 
 
 def _platform_states() -> str:

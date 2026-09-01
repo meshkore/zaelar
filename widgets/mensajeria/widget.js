@@ -75,9 +75,13 @@ let _connectorsOpen = false;         // "Available channels" panel opened from t
 // again: without it, the next repaint — a new message arriving — would re-open it forever.
 let _focusDone = 0;
 // V2-521 — the visual formula: ONE inbox by default ("everything, no filters" is the deliberate start),
-// and a per-platform lens on demand. null = todo. Local UI state like _profile: the brain reads the full
-// list either way, so filtering is a viewing choice, not data.
+// and a per-platform lens on demand. null = todo. V2-543: the lens is no longer voice-deaf — the server
+// pushes the requested view (`data.view = {platform, n, at}`) via the declared `show_view` action, and this
+// widget applies it only when the WITNESS COUNTER moves (asking for the same view twice still lands; a plain
+// re-show moves nothing and yanks nothing). Header icon clicks call the SAME action, so UI and voice share
+// one state instead of diverging.
 let _platFilter = null;
+let _viewN = 0;                      // last applied view token (module-lived, like _focusDone)
 const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
 const _expanded = new Set();   // message keys with the body expanded
@@ -760,6 +764,14 @@ export function render(root, data, ctx){
     if(focus.platform && PLAT[focus.platform]) _expandConnect.add(focus.platform);
   }
 
+  // A pushed VIEW (V2-543) applies only when its witness counter moves: «vuelve a la lista principal» /
+  // «solo el WhatsApp» land even when repeated, and a plain repaint never yanks the operator's own choice.
+  const pushed = data.view || null;
+  if(pushed && Number(pushed.n||0) > 0 && Number(pushed.n) !== _viewN){
+    _viewN = Number(pushed.n);
+    _platFilter = (pushed.platform && PLAT[pushed.platform]) ? pushed.platform : null;
+  }
+
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
   hd.append(el("b",null,"Mensajería"),
@@ -775,7 +787,10 @@ export function render(root, data, ctx){
     if(on){
       ic.title=(PLAT[pl]||{}).label+(_platFilter===pl?": quitar filtro":": ver solo este canal");
       if(_platFilter===pl) ic.classList.add("filt");
-      ic.onclick=()=>{ _platFilter = (_platFilter===pl ? null : pl); rerender(); };
+      // Same door as the voice (V2-543): apply locally for an instant repaint AND stamp the server view, so
+      // the next voice order and the next SSE repaint agree with what the click just did.
+      ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); _platFilter=(_platFilter===pl ? null : pl);
+        ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
       ic.onclick=()=>{ _connectorsOpen=true; _expandConnect.add(pl); rerender(); };

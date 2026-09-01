@@ -1,6 +1,6 @@
 {
  "id": "mensajeria",
- "version": "0.6.0",
+ "version": "0.7.0",
  "kind": "backed",
  "backend": {
   "owner": "owner.py",
@@ -41,6 +41,52 @@
   "muted"
  ],
  "actions": {
+  "show_view": {
+   "desc": "CAMBIA LO QUE SE VE en la mensajería y CONTESTA: 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto); 'whatsapp'|'telegram'|'email' filtra solo ese canal. Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista",
+   "payload": {
+    "platform": "string ('all' = lista principal | whatsapp | telegram | email)"
+   },
+   "safe": true
+  },
+  "open": {
+   "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `n` de la lista de chats o por `name` («abre el chat de Jose Vicente»)",
+   "payload": {
+    "n": "int opcional (número del chat en la lista)",
+    "name": "string opcional (nombre del chat/persona tal como aparece)"
+   },
+   "safe": true
+  },
+  "close": {
+   "desc": "Cierra el chat abierto y VUELVE a la lista de chats",
+   "payload": {},
+   "safe": true
+  },
+  "read": {
+   "desc": "Con un chat ABIERTO: marca como leído el mensaje N de ese chat (propaga a su app real — quita el no-leído en WhatsApp/Telegram/correo)",
+   "payload": {
+    "n": "int (número del mensaje en el chat abierto)"
+   },
+   "safe": true
+  },
+  "readchat": {
+   "desc": "Marca TODO el chat N como leído (en su app real) sin necesidad de abrirlo",
+   "payload": {
+    "n": "int (número del chat en la lista)"
+   },
+   "safe": true
+  },
+  "dismiss": {
+   "desc": "Descarta el mensaje N del widget SIN marcarlo leído en su app",
+   "payload": {
+    "n": "int"
+   },
+   "safe": true
+  },
+  "clear": {
+   "desc": "Marca como leído TODO lo visible (todos los chats) y vacía la bandeja",
+   "payload": {},
+   "safe": true
+  },
   "hide": {
    "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
    "payload": {
@@ -101,5 +147,5 @@
   "gmail",
   "outlook"
  ],
- "usage": "Para VER mensajes basta con mostrar la tarjeta. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: el panel se abre con su formulario desplegado. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el formulario pregunta cuál, así que no lo preguntes tú."
+ "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «muéstrame solo el WhatsApp/Telegram/correo» → show_view con esa plataforma (contesta con los chats que casan en result.chats — mostrar el widget otra vez NO cambia la vista); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: el panel se abre con su formulario desplegado. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el formulario pregunta cuál, así que no lo preguntes tú."
 }
