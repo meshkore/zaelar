@@ -11,29 +11,29 @@ docstrings/comments on each function keep that incident history, since it's what
 at all (see [[feedback_no_hardcoded_understand]] in the workspace memory: these are grammar/pattern guards for
 model mistakes, never a keyword table standing in for understanding)."""
 
-# Verbos de TAREA (es/en, stems) que implican HACER algo en la web más allá de solo iniciar sesión. Deterministas
-# (agnósticos del LLM): un login PURO ("conéctame a Wallapop", "inicia sesión en Gmail") no lleva ninguno; "entra
-# en mi Gmail y BÓRRAME los correos" sí → es una TAREA. Sin acentos (se normaliza antes de comparar).
+# TASK verbs (es/en, stems) that imply DOING something on the web beyond merely logging in. Deterministic
+# (LLM-agnostic): a PURE login ("conéctame a Wallapop", "inicia sesión en Gmail") contains none; "entra
+# en mi Gmail y BÓRRAME los correos" does → it is a TASK. Without accents (input is normalized before comparison).
 import re as _re
 import time as _time
 
-# V2-356 — al NIVEL DEL MÓDULO, no dentro de la función: el trinquete de acoplamiento oculto es explícito
-# («más imports dentro de funciones = más ciclos tapados; se arregla EXTRAYENDO, no importando más tarde») y
-# aquí no hay ciclo que tapar — `nucleo.scheduler` no importa nada de `flash`. Los otros seis lazy de este
-# fichero son anteriores y se quedan como estaban: bajar la deuda es del que la toca, no de quien pasa cerca.
+# V2-356 — at MODULE LEVEL, not inside the function: the hidden-coupling ratchet is explicit
+# ("more imports inside functions = more hidden cycles; fix it by EXTRACTING, not importing later") and
+# there is no cycle to hide here — `nucleo.scheduler` imports nothing from `flash`. The other six lazy imports in
+# this file predate this and remain as they were: reducing the debt belongs to whoever touches it, not whoever passes by.
 from nucleo import scheduler as _sched
 
 _TASK_VERB_RE = _re.compile(
     r"\b("
     r"borr|elimin|mand|envi|escrib|respond|contest|reenvi|gestion|revis|lee|leer|mira|mir[ae]|orden|compr|"
     r"public|descarg|reserv|anad|agreg|cambi|actualiz|sub[ae]|archiv|marca|mueve|rellen|apunt|"
-    # `anul` junto a `cancel` (V2-138, 2026-08-19): son sinónimos exactos para esto y solo estaba uno, así que
-    # «cancela la suscripción de Spotify» contaba como tarea web y «ANULA la suscripción de Spotify» no — la
-    # misma orden, enrutada a un worker con navegador o sin él según qué verbo eligiera la persona.
+    # `anul` alongside `cancel` (V2-138, 2026-08-19): they are exact synonyms here and only one was present, so
+    # «cancela la suscripción de Spotify» counted as a web task while «ANULA la suscripción de Spotify» did not — the
+    # same command, routed to a worker with or without a browser depending on which verb the person chose.
     r"puj|pag|cancel|anul|confirm|solicit|vot|inscrib|contrat|licit|acept|rechaz|"
-    # `de baja` / `suscrib` (V2-126, 2026-08-18): «date de baja de Netflix» es LA forma de pedir esto en
-    # castellano y no llevaba ningún verbo de la lista, así que no contaba como tarea web. Va la locución
-    # entera, nunca «baja» suelta — «estoy de baja» no es una orden a nadie.
+    # `de baja` / `suscrib` (V2-126, 2026-08-18): «date de baja de Netflix» is THE way to ask for this in
+    # Spanish and contained none of the verbs in the list, so it did not count as a web task. Include the full
+    # phrase, never standalone «baja» — «estoy de baja» is not an instruction to anyone.
     r"de\s+baja|suscrib|unsubscrib|"
     r"delete|remove|send|write|reply|forward|manage|check|read|buy|post|download|book|add|update|fill|move|"
     r"bid|pay|apply|vote|order|subscribe|purchase|checkout"
@@ -47,15 +47,15 @@ def _norm_txt(text: str) -> str:
 
 
 def looks_like_web_task(text: str) -> bool:
-    """True si el turno pide HACER una tarea en una web (no solo iniciar sesión). Determinista, agnóstico del LLM.
-    Se usa para reclasificar una llamada errónea a `authenticate_web` (login) → escalada al navegador cuando en
-    realidad hay una tarea ("entra en mi Gmail y BÓRRAME los correos")."""
+    """True if the turn asks to DO a task on a website (not merely log in). Deterministic, LLM-agnostic.
+    Used to reclassify an erroneous call to `authenticate_web` (login) → escalate to the browser when there is
+    actually a task ("entra en mi Gmail y BÓRRAME los correos")."""
     return bool(_TASK_VERB_RE.search(_norm_txt(text)))
 
 
-# Intención de LOGIN PURO ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn") — sin verbo
-# de tarea después. Determinista. Espejo de `looks_like_web_task`: garantiza el routing de login aunque el modelo
-# pequeño se despiste y no dispare la tool (jitter observado).
+# PURE LOGIN intent ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn") — with no task
+# verb afterward. Deterministic. Mirror of `looks_like_web_task`: guarantees login routing even when the small model
+# gets distracted and does not trigger the tool (observed jitter).
 # NB (bug 2026-07-23): `conect(?!ad|or)` casaba CUALQUIER conjugación de "conectar" salvo "conectado"/"conector"
 # — "¿tienes capacidad para conectarte al cluster?" (pregunta) o "el agente se conectaba ahí" (narración en 3ª
 # persona) casaban igual y abrían un login de navegador que nadie pidió (a wallapop.com por el fallback de sitio
@@ -66,7 +66,7 @@ _LOGIN_INTENT_RE = _re.compile(
     r"\b(conectame|conectarme|conect(?:a|ar)\s+mi\b|conect(?:a|ar)\s+a\s+mi\b|"
     r"inicia(?:r)?\s*sesion|loguea(?:te)?|logue(?:ate)?|vincul[ae](?:me)?\s+mi\b|"
     r"accede a mi|entra en mi|log ?in|sign ?in|connect\s+(?:me|my)\b|autenti[cf])", _re.I)
-# Sitios conocidos → dominio (para el fallback de producción que abre el login sin arg de la tool).
+# Known sites → domain (for the production fallback that opens login without the tool argument).
 _KNOWN_SITES = {
     "wallapop": "wallapop.com", "gmail": "google.com", "google": "google.com", "linkedin": "linkedin.com",
     "amazon": "amazon.es", "ebay": "ebay.es", "twitter": "twitter.com", "instagram": "instagram.com",
@@ -76,7 +76,7 @@ _KNOWN_SITES = {
 
 
 def looks_like_login_request(text: str) -> bool:
-    """True si el turno pide SOLO iniciar sesión/conectar una cuenta (sin tarea posterior) → authenticate_web."""
+    """True if the turn asks ONLY to log in/connect an account (with no subsequent task) → authenticate_web."""
     return bool(_LOGIN_INTENT_RE.search(_norm_txt(text))) and not looks_like_web_task(text)
 
 
@@ -218,6 +218,44 @@ _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w
 def promises_action(reply: str) -> bool:
     """True si la RESPUESTA de zaelar promete una acción en 1ª persona (se comprometió a hacer algo)."""
     return bool(_PROMISE_RE.search(_norm_txt(reply)))
+
+
+# A reply that ASKS THE OPERATOR for the detail it is missing. The accents are the signal, so this is the one
+# guard in this file that does NOT normalize its input: in Spanish the interrogative carries the accent («¿a qué
+# ciudad?») and the conjunction does not («te aviso cuando lo tenga»). Stripping accents would collapse the two
+# and make every courtesy question look like a request for information.
+_ASKS_DETAIL_RE = _re.compile(
+    # a question containing an interrogative word: «¿Los precios de qué?» / «¿a qué ciudad quieres ir?»
+    r"[^.!?]*\b(qué|cuál|cuáles|dónde|cuándo|cuánto|cuánta|cuántos|cuántas|quién|quiénes|cómo)\b[^.!?]*\?"
+    r"|[^.!?]*\b(what|which|where|who|how much|how many)\b[^.!?]*\?"
+    # …or saying outright that a detail is missing: «me falta saber», «necesito saber», «no me has dicho»
+    r"|\bme falta[n]? (?:saber|que me digas|el |la |los |las )"
+    r"|\bnecesito (?:saber|que me digas)\b|\bno me has dicho\b|\bme has dejado la frase a la mitad\b"
+    # …or asking for it in the imperative, but ONLY followed by an interrogative («dime de qué», never «dame un
+    # momento», which is the most common way of promising to get on with it).
+    r"|\b(?:dime|dame|cuéntame|indícame|especifica|concreta)\b[^.!?]{0,40}?"
+    r"\b(qué|cuál|cuáles|dónde|cuándo|cuánto|quién|cómo)\b",
+    _re.I)
+
+
+def asks_for_missing_detail(reply: str) -> bool:
+    """True when the reply ASKS THE OPERATOR for something it needs before it can act.
+
+    Such a reply is not a broken promise, and the promise backstops must not turn it into an errand. Measured on
+    the operator's own sessions (2026-08-17 → 2026-09-01, every firing of the «promesa sin acción» gate): of ten
+    firings, THREE were this — «¿Los precios de qué, Ricardo?», «¿a qué ciudad quieres ir desde Zaragoza?», «me
+    falta saber los dos puntos exactos». The gate read the «te lo miro» at the end and called it an unkept promise.
+
+    Launching an errand at that moment is wrong twice over: the agent has just said it does not know what to look
+    for, and the answer is one turn away — when it arrives, `escalate_goal_from_window` escalates the real request
+    (that is what V2-132 built the window lookback for). Firing here buys a worker with half a goal AND a second
+    worker a turn later, racing it. Session 651cd038 (2026-09-01) paid exactly that: two browsers, two results
+    cards, nine minutes.
+
+    Deliberately narrow. A courtesy question («¿te aviso cuando lo tenga?») is not asking for a detail and must
+    keep the backstop armed; so must «dame un momento y te enseño lo que encuentre», which is a promise wearing an
+    imperative. When in doubt this returns False — falling back to today's behaviour, not to silence."""
+    return bool(_ASKS_DETAIL_RE.search(reply or ""))
 
 
 def looks_like_show_strict(text: str) -> bool:

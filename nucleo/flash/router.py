@@ -33,21 +33,21 @@ from nucleo.flash.video_turn import normalize_action as _video_action  # V2-402 
 from typing import Any
 
 # ── kind vocabulary ─────────────────────────────────────────────────────────────────────────────────────
-CHAT = "chat"          # lo atiende la propia capa rápida (charla, estado, canvas por tag)
-STYLE = "style"        # el operador fijó una preferencia de trato para la sesión
-SEARCH = "search"      # lookup factual rápido en la web (web_search) — ruta ligera, se resuelve en el turno
-RECALL = "recall"      # V2-056: el MODELO decide recordar (memoria durable del operador) — ruta ligera en el turno
-REVEAL = "reveal"      # V2-060: el operador pide un SECRETO guardado (reveal_secret) — ruta ligera; valor OUT-OF-BAND
-MUSIC = "music"        # V2-041: reproduce/controla música por un conector (play_music) — ruta ligera, en el turno
-VIDEO = "video"        # V2-045: reproduce un VÍDEO en el widget youtube (play_video) — hermano de MUSIC, VER≠OÍR
-IMAGES = "images"      # V2-457: enseña FOTOS en el visor `imagenes` (show_images) — tercera hermana de MUSIC/VIDEO
-SHOW = "show"          # MOSTRAR/ABRIR un widget del canvas (show_widget) — tool de 1ª clase, converge en [[show:id]]
-PANEL = "panel"        # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) en una pestaña (show_panel)
-ALIAS = "alias"        # V2-082: añade/quita un NOMBRE/ALIAS de un widget (manage_widget_alias) — escritura de manifest
-ESCALATE = "escalate"  # el turno pide memoria/tools/razonamiento → se LANZA un Brain Worker async
-INJECT = "inject"      # V2-038: refina/amplía un Brain Worker EN MARCHA (send_to_worker) → inyecta, no relanza
-STOP = "stop"          # V2-038: mata un Brain Worker EN MARCHA (stop_worker)
-ANSWER = "answer"      # V2-038: responde la pregunta de un Brain Worker que espera (answer_worker)
+CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
+STYLE = "style"        # the operator set a session interaction preference
+SEARCH = "search"      # quick factual lookup on the web (web_search) — lightweight route, resolved in the turn
+RECALL = "recall"      # V2-056: the MODEL decides to remember (the operator's durable memory) — lightweight route in the turn
+REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
+MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn
+VIDEO = "video"        # V2-045: plays a VIDEO in the YouTube widget (play_video) — MUSIC's sibling, SEE≠HEAR
+IMAGES = "images"      # V2-457: displays PHOTOS in the `imagenes` viewer (show_images) — MUSIC/VIDEO's third sibling
+SHOW = "show"          # SHOW/OPEN a canvas widget (show_widget) — first-class tool, converges on [[show:id]]
+PANEL = "panel"        # V2-079: opens the native side PANEL (chat/processes/crons) in a tab (show_panel)
+ALIAS = "alias"        # V2-082: adds/removes a widget NAME/ALIAS (manage_widget_alias) — manifest write
+ESCALATE = "escalate"  # the turn requests memory/tools/reasoning → a Brain Worker is LAUNCHED asynchronously
+INJECT = "inject"      # V2-038: refines/expands an ACTIVE Brain Worker (send_to_worker) → injects, does not relaunch
+STOP = "stop"          # V2-038: kills an ACTIVE Brain Worker (stop_worker)
+ANSWER = "answer"      # V2-038: answers the question of a waiting Brain Worker (answer_worker)
 
 # Priority when collapsing multiple tool calls from one turn into a decision (higher = wins). STOP overrides everything
 # (if the operator asks to stop AND something else, stop first); ANSWER/INJECT outrank ESCALATE (refine/respond to a
@@ -700,13 +700,13 @@ def family_of(name: str) -> str:
 # routing — exactly what this brain rejects: the model decides intent through function-calling.
 # If a tool cannot be disabled by state, it is OFFERED; it is not guessed.
 _SITUATIONAL = {
-    "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que mostrar
-    "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets con acciones
-    "delete_widget":         lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que borrar
-    "manage_widget_alias":   lambda ctx: ctx.get("has_widgets", True),   # V2-082: editar nombres/alias de widgets
-    "confirm_widget_delete": lambda ctx: ctx.get("confirm_pending", False),  # solo con un borrado en el aire
-    "login_done":            lambda ctx: ctx.get("auth_pending", False),     # solo durante un login en curso
-    "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # operator-only; se puede apagar
+    "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets to show
+    "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets with actions
+    "delete_widget":         lambda ctx: ctx.get("has_widgets", True),   # only if there are widgets to delete
+    "manage_widget_alias":   lambda ctx: ctx.get("has_widgets", True),   # V2-082: edit widget names/aliases
+    "confirm_widget_delete": lambda ctx: ctx.get("confirm_pending", False),  # only with a pending deletion
+    "login_done":            lambda ctx: ctx.get("auth_pending", False),     # only during an ongoing login
+    "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # operator-only; can be disabled
     # `cluster_send` IS situational, but based on REAL STATE: without a connected cluster there is nobody to write to.
     "cluster_send":          lambda ctx: ctx.get("cluster_connected", False),
     # V2-086: `connect_cluster`/`set_cluster_objective` are NO LONGER gated. The V2-064 gate (the
@@ -720,10 +720,10 @@ _SITUATIONAL = {
     "answer_worker":         lambda ctx: ctx.get("ask_pending", False),
     # V2-085 — three NEW gates, all based on REAL SYSTEM CAPABILITY (if it does not exist, the tool cannot work and
     # offering it only invites the model to promise something impossible):
-    "reply_message":         lambda ctx: ctx.get("messaging_on", True),   # sin conector de mensajería no hay a quién
-    "reveal_secret":         lambda ctx: ctx.get("has_vault", True),      # V2-060: sin bóveda no hay secreto que leer
-    "play_video":            lambda ctx: ctx.get("has_video_widget", True),  # play_video CARGA el widget `youtube`
-    "show_images":           lambda ctx: ctx.get("has_image_widget", True),  # show_images CARGA el visor `imagenes`
+    "reply_message":         lambda ctx: ctx.get("messaging_on", True),   # without a messaging connector, there is no recipient
+    "reveal_secret":         lambda ctx: ctx.get("has_vault", True),      # V2-060: without a vault, there is no secret to read
+    "play_video":            lambda ctx: ctx.get("has_video_widget", True),  # play_video LOADS the `youtube` widget
+    "show_images":           lambda ctx: ctx.get("has_image_widget", True),  # show_images LOADS the `imagenes` viewer
 }
 
 
@@ -889,7 +889,8 @@ def is_escalation(name: str) -> bool:
 # whole module, none import individual names) keeps working unchanged. See router_guards.py's docstring for why.
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
     looks_like_web_task, looks_like_login_request, is_pure_show_request, is_music_service, looks_like_close,
-    looks_like_create_widget, promises_music, promises_action, looks_like_show_strict, looks_like_escalate_task,
+    looks_like_create_widget, promises_music, promises_action, asks_for_missing_detail,
+    looks_like_show_strict, looks_like_escalate_task,
     escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder, dated_reminder_backstop,
     create_widget_request, dated_note_backstop, already_in_agenda,
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_rule_removal, looks_like_bare_ref,
