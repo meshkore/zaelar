@@ -93,7 +93,9 @@ def test_si_la_regla_no_esta_se_enseña_de_MAS_y_nunca_de_menos(monkeypatch, mem
     correct output is to show too much—more than enough memory—and not end up without recall."""
     import inspect
     src = inspect.getsource(fp.compose_recall)
-    assert "except Exception" in src and "nunca de menos" in src
+    # Repointed 2026-09-01: the i18n pass legitimately translated the comment this guard matched on
+    # («nunca de menos» → "never too little", commit 89fe56d). The guarded PROPERTY is unchanged.
+    assert "except Exception" in src and "never too little" in src
 
 
 # ── and the rule, in its three forms ───────────────────────────────────────────────────────────────────────────
