@@ -2,21 +2,24 @@
 
 REDISEÑO V2-027 — **[ESTADO compuesto dinámicamente] + [petición del usuario]**, ~30 líneas (antes ~280). El
 prompt YA NO lleva prompts estáticos sueltos (fuera la persona inglesa de `voice/prompt.py` y el `_FAST_RULES` de
-~75 líneas que duplicaba las descripciones de las tools). Se ensambla así, en este orden:
+~75 líneas que duplicaba las descripciones de las tools). Se ensambla así, en este orden (ESTABLE primero,
+VOLÁTIL al final — el prefijo estable es lo que deja al proveedor cachear el prefill, 2026-09-01):
 
   1. `_lang_lock()` — lock de idioma DURO (leído en vivo del catálogo). Pequeño y crítico.
-  2. **ESTADO COMPARTIDO** (`memory.compose_state` vía `memory_cache.get()`) — la MISIÓN/identidad (sembrada en la
+  2. **CAPA DE RECURSOS del FlashBrain** (`_flash_layer`) — TERSA y data-driven, y el bloque GRANDE y ESTABLE
+     (~73% de los chars del system): va delante para que el prefijo cacheable cubra el grueso del prompt.
+  3. **ESTADO COMPARTIDO** (`memory.compose_state` vía `memory_cache.get()`) — la MISIÓN/identidad (sembrada en la
      memoria, NO en un `.py`), el situacional (operador + widgets abiertos + tareas + perfil saliente) y la
      síntesis TENSA de la conversación reciente. Lo comparten AMBOS cerebros. Cacheado FUERA del turno (V2-011):
      el turno lee un string ya compuesto, refrescado async e invalidado por `memory.updated` — nunca dispara el
      retriever ni I/O de memoria síncrono.
-  3. **RECALL** semántico (`compose_recall`) — bajo demanda y fuera del event loop (T115/T116); el llamador lo
+  4. **RECALL** semántico (`compose_recall`) — bajo demanda y fuera del event loop (T115/T116); el llamador lo
      compone en un hilo SOLO cuando el turno lo pide.
-  4. **CAPA DE RECURSOS del FlashBrain** (`_flash_layer`) — TERSA y data-driven: cómo opera (voz, canvas, delega),
-     catálogo de widgets (id + 1 línea) + acciones (nombres) desde `widgets.brief.for_prompt`, y una línea de
-     web_search y del navegador. El "cuándo SÍ/NO" de cada tool vive en su descripción (`router.TOOLS`), única
-     fuente por tool — no se duplica aquí.
-  5. `live_state()` — estado VIVO (hora, tareas de fondo, confirmaciones pendientes).
+  5. `live_state()` — estado VIVO (hora, tareas de fondo, confirmaciones pendientes). SIEMPRE al final.
+
+  (El detalle de la capa de recursos: cómo opera —voz, canvas, delega—, catálogo de widgets (id + 1 línea) +
+  acciones (nombres) desde `widgets.brief.for_prompt`, y una línea de web_search y del navegador. El "cuándo
+  SÍ/NO" de cada tool vive en su descripción (`router.TOOLS`), única fuente por tool — no se duplica aquí.)
 
 El escalado, la búsqueda y las data-ops van por **function-calling** (`router.TOOLS`), no por texto-tag.
 """
@@ -710,7 +713,7 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
     """El system message del FlashBrain, recompuesto por turno (REDISEÑO V2-027): **[ESTADO compuesto] + capa de
     recursos TERSA**, ~30 líneas. Devuelve (prompt, ids_de_memoria_usados). Ensamblado:
 
-        _lang_lock() + [ESTADO compartido A+B+C] + [recall opcional] + [directiva] + [_flash_layer D] + live_state()
+        _lang_lock() + [_flash_layer D, ESTABLE] + [ESTADO compartido A+B+C] + [recall opcional] + [directiva] + live_state()
 
     - El **ESTADO compartido** (misión + situacional + convo sintetizada) lo compone `memory.compose_state()` y
       sale del **caché de sesión** (`memory_cache.get()`, T114): lectura INSTANTÁNEA de un string ya compuesto,
@@ -747,13 +750,21 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
     live = live_state()
     if timings is not None:
         timings["live_ms"] = round((_t.perf_counter() - _tl) * 1000, 1)
+    # STABLE PREFIX FIRST, VOLATILE LAST (V2-536, 2026-09-01). The resources layer is the big
+    # UNCHANGING block (~73% of the system chars, measured) and it used to sit AFTER the per-turn blocks
+    # (conversation synthesis, recall) — so the provider's prefix cache broke in the first few hundred chars
+    # and re-prefilled ~10k tokens every turn (prompt_cache_hit_tokens measured at 6.1%; consecutive turns
+    # shared only 19-46% of their prefix). Order now: lang lock + resources (stable) -> state/recent/recall/
+    # directive (per-turn) -> live state (per-turn, and it MUST stay at the end: `observer._prompt_excerpt`'s
+    # capture and several live_blocks faces say so out loud). Routing gated by the nodo 2.13 bench (V2-097
+    # rule): measured same-day before/after on the production titular, 3 rounds x 14 cases each side.
     prompt = (
         _lang_lock()
-        + ("\n" + memory_block if memory_block else "")
+        + "\n\n" + resources
+        + ("\n\n" + memory_block if memory_block else "")
         + ("\n\n" + recent_block if recent_block else "")
         + ("\n\n" + recall_block if recall_block else "")
         + _directive_block(directive)
-        + "\n\n" + resources
         + "\n\n── AHORA MISMO ──\n" + live
         + "\n\nAtiende ahora la petición del operador que viene a continuación."
     )
