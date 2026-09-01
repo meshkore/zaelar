@@ -110,6 +110,64 @@ def is_pure_show_request(text: str) -> bool:
     return bool(_SHOW_VERB_RE.search(n)) and not _CHANGE_VERB_RE.search(n)
 
 
+# Words that ride along with EVERY «abre la mensajería» and name no object of their own: articles,
+# possessives, clitics, prepositions and courtesy. They are dropped before asking WHAT the show verb points at.
+_SHOW_FILLER = frozenset((
+    "el", "la", "lo", "los", "las", "un", "una", "unos", "unas", "mi", "mis", "me", "nos", "te", "se",
+    "de", "del", "al", "a", "en", "por", "favor", "porfa", "ya", "ahora", "otra", "vez", "pantalla",
+    "the", "my", "please",
+))
+_WORD_RE = _re.compile(r"[a-z0-9]+")
+
+
+def _widget_words(wid: str) -> set:
+    """The NAMES a widget answers to, tokenized: its id, title/name and aliases.
+
+    Aliases only — deliberately NOT `keywords`, which are intent phrases («quién me ha escrito», «responder»)
+    and would make half the language look like the widget's own name.
+    """
+    try:
+        from widgets import runtime as _rt
+        w = _rt.get(wid) or {}
+    except Exception:  # noqa: BLE001
+        return set()
+    blob = " ".join([str(w.get("id") or ""), str(w.get("title") or ""), str(w.get("name") or "")]
+                    + [str(a) for a in (w.get("aliases") or [])])
+    return set(_WORD_RE.findall(_norm_txt(blob)))
+
+
+def show_object_is_the_widget(text: str, wid: str) -> bool:
+    """True when what the show verb points at is the WIDGET ITSELF, not an ELEMENT INSIDE it.
+
+    `is_pure_show_request` answers «is this a show order with no intent to change data»; it cannot tell «abre la
+    mensajería» (the card) from «abre el mensaje de Francisco» (a chat inside the card), because both are a show
+    verb with no change verb. The execution guard that reads it turns EVERY pure show into `[[show:widget]]`, so
+    a correct `widget_data(mensajeria, open, {name:'Francisco'})` was rewritten into re-showing a card that was
+    already on screen — measured live on 2026-09-01, four turns, «Aquí lo tienes» over an unmoved card (V2-544).
+    The prompt was fixed to teach the WIDGET/INSIDE distinction; without this the fix cannot reach the screen,
+    because the guard undoes the model's correct choice on the voice rail.
+
+    Deterministic and data-driven: strip the show verb and the filler, and ask whether what is LEFT is nothing
+    but names this widget answers to (its manifest aliases). «abre la mensajería» → {mensajeria} ⊆ its names →
+    the object is the card. «abre el mensaje de Francisco» → {mensaje, francisco} ⊄ its names → it points
+    inside. No verb table and no per-widget list: the vocabulary is the manifest's.
+
+    Fails CLOSED (True = the old behavior, redirect to show) if the catalog cannot be read: the incident this
+    guard protects — «abre la agenda» hallucinating an `add_meeting` — is worse than a show that does nothing.
+    """
+    try:
+        rest = _SHOW_VERB_RE.sub(" ", _norm_txt(text))
+        toks = [t for t in _WORD_RE.findall(rest) if t not in _SHOW_FILLER]
+        if not toks:
+            return True                     # nothing but the verb («ábrela») — the object can only be the card
+        names = _widget_words(wid)
+        if not names:
+            return True                     # no names to compare against — cannot tell, keep the old behavior
+        return all(t in names for t in toks)
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def is_music_service(site: str = "", text: str = "") -> bool:
     """True if the requested login is for a MUSIC SERVICE (Spotify…). EXECUTION GUARD for authenticate_web: music
     connects in the `musica` widget (its card), not through the browser → guarantees the invariant EVEN IF model

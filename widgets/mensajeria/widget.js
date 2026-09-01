@@ -908,14 +908,19 @@ export function render(root, data, ctx){
   const emptyMsg = _platFilter
     ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
     : "Nada que atender ahora ✓";
-  if(_profile==="completo"){
-    if(fItems.length) root.appendChild(richList(fItems, ctx));
-    else root.appendChild(el("div","empty",emptyMsg));
-    return;
-  }
+  // AN OPEN THREAD WINS OVER EVERY LIST SHAPE (V2-544). It used to win over the lens but NOT over the
+  // «completo» profile, which returned first: with that profile selected, `open` set `active_chat` in the
+  // store and the card kept painting the same flat list — the operator asks to open a message, everything
+  // downstream works, and the screen does not move. The profile is a density preference for a LIST; opening a
+  // chat is a navigation the agent (or a click) just performed, and it must be visible in both.
   const activeChat = data.active_chat || null;
   if(activeChat){
     root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender));
+    return;
+  }
+  if(_profile==="completo"){
+    if(fItems.length) root.appendChild(richList(fItems, ctx));
+    else root.appendChild(el("div","empty",emptyMsg));
     return;
   }
   if(_platFilter==="email"){

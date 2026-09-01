@@ -81,3 +81,38 @@ def test_mensajeria_open_declares_name_as_its_primary_key():
     (V2-467). For a voice open, that primary is the NAME."""
     from nucleo.flash.widget_data_turn import _primera_clave
     assert _primera_clave("mensajeria", "open") == "name"
+
+
+# ── The execution guard that was undoing the model's correct choice ─────────────────────────────────────────
+
+def test_a_show_verb_over_an_inside_element_is_not_a_pure_widget_show():
+    """The second half of the incident, and the one the prompt fix cannot reach on its own: the voice rail
+    rewrites EVERY `is_pure_show_request` into [[show:widget]], and «abre el mensaje de Francisco» is one
+    (show verb, no change verb). So the correct `open {name:'Francisco'}` became a re-show of a card that
+    was already on screen. The object of the verb is what tells them apart."""
+    assert router.is_pure_show_request("abre el mensaje de Francisco"), \
+        "the older guard still classifies it as a pure show — that is precisely why the second one is needed"
+    assert router.show_object_is_the_widget("abre la mensajería", "mensajeria")
+    assert router.show_object_is_the_widget("enséñame la mensajería, por favor", "mensajeria")
+    assert router.show_object_is_the_widget("abre el whatsapp", "mensajeria")
+    assert not router.show_object_is_the_widget("abre el mensaje de Francisco", "mensajeria")
+    assert not router.show_object_is_the_widget("ábreme el chat de Jose Vicente", "mensajeria")
+    assert not router.show_object_is_the_widget("muéstrame la lista principal", "mensajeria")
+
+
+def test_the_original_hallucination_still_lands_on_show():
+    """The guard exists because «abre la agenda» once executed an invented `add_meeting` («Reunión con Axa
+    Seguros»). Naming nothing but the widget must keep going to the card, and an unreadable catalog must
+    fail CLOSED — the invented data-op is worse than a show that does nothing."""
+    assert router.show_object_is_the_widget("abre la agenda", "agenda")
+    assert router.show_object_is_the_widget("ponme en pantalla la agenda", "agenda")
+    assert router.show_object_is_the_widget("abre la agenda", "widget-que-no-existe")
+
+
+def test_the_probe_channel_mirrors_the_pure_show_guard():
+    """The probe reported `widget_data open {name:'Francisco'}` for the very sentence the voice rail turned
+    into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
+    channel gave a FALSE GREEN on the defect it was being used to diagnose."""
+    src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    assert "show_object_is_the_widget" in src and "is_pure_show_request" in src, \
+        "a guard that only one of the two rails carries makes the probe report a decision the product never takes"
