@@ -6734,6 +6734,84 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Open**: the rail is not voice-addressable in v1; the floating chat can visually overlap the rail (the
     rail wins by z); the mobile shell needs none of this (deck + pips, V2-474).
 
+- **The rail is DOCKED, and a card gets the size its manifest declares (V2-538, 2026-09-01)**: the operator's
+  next instruction on the mural — «que siempre exista por encima de todos… que se pueda comprimir a la
+  izquierda y quede un borde… los iconos colocados de arriba a abajo. La barra no debe ser solapada por los
+  widgets; los widgets tienen menos espacio horizontal disponible si la barra está abierta». So the rail stops
+  floating: it is a full-height fixed column that OWNS the left edge (`Desktop.minX()` clamps placement, drag,
+  resize, maximize and arrange; `hb:rail-resized` shoves any card out from under it when it unfolds), folds to
+  a 12px clickable border, and the fold survives a reload. Chips stack top-to-bottom and scroll on their own.
+  - **A rail in `_obstacles` is NOT the same as a reserved edge**, and the disarm is what proved it: with
+    `minX()` neutered every placement check stayed green (the obstacle scan already dodged the bar) and the two
+    that went red were MAXIMIZE and the unfold clamp. The first version of the maximize check could not
+    discriminate either — a chat docked left pushes every layout past the rail on its own, so the chat has to
+    be CLOSED for that measurement to mean anything.
+  - **Two silent faults in the same seam, one root.** An instance id (`results::<errand>`) SKIPPED `_resolve`,
+    so if the session's first card was an instance — which is the normal case mid-errand, restored on reload —
+    `_meta` was never loaded and everything reading it no-opped without a word: no preferred size (the sheet
+    grew line by line as the worker streamed text into it, which is what the operator saw), no live title (the
+    header said «Resultados» while the sheet repeated the task below it), no transient check. And
+    `_applyPreferred` was all-or-nothing, so a card restored with a saved WIDTH and an empty height — the shape
+    of every card saved before sizes were persisted — kept auto height forever. The operator's own size still
+    wins, now dimension by dimension.
+  - Node 4.92 grew both halves and four disarms (2/2/1/2). ⚠️ Two source guards of node 4.13 broke by FORM, not
+    behaviour: `_railClamp` calls `_persist()` above `_layout()`, so a guard slicing `src[index("_layout()") :
+    index("_persist()")]` silently came back EMPTY and asserted over nothing. **A guard that measures a text
+    range has to anchor on the range**, not on the next thing that happens to follow it.
+
+- **A sheet is for RESULTS, and an ITEM is a real candidate (V2-538, 2026-09-01)**: the operator with the
+  catamaran sheet in front of him — «hay una barra arriba con el botón de mover, luego el título sale en el
+  medio, debajo sale otro título que es el real, después sale una línea que no necesito para nada donde pone el
+  usuario, la sesión y copiar, y después salen los tabuladores». Four bands of chrome before a single result.
+  - The identity strip is not deleted — auditing a session by handing its ids to a code agent is real work —
+    it moves to the BOTTOM OF THE SUMMARY TAB, which is where auditing lives. The header is STICKY, so every
+    pixel it holds is taken from results for the whole scroll.
+  - **And the list itself was wrong, which is the expensive half.** That sheet's first cards were «Catamaranes
+    de segunda mano | Milanuncios» with its SEO blurb, a DEALER's name where a boat should be, and a boat 4×
+    over the stated budget. The worker was dumping search snippets as candidates. The rule is now stated where
+    the funnel is taught (`research_prompts`, BEFORE the block that invites an early `present` — which is where
+    the junk entered) and in the sheet's own `worker_guide`: an item is ONE concrete candidate with its own
+    name; a portal, category or search page is a SOURCE; a candidate that breaks a hard criterion is discarded;
+    and **an empty honest list beats one full of things-that-are-not**, because a page has to be discarded one
+    by one and an empty sheet reads in two seconds.
+  - Node **4.93 RENDERS it**, and that is the half no source check can do. ⚠️ Its first run passed «the strip
+    is not in the header» **for the wrong reason**: `set_content` leaves the page on `about:blank`, the strip's
+    relative fetch for its identity never resolves, and the strip REMOVES ITSELF. It is served from a real
+    origin now, and the test asserts the ids are FILLED — an assertion about absence needs the thing to be
+    present somewhere.
+
+- **Figures are made SPEAKABLE at the TTS node, and only there (V2-538, 2026-09-01)**: the operator listening
+  to that same search — every price came out wrong. A TTS reading «151.008 €» sees a decimal point and says
+  *ciento cincuenta y uno coma cero cero ocho*; «€» is skipped or lands in writing order («dollars four
+  hundred»). His framing was exact: this text «no ha pasado por el modelo de lenguaje» — it is scraped by the
+  browser extractor and handed straight to the sheet and the voice, so there is nobody upstream to ask nicely,
+  and a coletilla in a prompt could not cover it.
+  - **`tts_node` is the one place every spoken path converges on** (generated reply, `say()`, the lead-in
+    filler, a proactive notice — verified against LiveKit's own `agent_activity`, which routes both at 2701 and
+    3008 through it), so a price cannot slip through by taking another road. Subtitles and the chat wall go
+    through `transcription_node` and are NOT touched: on screen the operator wants to read «151.008 €».
+  - **It does NOT spell numbers out in words.** A number speller is a per-language component with gender and
+    agreement rules; every TTS already reads a plain integer correctly. Dropping the grouping separator is
+    enough, and it is the cheap half — which is also the answer to «esto será más difícil en otros idiomas»:
+    **an unknown language is returned UNTOUCHED on purpose** (in a language whose convention we do not know
+    «1.500» could be fifteen hundred or one point five, and a wrong currency word is worse than a symbol the
+    voice may still read acceptably). Adding a language is a row in `_LANG`, never a function.
+  - **The half that makes it safe is what it refuses to touch**: `192.168.1.1` (a group followed by another
+    group is an address), `2026-09-01`, `15:30`, `v3.16`. The trailing lookahead rejects another separator+digits
+    while still allowing the DECIMAL part, because `$151,008.50` is the ordinary way money is written in English
+    and a plain `(?![\d.,])` left its grouping comma in place.
+  - **Streaming**: the node is fed CHUNKS, so «151.008 €» arrives as «151.» + «008 €» and no regex would ever
+    see it whole. Only the trailing run that could still be a figure is held back — symbol included on either
+    side, since cutting between «$» and «400» hands the symbol over with no number to attach to. ⚠️ A blanket
+    hold also retains a SENTENCE-FINAL FULL STOP, and that period is exactly what the TTS sentence tokenizer
+    needs to close a segment: holding it would delay the last sentence's audio until the stream ends.
+  - ⚠️ **And the module was born DEAD, exactly like REM's synthesis**: the regexes were built with
+    `str.format`, a regex is full of literal braces (`\d{1,3}`), `.format` read them as fields and raised
+    KeyError — which the fail-open swallowed, leaving a function that returned every string untouched and
+    looked like it worked. Caught by running it against real strings, not by reading it. Guarded by a test, the
+    same way `tests/memory/unit/test_rem_prompt.py` guards its own.
+  - Node **3.20**, 24 cases, four disarms (8/10/2/1 red).
+
 - **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
   operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
   must be configurable per connector. Audited first: ingest was already token-free (own 5s/5s/20s loops → bus →

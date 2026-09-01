@@ -995,6 +995,17 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_debug_stacks.py"]},
         {"id": "3.19", "title": "El nexo suena ANTES de la respuesta (audio en su locución) y solo si el turno tarda",
             "ch": UNIT, "paths": ["tests/voice/unit/test_filler_audio.py"]},
+        # V2-538 — las CIFRAS se dicen como las dice una persona. El operador, oyendo una búsqueda de
+        # catamaranes: todos los precios salían mal. «151.008 €» lo lee un TTS como «ciento cincuenta y uno
+        # coma cero cero ocho» —ve un punto decimal— y el símbolo se salta o cae en orden de escritura. Ese
+        # texto lo raspa el extractor del navegador y NO pasa por ningún modelo, así que no hay a quién
+        # pedírselo: se transforma en el `tts_node`, el único punto por el que pasa TODO lo que se habla
+        # (respuesta, say(), relleno, aviso proactivo). Aquí van las DOS mitades —lo que arregla y lo que
+        # tiene que dejar en paz (una IP, una fecha, una hora, una versión)— más la costura de streaming: el
+        # nodo recibe TROZOS, así que «151.» + «008 €» no lo ve ninguna regex si nadie retiene la cola.
+        {"id": "3.20", "title": "Las CIFRAS se dicen como se dicen: separador de millares, decimales y símbolos "
+                                "de moneda, sin tocar una IP ni una fecha",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_say_numbers.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en
@@ -1295,10 +1306,21 @@ DOMAINS: list[dict] = [
         # escritorio en Chromium con backend falso por intercepción: colocación que esquiva el chat abierto,
         # el nuevo arriba, el raíl de widgets (un chip por tarjeta, siempre visible), minimizar/mostrar todo y
         # el ▦ de auto-orden. Autocontenido (su propio preview server); live solo por Chromium/Playwright.
-        {"id": "4.92", "title": "El MURAL renderizado: colocación que esquiva el chat, raíl de widgets con chips, "
-                                "minimizar/mostrar todo y auto-orden",
+        {"id": "4.92", "title": "El MURAL renderizado: raíl ACOPLADO que reserva el borde, colocación que esquiva "
+                                "el chat, plegado, minimizar/mostrar todo, auto-orden y tamaño por defecto",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/widgets/render_mural.py"},
+        # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo
+        # antes del primer resultado, y una de ellas —usuario/sesión/copiar— «no la necesito para nada» encima
+        # de CADA búsqueda. La tira no se borra: se muda al pie del Sumario, que es donde se audita. Ningún
+        # test de fuente puede ver esto: la pregunta es dónde cae un nodo en el DOM montado y cuánto alto se
+        # come una cabecera PEGAJOSA (cada píxel suyo se le quita a los resultados durante todo el scroll).
+        # ⚠️ La página se sirve desde un ORIGEN real, no con set_content: la tira pide su identidad con una URL
+        # relativa y desde about:blank esa petición no resuelve nunca — la tira se borra sola y «no está en la
+        # cabecera» pasaría por el motivo equivocado (pasó, y por eso está escrito aquí).
+        {"id": "4.93", "title": "La hoja de RESULTADOS renderizada: cabecera fina, los ids de auditoría al pie "
+                                "del Sumario, y los resultados arriba del todo",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_results_render.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

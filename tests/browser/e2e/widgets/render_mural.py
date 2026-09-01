@@ -68,7 +68,8 @@ def route(r):
     def j(obj, status=200):
         r.fulfill(status=status, content_type="application/json", body=json.dumps(obj))
     if path == "/widgets":
-        return j({"widgets": [{"id": w} for w in DATA]})
+        # size + live_title matter: V2-538's fixes (preferred size on the instance path, live title) read them
+        return j({"widgets": [{"id": w, "size": {"w": 360, "h": 300}, "live_title": True} for w in DATA]})
     if path == "/widgets/registry":
         return j({"registry": []})
     if path == "/api/desktop/epoch":
@@ -128,23 +129,31 @@ def run(url):
           return { x: r.x, y: r.y, w: r.width, h: r.height, z: parseInt(getComputedStyle(c).zIndex) || 0 }; }""")
         check("the chat wall is open with real size", chat["w"] > 200 and chat["h"] > 200, json.dumps(chat))
 
-        pg.evaluate("() => window.zaelar.show('alpha')")
+        pg.evaluate("() => window.zaelar.show('alpha::i1')")
         pg.wait_for_timeout(500)
         rr = rects(pg)
+        A = "alpha::i1"
         check("a new card does NOT land under the open chat (the measured incident)",
-              "alpha" in rr and not overlap(rr["alpha"], chat), json.dumps({"chat": chat, "alpha": rr.get("alpha")}))
+              A in rr and not overlap(rr[A], chat), json.dumps({"chat": chat, "alpha": rr.get(A)}))
+        # V2-538: the FIRST card of the session is an INSTANCE id — the path that used to skip _resolve, so
+        # _meta was unloaded and BOTH the preferred size and the live title silently no-opped.
+        check("an instance card gets its manifest size (grew with content before V2-538)",
+              A in rr and 340 <= rr[A]["w"] <= 440 and 290 <= rr[A]["h"] <= 390, json.dumps(rr.get(A)))
+        ltitle = pg.evaluate("""() => { const b = document.querySelector('.hb-win[data-wid="alpha::i1"] .hb-name');
+          return b ? b.textContent : null; }""")
+        check("live_title puts the TASK in the card header, not the piece's name", ltitle == "Alpha", str(ltitle))
 
         pg.evaluate("() => window.zaelar.show('beta')")
         pg.evaluate("() => window.zaelar.show('gamma')")
         pg.wait_for_timeout(600)
         rr = rects(pg)
-        pairs = [("alpha", "beta"), ("alpha", "gamma"), ("beta", "gamma")]
+        pairs = [(A, "beta"), (A, "gamma"), ("beta", "gamma")]
         check("three cards, none overlapping another while there is free room",
               len(rr) == 3 and not any(overlap(rr[a], rr[b]) for a, b in pairs), json.dumps(rr))
         check("none of the three sits under the chat",
               not any(overlap(rr[k], chat) for k in rr), json.dumps(rr))
         check("the NEWEST card carries the highest z (opens on top)",
-              rr["gamma"]["z"] >= rr["beta"]["z"] >= rr["alpha"]["z"], json.dumps({k: v["z"] for k, v in rr.items()}))
+              rr["gamma"]["z"] >= rr["beta"]["z"] >= rr[A]["z"], json.dumps({k: v["z"] for k, v in rr.items()}))
 
         # ── the rail: one chip per card, always on top of the chat ───────────────────────────────────────────
         rail = pg.evaluate("""() => { const el = document.querySelector('#wrail');
@@ -156,6 +165,12 @@ def run(url):
                         min: c.classList.contains('min') })) }; }""")
         check("the rail exists, is visible and thin", rail and rail["visible"] and rail["on"] and rail["w"] < 60,
               json.dumps(rail))
+        rail_geom = pg.evaluate("""() => { const r = document.querySelector('#wrail').getBoundingClientRect();
+          return { x: r.x, h: r.height, right: r.right }; }""")
+        check("the rail is DOCKED: full height, at the left edge (V2-538)",
+              rail_geom["x"] <= 1 and rail_geom["h"] >= H * 0.95, json.dumps(rail_geom))
+        check("widgets do not overlap the docked rail (it owns the left edge)",
+              all(v["x"] >= rail_geom["right"] - 1 for v in rr.values()), json.dumps({"rail": rail_geom, "cards": rr}))
         check("one chip per open card, and they are buttons",
               rail and len(rail["chips"]) == 3 and all(c["tag"] == "BUTTON" for c in rail["chips"]),
               json.dumps(rail and rail["chips"]))
@@ -206,6 +221,47 @@ def run(url):
                            for v in rr.values()))
         check("arrange tiles every card in a visible, non-overlapping grid clear of chat and rail",
               ok_grid, json.dumps({"rail_right": rail_r, "chat": chat, "cards": rr}))
+
+        # ── V2-538: MAXIMIZE respects the reserved edge ─────────────────────────────────────────────────────
+        # Measured with the chat OPEN this check cannot discriminate: a chat docked left pushes every layout
+        # past the rail on its own. So the chat is closed first — then the only thing keeping a card off the
+        # bar is Desktop.minX().
+        pg.evaluate("() => window.zaelar.panel('chat')")   # toggle it shut
+        pg.wait_for_timeout(300)
+        pg.evaluate("() => window.__zaelarDesktop.maximize('beta')")
+        pg.wait_for_timeout(300)
+        rail_right = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
+        mx = rects(pg)["beta"]
+        check("a MAXIMIZED card starts right of the docked rail (never under it)",
+              mx["x"] >= rail_right - 1 and mx["w"] > W * 0.7,
+              json.dumps({"rail_right": rail_right, "beta": mx}))
+        pg.evaluate("() => window.__zaelarDesktop.maximize('beta')")   # restore
+        pg.wait_for_timeout(200)
+
+        # ── V2-538: folding gives the room back, unfolding takes it again ───────────────────────────────────
+        pg.evaluate("() => document.querySelector('#wrail .wr-fold').click()")
+        pg.wait_for_timeout(300)
+        folded = pg.evaluate("""() => { const el = document.querySelector('#wrail');
+          const r = el.getBoundingClientRect();
+          return { w: r.width, right: r.right, on: el.classList.contains('on'),
+                   folded: el.classList.contains('folded'),
+                   visible: getComputedStyle(el).display !== 'none' }; }""")
+        check("folded, the rail is a thin border that is STILL visible (never gone)",
+              folded["folded"] and folded["visible"] and folded["on"] and folded["w"] <= 16, json.dumps(folded))
+        # A card opened while the bar is folded may legitimately sit at the very left edge — that is the card
+        # the reappearing bar has to shove. Without it, nothing is ever under the bar and the check is blind.
+        pg.evaluate("() => window.__zaelarDesktop.wins.get('gamma').card.style.left = '2px'")
+        pg.evaluate("() => document.querySelector('#wrail').click()")   # the whole strip unfolds it
+        pg.wait_for_timeout(300)
+        unfolded = pg.evaluate("""() => { const el = document.querySelector('#wrail');
+          return { w: el.getBoundingClientRect().width, folded: el.classList.contains('folded') }; }""")
+        check("clicking the folded strip brings the bar back",
+              not unfolded["folded"] and unfolded["w"] > 20, json.dumps(unfolded))
+        rr = rects(pg)
+        rail_right = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
+        check("after unfolding, no card is left underneath the bar (hb:rail-resized)",
+              all(v["x"] >= rail_right - 1 for v in rr.values()),
+              json.dumps({"rail_right": rail_right, "cards": rr}))
 
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()

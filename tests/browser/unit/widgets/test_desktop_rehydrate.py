@@ -200,7 +200,11 @@ def test_the_size_the_operator_chose_survives_a_refresh():
     """Without this, enlarging the sheet for comfortable reading and reloading returned it to its factory size — the
     fastest way to ensure a feature is never used."""
     src = _desktop()
-    layout = src[src.index("_layout()"):src.index("_persist()")]
+    # Sliced from `_layout()` to the END of the pushed record, not to the next `_persist()`: V2-538 added a
+    # `_railClamp()` that calls `_persist()` ABOVE this method, so the old slice silently came back EMPTY and
+    # the assertion passed over nothing. A guard that measures a text range has to anchor on the range.
+    start = src.index("_layout()")
+    layout = src[start:src.index("return items;", start)]
     assert "w:c.style.width" in layout.replace(" ", "") and "h:c.style.height" in layout.replace(" ", "")
     assert "_applyGeom(card, pos.w, pos.h)" in src, "y se vuelve a aplicar al restaurar"
 
@@ -229,8 +233,12 @@ def test_a_widget_can_declare_the_size_it_needs_to_be_readable():
     """A fluid-width surface cannot infer its size from its content: it would shrink to its narrowest card.
     The manifest declares it and the canvas applies it — only if the operator has not set a size of their own."""
     src = _desktop()
-    assert "_applyPreferred(w.card, baseId)" in src
-    assert "!(pos && (pos.w || pos.h))" in src, "el tamaño guardado por el operador manda sobre el preferido"
+    assert "_applyPreferred(w.card, baseId" in src
+    # V2-538: the operator's saved size still wins, but now DIMENSION BY DIMENSION. A card restored with a
+    # width and an empty height —every card saved before sizes were persisted— used to keep auto height
+    # forever, so a results sheet grew line by line as the worker streamed text into it.
+    assert "haveW" in src and "haveH" in src, "el tamaño guardado del operador manda, dimensión a dimensión"
+    assert "size.w && !haveW" in src and "size.h && !haveH" in src
     man = json.loads(pathlib.Path("widgets/results/manifest.json").read_text())
     assert man["size"]["w"] >= 600 and man["size"]["h"] >= 400
     assert "size" in pathlib.Path("widgets/server_api.py").read_text(), \
