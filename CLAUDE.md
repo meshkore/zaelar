@@ -6812,6 +6812,56 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     same way `tests/memory/unit/test_rem_prompt.py` guards its own.
   - Node **3.20**, 24 cases, four disarms (8/10/2/1 red).
 
+- **An undeclared capability is one the model NARRATES — the agenda's view is an action (V2-540, 2026-09-01)**:
+  the operator asked the agenda to show tomorrow; it answered «te abro la agenda con la vista de mañana» and
+  stayed on today. His encargo was to go read the observability of that session, and it settled the question in
+  three lines — events 873 / 931 / 995, 15:11: three replies promising *la vista de mañana*, and each time the
+  only thing that fired was a bare `show:agenda`, which opens on TODAY. Two of the three came from safety nets
+  (*show por backstop de promesa*, *show por guard determinista*), i.e. the engine noticing the promise and
+  doing the closest thing it had.
+  - **It was not disobedience and not a hallucinated result.** The day tabs were DOM state inside `widget.js`
+    (`el._agSel`) with no name in `manifest.json`, so there was no wrong tool to choose — there was NO tool.
+    `add_meeting` in that same session worked first time; the difference between the two is a manifest entry.
+    A capability the vocabulary cannot express is not one the model can decline, and the honest reading is that
+    it narrated the outcome because narrating was the only move available.
+  - **`show_day` carries a monotonic PUSH COUNTER, and that is what makes it work twice.** The canvas re-renders
+    on a store write only when the data's JSON signature CHANGES, and the widget re-applies a view only when the
+    token moves — so keying on the day itself would mean *tomorrow → he clicks back to today → «mañana» again*
+    writes an identical value, changes no signature and moves nothing: the same bug in another mask.
+  - **Freshness is decided server-side, where the clock is.** A push kept forever means reopening the agenda
+    next week lands on a «tomorrow» that is now the past. `_fresh_view` stops serving it after 10 minutes, and
+    that costs an open widget nothing — `view` merely stops arriving, the token stops moving, nothing snaps
+    back and the operator's own tab survives.
+  - A date beyond the horizon (today..+6) has no tab, so it opens the MONTH view pointed at that month.
+    Landing silently on today would be the very lie the action exists to kill.
+  - **The calendar connectors now sit in the agenda's header** (his second ask, the messaging reading of
+    V2-521) — and they are honest: `connectors/` holds six and not one is a calendar, so all three read *not
+    built yet*, which per INI-027 is the point rather than an embarrassment. `calendars()` READS the real
+    inventory instead of declaring a state, so the day one registers it lights up with nothing else to change,
+    and it fails CLOSED: a registry that cannot be read is not a connected calendar. The three are Google
+    Calendar, iCloud (its CALENDAR is CalDAV with an app password, unlike iCloud Drive) and a generic CalDAV
+    that covers Outlook/Fastmail/Nextcloud with one connector instead of three brands.
+  - Node **4.94** (renders + manifest), six disarms across this decision and the next.
+
+- **A canvas click has to land on the sheet the operator is LOOKING AT (V2-540, 2026-09-01)**: «el botón de ver
+  detalle no es clic» — and it was wired, painted and enabled. What was broken was the ADDRESS.
+  `desktop.js::ctx.action` stamps the open instance into every payload under the name the canvas uses
+  everywhere, `q`, while `results.apply_action` only ever looked for `sheet`, a key the canvas has never sent.
+  So every click on an instantiated sheet (`results::<errand>` — what a sheet born of an errand always is) was
+  answered against the DEFAULT sheet.
+  - **`view_data(q)` has read the instance out of `q` since V2-259; only the writer never followed.** That
+    asymmetry is why READING a sheet always worked and WRITING to it never did, and why the symptom presented
+    as a dead button instead of a wrong address. The fix is the one line that resolves the sheet, not the
+    button — the mismatch was shared by `detail`, `choose` and the tab switch alike.
+  - **`choose` is what proves it and `detail` is not**: detail looks the item up first, so on the wrong sheet
+    it fails and writes nothing, while choose writes what it is told without a lookup — it was stamping a
+    stranger's pick onto the default sheet. A disarm that only exercised `detail` passed while the bug was back.
+  - ⚠️ **The silence is a second defect and it is fixed too.** The click did `await ctx.action(...)` and threw
+    the response away, so a real `{ok:false, error:"no encuentro ese resultado en la hoja"}` reached nobody:
+    the operator clicked, nothing moved, nothing said why. A refused action now SHOWS on the button. The cause
+    made it fail; the silence made it undiagnosable for as long as it lasted.
+  - Node **4.95**.
+
 - **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
   operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
   must be configurable per connector. Audited first: ingest was already token-free (own 5s/5s/20s loops → bus →

@@ -1321,6 +1321,29 @@ DOMAINS: list[dict] = [
         {"id": "4.93", "title": "La hoja de RESULTADOS renderizada: cabecera fina, los ids de auditoría al pie "
                                 "del Sumario, y los resultados arriba del todo",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_results_render.py"]},
+        # V2-540 — LA AGENDA que contesta y no ejecuta. Medido en la sesión del propio operador (eventos
+        # 873/931/995 del 2026-09-01 15:11): pidió ver MAÑANA tres veces, el cerebro contestó «te abro la
+        # agenda con la vista de mañana» las tres, y lo único que se disparó fue un `show:agenda` pelado, que
+        # abre por HOY. No era desobediencia: las pestañas de día eran estado del DOM (`el._agSel`) sin nombre
+        # en el manifest, así que no había una herramienta MAL elegida — no había herramienta. Una capacidad
+        # sin declarar no es una que el modelo pueda declinar; es una que NARRA. El nodo cubre las dos mitades
+        # (que la vista empujada mueva la pestaña de verdad, RENDERIZANDO, y que el manifest la declare) y de
+        # paso la tira de conectores de calendario de la cabecera, que es honesta a propósito: hoy ninguno está
+        # construido y el icono lo dice.
+        {"id": "4.94", "title": "La AGENDA obedece por voz: `show_day` mueve el día que se ve (renderizado) y "
+                                "la cabecera enseña los conectores de calendario sin mentir sobre ellos",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_agenda_render.py",
+                                  "tests/browser/unit/agenda/test_show_day_is_an_action_not_a_promise.py"]},
+        # V2-540 — la DIRECCIÓN de una acción del canvas. «El botón de ver detalle no es clic»: estaba cableado,
+        # pintado y activo. Lo roto era a QUÉ hoja iba. `desktop.js::ctx.action` mete la instancia abierta en
+        # cada payload con el nombre que usa el canvas —`q`— y `results.apply_action` solo miraba `sheet`, una
+        # clave que el canvas no ha mandado nunca: cada clic sobre una hoja instanciada se contestaba contra la
+        # hoja POR DEFECTO. `view_data(q)` lee la instancia desde V2-259; el escritor nunca la siguió — por eso
+        # LEER la hoja siempre funcionó y ESCRIBIR en ella no, y por eso parecía un botón muerto.
+        {"id": "4.95", "title": "Un clic del canvas aterriza en la hoja que el operador está MIRANDO "
+                                "(`q` es la instancia, no solo `sheet`)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_widget_action_lands_on_the_right_sheet.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:
