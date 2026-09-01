@@ -7168,6 +7168,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   at the TOP so it never scrolls out of sight). Mobile shell (`frontend/mobile/`) has no ⚙ panel — pending
   decision.
 
+- **CONTACTOS: un directorio para TODAS las identidades — y su vista contesta (V2-541, 2026-09-01)**: orden
+  directa del operador — UN widget nativo para el archivo entero de contactos (personas, sitios y empresas:
+  amigos, restaurantes, fontaneros…), nunca un widget por tipo; el `restaurantes-favoritos-operador` generado
+  ese mismo día se BORRÓ a petición suya para que solo exista éste, y su único dato (Elfo On, Soria) se
+  re-entró aquí como sonda en vivo. **Zanja la pregunta abierta del plan V2-523**: un sitio favorito ES una
+  entrada del directorio con `favorite` de marca, jamás una lista paralela. La forma del registro sigue ese
+  plan (kind person/place/company, `parentId` anidado con guarda de ciclos, etiquetas libres) para que la
+  integración memoria/estado futura sea una proyección y no una reescritura — **V2-523 sigue siendo la
+  iniciativa real** (resolver «mándale un mensaje a Juan» por aquí); mientras tanto el archivo vive en el
+  circuito de widgets con `data.durable: true`. Las lecciones pagadas van puestas DE NACIMIENTO: la vista es
+  una ACCIÓN declarada con contador-testigo y caducidad en servidor (V2-540), y `show_view` DEVUELVE los que
+  casan (`result.matches`) para que «¿mi restaurante favorito en Barcelona?» sea una llamada y no una promesa;
+  el alta sin nombre es un error que enseña la forma del reintento (V2-473); mismo nombre+ciudad ACTUALIZA en
+  vez de duplicar (familia V2-208); el match de grupos es contención sin acentos en las dos direcciones
+  («fontanero» ↔ «fontaneros»), nunca una tabla de sinónimos. Nodo **4.96** (19 unit + 9 RENDERIZANDO, cuatro
+  desarmes verificados) — el render cazó antes de nacer el bug de la familia V2-124: `renderDetail` repintaba
+  en la COLUMNA y «Volver» habría montado el widget dentro de sí mismo sin error. Verificado en vivo
+  (`3.16+4806ce1`): el catálogo lo vio sin reinicio, el dato sobrevive al restart y el ⏻ parado se respeta.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
