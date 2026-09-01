@@ -1,0 +1,10 @@
+{
+  "view_data_shape": {
+    "cities": "list",
+    "contacts": "list",
+    "count": "int",
+    "favorites_count": "int",
+    "groups": "list",
+    "view": "NoneType"
+  }
+}
