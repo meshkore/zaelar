@@ -423,6 +423,8 @@
   "orb.wake_off": "Always listening — click to require «zaelar»",
   "orb.wake_on": "Only with «zaelar» — click to always listen",
   "rail.arrange": "Arrange all widgets in a grid",
+  "rail.collapse": "Collapse the widget bar",
+  "rail.expand": "Expand the widget bar",
   "rail.hideAll": "Minimize all widgets",
   "rail.minimized": "minimized",
   "rail.showAll": "Show all widgets",

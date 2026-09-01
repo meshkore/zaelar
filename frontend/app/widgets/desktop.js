@@ -167,7 +167,29 @@ export class Desktop {
     // volvía a reproducirlo, porque su `<iframe>` nace con `autoplay=1` y nadie le había dicho que el agente estaba
     // parado. El servidor manda (nucleo/runstate.py); main.js nos lo empuja con `setRunning`.
     this._running = true;
+    // V2-538 — the DOCKED widget rail owns the left edge: when it folds/unfolds (or appears with the first
+    // card) it announces the new footprint and any card left under it gets shoved out. Widgets never overlap
+    // the bar; they simply have less horizontal room while it is open (operator, 2026-09-01).
+    document.addEventListener("hb:rail-resized", ()=>this._railClamp());
     this.restore();                                        // bring back the user's desktop (open widgets + positions)
+  }
+
+  // Left edge reserved by the docked widget rail (0 when hidden). Every placement/drag/resize/maximize
+  // gesture starts right of it — see the constructor note.
+  minX(){
+    const r=document.querySelector("#wrail");
+    if(!r || !r.classList.contains("on")) return 0;
+    const rr=r.getBoundingClientRect();
+    return rr.width ? Math.round(rr.right) : 0;
+  }
+  _railClamp(){
+    const x0=this.minX(); if(!x0) return;
+    let moved=false;
+    this.wins.forEach(w=>{
+      const c=w.card; if(!c) return;
+      if((parseInt(c.style.left)||0) < x0){ c.style.left=(x0+this.tile.pad)+"px"; moved=true; }
+    });
+    if(moved) this._persist();
   }
 
   // Agent state → widgets. main.js calls this reactively from `store.powerOff()`.
@@ -415,7 +437,14 @@ export class Desktop {
     // (`navegador`), q = task id (for /data?q= and ctx.action), and the card is indexed by the COMPLETE id
     // (instance) → N independent browser cards, one per tab/task. A normal id behaves the same way.
     let baseId, id, wq;
-    if(rawId && rawId.includes("::")){ const p=rawId.split("::"); baseId=p[0]; id=rawId; wq=p[1]||q; }
+    if(rawId && rawId.includes("::")){ const p=rawId.split("::"); baseId=p[0]; id=rawId; wq=p[1]||q;
+      // V2-538 — instance ids used to SKIP _resolve, so if the first card of the session was an instance
+      // (results::<errand> restored on reload, which is the normal case mid-errand), `_meta` was never loaded and
+      // everything that reads it no-opped in silence: no preferred size (the card grew line by line with the
+      // worker's text), no live title (the header said "Resultados" and the sheet repeated the task below it),
+      // no transient check. Same call, just not skipped; for an exact base id it resolves to itself.
+      await this._resolve(baseId);
+    }
     else { baseId = await this._resolve(rawId); id = baseId; wq = q; }
     q = wq;
     // Transient/process widgets (search, "what I'm doing") render into the ACTIVITY RAIL above the orb, not a card.
@@ -498,7 +527,7 @@ export class Desktop {
       // TAMAÑO PREFERIDO del widget, solo en el primer montaje y solo si el operador no le había dejado uno suyo.
       // Una superficie de ancho fluido (la hoja de resultados) no puede deducir su tamaño del contenido: sin esto
       // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
-      if(fresh && !(pos && (pos.w || pos.h))) this._applyPreferred(w.card, baseId);
+      if(fresh) this._applyPreferred(w.card, baseId, !!(pos && pos.w), !!(pos && pos.h));
       if(fresh){ w.card.classList.add("boop"); setTimeout(()=>w.card.classList.remove("boop"),460); }
       // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change.
       w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx;
@@ -778,9 +807,10 @@ export class Desktop {
     } else {
       card._restore = {left:card.style.left, top:card.style.top, w:card.style.width, h:card.style.height,
                        mw:card.style.maxWidth, mh:card.style.maxHeight};
+      const x0 = this.minX() + pad;                      // V2-538: maximized still respects the docked rail
       card.style.maxWidth="none"; card.style.maxHeight="none";
-      card.style.left=pad+"px"; card.style.top=top+"px";
-      card.style.width=(innerWidth - pad*2)+"px";
+      card.style.left=x0+"px"; card.style.top=top+"px";
+      card.style.width=(innerWidth - x0 - pad)+"px";
       card.style.height=(innerHeight - top - pad)+"px";
     }
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
@@ -798,17 +828,22 @@ export class Desktop {
     if(w){ card.style.width = w; card.style.maxWidth="none"; }
     if(h){ card.style.height = h; card.style.maxHeight="none"; }
   }
-  // Preferred size declared by the widget (`manifest.size`), applied only if the card has no saved size.
-  _applyPreferred(card, baseId){
+  // Preferred size declared by the widget (`manifest.size`). A card gets a FIXED default footprint and the
+  // content scrolls inside it (operator, 2026-09-01): without an explicit height the card auto-sizes to its
+  // content and GROWS line by line as a worker streams text in. `haveW`/`haveH` mark dimensions the operator
+  // already saved for this card — those are his and stay; only the missing ones are filled. (Before V2-538 a
+  // card restored with a saved width but an empty height — the layout format of every card saved before sizes
+  // were persisted — kept auto height forever.)
+  _applyPreferred(card, baseId, haveW, haveH){
     const size = this._meta && this._meta[baseId] && this._meta[baseId].size;
     if(!size) return;
-    const maxW = innerWidth - this.tile.pad*2, maxH = innerHeight - this.tile.top - this.tile.pad;
-    if(size.w) card.style.width  = Math.min(Number(size.w), maxW) + "px";
-    if(size.h) card.style.height = Math.min(Number(size.h), maxH) + "px";
-    if(size.w || size.h){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
+    const maxW = innerWidth - this.minX() - this.tile.pad*2, maxH = innerHeight - this.tile.top - this.tile.pad;
+    if(size.w && !haveW) card.style.width  = Math.min(Number(size.w), maxW) + "px";
+    if(size.h && !haveH) card.style.height = Math.min(Number(size.h), maxH) + "px";
+    if((size.w && !haveW) || (size.h && !haveH)){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
     // Reposition: the card was placed at the default size (400×340) and may have grown beyond the canvas.
     const L=parseInt(card.style.left)||this.tile.pad, T=parseInt(card.style.top)||this.tile.top;
-    card.style.left = Math.max(this.tile.pad, Math.min(L, innerWidth - card.offsetWidth - this.tile.pad)) + "px";
+    card.style.left = Math.max(this.minX()+this.tile.pad, Math.min(L, innerWidth - card.offsetWidth - this.tile.pad)) + "px";
     card.style.top  = Math.max(this.tile.top, Math.min(T, innerHeight - card.offsetHeight - this.tile.pad)) + "px";
   }
   _wireResize(card, id){
@@ -826,7 +861,7 @@ export class Desktop {
       // mínimo seguía desplazando la tarjeta a la derecha y parecía que se estaba moviendo, no redimensionando.
       if(w < MIN_W){ if(dir.includes("w")) l = sl + (sw - MIN_W); w = MIN_W; }
       if(h < MIN_H){ if(dir.includes("n")) t = st + (sh - MIN_H); h = MIN_H; }
-      l = Math.max(0, l); t = Math.max(0, t);
+      l = Math.max(this.minX(), l); t = Math.max(0, t);
       w = Math.min(w, innerWidth - l); h = Math.min(h, innerHeight - t);
       card.style.left=l+"px"; card.style.top=t+"px"; card.style.width=w+"px"; card.style.height=h+"px";
     };
@@ -879,14 +914,15 @@ export class Desktop {
   _place(card){
     const W=Math.max(card.offsetWidth, this.tile.w), H=Math.max(card.offsetHeight, this.tile.h);
     const pad=this.tile.pad, top=this.tile.top, step=20, obs=this._obstacles(card);
+    const xmin=Math.max(pad, this.minX()+pad);     // V2-538: the docked rail's column is not canvas
     for(let y=top; y+H<=innerHeight-pad; y+=step){
-      for(let x=pad; x+W<=innerWidth-pad; x+=step){
+      for(let x=xmin; x+W<=innerWidth-pad; x+=step){
         const r={left:x, top:y, right:x+W, bottom:y+H};
         if(!obs.some(o=>_overlap(r,o))){ card.style.left=x+"px"; card.style.top=y+"px"; return; }
       }
     }
     const n=this.wins.size, off=(n%6)*26;          // no room anywhere → cascade near the centre, on top
-    card.style.left=Math.max(pad,(innerWidth*0.5 - W*0.5 + off))+"px";
+    card.style.left=Math.max(xmin,(innerWidth*0.5 - W*0.5 + off))+"px";
     card.style.top =Math.max(top,(innerHeight*0.30 + off))+"px";
   }
 
@@ -899,9 +935,7 @@ export class Desktop {
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
     const pad=this.tile.pad, y0=this.tile.top, y1=innerHeight-150;   // 150 = orb/status strip
-    let x0=pad, x1=innerWidth-pad;
-    const rail=document.querySelector("#wrail");                     // V2-537: the widget rail owns the left edge
-    if(rail){ const rr=rail.getBoundingClientRect(); if(rr.width) x0=Math.max(x0, rr.right+pad); }
+    let x0=Math.max(pad, this.minX()+pad), x1=innerWidth-pad;       // V2-537/538: the rail owns the left edge
     const cw=document.querySelector("#chatwall");
     if(cw && cw.classList.contains("open")){
       const r=cw.getBoundingClientRect();
@@ -966,7 +1000,7 @@ export class Desktop {
     grip.addEventListener("pointerdown",e=>{drag=true;moved=false;const r=card.getBoundingClientRect();
       dx=e.clientX-r.left;dy=e.clientY-r.top;this._bringFront(card);grip.setPointerCapture(e.pointerId);e.preventDefault();});
     grip.addEventListener("pointermove",e=>{if(!drag)return;moved=true;
-      let x=Math.max(0,Math.min(e.clientX-dx,innerWidth-card.offsetWidth));
+      let x=Math.max(this.minX(),Math.min(e.clientX-dx,innerWidth-card.offsetWidth));
       let y=Math.max(0,Math.min(e.clientY-dy,innerHeight-card.offsetHeight));
       card.style.left=x+"px";card.style.top=y+"px"; });
     grip.addEventListener("pointerup",()=>{ drag=false; this._persist();   // remember the new position

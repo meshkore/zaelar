@@ -38,7 +38,7 @@ import { StatusPanel } from "../components/StatusPanel.js?v=2";
 import { TopBar } from "../components/TopBar.js?v=3";
 import { VaultModal } from "../components/VaultModal.js?v=1";
 import { WizardModal } from "../components/WizardModal.js?v=1";
-import { WidgetRail } from "../components/WidgetRail.js?v=1";
+import { WidgetRail } from "../components/WidgetRail.js?v=2";
 
 // The ORDER is the actual DOM mount order (it matters for stacking). Scaffold first, then overlay.
 export const SYSTEM_SURFACES = [
@@ -61,6 +61,8 @@ export const SYSTEM_SURFACES = [
     name: null, aliases: null },
   // V2-537 — the widget rail: one chip per open card (always on top), ▦ auto-arrange, minimize/show all.
   // Not voice-addressable in v1 (like the top bar); it only shows itself while at least one card is open.
+  // V2-538 — DOCKED: full-height column that owns the left edge (Desktop.minX() keeps cards out of it),
+  // foldable to a thin border that unfolds on click; the fold survives a reload.
   { id: "wrail",      comp: WidgetRail,   target: "desk", phase: "overlay", kind: "chrome",
     toggle: "auto (visible while any widget card is open)", label: "Widget rail",
     name: null, aliases: null },

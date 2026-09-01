@@ -423,6 +423,8 @@
   "orb.wake_off": "Escuchando siempre — pulsa para exigir «zaelar»",
   "orb.wake_on": "Solo con «zaelar» — pulsa para escuchar siempre",
   "rail.arrange": "Ordenar todos los widgets en rejilla",
+  "rail.collapse": "Plegar la barra de widgets",
+  "rail.expand": "Desplegar la barra de widgets",
   "rail.hideAll": "Minimizar todos los widgets",
   "rail.minimized": "minimizado",
   "rail.showAll": "Mostrar todos los widgets",
