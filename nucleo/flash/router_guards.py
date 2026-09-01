@@ -380,7 +380,7 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     # the identical shape — was handed to `parse_when` WHOLE, so it refused. Measured on
     # `remember-and-remind-deadline`: «Apúntame que el jueves tengo que renovar el seguro del coche, y
     # recuérdamelo el miércoles» → zaelar answered «Voy a apuntarlo y programarte el aviso», the note half fired
-    # and the notice half resolved to nothing. The verdict read «confirmó una acción que nunca ejecutó», and the
+    # and the notice half resolved to nothing. The verdict read "confirmed an action it never performed," and the
     # ambiguity it tripped over is not one a person would perceive: the day belongs to whichever verb it follows.
     # So the operator's own turn gets read positionally too, and only then whole (which is what preserves every
     # case that already worked — one date anywhere still resolves exactly as before).
@@ -390,8 +390,8 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
 
 
 # DATED NOTE (V2-159). Sibling of the notice backstop, for the OTHER half of the same request. The prompt says so
-# explicitly —«si el compromiso tiene fecha, además apúntalo en su agenda… son dos cosas distintas, el apunte y
-# el aviso, y el operador pide las dos»— yet the run ended with the cron set and NO appointment: «Te apunto la
+# explicitly —"if the commitment has a date, also add it to the agenda… these are two different things, the entry
+# and the notice, and the operator asks for both"— yet the run ended with the cron set and NO appointment: «Te apunto la
 # renovación del seguro del coche para el jueves» with no data-op behind it.
 _NOTE_VERB_RE = _re.compile(
     r"\b(te\s+(?:lo\s+|la\s+)?apunto|apunto|te\s+(?:lo\s+|la\s+)?anoto|anoto|"
@@ -452,7 +452,7 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
         # date it has not settled.
         # V2-176: the request to write it down does not EXPIRE because the operator needed another turn to get
         # the date right. Measured: «Apúntalo» was in turn 3, turn 4 only corrected the day, and the agenda stayed
-        # empty (`n_after: 1`, only the notice) while zaelar said «te lo dejo apuntado en la agenda».
+    # empty (`n_after: 1`, only the notice) while zaelar said "I've added it to your agenda."
         if not note_asked_in_window(window, operator_text) or "?" in (reply or ""):
             return None
         clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
@@ -639,7 +639,7 @@ def create_widget_request(text: str) -> str:
     return text
 
 
-# ── V2-167 · un aviso llega ANTES de aquello de lo que avisa ──────────────────────────────────────────────
+# ── V2-167 · a notice arrives BEFORE the event it announces ───────────────────────────────────────────────
 #
 # The operator's OWN ask, which is not the same vocabulary as the agent's promise (`_REMIND_VERB_RE`, above):
 # he says «recuérdamelo», the agent says «te aviso». Both halves live in the same sentence and telling them
@@ -718,7 +718,7 @@ def holding_line(window, lang=None) -> str:
 
     Escalates instead of repeating: a fresh variant while there is one, and from the third consecutive wait the
     ONE honest fact available — how long it has been — plus a way out. It never states a step: that is the line
-    V2-133 drew («el arreglo no puede ser quitarlos; tiene que ser que el relleno no afirme una fase»), and
+    V2-133 drew ("the fix cannot be to remove them; the filler must avoid claiming a stage"), and
     minutes elapsed are not a step.
     """
     try:
@@ -771,7 +771,7 @@ def commitment_from_window(window, current_text: str = "", max_back: int = 6) ->
 
     Reading t4 alone, `commitment_clause` returns «Sí, perdona, me he liado con las fechas. Me refiero al
     jueves que viene, 27» — and that went in as the reminder's own text, so the job that fires on Wednesday
-    reads the operator his own apology back. The judge called it «un aviso programado inútil», which is exactly
+    reads the operator his own apology back. The judge called it "a useless scheduled notice," which is exactly
     right.
 
     The rule: the SUBJECT is what he asked for the FIRST time, the DATE is whatever this turn settles on. It
@@ -901,7 +901,7 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
         return None
     # V2-167 · (1) the notice must land BEFORE the thing it announces, and (2) what fires must be the REMINDER,
     # not the request that produced it. The measured job carried the operator's raw turn as its prompt, so on
-    # firing the agent would have been asked to SCHEDULE the reminder all over again — the «se pierde el QUÉ»
+    # firing the agent would have been asked to SCHEDULE the reminder all over again — the "WHAT gets lost"
     # this case has been dragging since V2-134, finally visible in the field that causes it.
     # V2-176: the WHAT may have been said three turns earlier while this turn only fixes the DATE. Without a
     # window it behaves exactly as before, so no existing caller changes behavior.
@@ -1314,8 +1314,8 @@ def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -
     """WHEN the model tag's notice fires — corrected if it says TODAY while the conversation requested another day.
 
     Sibling of `safe_reminder_prompt`, for the other field of the same tag and for the same reason: V2-214
-    protected the `prompt` because «el backstop ya componía la forma segura y la tag del modelo entraba cruda por
-    la otra puerta», but left `schedule` entering just as raw.
+    protected the `prompt` because "the backstop already composed the safe form, while the model's tag came in raw
+    through the other door," but left `schedule` entering just as raw.
 
     Measured in `remember-and-remind-deadline` (2026-08-27): the operator said «el jueves tengo que renovar el
     seguro… recuérdamelo el miércoles»; the turn prompt included the dated list of upcoming days —«wednesday
