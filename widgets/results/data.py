@@ -801,7 +801,15 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # V2-259 — WHICH sheet. It travels in the payload rather than the URL for the same reason as `task_id` in the
     # browser: the canvas sends actions to the BASE widget and puts the instance inside (`desktop.js`). Without
     # `sheet`, this continues operating on the default sheet, which keeps the change from breaking anyone.
-    sheet = _safe_sheet(payload.get("sheet"))
+    #
+    # ...and `q` is the SAME THING under the canvas's own name, which is the whole bug of V2-540. `ctx.action`
+    # stamps the instance into every payload as `q` (`desktop.js`, one place, for every widget) while this read
+    # only ever looked for `sheet`, a key the canvas has never sent. So EVERY click on an instantiated sheet —
+    # «Ver detalle», «choose», switching tab — was answered against the DEFAULT sheet, found nothing there and
+    # came back `{ok:false}`. Reported by the operator as «el botón de ver detalle no es clic», which is exactly
+    # what a working button looks like when its request lands on the wrong sheet.
+    # `view_data(q)` has read the instance out of `q` since V2-259; the writer simply never followed.
+    sheet = _safe_sheet(payload.get("sheet") or payload.get("q"))
 
     if action == "present":
         issues = _audit(payload)

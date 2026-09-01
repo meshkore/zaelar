@@ -214,6 +214,7 @@ function injectStyles(){
     padding:6px 10px;cursor:pointer;transition:.14s}
   .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent)}
+  .hb-results .hr-more-err{color:var(--hb-danger,#d6455d);border-color:var(--hb-danger,#d6455d)}
 
   /* ── RATING ── score next to the title; the reason in the record. Without the reason, it cannot be discussed. */
   .hb-results .hr-score{flex:none;display:inline-flex;align-items:baseline;gap:1px;font-weight:700;
@@ -656,8 +657,21 @@ function makeCard(it, isPrimary, choose, ctx){
 
   if(hasDetail && ctx){
     const btn=elem("button","hr-more","Ver detalle →"); btn.type="button";
+    // A REFUSED action has to SHOW. Throwing away the response is what made a real backend error
+    // (`{ok:false, error:"no encuentro ese resultado en la hoja"}`, because the request was landing on the wrong
+    // sheet — V2-540) indistinguishable from a dead button: the operator clicked, nothing moved, nothing said
+    // why, and he reported it as «no es clic». The cause is fixed in `data.py`; this is so the NEXT one is
+    // legible instead of silent.
     btn.addEventListener("click", async (e)=>{ e.preventDefault(); e.stopPropagation();
-      await ctx.action("detail", { title: it.title || "" }); });
+      btn.disabled=true;
+      const r = await ctx.action("detail", { title: it.title || "" });
+      btn.disabled=false;
+      if(!r || r.ok===false){
+        btn.textContent = "Ver detalle → " + ((r && r.error) ? "no se pudo abrir" : "sin respuesta");
+        btn.classList.add("hr-more-err");
+        btn.title = (r && r.error) ? String(r.error) : "el motor no respondió a la acción";
+      }
+    });
     card.appendChild(btn);
   }
 
