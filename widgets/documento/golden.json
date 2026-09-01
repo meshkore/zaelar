@@ -1,0 +1,13 @@
+{
+  "view_data_shape": {
+    "body": "str",
+    "chars": "int",
+    "empty": "bool",
+    "kind": "str",
+    "source": "str",
+    "src": "str",
+    "subtitle": "str",
+    "title": "str",
+    "updated": "int"
+  }
+}

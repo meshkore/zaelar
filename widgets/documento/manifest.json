@@ -1,0 +1,65 @@
+{
+  "id": "documento",
+  "version": "0.1.0",
+  "title": "Documento",
+  "description": "Una hoja en blanco donde cabe UNA cosa para leer: una receta, un informe, unas instrucciones, un texto con formato o un PDF. No busca ni calcula; alguien la rellena y esto la presenta bien, con su título, su fuente y sitio de sobra para leer.",
+  "whenToUse": "Cuando la respuesta es UNA cosa que se LEE y no una lista que se compara: una receta, un informe o resumen que hemos escrito, unas instrucciones o un manual, un texto largo, o un PDF que hay que ver. Si el operador pidió UNA (una receta, no recetas) esto es su sitio: se elige la mejor y se pone aquí entera. FRONTERA: varias opciones para comparar → `results`; fotos → `imagenes`; una web que se navega en vivo → `navegador`.",
+  "keywords": [
+    "documento",
+    "pdf",
+    "receta",
+    "recetas",
+    "manual",
+    "instrucciones",
+    "el papel",
+    "la hoja en blanco",
+    "ponlo por escrito",
+    "document",
+    "recipe",
+    "how-to"
+  ],
+  "entry": "widget.js",
+  "usage": "`show` la llena de golpe y reemplaza lo que hubiera: `kind` markdown (por defecto: recetas, informes, notas — el texto llano vale) · html (fragmento ya maquetado) · pdf (entonces `src` = URL http(s) o el nombre de un fichero ya guardado aquí, y no lleva `body`). Pon SIEMPRE `title`, y `source` si viene de algún sitio. `append` añade al final sin perder lo de antes — así un informe largo se ve crecer en vez de aparecer al final. `clear` la deja en blanco. Markdown entiende títulos, listas, negrita, tablas, citas y bloques de código. NO es para comparar varias opciones (eso es `results`) ni para fotos (eso es `imagenes`).",
+  "worker_guide": "PARA ENTREGAR UN DOCUMENTO DESDE UN WORKER (informe, receta, resumen, instrucciones).\n\nDos pasos, la única forma que pasa los guardas: (i) escribe el JSON con tu tool Write a un fichero de RUTA RELATIVA en tu directorio de trabajo (`doc.json` a secas — nunca `/tmp/` ni una ruta absoluta); (ii) `python -m nucleo.widget_cli data documento show @doc.json` y después `python -m nucleo.widget_cli show documento`. Nunca pegues el JSON en la línea de comandos ni uses un heredoc: lo bloquean las comillas y el guarda del shell.\n\nEl JSON: {\"kind\":\"markdown\", \"title\":\"…\", \"subtitle\":\"…\", \"source\":\"de dónde sale\", \"body\":\"# Título\\n\\ntexto markdown…\"}. Escribe el `body` como se lo darías a una persona: títulos con #, pasos con listas, tablas con | si comparan datos DENTRO del documento. Nada de volcar HTML crudo si markdown basta.\n\nSI ES LARGO, que se vea crecer: primer `show` en cuanto tengas la estructura y luego `data documento append @parte.json` con {\"body\":\"…\"} por cada sección. Es mejor que el operador lea mientras escribes a que espere en silencio.\n\nSI ES UN PDF: descárgalo a `widgets/_data/documento/<nombre>.pdf` y haz `show` con {\"kind\":\"pdf\",\"src\":\"<nombre>.pdf\",\"title\":\"…\"}; si vive en una URL pública, pásale la URL en `src` y no lo descargues.\n\nUNA sola cosa por hoja. Si lo que traes son VARIAS opciones a comparar, tu sitio es `results`, no esta.",
+  "actions": {
+    "show": {
+      "desc": "pone un documento en la hoja (reemplaza lo que hubiera)",
+      "payload": {
+        "kind": "markdown | html | pdf",
+        "title": "título del documento",
+        "subtitle": "una línea de contexto (opcional)",
+        "body": "el contenido (markdown o html)",
+        "src": "solo para pdf: URL http(s) o nombre de fichero guardado aquí",
+        "source": "de dónde sale (opcional)"
+      },
+      "view": true
+    },
+    "append": {
+      "desc": "añade más texto al final del documento, sin perder lo de antes",
+      "payload": {
+        "body": "lo que se añade (markdown o html)"
+      },
+      "view": true
+    },
+    "clear": {
+      "desc": "quita lo que haya y deja la hoja en blanco",
+      "payload": {}
+    }
+  },
+  "name": "Documento",
+  "aliases": [
+    "Documento",
+    "el documento",
+    "el papel",
+    "el pdf",
+    "la receta",
+    "el informe escrito"
+  ],
+  "origin": "builtin",
+  "size": {
+    "w": 660,
+    "h": 620
+  },
+  "live_title": true,
+  "fullscreen": "native"
+}

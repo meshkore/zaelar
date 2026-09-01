@@ -131,6 +131,19 @@ DOMAINS: list[dict] = [
                                  "y con las cláusulas que desambiguan cada widget",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_the_routing_line_is_not_cut_mid_word.py"]},
+        # V2-549 — the blank sheet: ONE thing to read (a recipe, a report, instructions, a PDF), with the
+        # borders that keep it from becoming every other widget. Two halves in one file on purpose. The store
+        # half pins the contract a caller depends on: the actions are DECLARED (an undeclared one is invisible
+        # to the brain, V2-520), `show` is a VIEW action (an unflagged `show` is what turned «enséñame la foto
+        # de un Ferrari» into an empty viewer, V2-547), an empty `show` does not blank a sheet being read, and
+        # a `src` cannot walk out of the widget's own directory. The RENDERING half is not decoration: this
+        # widget's whole job is to display text that arrived from the web, from a worker or from a model —
+        # exactly the text that must never execute — and no source assertion can tell a stripped attribute
+        # from one that merely looks stripped.
+        {"id": "4.101", "title": "La hoja en blanco sostiene UNA cosa para leer: markdown/html/pdf, sin ejecutar "
+                                 "lo pegado y sin borrarse cuando no llega nada",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/documento/test_the_blank_sheet_holds_one_thing_to_read.py"]},
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
             # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real
