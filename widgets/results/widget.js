@@ -105,7 +105,7 @@ function injectStyles(){
   .hb-results .hr-panel>.hr-sub{margin-bottom:var(--s4)}
   .hb-results .hr-panel>.hr-why{margin-bottom:var(--s4)}
 
-  /* ── SESSION IDENTIFIERS (header) ───────────────────────────────────────────────────────────────────────────
+  /* ── SESSION IDENTIFIERS (bottom of the SUMMARY tab since V2-538) ───────────────────────────────────────────────────────────────────────────
      User and session for this installation, with a button that copies BOTH together: the operator passes them to a
      code agent to audit the session (whether it went well/badly, where it failed). Displayed SHORTENED (full id in
      the hover 'title') and copied in full. From the theme --hb-* contract. */
@@ -407,7 +407,7 @@ function shortId(id){
   return id.length > 13 ? id.slice(0,8) + "…" : (id || "—");
 }
 
-// Header strip: User · Session · Copy. The button copies BOTH FULL ids, in a format a code agent understands at a
+// Identity strip: User · Session · Copy (bottom of the Summary tab since V2-538). The button copies BOTH FULL ids, in a format a code agent understands at a
 // glance. It is painted immediately (with "...") and filled when fetch returns; if there is no identity (endpoint
 // down), the strip removes itself instead of leaving an empty gap.
 function identityStrip(){
@@ -792,6 +792,7 @@ function paintSummary(panel, data){
     panel.appendChild(elem("div","hr-empty",
       "Todavía no hay nada que resumir. Esta pestaña se llena mientras se trabaja: estado, cuántos candidatos se "
       + "han explorado y qué se ha ido haciendo."));
+    panel.appendChild(identityStrip());   // the audit ids belong to this tab now — see render()'s note (V2-538)
     return;
   }
   if(s.state){
@@ -828,6 +829,7 @@ function paintSummary(panel, data){
     s.steps.forEach(st=>ul.appendChild(elem("li","", st)));
     panel.appendChild(ul);
   }
+  panel.appendChild(identityStrip());   // audit ids, moved here from the sticky header (V2-538)
 }
 
 // ── TAB 3 · SOURCES ─────────────────────────────────────────────────────────────────────────────────────────
@@ -1068,8 +1070,9 @@ export function render(el, data, ctx){
     sub.title = data.subtitle;
     top.appendChild(sub);
   }
-  // User/session identifiers + Copy: to pass them to an agent auditing this session.
-  top.appendChild(identityStrip());
+  // The USER/SESSION identity strip is NOT here anymore (V2-538, operator with the screenshot in front of
+  // him: "una línea que no necesito para nada" between the title and the tabs of every sheet). Auditing a
+  // session is SUMMARY work, so the strip lives at the bottom of that tab — see paintSummary().
 
   // ACTIVE TAB — derived when the operator has not chosen one, yielding the two halves they requested:
   //   · the sheet opens in PROCESS while a task is alive and there is still nothing to put in the list;

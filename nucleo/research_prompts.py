@@ -157,6 +157,18 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
     # brainworker that is producing results must place candidates in the widget as they obtain them». It is not
     # cosmetic: it lets them CORRECT the direction after two minutes instead of fifteen (and it has already
     # happened: they had to say «narrow it down to 42–49 feet» with the worker halfway through).
+    # WHAT AN ITEM IS (V2-538, 2026-09-01, measured on the operator's screen): a live catamaran search filled
+    # the sheet with portal LANDING PAGES ("Catamaranes de segunda mano | Milanuncios" + its SEO blurb), a
+    # DEALER's name as if it were a boat, and a candidate 4x over the budget. The worker was dumping search
+    # snippets as items. The rule is stated here — where the funnel is taught — and in the sheet's own
+    # worker_guide, because the sheet's list is what the operator reads as THE result.
+    L.append(f"\nQUÉ ES UN ITEM DE LA HOJA — regla dura:\n"
+             f"  · Un item es UN candidato CONCRETO y REAL: esta cosa, con su nombre propio, su precio si el "
+             f"dominio lo tiene, su ubicación y su foto real. La PORTADA de un portal, una página de categoría o "
+             f"de búsqueda, o la home de un vendedor NO son items — son FUENTES y se reportan en `sources`. Un "
+             f"candidato que incumple un criterio duro tampoco es un item: se descarta.\n"
+             f"  · Si aún no tienes candidatos concretos, deja la lista VACÍA y cuenta el avance en el subtítulo "
+             f"y el sumario: una lista vacía y honesta vale más que una llena de páginas.")
     L.append(f"\nLA HOJA SE LLENA MIENTRAS TRABAJAS, no solo al final — el operador está MIRANDO:\n"
              f"  · En cuanto tengas los PRIMEROS candidatos reales (no esperes a filtrar), haz un `present` con el "
              f"título del encargo, un subtítulo que diga en qué punto vas («en curso · 12 candidatos, aún sin "

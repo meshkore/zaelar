@@ -447,3 +447,18 @@ def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Garbage())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones"))
+
+
+# ── V2-538: what an ITEM is — the worker was dumping portal landing pages as candidates ──────────────────────
+def test_the_brief_teaches_that_a_portal_page_is_never_an_item():
+    """Measured live (2026-09-01): a catamaran search filled the sheet with portal landing pages, a dealer's
+    name and an over-budget boat. The funnel must state — before the 'fill as you go' block invites early
+    presents — that an item is ONE concrete candidate and a portal/category page belongs in `sources`."""
+    from nucleo.research_prompts import to_prompt_block
+    block = to_prompt_block({"goal": "catamaranes de segunda mano por menos de 200.000", "hard": ["<200k"]})
+    assert "QUÉ ES UN ITEM" in block
+    assert "NO son items" in block
+    assert "lista VACÍA" in block
+    # The definition must come BEFORE the block that tells it to present early: the early present is
+    # exactly where the junk entered.
+    assert block.index("QUÉ ES UN ITEM") < block.index("LA HOJA SE LLENA MIENTRAS TRABAJAS")
