@@ -7215,6 +7215,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodos **4.92** (tres comprobaciones nuevas, incluida la que convierte el borrado en mudanza: la salud de
     conexión sigue teniendo casa) y **4.97**. Cinco desarmes: 1/2/1/2/2 rojos.
 
+- **MENSAJERÍA: la vista es una acción que contesta, los medios se VEN, y las órdenes llegan a las apps
+  reales (V2-543, 2026-09-01)**: leído del `zaelar.db` vivo — «ve a la lista principal de los mensajes» y
+  «muéstrame la lista general» solo pudieron re-mostrar el widget («Aquí lo tienes» sobre una pantalla
+  quieta): la lente de plataforma era estado local de `widget.js` y «volver a la lista» no tenía acción en
+  ningún sitio; el manifest declaraba 5 de las 12 acciones que `apply_action` maneja, y **el gate
+  manifest↔apply_action salta los `backed` a propósito** — el unit del nodo 4.98 hace de ese gate ahora.
+  `show_view` empuja la vista con contador-testigo + TTL 600 s (patrón V2-541) Y devuelve los chats que
+  casan; `open` acepta el NOMBRE del chat; los clics de los iconos de cabecera pasan por la MISMA acción
+  (un solo estado para UI y voz). `connect`/`disconnect` siguen sin declarar A PROPÓSITO (llevan
+  credenciales — la puerta de la voz es `open_connectors`, V2-520).
+  - **Los medios morían en UNA línea**: el bridge de WhatsApp descargaba cada imagen/vídeo/audio/documento
+    desde el primer día (`~/.hermes/*_cache/`, `mediaUrls` en cada evento) y la whitelist de campos de
+    `connectors/messaging/store.py::upsert_items` los tiraba — medido: mediaUrls/hasMedia/mediaType
+    aparecían en bridge.js y en NINGÚN .py. Ahora viajan (media/mediaType/ts), las cachés del bridge
+    apuntan al data_dir del widget (la ruta de assets es PLANA: solo sirve ficheros junto a state.json; lo
+    de fuera se COPIA dentro), Telegram captura por MTProto lo que nunca miró (una foto sin pie llegaba
+    como burbuja VACÍA) y el email guarda los adjuntos que `BODY.PEEK[]` ya traía. El widget pinta
+    miniaturas y `<audio|video controls>` — **solo por gesto del usuario, jamás autoplay, y SIN bloque
+    `runtime` a propósito**: un medio recibido es contenido pasivo como el QR, no producción del agente.
+    El placeholder interno `[image received]` se enseña como «📷 Foto» (dato interno EN, cara ES).
+  - **Propagación**: el mark-read de Telegram gana `max_id` preciso y las respuestas dejan de perder el
+    hilo — `int('<chat>:<id>')` SIEMPRE lanzaba y `reply_to` caía a None en silencio; el compuesto es
+    NUESTRO (`_normalize`), el parser tiene que conocer su propio formato de cable (`_tg_msg_id`).
+    Email gana archivar/borrar EN EL BUZÓN REAL (RFC 6154; **Gmail anuncia `\All` y no `\Archive`: allí
+    expunge desde INBOX ES archivar** — quitar la etiqueta; `UID MOVE` donde se anuncia; un buzón sin
+    archivo REFUSA en vez de borrar por aproximación), cableado widget→cola→owner→bus→conector, con
+    `trash` tras el confirm-gate y los fallos DICHOS por brain_notes, nunca reintentados en silencio.
+  - Nodo 4.98 (11 unit + 6 render + 7 store + 9 IMAP falso), **cinco desarmes verificados en rojo** con la
+    mutación afirmada. **Sin verificar en vivo** (el operador estaba en sesión; los `.py` piden reinicio).
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

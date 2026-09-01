@@ -1383,6 +1383,21 @@ DOMAINS: list[dict] = [
             # lo dejaba FUERA de la corrida determinista — verde e invisible, que es la trampa del nodo 10.99.
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_capture_lives_in_settings.py"]},
+        # V2-543 — MENSAJERÍA navegable por voz y con los medios VISIBLES. Medido en vivo (2026-09-01 18:39):
+        # «ve a la lista principal de los mensajes» solo podía re-mostrar el widget («Aquí lo tienes» sobre una
+        # pantalla quieta) — la lente de plataforma era estado local de widget.js y `close` estaba implementado
+        # SIN declarar; el gate manifest↔apply_action salta los `backed` a propósito, así que el unit hace de
+        # ese gate aquí. Y los medios: el bridge de WhatsApp descargaba cada imagen desde el primer día y la
+        # whitelist del store los tiraba en una línea — ahora viajan, y el render comprueba que el <img> pinta
+        # bytes de verdad, que una nota de voz jamás autoreproduce, y que archivar/borrar (que ejecutan en el
+        # buzón REAL) solo aparecen en filas de email. NO es `live`: el render arranca su propio Chromium.
+        {"id": "4.98", "title": "MENSAJERÍA: la vista es una acción que contesta, los medios se ven, y "
+                                "archivar/borrar llegan al buzón real",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_the_view_is_an_action_and_the_manifest_says_so.py",
+                      "tests/browser/e2e/mensajeria/test_mensajeria_render.py",
+                      "tests/connectors/unit/messaging/test_media_travel_to_the_store.py",
+                      "tests/connectors/unit/email/test_attachments_and_disposal.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:
