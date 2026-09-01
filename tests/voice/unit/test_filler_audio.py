@@ -183,11 +183,16 @@ def test_the_wiring_uses_llm_node_and_NOT_tts_node():
     — i.e. once the first text chunk exists — so a filler hung there can never fire on a slow turn. The
     live proof: TTFT 2.5s with the timer at 1.1s produced NO filler at all."""
     from pathlib import Path
-    body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    # The overrides moved to their own module (V2-538, the architecture ratchet asked); the guard follows the
+    # code, which is exactly what it caught when they moved.
+    body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py").read_text()
     assert "llm_node_with_filler" in body and "transcription_node_without_filler" in body, \
         "the filler enters through llm_node and is stripped in transcription_node"
     assert "tts_node_with_filler" not in body, \
         "tts_node cannot observe a late reply — it is only created once text exists"
+    # …and the entrypoint still MOUNTS it: a class nobody instantiates is a node nobody overrides.
+    entry = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    assert "from .zaelar_agent import ZaelarAgent" in entry and "ZaelarAgent(instructions=" in entry
 
 
 def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):

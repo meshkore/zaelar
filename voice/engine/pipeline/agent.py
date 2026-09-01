@@ -739,34 +739,9 @@ async def entrypoint(ctx: JobContext) -> None:
     # direct/duo reply in it; Hermes also gets it in the kickoff brief below (memory still wins for names).
     _lang = langs.current_language()
 
-    class ZaelarAgent(Agent):
-        # V2-529: the lead-in filler is the reply's FIRST SEGMENT. A `say()`-based filler is structurally
-        # late (the reply is already the scheduler's current speech, so the say is only authorized when the
-        # reply finishes playing — measured live: «Vale, empiezo» … «Espera, espera»), and a `tts_node`
-        # wrapper cannot work either: this pipeline only calls tts_node from `_start_segment()`, i.e. once
-        # the first text chunk exists, so it can never observe that the text is LATE. Emitting the filler
-        # from `llm_node` with a FlushSentinel closes a segment of its own → synthesized and played while
-        # the model still thinks, with the reply as segment two. `transcription_node` strips it from what
-        # LiveKit forwards (subtitles + chat_ctx); its chat-wall visibility is our own marked event.
-        # Full history and the arm/consume contract: `voice/engine/speech/filler_audio.py`.
-        def llm_node(self, chat_ctx, tools, model_settings):
-            from voice.engine.speech import filler_audio as _fa
-            return _fa.llm_node_with_filler(self, Agent.default.llm_node, chat_ctx, tools, model_settings)
-
-        def transcription_node(self, text, model_settings):
-            from voice.engine.speech import filler_audio as _fa
-            return _fa.transcription_node_without_filler(self, Agent.default.transcription_node,
-                                                         text, model_settings)
-
-        # V2-538: figures are made SPEAKABLE here and nowhere else. This node is the one place every spoken
-        # path converges on (generated reply, `say()`, the lead-in filler, a proactive notice), so «151.008 €»
-        # cannot slip through by taking another road — and the text that carries those prices is scraped by
-        # the browser extractor, so there is no model upstream to ask. Subtitles and the chat wall are NOT
-        # touched: they go through `transcription_node`, and on screen the operator wants «151.008 €».
-        def tts_node(self, text, model_settings):
-            from voice.engine.speech import say_numbers as _sn
-            return _sn.tts_node_speaking_figures(self, Agent.default.tts_node, text, model_settings,
-                                                 langs.current_code())
+    # The three node overrides — filler, subtitles, spoken figures — live in `zaelar_agent.py`:
+    # one subject (what zaelar does to the pipeline's text as it flows) and nothing from this scope.
+    from .zaelar_agent import ZaelarAgent
 
     agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
