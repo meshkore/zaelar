@@ -758,6 +758,16 @@ async def entrypoint(ctx: JobContext) -> None:
             return _fa.transcription_node_without_filler(self, Agent.default.transcription_node,
                                                          text, model_settings)
 
+        # V2-538: figures are made SPEAKABLE here and nowhere else. This node is the one place every spoken
+        # path converges on (generated reply, `say()`, the lead-in filler, a proactive notice), so «151.008 €»
+        # cannot slip through by taking another road — and the text that carries those prices is scraped by
+        # the browser extractor, so there is no model upstream to ask. Subtitles and the chat wall are NOT
+        # touched: they go through `transcription_node`, and on screen the operator wants «151.008 €».
+        def tts_node(self, text, model_settings):
+            from voice.engine.speech import say_numbers as _sn
+            return _sn.tts_node_speaking_figures(self, Agent.default.tts_node, text, model_settings,
+                                                 langs.current_code())
+
     agent = ZaelarAgent(instructions=SETTINGS.system_prompt + " " + _lang.reply_directive)
     await session.start(room=ctx.room, agent=agent)
     logger.info("Session started.")
