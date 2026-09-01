@@ -37,8 +37,11 @@ def _norm(s: str) -> str:
 
 
 def committed(spoken_text: str) -> bool:
-    """True if the reply promises, in the first person, to go and do something."""
-    return bool(_COMMITTED_RE.search(_norm(spoken_text)))
+    """True if the reply promises, in the first person, to go and do something. A NEGATED clause does not
+    («ahora mismo NO tengo ninguna tarea corriendo» — four of the gate's ten measured firings): the rule and
+    its clause arithmetic live once, in `router_guards`, and both promise gates read them."""
+    from nucleo.flash.router_guards import unnegated_match
+    return unnegated_match(_COMMITTED_RE, _norm(spoken_text))
 
 
 def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,

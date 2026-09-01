@@ -6661,9 +6661,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     own disarm came back green for exactly that reason. Node 3.15, 25 cases, **seven** disarms, including the
     call site itself: a signature that stopped matching would raise at the END of every voice turn, after the
     reply streamed.
-  - **Open**: the four negation false positives; and nothing stops a THIRD handle — the guard lists the seams by
-    name, so a new one inherits nothing. What would close it is stripping the notes before the turn text is
-    bound, so a glued turn is not reachable from the backstops at all.
+  - **Open**: nothing stops a THIRD handle — the guard lists the seams by name, so a new one inherits nothing.
+    What would close it is stripping the notes before the turn text is bound, so a glued turn is not reachable
+    from the backstops at all. (The four negation false positives were closed the same day, see below.)
+
+- **A NEGATED clause is not a promise (V2-534 follow-up, 2026-09-01)**: closes that initiative's open item #1.
+  Four of the promise gate's ten measured firings were «ahora mismo NO tengo ninguna tarea corriendo» and
+  siblings — a status REPORT, read as a commitment because the time adverb matched and the negation next to it
+  was ignored. The rule is STRUCTURAL, never a phrase list (V2-095 measured what hand-tuning those lists
+  costs): a negator (`no|ni|tampoco|nunca|jamas|ningun*`) inside the SAME clause as the matched span un-promises
+  it, clause-bounded in BOTH directions — «No, ahora mismo lo miro» still promises (the «no» answers the
+  PREVIOUS clause) and «me pongo con ello, no te preocupes» is not un-promised by its neighbour. `nada` is
+  deliberately NOT a negator: «en nada te lo miro» is a promise, and losing one is the expensive direction (six
+  measured minutes of silence, V2-049). The clause arithmetic lives ONCE (`router_guards.clause_negated`/
+  `unnegated_match`) and BOTH promise gates read it — `promises_action` and `promise_backstop.committed` — because
+  two copies of this decision is how the last one drifted (V2-252). Tests in
+  `test_promise_backstop_window.py`; disarm verified on both halves (4 red / 1 red). Spanish-only like the
+  regexes it guards; an EN promise vocabulary would bring its own negators with it.
+
+- **STABLE PREFIX FIRST — the prompt's block order is what the provider's cache can see (V2-536, 2026-09-01)**:
+  `build_flash_system` used to assemble lang lock → shared STATE (which embeds the synthesized recent
+  conversation, changing EVERY turn) → recall → directive → **resources (the ~73% of the system chars that does
+  NOT change)** → live state. So the prefix cache broke within the first few hundred chars and re-prefilled
+  ~10k tokens per turn — `prompt_cache_hit_tokens` measured at 6.1%, consecutive turns sharing only 18.9-45.8%
+  of their prefix (V2-533), the same diagnosis the independent voice audit reached. Order now: lang lock +
+  resources (STABLE) → state/recent/recall/directive (per-turn) → live state (LAST — the forensic capture and
+  several live_blocks faces say so in writing). Measured with the REAL blocks: shared prefix between
+  consecutive turns **16.8% → 97.1%**. The input side dominates this brain 14:1 and DeepSeek bills cache-hit
+  input at a fraction of miss, so this is both the latency and the cost lever — sitting in a concatenation.
+  - **Gated by the nodo 2.13 bench the SAME day** (V2-097 rule: routing changes do not ship if the bench
+    drops), 3 rounds x 14 cases each side on the production titular (`deepseek-v4-pro` direct): BEFORE
+    **38/42, 1 grave**, p50 1804 ms → AFTER **41/42, 0 graves**, p50 1883 ms. It did not drop; it improved —
+    the model routes BETTER with the state and the request adjacent at the end.
+  - The only cross-block reference in the prompt text («…si lo ves en tus TAREAS DE FONDO de más abajo»,
+    inside the resources layer) stays true: live state still sits below resources.
+  - **The forensic capture came out AHEAD**: the head 6000 now holds the stable layer and the tail 7000 covers
+    the ENTIRE volatile region (state+recall+live ≈ 4.4k chars at the end) — V2-255's property (the artifact
+    contains the part being checked) is now satisfied structurally. Its two geometry tests were REWRITTEN
+    keeping what they protected (`test_the_artifact_shows_the_memory_it_was_given.py`): the margin ratchet now
+    measures distance from the TAIL cut, and the position-risk test states where the risk lives now (a huge
+    LIVE block after the recall), instead of demanding the old harm.
+  - Order pinned by `test_prompt.py::test_the_stable_resources_layer_precedes_every_per_turn_block` with the
+    measurement in its docstring; disarm verified (reverting the concatenation → red).
+  - **Open**: the live `cache_hit_frac` series (V2-533's verdict label) is the proof; 97.1% is the ceiling,
+    not the claim. `_flash_layer` still varies with open/recent widgets and the `named` selection —
+    event-driven cache misses, accepted.
 
 - **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
   operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
@@ -6689,8 +6731,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   since 2026-08-14, never shown to latency) now rides every verdict label (`· caché N%`): measured on session
   701fcc1b's recorded prompts, consecutive turns share only **45.8% / 18.9%** of their prefix — the provider
   re-prefills ~10k tokens per turn, and that fraction is OURS (block order puts per-turn volatile text before
-  the 14-16 KB resource layer). The reorder is deliberately NOT shipped blind: it goes behind the nodo 2.13
-  routing bench (V2-097 rule), with `cache_hit_frac` as the before/after series. Also: `nucleo/memllm.py` gained
+  the 14-16 KB resource layer). The reorder went behind the nodo 2.13
+  routing bench and SHIPPED the next day as V2-536 (below), with `cache_hit_frac` as the live before/after series. Also: `nucleo/memllm.py` gained
   a pooled keep-alive POST (both hot-path judges paid a fresh DNS+TLS per call, ~150-400 ms; verified live), and
   the TTS prewarm hook now opens Cartesia's websocket pool (the kickoff paid the handshake). ⚠️ Parts landed
   inside the concurrent i18n batch commit `a3b20a9` (files swept up uncommitted; pushed, so left as-is).

@@ -122,3 +122,38 @@ def test_but_a_conversation_with_no_task_in_it_still_finds_nothing():
               {"role": "user", "content": "me alegro"},
               {"role": "assistant", "content": "gracias"}]
     assert g.escalate_goal_from_window(charla, "vale") == ""
+
+
+# ── V2-534 open item #1, closed (2026-09-01): a NEGATED clause is not a promise ──────────────────────────────
+# Measured over every firing of the promise gate in the operator's sessions (2026-08-17 → 2026-09-01): four of
+# ten were a negation next to the matched span («ahora mismo NO tengo ninguna tarea corriendo») — a status
+# report, read as a commitment. The rule is structural (a negator inside the SAME clause), never a phrase list.
+
+@pytest.mark.parametrize("reply", [
+    "Ahora mismo no tengo ninguna tarea corriendo.",
+    "Ahora mismo no hay nada en marcha, tranquilo.",
+    "Tampoco voy a abrir nada más por ahora.",
+    "Nunca me pongo con eso sin avisarte antes.",
+])
+def test_a_negated_clause_is_a_status_report_not_a_promise(reply):
+    assert g.promises_action(reply) is False
+
+
+@pytest.mark.parametrize("reply", [
+    # The negation lives in ANOTHER clause: clause-bounded on purpose, in both directions.
+    "No, ahora mismo lo miro.",
+    "Me pongo con ello, no te preocupes.",
+    # «nada» is deliberately NOT a negator: «en nada» is a time idiom, and losing a real promise is the
+    # expensive direction (six measured minutes of silence, V2-049).
+    "En nada te lo busco.",
+])
+def test_a_negation_in_a_NEIGHBOURING_clause_does_not_unpromise(reply):
+    assert g.promises_action(reply) is True
+
+
+def test_the_voice_gate_reads_the_same_negation_rule():
+    """`promise_backstop.committed` (the V2-049 spending gate) shares the clause arithmetic — two copies of
+    this decision is how the last one drifted (V2-252). Driven, not grepped."""
+    from voice.engine.llm.providers import promise_backstop as pb
+    assert pb.committed("Ahora mismo no tengo ninguna tarea corriendo.") is False
+    assert pb.committed("Me pongo con ello, no te preocupes.") is True
