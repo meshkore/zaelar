@@ -133,9 +133,22 @@ def test_compose_reads_the_model_and_a_dash_means_no_errand_inside(monkeypatch):
 
 
 def test_no_provider_available_is_not_an_error(monkeypatch):
+    """«No provider» means BOTH rungs empty, and patching only one is how this test made a live call.
+
+    `_spec_for_naming` asks the VOICE chain first and only falls back to the research chain (V2-530). Patching
+    just `nucleo.research._spec` therefore leaves the real first rung in place: whenever an earlier test in the
+    map left the voice chain pickable, this one built a REAL `FastClient` and asked a real model to name «Pedir
+    cita» — which it duly did, so the assertion failed with the goal itself. Order-dependent inside the full
+    map (2026-09-01) and green when run alone, which is the signature of a leak rather than a logic break.
+    Both rungs are stubbed here, so the case under test is the one the name claims."""
+    from nucleo.flash import provider_chain as _pc
     monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
+    monkeypatch.setattr(_pc, "pick", lambda *a, **k: None)
     monkeypatch.setattr("nucleo.research._spec", lambda: (None, None))
+    monkeypatch.setattr("nucleo.flash.fast_client.FastClient",
+                        lambda: pytest.fail("no provider available must never reach a client"))
     assert _run(et.compose("Pedir cita")) == ""
+    assert et._spec_for_naming() is None, "with both rungs empty there is no spec to name with"
 
 
 # ── a name that names nothing ─────────────────────────────────────────────────────────────────────────────
