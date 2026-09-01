@@ -165,6 +165,20 @@ function injectStyles(){
   .hb-msg .thd .back{border:0;background:transparent;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-size:13px;padding:3px 2px}
   .hb-msg .thd .back:hover{text-decoration:underline}
   .hb-msg .thdname{font-size:15px}
+  /* V2-546 — the operator's OWN messages in the thread, and the boundary of what we hold. An outgoing row is
+     indented and quieter: it is context he already knows, and giving it the same weight as an incoming
+     message would make a conversation unreadable at a glance.
+     NOTE: this whole block is inside a JS template literal, so a backtick here ENDS it — a comment with one
+     around a class name is what broke the widget the first time this was written. */
+  .hb-msg .trow.tout{padding-left:26px;opacity:.78}
+  .hb-msg .tfrom.tme{color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .tstart{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
+                  padding:8px 2px 12px}
+  .hb-msg .tsl{font-size:11.5px;color:var(--hb-muted,#7b879c)}
+  .hb-msg .tsbtn{border:1px solid var(--hb-line,#eef1f6);background:transparent;color:var(--hb-accent,#3D6FE0);
+                 border-radius:999px;padding:3px 11px;font-size:11.5px;cursor:pointer}
+  .hb-msg .tsbtn:hover{border-color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .tsbtn:disabled{color:var(--hb-muted,#7b879c);cursor:default;border-color:var(--hb-line,#eef1f6)}
 
   /* Media previews (V2-543): same-origin asset route only, elements not requests (isolation contract). */
   .hb-msg .mediaw{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
@@ -622,16 +636,21 @@ function messageRow(it, ctx, rerender){
   const mine = !!it.dirigido_a_mi;
   const urgente = it.urgencia === "alta";
   const key = String(it.messageId != null ? it.messageId : it.n);
+  // V2-546 — «out» is what the OPERATOR wrote, here or in his own app; it is context, never something to act
+  // on. And a row with no `n` is history: it is no longer in the inbox, so there is nothing left to mark read
+  // or dismiss and offering the buttons would be a lie about what pressing them does.
+  const outgoing = it.dir === "out";
+  const actionable = !outgoing && it.n != null;
 
-  const row = el("div","trow");
+  const row = el("div","trow"+(outgoing?" tout":""));
   const lead = el("span","tlead");
   lead.style.background = urgente ? "var(--hb-risk,#e5484d)" : (mine ? "var(--hb-accent,#3D6FE0)" : "transparent");
   row.appendChild(lead);
 
   const main = el("div","tmain");
   const head = el("div","thead");
-  head.appendChild(el("span","tfrom", it.from!=null?it.from:"?"));
-  if(mine) head.appendChild(el("span","tpara","· para ti"));
+  head.appendChild(el("span","tfrom"+(outgoing?" tme":""), outgoing ? "Tú" : (it.from!=null?it.from:"?")));
+  if(mine && !outgoing) head.appendChild(el("span","tpara","· para ti"));
   const when = fmtWhen(it.ts);
   if(when) head.appendChild(el("span","twhen", when));
   main.appendChild(head);
@@ -653,6 +672,7 @@ function messageRow(it, ctx, rerender){
   }
   row.appendChild(main);
 
+  if(!actionable) return row;       // history (or our own message): nothing left to do to it
   const acts = el("div","tacts");
   const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
   const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
@@ -715,17 +735,39 @@ function chatList(chats, ctx){
 
 // Open thread: header (back + platform + name) and its messages one by one. `close` returns to the chat list,
 // is also addressable by voice ([[msg.close]]), and converges on the same ctx.action.
-function threadView(active, items, ctx, rerender){
+// V2-546 — the boundary of what we hold. Our copy of a conversation starts somewhere, and saying where is the
+// difference between a scrollback and a lie: without this line the oldest message we have LOOKS like the start
+// of the conversation. Offers to go further only where the platform can actually serve it.
+function threadStart(meta, ctx){
+  const box = el("div","tstart");
+  if(meta && meta.complete){
+    box.appendChild(el("span","tsl","· principio de la conversación ·"));
+    return box;
+  }
+  box.appendChild(el("span","tsl","· aquí empieza lo que tengo guardado ·"));
+  if(meta && meta.can_load_more){
+    const b = el("button","tsbtn","Cargar anteriores");
+    b.onclick=()=>{ b.disabled=true; b.textContent="Pidiéndolos…"; ctx.action("load_more",{}); };
+    box.appendChild(b);
+  }
+  return box;
+}
+
+function threadView(active, items, ctx, rerender, meta){
   const wrap = el("div","thread");
   const hd = el("div","thd");
   const back = el("button","back","← volver"); back.onclick=()=>ctx.action("close");
   hd.appendChild(back);
   hd.appendChild(platformChip(active.platform));
-  const name = (items.find(it=>it.group||it.from)||{}).group || (items.find(it=>it.from)||{}).from
+  // The chat's name comes from an INBOUND message: with outbound ones in the thread (V2-546) the first row can
+  // be the operator's own, and naming the conversation after himself is how a thread stops being recognisable.
+  const inbound = items.filter(it=> it.dir !== "out");
+  const name = (inbound.find(it=>it.group)||{}).group || (inbound.find(it=>it.from)||{}).from
     || (PLAT[active.platform]||{}).label || "Chat";
   hd.appendChild(el("b","thdname", name));
   wrap.appendChild(hd);
 
+  wrap.appendChild(threadStart(meta, ctx));
   const list = el("div","tl");
   items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender)));
   wrap.appendChild(list);
@@ -915,7 +957,7 @@ export function render(root, data, ctx){
   // chat is a navigation the agent (or a click) just performed, and it must be visible in both.
   const activeChat = data.active_chat || null;
   if(activeChat){
-    root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender));
+    root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender, data.thread_meta||null));
     return;
   }
   if(_profile==="completo"){

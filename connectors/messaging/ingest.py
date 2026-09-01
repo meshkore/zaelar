@@ -22,6 +22,13 @@ TOPIC_MARK_READ = "msg.mark_read"
 TOPIC_REPLY = "msg.reply"          # V2-051: widget asks to SEND a reply; that platform's connector sends it
 TOPIC_ARCHIVE = "msg.archive"      # V2-543: widget asks to ARCHIVE in the real mailbox (email today)
 TOPIC_TRASH = "msg.trash"          # V2-543: widget asks to DELETE in the real mailbox (email today)
+# V2-546 — the three signals that make the widget FOLLOW the real app instead of drifting from it. Until these
+# existed every connector was inbound-only and read state travelled one way (widget → app), so a chat the
+# operator had answered on his phone kept sitting here looking pending.
+TOPIC_MSG_OUT = "connector.msg_out"    # the OPERATOR wrote, in his own app: joins the conversation, not the inbox
+TOPIC_READ = "connector.read"          # the operator read this chat elsewhere: a watermark, not a list
+TOPIC_HISTORY_ASK = "msg.history"      # widget asks a connector for OLDER messages of one chat
+TOPIC_HISTORY = "connector.history"    # the connector answers with them
 
 
 def v2_enabled() -> bool:
@@ -140,3 +147,50 @@ class TrashInbox(_PlatformInbox):
 class ReplyInbox(_PlatformInbox):
     """Per-platform subscription to `msg.reply` (V2-051). The connector drains and SENDS the reply in its app."""
     _TOPIC = TOPIC_REPLY
+
+
+class HistoryAskInbox(_PlatformInbox):
+    """Per-platform subscription to `msg.history` (V2-546): the widget asking for OLDER messages of one chat."""
+    _TOPIC = TOPIC_HISTORY_ASK
+
+
+# ── V2-546 publishers ───────────────────────────────────────────────────────
+def publish_msg_out(platform: str, msg: dict) -> None:
+    """A message the OPERATOR sent from his own app. Same normalized shape as an inbound one; the widget appends
+    it to the conversation and treats the chat as seen. It is deliberately NOT `connector.msg`: that topic feeds
+    triage and notification, and being told about one's own message is neither news nor a decision."""
+    try:
+        bus.emit_sync(TOPIC_MSG_OUT, {"platform": platform, **(msg or {})})
+    except Exception:
+        pass
+
+
+def publish_read(platform: str, chat_id, upto_ts: float | None = None, ids=None) -> None:
+    """The operator read this chat somewhere else. `upto_ts` is a WATERMARK (the shape every platform's read
+    receipt actually has); `ids` is for the one source that can only speak per-message (IMAP flags)."""
+    try:
+        bus.emit_sync(TOPIC_READ, {"platform": platform, "chatId": chat_id,
+                                   "uptoTs": upto_ts, "ids": list(ids or []) or None})
+    except Exception:
+        pass
+
+
+def publish_history_ask(order: dict) -> None:
+    """Widget asks a connector for older messages: {platform, chatId, beforeTs, beforeId, limit}."""
+    try:
+        bus.emit_sync(TOPIC_HISTORY_ASK, dict(order or {}))
+    except Exception:
+        pass
+
+
+def publish_history(platform: str, chat_id, msgs: list[dict], complete: bool = False,
+                    error: str = "") -> None:
+    """A connector answers with older messages. `complete` = it proved there is nothing before these, so the
+    widget stops offering the button. `error` travels too: a request that could not be served has to SAY so —
+    a silent no-op is indistinguishable from a chat with no history."""
+    try:
+        bus.emit_sync(TOPIC_HISTORY, {"platform": platform, "chatId": chat_id,
+                                      "msgs": list(msgs or []), "complete": bool(complete),
+                                      "error": error or ""})
+    except Exception:
+        pass

@@ -75,8 +75,10 @@ def _empty() -> dict:
         "pending_read": [],
         "pending_reply": [],
         "pending_control": [],
+        "pending_history": [],
         "muted_channels": [],
         "notify_policy": {},
+        "threads": {},
     }
 
 
@@ -84,6 +86,13 @@ def _wstore():
     # lazy: do not couple messaging import-time to the widgets domain (2026-07-17 modularity audit)
     from widgets import store
     return store
+
+
+def _thread():
+    # lazy, same reason as _wstore. The CONVERSATION rules (cap, order, dedup, read watermark) live in the widget
+    # package because `data.py` may not import `connectors` — one copy, read from both sides (V2-546).
+    from widgets.mensajeria import thread
+    return thread
 
 
 def load() -> dict:
@@ -97,8 +106,10 @@ def load() -> dict:
     db.setdefault("pending_read", [])
     db.setdefault("pending_reply", [])
     db.setdefault("pending_control", [])
+    db.setdefault("pending_history", [])
     db.setdefault("muted_channels", [])
     db.setdefault("notify_policy", {})
+    db.setdefault("threads", {})
     db.setdefault("updated", "")
     return db
 
@@ -183,6 +194,20 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
         fresh.append(entry)
     if not added:
         return db      # nothing new to triage -> do not re-save (avoids `updated` bump + emit from unchanged poll)
+    # The same message ALSO joins its conversation (V2-546). The inbox and the thread answer different questions —
+    # "what still wants my attention" vs "what was said here" — so reading an item empties the first and leaves
+    # the second intact. Before this, reading a message deleted the only copy of it.
+    _th = _thread()
+    for entry in fresh:
+        try:
+            _th.append(db, platform, entry.get("chatId"), entry, "in",
+                       name=entry.get("group") or entry.get("from") or "")
+        except Exception:
+            continue
+    try:
+        _th.prune(db)
+    except Exception:
+        pass
     # Urgency first, newest first within the same urgency (ts=0 for legacy rows keeps them at the tail).
     items.sort(key=lambda it: (_RANK.get(it.get("urgencia"), 3), -float(it.get("ts") or 0)))
     db["items"] = items
@@ -216,6 +241,91 @@ def _to_memory(items: list[dict]) -> None:
                                   trust="external")
         except Exception:
             continue
+
+
+# ── The world moved without us (V2-546) ─────────────────────────────────────
+# The operator answers from his own phone, or reads a chat there. Until now the widget could not know: every
+# connector was wired INBOUND-ONLY and read state travelled one way (widget → app). So a conversation he had
+# already dealt with kept sitting in the list looking pending, which is exactly the report that opened this.
+def record_outbound(platform: str, chat_id, msg: dict, name: str = "") -> dict:
+    """A message the OPERATOR sent — from his real app, or from here. It joins the conversation and NEVER the
+    inbox: his own words are context, not something demanding his attention.
+
+    Sending in a chat is also the strongest possible evidence that he has SEEN it, so it clears that chat's
+    pending items. That is the difference between a widget that mirrors his messaging and one that argues with
+    it. The items are dropped WITHOUT enqueuing mark-read: the app they came from already knows."""
+    db = load()
+    th = _thread()
+    added = th.append(db, platform, chat_id, msg, "out", name=name)
+    try:
+        ts = float(msg.get("ts") or msg.get("timestamp") or time.time())
+    except (TypeError, ValueError):
+        ts = time.time()
+    cleared = _clear_chat_items(db, platform, chat_id, upto_ts=ts)
+    marked = th.mark_read(db, platform, chat_id, upto_ts=ts)
+    if not (added or cleared or marked):
+        return db
+    db["updated"] = _now()
+    return save(db)
+
+
+def apply_external_read(platform: str, chat_id, upto_ts: float | None = None, ids=None) -> dict:
+    """The operator read this chat somewhere else. Reflect it: clear its pending items and mark the conversation
+    read up to that point. Like record_outbound, this does NOT enqueue mark-read — telling the app something it
+    just told us would be a loop, and the whole point is that IT is the source of truth here."""
+    db = load()
+    cleared = _clear_chat_items(db, platform, chat_id, upto_ts=upto_ts, ids=ids)
+    marked = _thread().mark_read(db, platform, chat_id, upto_ts=upto_ts, ids=ids)
+    if not (cleared or marked):
+        return db
+    db["updated"] = _now()
+    return save(db)
+
+
+def _clear_chat_items(db: dict, platform: str, chat_id, upto_ts: float | None = None, ids=None) -> int:
+    """Drop pending inbox items of one chat that the operator has already handled elsewhere. Bounded by the
+    same watermark the platform gave us: a read receipt says "up to here", and dropping messages that arrived
+    AFTER it would hide mail he has genuinely not seen."""
+    want = {str(i) for i in (ids or [])}
+    keep, gone = [], 0
+    for it in db.get("items", []):
+        same = it.get("platform") == platform and str(it.get("chatId")) == str(chat_id)
+        if same and want and str(it.get("messageId")) not in want:
+            same = False
+        if same and upto_ts is not None and float(it.get("ts") or 0) > float(upto_ts):
+            same = False
+        if same:
+            gone += 1
+        else:
+            keep.append(it)
+    if gone:
+        db["items"] = keep
+    return gone
+
+
+def add_history(platform: str, chat_id, msgs: list[dict], complete: bool = False) -> dict:
+    """Older messages a connector fetched on demand ("load previous"). Prepends into the conversation and marks
+    whether we have now reached its beginning."""
+    db = load()
+    added = _thread().prepend(db, platform, chat_id, msgs or [], complete=complete)
+    db["updated"] = _now()
+    return save(db) if (added or complete) else db
+
+
+def take_pending_history(platform: str | None = None) -> list[dict]:
+    """Return (and REMOVE) 'load previous' orders enqueued by the widget: {platform, chatId, beforeTs, beforeId,
+    limit}. Same drain contract as the other queues."""
+    db = load()
+    pending = db.get("pending_history", [])
+    if platform is None:
+        mine, rest = list(pending), []
+    else:
+        mine = [k for k in pending if k.get("platform") == platform]
+        rest = [k for k in pending if k.get("platform") != platform]
+    if pending:
+        db["pending_history"] = rest
+        save(db)
+    return mine
 
 
 # ── pending_read drain by connectors ────────────────────────────────────────

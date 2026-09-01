@@ -190,6 +190,22 @@ const logger = pino({ level: 'warn' });
 // Message queue for polling
 const messageQueue = [];
 const MAX_QUEUE_SIZE = 100;
+// ZAELAR-PATCH (V2-546): chats the operator read on another device, drained by GET /reads. Kept SEPARATE from
+// messageQueue on purpose — a read receipt is not a message, and mixing them would put it through triage.
+const readQueue = [];
+// ZAELAR-PATCH (V2-546): chats we have just asked the PHONE for history about, with an expiry. The phone answers
+// with ordinary upserts, so without this the scrollback of a conversation would be triaged as if it had all
+// just arrived — and the operator would be interrupted about messages from weeks ago because he pressed
+// "load previous". Tagged `history:true`, the Python side routes them to the conversation and never notifies.
+const historyWanted = new Map();
+const HISTORY_WINDOW_MS = 60_000;
+
+function wantsHistory(chatId) {
+  const until = historyWanted.get(chatId);
+  if (!until) return false;
+  if (Date.now() > until) { historyWanted.delete(chatId); return false; }
+  return true;
+}
 
 // Track recently sent message IDs to prevent echo-back loops with media
 const recentlySentIds = new Set();
@@ -301,19 +317,23 @@ async function startSocket() {
           continue;
         }
 
-        // ZAELAR-PATCH (INI-014): observe mode — triage only cares about inbound
-        // messages from others; our own outgoing (fromMe) are never queued.
-        if (WHATSAPP_MODE === 'observe') continue;
-
-        // Self-chat mode: only allow messages in the user's own self-chat
-        // WhatsApp now uses LID (Linked Identity Device) format: 67427329167522@lid
-        // AND classic format: 34652029134@s.whatsapp.net
-        // sock.user has both: { id: "number:10@s.whatsapp.net", lid: "lid_number:10@lid" }
-        const myNumber = (sock.user?.id || '').replace(/:.*@/, '@').replace(/@.*/, '');
-        const myLid = (sock.user?.lid || '').replace(/:.*@/, '@').replace(/@.*/, '');
-        const chatNumber = chatId.replace(/@.*/, '');
-        const isSelfChat = (myNumber && chatNumber === myNumber) || (myLid && chatNumber === myLid);
-        if (!isSelfChat) continue;
+        // ZAELAR-PATCH (V2-546): observe mode now DOES forward our own outgoing messages, tagged
+        // `direction:'out'`. Baileys has always delivered them — a message sent from the operator's phone
+        // arrives here as an upsert with fromMe:true — and INI-014 dropped them on the floor, which is why a
+        // chat he had already answered elsewhere kept looking pending in the widget. They never reach triage
+        // or notification on the Python side: they join the conversation and mark that chat as seen.
+        // Groups and status broadcasts stay out, as before (the `continue` above).
+        if (WHATSAPP_MODE !== 'observe') {
+          // Self-chat mode: only allow messages in the user's own self-chat
+          // WhatsApp now uses LID (Linked Identity Device) format: 67427329167522@lid
+          // AND classic format: 34652029134@s.whatsapp.net
+          // sock.user has both: { id: "number:10@s.whatsapp.net", lid: "lid_number:10@lid" }
+          const myNumber = (sock.user?.id || '').replace(/:.*@/, '@').replace(/@.*/, '');
+          const myLid = (sock.user?.lid || '').replace(/:.*@/, '@').replace(/@.*/, '');
+          const chatNumber = chatId.replace(/@.*/, '');
+          const isSelfChat = (myNumber && chatNumber === myNumber) || (myLid && chatNumber === myLid);
+          if (!isSelfChat) continue;
+        }
       }
 
       // Handle !fromMe messages (from other people) based on mode.
@@ -439,7 +459,11 @@ async function startSocket() {
       }
 
       // Ignore Hermes' own reply messages in self-chat mode to avoid loops.
-      if (msg.key.fromMe && ((REPLY_PREFIX && body.startsWith(REPLY_PREFIX)) || recentlySentIds.has(msg.key.id))) {
+      // ZAELAR-PATCH (V2-546): NOT in observe mode. There the loop is impossible by construction — an outgoing
+      // message is published on a topic that feeds neither triage nor any reply path — and a reply the operator
+      // dictated to zaelar is precisely something he should see in the conversation afterwards.
+      if (WHATSAPP_MODE !== 'observe' &&
+          msg.key.fromMe && ((REPLY_PREFIX && body.startsWith(REPLY_PREFIX)) || recentlySentIds.has(msg.key.id))) {
         if (WHATSAPP_DEBUG) {
           try { console.log(JSON.stringify({ event: 'ignored', reason: 'agent_echo', chatId, messageId: msg.key.id })); } catch {}
         }
@@ -476,11 +500,37 @@ async function startSocket() {
         hasQuotedMessage,
         botIds,
         timestamp: msg.messageTimestamp,
+        // ZAELAR-PATCH (V2-546): which WAY this message went. The Python side routes on it — "in" is triaged
+        // and may interrupt the operator, "out" only joins the conversation and marks the chat as seen.
+        direction: msg.key.fromMe ? 'out' : 'in',
+        // ZAELAR-PATCH (V2-546): this is scrollback the phone sent because we asked, not something that just
+        // happened. It must never be triaged or announced.
+        history: type === 'append' && wantsHistory(chatId),
       };
 
       messageQueue.push(event);
       if (messageQueue.length > MAX_QUEUE_SIZE) {
         messageQueue.shift();
+      }
+    }
+  });
+
+  // ZAELAR-PATCH (V2-546): the operator opened a chat on his PHONE. WhatsApp syncs that to every linked device,
+  // so Baileys sees the chat's unread counter drop — this is the only signal a linked client gets for "read
+  // elsewhere", and nothing was listening to it. Queued as a read event rather than a message; the Python side
+  // clears that chat's pending items without telling WhatsApp anything back (it is the one that just told US).
+  //
+  // It is a WHOLE-CHAT signal: WhatsApp reports the counter, not a per-message watermark, so this is only
+  // emitted when the counter reaches zero — a partial drop cannot say WHICH messages were read, and guessing
+  // would hide mail the operator has not seen.
+  sock.ev.on('chats.update', (updates) => {
+    for (const u of updates || []) {
+      const chatId = u?.id;
+      if (!chatId || chatId.includes('status')) continue;
+      const unread = u?.unreadCount;
+      if (unread === 0 || unread === null) {
+        readQueue.push({ chatId, at: Math.floor(Date.now() / 1000) });
+        if (readQueue.length > MAX_QUEUE_SIZE) readQueue.shift();
       }
     }
   });
@@ -525,6 +575,43 @@ app.use((req, res, next) => {
 app.get('/messages', (req, res) => {
   const msgs = messageQueue.splice(0, messageQueue.length);
   res.json(msgs);
+});
+
+// ZAELAR-PATCH (V2-546): chats read on another device, since the last poll.
+app.get('/reads', (req, res) => {
+  res.json(readQueue.splice(0, readQueue.length));
+});
+
+// ZAELAR-PATCH (V2-546): OLDER messages of one chat ("load previous"), on demand.
+//
+// This is the honest one of the three platforms. WhatsApp keeps history on the PHONE, not on a server: a linked
+// client can only ASK the phone to send it, and whether it answers depends on the phone being reachable and on
+// what it still holds. So this endpoint may legitimately return an empty list, and says so with `available`
+// instead of pretending the conversation starts where our copy does.
+app.post('/history', async (req, res) => {
+  if (!sock || connectionState !== 'connected') {
+    return res.status(503).json({ error: 'Not connected to WhatsApp' });
+  }
+  const { chatId, oldestId, oldestTs, limit } = req.body || {};
+  if (!chatId || !oldestId) {
+    return res.status(400).json({ error: 'chatId and oldestId are required' });
+  }
+  if (typeof sock.fetchMessageHistory !== 'function') {
+    return res.json({ available: false, requested: 0,
+                      error: 'this Baileys build has no fetchMessageHistory' });
+  }
+  try {
+    const count = Math.max(1, Math.min(100, Number(limit) || 30));
+    historyWanted.set(chatId, Date.now() + HISTORY_WINDOW_MS);
+    // The phone answers ASYNCHRONOUSLY, as ordinary upserts of type 'append' — they land in messageQueue
+    // through the handler above and reach the widget on the next poll. There is nothing to return here but
+    // the acknowledgement that we asked.
+    await sock.fetchMessageHistory(count, { remoteJid: chatId, id: oldestId, fromMe: false },
+                                   Number(oldestTs) || 0);
+    res.json({ available: true, requested: count });
+  } catch (err) {
+    res.status(500).json({ available: false, error: err.message });
+  }
 });
 
 // Send a message

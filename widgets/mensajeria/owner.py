@@ -28,6 +28,16 @@ _LABEL = {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "Email"}
 _BATCH = float(os.getenv("MSG_TRIAGE_BATCH", "2.0"))   # seconds between triage batches; groups bursts into one call
 
 
+def _note(text: str) -> None:
+    """Tell the operator through the brain's inbox. Used for the failures he cannot see any other way — the
+    same seam the connectors use for a send that did not go out."""
+    try:
+        from voice import brain_notes
+        brain_notes.push(text)
+    except Exception:
+        pass
+
+
 def _origin(m: dict) -> tuple[str, str | None]:
     if m.get("isGroup"):
         return (m.get("senderName") or "?", m.get("chatName") or "grupo")
@@ -40,6 +50,9 @@ class _Owner:
     def __init__(self):
         self._msg_sub = None
         self._status_sub = None
+        self._out_sub = None              # V2-546: what the operator sent from his own app
+        self._read_sub = None             # V2-546: what he read there
+        self._history_sub = None          # V2-546: older messages a connector went and fetched
         self._task: asyncio.Task | None = None
         self._seen: set[str] = set()      # already surfaced messageIds; do not resurrect what the operator removed
 
@@ -51,6 +64,12 @@ class _Owner:
             self._msg_sub = bus.subscribe(ingest.TOPIC_MSG)
         if self._status_sub is None:
             self._status_sub = bus.subscribe(ingest.TOPIC_STATUS)
+        if self._out_sub is None:
+            self._out_sub = bus.subscribe(ingest.TOPIC_MSG_OUT)
+        if self._read_sub is None:
+            self._read_sub = bus.subscribe(ingest.TOPIC_READ)
+        if self._history_sub is None:
+            self._history_sub = bus.subscribe(ingest.TOPIC_HISTORY)
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._consume())
         logger.info("mensajeria owner started (triage in widget; stateless connectors)")
@@ -59,13 +78,14 @@ class _Owner:
         if self._task:
             self._task.cancel()
             self._task = None
-        for sub in (self._msg_sub, self._status_sub):
+        for sub in (self._msg_sub, self._status_sub, self._out_sub, self._read_sub, self._history_sub):
             try:
                 if sub is not None:
                     sub.close()
             except Exception:
                 pass
         self._msg_sub = self._status_sub = None
+        self._out_sub = self._read_sub = self._history_sub = None
 
     # Bus consumption: incoming messages + status.
     async def _consume(self) -> None:
@@ -79,6 +99,63 @@ class _Owner:
                 await self._triage_batch()
             except Exception as e:
                 logger.debug(f"mensajeria owner triage: {e}")
+            # V2-546 — the real apps moving on their own. These run AFTER triage on purpose: a message the
+            # operator answered from his phone should reach the conversation and clear the chat in the same
+            # tick it would otherwise have been surfaced in, not one tick later as a notification he has
+            # already dealt with.
+            for what, fn in (("outbound", self._apply_outbound), ("read", self._apply_external_reads),
+                             ("history", self._apply_history)):
+                try:
+                    fn()
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f"mensajeria owner {what}: {e}")
+
+    @staticmethod
+    def _drain(sub) -> list[dict]:
+        q = sub.queue if sub else None
+        if q is None:
+            return []
+        out = []
+        while True:
+            try:
+                out.append(q.get_nowait())
+            except Exception:
+                break
+        return out
+
+    def _apply_outbound(self) -> None:
+        """A message the OPERATOR wrote in his own app. It joins the conversation and clears that chat's pending
+        items — answering somewhere else IS having dealt with it, which is the whole report this came from."""
+        for ev in self._drain(self._out_sub):
+            platform = (ev or {}).get("platform")
+            if not platform or ev.get("chatId") is None:
+                continue
+            body = dict(ev)
+            body["from"] = ev.get("from") or ev.get("senderName") or ""
+            msgstore.record_outbound(platform, ev.get("chatId"), body,
+                                     name=ev.get("chatName") or "")
+
+    def _apply_external_reads(self) -> None:
+        for ev in self._drain(self._read_sub):
+            platform = (ev or {}).get("platform")
+            if not platform or ev.get("chatId") is None:
+                continue
+            msgstore.apply_external_read(platform, ev.get("chatId"),
+                                         upto_ts=ev.get("uptoTs"), ids=ev.get("ids"))
+
+    def _apply_history(self) -> None:
+        """Older messages a connector fetched. An `error` is NOT swallowed: the operator pressed a button and a
+        request that could not be served has to say so, or a silent no-op reads as 'there is nothing older'."""
+        for ev in self._drain(self._history_sub):
+            platform = (ev or {}).get("platform")
+            if not platform or ev.get("chatId") is None:
+                continue
+            if ev.get("error"):
+                _note(f"[SISTEMA] No pude traer los mensajes anteriores de ese chat de "
+                      f"{_LABEL.get(platform, platform)} ({ev['error']}). Díselo al operador.")
+                continue
+            msgstore.add_history(platform, ev.get("chatId"), ev.get("msgs") or [],
+                                 complete=bool(ev.get("complete")))
 
     def _apply_status(self) -> None:
         """Reflect pending connector.status events into the UI store; the owner is the only writer."""
@@ -161,6 +238,12 @@ class _Owner:
                 ingest.publish_trash(key)
         except Exception as e:
             logger.debug(f"mensajeria disposal flush: {e}")
+        # And for "load previous" orders (V2-546): the platform's connector goes and fetches them.
+        try:
+            for order in msgstore.take_pending_history():
+                ingest.publish_history_ask(order)
+        except Exception as e:
+            logger.debug(f"mensajeria history flush: {e}")
 
 
 # Single instance governed by the supervisor (contract: async start()/stop()/handle(action,payload)).

@@ -1410,6 +1410,18 @@ DOMAINS: list[dict] = [
                       "tests/browser/e2e/mensajeria/test_mensajeria_render.py",
                       "tests/connectors/unit/messaging/test_media_travel_to_the_store.py",
                       "tests/connectors/unit/email/test_attachments_and_disposal.py"]},
+        # V2-546: the widget FOLLOWS the real apps instead of drifting from them. Two measured facts behind it:
+        # all three connectors were wired INBOUND-ONLY (the WhatsApp bridge saw the operator's outgoing
+        # messages and dropped them with an explicit `continue`; Telethon subscribed to `incoming=True` only;
+        # email never looked at IMAP flags), and there was NO conversation store — `items` was the inbox and
+        # reading a message DELETED it, so opening a chat showed what was unread and nothing else. Covers the
+        # thread (cap, TIME ordering, dedup, read watermark), the writers that reflect what happened elsewhere,
+        # and "load previous". The RENDERING half lives in 4.98 (`..._paints_in_every_profile`) — which is what
+        # caught that a backtick inside a comment CLOSES the CSS template literal.
+        {"id": "4.99", "title": "MENSAJERÍA: el widget sigue a la app real (respuestas desde el móvil, leído "
+                                "fuera, historial de conversación)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_the_widget_follows_the_real_app.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

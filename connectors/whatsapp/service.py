@@ -23,6 +23,7 @@ _seen: set[str] = set()          # already shown messageIds (to avoid resurrecti
 _published: set[str] = set()     # v2 stateless: messageIds already published to bus (dedup before widget triage)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 _reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
+_history_inbox = None            # V2-546: msg.history subscription (created in the loop)
 
 
 def enabled() -> bool:
@@ -50,6 +51,32 @@ def _origin(m: dict) -> tuple[str, str | None]:
 
 async def _ingest_new() -> None:
     msgs = await client.get_messages()
+    if not msgs:
+        return
+    # V2-546 — scrollback the PHONE sent because we asked for it. It is not news: it goes straight to the
+    # conversation, never through triage, or pressing "load previous" would interrupt the operator about
+    # messages from weeks ago.
+    backfill = [m for m in msgs if m.get("history")]
+    msgs = [m for m in msgs if not m.get("history")]
+    if backfill and ingest.v2_enabled():
+        by_chat: dict[str, list[dict]] = {}
+        for m in backfill:
+            by_chat.setdefault(str(m.get("chatId")), []).append(m)
+        for chat_id, rows in by_chat.items():
+            ingest.publish_history(PLATFORM, chat_id, [_history_entry(m) for m in rows])
+    # The bridge also tags each message with its DIRECTION. An outbound one (the operator wrote from his own
+    # phone, or zaelar sent it for him) must never reach triage or notification: it is not news and it is not a
+    # decision. It goes to the conversation and marks that chat as seen.
+    outgoing = [m for m in msgs if m.get("direction") == "out"]
+    msgs = [m for m in msgs if m.get("direction") != "out"]
+    if outgoing and ingest.v2_enabled():
+        for m in outgoing:
+            mid = m.get("messageId")
+            if mid and mid not in _published:
+                _published.add(mid)
+                m = dict(m)
+                m["from"] = ""                    # the thread module names the operator
+                ingest.publish_msg_out(PLATFORM, m)
     if not msgs:
         return
     if ingest.v2_enabled():
@@ -114,6 +141,64 @@ async def _drain_replies() -> None:
             _note(f"[SISTEMA] No se pudo enviar el WhatsApp a {r.get('to') or chat_id} ({e}). Avísale al operador.")
 
 
+def _history_entry(m: dict) -> dict:
+    """A backfilled message in the conversation's shape. Read by definition — it is scrollback, not something
+    demanding attention — and the operator is named by the thread module, not here."""
+    mine = m.get("direction") == "out"
+    entry = {
+        "messageId": m.get("messageId"), "dir": "out" if mine else "in",
+        "from": "" if mine else (m.get("senderName") or "?"),
+        "body": m.get("body") or "", "read": True,
+    }
+    try:
+        entry["ts"] = float(m.get("timestamp") or 0)
+    except (TypeError, ValueError):
+        pass
+    if m.get("mediaType"):
+        entry["mediaType"] = m.get("mediaType")
+    return entry
+
+
+async def _drain_external_reads() -> None:
+    """Chats the operator read on his phone (V2-546). WhatsApp reports a per-chat COUNTER, so this is a
+    whole-chat signal with no watermark — the bridge only queues one once that counter reaches zero, which is
+    the only reading of it that cannot hide unseen messages."""
+    if not ingest.v2_enabled():
+        return
+    for r in await client.get_reads():
+        chat_id = r.get("chatId")
+        if chat_id:
+            ingest.publish_read(PLATFORM, chat_id)
+
+
+async def _drain_history() -> None:
+    """Serve "load previous" (V2-546). WhatsApp is the honest case of the three: history lives on the PHONE, so
+    all we can do is ask it and wait — the messages come back as ordinary upserts on a later poll. A build or a
+    phone that cannot serve it SAYS so, rather than leaving the operator pressing a button that does nothing."""
+    if _history_inbox is None:
+        return
+    for order in _history_inbox.drain():
+        chat_id, oldest = order.get("chatId"), order.get("beforeId")
+        if not chat_id or not oldest:
+            ingest.publish_history(PLATFORM, chat_id, [],
+                                   error="no sé por dónde empieza lo que tengo de ese chat")
+            continue
+        try:
+            ack = await client.fetch_history(str(chat_id), str(oldest), float(order.get("beforeTs") or 0),
+                                             int(order.get("limit") or 30))
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"WhatsApp historial de {chat_id}: {e}")
+            ingest.publish_history(PLATFORM, chat_id, [], error=str(e))
+            continue
+        if not (ack or {}).get("available"):
+            ingest.publish_history(PLATFORM, chat_id, [],
+                                   error=(ack or {}).get("error") or "tu WhatsApp no me deja pedir el histórico")
+            continue
+        # Asked, not answered: nothing to publish. The phone replies with upserts that flow through _ingest_new
+        # like any other message, so the thread fills itself on the next tick.
+        logger.info(f"WhatsApp: pedidos {ack.get('requested')} mensajes anteriores de {chat_id}")
+
+
 def _note(text: str) -> None:
     try:
         from voice import brain_notes
@@ -123,11 +208,12 @@ def _note(text: str) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox
+    global _mark_inbox, _reply_inbox, _history_inbox
     _set_status("starting", None)
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # subscription in THIS loop (server) -> direct delivery
         _reply_inbox = ingest.ReplyInbox(PLATFORM)       # V2-521: dictated replies, same delivery path
+        _history_inbox = ingest.HistoryAskInbox(PLATFORM)  # V2-546: "load previous"
     try:
         await bridge.start()
     except Exception as e:
@@ -147,6 +233,11 @@ async def _loop() -> None:
                 await _ingest_new()
                 await _drain_reads()
                 await _drain_replies()
+                for what, fn in (("read marks", _drain_external_reads), ("history", _drain_history)):
+                    try:
+                        await fn()
+                    except Exception as e:  # noqa: BLE001
+                        logger.debug(f"WhatsApp {what} tick: {e}")
             else:
                 connected = False
                 _set_status("connecting", (h or {}).get("qr"))

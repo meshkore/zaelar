@@ -27,6 +27,7 @@ _mark_inbox = None               # v2: msg.mark_read subscription (created in TH
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
 _archive_inbox = None            # V2-543: msg.archive subscription
 _trash_inbox = None              # V2-543: msg.trash subscription
+_history_inbox = None            # V2-546: msg.history subscription ("load previous")
 
 
 def _media_dir() -> str | None:
@@ -128,6 +129,13 @@ async def _drain_replies(mb) -> None:
         ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, in_reply_to)
         if ok:
             logger.info(f"Email: respuesta enviada a {to}")
+            # V2-546 — record it in the conversation. Unlike WhatsApp and Telegram, sent mail does not come
+            # back through the INBOX (it goes to the Sent folder), so nothing would ever echo it: without this
+            # the operator's own reply would be the one message missing from the thread.
+            import time as _t
+            ingest.publish_msg_out(PLATFORM, {
+                "chatId": to, "messageId": f"sent:{_t.time():.0f}:{(in_reply_to or to)[:60]}",
+                "from": "", "body": text, "timestamp": _t.time()})
             try:
                 from voice import brain_notes
                 brain_notes.push(f"[SISTEMA] Email enviado a {to}. Confírmaselo al operador de forma natural.")
@@ -143,6 +151,71 @@ async def _drain_replies(mb) -> None:
                 brain_notes.push(f"[SISTEMA] No se pudo enviar el email a {to} ({info}). Avísale al operador.")
             except Exception:
                 pass
+
+
+async def _poll_external_flags(mb) -> None:
+    """Ask the server what the operator did in his own mail client (V2-546).
+
+    \\Seen means he opened it, \\Answered means he replied to it — either way that mail has been dealt with and
+    has no business sitting in the widget looking pending. This is a per-message answer, not a watermark, which
+    is why the read signal carries ids: IMAP is the one source that can be exact about WHICH mail.
+
+    Scoped to the UIDs we are currently showing, so its cost is the size of the pending list and not of the
+    mailbox — and it is skipped entirely when there is nothing pending."""
+    if not ingest.v2_enabled():
+        return
+    try:
+        db = store.load()
+    except Exception:  # noqa: BLE001
+        return
+    pending = [it for it in db.get("items", []) if it.get("platform") == PLATFORM]
+    if not pending:
+        return
+    uids = [str(it.get("messageId")) for it in pending if it.get("messageId")]
+    flags = await asyncio.to_thread(mb.flags_for, uids[:200])
+    if not flags:
+        return
+    by_chat: dict[str, list[str]] = {}
+    for it in pending:
+        uid = str(it.get("messageId"))
+        got = flags.get(uid)
+        if got and ("\\Seen" in got or "\\Answered" in got):
+            by_chat.setdefault(str(it.get("chatId")), []).append(uid)
+    for chat_id, ids in by_chat.items():
+        ingest.publish_read(PLATFORM, chat_id, ids=ids)
+        logger.info(f"Email: {len(ids)} ya leídos/contestados en tu cliente ({chat_id})")
+
+
+async def _drain_history(mb) -> None:
+    """Serve "load previous" (V2-546). IMAP holds the whole mailbox on the server, so this is exact: earlier
+    mail from the same correspondent, and we know when we have reached the first one."""
+    if _history_inbox is None:
+        return
+    for order in _history_inbox.drain():
+        chat_id, before = order.get("chatId"), order.get("beforeId")
+        if not chat_id or not before:
+            ingest.publish_history(PLATFORM, chat_id, [],
+                                   error="no sé por dónde empieza lo que tengo de ese remitente")
+            continue
+        try:
+            limit = max(1, min(100, int(order.get("limit") or 30)))
+        except (TypeError, ValueError):
+            limit = 30
+        msgs, complete = await asyncio.to_thread(mb.fetch_older, str(chat_id), str(before), limit, _media_dir())
+        rows = []
+        for m in msgs:
+            subject = (m.get("subject") or "").strip()
+            body = m.get("body") or ""
+            rows.append({
+                "messageId": m.get("messageId"), "dir": "in",
+                "from": m.get("senderName") or m.get("chatId") or "?",
+                # A mail without its subject is half a mail; the widget's own splitBody renders the first line
+                # as a title, so joining them here needs no special case downstream.
+                "body": f"{subject}\n{body}" if subject else body,
+                "ts": m.get("timestamp") or 0, "read": True,
+            })
+        ingest.publish_history(PLATFORM, chat_id, rows, complete=complete)
+        logger.info(f"Email: +{len(rows)} mensajes anteriores de {chat_id}")
 
 
 async def _drain_disposals(mb) -> None:
@@ -174,7 +247,7 @@ async def _drain_disposals(mb) -> None:
 
 
 async def _loop() -> None:
-    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox
+    global _mark_inbox, _reply_inbox, _archive_inbox, _trash_inbox, _history_inbox
     _set_status("starting", None, "Conectando con el servidor de correo…")
     mb = config.mailbox()
     if mb is None:
@@ -197,6 +270,8 @@ async def _loop() -> None:
             _archive_inbox = ingest.ArchiveInbox(PLATFORM)
         if _trash_inbox is None:
             _trash_inbox = ingest.TrashInbox(PLATFORM)
+        if _history_inbox is None:
+            _history_inbox = ingest.HistoryAskInbox(PLATFORM)
     _set_status("connected", None, f"Conectado como {config.address()}.")
     logger.info(f"Email conectado ({config.address()}) — escuchando tu buzón")
     while True:
@@ -216,6 +291,11 @@ async def _loop() -> None:
             await _drain_disposals(mb)
         except Exception as e:
             logger.debug(f"Email disposal tick: {e}")
+        for what, fn in (("flags", _poll_external_flags), ("history", _drain_history)):
+            try:
+                await fn(mb)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Email {what} tick: {e}")
         await asyncio.sleep(config.poll_interval())
 
 

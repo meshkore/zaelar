@@ -21,9 +21,12 @@ from connectors.telegram import config
 _task: asyncio.Task | None = None
 _client = None                   # telethon.TelegramClient once started
 _inbox: list[dict] = []          # inbound buffer pending triage (batching)
+_outbox: list[dict] = []         # V2-546: messages the OPERATOR sent from his own Telegram (no triage)
+_reads: list[dict] = []          # V2-546: chats he read elsewhere ({chatId, maxId})
 _seen: set[str] = set()          # already shown messageIds (do not resurrect what the operator removed)
 _mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 _reply_inbox = None              # V2-521: msg.reply subscription (created in the loop)
+_history_inbox = None            # V2-546: msg.history subscription (created in the loop)
 
 
 def enabled() -> bool:
@@ -183,6 +186,102 @@ async def _drain_inbox() -> None:
     await notify.announce("Telegram", surfaced)
 
 
+async def _drain_outbox() -> None:
+    """Messages the OPERATOR sent from his own Telegram (V2-546). They go to `connector.msg_out`, never to
+    `connector.msg`: that topic feeds triage and proactive notification, and being told about one's own message
+    is neither news nor a decision. The widget appends them to the conversation and treats the chat as seen."""
+    if not _outbox:
+        return
+    batch, _outbox[:] = _outbox[:], []
+    if not ingest.v2_enabled():
+        return                                   # legacy direct path never had a conversation to append to
+    for m in batch:
+        ingest.publish_msg_out("telegram", m)
+
+
+async def _drain_read_marks() -> None:
+    """Chats the operator read on another device. Telegram's update is a WATERMARK (`max_id`), so it is resolved
+    to that message's DATE — the store speaks time, which is the only vocabulary all three platforms share.
+
+    If the date cannot be resolved the read is DROPPED, not widened to the whole chat: not marking costs one
+    stale row the operator can clear himself, marking too much hides mail he has never seen."""
+    if not _reads or not ingest.v2_enabled():
+        _reads.clear()
+        return
+    batch, _reads[:] = _reads[:], []
+    seen: dict[int, int] = {}
+    for r in batch:                              # one watermark per chat: the highest wins
+        cid, mid = r.get("chatId"), r.get("maxId") or 0
+        if cid is not None and mid >= seen.get(cid, -1):
+            seen[cid] = mid
+    for chat_id, max_id in seen.items():
+        try:
+            msg = await _client.get_messages(chat_id, ids=max_id)
+            ts = msg.date.timestamp() if msg is not None else None
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"Telegram read watermark {chat_id}/{max_id}: {e}")
+            continue
+        if ts is None:
+            continue
+        ingest.publish_read("telegram", chat_id, upto_ts=ts)
+
+
+async def _drain_history() -> None:
+    """Serve "load previous" for one chat (V2-546). MTProto gives arbitrary history from the account itself, so
+    Telegram is the one platform where this is exact: `offset_id` walks strictly BACKWARDS from the oldest
+    message we hold. Fewer results than asked for means we reached the start of the conversation — that is what
+    lets the widget stop offering the button instead of asking forever."""
+    if _history_inbox is None:
+        return
+    for order in _history_inbox.drain():
+        chat_id = order.get("chatId")
+        try:
+            limit = max(1, min(100, int(order.get("limit") or 30)))
+        except (TypeError, ValueError):
+            limit = 30
+        offset_id = _tg_msg_id(order.get("beforeId")) or 0
+        try:
+            msgs = await _client.get_messages(int(chat_id), limit=limit, offset_id=offset_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram historial de {chat_id}: {e}")
+            ingest.publish_history("telegram", chat_id, [], error=str(e))
+            continue
+        out = []
+        for m in msgs or []:
+            out.append(await _history_entry(m, chat_id))
+        ingest.publish_history("telegram", chat_id, out, complete=len(msgs or []) < limit)
+        logger.info(f"Telegram: +{len(out)} mensajes anteriores de {chat_id}")
+
+
+async def _history_entry(msg, chat_id) -> dict:
+    """One historical message in the conversation's shape. Media is NOT downloaded here: a "load previous" can
+    pull thirty messages at once and paying for thirty downloads to fill a scrollback is the wrong trade — the
+    TYPE still travels, so the widget says what it was."""
+    from telethon import utils
+    try:
+        sender = await msg.get_sender()
+        who = utils.get_display_name(sender) or "?"
+    except Exception:  # noqa: BLE001
+        who = "?"
+    mtype = _tg_media_type(msg)
+    body = (msg.message or "") or (f"[{mtype} received]" if mtype else "")
+    mine = bool(getattr(msg, "out", False))
+    entry = {
+        "messageId": f"{chat_id}:{msg.id}", "dir": "out" if mine else "in",
+        # An empty `from` on an outbound message is deliberate: the thread module owns how the operator is
+        # labelled, and a second copy of that string here is one more thing to keep in step for no gain.
+        "from": "" if mine else who,
+        "body": body, "read": True,
+    }
+    try:
+        entry["ts"] = msg.date.timestamp()
+    except Exception:  # noqa: BLE001
+        pass
+    if mtype:
+        entry["mediaType"] = mtype
+    return entry
+
+
 def _tg_msg_id(raw) -> int | None:
     """Our wire messageId is the composite '<chat_id>:<msg_id>' (service-made, `_normalize`). The per-chat
     Telegram id is the part AFTER the colon. int('<chat>:<id>') raises — which is exactly how replies silently
@@ -303,11 +402,33 @@ async def _loop() -> None:
         except Exception as e:
             logger.debug(f"Telegram normalize: {e}")
 
-    global _mark_inbox, _reply_inbox
+    # V2-546 — the account is the SAME account the operator uses on his phone, so Telethon already sees
+    # everything he does there. These two updates were simply never subscribed to.
+    @_client.on(events.NewMessage(outgoing=True))
+    async def _on_msg_out(event):                                   # noqa: ANN001
+        try:
+            m = await _normalize(event)
+            m["from"] = ""                                          # the thread module names the operator
+            _outbox.append(m)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"Telegram normalize (saliente): {e}")
+
+    @_client.on(events.MessageRead(inbox=True))
+    async def _on_read(event):                                      # noqa: ANN001
+        # inbox=True is "I read THEIR messages" (on any device). The outbox variant — someone read MINE — is
+        # deliberately not subscribed: it says nothing about what still wants the operator's attention.
+        try:
+            _reads.append({"chatId": event.chat_id, "maxId": int(getattr(event, "max_id", 0) or 0)})
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"Telegram read receipt: {e}")
+
+    global _mark_inbox, _reply_inbox, _history_inbox
     if ingest.v2_enabled() and _mark_inbox is None:
         _mark_inbox = ingest.MarkReadInbox("telegram")   # subscription in THIS loop (server) -> direct delivery
     if ingest.v2_enabled() and _reply_inbox is None:
         _reply_inbox = ingest.ReplyInbox("telegram")     # V2-521: dictated replies, same delivery path
+    if ingest.v2_enabled() and _history_inbox is None:
+        _history_inbox = ingest.HistoryAskInbox("telegram")   # V2-546: "load previous"
     _set_status("connected", None)
     # Telethon dispatches updates only while the loop runs; this batching task coexists with that delivery.
     while True:
@@ -330,6 +451,12 @@ async def _loop() -> None:
             await _drain_replies()
         except Exception as e:
             logger.debug(f"Telegram replies tick: {e}")
+        for what, fn in (("outbox", _drain_outbox), ("read marks", _drain_read_marks),
+                         ("history", _drain_history)):
+            try:
+                await fn()
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"Telegram {what} tick: {e}")
 
 
 def start() -> None:

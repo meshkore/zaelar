@@ -513,6 +513,91 @@ class Mailbox:
         """Delete the given INBOX UIDs in the REAL mailbox (to Trash where one exists). Returns (ok, reason)."""
         return self._dispose(uids, "trash")
 
+    # -- What the operator did in his OWN mail client (V2-546) -----------------------------------------------------
+    # IMAP already answers this exactly, and nobody was asking: the server keeps per-message FLAGS, so \Seen means
+    # he opened it and \Answered means he replied to it — wherever he did it. Everything the widget needed to stop
+    # showing mail he had already dealt with was one FETCH away.
+    _FLAG_RE = re.compile(rb"UID\s+(\d+).*?FLAGS\s+\(([^)]*)\)", re.IGNORECASE | re.DOTALL)
+
+    def flags_for(self, uids: list[str]) -> dict[str, set[str]]:
+        """FLAGS of the given UIDs, as {uid: {"\\Seen", ...}}. A UID the server does not answer for is simply
+        absent — never guessed as unflagged, which would read as "still unread" for a mail that has been moved
+        or deleted."""
+        uids = [str(u) for u in (uids or []) if u]
+        if not uids:
+            return {}
+        out: dict[str, set[str]] = {}
+        try:
+            im = self._imap()
+        except Exception:
+            return out
+        try:
+            im.select("INBOX")
+            st, data = im.uid("fetch", ",".join(uids), "(FLAGS)")
+            if st != "OK":
+                return out
+            for row in data or []:
+                raw = row[0] if isinstance(row, tuple) else row
+                if not isinstance(raw, (bytes, bytearray)):
+                    continue
+                m = self._FLAG_RE.search(raw)
+                if not m:
+                    continue
+                uid = m.group(1).decode()
+                flags = {f.decode(errors="replace") for f in m.group(2).split()}
+                out[uid] = flags
+        except Exception:
+            pass
+        finally:
+            try:
+                im.logout()
+            except Exception:
+                pass
+        return out
+
+    def fetch_older(self, address: str, before_uid: str, limit: int = 30,
+                    media_dir: str | None = None) -> tuple[list[dict], bool]:
+        """Mail from `address` OLDER than `before_uid` ("load previous"). Returns (messages, reached_start).
+
+        UIDs are monotonic per mailbox, so "older" is a numeric comparison and needs no date arithmetic. Uses
+        BODY.PEEK like every other read here: fetching the scrollback of a conversation must not mark it read."""
+        try:
+            cutoff = int(str(before_uid))
+        except (TypeError, ValueError):
+            return [], False
+        results: list[dict] = []
+        reached_start = False
+        try:
+            im = self._imap()
+        except Exception:
+            return results, False
+        try:
+            im.select("INBOX")
+            safe = (address or "").replace('"', "")
+            st, data = im.uid("search", None, "FROM", f'"{safe}"')
+            if st != "OK" or not data or not data[0]:
+                return results, True          # nothing from them at all: there is no earlier mail to offer
+            older = sorted((int(u) for u in data[0].split() if int(u) < cutoff))
+            reached_start = len(older) <= limit
+            for uid in older[-limit:]:
+                st2, msg_data = im.uid("fetch", str(uid), "(BODY.PEEK[])")
+                if st2 != "OK" or not msg_data or not msg_data[0]:
+                    continue
+                try:
+                    parsed = parse_message(str(uid), msg_data[0][1], media_dir=media_dir)
+                except Exception:
+                    parsed = None
+                if parsed is not None:
+                    results.append(parsed)
+        except Exception:
+            return results, False
+        finally:
+            try:
+                im.logout()
+            except Exception:
+                pass
+        return results, reached_start
+
     def mark_seen(self, uids: list[str]) -> bool:
         """Mark the given UIDs as \\Seen (read on the server). True if OK (batch best-effort)."""
         uids = [u for u in (uids or []) if u]

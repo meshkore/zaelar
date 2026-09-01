@@ -146,6 +146,13 @@
    },
    "safe": true,
    "usage": "«De Telegram avísame solo de mensajes directos» → set_notify {platform:'telegram', notify:'direct'}. «Que WhatsApp no me interrumpa hablando» → {platform:'whatsapp', speak:false}. Para silenciar UN chat concreto usa hide, no esto."
+  },
+  "load_more": {
+   "desc": "Trae MENSAJES ANTERIORES de la conversación abierta desde la app real (Telegram/correo/WhatsApp). Úsala cuando el operador pida ver lo de antes («cárgame los anteriores», «¿qué me dijo la semana pasada?») y el widget diga que ahí empieza lo guardado. No inventa nada: se los pide al conector",
+   "payload": {
+    "limit": "int opcional (cuántos, por defecto 30)"
+   },
+   "safe": true
   }
  },
  "entry": "widget.js",

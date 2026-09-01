@@ -44,6 +44,22 @@ async def send_message(chat_id: str, text: str, reply_to: str | None = None) -> 
     return await _request("POST", "/send", body=body, timeout=45.0)
 
 
+async def get_reads() -> list[dict]:
+    """Return (and clear) the chats the operator read on ANOTHER device since the last poll (V2-546). Each
+    entry: {chatId, at}. WhatsApp gives a per-chat counter, not a per-message watermark, so the bridge only
+    queues one when that counter reaches zero."""
+    reads = await _request("GET", "/reads")
+    return reads or []
+
+
+async def fetch_history(chat_id: str, oldest_id: str, oldest_ts: float, limit: int = 30) -> dict:
+    """Ask the operator's PHONE for messages older than the ones we hold (V2-546). It answers asynchronously —
+    the messages arrive as ordinary upserts on the next poll — so the return value is only the acknowledgement,
+    and `available: False` means this build or this phone cannot serve it."""
+    return await _request("POST", "/history", timeout=30.0, body={
+        "chatId": chat_id, "oldestId": oldest_id, "oldestTs": oldest_ts, "limit": limit})
+
+
 async def mark_read(keys: list[dict]) -> dict:
     """Mark the indicated messages as read. Each key: {chatId, messageId, senderId?}."""
     if not keys:
