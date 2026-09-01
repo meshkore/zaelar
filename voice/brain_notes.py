@@ -11,9 +11,12 @@
 # Brain-agnostic on purpose: the queue lives in voice/ so any brain adapter can drain it; the widget layer (and any
 # future async action) only needs push(). Best-effort, thread-safe, bounded — never raises into a caller.
 #
+import re
 import threading
 
 from loguru import logger
+
+_BLANK_LINE_RE = re.compile(r"\n\s*\n+")
 
 _lock = threading.Lock()
 _pending: list[tuple[str, str]] = []   # (key, text) — the key is "" for the vast majority
@@ -36,6 +39,12 @@ def push(text: str, key: str = "") -> None:
     text = (text or "").strip()
     if not text:
         return
+    # A note never carries a blank line of its own. Notes are glued in front of the turn as
+    # `"\n".join(notes) + "\n\n" + text`, so the blank line is the ONLY mark of where the notes end and the
+    # operator's words begin — `escalate.strip_system_notes` reads it that way to keep a note from becoming an
+    # errand. A note that contained an empty line would split itself in two and hand its own tail over as if the
+    # operator had said it (a worker's summary, which is free text, is one push away from doing exactly that).
+    text = _BLANK_LINE_RE.sub("\n", text)
     key = (key or "").strip()
     with _lock:
         if key:

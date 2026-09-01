@@ -2475,7 +2475,8 @@ class NucleoLLMStream(llm.LLMStream):
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)
         _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
-        if _no_tool and spoken_text and _router.promises_action(spoken_text):
+        if (_no_tool and spoken_text and _router.promises_action(spoken_text)
+                and not _router.asks_for_missing_detail(spoken_text)):
             _win_goal = ""
             if not (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)):
                 # V2-132 — la petición puede ser de HACE UNOS TURNOS: zaelar pidió el dato que faltaba (correcto),
@@ -3124,17 +3125,17 @@ class NucleoLLMStream(llm.LLMStream):
         if (escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened")):
             try:
                 from nucleo import danger as _danger_bk
-                if _danger_bk.is_dangerous(text):
-                    escalate_req["v"] = text
+                if _danger_bk.is_dangerous(_op_text):
+                    escalate_req["v"] = _op_text
                     emit("brain", "🛑 orden irreversible sin escalar → tarea (pasará por el confirm-gate)",
-                         text=text[:120], role="system", extra={"cat": "flash"})
+                         text=_op_text[:120], role="system", extra={"cat": "flash"})
             except Exception:
                 pass
 
         # Escala DESPUÉS de que el texto del turno rápido va camino de TTS. NO escala si ya se dirigió a un worker
         # vivo (inject/stop/answer) este turno.
         if escalate_req["v"] is not None and not worker_acted["v"]:
-            req = escalate_req["v"] or text
+            req = escalate_req["v"] or _op_text
             # V2-038 §v3·G: si una tarea MUY parecida ya está EN CURSO, esto es un REFINAMIENTO → se INYECTA a esa
             # sesión (no se descarta como antes, ni se abre otra). Reemplaza el dedup-descartar de V2-029.
             if _similar_pending(req, _prev_pending):
@@ -3175,7 +3176,7 @@ class NucleoLLMStream(llm.LLMStream):
             # entero. Un turno que encarga tres cosas lleva las otras dos dentro, y con «informe» dentro el
             # dedup le asigna el mismo widget destino que la tarea del informe y se la come por su señal más
             # fuerte. Ver `router_guards.create_widget_request` para la medición.
-            _w_req = (_router.create_widget_request(text)
+            _w_req = (_router.create_widget_request(_op_text)
                       if not any(_router.looks_like_create_widget(r)
                                  for r in [req, *escalate_req["more"]]) else "")
             if _w_req:
@@ -3200,57 +3201,16 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception as _e_more:  # noqa: BLE001
                     logger.warning(f"escalada adicional falló (las demás siguen): {_e_more}")
 
-        # TELEMETRÍA compromiso-sin-acción (V2-047 F3, sesión 23:15 ITV T22: «Me pongo con ello ahora mismo» con
-        # decisión VACÍA — el modelo prometió y NO llamó a ninguna tool; el operador esperó 6 min). NO cambia el
-        # comportamiento: solo emite un evento MEDIBLE (categoría flash) para cuantificar cuántas veces pasa con el
-        # chain-suite. Si resulta frecuente, la Fase 2 añade un backstop; de momento, VISIBILIDAD. Señal, no tabla
-        # de decisión: una promesa en 1ª persona ("me pongo/lo hago/ahora mismo/te lo reservo/arranco") + CERO
-        # acción efectiva este turno.
+        # Promise-without-action, and the forced escalation behind it (V2-049 + V2-534). The DECISION moved to
+        # `promise_backstop.py` (architecture ratchet, same pattern as `vault_intercept.py`); `_did_act` stays
+        # here because it reads nine dicts of THIS turn's closure.
         _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
                         or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
                         or clarify.get("msg"))
-        if spoken_text and not _did_act:
-            import re as _re_prom
-            _committed = bool(_re_prom.search(
-                r"\b(me pongo con|me pongo a|ahora mismo|lo hago|lo hago ya|te lo (?:reservo|busco|"
-                r"miro|preparo|hago|gestiono)|arranco|voy (?:con|a por|alla|alli|ya)|me meto en|"
-                r"enseguida|me encargo|lo pongo en marcha|voy alla|entro (?:en|a) la web)\b",
-                _norm_nfkd(spoken_text)))
-            if _committed:
-                emit("brain", "⚠️ promesa sin acción (dijo que lo haría, no disparó tool)", text=spoken_text[:120],
-                     role="system", extra={"cat": "flash", "kind_diag": "promise_no_tool"})
-                # BACKSTOP V2-049 (arregla «¿por qué te has parado?», sesión ITV): si PROMETIÓ hacer una GESTIÓN WEB
-                # y NO llamó a ninguna tool, la escalada la forzamos NOSOTROS — determinista, espejo del
-                # login-fallback. Sin esto el operador oye "me pongo con ello" y no pasa NADA (el modelo rápido no
-                # dispara `escalate_to_slowbrain` de forma fiable). Solo para tareas web reales (verbo de gestión),
-                # nunca para charla; respeta el dedup/inject (no abre una 2ª sesión de lo mismo).
-                try:
-                    from nucleo.flash import router as _r_bk
-                    if _r_bk.looks_like_web_task(text):
-                        if _similar_pending(text, _prev_pending):
-                            from nucleo import dispatch as _disp_bk
-                            _disp_bk.inject_soon(text, text)
-                            emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=text[:120], role="system")
-                        else:
-                            # EL KIND LO DECIDE EL CLASIFICADOR, no este backstop (2026-08-14, sesión b70a45d0).
-                            # Antes iba fijo a `"web"`, y eso convirtió una data-op LOCAL en una tarea de navegador:
-                            # «lees lo que hay en la agenda, lo borras y compruebas» abrió DOS tarjetas de navegador
-                            # que nadie pidió, se rotuló «Buscando en la web…», y —el daño de verdad— pasó a ser
-                            # «la tarea del navegador», que es justo lo que hizo que un `stop_worker` equivocado la
-                            # encontrara y la matara con la autorización del operador ya entregada.
-                            # `looks_like_web_task` se queda solo como DISPARADOR (¿hay un verbo de gestión?): su
-                            # propio docstring dice que existe para reclasificar una llamada errónea a
-                            # `authenticate_web`, y sus raíces (`borr|lee|compr|…`) no exigen destino web ninguno.
-                            # Quién es la tarea lo dice `dispatch._classify_kind`, que para ese mismo texto
-                            # responde `generic` — sin navegador y con el rótulo honesto.
-                            from nucleo import dispatch as _disp_kind
-                            _bk_kind = _disp_kind._classify_kind(text)
-                            _escalate_mod.escalate_to_slowbrain(
-                                text, context={"src": "voice", "kind": _bk_kind})
-                            emit("brain", f"🧭 promesa→escalada FORZADA (backstop · kind={_bk_kind})",
-                                 text=text[:120], role="system", extra={"cat": "flash", "kind_task": _bk_kind})
-                except Exception as _e_bk:  # noqa: BLE001
-                    logger.warning(f"backstop promesa falló: {_e_bk}")
+        from voice.engine.llm.providers import promise_backstop as _promise_backstop
+        _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending,
+                              emit=emit, escalate=_escalate_mod.escalate_to_slowbrain,
+                              similar_pending=_similar_pending)
 
 
 def _similar_pending(req: str, pendings: list[dict]) -> bool:

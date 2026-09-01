@@ -128,7 +128,7 @@ def _prompt_excerpt(system: str) -> str:
         return system
     dropped = len(system) - _HEAD_CHARS - _TAIL_CHARS
     return (f"{system[:_HEAD_CHARS]}\n\n… [{dropped} caracteres OMITIDOS del centro del prompt; "
-            f"the live state is at the end and is included below] …\n\n{system[-_TAIL_CHARS:]}")
+            f"el estado vivo va al final y sí está abajo] …\n\n{system[-_TAIL_CHARS:]}")
 
 
 def turn_detail(*, system: str, window: list | None = None, tools: list | None = None,

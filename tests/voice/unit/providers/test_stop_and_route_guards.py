@@ -117,8 +117,13 @@ def test_looks_like_web_task_casa_esa_frase_y_por_eso_no_puede_decidir_el_kind()
 
 
 def test_el_backstop_ya_no_fija_el_kind_a_web():
-    body = NUCLEO.read_text(encoding="utf-8")
+    # 2026-09-01: the block moved from `nucleo.py` to its own module (architecture ratchet). The guard
+    # follows the code: leaving it pointed at `nucleo.py` would keep it green while watching a file that no longer contains it.
+    body = (NUCLEO.parent / "promise_backstop.py").read_text(encoding="utf-8")
     i = body.index("promesa→escalada FORZADA")
     block = body[max(0, i - 2000):i + 400]
-    assert '_classify_kind(text)' in block, "el backstop tiene que preguntar al clasificador"
+    # 2026-09-01: the argument changed from `text` to `_op_text` — the turn carries the [SYSTEM] notes attached
+    # before it, and one of them became an assignment (“Cita en Valls”). The RULE protected by this guard
+    # does not change: the classifier decides the kind, not this backstop. The call is matched, not its argument.
+    assert '_classify_kind(op_text)' in block, "el backstop tiene que preguntar al clasificador"
     assert '"kind": "web"' not in block, "vuelve a estar el hardcode que abrió dos navegadores"
