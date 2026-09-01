@@ -7451,6 +7451,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     node 2.7 for the auditor knowing which layer acted. Live: 424 active `es` rows, 55 hits on the operator's
     engine.
 
+- **La acción que ES el propósito de un widget es la que se salta el censo (V2-547, 2026-09-02)**: el operador
+  —«review last session, not working a simple request»—. La observabilidad del 2026-09-01 23:21 lo cierra:
+  «Enséñame la foto de un Ferrari F cuarenta» → `🪟 'abrir/mostrar' puro → show · imagenes (descartada show)`,
+  dos turnos seguidos, visor abierto y **vacío**, «No sale la foto», y de ahí una escalada a un agente de
+  CÓDIGO que se pasó minutos conduciendo un navegador por Wikimedia para traer una foto.
+  - **El guarda de V2-545 es correcto; lo que falló es el CENSO.** La pasada que marcó las acciones de
+    solo-vista llegó a `imagenes` y marcó `select`, `next`, `previous` y `local` —todas las formas de MOVERSE
+    entre fotos ya puestas— y se saltó `show` y `add`, **las dos únicas que PONEN una foto ahí**. El widget cuya
+    función entera es enseñar fotos tenía su acción principal descartada por la forma normal de pedir una.
+  - **La lección no es sobre `imagenes`**: una marca opt-in es una lista que alguien recorre, y la acción más
+    fácil de saltarse es la que ES el propósito del widget, porque no parece ni una lente ni un paso. La primera
+    pregunta al marcar un widget no es «cuáles son lentes» sino «cuál contesta la frase para la que existe».
+    Está escrito en el contrato de `is_view`, que es donde el próximo lo hará.
+
+- **El catálogo enrutaba con la frase cortada a mitad de palabra (V2-547, 2026-09-02)**: la segunda causa de la
+  misma sesión, y la más cara. `widgets/brief.py` recortaba `whenToUse` a 80 caracteres sin mirar dónde caía —
+  **los once widgets truncados**, y varios perdiendo justo la cláusula que los desambigua: `clock` su «NO para
+  el tiempo meteorológico», `search` su «FRONTERA con `result‹CORTE›»», `mensajeria` su «WhatsApp/Telegram/
+  correo» y `contactos` su «o por sus favoritos («mi restaurante favorito en Barcelona»)».
+  - Por eso «Enséñame mis restaurantes favoritos» —**la frase que ese manifest nombra literalmente**, con
+    `show_view` ya declarada `view` para contestarla— escaló a un agente de código y respondió «Sigo con ello».
+  - ⚠️ El corte de `mensajeria` es el mismo widget al que V2-545 dedicó una iniciativa entera: «ábreme el
+    Telegram» llegando a un modelo cuyo catálogo **no menciona Telegram**.
+  - **Ese texto lo escribimos nosotros PARA enrutar.** Cortarlo a mitad de palabra corta lo único para lo que
+    existe el bloque, y el fragmento que queda no pierde un significado: **inventa otro**. Sigue acotado
+    (V2-526) — tope generoso, corte en frontera de FRASE, y el número de widgets ya lo acota `selection`, así
+    que se acota la prosa POR widget, no el bloque. Medido 586 → 907 tokens por turno.
+  - Misma forma de fallo que el aviso de V2-027 que vive diez líneas más abajo en ese fichero: recortar el
+    `usage` hizo que un modelo pequeño **escalara en vez de deducir**. Segunda vez de la misma causa.
+  - ⚠️ Un segundo test —«todo widget de mirar declara alguna acción de vista»— **pasaba en verde con el defecto
+    puesto**, porque a `imagenes` le quedaban `select`/`next`/`previous`. Retirado en vez de dejar un guarda que
+    da falsa tranquilidad; la lección se guardó en el contrato, que es donde sí sirve.
+  - Nodos **2.1** (fichero existente) y **4.100**. Dos desarmes: 1 y 3 rojos.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
