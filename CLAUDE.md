@@ -7286,6 +7286,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     (the operator's session blocked the restart); first check: «abre el mensaje de Francisco» →
     `widget_data(mensajeria, open, {name})`. Open: the «sí» resolution is still model judgement — the
     deterministic upgrade is the pending-offer carry of V2-539's family.
+  - **The prompt fix alone could not reach the screen: the voice rail was UNDOING it** (same day, found by
+    probing after the restart). `_handle_widget_data_tool` rewrites EVERY `is_pure_show_request` into
+    `[[show:widget]]` — and «abre el mensaje de Francisco» IS one (show verb, no change verb), so a correct
+    `widget_data(open, {name})` became a re-show of a card already on screen. `show_object_is_the_widget`
+    tells the two apart with the MANIFEST's own vocabulary (strip the show verb and the filler; what is left
+    must be names this widget answers to) — no verb table, no per-widget list — and the original incident the
+    guard exists for («abre la agenda» executing an invented `add_meeting`) still lands on show. **Fails
+    CLOSED**: an unreadable catalog keeps the old behavior, because a hallucinated data-op is worse than a
+    show that does nothing.
+  - **The probe channel had never mirrored that guard**, so it reported `widget_data open {name:'Francisco'}`
+    for the very sentence the voice rail turned into a bare show: **a FALSE GREEN on the defect it was being
+    used to diagnose**. Seventh instance of «cablear en AMBOS» in this file.
+  - **And a third layer, in the card itself**: an open thread won over the platform lens but NOT over the
+    «completo» profile, whose branch `return`s first — so with that profile selected `open` set `active_chat`
+    and the card kept painting the same flat list. Everything downstream worked and the screen did not move,
+    which no source-level assertion can see (node 4.98 RENDERS both profiles).
+  - **VERIFIED LIVE on the restarted engine**: 5/5 phrasings («abre / ábreme / entra en / haz clic en el
+    mensaje de Francisco», «abre el mensaje») produce `widget_data(mensajeria, open, {name:'Francisco'})` and
+    the chat opens in the store; canvas-level shows («enséñame la mensajería», «abre la agenda») still route
+    to `show_widget`. ⚠️ Measurement trap paid here: mutating the widget store from an EXTERNAL process makes
+    the reads look flaky (the server holds its own cached db) — drive and read through the server, or the
+    result says nothing.
 
 ## Testing y rueda de mejora (INI-013)
 

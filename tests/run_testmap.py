@@ -1402,7 +1402,11 @@ DOMAINS: list[dict] = [
         {"id": "4.98", "title": "MENSAJERÍA: la vista es una acción que contesta, los medios se ven, y "
                                 "archivar/borrar llegan al buzón real",
             "ch": UNIT,
+            # V2-544: an OPEN chat must paint whichever list profile is selected. `open` set `active_chat`
+            # correctly and the «completo» branch returned first, so the card kept painting the same flat
+            # list — a `return` before the branch that draws the thread, invisible to any source assertion.
             "paths": ["tests/browser/unit/mensajeria/test_the_view_is_an_action_and_the_manifest_says_so.py",
+                      "tests/browser/unit/mensajeria/test_an_open_thread_paints_in_every_profile.py",
                       "tests/browser/e2e/mensajeria/test_mensajeria_render.py",
                       "tests/connectors/unit/messaging/test_media_travel_to_the_store.py",
                       "tests/connectors/unit/email/test_attachments_and_disposal.py"]},
