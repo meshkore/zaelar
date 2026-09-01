@@ -250,3 +250,35 @@ def test_use_case_the_ghost_errand_of_2026_09_01():
     assert router.looks_like_web_task(glued), "premise: the glued note is what made this look like a web task"
     assert not router.looks_like_web_task(op), "the operator asked for prices of nothing yet — no errand here"
     assert router.asks_for_missing_detail(reply), "and the gate closes one step earlier still"
+
+
+def test_the_call_site_still_matches_the_module_it_calls():
+    """The extraction's own risk, and the one a unit test of `run()` cannot see: `_run_inner` calls it with
+    seven keywords, and a signature that stops matching would raise at the END of every voice turn — after
+    the reply streamed, so the operator would hear an answer and then the turn would blow up."""
+    import ast
+    import inspect
+
+    from voice.engine.llm.providers import promise_backstop as pb
+
+    tree = ast.parse(NUCLEO.read_text(encoding="utf-8"))
+    calls = [n for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+             and n.func.attr == "run" and getattr(n.func.value, "id", "") == "_promise_backstop"]
+    assert len(calls) == 1, "the backstop is called from exactly one place — the end of the turn"
+    call, = calls
+    sig = inspect.signature(pb.run)
+    keywords = {k.arg for k in call.keywords}
+    required = {n for n, p in sig.parameters.items()
+                if p.default is inspect.Parameter.empty and p.kind is not p.VAR_KEYWORD} - {"spoken_text"}
+    assert not (required - keywords), f"the call site never passes {required - keywords}"
+    assert not (keywords - set(sig.parameters)), f"the call site passes {keywords - set(sig.parameters)}"
+
+    # …and every name it reads is bound in that function, so this cannot raise NameError either.
+    fn = next(n for n in ast.walk(tree)
+              if isinstance(n, ast.AsyncFunctionDef) and n.name == "_run_inner")
+    bound = {t.id for n in ast.walk(fn) for t in ast.walk(n)
+             if isinstance(t, ast.Name) and isinstance(t.ctx, ast.Store)}
+    bound |= {a.arg for a in fn.args.args} | {"emit", "_similar_pending"}
+    used = {k.value.id for k in call.keywords if isinstance(k.value, ast.Name)}
+    assert not (used - bound), f"the call site reads unbound names: {used - bound}"
