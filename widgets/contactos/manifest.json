@@ -1,0 +1,97 @@
+{
+  "id": "contactos",
+  "version": "0.1.0",
+  "title": "Contactos",
+  "description": "El directorio único del operador: personas, sitios y empresas (amigos, restaurantes, fontaneros, cafeterías…) con grupos, ciudad, favoritos y conexiones entre ellos.",
+  "whenToUse": "Cuando el usuario pregunta por sus contactos o su directorio, por sus sitios o profesionales guardados, o por sus favoritos («mi restaurante favorito en Barcelona», «los fontaneros que tenemos en Soria»), o quiere añadir, cambiar, conectar o quitar uno.",
+  "keywords": [
+    "contactos",
+    "contacto",
+    "directorio",
+    "mis contactos",
+    "favoritos",
+    "restaurante favorito",
+    "restaurantes favoritos",
+    "fontanero",
+    "fontaneros",
+    "amigos",
+    "empresas",
+    "sitios guardados",
+    "contacts",
+    "directory",
+    "favorites"
+  ],
+  "entry": "widget.js",
+  "size": { "w": 720, "h": 520 },
+  "usage": "El directorio ÚNICO de contactos del operador: personas, sitios y empresas, con grupos libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación), marca con set_favorite y conecta una persona con su sitio o empresa con link_contact. Para VER o CONSULTAR el directorio («mi restaurante favorito en Barcelona», «enséñame los fontaneros de Soria») usa show_view: filtra lo que se ve Y devuelve los que casan en `result.matches` para que contestes con sus nombres — mostrar el widget otra vez NO filtra nada, abre el directorio entero. La ficha de uno concreto es show_contact.",
+  "actions": {
+    "add_contact": {
+      "desc": "guarda un contacto nuevo (persona, sitio o empresa: un amigo, un restaurante, un fontanero…) — con el mismo nombre y ciudad ACTUALIZA el existente en vez de duplicar",
+      "payload": {
+        "name": "string",
+        "kind": "person | place | company",
+        "group": "etiqueta libre («restaurantes», «amigos del trabajo»); varias separadas por comas",
+        "city": "string (opcional)",
+        "phone": "string (opcional)",
+        "email": "string (opcional)",
+        "address": "string (opcional)",
+        "notes": "string (opcional)",
+        "favorite": "true/false (opcional)"
+      }
+    },
+    "update_contact": {
+      "desc": "cambia los datos de un contacto existente — solo los campos que mandes; `group` AÑADE una etiqueta, `groups` sustituye la lista entera",
+      "payload": {
+        "contactId": "string",
+        "name": "string (opcional)",
+        "kind": "person | place | company (opcional)",
+        "group": "etiqueta a AÑADIR (opcional)",
+        "groups": "lista o cadena con comas que SUSTITUYE las etiquetas (opcional)",
+        "city": "string (opcional)",
+        "phone": "string (opcional)",
+        "email": "string (opcional)",
+        "address": "string (opcional)",
+        "notes": "string (opcional)"
+      }
+    },
+    "remove_contact": {
+      "desc": "borra un contacto del directorio para siempre",
+      "payload": { "contactId": "string" },
+      "confirm": true,
+      "confirm_q": "¿Borro «{item}» del directorio? Es permanente."
+    },
+    "set_favorite": {
+      "desc": "marca o desmarca un contacto como favorito («mi restaurante favorito»)",
+      "payload": { "contactId": "string", "favorite": "true/false (true si se omite)" }
+    },
+    "link_contact": {
+      "desc": "conecta un contacto con otro — la persona que conoces EN un restaurante o empresa cuelga de él; parentId vacío lo desconecta",
+      "payload": { "contactId": "string", "parentId": "string (vacío = desconectar)" }
+    },
+    "show_view": {
+      "desc": "CAMBIA LO QUE SE VE en el directorio y CONTESTA la consulta («mi restaurante favorito en Barcelona», «los fontaneros de Soria»): filtra por grupo, ciudad, favoritos o texto y devuelve los que casan. Es obligatoria para eso — mostrar el widget de nuevo NO filtra, enseña todo",
+      "payload": {
+        "group": "grupo/etiqueta («restaurantes», «fontaneros») (opcional)",
+        "city": "ciudad (opcional)",
+        "favorites": "true para solo favoritos (opcional)",
+        "query": "texto libre a buscar (opcional)"
+      }
+    },
+    "show_contact": {
+      "desc": "abre la FICHA de un contacto concreto: sus datos, sus etiquetas y su gente o sitios conectados",
+      "payload": { "contactId": "string" }
+    }
+  },
+  "name": "Contactos",
+  "aliases": [
+    "Contactos",
+    "contactos",
+    "directorio",
+    "mis contactos",
+    "agenda de contactos"
+  ],
+  "data": {
+    "durable": true,
+    "why": "Lo que hay dentro NO es la salida de un trabajo: es el archivo REAL de contactos del operador — sus amigos, sus restaurantes, sus fontaneros, con sus teléfonos y sus favoritos. Un reset deja en blanco las superficies derivadas porque son reproducibles; borrar esto sería pérdida de datos, del mismo orden que borrar la memoria — y eso solo pasa si el operador marca su casilla en el diálogo del reset."
+  }
+}

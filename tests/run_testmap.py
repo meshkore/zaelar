@@ -1344,6 +1344,20 @@ DOMAINS: list[dict] = [
                                 "(`q` es la instancia, no solo `sheet`)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_widget_action_lands_on_the_right_sheet.py"]},
+        # V2-541 — el widget de CONTACTOS: UN directorio para todas las identidades (personas, sitios,
+        # empresas — amigos, restaurantes, fontaneros…), por orden directa del operador: un restaurante
+        # favorito ES una entrada de este directorio con `favorite` de marca, nunca una lista por-tipo (el
+        # widget generado `restaurantes-favoritos-operador` se borró el mismo día para que solo exista éste).
+        # Nace con las lecciones ya pagadas puestas: la vista es una ACCIÓN del manifest con contador-testigo
+        # y caducidad en servidor (la medición de V2-540 — una capacidad sin declarar se narra), `show_view`
+        # DEVUELVE los que casan para que «¿mi restaurante favorito en Barcelona?» sea una llamada y no una
+        # promesa, el alta sin nombre es un error que enseña la forma (V2-473), mismo nombre+ciudad ACTUALIZA
+        # en vez de duplicar (familia V2-208), y el render comprueba que el detalle repinta en la RAÍZ y no
+        # anidado (familia V2-124).
+        {"id": "4.96", "title": "CONTACTOS: un directorio para todas las identidades — la vista es una acción "
+                                "que contesta (renderizado + manifest + datos)",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_one_directory_for_every_identity.py",
+                                  "tests/browser/e2e/widgets/test_contactos_render.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:
