@@ -70,6 +70,13 @@ def prewarm(proc: JobProcess) -> None:
         logger.warning("STT prewarm skipped: %s", e)
     try:
         proc.userdata["tts"] = build_tts()  # warms the Metal Kokoro model in the idle executor
+        # Remote TTS plugins (Cartesia) keep a websocket ConnectionPool that is only opened on the FIRST
+        # synthesis — so the session's first utterance (the kickoff greeting) paid a fresh TLS+WS handshake
+        # (2026-09-01 latency audit). Plugins that expose prewarm() get their pool opened here, in the idle
+        # executor; local TTS (Kokoro) has no such method and is already warmed by build_tts() itself.
+        _pw = getattr(proc.userdata["tts"], "prewarm", None)
+        if callable(_pw):
+            _pw()
     except Exception as e:  # noqa: BLE001
         logger.warning("TTS prewarm skipped: %s", e)
 
@@ -263,10 +270,10 @@ async def entrypoint(ctx: JobContext) -> None:
     #   · ZAELAR_FALSE_INTERRUPTION_TIMEOUT — silence (s) after cutting before declaring it FALSE (LiveKit def 2.0).
     #   · ZAELAR_RESUME_FALSE_INTERRUPTION — resume speech after a false interruption (LiveKit def True; the room's
     #     audio output supports pause, so it applies). Noise cuts it for ~<timeout> and then RESUMES.
-    # 2026-08-10: estos ajustes se pasaban como argumentos SUELTOS de `AgentSession`, que LiveKit 1.6 ya declara
-    # deprecados («use turn_handling=TurnHandlingOptions(...) instead») y retira en la 2.0. Al cablear el
+    # 2026-08-10: these settings were passed as LOOSE arguments to `AgentSession`, which LiveKit 1.6 already
+    # declares deprecated (“use turn_handling=TurnHandlingOptions(...) instead”) and removes in 2.0. Wiring
     # endpointing —which exists only in the new form— would have left TWO forms coexisting in the same call,
-    # justo el tipo de costura a medias que cuesta una tarde dentro de seis meses. Se migran los tres a la vez.
+    # exactly the kind of half-finished seam that costs an afternoon six months from now. All three are migrated together.
     def _int_kwargs() -> dict:
         out: dict = {}
         def _f(name):
@@ -302,7 +309,7 @@ async def entrypoint(ctx: JobContext) -> None:
     # with the ML turn detector disabled (`turn_provider="disabled"`, see core/config.py), EOU is pure VAD. A
     # dictated sentence with the natural pauses of someone thinking while speaking gets split into several turns, and the agent
     # answers half-sentences: in the 13:20:50 session, a single ferry request produced 8 final transcriptions,
-    # y una de ellas —«…de Denia a»— preguntó por el destino que el operador estaba diciendo.
+    # and one of them —“...from Denia to”— asked for the destination the operator was saying.
     # The values are NOT invented: they come from `voice/endpointing.py`, written for THIS bug (INI-009) from
     # real in-car sessions… and ORPHANED since then — the engine moved to LiveKit and nobody wired it,
     # so its only reference in the repo was its own test. Now it is the source of truth, and
@@ -323,7 +330,7 @@ async def entrypoint(ctx: JobContext) -> None:
             "turn_detection": turn_detection,       # None (ML disabled) → EOU by VAD
             "endpointing": _endpointing,            # how much silence closes the turn (see above)
             "interruption": _interruption,          # barge-in: the operator's voice cuts TTS
-            "preemptive_generation": {"enabled": True},   # latencia: empieza a generar antes de confirmar el EOU
+            "preemptive_generation": {"enabled": True},   # latency: starts generating before EOU is confirmed
         },
     )
 
@@ -642,19 +649,19 @@ async def entrypoint(ctx: JobContext) -> None:
             # the LiveKit pipeline does NOT invoke TTS (agent_activity: audio_output=None → text-only branch) → ZERO
             # synthesis: saves latency and cost, and is the difference between «muted» and «turning down the volume».
             #
-            # Ya NO lo dispara abrir el chat. Eso era V2-054 («modo chat = voz off») y partía de una premisa falsa:
-            # que abrir el panel significaba «prefiero leer». El panel tiene cuatro pestañas y se entra a mirar
-            # procesos, crons o clusters sin querer callar a nadie. Ahora el chat y la voz son independientes; el
-            # único dueño del silencio es el icono. La respuesta llega SIEMPRE al ChatWall por el evento
-            # transcript/assistant (conversation_item_added), que es independiente del audio: chat, subtítulos y
-            # voz son tres vistas de lo mismo, no modos que se excluyan.
+            # It is NO LONGER triggered by opening the chat. That was V2-054 (“chat mode = voice off”) and rested
+            # on a false premise: that opening the panel meant “I prefer to read.” The panel has four tabs, and
+            # users may open it to inspect processes, crons, or clusters without wanting to silence anyone. Chat
+            # and voice are now independent; the icon is the SOLE owner of silence. The response ALWAYS reaches
+            # the ChatWall through the transcript/assistant event (conversation_item_added), which is independent
+            # of audio: chat, subtitles, and voice are three views of the same thing, not mutually exclusive modes.
             if topic == "zaelar-voice":
                 try:
                     want = bool(_json.loads(bytes(packet.data).decode("utf-8")).get("audio", True))
                     session.output.set_audio_enabled(want)
-                    # La etiqueta importa: es lo que un agente lee en `/api/debug` para diagnosticar «no se oye».
-                    # Decía «modo chat», y desde V2-088 eso ya no es la causa — silenciar es SIEMPRE una decisión
-                    # del operador con el icono. Una etiqueta que apunta a una causa falsa cuesta horas.
+                    # The label matters: it is what an agent reads in `/api/debug` to diagnose “no sound.”
+                    # It used to say “chat mode,” but since V2-088 that is no longer the cause — muting is ALWAYS
+                    # a decision made by the operator with the icon. A label pointing to a false cause costs hours.
                     _emit("session", "voz ON (síntesis activa)" if want
                           else "voz OFF (el operador silenció con el icono 🔊 — sin TTS)",
                           role="system")
@@ -675,9 +682,10 @@ async def entrypoint(ctx: JobContext) -> None:
                     attention.note_directed()
                 except Exception:
                     pass
-                # OBSERVABILIDAD (diag intermitencia chat/paste): deja rastro de que el texto LLEGÓ, y si
-                # generate_reply lanza. Si en un all-1s de chat vemos "recibido" pero no reply → generate_reply
-                # es el culpable (sesión ocupada); si no vemos "recibido" → el paquete de datos no llegó. (2026-07-07)
+                # OBSERVABILITY (intermittent chat/paste diagnosis): leave a trace showing that the text ARRIVED,
+                # and whether generate_reply raises. If a one-second chat poll shows “received” but no reply →
+                # generate_reply is at fault (session busy); if “received” is absent → the data packet did not arrive.
+                # (2026-07-07)
                 _emit("brain", "📥 chat/paste recibido", text=txt, role="user")
                 # generate_reply() is SYNC (returns a SpeechHandle and schedules the reply itself); calling it
                 # directly (wrapping in create_task raised "a coroutine was expected"). (fix 2026-07-07)
@@ -744,8 +752,8 @@ async def entrypoint(ctx: JobContext) -> None:
     boot.ready()
 
     # KICKOFF — only AFTER `ready`. V2-027: we do NOT re-inject the verbose capabilities brief here (widgets/
-    # meshkore/cron/architect/messaging). El system prompt POR TURNO ya lleva el ESTADO + los recursos TERSOS
-    # (`build_flash_system` → `_flash_layer`), so dumping it again in the kickoff was the OLD dump that bloated
+    # meshkore/cron/architect/messaging). The per-turn system prompt already carries the STATE + the CONCISE
+    # resources (`build_flash_system` → `_flash_layer`), so dumping it again in the kickoff was the OLD dump that bloated
     # the FIRST turn (the most latency-sensitive). The greeting only needs the memory-aware first-turn instruction:
     # the brain already greets by name from central memory.
     # FIRST-RUN LANGUAGE ONBOARDING (V2-101): before anything else — no name, no capabilities — a brand-new
@@ -773,16 +781,17 @@ async def entrypoint(ctx: JobContext) -> None:
                         "already know me (my name), greet me BY NAME and pick up naturally — do NOT ask my "
                         f"name again. If you do NOT know me yet, introduce yourself in one line and ask my name. "
                         f"Reply in {_lang.name}. Two sentences max. Then stop and wait for me.")
-    # GUARD kickoff ÚNICO por sala (V2-047 F8, sesión 23:15: DOS «motor de voz arriba» a las 23:15:45 y :46 → dos
-    # saludos generados). Una reconexión rápida del frontend / doble dispatch de LiveKit levanta dos jobs para la
-    # MISMA sala; el segundo NO debe volver a saludar (el operador oía el saludo repetido). Determinista, por sala,
-    # con ventana corta: si otro job ya saludó esta sala hace <8s, este se lo salta (la sesión sigue viva y atiende
-    # turnos normalmente; solo se evita el saludo duplicado).
-    # CONTINUIDAD (bug 2026-07-25, operador: "le pongo un mensaje y me dice ¿qué necesitas?"): una RECONEXIÓN a una
-    # conversación EN CURSO no debe re-saludar. Cada reconexión de voz disparaba el kickoff de "primer turno,
-    # preséntate" en mitad de una charla de una hora → «Hola, ¿qué necesitas?» absurdo. Si el operador habló hace
-    # poco (buffer conv reciente), NO saludamos: sembramos contexto y esperamos su próximo turno en silencio.
-    _resume_window = float(os.getenv("ZAELAR_RESUME_WINDOW_S", "1800"))  # 30 min: reconexión = misma sesión
+    # GUARD: only ONE kickoff per room (V2-047 F8, 23:15 session: TWO “voice engine up” events at 23:15:45 and :46 → two
+    # generated greetings). A quick frontend reconnection / LiveKit double dispatch starts two jobs for the SAME
+    # room; the second must NOT greet again (the operator heard the greeting repeated). Deterministic, per room,
+    # with a short window: if another job greeted this room <8s ago, this one skips it (the session remains alive
+    # and handles turns normally; only the duplicate greeting is avoided).
+    # CONTINUITY (2026-07-25 bug, operator: “I send it a message and it says ‘what do you need?’”): a RECONNECTION
+    # to an IN-PROGRESS conversation must not greet again. Each voice reconnection triggered the “first turn,
+    # introduce yourself” kickoff in the middle of an hour-long conversation → absurd “Hello, what do you need?”
+    # If the operator spoke recently (recent conversation buffer), do NOT greet: seed context and silently wait
+    # for their next turn.
+    _resume_window = float(os.getenv("ZAELAR_RESUME_WINDOW_S", "1800"))  # 30 min: reconnection = same session
     _last_conv_age = None
     try:
         from memory import api as _mem
@@ -792,7 +801,7 @@ async def entrypoint(ctx: JobContext) -> None:
     if _kickoff_recent(ctx.room.name):
         _emit("brain", "🚫 kickoff duplicado evitado (otra sesión ya saludó esta sala)", role="system")
     elif _last_conv_age is not None and _last_conv_age < _resume_window:
-        # sesión EN CURSO: retomamos sin saludar (el operador sigue la conversación; no lo interrumpas con un hola)
+        # IN-PROGRESS session: resume without greeting (the operator is continuing the conversation; do not interrupt with a hello)
         _mark_kickoff(ctx.room.name)
         _emit("brain", f"↩️ kickoff omitido — reconexión a sesión en curso (último turno hace {int(_last_conv_age)}s), "
                        "retomando en silencio", role="system")

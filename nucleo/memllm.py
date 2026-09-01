@@ -1,18 +1,19 @@
-"""nucleo/memllm.py — ROUTER interno de modelos del MÓDULO DE MEMORIA (V2-056, 2026-07-20).
+"""nucleo/memllm.py — Internal model ROUTER for the MEMORY MODULE (V2-056, 2026-07-20).
 
-El módulo de memoria tiene varias tareas de LLM con perfiles distintos, cada una elegible POR CONFIG y con la
-credencial resuelta POR ENDPOINT (lección de la auditoría 2026-07-19: una key suelta de env enviada al endpoint
-equivocado tumbó el CORAZÓN 2 días en silencio). Una sola costura para todas:
+The memory module has several LLM tasks with distinct profiles, each selectable BY CONFIG and with credentials
+resolved BY ENDPOINT (lesson from the 2026-07-19 audit: a loose env key sent to the wrong endpoint took down the
+HEART silently for 2 days). One seam for all of them:
 
-  - `distill`  → el CORAZÓN de escritura (lo implementa `nucleo/mem_processor.py` con su cola/semántica propia;
-                 este router NO lo reemplaza — queda aquí documentado como tarea del catálogo).
-  - `rem`      → la SÍNTESIS del sueño profundo (`memory/rem.py` la recibe INYECTADA — la memoria no importa
-                 nucleo; el loop cablea `synthesize_concept_groups` como hook, patrón `summarize_fn`).
-  - (futuras)  → `context_router` (repesca del dossier), jueces de calidad de píldora…
+  - `distill`  → the writing HEART (implemented by `nucleo/mem_processor.py` with its own queue/semantics;
+                 this router does NOT replace it — it is documented here as a catalogue task).
+  - `rem`      → deep-sleep SYNTHESIS (`memory/rem.py` receives it INJECTED — memory does not import
+                 nucleo; the loop wires `synthesize_concept_groups` as a hook, `summarize_fn` pattern).
+  - (future)   → `context_router` (dossier retrieval), pill-quality judges…
 
-Todo va OFF-hot-path (jamás en el turno de voz). Cada tarea lee `config §memory.<task>_model/_base_url/_api_key`
-con fallback a defaults; la key vacía se resuelve por endpoint (OpenAI/AIMLAPI/xAI/Groq → env correspondiente).
-Benchmarks que sustentan los defaults: `zaelar-model-benchmarks.md §12` (write-completeness + síntesis REM).
+Everything runs OFF the hot path (never during the voice turn). Each task reads
+`config §memory.<task>_model/_base_url/_api_key`, falling back to defaults; an empty key is resolved by endpoint
+(OpenAI/AIMLAPI/xAI/Groq → corresponding env). Benchmarks supporting the defaults:
+`zaelar-model-benchmarks.md §12` (write-completeness + REM synthesis).
 """
 from __future__ import annotations
 
@@ -22,9 +23,9 @@ import urllib.request
 
 from loguru import logger
 
-# Fallback de última instancia (si `config §memory` no se puede leer). Debe coincidir con el default de
-# `config/v2.py §memory` — apuntar a OpenAI aquí significaba, en la nube, fallar siempre: no hay OPENAI_API_KEY
-# entre los secretos que inyecta el provisioner (2026-08-09, misma corrección que en mem_processor).
+# Last-resort fallback (if `config §memory` cannot be read). Must match the default in
+# `config/v2.py §memory` — pointing to OpenAI here meant always failing in the cloud: there is no OPENAI_API_KEY
+# among the secrets injected by the provisioner (2026-08-09, same fix as in mem_processor).
 # Each entry: (base_url, model, disable_thinking). `disable_thinking` is a PER-TASK decision, not inferred
 # from the endpoint — see the routing policy note below `_ENDPOINTS` in `nucleo/provider_keys.py`. Getting this
 # wrong is a real correctness bug, not just a style choice: §12.3/§12.4 of `zaelar-model-benchmarks.md` crowned
@@ -35,23 +36,23 @@ from loguru import logger
 # reasoning ON by default, matching the benchmark that picked the model, even after moving off AIMLAPI.
 _DEFAULTS = {
     "rem": ("https://api.deepseek.com", "deepseek-v4-flash", False),
-    # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
-    # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte. Override en config §memory.
+    # i18n (V2-089): translation of the UI into a new language during INITIALIZATION (i18n/init). Off-hot-path,
+    # quality matters (non-Latin scripts: Arabic, Chinese, Japanese…) → strong model. Override in config §memory.
     #
-    # 2026-08-09 — apuntaba a OpenAI DIRECTO (gpt-4o) y era el último resto de esa cuenta en la memoria: en la
-    # nube no hay OPENAI_API_KEY, así que generar el bundle de un idioma nuevo habría fallado en silencio (mismo
-    # patrón que tumbó el CORAZÓN en julio y el REM hasta ayer). Norma del operador: TODO por el broker AIMLAPI,
-    # una sola cuenta que gestionar. Sonda al tamaño REAL del lote (`_BATCH=50`, ja/ar/zh, 15 claves con
-    # placeholder) antes de elegir sustituto:
-    # ⚠️ 2026-08-19 — NORMA DEL OPERADOR: DeepSeek V4 Pro DIRECTO y nada más. Esta tarea era la ÚLTIMA que
-    # seguía eligiendo un modelo de Anthropic, con una medición del 2026-08-09 detrás (§12.5) que decía que
-    # `deepseek-v4-flash` acertaba pero RAZONABA 6-8× los tokens que entregaba, 50-60 s por lote. Ese hallazgo
-    # sigue siendo cierto y sigue escrito, pero era sobre **v4-FLASH por el BROKER**, que es justo la
-    # combinación donde `thinking:disabled` se acepta y se ignora (V2-097). Por el endpoint NATIVO el parámetro
-    # se OBEDECE, así que el motivo por el que se descartó DeepSeek aquí desaparece con el cambio de endpoint.
-    # Si vuelve a razonar de más, se mide y se escribe — no se vuelve a otro proveedor por costumbre.
-    # Sigue siendo la tarea menos sensible al precio del sistema: se paga UNA vez por idioma (514 claves ≈ 11
-    # lotes), así que lo que importa es que el lote no se pierda, no lo que cuesta.
+    # 2026-08-09 — it pointed to OpenAI DIRECT (gpt-4o) and was the last remnant of that account in memory: in
+    # the cloud has no OPENAI_API_KEY, so generating a new language bundle would have failed silently (same
+    # the same pattern that took down the HEART in July and REM until yesterday). Operator rule: EVERYTHING through
+    # the AIMLAPI broker, one account to manage. Probe the REAL batch size (`_BATCH=50`, ja/ar/zh, 15 keys with
+    # placeholder) before choosing a replacement:
+    # ⚠️ 2026-08-19 — OPERATOR RULE: DeepSeek V4 Pro DIRECT and nothing else. This task was the LAST one
+    # still choosing an Anthropic model, with a 2026-08-09 measurement behind it (§12.5) saying that
+    # `deepseek-v4-flash` was accurate but REASONED for 6-8× the tokens it delivered, 50-60 s per batch. That finding
+    # remains true and remains documented, but it concerned **v4-FLASH through the BROKER**, precisely the
+    # combination where `thinking:disabled` is accepted and ignored (V2-097). The NATIVE endpoint OBEYS the parameter,
+    # so the reason DeepSeek was rejected here disappears with the endpoint change.
+    # If it reasons too much again, measure it and document it — do not return to another provider out of habit.
+    # It remains the system's least price-sensitive task: it is paid for ONCE per language (514 keys ≈ 11
+    # batches), so what matters is that the batch is not lost, not what it costs.
     "i18n": ("https://api.deepseek.com", "deepseek-v4-pro", True),
     # turn_complete (V2-102): the voice pipeline's turn-completeness judge (nucleo/flash/segmenter.py::judge).
     # Fires per AMBIGUOUS fragment, mid-conversation — genuinely latency-critical (hot path, user-visible),
@@ -75,8 +76,8 @@ _DEFAULTS = {
     # OFF the voice turn (the dispatcher already answered) but still in front of a worker the operator is
     # waiting on, so the same reasoning-OFF direct endpoint as its two neighbours above.
     "errand_scope": ("https://api.deepseek.com", "deepseek-v4-flash", True),
-    # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulaciones de una píldora durable, generadas off-hot-path
-    # desde REM (nunca en el turno) para indexar vectores extra que cierren el vocab-gap en la lectura. Mismo
+    # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulations of a durable pill, generated off-hot-path
+    # from REM (never during the turn) to index extra vectors that close the vocab gap during retrieval. Same
     # profile as `rem`: no latency pressure → DIRECT per the routing policy.
     #
     # ⚠️ reasoning-OFF, and this one IS measured (2026-08-18). It shipped `False` on the stated principle that
@@ -169,7 +170,7 @@ def _has_credential(url: str, key: str) -> bool:
 
 
 # ── LOCAL TITULAR: preferred when it is there, stepped over when it is not (2026-08-19, operator's rule) ───────
-# «En local podemos poner Ollama si está disponible como titular, pero el sistema debe funcionar NON-STOP.» Those
+# «Locally we can use Ollama as titular when available, but the system must work NON-STOP.» Those
 # two halves pull in opposite directions and the whole design is in reconciling them: a local titular is free and
 # private, and it is also the one rung that can simply not be there — the model not pulled, Ollama not started, its
 # queue full because a 41 GB model owns the GPU (observed twice in production, 2026-08-18 and again today).
@@ -363,6 +364,36 @@ def _endpoint_key(url: str) -> str:
     return key_for_endpoint(url, default="local")
 
 
+# ── Pooled HTTP POST (2026-09-01, latency) ───────────────────────────────────────────────────────────────────
+# The hot-path judges (`directed`, `turn_complete`) run BEFORE the brain request of almost every turn, and this
+# module used to open a fresh urllib connection per call — a full DNS+TCP+TLS handshake (~150-400 ms measured) to
+# api.deepseek.com every single time, on top of the model's own latency. One shared keep-alive client removes the
+# handshake from every call after the first. httpx ships with the `openai` dependency the engine already requires;
+# the urllib fallback keeps this module honest about its "no hard deps" promise — if httpx is somehow absent the
+# behavior degrades to exactly what it was, never to a failure.
+_HTTP_POOL = None   # httpx.Client (thread-safe, keep-alive) | False = unavailable, use urllib
+
+
+def _post_json(full_url: str, payload: dict, *, headers: dict, timeout: float) -> dict:
+    """POST JSON and decode the JSON reply, reusing one keep-alive connection pool across calls. HTTP errors
+    raise (the caller's chain/fail-open logic handles them, same as with urllib)."""
+    global _HTTP_POOL
+    body = json.dumps(payload).encode()
+    if _HTTP_POOL is None:
+        try:
+            import httpx
+            _HTTP_POOL = httpx.Client()
+        except Exception:
+            _HTTP_POOL = False
+    if _HTTP_POOL is not False:
+        r = _HTTP_POOL.post(full_url, content=body, headers=headers, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
+    req = urllib.request.Request(full_url, data=body, headers=headers, method="POST")
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode())
+
+
 def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: str, user: str,
              max_tokens: int, temperature: float, timeout: float) -> str:
     """ONE request to ONE rung. Raises on anything that isn't usable content — including an EMPTY answer, which
@@ -379,21 +410,19 @@ def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: 
     # (AIMLAPI ignores it) — but honoring it is only correct for tasks benchmarked reasoning-OFF.
     if disable_thinking and "deepseek" in model.lower() and "api.deepseek.com" in url.lower():
         payload["thinking"] = {"type": "disabled"}
-    # EGRESS (T304): si el despliegue media la salida, ni la URL ni la clave son las del proveedor.
+    # EGRESS (T304): if the deployment mediates egress, neither the URL nor the key belongs to the provider.
     from nucleo import llm_egress
     url, key, _extra = llm_egress.route(url, key)
-    req = urllib.request.Request(
+    data = _post_json(
         url.rstrip("/") + "/chat/completions",
-        data=json.dumps(payload).encode(),
+        payload,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
-                 # AIMLAPI va tras Cloudflare y 403ea al UA por defecto de urllib → UA de navegador
-                 # (mismo workaround que fast_client)
+                 # AIMLAPI sits behind Cloudflare and 403s urllib's default UA → browser UA
+                 # (same workaround as fast_client)
                  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
                                "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"},
-        method="POST",
+        timeout=timeout,
     )
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = json.loads(r.read().decode())
     content = data["choices"][0]["message"]["content"]
     if not (content or "").strip():
         raise RuntimeError("respuesta vacía (razonamiento se comió el presupuesto)")
@@ -404,14 +433,14 @@ def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: 
 def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
               temperature: float = 0.2, timeout: float = 60.0,
               model_override: str | None = None, url_override: str | None = None) -> str | None:
-    """Chat SÍNCRONO (urllib, sin deps) — pensado para correr DENTRO de un `asyncio.to_thread` (el sueño REM) o
-    en scripts/benches. Devuelve el content, o None si NINGÚN escalón responde (el llamador hace fail-open).
+    """SYNCHRONOUS chat (urllib, no deps) — intended to run INSIDE an `asyncio.to_thread` (REM sleep) or
+    in scripts/benches. Returns the content, or None if NO rung responds (the caller fails open).
 
-    Recorre `chain(task)` en orden: titular → broker → OpenAI/Anthropic (norma del operador, 2026-08-19).
+    Traverses `chain(task)` in order: titular → broker → OpenAI/Anthropic (operator rule, 2026-08-19).
 
     ⚠️ Un `model_override`/`url_override` DESACTIVA la cadena, a propósito. Los pasa quien PINCHA un modelo
-    concreto —un banco, el respondedor/juez de LoCoMo— y ahí un relevo silencioso convertiría la declaración del
-    experimento en una mentira: el informe diría que midió con un modelo y habría medido con otro."""
+    concrete model —a benchmark, the LoCoMo responder/judge— and a silent relay would turn the experiment's
+    declaration into a lie: the report would say it measured one model while it had measured another."""
     if url_override or model_override:
         url, model, key, disable_thinking = resolve(task)
         if url_override:
@@ -446,25 +475,25 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
     return None
 
 
-# ── CONSUMO REAL (2026-08-09) — mismo cierre que en `mem_processor`: las tareas de LLM de la memoria son
-# llamadas de nube como cualquier otra y no reportaban a Energy, así que en una cuenta cloud el sueño REM (y la
-# generación de bundles i18n) consumían tokens gratis en el contador. `last_usage()` además da los tokens REALES
-# al bench de síntesis (§12.4) para calcular el coste por sueño con números medidos. Fail-open siempre: medir
-# NUNCA puede tumbar una consolidación.
+# ── ACTUAL USAGE (2026-08-09) — same closure as in `mem_processor`: memory LLM tasks are
+# cloud calls like any other and were not reported to Energy, so in a cloud account REM sleep (and
+# i18n bundle generation) consumed free tokens in the counter. `last_usage()` also gives the REAL tokens
+# to the synthesis bench (§12.4) to calculate cost per sleep using measured numbers. Always fail-open: measuring
+# must NEVER bring down a consolidation.
 _last_usage: dict = {}
 
 
 def last_usage() -> dict:
-    """Tokens de la última llamada (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` si el proveedor no
-    los devolvió. Solo diagnóstico/bench."""
+    """Tokens from the last call (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` if the provider did not
+    return them. Diagnostics/bench only."""
     return dict(_last_usage)
 
 
 def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
     global _last_usage
-    # Sin `usage` NO se sale: se reporta igual con los contadores a None, y `energy_meter` aplica su
-    # suelo (2026-08-13). Salirse aquí era gratis para el proveedor que no informa — el mismo fallo
-    # que la tarifa a cero de 2026-08-05, un nivel más arriba: la llamada se hizo y se pagó.
+    # Without `usage`, do NOT return: report it with counters set to None, and `energy_meter` applies its
+    # floor (2026-08-13). Returning here was free for the provider that does not report — the same failure
+    # as the zero tariff of 2026-08-05, one level higher: the call was made and paid for.
     if not isinstance(usage, dict):
         _last_usage = {}
         usage = {}
@@ -474,7 +503,7 @@ def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
     _energy.meter_openai_response({"usage": usage}, base_url=base_url, model=model)
 
 
-# ── SÍNTESIS del sueño REM (el hook que el loop inyecta en memory/rem.py) ─────────────────────────────────────
+# ── REM sleep SYNTHESIS (the hook injected by the loop into memory/rem.py) ─────────────────────────────────────
 _REM_SYSTEM = (
     "Eres el consolidador de memoria de un asistente personal. Recibes GRUPOS de recuerdos del operador "
     "agrupados por concepto. Para cada grupo, destila 1 INSIGHT: una síntesis de ALTO NIVEL que un buen "
@@ -497,9 +526,9 @@ def _default_lang() -> str:
 
 
 def _canonical_lang_native() -> str:
-    """Nombre nativo del idioma CANÓNICO de la memoria (decisión 2026-07-10: la memoria es MONOLINGÜE, en el
-    idioma del operador — mismo campo `state.language` que lee `nucleo/mem_processor.py::_render` para el
-    CORAZÓN de escritura). Fail-open a español si la memoria o el catálogo de idiomas no están disponibles."""
+    """Native name of the memory's CANONICAL language (decision 2026-07-10: memory is MONOLINGUAL, in the
+    operator's language — the same `state.language` field read by `nucleo/mem_processor.py::_render` for the
+    writing HEART). Fail open to Spanish if memory or the language catalogue is unavailable."""
     # The fallback is the ENGINE's single source of truth, not a hardcoded language. Writing "es" here made
     # this yet another independent opinion about which language the product speaks — and the one that wins when
     # the memory is unreachable, i.e. exactly on a cold first run.
@@ -518,7 +547,7 @@ def _canonical_lang_native() -> str:
 
 def synthesize_concept_groups(groups: list[dict], *, model_override: str | None = None,
                               url_override: str | None = None) -> list[dict]:
-    """Hook de síntesis para `memory/rem.py` (SÍNCRONO — REM corre en to_thread). `groups` =
+    """Synthesis hook for `memory/rem.py` (SYNCHRONOUS — REM runs in to_thread). `groups` =
     [{"concept": str, "pills": [str, …]}, …] → [{"concept": str, "insight": str|None}, …]. Fail-open: []."""
     if not groups:
         return []
@@ -526,26 +555,26 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
         [{"concept": g["concept"], "recuerdos": g["pills"][:12]} for g in groups],
         ensure_ascii=False, indent=1,
     )
-    # `.replace`, NO `.format` (fix 2026-08-09): el prompt TERMINA con un ejemplo de JSON literal
+    # `.replace`, NOT `.format` (fix 2026-08-09): the prompt ENDS with a literal JSON example
     # —[{"concept": str, "insight": str|null}]— y `str.format` interpreta esas llaves como marcadores →
-    # `KeyError: '"concept"'` en CADA llamada. `rem.synthesize` captura la excepción y devuelve 0 con un
-    # `logger.warning`, así que la fase de INSIGHTS del sueño profundo llevaba rota EN SILENCIO desde que se
-    # añadió la interpolación `{lang}` de la regla monolingüe (los números de §12.2 son anteriores a ese
-    # cambio). Mismo idioma que `mem_processor`, que ya usaba `.replace` para su catálogo de slots.
-    # Cubierto por tests/memory/unit/test_rem_prompt.py para que no pueda repetirse.
+    # `KeyError: '"concept"'` on EVERY call. `rem.synthesize` catches the exception and returns 0 with a
+    # `logger.warning`, so the deep-sleep INSIGHTS phase had been silently broken since the `{lang}` interpolation
+    # for the monolingual rule was added (the §12.2 numbers predate that change). Same language as `mem_processor`,
+    # which already used `.replace` for its slot catalogue.
+    # Covered by tests/memory/unit/test_rem_prompt.py so it cannot recur.
     system = _REM_SYSTEM.replace("{lang}", _canonical_lang_native())
-    # TIMEOUT GENEROSO (2026-08-09): el sueño REM corre UNA vez al día, de madrugada, en `to_thread` — no hay
-    # nadie esperando. El default de 60s se quedaba corto: el modelo titular emite ~2.200 tokens de salida para
-    # los 8 grupos, y en una tanda lenta del broker se pasa de 60s → la noche entera sin consolidar por prisa
-    # que nadie tenía. Escribir puede ser LENTO (invariante V2-013); leer es lo que no puede.
-    # `max_tokens` HOLGADO y timeout GENEROSO (2026-08-09). El sueño REM corre UNA vez al día, de madrugada, en
-    # `to_thread`: no hay nadie esperando, y escribir puede ser LENTO (invariante V2-013) — leer es lo que no.
-    #   · max_tokens 1200 → 4000: con 8 grupos, un modelo verboso o que RAZONA (deepseek-v4-flash piensa aunque
-    #     se le pida que no) agota el presupuesto ANTES de cerrar el array → JSON truncado → `_parse` devuelve []
-    #     → "sin insights" SIN error. Medido: con 1200 fallaba 1 de cada 3 llamadas (una topó exactamente en
-    #     1200); con 4000, 3/3 válidas emitiendo solo ~1.100 tokens. El techo alto NO cuesta: se paga lo emitido.
-    #   · timeout 60 → 240s: una tanda lenta del broker se comía la noche entera de consolidación por una prisa
-    #     que nadie tenía.
+    # GENEROUS TIMEOUT (2026-08-09): REM sleep runs ONCE per day, overnight, in `to_thread` — nobody is waiting.
+    # The 60s default was too short: the titular model emits ~2,200 output tokens for the 8 groups, and a slow
+    # broker batch exceeds 60s → the entire night without consolidation due to haste nobody needed.
+    # Writing may be SLOW (V2-013 invariant); reading may not be.
+    # `max_tokens` GENEROUS and timeout GENEROUS (2026-08-09). REM sleep runs ONCE per day, overnight, in
+    # `to_thread`: nobody is waiting, and writing may be SLOW (V2-013 invariant) — reading may not.
+    #   · max_tokens 1200 → 4000: with 8 groups, a verbose or REASONING model (deepseek-v4-flash thinks even when
+    #     asked not to) exhausts the budget BEFORE closing the array → truncated JSON → `_parse` returns []
+    #     → "no insights" WITHOUT an error. Measured: with 1200, 1 in 3 calls failed (one hit exactly 1200);
+    #     with 4000, 3/3 were valid, emitting only ~1,100 tokens. The high ceiling costs NOTHING: emitted tokens are paid for.
+    #   · timeout 60 → 240s: a slow broker batch consumed the entire consolidation night due to haste
+    #     nobody needed.
     content = chat_sync("rem", system, user, max_tokens=4000, timeout=240.0,
                         model_override=model_override, url_override=url_override)
     if not content:
@@ -565,7 +594,7 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
         return []
 
 
-# ── V2-104: segunda opinión de fidelidad — llamada FRESCA, independiente de la que generó el insight ──────────
+# ── V2-104: second fidelity opinion — a FRESH call, independent of the one that generated the insight ──────────
 _GROUNDING_SYSTEM = (
     "Verificas la fidelidad de un INSIGHT de memoria contra los DATOS que lo originaron. Responde SOLO la "
     "palabra true si CADA afirmación del insight está respaldada directamente por los datos (sin inventar "
@@ -576,13 +605,12 @@ _GROUNDING_SYSTEM = (
 
 def verify_insight_grounded(insight: str, pills: list[str], *, model_override: str | None = None,
                             url_override: str | None = None) -> bool:
-    """Hook opcional de `memory/rem.py::synthesize()` (inyectado por el loop junto a `synthesize_concept_groups`,
-    mismo patrón `summarize_fn`). Segunda opinión, EN OTRA LLAMADA — el autocriterio dentro de la misma
-    respuesta que generó el insight es más débil que un juicio independiente sobre el resultado ya terminado.
-    Fail-CLOSED (a diferencia del resto de tareas de memoria, que son fail-open): sin respuesta clara, se trata
-    como NO fiable — perder un insight legítimo sale más barato que dejar pasar uno inventado, ahora que
-    `writer.demote_summarized` hace que desplace los hechos correctos en vez de solo competir con ellos
-    (V2-103)."""
+    """Optional hook for `memory/rem.py::synthesize()` (injected by the loop alongside
+    `synthesize_concept_groups`, same `summarize_fn` pattern). Second opinion, IN A SEPARATE CALL — self-judgment
+    within the same response that generated the insight is weaker than an independent judgment of the finished result.
+    Fail-CLOSED (unlike the other memory tasks, which are fail-open): without a clear response, treat it as
+    UNRELIABLE — losing a legitimate insight is cheaper than allowing an invented one through, now that
+    `writer.demote_summarized` displaces the correct facts instead of merely competing with them (V2-103)."""
     if not insight or not pills:
         return False
     user = json.dumps({"insight": insight, "datos": pills[:12]}, ensure_ascii=False, indent=1)
@@ -593,7 +621,7 @@ def verify_insight_grounded(insight: str, pills: list[str], *, model_override: s
     return content.strip().lower().startswith("true")
 
 
-# ── V2-031 T2: reformulaciones para el índice de paráfrasis (off-hot-path, desde REM) ──────────────────────────
+# ── V2-031 T2: reformulations for the paraphrase index (off-hot-path, from REM) ──────────────────────────
 _PARAPHRASE_SYSTEM = (
     "Reformulas una frase de memoria de un asistente personal para dar VOCABULARIO ALTERNATIVO — sinónimos, "
     "categoría/hiperónimo, forma de referirse al mismo hecho con OTRAS palabras — para que una pregunta con "
@@ -608,9 +636,9 @@ _PARAPHRASE_SYSTEM = (
 
 def generate_paraphrases(text: str, *, model_override: str | None = None,
                          url_override: str | None = None) -> list[str]:
-    """1-2 reformulaciones de `text`, para `writer.index_paraphrases()`. Fail-open: [] si el modelo no responde
-    o la respuesta no parsea — sin paráfrasis, la píldora se sigue recuperando por su propio embedding, igual
-    que siempre; esto solo AÑADE superficie de recuperación, nunca es la única vía."""
+    """1-2 reformulations of `text`, for `writer.index_paraphrases()`. Fail-open: [] if the model does not respond
+    or the response does not parse — without paraphrases, the pill is still retrieved through its own embedding,
+    as always; this only ADDS retrieval surface, it is never the sole path."""
     text = (text or "").strip()
     if not text:
         return []

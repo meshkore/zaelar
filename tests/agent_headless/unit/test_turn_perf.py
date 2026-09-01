@@ -147,3 +147,27 @@ def test_no_cache_data_means_no_cache_claim():
     v = tp.verdict({"total_ms": 900, "prompt_tokens": 10000, "tok_per_s": 40})
     assert v["cache_hit_tokens"] is None and v["cache_hit_frac"] is None
     assert "caché" not in v["label"]
+
+
+def test_the_pre_turn_segment_is_named_when_it_is_big():
+    """The attention judge, the completeness judge and the recall wait run BEFORE `t0`, so a turn where WE spent
+    1.2 s used to be reported with the blame on the provider's TTFT. A significant pre-turn spend must reach both
+    the event (the series) and the label (the viewer line), with its breakdown."""
+    v = tp.verdict({"total_ms": 1500, "prompt_tokens": 9000, "tok_per_s": 30,
+                    "pre_ms": 1200, "gate_ms": 800, "acc_ms": 0, "mem_query_ms": 400})
+    assert v["pre_ms"] == 1200 and v["gate_ms"] == 800
+    assert v["turn_full_ms"] == 2700
+    assert "previo 1200 ms" in v["label"] and "juez 800" in v["label"]
+
+
+def test_a_small_pre_turn_travels_in_the_event_but_stays_off_the_line():
+    """A suffix that always prints stops being read; the numbers must still travel for the series."""
+    v = tp.verdict({"total_ms": 900, "prompt_tokens": 3000, "tok_per_s": 40, "pre_ms": 80})
+    assert v["pre_ms"] == 80 and "previo" not in v["label"]
+
+
+def test_pre_turn_never_flips_the_slow_verdict():
+    """`total_ms`/SLOW_MS keep their meaning: provider_chain.note_slow relays on them, and relaying a provider
+    over OUR preflight would punish the wrong party. A huge pre-turn on a fast provider turn stays cause=ok."""
+    v = tp.verdict({"total_ms": 900, "prompt_tokens": 3000, "tok_per_s": 40, "pre_ms": 5000})
+    assert v["slow"] is False and v["cause"] == "ok"
