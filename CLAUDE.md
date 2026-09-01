@@ -7242,8 +7242,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     expunge desde INBOX ES archivar** — quitar la etiqueta; `UID MOVE` donde se anuncia; un buzón sin
     archivo REFUSA en vez de borrar por aproximación), cableado widget→cola→owner→bus→conector, con
     `trash` tras el confirm-gate y los fallos DICHOS por brain_notes, nunca reintentados en silencio.
-  - Nodo 4.98 (11 unit + 6 render + 7 store + 9 IMAP falso), **cinco desarmes verificados en rojo** con la
-    mutación afirmada. **Sin verificar en vivo** (el operador estaba en sesión; los `.py` piden reinicio).
+  - **La ruta `backed` se tragaba la respuesta, y lo cazó la SONDA EN VIVO, no la suite**: con el owner
+    corriendo, toda acción devolvía `{"queued": true}` pelado — la pantalla se movía por SSE mientras el
+    turno no tenía ni la respuesta ni los errores (ausencia de error ≠ ausencia de fallo).
+    `data.answer_action` es el hook de RESPUESTA/VALIDACIÓN de solo lectura de `_route_backed`: `ok:false`
+    VETA el encolado, cualquier otro dict se funde en el ack; **el owner sigue siendo el único escritor**
+    (guarda AST: ninguna llamada a save dentro del hook). ⚠️ Y la trampa de V2-531 pagada otra vez aquí:
+    el desarme restauró `server_api.py` SIN COMMITEAR con `git checkout` y se llevó el hook entero — un
+    fichero sin commitear se restaura RE-APLICANDO el edit, nunca con checkout.
+  - Nodo 4.98 (15 unit + 6 render + 7 store + 9 IMAP falso), **seis desarmes verificados en rojo** con la
+    mutación afirmada. **VERIFICADO EN VIVO** (motor `3.16+14fb8f9`, sin voz activa, ⏻ conservado):
+    manifest con las 14 acciones, `show_view` válido → queued + respuesta fundida, `instagram` → veto con
+    el error que enseña, y el OWNER aplicó el push (`view.n=1` en el store real). Pendiente de tráfico
+    real: una foto de WhatsApp entrante pintándose y un archivado contra su buzón.
 
 ## Testing y rueda de mejora (INI-013)
 
