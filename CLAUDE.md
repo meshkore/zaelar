@@ -6631,6 +6631,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
+- **A `[SISTEMA]` note is never the errand: the SECOND door, and a question is not a promise (V2-534,
+  2026-09-01)**: after a Reset the operator asked for catamaran prices and got two browsers — the second sheet
+  titled **«Cita en Valls»**, a city name from a medical errand of weeks earlier, carried in by a late recall's
+  note. Three faults lined up, each measured before touching anything: (1) V2-530's fix converted ONE backstop
+  block and left the V2-049 forced escalation reading the glued turn — **and the source guard written that day
+  only watched the block that had been fixed**. `looks_like_web_task(glued)` is True and
+  `looks_like_web_task(operator's words)` is False, so the note IS the trigger. Same door, second handle: the
+  fourth time this repo pays *el fallo no fue la regla, fue tenerla repetida*. (2) `strip_system_notes` — the
+  single door every escalation passes through — skipped only the note's FIRST line, and the late-recall note
+  announces itself on line one and then LISTS what it recovered, so its body survived **having lost the
+  `[SISTEMA]` marker that would let anyone downstream recognise it**: worse than not stripping at all. A note is
+  a BLOCK now, bounded by the blank line the gluing inserts, and `brain_notes.push` collapses blank lines inside
+  a note so that boundary means one thing. (3) The reply that fired it — «¿Los precios de qué, Ricardo? … y te
+  lo miro» — is the agent asking for the datum it needs, which is correct behaviour.
+  - **The size of (3), measured over every firing of that gate in the operator's sessions (2026-08-17 →
+    2026-09-01): ten firings — THREE clarifying questions, FOUR negations or time adverbs («ahora mismo NO
+    tengo ninguna tarea corriendo»), ~three real promises. The backstop has produced exactly ONE forced
+    escalation in fifteen days, and it is the ghost above.** It is not deleted: V2-049 exists for a measured
+    failure (six minutes of silence after «me pongo con ello»). What was wrong is the gate.
+  - **The accent is the signal, and that is why the guard is NOT in `router_guards.py`**: that module's header
+    promises accent-stripped input, and stripped, «¿te aviso cuando lo tenga?» becomes a request for
+    information. `nucleo/flash/clarifying.py`, re-exported so `router.asks_for_missing_detail` keeps working,
+    wired into BOTH promise gates and the probe mirror.
+  - **Nothing was added to any detection pattern** — V2-095 measured what hand-tuning those lists costs.
+  - The ratchet asked for modules, not taller ceilings, and was right twice: `promise_backstop.py` (nucleo.py
+    3524 → **3475**) and `clarifying.py` (router_guards 1396 → **1361**). The forced escalation is now DRIVEN by
+    its tests instead of grepped — a source scan cannot tell a live call from a mention of itself, and V2-530's
+    own disarm came back green for exactly that reason. Node 3.15, 25 cases, **seven** disarms, including the
+    call site itself: a signature that stopped matching would raise at the END of every voice turn, after the
+    reply streamed.
+  - **Open**: the four negation false positives; and nothing stops a THIRD handle — the guard lists the seams by
+    name, so a new one inherits nothing. What would close it is stripping the notes before the turn text is
+    bound, so a glued turn is not reachable from the backstops at all.
+
 - **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
   operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
   must be configurable per connector. Audited first: ingest was already token-free (own 5s/5s/20s loops → bus →
