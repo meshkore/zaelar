@@ -108,6 +108,13 @@ def _group_chats(items: list) -> list:
     return chats
 
 
+def _notify_policy_view(db: dict) -> dict:
+    """Effective (normalized) notification policy per platform, for the card and for read_widget. Always the
+    full platform set, so a reader never has to guess what an absent entry means."""
+    from .policy import policy_for
+    return {p: policy_for(db, p) for p in _PLATFORMS}
+
+
 def view_data(q: str = "") -> dict:
     db = load_db()
     items = _visible_items(db)
@@ -139,6 +146,10 @@ def view_data(q: str = "") -> dict:
              "platform": m.get("platform"), "chatId": m.get("chatId")}
             for m in muted_channels
         ],
+        # V2-532 — the per-connector notification policy, so the card (and the brain, via read_widget) can see
+        # HOW each channel is allowed to interrupt. Normalized through the policy module: the store may hold
+        # partial or legacy shapes and the reader must always see the effective values.
+        "notify_policy": _notify_policy_view(db),
         # V2-520 — the brain asking to CONNECT a channel. The channels panel is local widget.js state that only
         # the header button could ever flip, so "conéctame el correo" opened the card on the MESSAGES view and
         # the operator saw no form at all (measured 2026-08-31). Carried with a timestamp, not consumed on read:
@@ -251,6 +262,24 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                                if (it.get("platform"), str(it.get("chatId"))) != key]
                 store.save(WIDGET_ID, db)
         return view_data()
+
+    # Per-connector NOTIFICATION POLICY (V2-532): how a channel may interrupt — which messages surface
+    # proactively (never|direct|important|all) and whether a surfaced batch may be SPOKEN. Voice-settable
+    # («no me avises de los grupos de Telegram» is `hide`; «Telegram solo mensajes directos» is this). The
+    # decision logic lives in `.policy` (zero-import module) and is the same one notify.surface consults —
+    # one rule, two readers, never two copies.
+    if action == "set_notify":
+        platform = payload.get("platform")
+        if platform not in _PLATFORMS:
+            return {"ok": False, "error": f"platform must be one of {_PLATFORMS}"}
+        from .policy import set_policy
+        db = load_db()
+        try:
+            pol = set_policy(db, platform, notify=payload.get("notify"), speak=payload.get("speak"))
+        except ValueError as e:
+            return {"ok": False, "error": str(e)}
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "platform": platform, "policy": pol, **view_data()}
 
     if action == "unhide":
         platform = payload.get("platform")

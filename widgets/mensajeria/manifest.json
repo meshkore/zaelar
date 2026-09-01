@@ -1,95 +1,105 @@
 {
-  "id": "mensajeria",
-  "version": "0.6.0",
-  "kind": "backed",
-  "backend": {
-    "owner": "owner.py",
-    "gate": "nucleo"
+ "id": "mensajeria",
+ "version": "0.6.0",
+ "kind": "backed",
+ "backend": {
+  "owner": "owner.py",
+  "gate": "nucleo"
+ },
+ "title": "Mensajería",
+ "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes responder un email por voz (con confirmación antes de enviar).",
+ "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, responder/contestar un email, o vincular/conectar WhatsApp, Telegram o el email.",
+ "keywords": [
+  "mensajes",
+  "mensajeria",
+  "mensajería",
+  "chats",
+  "whatsapp",
+  "wasap",
+  "telegram",
+  "email",
+  "correo",
+  "mail",
+  "gmail",
+  "outlook",
+  "quién me ha escrito",
+  "quien me ha escrito",
+  "qué me han escrito",
+  "qué debo responder",
+  "responder",
+  "contestar",
+  "mis mensajes",
+  "vincular whatsapp",
+  "conectar whatsapp",
+  "vincular telegram",
+  "conectar telegram",
+  "conectar email",
+  "conectar correo",
+  "qr",
+  "silenciar",
+  "ocultar",
+  "muted"
+ ],
+ "actions": {
+  "hide": {
+   "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
+   "payload": {
+    "n": "int (número del item en la lista)"
+   },
+   "safe": true
   },
-  "title": "Mensajería",
-  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes responder un email por voz (con confirmación antes de enviar).",
-  "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, responder/contestar un email, o vincular/conectar WhatsApp, Telegram o el email.",
-  "keywords": [
-    "mensajes",
-    "mensajeria",
-    "mensajería",
-    "chats",
-    "whatsapp",
-    "wasap",
-    "telegram",
-    "email",
-    "correo",
-    "mail",
-    "gmail",
-    "outlook",
-    "quién me ha escrito",
-    "quien me ha escrito",
-    "qué me han escrito",
-    "qué debo responder",
-    "responder",
-    "contestar",
-    "mis mensajes",
-    "vincular whatsapp",
-    "conectar whatsapp",
-    "vincular telegram",
-    "conectar telegram",
-    "conectar email",
-    "conectar correo",
-    "qr",
-    "silenciar",
-    "ocultar",
-    "muted"
-  ],
-  "actions": {
-    "hide": {
-      "desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app",
-      "payload": {
-        "n": "int (número del item en la lista)"
-      },
-      "safe": true
-    },
-    "unhide": {
-      "desc": "Reactivar un canal silenciado para que sus mensajes vuelvan a aparecer",
-      "payload": {
-        "platform": "string (whatsapp|telegram|email)",
-        "chatId": "int|string"
-      },
-      "safe": true
-    },
-    "reply": {
-      "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
-      "payload": {
-        "n": "int (número del mensaje/chat en la lista)",
-        "text": "string (el texto a enviar)"
-      },
-      "confirm": true,
-      "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
-    },
-    "open_connectors": {
-      "desc": "Abre el panel de CANALES para conectar uno (email/gmail/outlook, whatsapp, telegram) y, si se nombra la plataforma, despliega su formulario ya listo. Úsala siempre que el operador pida conectar/vincular/añadir un canal — el formulario pide lo que haga falta (en email, el proveedor y la cuenta). No pidas tú credenciales por voz.",
-      "payload": {
-        "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
-      },
-      "safe": true
-    }
+  "unhide": {
+   "desc": "Reactivar un canal silenciado para que sus mensajes vuelvan a aparecer",
+   "payload": {
+    "platform": "string (whatsapp|telegram|email)",
+    "chatId": "int|string"
+   },
+   "safe": true
   },
-  "entry": "widget.js",
-  "name": "Mensajería",
-  "aliases": [
-    "Mensajería",
-    "mensajes",
-    "mis mensajes",
-    "chats",
-    "whatsapp",
-    "wasap",
-    "telegram",
-    "x",
-    "twitter",
-    "email",
-    "correo",
-    "mail",
-    "gmail",
-    "outlook"
-  ],
-  "usage": "Para VER mensajes basta con mostrar la tarjeta. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: el panel se abre con su formulario desplegado. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el formulario pregunta cuál, así que no lo preguntes tú."
+  "reply": {
+   "desc": "Enviar una respuesta al mensaje/chat N por su propio canal (email con hilo, WhatsApp y Telegram como respuesta al mensaje). El envío real lo hace el conector de esa plataforma.",
+   "payload": {
+    "n": "int (número del mensaje/chat en la lista)",
+    "text": "string (el texto a enviar)"
+   },
+   "confirm": true,
+   "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
+  },
+  "open_connectors": {
+   "desc": "Abre el panel de CANALES para conectar uno (email/gmail/outlook, whatsapp, telegram) y, si se nombra la plataforma, despliega su formulario ya listo. Úsala siempre que el operador pida conectar/vincular/añadir un canal — el formulario pide lo que haga falta (en email, el proveedor y la cuenta). No pidas tú credenciales por voz.",
+   "payload": {
+    "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
+   },
+   "safe": true
+  },
+  "set_notify": {
+   "desc": "Configura cómo puede interrumpir un canal: qué mensajes avisan proactivamente (never|direct|important|all) y si el aviso puede hablarse en voz alta (speak). No borra ni oculta nada: los mensajes siguen entrando al widget.",
+   "payload": {
+    "platform": "string (whatsapp|telegram|email)",
+    "notify": "string opcional (never|direct|important|all)",
+    "speak": "bool opcional (false = avisos solo por nota/pantalla, nunca por voz)"
+   },
+   "safe": true,
+   "usage": "«De Telegram avísame solo de mensajes directos» → set_notify {platform:'telegram', notify:'direct'}. «Que WhatsApp no me interrumpa hablando» → {platform:'whatsapp', speak:false}. Para silenciar UN chat concreto usa hide, no esto."
+  }
+ },
+ "entry": "widget.js",
+ "name": "Mensajería",
+ "aliases": [
+  "Mensajería",
+  "mensajes",
+  "mis mensajes",
+  "chats",
+  "whatsapp",
+  "wasap",
+  "telegram",
+  "x",
+  "twitter",
+  "email",
+  "correo",
+  "mail",
+  "gmail",
+  "outlook"
+ ],
+ "usage": "Para VER mensajes basta con mostrar la tarjeta. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: el panel se abre con su formulario desplegado. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el formulario pregunta cuál, así que no lo preguntes tú."
 }

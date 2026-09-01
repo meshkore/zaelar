@@ -16,11 +16,29 @@ _NOTE_GAP = 90.0                 # minimum seconds between brain notes — GROUP
 
 
 def surface(verdicts: list[dict], seen: set) -> list[dict]:
-    """Common 'deserves attention' filter: important AND (addressed to me OR high urgency) AND not already seen.
-    `seen` is the set of messageIds already shown by the connector (to avoid resurrecting what the operator removed)."""
-    return [v for v in verdicts
-            if v.get("importante") and (v.get("dirigido_a_mi") or v.get("urgencia") == "alta")
-            and v.get("messageId") not in seen]
+    """Common 'deserves attention' filter, now CONFIGURED per connector (V2-532) instead of frozen: the historical
+    predicate (important AND (addressed to me OR high urgency)) is the DEFAULT policy level, so an untouched
+    install behaves exactly as before. `seen` is the set of messageIds already shown by the connector (to avoid
+    resurrecting what the operator removed). Policy read fails open to the default — a broken store must degrade
+    to today's behavior, never to silence."""
+    from widgets.mensajeria import policy as _policy
+    try:
+        from connectors.messaging import store as msg_store
+        db = msg_store.load()
+    except Exception:
+        db = {}
+    pols: dict[str, dict] = {}
+    out = []
+    for v in verdicts:
+        if v.get("messageId") in seen:
+            continue
+        plat = v.get("platform") or "?"
+        pol = pols.get(plat)
+        if pol is None:
+            pol = pols[plat] = _policy.policy_for(db, plat)
+        if _policy.wants_notice(pol, v):
+            out.append(v)
+    return out
 
 
 async def announce(platform_label: str, new_items: list[dict]) -> None:
@@ -61,9 +79,15 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
             _last_note = now
         except Exception:
             pass
-    # Voice: only if there is room (anti-spam) and something is urgent or addressed to the operator.
-    worth_speaking = any(i.get("urgencia") == "alta" or i.get("dirigido_a_mi") for i in new_items)
-    if not worth_speaking or now - _last_announce < _ANNOUNCE_GAP:
+    # Voice: only if there is room (anti-spam), something is urgent or addressed to the operator, AND the
+    # connector's policy allows speech (V2-532: speak=False keeps the brain note above — silencing the voice must
+    # not blind the brain — but never interrupts out loud).
+    from widgets.mensajeria import policy as _policy
+    try:
+        _pol = _policy.policy_for(db, (new_items[0].get("platform") or "?"))
+    except Exception:
+        _pol = dict(_policy.DEFAULT)
+    if not _policy.wants_voice(_pol, new_items) or now - _last_announce < _ANNOUNCE_GAP:
         return
     _last_announce = now
     try:
