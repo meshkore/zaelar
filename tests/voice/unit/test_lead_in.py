@@ -173,9 +173,15 @@ def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARM
     assert "lead_in_filler import" not in nucleo_body and "LeadInFiller(" not in nucleo_body, \
         "el camino say del relleno volvió — ese say se autoriza DETRÁS de la respuesta y suena tarde SIEMPRE"
 
-    agent_body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
-    assert "llm_node_with_filler" in agent_body, \
+    # V2-538: las tres sobrescrituras de nodo salieron a su propio módulo (lo pidió el trinquete de
+    # arquitectura). El guarda sigue al CÓDIGO —que es justo lo que cazó al mudarse— y comprueba además que
+    # el entrypoint la MONTE: una sobrescritura que nadie instancia no es cableado.
+    overrides = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py").read_text()
+    assert "llm_node_with_filler" in overrides, \
         "sin el override de llm_node, el relleno no tiene por dónde entrar como PRIMER segmento de la respuesta"
+    agent_body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    assert "from .zaelar_agent import ZaelarAgent" in agent_body and "ZaelarAgent(instructions=" in agent_body, \
+        "la clase con los overrides tiene que estar MONTADA por el entrypoint"
 
 
 def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
