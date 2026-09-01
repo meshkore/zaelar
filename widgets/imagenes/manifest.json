@@ -34,13 +34,15 @@
         "query": "qué se buscó, en palabras (opcional)",
         "title": "título a mostrar arriba (opcional)",
         "source": "de dónde salieron: google | bing | local | worker (opcional)"
-      }
+      },
+      "view": true
     },
     "add": {
       "desc": "añade más fotos a las que ya están, sin perderlas",
       "payload": {
         "items": "lista de {url, thumb, title, site, page, w, h}"
-      }
+      },
+      "view": true
     },
     "select": {
       "desc": "pone en grande una foto concreta (por número 1-N o por parte de su título/fuente)",

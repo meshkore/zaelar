@@ -117,6 +117,17 @@ def is_view(spec: dict | None, name: str = "") -> bool:
 
     An action that needs confirmation or escalates is NEVER a view, whatever the manifest says: `trash` («BORRA
     el correo en el buzón real») must not become runnable by a phrasing.
+
+    ## Flagging a widget: start with the action that FILLS it, not the ones that navigate it
+
+    An opt-in flag is a list somebody walks, and the easiest action to walk past is the one that IS the
+    widget's purpose — because it does not look like a lens or a step. Measured (V2-547): the pass that
+    flagged these reached `imagenes`, marked `select`, `next`, `previous` and `local` — every way of moving
+    around photos already on screen — and skipped `show`, the only one that PUTS a photo there. Two hours
+    later «Enséñame la foto de un Ferrari F40» discarded that `show` and opened an empty viewer, live.
+
+    So the first question for a widget is not «which of these are lenses» but «which one answers the sentence
+    this widget exists for». If that action is not a view, a pure show order can only ever open a bare card.
     """
     spec = spec if isinstance(spec, dict) else {}
     if spec.get("view") is not True:

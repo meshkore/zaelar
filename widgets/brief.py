@@ -91,6 +91,42 @@ def _actions_brief() -> str:
     return "\n".join(lines)
 
 
+
+# How much of a widget's `whenToUse` the model gets to read (V2-547).
+#
+# This line is the ONLY thing routing a turn to a widget, and it was cut at 80 characters MID-WORD — all
+# eleven widgets truncated, several losing exactly the clause that disambiguates them:
+#
+#   contactos   …por sus sitios o p‹CUT›rofesionales guardados, o por sus favoritos («mi restaurante favorito…
+#   clock       …un reloj. NO para el‹CUT› tiempo meteorológico (eso es 'tiempo/clima' → widget de search)
+#   mensajeria  …qué debe responder‹CUT›, su WhatsApp/Telegram/correo…
+#   search      …FRONTERA con `result‹CUT›s`: esto es el CARTEL DE PROGRESO mientras se busca…
+#
+# Measured live 2026-09-01 23:25: «Enséñame mis restaurantes favoritos» — the phrase `contactos` names in its
+# own manifest — reached a model that could not see it, so it escalated to a CODE AGENT and answered «Sigo con
+# ello; te aviso en cuanto lo tenga». The routing text is written by us FOR routing; cutting it mid-word is
+# cutting the one thing this block is for. The same shape as the V2-027 tersening that removed `usage` and
+# made a smaller model escalate rather than infer, noted a few lines below.
+#
+# Still bounded, because a catalog has to stay cheap (V2-526): a generous cap, and the cut lands on a SENTENCE
+# boundary when there is one and a word boundary otherwise — never inside a word, where the fragment left
+# behind reads like a different meaning («result‹CUT›» for `results`). The number of widgets listed is already
+# bounded by `selection.candidates`, so this bounds prose per widget, not the size of the block.
+_PURPOSE_CAP = 300
+
+
+def _purpose(text: str, cap: int = _PURPOSE_CAP) -> str:
+    if len(text) <= cap:
+        return text
+    head = text[:cap]
+    for sep in (". ", "; ", ", "):
+        j = head.rfind(sep)
+        if j >= cap // 2:                       # a boundary near the end, not one that throws most of it away
+            return head[:j + 1].rstrip()
+    j = head.rfind(" ")
+    return (head[:j] if j >= cap // 2 else head).rstrip() + "…"
+
+
 def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | None = None) -> str:
     """TERSE widget view for the FlashBrain turn prompt (V2-027, about 30 lines). Data-driven from the live
     catalog, deliberately small: the old `for_brain()` dumped, on EVERY turn, the tag protocol + full payload JSON +
@@ -136,9 +172,9 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     for w in cat:
         wid = w.get("id")
         widl = str(wid or "").strip().lower()
-        purpose = str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " ")
+        purpose = _purpose(str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " "))
         tag = "  ◀ EN PANTALLA" if widl in opened else ("  · usado hace poco" if widl in recent else "")
-        row = f"- {wid} — {purpose[:80]}{tag}"
+        row = f"- {wid} — {purpose}{tag}"
         # Declared actions (names only, inline): the vocabulary referenced by the widget_data tool. Payload shapes
         # are omitted; the model infers them from the tool example, and agenda.data/refs normalize values (V2-026).
         acts = w.get("actions")

@@ -118,6 +118,19 @@ DOMAINS: list[dict] = [
             # V2-544: «abre el mensaje de Francisco» went 4/4 to show_widget over an unmoved card — the
             # prompt commanded «jamás widget_data» while the catalog taught open{name}; the imperative wins.
             "tests/agent_headless/unit/flash/test_the_inside_of_a_widget_is_widget_data.py"]},
+        # V2-547 — la LÍNEA con la que el modelo enruta a un widget se cortaba a 80 caracteres, a mitad de
+        # palabra, y los ONCE widgets salían truncados. Varios perdían justo la frase que los desambigua:
+        # clock su «NO para el tiempo meteorológico», search su «FRONTERA con `result‹CORTE›»,  mensajeria su
+        # «WhatsApp/Telegram/correo» —el mismo widget al que V2-545 dedicó una iniciativa entera—, y contactos
+        # su «o por sus favoritos ("mi restaurante favorito en Barcelona")». Medido en vivo (2026-09-01
+        # 23:25:19): «Enséñame mis restaurantes favoritos», la frase que ESE manifest nombra, llegó a un modelo
+        # que no podía verla → escaló a un agente de CÓDIGO y contestó «Sigo con ello». El texto lo escribimos
+        # nosotros PARA enrutar; cortarlo a mitad de palabra no pierde sentido, INVENTA otro. Sigue acotado
+        # (V2-526): tope generoso y corte en frontera de frase; el número de widgets ya lo acota `selection`.
+        {"id": "4.100", "title": "La línea de enrutado del catálogo llega ENTERA: sin cortes a mitad de palabra "
+                                 "y con las cláusulas que desambiguan cada widget",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_routing_line_is_not_cut_mid_word.py"]},
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
             # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real

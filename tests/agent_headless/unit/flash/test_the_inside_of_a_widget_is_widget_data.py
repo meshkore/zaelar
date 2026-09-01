@@ -129,6 +129,35 @@ def test_a_view_action_is_declared_never_inferred():
         "navegador.open loads a URL: a pure show must NOT run it"
 
 
+def test_the_widget_whose_JOB_is_showing_may_run_the_action_that_shows():
+    """V2-547 — measured live on the operator's own engine two hours after the guard shipped.
+
+        23:21:43  «Enséñame la foto de un Ferrari F cuarenta.»
+                  🪟 'abrir/mostrar' puro → show (no data-op inventada) · imagenes (descartada show)
+        23:22:04  «Te he pedido una foto de un Ferrari F cuarenta.»
+                  🪟 show_widget → canvas: imagenes  ·  imagenes (descartada show)
+        23:23:25  «No sale la foto.»
+
+    The pass that flagged the display-only actions reached `imagenes` and flagged `select`, `next`,
+    `previous` and `local` — the ways of MOVING AROUND photos already on screen — and skipped `show` and
+    `add`, the only two that PUT a photo there. So the widget whose entire job is showing pictures had its
+    main action discarded by the most ordinary way of asking for one, and opened empty.
+
+    The failure did not stop at an empty card: with the viewer blank and the operator saying so, the model
+    escalated the photo to a code agent, which spent minutes driving a browser through Wikimedia — and the
+    next unrelated request came back «Sigo con ello; te aviso en cuanto lo tenga».
+
+    Not a lesson about `imagenes`: an opt-in flag is a list somebody walks, and the action that is a widget's
+    whole PURPOSE is the easiest one to walk past, because it does not look like a lens or a step."""
+    for phrase in ("Enséñame la foto de un Ferrari F cuarenta.", "muéstrame fotos de Roma",
+                   "enséñame una foto del Everest", "ábreme el visor de imágenes"):
+        assert not router.show_request_blocks_data_action(phrase, "imagenes", "show"), \
+            f"«{phrase}» + show is exactly what was asked; discarding it opens an empty viewer"
+    assert not router.show_request_blocks_data_action("enséñame más fotos de Roma", "imagenes", "add")
+    # And the guard keeps doing its job on the same widget: emptying the viewer is not what «show me» means.
+    assert router.show_request_blocks_data_action("enséñame las fotos", "imagenes", "clear")
+
+
 def test_the_probe_channel_mirrors_the_pure_show_guard():
     """The probe reported `widget_data open {name:'Francisco'}` for the very sentence the voice rail turned
     into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
