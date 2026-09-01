@@ -41,7 +41,7 @@ _CAT = {
     "filler": "flash",
     # `cron` (V2-121, 2026-08-18): schedule/cancel a reminder. Family `flash` because the DECISION belongs to the turn,
     # like a data-op or escalation; its own kind exists so a scheduled reminder leaves a
-    # rastro distinguible en el registro. Antes viajaba como un `brain` cualquiera y era imposible separar «lo
+    # distinguishable trace in the log. Previously it traveled as an ordinary `brain`, and it was impossible to separate “it
     # scheduled it” from “said it would schedule it” without going to the DB — exactly the failure measured by the
     # `remember-and-remind-deadline` use case.
     "cron": "flash",
@@ -71,42 +71,42 @@ _CAT = {
     # agenda” are the same gesture against the canvas, so they belong to the same family.
     "panel": "widget", "secret": "widget",
     # ── System / Code (OFF) — plumbing: voice transport, state, raw metrics, cluster, perf.
-    # `metric` BAJÓ de la vista principal a aquí (2026-08-09, queja del operador): son las métricas CRUDAS del
+    # `metric` MOVED DOWN from the main view to here (2026-08-09, operator complaint): these are the RAW metrics from the
     # LiveKit plugin, and with streaming STT (Deepgram) the metric does NOT depend on anyone speaking — its
     # PeriodicCollector emits `STTMetrics: audio=5.00s` every 5 s while the microphone is open, PERPETUALLY.
-    # PERPETUA. Ensuciaba el hilo con ~720 filas/hora sin señal (la latencia POR FRASE, que sí la tiene, ya sale
+    # PERPETUAL. It cluttered the thread with ~720 rows/hour carrying no signal (the PER-PHRASE latency, which does carry one, already appears
     # as `stt`/`tts`/`brain` with backend, model, and text). Same logic as the `VADMetrics` anti-flood from
-    # 2026-07-12: métrica continua ≠ evento del turno. Sigue persistida en los jsonl.
+    # 2026-07-12: continuous metric ≠ turn event. It remains persisted in the jsonl files.
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
     "session": "system", "timing": "system", "notify": "system",
     # Health and infrastructure: `error`/`alert` (the viewer never hides them by category — see below),
-    # `homeostasis` (el latido autónomo, V2-070), `language` (el idioma quedó fijado), `client` (eventos que
-    # reporta el navegador por `/api/ui-event`).
+    # `homeostasis` (the autonomous heartbeat, V2-070), `language` (the language was set), `client` (events the
+    # browser reports through `/api/ui-event`).
     "error": "system", "alert": "system", "homeostasis": "system", "language": "system", "client": "system",
     "energy": "system",
-    # `run` = el interruptor GLOBAL del agente (⏻ → nucleo/runstate.py): qué se congeló y qué continuó. Va en
-    # `system` con `session`/`state`, que es su familia: es estado del sistema, no actividad de un turno.
+    # `run` = the agent's GLOBAL switch (⏻ → nucleo/runstate.py): what was frozen and what continued. It goes in
+    # `system` with `session`/`state`, its proper family: it is system state, not turn activity.
     "run": "system",
     # `music` is the music rail driven by FlashBrain (a sibling of `rail`), not a widget: the card that
-    # se abre por el camino ya emite SU propio evento `widget`.
+    # card opened along the way already emits ITS own `widget` event.
     "music": "flash",
     # `interim` = live partial transcription. It never gets a `cat` (it goes through SSE and RETURNS early, see
-    # `emit`), pero se mapea igual para que el inventario esté COMPLETO y no parezca un olvido.
+    # `emit`), but it is mapped anyway so the inventory is COMPLETE and does not look like an omission.
     "interim": "flash",
 }
 
 
 # V2-255 — the HEAD also covers the MEMORY shown to the model. Measured on 2026-08-21 with the empty session:
 # the recall block falls at character **2,896** of a 16,585-character prompt, just 104 characters from
-# quedarse fuera — y en un turno real van DELANTE el estado cacheado y la conversación reciente, así que se cae
-# siempre. El orden del prompt es lang → memoria → reciente → recall → directiva → recursos → «AHORA MISMO».
+# being left out—and in a real turn the cached state and recent conversation come BEFORE it, so it is always dropped.
+# The prompt order is language → memory → recent → recall → directive → resources → “RIGHT NOW.”
 #
 # This matters because the shown memory determines behaviors such as V2-254 (a weather report for
-# otra ciudad eligiendo la ciudad de un encargo), y porque el arnés propuso vigilar el ARTEFACTO en vez de la
+# another city by choosing the city from an assignment), and because the harness proposed monitoring the ARTIFACT instead of the
 # surface list: *no prompt contains the text of a background pill unless the request names it*.
-# Un verificador que lea un artefacto con la memoria recortada diría «limpio» sobre un prompt sucio — que es la
-# regla de esta misma noche: **un techo solo es peligroso si el lector acepta prefijos**.
+# A verifier reading an artifact with truncated memory would say “clean” about a dirty prompt—which is tonight's
+# very rule: **a ceiling is only dangerous if the reader accepts prefixes**.
 _HEAD_CHARS, _TAIL_CHARS = 6000, 7000
 
 
@@ -134,12 +134,13 @@ def _prompt_excerpt(system: str) -> str:
 def turn_detail(*, system: str, window: list | None = None, tools: list | None = None,
                 user: str = "", decision: dict | None = None, extra: dict | None = None) -> None:
     """FORENSIC capture of ONE FlashBrain turn (V2-040, operator request 2026-07-15: “messages, tokens,
-    prompts, condiciones… para evaluar y corregir a futuro»). Registra el PROMPT DE SISTEMA compuesto, la VENTANA
-    conversacional que vio el modelo (roles+texto), las TOOLS ofrecidas y la DECISIÓN/condiciones del turno.
+    prompts, conditions… for future evaluation and correction”). Records the composed SYSTEM PROMPT, the
+    conversation WINDOW the model saw (roles+text), the offered TOOLS, and the turn's DECISION/conditions.
 
-    Va en categoría `system` (OFF por defecto en el visor → no floodea la vista principal) pero SÍ se persiste al
-    fichero, así queda para diagnóstico posterior (p.ej. «¿por qué re-escaló en un turno ambiente?» = mirar qué
-    ventana/prompt vio). Gate `ZAELAR_LOG_PROMPTS` (def ON); se puede apagar en máquinas sensibles. Nunca lanza."""
+    It goes in the `system` category (OFF by default in the viewer → it does not flood the main view), but IS
+    persisted to the file, so it remains available for later diagnosis (e.g. “why did it re-escalate during an
+    ambient turn?” = inspect the window/prompt it saw). `ZAELAR_LOG_PROMPTS` gate (default ON); it can be disabled
+    on sensitive machines. Never raises."""
     if (os.getenv("ZAELAR_LOG_PROMPTS", "1") or "1").strip().lower() in ("0", "false", "no", "off"):
         return
     try:
@@ -154,9 +155,9 @@ def turn_detail(*, system: str, window: list | None = None, tools: list | None =
             payload.update(extra)
         emit("perf", "🧾 turno (prompt+ventana+tools+decisión)", role="system", text=(user or "")[:120],
              extra=payload)
-        # V2-053: topic SEMÁNTICO de fin de turno en el bus — punto de conexión de modularidad para consumidores
-        # programáticos (Susurro). turn_detail es el ÚNICO sitio que cierran AMBOS caminos (provider de voz y
-        # probe), así un suscriptor recibe el turno completo sin acoplarse a ninguno de los dos.
+        # V2-053: SEMANTIC end-of-turn topic on the bus—the modularity connection point for programmatic
+        # consumers (Susurro). turn_detail is the ONLY place BOTH paths close (voice provider and probe), so a
+        # subscriber receives the complete turn without coupling to either one.
         try:
             import time as _time
 
@@ -171,8 +172,8 @@ def turn_detail(*, system: str, window: list | None = None, tools: list | None =
 
 def perf(label: str, *, module: str = "", func: str = "", ms: float | None = None, text: str = ""):
     """Internal PERFORMANCE event (V2-037, `system` category, OFF by default in the viewer): instruments cycles,
-    callbacks, llamadas a modelo/DB/navegador y cualquier carga que pueda amenazar el tiempo real. Barato: reusa
-    `emit` (escritura off-thread). `module`/`func` dicen DÓNDE sucede; `ms` la duración cuando aplica."""
+    callbacks, calls to the model/DB/browser, and any load that could threaten real-time operation. Cheap: reuses
+    `emit` (off-thread writing). `module`/`func` say WHERE it happens; `ms` gives the duration when applicable."""
     extra = {"cat": "system"}
     if module:
         extra["module"] = module
@@ -184,11 +185,11 @@ def perf(label: str, *, module: str = "", func: str = "", ms: float | None = Non
 
 
 # ── CONTENTION TRACKER (PHASE 3, 2026-07-14) ─────────────────────────────────────────────────────────────
-# Cargas pesadas OFF-HOT-PATH que PODRÍAN contender con el turno de voz (CORAZÓN mem_processor qwen, embeddings
-# embeddinggemma, reranker cross-encoder). Cada una marca ocupado/libre; el turno lee la foto al empezar el LLM y
-# la adjunta al evento `reply` → correlacionamos: ¿sube el TTFT cuando el CORAZÓN destila? El TTFT es CLOUD → si
-# sube con carga LOCAL, es contención de CPU/event-loop (no de GPU), y hay que aislar más. Contador (no bool) por
-# si hay varias corridas a la vez. Thread-safe barato (GIL + dict atómico); best-effort.
+# Heavy OFF-HOT-PATH loads that COULD contend with the voice turn (HEART mem_processor qwen, embeddings
+# embeddinggemma, reranker cross-encoder). Each marks itself busy/free; the turn reads the snapshot when the LLM
+# starts and attaches it to the `reply` event → we correlate: does TTFT rise while the HEART distills? TTFT is
+# CLOUD → if it rises under LOCAL load, it is CPU/event-loop contention (not GPU), and more isolation is needed.
+# Counter (not bool) in case several runs overlap. Cheap thread safety (GIL + atomic dict); best-effort.
 import threading as _threading  # noqa: E402
 _busy: dict[str, int] = {}
 _busy_lock = _threading.Lock()
@@ -248,21 +249,21 @@ def unsubscribe(q):
 SESSIONS_DIR = os.path.join(LOG_DIR, "sessions")
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 _events: list = []                 # in-memory ring of the CURRENT session (served by /debug)
-# LIMPIEZA 2026-08-09: aquí vivía un SEGUNDO concepto de sesión (`_session = {id, path}`, id con formato
-# `%Y%m%d-%H%M%S`) que solo se rellenaba llamando a `reset_session()`… y NADIE lo llamaba. Consecuencia: el
-# fichero por sesión que documentábamos (`.meshkore/logs/sessions/<id>.jsonl`) llevaba tiempo sin escribirse
-# nunca, porque `path` era None y el bucle de escritura lo saltaba. Ahora hay UNA sola sesión —la de trabajo del
-# operador, `observability/identity.py`— y el fichero se deriva de SU id: la función documentada vuelve a
-# existir de verdad y desaparece la duplicidad.
+# CLEANUP 2026-08-09: a SECOND concept of a session used to live here (`_session = {id, path}`, with an id in
+# `%Y%m%d-%H%M%S` format), populated only by calling `reset_session()`… and NOBODY called it. Consequently, the
+# documented per-session file (`.meshkore/logs/sessions/<id>.jsonl`) had not been written for some time because
+# `path` was None and the write loop skipped it. There is now ONE session—the operator's work session in
+# `observability/identity.py`—and the file is derived from ITS id: the documented function truly exists again,
+# and the duplication is gone.
 _session_file = {"sid": None, "path": None}
 _seq = {"n": 0}
 _dedup: dict = {}                  # (kind,label) -> last ts, to collapse high-frequency frame floods
 
-# Persistencia a fichero OFF-THREAD (V2-035, 2026-07-13): emit() corre en AMBOS loops (uvicorn + job-thread de
-# LiveKit). Las 2 escrituras SÍNCRONAS por evento retenían el GIL en el hilo de uvicorn justo cuando el navegador
-# (Playwright + PIL + DOM) genera ráfagas de eventos → hambreaban el pump de audio del TTS (frames a tirones, `dur`
-# 2-8s = voz ENTRECORTADA). Ahora emit() solo ENCOLA (no bloquea); un writer dedicado drena en orden (el `_seq` ya
-# ordena). El SSE sigue yendo síncrono (cruza loops seguro por el bus). Fail-open: cola llena → se descarta la línea.
+# OFF-THREAD file persistence (V2-035, 2026-07-13): emit() runs in BOTH loops (uvicorn + LiveKit job thread).
+# The 2 SYNCHRONOUS writes per event held the GIL in the uvicorn thread precisely when the browser
+# (Playwright + PIL + DOM) generated bursts of events → they starved the TTS audio pump (jerky frames, `dur`
+# 2-8s = CHOPPY voice). Now emit() only ENQUEUES (non-blocking); a dedicated writer drains in order (`_seq` already
+# orders them). SSE remains synchronous (safely crosses loops through the bus). Fail-open: full queue → drop the line.
 import queue as _queue
 import threading as _threading
 
@@ -330,13 +331,13 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     if extra:
         ev.update(extra)
     # CATEGORY for the viewer filter (V2-037): groups kinds into a few families. The caller can force it with
-    # extra={"cat": ...}; si no, se deriva del kind. System/Code (`system`) = eventos internos/perf, OFF por defecto.
+    # extra={"cat": ...}; otherwise, it is derived from kind. System/Code (`system`) = internal/perf events, OFF by default.
     if "cat" not in ev:
         # No family → `other`: the viewer does NOT hide it by category (see `_CAT` note). An unclassified kind
         # is visible; classification decides where it lives, not whether it exists.
         ev["cat"] = _CAT.get(kind, "other")
     # VERSION STAMP (V2-074): each event carries the version of the code that generated it ('2.74+sha') → the timeline
-    # se ve qué versión produjo cada línea y se distinguen sesiones/reinicios. Constante en runtime (µs).
+    # reveals which version produced each line and distinguishes sessions/restarts. Constant at runtime (µs).
     if "ver" not in ev:
         try:
             import version as _v
@@ -344,9 +345,9 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         except Exception:
             pass
     # TRACEABILITY (V2-044): stamps each event with the trace id of the stimulus that originated it (operator phrase,
-    # cron, probe…) + el `span` (actor: worker:N / rail:X / web:tN). Lo lleva el ContextVar de `voice/trace.py`
-    # (viaja solo por create_task/to_thread; las costuras cross-loop adoptan a mano). Leerlo son ns — el hot path
-    # de voz no paga nada (V2-011). El caller puede forzarlo con extra={"trace": ...}.
+    # cron, probe…) + the `span` (actor: worker:N / rail:X / web:tN). It is carried by the ContextVar in `voice/trace.py`
+    # (it travels automatically through create_task/to_thread; cross-loop seams adopt it manually). Reading it takes
+    # ns—the voice hot path pays nothing (V2-011). The caller can override it with extra={"trace": ...}.
     if "trace" not in ev:
         try:
             from voice import trace as _trace
@@ -367,7 +368,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         if not path:
             continue
         try:
-            _write_q.put_nowait((path, line))   # OFF-THREAD: no bloquea el hilo de voz/uvicorn (ver arriba)
+            _write_q.put_nowait((path, line))   # OFF-THREAD: does not block the voice/uvicorn thread (see above)
         except _queue.Full:
             pass
     # Fan out to SSE subscribers over the Sistema Nervioso (bus/, V2-001). emit() runs on BOTH loops (uvicorn
@@ -388,18 +389,18 @@ def debug_events(kind: str = "", limit: int = 0) -> list:
 
 
 def stamp_identity(ev: dict) -> dict:
-    """QUIÉN y CUÁNDO (2026-08-09). El evento ya decía QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO
-    (`trace` = correlation id). Le faltaban los dos ejes con los que se analiza el uso REAL: la instalación
-    (`uid`) y la sesión de trabajo (`sid`). Son lecturas de un dict cacheado (ns) — el hot path de voz (V2-011)
-    no paga nada. `sid` abre sesión sola en el primer evento: preferimos una sesión auto-abierta a un evento sin
-    sesión, que es un dato que ya no se puede reconstruir después.
+    """WHO and WHEN (2026-08-09). The event already said WHAT happened (`kind`), from which PIECE (`cat`), and
+    from which FLOW (`trace` = correlation id). It lacked the two axes used to analyze REAL usage: the installation
+    (`uid`) and work session (`sid`). These are reads from a cached dict (ns)—the voice hot path (V2-011) pays
+    nothing. `sid` opens a session automatically on the first event: we prefer an auto-opened session over an
+    event without a session, which is data that cannot be reconstructed later.
 
-    Vive en una función PROPIA porque `emit()` no es la única puerta al stream: hay eventos que se publican a
-    mano al topic `observer` (el latido `pulse` del loop, el puente de `memory.updated`) y se saltaban el sello
-    —50 de 66 filas del primer arranque salieron sin sesión—. `bus/sse.py::publish` lo aplica también, que sí es
-    la puerta ÚNICA. Idempotente: pasar dos veces no pisa nada."""
-    # La FAMILIA también: un dict construido a mano no pasa por la derivación de `emit()` y llegaba al visor sin
-    # `cat`, o sea a la fila «Sin clasificar» — que es justo lo que el operador vio con los eventos de memoria.
+    It lives in its OWN function because `emit()` is not the only gateway to the stream: some events are published
+    manually to the `observer` topic (the loop's `pulse` heartbeat, the `memory.updated` bridge) and skipped the
+    stamp—50 of 66 rows from the first startup had no session. `bus/sse.py::publish` applies it too, and that really
+    is the SINGLE gateway. Idempotent: applying it twice overwrites nothing."""
+    # The FAMILY too: a manually constructed dict does not pass through `emit()`'s derivation and reached the
+    # viewer without `cat`, meaning the “Unclassified” row—which is exactly what the operator saw with memory events.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
     # Idle timeout (2026-08-13): only REAL activity (not `system`/`pulse` background noise) counts toward the
@@ -433,7 +434,7 @@ def stamp_identity(ev: dict) -> dict:
             # the agent globally STOPPED (⏻ off, `runstate.stopped()`) still fired ordinary `widget`/`ui` state
             # transitions (cat="widget", not system/pulse), and THOSE self-opened a brand-new "live" session
             # via `session_id()` below, immediately re-appearing in the backoffice master as "EN CURSO" the
-            # instant the page was refreshed. "Parar es parar" (V2-092) has to mean nothing self-opens a
+            # instant the page was refreshed. “Stopped means stopped” (V2-092) has to mean nothing self-opens a
             # session while stopped, independent of what category the triggering event happens to carry.
             ev.setdefault("sid", _ident.session_info().get("session_id") or "")
         else:
@@ -480,27 +481,27 @@ def clear_log():
 
 
 def rotate_session(reason: str = "reset") -> dict:
-    """Cierra la sesión de trabajo en curso y abre una NUEVA, con la observabilidad a cero. Devuelve la info de la
-    sesión nueva (`{session_id, started_ms, source, user_id}`).
+    """Close the current work session and open a NEW one with observability reset to zero. Return the new
+    session's information (`{session_id, started_ms, source, user_id}`).
 
-    Es lo que tiene que pasar al pulsar «Reset» (petición del operador, 2026-08-10): un reset deliberado es «para
-    el agente y vuélvelo a arrancar» — mismas reglas, misma memoria, pero **empezamos en blanco**. Antes el reset
-    vaciaba el log y NO rotaba el id (`begin_session(force=True)` no lo llamaba nadie), así que los eventos de
-    después seguían colgando de la sesión vieja: el registro durable mezclaba en una misma sesión el trabajo de
-    antes y el de después de un borrón, y la columna de observabilidad arrancaba «vacía» pero con la identidad de
-    algo que ya no existía. Un id nuevo es lo que hace que ese borrón signifique algo.
+    This is what must happen when “Reset” is pressed (operator request, 2026-08-10): a deliberate reset means
+    “stop the agent and start it again”—same rules, same memory, but **we start with a blank slate**. Previously,
+    reset emptied the log but did NOT rotate the id (nobody called `begin_session(force=True)`), so subsequent
+    events remained attached to the old session: the durable record mixed work from before and after a clean
+    break in the same session, and the observability column started “empty” but carried the identity of something
+    that no longer existed. A new id is what gives that clean break meaning.
 
-    ORDEN, que importa:
-      1. `end_session` — el evento de cierre se sella con el sid VIEJO y cae en el fichero de esa sesión, que es su
-         sitio (ahí queda el registro de cuándo y por qué acabó).
-      2. `clear_log` — se vacían el anillo en RAM, el contador de secuencia y el `timeline-latest.jsonl` (la vista
-         «lo que está pasando ahora»); los ficheros POR SESIÓN no se tocan: son el histórico.
-      3. `begin_session(force=True)` — id nuevo. El `force` es imprescindible: `begin_session` reutiliza a
-         propósito la sesión abierta para que una reconexión por un bache de red no se cuente como sesión nueva.
-      4. Los traces vuelven a numerar desde T1.
+    ORDER, which matters:
+      1. `end_session`—the closing event is stamped with the OLD sid and goes into that session's file, where it
+         belongs (it preserves the record of when and why it ended).
+      2. `clear_log`—the in-RAM ring, sequence counter, and `timeline-latest.jsonl` (the “what is happening now”
+         view) are emptied; PER-SESSION files are untouched: they are the history.
+      3. `begin_session(force=True)`—new id. `force` is essential: `begin_session` deliberately reuses the open
+         session so reconnection after a network hiccup is not counted as a new session.
+      4. Traces start numbering again from T1.
 
-    Fail-open: si la identidad no está disponible, al menos se limpia el log (mejor un reset a medias que un reset
-    que revienta)."""
+    Fail-open: if identity is unavailable, at least clear the log (a partial reset is better than a reset that
+    crashes)."""
     trace_reset = None
     try:
         from voice import trace as _trace
@@ -528,7 +529,7 @@ def rotate_session(reason: str = "reset") -> dict:
         # returns `{}` too, so the RESET event announces no session rather than a fresh one that would then sit
         # "EN CURSO" in the master with the agent visibly off (measured 2026-08-31; see `identity.begin_session`).
         # The blank slate still happens: the log above was already cleared. The next session is born when the
-        # operator presses ⏻ ON, which is what "empezamos en blanco" means with a stopped agent.
+        # operator presses ⏻ ON, which is what “we start with a blank slate” means with a stopped agent.
         if not _ident.begin_session(source=reason, force=True):
             return {}
         # `session_info()`, not what `begin_session` returns: the latter has the internal `id` key, and callers of

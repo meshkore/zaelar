@@ -59,12 +59,12 @@ def looks_like_web_task(text: str) -> bool:
 # PURE LOGIN intent ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn") — with no task
 # verb afterward. Deterministic. Mirror of `looks_like_web_task`: guarantees login routing even when the small model
 # gets distracted and does not trigger the tool (observed jitter).
-# NB (bug 2026-07-23): `conect(?!ad|or)` casaba CUALQUIER conjugación de "conectar" salvo "conectado"/"conector"
-# — "¿tienes capacidad para conectarte al cluster?" (pregunta) o "el agente se conectaba ahí" (narración en 3ª
-# persona) casaban igual y abrían un login de navegador que nadie pidió (a wallapop.com por el fallback de sitio
-# desconocido, ver `nucleo.py::_start_web_auth`). Solo debe disparar la forma DIRIGIDA a zaelar en 1ª persona
-# ("conéctame"/"conectarme"/"conecta mi cuenta"/"conecta a mi cuenta"), nunca una conjugación reflexiva/3ª persona
-# ni una pregunta sobre capacidad. Mismo criterio para el inglés y para "vincula"/"vincular".
+# NB (bug 2026-07-23): `conect(?!ad|or)` matched EVERY conjugation of "conectar" except "conectado"/"conector"
+# — "¿tienes capacidad para conectarte al cluster?" (a question) or "el agente se conectaba ahí" (third-person
+# narration) matched as well and opened a browser login nobody requested (to wallapop.com via the unknown-site
+# fallback; see `nucleo.py::_start_web_auth`). It must trigger only the first-person form DIRECTED at zaelar
+# ("conéctame"/"conectarme"/"conecta mi cuenta"/"conecta a mi cuenta"), never a reflexive/third-person conjugation
+# or a question about capability. The same criterion applies to English and to "vincula"/"vincular".
 _LOGIN_INTENT_RE = _re.compile(
     r"\b(conectame|conectarme|conect(?:a|ar)\s+mi\b|conect(?:a|ar)\s+a\s+mi\b|"
     r"inicia(?:r)?\s*sesion|loguea(?:te)?|logue(?:ate)?|vincul[ae](?:me)?\s+mi\b|"
@@ -83,63 +83,65 @@ def looks_like_login_request(text: str) -> bool:
     return bool(_LOGIN_INTENT_RE.search(_norm_txt(text))) and not looks_like_web_task(text)
 
 
-# Servicios de MÚSICA por streaming: se conectan desde el widget `musica` (OAuth in-app), NUNCA por login de
-# navegador. "amazon music"/"apple music"/"youtube music" van con la palabra 'music' para NO pisar el marketplace
-# Amazon ni el vídeo de YouTube (que sí son login de navegador / otra cosa).
+# MUSIC streaming services: they connect from the `musica` widget (in-app OAuth), NEVER through a browser login.
+# "amazon music"/"apple music"/"youtube music" include the word 'music' so they do NOT override the Amazon
+# marketplace or YouTube video (which do use a browser login / are something else).
 _MUSIC_SERVICES = ("spotify", "apple music", "youtube music", "tidal", "deezer", "amazon music")
-# Servicios de MENSAJERÍA que se VINCULAN DENTRO del widget `mensajeria` (WhatsApp/Telegram por QR, email por
-# app-password), NUNCA por login de navegador. Incluye el email (V2-051): 'conéctame a Gmail/mi correo/Outlook' →
-# el widget mensajeria (su tarjeta de conexión), no el Chromium.
+# MESSAGING services that are LINKED INSIDE the `mensajeria` widget (WhatsApp/Telegram by QR, email by app
+# password), NEVER through a browser login. Includes email (V2-051): 'conéctame a Gmail/mi correo/Outlook' →
+# the mensajeria widget (its connection card), not Chromium.
 _MESSAGING_SERVICES = ("whatsapp", "wasap", "telegram", "email", "e-mail", "correo", "gmail", "outlook", "hotmail",
                        "icloud", "imap")
 
 
 _SHOW_VERB_RE = _re.compile(r"\b(muestra|muestrame|ensena|ensename|abre|abreme|abrir|mostrar|ensenar|ver|"
                             r"visualiza|saca|pon(?:me)? en pantalla)\b")
-# match por STEM (sin \b final): 'anad' cubre añade/añadir, 'apunt' apunta/apuntar, etc. (tras _norm_txt sin acentos).
+# Match by STEM (without a final \b): 'anad' covers añade/añadir, 'apunt' covers apunta/apuntar, etc. (after
+# accent-stripping by _norm_txt).
 _CHANGE_VERB_RE = _re.compile(r"\b(anad|apunt|agreg|marca|quita|borr|elimin|cambi|aplaz|silenci|crea|edit|modific|"
                               r"met[ae]|programa|reserv|pon(?!(?:me|nos|te)?\s*en\s*pantalla)|añad)")
 
 
 def is_pure_show_request(text: str) -> bool:
-    """True si el turno es un ABRIR/MOSTRAR un widget PURO (sin intención de CAMBIAR datos). GUARD de ejecución
-    de widget_data: un "abre/muéstrame el widget X" NUNCA debe ejecutar un data-op (el modelo a veces cuela una
-    acción inventada 'unhide' o ALUCINA un add_meeting) → se redirige a mostrar la tarjeta. Determinista, es."""
+    """True if the turn is purely about OPENING/SHOWING a widget (with no intent to CHANGE data). Execution GUARD
+    for widget_data: "abre/muéstrame el widget X" must NEVER execute a data-op (the model sometimes slips in an
+    invented 'unhide' action or HALLUCINATES an add_meeting) → redirect it to showing the card. Deterministic, Spanish."""
     n = _norm_txt(text)
     return bool(_SHOW_VERB_RE.search(n)) and not _CHANGE_VERB_RE.search(n)
 
 
 def is_music_service(site: str = "", text: str = "") -> bool:
-    """True si el login pedido es un SERVICIO DE MÚSICA (Spotify…). GUARD DE EJECUCIÓN de authenticate_web: la
-    música se conecta en el widget `musica` (su tarjeta), no por el navegador → garantiza el invariante AUNQUE el
-    routing del modelo elija authenticate_web (patrón terco de 'conéctame a mi cuenta de Spotify')."""
+    """True if the requested login is for a MUSIC SERVICE (Spotify…). EXECUTION GUARD for authenticate_web: music
+    connects in the `musica` widget (its card), not through the browser → guarantees the invariant EVEN IF model
+    routing chooses authenticate_web (the persistent 'conéctame a mi cuenta de Spotify' pattern)."""
     blob = f"{site} {text}".lower()
     return any(s in blob for s in _MUSIC_SERVICES)
 
 
 _CLOSE_VERB_RE = _re.compile(r"\b(cierr\w*|cerr\w*|ocult\w*|escond\w*|apag\w*|quit\w*|close|hide|turn\s+off)\b")
 _DELETE_VERB_RE = _re.compile(r"\b(borr|elimin|delete|remove|deshaz)\w*")
-# negación del cierre: "no cierres / no lo cierres / don't close" — no debe contar como close (evita cerrar al revés)
+# Negated close: "no cierres / no lo cierres / don't close" — must not count as close (prevents doing the opposite).
 _NO_CLOSE_RE = _re.compile(r"\bno\s+(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierr\w*|ocult\w*|escond\w*)\b|\bdon'?t\s+close\b")
 
 
 def looks_like_close(text: str) -> bool:
-    """True si el turno pide CERRAR (ocultar) un widget, NO borrarlo. GUARD DE EJECUCIÓN de delete_widget (V2-045,
-    invariante V2-017 'cerrar ≠ borrar'): el no-razonador a veces elige delete_widget para 'cierra el widget de X';
-    borrar es PARA SIEMPRE y cerrar es reversible → si hay verbo de cerrar y NINGÚN verbo de borrar, es un close.
-    Determinista, sin acentos (se normaliza). Ignora la NEGACIÓN ('no cierres')."""
+    """True if the turn asks to CLOSE (hide) a widget, NOT delete it. EXECUTION GUARD for delete_widget (V2-045,
+    V2-017 invariant 'cerrar ≠ borrar'): the non-reasoning model sometimes chooses delete_widget for 'cierra el
+    widget de X'; deletion is FOREVER and closing is reversible → with a close verb and NO delete verb, it is a
+    close. Deterministic and accent-free (the input is normalized). Ignores NEGATION ('no cierres')."""
     n = _norm_txt(text)
     return (bool(_CLOSE_VERB_RE.search(n)) and not _DELETE_VERB_RE.search(n)
             and not _NO_CLOSE_RE.search(n))
 
 
-# GUARD de ejecución de show_widget (2026-07-17): CREAR un widget NUEVO se ESCALA al generador (código), NO se
-# "muestra". Tras añadir la tool show_widget, el no-razonador la elegía para 'créame un widget de X' y `identify`
-# devolvía un widget EXISTENTE equivocado (fuzzy laxo: 'conversor de divisas'→'results'). Backstop determinista
-# (misma clase que looks_like_close/stop): verbo de CREAR + 'widget', o 'widget NUEVO' → es un CREATE, no un show.
-# SINÓNIMOS de "widget" que usa el operador de forma natural (mar de testing 2026-07-21: "créame un PANEL/GADGET"
-# no se detectaba → el backstop de promesa no escalaba). Gated SIEMPRE por un verbo de crear → seguro (no captura
-# "el panel de control del coche"). "tarjeta/cuadro/contador" van con verbo de crear delante.
+# show_widget execution GUARD (2026-07-17): CREATING a NEW widget is ESCALATED to the generator (code), NOT
+# "shown". After the show_widget tool was added, the non-reasoning model chose it for 'créame un widget de X',
+# and `identify` returned the wrong EXISTING widget (loose fuzzy match: 'conversor de divisas'→'results').
+# Deterministic backstop (the same class as looks_like_close/stop): CREATE verb + 'widget', or 'NEW widget' →
+# it is a CREATE, not a show. Natural SYNONYMS for "widget" used by the operator (testing sea, 2026-07-21:
+# "créame un PANEL/GADGET" was not detected → the promise backstop did not escalate). ALWAYS gated by a create
+# verb → safe (does not capture "el panel de control del coche"). "tarjeta/cuadro/contador" require a preceding
+# create verb.
 _WIDGET_SYN = r"(?:widget|panel|gadget|tablero|contador|cuadro de mando|mini[- ]?app|tarjeta)"
 _CREATE_WIDGET_RE = _re.compile(
     r"(\b(cre[ae]\w*|cr[eé][aá]me\w*|haz\w*|h[aá]zme\w*|hac[eé]\w*|hacer|hag\w*|gener\w*|mont\w*|dise[nñ]\w*|"
@@ -147,33 +149,33 @@ _CREATE_WIDGET_RE = _re.compile(
     r"|(\b" + _WIDGET_SYN + r"\b[^.!?]{0,25}\bnuev[oa]\b)|(\bnuev[oa]\b[^.!?]{0,12}\b" + _WIDGET_SYN + r"\b)", _re.I)
 
 
-# UN WIDGET NOMBRADO COMO DESTINO NO ES UN WIDGET QUE HAYA QUE PROGRAMAR (2026-08-13).
+# A WIDGET NAMED AS A DESTINATION IS NOT A WIDGET THAT MUST BE PROGRAMMED (2026-08-13).
 #
-# Incidente que lo motiva: una investigación de viaje (ferry + hotel + restaurante) acabó en el GENERADOR DE
-# WIDGETS, que se puso a escribir código de un widget nuevo llamado `prepara-ricart-viaje` en vez de buscar nada.
-# Causa única: la última frase de la escalada era «Entrega el resultado MONTADO en el widget results…». `mont\w*`
-# es verbo de crear y `widget` estaba a nueve caracteres → CREATE. O sea que **pedir que el resultado se entregue
-# en la hoja de resultados desviaba la tarea al generador**, y la hoja de resultados es JUSTO la superficie de
-# entrega de toda investigación: el fallo estaba en el camino más transitado del producto.
+# Motivating incident: travel research (ferry + hotel + restaurant) ended up in the WIDGET GENERATOR, which
+# started writing code for a new widget called `prepara-ricart-viaje` instead of searching. Sole cause: the last
+# escalation sentence was «Entrega el resultado MONTADO en el widget results…». `mont\w*` is a create verb and
+# `widget` was nine characters away → CREATE. In other words, **asking for the result to be delivered in the
+# results sheet diverted the task to the generator**, while that sheet is PRECISELY the delivery surface for all
+# research: the failure was on the product's busiest path.
 #
-# La distinción no es una lista de excepciones ([[feedback_no_hardcoded_understand]]) sino GRAMÁTICA: cuando el
-# widget va detrás de una preposición de destino («en el widget», «al panel», «dentro de la tarjeta», «into the
-# widget»), es el SITIO DONDE VA el resultado, no la cosa que se construye. El verbo que aparezca antes describe
-# qué se pone ahí. Se neutralizan esas menciones ANTES de buscar el patrón de crear, así una frase que traiga las
-# DOS cosas («créame un panel y entrégalo en el widget results») sigue detectando el create de verdad.
-# OJO con la preposición castellana «a» SUELTA: colisiona con el artículo INGLÉS «a» y neutralizaba
-# «build me A WIDGET that tracks my steps», que es un create de libro. Se queda `al` (la contracción que es la que
-# de verdad aparece: «al widget»); «a el widget» no es castellano.
+# The distinction is not an exception list ([[feedback_no_hardcoded_understand]]) but GRAMMAR: when the widget
+# follows a destination preposition («en el widget», «al panel», «dentro de la tarjeta», «into the widget»), it is
+# WHERE the result goes, not the thing being built. The preceding verb describes what is placed there. These
+# mentions are neutralized BEFORE looking for the create pattern, so a sentence containing BOTH things
+# («créame un panel y entrégalo en el widget results») still detects the genuine create.
+# Beware the STANDALONE Spanish preposition «a»: it collides with the English article «a» and neutralized
+# «build me A WIDGET that tracks my steps», a textbook create. Keep `al` (the contraction actually used:
+# «al widget»); «a el widget» is not Spanish.
 #
-# EL ARTÍCULO INDETERMINADO ERA EL AGUJERO (2026-08-18, mismo incidente una vez más). La lista de artículos solo
-# llevaba los DETERMINADOS, así que «monta el resultado en UN widget del canvas» —que es la forma NATURAL de decir
-# «ponlo en una tarjeta», y la que el propio FlashBrain escribió al reformular la escalada— no se neutralizaba y
-# volvía a caer en el generador. La gramática no cambia con el artículo: «en un widget» sigue siendo el SITIO donde
-# va el resultado. Un create de verdad no lleva preposición de destino delante («créame un widget», «build me a
-# widget»), así que ampliar la lista no le quita nada al lado create.
-# ÚNICA excepción, y es real: «en un widget NUEVO» sí pide uno nuevo — ahí la preposición de destino y el create
-# coexisten, y manda el create. Se deja fuera de la neutralización con un lookahead para que
-# `_CREATE_WIDGET_RE` siga viendo su patrón `SYN … nuevo`.
+# THE INDEFINITE ARTICLE WAS THE GAP (2026-08-18, the same incident again). The article list contained only
+# DEFINITE articles, so «monta el resultado en UN widget del canvas» —the NATURAL way to say «ponlo en una
+# tarjeta», and what FlashBrain itself wrote when rephrasing the escalation— was not neutralized and fell into
+# the generator again. Grammar does not change with the article: «en un widget» is still WHERE the result goes.
+# A genuine create has no preceding destination preposition («créame un widget», «build me a widget»), so
+# expanding the list takes nothing away from the create side.
+# The ONLY exception is real: «en un widget NUEVO» does request a new one — the destination preposition and
+# create coexist, and create wins. A lookahead excludes it from neutralization so `_CREATE_WIDGET_RE` can still
+# see its `SYN … nuevo` pattern.
 _WIDGET_DEST_RE = _re.compile(
     r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+"
     r"(?:el\s+|la\s+|los\s+|las\s+|un\s+|una\s+|unos\s+|unas\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)"
@@ -181,59 +183,61 @@ _WIDGET_DEST_RE = _re.compile(
 
 
 def looks_like_create_widget(text: str) -> bool:
-    """True si el turno pide CREAR/GENERAR un widget NUEVO (→ escalate al generador), no mostrar uno existente ni
-    ENTREGAR algo dentro de uno. GUARD de ejecución de show_widget: si el modelo elige show_widget para un CREATE,
-    se redirige a escalar."""
+    """True if the turn asks to CREATE/GENERATE a NEW widget (→ escalate to the generator), rather than show an
+    existing one or DELIVER something inside one. show_widget execution GUARD: if the model chooses show_widget
+    for a CREATE, redirect it to escalation."""
     t = _WIDGET_DEST_RE.sub(" <destino> ", _norm_txt(text))
     return bool(_CREATE_WIDGET_RE.search(t))
 
 
-# PROMESA SIN ACCIÓN (2026-07-19, mar de testing): el no-razonador, ante fraseo CORTÉS/indirecto/subjuntivo
-# ('¿podrías…?', 'deberías…', 'sería genial que…', 'me haría falta…'), CHARLA una promesa ('voy a…', 'aquí lo
-# tienes', 'me pongo con ello', 'ahora te lo abro') SIN llamar a la tool. Es la causa nº1 de "dice que lo hace y no
-# lo hace" y NO se arregla parcheando verbo a verbo (cada conjugación es un caso). Backstop UNIFICADO gated por la
-# promesa en la RESPUESTA de zaelar (se comprometió) → re-deriva la intención con los clasificadores deterministas.
+# PROMISE WITHOUT ACTION (2026-07-19, testing sea): faced with POLITE/indirect/subjunctive phrasing
+# ('¿podrías…?', 'deberías…', 'sería genial que…', 'me haría falta…'), the non-reasoning model CHATS a promise
+# ('voy a…', 'aquí lo tienes', 'me pongo con ello', 'ahora te lo abro') WITHOUT calling the tool. This is the #1
+# cause of "says it does it but does not," and patching verb by verb does NOT fix it (each conjugation is another
+# case). UNIFIED backstop gated by the promise in zaelar's REPLY (it committed) → re-derive intent with the
+# deterministic classifiers.
 _PROMISE_RE = _re.compile(
     r"\b(voy a|te lo|te la|te los|te las|aqui (?:lo|la|los|las) tienes|aqui tienes|ahora (?:mismo|te|lo|la)|"
     r"me pongo con|me pongo a|lo hago|la hago|enseguida|en un momento|un momento|dame un momento|lo abro|"
-    # V2-132 — medido sobre el transcript de `find-theatre-tickets`: «Me pongo a buscarte las dos entradas»
-    # y «Todavía estoy con ello» daban False, así que el backstop de promesa ni se planteaba. Son las formas
-    # MÁS llanas de decir «estoy en ello», y son justo las que salen cuando no hay ninguna tarea detrás.
+    # V2-132 — measured on the `find-theatre-tickets` transcript: «Me pongo a buscarte las dos entradas» and
+    # «Todavía estoy con ello» returned False, so the promise backstop was never even considered. They are the
+    # PLAINest ways to say «estoy en ello», and exactly what appears when no task is actually running.
     r"estoy con ello|sigo con ello|sigo buscando|sigo con la busqueda|estoy en ello|"
     r"te aviso en cuanto|te lo confirmo en cuanto|en cuanto (?:lo|la) tenga|"
-    # 1ª persona de acción con o SIN clítico: «te muestro el reloj» / «te abro X» / «te enseño X» / «te saco X»
-    # (bug mar 2026-07-21: el gate exigía «te LO muestro» → se colaba «te muestro el reloj» y el show no se re-derivaba).
+    # First-person action with or WITHOUT a clitic: «te muestro el reloj» / «te abro X» / «te enseño X» /
+    # «te saco X» (testing-sea bug 2026-07-21: the gate required «te LO muestro» → «te muestro el reloj» slipped
+    # through and the show was not re-derived).
     r"te (?:(?:lo|la|los|las) )?(?:abr|muestr|ense[nñ]|ensen|sac)\w*|"
     r"voy a (?:abrir|mostrar|crear|poner|buscar)|"
     r"estoy (?:abriendo|creando|poniendo|buscando))\b")
-# promesa de MÚSICA en la respuesta ('voy a poner algo de rock', 'te pongo música') → el backstop la reproduce
+# MUSIC promise in the reply ('voy a poner algo de rock', 'te pongo música') → the backstop plays it.
 _PROMISE_MUSIC_RE = _re.compile(r"\b(poner|pongo|pondre|reproduc\w*)\b[^.!?]{0,20}\b(m[uú]sica|canci|rock|jazz|algo de)\b|"
                                 r"\b(m[uú]sica|canci|rock|jazz)\b[^.!?]{0,15}\b(ahora|para ti|un momento)\b")
 
 
 def promises_music(reply: str) -> bool:
     return bool(_PROMISE_MUSIC_RE.search(_norm_txt(reply)))
-# verbos de SHOW ESTRICTOS para el backstop de promesa: SOLO inequívocos (sin 'pon'/'sube'/'ver' → colisionan con
-# 'pon música'/'va a poner el tiempo'/'a ver si…'). Cubre 'abrir/mostrar/enseñar/sacar' en cualquier conjugación.
+# STRICT SHOW verbs for the promise backstop: ONLY unambiguous ones (without 'pon'/'sube'/'ver' → they collide
+# with 'pon música'/'va a poner el tiempo'/'a ver si…'). Covers 'abrir/mostrar/enseñar/sacar' in any conjugation.
 _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w*)\b")
 
 
 def promises_action(reply: str) -> bool:
-    """True si la RESPUESTA de zaelar promete una acción en 1ª persona (se comprometió a hacer algo)."""
+    """True if zaelar's REPLY promises a first-person action (it committed to doing something)."""
     return bool(_PROMISE_RE.search(_norm_txt(reply)))
 
 
 
 def looks_like_show_strict(text: str) -> bool:
-    """Verbo de SHOW inequívoco (abrir/mostrar/enseñar/sacar), NO crear, NO cerrar — para el backstop de promesa."""
+    """Unambiguous SHOW verb (abrir/mostrar/enseñar/sacar), NOT create, NOT close — for the promise backstop."""
     n = _norm_txt(text)
     return (bool(_SHOW_STRICT_RE.search(n)) and not looks_like_create_widget(text)
             and not looks_like_close(text))
 
 
-# TAREA que EXIGE navegador/worker (marketplace real o informe/investigación a fondo). SOLO para el backstop de
-# promesa (mar 2026-07-21: «voy a buscar el sofá en Milanuncios» / «te preparo el informe» se quedaban en chat).
-# Gated por la promesa en la respuesta → seguro. Nombres de sitio = señal fuerte de NAVEGAR (no web_search puntual).
+# TASK that REQUIRES a browser/worker (real marketplace or in-depth report/research). ONLY for the promise
+# backstop (testing sea 2026-07-21: «voy a buscar el sofá en Milanuncios» / «te preparo el informe» stayed in
+# chat). Gated by the reply's promise → safe. Site names = strong NAVIGATION signal (not a one-off web_search).
 _MARKETPLACE_RE = _re.compile(
     r"\b(idealista|coches\.?net|autoscout|wallapop|milanuncios|fotocasa|vibbo|amazon|ebay|"
     r"segundamano|habitaclia|pisos\.com)\b", _re.I)
@@ -242,14 +246,14 @@ _REPORT_RE = _re.compile(r"\b(informe|estudio|comparativa|investig\w*)\b[^.!?]{0
 
 
 def looks_like_escalate_task(text: str) -> bool:
-    """True si el TEXTO describe una gestión que exige worker/navegador (marketplace nombrado, informe/investigación
-    a fondo, o una categoría TRANSACCIONAL del catálogo de sitios). Úsalo SOLO tras confirmar una promesa en la
-    respuesta (gate del backstop) — no como router primario.
+    """True if the TEXT describes an errand requiring a worker/browser (named marketplace, in-depth report/research,
+    or a TRANSACTIONAL category from the site catalog). Use it ONLY after confirming a promise in the reply
+    (the backstop gate) — not as the primary router.
 
-    V2-132: la tercera rama no es una lista de verbos nueva sino la MISMA fuente que ya decide el `kind` de la
-    tarea en `dispatch._classify_kind` (`site_catalog.TRANSACTIONAL_CATEGORIES`). Reservar una mesa, una noche
-    de hotel, un vuelo o conseguir entradas exige entrar en un sitio real; que este guard no lo supiera y el
-    clasificador de `kind` sí es exactamente cómo dos piezas que deciden lo mismo acaban discrepando."""
+    V2-132: the third branch is not a new verb list but the SAME source that already decides the task `kind` in
+    `dispatch._classify_kind` (`site_catalog.TRANSACTIONAL_CATEGORIES`). Booking a table, hotel night, flight,
+    or tickets requires entering a real site; this guard not knowing that while the `kind` classifier did is
+    exactly how two components deciding the same thing end up disagreeing."""
     n = _norm_txt(text)
     if _MARKETPLACE_RE.search(n) or _REPORT_RE.search(n):
         return True
@@ -302,13 +306,13 @@ def hands_public_lookup_back(reply: str) -> bool:
     return not _FIRST_PERSON_LOOKUP_RE.search(n)
 
 
-# PROMESA DE UN AVISO CON FECHA (V2-146). «apúntame que el jueves… y recuérdamelo el miércoles» acabó con
-# `scheduled_jobs.created` VACÍO: el modelo prometió en prosa —«te avisaré el miércoles»— y no emitió ninguna
-# tag. El ejecutor de crons funciona (V2-134) y el prompt lo pide con todas las letras; faltaba el backstop.
+# PROMISE OF A DATED NOTICE (V2-146). «apúntame que el jueves… y recuérdamelo el miércoles» ended with
+# `scheduled_jobs.created` EMPTY: the model promised in prose —«te avisaré el miércoles»— and emitted no tag.
+# The cron runner works (V2-134), and the prompt asks explicitly; the backstop was missing.
 #
-# La frontera que lo separa de la familia de V2-132/V2-143: «te aviso EN CUANTO lo tenga» es un worker
-# terminando, no un aviso programado. Lo que distingue a este es que hay un MOMENTO resoluble — y quien decide
-# si lo hay es `scheduler.parse_when`, que devuelve "" ante cualquier expresión que no sea inequívoca.
+# The boundary separating it from the V2-132/V2-143 family: «te aviso EN CUANTO lo tenga» is a worker finishing,
+# not a scheduled notice. This case is distinguished by a resolvable MOMENT — and `scheduler.parse_when` decides
+# whether one exists, returning "" for any expression that is not unambiguous.
 #
 # V2-151: the first shape of this pattern spelled out the ARTICLE («program\\w* el recordatorio») and the run it
 # was written for said «te programo UN recordatorio» — one word away, and the backstop never fired, so the turn
@@ -358,16 +362,16 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
             or _sched.parse_when(operator_text))
 
 
-# APUNTE CON FECHA (V2-159). Hermano del backstop del aviso, para la OTRA mitad del mismo encargo. El prompt lo
-# pide con todas las letras —«si el compromiso tiene fecha, además apúntalo en su agenda… son dos cosas
-# distintas, el apunte y el aviso, y el operador pide las dos»— y la corrida salió con el cron puesto y NINGUNA
-# cita: «Te apunto la renovación del seguro del coche para el jueves» sin una sola data-op detrás.
+# DATED NOTE (V2-159). Sibling of the notice backstop, for the OTHER half of the same request. The prompt says so
+# explicitly —«si el compromiso tiene fecha, además apúntalo en su agenda… son dos cosas distintas, el apunte y
+# el aviso, y el operador pide las dos»— yet the run ended with the cron set and NO appointment: «Te apunto la
+# renovación del seguro del coche para el jueves» with no data-op behind it.
 _NOTE_VERB_RE = _re.compile(
     r"\b(te\s+(?:lo\s+|la\s+)?apunto|apunto|te\s+(?:lo\s+|la\s+)?anoto|anoto|"
     r"queda\s+(?:apuntad|anotad)[oa]|lo\s+apunto|lo\s+anoto|"
     r"(?:anado|pongo|meto)\w*\s+(?:a|en)\s+tu\s+agenda|i'?ll\s+note\s+(?:it|that)\s+down)\b", _re.I)
-# Dónde EMPIEZA la fecha dentro de la frase — sirve para dos cosas: recortar el título antes de ella y no
-# arrastrarla dentro del texto de la cita.
+# Where the date STARTS within the sentence — used both to cut the title before it and avoid dragging it into the
+# appointment text.
 _DATE_LEAD_RE = _re.compile(
     r"\s*,?\s*\b(?:para\s+el|para|este|esta|el|on|the)?\s*\b("
     r"lunes|martes|miercoles|jueves|viernes|sabado|domingo|"
@@ -419,9 +423,9 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
         # OPERATOR asked, so that is what the obligation is read from; the reply is then only consulted for
         # whether the agent backed out — a question mark means it is still asking, and nothing gets filed on a
         # date it has not settled.
-        # V2-176: la petición de apuntar no CADUCA porque el operador necesitara otro turno para acertar la
-        # fecha. Medido: el «Apúntalo» iba en el turno 3, el turno 4 solo corrigió el día, y la agenda se quedó
-        # vacía (`n_after: 1`, solo el aviso) mientras zaelar decía «te lo dejo apuntado en la agenda».
+        # V2-176: the request to write it down does not EXPIRE because the operator needed another turn to get
+        # the date right. Measured: «Apúntalo» was in turn 3, turn 4 only corrected the day, and the agenda stayed
+        # empty (`n_after: 1`, only the notice) while zaelar said «te lo dejo apuntado en la agenda».
         if not note_asked_in_window(window, operator_text) or "?" in (reply or ""):
             return None
         clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
@@ -613,19 +617,19 @@ def create_widget_request(text: str) -> str:
 # The operator's OWN ask, which is not the same vocabulary as the agent's promise (`_REMIND_VERB_RE`, above):
 # he says «recuérdamelo», the agent says «te aviso». Both halves live in the same sentence and telling them
 # apart is what lets the commitment be read separately from the notice.
-# V2-167 ronda 12 (2026-08-20 12:39) — el operador pidió el aviso en SUBJUNTIVO: «Que me AVISES el miércoles
-# 26 por la mañana». Este patrón sólo conocía el indicativo (`me avisas`), así que no reconoció la petición, el
-# día del aviso no se pudo leer por posición, la frase entera se fue a `parse_when` —que ve «jueves 27» y
-# «miércoles 26» y se niega, con razón— y `scheduled_jobs.created` salió VACÍO mientras zaelar decía «lo dejo
-# apuntado y programo el aviso» y remataba con «Ya lo tienes todo listo».
+# V2-167 round 12 (2026-08-20 12:39) — the operator requested the notice in the SUBJUNCTIVE: «Que me AVISES el
+# miércoles 26 por la mañana». This pattern knew only the indicative (`me avisas`), so it missed the request; the
+# notice day could not be read positionally, and the whole sentence went to `parse_when` —which sees «jueves 27»
+# and «miércoles 26» and rightly refuses— leaving `scheduled_jobs.created` EMPTY while zaelar said «lo dejo
+# apuntado y programo el aviso» and finished with «Ya lo tienes todo listo».
 #
-# Es EXACTAMENTE el fallo que este módulo ya se comió en V2-151 y que dejó escrito ahí arriba: la primera forma
-# del patrón deletreaba una variante concreta y la corrida real dijo la de al lado. Por eso esto se ensancha por
-# MORFOLOGÍA (la raíz del verbo + su terminación) y no añadiendo la frase de hoy a una lista: pedir un aviso
-# tras «que» pide subjuntivo en español, y eso no es una variante rara sino la forma natural de pedirlo.
+# This is EXACTLY the failure this module already suffered in V2-151 and documented above: the first pattern
+# spelled out one specific variant, while the real run used the neighboring one. Therefore this is broadened by
+# MORPHOLOGY (verb stem + ending), not by adding today's phrase to a list: requesting a notice after «que» calls
+# for the Spanish subjunctive; it is the natural form, not an unusual variant.
 #
-# El pronombre opcional (`me lo avises` / `me la recuerdes`) va dentro por lo mismo. La raíz sigue emparejada
-# con su terminación en vez de un `\w*` suelto, para que una NEGACIÓN («no me avises») no arrastre el patrón.
+# The optional pronoun (`me lo avises` / `me la recuerdes`) is included for the same reason. The stem remains
+# paired with its ending instead of a loose `\w*`, so NEGATION («no me avises») does not pull in the pattern.
 _REMIND_ASK_RE = _re.compile(
     r"\b(recuerdame\w*|recuerdalo|avisame\w*|"
     r"me\s+(?:lo\s+|la\s+)?(?:avis|recuerd)[ae]s|"
@@ -704,9 +708,9 @@ def holding_line(window, lang=None) -> str:
         mins = _longest_pending_min()
         if mins >= 1:
             waited = str(getattr(lang, "filler_waited", "") or lines[-1]).format(min=mins)
-            # En la práctica los minutos crecen, así que dos esperas seguidas no salen idénticas; pero si el
-            # reloj no ha pasado de minuto, se rota en vez de repetir palabra por palabra — que es justo el
-            # defecto que esto arregla, y no vale reintroducirlo por la puerta de atrás.
+            # In practice the minute count increases, so two consecutive waits are not identical; but if the
+            # clock has not advanced a minute, rotate instead of repeating word for word — exactly the defect
+            # this fixes, and one that must not be reintroduced through the back door.
             if not recent or waited != recent[-1]:
                 return waited
     for line in lines:                      # agota las variantes ANTES de reutilizar ninguna
@@ -872,8 +876,8 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     # not the request that produced it. The measured job carried the operator's raw turn as its prompt, so on
     # firing the agent would have been asked to SCHEDULE the reminder all over again — the «se pierde el QUÉ»
     # this case has been dragging since V2-134, finally visible in the field that causes it.
-    # V2-176: el QUÉ puede haberse dicho tres turnos antes y este turno solo fijar la FECHA. Sin ventana se
-    # comporta exactamente como antes, así que ningún llamante viejo cambia de conducta.
+    # V2-176: the WHAT may have been said three turns earlier while this turn only fixes the DATE. Without a
+    # window it behaves exactly as before, so no existing caller changes behavior.
     clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
     try:
         from nucleo import scheduler as _sched
@@ -1025,26 +1029,26 @@ def _needs_real_work(text: str) -> bool:
     return not (is_pure_show_request(text) or looks_like_close(text) or looks_like_create_widget(text))
 
 
-# verbos de BÚSQUEDA/NAVEGACIÓN para el guard de marketplace (busca/mira/enséñame/encuentra/ver/ojea). Un sitio
-# de compraventa NOMBRADO + uno de estos = ENTRAR y navegar el catálogo (no un dato puntual, no un "no puedo").
+# SEARCH/NAVIGATION verbs for the marketplace guard (busca/mira/enséñame/encuentra/ver/ojea). A NAMED resale
+# site + one of these = ENTER and browse the catalog (not a one-off fact, not an "I can't").
 _MKT_VERB_RE = _re.compile(
     r"\b(busc\w*|b[uú]scame|mir[ae]\w*|ense[nñ]\w*|ens[eé][nñ]\w*|muestr\w*|encuentr\w*|encu[eé]ntr\w*|"
     r"ojea\w*|vistazo|quiero ver|ver si|encontrar)\b", _re.I)
 
 
 def looks_like_marketplace_nav(text: str) -> bool:
-    """True si el turno pide NAVEGAR un marketplace nombrado (sitio + verbo de buscar/ver). Guard determinista de
-    alta precisión: no dispara con una mención de pasada ('me encanta comprar en Amazon') — exige intención de
-    búsqueda. → escala al navegador aunque el modelo hubiera elegido web_search / chat / show."""
+    """True if the turn asks to BROWSE a named marketplace (site + search/view verb). High-precision deterministic
+    guard: a passing mention ('me encanta comprar en Amazon') does not trigger it — search intent is required.
+    → escalate to the browser even if the model chose web_search / chat / show."""
     n = _norm_txt(text)
     return bool(_MARKETPLACE_RE.search(n) and _MKT_VERB_RE.search(n))
 
 
-# MODIFICAR el CÓDIGO/aspecto de un widget = trabajo del generador (escala), NO una data-op ni un "no puedo".
-# Modo de fallo FIABLE del no-razonador (mar 2026-07-21, modify 1-7/8 según tirada: declina, hace widget_data, o
-# muestra). Guard determinista de alta precisión: verbo de cambiar + propiedad de CÓDIGO/estilo/estructura + la
-# palabra widget (o sinónimo). No captura una data-op de VALOR (marcar hecho, cambiar un título/dato) — solo
-# color/fondo/estilo/diseño/columna/campo/sección/botón/tamaño… que son CÓDIGO.
+# MODIFYING a widget's CODE/appearance = generator work (escalate), NOT a data-op or an "I can't". RELIABLE
+# non-reasoning failure mode (testing sea 2026-07-21, modify 1-7/8 depending on run: declines, performs
+# widget_data, or shows). High-precision deterministic guard: change verb + CODE/style/structure property + the
+# word widget (or synonym). Does not capture a VALUE data-op (mark done, change a title/value) — only
+# color/background/style/design/column/field/section/button/size…, which are CODE.
 _MODIFY_VERB_RE = _re.compile(
     r"\b(cambi\w*|modific\w*|edit\w*|a[nñ]ad\w*|agreg\w*|incorpor\w*|met\w*|pon\w*|p[oó]n\w*|quit\w*|"
     r"actualiz\w*|redise[nñ]\w*|reestructur\w*|reorganiz\w*)\b", _re.I)
@@ -1055,8 +1059,8 @@ _WIDGET_SYN_RE = _re.compile(r"\b" + _WIDGET_SYN + r"\b", _re.I)
 
 
 def looks_like_modify_widget(text: str) -> bool:
-    """True si el turno pide CAMBIAR el CÓDIGO/aspecto de un widget (color/columna/estilo… + 'widget') → escala al
-    generador. No es una data-op (marcar/mover un item) ni un 'no puedo'. Guard determinista de alta precisión."""
+    """True if the turn asks to CHANGE a widget's CODE/appearance (color/column/style… + 'widget') → escalate to
+    the generator. It is not a data-op (mark/move an item) or an 'I can't'. High-precision deterministic guard."""
     n = _norm_txt(text)
     return bool(_MODIFY_VERB_RE.search(n) and _CODE_PROP_RE.search(n) and _WIDGET_SYN_RE.search(n)
                 and not looks_like_create_widget(text))
@@ -1067,80 +1071,80 @@ _RULE_REMOVAL_RE = _re.compile(
 
 
 def looks_like_rule_removal(text: str) -> bool:
-    """True si el turno pide QUITAR una user rule ('olvida esa regla', 'ya no hace falta que seas tan breve') en
-    vez de añadir una. GUARD del handler de set_style_directive (V2-046 A1): la MISMA tool añade o retira; el
-    sentido lo decide este guard sobre el texto del turno, determinista, no el LLM."""
+    """True if the turn asks to REMOVE a user rule ('olvida esa regla', 'ya no hace falta que seas tan breve')
+    rather than add one. GUARD for the set_style_directive handler (V2-046 A1): the SAME tool adds or removes;
+    this deterministic guard decides the direction from the turn text, not the LLM."""
     n = _norm_txt(text)
     return bool(_RULE_REMOVAL_RE.search(n))
 
 
-# Referencia de item VACÍA o un PRONOMBRE DEÍCTICO SUELTO ("lo", "eso", "esto", "it", "that"…) — sin sustantivo que la
-# ancle. En una data-op de widget significa que el modelo NO sabe a qué item apunta: el antecedente ("cancélalo") vive
-# en la CONVERSACIÓN, no en el widget. Reconocimiento GRAMATICAL de pronombre, NO una tabla de verbos de routing.
+# EMPTY item reference or a BARE DEICTIC PRONOUN ("lo", "eso", "esto", "it", "that"…) — with no anchoring noun.
+# In a widget data-op this means the model does NOT know which item it targets: the antecedent ("cancélalo") is
+# in the CONVERSATION, not the widget. GRAMMATICAL pronoun recognition, NOT a routing-verb table.
 _BARE_REF_RE = _re.compile(
     r"^(?:lo|la|le|los|las|les|eso|esto|esa|ese|esas|esos|aquello|aquella|aquel|aquellos|aquellas|"
     r"esta|este|estas|estos|it|that|this|them|those|these)$")
 
 
 def looks_like_bare_ref(ref: str) -> bool:
-    """True si la referencia a item es VACÍA o un pronombre deíctico suelto (sin sustantivo). En una data-op indica
-    que el modelo no ancló el item — su antecedente está en la conversación reciente, no en el widget. GUARD del
-    handler de widget_data (2026-07-21, caso «hay que cancelarlo» tras «¿qué día tengo la ITV?»)."""
+    """True if the item reference is EMPTY or a bare deictic pronoun (without a noun). In a data-op this indicates
+    the model did not anchor the item — its antecedent is in the recent conversation, not the widget. GUARD for
+    the widget_data handler (2026-07-21, case «hay que cancelarlo» after «¿qué día tengo la ITV?»)."""
     n = (ref or "").strip().lower().strip("¿?¡!.,;:")
     return not n or bool(_BARE_REF_RE.match(n))
 
 
 def is_messaging_service(site: str = "", text: str = "") -> bool:
-    """True si el 'login' pedido es WhatsApp/Telegram. GUARD DE EJECUCIÓN de authenticate_web (espejo de
-    is_music_service): esas cuentas se VINCULAN por QR DENTRO del widget `mensajeria`, NO por login de navegador →
-    'conéctame a WhatsApp' / 'abre WhatsApp' se redirige a [[show:mensajeria]] (donde está el QR), no al Chromium."""
+    """True if the requested 'login' is WhatsApp/Telegram. EXECUTION GUARD for authenticate_web (mirror of
+    is_music_service): these accounts are LINKED by QR INSIDE the `mensajeria` widget, NOT via browser login →
+    'conéctame a WhatsApp' / 'abre WhatsApp' redirects to [[show:mensajeria]] (where the QR is), not Chromium."""
     blob = f"{site} {text}".lower()
-    # 'youtube music'/'amazon music' ya los captura is_music_service; aquí solo mensajería pura.
+    # is_music_service already captures 'youtube music'/'amazon music'; only pure messaging is handled here.
     return any(s in blob for s in _MESSAGING_SERVICES)
 
 
-# Backstop DETERMINISTA de PARAR un worker (§v3·M). Exige un verbo de parada Y una referencia a TRABAJO (proceso/
-# widget/búsqueda/tarea/creación/"eso"/"todo"). Se usa solo cuando HAY workers vivos.
-# Historia de endurecimientos (matar es IRREVERSIBLE → sesgo fuerte a NO matar con duda):
-#  · demo 2026-07-14: la charla ambiente ("…necesita PARA poder acceder… CREANDO su memoria…", 500+ chars) mató
-#    un worker → cap de longitud (una parrafada nunca es una orden).
-#  · test post-P1/P2: el cap NO salva la frase CORTA con "para" PREPOSICIONAL — "hazme un widget PARA el tiempo",
-#    "necesito un widget PARA la agenda" (4/8 falsos positivos). "para" es a la vez verbo de parada y la
-#    preposición más común. Dos defensas nuevas: (a) si el turno EMPIEZA pidiendo algo (quiero/hazme/crea/abre/
-#    muéstrame…) NO es una parada, corta ya; (b) "para" solo cuenta como IMPERATIVO al INICIO del turno y con
-#    complemento de parada REAL (deíctico eso/ya/todo, "de <verbo>", o artículo+palabra-de-TRABAJO) — nunca
-#    "para <sintagma nominal>" tipo "para el tiempo/la agenda/el finde", ni el "para" a media frase ("eso ES para
-#    la búsqueda de piso"). Los otros verbos (detén/cancela/deja de/aborta/stop/kill) son inequívocos y NO se tocan.
+# DETERMINISTIC backstop for STOPPING a worker (§v3·M). Requires a stop verb AND a WORK reference (process/
+# widget/search/task/creation/"eso"/"todo"). Used only when live workers EXIST.
+# Hardening history (killing is IRREVERSIBLE → strong bias against killing when uncertain):
+#  · demo 2026-07-14: ambient conversation ("…necesita PARA poder acceder… CREANDO su memoria…", 500+ chars)
+#    killed a worker → length cap (a long paragraph is never an order).
+#  · post-P1/P2 test: the cap does NOT save a SHORT sentence with PREPOSITIONAL "para" — "hazme un widget PARA
+#    el tiempo", "necesito un widget PARA la agenda" (4/8 false positives). "para" is both a stop verb and the
+#    most common preposition. Two new defenses: (a) if the turn STARTS by requesting something (quiero/hazme/
+#    crea/abre/muéstrame…), it is NOT a stop; exit immediately; (b) "para" counts as an IMPERATIVE only at the
+#    START of the turn with a REAL stop complement (deictic eso/ya/todo, "de <verb>", or article+WORK-word) —
+#    never "para <noun phrase>" such as "para el tiempo/la agenda/el finde", nor "para" mid-sentence ("eso ES
+#    para la búsqueda de piso"). The other verbs (detén/cancela/deja de/aborta/stop/kill) are unambiguous and unchanged.
 _STOP_WORK = (r"eso|ese|esa|esto|proceso|procesos|tarea|tareas|widget|widgets|busqueda|busca|buscar|buscando|"
               r"creacion|crear|creando|modific|navegador|workers?|estudio|investig|"
               r"lo que estas haciendo|lo que haces|todo")
 _STOP_WORK_RE = _re.compile(r"\b(" + _STOP_WORK + r")\b")
-# Verbos de parada INEQUÍVOCOS (sin "para", que se trata aparte por su ambigüedad).
+# UNAMBIGUOUS stop verbs (excluding "para", handled separately because it is ambiguous).
 _STOP_VERB_STRONG_RE = _re.compile(r"\b(deten(?:te|lo|la|los|las)?|cancela(?:r|lo|la|los|las)?|"
                                    r"aborta(?:r|lo|la)?|deja de|stop|kill)\b")
-# "para" IMPERATIVO: al inicio del turno (tras signos), + deíctico / "de <verbo>" / artículo+palabra-de-trabajo.
+# IMPERATIVE "para": at the start of the turn (after punctuation), + deictic / "de <verb>" / article+work-word.
 _STOP_PARA_RE = _re.compile(
     r"^[¿¡\s]*para(?:d|lo|la|los|las)?\s+(?:eso|esto|ese|esa|ya|de\s+\w+|"
-    # stop MASIVO: "para todo" / "para todas las tareas" / "para todos los procesos|workers" (2026-07-17: el backstop
-    # se comía "para todas las tareas" y el stop fallaba en silencio). "tod@s" solo si es TERMINAL o va con
-    # los/las+palabra-de-trabajo → NO capta "para todo el mundo es difícil" (falso positivo pre-existente) ni "para
-    # toda la comida".
+    # MASS stop: "para todo" / "para todas las tareas" / "para todos los procesos|workers" (2026-07-17: the
+    # backstop swallowed "para todas las tareas" and stop failed silently). "tod@s" only when TERMINAL or followed
+    # by los/las+work-word → does NOT capture "para todo el mundo es difícil" (pre-existing false positive) or
+    # "para toda la comida".
     r"tod[oa]s?(?:\s+l[oa]s\s+(?:" + _STOP_WORK + r"))?(?=[\s.!?]*$)|"
     r"(?:el|la|los|las|ese|esa|este|esta|mi)\s+(?:" + _STOP_WORK + r"))\b")
-# Verbos de PETICIÓN al inicio → el turno PIDE algo, no ordena parar (defensa (a)).
+# REQUEST verbs at the start → the turn REQUESTS something, rather than ordering a stop (defense (a)).
 _REQUEST_START_RE = _re.compile(
     r"^[¿¡\s]*(?:me\s+)?(?:puedes|podrias|querria|quiero|quisiera|necesito|hazme|haz\b|hazlo|dame|"
     r"crea|crear|crees|creame|genera|generame|monta|montame|construye|abre|abreme|pon|ponme|prepara|"
     r"preparame|muestra|muestrame|ensename|ensename|busca|buscame|anade|agrega|apunta|programa|"
     r"me\s+gustaria|quiero\s+que|puedes\s+hacerme)\b")
-_STOP_MAX_WORDS = 12          # una orden de parada real cabe de sobra; una explicación/parrafada no es una orden
+_STOP_MAX_WORDS = 12          # a real stop order easily fits; an explanation/long paragraph is not an order
 _STOP_MAX_CHARS = 90
 
 
 def looks_like_stop_work(text: str) -> bool:
-    """True si el turno es una ORDEN de detener un proceso de fondo (no callar el TTS). Determinista, es/en.
-    CONSERVADOR a propósito (matar es irreversible): solo turnos CORTOS que ORDENAN parar. Una petición
-    ("hazme un widget para X") o una parrafada NUNCA disparan (el kill fino queda para la tool stop_worker)."""
+    """True if the turn is an ORDER to stop a background process (not silence TTS). Deterministic, Spanish/English.
+    Deliberately CONSERVATIVE (killing is irreversible): only SHORT turns that ORDER a stop. A request
+    ("hazme un widget para X") or a long paragraph NEVER triggers it (fine-grained killing remains with stop_worker)."""
     n = _norm_txt(text)
     if len(n) > _STOP_MAX_CHARS or len(n.split()) > _STOP_MAX_WORDS:
         return False
@@ -1152,7 +1156,7 @@ def looks_like_stop_work(text: str) -> bool:
 
 
 def login_site(text: str) -> str:
-    """Mejor esfuerzo: extrae el dominio del sitio a loguear del texto (para el fallback de login de producción)."""
+    """Best effort: extract the domain of the site to log into from the text (for the production login fallback)."""
     n = _norm_txt(text)
     for key, dom in _KNOWN_SITES.items():
         if key in n:
@@ -1280,42 +1284,42 @@ _AGENT_IMPERATIVE_RE = _re.compile(
 
 
 def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -> str:
-    """CUÁNDO dispara el aviso que pide la tag del modelo — corregido si dice HOY y la conversación pedía otro día.
+    """WHEN the model tag's notice fires — corrected if it says TODAY while the conversation requested another day.
 
-    Hermano de `safe_reminder_prompt`, para el otro campo de la misma tag y por el mismo motivo: V2-214 blindó
-    el `prompt` porque «el backstop ya componía la forma segura y la tag del modelo entraba cruda por la otra
-    puerta», y dejó el `schedule` entrando igual de crudo.
+    Sibling of `safe_reminder_prompt`, for the other field of the same tag and for the same reason: V2-214
+    protected the `prompt` because «el backstop ya componía la forma segura y la tag del modelo entraba cruda por
+    la otra puerta», but left `schedule` entering just as raw.
 
-    Medido en `remember-and-remind-deadline` (2026-08-27): el operador dijo «el jueves tengo que renovar el
-    seguro… recuérdamelo el miércoles», el prompt del turno llevaba delante la lista fechada de los próximos
-    días —«wednesday 2026-09-02»— y el trabajo salió con `schedule "2026-08-27 08:08"`: **HOY, cinco minutos
-    después de la conversación**, seis días antes del evento. Un aviso que dispara en el turno siguiente no es
-    un recordatorio, es ruido; y un aviso mal fechado no se nota hasta el día que no suena (V2-121).
+    Measured in `remember-and-remind-deadline` (2026-08-27): the operator said «el jueves tengo que renovar el
+    seguro… recuérdamelo el miércoles»; the turn prompt included the dated list of upcoming days —«wednesday
+    2026-09-02»— yet the job had `schedule "2026-08-27 08:08"`: **TODAY, five minutes after the conversation**,
+    six days before the event. A notice that fires on the next turn is noise, not a reminder; and a misdated
+    notice is not noticed until the day it fails to ring (V2-121).
 
-    Ni el parser ni el backstop fallaron — los dos resuelven «el miércoles» a `2026-09-02 09:00`, comprobado. La
-    fecha la escribió el modelo teniendo la buena delante, y ésta es la casa donde eso se responde con código y
-    no con más prompt: cuando la conducta correcta es determinista, la garantiza el código (V2-305).
+    Neither parser nor backstop failed — both resolve «el miércoles» to `2026-09-02 09:00`, as verified. The model
+    wrote the date despite having the correct one in front of it, and this is where code answers that rather than
+    more prompting: when correct behavior is deterministic, code guarantees it (V2-305).
 
-    EL CORTE ES ESTRECHO A PROPÓSITO, porque la evidencia es un caso: solo se corrige cuando **las dos** cosas
-    son ciertas — la tag dispara HOY, y el resolvedor determinista tiene una respuesta INEQUÍVOCA que cae otro
-    día. No se toca una fecha futura aunque no coincida con lo que el resolvedor cree: el modelo puede estar
-    entendiendo el encargo mejor que una regla, y `parse_when` ya calla ante lo ambiguo. Lo que no puede ser es
-    «ahora mismo» cuando la persona nombró un día.
+    THE SCOPE IS DELIBERATELY NARROW because the evidence is one case: correction occurs only when **both** are
+    true — the tag fires TODAY, and the deterministic resolver has an UNAMBIGUOUS answer on another day. A future
+    date is left untouched even if it differs from the resolver's belief: the model may understand the request
+    better than a rule, and `parse_when` already stays silent on ambiguity. What cannot be right is «ahora mismo»
+    when the person named a day.
     """
     spec = (schedule or "").strip()
     if not spec:
         return spec
     try:
-        # Con la RESPUESTA delante manda la posición («lo que va después de "te avisaré"»). Sin ella —la puerta
-        # del proveedor ejecuta la tag mientras aún se está generando— queda el turno del OPERADOR, que es de
-        # todos modos la autoridad: «recuérdamelo el miércoles» lo dijo él.
+        # With the REPLY available, position wins («lo que va después de "te avisaré"»). Without it —the provider
+        # path executes the tag while generation is still underway— use the OPERATOR's turn, which is the
+        # authority anyway: the operator said «recuérdamelo el miércoles».
         pedido = (promises_a_dated_reminder(reply or "", operator_text or "")
                   if (reply or "").strip() else _asked_reminder_moment(operator_text or ""))
         if not pedido:
-            return spec                       # sin una respuesta inequívoca no se corrige nada
-        # NORMALIZAR primero: `scheduler.create` solo entiende las formas de MÁQUINA, así que una expresión
-        # hablada que sí resuelve («el próximo miércoles por la tarde») se traduce aquí — es lo que ya hace la
-        # puerta del worker (`worker_api`, los dos parsers encadenados) y no hacerlo dejaba el aviso sin crear.
+            return spec                       # without an unambiguous answer, correct nothing
+        # NORMALIZE first: `scheduler.create` understands only MACHINE forms, so a spoken expression that does
+        # resolve («el próximo miércoles por la tarde») is translated here — as the worker path already does
+        # (`worker_api`, chaining both parsers); omitting this left the notice uncreated.
         mio = _sched.parse_schedule(spec)
         if not mio:
             _hablado = _sched.parse_when(spec) or ""
@@ -1325,24 +1329,23 @@ def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -
         if not suyo:
             return spec
         if not mio:
-            # La fecha del modelo NO parsea, o ya pasó (`parse_schedule` rechaza el pasado). Sin corregir no se
-            # crea ningún trabajo y el aviso no existe, así que aquí el resolvedor no compite con nada.
+            # The model's date does NOT parse, or has passed (`parse_schedule` rejects the past). Without a
+            # correction no job is created and the notice does not exist, so the resolver competes with nothing.
             return pedido
         if str(mio.get("type") or "") != "once":
-            # Un RECURRENTE («every 30m», «0 9 * * 3») dispara hoy por naturaleza y eso no es el defecto: aquí
-            # el modelo no ha puesto una fecha, ha puesto una cadencia. Corregirla sería convertir un aviso
-            # semanal en uno solo.
+            # A RECURRING schedule («every 30m», «0 9 * * 3») naturally fires today; that is not the defect:
+            # the model specified a cadence, not a date. Correcting it would turn a weekly notice into a one-off.
             return spec
-        # UN SOLO RELOJ. `localtime()` sin argumento va al reloj del sistema por debajo y NO pasa por
-        # `time.time()`, así que esta función leía dos: uno para parsear la fecha y otro para decidir cuál es
-        # hoy. En producción coinciden y no cambia nada; lo que rompe es la MEDICIÓN — el 2026-08-28 sus dos
-        # tests cayeron al pasar la medianoche, y hasta entonces habían pasado por coincidencia del calendario
-        # y no porque nadie los hubiera congelado. Pasarle el instante lo deja medible desde un solo sitio.
+        # ONE CLOCK. `localtime()` without an argument reads the system clock underneath and does NOT pass through
+        # `time.time()`, so this function read two clocks: one to parse the date and another to decide what today
+        # is. They coincide in production, changing nothing; what breaks is MEASUREMENT — on 2026-08-28 its two
+        # tests failed at midnight, having passed until then by calendar coincidence rather than a frozen clock.
+        # Passing the instant makes it measurable from one place.
         hoy = _time.strftime("%Y-%m-%d", _time.localtime(_time.time()))
         if _time.strftime("%Y-%m-%d", _time.localtime(mio.get("next_run") or 0)) != hoy:
-            return spec                       # no dispara hoy: no es el defecto medido
+            return spec                       # does not fire today: not the measured defect
         if _time.strftime("%Y-%m-%d", _time.localtime(suyo.get("next_run") or 0)) == hoy:
-            return spec                       # la conversación TAMBIÉN pedía hoy: el modelo tenía razón
+            return spec                       # the conversation ALSO requested today: the model was right
         return pedido
     except Exception:  # noqa: BLE001
         return spec
