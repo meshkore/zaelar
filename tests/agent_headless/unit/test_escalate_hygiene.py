@@ -111,7 +111,12 @@ def test_and_that_is_what_stops_the_report_from_swallowing_it(monkeypatch):
     `find_duplicate` receives."""
     from nucleo import dispatch
     measured = {_OPENING: "results", _GOAL_INFORME: "results"}
-    monkeypatch.setattr(dispatch, "_target_widget", lambda t: measured.get(t, ""))
+    # Repointed 2026-09-01: V2-507 moved the same-widget rule to `nucleo/dedup.py`, which resolves the
+    # destination through ITS OWN `target_widget` — the mock on `dispatch._target_widget` was left stranded
+    # and this test silently went back to reading the REAL catalog (V2-158's exact trap: it turned red the
+    # day the live runtime data resolved `results` for BOTH texts). The mock aims at the seam the scan calls.
+    from nucleo import dedup as _dedup
+    monkeypatch.setattr(_dedup, "target_widget", lambda t: measured.get(t, ""))
     monkeypatch.setattr(dispatch, "_SESSIONS", {"informe": _Live(_GOAL_INFORME)})
     assert dispatch.find_duplicate(_OPENING, "code") == "informe"              # what ran before
     assert dispatch.find_duplicate(router_guards.create_widget_request(_OPENING), "code") is None

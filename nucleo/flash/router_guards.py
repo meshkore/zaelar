@@ -222,31 +222,10 @@ def promises_music(reply: str) -> bool:
 _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w*)\b")
 
 
-# V2-534's open item #1 (2026-09-01): a NEGATED clause is not a promise. Measured over every firing of the
-# promise gate in the operator's sessions (2026-08-17 -> 2026-09-01): four of ten were «ahora mismo NO tengo
-# ninguna tarea corriendo» and siblings — the time adverb matched and the negation sitting right next to it
-# was ignored. The rule is STRUCTURAL (a negator inside the SAME clause as the matched span), never a phrase
-# list (V2-095 measured what hand-tuning those lists costs). Clause-bounded on purpose, in both directions:
-# «No, ahora mismo lo miro» still promises (the «no» answers the PREVIOUS clause), and «me pongo con ello,
-# no te preocupes» is not un-promised by its neighbour. `nada` is deliberately NOT a negator here: «en nada
-# te lo miro» is a promise, and losing one is the expensive direction (six measured minutes of silence).
-_NEGATOR_RE = _re.compile(r"\b(no|ni|tampoco|nunca|jamas|ningun\w*)\b")
-_CLAUSE_BREAKS = ".,;:!?¿¡()\n"
-
-
-def clause_negated(normalized: str, start: int, end: int) -> bool:
-    """True if the clause containing [start:end) of an already-normalized text carries a negator."""
-    lo = max([normalized.rfind(c, 0, start) for c in _CLAUSE_BREAKS] + [-1]) + 1
-    his = [i for i in (normalized.find(c, end) for c in _CLAUSE_BREAKS) if i != -1]
-    hi = min(his) if his else len(normalized)
-    return bool(_NEGATOR_RE.search(normalized[lo:hi]))
-
-
-def unnegated_match(rx, normalized: str) -> bool:
-    """Any match of `rx` whose own clause is NOT negated. The shared mechanic for the promise gates —
-    `promises_action` here and `promise_backstop.committed` in the voice provider read the same rule, because
-    two copies of this decision is how the last one drifted (V2-252's lesson, applied before it repeats)."""
-    return any(not clause_negated(normalized, m.start(), m.end()) for m in rx.finditer(normalized))
+# V2-534's open item #1 (2026-09-01): a NEGATED clause is not a promise. The rule and its clause arithmetic
+# live in `nucleo/flash/negation.py` (the architecture ratchet asked for a module, not a taller ceiling) and
+# are re-exported here so both promise gates keep one import path.
+from nucleo.flash.negation import clause_negated, unnegated_match  # noqa: F401 — re-export
 
 
 def promises_action(reply: str) -> bool:

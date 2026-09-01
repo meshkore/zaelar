@@ -105,8 +105,7 @@ class SessionRecord:
     provider_retried: bool = False
     # Died (or is about to) because the CONTEXT no longer fits, not because the provider failed (incident
     # 2026-08-18). A separate family on purpose: relaying to another provider does not fix a blown context — the
-    # next one blows up identically — so this puts NOBODY on cooldown; what it does is COMPACT AND CONTINUE with
-    # whatever was learned.
+    # next one blows up identically — so this puts NOBODY on cooldown: it COMPACTS AND CONTINUES with what was learned.
     context_full: dict | None = None
     context_retried: bool = False
     # How many AUTOMATIC relaunches led to THIS worker. `context_retried`/`provider_retried` above read like
