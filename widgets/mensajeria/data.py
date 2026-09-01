@@ -206,6 +206,57 @@ def view_data(q: str = "") -> dict:
     }
 
 
+def answer_action(action: str, payload: dict | None = None) -> dict | None:
+    """READ-ONLY answer/validation for the backed route (V2-543). The owner's mailbox keeps one writer but
+    swallowed every return: `show_view`'s answer (the matching chats) and the teach-the-shape errors never
+    reached the brain — the screen moved by SSE while the turn got a bare `{"queued": true}`. This computes
+    the ANSWER and vetoes an invalid order without touching the store; the mutation still goes through the
+    owner. Must never call store.save."""
+    payload = payload or {}
+    if action == "show_view":
+        raw = str(payload.get("platform") or payload.get("view") or "").strip().lower()
+        if raw not in _PLAT_ALIASES:
+            return {"ok": False,
+                    "error": "no reconozco esa vista — vuelve a llamar a show_view con `platform`: 'all' "
+                             "(la lista principal unificada), 'whatsapp', 'telegram' o 'email'"}
+        platform = _PLAT_ALIASES[raw]
+        chats = [c for c in _group_chats(_visible_items(load_db()))
+                 if not platform or c.get("platform") == platform]
+        return {"result": {"platform": platform or "all", "count": len(chats),
+                           "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
+                                      "count": c.get("count")} for c in chats[:12]]}}
+    if action == "open":
+        n = payload.get("n")
+        name = str(payload.get("name") or payload.get("chat") or "").strip()
+        if n is None and not name:
+            return None
+        chats = _group_chats(_visible_items(load_db()))
+        want = _norm_txt(name)
+        hit = next((c for c in chats
+                    if (n is not None and c.get("n") == n)
+                    or (want and (want in _norm_txt(c.get("name")) or _norm_txt(c.get("name")) in want))), None)
+        if hit is None:
+            return {"ok": False,
+                    "error": "no encuentro ese chat — vuelve a llamar a open con el `n` de la lista o con "
+                             "`name` tal como aparece en ella"}
+        return {"result": {"opened": hit.get("name"), "platform": hit.get("platform")}}
+    if action in ("archive", "trash"):
+        n = payload.get("n")
+        mid = payload.get("messageId")
+        items = _visible_items(load_db())
+        hit = next((it for it in items
+                    if (n is not None and it.get("n") == n) or (mid and it.get("messageId") == mid)), None)
+        if hit is None:
+            return {"ok": False,
+                    "error": f"no encuentro ese mensaje — vuelve a llamar a {action} con el `n` de la lista"}
+        if hit.get("platform") != "email":
+            return {"ok": False,
+                    "error": ("archivar/borrar en la app real solo está soportado para EMAIL hoy — para "
+                              "WhatsApp/Telegram usa read (marcar leído) o dismiss (descartar del widget)")}
+        return {"result": {"action": action, "from": hit.get("from"), "subject": hit.get("subject", "")}}
+    return None
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Operator actions from the widget, the only widget->backend channel; the widget cannot fetch:
     - read/dismiss/clear mutate the list; marking read enqueues into `pending_read`, drained by the connector.

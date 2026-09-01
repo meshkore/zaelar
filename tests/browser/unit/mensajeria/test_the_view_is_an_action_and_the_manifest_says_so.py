@@ -159,3 +159,55 @@ def test_trash_enqueues_its_own_queue_not_the_archive_one(msg):
     assert ms.take_pending_disposal("archive") == []
     q = ms.take_pending_disposal("trash")
     assert q and q[0]["messageId"] == "42"
+
+
+# ── The backed route ANSWERS (V2-543 second half, caught by the live probe) ─────────────────────────────────
+# With the owner running, every backed action returned a bare {"queued": true}: show_view's answer and the
+# teach-the-shape errors never reached the brain — the screen moved by SSE while the turn had nothing to say.
+# `answer_action` is the READ-ONLY answer/validation hook; the owner stays the only writer.
+
+def test_answer_action_answers_show_view_and_NEVER_writes(msg):
+    _seed(msg)
+    before = msg.load_db().get("view")
+    ans = msg.answer_action("show_view", _as_the_canvas_sends_it({"platform": "whatsapp"}))
+    assert ans["result"]["count"] == 1 and ans["result"]["chats"][0]["name"] == "JOSE VICENTE"
+    assert msg.load_db().get("view") == before, "answering must not push the view — the OWNER mutates"
+
+
+def test_answer_action_vetoes_an_invalid_order_with_the_teaching_error(msg):
+    _seed(msg)
+    assert msg.answer_action("show_view", {"platform": "instagram"})["ok"] is False
+    assert msg.answer_action("open", {"name": "nadie"})["ok"] is False
+    wa_n = next(i["n"] for i in msg.view_data()["items"] if i["platform"] == "whatsapp")
+    assert "EMAIL" in msg.answer_action("archive", {"n": wa_n})["error"]
+    assert msg.answer_action("clear", {}) is None, "actions with nothing to answer stay on the old path"
+
+
+def test_answer_action_is_read_only_by_construction():
+    """A save inside the hook would make it a SECOND writer racing the owner — the exact two-writer hole the
+    mailbox exists to prevent. Source guard: no store.save in the hook's body."""
+    import ast
+    import inspect
+    import textwrap
+    from widgets.mensajeria import data
+    tree = ast.parse(textwrap.dedent(inspect.getsource(data.answer_action)))
+    calls = [n.func.attr for n in ast.walk(tree)
+             if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)]
+    assert "save" not in calls, "answer_action called a save — a second writer racing the owner"
+
+
+def test_the_backed_route_merges_the_answer_and_vetoes_without_enqueueing(msg, monkeypatch):
+    """Wiring, not just the rule (the V2-199 lesson): dispatch_raw through a fake supervisor must carry the
+    answer in the queued ack, and an invalid order must never reach the mailbox."""
+    import asyncio
+    from widgets import server_api, supervisor
+    _seed(msg)
+    enq = []
+    monkeypatch.setattr(supervisor, "is_backed", lambda wid: wid == "mensajeria")
+    monkeypatch.setattr(supervisor, "enqueue", lambda wid, a, p: enq.append((a, p)) or True)
+    ok = asyncio.run(server_api.dispatch_raw("mensajeria", "show_view", {"platform": "whatsapp"}))
+    assert ok.get("queued") is True and ok["result"]["chats"][0]["name"] == "JOSE VICENTE", ok
+    assert len(enq) == 1, "the mutation itself still goes through the owner"
+    bad = asyncio.run(server_api.dispatch_raw("mensajeria", "show_view", {"platform": "instagram"}))
+    assert bad["ok"] is False and "show_view" in bad["error"]
+    assert len(enq) == 1, "an invalid order must not be enqueued"

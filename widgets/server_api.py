@@ -257,6 +257,25 @@ async def widget_data(wid: str, q: str = ""):
     return JSONResponse(res)
 
 
+def _answer_backed(wid: str, action: str, payload: dict):
+    """READ-ONLY answer/validation hook for a backed widget (V2-543). The mailbox keeps ONE writer — correct —
+    but it also swallowed every return: an action that ANSWERS (`show_view` returning the matching chats) came
+    back as a bare `{"queued": true}`, and an INVALID one (unknown platform, chat name that matches nothing)
+    was enqueued anyway and its teach-the-retry-shape error reached nobody. A widget may define
+    `data.answer_action(action, payload) -> dict | None`: it must NEVER write (the owner stays the only
+    writer); `{"ok": False, ...}` vetoes the enqueue, any other dict is merged into the queued ack. None/no
+    hook/any failure → the old behavior, byte for byte."""
+    try:
+        mod = importlib.import_module(f"widgets.{_safe(wid)}.data")
+        fn = getattr(mod, "answer_action", None)
+        if fn is None:
+            return None
+        out = fn(action, payload or {})
+        return out if isinstance(out, dict) else None
+    except Exception:
+        return None
+
+
 def _route_backed(wid: str, action: str, payload: dict):
     """A "backed" widget (kind:"backed") owns a live backend process (e.g. the navegador's headless Chromium).
     Its data.py is READ-ONLY: a mutation is not applied inline, it's ENQUEUED into the owner's mailbox, which the
@@ -265,8 +284,15 @@ def _route_backed(wid: str, action: str, payload: dict):
     (widget is passive, or its owner isn't running / got disabled)."""
     try:
         from . import supervisor
-        if supervisor.is_backed(wid) and supervisor.enqueue(wid, action, payload or {}):
-            return {"ok": True, "queued": True, "id": wid}
+        if supervisor.is_backed(wid):
+            ans = _answer_backed(wid, action, payload)
+            if ans is not None and ans.get("ok") is False:
+                return ans                          # invalid: teach the shape, mutate nothing
+            if supervisor.enqueue(wid, action, payload or {}):
+                out = {"ok": True, "queued": True, "id": wid}
+                if isinstance(ans, dict):
+                    out.update({k: v for k, v in ans.items() if k not in out})
+                return out
     except Exception:
         pass
     return None
