@@ -7509,6 +7509,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo **3.10**, dos desarmes. ⚠️ Uno **no llegó a aplicarse** por comillas anidadas en un `python -c` y sus
     15 verdes no significaban nada: los desarmes van a FICHERO y con la mutación AFIRMADA antes de medir.
 
+- **LA HOJA EN BLANCO: una sola cosa para leer, y el borde que la mantiene pequeña (V2-549, 2026-09-02)**: encargo
+  del operador — «un widget que sea como una hoja en blanco, genérico, para enseñar otras cosas: un PDF, un HTML,
+  una receta, un informe que hagamos… el cuadrado y lo rellenamos con el contenido», con el código y sus
+  herramientas LIGEROS, «sin sobrecargar los prompts con skills, tools ni otras cosas».
+  - **La frontera con `results` la dictó él mismo**: aquella hoja contesta «búscame las opciones» (un CONJUNTO
+    que se compara, con fichas, fuentes y criterios); ésta contesta «dame la receta» — UNA cosa, ya elegida, que
+    se lee. «Pedí una receta y el sistema trajo una lista de recetas, y yo solo pedí una, y me fío de su
+    criterio». Un documento suelto en una superficie de comparación se lee como una lista de enlaces (la queja
+    que creó el visor de fotos, V2-457); una comparación aquí pierde sus columnas.
+  - **Tres tipos y ningún cuarto** (`markdown` por defecto —el texto llano ES markdown sin marcas—, `html`, `pdf`):
+    un cuarto tipo es un cuarto renderizador dentro de un widget cuyo valor entero es ser pequeño, y todo lo que
+    pudiera pedirse ya está en un sitio mejor — fotos → `imagenes`, una web en vivo → `navegador`, un conjunto a
+    comparar → `results`. Nombrar esos bordes cuesta una línea cada uno y evita que esto se convierta en todos.
+  - **Tres acciones declaradas y NINGUNA tool nueva** — la conduce el `widget_data` genérico; en el prompt son
+    nombres, ~5 tokens. Era una condición del encargo, no un detalle de implementación.
+  - **`show` y `append` nacen `view: true`** — la lección de V2-547 aplicada de nacimiento: la acción que ES el
+    propósito del widget es justo la que una pasada opt-in se salta, y sin marcar deja «enséñame la receta» en una
+    tarjeta vacía.
+  - **`prompt_digest` es por lo que esto gana a una captura**: con la hoja abierta, «¿cuánta harina lleva?» es una
+    pregunta sobre texto que ya tenemos. Solo se pide con la tarjeta ABIERTA. El PDF es la excepción honesta: le
+    damos el fichero al navegador y no lo leemos, así que el digest dice el título y dice que su interior no es
+    nuestro para citarlo.
+  - **NINGÚN `innerHTML`**: el trabajo entero de este widget es enseñar texto llegado de la web, de un worker o de
+    un modelo — justo el que jamás puede ejecutarse. El html se parsea INERTE (DOMParser: no corre ni carga nada) y
+    pasa una whitelist; los envoltorios desconocidos pero inocuos se vuelven `div` para no perder su CONTENIDO, y
+    los que llevan conducta se tiran enteros. Se le quitan `class` y `style` al entrar, y eso no es una limitación
+    sino el punto: venga de la página que venga, aterriza en la tipografía de ESTA hoja y sigue el tema vivo.
+  - **Un `show` vacío NUNCA borra una hoja que se está leyendo** (la regla de `imagenes`), y **`append` se niega
+    ENTERO en vez de recortar** — un corte silencioso cae a mitad de frase y se lee como un documento que
+    simplemente acaba: ni el llamante ni el operador pueden saber que se cortó. Lo cazó un test que afirmaba la
+    conducta correcta mientras el código crecía un carácter y reportaba éxito.
+  - **El `src` de un PDF es una URL http(s) o el nombre de un fichero que ya tenemos; una RUTA se rechaza aunque
+    nombre un fichero real** — un widget lee dentro de su directorio o en ningún sitio. La negativa NOMBRA lo que
+    hay (V2-463) y `state.json` queda fuera de esa lista: es el almacén del propio widget.
+  - **Medido DESPUÉS del primer commit, y cambió el manifest**: la línea de enrutado se corta a 300 chars y el
+    `whenToUse` medía **426**, así que la FRONTERA con `results`/`imagenes`/`navegador` —la mitad que enruta— no
+    llegaba al modelo. Cortaba en frontera de FRASE, así que el guarda de V2-547 callaba: no se perdía nada a mitad
+    de palabra, solo la parte que decide a dónde va una petición. Reescrito a 295 y clavado por un test que le
+    pregunta a `brief._purpose` en vez de copiar el número. **La regla que deja: la línea de enrutado de un widget
+    nuevo se escribe para CABER, y eso se comprueba contra el presupuesto real.**
+  - Nodo **4.101**, 18 casos, **siete desarmes con la mutación AFIRMADA antes de correr**. Verificado en vivo
+    (`3.16+fc8bf83`): en el catálogo, receta real conducida por la ruta de acción y renderizada, las dos negativas
+    devueltas literales, e `identify` resolviendo «el documento»/«la receta»/«el pdf»/«el papel» sin robarle «la
+    agenda». **Pendiente: el ojo del operador sobre la tarjeta.**
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
