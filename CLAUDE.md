@@ -7353,6 +7353,48 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     declares a `list` action meaning exactly that), and the pack's own doctrine keeps ambiguous whole utterances
     out. Nodes 2.1 and the actionmap node; disarms verified in both directions.
 
+- **The messaging widget FOLLOWS the real apps instead of drifting from them (V2-546, 2026-09-01)**: reported
+  live — he answered two WhatsApp messages from his own phone, came back to the widget, and they were still
+  sitting there looking pending. Two structural facts behind it, both measured before touching anything.
+  **(1) Every connector was wired INBOUND-ONLY.** The bridge saw his outgoing messages (Baileys delivers them
+  as upserts with `fromMe:true`) and dropped them with an explicit `continue`; Telethon subscribed to
+  `NewMessage(incoming=True)` only; email polled INBOX and never looked at flags. Read orders went widget → app
+  and **nothing ever came back**. Every one of those signals was already on the wire; none was being read.
+  **(2) There was NO conversation store** — `items` was the pending inbox and reading a message DELETED it, so
+  opening a chat showed what was unread and nothing else, and the widget auto-closed the thread once everything
+  was read because there was genuinely nothing left in it.
+  - **`widgets/mensajeria/thread.py`** is the conversation: capped on THREE axes (per chat, per age, per number
+    of chats — one JSON file rewritten on every save), ordered by TIME rather than arrival (an outbound message
+    captured from the phone can reach us after a later inbound one, and a thread out of order reads as a
+    different conversation), deduped by id, with a read watermark. **It lives in the widget package** because
+    `data.py` may not import `connectors` while connectors already import `widgets` — the only placement where
+    both sides read ONE copy of these rules.
+  - **Neither `record_outbound` nor `apply_external_read` enqueues mark-read**: the app that just told us IS the
+    source of truth, and echoing it back is a loop. Both are bounded by the platform's own watermark, so a chat
+    cleared at 10:00 cannot hide a message from 10:05 — with a test for exactly that.
+  - **Each transport is used at its real fidelity, and that is a statement about the transport, not a
+    preference.** Telegram's read update is a `max_id`, resolved to that message's DATE and **DROPPED if it
+    cannot be resolved** (not marking costs one stale row; marking too much hides unseen mail). WhatsApp only
+    reports a per-chat COUNTER, so a read is queued only when it reaches ZERO — a partial drop cannot say WHICH
+    messages were read. Email is the exact one: `\Seen` and `\Answered` answer per message, which is why the
+    read signal carries `ids` as well as a watermark.
+  - **The hazard that would have made this worse than the bug**: WhatsApp answers a history request with
+    ORDINARY upserts, so un-tagged, "load previous" would have pushed a month of scrollback through triage and
+    interrupted him about messages from weeks ago. The bridge marks the chats it just asked about and tags those
+    upserts `history:true`.
+  - **`open` resolves against conversations we HOLD, not only the pending list** — found by a failing test, not
+    by reading: without it, answering someone from your phone made their chat **unopenable here**, because the
+    inbox was the only index. The main list stays an INBOX on purpose; showing every recent chat there would
+    turn a triage surface into a second messaging app.
+  - Node 4.99, 23 cases, six disarms with each mutation ASSERTED before running, counterweights included (a
+    message arriving after his reply is not swallowed; a chat with nothing at all still closes itself).
+    ⚠️ **The RENDERING half of 4.98 caught what no source assertion could**: a backtick inside a CSS comment
+    CLOSES the widget's template literal — `node --check` had passed earlier, before that comment existed.
+  - Verified live on `3.16+c998220` (agent ⏻ stopped, no session): both connectors reconnected clean, the widget
+    serves `thread_meta`, the manifest serves `load_more`, and the backed route returns its real veto instead of
+    a bare `{"queued": true}`. **Real traffic NOT verified** — a reply from the phone, a Telegram read receipt
+    and an email flag all need the operator to do it. Detail: `V2-546-the-widget-follows-the-real-app.md`.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
