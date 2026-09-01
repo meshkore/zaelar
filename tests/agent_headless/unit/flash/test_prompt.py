@@ -107,8 +107,8 @@ def test_the_cron_line_makes_a_spoken_reminder_insufficient():
     line = prompt._cron_line()
     assert "[[cron.create]]" in line
     assert "EN ESE TURNO" in line
-    assert "YYYY-MM-DD HH:MM" in line       # el formato que hace EXPRESABLE un aviso de una sola vez
-    assert "add_meeting" in line            # apuntar y avisar son dos cosas, y se piden las dos
+    assert "YYYY-MM-DD HH:MM" in line       # the format that makes a one-time reminder EXPRESSIBLE
+    assert "add_meeting" in line            # noting it down and reminding are two different things, and both are requested
 
 
 def test_live_state_lists_the_next_seven_days_with_their_dates():
@@ -290,3 +290,23 @@ def test_the_days_list_is_a_translator_not_a_calendar_limit():
     assert "Próximos días" in txt
     assert "NO es el límite" in txt, "the line must state the boundary of its own purpose"
     assert "año en curso" in txt, "a dated request without a year is this year, not a question"
+
+
+def test_the_stable_resources_layer_precedes_every_per_turn_block(fresh_db):
+    """STABLE PREFIX FIRST (2026-09-01). The resources layer (~73% of the system chars, and the part that does
+    NOT change turn to turn) goes BEFORE the per-turn blocks (state with the conversation synthesis, recall),
+    and the live state stays LAST. That order is what lets the provider's prefix cache cover the bulk of the
+    prompt: measured with the real blocks, the shared prefix between two consecutive turns went from 16.8% to
+    97.1% of the prompt. Routing was gated by the node 2.13 bench the same day (V2-097 rule) — whoever reverts
+    this order pays the prefill of ~10k tokens on every turn again."""
+    memapi.set_state({"operator_name": "Ricart", "treatment": "directo"})
+    system, _ = prompt.build_flash_system(recall_block="· puede que venga a cuento: el coche es un Range Rover")
+    i_how = system.find("── CÓMO OPERAS")
+    i_res = system.find("── QUÉ TIENES (recursos) ──")
+    i_state = system.find("QUIÉN ERES")
+    i_recall = system.find("Range Rover")
+    i_live = system.find("── AHORA MISMO ──")
+    assert -1 not in (i_how, i_res, i_state, i_recall, i_live)
+    assert i_how < i_state and i_res < i_state, "the resources layer must precede the per-turn state block"
+    assert i_state < i_recall < i_live, "per-turn blocks in the volatile tail, live state last"
+    assert system.rstrip().endswith("Atiende ahora la petición del operador que viene a continuación.")
