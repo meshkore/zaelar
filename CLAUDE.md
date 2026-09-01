@@ -6631,6 +6631,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **It discards WORK, never memory**: profile, facts, ingested messages, the agenda — untouched, held by
     tests. `clear_slot_prefix` escapes LIKE wildcards (`task.` must not match `taskX.`).
 
+- **Who may interrupt is CONFIGURATION — per-connector notification policy (V2-532, 2026-09-01)**: the
+  operator's direction — the messaging connectors stay mechanical/token-free, and *whether he gets interpellated*
+  must be configurable per connector. Audited first: ingest was already token-free (own 5s/5s/20s loops → bus →
+  local triage), the open card already repaints by SSE, and agenda avisos + messaging notices already share ONE
+  delivery rail (`voice/proactive.notify`, serialized by V2-527) — what was frozen was the POLICY:
+  `notify.surface()` hardcoded its predicate and `muted_channels` was the only knob. Now
+  `widgets/mensajeria/policy.py` (zero-import; it lives in the widget package because `data.py` may not import
+  `connectors`, the same direction the unified store travels): per platform
+  `{notify: never|direct|important|all, speak: bool}` — `important` is byte-for-byte the historical predicate
+  (untouched install identical), `speak=false` silences the VOICE but keeps the `[SISTEMA]` note (a mute channel
+  must not blind the brain), fail-open to DEFAULT. Voice-settable via the declared `set_notify` data-op
+  (undeclared = invisible, V2-520). **An explicit reminder (agenda/cron) is NEVER governed by this policy** — an
+  order is its own permission to interrupt (V2-522), guarded by a source test: nothing under `nucleo/` imports it.
+  Node 4.5 (+8), disarm verified. Open: the visual selector (render-verified pass), the closed-card unread badge.
+
+- **The turn clock tells OUR share — pre-turn attribution + prefix-cache visibility + pooled judges (V2-533,
+  2026-09-01)**: the LENTO verdict's `t0` started AFTER the attention judge, the completeness judge and the
+  recall wait, so a turn where WE spent 1.2 s was reported as provider TTFT. Now `pre_ms/gate_ms/acc_ms` travel
+  in `_reply_extra` and the verdict names them (`· previo N ms (juez · frase · memoria)` at ≥400 ms) —
+  **`total_ms`/SLOW_MS keep their meaning on purpose**: `note_slow` relays providers on them, and relaying over
+  OUR preflight would punish the wrong party (test pins it). `prompt_cache_hit_tokens` (captured for billing
+  since 2026-08-14, never shown to latency) now rides every verdict label (`· caché N%`): measured on session
+  701fcc1b's recorded prompts, consecutive turns share only **45.8% / 18.9%** of their prefix — the provider
+  re-prefills ~10k tokens per turn, and that fraction is OURS (block order puts per-turn volatile text before
+  the 14-16 KB resource layer). The reorder is deliberately NOT shipped blind: it goes behind the nodo 2.13
+  routing bench (V2-097 rule), with `cache_hit_frac` as the before/after series. Also: `nucleo/memllm.py` gained
+  a pooled keep-alive POST (both hot-path judges paid a fresh DNS+TLS per call, ~150-400 ms; verified live), and
+  the TTS prewarm hook now opens Cartesia's websocket pool (the kickoff paid the handshake). ⚠️ Parts landed
+  inside the concurrent i18n batch commit `a3b20a9` (files swept up uncommitted; pushed, so left as-is).
+
 - **Inside an active conversation, NOBODY judges — the attention gate went deaf mid-dialogue (V2-531,
   2026-09-01)**: session 701fcc1b — «tengo algún mensaje» opened the widget, and then **8 of the operator's ~12
   turns were dropped as `llm_ambient`**, including «¿Me estás escuchando?» and «te he dicho que ya la has
