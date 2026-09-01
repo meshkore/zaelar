@@ -152,7 +152,7 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
     proactive.register_speaker(_old)
     proactive.register_speaker(_new)                 # a new session has already taken the slot
     proactive.register_ephemeral_speaker(_new_eph)
-    proactive.clear_speaker(_old)                     # teardown de la VIEJA, con su propio fn
+    proactive.clear_speaker(_old)                     # teardown of the OLD session, with its own fn
     try:
         assert proactive.speaker() is _new, "la sesión nueva no puede perder su hablador por el teardown de la vieja"
         assert proactive.ephemeral_speaker() is _new_eph
@@ -251,3 +251,48 @@ def test_el_relleno_de_audio_consulta_la_sonda_del_operador():
 
     body = (Path(__file__).resolve().parents[3] / "voice/engine/speech/filler_audio.py").read_text()
     assert "user_speaking()" in body, "el relleno volvería a hablar encima del operador"
+
+
+# ── the clock the PERSON lives (V2-535, from the 2026-09-01 voice-fluidity audit) ─────────────────────────
+"""TTFT measures the model and `TTSMetrics.ttfb` measures the synthesizer; NEITHER is the wait.
+
+The audit's first recommendation was to measure “first real audio,” and it was right that nothing did: both
+edges were already emitted — «… fin de voz» in the user-state handler and `state=speaking` in the agent-state
+handler — in two different handlers, with nobody pairing them. So a slow turn could be reconstructed only by
+joining rows after the fact, which is why nobody ever did.
+
+It also reports whether what sounded FIRST was the filler or the reply, because those are different products:
+“it answered in 2 s” and “it made a sound at 1.1 s and answered at 2 s” feel nothing alike.
+"""
+from pathlib import Path
+
+AGENT = Path(__file__).resolve().parents[3] / "voice" / "engine" / "pipeline" / "agent.py"
+
+
+def test_the_filler_remembers_when_it_last_sounded():
+    from voice.engine.speech import filler_audio as fa
+
+    before = fa.last_fired_at()
+    fa._announce("Veamos…")
+    assert fa.last_fired_at() > before, "without this the onset cannot say what the operator heard first"
+
+
+def test_the_end_of_the_operators_voice_is_recorded_as_the_edge():
+    src = AGENT.read_text(encoding="utf-8")
+    i = src.index('_emit("vad", "… fin de voz"')
+    assert '_onset["voice_ended"] = time.monotonic()' in src[i:i + 400], \
+        "the near end of the wait has to be stamped where the voice ends, or there is nothing to measure from"
+
+
+def test_the_onset_is_reported_once_and_only_for_a_plausible_wait():
+    """Two properties this cannot be right without: the edge is CLEARED (a segmented reply would otherwise
+    report its second segment as a second onset) and a stale edge is dropped (a proactive delivery minutes
+    later is not an answer to anything)."""
+    src = AGENT.read_text(encoding="utf-8")
+    i = src.index("RESPONSE ONSET")
+    block = src[i:i + 1800]
+    assert '_onset["voice_ended"] = 0.0' in block, "reported once per wait"
+    assert "_gap <= _ONSET_MAX_S" in block, "a stale edge is not an answer"
+    assert '"onset_ms"' in block and '"covered_by_filler"' in block
+    assert "last_fired_at() >= _ended" in block, \
+        "«covered» must mean the filler sounded during THIS wait, not in an older one"
