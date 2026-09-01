@@ -68,11 +68,11 @@ def stream_advancing(metrics: dict, quiet_ms: int, now: float | None = None) -> 
     """Is the model stream ADVANCING even when no speakable content is emitted?
 
     This is the 2026-08-12 fix, prompted by killing three HEALTHY turns in two minutes. `fast_client.stream()` only
-    yieldea chunks CON TEXTO: los de una tool-call (argumentos goteando, `content` vacío) se consumen dentro y no
-    salen. O sea que un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados», «cierra eso»— se ve, desde
-    el bucle del turno, exactamente igual que un modelo colgado. Medido en el corte de las 13:49: `ttft=1.50s` (el
-    modelo había contestado en segundo y medio) con cero caracteres hablables; el plazo lo guillotinaba a los 9 s y
-    el operador oía «se me ha ido un momento» sin llegar a ver sus resultados.
+    `fast_client.stream()` yields only chunks WITH TEXT: tool-call chunks (dripping arguments, empty `content`) are
+    consumed internally and never leave it. Thus a turn whose response is an ACTION —“show me the results”, “close
+    that”— looks, from the turn loop, exactly like a hung model. Measured at the 13:49 incident: `ttft=1.50s` (the
+    model had answered in a second and a half) with zero speakable characters; the deadline guillotined it at 9 s
+    and the operator heard “I’ve gone away for a moment” without ever seeing the results.
 
     Therefore the deadline checks the stream's HEARTBEAT (`last_chunk_ts`, stamped by the code that sees each chunk),
     not the voice. Without a stamp yet → False: nothing has arrived, so it is genuinely stuck. Pure and deliberately
@@ -91,17 +91,17 @@ def _extends(prev: str, cur: str) -> bool:
     """Is `cur` THE SAME phrase as `prev`, only longer?
 
     A purely STRUCTURAL, not semantic, signal: STT provides the ACCUMULATED transcription of the current phrase, so
-    que un fragmento de algo que el operador sigue diciendo es un PREFIJO del turno siguiente. Detectarlo así no
-    necesita tablas de verbos ni heurísticas de idioma — vale igual en castellano, en japonés o dictando código.
+    that a fragment of what the operator is still saying is a PREFIX of the next turn. Detecting it this way needs
+    neither verb tables nor language heuristics — it works equally in Spanish, Japanese, or when dictating code.
     """
     p, c = _norm_utt(prev), _norm_utt(cur)
     return bool(p) and len(c) > len(p) and c.startswith(p)
 
 
-# Cuánto tiempo sigue "en gracia" el trace de una cadena ya resuelta, para que el trozo siguiente de la MISMA
-# frase lo adopte en vez de abrir un flujo nuevo (V2-116). 3 s cubre con holgura las pausas reales medidas dentro
-# de una frase (V2-096: p50 2,3 s) sin llegar a pegar dos peticiones distintas: pasada la ventana, tema nuevo =
-# flujo nuevo, como siempre.
+# How long the trace of an already resolved chain remains “in grace”, so the next fragment of the SAME
+# phrase adopts it instead of opening a new flow (V2-116). 3 s comfortably covers the real pauses measured within
+# a phrase (V2-096: p50 2.3 s) without joining two distinct requests: once the window passes, new topic = new flow,
+# as always.
 _CHAIN_GRACE_S = float(os.getenv("ZAELAR_CHAIN_GRACE_S", "3.0"))
 
 
@@ -152,13 +152,13 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
 
 
 def _resolve_acc_chain(brain: "NucleoLLM") -> None:
-    """Una cadena de fragmentos acaba de RESOLVERSE (`offer()` devolvió "act"): su trace deja de estar activo pero
-    pasa a GRACIA en vez de tirarse, para que el trozo siguiente de la misma frase lo adopte
+    """A fragment chain has just been RESOLVED (`offer()` returned "act"): its trace stops being active but
+    enters GRACE instead of being discarded, so the next fragment of the same phrase adopts it
     (`_begin_or_adopt_trace`) en vez de abrir un flujo nuevo.
 
-    Existe como función —y no como dos líneas dentro de `_run_inner`— para que el test pueda ejercitar EL MISMO
-    código que corre en producción. Un test que se re-implemente la contabilidad del llamante puede pasar
-    mientras producción hace otra cosa, que es exactamente el modo de fallo que V2-116 viene a cerrar."""
+    It exists as a function —rather than two lines inside `_run_inner`— so the test can exercise THE SAME
+    code that runs in production. A test that re-implements the caller’s accounting can pass while production does
+    something else, which is exactly the failure mode V2-116 is meant to close."""
     if getattr(brain, "_acc_trace_id", ""):
         brain._chain_grace = (brain._acc_trace_id, time.time())
     brain._acc_trace_id = ""
@@ -435,16 +435,16 @@ def _release_acc_trace_if_fresh(brain: "NucleoLLM") -> None:
 
 
 def _resolve_pending_confirm(ok: bool) -> bool:
-    """Resuelve la confirmación pendiente (cualquier widget). Si `ok`, EJECUTA lo confirmado: un BORRADO de widget
+    """Resolve the pending confirmation (any widget). If `ok`, EXECUTE what was confirmed: a widget DELETION
     (determinista, memoria incluida) o una DATA-OP irreversible (despacho por `apply_action`, NUNCA código).
-    Devuelve True si había algo que resolver.
+    Return True if there was something to resolve.
 
-    Función de MÓDULO (no closure de `_run_inner`, V2-090 addenda 2026-08-15) precisamente para poder llamarla
+    MODULE function (not a closure of `_run_inner`, V2-090 addendum 2026-08-15), specifically so it can be called
     ANTES de que el turno haga ningún trabajo lento — ver el hueco real que arregla en el sitio donde se llama
-    pronto, dentro de `_run_inner`: el backstop determinista viejo solo corría TRAS el streaming COMPLETO del
-    modelo, y un turno cancelado por barge-in antes de llegar allí perdía el "sí" EN SILENCIO — la confirmación se
-    quedaba pendiente para siempre y el widget nunca se tocaba (sesión real: «Sí, vacía la entera.» canceló por
-    seguir hablando, el operador vio "confirmar" y la agenda no cambió)."""
+    early, inside `_run_inner`: the old deterministic backstop ran only AFTER the model’s COMPLETE streaming, and a
+    turn cancelled by barge-in before reaching it silently lost the “yes” — the confirmation remained pending forever
+    and the widget was never touched (real session: “Yes, empty the whole thing.” was cancelled because the operator
+    kept speaking; the operator saw “confirm” and the agenda did not change)."""
     try:
         from voice.observer import emit
         p = _wconfirm.resolve("", ok)

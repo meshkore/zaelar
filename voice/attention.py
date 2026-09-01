@@ -297,7 +297,7 @@ _COMMAND_RE = re.compile(
 def clamp_input(text: str, max_len: int) -> tuple[str, bool]:
     """Bounds the turn text to `max_len` chars while PRESERVING the explicit command (close/stop/show…): if the
     turn is long and contains a command, its clause is preserved (rather than blindly truncating the last N chars, which
-    caused "cierra los widgets" to end up OUTSIDE the excerpt). Returns (text, truncated?)."""
+    caused "close the widgets" to end up OUTSIDE the excerpt). Returns (text, truncated?)."""
     if max_len <= 0 or len(text) <= max_len:
         return text, False
     tail = text[-max_len:]
