@@ -27,7 +27,7 @@ COLD_GAP_S = 90.0
 
 # ── TTFT: the suspect this verdict did not know how to name (2026-08-14) ──────────────────────────────────────
 # The branch order was cold → prompt → provider, and `prompt` wins with `ptok >= 6000`. Since the VOICE prompt
-# is ALWAYS 9–10k tokens, **the `proveedor` branch was unreachable on the voice path, by construction**: the
+# is ALWAYS 9–10k tokens, **the `provider` branch was unreachable on the voice path, by construction**: the
 # 10 slow turns in session b70a45d0 were labeled «PROMPT GRANDE» with a constant prompt (9.363–10.314 tok,
 # ±9%) and TTFT ranging from 0 to 25.703 ms. A flat input cannot explain a factor of 10; the
 # DIFFICULTY of the decision did (the two 25.6 s spikes are the session's two hardest turns), which is the signature
@@ -38,7 +38,7 @@ COLD_GAP_S = 90.0
 #   · distributed, with low throughput → the provider generates slowly;
 #   · distributed, with normal throughput → the prompt/work.
 # The prompt size is still named, but as DATA, not as the culprit: it has been measured at ~150 ms.
-TTFT_DOMINATES = 0.70      # fraction of the turn spent before the first token to blame pre-token time
+TTFT_DOMINATES = 0.70      # fraction of the turn spent before the first token required to blame pre-token time
 TTFT_SLOW_MS = 4000        # …and from here onward in absolute terms (below this, a 3 s turn is not a problem)
 
 # Blocks that make up the prompt, in the order in which they are named to the operator. `sz_*` are chars already
@@ -91,6 +91,15 @@ def verdict(m: dict) -> dict:
     # prompt prefix busts the provider cache every turn), unlike the provider's queue or its reasoning.
     cache_hit = _num(m, "prompt_cache_hit_tokens")
     cache_frac = round(cache_hit / ptok, 3) if (cache_hit is not None and ptok) else None
+    # PRE-TURN segment (2026-09-01): the attention judge, the fragment/completeness judge and the recall wait all
+    # run BEFORE the `t0` that `total_ms` is measured from, so a turn where WE spent 1.2 s on judges+recall and
+    # the provider 1.5 s used to be reported as "TTFT 1544 ms — blame the provider". `pre_ms` makes our share a
+    # named number; `total_ms`/SLOW_MS keep their meaning on purpose (provider_chain.note_slow relays on them,
+    # and relaying a provider over OUR preflight would punish the wrong party).
+    pre = _num(m, "pre_ms", default=0) or 0
+    gate_ms = _num(m, "gate_ms", default=0) or 0
+    acc_ms = _num(m, "acc_ms", default=0) or 0
+    mem_ms = _num(m, "mem_query_ms", default=0) or 0
     gap = _num(m, "gap_since_last_s", default=0) or 0
     cold = bool(m.get("cold_estimate")) or gap >= COLD_GAP_S
     # A turn that ESCALATES or SEARCHES makes a 2nd pass: it is slow because of WORK, not a failure.
@@ -130,7 +139,7 @@ def verdict(m: dict) -> dict:
     elif ptok >= BIG_PROMPT_TOKENS and ttft_frac < TTFT_DOMINATES:
         # The prompt is blamed only when the time was ACTUALLY distributed. If almost all of it was spent before the first
         # token, pre-token time is the culprit even if the prompt is large — this is exactly the bias that meant
-        # `proveedor` could never appear on voice.
+        # `provider` could never appear on voice.
         cause = "prompt"
         label = (f"⏱ turno LENTO {int(total)} ms — PROMPT GRANDE: {int(ptok)} tok"
                  + (f", lo que más pesa es «{block}» ({block_n} chars)" if block else "")
@@ -146,7 +155,13 @@ def verdict(m: dict) -> dict:
     # from ~90% to 0% across turns is what points at a prefix-stability regression before anything gets slow.
     if cache_frac is not None:
         label += f" · caché {int(cache_frac * 100)}%"
+    # A significant pre-turn spend is named with its breakdown — below the threshold it stays out of the line
+    # (a suffix that always prints stops being read), but the numbers always travel in the event.
+    if pre >= 400:
+        label += f" · previo {int(pre)} ms (juez {int(gate_ms)} · frase {int(acc_ms)} · memoria {int(mem_ms)})"
     return {"slow": slow, "cause": cause, "label": label, "total_ms": int(total), "ttft_ms": int(ttft),
+            "pre_ms": int(pre), "gate_ms": int(gate_ms), "acc_ms": int(acc_ms),
+            "turn_full_ms": int(total + pre),
             "cache_hit_tokens": (int(cache_hit) if cache_hit is not None else None),
             "cache_hit_frac": cache_frac,
             "gen_ms": int(gen), "prompt_tokens": int(ptok), "tok_per_s": tps, "gap_since_last_s": round(gap, 1),

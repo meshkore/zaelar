@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: sin ciclos
+from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 
@@ -115,24 +115,24 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     (empty buffer) opens a trace with `begin()` as usual, and that id becomes the chain's until it is resolved
     (`brain._acc_trace_id`, cleared by the caller when `offer()` returns "act").
 
-    ⚠️ ESO SOLO NO BASTA, y volvió a romperse el 2026-08-18 (sesión b403c979, V2-116). La adopción se apoyaba
-    ENTERAMENTE en que el acumulador tuviera la cadena abierta (`.pending()`), o sea en que la capa LÉXICA
-    (`segmenter.looks_incomplete`) acertara al decir «esto está a medias». Un solo falso «completo» rompe la
-    cadena y con ella el flujo: medido con los cinco finales de STT reales de esa sesión,
-    `looks_incomplete("Mira, lo que quiero es")` devuelve **False** —una cláusula colgada de la cópula «es», que
-    exige un complemento que aún no se ha dicho— así que el acumulador la SUELTA, `_acc_trace_id` se limpia
-    (rama "act") y el trozo siguiente abre un flujo nuevo. En producción salieron CUATRO corr_ids de una sola
-    frase, cada uno cancelando al anterior por barge-in.
+    ⚠️ THAT ALONE IS NOT ENOUGH, and it broke again on 2026-08-18 (session b403c979, V2-116). Adoption relied
+    ENTIRELY on the accumulator having the chain open (`.pending()`), that is, on the LEXICAL layer
+    (`segmenter.looks_incomplete`) correctly deciding that "this is incomplete". One false "complete" breaks the
+    chain and therefore the flow: measured against that session's five real STT finals,
+    `looks_incomplete("Mira, lo que quiero es")` returns **False**—a clause hanging from the copula "es" that
+    requires a complement not yet spoken—so the accumulator RELEASES it, `_acc_trace_id` is cleared
+    (the "act" branch), and the next fragment opens a new flow. In production, FOUR corr_ids came from one
+    sentence, each cancelling the previous one through barge-in.
 
     FLOW continuity cannot depend on correctly judging sentence completeness: they are two different questions,
-    distintas, y el flujo es el esqueleto («cualquier acción continua que pueda durar minutos se asocia a un
-    flujo», norma del operador). Por eso, al resolverse una cadena, su trace no se tira: queda en GRACIA unos
-    segundos (`_CHAIN_GRACE_S`) y un turno que llegue dentro de esa ventana lo ADOPTA. Es estructural y
-    barato — sin listas de palabras, sin LLM, sin latencia — y falla del lado seguro: como mucho une dos frases
-    dichas casi seguidas en un flujo, que es MUCHO menos dañino que partir una frase titubeante en cuatro.
-    La causa de raíz (el falso «completo» de la capa léxica, que además quema un prompt entero y deja un turno
-    cancelado) queda documentada y reproducida en V2-116; tocar esas listas exige la medición contra el corpus
-    que V2-095 dejó montada, no un parche a ojo.
+    different, and the flow is the skeleton ("any continuous action that may last minutes is associated with a
+    flow", the operator's rule). Therefore, when a chain resolves, its trace is not discarded: it remains in GRACE
+    for a few seconds (`_CHAIN_GRACE_S`), and a turn arriving within that window ADOPTS it. This is structural and
+    cheap—no word lists, no LLM, no latency—and fails on the safe side: at most it joins two nearly consecutive
+    sentences into one flow, which is MUCH less harmful than splitting a hesitant sentence into four.
+    The root cause (the lexical layer's false "complete", which also burns an entire prompt and leaves a turn
+    cancelled) is documented and reproduced in V2-116; changing those lists requires measurement against the corpus
+    prepared by V2-095, not a guess-and-check patch.
 
     Separate function (not inline in `_run_inner`) so it can be tested WITHOUT a real LiveKit stream — see
     `tests/voice/unit/providers/test_nucleo_trace_merge.py`."""
@@ -643,6 +643,15 @@ class NucleoLLMStream(llm.LLMStream):
             emit("brain", "⚠️ Nucleo triggered but no user text in context")
             return
 
+        # PRE-TURN CLOCK (2026-09-01). The LENTO verdict's `t0` starts AFTER the attention judge, the fragment
+        # accumulator and the recall wait, so our own serial pre-work was invisible and its cost got blamed on the
+        # provider's TTFT ("razonamiento oculto o cola"). These three numbers make the pre-turn segment visible in
+        # `_reply_extra`/turn_perf WITHOUT moving `t0`: `total_ms` keeps its meaning (provider_chain.note_slow and
+        # SLOW_MS are calibrated on it, and relaying a provider over OUR preflight would punish the wrong party).
+        _t_entry = time.time()
+        _gate_ms = 0.0
+        _acc_ms = 0.0
+
         # GATE DE ATENCIÓN (V2-015): el micro está SIEMPRE abierto — un turno que no va DIRIGIDO a zaelar no
         # produce acción ni respuesta (solo se registra como `ambient`, visible en /debug). El kickoff
         # ("I just connected") y el chat/paste (marcados `note_directed()` en agent.py) sí van dirigidos.
@@ -748,7 +757,9 @@ class NucleoLLMStream(llm.LLMStream):
             # haciendo", no reconstruir el diálogo completo para esto. `_last_reply`, NUNCA `_last_spoken`: este
             # último incluye fillers ("Pues…", "Mmm…") que no llevan tema — pasarlo aquí dejaba al juez sin
             # contexto justo tras cada relleno, y una pregunta de seguimiento real se leía como ruido ambiente.
+            _tg = time.time()
             verdict = await attention.evaluate_content(text, context=brain._last_reply)
+            _gate_ms = round((time.time() - _tg) * 1000, 1)
             if not verdict.directed:
                 emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",
                      extra={"mode": attention.mode(), "reason": verdict.reason})
@@ -782,7 +793,9 @@ class NucleoLLMStream(llm.LLMStream):
             if getattr(brain, "_acc", None) is None:
                 brain._acc = _acc.Accumulator()
             _n_before = len(brain._acc.fragments)
+            _ta = time.time()
             _action, _merged, _why, _dropped = await brain._acc.offer(text)
+            _acc_ms = round((time.time() - _ta) * 1000, 1)
 
             # BUG FIX (2026-08-15, session d4b2bc35): a stale chain that got silently discarded (gap > MAX_GAP_S)
             # used to only ever surface — muted, in `extra`, never spoken — when the CALL AFTER the drop happened
@@ -3035,6 +3048,10 @@ class NucleoLLMStream(llm.LLMStream):
             "ttft_ms": first_ms, "fast_ms": _fast_ms,
             "gen_ms": llm_metrics.get("total_ms"),
             "prompt_ms": timings.get("prompt_ms"), "mem_state_ms": timings.get("mem_state_ms"),
+            # Pre-turn attribution (2026-09-01): what this turn spent BEFORE `t0` — the segment the verdict
+            # could not see. gate = attention judge (0 inside the active window), acc = fragment/completeness
+            # judge (0 on the lexical fast path), the rest is recall wait + prompt build + bookkeeping.
+            "pre_ms": round((t0 - _t_entry) * 1000, 1), "gate_ms": _gate_ms, "acc_ms": _acc_ms,
             "mem_query_ms": timings.get("mem_query_ms"), "briefs_ms": timings.get("briefs_ms"),
             "live_ms": timings.get("live_ms"),
             # TOTALIZADORES de tamaño (premisa del operador)
