@@ -40,6 +40,21 @@ def _norm_txt(s) -> str:
     return "".join(ch for ch in s if unicodedata.category(ch) != "Mn")
 
 
+def _open_ref(payload: dict) -> tuple:
+    """(n, name) normalized for open. widget_data's item convention drops a natural reference into the
+    action's primary payload key, so `n` can arrive as "1" (coerce) or as a NAME (reroute) — without this,
+    `widget_data(open, item='Francisco')` missed every chat while the list sat on screen (V2-544)."""
+    n = payload.get("n")
+    name = str(payload.get("name") or payload.get("chat") or "").strip()
+    if isinstance(n, str):
+        n = n.strip()
+        if n.isdigit():
+            n = int(n)
+        else:
+            name, n = (name or n), None
+    return n, name
+
+
 def _push_view(db: dict, platform: str) -> None:
     prev = db.get("view") or {}
     db["view"] = {"platform": platform, "n": int(prev.get("n", 0) or 0) + 1, "at": time.time()}
@@ -226,8 +241,7 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
                            "chats": [{"n": c.get("n"), "name": c.get("name"), "platform": c.get("platform"),
                                       "count": c.get("count")} for c in chats[:12]]}}
     if action == "open":
-        n = payload.get("n")
-        name = str(payload.get("name") or payload.get("chat") or "").strip()
+        n, name = _open_ref(payload)
         if n is None and not name:
             return None
         chats = _group_chats(_visible_items(load_db()))
@@ -418,8 +432,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # ([[msg.open:N]]/[[msg.close]], N = the CHAT `n`; see _group_chats). V2-543: also by NAME — the operator
     # says «abre el chat de Jose Vicente», not a number; containment over accent-stripped forms, both ways.
     if action == "open":
-        n = payload.get("n")
-        name = str(payload.get("name") or payload.get("chat") or "").strip()
+        n, name = _open_ref(payload)
         db = load_db()
         chats = _group_chats(_visible_items(db))
         match = None

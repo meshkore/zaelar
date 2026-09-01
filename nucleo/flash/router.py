@@ -142,8 +142,9 @@ TOOLS: list[dict] = [
             "description": (
                 "ABRE/MUESTRA un widget del canvas, incluidos los JUEGOS ('juega al snake'). `widget_id` = id exacto "
                 "del catálogo de RECURSOS, o el nombre natural si no lo sabes. No reproduce (play_music/play_video) "
-                "ni cambia datos (widget_data). Solo para un widget que YA existe; CREAR uno nuevo es "
-                "escalate_to_slowbrain."
+                "ni cambia datos (widget_data). Algo DE DENTRO de la tarjeta (un chat o mensaje concreto, su "
+                "lista) es widget_data — repetir show no cambia nada. Solo para un widget que YA existe; CREAR "
+                "uno nuevo es escalate_to_slowbrain."
             ),
             "parameters": {
                 "type": "object",
@@ -237,11 +238,17 @@ TOOLS: list[dict] = [
             "name": "widget_data",
             # Condensed (V2-035): preserve boundaries that failed in tests — NOT show/close (they are tags),
             # add_meeting=dated event vs simple reminder=no tool, `item` in natural language (do not invent an id).
+            # V2-544 — in-widget NAVIGATION belongs here too. Measured 2026-09-01 (4/4 turns): «abre el mensaje
+            # de Francisco» always fell to show_widget over an unmoved card because this description claimed
+            # data-MUTATION only and disowned "abrir" wholesale, while the catalogs its parameters cited
+            # («Available widgets» / «ACCIONES POR WIDGET») do not exist under those names in the prompt.
             "description": (
-                "Ejecuta UNA acción declarada de un widget para cambiar sus DATOS (añadir cita, marcar, aplazar, "
-                "quitar, silenciar…). Úsala siempre que pidan cambiar algo de un widget en vez de solo decirlo. "
-                "`widget_id` y `action` EXACTOS del catálogo de RECURSOS, no los inventes. No crea ni cambia su "
-                "CÓDIGO (escalate) ni lo abre/cierra (show_widget / [[close:ID]]; no existe acción 'show'). "
+                "Ejecuta UNA acción declarada de un widget: NAVEGAR DENTRO (abrir un chat/elemento de su lista, "
+                "volver a su vista — mensajería: open {name:'Francisco'}, show_view) o cambiar sus DATOS (añadir "
+                "cita, marcar, aplazar, quitar…). Úsala siempre que pidan abrir o tocar algo DE DENTRO, no solo "
+                "decirlo. `widget_id` y `action` EXACTOS del catálogo de RECURSOS, no los inventes. No crea ni "
+                "cambia su CÓDIGO (escalate) ni abre/cierra el WIDGET ENTERO (show_widget / [[close:ID]]; no "
+                "existe acción 'show'). "
                 "add_meeting = evento con fecha/hora y crea su aviso (~2h antes): no dupliques con un cron; "
                 "aviso a OTRA hora = set_reminder, nunca otra add_meeting; [[cron.create]] solo para avisos "
                 "sin cita. Para un item "
@@ -254,9 +261,9 @@ TOOLS: list[dict] = [
                 "type": "object",
                 "properties": {
                     "widget_id": {"type": "string",
-                                  "description": "id EXACTO del widget (de 'Available widgets'), p.ej. 'agenda'."},
+                                  "description": "id EXACTO del widget («Widgets del canvas» de tus recursos), p.ej. 'agenda'."},
                     "action": {"type": "string",
-                               "description": "nombre EXACTO de la acción (de 'ACCIONES POR WIDGET'), p.ej. 'add_meeting'."},
+                               "description": "nombre EXACTO de la acción (línea «datos:» de ese widget), p.ej. 'add_meeting'."},
                     "item": {"type": "string",
                              "description": (
                                  "referencia en lenguaje natural al item existente sobre el que actúa. NUNCA un id "

@@ -1,0 +1,83 @@
+"""V2-544 — «abre el mensaje de Francisco» must reach the widget's declared action, not show_widget.
+
+Live incident (2026-09-01, 4/4 turns): with the mensajeria card ON SCREEN, «Sí» to the model's own
+«¿Quieres que lo abra?», «Abre el mensaje.» and «Abre el mensaje de Francisco.» all produced a bare
+show_widget over an unmoved card plus «Aquí lo tienes.» The model was OBEYING its instructions: the
+canvas block commanded «"abre X" = [[show:X]], jamás widget_data», widget_data's description claimed
+data-MUTATION only and disowned "abrir" wholesale, and its parameter docs cited catalogs («Available
+widgets», «ACCIONES POR WIDGET») that do not exist under those names in the built prompt — while the
+resources block taught the opposite («abre el chat de X» → open). A prompt that contradicts itself loses
+to its own imperative (V2-222: 0/13). These tests pin the un-contradicted mapping.
+"""
+from __future__ import annotations
+
+import inspect
+import pathlib
+
+from nucleo.flash import router
+
+ENGINE = pathlib.Path(__file__).resolve().parents[4]
+
+
+def _tool(name: str) -> dict:
+    return next(t["function"] for t in router.TOOLS if t["function"]["name"] == name)
+
+
+def _prompt_src() -> str:
+    return (ENGINE / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+
+
+# ── The canvas block no longer forbids what the resources block teaches ─────────────────────────────────────
+
+def test_the_prompt_never_says_jamas_widget_data():
+    """The absolute that caused the incident: any comeback of «jamás widget_data» re-opens the
+    contradiction with the resources catalog («abre el chat de X» → open)."""
+    assert "jamás widget_data" not in _prompt_src()
+
+
+def test_the_canvas_block_teaches_the_inside_with_a_concrete_example():
+    src = _prompt_src()
+    assert "UN ELEMENTO DE DENTRO" in src and "open " in src, \
+        "the widget-vs-inside bifurcation left the canvas block"
+    assert "widget_data con la acción" in src, "the inside must be routed to widget_data, by name"
+
+
+def test_a_yes_to_your_own_offer_is_an_order_to_execute_it():
+    """First failure of the night: «Sí.» after «¿Quieres que lo abra?» re-showed the card."""
+    src = _prompt_src()
+    assert "OFERTA que TÚ acabas de hacer" in src and "no de volver a enseñar la tarjeta" in src
+
+
+# ── The tool descriptions carry the same map ────────────────────────────────────────────────────────────────
+
+def test_widget_data_owns_in_widget_navigation():
+    desc = _tool("widget_data")["description"]
+    assert "NAVEGAR DENTRO" in desc and "open {name:" in desc
+    assert "WIDGET ENTERO" in desc, "it must disown only the whole-widget open/close, not the inside"
+
+
+def test_show_widget_points_the_inside_at_widget_data():
+    desc = _tool("show_widget")["description"]
+    assert "DE DENTRO" in desc and "widget_data" in desc
+    assert "repetir show" in desc, "the uselessness of re-showing an on-screen card is the teachable fact"
+
+
+def test_the_catalogs_the_tool_cites_actually_exist_in_the_resources_block():
+    """The parameter docs said «de 'Available widgets'» and «de 'ACCIONES POR WIDGET'» — names the built
+    prompt NEVER renders (the real block is «Widgets del canvas» with a «datos:» line per widget). A
+    model told to copy exact names from a catalog it cannot find avoids the tool instead."""
+    fn = _tool("widget_data")
+    params = str(fn["parameters"])
+    assert "Available widgets" not in params and "ACCIONES POR WIDGET" not in params
+    assert "Widgets del canvas" in params and "datos:" in params
+    from widgets.brief import for_prompt
+    rendered = for_prompt({"mensajeria"}, ["mensajeria"], query="", stats=None)
+    assert "Widgets del canvas" in rendered and "datos:" in rendered, \
+        "the names the tool now cites must be the ones the resources block really prints"
+
+
+def test_mensajeria_open_declares_name_as_its_primary_key():
+    """widget_data's `item` convention lands a natural reference in the action's FIRST payload key
+    (V2-467). For a voice open, that primary is the NAME."""
+    from nucleo.flash.widget_data_turn import _primera_clave
+    assert _primera_clave("mensajeria", "open") == "name"

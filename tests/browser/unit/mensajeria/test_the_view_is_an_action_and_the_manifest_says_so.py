@@ -129,6 +129,21 @@ def test_open_accepts_the_spoken_name_accent_and_case_insensitive(msg):
     assert (r.get("active_chat") or {}).get("chatId") == "111"
 
 
+def test_open_accepts_a_reference_landed_in_n(msg):
+    """widget_data's item convention drops a natural reference into the primary payload key — a digit
+    string coerces, a NAME reroutes (V2-544: `widget_data(open, item='Francisco')` missed every chat)."""
+    _seed(msg)
+    chats = msg.answer_action("show_view", {"platform": "all"})["result"]["chats"]
+    jv_n = next(c["n"] for c in chats if c["name"] == "JOSE VICENTE")
+    r = msg.apply_action("open", _as_the_canvas_sends_it({"n": str(jv_n)}))
+    assert (r.get("active_chat") or {}).get("chatId") == "111"
+    msg.apply_action("close", _as_the_canvas_sends_it({}))
+    r2 = msg.apply_action("open", _as_the_canvas_sends_it({"n": "jose vicente"}))
+    assert (r2.get("active_chat") or {}).get("chatId") == "111"
+    ans = msg.answer_action("open", {"n": "jose vicente"})
+    assert ans["result"]["opened"] == "JOSE VICENTE"
+
+
 def test_open_with_an_unknown_name_teaches_instead_of_guessing(msg):
     _seed(msg)
     r = msg.apply_action("open", _as_the_canvas_sends_it({"name": "nadie"}))

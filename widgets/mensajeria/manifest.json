@@ -49,10 +49,10 @@
    "safe": true
   },
   "open": {
-   "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `n` de la lista de chats o por `name` («abre el chat de Jose Vicente»)",
+   "desc": "Abre un CHAT concreto (pasa a ver sus mensajes uno a uno): por `name` («abre el chat/mensaje de Jose Vicente») o por `n` de la lista de chats",
    "payload": {
-    "n": "int opcional (número del chat en la lista)",
-    "name": "string opcional (nombre del chat/persona tal como aparece)"
+    "name": "string opcional (nombre del chat/persona tal como aparece)",
+    "n": "int opcional (número del chat en la lista)"
    },
    "safe": true
   },

@@ -133,7 +133,10 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # a six-minute assignment.
 # V2-515 raised 21_200 → 21_800: one genuinely NEW tool (restore_widget), added with its description
 # already compacted — the +490 is the tool, not fat.
-MAX_CATALOG_CHARS = 21_800
+# V2-544 raised 21_800 → 22_050: a genuinely NEW boundary (the INSIDE of a widget belongs to widget_data —
+# open a chat, back to its list), taught in the two tools that misrouted it («abre el mensaje de
+# Francisco» went 4/4 to show_widget over an unmoved card). Compacted from +434 to +140 before raising.
+MAX_CATALOG_CHARS = 22_050
 
 
 # ── "muéstrame una foto de X" must NOT be described in words (real incident 2026-08-03) ─────────────────────
