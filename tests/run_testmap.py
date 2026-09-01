@@ -505,7 +505,12 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/susurro/test_susurro.py",
-            "tests/agent_headless/unit/susurro/test_phantom_dataop.py"]},
+            "tests/agent_headless/unit/susurro/test_phantom_dataop.py",
+            # V2-539 — DOS capas resuelven turnos (el modelo y el MAPA), y al auditor no se le decía cuál.
+            # Medido: sobre seis turnos que sirvió el mapa concluyó «el cerebro rápido ejecutó correctamente
+            # cada orden», acreditando a un modelo que no corrió. Quien confunde la CAPA propone la
+            # corrección contra la equivocada.
+            "tests/agent_headless/unit/susurro/test_the_auditor_knows_which_layer_acted.py"]},
         {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/agent_headless/e2e/search/bot/runner.py"},
         # Coste/latencia del PROMPT del turno, medido contra el modelo vivo. Responde con números —no con

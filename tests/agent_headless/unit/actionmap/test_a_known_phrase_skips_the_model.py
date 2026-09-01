@@ -125,7 +125,7 @@ def _collect():
     events = []
 
     def emit(kind, label, text="", role="", extra=None):
-        events.append({"kind": kind, "label": label, "extra": dict(extra or {})})
+        events.append({"kind": kind, "label": label, "text": text, "extra": dict(extra or {})})
 
     return events, emit
 
@@ -135,7 +135,8 @@ def test_close_all_goes_through_the_widget_funnel(fresh_map, monkeypatch):
     events, emit = _collect()
     hit = actionmap.match("limpia la pantalla")
     assert actionmap.execute(hit, emit, phrase="limpia la pantalla") is True
-    assert events == [{"kind": "widget", "label": "close", "extra": {"src": "actionmap"}}]
+    assert [(e["kind"], e["label"]) for e in events] == [("widget", "close")]
+    assert events[0]["extra"]["src"] == "actionmap" and "id" not in events[0]["extra"]
 
 
 def test_show_widget_resolves_and_emits(fresh_map, monkeypatch):
@@ -153,7 +154,32 @@ def test_panel_tab_emits_panel_event(fresh_map, monkeypatch):
     events, emit = _collect()
     hit = actionmap.match("open the crons")
     assert actionmap.execute(hit, emit) is True
-    assert events == [{"kind": "panel", "label": "open", "extra": {"tab": "crons", "src": "actionmap"}}]
+    assert [(e["kind"], e["label"]) for e in events] == [("panel", "open")]
+    assert events[0]["extra"]["tab"] == "crons" and events[0]["extra"]["src"] == "actionmap"
+
+
+def test_every_canvas_order_carries_the_phrase_that_caused_it(fresh_map, monkeypatch):
+    """Operator rule (2026-08-09): the event carries the PHRASE. A close/move/panel without it forces a jump
+    to the neighbouring transcript row to answer «what did I say to get this?»."""
+    _lang(monkeypatch, "es")
+    events, emit = _collect()
+    for phrase in ("limpia la pantalla", "cierra la agenda", "abre los procesos"):
+        hit = actionmap.match(phrase)
+        assert hit is not None and actionmap.execute(hit, emit, phrase=phrase)
+    texts = [e.get("text") for e in events]
+    assert texts == ["limpia la pantalla", "cierra la agenda", "abre los procesos"]
+
+
+def test_the_origin_is_stamped_on_every_event(fresh_map, monkeypatch):
+    """Both surfaces (engine viewer + Master) read the ORIGIN off the event. Without it a mapped turn was
+    painted «FlashBrain» / tagged «LLM» — the timeline claiming a model ran when none did."""
+    _lang(monkeypatch, "es")
+    events, emit = _collect()
+    for phrase in ("abre el whatsapp", "limpia la pantalla", "abre el chat"):
+        hit = actionmap.match(phrase)
+        assert actionmap.execute(hit, emit, phrase=phrase)
+    assert all(e["extra"].get("origin") == "actionmap" for e in events)
+    assert all(e["extra"].get("src") == "actionmap" for e in events)
 
 
 def test_unresolved_target_falls_through(fresh_map, monkeypatch):
@@ -218,6 +244,46 @@ def test_a_bad_seed_is_refused_loudly_not_swallowed(fresh_map, monkeypatch, tmp_
     assert actionmap.match("abre la agenda") is not None
     assert actionmap.match("borra la agenda") is None
     assert any(k == "alert" for k, _ in alerts), "a refused seed must ALERT"
+
+
+# ── the WATCH half: what the map is MISSING (V2-539 quality signal) ─────────────────────────────────────
+
+def _decision(**kw):
+    base = {"escalated": False, "searched": False, "widget_acted": False, "worker_acted": False,
+            "data_done": False, "confirm_opened": False, "clarify": False, "shown_ids": [], "reply": ""}
+    base.update(kw)
+    return base
+
+
+def test_a_pure_single_action_model_turn_is_a_candidate():
+    from nucleo.actionmap.watch import _candidate_reason
+    assert _candidate_reason(_decision(widget_acted=True, shown_ids=["mensajeria"])) == "canvas:show:mensajeria"
+    assert _candidate_reason(_decision(widget_acted=True)) == "canvas:close"
+
+
+@pytest.mark.parametrize("decision", [
+    _decision(widget_acted=True, escalated=True),                       # it needed a worker
+    _decision(widget_acted=True, searched=True),                        # it needed the web
+    _decision(widget_acted=True, data_done=True),                       # it changed data, not just the canvas
+    _decision(widget_acted=True, confirm_opened=True),                  # it asked before acting
+    _decision(widget_acted=True, clarify=True),                         # it asked WHICH one
+    _decision(widget_acted=True, shown_ids=["a", "b"]),                 # two targets, not one entry's job
+    _decision(widget_acted=True, reply="Claro, te cuento: en la bandeja tienes tres mensajes de ayer y uno de hoy"),
+    _decision(reply="pura charla"),                                     # no action at all
+    _decision(widget_acted=True, actionmap=14),                         # the map already served it: a HIT
+])
+def test_turns_that_needed_understanding_are_not_candidates(decision):
+    from nucleo.actionmap.watch import _candidate_reason
+    assert _candidate_reason(decision) == ""
+
+
+# ── the observability contract: both surfaces must know the kind (the two-surfaces rule) ────────────────
+
+def test_the_engine_classifies_the_actionmap_kind():
+    """An unmapped kind is always-visible by design, but unclassified: it would fall outside the FlashBrain
+    family filter, which is where an operator looks for turn routing."""
+    from voice.observer import _CAT
+    assert _CAT.get("actionmap") == "flash"
 
 
 # ── wiring guards: BOTH channels call the shared module (the parallel-impl rule) ─────────────────────────

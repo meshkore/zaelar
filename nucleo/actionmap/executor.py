@@ -89,27 +89,32 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     if validate(action):
         return False
     do = action["do"]
-    src = {"src": "actionmap"}
+    # `src` marks provenance and the PHRASE travels with every canvas order — operator rule (2026-08-09):
+    # when the wrong widget opens, the first question is always «what text produced this?», and an event
+    # without its phrase forces a jump to the neighbouring transcript row to answer it. The model's own
+    # orders already carry it (`_tag_emit` in the provider); the map's close/move/fullscreen used to drop it.
+    said = (phrase or "")[:160]
+    src = {"src": "actionmap", "origin": "actionmap"}
     if do == "close_all":
-        emit("widget", "close", extra=dict(src))
+        emit("widget", "close", text=said, extra=dict(src))
         return True
     if do == "show_panel":
-        emit("panel", action.get("action", "open"), extra={"tab": action["tab"], **src})
+        emit("panel", action.get("action", "open"), text=said, extra={"tab": action["tab"], **src})
         return True
     wid = _resolve_widget(action["widget"])
     if not wid:
         return False
     if do == "show_widget":
-        emit("widget", "show", text=phrase[:160], extra={"id": wid, **src})
+        emit("widget", "show", text=said, extra={"id": wid, **src})
         return True
     if do == "close_widget":
-        emit("widget", "close", extra={"id": wid, **src})
+        emit("widget", "close", text=said, extra={"id": wid, **src})
         return True
     if do == "move":
-        emit("widget", "move", extra={"id": wid, "where": action["where"], **src})
+        emit("widget", "move", text=said, extra={"id": wid, "where": action["where"], **src})
         return True
     if do == "fullscreen":
-        emit("widget", "fullscreen", extra={"id": wid, **src})
+        emit("widget", "fullscreen", text=said, extra={"id": wid, **src})
         return True
     if do == "widget_data":
         # Only ops the widget DECLARES as FAST run without the model; everything else falls through.

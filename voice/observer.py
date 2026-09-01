@@ -52,6 +52,12 @@ _CAT = {
     # `logger.warning`, which is why 48 lost escalations went unnoticed for three days — from a conversation
     # log it reads as the assistant having lied about work it never did.
     "tool_dropped": "flash",
+    # `actionmap` (V2-539, 2026-09-01): the action map's own voice — the WATCH events that say what the map
+    # is missing (a phrase the model resolved with a single canvas action) and what it learned. Family
+    # `flash` because it is the turn's routing, but its own kind so «the map served this» can be counted and
+    # filtered apart from «the model decided this»: both used to arrive as an ordinary `brain` row, and the
+    # viewer's layer column then named the FlashBrain on turns where no model ran.
+    "actionmap": "flash",
     # ── Brain Workers (ON) — ASYNC work: worker sessions, the internal Chromium they open for browsing,
     # and backed/background processes that run outside the turn. The browser belongs HERE (2026-08-09): to the
     # operator, “open the browser” is not its own family; it is what a worker does when needed.

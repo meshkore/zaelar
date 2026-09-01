@@ -68,12 +68,23 @@ def conversation_block(turns: int = 8, *, since_ts: float = 0.0) -> str:
 
 
 def turns_block(turn_ring: list[dict]) -> str:
-    """Per-turn decisions (from the `turn.completed` topic): which tools it saw, what it decided, with its trace."""
+    """Per-turn decisions (from the `turn.completed` topic): which tools it saw, what it decided, with its trace.
+
+    V2-539: a turn resolved by the ACTION MAP is named as such. Rendering it as one more `k=v` flag list made
+    the auditor credit the fast brain for work it never did — measured 2026-09-01, verbatim: «el cerebro
+    rápido ejecutó correctamente cada orden», about six turns in which no model ran. An auditor that
+    misattributes the LAYER proposes corrections against the wrong one."""
     lines = []
     for t in turn_ring:
         d = t.get("decision") or {}
+        user = _clip(t.get("user", ""), 160)
+        entry = d.get("actionmap")
+        if entry:
+            lines.append(f"[{t.get('trace', '')}] «{user}» → MAPA DE ACCIONES (frase conocida, SIN modelo): "
+                         f"{d.get('action', '')} [entrada {entry}]")
+            continue
         flags = " ".join(f"{k}={v}" for k, v in d.items() if v) or "charla"
-        lines.append(f"[{t.get('trace', '')}] «{_clip(t.get('user', ''), 160)}» → {flags}")
+        lines.append(f"[{t.get('trace', '')}] «{user}» → {flags}")
     return "\n".join(lines)
 
 

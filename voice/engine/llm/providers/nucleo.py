@@ -795,9 +795,15 @@ class NucleoLLMStream(llm.LLMStream):
                     _amap_ms = round((time.time() - _tm) * 1000, 2)
                     if _amap_hit is not None and _amap.execute(_amap_hit, emit, phrase=text):
                         _desc = _amap.describe(_amap_hit)
-                        emit("brain", "⚡ action map: direct action (no model)", text=text[:160], role="user",
+                        # `engine: "actionmap"` is not decoration: the viewer's LAYER column reads exactly this
+                        # field (`DebugPanel.brainName`) and the Master reads it too. Without it a map turn was
+                        # painted «FlashBrain» / tagged «LLM» — the timeline claimed the model resolved a turn
+                        # it never saw, which is the one thing this whole mechanism must not make harder to
+                        # audit. `origin` is the normalized field both surfaces group and count by.
+                        emit("actionmap", "⚡ action map: direct action (no model)", text=text[:160], role="user",
                              extra={"cat": "flash", "action": _desc, "entry": _amap_hit.get("id"),
                                     "source": _amap_hit.get("source"), "match_ms": _amap_ms,
+                                    "engine": "actionmap", "origin": "actionmap",
                                     "pre_ms": round((time.time() - _t_entry) * 1000, 1), "src": "actionmap"})
                         from nucleo.flash import dialog as _dialog0
                         _dialog0.push_user(brain._window, text)
@@ -1497,7 +1503,13 @@ class NucleoLLMStream(llm.LLMStream):
             # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la
             # agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
             from nucleo.flash import router as _router
-            if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
+            # V2-544 — "pure" must mean it points at the CARD, not at something INSIDE it. Measured live
+            # 2026-09-01: «abre el mensaje de Francisco» passes this guard (show verb, no change verb), so the
+            # CORRECT data-op the model had already chosen — `open {name:'Francisco'}` — was rewritten into a
+            # [[show]] over a card that was already on screen, and the mouth said «Aquí lo tienes».
+            # `show_object_is_the_widget` tells the two apart using the widget manifest's own vocabulary.
+            if (_router.is_pure_show_request(text) and runtime.get(wid) is not None
+                    and _router.show_object_is_the_widget(text, wid)):
                 emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)", text=wid, role="system")
                 _tag_emit("show", {"id": wid})
                 return
@@ -3095,6 +3107,10 @@ class NucleoLLMStream(llm.LLMStream):
         # cold-start». El desglose de QUÉ infla el prompt (system/memoria/reciente/recall/recursos) va en `timings`.
         _fast_ms = round((time.time() - t0) * 1000)
         _reply_extra = {
+            # Who resolved this turn. The map stamps `origin: actionmap` on its own event (V2-539); a model
+            # turn says so here, so counting turns by origin is one field on both surfaces instead of a
+            # label-text heuristic.
+            "origin": "flash",
             "ttft_ms": first_ms, "fast_ms": _fast_ms,
             "gen_ms": llm_metrics.get("total_ms"),
             "prompt_ms": timings.get("prompt_ms"), "mem_state_ms": timings.get("mem_state_ms"),

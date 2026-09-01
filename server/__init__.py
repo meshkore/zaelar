@@ -278,6 +278,14 @@ async def _lifespan(app: FastAPI):
             nucleo_susurro.start()
         except Exception as e:
             logger.warning(f"susurro start failed (voice/chat unaffected): {e}")
+    # Action map (V2-539): the WATCH half — measures what the map is missing (turns the model resolved with a
+    # single canvas action). Same plug as Susurro: bus only (`turn.completed`), so it covers voice and probe
+    # from one place, and its failure never touches the turn.
+    try:
+        from nucleo.actionmap import watch as _amap_watch
+        _amap_watch.start()
+    except Exception as e:
+        logger.warning(f"actionmap watch start failed (voice/chat unaffected): {e}")
     # Widget layer: a restart mid-generation kills the headless agent — resume what the journal says was in
     # flight (relaunch creates, report interrupted modifies). Strong ref on app.state so the GC can't drop it.
     try:
