@@ -54,6 +54,8 @@ _ARM_POLL_S = 0.05
 _arm: tuple[float, object] | None = None   # (monotonic ts, brain)
 _last_phrase = ""
 _pending_strip: list[str] = []             # phrases emitted as fillers, awaiting removal from the transcript
+_last_fired_at = 0.0                       # monotonic; read by the turn onset (V2-535) to say whether
+                                           # the first audio the operator heard was the COVER or the reply
 
 
 def delay_ms() -> int:
@@ -114,9 +116,16 @@ def _pick_phrase(brain) -> str:
     return phrase
 
 
+def last_fired_at() -> float:
+    """Monotonic timestamp of the last filler that actually sounded (0.0 if none this process)."""
+    return _last_fired_at
+
+
 def _announce(phrase: str) -> None:
     """The filler's visibility contract (V2-122 addenda): observability + an EXPLICIT chat-wall event with
     its own kind, pushed synchronously at the decision — always before any real reply text exists."""
+    global _last_fired_at
+    _last_fired_at = time.monotonic()
     try:
         from voice.observer import emit
         emit("brain", "💬 relleno de espera (lead-in)", text=phrase, role="system",

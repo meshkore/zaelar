@@ -23,11 +23,18 @@ from nucleo import runstate
 @pytest.fixture
 def isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    # …and the HANDLE, because the env var alone does not isolate: `memory/db.py::get_db()` caches a
+    # PROCESS-WIDE singleton, so once any earlier test has opened the real database this fixture writes into
+    # it. Measured 2026-09-01: `runstate.start("test")` below landed in the operator's own `sys_kv` and left
+    # his stopped agent reading RUNNING — the ⏻ is HIS intention (V2-092) and a test may not flip it.
+    from memory import db as _memdb
+    _memdb.reset_db()
     runstate._reset_for_tests()
     from nucleo import dispatch
     monkeypatch.setattr(dispatch, "resume_all", lambda: 0)
     yield
     runstate._reset_for_tests()
+    _memdb.reset_db()          # …and give the handle back, so the next test does not inherit this temp one
 
 
 def test_a_dead_task_does_not_block_a_revive():
