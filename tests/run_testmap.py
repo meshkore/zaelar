@@ -942,6 +942,15 @@ DOMAINS: list[dict] = [
         {"id": "2.22", "title": "«¿Hay algo corriendo PARA ESTO?» — un encargo ajeno no suprime la escalada del "
                                 "nuevo", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_running_for_THIS_not_just_running.py"]},
+        # V2-539 — the ACTION MAP: a KNOWN short command (one utterance bounded by silence) skips the model —
+        # exact whole-utterance lookup against the seeded per-language table, allowlisted direct action through
+        # the SAME emit funnel the model uses, silence as the reply. The litmus pins hits AND misses (negation,
+        # the operator's compound example, novelty → the model, always), the closed allowlist (workflows are
+        # future scope), the LOUD seed import (born-dead lesson), and the wiring guard on BOTH channels
+        # (voice provider + probe — the parallel-impl rule).
+        {"id": "2.41", "title": "The ACTION MAP: a known phrase skips the model — and everything else falls "
+                                "to the model", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/actionmap/test_a_known_phrase_skips_the_model.py"]},
         # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
         # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
         # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»

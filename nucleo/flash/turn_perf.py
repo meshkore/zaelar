@@ -99,6 +99,7 @@ def verdict(m: dict) -> dict:
     pre = _num(m, "pre_ms", default=0) or 0
     gate_ms = _num(m, "gate_ms", default=0) or 0
     acc_ms = _num(m, "acc_ms", default=0) or 0
+    amap_ms = _num(m, "amap_ms", default=0) or 0   # action-map lookup, miss path (V2-539); sub-ms by design
     mem_ms = _num(m, "mem_query_ms", default=0) or 0
     gap = _num(m, "gap_since_last_s", default=0) or 0
     cold = bool(m.get("cold_estimate")) or gap >= COLD_GAP_S
@@ -160,7 +161,7 @@ def verdict(m: dict) -> dict:
     if pre >= 400:
         label += f" · previo {int(pre)} ms (juez {int(gate_ms)} · frase {int(acc_ms)} · memoria {int(mem_ms)})"
     return {"slow": slow, "cause": cause, "label": label, "total_ms": int(total), "ttft_ms": int(ttft),
-            "pre_ms": int(pre), "gate_ms": int(gate_ms), "acc_ms": int(acc_ms),
+            "pre_ms": int(pre), "gate_ms": int(gate_ms), "acc_ms": int(acc_ms), "amap_ms": amap_ms,
             "turn_full_ms": int(total + pre),
             "cache_hit_tokens": (int(cache_hit) if cache_hit is not None else None),
             "cache_hit_frac": cache_frac,

@@ -162,6 +162,33 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             except Exception:
                 pass
 
+    # ACTION MAP (V2-539) — MIRROR of the provider (nucleo.py, parallel impl: wire BOTH channels): a known
+    # whole-utterance command resolves WITHOUT the model. The probe REPORTS the mapped action (it does not
+    # drive the canvas — headless channel); the verdict is what matters: 'this phrase is a direct hit'.
+    # Same fail-open contract: any problem here and the turn proceeds to the model as always.
+    try:
+        from nucleo import actionmap as _amap
+        if _amap.enabled():
+            _amap_hit = _amap.match(text)
+            if _amap_hit is not None:
+                _desc = _amap.describe(_amap_hit)
+                _amap.record_hit(int(_amap_hit.get("id") or 0))
+                try:
+                    from voice import observer as _obs_am
+                    _obs_am.turn_detail(system="", window=dialog.prune_window(sess.window)[-6:], tools=[],
+                                        user=text,
+                                        decision={"action": _desc, "actionmap": _amap_hit.get("id")})
+                except Exception:
+                    pass
+                return {"ok": True, "reply": [], "action": _desc, "tool_calls": [], "tags": [],
+                        "actionmap": _amap_hit.get("id"), "trace": _trace_id}
+    except Exception as _e_am:  # noqa: BLE001
+        try:
+            from loguru import logger as _log_am
+            _log_am.warning(f"actionmap (probe) skipped, fail-open: {_e_am!r}")
+        except Exception:
+            pass
+
     t0 = time.time()
     timings: dict = {}
 

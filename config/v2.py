@@ -237,6 +237,12 @@ _DEFAULTS: dict[str, dict] = {
         "base_url": "",
         "api_key": "",                          # secret (redacted); empty = key by endpoint
     },
+    # Action map (V2-539): known phrases → direct actions, matched BEFORE the fast LLM. Deterministic and
+    # fail-open (any doubt or error → the model, as always), so it ships ON; env ZAELAR_ACTIONMAP=0 is the
+    # off-only override checked first in `nucleo.actionmap.enabled()`.
+    "actionmap": {
+        "enabled": True,
+    },
     # v2 deployment flags. After Hermes' burial (V2-009), the default brain is «Colmena» itself.
     "flags": {
         "brain": "nucleo",                                  # active brain: 'nucleo' (own) · 'direct'/'local' (baselines)

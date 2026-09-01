@@ -210,6 +210,32 @@ PARAPHRASE_INDEXES = [
 ]
 
 
+# ── Action map (V2-539) ─────────────────────────────────────────────────────────────────────────────────────
+# Known command phrases → verified direct actions, matched BEFORE the fast LLM (`nucleo/actionmap/`). One row
+# per (lang, normalized phrase); `action` is opaque JSON validated by the executor's allowlist at load, never
+# here. `source`/`status` carry provenance and the user's vetoes: a seed row the user disabled must survive a
+# seed re-import (the importer respects status != 'active' and hits > 0). Runtime only ever loads ONE lang.
+ACTION_MAP = """
+CREATE TABLE IF NOT EXISTS action_map (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  lang        TEXT NOT NULL,
+  phrase      TEXT NOT NULL,
+  action      TEXT NOT NULL,
+  source      TEXT NOT NULL DEFAULT 'seed',
+  status      TEXT NOT NULL DEFAULT 'active',
+  hits        INTEGER NOT NULL DEFAULT 0,
+  agree       INTEGER NOT NULL DEFAULT 0,
+  disagree    INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL,
+  last_hit_at INTEGER,
+  UNIQUE(lang, phrase)
+);
+"""
+ACTION_MAP_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_action_map_lang ON action_map(lang, status)",
+]
+
+
 # ── Tablas virtuales (condicionales) ────────────────────────────────────────────────────────────────────────
 
 # Vector (sqlite-vec). Solo si la extensión está cargada.
@@ -236,4 +262,5 @@ FTS_MEMORIES = (
 
 
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
-            VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES]
+            VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,
+            ACTION_MAP, *ACTION_MAP_INDEXES]

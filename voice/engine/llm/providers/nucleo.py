@@ -651,6 +651,7 @@ class NucleoLLMStream(llm.LLMStream):
         _t_entry = time.time()
         _gate_ms = 0.0
         _acc_ms = 0.0
+        _amap_ms = 0.0
 
         # GATE DE ATENCIÓN (V2-015): el micro está SIEMPRE abierto — un turno que no va DIRIGIDO a zaelar no
         # produce acción ni respuesta (solo se registra como `ambient`, visible en /debug). El kickoff
@@ -776,6 +777,54 @@ class NucleoLLMStream(llm.LLMStream):
         if not first_turn:
             brain._utterance = {"text": text, "at": time.time()}
             self._turn_text = text
+
+        # ACTION MAP (V2-539): a KNOWN short command — one utterance bounded by silence — skips the model
+        # entirely: exact whole-utterance lookup, allowlisted direct action, executed IN SILENCE through the
+        # same emit funnel the model's own output uses. Anything not verbatim-known (a compound sentence, a
+        # negation, novelty) falls through untouched — when in doubt, the LLM. It runs AFTER the hard
+        # interrupt / echo / attention gate (safety and directedness first) and BEFORE the accumulator, but
+        # only when NO fragment chain is pending: a command spoken mid-chain belongs to the chain's merged
+        # phrase, and hijacking it out would act on half a sentence. Fail-open by construction: any exception
+        # and the turn proceeds as if the module did not exist. Mirror in `probe.py::run_turn` (parallel impl).
+        if not first_turn:
+            try:
+                from nucleo import actionmap as _amap
+                if _amap.enabled() and not (getattr(brain, "_acc", None) and brain._acc.fragments):
+                    _tm = time.time()
+                    _amap_hit = _amap.match(text)
+                    _amap_ms = round((time.time() - _tm) * 1000, 2)
+                    if _amap_hit is not None and _amap.execute(_amap_hit, emit, phrase=text):
+                        _desc = _amap.describe(_amap_hit)
+                        emit("brain", "⚡ action map: direct action (no model)", text=text[:160], role="user",
+                             extra={"cat": "flash", "action": _desc, "entry": _amap_hit.get("id"),
+                                    "source": _amap_hit.get("source"), "match_ms": _amap_ms,
+                                    "pre_ms": round((time.time() - _t_entry) * 1000, 1), "src": "actionmap"})
+                        from nucleo.flash import dialog as _dialog0
+                        _dialog0.push_user(brain._window, text)
+                        del brain._window[:-_WINDOW_MAX]
+                        try:
+                            # Conv buffer (mirror of the post-reply write below): the NEXT turn — and a
+                            # worker's recent-conversation block — must see that this phrase was acted on.
+                            from memory import api as _memory0
+                            _memory0.write(f"Operador: {text[:200]} · zaelar: [{_desc}]",
+                                           kind="conv", level="short", importance=0.2, ttl_days=2.0,
+                                           meta={"source": "conv", "u": text[:400], "a": f"[{_desc}]"})
+                        except Exception:
+                            pass
+                        try:
+                            # turn.completed for Susurro (V2-539 §3.5): a fast-path turn stays auditable —
+                            # without this, the auditor goes blind on exactly the turns most likely to need
+                            # a correction.
+                            from voice import observer as _obs0
+                            _obs0.turn_detail(system="", window=list(brain._window)[-6:], tools=[],
+                                              user=text,
+                                              decision={"action": _desc, "actionmap": _amap_hit.get("id")})
+                        except Exception:
+                            pass
+                        _release_acc_trace_if_fresh(brain)   # same situation as the hard interrupt: no offer()
+                        return
+            except Exception as _e_am:  # noqa: BLE001
+                logger.warning(f"actionmap skipped (fail-open): {_e_am!r}")
 
         # ACUMULADOR DE FRASE PARTIDA (V2-096). Hermano de la guarda de arriba, para el caso que ella NO cubre: la
         # guarda mata un fragmento cuando ya llegó su continuación; esto decide qué hacer cuando la continuación
@@ -3053,6 +3102,7 @@ class NucleoLLMStream(llm.LLMStream):
             # could not see. gate = attention judge (0 inside the active window), acc = fragment/completeness
             # judge (0 on the lexical fast path), the rest is recall wait + prompt build + bookkeeping.
             "pre_ms": round((t0 - _t_entry) * 1000, 1), "gate_ms": _gate_ms, "acc_ms": _acc_ms,
+            "amap_ms": _amap_ms,   # action-map lookup on the MISS path (V2-539) — a hit never reaches here
             "mem_query_ms": timings.get("mem_query_ms"), "briefs_ms": timings.get("briefs_ms"),
             "live_ms": timings.get("live_ms"),
             # TOTALIZADORES de tamaño (premisa del operador)

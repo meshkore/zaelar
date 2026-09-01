@@ -444,6 +444,51 @@ def _norm_rule(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", " ", n).split())     # sin acentos ni puntuación, espacios colapsados
 
 
+def action_map_active(lang: str) -> list[dict]:
+    """Active action-map rows for ONE language (V2-539) — the runtime index loads only these. Facade access
+    on purpose (memory-boundary contract): `nucleo/actionmap/` never touches memory internals. Tolerates an
+    empty/old DB → []."""
+    try:
+        rows = _db.get_db().query(
+            "SELECT id, phrase, action, source FROM action_map WHERE lang=? AND status='active'", (lang,))
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def action_map_has_seed(lang: str) -> bool:
+    """True if this language's shipped seed pack was already imported (any 'seed' row exists)."""
+    try:
+        return _db.get_db().query_one(
+            "SELECT 1 AS x FROM action_map WHERE lang=? AND source='seed' LIMIT 1", (lang,)) is not None
+    except Exception:
+        return True  # fail CLOSED for the importer: better to skip a re-import than to double-write blindly
+
+
+def action_map_add(lang: str, phrase: str, action_json: str, *, source: str = "seed",
+                   status: str = "active") -> None:
+    """Insert one action-map row (idempotent: UNIQUE(lang, phrase) + OR IGNORE — an existing row, including
+    one the user disabled or retargeted, is NEVER overwritten; that is how a veto survives a seed upgrade)."""
+    import time as _time
+    try:
+        _db.get_db().execute(
+            "INSERT OR IGNORE INTO action_map (lang, phrase, action, source, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (lang, phrase, action_json, source, status, int(_time.time())))
+    except Exception:
+        pass
+
+
+def action_map_hit(entry_id: int) -> None:
+    """Bump a row's hit counter (fire-and-forget bookkeeping; the turn never waits on it)."""
+    import time as _time
+    try:
+        _db.get_db().execute("UPDATE action_map SET hits = hits + 1, last_hit_at = ? WHERE id = ?",
+                             (int(_time.time()), entry_id))
+    except Exception:
+        pass
+
+
 def add_user_rule(text: str) -> list:
     """Añade (o refuerza) una USER RULE del operador. Dedup por texto normalizado (re-decirla la sube a la más
     reciente), cap `_RULES_CAP` (fuera la más antigua). Devuelve la lista vigente. Emite memory.updated (por
