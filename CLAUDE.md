@@ -7644,6 +7644,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     observability/` tiene que salir **vacío** — su restricción («que no ensucie el código del agente») escrita
     como guarda, no como intención.
 
+- **Un `COPY` no significa que el directorio viaje (V2-554, 2026-09-02)**: `.dockerignore` se aplica al
+  contexto de build **ANTES** de que corra ningún `COPY`, así que un patrón puede vaciar en silencio un
+  directorio que se copia entero — y la imagen construye perfectamente, porque en build no hay nada que
+  resolver. Encontrado auditando la release: `config/*.json` estaba tirando `config/models.default.json`, la
+  tabla única de modelos (V2-500), que leen al arrancar `config/models.py`, `provider_chain`,
+  `workers/providers` y `memory/embeddings`.
+  - ⚠️ **Y no reventaba el arranque, que es lo que lo hacía peligroso.** Reproducido: la app se crea,
+    `/healthz` contesta 200, y el `FileNotFoundError` cae dentro del `try/except Exception` del bloque
+    «Colmena» de `create_app()`, que se traga **CUATRO routers** (probe, reporte CC, plano de workers, puente
+    del navegador) tras UNA línea de WARNING. El smoke del pipeline mira BOOT + ADMISSION: las dos habrían
+    pasado. **`success` en verde sobre un producto sin brain workers ni navegador.**
+  - **La regla que cierra la clase** (no el fichero): *lo que git VERSIONA dentro de una ruta que el
+    `Dockerfile` copia tiene que llegar a la imagen*. El estado por instalación que `.dockerignore` existe
+    para excluir no está versionado, así que la regla no lo roza. Medido: de todo lo tracked bajo rutas
+    copiadas, **exactamente uno** se caía. Guarda en el nodo 7.16, con el orden real de `.dockerignore`
+    (gana el ÚLTIMO patrón que casa; `!` re-incluye) y lista de exenciones **vacía**.
+  - **El gate de sintaxis del release es ahora la lista de `COPY`**: no compilaba `observability` ni `i18n`,
+    ambos importados a nivel de módulo por `server/__init__.py`.
+  - **Queda abierto y NO se tocó en la release**: ese `try/except Exception` convierte una mala configuración
+    FATAL en un warning. Lo correcto es distinguir «no hay cerebro configurado» de «hay cerebro y no montó»,
+    y que el segundo tumbe el arranque para que el smoke lo vea. Cambiar el manejo de excepciones del
+    arranque en el mismo commit que se corta una release es justo lo que provoca incidentes.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
