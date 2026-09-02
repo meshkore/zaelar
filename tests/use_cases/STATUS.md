@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-09-02 20:51**
+Last updated: **2026-09-02 21:23**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -73,7 +73,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ⚠️ | `search-buy-guitar__us` | 2 | 3 | `deepseek-v4-flash` | 2026-08-30 12:01 | yes | **INFRA — recall semántico DEGRADADO en esta ronda (backend: cloud)** · (veredicto no medible: El caso no está listo para producción porque el agente inventa… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | `glm-5.3` | 2026-09-02 20:51 | yes | No está listo para producción; el bloqueador principal es la filtración excesiva de resultados válidos: el asistente retiene la mayoría de las opciones encon… |
 | ⚠️ | `search-buy-motorcycle__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-31 01:26 | yes | **INFRA — sin cuota en deepseek (vuelve a las 01:37): 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (veredict… |
-| ❌ | `search-buy-used-car` | 2 | 1 | `glm-5.3` | 2026-09-02 20:37 | yes | No está listo para producción: el bloqueador principal es la incapacidad del agente para leer y entregar los resultados que el sistema le pone en el prompt, … |
+| ❌ | `search-buy-used-car` | 2 | 1 | `glm-5.3` | 2026-09-02 21:23 | yes | No está listo para producción: el agente falla en el objetivo principal al inventar resultados iniciales y luego ignorar los datos reales que el sistema obti… |
 | ⚠️ | `search-buy-used-car__us` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 12:09 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
 | ❌ | `search-secondhand-monitor__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-30 20:56 | yes | No está listo para producción: el caso falló por un bloqueo técnico del navegador que impidió cualquier entrega de resultados, y el sistema no supo recuperar… |
 | ✅ | `search-secondhand-monitor__us` | 2 | 4 | ? | 2026-08-27 21:01 | yes | El caso está listo para producción en términos funcionales (el usuario obtiene sus monitores), pero el código del worker requiere revisión para corregir erro… |
