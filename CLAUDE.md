@@ -7705,6 +7705,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     tentación sería debilitarla.
   - **Abierto**: `NucleoLLMStream` (2713 líneas) es la deuda que queda, y partirla es su propia tanda.
 
+- **BUSCAR ANUNCIOS es UNA tool, y el MÓDULO decide si sirve el turno o escala (V2-556, 2026-09-02)**: el
+  FlashBrain llama a `search_listings` y nunca elige entre rápido y profundo — `nucleo/flash/listing_turn.py`
+  lanza la pasada rápida con presupuesto de segundos, y o entrega filas REALES en la hoja o **se auto-escala**
+  a un Brain Worker que **HEREDA esa misma hoja** (`ctx={"sheet": …}`, la costura de relevo de V2-117: el
+  operador mira UNA caja desde el primer hallazgo hasta el informe final). La hoja se acuña en la pasada
+  rápida, no desde el encargo, precisamente para que la escalada la herede en vez de abrir otra.
+  - **Lo que YA se encontró se NOMBRA, no se cuenta.** La cara de escalada decía «hay 4 anuncios
+    provisionales» como HECHO al lado de un imperativo que solo ordenaba «di que sigues buscando»: el modelo
+    obedeció el imperativo y tiró el hecho — cuatro coches reales en la hoja contestados con «en cuanto tenga
+    resultados específicos te los digo». Y el bloque de TAREAS DE FONDO tenía el mismo defecto un nivel más
+    abajo: con «YA ENTREGADO (de su hoja): AUDI A3 — 10.990 EUR; AUDI Q5 — 9.590; BMW X3 — 9.980» EN EL PROMPT,
+    «¿tienes ya algo?» se contestó «Sigo sin tener anuncios concretos… puede haberse atascado» — negando una
+    entrega **e inventando una avería a los 37 s**. La rama anti-negación de V2-222 existía, quince líneas más
+    abajo. **La bifurcación va DENTRO del imperativo**, tercera vez que esta familia cuesta una ronda. Un
+    atasco solo puede afirmarse si el bloque pone ENCALLADA o SIN AVANZAR con esas letras. Nodos **2.44** y
+    **2.45**.
+  - **Una página de CATEGORÍA no es un anuncio, y lo dice su propio JSON-LD**: `AggregateOffer`, `offerCount`
+    o un `lowPrice` sin `price` es la colección poniéndose precio a sí misma («desde 300 EUR») — se rechaza, y
+    `lowPrice` no vale nunca de precio de repuesto. Medido: los 5 primeros de 12 «entregados» eran categorías de
+    coches.net y OcasionPlus, y el juez lo llamó inventar. Es V2-510 un nivel más abajo.
+  - **Una búsqueda cortada por tiempo NO se cachea** (`deadline_s` → `exhausted: False`): guardarla sirve una
+    truncación durante media hora.
+  - **El trinquete de arquitectura se puso rojo el día que nació la funcionalidad** —cayó sobre tres ficheros
+    que estaban EXACTAMENTE en su techo (3469/3470, 1162/1163, 928/930)— y siguió rojo un día porque corrí las
+    suites de mi barrio mientras ese guarda vive en `infrastructure`: **la misma lección ya escrita en ese
+    fichero**, pagada otra vez. Extraído, no subido: `router.py` **964→326** (el CATÁLOGO de tools es dato
+    puro → `router_catalog.py`), el proveedor de voz **3495→3327** (los lectores deterministas de intención de
+    widget → `widget_intent.py`) y `probe.py` **1180→1147**. Y tres copias de la propia forma de V2-556 se
+    colapsaron en su módulo: la DEFINICIÓN de la tool (el router solo la coloca), `request_from` y `voice_turn`
+    —la secuencia entera pasada rápida→cara→stream, que estaba escrita dos veces y ya había derivado un
+    párrafo—. Bench 2.13: **43/45**, sin caída.
+  - **Abierto**: los 27 casos restantes de la tanda de 30 están sin correr; se pararon a propósito para no
+    tasar un defecto ya diagnosticado. La nube no autentica en sitios, así que los casos son sin credencial a
+    propósito (paridad local↔nube), y falta el token de Bright Data del operador para probar el escalón de
+    desbloqueo.
+
 - **ARCHIVOS EN LA NUBE: el tramo de permiso es el DISEÑO, y un permiso que no puede listar no es un disco
   vacío (V2-557, 2026-09-02)**: encargo del operador — un conector a sus archivos (Drive/OneDrive) y «un widget
   de navegación lo más parecido posible a los que existen», conducible con el ratón y por voz, **genérico** para
