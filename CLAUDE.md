@@ -128,6 +128,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Audit workflow** | `.meshkore/docs/ops/zaelar-audit-workflow.md` |
 | **Docs & structure sync** | `.meshkore/docs/ops/zaelar-docs-sync.md` |
 | **Widgets change workflow** | `.meshkore/docs/ops/zaelar-widgets-workflow.md` |
+| **⭐ Widget o conector NUEVO — el workflow completo** | `.meshkore/docs/ops/zaelar-new-widget-or-connector-workflow.md` |
 | **Memory change workflow** | `.meshkore/docs/ops/zaelar-memory-workflow.md` |
 | **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
 | **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
@@ -167,6 +168,18 @@ del generador, brief, prompt del FlashBrain, docs canónicas, **diagrama Y teor�
 impacto en widgets existentes, pruebas (`make test-widgets` + prueba en vivo si toca gobernanza), reinicio si hubo
 cambios `.py`, y commit/push SOLO si el operador lo pide. Un cambio trivial dentro de un solo widget (su propio
 `data.py`/`widget.js`) no lo dispara — solo actualiza el `notes.md` de ese widget.
+
+**Widget o conector NUEVO ("añade un conector de X" / "haz un widget de Y" / "pasa el workflow de widget
+nuevo"):** ejecutar `zaelar-new-widget-or-connector-workflow.md` — TODAS las acciones, en orden, para que una
+pieza nueva quede construida, cableada, probada, documentada y en el contexto. Es DISTINTO de
+`zaelar-widgets-workflow.md`, que gobierna cambios del SISTEMA de widgets; este gobierna piezas nuevas. Trae
+las cuatro decisiones previas (¿widget o conector? · ¿hace falta una tool nueva? casi siempre NO, las acciones
+declaradas SON las skills · ¿background? · ¿produce?), **la lista de los 8 puntos de cableado que fallan
+VACÍOS** (registro, routers, `_BUILTINS`, tarjeta Y familia del ⚙, `api.js`, i18n en+es, exención stdlib,
+testmap), el set de tests en sus cuatro clases —incluida la VIVA, que se construye entera aunque no haya
+credencial y SALTA con los pasos para habilitarla—, las fronteras que no se cruzan (la voz transporta
+intención y nunca una credencial; `widget.js` no toca la red; los widgets no se hablan entre sí) y una tabla
+de **diez traps medidos**. Nació del build de V2-557 y su razón de ser es que el siguiente sea corto.
 
 **Workflow de cambios en la memoria ("pasa el workflow de memoria"):** cuando el operador dice **"pasa el workflow
 de memoria"**, o al cerrar tú mismo un cambio ESTRUCTURAL de la memoria (schema/píldora, el CORAZÓN de escritura
@@ -411,7 +424,10 @@ arranque `make run` → `python -m server`.
   externas (proactivo donde se expone —ElevenLabs—, reactivo por error clasificado para el resto). El **área de
   configuración full-screen** (⚙, V2-043) se sirve por `server/config_api.py` (elige API/modelo por PIEZA) +
   `frontend/app/components/ConfigPanel.js`; sus alertas de saldo salen en el diálogo de estado (◉).
-- `connectors/` — conectores externos; `connectors/meshkore/` = canal nativo de clusters (3er I/O junto a voz+chat),
+- `connectors/` — conectores externos; **`connectors/files/` = archivos en la NUBE** (Google Drive +
+  OneDrive, V2-557: registro tipado de proveedores + PKCE compartido + un cliente por proveedor tras la
+  **fachada agnóstica** `service.py`, que devuelve UNA forma normalizada — un tercer proveedor no toca el
+  widget; doc `zaelar-cloud-files.md`); `connectors/meshkore/` = canal nativo de clusters (3er I/O junto a voz+chat),
   conducido por el **motor del FlashBrain en perfil UNTRUSTED** (V2-069: `brain.py` adapta el canal al motor →
   `nucleo/flash/cluster.py`, tools off + system identidad-safe) con **cápsula** de conversación (`capsule.py`);
   `connectors/architect/` = proveedor de código/proyectos sobre el
@@ -7688,6 +7704,55 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     comprobar que siguen mordiendo — si no, la siguiente extracción convierte la guarda en falsa alarma y la
     tentación sería debilitarla.
   - **Abierto**: `NucleoLLMStream` (2713 líneas) es la deuda que queda, y partirla es su propia tanda.
+
+- **ARCHIVOS EN LA NUBE: el tramo de permiso es el DISEÑO, y un permiso que no puede listar no es un disco
+  vacío (V2-557, 2026-09-02)**: encargo del operador — un conector a sus archivos (Drive/OneDrive) y «un widget
+  de navegación lo más parecido posible a los que existen», conducible con el ratón y por voz, **genérico** para
+  los conectores que vengan. `connectors/files/` (registro tipado + PKCE compartido + un cliente por proveedor)
+  tras la **fachada agnóstica** `service.py`, que devuelve UNA forma normalizada — el widget `archivos` no sabe
+  con quién habla, y un tercer proveedor es un módulo cliente y una fila del registro, **cero líneas del
+  widget** (hay test de que los dos clientes emiten las mismas claves; sin él la fachada es una ilusión).
+  Detalle: `.meshkore/docs/modules/zaelar-cloud-files.md`.
+  - **El TRAMO no es una constante y por eso es un campo.** `drive.file` solo ve lo que la app creó o el
+    usuario eligió a mano → **no hay árbol que navegar**, y no es ámbito restringido; `drive.readonly` navega y
+    **sí** lo es (Google pide CASA para una app PUBLICADA — quien usa su propio cliente OAuth no está
+    publicando nada); Graph no pide nada equivalente para OneDrive personal. Elección por instalación, viaja
+    pegada al token, y el asistente la enseña **antes** del consentimiento.
+  - **La consecuencia es el arreglo de verdad**: el tramo estrecho contesta **200 con lista vacía**,
+    indistinguible de «esta carpeta está vacía», así que `service.py` devuelve `ok` + un **`reason`** y la
+    tarjeta imprime el motivo. Colapsarlos es cómo se le enseña «tu Drive está vacío» a quien lo tiene lleno —
+    y cómo el defecto se diagnostica como conector roto en vez de como permiso estrecho. Misma familia que
+    V2-507 (una negativa que no puede decir qué es se diagnostica mal).
+  - **NINGUNA tool nueva del FlashBrain**: las **13 acciones declaradas SON las skills**, ejecutadas con
+    `widget_data`. Es V2-526 aplicado — una entrada de catálogo cuesta UNA línea de prompt, no una plaza de
+    tool en cada turno. Las de navegación llevan `"view": true` o «ábreme el Drive» levantaría la tarjeta sin
+    listarla (V2-545), y `search_files` **devuelve** sus coincidencias porque «¿tengo un contrato de Axa?» es
+    una pregunta (V2-541).
+  - **Las fronteras que sostienen esto, todas con test**: la voz transporta INTENCIÓN y nunca una credencial
+    (V2-520 — ningún payload admite un `client_secret`; la app se registra una vez en ⚙); `widget.js` no toca
+    la red, así que el consentimiento lo arranca una acción declarada que devuelve la URL; nada de llamadas
+    entre widgets — `open_file` devuelve metadatos y `web_url` y decide el CEREBRO; y todo nombre de fichero es
+    texto UNTRUSTED (el test RENDERIZA uno llamado `<img src=x onerror=…>` y exige que no naciera ningún
+    elemento).
+  - **`data.py` importa el conector**, lo que normalmente está prohibido, porque este widget ES un conector y
+    no hay equivalente de stdlib para un token que se refresca en el credential store: entra en la lista
+    curada `_STDLIB_EXEMPT` junto a `musica`, con el import DIFERIDO para que el catálogo no pague `httpx` en
+    cada turno. De paso **`agenda` vuelve a verde**: V2-540 metió su import sin la exención y dejó
+    `make test-widgets` en rojo para todo el mundo, lo que hacía indistinguible el fallo del widget siguiente.
+  - **Tres errores míos, que son la parte reutilizable** y están en el workflow nuevo: (1) un consumidor
+    leyendo un campo que su productor no manda, **tres veces seguidas** — no falla con ruido, la superficie sale
+    VACÍA; (2) verifiqué el montaje del router leyendo `app.routes`, que devolvió `[]` **con las rutas
+    perfectamente montadas** (esta versión de FastAPI las guarda envueltas) y estuve a un paso de «arreglar»
+    algo que funcionaba — las rutas se comprueban con una PETICIÓN; (3) un `git add` en el árbol compartido y
+    otra sesión se llevó mis ficheros nuevos en SU commit (`7b24a91`): no se perdió código, ya estaba pusheado,
+    **no se reescribe `main`** por una atribución.
+  - `/api/cloudfiles/*` y **no** `/api/files/*`, que ya es de `server/memory_routes.py`; comprobado con una
+    petición real que las dos siguen vivas. 59 tests deterministas (conector · contrato · **renderizado**) con
+    cinco desarmes y la mutación afirmada antes de medir.
+  - **ABIERTO**: la ida y vuelta contra una cuenta REAL está construida entera (nodo **5.8**, `live`) y
+    **SALTA** hasta que el operador registre su app OAuth y conecte una cuenta — nada del camino HTTP está
+    probado contra el proveedor de verdad, y la tarjeta no se ha visto en su motor vivo. Es **solo lectura**:
+    escribir en el disco de alguien son acciones irreversibles y quieren su propia decisión.
 
 ## Testing y rueda de mejora (INI-013)
 

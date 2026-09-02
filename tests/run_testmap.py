@@ -1502,7 +1502,7 @@ DOMAINS: list[dict] = [
         # UNTRUSTED del disco de alguien —`<img src=x onerror=…>` es un nombre legal en todos los proveedores—
         # y solo un navegador dice si eso se convirtió en un elemento o siguió siendo una cadena; y un aviso
         # que existe en el DOM con altura cero no explica nada a nadie.
-        {"id": "4.100", "title": "ARCHIVOS: el explorador es genérico, contesta lo que encuentra, y dice lo que "
+        {"id": "4.104", "title": "ARCHIVOS: el explorador es genérico, contesta lo que encuentra, y dice lo que "
                                  "su permiso NO puede ver (contrato + renderizado)",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/archivos/test_the_explorer_is_generic_and_says_what_it_cannot_see.py",
