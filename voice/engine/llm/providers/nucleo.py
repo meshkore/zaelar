@@ -1101,6 +1101,8 @@ class NucleoLLMStream(llm.LLMStream):
         # al final, cuando ya se sabe que el turno escaló de verdad.
         escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
+        listing_req = {"v": None}        # V2-556: {'query','price_max','price_min','condition'} de search_listings —
+                                         # la pasada rápida de anuncios, resuelta tras el stream (listing_turn.run)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
         music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
@@ -1684,6 +1686,15 @@ class NucleoLLMStream(llm.LLMStream):
                 # se parece al turno ACTUAL, no con la primera (que puede ser la vieja) → no buscamos lo que no es.
                 if search_req["v"] is None or _word_overlap(q, text) > _word_overlap(search_req["v"], text):
                     search_req["v"] = q
+            elif name == "search_listings":
+                # V2-556: UNA búsqueda de anuncios por turno (la primera con query real gana). El módulo decide
+                # solo si sirve el turno o escala — por eso no compite con escalate_req: si el modelo llamó a las
+                # dos para la MISMA caza, la prioridad del router ya colapsa el turno en la escalación.
+                if listing_req["v"] is None:
+                    _lq = (args.get("query") or "").strip() or text
+                    listing_req["v"] = {"query": _lq, "price_max": args.get("price_max"),
+                                        "price_min": args.get("price_min"),
+                                        "condition": (args.get("condition") or "").strip()}
             elif name == "recall":
                 # V2-056: el MODELO decide recordar (V2-022 aplicado a la memoria). Se resuelve tras el stream,
                 # fuera del event loop; la heurística needs_recall queda como prefetch.
@@ -2501,7 +2512,11 @@ class NucleoLLMStream(llm.LLMStream):
         # del no-razonador. (a) un marketplace NOMBRADO + intención de buscar exige ENTRAR y navegar (worker), no un
         # dato puntual de web_search. (b) cambiar el CÓDIGO/aspecto de un widget (color/columna/estilo) es trabajo
         # del generador, no una data-op ni un "no puedo". En ambos, si el turno no escaló ni tocó otra tool, escala.
-        if (escalate_req["v"] is None and not acted["widget"] and not data_done["v"] and not music_req["v"]
+        # V2-556: a turn that chose the LISTING fast pass DID act — the guard's premise («no escaló ni tocó
+        # otra tool») is false, and overriding it would send every marketplace-named hunt straight to a worker,
+        # bypassing the module whose job is to decide fast-vs-deep itself.
+        if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"] and not data_done["v"]
+                and not music_req["v"]
                 and (_router.looks_like_marketplace_nav(text) or _router.looks_like_modify_widget(text))):
             if search_req["v"] is not None:
                 search_req["v"] = None
@@ -2802,6 +2817,60 @@ class NucleoLLMStream(llm.LLMStream):
                 logger.warning(f"web_search compose falló (voz sigue): {e}")
             spoken_text = "".join(spoken).strip()
             brain._last_action = "search"
+
+        # BÚSQUEDA DE ANUNCIOS (V2-556): ruta LIGERA hermana de web_search. La pasada rápida corre FUERA del
+        # event loop y el MÓDULO decide solo (listing_turn.run): o hay filas reales en la hoja y este 2º pase
+        # las cuenta, o él mismo ya escaló a un worker que HEREDA la hoja y este 2º pase dice honestamente que
+        # la búsqueda a fondo está en marcha. Se salta si el turno además escaló (escalate_req): dos workers
+        # corriendo la misma caza es exactamente el defecto del fontanero (c480413b), no una redundancia sana.
+        if listing_req["v"] is not None and reveal_req["v"] is None and escalate_req["v"] is None:
+            lr = listing_req["v"]
+            emit("brain", "🛒 búsqueda de anuncios", text=lr["query"], role="system")
+            try:
+                from nucleo.flash import listing_turn as _lt
+                lres = await asyncio.to_thread(
+                    _lt.run, lr["query"], price_max=lr.get("price_max"), price_min=lr.get("price_min"),
+                    condition=lr.get("condition") or "", operator_text=operator_text or text)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"search_listings falló (voz sigue): {e}")
+                lres = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
+            if lres.get("delivered"):
+                sys3 = (
+                    _prompt_mod._lang_lock()
+                    + "\nEl operador pidió BUSCAR anuncios/productos y la búsqueda YA se hizo: los anuncios de "
+                    "abajo son REALES y ya están en su hoja de resultados, en pantalla. Respóndele en 1-2 frases "
+                    "HABLADAS: cuántos hay, el rango de precios y lo más prometedor, y que los tiene en la hoja "
+                    "de resultados. Natural, sin markdown, sin emojis, sin leer URLs. No inventes NADA que no "
+                    "esté en la lista; si un dato que pidió no está (kilómetros, estado), dilo.\n\n"
+                    f"PETICIÓN DEL OPERADOR: {operator_text or text}\n\nANUNCIOS ENCONTRADOS:\n{lres.get('ctx') or ''}"
+                )
+            else:
+                _partial = (f"De momento hay {lres.get('n')} anuncios provisionales en su hoja de resultados. "
+                            if lres.get("n") else "")
+                sys3 = (
+                    _prompt_mod._lang_lock()
+                    + "\nEl operador pidió BUSCAR anuncios/productos. La pasada rápida no encontró suficiente y "
+                    "una BÚSQUEDA A FONDO ya está EN MARCHA (no hay que lanzarla ni pedir permiso: ya corre, y "
+                    f"sus avances van saliendo en su hoja de resultados). {_partial}"
+                    "Díselo en 1-2 frases HABLADAS: que vas a investigar a fondo y que verá los avances en la "
+                    "hoja de resultados. Natural, sin markdown, sin emojis, sin URLs. NO prometas plazos.\n\n"
+                    f"PETICIÓN DEL OPERADOR: {operator_text or text}"
+                )
+            buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
+            try:
+                async for delta in FastClient().stream(
+                        [{"role": "system", "content": sys3},
+                         {"role": "user", "content": operator_text or text}],
+                        spec=spec, max_tokens=240):
+                    buf += delta
+                    send(speech.inline(take(False)))
+                send(speech.sanitize(take(True), drop_metadata=False))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"search_listings compose falló (voz sigue): {e}")
+            spoken_text = "".join(spoken).strip()
+            brain._last_action = "listings"
 
         # MÚSICA (V2-041/V2-042): ruta LIGERA como web_search, ahora con la CADENA resolver→validar→actuar
         # (`nucleo/flash/music_flow`): intento directo → si no_track, websearch (Chromium CALIENTE del prewarm) +

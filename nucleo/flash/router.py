@@ -36,6 +36,8 @@ from typing import Any
 CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
 STYLE = "style"        # the operator set a session interaction preference
 SEARCH = "search"      # quick factual lookup on the web (web_search) — lightweight route, resolved in the turn
+LISTINGS = "listings"  # V2-556: marketplace/product LISTING hunt (search_listings) — the fast module serves the
+                       # turn or escalates BY ITSELF (listing_turn.py); the model never picks fast-vs-deep
 RECALL = "recall"      # V2-056: the MODEL decides to remember (the operator's durable memory) — lightweight route in the turn
 REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
 MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn
@@ -52,7 +54,7 @@ ANSWER = "answer"      # V2-038: answers the question of a waiting Brain Worker 
 # Priority when collapsing multiple tool calls from one turn into a decision (higher = wins). STOP overrides everything
 # (if the operator asks to stop AND something else, stop first); ANSWER/INJECT outrank ESCALATE (refine/respond to a
 # live worker before opening another). MUSIC follows the lightweight routes (SEARCH), below worker routes.
-_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
+_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, LISTINGS: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, IMAGES: 3, SHOW: 3,
              PANEL: 3, ALIAS: 3,
              ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
 
@@ -88,7 +90,8 @@ TOOLS: list[dict] = [
             # 2026-08-28) and is now a 3 s turn through `show_images`. What remains here is CURATING photos.
             "description": (
                 "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
-                "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace; "
+                "SÍ: investigar/informe/comparativa a fondo; operar una web o marketplace "
+                "(anuncios→search_listings); "
                 "crear, modificar o arreglar el CÓDIGO de un widget; recordar algo de OTRAS sesiones "
                 "fuera de tu ESTADO; y HACER, cambiar o DESHACER un compromiso real "
                 "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
@@ -98,7 +101,7 @@ TOOLS: list[dict] = [
                 "vídeo/música/podcast (play_video/play_music, no la hoja); enseñar FOTOS aunque las pida "
                 "verificadas/de verdad (show_images). "
                 "VARIAS tareas distintas en un "
-                "turno = una llamada por CADA UNA (corren a la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
+                "turno = una llamada por CADA UNA (corren a la vez). Y no estar en el catálogo NO es motivo para negarte: se construye. "
                 "Ante la duda, escala. "
                 "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
                 "con ello; y PREGUNTAR POR ELLA («¿alguna novedad?») NO es encargarla: eso se lee de tu "
@@ -291,10 +294,10 @@ TOOLS: list[dict] = [
                 "describirla de palabra no es lo que pidieron. NUNCA para datos PROPIOS del operador (sus mensajes, su agenda, sus widgets, "
                 "sus conectores, qué tienes tú conectado): eso sale de tu ESTADO o se muestra. NUNCA la hora ni la "
                 "fecha LOCALES (están en tu ESTADO) — pero la hora en OTRO sitio SÍ se busca, jamás la calcules a "
-                "ojo. Tampoco es web_search buscar ANUNCIOS en un marketplace ni un INFORME/comparativa a fondo, ni "
-                "HACER algo en una web (reservar, tramitar, rellenar, comprar, «hazlo tú»): todo eso es "
-                "escalate_to_slowbrain. O buscas o respondes: nunca des el dato a ojo y LUEGO busques. Llámala YA en "
-                "vez de inventar; como mucho una frase corta de espera."
+                "ojo. Tampoco es web_search buscar ANUNCIOS/productos en venta o alquiler (search_listings), ni un "
+                "INFORME/comparativa a fondo, ni HACER algo en una web (reservar, tramitar, rellenar, comprar, "
+                "«hazlo tú»): esos dos últimos son escalate_to_slowbrain. O buscas o respondes: nunca des el dato a "
+                "ojo y LUEGO busques. Llámala YA en vez de inventar; como mucho una frase corta de espera."
             ),
             "parameters": {
                 "type": "object",
@@ -303,6 +306,34 @@ TOOLS: list[dict] = [
                         "type": "string",
                         "description": "La consulta, clara y autocontenida, en el idioma del dato.",
                     }
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            # V2-556 — the LISTING fast pass. The model calls ONE tool for a marketplace hunt and the MODULE
+            # decides fast-vs-deep (`listing_turn.py`): served in-turn when the market answers structured, or
+            # self-escalated to a Brain Worker that inherits the same results sheet. The model never pairs this
+            # with escalate_to_slowbrain for the same hunt — that would race two workers on one errand.
+            "name": "search_listings",
+            "description": (
+                "Busca ANUNCIOS/productos en venta o alquiler (coche, piso, portátil, entradas…): resultados "
+                "reales con precio y enlace en la hoja de resultados. Si el mercado no da bastante, este sistema "
+                "lanza ÉL SOLO la búsqueda a fondo: di que sigues buscando y JAMÁS llames además a "
+                "escalate_to_slowbrain por la misma caza. No es un dato puntual (web_search) ni HACER algo en "
+                "una web (escalate_to_slowbrain). CONSERVA los filtros que el operador no retiró."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string",
+                              "description": "Qué se busca, autocontenido; SIN el precio (va aparte)."},
+                    "price_max": {"type": "number", "description": "Precio máximo (solo número), si lo dio."},
+                    "price_min": {"type": "number", "description": "Precio mínimo (solo número), si lo dio."},
+                    "condition": {"type": "string", "description": "nuevo/usado/reacondicionado, si lo dijo."},
                 },
                 "required": ["query"],
             },
@@ -685,7 +716,7 @@ FAMILIES: dict[str, tuple[str, ...]] = {
     "cluster":   ("connect_cluster", "set_cluster_objective", "cluster_send"),
     "messaging": ("reply_message",),
     "media":     ("play_music", "play_video", "show_images"),
-    "web":       ("web_search", "authenticate_web", "login_done"),
+    "web":       ("web_search", "search_listings", "authenticate_web", "login_done"),
     "memory":    ("recall", "reveal_secret"),
 }
 
@@ -841,6 +872,11 @@ def decide(name: str, args: dict | None = None) -> Decision:
                                    "surface": (args.get("surface") or "").strip()})
     if name == "web_search":
         return Decision(SEARCH, {"query": (args.get("query") or "").strip()})
+    if name == "search_listings":
+        return Decision(LISTINGS, {"query": (args.get("query") or "").strip(),
+                                   "price_max": args.get("price_max"),
+                                   "price_min": args.get("price_min"),
+                                   "condition": (args.get("condition") or "").strip()})
     if name == "recall":
         return Decision(RECALL, {"query": (args.get("query") or "").strip()})
     if name == "reveal_secret":

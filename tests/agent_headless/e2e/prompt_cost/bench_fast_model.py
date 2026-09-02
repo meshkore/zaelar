@@ -93,7 +93,10 @@ CASES: list[tuple[str, str, set[str], set[str]]] = [
     ("panel", "abre el chat", {"show_panel"}, set()),
     ("estilo", "a partir de ahora sé más breve", {"set_style_directive"}, set()),
     ("borrar widget", "borra el widget de resultados", {"delete_widget"}, set()),
-    ("marketplace", "busca motos naked de segunda mano en Wallapop", {"escalate_to_slowbrain"}, set()),
+    # V2-556: hunting ADS is the listing fast pass now (the module itself escalates when the market answers
+    # thin) — while DOING something on a marketplace (buying, booking) is still a worker. Both directions pinned.
+    ("marketplace", "busca motos naked de segunda mano en Wallapop", {"search_listings"}, set()),
+    ("marketplace-operar", "cómprame la primera moto de esa lista de Wallapop", {"escalate_to_slowbrain"}, set()),
     ("alias", "llama a este widget «mi informe»", {"manage_widget_alias"}, set()),
     # ── QUESTION ≠ COMMAND ──────────────────────────────────────────────────────────────────────────────────
     # The EXACT turn that got grok banned from FlashBrain (A/B 2026-07-17, `zaelar-model-benchmarks.md §9`):

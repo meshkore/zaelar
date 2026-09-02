@@ -7,7 +7,8 @@ def test_tools_are_openai_functions():
     names = {t["function"]["name"] for t in router.tools()}
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget", "restore_widget",
                      "manage_widget_alias", "widget_data", "delete_widget",
-                     "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
+                     "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "search_listings",
+                     "recall",
                      "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",
                      "cluster_send", "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():
@@ -136,7 +137,11 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 # V2-544 raised 21_800 → 22_050: a genuinely NEW boundary (the INSIDE of a widget belongs to widget_data —
 # open a chat, back to its list), taught in the two tools that misrouted it («abre el mensaje de
 # Francisco» went 4/4 to show_widget over an unmoved card). Compacted from +434 to +140 before raising.
-MAX_CATALOG_CHARS = 22_050
+# V2-556 raised 22_050 → 23_100: one genuinely NEW tool (search_listings — the marketplace hunt that used to
+# cost a 355 s worker now serves the turn or self-escalates), plus the two boundary rewrites in web_search and
+# escalate_to_slowbrain that point ad hunts at it. Compacted first (params to one line each); what remains is
+# the negative rules — «never ALSO call escalate for the same hunt» is the two-workers-racing defect (c480413b).
+MAX_CATALOG_CHARS = 23_100
 
 
 # ── "muéstrame una foto de X" must NOT be described in words (real incident 2026-08-03) ─────────────────────

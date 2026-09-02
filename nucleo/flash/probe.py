@@ -400,6 +400,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         action = "answer_worker"
     elif "escalate_to_slowbrain" in names:
         action = "escalate"
+    elif "search_listings" in names:
+        # V2-556: the LISTING fast pass. Above web_search for the same reason escalate is: a turn that hunts
+        # ads AND asks a fact is a hunt. The heavy side effects (search + possible self-escalation) run only
+        # under `execute`, mirroring how `escalate` is reported here but executed further down.
+        action = "listings"
     elif "web_search" in names:
         action = "search"
     elif "reveal_secret" in names:
@@ -821,6 +826,48 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     spoken = _lg_src.current_language().unverified_fact
                 except Exception:
                     spoken = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
+
+    # BÚSQUEDA DE ANUNCIOS (V2-556) — espejo del provider (impl PARALELA, cablear en AMBOS). El cuerpo es
+    # COMPARTIDO (`listing_turn.run`: pasada rápida → hoja → auto-escalación con la hoja heredada, y él mismo
+    # emite la fila de observabilidad), así que este canal solo añade la composición hablada. Bajo `execute`
+    # porque la pasada busca de verdad y puede lanzar un worker real: el banco de ruteo (2.13) tiene que poder
+    # VER la decisión `listings` sin pagar ninguna de las dos cosas — igual que `escalate` se reporta aquí y
+    # solo se ejecuta más abajo.
+    if action == "listings" and execute:
+        _lc = next((t["args"] for t in tool_calls if t["name"] == "search_listings"), {}) or {}
+        _lq = str(_lc.get("query") or "").strip() or text
+        try:
+            from nucleo.flash import listing_turn as _lt
+            _lres = await asyncio.to_thread(
+                _lt.run, _lq, price_max=_lc.get("price_max"), price_min=_lc.get("price_min"),
+                condition=str(_lc.get("condition") or "").strip(), operator_text=operator_text or text)
+        except Exception as e:  # noqa: BLE001
+            _lres = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
+        try:
+            from . import prompt as _prompt3
+            if _lres.get("delivered"):
+                _sys3 = (_prompt3._lang_lock()
+                         + "\nLa búsqueda de anuncios YA se hizo: los de abajo son REALES y están en su hoja de "
+                           "resultados. Responde en 1-2 frases habladas: cuántos hay, el rango de precios y lo "
+                           "más prometedor, y que los tiene en la hoja. Sin URLs; no inventes nada que no esté "
+                           "en la lista, y si un dato pedido falta, dilo.\n\n"
+                         + f"PETICIÓN DEL OPERADOR: {operator_text}\n\nANUNCIOS:\n{_lres.get('ctx') or ''}")
+            else:
+                _partial = (f"De momento hay {_lres.get('n')} anuncios provisionales en su hoja. "
+                            if _lres.get("n") else "")
+                _sys3 = (_prompt3._lang_lock()
+                         + "\nLa pasada rápida no encontró suficiente y una búsqueda A FONDO ya está EN MARCHA "
+                           f"(sus avances salen en su hoja de resultados). {_partial}"
+                           "Dilo en 1-2 frases habladas, sin pedir permiso, sin URLs y sin prometer plazos.\n\n"
+                         + f"PETICIÓN DEL OPERADOR: {operator_text}")
+            _parts3 = []
+            async for _delta in FastClient().stream(
+                    [{"role": "system", "content": _sys3}, {"role": "user", "content": operator_text or _lq}],
+                    spec=spec, max_tokens=240):
+                _parts3.append(_delta)
+            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts3), drop_metadata=False))
+        except Exception:  # noqa: BLE001 — la entrega ya está en la hoja; sin composición, el turno sigue vivo
+            pass
 
     # (e-ter) EJECUCIÓN REAL de acciones de worker (V2-049, solo si execute=True) — para el test e2e de gestiones
     # web por TEXTO: la escalada arranca un Brain Worker REAL que conduce el navegador; inyección/respuesta/stop van
