@@ -203,3 +203,69 @@ def test_every_brightdata_rung_has_its_own_search_rate():
     for provider in ("brightdata_serp", "brightdata_unlocker"):
         assert provider in energy_meter._SEARCH_USD_PER_REQUEST, (
             f"{provider} would bill at the catch-all — add its real rate with source and date")
+
+
+# ── a COLLECTION pricing itself is a source, never a candidate (measured 2026-09-02) ─────────────
+def test_a_category_page_pricing_itself_desde_is_not_a_candidate():
+    """The first live round of the new circuit delivered «Coches Diesel de segunda mano — 300 EUR»:
+    coches.net's CATEGORY page declares a Product with an AggregateOffer («desde 300»), and the agent
+    spoke a car that does not exist. The V2-510 rule one level down: a page that prices a collection
+    is where to LOOK, never something to offer."""
+    html = """<script type="application/ld+json">
+    {"@type": "Product", "name": "Coches Diesel de segunda mano y ocasión",
+     "offers": {"@type": "AggregateOffer", "lowPrice": "300", "highPrice": "89000",
+                "offerCount": "12400", "priceCurrency": "EUR"}}
+    </script>"""
+    assert listing_extract.extract_items(html, "https://www.coches.example/diesel/segunda-mano") == []
+
+
+def test_a_low_high_range_without_a_plain_price_is_an_aggregate_even_untyped():
+    html = """<script type="application/ld+json">
+    {"@type": "Product", "name": "Diesel de segunda mano",
+     "offers": {"lowPrice": "4500", "priceCurrency": "EUR"}}
+    </script>"""
+    assert listing_extract.extract_items(html, "https://ads.example/diesel") == []
+
+
+def test_a_top_level_aggregateoffer_node_is_rejected_whole():
+    html = """<script type="application/ld+json">
+    {"@type": "AggregateOffer", "lowPrice": "700", "priceCurrency": "EUR",
+     "itemOffered": {"@type": "Product", "name": "Coches de segunda mano en el concesionario"}}
+    </script>"""
+    assert listing_extract.extract_items(html, "https://dealer.example/stock") == []
+
+
+def test_a_real_product_with_a_plain_price_still_extracts_beside_the_aggregate_rule():
+    html = """<script type="application/ld+json">
+    {"@type": "Product", "name": "Peugeot 308 1.5 BlueHDi", "url": "/coches/peugeot-308-88112",
+     "offers": {"@type": "Offer", "price": "10890", "priceCurrency": "EUR"}}
+    </script>"""
+    items = listing_extract.extract_items(html, "https://www.ocasion.example/stock")
+    assert len(items) == 1 and items[0]["price"] == 10890.0
+
+
+def test_on_a_multi_item_page_the_self_referencing_item_is_furniture():
+    """A category's own Product node has no url of its own and falls back to base_url — beside real
+    listings that link OUT, the self-pointer is the page describing itself."""
+    html = """<script type="application/ld+json">
+    {"@graph": [
+      {"@type": "Product", "name": "Sección coches diésel",
+       "offers": {"@type": "Offer", "price": "300", "priceCurrency": "EUR"}},
+      {"@type": "Product", "name": "Opel Insignia 2.0 CDTI", "url": "/coche/opel-insignia-771",
+       "offers": {"@type": "Offer", "price": "5900", "priceCurrency": "EUR"}},
+      {"@type": "Product", "name": "Citroën C4 Picasso", "url": "/coche/c4-picasso-482",
+       "offers": {"@type": "Offer", "price": "10590", "priceCurrency": "EUR"}}
+    ]}</script>"""
+    items = listing_extract.extract_items(html, "https://cars.example/diesel/segunda-mano")
+    assert {i["title"] for i in items} == {"Opel Insignia 2.0 CDTI", "Citroën C4 Picasso"}
+
+
+def test_a_single_item_detail_page_keeps_its_self_referencing_listing():
+    """The counterweight: a true DETAIL page's one listing legitimately IS its own url — dropping it
+    would blind the module to exactly the pages that answer the errand best."""
+    html = """<script type="application/ld+json">
+    {"@type": "Product", "name": "Zontes U150",
+     "offers": {"@type": "Offer", "price": "2100", "priceCurrency": "EUR"}}
+    </script>"""
+    items = listing_extract.extract_items(html, "https://motos.example/anuncio/zontes-u150-9912")
+    assert len(items) == 1 and items[0]["title"] == "Zontes U150"

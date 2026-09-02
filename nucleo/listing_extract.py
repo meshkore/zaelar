@@ -142,17 +142,34 @@ def _text_of(value) -> str:
     return str(v).strip() if v is not None else ""
 
 
+def _aggregate_offer(offer: dict) -> bool:
+    """A node priced by an AGGREGATE is a COLLECTION pricing itself, never one thing for sale.
+
+    Measured 2026-09-02, first round of the new circuit: coches.net's and OcasionPlus's CATEGORY pages
+    declare a Product with an AggregateOffer («desde 300 EUR»), and the fast pass delivered them as
+    candidates — the agent spoke «un coche por 300 EUR» and the judge rightly called it inventing. The
+    V2-510 rule one level down: a page that prices a collection is a SOURCE, never a candidate. The tells
+    are structural (its own @type, an offerCount, or a low/high range without a plain price) — never a
+    hostname list."""
+    if _node_type(offer) == "aggregateoffer" or "offerCount" in offer:
+        return True
+    return ("lowPrice" in offer or "highPrice" in offer) and offer.get("price") is None
+
+
 def _jsonld_item(node: dict, base_url: str) -> dict | None:
     ntype = _node_type(node)
     offer = _offer_of(node)
-    if ntype == "offer" or ntype == "aggregateoffer":
+    if ntype == "offer":
         offer, node = node, (node.get("itemOffered") if isinstance(node.get("itemOffered"), dict) else node)
-    elif ntype not in _LISTING_TYPES:
+    elif ntype == "aggregateoffer" or ntype not in _LISTING_TYPES:
+        return None
+    if _aggregate_offer(offer):
         return None
     title = _text_of(node.get("name") or node.get("title"))
     if not title:
         return None
-    price_raw = offer.get("price") or offer.get("lowPrice")
+    # `lowPrice` is deliberately NOT a price fallback: it is the bottom of a range, i.e. the aggregate tell.
+    price_raw = offer.get("price")
     if price_raw is None and isinstance(offer.get("priceSpecification"), (dict, list)):
         price_raw = (_first(offer["priceSpecification"]) or {}).get("price")
     price, sym_currency = parse_price(price_raw)
@@ -225,6 +242,14 @@ def extract_items(html: str, base_url: str) -> list[dict]:
         if item and item["url"] not in seen_urls:
             seen_urls.add(item["url"])
             items.append(item)
+    # On a MULTI-item page, an item pointing at the page ITSELF is the page describing itself (a category's
+    # own Product node with no url of its own falls back to base_url) — furniture, not a candidate. A page
+    # declaring exactly ONE item keeps it: a true detail page's listing legitimately IS its own url.
+    if len(items) > 1:
+        base_key = canonical_url(base_url)
+        real = [i for i in items if canonical_url(i["url"]) != base_key]
+        if real:
+            items = real
     if not items:
         og = _opengraph_item(html, base_url)
         if og:
