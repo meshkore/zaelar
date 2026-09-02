@@ -991,6 +991,11 @@ DOMAINS: list[dict] = [
         {"id": "2.41", "title": "The ACTION MAP: a known phrase skips the model — and everything else falls "
                                 "to the model", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/actionmap/test_a_known_phrase_skips_the_model.py"]},
+        # V2-556 — LISTING search: the middle tier between web_search (facts) and the browser worker
+        # (minutes). Pages DECLARE their listings (JSON-LD/OpenGraph); the module reads the declaration,
+        # normalizes, dedups, price-filters, and says needs_browser HONESTLY when HTTP could not do the job.
+        {"id": "2.42", "title": "Listing search reads what pages declare — and gives up honestly", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_listing_search_reads_what_pages_declare.py"]},
         # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
         # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
         # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»

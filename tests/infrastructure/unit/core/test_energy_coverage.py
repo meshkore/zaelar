@@ -28,6 +28,7 @@ _SENALES = (
     "aimlapi.com", "api.x.ai", "api.z.ai", "moonshot.ai", "api.openai.com",
     "api.anthropic.com", "api.elevenlabs.io", "api.deepgram.com",
     "api.perplexity.ai", "api.tavily.com", "api.search.brave.com",
+    "api.brightdata.com",
 )
 
 # Proof that the file participates in the energy system.

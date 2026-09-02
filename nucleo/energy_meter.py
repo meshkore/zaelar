@@ -380,6 +380,12 @@ _SEARCH_USD_PER_REQUEST: dict[str, float] = {
     "perplexity": 0.005,     # Sonar, incl. the synthesised answer
     "tavily": 0.008,         # advanced depth (the depth this repo asks for)
     "brave": 0.005,
+    # Bright Data (listing search, V2-556) — public entry-tier pricing, 2026-09-02, RE-VERIFY at
+    # volume: SERP API ~$1.50/1k, Web Unlocker ~$3/1k premium-domain rate taken as the honest
+    # ceiling (their entry rate is lower; billing only counts SUCCESSFUL responses, and so do we —
+    # `listing_search._bd_request` meters after the 200).
+    "brightdata_serp": 0.0015,
+    "brightdata_unlocker": 0.003,
     "": 0.008,               # unmapped paid provider → the most expensive known, logged once
 }
 _warned_search = set()
