@@ -462,6 +462,17 @@ export function ConfigPanel() {
         <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">${t("config.cx.connect")}</button>`;
     } else if (id === "spotify") {
       box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">${t("config.cx.connect_spotify")}</button>`;
+    } else if (fam === "archivos") {
+      // The cloud-file providers share one form because they share one flow (V2-557): register your own OAuth
+      // app once, paste its client_id, pick which permission to grant. The TIER selector is the part that is
+      // not cosmetic — a token granted the narrow Google scope cannot list folders at all, and the operator has
+      // to be able to see that before consenting, not after wondering why the drive looks empty.
+      const cc = c.config || {};
+      const tiers = (cc.tiers || []).map(x => `<option value="${esc(x.id)}"${x.id === cc.default_tier ? " selected" : ""}>${esc(x.label)}</option>`).join("");
+      box = `${row("client_id", `<input id="cx_cf_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
+        ${row("client_secret", `<input id="cx_cf_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
+        ${tiers ? row(t("config.cx.permission"), `<select id="cx_cf_tier_${id}">${tiers}</select>`) : ""}
+        <button class="cf-btn cf-cx-act" data-act="cloudfiles-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
       box = `${row(t("config.cx.daemon_token"), `<input id="cx_arch_token" type="password" placeholder="${set ? t("config.key.ph_saved") : t("config.cx.paste_token")}"/>`)}
@@ -484,7 +495,8 @@ export function ConfigPanel() {
   function sec_connectors() {
     const cs = cfg.connectors || [];
     if (!cs.length) return `<p class="cf-loading">${t("config.cx.load_error")}</p>`;
-    const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")], ["infra", t("config.cx.fam_infra")]];
+    const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
+                  ["archivos", t("config.cx.fam_files")], ["infra", t("config.cx.fam_infra")]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);
       if (!items.length) return "";
@@ -505,7 +517,8 @@ export function ConfigPanel() {
     btn.disabled = true;
     try {
       if (act === "disconnect") {
-        if (id === "spotify") { await disconnectSpotify(btn); }
+        if (id === "gdrive" || id === "onedrive") { await api.cloudFilesDisconnect(id); msg(t("config.msg.disconnected", { id })); }
+        else if (id === "spotify") { await disconnectSpotify(btn); }
         else if (id === "architect") { await api.architectDisconnect(); msg(t("config.msg.architect_revoked")); }
         else { await api.disconnectMessaging(id, {}); msg(t("config.msg.disconnected", { id })); }
         await reloadConnectors();
@@ -517,6 +530,13 @@ export function ConfigPanel() {
         const r = await api.connectMessaging(id, payload);
         msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
+      } else if (act === "cloudfiles-connect") {
+        const r = await api.cloudFilesConnect({
+          provider: id, client_id: val(`cx_cf_id_${id}`), client_secret: val(`cx_cf_sec_${id}`),
+          tier: val(`cx_cf_tier_${id}`),
+        });
+        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
+        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
       } else if (act === "architect-save") {
         const token = val("cx_arch_token"), url = val("cx_arch_url");
         const r = await api.architectConnect({ token, url });

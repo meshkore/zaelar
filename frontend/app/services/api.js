@@ -153,6 +153,11 @@ export const getWidgetsRegistry = () => fetch("/widgets/registry", { cache: "no-
 export const connectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/connect`, payload || {}).then(json);
 export const disconnectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/disconnect`, payload || {}).then(json);
 export const architectConnect = (payload) => postJSON("/api/connectors/architect/connect", payload || {}).then(json);
+// V2-557 — cloud file connectors. `/api/cloudfiles/*`, NOT `/api/files/*`: that prefix belongs to the
+// episodic-memory uploads (server/memory_routes.py) and two routers on one prefix resolve by mount order.
+export const cloudFilesConnect = (payload) => postJSON("/api/cloudfiles/connect", payload || {}).then(json);
+export const cloudFilesDisconnect = (provider) => postJSON("/api/cloudfiles/disconnect", { provider }).then(json);
+
 export const architectDisconnect = () => postJSON("/api/connectors/architect/disconnect", {}).then(json);
 // MeshKore: stage (credenciales fuera del LLM) + connect; y disconnect por nombre.
 export const meshkoreAdd = async ({ name, cluster_id, token, handle }) => {

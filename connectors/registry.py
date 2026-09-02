@@ -54,6 +54,37 @@ def _music() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
+def _files() -> list[dict]:
+    """Cloud file connectors (V2-557). One row per provider, each isolated like the rest: a broken import here
+    must not empty the whole Connectors tab. `browsable` travels because a connected provider whose granted
+    scope cannot list folders is NOT the same state as a connected one that can, and the tab is where the
+    operator can act on the difference."""
+    try:
+        from connectors.files import oauth, providers
+        # The tab renders a PERMISSION selector, and the tiers live in the catalog while the connection state
+        # lives in the token store. Merging here is what stops the form from offering an empty dropdown — the
+        # same mismatch the widget's own connect panel had before this.
+        catalog = {c["id"]: c for c in providers.public_list()}
+        out = []
+        for st in oauth.status():
+            cat = catalog.get(st["id"], {})
+            connected = bool(st.get("connected"))
+            out.append({"id": st["id"], "label": st["label"], "family": "archivos", "auth": "oauth",
+                        "connected": connected,
+                        "status": "connected" if connected else ("off" if st.get("app_configured")
+                                                                 else "unconfigured"),
+                        "detail": st.get("note") or "",
+                        "config": {"app_configured": bool(st.get("app_configured")),
+                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
+                                   "browsable": bool(st.get("browsable")),
+                                   "tiers": cat.get("tiers") or [],
+                                   "default_tier": cat.get("default_tier") or ""}})
+        return out
+    except Exception as e:
+        return [{"id": "files", "label": "Archivos en la nube", "family": "archivos", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
 def _architect() -> list[dict]:
     try:
         from config import connectors as cfg
@@ -95,4 +126,4 @@ def _meshkore() -> list[dict]:
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return [*_messaging(), *_music(), *_architect(), *_meshkore()]
+    return [*_messaging(), *_music(), *_files(), *_architect(), *_meshkore()]

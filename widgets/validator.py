@@ -239,11 +239,22 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
 
 
 # stdlib-only is the contract for GENERATED widgets (an LLM-authored data.py must never reach into `connectors/`:
-# that's the isolation invariant AGENTS.md/CLAUDE.md rely on). `musica` is the ONE hand-built, human-reviewed
-# exception: real playback control has no stdlib equivalent, so it has to call connectors.music/connectors.spotify
-# directly (see its own data.py header). This allowlist is a hardcoded id, never a manifest field, precisely so a
-# generated widget can't grant itself the exemption.
-_STDLIB_EXEMPT = {"musica"}
+# that's the isolation invariant AGENTS.md/CLAUDE.md rely on). The exceptions are hand-built, human-reviewed
+# widgets whose whole job IS a connector, and each one is here because there is no stdlib equivalent of what it
+# needs — never because it was convenient. This allowlist is a set of hardcoded ids, never a manifest field,
+# precisely so a generated widget can't grant itself the exemption.
+#
+#   · `musica`   — real playback control has to call connectors.music/connectors.spotify (see its data.py header).
+#   · `agenda`   — V2-540 put the calendar connectors in its header; `calendars()` READS the real connector
+#                  inventory instead of declaring a state, so the day one is registered it lights up with
+#                  nothing else to change. (This entry is a FIX: V2-540 shipped the import without it, which
+#                  left `make test-widgets` red for everyone and made the next widget's own failure
+#                  indistinguishable from it.)
+#   · `archivos` — V2-557. The cloud drive lives behind an OAuth token that is refreshed in the credential
+#                  store; there is no stdlib way to reach somebody's Drive. The import stays DEFERRED inside
+#                  the functions that need it, so module import — and therefore the catalog, and therefore
+#                  every prompt that lists widgets — never pays for `httpx` or the credential store.
+_STDLIB_EXEMPT = {"musica", "agenda", "archivos"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:
