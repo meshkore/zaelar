@@ -1,43 +1,46 @@
-"""widgets/instances.py — QUÉ TARJETA quiere decir el operador cuando una pieza tiene varias abiertas (V2-259 F3).
+"""widgets/instances.py — WHICH CARD the operator means when a piece has several open (V2-259 F3).
 
-Petición del operador, literal: «si hay 2 widgets de results y el usuario dice "cierra los resultados", la orden
-debería generar una pregunta de: ¿cuál de las 2 búsquedas cierro, la del coche o la del fontanero?».
+Literal operator request: «if there are 2 results widgets and the user says "close the results", the command
+should ask: which of the 2 searches should I close, the car one or the plumber one?». 
 
-Es una AMBIGÜEDAD NUEVA, de otro eje que la que ya resolvía `runtime.identify()`. Aquella decide QUÉ PIEZA
-(«resultados» → `results`) y pregunta cuando no hay match de nombre o alias (V2-082). Ésta llega después: la
-pieza está clara y lo que no se sabe es CUÁL DE SUS TARJETAS. Antes no podía existir, porque la única pieza
-instanciada era el navegador y sus tarjetas se cierran solas al terminar la tarea; desde que la hoja se instancia
-(V2-259) el operador tiene dos cajas idénticas de nombre delante.
+This is a NEW AMBIGUITY, on a different axis from the one already handled by `runtime.identify()`. That one decides WHICH PIECE
+(«results» → `results`) and asks when there is no name or alias match (V2-082). This one comes afterward: the
+piece is clear and what is unknown is WHICH OF ITS CARDS. It could not exist before, because the only instantiated piece
+was the browser and its cards close themselves when the task ends; since the sheet became instantiated
+(V2-259), the operator has two identically named boxes in front of them.
 
-TRES DECISIONES, y cada una tiene su contraria obvia:
+THREE DECISIONS, each with an obvious opposite:
 
-  · **Preguntar, no elegir.** Con dos hojas, cerrar «la primera» o «la última» acierta la mitad de las veces y la
-    otra mitad le borra al operador la búsqueda que estaba mirando — sin decírselo. Es la misma regla de V2-082,
-    que ya está escrita: sin certeza, se PREGUNTA.
-  · **La pregunta nombra los ENCARGOS, no los ids.** «¿results::t1 o results::t2?» no es una pregunta, es un
-    volcado. El título de cada hoja ya es lo que pidió el operador («Fontaneros en Madrid centro»), así que la
-    pregunta se escribe sola con lo que él mismo dijo.
-  · **Una sola decisión para los TRES sitios que cierran.** `voice/engine/llm/providers/nucleo.py` emite
-    `widget/close` con id desde tres puntos distintos (el guard cerrar≠borrar, el backstop del turno y el
-    fallback de canvas). Escribir la regla tres veces es exactamente cómo se llega a que falte en uno — cuarta
-    vez esta semana, y en V2-256 la copia que faltaba costó que un envío fallara en silencio.
+  · **Ask, do not choose.** With two sheets, closing «the first» or «the last» is right half the time, and the
+    other half it erases the search the operator was viewing — without telling them. It is the same V2-082 rule,
+    already written down: without certainty, ASK.
+  · **The question names the REQUESTS, not the ids.** «¿results::t1 o results::t2?» is not a question, it is a
+    dump. Each sheet's title is already what the operator requested («Plumbers in central Madrid»), so the
+    question writes itself using what they said.
+  · **One decision for the THREE places that close.** `voice/engine/llm/providers/nucleo.py` emits
+    `widget/close` with an id from three different points (the close≠delete guard, the turn backstop, and the
+    canvas fallback). Writing the rule three times is exactly how one copy ends up missing — for the fourth
+    time this week, and in V2-256 the missing copy caused a submission to fail silently.
 
-Puro y sin estado: recibe lo que hay abierto y devuelve la decisión. Fail-soft en el sentido que importa aquí —
-ante la duda sobre si hay ambigüedad, NO pregunta: una pregunta espuria en cada cierre sería peor que el fallo
-que esto quita.
+Pure and stateless: it receives what is open and returns the decision. Fail-soft in the sense that matters here —
+when unsure whether there is ambiguity, it does NOT ask: a spurious question on every close would be worse than the
+failure this removes.
 """
 from __future__ import annotations
+
+import re as _re
+import unicodedata as _ud
 
 SEP = "::"
 
 
 def base_of(widget_id) -> str:
-    """`results::t7` → `results`. Un id sin instancia es su propia base."""
+    """`results::t7` → `results`. An id without an instance is its own base."""
     return str(widget_id or "").split(SEP, 1)[0].strip().lower()
 
 
 def instances_of(base: str, open_ids) -> list[str]:
-    """Las tarjetas ABIERTAS de esta pieza, con su id completo y en el orden en que las reportó el canvas."""
+    """The OPEN cards for this piece, with their full ids and in the order reported by the canvas."""
     b = base_of(base)
     out: list[str] = []
     for wid in (open_ids or []):
@@ -48,18 +51,18 @@ def instances_of(base: str, open_ids) -> list[str]:
 
 
 def _label(widget_id: str) -> str:
-    """Cómo se llama ESTA tarjeta para el operador: el encargo que pintó, no su id.
+    """What THIS card is called for the operator: the request it displays, not its id.
 
-    Solo la hoja sabe titularse hoy; para cualquier otra pieza se cae al sufijo, que al menos distingue. Nunca
-    revienta: esto se llama en mitad de un turno de voz.
+    Only the sheet knows how to title itself today; for any other piece it falls back to the suffix, which at least
+    distinguishes it. It never crashes: this is called in the middle of a voice turn.
     """
     inst = str(widget_id or "").split(SEP, 1)[1] if SEP in str(widget_id or "") else ""
     if base_of(widget_id) == "results":
         try:
             from widgets.results import data as _sheet
             t = str((_sheet.view_data(inst) or {}).get("title") or "").strip()
-            # «Resultados» es el relleno que `view_data` pone cuando no hay título (setdefault), no un nombre:
-            # devolverlo haría que dos hojas sin encargo se llamaran igual y la pregunta no distinguiera nada.
+            # «Resultados» is the filler that `view_data` supplies when there is no title (setdefault), not a name:
+            # returning it would make two sheets without a request have the same name and leave the question unable to distinguish anything.
             if t and t.lower() != "resultados":
                 return t
         except Exception:  # noqa: BLE001
@@ -68,11 +71,11 @@ def _label(widget_id: str) -> str:
 
 
 def _distinguibles(etiquetas: list[str], ids: list[str]) -> list[str]:
-    """Una pregunta que no se puede contestar no es una pregunta.
+    """A question that cannot be answered is not a question.
 
-    Dos hojas sin título, o con el mismo, producirían «¿cuál cierro, «Resultados» o «Resultados»?», que es peor
-    que no preguntar: obliga al operador a contestar algo que no distingue nada. Cuando las etiquetas colisionan
-    se les añade lo único que seguro es distinto — su instancia.
+    Two sheets without a title, or with the same title, would produce «¿cuál cierro, «Resultados» o «Resultados»?», which is worse
+    than not asking: it forces the operator to answer something that distinguishes nothing. When labels collide,
+    the only thing guaranteed to differ — their instance — is added to them.
     """
     if len(set(etiquetas)) == len(etiquetas):
         return etiquetas
@@ -109,26 +112,26 @@ def _strip_accents(text: str) -> str:
 
 
 def resolve_close(target, open_ids, text: str = "") -> dict:
-    """A QUÉ tarjeta va un «ciérralo».
+    """WHICH card a «ciérralo» refers to.
 
-    Devuelve `{"id": <id a cerrar> | None, "ids": [...], "ask": <pregunta> | "", "options": [...]}`:
+    Returns `{"id": <id a cerrar> | None, "ids": [...], "ask": <pregunta> | "", "options": [...]}`:
 
-      · el operador ya nombró una instancia (`results::t7`)          → esa, sin preguntar
-      · la pieza tiene 0 o 1 tarjetas abiertas                       → el id tal cual (cerrar una ya cerrada es
-                                                                        un no-op inofensivo, y ese era el
-                                                                        comportamiento de siempre)
-      · dos o más, y el turno dice CUÁNTAS («los dos», «todas»)      → todas, sin preguntar (V2-530)
-      · dos o más                                                    → `ask`, y `id` a None
+      · the operator already named an instance (`results::t7`)       → that one, without asking
+      · the piece has 0 or 1 open cards                               → the id as-is (closing an already closed one is
+                                                                        a harmless no-op, and that was the
+                                                                        longstanding behavior)
+      · two or more, and the turn says HOW MANY («los dos», «todas») → all of them, without asking (V2-530)
+      · two or more                                                    → `ask`, and `id` set to None
 
-    `ids` es la lista a cerrar y viene SIEMPRE — un llamante que recorra `ids` está bien escrito para los cuatro
-    casos, y ésa es la diferencia con leer `id` y perderse la respuesta «los dos» en dos de los tres sitios que
-    cierran. `id` se conserva para no romper a nadie.
+    `ids` is the list to close and is ALWAYS present — a caller that iterates over `ids` is correctly written for all four
+    cases, and that is the difference between reading `id` and losing the «los dos» response in two of the three places
+    that close. `id` is retained so as not to break anyone.
     """
     tid = str(target or "").strip()
     if not tid:
         return {"id": None, "ids": [], "ask": "", "options": []}
     if SEP in tid:
-        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # ya vino desambiguado; nada que preguntar
+        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # already disambiguated; nothing to ask
     abiertas = instances_of(tid, open_ids)
     if len(abiertas) <= 1:
         _one = abiertas[0] if abiertas else tid
@@ -145,14 +148,14 @@ def resolve_close(target, open_ids, text: str = "") -> dict:
 
 
 def resolve_show(target, open_ids, text: str = "") -> dict:
-    """A QUÉ tarjeta va un «enséñamelo» — el espejo de `resolve_close`, medido por el lado contrario (V2-300).
+    """WHICH card a «enséñamelo» refers to — the mirror image of `resolve_close`, measured from the opposite side (V2-300).
 
-    Ronda 24 de `search-buy-guitar__es` (2026-08-24): la hoja del encargo (`results::58c1af-1`) estaba ABIERTA
-    con 20 filas, el operador pidió ver un resultado, el modelo mostró `results` a secas… y el canvas abrió la
-    caja PELADA, vacía — «Te lo abro, aunque de momento está vacío» sobre una pantalla con la entrega al lado.
-    El guard de V2-209 hizo su parte (dijo la verdad sobre la caja equivocada); lo que faltaba era abrir la
-    caja CORRECTA. Mismo contrato que el cierre: la base con UNA instancia viva delante resuelve a esa
-    instancia; con varias se PREGUNTA nombrando encargos; sin ninguna, la base de siempre.
+    Round 24 of `search-buy-guitar__es` (2026-08-24): the request's sheet (`results::58c1af-1`) was OPEN
+    with 20 rows, the operator asked to see a result, the model showed bare `results`… and the canvas opened the
+    BARE, empty box — «Te lo abro, aunque de momento está vacío» on a screen with the delivery beside it.
+    The V2-209 guard did its part (it told the truth about the wrong box); what was missing was opening the
+    CORRECT box. Same contract as closing: the base with ONE live instance in front resolves to that
+    instance; with several it ASKS by naming requests; with none, the usual base.
     """
     tid = str(target or "").strip()
     if not tid:
@@ -161,7 +164,7 @@ def resolve_show(target, open_ids, text: str = "") -> dict:
         return {"id": tid, "ids": [tid], "ask": "", "options": []}   # ya vino desambiguado
     abiertas = instances_of(tid, open_ids)
     if not abiertas:
-        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # sin instancias: la base, como siempre
+        return {"id": tid, "ids": [tid], "ask": "", "options": []}   # no instances: the base, as always
     if len(abiertas) == 1:
         return {"id": abiertas[0], "ids": [abiertas[0]], "ask": "", "options": abiertas}
     if wants_every(text):
