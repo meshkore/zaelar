@@ -7667,6 +7667,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     y que el segundo tumbe el arranque para que el smoke lo vea. Cambiar el manejo de excepciones del
     arranque en el mismo commit que se corta una release es justo lo que provoca incidentes.
 
+- **Mover código «byte por byte» cambia sus GLOBALS (V2-555, 2026-09-02)**: el trinquete de arquitectura queda
+  CERRADO con cuatro extracciones y ningún techo subido — `reminder_guards.py` (26 guardas que forman un
+  conjunto cerrado y que nada de lo que se queda usa), `text_norm.py` (los tres ayudantes que ambas mitades
+  necesitan, para que ninguna importe a la otra de vuelta), `probe_scheduling.py` (una rodaja de `run_turn`,
+  que era 1136 de 1248 líneas) y `confirm_gate.py` (el único par del proveedor de voz que no necesita NADA
+  de él). Techos: 3493→**3470**, 1374/15→**789/7**, 1226→**1163**.
+  - **La costura se MIDE, no se elige por tamaño**: en los cuatro casos la pregunta fue «¿qué necesita este
+    bloque de lo que se queda, y qué necesita lo que se queda de él?». Y lo movido se comparó por **AST contra
+    HEAD**: mismo conjunto de nombres y cada definición `ast.dump`-idéntica. *Nada cambió, se mudó.*
+  - ⚠️ **Y aun así rompió dos cosas, las dos por globals.** `safe_reminder_schedule` leía `_sched` como global
+    del módulo; al quedarse ese import atrás lanzaba `NameError`, **que su propio `except` fail-soft se tragó**
+    devolviendo la entrada tal cual — nueve tests en rojo con valores plausibles, no con un error. Misma forma
+    que V2-554 y que el `_re` de v3.16. Y un `monkeypatch.setattr(router_guards, "_longest_pending_min", …)`
+    dejó de tener efecto: **un stub va donde la función MIRA, no donde el llamante importa**.
+  - **El guarda 7.30 NO caza esto** y conviene saberlo: solo mira nombres usados mientras el módulo se
+    IMPORTA. Un global leído dentro de una función lo caza la suite, no él.
+  - **Una guarda de cableado se apunta al CANAL, no al fichero**: cuatro guardas de «impl PARALELA — cablear en
+    AMBOS» leían el fuente de `probe.py`; el canal son ahora dos módulos y leen los dos. Desarmado para
+    comprobar que siguen mordiendo — si no, la siguiente extracción convierte la guarda en falsa alarma y la
+    tentación sería debilitarla.
+  - **Abierto**: `NucleoLLMStream` (2713 líneas) es la deuda que queda, y partirla es su propia tanda.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

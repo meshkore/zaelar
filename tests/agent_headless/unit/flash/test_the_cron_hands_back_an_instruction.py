@@ -64,8 +64,14 @@ def test_BOTH_channels_go_through_it():
     live model call."""
     import inspect
 
-    from nucleo.flash import probe
+    from nucleo.flash import probe, probe_scheduling
     from voice.engine.llm.providers import nucleo as vp
-    for mod in (probe, vp):
-        src = inspect.getsource(mod)
-        assert "safe_reminder_prompt(" in src, mod.__name__
+
+    # The PROBE CHANNEL is two modules since the 2026-09-02 ratchet split: `probe.py` and the scheduling
+    # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
+    # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
+    # guard into a false alarm, and the fix would be to weaken it.
+    doors = {"probe": inspect.getsource(probe) + inspect.getsource(probe_scheduling),
+             "voice provider": inspect.getsource(vp)}
+    for name, src in doors.items():
+        assert "safe_reminder_prompt(" in src, name

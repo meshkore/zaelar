@@ -20,13 +20,19 @@ from __future__ import annotations
 
 import pytest
 
+from nucleo.flash import reminder_guards as _owner
 from nucleo.flash import router_guards as g
 from voice.engine.core import langs
+
+# `holding_line` is reached as `router_guards.holding_line` (unchanged, re-exported), but it READS
+# `_longest_pending_min` from the module it lives in — `reminder_guards` since the 2026-09-02 split.
+# A stub has to be planted where the function looks, not where the caller imports from: patching the
+# re-export left the real clock running and the fourth wait repeated the first, silently.
 
 
 @pytest.fixture(autouse=True)
 def _clock(monkeypatch):
-    monkeypatch.setattr(g, "_longest_pending_min", lambda: 7)
+    monkeypatch.setattr(_owner, "_longest_pending_min", lambda: 7)
     yield
 
 
@@ -71,7 +77,7 @@ twelve cases in that batch failed because of an invented phase in the exact form
 def test_with_no_task_to_time_it_still_never_repeats(monkeypatch):
     """The fact may be unavailable (the dispatch cannot be read). That degrades ESCALATION, not
 non-repetition: continuing to say the same thing four times would be the same defect with another excuse."""
-    monkeypatch.setattr(g, "_longest_pending_min", lambda: 0)
+    monkeypatch.setattr(_owner, "_longest_pending_min", lambda: 0)
     said = _converse(langs.LANGUAGES["es"], 3)
     assert all(a != b for a, b in zip(said, said[1:])), said
 

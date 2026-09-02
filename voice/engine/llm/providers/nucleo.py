@@ -26,6 +26,10 @@ from .. import registry
 from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
+# The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
+# from this file, so the dependency runs one way. Imported back under their own names — every call site
+# in this module keeps working unchanged, and so does anything that reads them from here.
+from .confirm_gate import _human_confirm_question, _similar_pending  # noqa: F401 — re-export
 
 _WINDOW_MAX = 10
 _TAG_TASKS: set = set()
@@ -3288,28 +3292,6 @@ class NucleoLLMStream(llm.LLMStream):
                               similar_pending=_similar_pending)
 
 
-def _similar_pending(req: str, pendings: list[dict]) -> bool:
-    """True si `req` se parece mucho a una escalada YA en vuelo (Jaccard de palabras de contenido ≥0.5) — el
-    operador insiste/refina la MISMA petición mientras el SlowBrain trabaja (V2-029). Evita tareas y entregas
-    duplicadas. Dos peticiones distintas (moto vs piso) NO se funden."""
-    import re as _re
-    import unicodedata as _ud
-
-    def _w(s: str) -> set:
-        n = "".join(c for c in _ud.normalize("NFKD", s or "") if not _ud.combining(c)).lower()
-        return {t for t in _re.findall(r"\w+", n) if len(t) >= 4}
-
-    g = _w(req)
-    if not g:
-        return False
-    for p in (pendings or []):
-        o = _w(p.get("request", ""))
-        union = len(g | o)
-        if union and len(g & o) / union >= 0.5:
-            return True
-    return False
-
-
 def _action_is_negated(n: str) -> bool:
     """True si la frase NIEGA la acción de widget ("no necesito que abras nada", "no me muestres", "no cierres
     nada", "don't open") — para que el fallback NO dispare un show/close cuando el operador dice EXPLÍCITAMENTE que
@@ -3415,69 +3397,6 @@ def _widget_fallback(text: str, emit, ask=None) -> bool:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget fallback skipped: {e}")
     return False
-
-
-def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
-    """Texto HUMANO de una confirmación de data-op irreversible (overlay + voz). Expone el ALCANCE real leído del
-    MANIFEST — qué HACE la acción (`desc`) y sobre QUÉ item (etiqueta resuelta) — para que el operador vea si es
-    MÁS de lo que pidió (p.ej. un PROYECTO entero en vez de una tarea). Genérico: sirve a cualquier widget. Fallback
-    prudente si no hay manifest/desc."""
-    # V2-051: RESPONDER un mensaje → la confirmación LEE el borrador (destinatario + texto), no la jerga de la
-    # acción. Así el operador oye exactamente qué se va a enviar antes de decir sí.
-    if wid == "mensajeria" and action == "reply":
-        body = str((payload or {}).get("text") or "").strip()
-        draft = (body[:180] + "…") if len(body) > 180 else body
-        who = ""
-        try:
-            from widgets.mensajeria import data as _md
-            v = _md.view_data()
-            n = (payload or {}).get("n")
-            if v.get("active_chat"):
-                hit = next((it for it in v.get("active_items", []) if it.get("n") == n), None)
-                who = (hit or {}).get("from") or ""
-            else:
-                hit = next((c for c in v.get("chats", []) if c.get("n") == n), None)
-                who = (hit or {}).get("name") or ""
-        except Exception:
-            pass
-        dest = f" a {who}" if who else ""
-        return f"Voy a responder{dest}: «{draft}». ¿Lo envío?"
-
-    desc = ""
-    human = ""
-    label = ""
-    try:
-        from widgets import refs, runtime
-        spec = ((runtime.get(wid) or {}).get("actions") or {}).get(action) or {}
-        human = str(spec.get("confirm_q") or "").strip()
-        desc = str(spec.get("desc") or "").strip().rstrip(".")
-        field = refs.id_field_for_action(wid, action)
-        if field:
-            label = refs.label_for(wid, field, (payload or {}).get(field, ""))
-    except Exception:
-        pass
-    tail = f" («{label}»)" if label else ""
-    # `confirm_q` MANDA: es la pregunta escrita PARA EL OPERADOR (2026-08-15, sesión 319252e7). El `desc` del
-    # manifest es la descripción de la tool, o sea texto escrito PARA EL MODELO — y leerlo en voz alta es un error
-    # de categoría que el operador oyó entero: «VACÍA la agenda entera de una vez: descarta todas las tareas…
-    # **Úsala cuando el operador pida** dejarla vacía «del todo»/«por completo»…». Le estábamos recitando nuestras
-    # instrucciones internas y pidiéndole que dijera «sí» a eso.
-    if human:
-        # `{item}` deja que el autor del widget coloque el elemento DONDE suena bien al oído, en vez de pegarlo
-        # al final: «¿Congelo el proyecto «Reddit» entero?» en vez de «…entero. («Reddit»)». Si no hay item
-        # resuelto, la frase se queda sin él antes que decir «el proyecto «»».
-        if "{item}" in human:
-            q = human.replace(" «{item}»", f" «{label}»" if label else "").replace("{item}", label)
-        else:
-            q = f"{human}{tail}"
-        return q if "?" in q else f"{q} ¿Lo confirmo?"
-    if desc:
-        # Sin `confirm_q`, se cita SOLO la primera frase del desc: la guía de uso («Úsala cuando…») vive a partir
-        # del primer punto y no es asunto del operador. Mejor que la jerga cruda de 2026-07-15 («¿Confirmas
-        # drop_project?»), que es lo que esta rama vino a arreglar, y sin arrastrar el resto del prompt.
-        primera = desc.split(". ")[0].rstrip(".")
-        return f"Ojo, esto es permanente: «{primera}»{tail}. ¿Lo confirmo?"
-    return f"Ojo, la acción «{action}»{tail} es permanente. ¿La confirmo?"
 
 
 def _show_guard_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:

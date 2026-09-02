@@ -483,7 +483,11 @@ def test_the_helper_is_wired_into_BOTH_channels():
 
     from nucleo.flash import probe as _probe
     from voice.engine.llm.providers import nucleo as _provider
-    for src in (inspect.getsource(_probe.run_turn), inspect.getsource(_provider)):
+    # The probe channel is `probe.py` + `probe_scheduling.py` since the 2026-09-02 ratchet split; the guard is
+    # about the CHANNEL carrying the call, not about which file holds the line.
+    from nucleo.flash import probe_scheduling as _probe_sched
+    _probe_src = inspect.getsource(_probe.run_turn) + inspect.getsource(_probe_sched)
+    for src in (_probe_src, inspect.getsource(_provider)):
         assert "dated_reminder_backstop(" in src and "window=" in src
 
 
@@ -548,8 +552,14 @@ def test_and_the_write_path_actually_consults_it():
     """El chequeo no sirve de nada si el sitio que escribe no lo llama."""
     import inspect
 
-    from nucleo.flash import probe
-    assert "already_in_agenda(" in inspect.getsource(probe.run_turn)
+    from nucleo.flash import probe, probe_scheduling
+
+    # The PROBE CHANNEL is two modules since the 2026-09-02 ratchet split: `probe.py` and the scheduling
+    # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
+    # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
+    # guard into a false alarm, and the fix would be to weaken it.
+    src = inspect.getsource(probe.run_turn) + inspect.getsource(probe_scheduling)
+    assert "already_in_agenda(" in src
 
 
 # ── V2-167 · the promise that does NOT name the day, and the day found only in the operator’s sentence ─────
@@ -861,7 +871,9 @@ def test_las_DOS_puertas_lo_llaman():
     def _limpio(ruta):
         return "\n".join(ln for ln in Path(ruta).read_text().splitlines()
                          if not ln.strip().startswith("#"))
-    assert "safe_reminder_schedule(" in _limpio("nucleo/flash/probe.py"), "la puerta del canal probe"
+    # Same reason as above: the probe channel is `probe.py` + `probe_scheduling.py` since the split.
+    _probe_src = _limpio("nucleo/flash/probe.py") + _limpio("nucleo/flash/probe_scheduling.py")
+    assert "safe_reminder_schedule(" in _probe_src, "la puerta del canal probe"
     assert "safe_reminder_schedule(" in _limpio("voice/engine/llm/providers/nucleo.py"), "la puerta del proveedor"
 
 

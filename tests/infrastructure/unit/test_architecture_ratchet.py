@@ -101,7 +101,11 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # so this file also gains no lazy import (155 remains 155). The DEBT remains and is the same: F1/F2 of V2-112.
     # A ceiling that cannot be paid without touching the voice hot path at three in the morning is raised with its
     # name above it, which is what this table has been doing since 24-08.
-    "voice/engine/llm/providers/nucleo.py": (3493, 155),
+    # 2026-09-02: 3493 → 3470, 155 → 145. First cut of the god file, and deliberately the SMALL one: the
+    # pending-confirmation pair (`_similar_pending`, `_human_confirm_question`) → `confirm_gate.py`. It was
+    # chosen because it is the only pair in the file that needs NOTHING from it — verified, not assumed —
+    # so the move carries no risk of a cycle. The 2713-line `NucleoLLMStream` class is still the real debt.
+    "voice/engine/llm/providers/nucleo.py": (3470, 145),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
@@ -123,7 +127,13 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
     # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
     "widgets/navegador/owner.py": (1725, 44),
-    "nucleo/flash/router_guards.py": (1374, 15),   # 25-08: V2-306..310 walk guards (harness)
+    # 2026-09-02: 1374 → 789, and 15 → 7 lazy imports. The ratchet asked for an extraction and got two:
+    # `reminder_guards.py` (the 26 guards for a PROMISED dated notice — a closed set that nothing left
+    # behind uses) and `text_norm.py` (the three text helpers BOTH halves need, which is why neither could
+    # keep them without importing the other back). Everything moved byte for byte and is re-exported, so no
+    # call site changed. The two new files are deliberately NOT listed: a ceiling is earned by a file that
+    # has already grown too big, not handed to every module at birth.
+    "nucleo/flash/router_guards.py": (789, 7),
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).
@@ -132,7 +142,10 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # something this codebase has already paid for four times (V2-121, V2-176, V2-380, V2-383). They are three
     # branches of an `elif` chain (classify, execute, speak) that do not form a module: shared code already lives
     # in `image_turn`.
-    "nucleo/flash/probe.py": (1226, 89),
+    # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
+    # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
+    # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
+    "nucleo/flash/probe.py": (1163, 76),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
