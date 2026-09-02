@@ -1491,6 +1491,22 @@ DOMAINS: list[dict] = [
         # thread (cap, TIME ordering, dedup, read watermark), the writers that reflect what happened elsewhere,
         # and "load previous". The RENDERING half lives in 4.98 (`..._paints_in_every_profile`) — which is what
         # caught that a backtick inside a comment CLOSES the CSS template literal.
+        # V2-557 (2026-09-02) — el explorador de archivos en la nube. Dos mitades. La del CONTRATO fija las
+        # cuatro decisiones que un cambio posterior puede deshacer en silencio: la acción que CONTESTA la
+        # frase para la que existe el widget («búscame el contrato de Axa») es de VISTA y devuelve sus
+        # coincidencias (sin lo primero una orden pura de mostrar deja una tarjeta muda, V2-547; sin lo
+        # segundo el turno no tiene qué decir, V2-541); NINGÚN payload de acción lleva una credencial (V2-520
+        # — la voz llega exactamente a estas acciones); `view_data` no toca la red, porque corre en cada
+        # repintado; y un permiso que no puede listar se distingue de una carpeta vacía.
+        # La mitad que RENDERIZA es la que ninguna lectura del fuente puede dar: un nombre de fichero es texto
+        # UNTRUSTED del disco de alguien —`<img src=x onerror=…>` es un nombre legal en todos los proveedores—
+        # y solo un navegador dice si eso se convirtió en un elemento o siguió siendo una cadena; y un aviso
+        # que existe en el DOM con altura cero no explica nada a nadie.
+        {"id": "4.100", "title": "ARCHIVOS: el explorador es genérico, contesta lo que encuentra, y dice lo que "
+                                 "su permiso NO puede ver (contrato + renderizado)",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/archivos/test_the_explorer_is_generic_and_says_what_it_cannot_see.py",
+                "tests/browser/e2e/widgets/test_archivos_render.py"]},
         {"id": "4.99", "title": "MENSAJERÍA: el widget sigue a la app real (respuestas desde el móvil, leído "
                                 "fuera, historial de conversación)",
             "ch": UNIT,
@@ -1909,6 +1925,27 @@ DOMAINS: list[dict] = [
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py"]},
+        # V2-557 (2026-09-02) — archivos en la nube (Drive/OneDrive). Lo que se vigila NO es que la llamada
+        # HTTP funcione (eso necesita una cuenta y vive en el 5.8) sino el razonamiento alrededor, que es donde
+        # este conector puede estar equivocado CONTESTANDO 200: un permiso que NO PUEDE LISTAR devuelve una
+        # lista vacía, exactamente igual que una carpeta vacía — colapsar los dos es cómo se le enseña «tu
+        # Drive está vacío» a quien lo tiene lleno, y cómo el defecto se diagnostica como conector roto en vez
+        # de como ámbito estrecho. Más las dos trampas de proveedor que se dan por supuestas: la comilla de
+        # «Pepe's contract» termina la query de Drive antes de tiempo, y un refresh que no devuelve
+        # refresh_token desconecta al operador horas después si se tira el anterior.
+        {"id": "5.7", "title": "Archivos en la nube: los TRAMOS de permiso, el flujo PKCE, y un permiso que no "
+                               "puede listar no es un disco vacío",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/files/test_a_permission_that_cannot_list_is_not_an_empty_drive.py"]},
+        # El circuito ENTERO contra una cuenta REAL. `live` a propósito: se excluye de CI y de
+        # `deterministic_paths()`, así que no se pone rojo en una máquina sin cuenta y correrlo es un acto
+        # explícito. PENDIENTE es un estado legítimo y lo dice en voz alta con los pasos para habilitarlo, en
+        # vez de pasar en vacío y confundirse con cobertura. NUNCA afirma ni imprime un nombre de fichero: este
+        # repo es PÚBLICO y sus informes ya filtraron datos personales una vez (110 de 186 informes de voz).
+        {"id": "5.8", "title": "Archivos en la nube — ida y vuelta REAL contra la cuenta del operador "
+                               "(PENDIENTE hasta que haya una conectada)",
+            "ch": UNIT, "live": True, "paths": [
+                "tests/connectors/unit/files/live_cloud_drive_roundtrip.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [
