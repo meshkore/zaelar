@@ -22,7 +22,38 @@ import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
-const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock";
+const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock", OPEN_KEY = "hb_chat_open";
+
+// WHETHER IT WAS OPEN survives a reload too (V2-550). Its GEOMETRY already did — floating rect under
+// FLOAT_KEY, docked side+width under DOCK_KEY — so the operator's report («refresh and the chat wall does not
+// stay where it was») was precise in a way worth keeping: the position was never the part that was lost. The
+// panel simply came back CLOSED, every time, because `store.chatOpen` is a signal born `false`, and reopening
+// it then restored the geometry correctly — which is why it looked like the position was fine but the window
+// «moved». Canvas cards have persisted open+position since the beginning; this is the one surface on the
+// desktop that did not, and it is the one he keeps open all day.
+//
+// The TAB travels with it: coming back to a panel he had left on «Procesos» and finding «Chat» is the same
+// loss one level down. Kept in localStorage next to the geometry it belongs with, not in the canvas layout —
+// this is a native panel, not a card, and splitting one window's state across two stores is how they drift.
+function loadOpen() {
+  try {
+    const s = JSON.parse(localStorage.getItem(OPEN_KEY) || "null");
+    if (s && typeof s === "object") return { open: !!s.open, tab: String(s.tab || "chat") };
+  } catch (_) {}
+  return { open: false, tab: "chat" };
+}
+
+function saveOpen() {
+  try { localStorage.setItem(OPEN_KEY, JSON.stringify({ open: !!store.chatOpen(), tab: store.chatTab() })); }
+  catch (_) {}
+}
+
+// A server-side wipe («reset») must reach this too: `desktop.restore()` owns the wipe epoch and calls this, so
+// a blank desktop is genuinely blank instead of one panel that outlived the reset.
+export function forgetChatPlacement() {
+  try { localStorage.removeItem(OPEN_KEY); } catch (_) {}
+  store.setChatOpen(false);
+}
 const DOCK_PX = 34, MIN_W = 260, MIN_H = 200, DOCK_MIN_W = 240, DOCK_DEF_W = 340;
 
 const _num = (v, d) => (typeof v === "number" && isFinite(v) ? v : d);
@@ -69,6 +100,10 @@ export function ChatWall() {
   let schedEl, cnameEl, cpromptEl;             // refs for the create-cron form (Crons tab)
   let dockSide = null;                         // null | "left" | "right"
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
+  // Reopen exactly as it was left. Done HERE, at construction, so the first paint already has it: flipping the
+  // signal later would show the desktop for a frame and then drop a panel on top of it.
+  const _wasOpen = loadOpen();
+  if (_wasOpen.open) { store.setChatTab(_wasOpen.tab); store.setChatOpen(true); }
 
   const send = () => { if (!inputEl) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
 
@@ -258,6 +293,10 @@ export function ChatWall() {
     store.chatOpen();      // sole dependency: reserved geometry depends on whether it is open
     setReserve();          // closing releases the reserved strip; reopening while docked re-applies it
   });
+
+  // Remember open/closed + which tab, on every change — including the ones the ENGINE makes (a proactive push
+  // opens the wall by SSE, `[[close]]` shuts it). Those are as much «where he left it» as a click is.
+  createEffect(() => { store.chatOpen(); store.chatTab(); saveOpen(); });
 
   // ── geometry: floating ↔ dock ────────────────────────────────────────────────────────────────────────────
   function defaultFloat() { return { left: 18, top: 232, w: 320, h: Math.min(Math.round(innerHeight * 0.6), 520) }; }
