@@ -1,4 +1,4 @@
-"""memory/_prompt.py — lo que la memoria PINTA para un modelo, separado de lo que GUARDA.
+"""memory/_prompt.py — what memory RENDERS for a model, separate from what it STORES.
 
 Sacado VERBATIM de `memory/api.py` en la auditoría de arquitectura del 2026-08-23 (hallazgo H3). La fachada
 había llegado a 1.075 líneas mezclando ciclo de vida, escritura, olvido, kv, reglas de usuario y episodios con
@@ -505,4 +505,3 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
         if len(out) >= limit:
             break
     return out
-

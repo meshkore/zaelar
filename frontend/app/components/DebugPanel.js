@@ -106,8 +106,12 @@ function catShort(cat) {
   return key ? t(key) : (cat || "?").slice(0, 4).toUpperCase();
 }
 
+// V2-539: a turn resolved by the ACTION MAP never reached a model, so naming the FlashBrain here was a lie
+// the timeline told on every mapped command — and the auditor repeated it ("el cerebro rápido ejecutó cada
+// orden") on turns the fast brain never saw. The provider stamps `engine: "actionmap"`; this names it.
 function brainName(engine) {
   if (engine === "slowbrain") return "Worker";
+  if (engine === "actionmap") return "ActionMap";
   return "FlashBrain";
 }
 

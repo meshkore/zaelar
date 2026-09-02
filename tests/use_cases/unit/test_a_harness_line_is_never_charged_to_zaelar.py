@@ -1,14 +1,14 @@
-"""Contención: aunque el conductor se salga del papel, el JUEZ no puede fichar esa línea contra zaelar.
+"""Containment: even if the driver slips out of character, the JUDGE must not charge that line to zaelar.
 
-La cara 5 (`test_driver_flip_by_vocative.py`) evita el flip; esto cubre el que se escape igual. Y se escapan:
-en la ronda 6 de `cheapest-monitor` (2026-08-23) el aviso genérico de arnés que ya existía —«el modelo que
-hace de usuario se salió de su papel N veces»— estaba delante del juez y no bastó. El juez leyó la línea
-del TESTER con voz de asistente y la fichó como `zaelar@turn7`, uno de los tres bloqueadores [alta] de la
-ronda, con la cita entera. Las etiquetas `TESTER`/`ZAELAR` del transcript también estaban delante, y el
-contenido pudo con ellas.
+Face 5 (`test_driver_flip_by_vocative.py`) prevents the flip; this covers the case where it slips through anyway. And slip through they did:
+in round 6 of `cheapest-monitor` (2026-08-23), the generic harness warning that already existed—“the model
+acting as the user slipped out of character N times”—was in front of the judge and was not enough. The judge read the
+TESTER's line in an assistant's voice and charged it as `zaelar@turn7`, one of the round's three [high]-priority
+blockers, with the full quote. The `TESTER`/`ZAELAR` labels in the transcript were also in front of it, and the
+content overpowered them.
 
-Por eso la regla deja de hablar del papel y pasa a nombrar el TEXTO: la línea concreta, citada, con la
-prohibición pegada. Un juez que la fiche igual está contradiciendo una cita literal, no infiriendo mal.
+That is why the rule stops talking about the role and instead names the TEXT: the specific, quoted line, with the
+prohibition attached. A judge that charges it anyway is contradicting a literal quote, not drawing the wrong inference.
 """
 from tests.use_cases.e2e.agent.judge import mechanism_facts
 
@@ -27,17 +27,17 @@ def test_the_prohibition_is_explicit_about_no_atribuirla_a_zaelar():
     low = facts.lower()
     assert "prohibido" in low
     assert "zaelar" in low
-    # Lo que se fichó en la ronda 6 fue exactamente esto: citarla en un hallazgo.
+    # This is exactly what was charged in round 6: quoting it in a finding.
     assert "hallazgo" in low
 
 
 def test_sin_flip_el_juez_no_ve_ninguna_advertencia_de_este_tipo():
-    """Un aviso que sale siempre es ruido, y peor: entrena al juez a ignorarlo cuando importe.
+    """A warning that always appears is noise, and worse: it trains the judge to ignore it when it matters.
 
-    El informe va POBLADO a propósito. La primera versión de este test pasaba `{}` y era verde por el motivo
-    equivocado: `mechanism_facts` corta arriba con «no hay informe de mecanismo» y no llega nunca al bloque
-    que se quería comprobar. Lo cazó el desarme —forzar el aviso a salir siempre no puso rojo nada—, que es
-    justo para lo que está el desarme."""
+    The report is deliberately POPULATED. The first version of this test passed `{}` and was green for the
+    wrong reason: `mechanism_facts` returns early with “there is no mechanism report” and never reaches the block
+    that was meant to be checked. The teardown caught it—forcing the warning to always appear did not turn anything red—which is
+    exactly what the teardown is for."""
     facts = mechanism_facts({"families_observed": ["worker", "widget"], "expected_signals": ["worker"]})
     assert "Familias del sistema" in facts, "el informe se cortó arriba: el test no llega a lo que mide"
     assert "LAS ESCRIBIÓ EL ARNÉS" not in facts

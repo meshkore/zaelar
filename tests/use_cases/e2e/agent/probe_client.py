@@ -8,6 +8,7 @@ Without it nothing this suite cares about — a worker spawning, a browser navig
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -63,7 +64,16 @@ def _get(path: str, timeout: float = 15.0) -> dict:
         return {"error": str(e)}
 
 
-def say(text: str, session: str, *, execute: bool = True, ingest: bool = False, timeout: float = 90.0) -> dict:
+#: Per-turn budget for the probe channel. 90s fixed was sized for the DIRECT titular (TTFT ~1s); on the
+#: AIMLAPI relay the broker reasons on every call (it ignores `thinking:disabled` — the very reason direct is
+#: titular) and under night load a single turn can exceed 90s. Measured 2026-08-31: two rounds died
+    #: «turn N: timed out» in the first hour of the relay-only night shift. Configurable so a relay night can
+#: widen it without touching code; the default stays 90 for the titular.
+_TURN_TIMEOUT_S = float(os.getenv("UC_TURN_TIMEOUT_S", "90"))
+
+
+def say(text: str, session: str, *, execute: bool = True, ingest: bool = False,
+        timeout: float = _TURN_TIMEOUT_S) -> dict:
     """One turn over the probe channel. Returns the raw response: reply text, tool_calls, tags, trace id,
     and (with execute=True) `executed`/`task_id` for anything that really fired.
 
@@ -86,69 +96,70 @@ def reset(session: str) -> dict:
 
 
 def recall(query: str, k: int = 8) -> list[dict] | None:
-    """Qué recuerda el motor sobre algo. `POST /api/memory/recall` NO pide token de tarea (a diferencia de
-    `/api/memory/remember`, que es solo para los puentes de los workers), así que el arnés puede LEER la
-    memoria del sandbox sin inventarse credenciales.
+    """What the engine remembers about something. `POST /api/memory/recall` does NOT require a task token
+    (unlike `/api/memory/remember`, which is only for worker bridges), so the harness can READ the sandbox's
+    memory without making up credentials.
 
-    Existe para una cosa concreta: comprobar que una siembra de preferencias aterrizó ANTES de juzgar al
-    agente por no recordarla. Sin esta comprobación, un caso de «infiere lo que me gusta» mediría el
-    destilador de memoria y lo reportaría como que el agente no razona.
+    It exists for one specific purpose: to check that a preference seed landed BEFORE judging the agent for
+    not remembering it. Without this check, a case of «infer what I like» would measure the memory distiller
+    and report it as the agent failing to reason.
     """
     try:
         r = _post("/api/memory/recall", {"query": query, "k": k}, timeout=30.0)
     except Exception:
-        return None       # V2-400: una petición caída no es una memoria vacía — «no pude preguntar»
+        return None       # V2-400: a failed request is not empty memory — «I could not ask»
     if isinstance(r, dict):
         return r.get("results") or r.get("items") or r.get("memories") or []
     return r if isinstance(r, list) else []
 
 
 def hard_reset() -> dict:
-    """Deja el motor LIMPIO entre casos: mata el trabajo de fondo, cierra el canvas y rota la sesión.
+    """Leaves the engine CLEAN between cases: kills background work, closes the canvas, and rotates the session.
 
-    Existe por una contaminación MEDIDA (2026-08-19): una tanda comparte UN sandbox, y en
-    `find-theatre-tickets__es` el juez vio que «el sistema intentaba reservar un restaurante irrelevante» —
-    era la tarea viva del caso ANTERIOR (`restaurant-tonight-madrid`) del mismo lote. O sea que el caso no se
-    midió a sí mismo: se midió arrastrando el trabajo del vecino. `reset(session)` no vale para esto, solo
-    limpia la ventana conversacional; los workers, las tareas y el canvas siguen ahí.
+    It exists because of a MEASURED contamination (2026-08-19): one batch shares ONE sandbox, and in
+    `find-theatre-tickets__es` the judge saw that «the system was trying to book an irrelevant restaurant» —
+    it was the live task from the PREVIOUS case (`restaurant-tonight-madrid`) in the same batch. In other
+    words, the case was not measured on its own: it was measured while carrying the neighbor's work along.
+    `reset(session)` is not enough for this; it only clears the conversational window; the workers, tasks,
+    and canvas remain.
 
-    NO borra memoria a propósito (`/reset/hard`, no `/api/reset/full` con `wipe_memory`): borrarla exige matar
-    el proceso y, además, los casos de descubrimiento SIEMBRAN preferencias que tienen que sobrevivir a esto —
-    se siembran después, ya dentro del caso.
+    It deliberately does NOT erase memory (`/reset/hard`, not `/api/reset/full` with `wipe_memory`): erasing it
+    requires killing the process and, moreover, discovery cases SEED preferences that must survive this — they
+    are seeded afterward, already inside the case.
     """
     return _post("/reset/hard", {}, timeout=60.0)
 
 
 def canvas_items() -> list:
-    """Las tarjetas que el SERVIDOR tiene guardadas del escritorio (`GET /api/canvas/layout`).
+    """The cards that the SERVER has saved for the desktop (`GET /api/canvas/layout`).
 
-    NO es lo mismo que lo que se ve en pantalla —el navegador es el dueño del canvas (V2-124)— pero es lo
-    único observable desde aquí, y una tarjeta que sigue en esta lista reaparece en cuanto alguien recargue.
+    This is NOT the same as what is visible on screen —the browser owns the canvas (V2-124)— but it is the
+    only thing observable from here, and a card that remains in this list reappears as soon as someone reloads.
     """
     data = _get("/api/canvas/layout")
     return list((data or {}).get("items") or []) if isinstance(data, dict) else []
 
 
 def settle_after_reset(*, budget_s: float = 25.0, poll_s: float = 1.0) -> dict:
-    """Espera a que el motor quede REALMENTE limpio y devuelve lo que encontró, se haya limpiado o no.
+    """Waits for the engine to become REALLY clean and returns what it found, whether it was cleaned or not.
 
-    Sustituye a un `time.sleep(2.0)` seguido de imprimir «motor reseteado (sin trabajo ni canvas anterior)»
-    pasara lo que pasara — una afirmación que nadie comprobaba, en el sitio donde el operador la lee para
-    fiarse de que el caso siguiente se mide solo. Dos segundos era además un número inventado: en la tanda
-    del 2026-08-24 un worker de investigación seguía escribiendo en la hoja del caso ANTERIOR casi un
-    segundo después del reset, y su tarjeta se quedaba en pantalla.
+    It replaces a `time.sleep(2.0)` followed by printing «engine reset (with no previous work or canvas)»
+    regardless of what happened — an assertion nobody checked, in the place where the operator reads it to
+    trust that the next case is measured by itself. Two seconds was also an invented number: in the
+    2026-08-24 batch, a research worker was still writing to the PREVIOUS case's sheet almost a second after
+    the reset, and its card remained on screen.
 
-    El presupuesto es un TOPE, no una espera: en cuanto las dos señales están a cero se vuelve. Y si se
-    agota, se vuelve igual **diciendo qué quedó vivo** — parar la tanda porque un worker tarda en morir
-    costaría más que medir un caso con una advertencia encima.
+    The budget is a CEILING, not a wait: as soon as both signals are zero it returns. And if it runs out, it
+    returns anyway **saying what remained alive** — stopping the batch because a worker takes time to die
+    would cost more than measuring a case with a warning attached.
     """
     import time as _t
 
     def _still_working() -> list[dict]:
-        # El filtro de estado se aplica AQUÍ y no se le delega al motor. `active_sessions()` estuvo sin
-        # filtrar hasta V2-115 —y ese hueco pintó como «en curso» tareas ya terminadas—, así que esperar a
-        # que la lista se vacíe sin mirar el estado ataría el arranque del caso siguiente a un registro que
-        # ya ha fallado una vez de esa forma exacta.
+        # The status filter is applied HERE and not delegated to the engine. `active_sessions()` went without
+        # filtering until V2-115 —and that gap displayed already-finished tasks as «in progress»—, so waiting
+        # for the list to empty without checking the status would tie the next case's start to a registry that
+        # has already failed once in that exact way.
         return [x for x in live_tasks() if str(x.get("status") or "") in ("queued", "running", "needs_input")]
 
     t0 = _t.monotonic()
@@ -225,13 +236,13 @@ def navegador_task(task_id: str) -> dict:
 
 
 def widgets_producing() -> list[str] | None:
-    """Qué widgets están PRODUCIENDO ahora mismo (audio, vídeo, un proceso vivo), según el propio motor.
+    """Which widgets are PRODUCING right now (audio, video, a live process), according to the engine itself.
 
-    Se pregunta, no se deduce: `active_when` lo evalúa `widgets/producers.py` contra el `view_data()` del
-    widget, y reimplementarlo aquí sería una segunda verdad que puede divergir de la que usa el producto.
-    `None` cuando NO SE PUDO PREGUNTAR, lista (quizá vacía) cuando el motor contestó. La distinción es la
-    que V2-395 le enseñó al juez, y devolver `[]` ante un motor inalcanzable la resolvía justo por la rama
-    que acusa al producto. Nunca lanza: es un dato del informe, no un paso del turno.
+    It is queried, not inferred: `active_when` evaluates it in `widgets/producers.py` against the widget's
+    `view_data()`, and reimplementing it here would create a second truth that could diverge from the one
+    used by the product. `None` means it COULD NOT BE QUERIED; a list (possibly empty) means the engine
+    answered. V2-395 taught the judge this distinction, and returning `[]` for an unreachable engine resolved
+    it precisely through the branch that accuses the product. It never raises: it is report data, not a turn step.
     """
     try:
         d = _get("/widgets/producing")

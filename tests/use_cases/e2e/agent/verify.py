@@ -1,11 +1,11 @@
 """Mechanism verification — did the RIGHT subsystems actually fire, independent of what zaelar claimed in
 its replies. Polls the durable observability flow (`GET /api/observability/flow/{corr_id}`) per turn's
-trace id, and for a browser-involving task, the navegador widget's own state (real extracted results),
+trace id, and for a browser-involving task, the browser widget's own state (real extracted results),
 fetched from outside the conversation.
 
 Family vocabulary matches the canonical one `voice/observer.py::_CAT` maps every event kind into (enforced
 total by `tests/infrastructure/unit/core/test_observer_categories.py`): flash (FlashBrain), worker (Brain
-Workers — includes the browser: "the navegador goes HERE, opening the browser is not its own family, it's
+Workers — includes the browser: "the browser goes HERE, opening the browser is not its own family, it's
 what a worker does when it needs one"), memory, widget, system, pulse.
 """
 from __future__ import annotations
@@ -49,7 +49,7 @@ def _fields(e: dict) -> dict:
 
 
 def find_navegador_task_id(events: list[dict]) -> str:
-    """A navegador task card shows as a widget/show event with extra id "navegador::<task_id>" (see
+    """A browser task card shows as a widget/show event with extra id "navegador::<task_id>" (see
     nucleo/dispatch.py). The exact payload nesting is defensive here (checked both flat and under "extra")
     since it's read from the durable JSON column, not the in-process event dict."""
     for e in events:
@@ -85,7 +85,7 @@ def poll_navegador_task(task_id: str, *, timeout_s: float = 90.0, interval_s: fl
 
 def live_navegador_snapshot(scenario_started_ms: float) -> str:
     """A ONE-SHOT (non-polling — for `poll_navegador_task`'s patient version, see above), compact status
-    line for whatever navegador task is active RIGHT NOW in this scenario's live session, or "" if none.
+    line for whatever browser task is active RIGHT NOW in this scenario's live session, or "" if none.
 
     Built for the watchdog (2026-08-17, live finding): two scenarios got `stuck/abandon`ed after only 2-3
     turns while their mechanism report (checked AFTER the fact) showed a real worker genuinely navigating —

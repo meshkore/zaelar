@@ -1,26 +1,27 @@
-"""V2-496 — Z.AI es del BRAIN WORKER y de nadie más.
+"""V2-496 — Z.AI belongs to the BRAIN WORKER and nobody else.
 
-Norma del operador, 2026-08-30, literal:
+Operator's rule, 2026-08-30, verbatim:
 
-    «el proveedor de Z.AI solo sirve para el Brain Worker, para utilizarse dentro de Claude Code; no sirve
-     como failover de nada más y no se debe utilizar en ningún otro apartado del agente.»
+    «the Z.AI provider is only for the Brain Worker, to be used within Claude Code; it is not a failover
+     for anything else and must not be used in any other part of the agent.»
 
-Deroga a V2-462, que había puesto las DOS carteras de Z.AI en la cadena de VOZ (plan por `api/anthropic`,
-créditos por `paas/v4`). Aquello funcionaba —demasiado bien—: la voz relevaba sola a los créditos, y así fue
-como bajó el saldo de una cartera que no estaba autorizada para eso. El operador lo vio en el panel de Z.AI
-antes que nosotros en el código.
+It supersedes V2-462, which had put BOTH Z.AI accounts in the VOICE chain (plan via `api/anthropic`,
+credits via `paas/v4`). That worked —too well—: voice switched over to credits on its own, and that is how
+the balance of an account not authorized for that purpose was reduced. The operator saw it in the Z.AI
+dashboard before we saw it in the code.
 
-Lo MEDIDO que hay que tener delante antes de tocar esto (2026-08-29/30, en vivo):
+The MEASURED facts to keep in view before touching this (2026-08-29/30, live):
 
-  · plan agotado → `429 · 1310 Weekly/Monthly Limit Exhausted, reset 2026-09-01 01:39`, y **no cae a
-    créditos solo**: son dos carteras y dos endpoints;
-  · créditos con saldo → `200` por `paas/v4`, que es **OpenAI-compatible**;
-  · el worker lo conduce el CLI de Claude Code, que habla **protocolo Anthropic**. Por eso el escalón de
-    créditos NO se puede mudar al worker de un renglón: acabaría en `/v1/messages` de un endpoint que no lo
-    sirve, o sea un 404 con pinta de caída, justo en el escalón de socorro. Queda declarado y sin construir.
+  · plan exhausted → `429 · 1310 Weekly/Monthly Limit Exhausted, reset 2026-09-01 01:39`, and **it does not
+    fall back to credits alone**: these are two accounts and two endpoints;
+  · credits with balance → `200` via `paas/v4`, which is **OpenAI-compatible**;
+  · the worker is driven by the Claude Code CLI, which speaks **the Anthropic protocol**. Therefore the
+    credits step cannot be moved to the worker as a one-line change: it would end up at `/v1/messages` on an
+    endpoint that does not serve it, meaning a 404 that looks like an outage, precisely at the rescue step.
+    It is declared but not built.
 
-Este fichero fija la propiedad NEGATIVA —dónde Z.AI no puede aparecer—, que es la que se rompe sola: un
-escalón se añade «porque hay credencial» y nadie se entera hasta que baja el saldo.
+This file establishes the NEGATIVE property —where Z.AI must not appear—which is the one that breaks on its
+own: a step gets added «because there is a credential» and nobody notices until the balance drops.
 """
 from __future__ import annotations
 
@@ -32,39 +33,41 @@ def _zai(t: dict) -> bool:
     return "api.z.ai" in (t.get("base_url") or "")
 
 
-# ── donde NO puede estar ────────────────────────────────────────────────────────────────────────────────
+# ── where it must NOT be ─────────────────────────────────────────────────────────────────────────────────
 
 def test_la_cadena_de_voz_no_lleva_ZAI():
-    """`_known_chain()` sirve al cerebro de voz, al compositor del brief y al cerebro de cluster."""
+    """`_known_chain()` serves the voice brain, the brief composer, and the cluster brain."""
     assert not [t for t in PC._known_chain() if _zai(t)], (
         "Z.AI ha vuelto a la cadena que NO es la del worker; ahí gasta saldo sin autorización")
 
 
 def test_ningun_relevo_de_voz_lleva_ZAI():
-    """Los escalones de relevo por latencia son otra lista, y por eso hay que mirarla aparte: la norma se
-    rompería igual de bien colándolo por ahí."""
+    """The latency-based relay steps are a separate list, so it must be checked separately: the rule would
+    be just as easily broken by slipping it in there."""
     assert not [t for t in PC._VOICE_RELAYS() if _zai(t)]
 
 
 def test_el_motor_de_voz_no_ofrece_un_proveedor_ZAI():
-    """Había un proveedor `glm` registrado (Z.AI, OpenAI-compatible) seleccionable como cerebro de voz. Se
-    retiró: además de esta norma, era un RAZONADOR ofrecido para la voz, que ya violaba la regla dura."""
-    from voice.engine.llm import providers as _p  # noqa: F401 — el import registra los proveedores
+    """A `glm` provider (Z.AI, OpenAI-compatible) was registered and selectable as the voice brain. It was
+    removed: in addition to violating this rule, it was a REASONER offered for voice, which already violated
+    the hard rule."""
+    from voice.engine.llm import providers as _p  # noqa: F401 — the import registers the providers
     from voice.engine.llm import registry
     assert "glm" not in set(registry.names())
 
 
 def test_los_ajustes_de_ZAI_no_viven_en_la_config_de_voz():
-    """Un ajuste sin proveedor que lo lea es una invitación a volver a enchufarlo."""
+    """A setting with no provider to read it is an invitation to plug it back in."""
     from voice.engine.core.config import SETTINGS
     for campo in ("zai_api_key", "zai_base_url", "glm_model"):
         assert not hasattr(SETTINGS, campo), f"«{campo}» sigue en la config de voz"
 
 
-# ── donde SÍ tiene que estar ────────────────────────────────────────────────────────────────────────────
+# ── where it MUST be ─────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_worker_SIGUE_teniendo_su_escalon_de_ZAI():
-    """La otra mitad, y no es simetría: quitarlo de todas partes dejaría al Brain Worker sin su titular."""
+    """The other half, and this is not symmetry: removing it everywhere would leave the Brain Worker without
+    its primary provider."""
     zai = [t for t in WP.KNOWN if _zai(t)]
     assert zai, "el worker se ha quedado sin Z.AI: eso no es la norma, es lo contrario"
     assert all("anthropic" in t["base_url"] for t in zai), (
@@ -73,16 +76,16 @@ def test_el_worker_SIGUE_teniendo_su_escalon_de_ZAI():
         "el rasgo medido de GLM —confabula sobre imágenes que no ve— no puede perderse al reordenar")
 
 
-# ── el agujero que dejó al quitarlo ──────────────────────────────────────────────────────────────────────
+# ── the gap left by removing it ──────────────────────────────────────────────────────────────────────────
 
 def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
-    """Quitar Z.AI dejó de cabeza al broker AIMLAPI — y esa misma noche AIMLAPI estaba caído (curl a pelo:
-    45 s y HTTP 000) mientras `api.deepseek.com` contestaba en 0,68 s. El turno se quedaba en
-    `APITimeoutError` con el titular bueno a un renglón.
+    """Removing Z.AI put the AIMLAPI broker at the top — and that same night AIMLAPI was down (a raw curl:
+    45 s and HTTP 000) while `api.deepseek.com` responded in 0.68 s. The turn stalled on
+    `APITimeoutError` with the good primary provider one line below.
 
-    La causa no fue quitar Z.AI: fue que este catálogo llevaba tiempo **desalineado con el reparto canónico**
-    —«FlashBrain: DeepSeek directo → v4-pro → AIMLAPI failover»— y Z.AI le tapaba el hueco. Un fallo así solo
-    se ve el día que se mueve la pieza de encima."""
+    The cause was not removing Z.AI: this catalog had long been **misaligned with the canonical allocation**
+    —«FlashBrain: direct DeepSeek → v4-pro → AIMLAPI failover»— and Z.AI had been masking the gap. A failure
+    like this is only visible on the day the piece on top is moved."""
     for var in ("MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "LLM_API_KEY", "LLM_BASE_URL"):
         monkeypatch.delenv(var, raising=False)
     names = [t["name"] for t in PC._known_chain()]

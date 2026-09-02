@@ -21,7 +21,7 @@ cheap and non-blocking (the SQLite one uses its own connection + lock).
 REAL production topics (`domain.event` convention, fnmatch-style wildcard; verified by grep 2026-07-26 — fixes an
 aspirational/stale list that mentioned `widget.*`/`brain.*`, which NEVER existed as topics):
 `memory.updated`, `connector.msg`/`connector.status`, `loop.tick`, `escalate.requested`, `turn.completed`
-(Susurro), `worker.stuck`/`worker.budget_kill`, `susurro.finding`, y `observer` — el puente SSE del frontend, que
+(Susurro), `worker.stuck`/`worker.budget_kill`, `susurro.finding`, and `observer` — the frontend's SSE bridge, which
 is NOT a per-domain topic: it carries ALL timeline events (voice, widgets, brain, cluster…) with their `kind` as a
 payload field (e.g. `{"kind":"widget", ...}`), not as part of the topic name.
 """

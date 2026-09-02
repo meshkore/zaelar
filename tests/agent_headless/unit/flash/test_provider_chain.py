@@ -48,7 +48,7 @@ def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
     inside Claude Code; it is not a failover for anything else and must not be used in any other part
     of the agent».
 
-    Esta cadena la usan el cerebro de VOZ, el compositor del brief y el cerebro de cluster — ninguno es un
+    This chain is used by the VOICE brain, the brief composer, and the cluster brain — none of them is a
     worker. Until 2026-08-30 it carried BOTH Z.AI wallets (plan via `api/anthropic` and credits via
     `paas/v4`, V2-462) and they were consumed automatically by failover: that is how the balance of a wallet
     the operator had not authorized for this was reduced.
@@ -97,7 +97,7 @@ def test_a_passing_rate_limit_does_not_burn_a_provider(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert pc.classify_failure(BARE_429) == "rate"
-    assert pc.note_failure(BARE_429) is None            # se reintenta solo, no se releva
+    assert pc.note_failure(BARE_429) is None            # retry it on its own; do not fail over
     assert pc.pick()["name"] == "deepseek-directo"
 
 
@@ -208,7 +208,7 @@ def test_spec_for_carries_model_and_credential(monkeypatch):
     assert spec.model == "glm-5.2" and spec.base_url == "https://api.z.ai/api/anthropic" and spec.api_key == "zzz"
 
 
-# ── y que el PANEL se entere ──────────────────────────────────────────────────────────────────────────────
+# ── and make sure the PANEL knows ───────────────────────────────────────────────────────────────────────────
 def test_the_alerts_panel_surfaces_an_exhausted_cluster_provider(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -307,8 +307,8 @@ def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k2")
     assert pc.pick() is not None
-    # El tier COMPLETO, como lo entrega `pick()` — URL real y `env` incluidos: el emparejamiento de V2-458 casa
-    # por host + credencial RESUELTA, y sin eso el hermano queda en pie y el caso mide otra cosa.
+    # The COMPLETE tier, as returned by `pick()` — including the real URL and `env`: V2-458 matching uses
+    # the host + RESOLVED credential, and without that the sibling remains standing and the case measures something else.
     #
     # With ONE SINGLE failover (2026-08-30 rule), drying the chain takes two blows, not four — and that is half
     # the reason for the rule: a five-tier chain never became dry, so the turn could not tell the operator
@@ -341,14 +341,15 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
 # ── V2-244: silencing a tier is legitimate; hiding THAT YOU SILENCE IT is not ──────────────────────────────────────────
 # The harness isolated it in two consecutive lines of the 2026-08-21 log, with the real providers:
 #
-#   02:39:41  memllm[i18n]: relevo a deepseek/deepseek-v4-pro @ aimlapi tras HTTP 402   ← i18n RELEVA y sigue
-#   02:39:42  cerebro de voz: «titular» … sin cuota … · SIN RELEVO disponible           ← el cerebro NO
+#   02:39:41  memllm[i18n]: failover to deepseek/deepseek-v4-pro @ aimlapi after HTTP 402   ← i18n FAILS OVER and continues
+#   02:39:42  voice brain: «primary» … no quota … · NO FAILOVER available                  ← the brain does NOT
 #
-# La regla es del operador y NO se toca: en self-host la cadena de voz es solo el titular, porque quien se
+# The rule belongs to the operator and is NOT touched: in self-host, the voice chain is only the primary, because whoever
 # self-hosting means paying for its APIs, and the operator cannot be surprised by the agent switching to a provider
 # they did not choose. But that rule was written for LATENCY failover —the entire docstring discusses TTFT and cost— and
-# lo medido es otra cosa: el titular MUERTO deja el producto mudo con una clave viva sin usar. Esto no releva:
-# hace que se pueda NOMBRAR, que es la diferencia entre «no puedo seguir» y «no puedo seguir, y esto lo arregla».
+# what was measured is something else: the DEAD primary leaves the product mute while a live key goes unused. This does not
+# fail over; it makes it possible to NAME the issue, which is the difference between “I cannot continue” and “I cannot
+# continue, and this is what fixes it.”
 
 def _sin_lista_explicita(monkeypatch):
     """Self-host and WITHOUT `fast.providers` — that is, a freshly cloned installation.
@@ -365,7 +366,7 @@ def _sin_lista_explicita(monkeypatch):
 
 
 def test_en_self_host_la_cadena_de_voz_es_SOLO_el_titular(monkeypatch):
-    """La regla, tal cual, y sin ella el resto de este bloque no significa nada."""
+    """The rule exactly as written; without it, the rest of this block means nothing."""
     from nucleo import cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
@@ -422,12 +423,12 @@ def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
 
 
 def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
-    """GUARDA DE CABLEADO: es lo que el operador OYE. Sin esto, el hecho existe y no sale por ninguna boca.
+    """WIRING GUARD: this is what the operator HEARS. Without it, the fact exists but comes out of no mouth.
 
-    Repunteada 2026-08-31 (trinquete de arquitectura): la COMPOSICIÓN del mensaje se extrajo a
-    `provider_chain.dry_chain_line` — la guarda sigue cubriendo las dos mitades, cada una donde vive ahora:
-    el turno de voz LLAMA (suppressed_relays + dry_chain_line en nucleo.py) y la frase NOMBRA la clave que
-    lo activa (`fast.providers`, ahora comprobada como CONDUCTA de la función, no como texto en un fichero)."""
+    Repointed on 2026-08-31 (architecture ratchet): MESSAGE COMPOSITION was extracted to
+    `provider_chain.dry_chain_line` — the guard still covers both halves, each where it now lives:
+    the voice turn CALLS (suppressed_relays + dry_chain_line in nucleo.py), and the phrase NAMES the key that
+    activates it (`fast.providers`, now checked as FUNCTION BEHAVIOR rather than as text in a file)."""
     import inspect
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
@@ -499,7 +500,7 @@ def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
 
 
 def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
-    """GUARDA DE CABLEADO (V2-199): el predicado puede estar perfecto y el turno seguir sin llamarlo — que es
+    """WIRING GUARD (V2-199): the predicate may be perfect and the turn may still fail to call it — which is
     exactly what happened, because the stall branch deliberately skipped the ENTIRE provider circuit."""
     import inspect
     import pathlib

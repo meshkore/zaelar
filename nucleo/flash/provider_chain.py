@@ -60,26 +60,26 @@ _store = CooldownStore(_KV)
 # ── TWO CONSUMERS, ONE MECHANISM (V2-094, 2026-08-14) ─────────────────────────────────────────────────────────
 # This module was born for the CLUSTER brain. VOICE had the same problem and no relay: a slow turn or a provider
 # without quota was repeated against the same tier. The mechanism is therefore shared; only the CHAIN changes:
-#   · `cluster` → arranca en Z.AI (su titular histórico);
-#   · `voice`   → arranca en lo que diga `config §fast` (el titular del FlashBrain, hoy DeepSeek V4 Flash vía
-#                 AIMLAPI) y sigue por los escalones RÁPIDOS Y BARATOS que tengan credencial.
+#   · `cluster` → starts at Z.AI (its historical primary);
+#   · `voice`   → starts wherever `config §fast` says (the FlashBrain primary, currently DeepSeek V4 Flash via
+#                 AIMLAPI) and continues through the FAST AND CHEAP tiers that have credentials.
 # The COOLDOWN is intentionally shared: if Z.AI ran out of quota, it ran out for everyone — marking it twice would
 # create two truths about the same provider.
 ROLE_CLUSTER = "cluster"
 ROLE_VOICE = "voice"
 
 # ── LATENCY FAILOVER (what did not exist before) ───────────────────────────────────────────────────────────────
-# `note_failure` cubre el proveedor ROTO (429/cuota/credencial). No cubría el proveedor LENTO, que es el fallo que
-# el operador vive de verdad: turnos de 20-25 s en los que «parece que se ha quedado tonto». Medido en la sesión
+# `note_failure` covers the BROKEN provider (429/quota/credential). It did not cover the SLOW provider, which is the
+# failure the operator actually experiences: 20–25 s turns where it “seems to have gone stupid”. Measured in session
 # b70a45d0: TTFT p50 de 8.370 ms y máximo de 25.703 ms, con el prompt CONSTANTE (±9%) y 120 tok/s de generación —
 # o sea, todo el tiempo antes del primer token.
 #
 # Three decisions matter:
-# 1. **No se releva al primer turno lento.** Un pico aislado es ruido; hacen falta `_SLOW_STREAK` seguidos. Relevar
-#    por un pico cambiaría de modelo (y de precio) continuamente.
-# 2. **El cooldown de latencia es CORTO.** Lentitud es transitoria; quedarse media hora en un escalón más caro por
-#    dos turnos malos sale carísimo. 5 minutos y se vuelve a probar el titular.
-# 3. **TECHO DE TURNOS en el relevo.** Un relevo por latencia salta justo en los turnos DIFÍCILES, que son los que
+# 1. **Do not relay after the first slow turn.** An isolated spike is noise; `_SLOW_STREAK` consecutive turns are
+#    required. Relaying on a spike would continually change the model (and price).
+# 2. **The latency cooldown is SHORT.** Slowness is transient; staying half an hour on a more expensive tier because
+#    of two bad turns is extremely costly. After 5 minutes, try the primary again.
+# 3. **TURN CEILING on relay.** A latency relay triggers precisely on DIFFICULT turns, which are the ones that
 #    más tokens gastan — el peor perfil de coste posible. Pasados `_RELAY_TURN_BUDGET` turnos se vuelve al titular
 #    aunque siga lento: preferimos un turno lento a una factura sorpresa. (En la nube el salto de DeepSeek a un
 #    escalón grande puede ser de 14× el input; ver `.meshkore/docs/ops/zaelar-energy-accounting.md` en la raíz.)
@@ -87,26 +87,25 @@ _SLOW_COOLDOWN_S = 5 * 60
 _SLOW_STREAK = 2
 _RELAY_TURN_BUDGET = 40
 
-_slow_streak: dict[str, int] = {}      # name -> turnos lentos consecutivos de ESE escalón
-_relay_turns: dict[str, int] = {}      # name -> turnos ya servidos por ese escalón como RELEVO de latencia
+_slow_streak: dict[str, int] = {}      # name -> consecutive slow turns for THAT tier
+_relay_turns: dict[str, int] = {}      # name -> turns already served by that tier as a latency RELAY
 
 
 # ── catálogo por defecto (SIN config explícita) — mismo orden/prioridad que `brain.py._resolve_endpoint` ────
 def _known_chain() -> list[dict]:
-    """Los escalones por defecto del cerebro de voz: **titular + UN failover**, y nada más.
+    """The voice brain's default tiers: **primary + ONE failover**, and nothing else.
 
-    V2-500 — salen de `config/models.default.json`, la tabla única y pública. Antes esto era un catálogo
-    escrito aquí, con cinco escalones (Z.AI, sus créditos, AIMLAPI, xAI, Groq) que nadie comparaba con nada:
-    la norma del operador vivía solo en su `config/v2.json`, gitignorado, así que una instalación nueva —y la
-    nube— arrancaban con otro reparto. Y el primero de esos cinco era Z.AI, que es como su cartera acabó
-    pagando turnos de cluster que nadie había autorizado.
+    V2-500 — they come from `config/models.default.json`, the single public table. Previously this was a catalog
+    written here, with five tiers (Z.AI, its credits, AIMLAPI, xAI, Groq) that nobody compared with anything:
+    the operator's rule lived only in its gitignored `config/v2.json`, so a new installation—and the cloud—started
+    with a different allocation. The first of those five was Z.AI, which is how its wallet ended up paying for
+    unauthorized cluster turns.
 
-    **Un solo failover** es también norma (2026-08-30): una cadena de cuatro no se puede razonar ni depurar, y
+    **One failover only** is also policy (2026-08-30): a chain of four cannot be reasoned about or debugged, and
     los dos últimos escalones que había aquí estaban muertos sin que nadie lo supiera — xAI sin créditos (403)
     y Groq con un modelo retirado (404 `model_not_found`).
 
-    Un `LLM_API_KEY`/`LLM_BASE_URL` explícito —el operador pinchando un endpoint a mano— se sigue respetando y
-    va el primero.
+    An explicit `LLM_API_KEY`/`LLM_BASE_URL`—the operator manually selecting an endpoint—is still honored and goes first.
     """
     from config import models as _tabla
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
@@ -125,8 +124,8 @@ def _known_chain() -> list[dict]:
 
 
 def _VOICE_RELAYS() -> list[dict]:
-    """Los escalones de relevo de la cadena de voz, aparte para poder NOMBRARLOS cuando la regla de
-    self-host los calla (V2-244). La lista y sus razones no cambian: ver `_voice_chain`."""
+    """The voice-chain relay tiers, kept separate so they can be NAMED when the self-host rule suppresses them
+    (V2-244). The list and its reasons do not change: see `_voice_chain`."""
     return [
     # PRIMER escalón desde 2026-08-14, y es el MISMO MODELO que el titular por OTRO endpoint — que suena raro
     # hasta que se ve el número. El titular va por el broker AIMLAPI, que ACEPTA `thinking:{"type":"disabled"}`
@@ -175,7 +174,7 @@ def _VOICE_RELAYS() -> list[dict]:
 
 
 def _voice_chain() -> list[dict]:
-    """Cadena por defecto del cerebro de VOZ. Empieza SIEMPRE por el titular configurado (`config §fast`) — la
+    """Default chain for the VOICE brain. It ALWAYS starts with the configured primary (`config §fast`) — the
     verdad del FlashBrain no la decide este módulo — y sigue por escalones elegidos por dos criterios, en este
     orden: que sean RÁPIDOS AL PRIMER TOKEN y que no disparen el coste.
 
@@ -217,7 +216,7 @@ def _relays_suppressed() -> bool:
 
 
 def suppressed_relays() -> list[str]:
-    """Escalones de voz que la regla de self-host está callando **y para los que SÍ hay credencial**.
+    """Voice tiers suppressed by the self-host rule **and for which a credential DOES exist**.
 
     V2-244 — la regla es del operador y no se toca: quien se autohospeda paga sus APIs y no puede llevarse la
     sorpresa de que el agente se pase solo a un proveedor que él no eligió. Pero esa regla se escribió sobre el
@@ -282,7 +281,7 @@ def chain(role: str = ROLE_CLUSTER) -> list[dict]:
 
 
 def pick(role: str = ROLE_CLUSTER) -> dict | None:
-    """El primer escalón SANO de la cadena. None si no hay ninguno con credencial (→ el llamador decide).
+    """The first HEALTHY tier in the chain. None if none has a credential (→ the caller decides).
 
     Además AGOTA el techo de turnos de un relevo por latencia: si el escalón que toca ya sirvió su presupuesto
     como relevo, se levanta su cooldown de latencia y se vuelve al titular. Sin esto, dos turnos lentos podían
@@ -325,7 +324,7 @@ def pick(role: str = ROLE_CLUSTER) -> dict | None:
 
 
 def tier_available(tier) -> bool:
-    """¿Este escalón está elegible AHORA (sin cooldown)? Costura pública para quien fija su spec por config
+    """Is this tier eligible NOW (without cooldown)? Public seam for callers that fix their spec through config
     pero no debe ARRANCAR un turno en un escalón que acaba de fallar (V2-307) — un cooldown solo existe porque
     un fallo real se anotó. Fail-open a disponible: no poder leerlo no puede dejar al titular fuera."""
     try:
@@ -335,7 +334,7 @@ def tier_available(tier) -> bool:
 
 
 def spec_for(tier: dict):
-    """`ModelSpec` de FastClient listo para usar a partir de un escalón de la cadena."""
+    """`ModelSpec` from FastClient, ready to use from a chain tier."""
     from nucleo.flash.fast_client import ModelSpec
     tok = (tier.get("api_key") or "").strip() or _token_for(tier)
     return ModelSpec(model=tier.get("model") or "", base_url=tier.get("base_url") or "",
@@ -397,7 +396,7 @@ def _host(tier: dict) -> str:
 
 
 def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTER) -> dict | None:
-    """Un turno murió por el PROVEEDOR: marca el escalón, avisa, y devuelve el escalón de RELEVO (o None).
+    """A turn died because of the PROVIDER: mark the tier, alert, and return the RELAY tier (or None).
 
     `role` (default ROLE_CLUSTER, backward-compatible with the original single caller): decides which chain
     `pick()` consults when `tier` isn't given, and which label/health-state key the alert uses. The caller
@@ -468,7 +467,7 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
 
 
 def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None) -> dict | None:
-    """Un turno fue LENTO por el proveedor/el modelo. Devuelve el escalón de RELEVO si toca relevar, o None.
+    """A turn was SLOW because of the provider/model. Return the RELAY tier if it is time to relay, or None.
 
     Come el veredicto de `nucleo/flash/turn_perf.verdict()` tal cual — ahí ya está toda la decisión de si el
     tiempo se fue antes del primer token, y con qué throughput. Este módulo NO vuelve a medir nada: solo aplica la
@@ -530,7 +529,7 @@ def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None
 
 
 def note_stall(*, role: str = ROLE_VOICE, tier: dict | None = None) -> dict | None:
-    """Un turno se ATASCÓ (se cortó por silencio del proveedor). Devuelve el relevo si toca relevar, o None.
+    """A turn STALLED (it was cut off because the provider was silent). Return the relay if it is time, or None.
 
     V2-246 — EL AGUJERO: un escalón que se atasca SIEMPRE no se penalizaba nunca. `note_slow` vive en el camino
     de la respuesta, así que solo ve turnos que ACABARON; y `note_failure` se salta a propósito cuando el turno se
@@ -605,7 +604,7 @@ def status(role: str = ROLE_CLUSTER) -> list[dict]:
 
 
 def clear(name: str = "") -> None:
-    """Levanta el cooldown (el operador recargó el plan y no quiere esperar al reset)."""
+    """Lifts the cooldown (the operator reloaded the plan and does not want to wait for the reset)."""
     _store.clear(name)
 
 

@@ -1,8 +1,8 @@
 #
-# test_sse_observer.py — voice/observer.py re-expresado sobre el bus (V2-001, T36). Verifica la BACK-COMPAT
-# de `GET /events`: un evento emitido por observer.emit() llega IDÉNTICO a un suscriptor de observer.subscribe()
-# (que ahora es una suscripción del bus al topic "observer"), incluida la entrega cross-loop del job-thread.
-# Ejecutar: .venv/bin/pytest tests/infrastructure/integration/test_sse_observer.py
+# test_sse_observer.py — voice/observer.py re-expressed over the bus (V2-001, T36). Verifies BACK-COMPAT
+# for `GET /events`: an event emitted by observer.emit() reaches an observer.subscribe() subscriber IDENTICALLY
+# (which is now a bus subscription to the "observer" topic), including cross-loop delivery from the job thread.
+# Run: .venv/bin/pytest tests/infrastructure/integration/test_sse_observer.py
 #
 import asyncio
 import threading
@@ -28,7 +28,7 @@ def test_emit_reaches_events_subscriber_identically():
         got = await asyncio.wait_for(sub.get(), timeout=1)
         return ev, got
     ev, got = asyncio.run(run())
-    # el objeto entregado por SSE es EXACTAMENTE el ev que construyó observer.emit (mismos campos/valores)
+    # the object delivered by SSE is EXACTLY the ev constructed by observer.emit (same fields/values)
     assert got is ev
     assert got["kind"] == "brain" and got["label"] == "reply"
     assert got["text"] == "hola" and got["role"] == "assistant"
@@ -37,7 +37,7 @@ def test_emit_reaches_events_subscriber_identically():
 
 def test_observer_is_a_bus_subscriber_on_topic_observer():
     async def run():
-        raw = busmod.subscribe("observer")             # suscriptor crudo del bus al mismo topic
+        raw = busmod.subscribe("observer")             # raw bus subscriber to the same topic
         observer.emit("transcript", "final", text="hi")
         return await asyncio.wait_for(raw.get(), timeout=1)
     ev = asyncio.run(run())
@@ -45,12 +45,12 @@ def test_observer_is_a_bus_subscriber_on_topic_observer():
 
 
 def test_emit_from_worker_thread_crosses_to_events_loop():
-    """La voz corre en el job-thread de LiveKit (otro loop). emit() desde ese hilo debe llegar al suscriptor
-    de /events que vive en el loop de uvicorn — el bug histórico del put_nowait cross-loop, ahora resuelto."""
+    """Voice runs in the LiveKit job thread (another loop). emit() from that thread must reach the /events
+    subscriber living in the uvicorn loop—the historical put_nowait cross-loop bug, now fixed."""
     async def run():
         sub = observer.subscribe()
 
-        def worker():                                  # hilo sin loop asyncio = job-thread de LiveKit
+        def worker():                                  # thread without an asyncio loop = LiveKit job thread
             observer.emit("llm", "token", text="x")
 
         t = threading.Thread(target=worker)
@@ -71,7 +71,7 @@ def test_unsubscribe_stops_delivery():
 
 
 def test_emit_still_records_ring_and_returns_event():
-    # el resto del contrato del observer (ring en memoria para /api/debug) sigue intacto
+    # the rest of the observer contract (in-memory ring for /api/debug) remains intact
     observer.emit("error", "boom", text="oops")
     evs = observer.debug_events(kind="error")
     assert evs and evs[-1]["label"] == "boom"

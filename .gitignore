@@ -131,3 +131,7 @@ tester/reports/
 
 # render-check screenshots (V2-520 and friends) — evidence of a run, never repo content
 tests/browser/e2e/*/_out/
+
+# Rendered from scripts/com.zaelar.uc-loop.plist.example at install time: it carries ABSOLUTE paths to
+# this machine, and this repo is PUBLIC. The template travels; the rendering does not (V2-555).
+scripts/com.zaelar.uc-loop.plist

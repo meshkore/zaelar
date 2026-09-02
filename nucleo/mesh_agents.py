@@ -6,7 +6,7 @@ deploy against automation — a measured run spent its whole life on Booking's `
 another walked into Google's CAPTCHA — and even when it works it costs minutes of a conversation.
 
 The mesh already has agents that serve those same domains over plain HTTP. Verified live against the public
-Oracle while writing this module: one `POST /v1/search` for «hotel en Madrid esta noche» returns `roomrover`
+Oracle while writing this module: one `POST /v1/search` for "hotel en Madrid esta noche" returns `roomrover`
 (online, **free**), and one `POST` to its endpoint with explicit dates returns 10 real properties with
 booking links — no browser, no challenge, about a second.
 
@@ -88,12 +88,12 @@ def _get(url: str, timeout: float = _CARD_TIMEOUT_S) -> dict | None:
         return None
 
 
-# ── precio ────────────────────────────────────────────────────────────────────────────────────────────────
+# ── pricing ──────────────────────────────────────────────────────────────────────────────────────────────
 def _is_free(agent: dict, card: dict | None = None) -> bool:
     """True only when the price is unambiguously zero.
 
-    Unknown counts as NOT free, on purpose. The operator's instruction is «me conformo con usar agentes
-    gratuitos», and the failure modes are not symmetric: skipping a free agent we could not price costs one
+    Unknown counts as NOT free, on purpose. The operator's instruction is "I am fine with using free
+    agents», and the failure modes are not symmetric: skipping a free agent we could not price costs one
     fallback to the browser, while calling a paid one costs money nobody authorised.
     """
     for src in (agent, card or {}):
@@ -123,7 +123,7 @@ def _endpoint_of(agent: dict) -> str:
     return str(agent.get("endpoint") or (card.get("contact") or {}).get("http") or card.get("endpoint") or "")
 
 
-# ── descubrimiento ────────────────────────────────────────────────────────────────────────────────────────
+# ── discovery ─────────────────────────────────────────────────────────────────────────────────────────────
 def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     """Ask the Oracle, in the operator's own words, who can serve this errand.
 
@@ -186,30 +186,30 @@ def _skill_path(endpoint: str) -> str:
     return path if path and path != "/" else _DEFAULT_SKILL_PATH
 
 
-# V2-487 · lo que el agente CONTESTA cuando dice que no, medido el 2026-08-29 contra `roomrover` en vivo:
+# V2-487 · what the agent ANSWERS when it says no, measured on 2026-08-29 against `roomrover` live:
 #
 #     POST /v1/search {"prompt": "hotel in New York City check-in 2026-09-10 …"}
 #       → 400 {"error": "parse_failed", "detail": "Oracle parser did not return constraints.
 #                        Pass structured fields (city, checkin, checkout) instead."}
 #     POST /v1/search {"city": "New York", "checkin": "2026-09-10", "checkout": "2026-09-12", "adults": 2}
 #       → 400 {"error": "missing_fields", "need": ["country_code"]}
-#     …con `country_code: "US"` → **200 con diez hoteles reales de Nueva York**, precio, nota y enlace de
-#       reserva, en 0,4 s y sin navegador.
+#     …with `country_code: "US"` → **200 with ten real New York hotels**, price, rating, and booking link,
+#       in 0.4 s and without a browser.
 #
-# O sea: el agente no callaba, nos estaba diciendo CÓMO preguntarle — y este `ask` lo aplastaba a «respondió
-# 400», que `serve` volvía a aplastar a «los agentes de la red no contestaron». Esa frase es una diagnosis
-# FALSA, y de las caras: manda al worker a abrir un Chromium contra Booking por un dato que estaba a un campo
-# de distancia. La forma exacta la avisa el propio docstring del módulo («answers 400 missing_fields, which at
-# least says so») — estaba sabido y aun así se tiraba.
+# In other words: the agent was not silent; it was telling us HOW to ask it — and this `ask` flattened that to
+# "returned 400", which `serve` flattened again to "the network agents did not answer". That statement is a
+# FALSE diagnosis, and an expensive one: it sends the worker to open Chromium against Booking for data that
+# was one field away. The exact form is stated by the module's own docstring ("answers 400 missing_fields,
+# which at least says so") — it was known, yet still discarded.
 #
-# El campo se pasa, no se adivina: aquí NO hay ningún esquema de hoteles ni de vuelos. El agente declara lo
-# que necesita, el worker —que es quien tiene el encargo y el razonamiento— lo compone. Ese es el mismo
-# contrato que el resto del módulo: sin catálogo, sin lista de proveedores, nada que curar para siempre.
+# The field is passed through, not guessed: there is NO hotel or flight schema here. The agent declares what it
+# needs, and the worker —which has the errand and does the reasoning— composes it. This is the same contract as
+# the rest of the module: no catalogue, no provider list, nothing to curate forever.
 _HINT_KEYS = ("error", "detail", "need", "needs", "missing", "required", "message", "hint")
 
 
 def _what_the_agent_asks_for(data) -> dict:
-    """Lo accionable de una respuesta de error, sin arrastrar el cuerpo entero al contexto del worker."""
+    """The actionable part of an error response, without dragging the entire body into the worker's context."""
     if not isinstance(data, dict):
         return {}
     return {k: data[k] for k in _HINT_KEYS if data.get(k) not in (None, "", [], {})}
@@ -228,10 +228,10 @@ def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
     if not endpoint:
         return {"ok": False, "error": "el agente no publica un endpoint HTTP"}
     url = endpoint.rstrip("/") + _skill_path(endpoint)
-    # O texto libre O campos, NUNCA los dos — medido contra `roomrover` el 2026-08-29. Con `prompt` presente
-    # el agente toma su camino de lenguaje natural y **descarta los campos**: el mismo cuerpo que devuelve diez
-    # hoteles sin `prompt` devuelve `parse_failed` con él dentro. «Lo explícito gana al texto libre» era una
-    # suposición mía sobre el precedence del agente, y era falsa; esto es lo que se midió.
+    # Either free text OR fields, NEVER both — measured against `roomrover` on 2026-08-29. With `prompt` present
+    # the agent takes its natural-language path and **discards the fields**: the same body that returns ten
+    # hotels without `prompt` returns `parse_failed` with it included. "Explicit data wins over free text" was
+    # my assumption about the agent's precedence, and it was false; this is what was measured.
     body = {str(k): v for k, v in (fields or {}).items()} or {"prompt": prompt, "query": prompt}
     status, data = _post(url, body)
     if status == 402:
@@ -246,7 +246,7 @@ def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
     return {"ok": True, "agent": agent.get("agent_id"), "endpoint": url, "data": data}
 
 
-# ── la parte genética: la ruta aprendida ──────────────────────────────────────────────────────────────────
+# ── the genetic part: the learned route ───────────────────────────────────────────────────────────────────
 def _routes() -> dict:
     try:
         from memory import api as memory
@@ -329,8 +329,8 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
             return {"ok": False, "reason": f"«{agent.get('agent_id')}» cobra por esto", "intent": intent}
         if not dijo and res.get("asks"):
             dijo, quien = res["asks"], str(agent.get("agent_id") or "")
-    # V2-487: un agente que contesta 400 diciendo QUÉ le falta SÍ contestó. Decir aquí «no contestaron» es lo
-    # que mandaba el encargo al navegador con la respuesta a un campo de distancia.
+    # V2-487: an agent that answers 400 by saying WHAT it lacks DID answer. Saying "they did not answer" here
+    # is what sent the errand to the browser when the answer was one field away.
     if dijo:
         return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo,
                 "reason": f"«{quien}» no acepta el encargo en texto libre y dice qué necesita "

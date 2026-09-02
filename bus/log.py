@@ -53,7 +53,7 @@ def _connect() -> sqlite3.Connection:
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
             ts_ms   REAL    NOT NULL,
             topic   TEXT    NOT NULL,
-            payload TEXT               -- JSON del payload (o repr si no serializa)
+            payload TEXT               -- JSON of the payload (or repr if it cannot be serialized)
         )
         """
     )
@@ -74,13 +74,13 @@ def _connect() -> sqlite3.Connection:
 # a migration, and SQLite adds NULL columns without rewriting the file. Old rows keep NULL — correct and honest:
 # that data did not exist when they were recorded.
 _COLUMNS = (
-    ("corr_id", "TEXT"),      # CORRELATION ID = el flujo completo de inicio a fin (voice/trace.py)
+    ("corr_id", "TEXT"),      # CORRELATION ID = the complete flow from start to finish (voice/trace.py)
     ("session_id", "TEXT"),   # operator work session (observability/identity.py)
     ("user_id", "TEXT"),      # installation / account
-    ("cat", "TEXT"),          # familia: flash · worker · memory · widget · system · pulse
-    ("kind", "TEXT"),         # tipo concreto dentro de la familia
+    ("cat", "TEXT"),          # family: flash · worker · memory · widget · system · pulse
+    ("kind", "TEXT"),         # specific type within the family
     ("label", "TEXT"),        # what happened, in one line
-    ("span", "TEXT"),         # ACTOR dentro del flujo: worker:5 · rail:music · web:t2
+    ("span", "TEXT"),         # ACTOR within the flow: worker:5 · rail:music · web:t2
     ("ms", "REAL"),           # REAL operation duration, when the event carries it
     ("model", "TEXT"),        # model that served the turn/step
     ("tokens_in", "INTEGER"),

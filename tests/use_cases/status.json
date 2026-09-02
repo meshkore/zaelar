@@ -52,76 +52,110 @@
       }
     },
     "build-workout-tracker-widget": {
-      "last_run": "2026-08-20 01:01",
-      "overall": 5,
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
-      },
-      "verdict": "Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sistema confirman que la tarea se completó correctamente.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 4,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md",
-        "task": ""
-      }
-    },
-    "remember-and-remind-deadline": {
-      "last_run": "2026-08-27 11:11",
-      "overall": 4,
-      "judge": "deepseek-v4-pro",
-      "state": "PASS",
+      "last_run": "2026-08-31 06:59",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en el proveedor de los workers (vuelve a las 06:58): 0 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 4
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
       },
-      "verdict": "El caso está resuelto en lo esencial — cita escrita en agenda para el jueves 3 y aviso programado para el miércoles 2 antes del evento — pero el prompt del recordatorio conserva la frase cruda del usuario, y eso es el bloqueador nº1: cuando dispare, el agente no sabrá con claridad qué tiene que avisar.",
+      "verdict": "No está listo para producción: falló el objetivo principal al no generar el widget solicitado, creando en su lugar una cita en la agenda y confundiendo al usuario con el estado de la tarea.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 1,
-      "turns_used": 3,
+      "turns_used": 8,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "2abfae4",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
+            "size": "39 GB"
           }
         ],
         "n": 1
       },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-514-uc-build-workout-tracker-widget.md",
+        "task": ""
+      }
+    },
+    "remember-and-remind-deadline": {
+      "last_run": "2026-08-31 11:34",
+      "overall": null,
+      "judge": "",
+      "brain": "",
+      "state": "INFRA",
+      "infra_reason": "turno 2: timed out",
+      "scores": {},
+      "verdict": "INFRA: turno 2: timed out · motor: VIVO (/api/status responde) — el fallo fue del turno o del tester, no del motor",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 1,
+      "turns_used": 1,
+      "families": [],
+      "drive_model": "",
+      "code": {
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
+      },
+      "machine": {},
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
@@ -401,53 +435,29 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-26 01:21",
-      "overall": 4,
+      "last_run": "2026-08-30 19:46",
+      "overall": 2,
       "judge": "glm-4.6",
-      "state": "PASS",
+      "brain": "deepseek-v4-flash",
+      "state": "FAIL",
+      "infra_reason": null,
       "scores": {
         "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 3
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 1
       },
-      "verdict": "El caso está casi listo para producción porque el resultado final se consiguió con éxito y la adaptación al usuario fue excelente; el bloqueador principal es la limpieza de memoria compartida, que provocó una búsqueda de coches errónea al inicio, y la invención de especificaciones técnicas no leídas.",
+      "verdict": "No está listo para producción este caso de uso; el bloqueador número uno es que zaelar no transmite al usuario los resultados que el sistema ya ha encontrado y validado, generando una conversación circular de espera cuando la respuesta ya estaba disponible en la interfaz y en su memoria contextual.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,type_at,scroll,press,extract,visit} ... nav_cli: error: argu"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/v"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de progress.json: [Errno 2] No such file or directory: 'progress.json' · ruta RELATIVA a tu directorio de trabajo: /private"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 4 error(es), último paso «alive»"
-        }
-      ],
+      "blind_turns": 0,
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -455,22 +465,21 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3772127",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "3cad46a",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "21 GB"
+            "size": "40 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
@@ -478,53 +487,65 @@
       }
     },
     "quick-fact-opening-hours": {
-      "last_run": "2026-08-21 01:38",
+      "last_run": "2026-08-31 11:28",
       "overall": 4,
-      "judge": "deepseek-v4-flash",
-      "state": "PASS",
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "FAIL",
+      "infra_reason": null,
       "scores": {
         "naturalidad": 5,
         "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 3,
-        "eficiencia": 4
+        "resultado": 4,
+        "mecanismo": 2,
+        "eficiencia": 3
       },
-      "verdict": "El caso de uso está listo para producción en cuanto a resultado y naturalidad, pero el bloqueador nº1 es el mecanismo: se escaló a un flujo con navegador cuando el caso exige búsqueda directa + síntesis, y la búsqueda no devolvió resultados verificables al modelo.",
+      "verdict": "El caso no está listo para producción en esta configuración porque el sistema sobredimensiona la respuesta (usando worker) para una consulta simple, fallando en eficiencia y mecanismo.",
       "missing_signals": [],
+      "blind_turns": 0,
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 4,
       "families": [
         "flash",
         "memory",
-        "system"
+        "system",
+        "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "05dd79f",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
+            "size": "44 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md",
         "task": ""
-      },
-      "measured_in": "worktree fijado en 05dd79f"
+      }
     },
     "search-buy-camera__es": {
       "last_run": "2026-08-27 14:54",
@@ -771,27 +792,75 @@
       }
     },
     "hotel-under-15-days": {
-      "last_run": "2026-08-26 01:06",
-      "overall": 4,
+      "last_run": "2026-08-30 20:25",
+      "overall": 2,
       "judge": "glm-4.6",
-      "state": "PASS",
+      "brain": "deepseek-v4-flash",
+      "state": "FAIL",
+      "infra_reason": null,
       "scores": {
         "naturalidad": 4,
         "adaptacion": 5,
-        "resultado": 4,
+        "resultado": 3,
         "mecanismo": 4,
-        "eficiencia": 3
+        "eficiencia": 1
       },
-      "verdict": "El caso es FUNCIONAL y está listo para producción porque zaelar encontró, filtró y desplegó opciones reales de forma correcta; el bloqueador principal no es de capacidad, sino de interacción con fallos puntuales de la interfaz (glitch de widget).",
+      "verdict": "El caso no está listo para producción debido a una ineficiencia crítica: el sistema retiene los resultados encontrados durante más de 4 minutos (250 segundos de lag) mientras informa falsamente al usuario que no encuentra nada, además de sufrir fallos graves de confusión de contexto cuando maneja tareas en paralelo.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «✏️ código ⚠️ error»: Claude requested permissions to write to /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn-T-zaelar-workers/b63a83-3/fuentes.json, but you haven't granted it yet."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «✏️ código ⚠️ error»: Claude requested permissions to write to /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn-T-zaelar-workers/b63a83-3/informe_prov.json, but you haven't granted it yet."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: Exit code 1 remember error: HTTP 422: descartado por el gate de precisión (precision) · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.mem_cli remember \"Búsqueda monitores 27 pulgadas ≤150€ en Wallapop (pausada 2026-08-30). URLs que funcionan: https://es.wallapop.com`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «click» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 23`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate \"https://www.booking.com/searchresults.es.html?ss=Sevilla&checkin=2026-09-04&checkout=2026-09-08&group_adults=2&no_`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli open \"https://www.booking.com/searchresults.es.html?ss=Sevilla&checkin=2026-09-01&checkout=2026-09-05&group_adults=2&no_room`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «look» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de  · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 3 error(es), último paso «alive»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:4: 4 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 13,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -799,22 +868,21 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3772127",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "3cad46a",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "21 GB"
+            "size": "41 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-218-uc-hotel-under-15-days.md",
@@ -1160,38 +1228,35 @@
       }
     },
     "find-best-hotel-city__es": {
-      "last_run": "2026-08-25 10:22",
-      "overall": 4,
+      "last_run": "2026-08-31 01:35",
+      "overall": 1,
       "judge": "glm-4.6",
-      "state": "PASS",
+      "brain": "deepseek-v4-flash",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en deepseek (vuelve a las 01:47): 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 2,
-        "mecanismo": 4,
-        "eficiencia": 4
+        "naturalidad": 2,
+        "adaptacion": 1,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 1
       },
-      "verdict": "Caso funcional pero con delivery de datos incompleto en la primera iteración; requiere afinar la extracción de atributos (valoración) para evitar que el usuario tenga que pedirlos explícitamente.",
+      "verdict": "El caso no está listo para producción: el agente entra en bucles de diálogo pidiendo datos ya dados y falla en mantener el contexto de la tarea, lo que impide completar el objetivo.",
       "missing_signals": [],
+      "blind_turns": 0,
       "audit_anomalies": [
         {
-          "clase": "error_interno",
+          "clase": "sin_evidencia_externa",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «data»"
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
         }
       ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 11,
+      "turns_used": 10,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -1199,22 +1264,21 @@
       ],
       "drive_model": "aimlapi",
       "code": {
-        "sha": "73daeac",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "46d3cfc",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
+            "size": "40 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-262-uc-find-best-hotel-city-es.md",
@@ -1616,133 +1680,27 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-28 03:49",
-      "overall": 4,
-      "judge": "deepseek-v4-pro",
+      "last_run": "2026-08-30 20:39",
+      "overall": 3,
+      "judge": "glm-4.6",
       "brain": "deepseek-v4-flash",
-      "state": "PASS",
+      "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 4,
+        "naturalidad": 3,
         "adaptacion": 5,
-        "resultado": 4,
+        "resultado": 3,
         "mecanismo": 4,
-        "eficiencia": 3
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que el sistema no mostró a zaelar las filas de la hoja de resultados durante 6 turnos seguidos, obligándole a repetir «sigo buscando» cuando ya había 15 candidatos reales esperando a ser entregados.",
+      "verdict": "El caso de uso funciona y llega a resultados reales, pero no está listo para producción porque la entrega de información es insuficiente (solo el 17% de los candidatos encontrados se nombraron) y la latencia de gestión es demasiado alta sin intervención del usuario.",
       "missing_signals": [],
+      "blind_turns": 0,
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «📄 archivo ⚠️ error»: EISDIR: illegal operation on a directory, read '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/lab/es/widgets/_data/navegador'"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:6: 1 error(es), último paso «alive»"
-        }
-      ],
-      "sandboxed": true,
-      "provisional": null,
-      "tier": 2,
-      "turns_used": 13,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "d2ad7b8",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
-          }
-        ],
-        "n": 1
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-269-uc-search-buy-guitar-es.md",
-        "task": ""
-      }
-    },
-    "search-buy-motorcycle__es": {
-      "last_run": "2026-08-28 04:00",
-      "overall": 4,
-      "judge": "deepseek-v4-pro",
-      "brain": "deepseek-v4-flash",
-      "state": "PASS",
-      "infra_reason": null,
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 3
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar negó cuatro veces resultados que el sistema le mostraba explícitamente como encontrados, convirtiendo una búsqueda exitosa en una experiencia de «no hay nada» para el usuario.",
-      "missing_signals": [],
-      "audit_anomalies": [],
-      "sandboxed": true,
-      "provisional": null,
-      "tier": 2,
-      "turns_used": 13,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "107fcf0",
-        "n_dirty": 0,
-        "dirty": []
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "38 GB"
-          }
-        ],
-        "n": 1
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-270-uc-search-buy-motorcycle-es.md",
-        "task": ""
-      }
-    },
-    "search-secondhand-monitor__es": {
-      "last_run": "2026-08-27 10:51",
-      "overall": 4,
-      "judge": "deepseek-v4-pro",
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 3
-      },
-      "verdict": "El caso se completa con resultados reales y bien montados en la hoja, pero zaelar negó resultados que ya tenía delante y ocultó un bloqueo del sitio: el bloqueador nº1 es que no traslada lo que su propio prompt le muestra etiquetado.",
-      "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «✏️ código ⚠️ error»: <tool_use_error>String to replace not found in file. String: \"image\":\"https://cdn.wallapop.com/images/10420/ki/io/__/c10420p1240428148/i1241985190/i6358959215.j"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate \"https://es.wallapop.com/search?keywords=guitarra%20ac%C3%BAstica&max_sale_price=150&order_by=most_relevance\"`"
         },
         {
           "clase": "span_con_error",
@@ -1753,10 +1711,9 @@
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 12,
+      "turns_used": 11,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -1764,15 +1721,209 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "59d7023",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "3cad46a",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
+            "size": "43 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-269-uc-search-buy-guitar-es.md",
+        "task": ""
+      }
+    },
+    "search-buy-motorcycle__es": {
+      "last_run": "2026-08-30 20:49",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "deepseek-v4-flash",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "El caso no está listo para producción porque el agente retiene la mayoría de los resultados encontrados y presenta errores de lectura de precios; el bloqueador principal es la falta de exhaustividad en la entrega de opciones válidas.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «✏️ código ⚠️ error»: Claude requested permissions to write to /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn-T/zaelar-workers/fc2b2c-1/fuentes.json, but you haven't granted it yet."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/var/folders/51/mq51gxn13sg84_d8ctz8gm1400 · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.widget_cli data results sources @fuentes.json`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «click» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 30`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli snapshot`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «click» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 40`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: HTTP Error 500: Internal Server Error · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «visit» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli visit \"https://es.wallapop.com/item/zontes-c1-125cc-custom-moto-1290287770\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate \"https://es.wallapop.com/item/zontes-c1-125cc-custom-moto-1290287770\"`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 8 error(es), último paso «end»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 13,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "3cad46a",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "44 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-270-uc-search-buy-motorcycle-es.md",
+        "task": ""
+      }
+    },
+    "search-secondhand-monitor__es": {
+      "last_run": "2026-08-30 20:56",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "deepseek-v4-flash",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el caso falló por un bloqueo técnico del navegador que impidió cualquier entrega de resultados, y el sistema no supo recuperarse ni comunicar el error técnico de forma clara antes de colapsar.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «look» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de  · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «look» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de  · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/var/folders/51/mq51gxn13sg84_d8ctz8gm1400 · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.widget_cli data results sources @fuentes.json`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «look» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de  · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate \"https://es.wallapop.com/app/search?keywords=monitor&min_sale_price=0&max_sale_price=150\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «look» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de  · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli snapshot`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 7 error(es), último paso «data»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "3cad46a",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "44 GB"
           }
         ],
         "n": 1
@@ -1935,82 +2086,22 @@
       }
     },
     "play-music-and-build-playlist": {
-      "last_run": "2026-08-28 22:00",
-      "overall": 5,
+      "last_run": "2026-08-31 10:21",
+      "overall": 2,
       "judge": "glm-4.6",
-      "brain": "",
-      "state": "PASS",
-      "infra_reason": null,
+      "brain": "deepseek-v4-flash",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en deepseek (vuelve a las 10:35): 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
+        "naturalidad": 4,
+        "adaptacion": 1,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 1
       },
-      "verdict": "Listo para producción: el asistente sonó de música real usando YouTube, gestionó la lista y el nombre solicitados sin fricción, y el mecanismo respaldó cada afirmación con operaciones concretas y el estado del widget.",
+      "verdict": "No está listo para producción este caso de uso; el bloqueador nº1 es el bucle de sordera artificial ('¿me lo repites?') generado cuando falla la memoria durable, que impide al asistente adaptarse a una respuesta que ya se ha dado.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "sin_evidencia_externa",
-          "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
-        }
-      ],
-      "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
-      "tier": 1,
-      "turns_used": 5,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "cf5a3cb",
-        "n_dirty": 2,
-        "dirty": [
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
-        ]
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "38 GB"
-          }
-        ],
-        "n": 2
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-385-uc-play-music-and-build-playlist.md",
-        "task": ""
-      }
-    },
-    "watch-a-video-not-listen-to-it": {
-      "last_run": "2026-08-27 14:33",
-      "overall": 5,
-      "judge": "glm-4.6",
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
-      },
-      "verdict": "El caso está resuelto con éxito total: zaelar identificó correctamente el contenido como vídeo (evitando la regresión de música), cargó el widget de YouTube y ejecutó los comandos de transporte (volumen y stop) sobre ese widget sin fallos.",
-      "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "sin_evidencia_externa",
@@ -2021,26 +2112,106 @@
       "sandboxed": true,
       "provisional": null,
       "tier": 1,
-      "turns_used": 4,
+      "turns_used": 8,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "911546f",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
+            "size": "43 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-385-uc-play-music-and-build-playlist.md",
+        "task": ""
+      }
+    },
+    "watch-a-video-not-listen-to-it": {
+      "last_run": "2026-08-31 11:40",
+      "overall": 5,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "PASS",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 4,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 4
+      },
+      "verdict": "El caso de uso está listo para producción en su núcleo (reproducción y transporte de vídeo), pero debe revisarse el manejo de gestos de cierre y la supresión de efectos secundarios en el widget de agenda.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 1,
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "aimlapi",
+      "code": {
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "45 GB"
           }
         ],
         "n": 1
@@ -2051,20 +2222,20 @@
       }
     },
     "build-a-video-playlist-from-links": {
-      "last_run": "2026-08-28 23:36",
-      "overall": 4,
+      "last_run": "2026-08-31 11:24",
+      "overall": 2,
       "judge": "glm-4.6",
       "brain": "",
-      "state": "PASS",
-      "infra_reason": null,
+      "state": "INFRA",
+      "infra_reason": "sin cuota en el proveedor de los workers (vuelve a las 11:27): 0 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 3,
-        "mecanismo": 4,
-        "eficiencia": 5
+        "naturalidad": 4,
+        "adaptacion": 2,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "El caso funciona a nivel de gestión de lista, pero no está listo para producción hasta que el asistente reconozca y comunique los fallos de reproducción ('player_error') en lugar de fingir que el audio está sonando.",
+      "verdict": "No está listo para producción; el bloqueador principal es que el modelo rompe el diseño de la lista usando `play` al añadir (cortando la intención de cola) y deriva a `play_music` (audio) en lugar de gestionar la lista de vídeos, además de usar falsas limitaciones de cuota para no mostrar un estado que ya tiene resuelto.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [
@@ -2075,38 +2246,43 @@
         }
       ],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "provisional": null,
       "tier": 1,
       "turns_used": 8,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "dcc9e2c",
-        "n_dirty": 2,
+        "sha": "46d3cfc",
+        "n_dirty": 12,
         "dirty": [
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
         ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
+            "size": "41 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-387-uc-build-a-video-playlist-from-links.md",
@@ -2114,23 +2290,38 @@
       }
     },
     "find-videos-on-a-topic-no-ai-slop": {
-      "last_run": "2026-08-28 22:57",
-      "overall": 4,
+      "last_run": "2026-08-30 21:17",
+      "overall": 2,
       "judge": "glm-4.6",
       "brain": "",
-      "state": "PASS",
+      "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 4,
-        "mecanismo": 3,
-        "eficiencia": 4
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 1,
+        "eficiencia": 2
       },
-      "verdict": "El caso está casi listo para producción, pero debe mejorar la sincronización entre el relato del agente y el estado real del widget, así como garantizar que los datos presentados tengan una procedencia externa verificable en el informe.",
+      "verdict": "No está listo para producción. El bloqueador número uno es la desconexión entre lo que el modelo promete que hay en la lista y lo que el widget puede reproducir, lo que resulta en múltiples fallos técnicos de acción ('No encuentro ese vídeo') y una incapacidad total para gestionar la selección del usuario.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: No encuentro ese vídeo en la lista."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: No encuentro ese vídeo en la lista."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: No encuentro ese vídeo en la lista."
+        },
         {
           "clase": "sin_evidencia_externa",
           "certeza": "hecho",
@@ -2138,12 +2329,11 @@
         }
       ],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "provisional": null,
       "tier": 2,
-      "turns_used": 7,
+      "turns_used": 10,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -2151,7 +2341,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "4c3c5cb",
+        "sha": "3cad46a",
         "n_dirty": 2,
         "dirty": [
           "widgets/entrenamientos/",
@@ -2161,15 +2351,11 @@
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
+            "size": "43 GB"
           }
         ],
-        "n": 2
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-388-uc-find-videos-on-a-topic-no-ai-slop.md",
@@ -2177,38 +2363,69 @@
       }
     },
     "cheapest-monitor__us": {
-      "last_run": "2026-08-29 14:08",
-      "overall": 2,
-      "judge": "glm-4.6",
-      "brain": "deepseek-v4-flash",
-      "state": "FAIL",
-      "infra_reason": null,
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 4,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el flujo falló en la entrega por latencia y bloqueos externos no comunicados, dejando al usuario sin el producto solicitado a pesar de un esfuerzo técnicovisible tras bambalinas.",
+      "last_run": "2026-08-31 00:46",
+      "overall": null,
+      "judge": "",
+      "brain": "",
+      "state": "INFRA",
+      "infra_reason": "turno 4: timed out",
+      "scores": {},
+      "verdict": "INFRA: turno 4: timed out · motor: VIVO (/api/status responde) — el fallo fue del turno o del tester, no del motor",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "provisional": null,
       "tier": 2,
-      "turns_used": 13,
+      "turns_used": 3,
+      "families": [],
+      "drive_model": "",
+      "code": {
+        "sha": "46d3cfc",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {},
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
+        "task": ""
+      }
+    },
+    "find-best-hotel-city__us": {
+      "last_run": "2026-08-31 00:58",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en el proveedor de los workers (vuelve a las 01:05): 0 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción este caso de uso: el bloqueador número uno es la invención de precios y resultados con total seguridad cuando el sistema no ha aportado datos reales.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "6e40e1b",
+        "sha": "46d3cfc",
         "n_dirty": 2,
         "dirty": [
           "widgets/entrenamientos/",
@@ -2218,66 +2435,8 @@
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "39 GB"
-          }
-        ],
-        "n": 2
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
-        "task": ""
-      }
-    },
-    "find-best-hotel-city__us": {
-      "last_run": "2026-08-29 20:06",
-      "overall": 2,
-      "judge": "glm-4.6",
-      "brain": "deepseek-v4-flash",
-      "state": "INFRA",
-      "infra_reason": "recall semántico DEGRADADO en esta ronda (backend: fastembed)",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
-      },
-      "verdict": "No está listo para producción. El bloqueador principal es que el sistema falla en completar el objetivo esencial: no pudo extraer ni presentar un solo hotel concreto que cumpliera los criterios, entregando en su lugar enlaces a listados externos.",
-      "missing_signals": [],
-      "blind_turns": 0,
-      "audit_anomalies": [],
-      "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
-      "tier": 2,
-      "turns_used": 6,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "e4e92bb",
-        "n_dirty": 4,
-        "dirty": [
-          "memory/reembed.py",
-          "memory/writer.py",
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
-        ]
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
+            "size": "41 GB"
           }
         ],
         "n": 1
@@ -3526,60 +3685,7 @@
       }
     },
     "show-real-photo-of-a-new-car__us": {
-      "last_run": "2026-08-28 19:16",
-      "overall": 5,
-      "judge": "glm-4.6",
-      "brain": "",
-      "state": "PASS",
-      "infra_reason": null,
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 4,
-        "eficiencia": 5
-      },
-      "verdict": "Sí está listo para producción este caso de uso: resolvió la consulta de forma inmediata, usando el visor correcto y con atribución visible, sin bloqueos ni errores de resultado.",
-      "missing_signals": [],
-      "blind_turns": 0,
-      "audit_anomalies": [],
-      "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
-      "tier": 2,
-      "turns_used": 4,
-      "families": [
-        "flash",
-        "main",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "code": {
-        "sha": "94e492b",
-        "n_dirty": 2,
-        "dirty": [
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
-        ]
-      },
-      "machine": {
-        "gpu_models": [
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
-          }
-        ],
-        "n": 2
-      }
-    },
-    "dentist-appointment-into-agenda": {
-      "last_run": "2026-08-29 15:06",
+      "last_run": "2026-08-30 19:24",
       "overall": 4,
       "judge": "glm-4.6",
       "brain": "",
@@ -3588,27 +3694,20 @@
       "scores": {
         "naturalidad": 5,
         "adaptacion": 4,
-        "resultado": 3,
-        "mecanismo": 3,
-        "eficiencia": 5
+        "resultado": 4,
+        "mecanismo": 5,
+        "eficiencia": 4
       },
-      "verdict": "El caso está casi listo para producción, pero requiere mejorar la lógica de deduplicación para evitar crear citas repetidas cuando se ajustan detalles de una solicitud ya procesada.",
+      "verdict": "Sí está listo para producción; el bloqueador menor es la alucinación de intención en turnos intermedios donde interpreta 'zoom' como 'busca más', aunque se corrigió rápido.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "sin_evidencia_externa",
-          "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
-      "tier": 1,
-      "turns_used": 3,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 8,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
@@ -3616,7 +3715,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "979145d",
+        "sha": "3cad46a",
         "n_dirty": 2,
         "dirty": [
           "widgets/entrenamientos/",
@@ -3626,15 +3725,90 @@
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "38 GB"
+            "size": "41 GB"
           }
         ],
-        "n": 2
+        "n": 1
+      }
+    },
+    "dentist-appointment-into-agenda": {
+      "last_run": "2026-08-31 11:02",
+      "overall": 1,
+      "judge": "glm-4.6",
+      "brain": "",
+      "state": "FAIL",
+      "infra_reason": null,
+      "scores": {
+        "naturalidad": 1,
+        "adaptacion": 1,
+        "resultado": 4,
+        "mecanismo": 2,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción: el agente falla en el objetivo básico de entender lenguaje natural para crear eventos, traslada los errores técnicos al usuario y entra en bucles de recuperación incapaces cuando hay pequeñas discrepancias de texto, aunque por suerte el estado final del sistema terminó correcto.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada al operador s"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa cita en la agenda — dime el título tal como está apuntada (y la fecha si hay varias)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa cita en la agenda — dime el título tal como está apuntada (y la fecha si hay varias)"
+        },
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 1,
+      "turns_used": 7,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "aimlapi",
+      "code": {
+        "sha": "46d3cfc",
+        "n_dirty": 12,
+        "dirty": [
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
+          }
+        ],
+        "n": 1
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-473-uc-dentist-appointment-into-agenda.md",
@@ -3642,23 +3816,33 @@
       }
     },
     "dentist-appointment-into-agenda__us": {
-      "last_run": "2026-08-29 15:10",
-      "overall": 5,
+      "last_run": "2026-08-31 11:50",
+      "overall": 3,
       "judge": "glm-4.6",
       "brain": "",
-      "state": "PASS",
+      "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "Listo para producción: zaelar ejecutó la escritura en la agenda, creó el recordatorio por defecto con contenido resuelto y confirmó sin ambigüedades.",
+      "verdict": "El caso está listo para producción en cuanto a resultado (la cita y el aviso se crearon correctamente), pero requiere mejora urgente en adaptación para dejar de ignorar datos explícitos y negar el estado que acaba de escribir.",
       "missing_signals": [],
       "blind_turns": 0,
       "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: me falta la hora del aviso — mándala en `at` (HH:MM del día de la cita, o YYYY-MM-DD HH:MM)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "widget/widget «action_failed»: no encuentro esa cita en la agenda — dime el título tal como está apuntada (y la fecha si hay varias)"
+        },
         {
           "clase": "sin_evidencia_externa",
           "certeza": "hecho",
@@ -3666,38 +3850,47 @@
         }
       ],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "provisional": null,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 8,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "7d158fb",
-        "n_dirty": 2,
+        "sha": "46d3cfc",
+        "n_dirty": 12,
         "dirty": [
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
+          "widgets/clock/__init__.py",
+          "widgets/clock/data.py",
+          "widgets/clock/golden.json",
+          "widgets/clock/manifest.json",
+          "widgets/clock/widget.js",
+          "widgets/inversiones/golden.json",
+          "widgets/musica/__init__.py",
+          "widgets/musica/data.py",
+          "widgets/musica/golden.json",
+          "widgets/musica/manifest.json",
+          "widgets/musica/notes.md",
+          "widgets/musica/widget.js"
         ]
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          },
-          {
             "name": "qwen3.6:27b-mlx",
-            "size": "38 GB"
+            "size": "43 GB"
           }
         ],
-        "n": 2
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-513-uc-dentist-appointment-into-agenda-us.md",
+        "task": ""
       }
     },
     "find-a-future-release-and-remind-me": {
@@ -3801,7 +3994,149 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-483-uc-knows-who-i-am-without-being-told-again.md",
         "task": ".meshkore/modules/nucleo/tasks/T495-uc-knows-who-i-am-without-being-told-again-fix.md"
       }
+    },
+    "search-buy-motorcycle__us": {
+      "last_run": "2026-08-31 01:26",
+      "overall": 2,
+      "judge": "glm-4.6",
+      "brain": "deepseek-v4-flash",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en deepseek (vuelve a las 01:37): 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 3
+      },
+      "verdict": "El caso no está listo para producción porque el flujo se rompe por completo ante un fallo de cuota externo: el agente opta por rendirse y esperar en lugar de degradar la búsqueda a un método disponible, dejando al usuario sin el resultado solicitado.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "aimlapi",
+      "code": {
+        "sha": "46d3cfc",
+        "n_dirty": 2,
+        "dirty": [
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "39 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-505-uc-search-buy-motorcycle-us.md",
+        "task": ""
+      }
+    },
+    "search-buy-guitar__us": {
+      "last_run": "2026-08-30 12:01",
+      "overall": 3,
+      "judge": "glm-4.6",
+      "brain": "deepseek-v4-flash",
+      "state": "INFRA",
+      "infra_reason": "recall semántico DEGRADADO en esta ronda (backend: cloud)",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "El caso no está listo para producción porque el agente inventa detalles de productos específicos que no están en los datos retornados por el worker (hallucinación), impidiendo que el usuario confíe en los resultados para una compra real.",
+      "missing_signals": [],
+      "blind_turns": 0,
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Contains simple_expansion · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.mesh_cli find \"Find a used acoustic guitar suitable for beginners in San Francisco, California, priced under $150\"`"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current working directory is /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn/T/zaelar-workers/53dcf3-1."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current working directory is /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn/T/zaelar-workers/53dcf3-1."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current working directory is /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn/T/zaelar-workers/53dcf3-1."
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 worker_bridge act: error: the following arguments are required: action · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES. · Para BUSCAR en la web (lo más habitual · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.worker_bridge act`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 5 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "provisional": null,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "cb83bc4",
+        "n_dirty": 3,
+        "dirty": [
+          "nucleo/dispatch.py",
+          "widgets/entrenamientos/",
+          "widgets/inversiones/golden.json"
+        ]
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          }
+        ],
+        "n": 1
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-492-uc-search-buy-guitar-us.md",
+        "task": ""
+      }
     }
   },
-  "updated": "2026-08-29 20:07"
+  "updated": "2026-08-31 11:50"
 }

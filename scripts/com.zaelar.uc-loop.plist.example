@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keepalive for the use-case battery. NOT a cron that runs a round: the supervisor is already an endless
+  loop, so this only asks every 5 minutes «is it alive?» and starts it if not. `uc-loop.sh` holds the lock
+  (pgrep on the module) and refuses to start with both provider wallets down.
+
+  Install (from the engine root — this file is a TEMPLATE, __ENGINE__ is filled in at install time; the
+  rendered plist is per-machine state and stays out of this PUBLIC repo, see .gitignore):
+      sed "s|__ENGINE__|$PWD|g" scripts/com.zaelar.uc-loop.plist.example > scripts/com.zaelar.uc-loop.plist
+      launchctl bootstrap gui/$(id -u) "$PWD/scripts/com.zaelar.uc-loop.plist"
+  Status:    launchctl list | grep zaelar.uc-loop
+  Remove:    launchctl bootout gui/$(id -u)/com.zaelar.uc-loop
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.zaelar.uc-loop</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>__ENGINE__/scripts/uc-loop.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>__ENGINE__</string>
+  <key>StandardOutPath</key>
+  <string>__ENGINE__/tests/runs/use_cases/loop.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__ENGINE__/tests/runs/use_cases/loop.err.log</string>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
