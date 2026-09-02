@@ -291,6 +291,90 @@ CASES: list[UseCase] = [
             "tests/use_cases/e2e/agent/scenarios.py for the full dynamic, non-deterministic harness.",
             status="promoted"),
 
+    # --- ES / tier 2 · DEEP-NAVIGATION SEARCH SET (V2-556, operator's order 2026-09-02) --------------
+    # The searches people actually run, chosen so that answering WELL requires entering a real
+    # marketplace, applying ITS filter controls, and PAGINATING — never a one-shot snippet search.
+    # Together with the existing search-buy-* cases these form DEEP_SEARCH_SET (defined at the bottom
+    # of this file): the 30-case yardstick for the listing-search tier. Each case is a SAMPLE, never a
+    # specification (operator's norm 2026-08-20) — a fix that teaches the engine one of these scenarios
+    # is a finding, not a fix.
+    UseCase("search-buy-boat-multicountry", "es", 2, "Search boat listings across several countries",
+            "Búscame un catamarán Lagoon 440 de segunda mano por menos de 300.000 euros, en España, "
+            "Francia o Italia.",
+            "Real boat listings from more than one country's market are compared under the price cap, "
+            "with year/length read from each listing, not from model knowledge.",
+            notes="deep-nav: multi-country fan-out + marketplace filters + pagination"),
+    UseCase("search-buy-surfboard", "es", 2, "Search classifieds for a used surfboard",
+            "Búscame una tabla de surf de segunda mano, alrededor de 6 pies, por menos de 250 euros.",
+            "Real second-hand surfboard listings matching size and price are presented with links.",
+            notes="deep-nav: classifieds filters + pagination"),
+    UseCase("search-rent-apartment", "es", 2, "Search a rental listings portal with filters",
+            "Búscame un piso de alquiler en Valencia, dos habitaciones, por menos de 1.100 euros al mes, "
+            "que admita mascotas.",
+            "Real rental listings with every filter applied are presented; rent and rooms come from each "
+            "listing.",
+            notes="deep-nav: portal filter controls + pagination; portals are heavily bot-walled"),
+    UseCase("search-buy-apartment", "es", 2, "Search a property portal for a flat to buy",
+            "Búscame un piso para comprar en Zaragoza, tres habitaciones, por debajo de 180.000 euros.",
+            "Real for-sale listings under the cap are compared with price and size from each listing.",
+            notes="deep-nav: portal filters + pagination"),
+    UseCase("search-buy-laptop", "es", 2, "Find a specific laptop under a price cap",
+            "Búscame un MacBook Pro M5 por menos de 1.800 euros, nuevo o reacondicionado.",
+            "Real offers (new or refurbished) under the cap are compared across stores with links.",
+            notes="deep-nav: store search + condition filter + several stores"),
+    UseCase("search-buy-phone", "es", 2, "Find a phone model at the best real price",
+            "Búscame el mejor precio para un iPhone 17 de 256 GB, nuevo.",
+            "Real store offers for that exact model/storage are compared; prices from the stores."),
+    UseCase("search-buy-tv", "es", 2, "Find a TV meeting size and price constraints",
+            "Búscame una tele OLED de 55 pulgadas por menos de 900 euros.",
+            "Real TV offers meeting size/tech/price are compared across stores."),
+    UseCase("search-buy-sofa", "es", 2, "Search second-hand furniture",
+            "Búscame un sofá de tres plazas de segunda mano, en buen estado, por menos de 300 euros, "
+            "que se pueda recoger cerca.",
+            "Real classifieds with photos and pickup location are presented under the cap.",
+            notes="deep-nav: classifieds + location filter + pagination"),
+    UseCase("search-buy-washing-machine", "es", 2, "Find an appliance by spec and price",
+            "Búscame una lavadora de 8 kilos, clase A, por menos de 400 euros.",
+            "Real appliance offers matching capacity/efficiency/price are compared."),
+    UseCase("search-buy-watch", "es", 2, "Search a collectors' market for a watch",
+            "Búscame un Seiko automático vintage por menos de 400 euros.",
+            "Real watch listings from a collectors' marketplace are presented with year and condition.",
+            notes="deep-nav: niche marketplace + condition reading"),
+    UseCase("search-buy-sneakers", "es", 2, "Find shoes by model, size and price",
+            "Búscame unas Nike Pegasus, talla 44, por menos de 100 euros.",
+            "Real offers with that size IN STOCK are found; size availability is checked inside the "
+            "listing, not assumed from the search page.",
+            notes="deep-nav: size filter lives INSIDE the product page"),
+    UseCase("search-buy-ski-gear", "es", 2, "Search seasonal sports gear",
+            "Búscame unos esquís de travesía de segunda mano con fijaciones, por menos de 350 euros.",
+            "Real second-hand listings for that gear are presented under the cap."),
+    UseCase("search-buy-camper", "es", 2, "Search vehicle classifieds for a camper van",
+            "Búscame una furgoneta camper de segunda mano, menos de 150.000 km, por debajo de "
+            "25.000 euros.",
+            "Real camper listings with mileage/price from each listing are compared.",
+            notes="deep-nav: vehicle marketplace with its own filter controls"),
+    UseCase("search-restaurant-occasion", "es", 2, "Find a restaurant for an occasion by reviews",
+            "Búscame un restaurante para un aniversario en Bilbao, con buenas reseñas, tranquilo, "
+            "por unos 50 euros por persona.",
+            "Real restaurants matching area/price/reviews are compared; reviews come from the sites.",
+            notes="deep-nav: reviews + price band + area filtering"),
+    UseCase("search-buy-vinyl", "es", 2, "Search collectors' listings for records",
+            "Búscame el vinilo original de 'The Dark Side of the Moon' en buen estado por menos de "
+            "60 euros.",
+            "Real vinyl listings with pressing/condition are presented under the cap."),
+    UseCase("search-buy-stroller", "es", 2, "Search second-hand baby gear",
+            "Búscame un carrito de bebé de segunda mano, tipo trío, por menos de 250 euros.",
+            "Real second-hand stroller listings are presented with condition and price."),
+    UseCase("search-buy-ebike", "es", 2, "Search e-bike listings by spec and price",
+            "Búscame una bicicleta eléctrica de montaña, con batería de al menos 500 Wh, por menos de "
+            "1.500 euros.",
+            "Real e-bike offers matching battery/type/price are compared."),
+    UseCase("search-holiday-rental", "es", 2, "Search holiday rentals with hard constraints",
+            "Búscame una casa rural para 6 personas para {FIN_DE_SEMANA}, con piscina, por menos de "
+            "600 euros el fin de semana.",
+            "Real holiday rentals with availability for those dates and every filter are compared.",
+            notes="deep-nav: dates + capacity + amenity filters + pagination"),
+
     # --- ES / tier 3: a REAL measurement from the outside world, shown while it happens ----
     # Written AFTER seeing it fail live (session `ed9df756`, 2026-08-21 17:21-17:30, the operator's
     # engine). The case is not about «knowing the distance»: a model estimates it from memory, and that is
@@ -696,3 +780,36 @@ CASES: list[UseCase] = [
             "The agent picks a site people actually use in that market, applies the filters there, and "
             "reports which constraint each candidate meets."),
 ]
+
+
+# ── DEEP_SEARCH_SET (V2-556, operator's order 2026-09-02) ────────────────────────────────────────
+# The 30-case yardstick for LISTING search: every case here requires entering a real marketplace,
+# applying ITS OWN filter controls and PAGINATING — the searches "that come from several pages",
+# never a one-shot snippet lookup. It mixes the pre-existing search cases with the new verticals so
+# the set covers what people actually search for: vehicles, boats, property, electronics, sports,
+# home, fashion, collectibles, kids, leisure and travel. ES ids (the commercial market measures
+# first, INI-026); the us mirrors of the shared ids belong to the same class when promoted.
+DEEP_SEARCH_SET: tuple[str, ...] = (
+    # vehicles & boats
+    "search-buy-used-car", "search-buy-motorcycle", "search-buy-camper", "search-buy-ebike",
+    "search-buy-bicycle", "search-buy-boat-multicountry",
+    # property & stays
+    "search-rent-apartment", "search-buy-apartment", "search-holiday-rental",
+    "find-best-hotel-city", "hotel-under-15-days",
+    # electronics
+    "search-buy-laptop", "search-buy-phone", "search-buy-tv", "search-secondhand-monitor",
+    "search-buy-camera", "cheapest-monitor",
+    # sports & outdoors
+    "search-buy-surfboard", "search-buy-ski-gear",
+    # home & appliances
+    "search-buy-sofa", "search-buy-washing-machine",
+    # fashion & collectibles
+    "search-buy-sneakers", "search-buy-watch", "search-buy-vinyl", "search-buy-guitar",
+    "search-buy-book", "search-buy-stroller",
+    # leisure & services
+    "search-restaurant-occasion", "find-concert-tickets", "rental-car-automatic-airport",
+)
+
+_known_ids = {c.id for c in CASES if c.locale == "es"}
+assert set(DEEP_SEARCH_SET) <= _known_ids, sorted(set(DEEP_SEARCH_SET) - _known_ids)
+assert len(DEEP_SEARCH_SET) == 30 == len(set(DEEP_SEARCH_SET))

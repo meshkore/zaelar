@@ -177,6 +177,28 @@ SEGMENTS: dict[str, Segment] = {
     "search-buy-guitar": _done(),
     "search-secondhand-monitor": _done(),
     "cheapest-monitor": _done(),
+    # DEEP_SEARCH_SET additions (V2-556, operator 2026-09-02) — every one asks to FIND on a real
+    # marketplace with its own filters and pagination; nothing to reserve, pay or sign into, so the
+    # FULL outcome is graded. Same doctrine as search-buy-guitar above: the blocker must never be
+    # smuggled in by the id or the expected text.
+    "search-buy-boat-multicountry": _done(),
+    "search-buy-surfboard": _done(),
+    "search-rent-apartment": _done(),
+    "search-buy-apartment": _done(),
+    "search-buy-laptop": _done(),
+    "search-buy-phone": _done(),
+    "search-buy-tv": _done(),
+    "search-buy-sofa": _done(),
+    "search-buy-washing-machine": _done(),
+    "search-buy-watch": _done(),
+    "search-buy-sneakers": _done(),
+    "search-buy-ski-gear": _done(),
+    "search-buy-camper": _done(),
+    "search-restaurant-occasion": _done(),
+    "search-buy-vinyl": _done(),
+    "search-buy-stroller": _done(),
+    "search-buy-ebike": _done(),
+    "search-holiday-rental": _done(),
     # A sourced fact about the world: the deliverable IS the answer (real time and distance, with traffic), so
     # there is no wall to stop it — no account, card, or missing capability. The FULL result is scored, and that
     # is the point: if the agent answers “about 2 hours” from memory and the sheet is empty, the case FAILS.

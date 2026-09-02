@@ -268,6 +268,84 @@ PROFILES: dict[str, Profile] = {
                         ("zona", "cerca para poder probarla")),
         persona_extra="Es para EMPEZAR: no quieres nada caro, máximo 150€.",
         signals=("worker", "widget"), turns=10),
+    # ── DEEP_SEARCH_SET (V2-556, operator 2026-09-02): multi-page marketplace searches — filters
+    # applied on the SITE's own controls, pagination, several pages read. All findings cases.
+    "search-buy-boat-multicountry": Profile(
+        clarifications=(("año mínimo o estado", "a partir de 2008 si puede ser, en buen estado"),
+                        ("dónde lo recogerías", "me da igual el país, cuenta el precio total")),
+        persona_extra="Sabes lo que vale: por debajo de 300.000€ hay pocos y por eso miras varios países.",
+        success_extra="Candidatos de MÁS DE UN mercado nacional, con año y eslora leídos del anuncio. Un "
+                      "precio en otra divisa se dice con su divisa, nunca convertido en silencio.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-surfboard": Profile(
+        clarifications=(("nivel y tipo", "iniciación-intermedio, tipo evolutiva"),
+                        ("zona", "costa norte, o que se pueda enviar")),
+        signals=("worker", "widget"), turns=10),
+    "search-rent-apartment": Profile(
+        clarifications=(("qué zona de Valencia", "Ruzafa o el centro, bien comunicado"),
+                        ("amueblado o no", "mejor amueblado")),
+        success_extra="«Admite mascotas» es un filtro DURO y suele estar dentro del anuncio, no en la "
+                      "búsqueda: un candidato sin ese dato comprobado se dice como no comprobado.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-apartment": Profile(
+        clarifications=(("qué zona", "Actur o el centro"), ("ascensor", "sí, con ascensor")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-laptop": Profile(
+        clarifications=(("tamaño de pantalla", "14 pulgadas"), ("nuevo o reaco", "el que salga mejor")),
+        success_extra="Reacondicionado y nuevo se comparan DICIENDO cuál es cada uno; un reaco sin grado "
+                      "ni garantía indicada no se ofrece como equivalente al nuevo.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-phone": Profile(
+        clarifications=(("color", "me da igual"), ("libre o financiado", "libre")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-tv": Profile(
+        clarifications=(("marca preferida", "ninguna, que se vea bien"), ("para qué", "cine y fútbol")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-sofa": Profile(
+        clarifications=(("color o estilo", "neutro, gris o beige"), ("zona", "que se pueda recoger a menos de 30 km")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-washing-machine": Profile(
+        clarifications=(("con entrega", "sí, mejor con entrega"), ("marca", "una de las fiables")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-watch": Profile(
+        clarifications=(("tamaño de caja", "38-40 mm"), ("estado", "usado bien cuidado, con fotos reales")),
+        success_extra="En un mercado de coleccionismo el ESTADO y el año salen del anuncio; un listing sin "
+                      "fotos reales o sin referencia no se ofrece como candidato firme.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-sneakers": Profile(
+        clarifications=(("color", "me da igual"), ("para qué", "para correr, uso normal")),
+        success_extra="La TALLA 44 se comprueba DENTRO de la ficha (el selector de tallas), no en la página "
+                      "de búsqueda: un candidato sin la talla en stock no cumple.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-ski-gear": Profile(
+        clarifications=(("tu altura", "1,78, así que esquís de 170 más o menos"), ("nivel", "intermedio")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-camper": Profile(
+        clarifications=(("cuántas plazas para dormir", "dos"), ("homologada", "mejor homologada como vivienda")),
+        success_extra="Kilómetros y precio salen del ANUNCIO (la regla de used-car-search-wallapop): un "
+                      "anuncio sin km no cumple el filtro y no se ofrece como si lo cumpliera.",
+        signals=("worker", "widget"), turns=10),
+    "search-restaurant-occasion": Profile(
+        clarifications=(("qué día", "un sábado por la noche, dentro de dos semanas"),
+                        ("tipo de cocina", "buena cocina local, nada de fusión rara")),
+        success_extra="Las reseñas salen de los SITIOS, no del modelo; «tranquilo» es lo más difícil de "
+                      "comprobar y decir que no se ha podido es la respuesta correcta, no adivinarlo.",
+        signals=("worker", "widget"), turns=10),
+    "search-buy-vinyl": Profile(
+        clarifications=(("edición concreta", "una prensada original o una buena reedición, que lo diga"),
+                        ("estado mínimo", "VG+ o mejor")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-stroller": Profile(
+        clarifications=(("marca preferida", "ninguna, que esté en buen estado"), ("zona", "cerca, para recogerlo")),
+        signals=("worker", "widget"), turns=10),
+    "search-buy-ebike": Profile(
+        clarifications=(("doble o rígida", "rígida vale"), ("talla", "M, mido 1,75")),
+        signals=("worker", "widget"), turns=10),
+    "search-holiday-rental": Profile(
+        clarifications=(("zona", "a menos de dos horas en coche"), ("mascotas", "sí, va el perro")),
+        success_extra="La DISPONIBILIDAD para esas fechas se comprueba en la ficha: una casa sin calendario "
+                      "comprobado se dice como pendiente de confirmar, no como disponible.",
+        signals=("worker", "widget"), turns=10),
     "find-best-hotel-city": Profile(
         clarifications=(("cuántas personas", "dos"), ("cuántas noches", "dos noches, viernes y sábado")),
         persona_extra="Menos de 120€ la noche y con buena valoración: los dos límites importan.",
