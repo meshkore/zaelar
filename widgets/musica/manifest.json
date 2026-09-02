@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "title": "Música",
   "description": "Tu música estilo Spotify por voz y a mano. Crea listas, añade canciones, reproduce una lista, y controla la reproducción (pausa, siguiente, volumen). Conecta tu Spotify (un clic) o suena gratis desde YouTube-audio. Home con Tus listas · Más escuchadas · Recientes, y barra de reproducción.",
-  "whenToUse": "Para CONECTAR/VINCULAR Spotify ('conéctame Spotify' se hace AQUÍ, en su tarjeta — NUNCA por el navegador/authenticate_web), o para ESCUCHAR y ORGANIZAR música: crear/gestionar LISTAS, reproducir una lista, poner una canción/artista, controlar la reproducción. Cuando el widget está ABIERTO, las órdenes de música (crear/añadir/reproducir lista, navegar entre vistas) se resuelven CONTRA él con data-ops.",
+  "whenToUse": "Para CONECTAR Spotify ('conéctame Spotify' se hace AQUÍ, en su tarjeta — NUNCA por el navegador/authenticate_web), y para ESCUCHAR y ORGANIZAR música: listas, poner una canción o artista, controlar la reproducción. Con la tarjeta abierta se resuelven contra ella con data-ops.",
   "keywords": [
     "música",
     "musica",

@@ -127,6 +127,12 @@ DOMAINS: list[dict] = [
         # que no podía verla → escaló a un agente de CÓDIGO y contestó «Sigo con ello». El texto lo escribimos
         # nosotros PARA enrutar; cortarlo a mitad de palabra no pierde sentido, INVENTA otro. Sigue acotado
         # (V2-526): tope generoso y corte en frontera de frase; el número de widgets ya lo acota `selection`.
+        # 2026-09-02 — el guarda de V2-547 mira el corte a mitad de PALABRA, y hay una segunda forma que no
+        # puede ver: una línea cortada en frontera de FRASE se lee perfecta y le falta justo la mitad que
+        # enruta, porque un manifest dice primero lo que el widget ES y después lo que NO es. Medidos cuatro
+        # perdiendo esa cola (navegador · results · search · musica), y el de `navegador` se había escrito HORAS
+        # antes, en la sesión que documentó la regla: añadido a una descripción ya pasada de presupuesto, nació
+        # inalcanzable. El tope NO se sube — el catálogo es un presupuesto compartido que se paga en CADA turno.
         {"id": "4.100", "title": "La línea de enrutado del catálogo llega ENTERA: sin cortes a mitad de palabra "
                                  "y con las cláusulas que desambiguan cada widget",
             "ch": UNIT,

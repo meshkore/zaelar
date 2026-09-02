@@ -3,7 +3,7 @@
   "version": "0.7.0",
   "title": "Resultados",
   "description": "Superficie genérica de presentación, con cuatro pestañas: RESULTADOS (fichas + expediente de una), SUMARIO (cómo va), FUENTES (en qué webs entró y qué pasó en cada una) y CRITERIOS (con qué se está buscando). No busca ni calcula: quien hizo el trabajo le entrega el conjunto ya hecho y esto lo guarda y lo pinta. Agnóstica del tema — barcos, pisos, papers o correos.",
-  "whenToUse": "Enseñar EN PANTALLA los resultados o el informe de una búsqueda o investigación, y ver una en detalle. Es el sitio de los HALLAZGOS (el widget `search` solo es el cartel de progreso). Abrirla no produce resultados: si nadie ha buscado, enseña una hoja en blanco. FRONTERA con `navegador`: su tarjeta es el MONITOR de un navegador (qué página está mirando ahora); los hallazgos que saque —de ese navegador y de cualquier otro del mismo encargo— se concentran AQUÍ, en una sola hoja.",
+  "whenToUse": "Enseñar EN PANTALLA los resultados o el informe de una búsqueda, y ver uno en detalle. Es el sitio de los HALLAZGOS: los de cualquier navegador del mismo encargo se concentran AQUÍ (`search` solo es el cartel de progreso). Abrirla no busca: sin búsqueda previa sale en blanco.",
   "keywords": [
     "resultados",
     "anuncios",

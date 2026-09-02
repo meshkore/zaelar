@@ -7,7 +7,7 @@
   "version": "0.1.0",
   "title": "Navegador",
   "description": "Un navegador web dentro de zaelar: abre cualquier página, la renderiza en vivo con un Chromium propio y reproduce vídeos de YouTube embebidos. Su tarjeta es el MONITOR de lo que ese navegador está haciendo ahora mismo —la captura de la página y dos o tres líneas de estado—, no el sitio donde se enseñan los hallazgos: eso es la hoja `results`. Un encargo puede tener VARIOS navegadores abiertos a la vez, cada uno con su tarjeta; los resultados de todos se concentran en una sola hoja.",
-  "whenToUse": "Cuando el operador quiere VER una página web o contenido de internet: buscar en Google, abrir una web concreta (Wallapop, la RAE, una receta, una tienda), enseñarle una página, o ver/reproducir un vídeo de YouTube. La información del navegador está siempre al día (a diferencia de la memoria del modelo). FRONTERA con `results`: esto enseña QUÉ ESTÁ PASANDO en el navegador; los resultados, propuestas o el informe de una búsqueda se enseñan en `results`, nunca aquí. Y con `documento`: si lo que quiere es la receta/el texto EN SÍ (leerlo), va a la hoja de `documento`; el navegador solo es para VER la página en vivo.",
+  "whenToUse": "Cuando el operador quiere VER una página web EN VIVO: buscar en Google, abrir una web concreta (Wallapop, una tienda, la RAE), enseñarle una página o un vídeo de YouTube. FRONTERA: los hallazgos van a `results`, nunca aquí; y si lo que quiere es LEER el texto o la receta EN SÍ, a `documento`.",
   "keywords": [
     "navegador",
     "navega",

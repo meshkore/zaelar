@@ -109,6 +109,52 @@ def test_a_short_purpose_is_left_exactly_as_written(catalog_lines):
     assert brief._purpose(short) == short, "a description that fits must not be touched at all"
 
 
+def test_every_routing_line_reaches_the_model_WHOLE():
+    """V2-549's rule, turned into a guard over the whole catalog instead of one widget.
+
+    The mid-word guard above cannot see this: a line trimmed on a SENTENCE boundary reads perfectly and is
+    missing exactly the half that routes, because a manifest states what the widget IS first and what it is
+    NOT after. Measured on 2026-09-02, four widgets were losing precisely that tail:
+
+        navegador  «FRONTERA: los hallazgos van a `results` … si quiere LEER el texto, a `documento`»
+        results    «FRONTERA con `navegador`: … se concentran AQUÍ, en una sola hoja»
+        search     «Si el operador pide VER resultados … la superficie es `results`, no esta»
+        musica     «Cuando el widget está ABIERTO … se resuelven CONTRA él con data-ops»
+
+    The navegador one had been written HOURS earlier, in the same session that documented the rule — appended
+    to a description already over budget, so it was born unreachable.
+
+    The cap is NOT the thing to raise: the catalog is a shared budget paid on every turn (V2-526). A routing
+    line is written to FIT, and this asks the real budget instead of trusting a number typed here.
+    """
+    import sys
+    sys.path.insert(0, str(ENGINE))
+    from widgets import brief
+
+    lost = []
+    for mf in sorted((ENGINE / "widgets").glob("*/manifest.json")):
+        when = str(json.loads(mf.read_text(encoding="utf-8")).get("whenToUse") or "").strip()
+        if when and brief._purpose(when.replace("\n", " ")).strip() != when:
+            lost.append(f"{mf.parent.name}: {len(when)} chars > {brief._PURPOSE_CAP}, "
+                        f"the model never reads «…{when[-70:]}»")
+    assert not lost, (
+        "routing prose is being trimmed before the model sees it — SHORTEN the manifest, never raise the cap:\n"
+        + "\n".join(lost))
+
+
+def test_the_reading_sheet_and_the_live_browser_state_their_border(catalog_lines):
+    """V2-549 gave `documento` a border with `navegador` in BOTH manifests, and a border only works if both
+    halves arrive. This is the pair that decides «enséñame la receta»: read the text, or watch the page."""
+    for wid, needle, why in [
+        ("documento", "navegador", "the sheet must send a live page to the browser"),
+        ("navegador", "documento", "the browser must send «read the text itself» to the sheet"),
+    ]:
+        line = next((l for l in catalog_lines if l.startswith(f"- {wid}")), None)
+        if line is None:
+            continue                                  # the selector did not pick it this run; nothing to assert
+        assert needle in line, f"{wid}: {why}"
+
+
 def test_every_widget_manifest_still_declares_a_whenToUse():
     """The catalog can only route on what the manifests write. A widget with none would be invisible to it."""
     missing = []
