@@ -1001,6 +1001,15 @@ DOMAINS: list[dict] = [
         # operator watches one box from first fast finding to final worker report. The module never raises.
         {"id": "2.43", "title": "Listing fast pass serves the turn or hands off with its sheet", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_turn_serves_or_hands_off.py"]},
+        # 2026-09-02 (V2-556, run v3): la pasada rápida entregaba y el turno lo NEGABA. Dos caras del mismo
+        # defecto —un hecho al lado de un imperativo que no lo nombra— en la cara de escalada y en la orden de
+        # estado del bloque de tareas. Las filas estaban en el prompt; ninguna de las dos ordenaba decirlas.
+        {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
+                                "canales)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},
+        {"id": "2.45", "title": "La orden de ESTADO se bifurca sobre lo ya entregado (y un atasco necesita que "
+                                "el bloque lo diga)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_status_order_names_what_was_delivered.py"]},
         # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
         # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
         # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»

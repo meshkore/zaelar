@@ -43,10 +43,16 @@ def _encargo_sin_navegador(sheet="v451-1", filas=(("Dell S2725QC", "$280"), ("LG
     return rec
 
 
+#: The ROW HEAD, never the bare marker. Since V2-556 the block's own INSTRUCTION quotes «YA ENTREGADO (de su
+#: hoja)» to tell the model what to look for, so the bare string matches a prompt with zero rows — the very
+#: confusion `verify.py` documents at `_ROWS_HEAD_TAREA`. The separator prefix only ever precedes real rows.
+_ROW_HEAD = " — YA ENTREGADO (de su hoja): "
+
+
 def test_las_filas_de_su_hoja_llegan_al_prompt_SIN_pestana_de_navegador():
     _encargo_sin_navegador()
     st = "\n".join(LB.pending_task_lines())
-    assert "YA ENTREGADO (de su hoja)" in st
+    assert _ROW_HEAD in st
     assert "Dell S2725QC — $280" in st and "LG 27UP650-W — $230" in st
     assert not T._tasks, "la premisa del caso es que NO hay tarea de navegador"
 
@@ -56,7 +62,7 @@ def test_sin_filas_no_se_dice_nada():
     # OWN sheet: the store is shared between tests, so reusing the previous case's reads its rows and the
     # test fails for the wrong reason — confirmed, it failed that way when it was written.
     _encargo_sin_navegador(sheet="v451-vacia", filas=())
-    assert "YA ENTREGADO (de su hoja)" not in "\n".join(LB.pending_task_lines())
+    assert _ROW_HEAD not in "\n".join(LB.pending_task_lines())
 
 
 def test_sin_hoja_sellada_no_se_inventa_ninguna():

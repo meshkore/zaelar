@@ -108,6 +108,132 @@ def compose_context(result: dict) -> str:
     return "\n".join(f"· {ln}" for ln in lines)
 
 
+#: The tool as FlashBrain sees it. It lives here, not in the router's catalog, because the argument names and
+#: what each one may carry are this module's contract — the router places it, the module defines it. Wording is
+#: load-bearing and gated: the catalog has a total budget and a per-tool ceiling (node 2.13's compactness test).
+TOOL_DEF = {
+    "type": "function",
+    "function": {
+        "name": "search_listings",
+        "description": (
+            "Busca ANUNCIOS/productos en venta o alquiler (coche, piso, portátil, entradas…): resultados "
+            "reales con precio y enlace en la hoja de resultados. Si el mercado no da bastante, este sistema "
+            "lanza ÉL SOLO la búsqueda a fondo: di que sigues buscando y JAMÁS llames además a "
+            "escalate_to_slowbrain por la misma caza. No es un dato puntual (web_search) ni HACER algo en "
+            "una web (escalate_to_slowbrain). CONSERVA los filtros que el operador no retiró."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string",
+                          "description": "Qué se busca, autocontenido; SIN el precio (va aparte)."},
+                "price_max": {"type": "number", "description": "Precio máximo (solo número), si lo dio."},
+                "price_min": {"type": "number", "description": "Precio mínimo (solo número), si lo dio."},
+                "condition": {"type": "string", "description": "nuevo/usado/reacondicionado, si lo dijo."},
+            },
+            "required": ["query"],
+        },
+    },
+}
+
+
+def request_from(args: dict, fallback_text: str) -> dict:
+    """The `search_listings` call as this module's request. ONE per turn: the first with a real query wins.
+
+    Same shape as `image_turn.request_from`, and here for the same two reasons: the callers are god files with a
+    ceiling, and the argument names are this module's contract — a channel should not have to know that an empty
+    `query` falls back to the operator's own words (V2-135: a reformulation loses what the words carried).
+
+    It does NOT compete with `escalate_to_slowbrain`: if the model called both for the SAME hunt, the router's
+    priority already collapses the turn into the escalation, and the module is the one that decides fast-vs-deep.
+    """
+    return {"query": str(args.get("query") or "").strip() or str(fallback_text or "").strip(),
+            "price_max": args.get("price_max"), "price_min": args.get("price_min"),
+            "condition": str(args.get("condition") or "").strip()}
+
+
+async def voice_turn(req: dict, operator_text: str, *, spec=None, on_delta=None) -> "tuple[dict, str]":
+    """The WHOLE body of both channels' `search_listings` branch: fast pass + composed spoken reply.
+
+    It lives here and not there for the reason `image_turn.voice_turn` already states: the voice provider and
+    `probe` are god files with a ceiling, and the ratchet asks to EXTRACT before adding to them. It is also the
+    honest boundary — this module already owns the fast-vs-deep verdict and the face that tells it, so it owns
+    running them in order too, and the two channels are left with a call instead of a copy of the sequence.
+
+    `on_delta` streams each fragment as it arrives (voice speaks while composing); `probe` accumulates and
+    passes nothing. `run` is blocking, so it goes to a thread (V2-011) — HERE, once, rather than in each caller.
+    `CancelledError` is re-raised on purpose: a cancelled turn must not look like a failed search.
+    """
+    import asyncio
+    try:
+        res = await asyncio.to_thread(
+            run, str(req.get("query") or ""), price_max=req.get("price_max"),
+            price_min=req.get("price_min"), condition=str(req.get("condition") or "").strip(),
+            operator_text=operator_text)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001 — a search that explodes must not take the turn with it
+        logger.warning(f"listing_turn: la pasada rápida falló, el turno sigue ({e!r})")
+        res = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
+    said = ""
+    try:
+        from .fast_client import FastClient
+        parts: list[str] = []
+        async for delta in FastClient().stream(
+                [{"role": "system", "content": compose_face(res, operator_text)},
+                 {"role": "user", "content": operator_text}], spec=spec, max_tokens=240):
+            parts.append(delta)
+            if on_delta is not None:
+                on_delta(delta)
+        said = "".join(parts)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:  # noqa: BLE001 — la entrega ya está en la hoja; sin composición el turno sigue vivo
+        logger.warning(f"listing_turn: la cara no compuso ({e!r})")
+    return res, said
+
+
+def compose_face(res: dict, operator_text: str) -> str:
+    """The system prompt that turns a fast-pass verdict into a SPOKEN reply. ONE definition, both channels.
+
+    This lived DUPLICATED in the voice provider and in `probe.py` — the two-channels rule wired the CALL in
+    both and left the WORDING in both too, which is the same failure one level up: two copies of a prompt
+    drift, and a prompt that drifts fails silently (the model just says something else). It is extracted here
+    because the face is part of the module's contract: the box decides fast-vs-deep, so the box also owns how
+    that verdict is told.
+
+    The escalated branch is where V2-556's run v3 lost a delivery. The old text stated the partial count as a
+    FACT next to an imperative that only ordered «say the deep search is underway» — and the model obeyed the
+    imperative and dropped the fact: four real cars on the sheet, answered with «en cuanto tenga resultados
+    específicos te los digo». So the rows go INSIDE the order, and they go by NAME: `res["ctx"]` already holds
+    the spoken rows on BOTH branches, which is exactly the datum the old face threw away.
+    """
+    from . import prompt as _prompt
+    head = _prompt._lang_lock()
+    ctx = str(res.get("ctx") or "").strip()
+    ask = str(operator_text or "").strip()
+    if res.get("delivered"):
+        return (head
+                + "\nEl operador pidió BUSCAR anuncios/productos y la búsqueda YA se hizo: los anuncios de "
+                "abajo son REALES y ya están en su hoja de resultados, en pantalla. Respóndele en 1-2 frases "
+                "HABLADAS: cuántos hay, el rango de precios y lo más prometedor, y que los tiene en la hoja. "
+                "Natural, sin markdown, sin emojis, sin leer URLs. No inventes NADA que no esté en la lista; "
+                "si un dato que pidió no está (kilómetros, estado), dilo.\n\n"
+                f"PETICIÓN DEL OPERADOR: {ask}\n\nANUNCIOS ENCONTRADOS:\n{ctx}")
+    tiene = bool(res.get("n")) and bool(ctx)
+    return (head
+            + "\nEl operador pidió BUSCAR anuncios/productos. La pasada rápida no encontró SUFICIENTE y una "
+            "BÚSQUEDA A FONDO ya está EN MARCHA (no hay que lanzarla ni pedir permiso: ya corre, y sus avances "
+            "van saliendo en su hoja de resultados). Díselo en 1-2 frases HABLADAS: que vas a investigar a "
+            "fondo y que verá los avances en la hoja. Natural, sin markdown, sin emojis, sin URLs. NO prometas "
+            "plazos."
+            + (" Y EN ESA MISMA RESPUESTA, PRIMERO: NÓMBRALE los anuncios de abajo con su precio. Ya están en "
+               "su pantalla — tenerlos y no nombrarlos es negarle una entrega que ya tiene."
+               if tiene else "")
+            + f"\n\nPETICIÓN DEL OPERADOR: {ask}"
+            + (f"\n\nANUNCIOS PROVISIONALES YA EN SU HOJA ({res.get('n')}):\n{ctx}" if tiene else ""))
+
+
 def run(query: str, *, price_max=None, price_min=None, condition: str = "",
         operator_text: str = "", budget_s: float = _BUDGET_S) -> dict:
     """The fast pass, start to verdict. Never raises; BLOCKING (call via `asyncio.to_thread` from the loop).

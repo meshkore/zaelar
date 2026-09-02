@@ -28,7 +28,23 @@ from widgets import instances, store
 from widgets.results import data as sheet
 
 ENGINE = Path(__file__).resolve().parents[4]
+#: The VOICE channel's code, which since the 2026-09-02 ratchet pass lives in TWO files: the turn itself in
+#: `nucleo.py` and the deterministic widget-intent readers (`_close_target`, `_widget_fallback`…) in
+#: `widget_intent.py`. These guards ask about the channel, not about a file, so they read both — a source guard
+#: pinned to one path stops guarding the moment the code is extracted, and does it by going GREEN, not red.
+_VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py")
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
+
+
+class _Voice:
+    """Reads as one source: `.read_text()` concatenates the channel's files."""
+
+    @staticmethod
+    def read_text(encoding: str = "utf-8", errors: str = "strict") -> str:
+        return "\n".join((ENGINE / rel).read_text(encoding=encoding, errors=errors) for rel in _VOICE_SRC)
+
+
+VOICE = _Voice()
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +121,7 @@ def test_every_close_path_goes_through_the_one_decision():
     """`nucleo.py` emits `widget/close` with an id from THREE points (the close≠delete guard, the turn backstop, and
     the canvas fallback). The V2-199 wiring guardrail: a decision that nobody calls only proves that the
     code compiles. The fourth time this week that the rule had been — or was about to be — duplicated."""
-    src = NUCLEO.read_text(encoding="utf-8", errors="replace")
+    src = VOICE.read_text(encoding="utf-8", errors="replace")
     con_id = [ln for ln in src.splitlines()
               if 'emit("widget", "close"' in ln and '"id"' in ln]
     assert len(con_id) >= 3, "cambiaron los puntos de cierre: revisa que TODOS pasen por _close_target"
@@ -120,7 +136,7 @@ def test_every_close_path_goes_through_the_one_decision():
 def test_the_ambiguity_is_answered_by_ASKING_and_not_by_staying_silent():
     """Asking ALSO counts as having acted: if the fallback returned False, the login fallback would take the
     turn as if nobody had done anything — the bug documented by V2-023."""
-    src = NUCLEO.read_text(encoding="utf-8", errors="replace")
+    src = VOICE.read_text(encoding="utf-8", errors="replace")
     i = src.index("def _widget_fallback(")
     cuerpo = src[i:i + 3000]
     assert "ask(_t[\"ask\"])" in cuerpo and re.search(r'ask\(_t\["ask"\]\)\s*\n(.|\n){0,400}?return True', cuerpo), (
@@ -176,7 +192,7 @@ def test_the_show_decision_is_wired_in_BOTH_channels():
         lines = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
         return "\n".join(ln for ln in lines if not ln.strip().startswith("#"))
 
-    voz = _code("voice/engine/llm/providers/nucleo.py")
+    voz = "\n".join(_code(rel) for rel in _VOICE_SRC)   # el canal son DOS ficheros desde la pasada del trinquete
     assert voz.count("def _show_target_instance(") == 1
     assert "_show_target_instance(_rid" in voz, "la voz no consulta la instancia al mostrar"
     probe = _code("nucleo/flash/probe.py")
@@ -227,6 +243,6 @@ def test_ids_always_travels_so_a_caller_that_loops_it_is_right_in_every_case():
 def test_every_closing_path_iterates_ids():
     """Source guard, same reason the file already has one: `nucleo.py` emits `widget/close` from THREE places,
     and writing the rule three times is how it comes to be missing from one."""
-    body = NUCLEO.read_text()
+    body = VOICE.read_text()
     assert body.count('for _cid in (_t.get("ids")') == 3, \
         "the three closing paths must loop over `ids`, not read `id`"

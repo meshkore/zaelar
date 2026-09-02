@@ -63,3 +63,19 @@ def _show_target(text: str, context: list[dict] | None = None, last_action: str 
         return _identify_ctx(runtime, text)
     except Exception:
         return None
+
+
+# Extraído de `probe.py` en la pasada del trinquete (2026-09-02). Vive aquí porque es donde un lector ya lo
+# buscaba: `delivery.py` lo nombra «show_target._running_goals» desde antes de que estuviera aquí.
+def _running_goals() -> list[str]:
+    """The goals of the errands actually IN FLIGHT right now — what a new request has to be compared against.
+
+    `has_active()` answers whether anything is running; this answers WHAT. Best-effort: an unreadable registry
+    returns [], and `nothing_running_for` treats «cannot tell» as «assume it is this one», so a failure here
+    keeps the old conduct rather than escalating twice.
+    """
+    try:
+        from nucleo import dispatch as _disp_g
+        return [str(r.get("request") or "") for r in _disp_g.pending_summaries()]
+    except Exception:
+        return []

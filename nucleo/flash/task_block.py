@@ -139,9 +139,22 @@ def pending_task_lines() -> list[str]:
             for _t in _ofrecer:
                 _disp.mark_stall_offered([_t])     # V2-454: este turno la lleva delante
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
-                         "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "
-                         "concreto y el tiempo que lleva; si lleva MUCHO en el mismo paso, sé honesto (va lento o "
-                         "puede haberse atascado, le ofreces pararlo) — NUNCA repitas la misma frase vaga. "
+                         # V2-556 — LA BIFURCACIÓN VA DENTRO DEL IMPERATIVO, y es la tercera vez que esta
+                         # familia cuesta una ronda. El branch anti-negación de V2-222 ya estaba escrito, pero
+                         # QUINCE LÍNEAS más abajo, y esta orden —la primera que el modelo lee sobre «¿tienes
+                         # algo?»— solo hablaba del PASO. Medido en `search-buy-used-car__es` (2026-09-02,
+                         # run v3): el prompt del turno llevaba «YA ENTREGADO (de su hoja): AUDI A3 — 10.990
+                         # EUR; AUDI Q5 — 9.590; BMW X3 — 9.980» y la respuesta fue «Sigo sin tener anuncios
+                         # concretos, la búsqueda va en el paso inicial». Tres coches con nombre y precio
+                         # delante, negados. Una orden que nombra solo una de las dos caras se obedece entera.
+                         "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado o si YA "
+                         "TIENES ALGO, MIRA PRIMERO si esa tarea trae «YA ENTREGADO (de su hoja)»: si lo trae, "
+                         "la respuesta EMPIEZA por eso —nómbralo con su precio, que es justo lo que te ha "
+                         "preguntado— y el paso va DESPUÉS; si NO lo trae, di el PASO concreto y el tiempo que "
+                         "lleva. Si lleva MUCHO en el mismo paso, sé honesto (va lento o puede haberse "
+                         "atascado, le ofreces pararlo), pero SOLO si aquí arriba pone ENCALLADA o SIN AVANZAR "
+                         "con esas letras: los segundos por sí solos NO son un atasco y decir que algo se ha "
+                         "atascado a los 37s es inventar una avería. NUNCA repitas la misma frase vaga. "
                          "Lo que ves AQUÍ es TODO lo que sabes de esas tareas: si una sale «SIN paso reportado "
                          "aún», di exactamente eso —que arrancó y todavía no ha dado señal—; JAMÁS te inventes en "
                          "qué punto va («está en la fase de login», «la farmacia está consultando tu historial», "

@@ -1,0 +1,125 @@
+{
+  "id": "archivos",
+  "version": "0.1.0",
+  "title": "Archivos",
+  "description": "El explorador de los archivos que el operador tiene en la nube (Google Drive, OneDrive y los que vengan): carpetas, ficheros, búsqueda y ficha de cada uno, con la misma forma de navegar que un explorador de toda la vida.",
+  "whenToUse": "Cuando el usuario habla de SUS archivos en la nube (Drive, OneDrive): entrar en una carpeta, ver qué hay dentro, buscar un fichero por nombre o por lo que dice, o abrir uno concreto. FRONTERA: un texto ya escrito → `documento`; fotos → `imagenes`; buscar en internet → `search`.",
+  "keywords": [
+    "archivos",
+    "mis archivos",
+    "ficheros",
+    "carpeta",
+    "carpetas",
+    "drive",
+    "google drive",
+    "onedrive",
+    "mi nube",
+    "documentos guardados",
+    "explorador de archivos",
+    "files",
+    "folder",
+    "my drive"
+  ],
+  "entry": "widget.js",
+  "size": {
+    "w": 760,
+    "h": 560
+  },
+  "usage": "El explorador de los archivos EN LA NUBE del operador. Para NAVEGAR usa open_folder (con folderId, o el nombre y se resuelve con lo que hay en pantalla), go_up y go_home. Para CONTESTAR «¿tengo un contrato de Axa?» usa search_files: filtra la vista Y devuelve los que casan en `result.matches`, así que puedes decir sus nombres — volver a mostrar el widget NO busca nada. open_file devuelve la ficha del archivo con su `web_url`; decide TÚ qué hacer con ella (enseñarla, abrirla en el navegador, resumirla). Si no hay ningún servicio conectado, open_connectors abre el asistente de conexión dentro de la tarjeta. Para conectar: open_connectors abre el asistente y connect_provider devuelve la URL de consentimiento; el client_id de la aplicación se registra UNA vez en Configuración → Conectores, nunca por voz.",
+  "actions": {
+    "refresh": {
+      "desc": "vuelve a leer lo que hay en la carpeta actual (o repite la búsqueda si hay una)",
+      "payload": {},
+      "view": true
+    },
+    "open_folder": {
+      "desc": "entra en una carpeta y enseña lo que tiene dentro",
+      "payload": {
+        "folderId": "id de la carpeta (o su nombre, se resuelve con lo que hay en pantalla)"
+      },
+      "view": true
+    },
+    "go_up": {
+      "desc": "sube a la carpeta de arriba",
+      "payload": {},
+      "view": true
+    },
+    "go_home": {
+      "desc": "vuelve a la carpeta raíz del servicio",
+      "payload": {},
+      "view": true
+    },
+    "search_files": {
+      "desc": "BUSCA por nombre o por contenido en todos los archivos y CONTESTA: cambia lo que se ve y devuelve los que casan en `result.matches`",
+      "payload": {
+        "query": "lo que se busca"
+      },
+      "view": true
+    },
+    "clear_search": {
+      "desc": "quita la búsqueda y vuelve a enseñar la carpeta donde estaba",
+      "payload": {},
+      "view": true
+    },
+    "open_file": {
+      "desc": "abre la ficha de un archivo concreto y devuelve sus datos y su enlace web",
+      "payload": {
+        "fileId": "id del archivo (o su nombre)"
+      },
+      "view": true
+    },
+    "set_view": {
+      "desc": "cambia entre lista y cuadrícula",
+      "payload": {
+        "mode": "list | grid"
+      },
+      "view": true
+    },
+    "set_provider": {
+      "desc": "cambia al otro servicio de archivos conectado (Drive ↔ OneDrive)",
+      "payload": {
+        "provider": "gdrive | onedrive"
+      },
+      "view": true
+    },
+    "open_connectors": {
+      "desc": "abre el asistente para conectar un servicio de archivos dentro de la tarjeta",
+      "payload": {
+        "provider": "gdrive | onedrive (opcional)"
+      },
+      "view": true
+    },
+    "close_connectors": {
+      "desc": "cierra el asistente de conexión y vuelve al explorador",
+      "payload": {},
+      "view": true
+    },
+    "connect_provider": {
+      "desc": "empieza a conectar un servicio de archivos: devuelve la URL de consentimiento para abrirla",
+      "payload": {
+        "provider": "gdrive | onedrive",
+        "tier": "permiso a pedir (opcional)"
+      }
+    },
+    "disconnect_provider": {
+      "desc": "olvida la sesión de un servicio de archivos (habrá que volver a dar permiso para usarlo)",
+      "payload": {
+        "provider": "gdrive | onedrive"
+      },
+      "confirm": true,
+      "confirm_q": "¿Desconecto «{item}»? Tendrás que volver a darle permiso para leer tus archivos."
+    }
+  },
+  "name": "Archivos",
+  "aliases": [
+    "Archivos",
+    "mis archivos",
+    "el drive",
+    "google drive",
+    "onedrive",
+    "mi nube",
+    "el explorador de archivos"
+  ],
+  "origin": "builtin",
+  "live_title": true
+}

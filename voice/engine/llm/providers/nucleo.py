@@ -23,7 +23,8 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash import data_ops as _data_ops, image_turn as _image_turn, video_turn as _video_turn  # V2-391 / V2-402 / V2-457: no cycles
+from nucleo.flash import (data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
+                          listing_turn as _lt, video_turn as _video_turn)      # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
 # The pending-confirmation pair moved to `confirm_gate.py` (2026-09-02 ratchet pass): they needed nothing
@@ -1101,8 +1102,7 @@ class NucleoLLMStream(llm.LLMStream):
         # al final, cuando ya se sabe que el turno escaló de verdad.
         escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
-        listing_req = {"v": None}        # V2-556: {'query','price_max','price_min','condition'} de search_listings —
-                                         # la pasada rápida de anuncios, resuelta tras el stream (listing_turn.run)
+        listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/flash/listing_turn.py)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
         music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
@@ -1687,14 +1687,8 @@ class NucleoLLMStream(llm.LLMStream):
                 if search_req["v"] is None or _word_overlap(q, text) > _word_overlap(search_req["v"], text):
                     search_req["v"] = q
             elif name == "search_listings":
-                # V2-556: UNA búsqueda de anuncios por turno (la primera con query real gana). El módulo decide
-                # solo si sirve el turno o escala — por eso no compite con escalate_req: si el modelo llamó a las
-                # dos para la MISMA caza, la prioridad del router ya colapsa el turno en la escalación.
-                if listing_req["v"] is None:
-                    _lq = (args.get("query") or "").strip() or text
-                    listing_req["v"] = {"query": _lq, "price_max": args.get("price_max"),
-                                        "price_min": args.get("price_min"),
-                                        "condition": (args.get("condition") or "").strip()}
+                # V2-556 — UNA por turno; la forma de la petición es del módulo (`listing_turn.request_from`).
+                listing_req["v"] = listing_req["v"] or _lt.request_from(args, text)
             elif name == "recall":
                 # V2-056: el MODELO decide recordar (V2-022 aplicado a la memoria). Se resuelve tras el stream,
                 # fuera del event loop; la heurística needs_recall queda como prefetch.
@@ -2512,9 +2506,7 @@ class NucleoLLMStream(llm.LLMStream):
         # del no-razonador. (a) un marketplace NOMBRADO + intención de buscar exige ENTRAR y navegar (worker), no un
         # dato puntual de web_search. (b) cambiar el CÓDIGO/aspecto de un widget (color/columna/estilo) es trabajo
         # del generador, no una data-op ni un "no puedo". En ambos, si el turno no escaló ni tocó otra tool, escala.
-        # V2-556: a turn that chose the LISTING fast pass DID act — the guard's premise («no escaló ni tocó
-        # otra tool») is false, and overriding it would send every marketplace-named hunt straight to a worker,
-        # bypassing the module whose job is to decide fast-vs-deep itself.
+        # V2-556: elegir la pasada rápida de anuncios YA es actuar (ver `listing_turn.voice_turn`).
         if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"] and not data_done["v"]
                 and not music_req["v"]
                 and (_router.looks_like_marketplace_nav(text) or _router.looks_like_modify_widget(text))):
@@ -2824,51 +2816,16 @@ class NucleoLLMStream(llm.LLMStream):
         # la búsqueda a fondo está en marcha. Se salta si el turno además escaló (escalate_req): dos workers
         # corriendo la misma caza es exactamente el defecto del fontanero (c480413b), no una redundancia sana.
         if listing_req["v"] is not None and reveal_req["v"] is None and escalate_req["v"] is None:
-            lr = listing_req["v"]
-            emit("brain", "🛒 búsqueda de anuncios", text=lr["query"], role="system")
-            try:
-                from nucleo.flash import listing_turn as _lt
-                lres = await asyncio.to_thread(
-                    _lt.run, lr["query"], price_max=lr.get("price_max"), price_min=lr.get("price_min"),
-                    condition=lr.get("condition") or "", operator_text=operator_text or text)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"search_listings falló (voz sigue): {e}")
-                lres = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
-            if lres.get("delivered"):
-                sys3 = (
-                    _prompt_mod._lang_lock()
-                    + "\nEl operador pidió BUSCAR anuncios/productos y la búsqueda YA se hizo: los anuncios de "
-                    "abajo son REALES y ya están en su hoja de resultados, en pantalla. Respóndele en 1-2 frases "
-                    "HABLADAS: cuántos hay, el rango de precios y lo más prometedor, y que los tiene en la hoja "
-                    "de resultados. Natural, sin markdown, sin emojis, sin leer URLs. No inventes NADA que no "
-                    "esté en la lista; si un dato que pidió no está (kilómetros, estado), dilo.\n\n"
-                    f"PETICIÓN DEL OPERADOR: {operator_text or text}\n\nANUNCIOS ENCONTRADOS:\n{lres.get('ctx') or ''}"
-                )
-            else:
-                _partial = (f"De momento hay {lres.get('n')} anuncios provisionales en su hoja de resultados. "
-                            if lres.get("n") else "")
-                sys3 = (
-                    _prompt_mod._lang_lock()
-                    + "\nEl operador pidió BUSCAR anuncios/productos. La pasada rápida no encontró suficiente y "
-                    "una BÚSQUEDA A FONDO ya está EN MARCHA (no hay que lanzarla ni pedir permiso: ya corre, y "
-                    f"sus avances van saliendo en su hoja de resultados). {_partial}"
-                    "Díselo en 1-2 frases HABLADAS: que vas a investigar a fondo y que verá los avances en la "
-                    "hoja de resultados. Natural, sin markdown, sin emojis, sin URLs. NO prometas plazos.\n\n"
-                    f"PETICIÓN DEL OPERADOR: {operator_text or text}"
-                )
+            emit("brain", "🛒 búsqueda de anuncios", text=listing_req["v"]["query"], role="system")
             buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
-            try:
-                async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys3},
-                         {"role": "user", "content": operator_text or text}],
-                        spec=spec, max_tokens=240):
-                    buf += delta
-                    send(speech.inline(take(False)))
-                send(speech.sanitize(take(True), drop_metadata=False))
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"search_listings compose falló (voz sigue): {e}")
+
+            def _listing_delta(_d: str) -> None:
+                nonlocal buf
+                buf += _d
+                send(speech.inline(take(False)))
+
+            await _lt.voice_turn(listing_req["v"], operator_text or text, spec=spec, on_delta=_listing_delta)
+            send(speech.sanitize(take(True), drop_metadata=False))
             spoken_text = "".join(spoken).strip()
             brain._last_action = "listings"
 
@@ -3361,178 +3318,9 @@ class NucleoLLMStream(llm.LLMStream):
                               similar_pending=_similar_pending)
 
 
-def _action_is_negated(n: str) -> bool:
-    """True si la frase NIEGA la acción de widget ("no necesito que abras nada", "no me muestres", "no cierres
-    nada", "don't open") — para que el fallback NO dispare un show/close cuando el operador dice EXPLÍCITAMENTE que
-    no lo haga (bug V2-023: "no necesito que abras nada" contenía "abras" → abría mensajería igual). Ventana corta
-    (≤18 chars entre la negación y el verbo) para no pisar compuestos legítimos tipo "no quiero la agenda,
-    muéstrame el reloj"."""
-    import re as _re
-    return bool(_re.search(
-        r"(?:\b(?:no|sin|tampoco|nunca|ni)\b|don'?t|do not|no need|without)[^.?!¿]{0,18}\b"
-        r"(?:abr|muestr|ensen|pon|saca|sube|cierr|cerr|quit|elimin|escond|ocult|close|hide|open|show)", n))
-
-
-def _norm_nfkd(s: str) -> str:
-    """Minúsculas sin acentos (para los guards deterministas de canvas)."""
-    import unicodedata as _ud
-    return "".join(c for c in _ud.normalize("NFKD", s or "") if not _ud.combining(c)).lower()
-
-
-def _is_meta_widget_question(n: str) -> bool:
-    """True si la frase PREGUNTA/COMENTA sobre una acción de widget YA ocurrida ("¿por qué has abierto el widget de
-    proyectos?", "¿por qué se abrió eso?", "no deberías haber abierto nada") en vez de ORDENAR una — para que NUNCA
-    se dispare un show/close por mencionar un widget en una queja o pregunta META (bug de la sesión 2026-07-12: el
-    operador preguntando "¿por qué abriste X?" hacía que zaelar ABRIERA X). `n` ya viene normalizado (sin acentos).
-    NO pisa una orden educada tipo "¿me muestras la agenda?" (no lleva 'por qué' ni verbo en pasado)."""
-    import re as _re
-    # "por qué" + verbo de canvas → pregunta sobre el porqué de una acción, no una orden
-    if _re.search(r"\bpor ?que\b|porque\b", n) and _re.search(
-            r"\b(abr|abri|abrio|abierto|mostr|ensen|saca|cerr|cerro|abriste|se abrio)", n):
-        return True
-    # verbo de canvas en PASADO/participio (acción ya ejecutada, se habla DE ella)
-    return bool(_re.search(
-        r"\b(abriste|abrio|abrido|abierto|has abierto|habias abierto|deberias haber (abierto|mostrado)|"
-        r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
-
-
-def _show_target_instance(wid: str, text: str = "") -> dict:
-    """A QUÉ tarjeta va este «enséñamelo» (V2-300) — hermana de `_close_target`, mismo fail-soft: si no se
-    puede saber qué hay abierto, se muestra la base como siempre.
-
-    `text` es el turno del operador: con varias tarjetas abiertas, «las dos» resuelve a todas en vez de
-    preguntar (V2-530)."""
-    try:
-        from server.voice_api import open_instances
-        from widgets import instances as _inst
-        return _inst.resolve_show(wid, open_instances(), text)
-    except Exception:  # noqa: BLE001
-        return {"id": wid, "ids": [wid], "ask": "", "options": []}
-
-
-def _close_target(wid: str, text: str = "") -> dict:
-    """A QUÉ tarjeta va este cierre (V2-259 F3). Una sola decisión para los TRES puntos de este fichero que
-    emiten `widget/close` con id — escribir la regla tres veces es cómo se llega a que falte en uno.
-
-    Fail-soft hacia el comportamiento de SIEMPRE: si no se puede saber qué hay abierto, cierra como antes. Una
-    pregunta espuria en cada cierre sería peor que el fallo que esto quita.
-    """
-    try:
-        from server.voice_api import open_instances
-        from widgets import instances as _inst
-        return _inst.resolve_close(wid, open_instances(), text)
-    except Exception:  # noqa: BLE001
-        return {"id": wid, "ids": [wid], "ask": "", "options": []}
-
-
-def _widget_fallback(text: str, emit, ask=None) -> bool:
-    """Si la frase es una orden clara de mostrar/cerrar un widget conocido y el modelo no emitió la tag, la
-    emitimos nosotros (idempotente). Reutiliza el identificador de `widgets/runtime`. Devuelve True si ACTUÓ
-    (para que el llamante marque acted["widget"] y el login-fallback no robe el turno — V2-023).
-
-    `ask` es por dónde se PREGUNTA (V2-259 F3). Preguntar TAMBIÉN es haber actuado: el turno se resuelve con la
-    pregunta, y devolver False aquí dejaría que el login-fallback se llevara el turno como si nadie hubiera
-    hecho nada — que es el fallo que el comentario de arriba existe para evitar."""
-    import re as _re
-    import unicodedata as _ud
-    n = "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
-    if _action_is_negated(n):   # "no necesito que abras nada" → no dispares ningún widget
-        return False
-    if _is_meta_widget_question(n):   # "¿por qué abriste X?" es una PREGUNTA, no una orden
-        return False
-    try:
-        if _re.search(r"\b(quit|cierr|cerr|elimin|escond|ocult|limpi|despej|close|hide|clear)", n):
-            if _re.search(r"\b(todo|todos|todas|all|widgets|tarjetas|la pantalla|el escritorio)", n):
-                emit("widget", "close", extra={"src": "flash"})
-                return True
-            wid = _identify(text)
-            if wid:
-                _t = _close_target(wid, text)
-                if _t["ask"]:
-                    if ask:
-                        ask(_t["ask"])
-                        emit("brain", "❓ cerrar: varias tarjetas abiertas", text=wid, role="system",
-                             extra={"options": _t["options"]})
-                        return True
-                    return False        # sin canal para preguntar, mejor no cerrar a ciegas
-                for _cid in (_t.get("ids") or [_t["id"] or wid]):
-                    emit("widget", "close", extra={"id": _cid, "src": "flash"})
-                return True
-        elif _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi", n):
-            wid = _identify(text)
-            if wid:
-                emit("widget", "show", extra={"id": wid, "src": "flash"})
-                return True
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"widget fallback skipped: {e}")
-    return False
-
-
-def _show_guard_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
-    """Si la frase es una orden clara de MOSTRAR un widget EXISTENTE y NO pide crear uno nuevo, devuelve su id;
-    si no, None. Guard DETERMINISTA (V2-023, no depende del LLM) para que una escalada ERRÓNEA de "muéstrame el de
-    mensajería" nunca genere un widget basura — espejo del guard de LOGIN. Con verbo de crear ("créame otro reloj")
-    devuelve None → deja escalar a un CREATE legítimo."""
-    import re as _re
-    import unicodedata as _ud
-    n = "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
-    if _action_is_negated(n):   # "no necesito que abras nada" → no es una orden de mostrar
-        return None
-    if _re.search(r"\b(crea|crear|cree|haz|hacer|genera|generar|nuev|construy|dise|monta|make|create|build|new)", n):
-        return None
-    if not _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense", n):
-        return None
-    # Pronouns such as "muéstramelo" deliberately omit the widget noun. Resolve their most recent topical
-    # antecedent through the real catalogue; this preserves human continuity without a weather/agenda/etc table.
-    try:
-        from nucleo.flash import router as _router
-        tail = (text or "").strip().lower().strip("¿?¡!.,;:")
-        deictic = (bool(_re.search(r"\b(?:muestr|ensen|abre|saca)\w*(?:lo|la|los|las)\b", n))
-                    or any(_router.looks_like_bare_ref(token) for token in tail.split() if token))
-        if deictic:
-            for message in reversed(context or []):
-                if message.get("role") != "user":
-                    continue
-                prior = str(message.get("content") or "").strip()
-                if prior:
-                    match = _identify(prior)
-                    if match:
-                        return match
-                    break
-            if last_action == "search":
-                try:
-                    from widgets import runtime
-                    if runtime.get("search") is not None:
-                        return "search"
-                except Exception:
-                    pass
-    except Exception:
-        pass
-    return _identify(text)
-
-
-def _identify(text: str) -> str | None:
-    """Resuelve una frase a un id de widget. V2-078: pasa el CONTEXTO (abiertos + usados hace poco) para que, ante
-    un empate, gane el que el operador tiene DELANTE o tocó hace nada — no un homónimo del catálogo. Lectura µs del
-    estado (sin retriever); best-effort (si el estado no está, resuelve sin contexto, como antes)."""
-    try:
-        from widgets import runtime
-        try:
-            from memory import api as _memapi
-            _st = _memapi.state() or {}
-            _open = _st.get("open_widgets") or []
-            _recent = _st.get("recent_widgets") or []
-        except Exception:
-            _open, _recent = [], []
-        return (runtime.identify(text, open_ids=_open, recent_ids=_recent) or {}).get("match")
-    except Exception:
-        return None
-
-
-def _identify_is_widget(wid: str) -> bool:
-    """¿`wid` es un id EXACTO del catálogo? (para decidir si hay que resolverlo flojito antes de borrar)."""
-    try:
-        from widgets import runtime
-        return runtime.get(wid) is not None
-    except Exception:
-        return False
+# ── Los LECTORES DETERMINISTAS de intención de widget viven en `widget_intent.py` desde la pasada del
+# trinquete (2026-09-02): son puros sobre el texto y no saben nada de un turno. Se reexportan porque los
+# puntos de llamada de este fichero —y los tests que los alcanzan por aquí— los nombran sin prefijo.
+from voice.engine.llm.providers.widget_intent import (  # noqa: E402
+    _action_is_negated, _close_target, _identify, _identify_is_widget, _is_meta_widget_question,
+    _norm_nfkd, _show_guard_target, _show_target_instance, _widget_fallback)

@@ -27,9 +27,13 @@ def test_real_commands_still_pass():
 
 
 def test_deictic_show_resolves_topic_from_previous_turn(monkeypatch):
-    from voice.engine.llm.providers import nucleo
+    from voice.engine.llm.providers import nucleo, widget_intent
 
-    monkeypatch.setattr(nucleo, "_identify", lambda text: "meteo-soria" if "tiempo" in text.lower() else None)
+    # El doble se pone donde la función MIRA: `_show_guard_target` resuelve `_identify` en los globals de
+    # `widget_intent`, que es donde vive desde la pasada del trinquete. Parchear el reexport de `nucleo` deja
+    # la función real intacta y el test mide otra cosa (V2-555, misma lección).
+    monkeypatch.setattr(widget_intent, "_identify",
+                        lambda text: "meteo-soria" if "tiempo" in text.lower() else None)
     context = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"},
                {"role": "assistant", "content": "Mañana estará despejado."}]
     assert nucleo._show_guard_target("Vale, pues muéstramelo.", context) == "meteo-soria"

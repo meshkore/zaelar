@@ -203,3 +203,27 @@ def sanitize_reply(text: str) -> str:
 def looks_degenerate(text: str) -> bool:
     """Heurística: ¿la respuesta parece degenerada (empalme/repetición) ANTES de sanear? Para observabilidad."""
     return bool(text) and sanitize_reply(text) != text.strip()
+
+
+# Extraído de `probe.py` en la pasada del trinquete (2026-09-02): escribe en la VENTANA, que es de este
+# módulo. `cap` se pasa porque el tope es del canal, no del diálogo.
+def remember_what_was_said(sess, text: str, cap: int) -> None:
+    """Record the operator's line in the window NOW, before anything remaining in the turn can fail.
+
+    V2-167/V2-176, measured on `restaurant-tonight-madrid` and again on `book-hotel-night-known__es`: the window
+    was only written at the very END of the turn (step (f)), so every early exit lost the sentence that had just
+    been said. When the provider call failed, the turn returned `ok: False` — no reply at all — and the request
+    went with it. Five turns later the operator asked how the booking was going and zaelar answered about the
+    PREVIOUS errand it still remembered, then said «no tengo constancia de ese encargo en mi estado — no me
+    had asked me to reserve a table». The judge called that hallucination and gaslighting; it was neither.
+    It was TRUE, and it was our doing.
+
+    `push_user` (right here) already carries this exact principle for the voice channel — «lo que el operador dijo
+    HAPPENED; cancelling the RESPONSE does not erase the SENTENCE» — and the text channel called the very same function at the
+    only point where it could not help. Calling it early also leaves the right shape behind: a user line with no
+    assistant answer after it, which reads as «that one went unanswered», which is what happened.
+
+    Idempotent: `push_user` coalesces an identical trailing line in place, so step (f) can still call it.
+    """
+    push_user(sess.window, text)
+    del sess.window[:-cap]

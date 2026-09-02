@@ -1,0 +1,20 @@
+{
+  "view_data_shape": {
+    "connected": "bool",
+    "count": "int",
+    "entries": "list",
+    "error": "str",
+    "folder_id": "str",
+    "mode": "str",
+    "needs_refresh": "bool",
+    "next": "str",
+    "panel": "str",
+    "provider": "str",
+    "providers": "list",
+    "query": "str",
+    "reason": "str",
+    "selected": "NoneType",
+    "trail": "list",
+    "updated": "int"
+  }
+}

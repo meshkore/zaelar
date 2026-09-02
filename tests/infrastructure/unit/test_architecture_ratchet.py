@@ -105,7 +105,21 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # pending-confirmation pair (`_similar_pending`, `_human_confirm_question`) → `confirm_gate.py`. It was
     # chosen because it is the only pair in the file that needs NOTHING from it — verified, not assumed —
     # so the move carries no risk of a cycle. The 2713-line `NucleoLLMStream` class is still the real debt.
-    "voice/engine/llm/providers/nucleo.py": (3470, 145),
+
+# ── 2026-09-02, V2-556: THREE ceilings go down, and the biggest drop is a CATALOG that was never logic ────────
+# The listing fast pass landed on three files that sat AT their ceiling (3469/3470, 1162/1163, 928/930), so the
+# ratchet went red the moment the feature existed — and it stayed red for a day because I ran the suites of my
+# neighbourhood (`agent-headless`, `browser`) and this guard lives in `infrastructure`. That is the SAME lesson
+# already written twenty lines above, paid a second time. The extractions:
+#
+#   nucleo/flash/router.py         964 → 326   the TOOL CATALOG (pure data)        → nucleo/flash/router_catalog.py
+#   voice/…/providers/nucleo.py   3495 → 3327  the widget-intent readers            → providers/widget_intent.py
+#   nucleo/flash/probe.py         1180 → 1147  `_running_goals` → show_target.py; the window write → dialog.py
+#
+# And three copies of V2-556's own shape collapsed into `listing_turn.py`: the tool DEFINITION (the router only
+# places it now), `request_from` (the router and both channels built the same dict), and `voice_turn` (fast pass
+# → face → stream, which was written twice — the wording had already drifted apart by one paragraph).
+    "voice/engine/llm/providers/nucleo.py": (3327, 129),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
@@ -145,13 +159,13 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
     # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
-    "nucleo/flash/probe.py": (1163, 76),
+    "nucleo/flash/probe.py": (1147, 74),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     "nucleo/workers/session.py": (825, 19),
-    "nucleo/flash/router.py": (930, 1),   # +2 (V2-300 wiring)
+    "nucleo/flash/router.py": (327, 1),
 }
 
 #: No god file may be BORN either: any engine module NOT in the table stays under this. The largest unlisted

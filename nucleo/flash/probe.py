@@ -32,7 +32,7 @@ import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
 from nucleo.flash import music_turn as _music_turn
-from nucleo.flash import image_turn as _image_turn
+from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
 from nucleo.flash import probe_scheduling as _probe_scheduling
@@ -58,44 +58,11 @@ def _session(sid: str) -> ProbeSession:
 
 # The show-target resolver (mirror of providers/nucleo.py) lives in show_target.py — extracted
 # 2026-08-29 (architecture ratchet).
-from .show_target import _ctx_ids, _identify_ctx, _show_target  # noqa: F401
+from .show_target import _ctx_ids, _identify_ctx, _running_goals, _show_target  # noqa: F401
 
 
-def _running_goals() -> list[str]:
-    """The goals of the errands actually IN FLIGHT right now — what a new request has to be compared against.
-
-    `has_active()` answers whether anything is running; this answers WHAT. Best-effort: an unreadable registry
-    returns [], and `nothing_running_for` treats «cannot tell» as «assume it is this one», so a failure here
-    keeps the old conduct rather than escalating twice.
-    """
-    try:
-        from nucleo import dispatch as _disp_g
-        return [str(r.get("request") or "") for r in _disp_g.pending_summaries()]
-    except Exception:
-        return []
 
 
-def _remember_what_was_said(sess, text: str) -> None:
-    """Record the operator's line in the window NOW, before anything remaining in the turn can fail.
-
-    V2-167/V2-176, measured on `restaurant-tonight-madrid` and again on `book-hotel-night-known__es`: the window
-    was only written at the very END of the turn (step (f)), so every early exit lost the sentence that had just
-    been said. When the provider call failed, the turn returned `ok: False` — no reply at all — and the request
-    went with it. Five turns later the operator asked how the booking was going and zaelar answered about the
-    PREVIOUS errand it still remembered, then said «no tengo constancia de ese encargo en mi estado — no me
-    had asked me to reserve a table». The judge called that hallucination and gaslighting; it was neither.
-    It was TRUE, and it was our doing.
-
-    `dialog.push_user` already carries this exact principle for the voice channel — «lo que el operador dijo
-    HAPPENED; cancelling the RESPONSE does not erase the SENTENCE» — and the text channel called the very same function at the
-    only point where it could not help. Calling it early also leaves the right shape behind: a user line with no
-    assistant answer after it, which reads as «that one went unanswered», which is what happened.
-
-    Idempotent: `push_user` coalesces an identical trailing line in place, so step (f) can still call it.
-    """
-    from . import dialog as _dialog          # imported lazily like every other flash sibling here
-    _dialog.push_user(sess.window, text)
-    del sess.window[:-_WINDOW_MAX]
 
 
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
@@ -134,7 +101,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         # REDACTED, never the raw line: this output exists precisely because the ENTIRE turn was a secret. What
         # the window preserves is the SHAPE of what happened, so the next turn knows that the operator spoke and
         # what it concerned.
-        _remember_what_was_said(sess, _vg.text)
+        dialog.remember_what_was_said(sess, _vg.text, _WINDOW_MAX)
         return {"ok": True, "reply": [_vg.line],
                 "action": "vault_save" if _vg.has_vault else "vault_need_create", "tool_calls": [], "tags": [],
                 "secret": {"n": len(_vg.labels), "labels": _vg.labels, "vault": _vg.has_vault}}
@@ -256,7 +223,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     messages.append({"role": "user", "content": text})
     # The prompt for THIS turn is now assembled from the window as it was, so the line can go in without
     # appearing twice — and from here on every exit path, including the ones added later, keeps it.
-    _remember_what_was_said(sess, text)
+    dialog.remember_what_was_said(sess, text, _WINDOW_MAX)
 
     # (c) captura de tool calls y tags (en vez de ejecutarlos)
     tool_calls: list[dict] = []
@@ -835,39 +802,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # solo se ejecuta más abajo.
     if action == "listings" and execute:
         _lc = next((t["args"] for t in tool_calls if t["name"] == "search_listings"), {}) or {}
-        _lq = str(_lc.get("query") or "").strip() or text
-        try:
-            from nucleo.flash import listing_turn as _lt
-            _lres = await asyncio.to_thread(
-                _lt.run, _lq, price_max=_lc.get("price_max"), price_min=_lc.get("price_min"),
-                condition=str(_lc.get("condition") or "").strip(), operator_text=operator_text or text)
-        except Exception as e:  # noqa: BLE001
-            _lres = {"delivered": False, "n": 0, "escalated": 0, "ctx": "", "reason": str(e), "sheet": ""}
-        try:
-            from . import prompt as _prompt3
-            if _lres.get("delivered"):
-                _sys3 = (_prompt3._lang_lock()
-                         + "\nLa búsqueda de anuncios YA se hizo: los de abajo son REALES y están en su hoja de "
-                           "resultados. Responde en 1-2 frases habladas: cuántos hay, el rango de precios y lo "
-                           "más prometedor, y que los tiene en la hoja. Sin URLs; no inventes nada que no esté "
-                           "en la lista, y si un dato pedido falta, dilo.\n\n"
-                         + f"PETICIÓN DEL OPERADOR: {operator_text}\n\nANUNCIOS:\n{_lres.get('ctx') or ''}")
-            else:
-                _partial = (f"De momento hay {_lres.get('n')} anuncios provisionales en su hoja. "
-                            if _lres.get("n") else "")
-                _sys3 = (_prompt3._lang_lock()
-                         + "\nLa pasada rápida no encontró suficiente y una búsqueda A FONDO ya está EN MARCHA "
-                           f"(sus avances salen en su hoja de resultados). {_partial}"
-                           "Dilo en 1-2 frases habladas, sin pedir permiso, sin URLs y sin prometer plazos.\n\n"
-                         + f"PETICIÓN DEL OPERADOR: {operator_text}")
-            _parts3 = []
-            async for _delta in FastClient().stream(
-                    [{"role": "system", "content": _sys3}, {"role": "user", "content": operator_text or _lq}],
-                    spec=spec, max_tokens=240):
-                _parts3.append(_delta)
-            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts3), drop_metadata=False))
-        except Exception:  # noqa: BLE001 — la entrega ya está en la hoja; sin composición, el turno sigue vivo
-            pass
+        _, _said = await _lt.voice_turn(_lt.request_from(_lc, text), operator_text or text, spec=spec)
+        if _said:
+            spoken = dialog.sanitize_reply(speech.sanitize(_said, drop_metadata=False))
 
     # (e-ter) EJECUCIÓN REAL de acciones de worker (V2-049, solo si execute=True) — para el test e2e de gestiones
     # web por TEXTO: la escalada arranca un Brain Worker REAL que conduce el navegador; inyección/respuesta/stop van
