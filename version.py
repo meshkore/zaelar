@@ -13,7 +13,26 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest (3.17): THE IMAGE, AND WHAT IT WAS MISSING. Three things that all shipped without a single red
+# Latest (3.18): SEARCHING FOR LISTINGS, AND SAYING WHAT WE ALREADY HAVE. V2-556 makes the marketplace hunt
+# ONE tool: FlashBrain calls `search_listings` and never picks fast-vs-deep — the module runs a seconds-long
+# pass and either puts real rows on the sheet now or escalates to a Brain Worker that INHERITS that same
+# sheet, so the operator watches one box from first finding to final report. Two rounds of the same defect
+# were paid on the way: a page that prices itself (`AggregateOffer`, a `lowPrice` with no `price`) is a
+# COLLECTION, not a candidate — five category pages had been delivered as cars — and a fact stated NEXT TO an
+# imperative that does not mention it gets dropped, so a turn denied three cars it had by name and price and
+# invented a stall at 37s. The fork now goes inside the imperative, in both places (2.44, 2.45).
+#
+# V2-557 brings the operator's cloud FILES: a connector (Drive/OneDrive) behind an agnostic facade and a
+# generic explorer widget that does not know who it is talking to — a third provider is a client module and a
+# registry row. Its real design point is the permission SCOPE: a narrow one answers 200 with an empty list,
+# which is indistinguishable from an empty folder, so the facade returns a reason and the card prints it.
+#
+# And the architecture ratchet went red the day V2-556 existed, because the feature landed on three files
+# sitting exactly at their ceilings. Closed by EXTRACTION, never by raising one: the router's tool CATALOG is
+# pure data (964 -> 326 lines), the voice provider's deterministic widget-intent readers moved out
+# (3495 -> 3327), and probe shed two helpers to the modules that own them.
+#
+# Previous (3.17): THE IMAGE, AND WHAT IT WAS MISSING. Three things that all shipped without a single red
 # light. V2-553 the update channel — a build NUMBER a person can compare and a bar that offers a reload
 # only when the FRONTEND changed. V2-554 `config/models.default.json` was being dropped from the cloud
 # image by `.dockerignore`, and it did not crash the boot: the error was swallowed by the try/except
@@ -39,7 +58,7 @@ import time
 #   tier, so every directed search silently degraded to a blind one. V2-489 the round now says whether the
 #   worker asked the network at all. V2-490 a critical health limit is repeated LAST and phrased as a check on
 #   what is about to be said — measurement still pending, and its initiative says so.
-VERSION = "3.17"
+VERSION = "3.18"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
