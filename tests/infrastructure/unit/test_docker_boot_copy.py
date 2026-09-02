@@ -53,3 +53,81 @@ def test_una_exencion_apunta_a_algo_que_existe():
     the gate covers something that does not exist. It expires on its own."""
     muertas = [n for n in _FUERA_DE_LA_IMAGEN if n != "tests" and not (RAIZ / n).is_dir()]
     assert not muertas, f"exenciones que ya no apuntan a un paquete: {muertas}"
+
+
+# ── …and the COPY is only half the question ──────────────────────────────────────────────────────────────────
+#
+# `COPY nucleo ./nucleo` looks like it puts `nucleo/` in the image, but `.dockerignore` is applied to the build
+# CONTEXT before any COPY runs, so a pattern can quietly take files out of a directory that is copied in full.
+# The image still builds — there is nothing to resolve at build time — and the Machine dies on the first read.
+#
+# MEASURED 2026-09-02, auditing the release that was about to be cut: `config/models.default.json` (V2-500, the
+# single public model table) is tracked, is read at boot by `config/models.py`, `provider_chain`,
+# `workers/providers` and `memory/embeddings` — and was being dropped by `config/*.json`, a rule written in
+# 2026-07-23 to keep the OPERATOR'S per-install json out of a tenant image. Both files match the same glob and
+# they are opposite kinds of thing: one is gitignored per-install state, the other is versioned code-adjacent
+# data. Proven before fixing: with `config/` copied minus its json, `config.models.titular("voice_brain")`
+# raises `FileNotFoundError`.
+#
+# The rule this pins is the one that separates them and needs no judgement: **what git TRACKS inside a COPYed
+# path must reach the image.** Untracked runtime state is exactly what `.dockerignore` is for and is untouched
+# by this.
+
+#: Tracked files that are deliberately kept OUT of the image, each with its reason. Empty today, and that is
+#: its correct state — as with `_FUERA_DE_LA_IMAGEN`, bypassing the rule costs writing down why.
+_EXCLUIDOS_A_PROPOSITO: dict[str, str] = {}
+
+
+def _patrones_dockerignore() -> list[str]:
+    return [ln.strip() for ln in (RAIZ / ".dockerignore").read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.lstrip().startswith("#")]
+
+
+def _excluido(ruta: str, patrones: list[str]) -> str | None:
+    """Docker semantics, in the part that matters: patterns are evaluated IN ORDER and the LAST one that
+    matches decides, so a `!pat` line re-includes what an earlier line dropped."""
+    import fnmatch
+    from pathlib import PurePath
+
+    veredicto: str | None = None
+    for patron in patrones:
+        negado = patron.startswith("!")
+        p = patron[1:] if negado else patron
+        casa = (fnmatch.fnmatch(ruta, p)
+                or fnmatch.fnmatch(ruta, p.rstrip("/") + "/*")
+                or fnmatch.fnmatch(PurePath(ruta).name, p))
+        if casa:
+            veredicto = None if negado else patron
+    return veredicto
+
+
+def _rutas_copiadas() -> set[str]:
+    return _copiados()
+
+
+def test_lo_que_git_versiona_dentro_de_un_COPY_llega_a_la_imagen():
+    import subprocess
+
+    copiados = _rutas_copiadas()
+    patrones = _patrones_dockerignore()
+    tracked = subprocess.run(["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True,
+                             check=True).stdout.split()
+    perdidos = []
+    for f in tracked:
+        if f.split("/")[0] not in copiados and f not in copiados:
+            continue
+        if f in _EXCLUIDOS_A_PROPOSITO:
+            continue
+        patron = _excluido(f, patrones)
+        if patron:
+            perdidos.append(f"{f}  (lo tira «{patron}» de .dockerignore)")
+    assert not perdidos, (
+        "ficheros VERSIONADOS que el COPY mete y .dockerignore vuelve a sacar:\n  " + "\n  ".join(perdidos)
+        + "\nLa imagen construye igual y la Machine muere al leerlos. Añade la excepción «!ruta» en "
+          ".dockerignore, o —si de verdad no debe viajar— apúntalo en _EXCLUIDOS_A_PROPOSITO con el motivo."
+    )
+
+
+def test_una_exclusion_deliberada_apunta_a_algo_que_existe():
+    muertas = [f for f in _EXCLUIDOS_A_PROPOSITO if not (RAIZ / f).exists()]
+    assert not muertas, f"exclusiones deliberadas que ya no apuntan a un fichero: {muertas}"

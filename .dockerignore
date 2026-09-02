@@ -14,5 +14,11 @@ tests/runs
 memory/_data
 widgets/_data/*/
 config/*.json
+# …EXCEPT the model table (V2-500), which is the opposite kind of file: tracked, public, and READ AT BOOT by
+# config/models.py, provider_chain, workers/providers and memory/embeddings. The rule above exists to keep the
+# OPERATOR'S per-install json (settings/connectors/v2, all gitignored) out of a tenant image; this one has to be
+# in it. Without this line the image builds perfectly and every Machine dies on the first read with
+# `FileNotFoundError: config/models.default.json` — `config/models.py` fails loudly on purpose.
+!config/models.default.json
 .meshkore/credentials
 .meshkore/logs
