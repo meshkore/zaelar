@@ -13,7 +13,17 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest (3.18): SEARCHING FOR LISTINGS, AND SAYING WHAT WE ALREADY HAVE. V2-556 makes the marketplace hunt
+# Latest (3.19): THE WAIT SAYS WHAT IT IS DOING. The splash was a spinning ring under one fixed sentence,
+# held until the app modules finished — tens of seconds on a cold account Machine, and an unattended spinner
+# is indistinguishable from a hang. V2-558 gives both shells ONE narration: an outer progress arc, a line
+# that changes every couple of seconds, and a wake-up story chosen by a real signal (`/healthz`), not a timer.
+# It carries its own ES/EN strings because the i18n bundle needs the very engine being waited for — which is
+# what used to leak raw `boot.encendiendo` keys on a cold start. The property under test (node 4.105, rendered
+# in a phone-sized Chromium) is the honest one: the arc is asymptotic, capped, and cannot close on its own —
+# only the app announcing itself fills it. A bar that arrives while nothing happens is the lie this screen is
+# famous for.
+#
+# Previous (3.18): SEARCHING FOR LISTINGS, AND SAYING WHAT WE ALREADY HAVE. V2-556 makes the marketplace hunt
 # ONE tool: FlashBrain calls `search_listings` and never picks fast-vs-deep — the module runs a seconds-long
 # pass and either puts real rows on the sheet now or escalates to a Brain Worker that INHERITS that same
 # sheet, so the operator watches one box from first finding to final report. Two rounds of the same defect
@@ -58,7 +68,7 @@ import time
 #   tier, so every directed search silently degraded to a blind one. V2-489 the round now says whether the
 #   worker asked the network at all. V2-490 a critical health limit is repeated LAST and phrased as a check on
 #   what is about to be said — measurement still pending, and its initiative says so.
-VERSION = "3.18"
+VERSION = "3.19"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
