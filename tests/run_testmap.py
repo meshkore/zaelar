@@ -2100,6 +2100,16 @@ DOMAINS: list[dict] = [
                                 "el frontend del backend",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_the_update_channel_tells_the_ui_from_the_engine.py"]},
+        # 2026-09-02, medido EN PRODUCCIÓN: `widgets/instances.py` llamaba a `_re.compile(...)` a nivel de
+        # módulo sin ningún `import re as _re`. `compileall` contento (parsea), la suite verde (el árbol de
+        # trabajo TENÍA el import; el commit tageado no) y la release lo embarcó. No tiró nada: los tres
+        # llamantes envuelven el import en `except Exception` con fallback fail-soft, así que lo que pasó es
+        # que TRES comportamientos entregados dejaron de existir en silencio (la pregunta de «¿cuál de las dos
+        # hojas cierro?» de V2-259/V2-530, y el «enséñamelo» de V2-300 que volvió a abrir la caja pelada).
+        # `compileall` demuestra que un fichero PARSEA, no que importarlo resuelva.
+        {"id": "7.30", "title": "Ningún módulo usa un nombre que no tiene al importarse (NameError al import)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_a_module_cannot_use_a_name_it_never_imported.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
