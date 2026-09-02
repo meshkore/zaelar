@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-31 11:50**
+Last updated: **2026-09-02 20:51**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -71,9 +71,9 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `search-buy-camera__us` | 2 | 4 | `deepseek-v4-flash` | 2026-08-28 05:32 | yes | El caso es funcional y los datos son reales (lo cual es crítico), pero adolece de lentitud en la entrega y parcialidad en el resumen; corregir el timing de p… |
 | ❌ | `search-buy-guitar__es` | 2 | 3 | `deepseek-v4-flash` | 2026-08-30 20:39 | yes | El caso de uso funciona y llega a resultados reales, pero no está listo para producción porque la entrega de información es insuficiente (solo el 17% de los … |
 | ⚠️ | `search-buy-guitar__us` | 2 | 3 | `deepseek-v4-flash` | 2026-08-30 12:01 | yes | **INFRA — recall semántico DEGRADADO en esta ronda (backend: cloud)** · (veredicto no medible: El caso no está listo para producción porque el agente inventa… |
-| ❌ | `search-buy-motorcycle__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-30 20:49 | yes | El caso no está listo para producción porque el agente retiene la mayoría de los resultados encontrados y presenta errores de lectura de precios; el bloquead… |
+| ❌ | `search-buy-motorcycle__es` | 2 | 2 | `glm-5.3` | 2026-09-02 20:51 | yes | No está listo para producción; el bloqueador principal es la filtración excesiva de resultados válidos: el asistente retiene la mayoría de las opciones encon… |
 | ⚠️ | `search-buy-motorcycle__us` | 2 | 2 | `deepseek-v4-flash` | 2026-08-31 01:26 | yes | **INFRA — sin cuota en deepseek (vuelve a las 01:37): 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (veredict… |
-| ⚠️ | `search-buy-used-car` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 10:57 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
+| ❌ | `search-buy-used-car` | 2 | 1 | `glm-5.3` | 2026-09-02 20:37 | yes | No está listo para producción: el bloqueador principal es la incapacidad del agente para leer y entregar los resultados que el sistema le pone en el prompt, … |
 | ⚠️ | `search-buy-used-car__us` | 2 | 2 | `claude-opus-4-8[1m]+deepseek-v4-flash` | 2026-08-28 12:09 | yes | **INFRA — sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto** · (ve… |
 | ❌ | `search-secondhand-monitor__es` | 2 | 2 | `deepseek-v4-flash` | 2026-08-30 20:56 | yes | No está listo para producción: el caso falló por un bloqueo técnico del navegador que impidió cualquier entrega de resultados, y el sistema no supo recuperar… |
 | ✅ | `search-secondhand-monitor__us` | 2 | 4 | ? | 2026-08-27 21:01 | yes | El caso está listo para producción en términos funcionales (el usuario obtiene sus monitores), pero el código del worker requiere revisión para corregir erro… |
@@ -87,7 +87,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ✅ | `three-tasks-at-once` | 4 | 4 | ? | 2026-08-20 17:53 | yes | Este caso de uso está listo para producción: la concurrencia real de tres tareas de tipos distintos, la atribución casi siempre correcta y la fluidez del hil… |
 | ❌ | `two-searches-two-sheets` | 4 | 2 | `deepseek-v4-flash` | 2026-08-28 06:58 | yes | No listo. El sistema ejecutó la concurrencia técnicamente (2 workers, 2 hojas), pero zaelar falló en la gestión de los estados: cerró mal sin preguntar y mez… |
 
-**7 passing · 29 failing · 13 infra** of 49 scenarios we can actually finish.
+**7 passing · 30 failing · 12 infra** of 49 scenarios we can actually finish.
 
 Plus **1 🌍 parked** for an environmental wall a user in that country would not hit (the sibling twin proves the capability). Visible, not counted, each with its reason:
 - `cheapest-monitor__us` — Amazon geolocaliza por IP: aun con un perfil en-US limpio sirve «Deliver to Spain» y precios de España. El gemelo ES está verde (4/5), así que la capacidad está probada; desde una IP de EEUU el muro no existe.
@@ -100,19 +100,19 @@ Plus **16 🔒 capped** (need the user's own credentials; measured for honesty o
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 62 | 49 | 7 |
+| ✅ completable | 87 | 49 | 7 |
 | 🔑 credentials | 54 | 17 | 0 |
 | 🚧 capability | 27 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 49 of 62 ever run (13 never run)
+## Coverage of the RUNNABLE list — 49 of 87 ever run (38 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 8 | 8 | 1 |
-| 1 | us | 1 | 1 | 0 |
-| 2 | es | 22 | 22 | 2 |
+| 1 | es | 8 | 13 | 1 |
+| 1 | us | 1 | 3 | 0 |
+| 2 | es | 22 | 40 | 2 |
 | 2 | us | 13 | 19 | 3 |
 | 3 | es | 3 | 5 | 0 |
 | 3 | us | 0 | 2 | 0 |
@@ -189,6 +189,7 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `search-buy-bicycle__us` | `.meshkore/roadmap/initiatives/V2-410-uc-search-buy-bicycle-us.md` | `` |
 | `search-buy-guitar__es` | `.meshkore/roadmap/initiatives/V2-269-uc-search-buy-guitar-es.md` | `` |
 | `search-buy-motorcycle__es` | `.meshkore/roadmap/initiatives/V2-270-uc-search-buy-motorcycle-es.md` | `` |
+| `search-buy-used-car` | `.meshkore/roadmap/initiatives/V2-227-uc-search-buy-used-car.md` | `` |
 | `search-secondhand-monitor__es` | `.meshkore/roadmap/initiatives/V2-271-uc-search-secondhand-monitor-es.md` | `` |
 | `things-to-do-nearby-weekend__es` | `.meshkore/roadmap/initiatives/V2-312-uc-things-to-do-nearby-weekend-es.md` | `` |
 | `two-searches-two-sheets` | `.meshkore/roadmap/initiatives/V2-264-uc-two-searches-two-sheets.md` | `` |

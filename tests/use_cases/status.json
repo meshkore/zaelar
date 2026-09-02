@@ -890,49 +890,37 @@
       }
     },
     "search-buy-used-car": {
-      "last_run": "2026-08-28 10:57",
-      "overall": 2,
-      "judge": "deepseek-v4-flash",
-      "brain": "claude-opus-4-8[1m]+deepseek-v4-flash",
-      "state": "INFRA",
-      "infra_reason": "sin cuota en deepseek → relevo a licencia-claude: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
+      "last_run": "2026-09-02 20:37",
+      "overall": 1,
+      "judge": "glm-4.6",
+      "brain": "glm-5.3",
+      "state": "FAIL",
+      "infra_reason": null,
       "scores": {
         "naturalidad": 3,
-        "adaptacion": 1,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "mecanismo": 3,
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no hubo entrega real —hoja de resultados vacía y cero candidatos— y, además, ante la autorización explícita de cambiar de plan, el agente repitió la misma pregunta en vez de ejecutar el relevo.",
+      "verdict": "No está listo para producción: el bloqueador principal es la incapacidad del agente para leer y entregar los resultados que el sistema le pone en el prompt, generando una falsa sensación de fallo cuando los datos existían (aunque inicialmente fuera de rango de precio).",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'search' (choose from ask, wait, act, say) · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.worker_bridge search \"coches segunda mano diesel Madrid hasta 12000 euros 2016 o posterior\"`"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 1 error(es), último paso «✏️ código ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
-        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
-      "drive_model": "aimlapi",
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "7edd745",
+        "sha": "739873b",
         "n_dirty": 0,
         "dirty": []
       },
@@ -940,7 +928,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
+            "size": "43 GB"
           }
         ],
         "n": 1
@@ -1743,69 +1731,23 @@
       }
     },
     "search-buy-motorcycle__es": {
-      "last_run": "2026-08-30 20:49",
+      "last_run": "2026-09-02 20:51",
       "overall": 2,
       "judge": "glm-4.6",
-      "brain": "deepseek-v4-flash",
+      "brain": "glm-5.3",
       "state": "FAIL",
       "infra_reason": null,
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 4,
+        "adaptacion": 3,
         "resultado": 2,
-        "mecanismo": 2,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "El caso no está listo para producción porque el agente retiene la mayoría de los resultados encontrados y presenta errores de lectura de precios; el bloqueador principal es la falta de exhaustividad en la entrega de opciones válidas.",
+      "verdict": "No está listo para producción; el bloqueador principal es la filtración excesiva de resultados válidos: el asistente retiene la mayoría de las opciones encontradas en el sistema en lugar de presentarlas para que el usuario decida, lo que convierte la búsqueda en un juego de adivinanzas ineficiente.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «✏️ código ⚠️ error»: Claude requested permissions to write to /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn-T/zaelar-workers/fc2b2c-1/fuentes.json, but you haven't granted it yet."
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de fuentes.json: [Errno 2] No such file or directory: 'fuentes.json' · ruta RELATIVA a tu directorio de trabajo: /private/var/folders/51/mq51gxn13sg84_d8ctz8gm1400 · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.widget_cli data results sources @fuentes.json`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «click» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 30`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «snapshot» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli snapshot`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «click» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 40`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: HTTP Error 500: Internal Server Error · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli look`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «visit» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima de · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli visit \"https://es.wallapop.com/item/zontes-c1-125cc-custom-moto-1290287770\"`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: el navegador no ha contestado a «navigate» en 25s. OJO: eso NO quiere decir que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se encolaría encima · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate \"https://es.wallapop.com/item/zontes-c1-125cc-custom-moto-1290287770\"`"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 8 error(es), último paso «end»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -1819,18 +1761,15 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3cad46a",
-        "n_dirty": 2,
-        "dirty": [
-          "widgets/entrenamientos/",
-          "widgets/inversiones/golden.json"
-        ]
+        "sha": "739873b",
+        "n_dirty": 0,
+        "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "44 GB"
+            "size": "43 GB"
           }
         ],
         "n": 1
@@ -4138,5 +4077,5 @@
       }
     }
   },
-  "updated": "2026-08-31 11:50"
+  "updated": "2026-09-02 20:51"
 }

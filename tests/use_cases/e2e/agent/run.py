@@ -1034,11 +1034,31 @@ def run(args: argparse.Namespace) -> int:
     elif args.scenario == "handwritten":
         chosen = SC.SCENARIOS
     else:
-        if args.scenario not in registry:
-            print(f"unknown scenario {args.scenario!r} — {len(registry)} known; "
-                  f"use --list to see them", file=sys.stderr)
-            return 2
-        chosen = [registry[args.scenario]]
+        # Comma-separated ids run as ONE batch (one lab boot, one report umbrella). The catalog's named sets
+        # (e.g. DEEP_SEARCH_SET) are lists of bare case ids while derived scenarios register as `<id>__<locale>`,
+        # so a bare id resolves to its locale variant when exactly one exists — asking the caller to know which
+        # cases are hand-written and which derived would make every set brittle to a case moving between them.
+        chosen = []
+        _seen: set[str] = set()
+        for tok in (t.strip() for t in args.scenario.split(",")):
+            if not tok:
+                continue
+            scn = registry.get(tok)
+            if scn is None:
+                hits = [s for k, s in registry.items() if k.split("__")[0] == tok]
+                if len(hits) == 1:
+                    scn = hits[0]
+                elif len(hits) > 1:
+                    print(f"ambiguous scenario {tok!r} — matches {', '.join(s.id for s in hits)}; "
+                          f"name the locale variant", file=sys.stderr)
+                    return 2
+            if scn is None:
+                print(f"unknown scenario {tok!r} — {len(registry)} known; "
+                      f"use --list to see them", file=sys.stderr)
+                return 2
+            if scn.id not in _seen:
+                _seen.add(scn.id)
+                chosen.append(scn)
 
     _no = wrong_lab_refusal(getattr(args, "lab", ""), chosen)
     if _no:
