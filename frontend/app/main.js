@@ -65,6 +65,10 @@ api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }
 // The inline splash (#preboot in index.html) has served its purpose (loader from the FIRST byte); the modules have
 // loaded and BootOverlay (neuron veil) takes over → remove it to avoid overlapping two loaders. If main.js
 // had failed to load, #preboot remains (a loader is better than a black screen).
+// V2-558 — the ring closes on a FACT, not on a clock: `__zaelarPrebootDone` paints it full and says
+// "Ready", and only then does the splash go. Guarded because preboot.js is a separate file and a shell that
+// failed to load it must still be able to get rid of its own splash.
+try { window.__zaelarPrebootDone?.(); } catch { /* noop */ }
 try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 
 // ---- CLOUD profile (paid account): /api/config exposes `cloud_profile` (= ZAELAR_USER_ID set by the

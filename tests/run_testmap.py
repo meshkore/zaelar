@@ -1891,6 +1891,14 @@ DOMAINS: list[dict] = [
                                 "plataforma, y el icono apagado abre su conexión",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_visual_formula.py"},
+        # 2026-09-03 (V2-558): el splash era un anillo girando y UNA frase fija hasta que main.js terminaba,
+        # que en una Machine fría son decenas de segundos. El operador se comió más de un minuto de eso en su
+        # primer arranque. Lo que se mide aquí solo lo puede contestar un navegador: que la narración AVANCE, y
+        # sobre todo que el arco NO se complete solo — un progreso que llega al final y se queda ahí es la
+        # mentira clásica de esta pantalla, y solo el aviso real de la app puede cerrarlo.
+        {"id": "4.105", "title": "Narración de ARRANQUE renderizada: el arco avanza, no se completa solo, y "
+                                "solo la app lo cierra", "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_preboot.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},

@@ -53,6 +53,12 @@
 </head>
 <body>
 <div id="preboot"><div class="ring"></div><div class="lbl">Starting up zaelar…</div></div>
+<!-- The boot NARRATION (V2-558) upgrades the splash above in place: outer progress arc, a line that
+     says what is happening, and the wake-up story when the engine is not answering yet. Classic
+     script, ONE definition for both shells. It is deliberately loaded AFTER the markup so the ring
+     and the first label still paint on the first byte if this file is slow — a silent splash beats a
+     black screen, which is the same reason #preboot is inline in the first place. -->
+<script src="/static/app/core/preboot.js?v=1"></script>
 <!-- The interface is built entirely by the ES-module app under /static/app/.
      index.html is just the bootstrap: styles + the vendored browser-VAD scripts
      (they attach window.vad / window.ort) + the module entry point. -->

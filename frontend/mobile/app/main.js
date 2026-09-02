@@ -50,6 +50,10 @@ for (const s of MOBILE_SURFACES.filter((s) => s.phase === "overlay")) mount(s.co
 // The inline splash in mobile/index.html did its job (a loader from the FIRST byte, which on a cold account Machine
 // is tens of seconds); the BootOverlay takes over. If this module had failed to load, #preboot would stay — better
 // a loader than a black screen.
+// V2-558 — the ring closes on a FACT, not on a clock: `__zaelarPrebootDone` paints it full and says
+// "Ready", and only then does the splash go. Guarded because preboot.js is a separate file and a shell that
+// failed to load it must still be able to get rid of its own splash.
+try { window.__zaelarPrebootDone?.(); } catch { /* noop */ }
 try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 
 // ---- CLOUD profile + Energy balance: same retry loop as the desktop, for the same reason. On the COLD START of an
