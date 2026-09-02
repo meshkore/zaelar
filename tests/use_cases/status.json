@@ -890,39 +890,23 @@
       }
     },
     "search-buy-used-car": {
-      "last_run": "2026-09-02 21:23",
-      "overall": 1,
+      "last_run": "2026-09-02 21:40",
+      "overall": 3,
       "judge": "glm-4.6",
       "brain": "glm-5.3",
       "state": "FAIL",
       "infra_reason": null,
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 2,
+        "naturalidad": 5,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 1
+        "mecanismo": 4,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el agente falla en el objetivo principal al inventar resultados iniciales y luego ignorar los datos reales que el sistema obtiene, dejando al usuario sin información válida y generando una experiencia de bucle frustrante.",
+      "verdict": "No está listo para producción: el bloqueador principal es la incapacidad de leer y entregar los resultados que el sistema le proporciona (fallo de entrega), combinado con la invención de datos de éxito cuando no los hay.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: This command uses the `&` background operator, which defers execution past approval-time safety checks. Approve only if you trust it. · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli navigate https://www.coches.net/segunda-mano/?MaxPrice=12000&Fuel=Di%C3%A9sel`"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: acción «COMPRAR COCHE» NO confirmada por el operador · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 1`"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 2 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -936,7 +920,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "55c59a5",
+        "sha": "263a739",
         "n_dirty": 0,
         "dirty": []
       },
@@ -944,7 +928,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "40 GB"
+            "size": "41 GB"
           }
         ],
         "n": 1
@@ -1747,27 +1731,38 @@
       }
     },
     "search-buy-motorcycle__es": {
-      "last_run": "2026-09-02 20:51",
-      "overall": 2,
+      "last_run": "2026-09-02 21:50",
+      "overall": 3,
       "judge": "glm-4.6",
-      "brain": "glm-5.3",
-      "state": "FAIL",
-      "infra_reason": null,
+      "brain": "deepseek-v4-flash+glm-5.3",
+      "state": "INFRA",
+      "infra_reason": "sin cuota en z.ai → relevo a deepseek: 1 worker(s) muertos al arrancar y ninguno llegó a terminar — la ronda no mide al producto",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
+        "naturalidad": 5,
+        "adaptacion": 4,
         "resultado": 2,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 4,
+        "eficiencia": 4
       },
-      "verdict": "No está listo para producción; el bloqueador principal es la filtración excesiva de resultados válidos: el asistente retiene la mayoría de las opciones encontradas en el sistema en lugar de presentarlas para que el usuario decida, lo que convierte la búsqueda en un juego de adivinanzas ineficiente.",
+      "verdict": "El caso resuelve la búsqueda básica y presenta resultados reales, pero falla en la exhaustividad de la entrega (omite opciones válidas) y en la precisión del estado al ignorar datos que ya tenía disponibles, por lo que no está listo para producción hasta que alinee su relato con su estado interno.",
       "missing_signals": [],
       "blind_turns": 0,
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: acción «Borrar todo» NO confirmada por el operador · lo que se intentó: `/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/.venv/bin/python -m nucleo.nav_cli click 10`"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 1 error(es), último paso «🧭 navegador»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 13,
+      "turns_used": 10,
       "families": [
         "flash",
         "memory",
@@ -1777,7 +1772,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "739873b",
+        "sha": "263a739",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1785,7 +1780,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
+            "size": "41 GB"
           }
         ],
         "n": 1
@@ -4093,5 +4088,5 @@
       }
     }
   },
-  "updated": "2026-09-02 21:23"
+  "updated": "2026-09-02 21:50"
 }
