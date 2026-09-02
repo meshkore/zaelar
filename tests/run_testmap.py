@@ -996,6 +996,11 @@ DOMAINS: list[dict] = [
         # normalizes, dedups, price-filters, and says needs_browser HONESTLY when HTTP could not do the job.
         {"id": "2.42", "title": "Listing search reads what pages declare — and gives up honestly", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_listing_search_reads_what_pages_declare.py"]},
+        # 2026-09-02 (V2-556 P1): the fast pass either SERVES the turn (rows presented on a sheet, no worker)
+        # or hands off honestly — the escalation inherits the SAME sheet (the V2-117 relay seam) so the
+        # operator watches one box from first fast finding to final worker report. The module never raises.
+        {"id": "2.43", "title": "Listing fast pass serves the turn or hands off with its sheet", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_listing_turn_serves_or_hands_off.py"]},
         # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
         # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
         # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»

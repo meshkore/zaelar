@@ -76,6 +76,9 @@ class ListingQuery:
     limit: int = 20
     min_needed: int = 5                       # fewer normalized items than this → needs_browser
     fetch_cap: int = 8                        # candidate pages fetched per country, max
+    # A caller answering a LIVE turn cannot wait for eight polite fetches (V2-556 P1: the in-turn fast
+    # pass budgets single-digit seconds). 0 = no deadline — the escalated/offline caller's default.
+    deadline_s: float = 0.0
 
 
 # ── keys ─────────────────────────────────────────────────────────────────────────────────────────
@@ -264,7 +267,20 @@ def search(q: ListingQuery) -> dict:
     items: list[dict] = []
     countries = tuple(c.upper() for c in q.countries) or ("",)
 
+    # The deadline stops WORK, never honesty: what was already fetched is still extracted, deduped and
+    # returned, and `exhausted` flips to False so the caller knows the ladder was cut short, not climbed.
+    t0 = time.monotonic()
+    timed_out = False
+
+    def _out_of_time() -> bool:
+        nonlocal timed_out
+        if q.deadline_s > 0 and (time.monotonic() - t0) >= q.deadline_s:
+            timed_out = True
+        return timed_out
+
     for country in countries:
+        if _out_of_time():
+            break
         # 1 · discovery
         discovered: list[dict] = []
         if _bd_token():
@@ -286,6 +302,8 @@ def search(q: ListingQuery) -> dict:
 
         # 2+3 · fetch and extract, page by page, politely
         for url in _candidate_urls(discovered, q.fetch_cap):
+            if _out_of_time():
+                break
             host = _host_of(url)
             try:
                 html, via = _fetch(url, country)
@@ -308,7 +326,10 @@ def search(q: ListingQuery) -> dict:
     needs_browser = len(items) < q.min_needed
     reason = ""
     if needs_browser:
-        if blocked and not _bd_token():
+        if timed_out:
+            reason = (f"time budget ({q.deadline_s:.0f}s) ran out with {len(items)} structured "
+                      "listings — the ladder was cut short, not exhausted")
+        elif blocked and not _bd_token():
             reason = (f"{blocked} candidate pages behind bot walls and no unlocker token — "
                       "a browser session is the remaining way in")
         elif items:
@@ -316,8 +337,11 @@ def search(q: ListingQuery) -> dict:
         else:
             reason = "no page declared structured listings (JSON-LD/OpenGraph)"
     result = {"query": q.text, "items": items, "sources": sources,
-              "exhausted": True, "needs_browser": needs_browser, "reason": reason}
-    _remember(q, result)
+              "exhausted": not timed_out, "needs_browser": needs_browser, "reason": reason}
+    # A cut-short round is NOT what this query returns — it is what fit in this caller's budget. Caching it
+    # would serve the truncation to every caller for half an hour, including one with no deadline at all.
+    if not timed_out:
+        _remember(q, result)
     if needs_browser:
         logger.info(f"listing_search: '{q.text[:60]}' → {len(items)} items, needs_browser ({reason})")
     return result
