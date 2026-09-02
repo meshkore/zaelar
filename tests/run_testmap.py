@@ -1354,6 +1354,16 @@ DOMAINS: list[dict] = [
                                 "queda nada (V2-542)",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/widgets/render_mural.py"},
+        # V2-550 — el MURO DE CHAT vuelve donde estaba. Su reporte era preciso: la POSICIÓN nunca fue lo que se
+        # perdía (la geometría persiste desde V2-062); lo que no persistía es estar ABIERTO, porque
+        # `store.chatOpen` nace `false`. Así que la recarga lo devolvía cerrado y al reabrirlo la geometría se
+        # restauraba bien — que es justo lo que «no lo deja donde estaba» parece desde fuera. Renderiza su
+        # secuencia exacta (abrir, mover, recargar) y también el caso de PRIMERA visita: recordar no puede
+        # significar abrirse por defecto a quien nunca lo abrió, que es lo que un «recuerda el estado» mal hecho
+        # rompe sin que nadie lo note.
+        {"id": "4.101", "title": "El muro de chat vuelve ABIERTO, en su pestaña y en su sitio tras recargar",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
         # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo
         # antes del primer resultado, y una de ellas —usuario/sesión/copiar— «no la necesito para nada» encima
         # de CADA búsqueda. La tira no se borra: se muda al pie del Sumario, que es donde se audita. Ningún

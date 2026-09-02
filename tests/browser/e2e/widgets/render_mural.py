@@ -209,19 +209,41 @@ def run(url):
         check("clicking it again REVEALS it on top",
               rr["gamma"]["visible"] and rr["gamma"]["z"] >= max(v["z"] for v in rr.values()), json.dumps(rr["gamma"]))
 
-        # ── bulk: minimize all / show all ────────────────────────────────────────────────────────────────────
-        pg.evaluate("() => document.querySelector('#wrail .wr-toggle').click()")
-        pg.wait_for_timeout(200)
+        # ── bulk: hide all / show all — TWO buttons since V2-552, not one toggle that flips meaning ─────────
+        # The four controls are checked HERE, before anything clicks them: a missing button makes `.click()` on
+        # null throw and the run dies with a traceback instead of a red check, which is a worse signal for the
+        # same defect (measured while disarming this).
+        present = pg.evaluate("""() => [...document.querySelectorAll('#wrail .wr-tools > button')]
+            .map(b => b.className)""")
+        check("the four controls he asked for are there, in order",
+              present[:4] == ["wr-hide", "wr-show", "wr-compact", "wr-fitall"], json.dumps(present))
+        if present[:4] != ["wr-hide", "wr-show", "wr-compact", "wr-fitall"]:
+            check("rail controls usable for the bulk steps (skipping them)", False, json.dumps(present))
+            b.close()
+            print()
+            print(f"{len(fails)} FAILED: {fails}")
+            return 1
+        pg.evaluate("() => document.querySelector('#wrail .wr-hide').click()")
+        pg.wait_for_timeout(250)
         rr = rects(pg)
-        check("minimize-all hides every card", not any(v["visible"] for v in rr.values()), json.dumps(rr))
-        pg.evaluate("() => document.querySelector('#wrail .wr-toggle').click()")
-        pg.wait_for_timeout(200)
+        check("hide-all hides every card", not any(v["visible"] for v in rr.values()), json.dumps(rr))
+        # HIDE, never CLOSE: the chips must all still be there, which is the only way back to any single card.
+        chips_after_hide = pg.evaluate("() => document.querySelectorAll('#wrail .wr-chip').length")
+        check("hiding all KEEPS a chip per card (hidden is not closed)",
+              chips_after_hide == 3, str(chips_after_hide))
+        pg.evaluate("() => document.querySelector('#wrail .wr-show').click()")
+        pg.wait_for_timeout(250)
         rr = rects(pg)
         check("show-all brings every card back", all(v["visible"] for v in rr.values()), json.dumps(rr))
+        # Each control says whether it would do anything, instead of one glyph changing under the operator.
+        st = pg.evaluate("""() => ({hide: !!document.querySelector('#wrail .wr-hide').disabled,
+                                    show: !!document.querySelector('#wrail .wr-show').disabled})""")
+        check("with everything visible, SHOW-ALL is the one disabled",
+              st["show"] and not st["hide"], json.dumps(st))
 
         # ── arrange: a regular grid, right of the rail, clear of the chat, inside the canvas ────────────────
         pg.evaluate("() => window.__zaelarDesktop.minimize('beta')")   # arrange must REVEAL what is minimized
-        pg.evaluate("() => document.querySelector('#wrail .wr-arrange').click()")
+        pg.evaluate("() => document.querySelector('#wrail .wr-fitall').click()")
         pg.wait_for_timeout(300)
         rr = rects(pg)
         rail_r = pg.evaluate("() => document.querySelector('#wrail').getBoundingClientRect().right")
@@ -364,6 +386,59 @@ def run(url):
         check("the card with no room for it opens ON TOP (visible, therefore movable)",
               bool(big) and (not others or big["z"] >= max(others)),
               json.dumps({"huge_z": big and big["z"], "others": others}))
+
+        # ── V2-552: la barra — iconos arriba, los cuatro controles abajo ────────────────────────────────────
+        # «En la barra izquierda vas a dejar toda la parte superior para mostrar los iconos de los widgets que
+        # están abiertos, y debajo es donde van los botones de control del frontend.»
+        bar = pg.evaluate("""() => {
+          const el = document.querySelector('#wrail'); if (!el) return null;
+          const chips = el.querySelector('.wr-chips'), tools = el.querySelector('.wr-tools');
+          const r = n => { const b = n.getBoundingClientRect(); return {t: Math.round(b.top), b: Math.round(b.bottom)}; };
+          return {
+            chips: chips ? r(chips) : null, tools: tools ? r(tools) : null,
+            buttons: tools ? [...tools.children].map(b => b.className) : [],
+          };
+        }""")
+        check("the open-widget icons occupy the UPPER part and the controls sit BELOW them",
+              bool(bar) and bar["chips"] and bar["tools"] and bar["chips"]["t"] <= bar["tools"]["t"],
+              json.dumps(bar))
+
+        # ▦ REPACK vs ⤢ FIT are different gestures: the first must NOT resize. It used to be one button that
+        # tiled everything into equal cells, so «optimiza los huecos» flattened a sheet made large on purpose.
+        pg.evaluate("""() => { const c = [...document.querySelectorAll('.hb-win')]
+            .find(x => x.dataset.wid === 'gamma');
+          c.style.maxWidth='none'; c.style.maxHeight='none'; c.style.width='620px'; c.style.height='480px'; }""")
+        pg.wait_for_timeout(250)
+        before = pg.evaluate("""() => { const c = [...document.querySelectorAll('.hb-win')]
+            .find(x => x.dataset.wid === 'gamma'); const r = c.getBoundingClientRect();
+          return {w: Math.round(r.width), h: Math.round(r.height)}; }""")
+        pg.evaluate("() => document.querySelector('#wrail .wr-compact').click()")
+        pg.wait_for_timeout(400)
+        after = pg.evaluate("""() => { const c = [...document.querySelectorAll('.hb-win')]
+            .find(x => x.dataset.wid === 'gamma'); const r = c.getBoundingClientRect();
+          return {w: Math.round(r.width), h: Math.round(r.height)}; }""")
+        check("▦ repack KEEPS the size the operator gave a card",
+              abs(before["w"] - after["w"]) <= 2 and abs(before["h"] - after["h"]) <= 2,
+              json.dumps({"before": before, "after": after}))
+        rr = rects(pg)
+        # What repack MUST guarantee is that every card stays WHOLE and on the canvas. NOT that nothing
+        # overlaps: with a card occupying 1178x656 of a 1280x800 viewport there is no arrangement of four cards
+        # without overlap, and the whole point of this button is that it does NOT resize to make room — that is
+        # the other button's job. Asking for no-overlap here would be asking for the impossible, and the honest
+        # outcome when things do not fit is «as little overlap as possible, all of it visible».
+        check("…and still leaves every card WHOLE and on the canvas",
+              all(v["x"] >= 0 and v["y"] >= 0 and v["x"] + v["w"] <= W and v["y"] + v["h"] <= H
+                  for v in rr.values()),
+              json.dumps(rr))
+        # …whereas ⤢ fit-on-screen is the one allowed to shrink it.
+        pg.evaluate("() => document.querySelector('#wrail .wr-fitall').click()")
+        pg.wait_for_timeout(400)
+        fitted = pg.evaluate("""() => { const c = [...document.querySelectorAll('.hb-win')]
+            .find(x => x.dataset.wid === 'gamma'); const r = c.getBoundingClientRect();
+          return {w: Math.round(r.width), h: Math.round(r.height)}; }""")
+        check("⤢ fit-on-screen IS the one that resizes",
+              fitted["w"] != after["w"] or fitted["h"] != after["h"],
+              json.dumps({"repacked": after, "fitted": fitted}))
 
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()

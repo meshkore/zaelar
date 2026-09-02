@@ -3,8 +3,18 @@
 // The operator's spec (2026-09-01, with his screenshot in front of him): a new widget had opened UNDER the
 // floating chat and he had no way to know it was there. The rule this surface enforces: nothing on the canvas
 // may be fully hidden without a visible trace — one small chip per open card, always on top, so covering or
-// minimizing a widget never makes it unknowable. Plus the two bulk gestures he asked for: ▦ auto-arrange
-// (the same Desktop.arrange() the showcase mode uses — the OS-style window snap) and minimize/show all.
+// minimizing a widget never makes it unknowable.
+//
+// LAYOUT (V2-552, his spec): the WHOLE upper part is the open widgets, and the controls sit UNDERNEATH, pinned
+// to the bottom so they never move as cards come and go. Four of them, and they are four because he named four
+// distinct gestures — the previous bar collapsed them into two:
+//   ⊟ hide all      — MINIMIZE, never close: the chips stay, so any single one can be brought back
+//   ⊞ show all      — bring back everything that was hidden
+//   ▦ repack        — close the gaps, KEEPING every card at the size he made it (`Desktop.compact`)
+//   ⤢ fit on screen — shrink into equal cells so everything fits at once (`Desktop.arrange`)
+// Hide/show are two buttons rather than one flipping toggle: a glyph that changes meaning under you has to be
+// read before it can be used. And the last two are genuinely different gestures — collapsing them meant
+// «optimiza los huecos» also flattened a sheet he had deliberately enlarged.
 //
 // DOCKED, not floating (operator, same day): the bar is a fixed full-height column that OWNS the left edge —
 // widgets get less horizontal room while it is open, they never slide under it. It folds to a thin border
@@ -40,6 +50,10 @@ function injectStyles(){
   #wrail button:hover{border-color:var(--hb-accent,#3D6FE0)}
   #wrail .wr-chip.min{opacity:.45;border-style:dashed}
   #wrail .wr-sep{width:22px;height:1px;flex:none;background:var(--hb-line,#232e3d);border:none;padding:0;margin:2px 0}
+  /* V2-552 — the operator's layout: the WHOLE upper part is the open widgets, the controls sit UNDERNEATH.
+     The chips take all the slack (flex:1) and scroll among themselves, so the four buttons stay pinned to the
+     bottom and never move: a control that shifts down as widgets open is a control you have to look for. */
+  #wrail .wr-tools{display:flex;flex-direction:column;gap:6px;align-items:center;flex:none}
   /* chips stack from the TOP downward and scroll on their own when there are many */
   #wrail .wr-chips{display:flex;flex-direction:column;gap:6px;align-items:center;
     flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:none}
@@ -48,7 +62,7 @@ function injectStyles(){
      Everything but the fold handle disappears; the handle grows to fill the strip so the whole edge is the
      target — a 12px sliver with a 30px button inside would be unhittable. */
   #wrail.folded{width:12px;padding:0;gap:0;cursor:pointer}
-  #wrail.folded .wr-chips,#wrail.folded .wr-arrange,#wrail.folded .wr-toggle,#wrail.folded .wr-sep{display:none}
+  #wrail.folded .wr-chips,#wrail.folded .wr-tools,#wrail.folded .wr-sep{display:none}
   #wrail.folded .wr-fold{width:100%;height:100%;border:none;border-radius:0;background:transparent;
     color:var(--hb-muted-2,#7d8a9c);font-size:10px}
   #wrail.folded:hover{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,var(--hb-bg,#141d29))}
@@ -106,21 +120,30 @@ function refresh(el){
     };
     chips.appendChild(b);
   });
+  // HIDE ALL and SHOW ALL are two buttons, not one toggle whose meaning flips (V2-552, his spec: «un botón que
+  // esconde todos los widgets… y luego tiene que haber otro botón para restaurarlos»). A single glyph that
+  // changes under you is a control you have to read before you can use it, and it cannot be aimed at from
+  // muscle memory. Each is disabled when it would do nothing, which says the same thing without moving.
   const anyVisible=[...d.wins.keys()].some(id=>!d.isMinimized(id));
-  const tg=el.querySelector(".wr-toggle");
-  tg.textContent=anyVisible?"⊟":"⊞";
-  tg.title=anyVisible?t("rail.hideAll"):t("rail.showAll");
+  const anyHidden=[...d.wins.keys()].some(id=>d.isMinimized(id));
+  const hide=el.querySelector(".wr-hide"), show=el.querySelector(".wr-show");
+  if(hide){ hide.disabled=!anyVisible; hide.title=t("rail.hideAll"); }
+  if(show){ show.disabled=!anyHidden;  show.title=t("rail.showAll"); }
   announce(el);
 }
 
 export function WidgetRail(){
   injectStyles();
   const el=document.createElement("div"); el.id="wrail";
-  const fold=document.createElement("button"); fold.className="wr-fold";
-  const arr=document.createElement("button"); arr.className="wr-arrange"; arr.textContent="▦";
-  const tg=document.createElement("button"); tg.className="wr-toggle"; tg.textContent="⊟";
+  const mk=(cls,glyph)=>{ const b=document.createElement("button"); b.className=cls; b.textContent=glyph; return b; };
+  const fold=mk("wr-fold","");
+  const hide=mk("wr-hide","⊟");     // minimize every card — hide, never close: the chips stay, so each comes back
+  const show=mk("wr-show","⊞");     // bring back everything that was hidden
+  const comp=mk("wr-compact","▦");  // close the gaps, KEEPING every card's size
+  const fitA=mk("wr-fitall","⤢");   // shrink to fit: everything on screen at once
   const sep=document.createElement("div"); sep.className="wr-sep";
   const chips=document.createElement("div"); chips.className="wr-chips";
+  const tools=document.createElement("div"); tools.className="wr-tools";
   const paintFold=()=>{
     const folded=el.classList.contains("folded");
     fold.textContent=folded?"»":"«";
@@ -135,17 +158,21 @@ export function WidgetRail(){
   fold.onclick=(e)=>{ e.stopPropagation(); setFold(!el.classList.contains("folded")); };
   // folded, the WHOLE strip is the unfold target — see the .folded CSS note
   el.addEventListener("click",()=>{ if(el.classList.contains("folded")) setFold(false); });
-  arr.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
-  tg.onclick=()=>{ const d=desk(); if(!d) return;
-    const anyVisible=[...d.wins.keys()].some(id=>!d.isMinimized(id));
-    if(anyVisible) d.minimizeAll(); else d.revealAll();
-    refresh(el);
-  };
-  el.append(fold,arr,tg,sep,chips);
+  hide.onclick=()=>{ const d=desk(); if(d){ d.minimizeAll(); refresh(el); } };
+  show.onclick=()=>{ const d=desk(); if(d){ d.revealAll();  refresh(el); } };
+  // The two bulk layouts are DIFFERENT gestures and used to be one: `compact` closes the gaps and leaves every
+  // card the size the operator made it; `arrange` shrinks everything into equal cells so it all fits at once.
+  // Collapsing them meant «optimiza los huecos» also flattened the sheet he had deliberately enlarged.
+  comp.onclick=()=>{ const d=desk(); if(d){ d.compact(); refresh(el); } };
+  fitA.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
+  tools.append(hide,show,comp,fitA,fold);
+  el.append(chips,sep,tools);
   document.addEventListener("hb:canvas-changed",()=>refresh(el));
   paintFold();
   // Tooltips read the i18n bundle, which loads async — repaint once shortly after mount so they land translated.
-  setTimeout(()=>{ arr.title=t("rail.arrange"); paintFold(); refresh(el); }, 800);
-  arr.title=t("rail.arrange");
+  const titles=()=>{ comp.title=t("rail.compact"); fitA.title=t("rail.fitAll");
+                     hide.title=t("rail.hideAll"); show.title=t("rail.showAll"); };
+  setTimeout(()=>{ titles(); paintFold(); refresh(el); }, 800);
+  titles();
   return el;
 }

@@ -1029,6 +1029,52 @@ export class Desktop {
   // SSE reaches (POST /api/canvas/arrange -> widget/arrange), like the OS window-snap the operator asked for.
   // The area avoids a DOCKED chat wall and the orb strip at the bottom; every card gets the same cell so a
   // recording reads clean. Sizes clamp to the card's own max-width/height, so nothing distorts.
+  // RECOLOCAR sin tocar el tamaño (V2-552). The operator asked for two different bulk gestures and they were
+  // one: `arrange()` tiles everything into equal cells, which also RESIZES — perfect for «ponlo todo en
+  // pantalla», wrong for «optimiza los huecos», because it flattens a sheet he had deliberately made large.
+  // This one keeps every card exactly the size he left it and only closes the gaps between them, packing them
+  // top-to-bottom in columns — the same order `_place` uses, so a compacted canvas and a grown one look alike.
+  //
+  // BIGGEST FIRST, and that is not cosmetic: packing a large card after several small ones leaves it nowhere to
+  // go, and it would end up in the largest-gap fallback ON TOP of the tidy ones — a «tidy» gesture that buries
+  // a card is worse than not tidying.
+  compact(){
+    this.revealAll();          // a layout with invisible holes in it is not a layout
+    const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
+    if(!cards.length) return {ok:true, n:0};
+    const pad=this.tile.pad, top=this._snapUp(this.tile.top);
+    const xmin=this._snapUp(Math.max(pad, this.minX()+pad)), step=this.grid;
+    const placed=[];
+    const fixed=this._obstacles(null).filter(r=>!cards.some(c=>{
+      const cr=c.getBoundingClientRect(); return Math.abs(cr.left-r.left)<1 && Math.abs(cr.top-r.top)<1; }));
+    // SIZES SETTLE FIRST. A card wider than the canvas is shrunk by `_fit` — and if that happens AFTER we have
+    // packed around its old size, the standing fit guarantee moves it back to the corner and lands it on top of
+    // the cards we just tidied. Measured: an oversized card packed at 1900px wide, then shrunk to 1177 and
+    // clamped to (xmin, top), sitting on two neighbours. Pack against final sizes, never intended ones.
+    cards.forEach(c=>this._fit(c));
+    cards.sort((a,b)=>(b.offsetWidth*b.offsetHeight)-(a.offsetWidth*a.offsetHeight));
+    for(const c of cards){
+      c._restore=null;                                   // a compacted card is no longer «maximized, restorable»
+      const W=c.offsetWidth, H=c.offsetHeight;
+      let put=false;
+      for(let x=xmin; !put && x+W<=innerWidth-pad; x+=step){
+        for(let y=top; y+H<=innerHeight-pad; y+=step){
+          const r={left:x, top:y, right:x+W, bottom:y+H};
+          if(![...placed,...fixed].some(o=>_overlap(r,o))){
+            c.style.left=x+"px"; c.style.top=y+"px"; placed.push(r); put=true; break;
+          }
+        }
+      }
+      if(!put){                                          // genuinely no room at this size: least-overlap, whole
+        const g=this._largestGap([...placed,...fixed], W, H, xmin, top, pad);
+        c.style.left=g.x+"px"; c.style.top=g.y+"px"; this._fit(c);
+        const r=c.getBoundingClientRect(); placed.push({left:r.left,top:r.top,right:r.right,bottom:r.bottom});
+      }
+    }
+    this._persist();
+    return {ok:true, n:cards.length};
+  }
+
   arrange(){
     this.revealAll();          // "ordénalo todo" is a show-all gesture: a grid with invisible holes is not a grid
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);

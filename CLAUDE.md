@@ -7554,6 +7554,59 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     devueltas literales, e `identify` resolviendo «el documento»/«la receta»/«el pdf»/«el papel» sin robarle «la
     agenda». **Pendiente: el ojo del operador sobre la tarjeta.**
 
+- **Lo que se perdía del chat no era la posición, era estar ABIERTO (V2-550, 2026-09-02)**: el operador —«si
+  estaba abierto, no lo deja donde estaba»—. El muro guarda su rectángulo flotante y su lado acoplado
+  desde que se hizo movible y acoplable; lo que nunca guardó es estar abierto, porque `store.chatOpen` es una señal que nace `false`. Una
+  recarga lo devolvía cerrado y al reabrirlo la geometría se restauraba bien, que es exactamente lo que «no lo
+  deja donde estaba» parece desde fuera. **Su reporte era preciso y leerlo literalmente habría hecho perder la
+  mañana arreglando una geometría que funcionaba.**
+  - Abierto + pestaña viven en `localStorage` **junto a la geometría a la que pertenecen**, no en el layout del
+    canvas: es un panel nativo, no una tarjeta, y repartir el estado de una ventana entre dos almacenes es como
+    se descuelgan. Se restaura en la CONSTRUCCIÓN (cambiar la señal después enseña el escritorio un fotograma y
+    le deja caer un panel encima) y se guarda en cada cambio, **incluidos los del MOTOR** — un aviso proactivo
+    que abre el muro por SSE es tanto «donde lo dejó» como un clic suyo. Un wipe de servidor lo alcanza.
+  - **Una primera visita sigue encontrándolo CERRADO**, con su propia comprobación: recordar no puede
+    significar abrirse por defecto a quien nunca lo abrió. Nodo **4.101**.
+
+- **Media tarjeta no es una tarjeta más pequeña (V2-551, 2026-09-02)**: «se abre un widget de imagen y medio
+  widget está en el área visible y medio aparece como si estuviera fuera de la pantalla». `_place` reserva el
+  tile por defecto de 400×340 mientras la tarjeta CARGA, y luego el widget pinta doce fotos: nada la volvía a
+  meter. Había un re-encaje, pero **solo dentro de `_applyPreferred`**, o sea solo para los widgets que DECLARAN
+  tamaño; y el fallback de «no cabe» cascadeaba con `Math.max` en los dos ejes y **sin cota superior**.
+  - El encaje deja de ser un momento y pasa a ser una **garantía permanente** (`ResizeObserver`), y una tarjeta
+    demasiado grande se **ENCOGE, no se recorta**. Nunca pelea con el operador: solo se toca la que se sale, y
+    una maximizada se respeta.
+  - **Rejilla de 5px en colocación, arrastre Y redimensión** — cuadricular solo algunas deja bordes que *casi*
+    se alinean, que se lee peor que no tener rejilla. **El origen del barrido también se cuadricula**: arrancar
+    en el borde del raíl y avanzar de 5 en 5 arrastra el desfase para siempre.
+  - **Barrido por COLUMNAS**, y ese orden es la funcionalidad que pidió («pegados unos a otros»): por filas se
+    llena de izquierda a derecha y desparrama la sesión por arriba. Sin sitio → **el hueco más grande**, al
+    frente: la que puedes ver es la que puedes mover.
+  - ⚠️ **Dos guardas míos no medían nada.** El de «una tarjeta que crece sigue entera» pasaba con el arreglo
+    quitado, porque el registro falso declaraba tamaño para TODOS los widgets y la tarjeta **nunca llegaba a
+    crecer**; ahora una comprobación aparte exige que haya crecido ANTES de preguntar si cabe. Y un
+    `_bringFront` que añadí en `_place` no medía nada porque todos sus llamantes ya lo hacen: quitado, en vez de
+    dejarlo haciendo parecer que un guarda probaba esa rama. Nodo **4.92**, cuatro desarmes.
+
+- **Un glifo que cambia de significado bajo la mano hay que leerlo antes de usarlo (V2-552, 2026-09-02)**: la
+  barra izquierda queda con los **iconos de los widgets abiertos arriba** (con su scroll) y **cuatro controles
+  anclados abajo** — un control que se desplaza según se abren tarjetas es un control que hay que buscar.
+  - Son cuatro porque él nombró cuatro gestos y la barra los tenía en dos: **⊟ esconder todo** (MINIMIZA, nunca
+    cierra: los chips se quedan y cada uno vuelve por su cuenta), **⊞ restaurar todo**, **▦ recolocar**
+    cerrando huecos y **manteniendo tamaños** (`compact`, nuevo) y **⤢ meter todo en pantalla** encogiendo en
+    celdas (`arrange`, el de antes). Esconder y restaurar son dos botones, no un conmutador; cada uno se
+    deshabilita cuando no haría nada, que dice lo mismo sin moverse.
+  - **Recolocar y ajustar eran el MISMO botón** y no son el mismo gesto: `arrange` reparte en celdas iguales, o
+    sea que redimensiona — y «optimiza los huecos» acababa aplastando una hoja que él había agrandado aposta.
+  - **En `compact` los tamaños se asientan ANTES de empaquetar**: si `_fit` encoge una tarjeta después, la
+    garantía de V2-551 la devuelve a la esquina y la deja encima de las recién ordenadas. Y se empaqueta **de
+    mayor a menor**, porque colocar la grande al final la deja sin sitio y acaba enterrando a las ordenadas.
+  - ⚠️ **Escribí una comprobación que pedía un imposible** («tras recolocar nada solapa»): con una tarjeta que
+    ocupa 1178×656 de 1280×800 no existe colocación de cuatro sin solape, y el botón por diseño no redimensiona.
+    Lo exigible —y lo que se exige— es que queden **enteras y dentro del lienzo**. ⚠️ Y un desarme **mató la
+    corrida en vez de ponerla roja** (`null.click()`): la comprobación de que los cuatro controles existen se
+    movió ANTES de tocarlos. *Un fallo que revienta el instrumento es peor señal que el mismo fallo contado.*
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
