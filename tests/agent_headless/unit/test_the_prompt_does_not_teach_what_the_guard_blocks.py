@@ -15,6 +15,8 @@ shows inline JSON for a bridge, or that stays silent about the two rejections a 
 """
 from __future__ import annotations
 
+import json
+import pathlib
 import re
 
 from nucleo import dispatch_prompts as DP
@@ -116,3 +118,51 @@ def test_and_it_says_there_is_no_way_around_it():
     text = _worker_prompt()
     i = text.find("allowed working directories")
     assert i > 0 and "no hay rodeo" in text[i:i + 260]
+
+
+# ── the recipe must teach a command that WORKS (V2-549) ──────────────────────────────────────────────────────
+# Same family, other half. Above: we taught a form our own gate refuses. Here: a recipe carries a literal
+# payload, and a literal in a prompt is written once and then nobody ever runs it. This repo has paid for that
+# twice — V2-219 taught `in 2 hours` to a parser that does not accept it, and V2-249 answered it by checking
+# EVERY example a prompt teaches against the parser that will read it. §4d teaches the worker how to fill the
+# reading sheet; if that JSON, or the action it names, is not what the widget accepts, the worker follows our
+# instructions and the sheet stays empty.
+def _sheet_recipe() -> str:
+    text = _worker_prompt()
+    i = text.find("widget_cli data documento show")
+    assert i > 0, "the recipe that fills the reading sheet is not in the worker's prompt at all"
+    return text[text.rfind("\n", 0, i) + 1: text.find("\n", i)]
+
+
+def test_the_payload_the_recipe_teaches_is_one_the_sheet_ACCEPTS(tmp_path, monkeypatch):
+    """Not «the JSON parses» — the widget is DRIVEN with the literal we teach, in a private store, and has to
+    come back ok with the body on the sheet. A key we renamed in the widget and forgot here would leave the
+    recipe reading perfectly while every worker that follows it delivers nothing."""
+    payload = json.loads(re.search(r"\{\"kind\".*?\}\)", _sheet_recipe()).group(0)[:-1])
+
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    import importlib
+    from nucleo import workspace
+    from widgets import store as wstore
+    importlib.reload(workspace)
+    importlib.reload(wstore)
+    from widgets.documento import data as mod
+    importlib.reload(mod)
+    try:
+        out = mod.apply_action("show", payload)
+        assert out.get("ok"), f"the sheet refuses the payload we teach: {out}"
+        assert mod.view_data()["body"], "the recipe ran and left the sheet empty"
+    finally:
+        importlib.reload(workspace)
+        importlib.reload(wstore)
+
+
+def test_every_sheet_action_the_recipe_names_is_DECLARED_by_the_widget():
+    """An action `apply_action` handles but the manifest does not declare is invisible to the brain (V2-520),
+    so teaching one is teaching a dead command."""
+    declared = set(json.loads(
+        (pathlib.Path(DP.__file__).resolve().parents[1] / "widgets" / "documento" / "manifest.json")
+        .read_text(encoding="utf-8"))["actions"])
+    named = set(re.findall(r"data documento (\w+)", _worker_prompt()))
+    assert named, "the recipe names no action at all"
+    assert named <= declared, f"the recipe teaches actions the manifest never declares: {sorted(named - declared)}"
