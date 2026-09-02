@@ -1361,7 +1361,7 @@ DOMAINS: list[dict] = [
         # secuencia exacta (abrir, mover, recargar) y también el caso de PRIMERA visita: recordar no puede
         # significar abrirse por defecto a quien nunca lo abrió, que es lo que un «recuerda el estado» mal hecho
         # rompe sin que nadie lo note.
-        {"id": "4.101", "title": "El muro de chat vuelve ABIERTO, en su pestaña y en su sitio tras recargar",
+        {"id": "4.102", "title": "El muro de chat vuelve ABIERTO, en su pestaña y en su sitio tras recargar",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
         # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo

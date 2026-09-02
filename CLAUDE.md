@@ -7566,7 +7566,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     le deja caer un panel encima) y se guarda en cada cambio, **incluidos los del MOTOR** — un aviso proactivo
     que abre el muro por SSE es tanto «donde lo dejó» como un clic suyo. Un wipe de servidor lo alcanza.
   - **Una primera visita sigue encontrándolo CERRADO**, con su propia comprobación: recordar no puede
-    significar abrirse por defecto a quien nunca lo abrió. Nodo **4.101**.
+    significar abrirse por defecto a quien nunca lo abrió. Nodo **4.102**.
 
 - **Media tarjeta no es una tarjeta más pequeña (V2-551, 2026-09-02)**: «se abre un widget de imagen y medio
   widget está en el área visible y medio aparece como si estuviera fuera de la pantalla». `_place` reserva el

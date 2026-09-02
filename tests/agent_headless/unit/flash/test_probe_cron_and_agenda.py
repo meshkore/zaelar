@@ -102,7 +102,14 @@ def test_booking_the_appointment_does_not_kill_the_reminder(fresh_db, probe_sess
 
 def test_an_absolute_date_is_expressible_in_one_go(fresh_db):
     """The prompt tells the model to use YYYY-MM-DD HH:MM for a one-off on a named day, so the scheduler has
-    to accept exactly that — and reject a date already past instead of firing at once."""
-    assert scheduler.parse_schedule("2026-09-02 09:00")["type"] == "once"
-    assert scheduler.parse_schedule("2026-09-02")["display"].endswith("09:00")   # sane default hour
+    to accept exactly that — and reject a date already past instead of firing at once.
+
+    The FUTURE date is computed, not written down. It used to be the literal «2026-09-02 09:00», which is a
+    future date only until that morning: it went red on its own at 09:00 that day, with nothing changed and no
+    defect to find. A test whose meaning depends on the wall clock has to read the wall clock — the PAST case
+    can stay a literal, because a date in the past stays in the past."""
+    import datetime as _dt
+    soon = (_dt.datetime.now() + _dt.timedelta(days=1)).strftime("%Y-%m-%d")
+    assert scheduler.parse_schedule(f"{soon} 09:00")["type"] == "once"
+    assert scheduler.parse_schedule(soon)["display"].endswith("09:00")           # sane default hour
     assert scheduler.parse_schedule("2020-01-01 09:00") is None                  # in the past → refused
