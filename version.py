@@ -13,7 +13,17 @@ import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes.
 #
-# Latest: DELIVERY + REACH. Two blocks, both closed the same night.
+# Latest (3.17): THE IMAGE, AND WHAT IT WAS MISSING. Three things that all shipped without a single red
+# light. V2-553 the update channel — a build NUMBER a person can compare and a bar that offers a reload
+# only when the FRONTEND changed. V2-554 `config/models.default.json` was being dropped from the cloud
+# image by `.dockerignore`, and it did not crash the boot: the error was swallowed by the try/except
+# around the «Colmena» block, so four routers silently did not mount and the smoke went green over it.
+# And `widgets/instances.py` used `_re` with no `import re as _re` — valid syntax, green suite (the
+# working tree had the import, the tagged commit did not), three fail-soft callers, and three shipped
+# behaviours quietly gone. All three are now guarded: what git tracks inside a COPY must reach the
+# image (7.16), and no module may use a name it lacks at import time (7.30).
+#
+# Previous: DELIVERY + REACH. Two blocks, both closed the same night.
 #
 #   DELIVERY — V2-475 the guarantees now speak the operator's language (they were mute in English and spoke
 #   Spanish into English replies), V2-478 the backstop's gate is no longer LENGTH but whether the turn NAMES
@@ -29,7 +39,7 @@ import time
 #   tier, so every directed search silently degraded to a blind one. V2-489 the round now says whether the
 #   worker asked the network at all. V2-490 a critical health limit is repeated LAST and phrased as a check on
 #   what is about to be said — measurement still pending, and its initiative says so.
-VERSION = "3.16"
+VERSION = "3.17"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
