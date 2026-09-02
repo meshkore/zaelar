@@ -32,6 +32,7 @@
 import { Alert } from "../../../app/components/Alert.js?v=2";
 import { BootOverlay } from "../../../app/components/BootOverlay.js?v=2";
 import { LanguageOnboarding } from "../../../app/components/LanguageOnboarding.js?v=1";
+import { UpdateSurface } from "../../../app/update/UpdateSurface.js?v=1";
 import { CaptionBand } from "./OrbMini.js?v=2";
 import { ChatSheet } from "./ChatSheet.js?v=1";
 import { DockBar } from "./DockBar.js?v=1";
@@ -53,6 +54,10 @@ export const MOBILE_SURFACES = [
   { id: "alert",           comp: Alert,             target: "body", phase: "overlay", label: "Hard notice banner", shared: true },
   { id: "boot",            comp: BootOverlay,       target: "body", phase: "overlay", label: "Startup veil", shared: true },
   { id: "lang-onboarding", comp: LanguageOnboarding, target: "body", phase: "overlay", label: "First-run language onboarding", shared: true },
+  // V2-553 — the update bar, and ONLY the bar: `badge:false`, because this shell's bottom edge belongs to the
+  // dock. An installed PWA is the surface most likely to be running code from days ago, so it is the one that
+  // most needs to be told. Where the build NUMBER belongs on a phone is still open (the menu sheet, probably).
+  { id: "update",          comp: () => UpdateSurface({ badge: false }), target: "body", phase: "overlay", label: "«New version — reload» bar", shared: true },
 ];
 
 const _IDS = new Set(MOBILE_SURFACES.map((s) => s.id));

@@ -7607,6 +7607,43 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     corrida en vez de ponerla roja** (`null.click()`): la comprobación de que los cuatro controles existen se
     movió ANTES de tocarlos. *Un fallo que revienta el instrumento es peor señal que el mismo fallo contado.*
 
+- **Un número de versión no sabe si el navegador tiene que recargar (V2-553, 2026-09-02)**: el canal de
+  actualización publica **DOS** campos porque su encargo tiene dos mitades opuestas — barra cuando llega una
+  versión nueva, y **nada** cuando lo único que cambió está en el backend. Un número solo no las distingue:
+  sube en TODA release, incluidas las que no tocan un byte de lo que el navegador ejecuta.
+  - **`build`** = un entero pelado, la ÚNICA versión que ve un usuario («la 1, la 2, la 25»). `version.VERSION`
+    no vale de sustituto: es semántica y no contesta «¿voy más nuevo que tú?» de un vistazo. **`ui_rev`** =
+    digest de los bytes de `frontend/**` que un navegador pide. La pregunta de recargar se **mide**.
+  - **El número vive en un FICHERO (`update/BUILD`) porque en la nube no hay git**: el `Dockerfile` no copia
+    `.git`, así que `version.sha()` es `"nogit"` dentro de cada Machine — lleva siéndolo siempre. Lo único que
+    sobrevive a la imagen es un fichero de texto. Y el gate del tag **rechaza una release cuyo número no se
+    movió**: olvidar `python -m update bump` deja a todo el mundo en «v24» tras recargar, en silencio.
+  - **El digest es de CONTENIDO, jamás de fechas**: un `COPY` de Docker y un `clone` recién hecho se INVENTAN
+    los mtimes → anuncio fantasma en cada despliegue, y silencio ante uno real escrito con fecha vieja. Cuesta
+    **8,1 ms una vez** (74 ficheros, ~2 MB) y luego 25 µs. Un árbol ilegible devuelve `"unknown"` y el cliente
+    se **niega a actuar** sobre él: un digest vacío es un valor estable contra el que todos comparan tan
+    tranquilos, y el canal se queda mudo para siempre sin que nadie lo note.
+  - **La pestaña sabe lo que ejecuta ELLA por la PRIMERA respuesta**: la sirvió ese mismo proceso segundos
+    antes. Así no hace falta inyectar la revisión en `index.html` en tiempo de build, que metería un paso de
+    compilación entre él y un fichero que edita a mano. ⚠️ Queda una carrera de ~0 s (reinicio entre servir la
+    página y la primera comprobación); por eso la primera se dispara al cargar el módulo, no en el intervalo.
+  - **Poll y no SSE, con el motivo**: un proceso nuevo rompe todo SSE abierto, así que «reconectó» ya sería la
+    noticia — pero el número tiene que seguir subiendo con el navegador abierto tres días y con la PWA de
+    fondo, y eso solo lo sostiene un poll. ~200 bytes contra un dict cacheado; pestaña oculta = **cero**.
+  - **`--banner-h` ya existía en `palette.css`** documentada como *«height of the update banner… top controls
+    shift down by this»*, con `.tr` y `.me` consumiéndola y su transición puesta: una costura construida para
+    esta barra que **nunca había tenido escritor**. Las tarjetas no se mueven porque la colocación ya reserva
+    70 px arriba (`tile.top`) > los 36 de la barra: la garantía de V2-551 sigue en pie.
+  - **La insignia no vive dentro de `WidgetRail.js`** aunque sea su columna: el raíl se esconde solo con el
+    lienzo vacío, y un número que solo se lee habiendo un widget abierto no es un número que se pueda leer.
+    Se aparta con el raíl **plegado** por `body:has(#wrail.folded)`, CSS puro y sin referencia al raíl.
+  - **Descartar dura UNA versión y no se persiste**: el arreglo de estar desactualizado es recargar, y recargar
+    ya lo limpia; un descarte recordado entre recargas esconde una actualización real para siempre.
+  - **Dos puntos de contacto y un test que los cuenta**: `server/__init__.py` monta el router y el `Dockerfile`
+    embarca el paquete. `git grep` de `import update` en `nucleo/ voice/ memory/ widgets/ connectors/ bus/
+    observability/` tiene que salir **vacío** — su restricción («que no ensucie el código del agente») escrita
+    como guarda, no como intención.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

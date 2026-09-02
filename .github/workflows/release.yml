@@ -33,6 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        # Full history AND tags: the build-number gate below has to read `update/BUILD` as it stood at
+        # the PREVIOUS release tag, and the default shallow checkout has neither.
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -45,7 +49,26 @@ jobs:
       # one that false-fails and blocks releases. The deep safety net is the cloud pipeline's
       # post-deploy e2e smoke + auto-rollback.
       - name: Gate — syntax check
-        run: python -m compileall -q nucleo memory voice server widgets bus config connectors
+        run: python -m compileall -q nucleo memory voice server widgets bus config connectors update
+
+      # GATE — THE BUILD NUMBER MOVED (V2-553). `update/BUILD` is the only version a person is ever shown,
+      # and a release that ships the same number as the last one is invisible to the person it exists for:
+      # their browser updates and the badge still reads what it read yesterday. Forgetting `python -m update
+      # bump` is the single mistake this module cannot survive on its own, so it is refused at the door
+      # rather than shipped silently. A first release with no previous tag to compare against passes.
+      - name: Gate — the build number moved
+        run: |
+          set -uo pipefail
+          NOW=$(tr -d '[:space:]' < update/BUILD)
+          PREV=$(git tag --list 'v*' --sort=-v:refname | grep -vx "${GITHUB_REF_NAME}" | head -1 || true)
+          if [ -z "${PREV}" ]; then echo "no previous tag to compare — build ${NOW} accepted"; exit 0; fi
+          OLD=$(git show "${PREV}:update/BUILD" 2>/dev/null | tr -d '[:space:]' || true)
+          OLD=${OLD:-0}
+          echo "build ${OLD} (${PREV})  ->  ${NOW} (${GITHUB_REF_NAME})"
+          if [ "${NOW}" -le "${OLD}" ]; then
+            echo "::error::update/BUILD did not move (${OLD} -> ${NOW}). Run 'python -m update bump', commit it, retag."
+            exit 1
+          fi
 
       - name: Dispatch deploy to the private cloud repo
         env:

@@ -61,6 +61,10 @@ COPY config ./config
 COPY frontend ./frontend
 COPY i18n ./i18n
 COPY observability ./observability
+# update/ (V2-553) — the update channel. It carries `update/BUILD`, the ONE version number a user is
+# ever shown, and this COPY is the only way that number reaches production: there is no `.git` inside
+# the image, so `version.sha()` is "nogit" here and the file is the sole surviving source of truth.
+COPY update ./update
 # Root-level modules the packages import (NOT part of any package dir). version.py backs /api/status +
 # the observer's per-event `ver` stamp; without it the engine ran but the Status panel showed "No
 # module named 'version'" (found live 2026-08-05). Only ship RUNTIME root modules here — conftest.py is

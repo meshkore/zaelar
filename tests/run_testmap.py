@@ -1370,6 +1370,18 @@ DOMAINS: list[dict] = [
         {"id": "4.102", "title": "El muro de chat vuelve ABIERTO, en su pestaña y en su sitio tras recargar",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
+        # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
+        # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
+        # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el
+        # digest de lo que el navegador ejecuta) precisamente porque uno solo no distingue los dos casos, y
+        # aquí se comprueba que la pestaña actúa sobre esa diferencia: número que sube sin barra, barra
+        # cuando el frontend cambia de verdad, el descarte que dura EXACTAMENTE una revisión, y la recarga.
+        # Las versiones nuevas se simulan interceptando `/api/update` y despertando la pestaña con un
+        # `visibilitychange` — el mismo camino que recorre volver a una pestaña de fondo, sin gancho de test.
+        {"id": "4.103", "title": "Hay una versión nueva: la barra sale cuando cambia el FRONTEND, el número "
+                                 "sube siempre, y «ahora no» dura una sola versión",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_new_version_bar.py"]},
         # V2-538 — la hoja de resultados RENDERIZADA. El operador, con la hoja delante: cuatro bandas de cromo
         # antes del primer resultado, y una de ellas —usuario/sesión/copiar— «no la necesito para nada» encima
         # de CADA búsqueda. La tira no se borra: se muda al pie del Sumario, que es donde se audita. Ningún
@@ -2078,6 +2090,16 @@ DOMAINS: list[dict] = [
         # dos semanas haciéndolo con `src="operator"`. Trinquete: quien persista el interruptor, con su base.
         {"id": "7.28", "title": "Ningún test persiste el ⏻ del operador (quien lo toque, con su propia base)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_test_never_persists_the_operators_switch.py"]},
+        # V2-553 — el lado del MOTOR del canal de actualización. Cuatro formas de que mienta, y las cuatro
+        # cuestan lo mismo de escribir que de olvidar: un número que no viaja a la imagen (no hay `.git`
+        # dentro de una Machine, así que `version.sha()` es "nogit" y lo único que sobrevive es un fichero
+        # de texto), un `ui_rev` que se mueve con el backend (la barra que nadie necesita) o que se queda
+        # quieto con el frontend (la barra que nunca llega), un digest sacado de las FECHAS —que un `COPY`
+        # de Docker y un clone recién hecho se inventan—, y una release que se corta sin subir el número.
+        {"id": "7.29", "title": "Canal de actualización: el número viaja a la imagen y el digest distingue "
+                                "el frontend del backend",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_the_update_channel_tells_the_ui_from_the_engine.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [

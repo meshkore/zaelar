@@ -38,6 +38,7 @@ import { TopBar } from "../components/TopBar.js?v=3";
 import { VaultModal } from "../components/VaultModal.js?v=1";
 import { WizardModal } from "../components/WizardModal.js?v=1";
 import { WidgetRail } from "../components/WidgetRail.js?v=2";
+import { UpdateSurface } from "../update/UpdateSurface.js?v=1";
 
 // The ORDER is the actual DOM mount order (it matters for stacking). Scaffold first, then overlay.
 export const SYSTEM_SURFACES = [
@@ -123,6 +124,14 @@ export const SYSTEM_SURFACES = [
     name: null, aliases: null },
   { id: "boot",       comp: BootOverlay,  target: "body", phase: "overlay", kind: "transient",
     toggle: "store.bootReady (startup veil)", label: "Startup splash",
+    name: null, aliases: null },
+  // V2-553 — the UPDATE CHANNEL: the «there is a new version, click to reload» bar (top, above everything)
+  // and the build-number badge at the foot of the left column. Self-contained in `app/update/`: these two
+  // lines are the ONLY place the app knows it exists, which is the constraint the operator set for it.
+  // Not voice-addressable — «open the update» is not a thing to open; it is either there or it is not.
+  { id: "update",     comp: UpdateSurface, target: "body", phase: "overlay", kind: "transient",
+    toggle: "auto (bar when the served frontend differs from the one running; badge always)",
+    label: "Update bar + version badge",
     name: null, aliases: null },
   // V2-101 (2026-08-16): first-run "which language?" blocking modal — the SECOND veil, right after the boot
   // veil lifts, shown only once (GET /api/i18n/state's `chosen` flag). Not voice-addressable — you can't "open"
