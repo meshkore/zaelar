@@ -157,6 +157,12 @@ export class Desktop {
     this.wins = new Map();           // id -> {card, body, q, _dataSig, _mod, _ctx, _refreshing}
     this.z = 20;
     this.tile = {w: 400, h: 340, top: 70, pad: 14};        // default footprint reserved while a card is loading
+    // GRID (V2-551, operator's ask: «que este escritorio tenga algún tipo de rejilla… ponle 5 píxeles»). Fine
+    // enough that dragging still feels free — nobody perceives a 5px quantum — and coarse enough that two cards
+    // placed independently line up instead of missing each other by one or two pixels, which is what makes a
+    // canvas look sloppy. It applies to PLACEMENT, DRAG and RESIZE alike: snapping only some of them produces
+    // edges that ALMOST align, which reads worse than no grid at all.
+    this.grid = 5;
     this._actId = null; this._actTimer = null;
     this._ver = {};                                        // id -> cache-bust version (bumped after a modify)
     this._busy = new Set();                                // ids with an agent in-flight → don't stack create/modify
@@ -245,6 +251,9 @@ export class Desktop {
       const { epoch } = await fetch("/api/desktop/epoch").then(r=>r.json());
       if(epoch && localStorage.getItem("hb_wipe") !== String(epoch)){
         localStorage.removeItem("hb_desktop");
+        // The chat wall remembers being open since V2-550, and a wipe has to reach it too — otherwise a reset
+        // leaves a desktop that is blank except for the one panel that outlived it.
+        try{ const m = await import("../components/ChatWall.js?v=5"); m.forgetChatPlacement && m.forgetChatPlacement(); }catch(_){}
         localStorage.setItem("hb_wipe", String(epoch));
         this._reportOpen();               // the server STATE is also cleared
         return;                           // starts with no widgets
@@ -476,6 +485,7 @@ export class Desktop {
       if(pos && pos.min) card.classList.add("hb-minned");                // V2-537: minimized survives a reload
       this._wireDrag(card, grip);
       this._wireResize(card, id);
+      this._watchSize(card);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
       // Dragging (grip) no longer swallows header clicks; the header ignores pointerdown so it does not drag the card.
       head.addEventListener("pointerdown",e=>e.stopPropagation());
@@ -708,6 +718,8 @@ export class Desktop {
     finally{ w._refreshing = false; }
   }
 
+  _unwatchSize(card){ try{ if(card && card._ro){ card._ro.disconnect(); card._ro=null; } }catch(_){} }
+
   close(id){
     if(this._actId===id){ clearTimeout(this._actTimer); if(this.activity)this.activity.innerHTML=""; this._actId=null; return; }
     const w=this.wins.get(id);
@@ -733,6 +745,7 @@ export class Desktop {
       try{ fetch(`/widgets/navegador/action`,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({action:"cancel_task",payload:{task_id:taskId}})}); }catch(_){}
     }
+    this._unwatchSize(w.card);      // a closed card must not keep an observer alive
     w.card.classList.remove("in");
     setTimeout(()=>w.card.remove(),220);
     this.wins.delete(id);
@@ -743,7 +756,7 @@ export class Desktop {
     // BARRIDO DEL DOM (2026-07-14): "cierra todo" DEBE dejar el canvas limpio SIEMPRE, aunque haya tarjetas
     // huérfanas fuera de `wins` (desync tras reconexión/reinicio → el bug de "no eres capaz de cerrar la agenda"
     // con el close disparándose una y otra vez sin efecto). Quitamos toda .hb-win que quede en el escenario.
-    if(this.stage){ this.stage.querySelectorAll(".hb-win").forEach(card=>{ card.classList.remove("in"); setTimeout(()=>card.remove(),220); }); }
+    if(this.stage){ this.stage.querySelectorAll(".hb-win").forEach(card=>{ this._unwatchSize(card); card.classList.remove("in"); setTimeout(()=>card.remove(),220); }); }
     this.wins.clear();
     clearTimeout(this._actTimer); if(this.activity)this.activity.innerHTML=""; this._actId=null;
     try{ localStorage.removeItem("hb_desktop"); }catch(_){}   // que un reconnect/restore no reviva lo cerrado
@@ -863,7 +876,10 @@ export class Desktop {
       if(h < MIN_H){ if(dir.includes("n")) t = st + (sh - MIN_H); h = MIN_H; }
       l = Math.max(this.minX(), l); t = Math.max(0, t);
       w = Math.min(w, innerWidth - l); h = Math.min(h, innerHeight - t);
-      card.style.left=l+"px"; card.style.top=t+"px"; card.style.width=w+"px"; card.style.height=h+"px";
+      // Snapped like placement and drag (V2-551). Snapping only SOME of the three produces edges that almost
+      // line up, which reads worse than no grid: a card dragged to x=200 next to one resized to x=203.
+      card.style.left=this._snap(l)+"px"; card.style.top=this._snap(t)+"px";
+      card.style.width=this._snap(w)+"px"; card.style.height=this._snap(h)+"px";
     };
     card.addEventListener("pointerdown", e => {
       const h = e.target.closest && e.target.closest(".hb-rz");
@@ -913,17 +929,100 @@ export class Desktop {
   // isn't known yet); later widgets collide against the LIVE rects, so they tuck around the rendered sizes. ----
   _place(card){
     const W=Math.max(card.offsetWidth, this.tile.w), H=Math.max(card.offsetHeight, this.tile.h);
-    const pad=this.tile.pad, top=this.tile.top, step=20, obs=this._obstacles(card);
-    const xmin=Math.max(pad, this.minX()+pad);     // V2-538: the docked rail's column is not canvas
-    for(let y=top; y+H<=innerHeight-pad; y+=step){
-      for(let x=xmin; x+W<=innerWidth-pad; x+=step){
+    const pad=this.tile.pad, top=this.tile.top, step=this.grid, obs=this._obstacles(card);
+    // The scan ORIGIN is snapped up to the grid, not just the step: starting at an unaligned x (the rail's
+    // right edge + pad) and stepping by 5 keeps that offset forever, so every card lands 4px off the grid and
+    // the grid buys nothing.
+    const xmin=this._snapUp(Math.max(pad, this.minX()+pad)), ytop=this._snapUp(top);
+    // COLUMN-MAJOR, and that order IS the feature (V2-551): the operator asked for cards «colocados
+    // verticalmente pegados unos a otros». Row-major fills left-to-right first and scatters a session across
+    // the top of the screen; sweeping y INSIDE x stacks each new card under the previous one and only starts a
+    // new column when this one is full — which is also how a person tidies a desk.
+    for(let x=xmin; x+W<=innerWidth-pad; x+=step){
+      for(let y=ytop; y+H<=innerHeight-pad; y+=step){
         const r={left:x, top:y, right:x+W, bottom:y+H};
         if(!obs.some(o=>_overlap(r,o))){ card.style.left=x+"px"; card.style.top=y+"px"; return; }
       }
     }
-    const n=this.wins.size, off=(n%6)*26;          // no room anywhere → cascade near the centre, on top
-    card.style.left=Math.max(xmin,(innerWidth*0.5 - W*0.5 + off))+"px";
-    card.style.top =Math.max(top,(innerHeight*0.30 + off))+"px";
+    // NOTHING FITS. The old fallback cascaded near the centre with `Math.max` on both axes and no upper bound,
+    // so a tall or wide card hung off the bottom-right — the operator saw exactly that: «se abre un widget de
+    // imagen y medio widget está en el área visible y medio aparece como si estuviera fuera de la pantalla».
+    // A clamp is not enough either: it would pile every overflow card in the same corner. So we put it in the
+    // LARGEST FREE GAP (his words) and bring it to the front, which is the honest answer to «there is no room»:
+    // it overlaps as little as possible, it is wholly visible, and it is the one you can see and move.
+    const gap = this._largestGap(obs, W, H, xmin, top, pad);
+    card.style.left = gap.x + "px";
+    card.style.top  = gap.y + "px";
+    this._fit(card);
+    // (no `_bringFront` here: every caller of `_place` already does it. A second call measured nothing and
+    // made a guard look like it was testing this branch when it was testing the caller.)
+  }
+
+  // The free-est spot for a WxH card: scan the grid and keep the position whose overlap with existing cards is
+  // smallest. Not a rectangle-packing algorithm — the canvas is a few dozen cards at 5px resolution, and the
+  // answer only has to be the one a person would point at.
+  _largestGap(obs, W, H, xmin, top, pad){
+    const step = Math.max(this.grid, 20);          // coarser here: this only runs when nothing fits at all
+    const maxX = Math.max(xmin, innerWidth - W - pad), maxY = Math.max(top, innerHeight - H - pad);
+    let best = {x: xmin, y: top, cover: Infinity};
+    for(let x=xmin; x<=maxX; x+=step){
+      for(let y=top; y<=maxY; y+=step){
+        const r={left:x, top:y, right:x+W, bottom:y+H};
+        let cover = 0;
+        for(const o of obs){
+          const ow = Math.min(r.right,o.right) - Math.max(r.left,o.left);
+          const oh = Math.min(r.bottom,o.bottom) - Math.max(r.top,o.top);
+          if(ow>0 && oh>0) cover += ow*oh;
+        }
+        if(cover < best.cover){ best = {x, y, cover}; if(!cover) return best; }
+      }
+    }
+    return best;
+  }
+
+  // A card is ALWAYS WHOLLY VISIBLE, and snapped to the grid (V2-551). This is the guarantee the canvas lacked:
+  // `_place` reserves the DEFAULT tile while a card is still loading, so a widget that renders bigger than
+  // 400×340 — an image viewer with twelve photos — grew past the edge it had been fitted to and nothing pulled
+  // it back. There was a re-clamp, but only inside `_applyPreferred`, i.e. only for widgets that DECLARE a size.
+  // A card too large for the viewport is shrunk rather than cropped: half a card is not a smaller card, it is a
+  // card with its content missing.
+  _fit(card){
+    if(!card || card.classList.contains("hb-minned")) return;
+    const pad=this.tile.pad, top=this.tile.top, xmin=Math.max(pad, this.minX()+pad);
+    const availW = Math.max(240, innerWidth - xmin - pad), availH = Math.max(150, innerHeight - top - pad);
+    if(card.offsetWidth  > availW){ card.style.maxWidth ="none"; card.style.width  = this._snap(availW)+"px"; }
+    if(card.offsetHeight > availH){ card.style.maxHeight="none"; card.style.height = this._snap(availH)+"px"; }
+    const L = parseInt(card.style.left)||xmin, T = parseInt(card.style.top)||top;
+    card.style.left = this._snap(Math.max(xmin, Math.min(L, innerWidth  - card.offsetWidth  - pad))) + "px";
+    card.style.top  = this._snap(Math.max(top,  Math.min(T, innerHeight - card.offsetHeight - pad))) + "px";
+  }
+
+  _snap(n){ const g=this.grid||1; return Math.round(Number(n||0)/g)*g; }
+  _snapUp(n){ const g=this.grid||1; return Math.ceil(Number(n||0)/g)*g; }
+
+  // A card is placed BEFORE it knows its own size: `_place` reserves the default 400×340 tile while the module
+  // loads, and the widget then renders whatever it renders — twelve photos, a full results sheet. That is the
+  // real shape of «medio widget fuera de la pantalla»: the fit was correct for the tile and wrong for the card.
+  // So the fit is not a one-off at open time, it is a STANDING guarantee.
+  //
+  // It never fights the operator: only a card that actually STICKS OUT is touched, so dragging, resizing and
+  // maximizing are all left alone — and `_restore` (maximize's saved geometry) is respected, because a maximized
+  // card is deliberately the size of the canvas and pulling it in would undo the very thing that was asked for.
+  _watchSize(card){
+    if(typeof ResizeObserver !== "function" || card._ro) return;
+    let t = 0;
+    card._ro = new ResizeObserver(() => {
+      clearTimeout(t);                        // a render can fire this many times in one frame
+      t = setTimeout(() => {
+        if(card._restore) return;             // maximized on purpose
+        const pad=this.tile.pad, top=this.tile.top, xmin=Math.max(pad, this.minX()+pad);
+        const r = card.getBoundingClientRect();
+        const out = r.right > innerWidth - pad || r.bottom > innerHeight - pad
+                 || r.left < xmin - 1 || r.top < top - 1;
+        if(out){ this._fit(card); this._persist(); }
+      }, 80);
+    });
+    try{ card._ro.observe(card); }catch(_){}
   }
 
   // ORDENAR el canvas en una rejilla alineada (V2-464, showcase). One command, invocable from anywhere the
@@ -1000,9 +1099,11 @@ export class Desktop {
     grip.addEventListener("pointerdown",e=>{drag=true;moved=false;const r=card.getBoundingClientRect();
       dx=e.clientX-r.left;dy=e.clientY-r.top;this._bringFront(card);grip.setPointerCapture(e.pointerId);e.preventDefault();});
     grip.addEventListener("pointermove",e=>{if(!drag)return;moved=true;
+      // Snapped to the grid, and clamped so the card cannot be dragged off the canvas: the operator moves things
+      // wherever he wants (V2-551), and «wherever» is still inside the screen.
       let x=Math.max(this.minX(),Math.min(e.clientX-dx,innerWidth-card.offsetWidth));
       let y=Math.max(0,Math.min(e.clientY-dy,innerHeight-card.offsetHeight));
-      card.style.left=x+"px";card.style.top=y+"px"; });
+      card.style.left=this._snap(x)+"px";card.style.top=this._snap(y)+"px"; });
     grip.addEventListener("pointerup",()=>{ drag=false; this._persist();   // remember the new position
       if(moved) this._uiAudit("move", this._idOf(card)); });               // …and audit the user's move
   }

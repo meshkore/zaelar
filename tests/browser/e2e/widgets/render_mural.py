@@ -40,9 +40,15 @@ uvicorn.run(app, host="127.0.0.1", port=%d, log_level="critical")
 LIFT_VEIL = """() => document.querySelectorAll('.boot-ovl, .lang-onb, .lang-onb-veil').forEach(e => e.remove())"""
 # The fake card is TALL on purpose: the incident's card was a browser widget. A short card placed on top of
 # the chat would not visually overlap it and the D1 disarm went green over the restored defect.
-WIDGET_JS = 'export function render(el, data){ el.style.minHeight = "300px"; el.textContent = "W:" + ((data && data.title) || "?"); }'
+WIDGET_JS = ('export function render(el, data){ el.style.minHeight = "300px";'
+             # V2-551: a widget that renders FAR bigger than the reserved 400x340 tile — the shape of the bug the
+             # operator saw («medio widget está en el área visible y medio fuera»). `_place` fits the tile; only a
+             # standing guarantee can catch what the card becomes afterwards.
+             ' if(data && data.huge){ el.style.width = "1900px"; el.style.height = "1400px"; }'
+             ' el.textContent = "W:" + ((data && data.title) || "?"); }')
 
-DATA = {"alpha": {"title": "Alpha"}, "beta": {"title": "Beta"}, "gamma": {"title": "Gamma"}}
+DATA = {"alpha": {"title": "Alpha"}, "beta": {"title": "Beta"}, "gamma": {"title": "Gamma"},
+        "huge": {"title": "Huge", "huge": True}}
 ROUTE_RE = re.compile(  # anchored to the ORIGIN: /static/app/widgets/desktop.js also contains "/widgets/"
     r"^https?://[^/]+/(widgets(/.*)?|api/(canvas/.*|desktop/epoch|client-log|run|status|ui-event))(\?.*)?$")
 
@@ -69,7 +75,13 @@ def route(r):
         r.fulfill(status=status, content_type="application/json", body=json.dumps(obj))
     if path == "/widgets":
         # size + live_title matter: V2-538's fixes (preferred size on the instance path, live title) read them
-        return j({"widgets": [{"id": w, "size": {"w": 360, "h": 300}, "live_title": True} for w in DATA]})
+        # `huge` declares NO preferred size ON PURPOSE: with one, `_applyPreferred` would clamp the card back to
+        # 360x300 and the «renders bigger than its tile» check would pass without ever having a big card —
+        # vacuously, on a widget that never grew. It has to be the widgets that declare nothing (most of them)
+        # whose card is free to become whatever its content renders.
+        return j({"widgets": [dict({"id": w, "live_title": True},
+                                   **({} if w == "huge" else {"size": {"w": 360, "h": 300}}))
+                              for w in DATA]})
     if path == "/widgets/registry":
         return j({"registry": []})
     if path == "/api/desktop/epoch":
@@ -293,6 +305,65 @@ def run(url):
         check("connection health still has a home: the ◉ beacon, carrying its state class",
               chrome["dot_present"] and chrome["dot_visible"] and "st-" in chrome["dot_classes"],
               json.dumps(chrome))
+
+        # ── V2-551: rejilla, apilado vertical y la garantía de que una tarjeta se vea ENTERA ────────────────
+        # El operador: «que este escritorio tenga algún tipo de rejilla… ponle 5 píxeles», «colocados
+        # verticalmente pegados unos a otros», y el fallo: «se abre un widget de imagen y medio widget está en
+        # el área visible y medio aparece como si estuviera fuera de la pantalla».
+        # Measured on a canvas placed by `_place`, NOT on the one `arrange()` tiled sixty lines above: those
+        # positions come from a different algorithm and would answer a different question.
+        # The CHAT WALL is closed for this measurement, the same reason V2-538 had to close it to measure
+        # maximize: open and docked it eats the left columns, and the orb strip then blocks what is left of the
+        # first one — so «did the second card go UNDER the first» becomes a question the geometry cannot answer.
+        # Closing it does not weaken the check; it removes an obstacle that makes the property unmeasurable.
+        pg.evaluate("""async () => {
+          const s = await import('/static/app/core/store.js?v=2'); s.setChatOpen(false);
+          window.zaelar.close();
+        }""")
+        pg.wait_for_timeout(500)
+        for _w in ("alpha", "beta", "gamma"):
+            pg.evaluate(f"() => window.zaelar.show('{_w}')")
+            pg.wait_for_timeout(500)
+        rr = rects(pg)
+        geo = pg.evaluate("""() => [...document.querySelectorAll('.hb-win')].map(c => ({
+          id: c.dataset.wid, left: parseInt(c.style.left)||0, top: parseInt(c.style.top)||0 }))""")
+        check("every card sits on the 5px grid",
+              all(g["left"] % 5 == 0 and g["top"] % 5 == 0 for g in geo), json.dumps(geo))
+
+        # Vertical stacking: cards opened one after another share a column and go DOWN it, instead of marching
+        # across the top of the screen. Measured on the x of each card, not on a pixel-perfect layout.
+        # The property, not a pixel layout: two cards opened one after another share a COLUMN and the second
+        # sits BELOW the first. Row-major placement produces the mirror image of this (same y, different x), so
+        # the check distinguishes the two orders instead of describing one screen.
+        col = sorted(rr.values(), key=lambda v: (round(v["x"]), round(v["y"])))
+        stacked = any(abs(a["x"] - b_["x"]) <= 1 and b_["y"] > a["y"] + 10
+                      for i, a in enumerate(col) for b_ in col[i + 1:])
+        check("cards stack VERTICALLY (a later card goes UNDER an earlier one, same column)",
+              stacked, json.dumps({k: (round(v["x"]), round(v["y"])) for k, v in rr.items()}))
+
+        # THE bug: a widget that renders far bigger than its reserved tile must still be WHOLLY on screen.
+        pg.evaluate("() => window.zaelar.show('huge')")
+        pg.wait_for_timeout(900)
+        big = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='huge'); if(!c) return null;
+            const r=c.getBoundingClientRect();
+            return {left:Math.round(r.left), top:Math.round(r.top), right:Math.round(r.right),
+                    bottom:Math.round(r.bottom), vw:innerWidth, vh:innerHeight,
+                    z:parseInt(c.style.zIndex)||0}; }""")
+        # It must have GROWN past the reserved tile first — a check that a small card fits on screen guards
+        # nothing, and that is exactly how the first version of this passed while the fix was disarmed.
+        check("the oversized widget really did grow past its reserved tile",
+              bool(big) and (big["right"] - big["left"] > 400 or big["bottom"] - big["top"] > 340),
+              json.dumps(big))
+        check("a card that renders BIGGER than its tile is still WHOLLY on screen",
+              bool(big) and big["left"] >= 0 and big["top"] >= 0
+              and big["right"] <= big["vw"] and big["bottom"] <= big["vh"],
+              json.dumps(big))
+        # And when there is no room for it, it comes to the FRONT — a card you cannot see is a card you cannot move.
+        others = [v["z"] for k, v in rects(pg).items() if k != "huge"]
+        check("the card with no room for it opens ON TOP (visible, therefore movable)",
+              bool(big) and (not others or big["z"] >= max(others)),
+              json.dumps({"huge_z": big and big["z"], "others": others}))
 
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()
