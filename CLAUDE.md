@@ -7790,6 +7790,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     probado contra el proveedor de verdad, y la tarjeta no se ha visto en su motor vivo. Es **solo lectura**:
     escribir en el disco de alguien son acciones irreversibles y quieren su propia decisión.
 
+- **A refusal has to name what you PASTED, and a retry has to move something (V2-559, 2026-09-03)**: the
+  operator followed the guide, created the app password at Google, and the card answered «usa una CONTRASEÑA
+  DE APLICACIÓN» over a password he had just created. What was stored was **47 characters starting with
+  `https://`** — the LINK of the page where he had created it. The product held the evidence (a URL cannot be
+  a 16-letter app password) and threw it away to print a generic reason. FOUR faults, each measured before
+  touching anything, and none of them fails loudly:
+  - **The form accepted any string.** The rule now lives ONCE (`connectors/email/credentials`) and is read by
+    the three seams that need the same verdict: the shared connect door (`control.validate_connect`, which the
+    HTTP API and the supervisor both go through), `config.password()`, and the message after IMAP says no.
+    **Narrow on purpose**: the shape check only fires where the provider publishes a fixed format (Google and
+    Apple, 16 letters) and NEVER for Outlook/Yahoo/IMAP, whose formats vary — a false «that is not a password»
+    locks someone out of a mailbox that works, which is worse than the generic error it replaces.
+  - **The supervisor dropped `{ok:False,error}` on the floor.** `apply_connect` refused and nobody published a
+    status, so the widget kept painting «Conectando…» forever: **a refusal the user cannot see is
+    indistinguishable from a hang**, and it is the half he can act on.
+  - **«Corregir y reintentar» was `_expandConnect.add(pl)` on a set that already had it** — on the error path
+    the form is ALREADY expanded below, so the click repainted an identical card. From outside that is a dead
+    button, and it was reported as one. It now always moves something and lands the cursor on the field to fix.
+  - **The draft was wiped on submit**, so the form under the error banner came back EMPTY and «retry» meant
+    retyping the address and sixteen letters. It survives a REFUSAL and is cleared on CONNECTED — a connected
+    account has no reason to keep its app password in a form field.
+  - **The redesign** (his words: «que sea más de tipo asistente… respeto por los márgenes, crea las cajas, pon
+    el paso 1, paso 2, paso 3»): three numbered boxes, the middle one being the step he has to LEAVE for, with
+    a real link to the provider's page instead of a sentence buried between two inputs. Same visual language
+    for Telegram. Spaces are stripped where the provider PRINTS them (Google shows four groups of four; those
+    spaces are presentation and IMAP AUTH does not want them, and `.trim()` only removes the ends).
+  - ⚠️ **And the mobile half is mostly a NON-finding, which is the honest answer**: rendered at 375px in six
+    states (connect panel with three failures, both wizards, the QR, the chat list, a thread with media),
+    **nothing was clipped and nothing left the viewport** — `min(480px,92vw)` was already doing the job. The
+    wrap rules drafted for the channel row were DELETED after measuring: they made every row twice as tall for
+    a defect that does not exist (the long statuses and the action button never co-occur). What survived is the
+    part that IS an improvement on a phone — let the container decide the width instead of reserving 8vw, and
+    let a received photo use the whole card instead of a 220px thumbnail taken from the desktop.
+  - Nodes **5.9** (24 cases) and **4.106** (14 RENDERED). **Nine disarms, each mutation ASSERTED before
+    measuring — and two came back GREEN**: the phone checks passed with the whole media query removed (they
+    were a ratchet, not proof of a fix, and now say so), and `config.password()`'s normalization was never
+    exercised end-to-end because the fixture mocked it — an install that already saved the password WITH the
+    spaces would have kept failing at every reconnect. Both closed.
+  - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
+    about, paid again by writing `width:min(...)` in prose.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

@@ -36,6 +36,10 @@ _REFUSED = {**_OFF, "connect_focus": None,
 _CONNECTED = {**_OFF, "connect_focus": None,
               "platforms": {**_OFF["platforms"], "email": {"status": "connected"}}}
 
+_PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08"
+        b"\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00"
+        b"\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82")
+
 _HTML = """<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><style>
 :root{--hb-bg:#0f1720;--hb-bg-soft:#16202c;--hb-ink:#e8eef6;--hb-muted:#9fb0c4;--hb-muted-2:#6f8299;
       --hb-line:#243244;--hb-accent:#2F6FEB;--hb-accent2:#16B8A6;--hb-risk:#e05252;--hb-neutral:#3a4a5c;
@@ -74,6 +78,8 @@ _MEASURE = """() => {
     doc_w: document.documentElement.scrollWidth,
     view_w: window.innerWidth,
     acts: window.__acts || [],
+    att_maxw: (() => { const i = el.querySelector('.mediaw .matt');
+      return i ? getComputedStyle(i).maxWidth : null; })(),
   };
 }"""
 
@@ -91,6 +97,10 @@ def _run(steps, actions=None, width=560):
             async def _page(route):
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
+
+            async def _asset(route):
+                await route.fulfill(status=200, content_type="image/png", body=_PNG)
+            await pg.route("http://zaelar.test/widgets/mensajeria/asset/*", _asset)
             await pg.goto("http://zaelar.test/")
             src = open(_WIDGET, encoding="utf-8").read()
             await pg.add_script_tag(
@@ -255,3 +265,40 @@ def test_a_channel_ROW_wraps_instead_of_pushing_its_button_off_the_edge(playwrig
 def test_the_QR_card_fits_a_phone(playwright_available):
     out = _run([_WA_QR], width=375)[0]
     assert out["doc_w"] <= out["view_w"] + 1, f"the QR pushes the card sideways: {out['doc_w']}"
+
+
+_PHOTO_ITEM = {"n": 1, "platform": "whatsapp", "from": "Ana", "group": None, "isGroup": False,
+               "body": "[image received]", "urgencia": "media", "dirigido_a_mi": True, "motivo": "",
+               "messageId": "w1", "chatId": "111", "senderId": "111", "ts": 1756742000,
+               "mediaType": "image",
+               "media": [{"url": "/widgets/mensajeria/asset/x.jpg", "type": "image", "name": "x.jpg"}]}
+_PHOTO_THREAD = {**_OFF, "connect_focus": None,
+                 "platforms": {**_OFF["platforms"], "whatsapp": {"status": "connected"}},
+                 "items": [_PHOTO_ITEM], "count": 1,
+                 "chats": [{"n": 1, "platform": "whatsapp", "chatId": "111", "name": "Ana",
+                            "isGroup": False, "count": 1, "dirigido_a_mi": True, "urgencia": "media",
+                            "lastFrom": "Ana", "lastBody": "[image received]", "lastMotivo": "",
+                            "lastTs": 1756742000, "lastMediaType": "image"}],
+                 "active_chat": {"platform": "whatsapp", "chatId": "111"},
+                 "active_items": [_PHOTO_ITEM]}
+
+
+def test_a_received_photo_uses_the_WHOLE_card_on_a_phone(playwright_available):
+    """The only layout rule the measurement justified keeping: a 220px thumbnail is a desktop number, and on a
+    phone it wastes a third of the card the photo could be using."""
+    narrow = _run([_PHOTO_THREAD], width=375)[0]
+    wide = _run([_PHOTO_THREAD], width=900)[0]
+    assert wide["att_maxw"] == "220px", f"the desktop thumbnail must stay a thumbnail: {wide['att_maxw']}"
+    assert narrow["att_maxw"] != "220px",         f"on a phone the photo must not be capped at a desktop pixel width: {narrow['att_maxw']}"
+
+
+def test_the_widget_never_scrolls_SIDEWAYS_in_any_of_its_states(playwright_available):
+    """A RATCHET, and it is worth saying that it does not prove this pass fixed anything: measured on the
+    version before it, all six states already fit — the widget was responsive and what was broken was the
+    wizard. This keeps it that way."""
+    states = {"connect panel with failures": [_OFF, _REFUSED], "email wizard": [_OFF],
+              "telegram wizard": [_TG], "QR": [_OFF, _WA_QR], "thread with media": [_PHOTO_THREAD]}
+    for label, seq in states.items():
+        m = _run(seq, width=375)[-1]
+        assert m["doc_w"] <= m["view_w"] + 1, f"{label} scrolls sideways at 375px: {m['doc_w']}"
+        assert m["errors"] == [], f"{label}: {m['errors']}"

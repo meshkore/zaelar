@@ -194,26 +194,18 @@ function injectStyles(){
 
   .hb-msg .empty{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px;padding:22px 0}
 
-  /* NARROW SCREENS (V2-559). The mobile shell gives a widget the whole card, so nothing may depend on a wide
-     line: the channel row, the header and the thread header all wrap instead of pushing their controls off the
-     edge, and every media element is capped by the CARD and not by a pixel width taken from the desktop. */
+  /* NARROW SCREENS (V2-559). MEASURED FIRST, and the measurement removed most of what was written here:
+     rendered at 375px in six states (connect panel with three failures, both wizards, the QR, the chat list
+     and an open thread), NOTHING was clipped and nothing left the viewport — the min(480px,92vw) width was
+     already doing the job, and the wrap rules drafted for the channel row only made every row twice as tall
+     for a defect that does not exist (the long statuses and the action button never co-occur).
+     What is left is the part that IS an improvement on a phone: let the CONTAINER decide the width instead of
+     reserving 8vw of it (the mobile deck already pads its card), and let a received photo use the whole card
+     instead of a 220px thumbnail taken from the desktop. */
   @media (max-width: 430px){
     .hb-msg{width:auto;max-width:100%}
-    .hb-msg .hd{flex-wrap:wrap}
-    .hb-msg .hd .dots{margin-left:auto}
-    .hb-msg .chan .top{flex-wrap:wrap}
-    .hb-msg .chan .st{width:100%;order:3;margin:2px 0 0 0}
-    .hb-msg .chan .act{order:4;width:100%;margin-left:0;margin-top:8px}
-    .hb-msg .chan .act button{flex:1}
-    .hb-msg .chanhead{flex-wrap:wrap}
-    .hb-msg .chanhead .hint{width:100%}
-    .hb-msg .thd{flex-wrap:wrap}
-    .hb-msg .cfm .row{flex-wrap:wrap}
-    .hb-msg .cfm .row button{flex:1}
-    .hb-msg .mediaw .matt,.hb-msg .mediaw video.mvid{max-width:100%}
+    .hb-msg .mediaw .matt,.hb-msg .mediaw video.mvid{max-width:100%;max-height:none}
     .hb-msg .mediaw audio.maud{width:100%}
-    .hb-msg .qr-wrap img{width:min(220px,64vw)}
-    .hb-msg .seg{width:100%} .hb-msg .segbtn{flex:1}
   }
   .hb-msg .linkcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:13px 14px;margin-bottom:10px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .linkcard .ch{display:flex;align-items:center;gap:8px;margin-bottom:9px}

@@ -222,3 +222,19 @@ def test_the_other_failure_kinds_are_untouched(_stored):
     _stored(GOOD_GMAIL)
     assert "servidor de correo" in service._friendly_error("nodename nor servname provided")
     assert "no respondió a tiempo" in service._friendly_error("operation timed out")
+
+
+# ── what the CONNECTOR reads back out of the store ────────────────────────────────────────────────────────
+def test_config_password_strips_what_the_store_already_holds(monkeypatch):
+    """Normalizing on the way IN is not enough: an install that already saved the password with the spaces
+    Google prints keeps failing at every reconnect until someone retypes it. The read is the last chance."""
+    from connectors.email import config
+    monkeypatch.setattr(config, "_cfg", lambda: {"email_password": "abcd efgh ijkl mnop"})
+    assert config.password() == GOOD_GMAIL
+
+
+def test_config_password_survives_an_empty_store(monkeypatch):
+    from connectors.email import config
+    monkeypatch.setattr(config, "_cfg", lambda: {})
+    monkeypatch.delenv("EMAIL_PASSWORD", raising=False)
+    assert config.password() == ""
