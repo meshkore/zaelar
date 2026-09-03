@@ -20,12 +20,12 @@ def test_memory_request_catalog_is_complete_and_json_safe():
     import json
 
     catalog = build_catalog()
-    assert catalog["total"] == 1862
+    assert catalog["total"] == 1865
     assert {group["id"]: group["count"] for group in catalog["groups"]} == {
-        "v4": 15, "v1": 1032, "v2": 650, "v3": 165,
+        "v4": 15, "v1": 1035, "v2": 650, "v3": 165,
     }
     cases = [case for group in catalog["groups"] for case in group["cases"]]
-    assert len({case["id"] for case in cases}) == 1862
+    assert len({case["id"] for case in cases}) == 1865
     assert all({"input", "expected", "verification", "execution_path", "raw", "search"} <= case.keys()
                for case in cases)
     assert all(case["execution_path"] for case in cases)
