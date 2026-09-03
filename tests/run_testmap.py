@@ -525,6 +525,13 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/workers/test_the_progress_reads_like_a_sentence.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
+            # V2-562 — a fresh Volume has no directories. `config/`, `credentials/` and `i18n/` were simply
+            # absent on a real Machine, so every write into them failed best-effort and was stepped over: the
+            # language onboarding ran again on EVERY cold boot. The scan guard is the load-bearing one.
+            "tests/agent_headless/unit/test_workspace_tree.py",
+            # V2-562 — a session born through the LAZY door never announced itself, so the central registry
+            # only ever got `event="end"` and held 0 rows for every account, ever.
+            "tests/agent_headless/unit/test_session_is_announced.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py",
             # V2-509 — the gate reads the ORDER, not the words. The TEXT it judges is written by the BRAIN,
             # so "...available for purchase" — written by our brief composer, not by the operator — fired the

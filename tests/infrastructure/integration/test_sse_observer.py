@@ -10,6 +10,7 @@ import threading
 import pytest
 
 import bus as busmod
+from observability import identity
 from voice import observer
 
 
@@ -17,6 +18,12 @@ from voice import observer
 def _clean():
     busmod.reset()
     observer.clear_log()
+    # Open the work session BEFORE any test emits (V2-562). Every event stamps itself with the current session,
+    # and since a session must announce itself the instant it is born, the FIRST emit in a process also publishes
+    # a `session/start` — which would then be the first thing off the subscriber queue here. That mark is
+    # correct and wanted; it is just a confound for a test about the SSE round-trip, so it is taken out of the
+    # way rather than tolerated with a drain loop.
+    identity.session_id()
     yield
     busmod.reset()
 

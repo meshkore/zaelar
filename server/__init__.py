@@ -343,6 +343,11 @@ async def _lifespan(app: FastAPI):
             # `nucleo/memllm.chat_sync` caller running inside `asyncio.to_thread` (i18n bundle generation,
             # nightly REM synthesis, the new turn-completeness judge) silently lost its usage report.
             energy_meter.set_loop(_running_loop)
+            # V2-562: same bridge again, and here the off-loop case is the NORMAL one — a work session opens
+            # lazily from whichever thread emits the first event, so without this its report to the central
+            # activity registry was dropped exactly where it mattered and the registry recorded nobody.
+            from observability import identity as _identity
+            _identity.set_loop(_running_loop)
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")

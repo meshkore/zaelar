@@ -76,6 +76,12 @@ def _read() -> dict:
 
 
 def _write(d: dict):
+    # The parent is created HERE and not only at boot (`nucleo/workspace.ensure`). A directory can be removed
+    # while the process lives, and this write is best-effort at every call site: the caller logs a WARNING and
+    # steps over it, so a missing parent costs the operator a preference that will not stick — measured on a
+    # cloud Machine 2026-09-03, where `/data/config` never existed and the language onboarding therefore ran
+    # again on EVERY cold boot. Cheap (`exist_ok`), and it makes the failure impossible rather than unlikely.
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
     SETTINGS_FILE.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
 
 

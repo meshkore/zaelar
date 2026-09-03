@@ -23,6 +23,16 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+# THE PER-TENANT TREE, BEFORE ANYTHING READS A PATH (V2-562). `server/__init__` pulls in config/settings.py,
+# which loads `settings.json` at import time, and everything downstream resolves its own persistent path the same
+# way. On a self-host clone those directories come from git; on a cloud Machine the mounted Volume starts EMPTY,
+# and every one of those writers then fails best-effort and steps over it. This one line is what makes a first
+# boot on an empty disk indistinguishable from every later one — so it has to run BEFORE the import below, not
+# inside a FastAPI startup hook that fires after it.
+from nucleo import workspace as _workspace  # noqa: E402
+
+_workspace.ensure()
+
 from server import app  # noqa: E402
 
 if __name__ == "__main__":

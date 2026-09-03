@@ -59,6 +59,17 @@ _last_real_activity_ms: dict = {"v": None}
 _HEARTBEAT_INTERVAL_S = float(os.getenv("ZAELAR_SESSION_HEARTBEAT_S", "15"))
 _heartbeat: dict = {"task": None}
 
+# The server's event loop, captured once from the lifespan — same cross-thread bridge as
+# `nucleo/energy_meter.py::set_loop` (V2-102) and for a sharper version of the same reason: a work session is
+# usually opened LAZILY, by whatever thread emits the first real event, and that thread has no loop of its own.
+_loop = None
+
+
+def set_loop(loop) -> None:
+    """Captures the server's loop so a session opened off-loop can still report itself and beat."""
+    global _loop
+    _loop = loop
+
 
 def _identity_file() -> Path:
     return _workspace.root() / "config" / "identity.json"
@@ -96,15 +107,37 @@ def user_id() -> str:
         return uid
 
 
+def _announce(info: dict) -> None:
+    """Everything a session owes the world the instant it is BORN, in ONE place (V2-562).
+
+    There are two doors into a new session — the explicit `begin_session()` and the lazy self-open below — and
+    only the first one used to announce itself, so a session born lazily existed locally and was invisible to
+    the central activity registry: `POST /session` only ever arrived with `event="end"`, and closing a row that
+    was never opened is an UPDATE matching nothing. Measured 2026-09-03 on the real control-plane:
+    `zaelar_user_sessions` held **0 rows for every account since the table was created**, while every Machine's
+    `/session` call returned 200. The registry that exists precisely to survive a Machine being destroyed was
+    recording nobody, and nothing failed.
+
+    So the announcement is not the caller's to remember: a session cannot be born without it. Called OUTSIDE
+    `_lock` on purpose — reporting talks to the network and starting the heartbeat touches the event loop."""
+    _emit_session("start", info, extra={"source": info.get("source") or ""})
+    _report_to_control_plane("start", info)
+    _start_heartbeat(info)
+
+
 def session_id() -> str:
     """The CURRENT work session. It opens automatically on first use — an event is never left without a session."""
     if _session["id"]:
         return _session["id"]
+    born = None
     with _lock:
         if not _session["id"]:
             _session["id"] = str(uuid.uuid4())
             _session["started_ms"] = round(time.time() * 1000)
             _session["source"] = _session["source"] or "auto"
+            born = dict(_session)
+    if born is not None:
+        _announce(born)
     return _session["id"]
 
 
@@ -131,9 +164,7 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
         _session["started_ms"] = round(time.time() * 1000)
         _session["source"] = (source or "frontend")[:40]
         info = dict(_session)
-    _emit_session("start", info, extra={"source": info["source"]})
-    _report_to_control_plane("start", info)
-    _start_heartbeat(info)
+    _announce(info)
     return info
 
 
@@ -261,10 +292,19 @@ def _report_to_control_plane(label: str, info: dict) -> None:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"observability: reporte de sesión '{label}' falló (no fatal): {e}")
 
-        asyncio.get_running_loop()
-        asyncio.create_task(_post())
-    except RuntimeError:
-        pass          # no loop (startup, test) — activity logging is not worth an exception
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(_post())
+            return
+        except RuntimeError:
+            pass
+        # No loop in THIS thread. A work session most often opens LAZILY, from whatever thread emitted the first
+        # real event — the voice thread, a `to_thread` worker — none of which has a loop, so the report was
+        # dropped exactly where it mattered most and the central registry never learned the session existed.
+        # Same bridge `nucleo/energy_meter.py::_fire_and_forget` uses for the identical problem (V2-102). No
+        # loop captured yet (a unit test) → drop, same as before.
+        if _loop is not None:
+            asyncio.run_coroutine_threadsafe(_post(), _loop)
     except Exception:
         pass
 
@@ -286,10 +326,22 @@ def _start_heartbeat(info: dict) -> None:
     _stop_heartbeat()
     try:
         import asyncio
-        loop = asyncio.get_running_loop()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # Same reason as `_report_to_control_plane`: a lazily-opened session is born on whatever thread
+            # emitted the first event, and that thread has no loop of its own. Without the bridge the session
+            # would report its start once and then never refresh `last_seen_at`, so a long quiet session would
+            # look abandoned to the master. `call_soon_threadsafe` (not `run_coroutine_threadsafe`) so the task
+            # HANDLE lands in `_heartbeat` and `_stop_heartbeat` can still cancel it.
+            loop = _loop
+            if loop is None:
+                return
+            loop.call_soon_threadsafe(lambda: _heartbeat.update({"task": loop.create_task(_heartbeat_loop(info))}))
+            return
         _heartbeat["task"] = loop.create_task(_heartbeat_loop(info))
-    except RuntimeError:
-        pass          # no loop (startup, a test) — no heartbeat to launch, and none needed
+    except Exception:  # noqa: BLE001
+        pass          # no loop at all (startup, a test) — no heartbeat to launch, and none needed
 
 
 def _stop_heartbeat() -> None:

@@ -309,6 +309,8 @@ def _read() -> dict:
 
 def _write(data: dict) -> None:
     with _lock:
+        # Create the parent here too, not only at boot: see the note in config/settings.py::_write.
+        _PATH.parent.mkdir(parents=True, exist_ok=True)
         tmp = str(_PATH) + ".tmp"
         Path(tmp).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
         os.replace(tmp, _PATH)
