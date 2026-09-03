@@ -62,8 +62,18 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "TheFork / ElTenedor", "https://www.thefork.es",
             "reservar mesa en un restaurante — busca el nombre del restaurante ahí dentro si el operador ha "
             "nombrado uno concreto; si no, filtra por zona/tipo de cocina/hora. Cerrar la mesa suele exigir "
-            "cuenta o teléfono: trae las opciones con hora y di qué falta para cerrarla.",
-            alts=(("ElTenedor (app web)", "https://www.eltenedor.es"), ("Google Maps", "https://www.google.com/maps"))),
+            "cuenta o teléfono: trae las opciones con hora y di qué falta para cerrarla. Si TheFork te "
+            "bloquea (403), NO pruebes eltenedor.es: es la MISMA casa y el mismo muro. La salida que funciona "
+            "es Google Maps para elegir candidatos y la web PROPIA del restaurante para reservar — su motor "
+            "embebido (muchos usan restaurante.covermanager.com/<nombre>) sí carga; elige UN candidato con "
+            "motor y ciérralo ahí, no sigas paseando por webs informativas.",
+            # V2-566 — the «ElTenedor (app web)» alt was FAKE diversity: same company, same wall, and it
+            # survives `alternatives_for`'s host filter precisely because the hostname differs. Measured
+            # 2026-09-03 (Soria): thefork.es 403'd twice, paradores.es 403'd, and the pages that DID load and
+            # carry a working booking flow were the restaurants' own CoverManager engines.
+            alts=(("Google Maps", "https://www.google.com/maps"),
+                  ("CoverManager (motor de reserva embebido en la web del restaurante)",
+                   "https://restaurante.covermanager.com"))),
         "hotel_booking": SiteEntry(
             "Booking.com", "https://www.booking.com",
             "buscar/reservar alojamiento — filtra por ciudad, fechas, nº de personas, estrellas y precio. Cerrar "
