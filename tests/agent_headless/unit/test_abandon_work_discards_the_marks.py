@@ -22,12 +22,21 @@ import pytest
 
 from memory import api as mem
 from memory import db as memdb
+from widgets import store as _wstore
 from nucleo import reset
 
 
 @pytest.fixture(autouse=True)
 def _own_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    # ⚠️ AND THE WIDGET STORE, which is the half that bit (V2-567). `reset_all()` does not only touch the
+    # memory DB: it calls `widgets.reset.blank_all()`, which walks `store.DATA_DIR` — a path computed AT IMPORT
+    # TIME from `workspace.root()`, so `ZAELAR_WORKSPACE` set in a fixture arrives too late to move it. Measured
+    # 2026-09-03: two runs of the deterministic suite BLANKED THE OPERATOR'S LIVE WIDGETS mid-session — the log
+    # names his real sheet, `results--7ff4fd-1` — and he watched his browser and results cards empty themselves
+    # while a real errand was running. He reported it as the agent misbehaving, and the agent apologised for it.
+    # `blank_all` reads `store.DATA_DIR` at CALL time, so pointing the attribute is enough.
+    monkeypatch.setattr(_wstore, "DATA_DIR", str(tmp_path / "widgets_data"))
     memdb.reset_db()
     memdb.get_db()
     yield

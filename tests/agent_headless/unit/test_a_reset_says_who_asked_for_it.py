@@ -67,3 +67,36 @@ def test_both_hard_reset_doors_carry_it():
         src = inspect.getsource(fn)
         assert "_who_asked(request)" in src, f"{fn.__name__} destroys live work without recording who asked"
         assert "request" in inspect.signature(fn).parameters, f"{fn.__name__} cannot see its caller"
+
+
+# ── the OTHER half of V2-567: a reset in a test must never reach the operator's real desk ─────────────────
+def test_no_test_calls_reset_all_without_sandboxing_the_widget_store():
+    """`reset_all()` blanks widgets by WALKING `store.DATA_DIR`, and that path is computed AT IMPORT TIME from
+    `workspace.root()` — so `ZAELAR_WORKSPACE` set inside a fixture arrives too late to move it. A test that
+    calls the real `reset_all()` without pointing `DATA_DIR` at a sandbox empties the operator's own cards.
+
+    It is not hypothetical. Measured 2026-09-03: two runs of the DETERMINISTIC suite blanked the operator's
+    live widgets in the middle of a real errand — the server log names his own sheet, `results--7ff4fd-1` —
+    while he was watching. He reported his browser and results cards closing by themselves, and the engine,
+    with no fact anywhere saying a reset had happened, agreed it had misbehaved and apologised.
+
+    `test_rehydrate.py` had the sandbox and the right words for it since before that day («it is autouse and
+    NOT optional: the protection cannot depend on the next test remembering to request it») — and the
+    neighbour that also calls `reset_all()` did not have it. That is the whole lesson: **a rule each caller
+    has to remember is not a rule**, so it is checked here instead of trusted."""
+    import re
+    from pathlib import Path as _P
+
+    root = _P(__file__).resolve().parents[3] / "tests"
+    offenders = []
+    for py in sorted(root.rglob("test_*.py")):
+        src = py.read_text(encoding="utf-8", errors="replace")
+        # The CALL, not the mention: docstrings across the suite discuss `reset_all` on purpose.
+        code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+        if not re.search(r"\breset\.reset_all\(\)|\bnreset\.reset_all\(\)", code):
+            continue
+        if "DATA_DIR" not in code:
+            offenders.append(str(py.relative_to(root.parent)))
+    assert not offenders, (
+        "these tests run the REAL reset_all() without sandboxing store.DATA_DIR, so they blank the operator's "
+        f"live widgets: {offenders}. Point `widgets.store.DATA_DIR` at tmp_path in an autouse fixture.")
