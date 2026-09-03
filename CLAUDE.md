@@ -7934,6 +7934,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     already exist**: an account created before the tag keeps its old image, so the truest test of this work is
     a NEW signup, the only one that exercises a freshly mounted Volume.
 
+- **The picture was never missing, only OUR COPY of it (V2-563, 2026-09-03)**: the operator asked for motocross
+  photos, got twelve thumbnails in the strip and an empty stage saying «esta imagen ya no carga desde su origen».
+  Probed his own set: **photo 1 of 12 is a 404 at enduro21.com and its thumbnail is a live 37 KB JPEG** — the
+  other eleven originals answer 200. An image index hands over TWO addresses for the SAME photograph (the file at
+  the publisher, and the index's own copy), the strip painted the second while the stage only ever asked for the
+  first, and item 1 — the one `show` selects — happened to be the dead one.
+  - The stage asks for the original, falls back to the same photo from the index, and only then admits defeat.
+    **The swap is NAMED** («· vista previa») and **the marker is taken back if the fallback dies too**: claiming a
+    preview beside «this no longer loads» is worse than either message alone — a flaw in my own first version,
+    caught by the existing both-dead test, not by reading.
+  - **Not auto-advance**, deliberately: the index lives on the server and every mutation goes through
+    `ctx.action` (this file's own opening rule), so skipping locally would desync the big picture from the
+    highlighted thumbnail — the one bug a viewer cannot have — and would race the voice. The fallback shows the
+    picture the operator was told about; advancing shows a different one.
+  - **`parse_yandex_rows` stops publishing the TILE's dimensions as the photo's**: the DOM reports the
+    thumbnail's size and the source line prints it next to the picture as if it described it («480×290» over a
+    404; «213×320» over a 2.2 MB PNG). Zero, like the Bing leg. Google's parser reads the real record and is
+    untouched.
+  - **Upstream context, reported and NOT «fixed»**: the evidence row says `blocked: true · degraded_from:
+    "google" · degraded_because: "blocked"` — Google Images captcha'd and the chain degraded to Yandex, which is
+    the design working and honestly reported (V2-466). Yandex's `img_url` is a hotlink to somebody else's server;
+    that it dies is a fact about the world, not a defect to chase.
+  - Nodes 4.83 and 2.1, four disarms verified red with each mutation ASSERTED before measuring. **Verified over
+    the REAL network against the failing set**: the stage paints a 480×290 bike, no notice, 12/12 thumbnails
+    alive, zero page errors. ⚠️ Sets already stored keep the `w`/`h` they were saved with — the parser fix only
+    reaches new searches.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
