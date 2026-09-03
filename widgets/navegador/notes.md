@@ -58,3 +58,12 @@ from system Chrome because they are Keychain-encrypted and fragile.
   budget/year constraint), based on `click/type/press` actions plus Hermes escalation.
 - Chromium stays alive after first use, so reopening is instant. Future: close on inactivity to free RAM; semantic
   navigation ("click the second result") through Hermes reading the DOM.
+
+## V2-571 (2026-09-03) — the task card retired for errands with a sheet
+- An errand's browser now renders inside its results sheet's PROCESS tab (`dispatch.sheet_browser`). So:
+  `_prepare_web` only emits the `navegador::tN` card `show` when the errand has NO sheet; `tasks._notify` also
+  refreshes the sheet's card (the embedded capture must move between phase changes); `_announce_wall` raises the
+  SHEET when the task has one; and the owner's finish note stops naming a card that is not on screen.
+- `tasks.set_sheet` re-stamps a REUSED tab (`find_continuation`) with the new errand's sheet — a stale stamp
+  routes findings and refreshes to the predecessor's box (the V2-434 «sello rancio»). Never blanks a stamp.
+- The `browse_web` singleton card and sheetless task cards are untouched.

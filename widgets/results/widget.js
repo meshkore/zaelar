@@ -338,6 +338,37 @@ function injectStyles(){
   .hb-results .hr-steps li:last-child::before{background:var(--hb-accent,#3D6FE0);
     box-shadow:0 0 0 3px color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
 
+  /* ── PROCESS · EMBEDDED BROWSER (V2-571) ─────────────────────────────────────────────────────────────────
+     The operator's redesign: the browser and the sheet are ONE flow, so the capture renders INSIDE the process
+     tab (top-left), with the search FILTERS beside it and the event feed below, newest first. Flex with wrap
+     rather than a fixed grid: on a narrow card the filters drop below the capture instead of strangling it. */
+  .hb-results .hr-proc{display:flex;flex-wrap:wrap;gap:var(--s3);margin-bottom:var(--s3);align-items:flex-start}
+  .hb-results .hr-proc-nav{flex:2 1 380px;min-width:0}
+  .hb-results .hr-proc-side{flex:1 1 200px;min-width:0}
+  .hb-results .hr-navview{position:relative;border:var(--line);border-radius:var(--r-md);overflow:hidden;
+    background:var(--hb-bg-soft,#fbfdff);aspect-ratio:1280/800}
+  .hb-results .hr-navimg{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+  .hb-results .hr-navph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    color:var(--hb-muted-2,#9aa7b8);font-size:var(--f-sm)}
+  .hb-results .hr-navurl{font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8);margin-top:var(--s1);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hb-results .hr-wall{margin-top:var(--s2);padding:var(--s2) var(--s3);border-radius:var(--r-md);
+    font-size:var(--f-sm);color:var(--hb-warn-ink,#9a5b1b);
+    background:color-mix(in srgb,var(--hb-warn,#c98a00) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--hb-warn,#c98a00) 35%,transparent)}
+  .hb-results .hr-login{margin-top:var(--s2);padding:var(--s3);border-radius:var(--r-md);
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent);
+    border:1px solid color-mix(in srgb,var(--hb-accent,#3D6FE0) 30%,transparent)}
+  .hb-results .hr-login-t{font-size:var(--f-sm);margin-bottom:var(--s2)}
+  .hb-results .hr-login-btn{border:0;background:var(--hb-accent,#3D6FE0);color:#fff;border-radius:var(--r-sm);
+    padding:var(--s2) var(--s3);font:600 var(--f-sm)/1 inherit;cursor:pointer;width:100%}
+  .hb-results .hr-login-btn:hover{filter:brightness(1.06)}
+  .hb-results .hr-login-btn[disabled]{opacity:.6;cursor:default}
+  .hb-results .hr-navq{margin-top:var(--s2);padding:var(--s2) var(--s3);border-radius:var(--r-md);
+    background:color-mix(in srgb,var(--hb-warn,#c98a00) 10%,transparent);
+    border:1px solid color-mix(in srgb,var(--hb-warn,#c98a00) 32%,transparent);font-size:var(--f-sm)}
+  .hb-results .hr-navq small{display:block;color:var(--hb-muted,#5f6b7c);margin-top:2px}
+
   /* ── SOURCES ── the colored dot gives the verdict before reading; the count is aligned on the right. */
   .hb-results .hr-srcs{display:grid;gap:var(--s2)}
   .hb-results .hr-src{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;
@@ -981,16 +1012,92 @@ function paintHarvest(panel, harvest){
   if(grid.childNodes.length) panel.appendChild(grid);
 }
 
-function paintProcess(panel, data){
+// ── PROCESS · the errand's BROWSER, embedded (V2-571) ────────────────────────────────────────────────────────
+// The operator's redesign: a browser task and its results sheet are ONE flow, so the separate navegador card no
+// longer opens for an errand — its capture, its wall and its login handoff render HERE, in the tab that already
+// tells the process. Right of the capture: the FILTERS the search runs with (hard criteria + the corrections
+// given along the way), because that is what the operator checks the page against. The capture refreshes by SSE
+// (the task registry notifies this sheet's card on every view change), never by polling.
+// `data.browser` is DERIVED per read and `{}` once the errand ends: a frozen capture pretending to be a live
+// browser would lie, so the finished tab keeps only its persisted event history.
+function paintBrowser(panel, data, ctx){
+  const br = data.browser || {};
+  if(!br.task_id) return false;
+  const wrap = elem("div","hr-proc");
+  const nav = elem("div","hr-proc-nav");
+  const view = elem("div","hr-navview");
+  if((br.shot_rev || 0) > 0 && br.shot){
+    const img = document.createElement("img");
+    img.className = "hr-navimg";
+    img.alt = br.page_title || "página";
+    img.src = "/widgets/navegador/asset/" + br.shot + "?v=" + (br.shot_rev || 0);
+    img.addEventListener("error", ()=>{
+      view.textContent = "";
+      view.appendChild(elem("div","hr-navph","sin captura todavía…"));
+    });
+    view.appendChild(img);
+  } else {
+    view.appendChild(elem("div","hr-navph","abriendo pestaña…"));
+  }
+  nav.appendChild(view);
+  if(br.page_title || br.url){
+    const u = elem("div","hr-navurl", br.page_title || br.url);
+    u.title = br.url || "";
+    nav.appendChild(u);
+  }
+  if(br.wall) nav.appendChild(elem("div","hr-wall","⛔ " + br.wall));
+  if(br.awaiting_login){
+    const box = elem("div","hr-login");
+    box.appendChild(elem("div","hr-login-t",
+      "🔓 Inicia sesión en la ventana de Chrome que se abrió. Tu sesión se guardará para las próximas tareas."));
+    const btn = elem("button","hr-login-btn","Ya he iniciado sesión"); btn.type = "button";
+    btn.addEventListener("click", async ()=>{
+      btn.disabled = true;
+      const r = (ctx && ctx.action) ? await ctx.action("auth_done", {task_id: br.task_id}) : null;
+      // A REFUSED action has to SHOW (the V2-540 lesson): a silently dead login button on a refused forward
+      // is exactly the undiagnosable click this sheet already paid for once.
+      if(!r || r.ok === false){
+        btn.disabled = false;
+        btn.textContent = "Ya he iniciado sesión — " + ((r && r.error) ? "no llegó, reintenta" : "sin respuesta");
+        btn.title = (r && r.error) ? String(r.error) : "el motor no respondió a la acción";
+      }
+    });
+    box.appendChild(btn);
+    nav.appendChild(box);
+  }
+  if(br.question){
+    const q = elem("div","hr-navq","❓ " + br.question);
+    q.appendChild(elem("small","","Responde por voz."));
+    nav.appendChild(q);
+  }
+  wrap.appendChild(nav);
+
+  // The filters, only when there ARE any: an empty side column would just strangle the capture.
+  const c = data.criteria || {};
+  const filt = [].concat(Array.isArray(c.hard) ? c.hard : [], Array.isArray(c.changes) ? c.changes : []);
+  if(filt.length){
+    const side = elem("div","hr-proc-side hr-cgrp hard");
+    side.appendChild(elem("div","hr-cgt","Filtros"));
+    const ul = elem("ul","hr-clist");
+    filt.slice(0, 14).forEach(x=>ul.appendChild(elem("li","", String(x))));
+    side.appendChild(ul);
+    wrap.appendChild(side);
+  }
+  panel.appendChild(wrap);
+  return true;
+}
+
+function paintProcess(panel, data, ctx){
   const pr = data.progress || {};
   const harvest = data.harvest || {};
+  const br = data.browser || {};
   const lines = Array.isArray(pr.phases) ? pr.phases.filter(x=>String(x||"").trim()) : [];
   const alive = !!pr.alive;
 
-  if(!lines.length && !alive && !Object.keys(harvest).length){
+  if(!lines.length && !alive && !br.task_id && !Object.keys(harvest).length){
     panel.appendChild(elem("div","hr-empty",
-      "Aquí se ve lo que va haciendo mientras trabaja: en qué web entra, qué filtro aplica, cuántos resultados "
-      + "encuentra. Todavía no hay ninguna tarea en marcha."));
+      "Aquí se ve lo que va haciendo mientras trabaja: el navegador que conduce, en qué web entra, qué filtro "
+      + "aplica, cuántos resultados encuentra. Todavía no hay ninguna tarea en marcha."));
     return;
   }
 
@@ -999,11 +1106,14 @@ function paintProcess(panel, data){
   head.appendChild(elem("span","", alive ? (pr.label || "Trabajando…") : "Terminado"));
   panel.appendChild(head);
 
+  paintBrowser(panel, data, ctx);
   paintHarvest(panel, harvest);
 
+  // The events read NEWEST FIRST (V2-571, operator: «en orden cronológicamente invertido»): under the browser,
+  // the first line is what is happening NOW — nobody scrolls a growing list to its bottom to find the present.
   const list = elem("div","hr-steps");
-  lines.forEach((text, i)=>{
-    const row = elem("div","hr-step" + (alive && i === lines.length-1 ? " now" : ""));
+  lines.slice().reverse().forEach((text, i)=>{
+    const row = elem("div","hr-step" + (alive && i === 0 ? " now" : ""));
     row.appendChild(elem("span","hr-bullet"));
     row.appendChild(elem("span","hr-steptext", String(text)));
     list.appendChild(row);
@@ -1013,7 +1123,7 @@ function paintProcess(panel, data){
   // When it FINISHES, the tab is not emptied: it remains as a history of what happened (C5). Emptying it would erase the only
   // explanation of why the result is what it is.
   if(!alive && lines.length){
-    panel.appendChild(elem("div","hr-note","Esto es lo que hizo para llegar aquí."));
+    panel.appendChild(elem("div","hr-note","Esto es lo que hizo para llegar aquí (lo último, arriba)."));
   }
 }
 

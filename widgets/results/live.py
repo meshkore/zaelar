@@ -59,6 +59,24 @@ def _progress(data: dict, sheet: str = "") -> dict:
     return {"alive": False, "phases": _clean_phases(live.get("phases")) or stored}
 
 
+def _browser(data: dict, sheet: str = "") -> dict:
+    """The BROWSER embedded in the PROCESS tab (V2-571): capture, current page, wall, and what it is waiting
+    for (login, a question). Third sibling of `_progress`/`_harvest`, same division: the task registry owns
+    these facts and the sheet READS them on every render — nothing is stored, so a finished errand falls back
+    to `{}` and the tab keeps only its persisted history (a frozen capture pretending to be live would lie).
+
+    This is the operator's redesign: the browser monitor and the results sheet are ONE flow, so the separate
+    `navegador::tN` card no longer opens for an errand with a sheet — this view replaces it.
+    """
+    live = {}
+    try:
+        from nucleo import dispatch as _disp
+        live = _disp.sheet_browser(sheet) or {}
+    except Exception:  # noqa: BLE001
+        live = {}
+    return live if isinstance(live, dict) else {}
+
+
 def _harvest(data: dict, sheet: str = "") -> dict:
     """The HARVEST of this job: how much has been inspected and what survived each cutoff (V2-296).
 

@@ -28,3 +28,16 @@
   - Tests should exercise data through `apply_action`/`view_data`, not by rendering raw unsanitized fixtures.
   - Layout calculations must use the same CSS variables that paint the grid; duplicated numeric spacing caused a lost
     column when spacing changed.
+
+## V2-571 (2026-09-03) — the browser lives INSIDE the process tab
+- Operator redesign: a browser task and this sheet are ONE flow, so the separate `navegador::tN` monitor card no
+  longer opens for an errand with a sheet. The PROCESS tab embeds the browser instead: capture top-left
+  (`/widgets/navegador/asset/shot-<tid>.png`, cache-busted by `shot_rev`, refreshed by SSE — the task registry
+  notifies this sheet's card on every view change), the search FILTERS (criteria.hard + changes) beside it, and
+  the event feed below in REVERSE chronological order (newest first — the first line is what happens NOW).
+- `data.browser` is DERIVED per read (`live._browser` → `dispatch.sheet_browser`), never persisted: a stored
+  capture would outlive its browser. `{}` once the errand ends; the tab keeps only its persisted history.
+- The browser's interaction moved here too: `auth_done` (declared action) forwards «Ya he iniciado sesión» to the
+  navegador owner's mailbox via `widgets/supervisor.enqueue` — the sheet never writes the browser's state. A
+  pending question renders with «Responde por voz»; a wall renders with its reason.
+- A task with NO sheet keeps its monitor card (manual browsing, sheetless errands): there it is the only surface.

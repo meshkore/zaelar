@@ -569,7 +569,7 @@ def _empty() -> dict:
 # record, while this module contains the sheet's content. It is re-exported because this is a move, not an interface
 # change —the tests and `view_data` continue calling these names as before.
 from widgets.results.live import (  # noqa: E402,F401 — re-export
-    _MAX_PHASES, _MAX_PHASE_CHARS, _clean_phases, _harvest, _progress)
+    _MAX_PHASES, _MAX_PHASE_CHARS, _browser, _clean_phases, _harvest, _progress)
 
 
 def _counts(data: dict) -> dict:
@@ -622,6 +622,7 @@ def view_data(q: str = "") -> dict:
     data["counts"] = _counts(data)
     data["progress"] = _progress(data, _safe_sheet(q))
     data["harvest"] = _harvest(data, _safe_sheet(q))
+    data["browser"] = _browser(data, _safe_sheet(q))     # V2-571: the process tab embeds the errand's browser
     return data
 
 
@@ -631,6 +632,7 @@ def _save(data: dict, sheet: str = "") -> None:
     d = dict(data)
     d.pop("counts", None)
     d.pop("progress", None)                  # derived from the live record: storing it would freeze a «Trabajando…»
+    d.pop("browser", None)                   # derived too (V2-571): a stored capture would outlive its browser
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
             d.pop(k, None)                       # remove empty sections: the blank sheet remains blank
@@ -988,5 +990,24 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _save(data, sheet)
         return {"ok": True, "criteria": cur, "reset": fresh}
 
+    if action == "auth_done":
+        # V2-571 — the login handoff used to live on the browser's own card; with the browser embedded in the
+        # PROCESS tab, its «Ya he iniciado sesión» button lives here and is FORWARDED to the browser's owner.
+        # The sheet never touches the browser itself: it enqueues into the same mailbox the navegador card used
+        # (`widgets/supervisor.enqueue`), so the owner remains the only writer of its state.
+        tid = str(payload.get("task_id") or "").strip()
+        if not tid:
+            tid = str((_browser({}, sheet) or {}).get("task_id") or "")
+        if not tid:
+            return {"ok": False, "error": "no hay ningún navegador esperando un inicio de sesión en esta hoja"}
+        try:
+            from widgets import supervisor
+            queued = bool(supervisor.enqueue("navegador", "auth_done", {"task_id": tid}))
+        except Exception:  # noqa: BLE001
+            queued = False
+        if not queued:
+            return {"ok": False, "error": "el navegador no está activo ahora mismo — reinténtalo en un momento"}
+        return {"ok": True, "task_id": tid}
+
     return {"ok": False, "error": f"acción «{action}» no soportada (present · append · clear · choose · detail · "
-                                  f"list · tab · sources · progress · criteria)"}
+                                  f"list · tab · sources · progress · criteria · auth_done)"}

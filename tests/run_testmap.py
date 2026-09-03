@@ -1679,6 +1679,18 @@ DOMAINS: list[dict] = [
                                 "fases del registro vivo y al acabar conserva la historia",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_sheet_is_the_live_process_surface.py"]},
+        # V2-571 — el rediseño del operador: «no tiene sentido abrir un browser que solo muestra capturas y un
+        # widget de Resultados en paralelo — son la misma tarea y el mismo flujo». El navegador del encargo se
+        # EMBEBE en la pestaña de Proceso (captura + filtros + login/pregunta) y la tarjeta `navegador::tN` ya
+        # no se abre para un encargo con hoja; una tarea SIN hoja conserva su tarjeta, porque ahí es la única
+        # superficie. El cableado se prueba por los caminos reales (_prepare_web ejecutado, _notify disparado
+        # por una escritura del registro) — la lección de V2-199: un test que llama al predicado a mano pasa
+        # con la llamada borrada.
+        {"id": "4.109", "title": "El navegador vive DENTRO de la pestaña de Proceso: sheet_browser derivado, la "
+                                 "tarjeta aparte retirada para encargos con hoja, el muro y el login llegan a la "
+                                 "hoja, y auth_done se reenvía al owner",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_the_browser_lives_in_the_process_tab.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
         # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`

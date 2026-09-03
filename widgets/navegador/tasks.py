@@ -73,7 +73,13 @@ def _clock() -> str:
 
 
 def _notify(task_id: str) -> None:
-    """A task change → refresh ONLY its card (SSE widget/data with the instance id). Best-effort."""
+    """A task change → refresh ONLY its card (SSE widget/data with the instance id). Best-effort.
+
+    V2-571 — a task that belongs to an ERRAND'S SHEET also refreshes that sheet's card: its PROCESS tab
+    embeds this browser (capture, wall, login), and without this notice the embedded view would stand
+    still between phase changes — a browser whose page moves and whose picture does not. The card's own
+    event stays: a sheetless task (manual browsing, an errand with no sheet) still has its monitor card.
+    """
     try:
         from voice.observer import emit
         extra = {"id": inst_id(task_id), "src": f"worker:{task_id}"}   # V2-039: driven by the navigation worker
@@ -82,6 +88,15 @@ def _notify(task_id: str) -> None:
             extra["trace"] = _tid
             extra["span"] = f"web:{task_id}"
         emit("widget", "data", extra=extra)
+        with _lock:
+            _sheet = str((_tasks.get(task_id) or {}).get("sheet") or "")
+        if _sheet:
+            from widgets.results import data as _results
+            extra2 = {"id": _results.instance_id(_sheet), "src": f"worker:{task_id}"}
+            if _tid:
+                extra2["trace"] = _tid
+                extra2["span"] = f"web:{task_id}"
+            emit("widget", "data", extra=extra2)
     except Exception:
         pass
 
@@ -554,6 +569,22 @@ def set_goal(task_id: str, goal: str) -> None:
     _notify(task_id)
 
 
+def set_sheet(task_id: str, sheet: str) -> None:
+    """Re-stamp WHOSE SHEET this tab serves (V2-571). The stamp is written once at birth (V2-281), but a tab
+    can be REUSED by a later errand (`find_continuation` in `_prepare_web`), and a stale stamp routes every
+    finding and every refresh to the predecessor's box — the exact «sello RANCIO» V2-434 measured. Only ever
+    overwrites with a REAL sheet: blanking an existing stamp would orphan findings mid-flight."""
+    sheet = str(sheet or "").strip()
+    if not sheet:
+        return
+    with _lock:
+        t = _tasks.get(task_id)
+        if not t or t.get("sheet") == sheet:
+            return
+        t["sheet"] = sheet
+    _notify(task_id)
+
+
 def set_goal_summary(task_id: str, summary: str) -> None:
     """Set the synthesized ESSENCE of the objective (objective + criteria, compressed by LLM) for DISPLAY in the card —
     the full `goal` remains intact as operational text guiding the search. Best-effort: if synthesis fails, the card
@@ -598,7 +629,16 @@ def _announce_wall(task_id: str, reason: str) -> None:
     set_phase(task_id, reason, False)
     try:
         from voice.observer import emit
-        emit("widget", "show", extra={"id": inst_id(task_id), "src": f"wall:{task_id}"})
+        # V2-571 — the capture IS the evidence, and it now lives where the errand does: a task with a sheet
+        # raises the SHEET (whose process tab embeds this browser) instead of a second card. Sheetless tasks
+        # keep their monitor card — there it is the only surface that can show the challenge page.
+        with _lock:
+            _sheet = str((_tasks.get(task_id) or {}).get("sheet") or "")
+        if _sheet:
+            from widgets.results import data as _results
+            emit("widget", "show", extra={"id": _results.instance_id(_sheet), "src": f"wall:{task_id}"})
+        else:
+            emit("widget", "show", extra={"id": inst_id(task_id), "src": f"wall:{task_id}"})
     except Exception:
         pass
     # …AND THE CONVERSATION, which is the one place the three above cannot reach (2026-08-20, measured on

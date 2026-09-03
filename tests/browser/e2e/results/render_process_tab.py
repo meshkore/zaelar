@@ -1,4 +1,4 @@
-"""EXECUTABLE SPEC for V2-227 scope C — the results sheet as the live progress surface.
+"""EXECUTABLE SPEC for the results sheet as the live progress surface (V2-227 scope C · V2-571 redesign).
 
 WHY A BROWSER AND NOT A UNIT TEST: the requirement is what a waiting person SEES. A source-level test
 can prove a tab exists and still ship a panel that renders nothing, a spinner that is in the DOM but
@@ -6,20 +6,28 @@ frozen, or an auto-switch that fires before the first result is painted. On 2026
 shipped on the mobile shell: 0 painted pixels of 9216, 741 frames into a detached canvas, no error
 anywhere, and a green test that counted canvases and was satisfied they existed.
 
-WHAT IT SPECIFIES (operator, 2026-08-20), and it FAILS until ámbito C lands — that is the point:
-  1. With a task alive and NO results yet, the sheet opens on a PROCESS tab. The user sees the sheet
-     before there is anything to put in it; that is the whole feature.
-  2. The phases are readable text, in order, newest visible without scrolling.
+WHAT IT SPECIFIES (operator, 2026-08-20 + the 2026-09-03 redesign):
+  1. With a task alive and NO results yet, the sheet opens on a PROCESS tab.
+  2. The phases are readable text, NEWEST FIRST (V2-571: «en orden cronológicamente invertido» — under
+     the browser, the first line is what is happening NOW).
   3. The spinner is ANIMATING, not merely present.
   4. The first result switches the sheet to the results tab BY ITSELF...
   5. ...and the process tab keeps spinning while the worker is alive.
   6. When the worker finishes, the spinner stops and the process tab keeps its history.
+  7. While alive and looking at the list, the process TAB BUTTON keeps saying it works.
+  8-12. V2-571 — the errand's BROWSER is EMBEDDED in the process tab: capture top-left, the search
+     FILTERS beside it, the login handoff button (which fires the `auth_done` action with the task id),
+     the wall notice, and the pending question. The separate navegador card no longer opens for an
+     errand, so this embed is the only place the operator can see and unblock the browser.
 
 Self-contained: it mounts widget.js in a blank page and drives `render()` directly. No engine, no
-worker, no network — the payload shapes are the contract between motor-dev's backend and this surface.
+worker, no network — the payload shapes are the contract between the backend and this surface. The
+capture asset is route-intercepted with a real PNG: without it the 404 fires the img's error fallback
+and the check would measure the placeholder race, not the layout.
 
 Run:  ./.venv/bin/python tests/browser/e2e/results/render_process_tab.py
 """
+import base64
 import json
 import os
 import socket
@@ -46,6 +54,29 @@ FIRST_RESULT = {
         "12 resultados", "descartando los que no cumplen…"]},
 }
 FINISHED = {**FIRST_RESULT, "progress": {**FIRST_RESULT["progress"], "alive": False}}
+
+# V2-571 — the embedded browser: capture + filters + login handoff.
+BROWSER_LOGIN = {
+    "title": "Hoteles en Sevilla",
+    "items": [],
+    "tab": "process",
+    "criteria": {"hard": ["4 estrellas", "céntrico"], "changes": ["máximo 150 € la noche"]},
+    "progress": {"alive": True, "phases": ["entrando en booking.com…", "la web pide iniciar sesión…"]},
+    "browser": {"task_id": "t9", "status": "needs_input", "phase": "esperando tu sesión",
+                "phase_active": False, "url": "https://www.booking.com/login",
+                "page_title": "Booking.com", "shot": "shot-t9.png", "shot_rev": 3,
+                "wall": "", "awaiting_login": True, "question": ""},
+}
+BROWSER_WALL = {
+    **BROWSER_LOGIN,
+    "browser": {**BROWSER_LOGIN["browser"], "awaiting_login": False,
+                "wall": "la página pidió resolver un captcha",
+                "question": "Voy a pulsar «RESERVAR». ¿Lo confirmo?"},
+}
+
+# 1×1 transparent PNG, so the capture <img> LOADS instead of racing its own 404 fallback.
+_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==")
 
 fails = []
 
@@ -84,13 +115,20 @@ def _run(port):
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1100, "height": 800})
+        page.route("**/widgets/navegador/asset/**",
+                   lambda route: route.fulfill(status=200, content_type="image/png", body=_PNG))
         # A REAL http origin: a module cannot be dynamically imported from `about:blank`/`file:`, and the
         # failure reads as "Failed to fetch dynamically imported module", which looks like a broken widget.
         page.goto(f"http://127.0.0.1:{port}/widgets/results/")
         page.set_content("<div id='host'></div>")
         page.evaluate("""async (src) => {
             const mod = await import(src);
-            window.__render = (data) => mod.render(document.getElementById('host'), data, {action(){}, top(){}});
+            window.__actions = [];
+            const ctx = {
+                action(a, p){ window.__actions.push([a, p || {}]); return Promise.resolve({ok: true}); },
+                top(){},
+            };
+            window.__render = (data) => mod.render(document.getElementById('host'), data, ctx);
         }""", f"http://127.0.0.1:{port}/widgets/results/widget.js")
 
         # 1 · the sheet opens on PROCESS with nothing to show yet
@@ -101,12 +139,13 @@ def _run(port):
         check("1 · con tarea viva y CERO resultados, la pestaña activa es la de proceso",
               (active or "").lower().startswith(("proc", "process")), f"pestaña activa: {active!r}")
 
-        # 2 · the phases are on screen, in order, and the newest is visible without scrolling
+        # 2 · the phases are on screen, NEWEST FIRST (V2-571): «lanzando…» (the last thing that happened)
+        #     reads ABOVE «entrando…» (the first). This is the inverse of the pre-redesign order on purpose.
         seen = page.evaluate("""() => {
             const p = document.querySelector('.hr-panel');
             return p ? p.innerText.trim() : ''; }""")
-        check("2 · las fases se leen en pantalla, en orden",
-              "entrando en booking.com" in seen and seen.index("entrando") < seen.index("lanzando"),
+        check("2 · las fases se leen en pantalla, la más NUEVA primero",
+              "entrando en booking.com" in seen and seen.index("lanzando") < seen.index("entrando"),
               f"panel: {seen[:160]!r}")
 
         # 3 · the spinner MOVES. Present-but-frozen is the failure this whole file exists to catch.
@@ -193,13 +232,61 @@ def _run(port):
         check("7b · y al acabar el botón deja de girar",
               not offbtn.get("running"), json.dumps(offbtn))
 
+        # ── V2-571 · the EMBEDDED browser ────────────────────────────────────────────────────────────────────
+        page.evaluate("(d) => window.__render(d)", BROWSER_LOGIN)
+        emb = page.evaluate("""() => {
+            const img = document.querySelector('.hr-panel .hr-navimg');
+            const ri = img ? img.getBoundingClientRect() : null;
+            const side = document.querySelector('.hr-panel .hr-proc-side');
+            const rs = side ? side.getBoundingClientRect() : null;
+            const url = document.querySelector('.hr-panel .hr-navurl');
+            return {img: !!img, src: img ? img.getAttribute('src') : '',
+                    img_w: ri ? Math.round(ri.width) : 0, img_h: ri ? Math.round(ri.height) : 0,
+                    side: !!side, side_text: side ? side.innerText : '',
+                    beside: !!(ri && rs && rs.left > ri.left && rs.top < ri.top + ri.height),
+                    urlline: url ? url.textContent : ''}; }""")
+        check("8 · la captura del navegador se PINTA dentro de la pestaña de proceso, con tamaño real",
+              emb.get("img") and "/widgets/navegador/asset/shot-t9.png" in (emb.get("src") or "")
+              and emb.get("img_w", 0) > 300 and emb.get("img_h", 0) > 150, json.dumps(emb))
+        check("8b · y la página se identifica bajo la captura",
+              "Booking.com" in (emb.get("urlline") or ""), json.dumps(emb))
+        check("9 · los FILTROS del encargo se ven a la DERECHA de la captura",
+              emb.get("side") and emb.get("beside")
+              and "4 estrellas" in emb.get("side_text", "") and "150" in emb.get("side_text", ""),
+              json.dumps(emb))
+
+        # 10 · the login handoff: the button exists, and clicking it fires `auth_done` WITH the task id.
+        login = page.evaluate("""() => {
+            const btn = document.querySelector('.hr-panel .hr-login-btn');
+            if (!btn) return {found: false};
+            btn.click();
+            return {found: true, actions: window.__actions.slice()}; }""")
+        acts = login.get("actions") or []
+        check("10 · «Ya he iniciado sesión» dispara auth_done con el id de la tarea",
+              login.get("found") and any(a == "auth_done" and (p or {}).get("task_id") == "t9"
+                                         for a, p in acts), json.dumps(login))
+
+        # 11-12 · the wall and the pending question render where the operator is looking.
+        page.evaluate("(d) => window.__render(d)", BROWSER_WALL)
+        wallq = page.evaluate("""() => {
+            const w = document.querySelector('.hr-panel .hr-wall');
+            const q = document.querySelector('.hr-panel .hr-navq');
+            const login = document.querySelector('.hr-panel .hr-login-btn');
+            return {wall: w ? w.textContent : '', q: q ? q.textContent : '', login: !!login}; }""")
+        check("11 · un MURO golpeado se ve en la pestaña, con su motivo",
+              "captcha" in (wallq.get("wall") or ""), json.dumps(wallq))
+        check("12 · una pregunta pendiente se ve, y dice cómo se contesta",
+              "RESERVAR" in (wallq.get("q") or "") and "voz" in (wallq.get("q") or "").lower()
+              and not wallq.get("login"), json.dumps(wallq))
+
         browser.close()
 
     print()
+    total = 14
     if fails:
-        print(f"✗ {len(fails)} de 8 sin cumplir — ámbito C todavía no está: {', '.join(fails)}")
+        print(f"✗ {len(fails)} de {total} sin cumplir: {', '.join(fails)}")
         return 1
-    print("✓ ámbito C cumple el contrato de las 8 comprobaciones")
+    print(f"✓ la pestaña de proceso cumple el contrato de las {total} comprobaciones")
     return 0
 
 

@@ -610,8 +610,12 @@ lazily on the first command.
 - `automate_web(goal)` — a TASK. Each goal creates its own task + its own vertical card. This is the agent.
 
 **One task = one card = one browsing lane (hard, in code).** The card model is `navegador::<taskid>` (canvas
-instance ids, `desktop.js`). Internal tabs a task opens to read listings are ABSORBED/reaped (`_reap_popups`),
-never new cards. Anti-proliferation is enforced in code, not just prompt: (a) one browser action per turn;
+instance ids, `desktop.js`). **V2-571 (2026-09-03): a task whose ERRAND has a results sheet no longer opens this
+card at all** — the sheet's PROCESS tab embeds the browser (capture + filters + newest-first events + the login
+handoff, `dispatch.sheet_browser` → `widgets/results`), because a monitor card and a results sheet for the same
+errand are the same flow shown twice. The `navegador::tN` card remains for SHEETLESS tasks (manual browsing, an
+errand with no sheet), where it is the only surface. Internal tabs a task opens to read listings are
+ABSORBED/reaped (`_reap_popups`), never new cards. Anti-proliferation is enforced in code, not just prompt: (a) one browser action per turn;
 (b) `automate_web` never also calls `browse_web`; (c) `tasks.similar_active()` DEDUPES — the operator refining the
 same request across several STT turns ("busca motos"… "de menos de 5000") reuses the same card (word-overlap ≥0.4);
 distinct tasks (moto vs piso) stay separate. Task cards are ephemeral (not persisted to localStorage).

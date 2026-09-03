@@ -8148,6 +8148,53 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **NOT verified live yet** — the engine needs a restart; first check is the catamaran errand giving ONE
     box, and «busca más a fondo» putting the worker into that same box.
 
+- **ONE widget per errand — the browser lives INSIDE the sheet's process tab (V2-571, 2026-09-03)**: the
+  operator, with both cards on screen: «no tiene sentido abrir un browser que solo muestra capturas y un widget
+  de Result en paralelo — ambas cosas son parte de la misma tarea y el mismo flujo». So the `navegador::tN`
+  monitor card is RETIRED for any errand with a sheet, and the sheet's PROCESS tab embeds the browser: capture
+  top-left, the search FILTERS (criteria.hard + changes) beside it, the event feed below in REVERSE
+  chronological order (newest first — the first line is what happens NOW, nobody scrolls a growing list to its
+  bottom), and the browser's own needs — wall, pending question, the «Ya he iniciado sesión» button.
+  - **`sheet_browser` is the third sibling of `sheet_progress`/`sheet_harvest`**, same division: the task
+    registry owns the facts, the sheet READS them per render. `data["browser"]` is derived and never persisted
+    (`{}` once the errand ends — a frozen capture pretending to be a live browser lies; the tab keeps only its
+    persisted history). The tab is found under BOTH names an errand can give it (`rec.nav_task`, else its own
+    `task_id` — the same two-name rule `sheet_for_nav_task` already applies), and with several live tabs the
+    most recently MOVING one wins.
+  - **The refresh had to travel or the embed was stillborn**: `tasks._notify` now also emits `widget/data`
+    for the sheet's card when the task carries a sheet stamp — captures change far more often than phases, and
+    the sheet only repaints on ITS id. `_announce_wall` raises the SHEET (the capture is the evidence and now
+    lives there); a task with NO sheet keeps its monitor card and its wall show — there it is the only surface.
+  - **The login handoff forwards, never writes**: `results.apply_action("auth_done")` enqueues into the
+    navegador owner's mailbox (`widgets/supervisor.enqueue`) — the owner stays the only writer of its state.
+    Without a `task_id` it resolves the live browser of ITS OWN sheet only (guessing another sheet's would
+    confirm a stranger's login); a dead owner is a spoken refusal, and the button SHOWS a refusal (V2-540).
+    The pending question stays voice-answered (`answer_from_turn`, V2-202) — only login gets a button, because
+    its gesture happens outside, in the real Chrome window.
+  - **A REUSED tab is re-stamped** (`tasks.set_sheet`, called from `_prepare_web`'s continuation branch): the
+    sheet stamp is written once at the tab's birth, and a tab serving a NEW errand with the old stamp routes
+    findings and refreshes to the predecessor's box — the V2-434 «sello rancio», now closed on the writer's
+    side for this path. A stamp is never blanked.
+  - ⚠️ **A disarm came back GREEN because the mutation hit the WRONG function**: muting `sheet_browser` via a
+    source prefix shared with `sheet_harvest` disarmed harvest instead (`str.replace(…,1)` took the first
+    occurrence) — a disarm's mutation anchors on something UNIQUE to the function it claims to disarm. The
+    presentation ratchet also collected: a raw `padding:8px` in the new login button went to the scale.
+  - Nodes **4.109** (17 cases through the REAL paths — `_prepare_web` actually run, `_notify` fired by a
+    registry write; five disarms red) and **4.29** rewritten (14 RENDERED checks: newest-first order, the
+    capture painted at real size with the asset route-intercepted, filters measured to the RIGHT by geometry,
+    the login click firing `auth_done` with the task id). **NOT verified live** — the engine was not restarted;
+    first check is a real web errand showing ONE card with its capture moving inside the process tab.
+  - Pre-existing and left alone: `widgets.harness` was already red for two unrelated things (results'
+    `fetch(` from the V2-538 identity strip; navegador's golden expecting an `updated` key nobody emits).
+  - ⚠️ **Found by this pass's full sweep and fixed, unrelated to the redesign**: `Settings.language` FREEZES
+    `env("ZAELAR_LANGUAGE")` at the first import of `voice.engine.core.config`, and the V2-539 actionmap tests
+    reached that first import lazily from inside a test that had monkeypatched the env to «es» — the reverted
+    patch left `langs.current_code()` answering «es» for the rest of the process, and the suite-isolation
+    guards went red in whatever file ran later. New face of the V2-562 lesson (there, a reload reinstated the
+    real path; here, a lazy first import froze a patched env): **a module the suite isolates must be imported
+    BEFORE any env monkeypatch that its defaults read** — the actionmap test file now imports it at collection
+    time, with the suite's clean env.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

@@ -337,6 +337,11 @@ def sheet_harvest(sheet: str = "") -> dict:
     return _sheets.sheet_harvest(sheet, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
+def sheet_browser(sheet: str = "") -> dict:
+    """El NAVEGADOR del encargo de esta hoja (V2-571). Cuerpo en `nucleo/sheets.py`; aquí solo el registro vivo."""
+    return _sheets.sheet_browser(sheet, _SESSIONS.values(), LIVE_SESSION_STATES)
+
+
 def record_phase(tid, phase: str) -> bool:
     """Apunta a linea in the diario of PROCESO of `tid`. El body lives in `nucleo/sheets.py` (V2-281):
     here only is resuelve the record, that es it only that this module has and aquel no."""
@@ -1024,16 +1029,22 @@ async def _prepare_web(rec: "SessionRecord", req: str, reuse_tid: str = "") -> s
             tid = str(cont[0])
             try:
                 navtasks.set_goal(tid, req)
+                # V2-571: a reused tab now serves THIS errand, so its sheet stamp follows it — a stale stamp
+                # routes findings and refreshes to the predecessor's box (the V2-434 «sello rancio»).
+                navtasks.set_sheet(tid, sheet_of(rec))
             except Exception:
                 pass
         else:
             _tr = str(getattr(rec, "trace_id", "") or "")   # V2-281: la HOJA viaja con la pestaña, como el trace
             tid = str(navtasks.create(req, trace=_tr, sheet=sheet_of(rec)))
-        try:
-            from voice.observer import emit
-            emit("widget", "show", extra={"id": navtasks.inst_id(tid), "src": f"worker:{tid}"})
-        except Exception:
-            pass
+        # V2-571 — ONE widget per errand: with a sheet, its PROCESS tab embeds the browser (`sheet_browser`)
+        # and the separate monitor card is NOT opened. A sheetless task keeps its card — only surface it has.
+        if not sheet_of(rec):
+            try:
+                from voice.observer import emit
+                emit("widget", "show", extra={"id": navtasks.inst_id(tid), "src": f"worker:{tid}"})
+            except Exception:
+                pass
         try:
             navtasks.set_status(tid, "working")
             navtasks.set_phase(tid, "conduciendo el navegador", True)

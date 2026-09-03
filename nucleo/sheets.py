@@ -201,6 +201,59 @@ def sheet_harvest(sheet: str = "", sessions=(), live_states=()) -> dict:
     return total if any(total.values()) else {}
 
 
+def sheet_browser(sheet: str = "", sessions=(), live_states=()) -> dict:
+    """The BROWSER driving this sheet's errand: capture + page + what it is waiting for (V2-571).
+
+    The operator's redesign: a browser task and its results sheet are ONE flow, so the sheet's PROCESS tab
+    embeds the browser monitor instead of a second card opening beside it. Like `sheet_progress`, this is
+    DERIVED on every read — the task registry owns the facts, the sheet only renders them.
+
+    `{}` means «no live errand of this sheet is driving a browser», and it is honest twice over: an errand
+    resolved by `web_search` has no capture to show, and once the errand ends the capture stops being live —
+    the persisted phases are the history, a frozen screenshot pretending to be a browser is not.
+
+    A tab is looked up under BOTH names an errand can give it — `rec.nav_task` when `_prepare_web` reserved
+    one, the errand's own `task_id` otherwise (the `nav_cli` fallback, same two-name rule as
+    `sheet_for_nav_task`). With several live tabs on one sheet, the most recently MOVING one wins: a dead
+    capture painted over a live one is the screen lying about where the work is.
+    """
+    rows = sheet_sessions(sessions, live_states)
+    want = str(sheet or "").strip()
+    if want:
+        rows = [r for r in rows if sheet_of(r) == want]
+    if not rows:
+        return {}
+    try:
+        from widgets.navegador import tasks as _nav
+    except Exception:  # noqa: BLE001
+        return {}
+    best: dict = {}
+    for r in rows:
+        for tid in (str(getattr(r, "nav_task", "") or ""), str(getattr(r, "task_id", "") or "")):
+            t = _nav.get(tid) if tid else {}
+            if not t:
+                continue
+            if not best or float(t.get("last_progress") or 0.0) > float(best.get("last_progress") or 0.0):
+                best = t
+            break                                        # nav_task found ⇒ the task_id name is not this tab's
+    if not best:
+        return {}
+    tid = str(best.get("id") or "")
+    return {
+        "task_id": tid,
+        "status": str(best.get("status") or ""),
+        "phase": str(best.get("phase") or ""),
+        "phase_active": bool(best.get("phase_active")),
+        "url": str(best.get("url") or ""),
+        "page_title": str(best.get("page_title") or ""),
+        "shot": f"shot-{tid}.png",
+        "shot_rev": int(best.get("shot_rev") or 0),
+        "wall": str(best.get("wall") or ""),
+        "awaiting_login": bool(best.get("awaiting_login")),
+        "question": str(best.get("question") or ""),
+    }
+
+
 def title_of(rec) -> str:
     """How this errand is NAMED on screen: its title when one has been composed, its brief otherwise (V2-530).
 

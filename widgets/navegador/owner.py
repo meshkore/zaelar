@@ -661,9 +661,14 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     try:
         from voice import brain_notes
         head = "completé" if (ok and success) else "no pude completar del todo"
+        # V2-571 — a task with a SHEET has no separate card anymore: its browser renders inside the sheet's
+        # Proceso tab, so the note must not name a card that does not exist (a surface named to the model that
+        # is not on screen is how it narrates a screen the operator cannot see).
+        _sheet = str((tasks.get(task_id) or {}).get("sheet") or "")
+        tail = ("la pestaña de Proceso de esa misma hoja enseña por dónde fue el navegador." if _sheet else
+                f"la tarjeta '{tasks.inst_id(task_id)}' solo enseña por dónde fue el navegador.")
         brain_notes.push(f"[SISTEMA] Navegador (tarea {task_id}): {head} «{goal}». {summary} Lo encontrado está "
-                         f"en la hoja de resultados; la tarjeta '{tasks.inst_id(task_id)}' solo enseña por dónde "
-                         f"fue el navegador.")
+                         f"en la hoja de resultados; {tail}")
     except Exception:
         pass
     try:
