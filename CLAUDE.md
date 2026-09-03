@@ -8108,6 +8108,46 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     restaurants (a places lane is a sibling module, V2-526's budget rule), and the operator's process-tab
     redesign (results tab LAST, browser embedded in the process view) — frontend, recorded in V2-567.
 
+- **A DELIVERED hunt is not re-hunted in parallel — the linear gate (V2-570, 2026-09-03)**: the operator
+  watched it live (session 9dcff6f5, the catamarans): the listing fast pass delivered 20 rows into a sheet,
+  and seven seconds later — his sentence now complete — the model escalated the SAME hunt to a Brain Worker,
+  which opened a SECOND sheet and navigated nautal.com for minutes. His doctrine, now encoded: **a search
+  resolves LINEARLY** — the fast delivery IS the answer; deeper machinery runs only when the module judges
+  it insufficient or the operator pushes again. Never two parallel processes for one errand.
+  - **The dedup could not see it BY CONSTRUCTION**: `dedup_miss` said `live: 0` — a fast pass is not a
+    session, and `continues_ended` (V2-566) only saw worker snapshots. Verified in dry-run BEFORE writing
+    anything: the existing matcher, unchanged, links that escalation to that delivery (containment 0.6 >
+    0.45); it only lacked the snapshot. So a delivery is a recorded FACT now
+    (`workers/ended.note_listing_delivery`, TTL `JUST_ENDED_S`) — a SIBLING store, never a row in
+    `_ENDED_SESSIONS`: that dict feeds the death-notice machinery, and a synthetic row would announce
+    «FALLÓ» about something that never was a session.
+  - **The gate lives in `nucleo/errand_continuity.py`** (NEW — dispatch sat ONE line under its ratchet
+    ceiling, so the whole V2-566 inheritance block moved out and dispatch SHRANK 1769→1756): a same-hunt
+    escalation inherits the delivery's sheet, and the FIRST one is not spawned at all — the fast pass
+    re-runs with the escalation's full request as the refined query, INTO the inherited box, and the module
+    keeps the verdict (V2-556's principle extended to cover the model's stray escalation): delivered →
+    pushed note naming the rows (the route that arrives 3/3, V2-222); insufficient → `run()` escalates by
+    itself carrying the same sheet, let through by the consumed refinement mark. One redirect per delivery,
+    bounded like a provider retry; cost asymmetry stated: a wrong redirect costs ≤10 s, a wrong spawn costs
+    minutes, dollars and the second box. The gate never redirects `web`/`code`/`dev`/`memory` kinds —
+    booking or acting on a site goes to the worker (still in the same box); `_classify_kind` already draws
+    that line, no new phrase lists.
+  - **`listing_turn.run(sheet=…)` reuses an inherited box**: found rows REPLACE the earlier less-specified
+    delivery; an empty refined pass NEVER wipes it (`rename_task` only — «estrenar = borrar», V2-259).
+  - **The prompt carries the fact WITH the rule** (V2-453): while a delivery is fresh, the live tail says
+    «BÚSQUEDA DE ANUNCIOS YA HECHA … llama a search_listings OTRA VEZ con todos los filtros — NUNCA
+    escalate_to_slowbrain para la misma caza». The only instruction that used to sit next to the delivered
+    rows covered «si te pide el ENLACE» — so the model's escalation was almost reasonable from its seat.
+  - **And the fragment that started it**: «…catamaranes en plan» was judged COMPLETE (the connector's last
+    word is a noun), so a full turn ran on half his sentence and the fast query lost the size and the zone.
+    Trailing colloquial connector BIGRAMS («en plan», «o sea», «es decir») are HARD-incomplete now —
+    measured against the registry first (V2-095 protocol): 617 raw transcripts, ZERO complete ones end in
+    any of them. Bigrams and never single words: «cancela el plan» is an order.
+  - Node 2.5 (`test_a_delivered_hunt_is_not_rehunted_in_parallel.py`, through the real bus→`run_listener`
+    path per V2-199) + listing_turn and segmenter cases; six disarms, each mutation ASSERTED, all red.
+    **NOT verified live yet** — the engine needs a restart; first check is the catamaran errand giving ONE
+    box, and «busca más a fondo» putting the worker into that same box.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
