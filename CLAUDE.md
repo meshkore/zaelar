@@ -8007,6 +8007,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     Google Cloud OAuth client with the Photos Picker API enabled and a connected account — nothing here was
     run against the real API.
 
+- **A follow-up is not a new errand, and an alias fragment is not a name (V2-566, 2026-09-03)**: the Soria
+  reservation session, read event by event. One errand — book a lunch table — produced two tasks with two
+  `results` sheets, and a final exchange where the operator shouted «ciérrame la reserva… hazlo ya» and the
+  engine CLOSED THE TIMER WIDGET, cancelling the escalation the model had (correctly, on retry) just produced.
+  Each link verified against `events` before touching anything; the memory half (a same-conversation correction
+  never invalidated the «Elfo On» long-term pills, so task 1 burned $2.25 chasing a restaurant that does not
+  exist) is **V2-565** (memoria-dev).
+  - **`runtime.identify()` fuzzy-matched «restaurante» ≈ «restante» (0.842)** — an INNER token of the timer's
+    multi-word alias «tiempo restante» — and reached the certainty bar (2.0) on that alone. Voice tolerance now
+    only lands on a COMPLETE single-word alias (`watsap`≈`wasap` still resolves); an alias finds the piece, its
+    fragments name nothing. With that, `looks_like_close`'s «ciérrame» resolves no widget, the close backstop
+    stays quiet, and the escalation survives. Guard: the literal operator sentence in
+    `test_resolver_certainty.py`.
+  - **`dedup.continues_ended`**: the live dedup was RIGHT to miss (task 1 had ended 3.5 min earlier — nothing
+    live), so the relaunch minted a second sheet. The relay's rule («a relay is not a new errand», sheets.py)
+    now applies one step out: a new escalation matching a JUST-ENDED errand (same strict containment matcher,
+    `_ENDED_SESSIONS`, 5-min window) inherits its sheet — `_sheet_open` already knew not to wipe an inherited
+    box. Emits `task/sheet_inherited` with the evidence.
+  - **A dropped tool call names WHICH failure it was**: the escalation's «argumentos ilegibles» was actually a
+    stream cut by the operator's own barge-in (turn RETAINED, no finish_reason) — a correct discard wearing the
+    label of a model defect, which is where the diagnosis went first. Three labels now (token cap / unfinished
+    stream / genuinely illegible), and the parse retries `strict=False` before dropping (a complete object with
+    a literal newline inside a string — a class DeepSeek emits — is readable; the salvage is recorded).
+  - **The es restaurant-booking escape route is real now**: the «ElTenedor (app web)» alt was the SAME company
+    and the SAME wall as TheFork (403 twice that session), surviving `alternatives_for`'s host filter precisely
+    because the hostname differs. Replaced with the measured route — Google Maps to pick, the restaurant's own
+    site's booking engine to book (the CoverManager pages loaded fine while every aggregator walled), commit to
+    ONE candidate instead of touring informational pages.
+  - Nodes 2.47 (new) + 2.1/2.4/2.5 files; four disarms, each mutation ASSERTED before measuring, all red.
+    **Not verified live** — the operator's engine needs a restart to load any of it. Open: no MeshKore agent
+    exists for `bookings.restaurants` (confirmed live: `mesh_cli fin` → `agents: []`) — a network gap, not a
+    bug; and small-town restaurants largely have no online booking at all, which no catalog entry fixes.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
