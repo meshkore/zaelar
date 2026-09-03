@@ -84,8 +84,19 @@ def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
     the whole difference between a bug and a mystery. Best-effort throughout — reporting a dropped action must
     never be able to drop the turn as well.
     """
-    reason = "cortada por el tope de tokens" if str(metrics.get("finish_reason") or "") == "length" \
-        else "argumentos ilegibles"
+    # Three different facts used to wear one label. «argumentos ilegibles» covered the token cap (until
+    # V2-171 named it), a genuinely malformed object, AND a stream that never finished — and the third is the
+    # common one: measured 2026-09-03 (Soria reservation, 16:02:47), the operator barged in mid-escalation,
+    # the turn was RETAINED, the stream closed with no finish_reason, and the half-accumulated arguments were
+    # filed as «illegible», sending the diagnosis toward «the model emits broken JSON» when the model was
+    # interrupted mid-sentence. An unfinished stream is not a model defect, and the fix for each is different.
+    _fr = str(metrics.get("finish_reason") or "")
+    if _fr == "length":
+        reason = "cortada por el tope de tokens"
+    elif not _fr:
+        reason = "el stream se cortó a mitad de la acción (interrupción del turno o corte de red)"
+    else:
+        reason = "argumentos ilegibles"
     logger.warning(f"tool call {name} DESCARTADA ({reason}): {(raw_args or '')[:200]!r}")
     dropped = metrics.setdefault("dropped_tool_calls", [])
     dropped.append({"name": name, "reason": reason, "chars": len(raw_args or "")})
@@ -747,8 +758,17 @@ class FastClient:
                     try:
                         args = json.loads(call["arguments"] or "{}")
                     except Exception:
-                        _drop_tool_call(m, call["name"], call["arguments"])
-                        continue
+                        # Second chance, non-strict: a COMPLETE object whose string values carry literal control
+                        # characters (a raw newline inside "request" — a class DeepSeek emits). This invents no
+                        # structure — an unfinished or truly malformed object still fails and is dropped — it
+                        # only stops a readable action from dying over a newline. The salvage is recorded so it
+                        # can be measured, not assumed (V2-566).
+                        try:
+                            args = json.loads(call["arguments"], strict=False)
+                            m.setdefault("salvaged_tool_calls", []).append(call["name"])
+                        except Exception:
+                            _drop_tool_call(m, call["name"], call["arguments"])
+                            continue
                     on_tool_call(call["name"], args if isinstance(args, dict) else {})
 
     def describe(self, spec: ModelSpec | None = None) -> str:

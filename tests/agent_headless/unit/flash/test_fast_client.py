@@ -317,6 +317,56 @@ def test_but_a_tool_call_that_parses_is_untouched(monkeypatch):
     assert not m.get("dropped_tool_calls")
 
 
+# ── V2-566: a readable action does not die over a newline, and an unfinished stream is named as one ───────
+def test_a_complete_call_with_a_raw_newline_is_salvaged_not_dropped(monkeypatch):
+    """A COMPLETE object whose string value carries a literal control character (a class DeepSeek emits) is
+    strict-invalid JSON, but the action is perfectly readable. Dropping it turned a newline into a lost errand;
+    the salvage is recorded so it can be measured instead of assumed."""
+    rec, m = {}, {}
+    chunks = [_chunk(tool_calls=[_tool_call(0, name="escalate_to_slowbrain",
+                                            args='{"request": "line one\ny line two"}')]),
+              _chunk_fr("tool_calls")]
+    _patch_client(monkeypatch, chunks, rec)
+    fired = []
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}], spec=ModelSpec(model="m", api_key="k"),
+                                           tools=[{"type": "function"}], metrics=m,
+                                           on_tool_call=lambda n, a: fired.append((n, a))):
+            pass
+
+    asyncio.run(run())
+    assert fired == [("escalate_to_slowbrain", {"request": "line one\ny line two"})]
+    assert not m.get("dropped_tool_calls")
+    assert m.get("salvaged_tool_calls") == ["escalate_to_slowbrain"]
+
+
+def test_an_unfinished_stream_is_not_blamed_on_the_models_json(monkeypatch):
+    """Measured 2026-09-03 (Soria, 16:02:47): the operator barged in mid-escalation, the stream closed with
+    no finish_reason, and the half-accumulated arguments were filed as «argumentos ilegibles» — sending the
+    diagnosis toward «the model emits broken JSON» when the model was interrupted mid-sentence. Three facts,
+    three labels: token cap, unfinished stream, genuinely illegible object."""
+    rec, m = {}, {}
+    # A clean JSON prefix and then silence: no finish_reason chunk ever arrives (cancelled turn / broken pipe).
+    chunks = [_chunk(tool_calls=[_tool_call(0, name="escalate_to_slowbrain",
+                                            args='{"request": "Reservar una mesa para comer')])]
+    _patch_client(monkeypatch, chunks, rec)
+    fired = []
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}], spec=ModelSpec(model="m", api_key="k"),
+                                           tools=[{"type": "function"}], metrics=m,
+                                           on_tool_call=lambda n, a: fired.append(n)):
+            pass
+
+    asyncio.run(run())
+    assert fired == []                                    # still dropped: the action never finished arriving
+    dropped = m.get("dropped_tool_calls") or []
+    assert len(dropped) == 1
+    assert "stream" in dropped[0]["reason"]               # …and the label says the stream was cut,
+    assert "ilegible" not in dropped[0]["reason"]         # not that the model wrote unreadable arguments
+
+
 # ── V2-176 front 2: the dropped action must reach the NEXT TURN ───────────────────────────────────────────
 #
 # V2-171 left the drop in the turn's metrics and observability — where the operator can look at it
