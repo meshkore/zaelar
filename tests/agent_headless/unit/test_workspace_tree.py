@@ -72,6 +72,12 @@ def test_settings_can_be_written_on_a_bare_volume(empty_workspace, monkeypatch):
 
     target = empty_workspace / "config" / "settings.json"
     monkeypatch.setattr(settings_mod, "SETTINGS_FILE", target)
+    # `update()` also does `os.environ["ZAELAR_LANGUAGE"] = "es"` ITSELF — a write monkeypatch never saw, so
+    # nothing reverted it and every later test ran with the suite's language flipped (the suite-isolation
+    # guards went red in whatever file ran afterwards; measured in V2-571's full sweep). Registering the key
+    # in monkeypatch's ledger FIRST makes the teardown restore the pre-test state, whatever update() writes.
+    # Same leak class as the reload this docstring already warns about, through another door.
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "")
     settings_mod.update({"stt_language": "es"})
     assert json.loads(target.read_text())["stt_language"] == "es"
 
