@@ -26,104 +26,149 @@
     "THE KEYS ARE NOT HERE. This holds the NAME of the variable (`key_env`); the value is resolved from the",
     "credential store by endpoint. This file is public."
   ],
-
   "services": {
     "voice_brain": {
       "label": "FlashBrain — the voice and chat turn",
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-pro",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
-      "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
-                   "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "The DIRECT endpoint honours `thinking:disabled` (TTFT p50 1.16s); the broker accepts the field and reasons anyway (8.7s). Bench of 42 turns per arm, 2026-08-15: Pro routes 41/42, direct Flash 38/42 (failed `show widget` 3 out of 3)."
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-pro",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
+      "failover": null,
+      "why": "The DIRECT endpoint honours `thinking:disabled` (TTFT p50 1.16s); the broker accepts the field and reasons anyway (8.7s). Bench of 42 turns per arm, 2026-08-15: Pro routes 41/42, direct Flash 38/42 (failed `show widget` 3 out of 3).",
+      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
     },
-
     "brain_worker": {
       "label": "Brain Worker / SlowBrain — the one that browses and executes",
-      "titular": {"provider": "claude_code", "model": "glm-5.3",
-                  "base_url": "https://api.z.ai/api/anthropic", "key_env": "Z_AI_API_KEY",
-                  "vision": false},
-      "failover": {"provider": "claude_code", "model": "deepseek-v4-flash",
-                   "base_url": "https://api.deepseek.com/anthropic", "key_env": "DEEPSEEK_API_KEY",
-                   "vision": false},
+      "titular": {
+        "provider": "claude_code",
+        "model": "glm-5.3",
+        "base_url": "https://api.z.ai/api/anthropic",
+        "key_env": "Z_AI_API_KEY",
+        "vision": false
+      },
+      "failover": {
+        "provider": "claude_code",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://api.deepseek.com/anthropic",
+        "key_env": "DEEPSEEK_API_KEY",
+        "vision": false
+      },
       "why": "Driven by the Claude Code CLI, which speaks the ANTHROPIC protocol — that is why both endpoints are `/anthropic`, and why Z.AI's credits wallet (`paas/v4`, OpenAI-compatible) CANNOT be used here. `vision:false` is measured: the GLMs and DeepSeek V4 confabulate about images they cannot see, so the browser works off the DOM."
     },
-
     "brief_composer": {
       "label": "Brief composer — steers the worker's search",
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-pro",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
-      "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
-                   "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Asks for the answer, not the deliberation (`no_thinking`). If the model CANNOT turn reasoning off, it retries WITH reasoning and a 3200 budget (V2-488) — before that, every directed search ran blind, in silence."
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-pro",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
+      "failover": null,
+      "why": "Asks for the answer, not the deliberation (`no_thinking`). If the model CANNOT turn reasoning off, it retries WITH reasoning and a 3200 budget (V2-488) — before that, every directed search ran blind, in silence.",
+      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
     },
-
     "memory_writer": {
       "label": "Memory · HEART — distils every turn into pills",
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
-      "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
-                   "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "Chosen by measurement (21 candidates x 34 cases x 4 axes, 2026-08-09): matches gpt-4.1-mini on the two axes that destroy data, at -55% cost. It writes off the hot path, so its latency costs nothing."
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
+      "failover": null,
+      "why": "Chosen by measurement (21 candidates x 34 cases x 4 axes, 2026-08-09): matches gpt-4.1-mini on the two axes that destroy data, at -55% cost. It writes off the hot path, so its latency costs nothing.",
+      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
     },
-
     "memory_rem": {
       "label": "Memory · REM sleep — nightly synthesis and repair",
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
-      "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
-                   "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "The same model as the HEART on purpose: they write to the same place with the same judgement."
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
+      "failover": null,
+      "why": "The same model as the HEART on purpose: they write to the same place with the same judgement.",
+      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
     },
-
     "embeddings": {
       "label": "Memory · embeddings (the semantic space)",
-      "titular": {"provider": "openai", "model": "text-embedding-3-small",
-                  "base_url": "https://api.openai.com/v1", "key_env": "OPENAI_API_KEY", "dims": 768},
+      "titular": {
+        "provider": "openai",
+        "model": "text-embedding-3-small",
+        "base_url": "https://api.openai.com/v1",
+        "key_env": "OPENAI_API_KEY",
+        "dims": 768
+      },
       "failover": null,
       "why": "CHOSEN BY MEASUREMENT on 2026-08-29 (12 facts ES+EN, 12 queries sharing NO words with their fact, recall@1): text-embedding-3-small 12/12 margin +0.204 · mistral-embed 10/12 +0.050 · fastembed bge-small 7/12 +0.021 (an ENGLISH-ONLY model: on Spanish it misses one in three). DeepSeek has NO embeddings endpoint (404 verified) and AIMLAPI's returns 403, so there is no provider choice to make here. 768 dims are requested via the `dimensions` parameter (matryoshka): it measures the same as 1536 (12/12, +0.204 vs +0.201) and fits the `EMBED_DIM` the database already has — changing the model does NOT force a schema migration. Ollama is OUT by the operator's rule: it is a local server and inside a container it does not exist.",
       "warning": "NO FAILOVER, DELIBERATELY: a second provider is ANOTHER vector space, not a stand-in — mixing them is the defect that cost V2-482/484/485. If the provider falls, the vector is DEFERRED (the writer marks `embed_pending`, REM repairs it) and recall drops to lexical, said in amber; the space is never swapped in flight. Changing this value changes the SPACE: the signature lives in `<db>.embedsig` and migrating requires `memory/reembed.py`."
     },
-
     "reranker": {
       "label": "Memory · reranker",
-      "titular": {"provider": "off", "model": "", "base_url": "", "key_env": ""},
+      "titular": {
+        "provider": "off",
+        "model": "",
+        "base_url": "",
+        "key_env": ""
+      },
       "failover": null,
       "why": "OFF by default so LOCAL and CLOUD measure the same thing. Its model (jina-reranker, ~1.1GB) downloads on first boot and dominated a Machine's cold start (2min18s -> 58s with it off), so the cloud has run without it since 2026-08-13; shipping it on by default locally meant measuring locally a system that does not exist in the cloud. It is an ORDERING improvement, not a source: without it recall still works, just worse ordered. Turn it on with `local` (fastembed on CPU) from the panel once the memory grows."
     },
-
     "stt": {
       "label": "Voice · STT (speech to text)",
-      "titular": {"provider": "deepgram", "model": "", "base_url": "", "key_env": "DEEPGRAM_API_KEY"},
-      "failover": {"provider": "voxtral", "model": "", "base_url": "", "key_env": "MISTRAL_API_KEY"},
+      "titular": {
+        "provider": "deepgram",
+        "model": "",
+        "base_url": "",
+        "key_env": "DEEPGRAM_API_KEY"
+      },
+      "failover": {
+        "provider": "voxtral",
+        "model": "",
+        "base_url": "",
+        "key_env": "MISTRAL_API_KEY"
+      },
       "why": "Both are cloud services and serve a container. Local Whisper is out by the same rule as Ollama."
     },
-
     "tts": {
       "label": "Voice · TTS (text to speech)",
-      "titular": {"provider": "elevenlabs", "model": "", "base_url": "", "key_env": "ELEVENLABS_API_KEY"},
+      "titular": {
+        "provider": "elevenlabs",
+        "model": "",
+        "base_url": "",
+        "key_env": "ELEVENLABS_API_KEY"
+      },
       "failover": null,
       "why": "No stand-in, and said out loud: Cartesia was ruled out by the operator on cost and Kokoro is local (it does not exist in the cloud). If ElevenLabs runs out, the voice stops sounding — and that has to be VISIBLE in the panel, not guessed."
     },
-
     "triage": {
       "label": "Messaging · triage of what arrives",
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
-      "failover": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash",
-                   "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY"},
-      "why": "It used to be xAI `grok`, which on 2026-08-30 returns 403 for EXHAUSTED CREDITS — and grok is vetoed for routing on measured mis-routing. Out."
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
+      "failover": null,
+      "why": "It used to be xAI `grok`, which on 2026-08-30 returns 403 for EXHAUSTED CREDITS — and grok is vetoed for routing on measured mis-routing. Out.",
+      "failover_why": "SIN RELEVO, y es el cruce de dos normas del operador, no un olvido. AIMLAPI queda retirado (2026-09-03: «DeepSeek y Z.AI, y poco mas»), y Z.AI NO puede ser relevo de nada que no sea el Brain Worker (norma del 2026-08-30: el failover automatico se comio el saldo de una cartera no autorizada para esto). Juntas dejan a este servicio con titular y sin respaldo. Es un RIESGO CONOCIDO y esta medido en la doc de reparto: «un escalon de relevo sin probar convierte una caida de proveedor en una caida total» — aqui directamente no hay escalon. Reabrirlo exige una decision del operador: o reautorizar Z.AI para voz, o traer un tercer proveedor."
     },
-
     "susurro": {
       "label": "Susurro — proactive background suggestions",
       "enabled": false,
-      "titular": {"provider": "deepseek", "model": "deepseek-v4-flash",
-                  "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY"},
+      "titular": {
+        "provider": "deepseek",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://api.deepseek.com",
+        "key_env": "DEEPSEEK_API_KEY"
+      },
       "failover": null,
       "why": "OFF by default after the Susurro->worker loop incident that drowned the voice. Turned on from the panel — the operator's own install has had it on since 2026-07-26, once the circuit breaker existed."
     }
   },
-
   "retired": {
     "_": "What was removed and WHY, so nobody adds it back believing it is missing.",
     "xai": "Credits exhausted (403 verified 2026-08-30) and `grok` vetoed for routing on measured mis-routing.",

@@ -1004,6 +1004,14 @@ DOMAINS: list[dict] = [
         # 2026-09-02 (V2-556, run v3): la pasada rápida entregaba y el turno lo NEGABA. Dos caras del mismo
         # defecto —un hecho al lado de un imperativo que no lo nombra— en la cara de escalada y en la orden de
         # estado del bloque de tareas. Las filas estaban en el prompt; ninguna de las dos ordenaba decirlas.
+        # 2026-09-03 (V2-560): la nube llevaba dias sirviendo la voz desde un proveedor que nadie eligio. La
+        # Machine se aprovisiona con DeepSeek, pero `provider_of` no sabia nombrar ese host, la cabecera salia
+        # vacia y el gateway caia a SU defecto (AIMLAPI), que ademas se habia quedado sin fondos. Nada salio en
+        # rojo: la cabecera es opcional, asi que «ausente» es igual que «me da igual». El guarda ata la tabla
+        # de reparto con lo que el egress sabe nombrar, que es justo lo que se habia separado.
+        {"id": "2.46", "title": "Todo escalon que la tabla de reparto sirve, el egress sabe NOMBRARLO",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_llm_egress_names_every_provider_it_ships_with.py"]},
         {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},
@@ -1891,6 +1899,15 @@ DOMAINS: list[dict] = [
                                 "plataforma, y el icono apagado abre su conexión",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_visual_formula.py"},
+        # V2-559 — RENDERIZA, y es la única mitad que puede contestar lo que reportó el operador: los pasos
+        # numerados con píxeles reales, que «Corregir y reintentar» MUEVA algo (era `_expandConnect.add` sobre
+        # un set que ya lo tenía: un repintado idéntico, o sea un botón muerto visto desde fuera), y que el
+        # formulario vuelva CON los datos tras un rechazo. Trae además el trinquete de móvil, y dice que NO
+        # prueba que esta tanda arreglara el layout: medido antes, las seis pantallas ya cabían a 375px.
+        {"id": "4.106", "title": "El asistente de conexión RENDERIZADO: tres pasos con píxeles, un reintento "
+                                 "que mueve, el borrador que sobrevive, y los tres asistentes a 375px",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/mensajeria/test_connect_wizard_render.py"]},
         # 2026-09-03 (V2-558): el splash era un anillo girando y UNA frase fija hasta que main.js terminaba,
         # que en una Machine fría son decenas de segundos. El operador se comió más de un minuto de eso en su
         # primer arranque. Lo que se mide aquí solo lo puede contestar un navegador: que la narración AVANCE, y
@@ -1913,6 +1930,16 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_deck.py"},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
+        # V2-559 — el operador siguió la guía, creó la contraseña de aplicación y pegó el ENLACE de esa
+        # página. Lo guardado eran 47 caracteres empezando por https:// y la tarjeta contestó «usa una
+        # contraseña de aplicación» sobre una que acababa de crear: la prueba estaba en la mano y se tiraba.
+        # Cubre las TRES costuras que leen la misma regla (la puerta compartida, `config.password()` y el
+        # mensaje después de que IMAP diga que no) y que un rechazo del supervisor LLEGUE a la tarjeta —
+        # antes se caía al suelo y el widget se quedaba pintando «Conectando…» para siempre.
+        {"id": "5.9", "title": "Un ENLACE no es una contraseña de aplicación: la regla única, y un rechazo "
+                               "que llega a la tarjeta en vez de quedarse en un hang",
+            "ch": UNIT,
+            "paths": ["tests/connectors/unit/email/test_a_pasted_link_is_not_an_app_password.py"]},
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [
             "tests/connectors/unit/email/test_mailbox.py", "tests/connectors/unit/email/test_oauth.py",
             "tests/connectors/unit/email/test_providers.py"]},

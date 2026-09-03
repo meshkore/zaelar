@@ -31,7 +31,18 @@ _TOKEN_ENV = "CONTROL_PLANE_SERVICE_TOKEN"
 
 # Provider base_url → short name understood by mediated egress. It is a ROUTING MAP, not a
 # credential: it says “this call was intended for this family,” and whoever has the key decides.
+# The FAMILY a base_url belongs to. A host missing from this table is not a small gap: `provider_of` returns "",
+# `_headers` then sends NO `X-Zaelar-Provider`, and mediated egress falls back to ITS default — so the call is
+# billed to, and answered by, a provider nobody chose.
+#
+# Measured 2026-09-03 on a real account. `deepseek.com` was absent while every Machine is provisioned with
+# FAST_BASE_URL=https://api.deepseek.com, so every cloud voice turn silently went to the gateway's default
+# (AIMLAPI), which had run out of funds — and the user was told there were no credits, on top of a DeepSeek
+# account with balance. Nothing was red: the header is optional by design, so its absence is indistinguishable
+# from "no preference". `test_llm_egress_names_every_provider_it_ships_with` now pins this against the shipped
+# allocation table so the two cannot drift apart again.
 _PROVIDER_BY_HOST = (
+    ("deepseek.com", "deepseek"),
     ("aimlapi.com", "aimlapi"),
     ("api.x.ai", "xai"),
     ("api.z.ai", "zai"),

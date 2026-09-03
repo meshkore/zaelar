@@ -90,5 +90,9 @@ def test_el_catalogo_por_defecto_encabeza_con_DEEPSEEK_DIRECTO(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     names = [t["name"] for t in PC._known_chain()]
     assert names[0] == "deepseek-directo", f"el titular de voz no encabeza el catálogo: {names}"
-    assert names == ["deepseek-directo", "aimlapi-failover"], (
+    # 2026-09-03 (V2-560): la cadena se queda en UN escalón. AIMLAPI se retira por decisión del operador y Z.AI
+    # sigue vetado aquí por LA NORMA QUE ESTE FICHERO DEFIENDE, así que no queda candidato a relevo. Lo que este
+    # test protege —que Z.AI no se cuele en la voz— vale igual, y ahora con más motivo: sin relevo, la tentación
+    # de tapar una caída con la cartera del worker es justo lo que hay que seguir impidiendo.
+    assert names == ["deepseek-directo"], (
         f"la cadena de voz tiene que ser titular + UN failover, y es {names} — norma del operador 2026-08-30")

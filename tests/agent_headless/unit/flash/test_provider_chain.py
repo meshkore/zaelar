@@ -59,8 +59,11 @@ def test_la_cadena_de_voz_NO_OFRECE_ZAI_por_norma(monkeypatch):
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k2")
     monkeypatch.setenv("AIMLAPI_KEY", "k3")
-    # ONE SINGLE FAILOVER (operator rule, 2026-08-30): primary + backup, and that's it.
-    assert [t["name"] for t in pc.chain()] == ["deepseek-directo", "aimlapi-failover"]
+    # 2026-09-03 — la cadena de voz se queda en UN escalón, y es el cruce de dos normas del operador, no un
+    # descuido: AIMLAPI se retira («DeepSeek y Z.AI, y poco más») y Z.AI sigue vetado aquí por LA NORMA QUE
+    # ESTE TEST DEFIENDE. Juntas no dejan candidato para el relevo. Queda anotado como riesgo en la tabla
+    # (`failover_why`) porque una caída de DeepSeek es hoy una caída total de la voz.
+    assert [t["name"] for t in pc.chain()] == ["deepseek-directo"]
     assert not any("z.ai" in (t.get("base_url") or "") for t in pc.chain())
 
 
@@ -114,8 +117,10 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     assert pc.pick()["name"] == "deepseek-directo"
 
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
-    assert nxt["name"] == "aimlapi-failover"
-    assert pc.pick()["name"] == "aimlapi-failover"          # el siguiente turno ya arranca en el relevo (STICKY)
+    # SIN RELEVO (ver arriba) agotarse devuelve None. Que sea `None` y no una excepción es la mitad que importa:
+    # el llamador tiene que poder DECIR que se quedó sin escalones en vez de morirse intentando usar uno.
+    assert nxt is None, f"no hay segundo escalón que ofrecer, y devolvió {nxt!r}"
+    # La fecha de reset del proveedor se respeta igual: cuando vuelva, vuelve solo.
     assert pc._store._cooldown["deepseek-directo"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
@@ -220,7 +225,10 @@ def test_the_alerts_panel_surfaces_an_exhausted_cluster_provider(monkeypatch):
     rows = balances.cluster_providers()
     bad = [r for r in rows if r["state"] == "error"]
     assert bad and bad[0]["key"] == "cluster:deepseek-directo" and "cuota" in bad[0]["detail"]
-    assert [r for r in rows if r["state"] == "ok" and "EN USO" in r["detail"]]
+    # Ya NO hay un segundo escalón que pueda salir «EN USO»: la cadena tiene uno solo (ver la norma cruzada
+    # arriba). Lo que el panel tiene que seguir haciendo —y es lo que de verdad importa— es enseñar en ROJO al
+    # agotado, porque sin relevo ese rojo ES la caída, no un aviso de que se cambió de proveedor.
+    assert not [r for r in rows if r["state"] == "ok" and "EN USO" in r["detail"]]
 
 
 def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
@@ -276,7 +284,10 @@ def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     monkeypatch.setenv("AIMLAPI_KEY", "k2")
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"})
-    assert nxt["name"] == "aimlapi-failover"
+    # Lo que este test defiende es el ENRUTADO por defecto al rol de cluster, no cuántos escalones haya: hoy la
+    # cadena tiene uno, así que la respuesta correcta es None (sin relevo), y llegar hasta aquí ya prueba que
+    # la llamada sin `role` fue a la cadena del cluster.
+    assert nxt is None
 
 
 def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
