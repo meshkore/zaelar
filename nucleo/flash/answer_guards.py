@@ -61,3 +61,50 @@ def answer_needs_a_source(operator_text: str, reply: str) -> bool:
     if _OWN_THING_RE.search(q):
         return False
     return bool(_EXTERNAL_FACT_RE.search(q) and _FIGURE_RE.search(a))
+
+
+# ── A QUESTION IS NOT ANSWERED WITH A BARE ACK (V2-572) ──────────────────────────────────────────────────────
+# Measured twice in ONE live session (2026-09-03, operator's engine):
+#
+#     OPERATOR  ¿Tenemos alguna reserva en la agenda a algún restaurante?
+#     ZAELAR    Hecho.                          (and it closed a widget nobody asked about)
+#     OPERATOR  Te he hecho una pregunta.
+#
+#     OPERATOR  Dime si has hecho alguna reserva efectiva. Para comer en un restaurante, en la agenda.
+#     ZAELAR    Hecho.
+#     OPERATOR  Respóndeme a la pregunta.
+#
+# Both recoveries were the operator doing BY HAND what this guard automates: forcing the model to actually
+# answer. NARROW like its sibling above, and both halves are required:
+#   · the question has to be INFORMATION-seeking («¿tenemos…?», «dime si…», «¿hay…?») and carry no action
+#     verb — «¿puedes cerrar los mensajes?» is a polite order, and «Hecho.» is its correct answer;
+#   · the reply has to be a bare acknowledgement and nothing else. «Hecho, no tienes reservas» answers.
+_INFO_QUESTION_RE = _re.compile(
+    r"(\?|¿|\b(?:dime|di\s+si|cu[eé]ntame|resp[oó]ndeme|expl[ií]came|"
+    r"tell\s+me|say\s+if|let\s+me\s+know)\b)", _re.I)
+_ACTION_VERB_ANYWHERE_RE = _re.compile(
+    r"\b(cierra\w*|cerrar\w*|abre\w*|abrir\w*|quita\w*|quitar\w*|muestra\w*|mostrar\w*|ensename?\w*|"
+    r"ensenar\w*|pon\w*|poner\w*|apaga\w*|apagar\w*|enciende\w*|encender\w*|borra\w*|borrar\w*|"
+    r"guarda\w*|guardar\w*|manda\w*|mandar\w*|envia\w*|enviar\w*|limpia\w*|limpiar\w*|"
+    r"close|open|show|hide|dismiss|play|stop|send|save|delete|clear|turn)\b", _re.I)
+_BARE_ACK_RE = _re.compile(
+    r"^\s*(?:vale|ok|okay|claro|hecho|listo|ya\s+esta|de\s+acuerdo|perfecto|entendido|"
+    r"done|all\s+set|sure|got\s+it)"
+    r"(?:\s*[,.]?\s*(?:vale|ok|okay|hecho|listo|ya\s+esta|done))?\s*[.!]*\s*$", _re.I)
+
+
+def _fold(text: str) -> str:
+    import unicodedata as _ud
+    t = _ud.normalize("NFKD", text or "")
+    return "".join(c for c in t if not _ud.combining(c))
+
+
+def a_bare_ack_answers_a_question(operator_text: str, reply: str) -> bool:
+    """Did an information-seeking question get a content-free «Hecho.»? Only the caller knows how to repair it
+    (the voice channel speaks a follow-up, the probe re-composes); this answers the shape."""
+    q, a = _fold(operator_text), _fold(reply).strip()
+    if not q or not a:
+        return False
+    if not _INFO_QUESTION_RE.search(q) or _ACTION_VERB_ANYWHERE_RE.search(q):
+        return False
+    return bool(_BARE_ACK_RE.match(a))

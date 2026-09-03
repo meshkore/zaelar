@@ -331,15 +331,18 @@ def test_the_engine_classifies_the_actionmap_kind():
 
 # ── wiring guards: BOTH channels call the shared module (the parallel-impl rule) ─────────────────────────
 
-@pytest.mark.parametrize("path", [
-    "voice/engine/llm/providers/nucleo.py",
-    "nucleo/flash/probe.py",
-])
-def test_both_channels_are_wired(path):
+def test_both_channels_are_wired():
+    """The voice provider routes through the extracted lane (`fast_lane.py`, V2-572 ratchet payment), which
+    holds the actual `actionmap` import; the probe still wires it directly. Following the chain — not just
+    grepping the provider — is what keeps this from passing while the lane silently falls out of the path."""
     from pathlib import Path
     root = Path(__file__).resolve().parents[4]
-    src = (root / path).read_text(encoding="utf-8")
-    assert "from nucleo import actionmap" in src, f"{path}: action map not wired"
+    provider = (root / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
+    probe = (root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"
+    assert "from nucleo import actionmap" in lane, "voice: the fast lane lost the action map"
+    assert "from nucleo import actionmap" in probe, "probe: action map not wired"
 
 
 # ── (5) the lens grid, and a pack that can be UPGRADED (V2-545) ──────────────────────────────────────────

@@ -36,6 +36,7 @@ from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
 from nucleo.flash import probe_scheduling as _probe_scheduling
+from nucleo.flash import second_pass as _second
 
 _WINDOW_MAX = 10
 
@@ -159,8 +160,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                                         decision={"action": _desc, "actionmap": _amap_hit.get("id")})
                 except Exception:
                     pass
-                return {"ok": True, "reply": [], "action": _desc, "tool_calls": [], "tags": [],
-                        "actionmap": _amap_hit.get("id"), "trace": _trace_id}
+                try:  # V2-572 parity with the voice lane's spoken ack: the reply says the action landed
+                    from voice.engine.core import langs as _lg_am
+                    _ack = _lg_am.pick_ack()
+                except Exception:
+                    _ack = ""
+                return {"ok": True, "reply": [_ack] if _ack else [], "action": _desc, "tool_calls": [],
+                        "tags": [], "actionmap": _amap_hit.get("id"), "trace": _trace_id}
     except Exception as _e_am:  # noqa: BLE001
         try:
             from loguru import logger as _log_am
@@ -708,22 +714,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # turn and every following pronoun was tested against a state that can never occur in production.
     if "recall" in names and action == "chat":
         _rq = next((t["args"].get("query") for t in tool_calls if t["name"] == "recall"), "") or text
-        try:
-            from . import prompt as _prompt2
-            _rblock, _ = await asyncio.to_thread(_prompt2.compose_recall, _rq)
-            _sys2 = (_prompt2._lang_lock()
-                     + "\nResponde en 1-3 frases habladas y naturales usando SOLO estos datos del operador. "
-                       "No menciones capas ni memoria interna; si falta algo, dilo.\n\n"
-                     + f"PETICIÓN: {text}\n\nDATOS:\n{_rblock or '(sin datos relevantes)'}")
-            _parts = []
-            async for _delta in FastClient().stream(
-                    [{"role": "system", "content": _sys2}, {"role": "user", "content": text}],
-                    spec=spec, max_tokens=260):
-                _parts.append(_delta)
-            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))
-            action = "recall"
-        except Exception:
-            pass
+        _sp = await _second.recall_answer(
+            text, _rq, spec,
+            sanitize=lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)))
+        if _sp:
+            spoken, action = _sp, "recall"
     # V2-210 — UN DATO DEL MUNDO NO SE IMPROVISA (espejo del provider — cablear en AMBOS). Medido en
     # `quick-fact-opening-hours`: «abre a las 10:00 y cuesta 15 €» con CERO herramientas. Las cifras eran
     # aproximadamente correctas, que es justo lo que lo hace peligroso — el modelo va seguro y no pide la tool.
@@ -735,6 +730,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             from . import router_guards as _rg_src
             if _rg_src.answer_needs_a_source(operator_text, spoken):
                 action, _forced_search = "search", True
+            # V2-572 — a QUESTION answered with a bare «Hecho.» gets its real answer composed (mirror of the
+            # voice channel's spoken follow-up — wire in BOTH). The guard's own doc carries the session.
+            elif _rg_src.a_bare_ack_answers_a_question(operator_text, spoken):
+                spoken = (await _second.bare_ack_repair(
+                    operator_text, dialog.prune_window(sess.window), spec)) or spoken
         except Exception:
             pass
     if action == "search":

@@ -66,7 +66,7 @@ def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkey
     """The core. The FlushSentinel is not decoration: it CLOSES the segment, which is the whole reason
     this is not v1 — without it LiveKit's sentence tokenizer retains a short unpunctuated phrase and it
     comes out glued to the reply, which is the 2026-08-14 bug."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
     fa.arm(_Brain())
     out = _run(_collect_llm(_inner_llm(first_after=0.3)))
     assert _shape(out) == ["A ver… ", "FLUSH", "Sí, ", "aquí estoy."], \
@@ -75,7 +75,7 @@ def test_an_armed_slow_turn_emits_the_filler_and_a_FLUSH_before_the_reply(monkey
 
 def test_a_fast_reply_gets_NO_filler(monkeypatch):
     """“If we are going to answer in one second or less, do not add the interjection.”"""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
     fa.arm(_Brain())
     out = _run(_collect_llm(_inner_llm(first_after=0.0)))
     assert _shape(out) == ["Sí, ", "aquí estoy."], "a fast reply must pass through byte-identical"
@@ -84,7 +84,7 @@ def test_a_fast_reply_gets_NO_filler(monkeypatch):
 def test_an_UNARMED_generation_never_gets_a_filler(monkeypatch):
     """A generation this turn did not arm (kickoff, or any future caller of llm_node) never sounds one,
     however slow it is."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
     out = _run(_collect_llm(_inner_llm(first_after=0.3)))
     assert _shape(out) == ["Sí, ", "aquí estoy."]
 
@@ -94,14 +94,14 @@ def test_the_arm_is_consumed_ONCE_and_expires():
     assert fa._consume_arm() is not None
     assert fa._consume_arm() is None, "consume-once: a second generation cannot inherit the arm"
     fa.arm(_Brain())
-    fa._arm = (fa._arm[0] - (fa._ARM_TTL_S + 1), fa._arm[1])
+    fa._arm = (fa._arm[0] - (fa._ARM_TTL_S + 1),) + fa._arm[1:]
     assert fa._consume_arm() is None, "a stale arm (dead turn) must not fire a filler minutes later"
 
 
 def test_the_filler_is_STRIPPED_from_the_transcript_but_the_reply_is_not(monkeypatch):
     """`transcription_node`'s output is what LiveKit forwards to the subtitles AND writes into chat_ctx
     (`forwarded_text`, not the LLM's raw generated_text). The filler is spoken, never written there."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
     fa.arm(_Brain())
     _run(_collect_llm(_inner_llm(first_after=0.3)))   # this marks the phrase for stripping
 
@@ -201,7 +201,7 @@ def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):
     between), and how far before varies per turn. One turn armed 150 ms BEFORE the deadline and fired; the
     very next armed ~400 ms AFTER it and produced NO filler at all, with TTFT 3.26 s — a turn that plainly
     deserved one. Past the deadline we keep polling for the arm, still racing the model's first chunk."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
 
     async def go():
         async def arm_late():
@@ -223,7 +223,7 @@ def test_but_an_arm_that_NEVER_arrives_stays_silent(monkeypatch):
     every test green, because the first-chunk future always resolves (chunk, end, or error) and the loop
     exits there anyway. The bound is a guard against spinning on a model that hangs forever, not a
     behavioural boundary — claiming otherwise would be crediting coverage that does not exist."""
-    monkeypatch.setattr(fa, "_pick_phrase", lambda brain: "A ver…")
+    monkeypatch.setattr(fa, "_pick_phrase", lambda brain, kind="neutral": "A ver…")
     monkeypatch.setattr(fa, "_ARM_GRACE_S", 0.1)
     out = _run(_collect_llm(_inner_llm(first_after=0.5)))
     assert _shape(out) == ["Sí, ", "aquí estoy."], "no arm ever → no filler, however slow the model is"

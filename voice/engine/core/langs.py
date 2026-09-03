@@ -98,6 +98,14 @@ class LangSpec:
         "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "Un segundo…", "Espera…",
         "Vale, a ver…", "Pues…", "A ver qué tenemos…", "Déjame que mire…", "Un momentito…",
     )
+    # Lead-ins for a turn that is an ORDER to act (V2-572). «Déjame ver…» before closing a widget reads as
+    # incomprehension — the operator's own words. These commit to nothing either: they promise motion, not a
+    # result, so a turn that ends up declining («no puedo cerrar eso, hay un encargo en marcha») still
+    # continues them naturally.
+    fillers_action: tuple = ("Voy…", "Ahora mismo…", "Marchando…", "Voy a ello…", "Venga…")
+    # The spoken confirmation of an already-EXECUTED direct action (the action-map fast lane). Unlike fillers
+    # these DO commit — they are only ever spoken after the mutation happened, never as a lead-in.
+    acks: tuple = ("Hecho.", "Vale, hecho.", "Listo.", "Ya está.")
     # SECRETS VAULT (V2-060) — deterministic SPOKEN lines. The secret's value is inserted OUT-OF-BAND
     # (it never passes through the model): `secret_reveal.format(label=…, value=…)`. The others do not contain the value.
     secret_reveal: str = "Tu {label}: {value}"           # (F2: voice reading with log redaction)
@@ -193,6 +201,8 @@ LANGUAGES: dict[str, LangSpec] = {
             "Let's see…", "Hmm…", "Let me see…", "One sec…", "Hold on…", "Let me check…",
             "Right, let's see…", "Okay…", "Let me have a look…", "Just a moment…",
         ),
+        fillers_action=("On it…", "Right away…", "Sure…", "Doing it…"),
+        acks=("Done.", "Okay, done.", "All set.", "There you go."),
         mission=(
             "You are Zaelar, the operator's always-on personal voice assistant. "
             "You handle what they ask, guided by the STATE below (who they are, what's in front of them and what "
@@ -317,12 +327,28 @@ def _generated_fillers(code: str) -> list[str]:
         return []
 
 
-def pick_filler(last: str = "", code: str | None = None) -> str:
-    """A neutral, varied THINKING sound (lead-in) in the active language, different from the last one (anti-repetition).
-    Deterministic-agnostic: if there is no pool, return an empty string → the caller says nothing."""
-    pool = _generated_fillers(code or current_code())
+def pick_filler(last: str = "", code: str | None = None, kind: str = "neutral") -> str:
+    """A varied lead-in in the active language, different from the last one (anti-repetition), and MATCHED to
+    the turn's shape (V2-572): `kind="action"` draws from the action pool («Voy…»), because the operator heard
+    «Déjame ver…» answer «cierra los mensajes» and called it out — a thinking sound before an order to act
+    reads as incomprehension. Any other kind (questions, statements) keeps the thinking pool. Deterministic-
+    agnostic: if there is no pool, return an empty string → the caller says nothing."""
+    if kind == "action":
+        pool = list(getattr(spec(code), "fillers_action", ()) or ())
+    else:
+        pool = _generated_fillers(code or current_code())
+        if not pool:
+            pool = list(getattr(spec(code), "fillers", ()) or ())
     if not pool:
-        pool = list(getattr(spec(code), "fillers", ()) or ())
+        return ""
+    choices = [p for p in pool if p != last] or pool
+    return _random.choice(choices)
+
+
+def pick_ack(last: str = "", code: str | None = None) -> str:
+    """The spoken «done» after an EXECUTED direct action (the action-map fast lane, V2-572). Varied like the
+    fillers and never the same twice in a row; empty string when the language ships no pool."""
+    pool = list(getattr(spec(code), "acks", ()) or ())
     if not pool:
         return ""
     choices = [p for p in pool if p != last] or pool
@@ -330,4 +356,4 @@ def pick_filler(last: str = "", code: str | None = None) -> str:
 
 
 __all__ = ["LangSpec", "LANGUAGES", "DEFAULT_LANG", "current_code", "current_language",
-           "spec", "supported", "kokoro_voices", "pick_filler"]
+           "spec", "supported", "kokoro_voices", "pick_filler", "pick_ack"]

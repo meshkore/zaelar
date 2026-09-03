@@ -122,7 +122,10 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-03 — V2-567's show-vs-close guard crossed the ceiling by 8; paid by extracting the
     # accumulator NOTICES (plan + spoken drop + nudge, a mouth-only concern) to providers/acc_notices.py,
     # 3335→3244. Aliases keep the historical names; `_spawn` stays with the provider.
-    "voice/engine/llm/providers/nucleo.py": (3245, 129),
+    # 2026-09-03, V2-572 — the bare-ack repair block paid by extracting the ACTION-MAP fast lane (a cohesive
+    # concern since V2-539: lookup, execute, bookkeeping — and now the spoken ack) → providers/fast_lane.py,
+    # 3244→3217. Probe paid the same bill by folding its stream-collect shape into flash/second_pass.py.
+    "voice/engine/llm/providers/nucleo.py": (3218, 129),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).

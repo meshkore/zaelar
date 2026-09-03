@@ -44,14 +44,16 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
+import unicodedata
 
 _ARM_TTL_S = 20.0
 _ARM_GRACE_S = 0.8       # past the deadline, how long we keep polling for this turn to ARM (see the race
                          # below). A spin guard, not a behavioural bound: the first-chunk future always
                          # resolves, so in practice the loop exits there — this only saves a model that hangs.
 _ARM_POLL_S = 0.05
-_arm: tuple[float, object] | None = None   # (monotonic ts, brain)
+_arm: tuple[float, object, str] | None = None   # (monotonic ts, brain, filler kind)
 _last_phrase = ""
 _pending_strip: list[str] = []             # phrases emitted as fillers, awaiting removal from the transcript
 _last_fired_at = 0.0                       # monotonic; read by the turn onset (V2-535) to say whether
@@ -69,24 +71,59 @@ def enabled() -> bool:
     return delay_ms() > 0
 
 
-def arm(brain) -> None:
-    """Called by the voice provider once per eligible turn, right where the model is about to be paid."""
+# ── What kind of turn is being covered (V2-572) ───────────────────────────────────────────────────────────
+# The operator heard «Déjame ver…» answer «cierra los mensajes» and named it: a thinking sound before an ORDER
+# TO ACT reads as incomprehension. The cover phrase is chosen BEFORE any model has spoken, so the class can
+# only come from the utterance's own shape — deterministic and coarse on purpose: an imperative action verb up
+# front (leading interjections skipped — «a ver, cierra los mensajes» is his literal sentence) means the
+# action pool; a question mark vetoes it («¿puedes cerrarlo?» asks first); everything else keeps thinking.
+
+_LEADING_CHATTER_RE = re.compile(r"^(?:a ver|oye|mira|vale|venga|bueno|pues|por favor|ok|okay|hey|please)[,\s]+")
+_ACTION_VERB_RE = re.compile(
+    r"^(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:cierra\w*|abre\w*|quita\w*|muestra\w*|muestrame|ensename?\w*|"
+    r"pon\w*|apaga\w*|enciende\w*|sube\w*|baja\w*|borra\w*|guarda\w*|manda\w*|envia\w*|arranca\w*|activa\w*|"
+    r"desactiva\w*|silencia\w*|limpia\w*|vacia\w*|despeja\w*|"
+    r"close|open|show|hide|dismiss|play|pause|mute|unmute|clear|turn|put|start|launch|send|save|delete)\b")
+
+
+def _norm(text: str) -> str:
+    t = unicodedata.normalize("NFKD", (text or "").lower())
+    return "".join(c for c in t if not unicodedata.combining(c)).strip()
+
+
+def filler_kind(text: str) -> str:
+    """"action" when the utterance opens with an imperative action verb and asks nothing; "neutral" otherwise
+    (questions and statements keep the thinking pool). Feeds `langs.pick_filler(kind=…)`."""
+    if "?" in (text or ""):
+        return "neutral"
+    n = _norm(text)
+    for _ in range(3):
+        n2 = _LEADING_CHATTER_RE.sub("", n)
+        if n2 == n:
+            break
+        n = n2
+    return "action" if _ACTION_VERB_RE.match(n) else "neutral"
+
+
+def arm(brain, text: str = "") -> None:
+    """Called by the voice provider once per eligible turn, right where the model is about to be paid.
+    `text` is the operator's utterance — it picks which filler POOL covers this turn (V2-572)."""
     global _arm
-    _arm = (time.monotonic(), brain)
+    _arm = (time.monotonic(), brain, filler_kind(text))
 
 
 def _consume_arm():
     global _arm
     if _arm is None:
         return None
-    ts, brain = _arm
+    ts, brain, kind = _arm
     _arm = None
     if time.monotonic() - ts > _ARM_TTL_S:
         return None
-    return brain
+    return brain, kind
 
 
-def _pick_phrase(brain) -> str:
+def _pick_phrase(brain, kind: str = "neutral") -> str:
     """Same guards the say-path filler had: never over the operator's voice, varied, anti-echo updated."""
     global _last_phrase
     try:
@@ -98,7 +135,7 @@ def _pick_phrase(brain) -> str:
     try:
         from voice.engine.core import langs
         last = getattr(brain, "_last_filler", "") or _last_phrase
-        phrase = langs.pick_filler(last)
+        phrase = langs.pick_filler(last, kind=kind)
     except Exception:
         return ""
     if not phrase:
@@ -200,9 +237,10 @@ async def llm_node_with_filler(agent, default_impl, chat_ctx, tools, model_setti
                     break
                 now = time.monotonic()
                 if now >= deadline:
-                    brain = _consume_arm()
-                    if brain is not None:
-                        phrase = _pick_phrase(brain)
+                    armed = _consume_arm()
+                    if armed is not None:
+                        brain, kind = armed
+                        phrase = _pick_phrase(brain, kind)
                         if phrase:
                             _announce(phrase)
                             mark_for_strip(phrase)

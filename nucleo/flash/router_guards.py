@@ -744,7 +744,7 @@ def show_ack(lang, widget_id: str = "", window=None) -> str:
 # ── A FACT ABOUT THE WORLD, ANSWERED WITH NO SOURCE (V2-210) — extracted to `answer_guards.py` (ratchet,
 # 2026-09-03, V2-567). Historical names stay as ALIASES; the measured story lives with the code.
 from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a local use
-    _EXTERNAL_FACT_RE, _FIGURE_RE, _OWN_THING_RE, answer_needs_a_source,
+    _EXTERNAL_FACT_RE, _FIGURE_RE, _OWN_THING_RE, a_bare_ack_answers_a_question, answer_needs_a_source,
 )
 
 # ── the PROMISED-REMINDER guards (moved to reminder_guards.py, 2026-09-02 ratchet pass) ───────────────────────

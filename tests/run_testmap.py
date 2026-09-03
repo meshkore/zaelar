@@ -1041,6 +1041,15 @@ DOMAINS: list[dict] = [
         {"id": "2.49", "title": "One widget order, ONE mutation — and the boring ones never wait for a model",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_widget_orders_are_linear.py"]},
+        # 2026-09-03 — measured in one session (20:10-20:52): the fast lane closed cards in silence, a close
+        # order that reached the model got covered with «Déjame ver…», and two information questions were
+        # answered «Hecho.» until the operator protested. The mouth now matches the order: action fillers for
+        # action orders, a spoken «Hecho.» AFTER a fast-lane mutation (never before, never on a decline), and
+        # a bare ack to a question triggers the composed answer in BOTH channels (V2-539's parallel-impl trap).
+        {"id": "2.50", "title": "The mouth matches the order: action fillers, a spoken ack after the fast "
+                                "lane, and a question is never left at «Hecho.»",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_mouth_matches_the_order.py"]},
         {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},

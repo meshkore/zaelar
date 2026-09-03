@@ -7831,6 +7831,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **The mouth matches the order (V2-572, 2026-09-03)**: three shapes of the same incoherence, all measured in
+  ONE session (20:10-20:52): the action-map fast lane executed «in silence» (by design — the operator asked
+  for the opposite: *«he has to say 'ok, done'»*); a close order that reached the model got covered with
+  «Déjame ver…»; and two information questions were answered with a bare «Hecho.» until he protested («Te he
+  hecho una pregunta», «Respóndeme a la pregunta»). Fixes, node **2.50**: (1) `langs` ships ACTION fillers
+  («Voy…») + spoken ACKS («Hecho.», varied, anti-repetition), and `filler_audio.arm(brain, text)` classifies
+  the utterance deterministically (`filler_kind`: imperative action verb up front → action pool; «?» vetoes);
+  (2) the fast lane speaks the ack AFTER the mutation (never on a decline) — the lane moved whole to
+  `providers/fast_lane.py` paying the ratchet (3245→3218), probe reply carries the same ack for parity;
+  (3) `answer_guards.a_bare_ack_answers_a_question` (narrow: information question, no action verb, bare ack —
+  «¿puedes cerrar…?» + «Hecho.» stays legitimate) triggers `second_pass.bare_ack_repair` in BOTH channels: the
+  probe re-composes, the VOICE speaks the missing answer as a follow-up. That voice follow-up deliberately
+  diverges from V2-210's «hablar dos veces» doctrine and says why where it lives: «Hecho.» carried zero
+  information, so the follow-up is the answer said once, late — the operator's own manual recovery, automated.
+  `second_pass.py` also folds probe's triplicated stream-collect shape (recall compose moved there;
+  `sanitize` is passed IN by the caller — the dependency-direction ratchet (7.32) caught this module reaching
+  for `voice.engine.core.speech` on its second day of life, working exactly as designed).
 - **Dependency directions are a ratchet, like sizes (V2-569, 2026-09-03)**: the modularity doc had declared
   since July that `voice/engine/` is not a facade, and §5 row 6 even wrote «new code adds no sites» for
   `langs` — nothing measured it, and the ~10 sites became **30**. A rule each caller has to remember is not a
