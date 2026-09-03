@@ -7831,6 +7831,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **Dependency directions are a ratchet, like sizes (V2-569, 2026-09-03)**: the modularity doc had declared
+  since July that `voice/engine/` is not a facade, and §5 row 6 even wrote «new code adds no sites» for
+  `langs` — nothing measured it, and the ~10 sites became **30**. A rule each caller has to remember is not a
+  rule, so the directions now have teeth: `test_dependency_directions_only_improve.py` (node **7.32**, sibling
+  of 7.22) freezes the 42 (file→module) pairs that reach `voice.engine.*` from outside voice/ (shrink-only,
+  stale rows are ALSO red so the table cannot loosen silently) and allowlists the exactly ONE private `_x`
+  name that crosses a domain boundary in the whole engine. Named debt with the honest exit recorded in
+  `zaelar-modularity.md` §7: extract `langs` to a low layer behind a re-export shim (the `text_norm.py`
+  precedent), then retire rows. Growth doctrine, operator's directive: the size ratchet enforces the PIECES,
+  this one the JOINTS — what two domains both need is extracted DOWN, never imported ACROSS.
 - **The stop record declares its own lifespan (V2-568, 2026-09-03)**: `abandon_work`'s «[PARADO]» card
   (short-term, «the next greeting must not resume») was written WITHOUT a ttl, and `consolidator.promote` is
   age-based and never looks at ttl — so a stop order climbed short→mid→long and became permanent memory.

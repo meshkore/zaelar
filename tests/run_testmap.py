@@ -2164,6 +2164,18 @@ DOMAINS: list[dict] = [
                                 "bajan, y ningún gigante nace fuera de la tabla",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_architecture_ratchet.py"]},
+        # 2026-09-03 — 7.22's sibling for the OTHER axis: not how big each piece is, but WHO may touch WHOM.
+        # The modularity doc had declared since July that voice/engine/ is not a facade — and its §5 row 6 even
+        # wrote the rule «new code adds no sites» for `langs`. Nothing measured it, and the ~10 sites became 30:
+        # a rule each caller has to remember is not a rule. Finally measured: 42 file→module pairs reach the
+        # motor from outside (frozen, shrink-only, with the named debt: `langs` is a shared utility that LIVES
+        # inside the motor; the exit is extracting it to a low layer behind a shim). And exactly ONE private
+        # name crosses a domain boundary in the whole engine — the convention is real, so a second one is a
+        # decision someone defends, not drift. Deleting a frozen row is the celebration.
+        {"id": "7.32", "title": "Dependencies cross at the facade: reaching the motor only shrinks, and a "
+                                "private name never leaves its domain",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_dependency_directions_only_improve.py"]},
         # F5 (2026-08-23): tres incidentes en 48 h con la misma forma — un contador de instancia leído como
         # global (el id de hoja que repetía tras reinicio, la cadena de relevo sin tope, el clear() por
         # cuadruplicado). nucleo/runtime_ids.py es el DUEÑO: boot_id() por proceso + next_seq(name); escalate,

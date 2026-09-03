@@ -106,3 +106,33 @@ por-widget de background; no hay modo "memoria solo-lectura" (dry-run).
 5. Fail-open: su caída no afecta a la voz; sin locks compartidos con el turno; I/O fuera del event loop del turno.
 6. Estado global mutable mínimo, con `reset()` para tests.
 7. Docs-sync: entrada en CLAUDE.md + doc de categoría + diagrama `/architecture` + esta doc si cambia topología.
+
+## 7 · Dependency directions — measured, frozen, guarded (2026-09-03)
+
+Row 6 of §5 is the cautionary tale for this whole section: the July audit found ~10 files importing
+`voice.engine.core.langs` and wrote the rule «new code adds no sites». Nothing measured it, and by September
+the 10 sites were **30** — a rule each caller has to remember is not a rule. So the directions are now a
+ratchet, like the size table: `tests/infrastructure/unit/test_dependency_directions_only_improve.py`
+(testmap **7.32**, sibling of 7.22).
+
+What it freezes, from a full AST measurement of the tree:
+
+- **42 (file → module) pairs reach `voice.engine.*` from outside `voice/`** — the boundary §2 already declared
+  («the motor's internals are not a facade»). The inventory can only shrink; a NEW pair is red with the fix in
+  the message: use the facade, or extract the shared thing to a lower layer. `voice.observer` / `proactive` /
+  `tag_protocol` are the blessed brain-contract surface and are NOT in scope.
+- **Exactly 1 private (`_x`) name crosses a domain boundary** in the whole engine
+  (`nucleo/workers/findings.py` → `widgets.navegador.act_api._HANDED`, allowlisted). The number being 1 is
+  what makes the guard cheap: a second offender is a decision, not noise.
+
+**The named debt** (the honest exit, not more rows): `voice/engine/core/langs.py` is a shared language
+utility that happens to live inside the motor — 30 of the 42 pairs are it, almost all imported lazily, which
+is this codebase's documented way of papering over an import cycle. The fix is a home in a low layer with a
+re-export shim at the old path (the `text_norm.py` / `errors.brief` precedent), tracked in V2-569. Until that
+extraction, the frozen inventory holds the line the July rule could not.
+
+**Growth doctrine, in one paragraph** (operator's directive, 2026-09-03): as the tree grows, prefer a
+thousand small pieces over one giant one — the size ratchet (7.22) enforces the *pieces*, this one enforces
+the *joints*. A file that outgrows its ceiling pays by extracting a cohesive concern behind aliases, never by
+raising the ceiling; a module that needs another domain goes through §2's facade, never through its
+internals; anything two domains both need gets extracted DOWN, not imported ACROSS.
