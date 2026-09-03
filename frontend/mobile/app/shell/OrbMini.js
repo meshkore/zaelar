@@ -22,8 +22,20 @@
 // must never happen by accident on a phone in a pocket is a gesture that changes what the agent sounds like.
 // ============================================================================
 
-import { h } from "../../../app/core/dom.js?v=2";
+import { h, raw } from "../../../app/core/dom.js?v=2";
 import * as store from "../../../app/core/store.js?v=2";
+
+// THE MIC INSIDE THE ORB (V2-573, operator: «the orbe, bigger, with mic icon inside»). It is the STATE, never a
+// control — the orb's own tap is the power switch, and the mic BUTTON lives in the dock's right zone.
+//
+// Built ONCE with BOTH shapes in it and switched by CSS, not by a reactive child: this subtree sits next to the
+// two canvases the visualiser holds BY REFERENCE, and re-rendering around them is precisely how the orb ended up
+// painting into a detached node in August (see DockBar.js's centre-slot comment). The slash is the same shape the
+// dock's MIC_OFF draws, over the same base glyph the desktop's Orb.js defines.
+const MIC_IN_ORB = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+  ><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"
+  /><path class="zm-mic-slash" d="M4 4l16 16"/></svg>`;
 
 export function OrbMini() {
   return h("div", {
@@ -35,21 +47,15 @@ export function OrbMini() {
     // Both canvases are 1:1 with their CSS box; visualizer.js handles DPR itself.
     h("canvas", { id: "orb", class: "zm-orb-c", width: "96", height: "96" }),
     h("canvas", { id: "viz", class: "zm-viz-c", width: "96", height: "96" }),
+    h("div", { class: () => "zm-orb-mic" + (store.micMuted() ? " muted" : "") }, raw(MIC_IN_ORB)),
     // The transient "🗣 <voice>" flash after cycling the voice from the menu — the only feedback that it took.
     h("div", { class: () => "zm-vflash" + (store.voiceFlash().show ? " show" : "") }, () => store.voiceFlash().text),
   );
 }
 
-// LIVE CAPTIONS, mobile edition. On the desktop they crawl upward from the orb as a 3-line teleprompter. Here there
-// is no room above the orb — the dock is at the very bottom — so they sit as a single band JUST above the dock,
-// over whatever card is showing. Same source of truth (store.captionSeg), same on/off signal (store.captionsOn),
-// so the 📝 button in the dock and the desktop's 📝 icon control the same thing.
-export function CaptionBand() {
-  return h("div", {
-    class: () => {
-      const seg = store.captionSeg();
-      const on = store.captionsOn() && !!(seg && seg.text) && store.agentLive();
-      return "zm-cap" + (on ? " show" : "");
-    },
-  }, () => { const s = store.captionSeg(); return s ? s.text : ""; });
-}
+// LIVE CAPTIONS — REMOVED FROM THIS SHELL (V2-573, operator: «deactivate subtitles. dont want icon for that»).
+// The band used to float just above the dock and had its own 📝 button in the bar; both are gone, and the entry
+// in `mobile-surfaces.js` with them. What is NOT touched is `store.captionsOn` / `store.captionSeg`: those are
+// the DESKTOP's captions, which still work exactly as before — this is a decision about the phone's screen, not
+// about the feature. Re-adding it later is one line in the surfaces list plus a component; the CSS (.zm-cap)
+// stays in styles.css, unused and harmless, for that reason.

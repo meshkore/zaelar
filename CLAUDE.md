@@ -7831,6 +7831,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
+  in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
+  refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design
+  (`ensureVoice()` before any tap), and `room.startAudio()` — the SDK's own way out, reported by
+  `room.canPlaybackAudio` — was called **nowhere in this repo, on either shell**; the only recovery was a banner
+  whose action was a bare `play()` that a suspended context rejects again. (2) **Silence was inherited**:
+  `hb_bot_muted` is written by `togglePower()` too, so stopping on the phone and starting later from the
+  computer reopened the app live and muted. Now: `unlockAudio()` (gated on `canPlaybackAudio` → `startAudio()`
+  → `play()`), an `AudioPlaybackStatusChanged` subscription that also clears the warning when playback is
+  RESTORED, `store.audioBlocked` painted as an amber ring **on the orb** (where someone who cannot hear looks,
+  and tapping it is the gesture the unlock needs), the unlock on the shell's global `pointerdown` and on the
+  power tap, and a mobile boot that never inherits a mute — the desktop keeps its preference on purpose.
+  Dock restyled to the operator's layout (`chat · dashboards | ORB 74px with the mic INSIDE | mic · config`),
+  captions button AND band removed, deck paging widened to two OR three fingers, card content top-aligned in a
+  uniform box. ⚠️ **Two traps paid here**: removing the speaker button while the settings sheet still declared
+  that a speaker row would be «clutter» would have left NO way to mute — the row was added and a guard asserts
+  the control exists somewhere; and node 4.110 was green with the real `startAudio()` call deleted, because the
+  regex matched the COMMENT explaining it — every source read in that test is comment-stripped now. Nodes 4.110
+  (new) + 4.18/4.19/4.87 (the composition assertions now derive from the dock instead of hardcoding it).
 - **The mouth matches the order (V2-572, 2026-09-03)**: three shapes of the same incoherence, all measured in
   ONE session (20:10-20:52): the action-map fast lane executed «in silence» (by design — the operator asked
   for the opposite: *«he has to say 'ok, done'»*); a close order that reached the model got covered with

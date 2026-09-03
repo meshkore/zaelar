@@ -10,7 +10,7 @@
 //     Those are not "not ported yet": a phone is for USING the agent, and each of them exists for setting one up
 //     or for auditing one, both of which the operator does at a desk.
 //   · the chat's four tabs collapse to one (see ChatSheet.js), the seven-icon eye collapses to a five-control
-//     dock (DockBar.js), and N draggable cards collapse to one deck of full-screen cards (Deck.js).
+//     dock (DockBar.js: chat · desk | ORB | mic · config), and N draggable cards collapse to one deck of full-screen cards (Deck.js).
 //   · three surfaces are REUSED VERBATIM from the desktop, because they are modal and full-bleed already and a
 //     phone changes nothing about them: BootOverlay, LanguageOnboarding, Alert. Reusing them is not laziness —
 //     forking a first-run gate is how two shells end up disagreeing about whether onboarding happened. Their CSS
@@ -33,17 +33,19 @@ import { Alert } from "../../../app/components/Alert.js?v=2";
 import { BootOverlay } from "../../../app/components/BootOverlay.js?v=2";
 import { LanguageOnboarding } from "../../../app/components/LanguageOnboarding.js?v=1";
 import { UpdateSurface } from "../../../app/update/UpdateSurface.js?v=1";
-import { CaptionBand } from "./OrbMini.js?v=2";
 import { ChatSheet } from "./ChatSheet.js?v=1";
-import { DockBar } from "./DockBar.js?v=1";
+import { DockBar } from "./DockBar.js?v=2";
 import { MenuSheet } from "./MenuSheet.js?v=1";
 import { SettingsSheet } from "./SettingsSheet.js?v=1";
 import { VoiceHeldNotice } from "./VoiceHeldNotice.js?v=1";
 
 export const MOBILE_SURFACES = [
-  // ── the bar that owns every control, and the caption band that floats just above it ──
-  { id: "dock",     comp: DockBar,     target: "body", phase: "scaffold", label: "Bottom dock (orb · mic · power · chat · menu)", shared: false },
-  { id: "captions", comp: CaptionBand, target: "body", phase: "scaffold", label: "Live captions band (above the dock)", shared: false },
+  // ── the bar that owns every control ──
+  { id: "dock",     comp: DockBar,     target: "body", phase: "scaffold", label: "Bottom dock (chat · desk · ORB · mic · config)", shared: false },
+  // NO CAPTIONS BAND (V2-573, operator: «deactivate subtitles. dont want icon for that»). It was the second
+  // scaffold surface and it is GONE from the phone, together with its 📝 button in the dock. Deleting the LINE is
+  // the whole removal — which is the point of this file existing: a surface nobody mounts cannot half-exist.
+  // The desktop's captions are untouched.
   // ── sheets: they slide up from the bottom edge, over the deck ──
   { id: "chat",     comp: ChatSheet,      target: "body", phase: "overlay", label: "Chat (bottom sheet)", shared: false },
   { id: "menu",     comp: MenuSheet,      target: "body", phase: "overlay", label: "Menu: energy · account · voice · settings · memory · feedback", shared: false },

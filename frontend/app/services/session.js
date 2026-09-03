@@ -29,6 +29,17 @@ const _pendingText = [];                           // text queued while the data
 
 // injected by the components/main on mount
 export function attachVideo(el) { videoEl = el; }
+// PARITY with session-lk.js (V2-573). `server/livekit_api.py` serves session-lk.js AT this module's URL, so in
+// production this copy is not the one running — but both shells call `session.unlockAudio()` on the first touch,
+// and a namespace missing the export would throw inside a hot path. This engine has no LiveKit room to unlock, so
+// the honest implementation is the element half of it: resume playback if the browser paused it.
+export async function unlockAudio() {
+  try { if (botAudioEl && botAudioEl.paused && botAudioEl.play) await botAudioEl.play(); }
+  catch (_) { store.setAudioBlocked(true); return false; }
+  store.setAudioBlocked(false);
+  return true;
+}
+
 export function attachBotAudio(el) {
   botAudioEl = el;
   // ICON↔AUDIO PARITY — SELF-CORRECTING INVARIANT (mirror of session-lk.js, hydration bug 2026-07-17):

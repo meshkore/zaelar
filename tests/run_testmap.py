@@ -1605,6 +1605,17 @@ DOMAINS: list[dict] = [
         {"id": "4.18", "title": "Shell MÓVIL: contrato de host + del widget · paleta compartida · el service worker "
                                 "no cachea", "ch": UNIT,
             "paths": ["tests/browser/unit/mobile/test_mobile_host_contract.py"]},
+        # 2026-09-04 — «i couldnt listen to the voice in mobile». DOS causas independientes, las dos MUDAS: (1) la
+        # reproducción no se desbloqueaba nunca — todo navegador móvil se niega a sonar hasta que la página recibe
+        # un gesto, este shell conecta la sesión al CARGAR, y `room.startAudio()` (la salida que da el SDK) no se
+        # llamaba en NINGÚN sitio del repo; (2) el silencio se HEREDABA — `hb_bot_muted` lo escribe también
+        # `togglePower()` al parar, así que parar en el móvil y arrancar luego desde el ordenador dejaba el
+        # teléfono vivo y mudo por una decisión de otra sesión. Ahora el primer toque desbloquea, el orbe lleva
+        # el aro ámbar mientras el navegador no deje sonar, y un arranque del móvil no hereda mute.
+        {"id": "4.110", "title": "El móvil SUENA: la reproducción se desbloquea con el primer gesto y un teléfono "
+                                 "no hereda silencio",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mobile/test_the_phone_can_be_heard.py"]},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,

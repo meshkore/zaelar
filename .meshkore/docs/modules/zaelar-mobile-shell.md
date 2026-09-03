@@ -1,7 +1,7 @@
 ---
 title: Mobile Shell (PWA)
 category: modules
-updated: 2026-08-18
+updated: 2026-09-04
 owner: ricart
 status: current
 ---
@@ -23,7 +23,7 @@ Measured before deciding, not assumed:
 |---|---|---|
 | stylesheet | `app/styles.css`, ~89 KB of 3-column desk, docking chat, draggable chrome | `mobile/app/styles.css`, ~11 KB |
 | widget host | `app/widgets/desktop.js`, 859 lines whose subject is a pointer: drag by the grip, 8 resize handles, free-space tiling, z-order on click | `mobile/app/shell/Deck.js`: one ordered deck, one card at a time, full screen |
-| controls | an arc of 7 icons above the orb + a top bar | one bottom dock, orb in the CENTRE, every control within thumb reach |
+| controls | an arc of 7 icons above the orb + a top bar | one bottom dock of FIVE controls, orb in the CENTRE, every control within thumb reach |
 | panels | several open at once, floating and dockable | mutually exclusive bottom sheets |
 
 Retrofitting the first host would put every mobile regression inside the desktop's blast radius permanently. The
@@ -106,8 +106,17 @@ is a ~200-line panel UI keyed to a wide window, and re-fitting it is its own pie
 
 ## Design rules specific to this shell
 
-- **Paging is two-finger.** One finger belongs to the widget — scrolling a list, panning a map, dragging a slider.
-  If one finger also paged, every scrollable widget would be unusable. A single touch is never intercepted.
+- **Paging is two- OR three-finger** (widened 2026-09-04: «we can switch screens moving mobile screen with 2 or 3
+  fingers, right and left»). One finger belongs to the widget — scrolling a list, panning a map, dragging a
+  slider. If one finger also paged, every scrollable widget would be unusable. A single touch is never
+  intercepted. Three is not merely a looser count: it is iOS muscle memory, and it is what an intended
+  two-finger swipe becomes when a thumb rests on the edge. The centroid is taken over ALL active touches and
+  re-baselined when the count changes mid-gesture, or a finger landing late reads as a page.
+- **Card content is TOP-aligned in a uniform box** (2026-09-04: «show widgets on top of the screen, aligned, try
+  to use fixed sizes to all. on top widgets will have tabs if needed»). It used to be `margin-block:auto`, which
+  centred anything shorter than the screen: a clock floated mid-phone, a widget whose own tabs are its first row
+  hid them away from the header, and paging between self-centring cards made the body jump under a header that
+  stays put. `min-height:100%` is the half that makes the box FIXED rather than merely top-aligned.
 - **A card is hidden while paging, never unmounted.** A video that keeps playing behind another card is correct;
   re-mounting it on every swipe would cut it off. The global stop (V2-092) is what silences it.
 
@@ -139,11 +148,31 @@ this device never saved them (start on the computer, follow on the phone); and a
 task filtered out (process state, nothing to reload).
 ### The dock, and why the orb is in the middle of it
 
-Six controls in three zones — `mic · speaker · captions` | **ORB** | `chat · menu` — laid out
+**Restyled 2026-09-04 (V2-573) to the operator's own layout.** Five controls in three zones —
+`chat · dashboards` | **ORB** | `mic · config`:
+
+- **chat / dashboards** are the WHOLE footer navigation, however many cards are open («we use only the 2 icons
+  from footer, one for chat one for dashboard, even if we have more than 2 opened»). Which card you are on is
+  the deck's business — its pips and its `k/n` switcher — never the bar's. *Dashboards* is not a sheet: it is
+  what sits UNDER every sheet, so the button closes chat, menu and settings.
+- **the ORB is 74px and carries the mic glyph INSIDE it.** The inner mic is STATE (level while listening,
+  slashed and red while muted); the mic BUTTON on the right is the control. Same relationship the desktop has
+  between its orb and its arc.
+- **CAPTIONS are gone from this shell** — button and band both («deactivate subtitles. dont want icon for
+  that»). `store.captionsOn` / `captionSeg` are untouched and still drive the desktop.
+- **the SPEAKER moved into the config sheet** and the row was ADDED there in the same change. That sheet had
+  stated, correctly at the time, that a speaker row would be redundant clutter next to a dock button; shipping
+  the removal without the row would have left NO way to silence the agent from the phone. A structural check
+  now asserts the control exists somewhere in the shell.
+- **the MIC is the fifth slot**, and the reason is the rule: muting your own microphone is a privacy gesture,
+  and a privacy gesture that takes two taps and a sheet is not one.
+
+The old six-control bar (`mic · speaker · captions` | **ORB** | `chat · menu`) was laid out
 `minmax(0, 1fr) auto minmax(0, 1fr)`. The `minmax` floor is load-bearing: a bare `1fr` means
 `minmax(AUTO, 1fr)`, so the three-button side grows its own track past its fair share and shoves the orb off
-centre (measured at 8px). Icons are 48px because three of them plus gaps must fit ONE side track
-(390 − 16 dock padding − 70 orb column = 152 per side; 3×48 + 2×2 = 148), still above the 44px minimum.
+centre (measured at 8px). Icons are 48px because three of them plus gaps had to fit ONE side track
+(390 − 16 dock padding − 70 orb column = 152 per side; 3×48 + 2×2 = 148), still above the 44px minimum. Since
+the restyle each side carries TWO (98 of ~144 available), which is the slack that let the orb grow to 74px.
 
 **The orb IS the switch.** Stopped, the centre slot is a ⏻ and nothing else — nothing else is true about a
 stopped agent. Running, it is zaelar's face, and tapping it stops (or, mid-`pausing`, cancels the stop). Both
@@ -165,6 +194,17 @@ instead of the two drifting apart unnoticed.
 
 - **`--dock-h` is the only geometry.** Every other surface is flow layout in a full-bleed box. Cards end above the
   dock; sheets stop ON TOP of it rather than over it, so the mic and ⏻ are never more than one tap away.
+- **The phone must be able to HEAR (V2-573).** Two browser rules govern a voice app, not one: the MICROPHONE
+  needs a user gesture (solved since V2-124 by re-arming the session on `pointerdown`) and so does audio
+  PLAYBACK. The second went unhandled next to the first for six weeks: this shell connects at LOAD by design, so
+  the agent's first audio track arrives before any tap and the browser refuses it. LiveKit reports that as
+  `room.canPlaybackAudio` and clears it with `room.startAudio()` — call it from inside the gesture's own call
+  stack (awaiting anything first spends the user activation), and never rely on a bare `element.play()`, which a
+  suspended audio context rejects again. The block is painted as an amber ring on the ORB, because that is what
+  an operator who cannot hear the agent is looking at.
+- **A phone does not inherit silence.** `hb_bot_muted` is persisted by the power switch too, so a mute decided
+  in one session came back in the next one — invisible, and unreachable once the speaker left the dock. This
+  shell clears it at boot; the desktop deliberately keeps its preference.
 - **The app icon is a SILHOUETTE on flat black** (`mobile/icons/generate.py`): the mark is the EYE, which
   `CLAUDE.md` already fixes as zaelar's identity (the orb is the iris), drawn with the real eyelid ratios
   (±2.16·R corners, ±1.24·R apex) solved to a circular arc. Strokes, one colour, same vocabulary as every icon

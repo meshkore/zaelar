@@ -127,6 +127,13 @@ export const [spk, setSpk]             = createSignal({ show: false, text: "", k
 
 export const [alert, setAlert]         = createSignal(null);   // { msg, onClick } | null  → top banner
 
+// AUDIO PLAYBACK BLOCKED BY THE BROWSER (V2-573). Not a mute and not a failure: every mobile browser refuses to
+// play a remote audio track until the page has had a user gesture, and LiveKit reports it as `canPlaybackAudio`.
+// It is a SIGNAL rather than only an alert because on a phone it must be visible on the control the operator is
+// already looking at (the orb) — an operator who cannot hear the agent looks at the orb, not at a banner they may
+// have already dismissed.
+export const [audioBlocked, setAudioBlocked] = createSignal(false);
+
 // ---- proactive notifications (orchestrator loop / scheduled task fired → zaelar reaches out) ----
 // No floating toast: a proactive push surfaces as a live caption over the orb + a chat-wall entry (see sse.js).
 export const [cronOpen, setCronOpen]   = createSignal(false);  // cron manager panel visible?

@@ -153,10 +153,16 @@ def run(url):
         check("the orb is centred on the screen",
               box["centre"] and abs(box["centre"]["cx"] - W / 2) <= 1.5,
               f"centre x={box['centre'] and round(box['centre']['cx'], 1)}, screen centre={W / 2}")
-        check("three controls left of the orb, two right",
-              len([x for x in box["btns"] if x["x"] + x["w"] / 2 < box["centre"]["cx"] - 5]) == 3
-              and len([x for x in box["btns"] if x["x"] + x["w"] / 2 > box["centre"]["cx"] + 5]) == 2,
-              str([x["label"] for x in box["btns"]]))
+        # TWO controls per side since V2-573 (2026-09-04). It was 3+2 — mic · speaker · captions | ORB | chat ·
+        # menu — until the operator's restyle: chat · dashboards | ORB | mic · config, with the captions button
+        # retired and the speaker moved into the config sheet. Measured on the RENDERED bar rather than trusted
+        # from the source, because "the icon is declared" and "the icon is on screen at a reachable size" are
+        # different claims, and this shell has already paid for the difference once (the unpainted orb).
+        left = [x["label"] for x in box["btns"] if x["x"] + x["w"] / 2 < box["centre"]["cx"] - 5]
+        right = [x["label"] for x in box["btns"] if x["x"] + x["w"] / 2 > box["centre"]["cx"] + 5]
+        check("two controls left of the orb, two right",
+              len(left) == 2 and len(right) == 2,
+              f"left={left} right={right}")
 
         small = [(x["label"], x["w"], x["h"]) for x in box["btns"] if min(x["w"], x["h"]) < MIN_TAP]
         check(f"every tap target is at least {MIN_TAP}px", not small, str(small))

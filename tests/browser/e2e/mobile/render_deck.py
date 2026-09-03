@@ -209,6 +209,45 @@ def run(url):
         check("a one-finger swipe LEFT on the header pages to the next card",
               pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "beta")
 
+        # TWO- AND THREE-FINGER PAGING ON THE BODY (V2-573, operator: «we can switch screens moving mobile screen
+        # with 2 or 3 fingers, right and left»). Dispatched on the STAGE, which is where the deck listens in the
+        # capture phase, and with the real touch COUNT: three was refused outright before this, and a three-finger
+        # horizontal swipe is both iOS muscle memory and what a two-finger swipe becomes when a thumb rests on the
+        # edge. Both counts are exercised in opposite directions so a fix that pages the wrong way is not green.
+        def swipe(fingers, x_from, x_to):
+            pg.evaluate("""([n, xa, xb]) => {
+              const st = document.querySelector('#zm-stage');
+              const mk = (x) => Array.from({ length: n }, (_, i) =>
+                new Touch({ identifier: i + 1, target: st, clientX: x + i * 24, clientY: 400 }));
+              const fire = (type, x) => st.dispatchEvent(new TouchEvent(type, {
+                touches: type === 'touchend' ? [] : mk(x), bubbles: true, cancelable: true }));
+              fire('touchstart', xa); fire('touchmove', xb); fire('touchend', xb);
+            }""", [fingers, x_from, x_to])
+            pg.wait_for_timeout(400)
+
+        swipe(2, 300, 180)      # right-to-left → next
+        check("a TWO-finger swipe left pages to the next card",
+              pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "gamma")
+        swipe(3, 120, 300)      # left-to-right → previous
+        check("a THREE-finger swipe right pages back",
+              pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "beta")
+
+        # CARD CONTENT STARTS AT THE TOP, AND EVERY CARD IS THE SAME BOX (V2-573). Measured, not read from the
+        # stylesheet: `margin-block:auto` used to centre anything shorter than the screen, so the check that
+        # matters is where the content actually IS relative to the scroller, and that a short widget's box still
+        # fills the card. A source-level assertion on the CSS cannot see either.
+        geom = pg.evaluate("""() => {
+          const sc = document.querySelector('.zm-card.live .zm-scroll');
+          const kid = sc && sc.firstElementChild;
+          if (!kid) return null;
+          const s = sc.getBoundingClientRect(), k = kid.getBoundingClientRect();
+          return { gap: Math.round(k.y - s.y), kidH: Math.round(k.height), scH: Math.round(s.height) };
+        }""")
+        check("the widget starts at the TOP of the card, not floating in the middle",
+              geom and geom["gap"] <= 2, json.dumps(geom))
+        check("a short widget still fills the card's box",
+              geom and geom["kidH"] >= geom["scH"] - 2, json.dumps(geom))
+
         # ── the switcher: open from the chip, rows mirror the deck, jump, close one, close all ───────────────
         pg.evaluate("() => document.querySelector('.zm-card.live .zm-count').click()")
         pg.wait_for_timeout(350)

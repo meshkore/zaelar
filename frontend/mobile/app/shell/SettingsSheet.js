@@ -20,6 +20,7 @@
 
 import { h } from "../../../app/core/dom.js?v=2";
 import * as store from "../../../app/core/store.js?v=2";
+import * as session from "../../../app/services/session.js?v=3";
 import { createSignal } from "../../../app/core/reactive.js?v=2";
 import { toggleTheme } from "../../../app/services/theme.js?v=2";
 import { t } from "../../../app/core/i18n.js?v=1";
@@ -77,9 +78,20 @@ export function SettingsSheet() {
         () => store.theme() === "dark",
         toggleTheme),
 
-      // Captions and the speaker deliberately do NOT appear here: since 2026-08-18 each has its own button in the
-      // dock, one tap away. They would read the same signals, so a duplicate could never DIVERGE — it would just be
-      // clutter, and this sheet is for what you set once (language, theme), not what you toggle mid-conversation.
+      // ── THE SPEAKER LIVES HERE NOW (V2-573, 2026-09-04). Until the dock restyle it had its own button one tap
+      //    away, and this sheet said — correctly, then — that a duplicate would be clutter. The restyle removed
+      //    that button, so this row is not a duplicate any more: it is the ONLY way to silence zaelar's voice,
+      //    and a control that exists nowhere is worse than one that takes two taps.
+      //    It reads and writes the same signal the desktop's 🔊 icon does (`session.toggleBotMute`, the single
+      //    owner of silence since V2-087/V2-088), never a second switch — that seam is why the icon and the
+      //    server's synthesis cannot disagree.
+      Toggle(() => t("orb.speaker_unmuted"),
+        () => !store.botMuted(),
+        () => session.toggleBotMute()),
+
+      // Captions have no row either: the operator removed subtitles from this shell entirely (V2-573), band and
+      // button both. `store.captionsOn` still exists and still drives the DESKTOP; adding a phone control for a
+      // surface this shell does not render would be a switch that does nothing visible.
 
       // ── DELEGATED, not hidden.
       h("button", {

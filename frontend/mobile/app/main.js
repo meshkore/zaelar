@@ -37,6 +37,24 @@ const wrap = mount(h("div", { id: "zm-deck-wrap" }));
 mount(h("div", { class: "zm-bg" }), wrap);                 // the canvas backdrop, purely decorative
 const stage = mount(h("div", { id: "zm-stage" }), wrap);
 
+// ---- A PHONE DOES NOT INHERIT SILENCE (V2-573) -------------------------------------------------------------
+// `hb_bot_muted` is written by BOTH the speaker toggle and `togglePower()` — stopping the agent from the dock
+// persists "1". So: stop the agent on the phone, start it again later from the computer, open the app, and the
+// phone comes up with the agent LIVE and its own output muted, hydrated from a decision made in another session
+// about a different situation. Everything looks healthy and nothing can be heard. That is the operator's
+// «i couldn't listen to the voice in mobile», and it is now impossible: on this shell a page load starts with the
+// voice ON, and silencing is a decision taken IN the session you are in (the toggle lives in the config sheet).
+//
+// Deliberately mobile-only. The desktop keeps its persisted preference — it is a machine you sit at, with the
+// speaker icon permanently on screen, so there the memory is a convenience instead of a trap.
+try {
+  if (localStorage.getItem("hb_bot_muted") === "1") {
+    store.setBotMuted(false);
+    localStorage.setItem("hb_bot_muted", "0");
+    api.uiEvent("mobile:voice_unmuted_on_boot", {});
+  }
+} catch (_) {}
+
 const botAudio = mount(h("audio", { id: "botaudio", autoplay: true, playsinline: true }));
 session.attachBotAudio(botAudio);
 // Reactive icon↔audio binding: the <audio> ALWAYS reflects botMuted(), the same signal the speaker toggle paints.
@@ -112,6 +130,18 @@ if (store.powerOff()) store.setBootReady(true);   // nothing to wait for: don't 
 ensureVoice();
 // `pointerdown`, not `touchstart`: iOS requires a user gesture for the mic, and pointerdown fires for both.
 window.addEventListener("pointerdown", ensureVoice);
+
+// ---- AND THE OTHER HALF OF THE SAME GESTURE: UNLOCK PLAYBACK (V2-573) ---------------------------------------
+// `ensureVoice()` above solves the browser's rule about the MICROPHONE. There is a second rule, about the
+// SPEAKER, and this shell was only obeying the first one: a mobile browser will not start playing a remote audio
+// track either until the page has had a user gesture, and `ensureVoice()` runs at LOAD, before any tap exists.
+// LiveKit reports it as `room.canPlaybackAudio` and fixes it with `room.startAudio()` — which was never called
+// anywhere in this codebase, on either shell. The recovery therefore depended entirely on the operator noticing
+// a banner. Now the FIRST touch anywhere on the screen unlocks it, whatever that touch was for.
+//
+// Same listener, not a second one, and it must stay synchronous up to the SDK call: awaiting anything first
+// spends the user activation and the unlock silently fails.
+window.addEventListener("pointerdown", () => { try { session.unlockAudio(); } catch (_) {} });
 
 // ---- THE VOICE LOCK, SURFACED (server/livekit_api.py: one live voice session per machine) ------------------------
 // session.start() does NOT throw when the lock is held: it sets store.micBlocked and retries itself every 3 s until

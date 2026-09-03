@@ -148,6 +148,34 @@ export function attachBotAudio(el) {
     enforce();                                      // hydration: apply persisted state NOW, before any session
   } catch (_) {}
 }
+// ── AUDIO PLAYBACK UNLOCK (V2-573) ───────────────────────────────────────────────────────────────────────────
+// Measured cause of «no puedo oír la voz en el móvil»: EVERY mobile browser refuses to start playing a remote
+// audio track until the page has had a user gesture, and this shell connects the session at LOAD time
+// (mobile/app/main.js calls `ensureVoice()` before anyone has touched the screen — deliberately, so the agent is
+// live the instant the app opens). The `play()` call in TrackSubscribed then rejects, which was handled with an
+// alert — but a rejected `play()` is only HALF of it: LiveKit keeps its own audio element/context per room and
+// exposes `room.canPlaybackAudio` + `room.startAudio()` for exactly this, and `startAudio()` was never called
+// anywhere in this codebase. So the recovery depended on the operator finding a banner, and the SDK's own
+// blocked state was never cleared.
+//
+// `unlockAudio()` is idempotent and safe to call on every pointerdown: with playback already allowed it is a
+// no-op. It must run INSIDE the gesture's call stack — awaiting anything first spends the user-activation.
+export async function unlockAudio() {
+  let ok = true;
+  try {
+    if (room && room.canPlaybackAudio === false && typeof room.startAudio === "function") {
+      await room.startAudio();
+    }
+  } catch (_) { ok = false; }
+  try {
+    if (botAudioEl && botAudioEl.paused && botAudioEl.play) await botAudioEl.play();
+  } catch (_) { ok = false; }
+  const blocked = !!(room && room.canPlaybackAudio === false) || !ok;
+  store.setAudioBlocked(blocked);
+  if (!blocked) store.hideAlert();
+  return !blocked;
+}
+
 // Voice starts ACTIVE by default (active icon, playing). After an agent reset it returns to this state.
 export function unmuteVoice() {
   store.setBotMuted(false);
@@ -383,9 +411,24 @@ export async function start() {
         // THIS is where a browser autoplay policy (Chrome requires a user gesture) silently blocks sound
         // for the operator — WITHOUT this there was no way to see it from the server.
         try { api.clientLog("⚠️ play() RECHAZADO (posible bloqueo de autoplay)", { text: String((e && e.name) || e) + ": " + String((e && e.message) || "") }); } catch (_) {}
-        store.showAlert(t("voice.alert_tap_audio"), () => botAudioEl.play().catch(() => {}));
+        // V2-573: the banner is no longer the ONLY way out. The signal makes the block visible on the orb, and the
+        // banner's action now goes through the full unlock (`room.startAudio()` first) rather than a bare
+        // `play()` that a suspended LiveKit audio context rejects again.
+        store.setAudioBlocked(true);
+        store.showAlert(t("voice.alert_tap_audio"), () => { unlockAudio(); });
       });
       try { audio.attachBot(new MediaStream([track.mediaStreamTrack])); } catch (_) {}
+    });
+    // V2-573 — THE SDK'S OWN VERDICT ON WHETHER SOUND CAN COME OUT. `play()` rejecting is one symptom; this is
+    // the state, and it also fires when playback is RESTORED, which is what lets the orb stop shouting on its
+    // own. Without this listener the shell could only learn about a block from a track that happened to arrive.
+    room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+      const blocked = room.canPlaybackAudio === false;
+      store.setAudioBlocked(blocked);
+      try { api.clientLog(blocked ? "🔇 audio BLOQUEADO por el navegador" : "🔈 audio desbloqueado",
+                          { text: `canPlaybackAudio=${room.canPlaybackAudio}` }); } catch (_) {}
+      if (blocked) store.showAlert(t("voice.alert_tap_audio"), () => { unlockAudio(); });
+      else store.hideAlert();
     });
     room.on(RoomEvent.ConnectionStateChanged, (st) => {
       if (st === ConnectionState.Connected) {

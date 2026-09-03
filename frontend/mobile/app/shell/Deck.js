@@ -24,9 +24,10 @@
 //      cards or dragging — which is why the ENTIRE widget catalog works here without touching a single widget,
 //      including widgets the agent generates tomorrow.
 //
-// PAGING IS TWO-FINGER, ON PURPOSE (operator: «the two-finger effect»). ONE finger belongs to the WIDGET:
-// scrolling a list, panning a map, dragging a slider. If one finger also paged, every scrollable widget would be
-// unusable — you could not scroll without changing cards. So a single touch is never intercepted here.
+// PAGING IS TWO- OR THREE-FINGER, ON PURPOSE (operator: «the two-finger effect», widened 2026-09-04 to «2 or 3
+// fingers, right and left»). ONE finger belongs to the WIDGET: scrolling a list, panning a map, dragging a
+// slider. If one finger also paged, every scrollable widget would be unusable — you could not scroll without
+// changing cards. So a single touch is never intercepted here.
 //
 // A CARD IS NEVER UNMOUNTED WHILE PAGING, only hidden. A video that keeps playing behind another card is correct;
 // re-mounting it on every swipe would cut it off mid-sentence.
@@ -68,24 +69,21 @@ function injectStyles() {
      el.className="…" and would wipe any class we put on its root (same lesson as the desktop host). */
   .zm-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
     display:flex;flex-direction:column}
-  /* margin-block:auto and NOT justify-content:center. Both centre content that is shorter than the screen, but
-     justify-content:center in a SCROLL container clips the overflow above the top and makes it unreachable —
-     auto margins collapse to 0 the moment the content is taller, so a long widget still scrolls from its first
-     line. Compact widgets (a clock) then sit in the middle of the screen instead of hugging the header with two
-     thirds of a phone empty below them, which is what "almost full screen" has to mean when the
-     widget itself is small. */
-  /* Targeted STRUCTURALLY (.zm-scroll > *) and not by .zm-body, because a widget.js does el.className="..." on
-     the root it is handed and WIPES our class — the very thing the comment above warns about. A rule keyed to
-     .zm-body therefore stops applying for exactly the widgets that style themselves, which is most of them:
-     verified live, querySelector('.zm-body') found nothing once the clock had rendered, so this padding was
-     already dead.
-     margin-block:auto centres content SHORTER than the screen (a clock stops hugging the header with two thirds
-     of the phone empty below it) and COLLAPSES to 0 as soon as it is taller, so a long widget keeps scrolling
-     from its first line. Verified with content forced to 2199px in a 705px scroller: top offset 0, 1496px
-     scrollable, scrolls to the bottom and back to the very top. Auto margins are the idiom that guarantees that
-     in an overflow container; whether justify-content:center would actually clip here was NOT reproduced, so it
-     is not claimed. */
-  .zm-scroll > *{padding:12px 12px calc(12px + env(safe-area-inset-bottom));margin-block:auto}
+  /* CONTENT STARTS AT THE TOP, AND EVERY CARD IS THE SAME BOX (V2-573, operator: «show widgets on top of the
+     screen, aligned, try to use fixed sizes to all. on top widgets will have tabs if needed»).
+     Until 2026-09-04 this was margin-block:auto, which VERTICALLY CENTRED anything shorter than the screen so a
+     clock floated in the middle of the phone. Centring one card at a time looks deliberate; PAGING between cards
+     that each centre their own content does not — the header stays put and the body jumps up and down under it,
+     and a widget whose own tabs are its first row (results, mensajería) hides them in the middle of the screen
+     instead of directly under the title, where a tab strip is read. So: top-aligned, one uniform box.
+     min-height:100% is what makes the box FIXED rather than merely top-aligned: without it, a short widget's
+     background ends where its content does and the deck shows cards of visibly different heights while swiping.
+     Targeted STRUCTURALLY (.zm-scroll > *) and not by .zm-body, because a widget.js does el.className="..." on
+     the root it is handed and WIPES our class. A rule keyed to .zm-body therefore stops applying for exactly the
+     widgets that style themselves, which is most of them: verified live, querySelector('.zm-body') found nothing
+     once the clock had rendered, so this padding was already dead. */
+  .zm-scroll > *{padding:12px 12px calc(12px + env(safe-area-inset-bottom));margin-block:0;
+    min-height:100%;box-sizing:border-box}
   .zm-load{margin:auto;width:64px;height:64px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--hb-accent),var(--hb-accent2),rgba(61,111,224,0) 78%);
     -webkit-mask:radial-gradient(farthest-side,transparent 58%,#000 60%);mask:radial-gradient(farthest-side,transparent 58%,#000 60%);
@@ -468,24 +466,36 @@ export class Deck {
     head.addEventListener("touchend", () => { on = false; }, { passive: true });
   }
 
-  // TWO fingers page; one finger is the widget's. Tracked on the STAGE (capture phase) so a widget's own scroller
-  // cannot swallow the gesture, but only ever acted on when touches.length === 2 — a single touch is passed
+  // TWO OR THREE fingers page; one finger is the widget's. Tracked on the STAGE (capture phase) so a widget's own
+  // scroller cannot swallow the gesture, but only ever acted on with 2+ touches — a single touch is passed
   // straight through and never preventDefault()ed, which is what keeps every scrollable widget usable.
+  //
+  // THREE was added on 2026-09-04 at the operator's request («we can switch screens moving mobile screen with 2 or
+  // 3 fingers, right and left»), and it is not just a looser count: on iOS a three-finger horizontal swipe is
+  // muscle memory from the system's own app switching, and a phone case or a thumb resting on the edge turns an
+  // intended two-finger swipe into a three-finger one. Refusing it made the gesture feel unreliable rather than
+  // strict. The centroid is computed over ALL active touches, so the threshold means the same thing either way.
   _wireGestures() {
-    let x0 = 0, y0 = 0, tracking = false;
+    let x0 = 0, y0 = 0, tracking = false, fingers = 0;
+    const PAGING_TOUCHES = (n) => n === 2 || n === 3;
     const mid = (e) => {
-      const a = e.touches[0], b = e.touches[1];
-      return { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
+      let x = 0, y = 0;
+      for (let i = 0; i < e.touches.length; i++) { x += e.touches[i].clientX; y += e.touches[i].clientY; }
+      return { x: x / e.touches.length, y: y / e.touches.length };
     };
     this.stage.addEventListener("touchstart", (e) => {
-      if (e.touches.length !== 2) { tracking = false; return; }
-      const m = mid(e); x0 = m.x; y0 = m.y; tracking = true;
+      if (!PAGING_TOUCHES(e.touches.length)) { tracking = false; return; }
+      const m = mid(e); x0 = m.x; y0 = m.y; tracking = true; fingers = e.touches.length;
     }, { capture: true, passive: true });
     this.stage.addEventListener("touchmove", (e) => {
-      if (!tracking || e.touches.length !== 2) return;
+      // The count may CHANGE mid-gesture (a third finger lands, or one lifts). Re-baseline instead of dropping
+      // the gesture: the centroid jumps when the set of fingers changes, and comparing it against the old origin
+      // is what would produce a phantom page — measured as the failure mode of a plain `!==` count check.
+      if (!tracking || !PAGING_TOUCHES(e.touches.length)) return;
+      if (e.touches.length !== fingers) { const m0 = mid(e); x0 = m0.x; y0 = m0.y; fingers = e.touches.length; return; }
       const m = mid(e);
-      // Horizontal intent only, and with a real threshold: a two-finger PINCH or a two-finger scroll must not
-      // page. 56px of travel and twice as much horizontal as vertical is the line.
+      // Horizontal intent only, and with a real threshold: a multi-finger PINCH or scroll must not page. 56px of
+      // travel and twice as much horizontal as vertical is the line.
       if (Math.abs(m.x - x0) < 56 || Math.abs(m.x - x0) < Math.abs(m.y - y0) * 2) return;
       tracking = false;
       if (m.x < x0) this.next(); else this.prev();

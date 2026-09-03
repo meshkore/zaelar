@@ -86,8 +86,10 @@ body {
 .zm-side:last-child  { justify-content: flex-start; }
 .zm-centre { display: flex; align-items: center; justify-content: center; padding: 0 6px; }
 
-/* 48px, not 52: three of these plus their gaps must fit ONE side track (390 screen - 16 dock padding - 70 orb
-   column = 152 per side; 3*48 + 2*2 = 148). Still well above the 44px minimum tap target. */
+/* 48px. Sized when each side carried THREE icons (390 screen - 16 dock padding - 70 orb column = 152 per side;
+   3*48 + 2*2 = 148). Since V2-573 each side carries TWO (2*48 + 2 = 98 of ~144 available), so the constraint is
+   no longer tight — the size is kept because it is the tap target that was measured, and comfortably above the
+   44px minimum. The slack is what let the orb grow to 74px. */
 .zm-ic {
   width: 48px; height: 48px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
@@ -140,11 +142,38 @@ body {
 }
 
 /* ---------- THE ORB, in the dock ---------- */
-.zm-orb { position: relative; flex: 0 0 auto; width: 58px; height: 58px; }
+/* 74px since V2-573 (operator: «the orbe, bigger»). Affordable because the dock went from three icons per side
+   to two: the centre column now takes 74 + 12 of padding and each side still has ~144px for its two 48px
+   buttons. The canvases stay 96x96 in ATTRIBUTES and are stretched by CSS — visualizer.js handles DPR itself,
+   so the orb is not resampled, it is drawn at the density the device has. */
+.zm-orb { position: relative; flex: 0 0 auto; width: 74px; height: 74px; }
 .zm-orb-c, .zm-viz-c { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
 .zm-viz-c { opacity: .55; }               /* the person's voice sits behind zaelar's own */
 .zm-orb.off { filter: grayscale(1); opacity: .45; }   /* stopped = frozen and grey, visibly (V2-092) */
 .zm-orb.talking { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-accent2) 40%, transparent); border-radius: 50%; }
+/* THE MIC INSIDE THE ORB (V2-573). Centred, small, and deliberately LOW-CONTRAST while listening: it is the
+   orb's inner detail, not a badge competing with zaelar's face. Muted, it flips to the risk colour and reveals
+   its slash — the one state that must be readable across the room, because a muted mic looks exactly like an
+   agent that has stopped caring. */
+.zm-orb-mic {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  pointer-events: none; color: color-mix(in srgb, var(--hb-ink) 62%, transparent);
+  transition: color .18s;
+}
+.zm-orb-mic svg { width: 26px; height: 26px; }
+.zm-orb-mic .zm-mic-slash { opacity: 0; }
+.zm-orb-mic.muted { color: var(--hb-risk); }
+.zm-orb-mic.muted .zm-mic-slash { opacity: 1; }
+.zm-orb.off .zm-orb-mic { opacity: .5; }
+
+/* AUDIO PLAYBACK BLOCKED BY THE BROWSER (V2-573). Not an error and not a mute: every mobile browser refuses to
+   play a remote track until the page has been touched, and this shell connects the session at LOAD. The ring
+   rides the ORB because that is where an operator who cannot hear the agent looks — and tapping it is a user
+   gesture, which is exactly what the unlock needs. Amber, like `pausing`: nothing is broken, something is
+   waiting for a finger. */
+.zm-orb-btn.zm-blocked { box-shadow: 0 0 0 3px var(--hb-warn-ink); animation: zmpulse 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .zm-orb-btn.zm-blocked { animation: none; } }
+
 .zm-vflash {
   position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
   margin-bottom: 8px; padding: 4px 9px; border-radius: 9px; white-space: nowrap;

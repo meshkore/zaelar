@@ -209,15 +209,43 @@ check("the centre slot swaps its two faces by visibility, not by rebuilding",
 // The claim in DockBar.js's header is that an operator who knows one shell reads the other. That is only true
 // while the shapes match, and a comment cannot enforce it: if the desktop redraws its mic, this goes red and
 // somebody has to decide, instead of the two shells drifting apart unnoticed.
-for (const name of ["MIC_ICON", "SPK_ON", "SPK_OFF", "CAP_ICON", "CHAT_ICON", "PWR_ICON"]) {
-  const m = ORB_JS.match(new RegExp(`const ${name}\\s*=\\s*\`([^\`]*)\``));
-  check(`Orb.js still defines ${name} (this test reads it as the source of truth)`, !!m);
+// WHICH glyphs the dock carries is the OPERATOR's decision and it changes (V2-573 retired the captions and the
+// speaker buttons and added DESK and CFG, which the desktop has no twin for). What must never change silently is
+// that a glyph present in BOTH shells is the SAME drawing. So the pairing is derived from the dock itself: every
+// Orb.js glyph whose name the dock also declares is compared shape by shape. A hardcoded list would have gone red
+// for a deliberate removal — reporting a decision as a regression, which is how a guard gets deleted instead of
+// read. MIC_ICON is checked under the dock's own name for it (MIC_ON), the one rename this pairing needs.
+const GLYPH_PAIRS = [["MIC_ICON", "MIC_ON"], ["SPK_ON", "SPK_ON"], ["SPK_OFF", "SPK_OFF"],
+                     ["CAP_ICON", "CAP"], ["CHAT_ICON", "CHAT"], ["PWR_ICON", "PWR"]];
+let sharedGlyphs = 0;
+for (const [orbName, dockName] of GLYPH_PAIRS) {
+  const m = ORB_JS.match(new RegExp(`const ${orbName}\\s*=\\s*\`([^\`]*)\``));
+  check(`Orb.js still defines ${orbName} (this test reads it as the source of truth)`, !!m);
   if (!m) continue;
+  if (!new RegExp(`const\\s+${dockName}\\s*=`).test(DOCKBAR)) continue;   // the dock does not carry this one
+  sharedGlyphs++;
   const shapes = [...m[1].matchAll(/<(?:path\s+d|rect\s+x)="[^"]+"/g)].map((x) => x[0]);
   const absent = shapes.filter((sh) => !DOCKBAR.includes(sh));
-  check(`the mobile dock draws the same ${name} as the desktop`, absent.length === 0,
-    `these shapes from Orb.js's ${name} are not in DockBar.js: ${absent.join(" | ")}`);
+  check(`the mobile dock draws the same ${orbName} as the desktop`, absent.length === 0,
+    `these shapes from Orb.js's ${orbName} are not in DockBar.js: ${absent.join(" | ")}`);
 }
+// …and the pairing must actually be finding something. Renaming every dock constant would otherwise skip every
+// comparison and leave this whole block green while asserting nothing — the failure mode of a derived check.
+check("the dock still shares glyphs with the desktop orb", sharedGlyphs >= 3,
+  `only ${sharedGlyphs} of Orb.js's glyphs were found in DockBar.js; the two shells have stopped sharing shapes`);
+
+// ── the 2026-09-04 dock composition (V2-573) ────────────────────────────────────────────────────────────────
+// The operator's brief, asserted where it can be read: chat + desk on the left, orb in the centre, mic + config
+// on the right, and NO captions button anywhere. The captions half is the one that needs a guard: a subtitles
+// toggle is exactly the kind of thing that comes back by accident with a merge.
+check("the dock carries no captions control", !/toggleCaptions/.test(DOCKBAR),
+  "DockBar calls store.toggleCaptions(); the operator removed subtitles from this shell (V2-573)");
+check("the captions BAND is not mounted either",
+  !/CaptionBand/.test(read("frontend", "mobile", "app", "shell", "mobile-surfaces.js")),
+  "mobile-surfaces.js still mounts CaptionBand — the icon went but the band stayed");
+check("the desk button reaches the deck by closing every sheet",
+  /setChatOpen\(false\)[\s\S]{0,200}setMobileMenuOpen\(false\)[\s\S]{0,200}setMobileSettingsOpen\(false\)/.test(DOCKBAR),
+  "the DESK control must close chat, menu and settings — the deck is what sits UNDER the sheets");
 
 // The scroller's rule must be keyed STRUCTURALLY, not to .zm-body. A widget.js does el.className="..." on the
 // root it is handed and WIPES our class — Deck.js's own comment says so — so a .zm-body rule silently stops
@@ -226,10 +254,18 @@ for (const name of ["MIC_ICON", "SPK_ON", "SPK_OFF", "CAP_ICON", "CHAT_ICON", "P
 check("the scroller styles its child structurally, not via .zm-body",
   /\.zm-scroll\s*>\s*\*\s*\{/.test(DECK) && !/\n\s*\.zm-body\s*\{/.test(DECK),
   "Deck.js keys the mounted child's padding/centring to .zm-body, a class the widget overwrites");
-check("compact widget content is centred with COLLAPSING margins, not justify-content",
-  /\.zm-scroll\s*>\s*\*\s*\{[^}]*margin-block:\s*auto/.test(DECK),
-  "margin-block:auto collapses to 0 when content is taller than the screen, so a long widget still scrolls "
-  + "from its first line; a centring that does not collapse puts the top out of reach");
+// V2-573 REPLACED the centring with TOP alignment (operator: «show widgets on top of the screen, aligned, try to
+// use fixed sizes to all»). `margin-block:auto` centred anything shorter than the screen, so a clock floated in
+// the middle and a widget whose own tabs are its first row hid them mid-screen; paging between cards that each
+// centre their own content also made the body jump under a header that stays put. Both halves are asserted,
+// because top alignment WITHOUT the min-height is only half the request: short cards would still be short.
+check("card content is TOP-aligned, not vertically centred",
+  /\.zm-scroll\s*>\s*\*\s*\{[^}]*margin-block:\s*0/.test(DECK),
+  "the scroller's child still centres itself (margin-block:auto); widgets must start under the header");
+check("every card presents the SAME box, whatever the widget's size",
+  /\.zm-scroll\s*>\s*\*\s*\{[^}]*min-height:\s*100%/.test(DECK),
+  "without min-height:100% a short widget's box ends where its content does and the deck shows cards of "
+  + "visibly different heights while paging");
 
 // ── every t() key the mobile shell uses must EXIST in both bundles ──────────────────────────────────────────────
 // This is the ratchet on the bug that shipped once already: core/i18n.js's t() returns the KEY when a string is
