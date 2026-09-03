@@ -8068,6 +8068,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     exists for `bookings.restaurants` (confirmed live: `mesh_cli fin` → `agents: []`) — a network gap, not a
     bug; and small-town restaurants largely have no online booking at all, which no catalog entry fixes.
 
+- **One widget order, ONE mutation — and the boring ones never wait for a model (V2-567, 2026-09-03)**: the
+  operator's minimal session (19:01-19:03) measured the whole answer to «why can't widgets behave linearly»:
+  «Cierra los mensajes» hit the action map in 0.08 ms, while «Cierra los contactos» five seconds later had no
+  entry, fell to the model (3.4 s + a trimmed-family retry) and the model answered the CLOSE order with
+  `show_widget(mensajeria)` — contactos only closed because the close backstop rescued it. One order, two
+  mutations.
+  - **Seed packs v3**: open AND close VERB×OBJECT grids for EVERY card (close covered 2 of 14 widgets; that
+    asymmetry — five phrasings for mensajería, zero for contactos — was the whole defect class). A coverage
+    ratchet walks the widget catalog: a new widget cannot ship without deterministic open/close phrases, in
+    both languages. «abre las fotos» retargeted from the `imagenes` viewer to the V2-564 `fotos` gallery,
+    which it predates. The favourite-restaurant phrases open the contactos CARD; the view filter stays with
+    the model on purpose — the live rows carry `favorite=true` with empty `groups`, so a deterministic group
+    filter would answer ZERO (measured before seeding, not after).
+  - **`show_contradicts_the_order` (router_guards, both channels)**: a CLOSE order licenses no show — with a
+    close verb and no un-negated open verb, the model's `show_widget` is DISCARDED and the close backstop does
+    the closing. The probe had carried this exact rule in prose («un canvas:show ESPURIO en un turno de cerrar
+    SÍ debe corregirse») while the voice channel executed the spurious show: the V2-539 parallel-channel trap,
+    again. A guard now asserts both channels call the shared function.
+  - **The fast close declines over live work**: closing navegador cancels its tab and closing results orphans
+    the errand delivering into it — richer than «hide a card», so the actionmap executor returns False (whole,
+    no emit) and the model gets the turn. Fail-CLOSED when liveness is unreadable: the wrong default is a
+    0.08 ms kill of a five-minute errand.
+  - The architecture ratchet fired on three files sitting AT their ceilings and was paid by extracting, never
+    raising: accumulator notices → `providers/acc_notices.py` (3335→3244), the V2-210 answer-source family →
+    `flash/answer_guards.py` (811→762), probe's alias classification → `show_target.py` (1152→1144).
+  - Node 2.49; three disarms (coverage grid gutted / voice guard dropped / executor gate removed), each
+    mutation ASSERTED before measuring, all red. Deliberately NOT done: widening `search_listings`' mouth to
+    restaurants (a places lane is a sibling module, V2-526's budget rule), and the operator's process-tab
+    redesign (results tab LAST, browser embedded in the process view) — frontend, recorded in V2-567.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
