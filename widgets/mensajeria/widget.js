@@ -71,7 +71,15 @@ const _focusField = {};
 let _profile = "simple";
 try { _profile = localStorage.getItem("hb-msg-profile") || "simple"; } catch { /* storage blocked: use "simple" */ }
 let _settingsOpen = false;
-let _connectorsOpen = false;         // "Available channels" panel opened from the header
+// V2-570 — the CHANNELS AREA has TWO screens (the operator's redesign): a LIST of every connector (icon
+// grid) and, one level in, a WIZARD scoped to a single connector. `_screen` is null when the area is closed
+// (messages view showing); {view:"list"} or {view:"wizard", platform} otherwise. Replaces the old flat
+// `_connectorsOpen`/`_expandConnect` pair — there was never a third state, just two screens that used to be
+// drawn on top of each other.
+let _screen = null;
+// Per-platform wizard progress (module-lived like _busy/_draft): which step is showing right now. Reset to 1
+// implicitly whenever a platform's wizard is entered fresh (see `_enterWizard`).
+const _wizStep = {};
 // V2-520 — the last `connect_focus` request already honoured. The brain asking to connect a channel is the
 // ONLY way into this panel from outside (it is local state the header button owns), and the request travels
 // in the DATA with a timestamp. Remembering which one we acted on is what lets the operator close the panel
@@ -85,7 +93,6 @@ let _focusDone = 0;
 // one state instead of diverging.
 let _platFilter = null;
 let _viewN = 0;                      // last applied view token (module-lived, like _focusDone)
-const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
 const _expanded = new Set();   // message keys with the body expanded
 
@@ -171,8 +178,8 @@ function injectStyles(){
   /* V2-546 — the operator's OWN messages in the thread, and the boundary of what we hold. An outgoing row is
      indented and quieter: it is context he already knows, and giving it the same weight as an incoming
      message would make a conversation unreadable at a glance.
-     NOTE: this whole block is inside a JS template literal, so a backtick here ENDS it — a comment with one
-     around a class name is what broke the widget the first time this was written. */
+     NOTE: this whole block is inside a JS template literal, so a backtick here ENDS it — write prose here
+     without one, ever (it broke this exact widget once already). */
   .hb-msg .trow.tout{padding-left:26px;opacity:.78}
   .hb-msg .tfrom.tme{color:var(--hb-accent,#3D6FE0)}
   .hb-msg .tstart{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;
@@ -213,22 +220,20 @@ function injectStyles(){
   .hb-msg label.f{display:block;font-size:12px;color:var(--hb-muted,#5b6b82);margin:6px 0 3px}
   .hb-msg input.f,.hb-msg select.f{width:100%;box-sizing:border-box;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
   .hb-msg input.f:focus,.hb-msg select.f:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
-  .hb-msg .btn{margin-top:11px;width:100%;border:0;border-radius:9px;padding:10px;font-size:13.5px;font-weight:600;cursor:pointer;color:#fff;background:var(--hb-accent,#3D6FE0)}
-  .hb-msg .btn:hover{filter:brightness(1.06)} .hb-msg .btn:disabled{opacity:.6;cursor:default}
   .hb-msg .err{color:var(--hb-risk,#e5484d);font-size:12px;margin-top:8px}
   .hb-msg .errfield{border-color:var(--hb-risk,#e5484d)!important}
 
-  /* Guided connect wizard (V2-559). The operator asked for an ASSISTANT: numbered boxes, real margins, and one
-     thing to do per step. The old form was a flat stack of labels where step 2 (going to the provider and
-     creating the app password) was a sentence buried between two inputs — so it read as optional. */
-  .hb-msg .wz{display:flex;flex-direction:column;gap:10px;margin:12px 0 0}
-  .hb-msg .wstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:11px;padding:11px 12px 12px;background:var(--hb-bg,#fff)}
+  /* Guided connect wizard (V2-559, redesigned V2-570). The operator asked for an ASSISTANT: one step
+     visible at a time, real margins, and a breadcrumb back to the connector list — a stack of three boxes
+     read as optional; one box with "Paso 2 de 3" reads as a path. */
+  .hb-msg .wstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:11px;padding:11px 12px 12px;background:var(--hb-bg,#fff);margin:2px 0 12px}
   .hb-msg .wstep.done{border-color:var(--hb-accent2,#16B8A6)}
   .hb-msg .whead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
   .hb-msg .wnum{width:22px;height:22px;flex:0 0 auto;border-radius:50%;display:inline-flex;align-items:center;
     justify-content:center;font-size:11.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c)}
   .hb-msg .wstep.done .wnum{background:var(--hb-accent2,#16B8A6)}
-  .hb-msg .wtitle{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622)}
+  .hb-msg .wtitle{font-size:14px;font-weight:700;color:var(--hb-ink,#0d1622)}
+  .hb-msg .wcount{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin:0 0 8px}
   .hb-msg .wbody{font-size:12.5px;color:var(--hb-muted,#4a5a70);line-height:1.55}
   .hb-msg .wbody b{color:var(--hb-ink,#0d1622)}
   .hb-msg .wlink{display:inline-flex;align-items:center;gap:6px;margin-top:9px;border:1px solid var(--hb-accent,#3D6FE0);
@@ -252,28 +257,51 @@ function injectStyles(){
   .hb-msg .waitbox .lbl{font-size:13px;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-msg .waitbox .det{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.5;max-width:320px}
   /* Connection error card. */
-  .hb-msg .errcard{border:1px solid var(--hb-risk,#e5484d);border-radius:10px;padding:11px 12px;margin-top:8px;background:color-mix(in srgb,var(--hb-risk,#e5484d) 8%,transparent)}
+  .hb-msg .errcard{border:1px solid var(--hb-risk,#e5484d);border-radius:10px;padding:11px 12px;margin-bottom:12px;background:color-mix(in srgb,var(--hb-risk,#e5484d) 8%,transparent)}
   .hb-msg .errcard .et{font-size:12.5px;color:var(--hb-ink,#0d1622);line-height:1.5;margin-bottom:9px}
   .hb-msg .errcard .et b{color:var(--hb-risk,#e5484d)}
-  /* Channels / connectors panel. */
-  .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+  /* Breadcrumb (V2-570): back to the connector list + which connector we are on. */
+  .hb-msg .crumb{display:flex;align-items:center;gap:6px;margin:2px 0 14px;font-size:12.5px}
+  .hb-msg .crumb .back{cursor:pointer;color:var(--hb-accent,#3D6FE0);font-weight:600}
+  .hb-msg .crumb .back:hover{text-decoration:underline}
+  .hb-msg .crumb .sep{color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .crumb .cur{color:var(--hb-ink,#0d1622);font-weight:700}
+  /* Homogeneous buttons (V2-570): one scale for every wizard/list/status action, instead of the
+     .btn/.cbtn/.dbtn set that had grown three different heights and paddings. */
+  .hb-msg .bt{height:36px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+  .hb-msg .bt:disabled{opacity:.6;cursor:default}
+  .hb-msg .bt-primary{border:0;color:#fff;background:var(--hb-accent,#3D6FE0)}
+  .hb-msg .bt-primary:hover:not(:disabled){filter:brightness(1.06)}
+  .hb-msg .bt-ghost{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#5b6b82)}
+  .hb-msg .bt-ghost:hover:not(:disabled){border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .bt-danger{border:0;color:#fff;background:var(--hb-risk,#e5484d)}
+  .hb-msg .wfoot{display:flex;gap:8px;margin-top:4px}
+  .hb-msg .wfoot .bt-primary{flex:1 1 auto}
+  /* Connector LIST screen (V2-570): a grid of icon boxes replaces the stacked rows, so the list stays
+     compact and scannable with 3 connectors today or 20 tomorrow — the operator's own worry about having
+     to scroll past a long vertical list to reach the wizard. */
+  .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 14px}
   .hb-msg .chanhead b{font-size:14px} .hb-msg .chanhead .back{margin-left:auto;font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
   .hb-msg .chanhead .hint{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
-  .hb-msg .chan{border:1px solid var(--hb-line,#e3e8f0);border-radius:11px;padding:11px 12px;margin-bottom:9px;background:var(--hb-bg-soft,#fbfdff)}
-  .hb-msg .chan .top{display:flex;align-items:center;gap:9px}
-  .hb-msg .chan .nm{font-size:13.5px;font-weight:600;color:var(--hb-ink,#0d1622)}
-  .hb-msg .chan .st{font-size:11.5px;color:var(--hb-muted,#5b6b82);margin-left:2px}
-  .hb-msg .chan .st.okc{color:var(--hb-accent2,#16B8A6)}
-  .hb-msg .chan .act{margin-left:auto;display:flex;gap:6px;align-items:center}
-  .hb-msg .chan .cbtn{border:1px solid var(--hb-accent,#3D6FE0);background:transparent;color:var(--hb-accent,#3D6FE0);border-radius:8px;padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
-  .hb-msg .chan .cbtn:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
-  .hb-msg .chan .dbtn{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#5b6b82);border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer}
-  .hb-msg .chan .dbtn:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
-  .hb-msg .chan .expand{margin-top:11px;border-top:1px solid var(--hb-line,#eef1f6);padding-top:11px}
-  .hb-msg .chan .cfm{margin-top:10px;font-size:12.5px;color:var(--hb-ink,#0d1622)}
-  .hb-msg .chan .cfm .row{display:flex;gap:8px;margin-top:8px}
-  .hb-msg .chan .cfm .y{border:0;background:var(--hb-risk,#e5484d);color:#fff;border-radius:8px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer}
-  .hb-msg .chan .cfm .n{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#5b6b82);border-radius:8px;padding:6px 13px;font-size:12.5px;cursor:pointer}
+  .hb-msg .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+  .hb-msg .ibox{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;
+    border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;background:var(--hb-bg,#fff);cursor:pointer;
+    font:inherit;color:inherit}
+  .hb-msg .ibox:hover{border-color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .ibox.sel{border-color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 6%,transparent)}
+  .hb-msg .ibox.conn{border-color:var(--hb-accent2,#16B8A6)}
+  .hb-msg .ibox.conn .isub{color:var(--hb-accent2,#16B8A6);font-weight:600}
+  .hb-msg .ibox .iicon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--hb-bg-soft,#fbfdff)}
+  .hb-msg .ibox .iicon .picon{opacity:1}
+  .hb-msg .ibox .iicon svg{width:22px;height:22px}
+  .hb-msg .ibox .ilabel{font-size:12.5px;font-weight:600;color:var(--hb-ink,#0d1622);text-align:center}
+  .hb-msg .ibox .isub{font-size:10.5px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .ibox .iavatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:700;color:#fff;background:var(--hb-accent,#3D6FE0)}
+  /* Connected-status screen + disconnect confirmation (unscoped, no longer nested under a removed .chan row). */
+  .hb-msg .cfm{margin-top:10px;font-size:12.5px;color:var(--hb-ink,#0d1622)}
+  .hb-msg .cfm .row{display:flex;gap:8px;margin-top:8px}
   .hb-msg .connbtn{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:15px;width:26px;height:26px;border-radius:8px;line-height:1}
   .hb-msg .connbtn:hover,.hb-msg .connbtn.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .conns{display:flex;flex-wrap:wrap;gap:6px}
@@ -326,6 +354,29 @@ function brandIcon(platform, on){
   }
   return wrap;
 }
+
+// One box in an icon grid (V2-570): the connector list AND the email-provider picker are both "choose one of
+// several, shown as an icon with a label", so they share this renderer instead of one being a grid and the
+// other a dropdown. `it.cls` names the extra state class ("sel" = chosen in a picker, "conn" = connected in
+// the connector list) — the two never mean the same thing, so they get their own visual language.
+function iconGrid(items){
+  const grid=el("div","igrid");
+  items.forEach(it=>{
+    const box=document.createElement("button");
+    box.type="button";
+    box.className="ibox"+(it.cls?(" "+it.cls):"");
+    const holder=el("span","iicon"); holder.appendChild(it.icon); box.appendChild(holder);
+    box.appendChild(el("span","ilabel", it.label));
+    if(it.sub) box.appendChild(el("span","isub", it.sub));
+    if(it.onClick) box.onclick=it.onClick;
+    grid.appendChild(box);
+  });
+  return grid;
+}
+
+// No brand icon exists for a specific email PROVIDER (Gmail/Outlook/iCloud/Yahoo) the way one does for the
+// whole email channel — an avatar with the provider's initial is honest about that instead of pretending.
+function providerAvatar(label){ return el("span","iavatar", (label||"?")[0]); }
 
 // Split a short message title from the rest of the body when they are joined by a blank line, a common pattern in
 // triaged messages. If the pattern does not fit, everything is body text with no title.
@@ -430,72 +481,9 @@ function linkify(container, text){
 // supervisor saves the new state, and desktop.js repaints this same card once (never polling, never a separate
 // window).
 
-// Card: credentials form (Telegram), guided for a non-technical user.
-function credsCard(platform, ctx){
-  const p=PLAT[platform];
-  const card=el("div","linkcard");
-  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Conectar "+p.label)); card.appendChild(ch);
-
-  card.appendChild(el("div",null,"Solo la primera vez necesito dos datos de tu cuenta. Son tres pasos:"));
-  const wz=el("div","wz");
-
-  const t1=emailStep(1,"Entra en my.telegram.org");
-  t1.appendChild(el("div","wbody","Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram."));
-  const tlink=document.createElement("a"); tlink.className="wlink"; tlink.href=p.credLink;
-  tlink.target="_blank"; tlink.rel="noopener"; tlink.textContent="Abrir my.telegram.org ↗";
-  t1.appendChild(tlink);
-  wz.appendChild(t1);
-
-  const t2=emailStep(2,"Crea la aplicación");
-  const t2b=el("div","wbody");
-  t2b.append(document.createTextNode("Entra en "), el("b",null,"API development tools"),
-             document.createTextNode(" y rellena el formulario ("), el("b",null,"App title: Zaelar"),
-             document.createTextNode(", "), el("b",null,"Short name: Zaelar"),
-             document.createTextNode(", el resto en blanco). Pulsa "), el("b",null,"Create application"),
-             document.createTextNode("."));
-  t2.appendChild(t2b);
-  wz.appendChild(t2);
-
-  const t3=emailStep(3,"Pega aquí los dos datos");
-  t3.appendChild(el("div","wtip","El api_id es un número corto y el api_hash una cadena larga de letras y números."));
-  card.appendChild(wz);
-
-  const idL=el("label","f","api_id"); const idI=document.createElement("input");
-  idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder="p.ej. 12345678";
-  idI.value=_draft.telegram.api_id||""; idI.oninput=()=>{_draft.telegram.api_id=idI.value;};
-  const hL=el("label","f","api_hash"); const hI=document.createElement("input");
-  hI.className="f"; hI.type="text"; hI.placeholder="cadena larga de letras y números";
-  hI.value=_draft.telegram.api_hash||""; hI.oninput=()=>{_draft.telegram.api_hash=hI.value;};
-  t3.append(idL, idI, hL, hI);
-  wz.appendChild(t3);
-
-  const err=el("div","err"); err.style.display="none";
-  const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
-  btn.disabled=!!_busy[platform];
-  btn.onclick=async()=>{
-    const api_id=(idI.value||"").trim(), api_hash=(hI.value||"").trim();
-    if(!/^\d+$/.test(api_id) || !api_hash){
-      err.textContent="Necesito el api_id (solo números) y el api_hash."; err.style.display="block"; return;
-    }
-    _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
-    ctx.action("connect", {platform, api_id, api_hash});   // -> store -> supervisor -> real connect; QR arrives by SSE
-    // Kept until the channel reports CONNECTED (V2-559) — a refusal must not cost re-copying both values.
-    card.textContent=""; card.append(ch, el("div","waiting","Conectando con "+p.label+"… te muestro el QR en un momento."));
-  };
-  card.appendChild(err); card.appendChild(btn);
-  return card;
-}
-
-// Card: EMAIL wizard (V2-051; redesigned V2-559). THREE numbered steps, because the middle one — go to the
-// provider and CREATE an app password — used to be a sentence between two inputs and read as optional. The
-// operator followed it, came back with the LINK in the clipboard, pasted that as the password, and the card
-// answered with the generic "use an app password" over a password he had just created.
-//
-// What this card does NOT do: judge the shape of the password. That rule lives in ONE place
-// (`connectors/email/credentials.py`) and reaches here as the connection's own error, so the wizard and the
-// connector can never drift apart on what a valid app password looks like. Here we only check what is
-// unambiguous locally (empty fields, an address that is not one) and strip the spaces the provider prints.
-function emailStep(n, title, done){
+// One numbered box shell, reused for whichever step is CURRENTLY showing (V2-570: only one step renders at a
+// time, so this used to wrap three stacked boxes and now wraps exactly one).
+function stepBox(n, title, done){
   const box=el("div","wstep"+(done?" done":""));
   const head=el("div","whead"); head.append(el("span","wnum",String(n)), el("span","wtitle",title));
   box.appendChild(head);
@@ -522,112 +510,117 @@ const EMAIL_GUIDE={
             url:"", lbl:"", tip:"Necesitaré además sus servidores IMAP y SMTP, abajo."},
 };
 
-function emailCard(platform, ctx){
-  const p=PLAT[platform];
-  const d=_draft.email;
-  const card=el("div","linkcard");
-  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Conectar "+p.label)); card.appendChild(ch);
-  card.appendChild(el("div",null,"Leo tu correo y puedes responder por voz. Son tres pasos y solo se hacen una vez."));
+// ── Email wizard steps (V2-570) ──────────────────────────────────────────────────────────────────────────
+// THREE steps, one visible at a time. Step 1 is the box the operator asked for literally: "put the mail
+// providers in a box with an icon in the middle so the user sees all those available" — an icon grid instead
+// of a <select>, since a dropdown hides the other options until opened.
+function emailStep1Body(d, rerender){
+  const wrap=el("div");
+  wrap.appendChild(el("div","wbody","Elige el proveedor de tu cuenta de correo."));
+  wrap.appendChild(iconGrid(EMAIL_PROVIDERS.map(([v,lab])=>({
+    key:v, icon:providerAvatar(lab), label:lab, cls:(d.provider===v?"sel":""),
+    onClick:()=>{ d.provider=v; rerender(); },
+  }))));
+  return wrap;
+}
 
-  const wz=el("div","wz");
+function emailStep2Body(d){
+  const wrap=el("div");
+  const g=EMAIL_GUIDE[d.provider]||EMAIL_GUIDE.otro;
+  wrap.appendChild(el("div","wbody", g.steps));
+  if(g.url){
+    const link=document.createElement("a"); link.className="wlink"; link.href=g.url;
+    link.target="_blank"; link.rel="noopener"; link.textContent=g.lbl+" ↗";
+    wrap.appendChild(link);
+  }
+  if(g.tip) wrap.appendChild(el("div","wtip", g.tip));
+  return wrap;
+}
 
-  // ── Step 1: provider ────────────────────────────────────────────────────────────────────────────────────
-  const s1=emailStep(1,"Elige tu proveedor de correo", true);
-  const prov=document.createElement("select"); prov.className="f";
-  EMAIL_PROVIDERS.forEach(([v,lab])=>{ const o=document.createElement("option"); o.value=v; o.textContent=lab;
-    if(v===d.provider) o.selected=true; prov.appendChild(o); });
-  s1.appendChild(prov);
-  wz.appendChild(s1);
-
-  // ── Step 2: create the app password AT the provider ─────────────────────────────────────────────────────
-  const s2=emailStep(2,"Crea la contraseña de aplicación");
-  const s2body=el("div","wbody"); s2.appendChild(s2body);
-  const s2link=document.createElement("a"); s2link.className="wlink"; s2link.target="_blank"; s2link.rel="noopener";
-  const s2tip=el("div","wtip");
-  s2.append(s2link, s2tip);
-  wz.appendChild(s2);
-
-  // ── Step 3: paste it here ───────────────────────────────────────────────────────────────────────────────
-  const s3=emailStep(3,"Pega aquí tus datos");
+// What this step does NOT do: judge the shape of the password. That rule lives in ONE place
+// (`connectors/email/credentials.py`) and reaches here as the connection's own error, so the wizard and the
+// connector can never drift apart on what a valid app password looks like. Here we only check what is
+// unambiguous locally (empty fields, an address that is not one) and strip the spaces the provider prints.
+function emailStep3Body(d, refs){
+  const wrap=el("div");
   const addrL=el("label","f","Correo"); const addr=document.createElement("input");
   addr.className="f"; addr.type="email"; addr.placeholder="tucuenta@gmail.com"; addr.autocomplete="off";
   addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value; addr.classList.remove("errfield");};
   const pwL=el("label","f","Contraseña de aplicación"); const pw=document.createElement("input");
   pw.className="f"; pw.type="password"; pw.placeholder="pega aquí la contraseña, no el enlace"; pw.autocomplete="off";
   // The provider PRINTS the password in groups; those spaces are presentation and IMAP AUTH does not want them.
-  // Stripping them here is the same normalization `connectors/email/credentials.normalize` applies server-side.
   pw.value=d.email_password||"";
   pw.oninput=()=>{ const clean=pw.value.replace(/\s+/g,""); if(clean!==pw.value) pw.value=clean;
                    d.email_password=clean; pw.classList.remove("errfield"); };
-  const imapL=el("label","f","Servidor IMAP"); const imap=document.createElement("input");
-  imap.className="f"; imap.type="text"; imap.placeholder="imap.tudominio.com";
-  imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
-  const smtpL=el("label","f","Servidor SMTP"); const smtp=document.createElement("input");
-  smtp.className="f"; smtp.type="text"; smtp.placeholder="smtp.tudominio.com";
-  smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
-  const hostsWrap=el("div"); hostsWrap.append(imapL, imap, smtpL, smtp);
-  s3.append(addrL, addr, pwL, pw, hostsWrap);
-  wz.appendChild(s3);
+  wrap.append(addrL, addr, pwL, pw);
+  refs.addr=addr; refs.pw=pw;
 
-  const syncGuide=()=>{
-    const g=EMAIL_GUIDE[prov.value]||EMAIL_GUIDE.otro;
-    s2body.textContent=g.steps;
-    if(g.url){ s2link.href=g.url; s2link.textContent=g.lbl+" ↗"; s2link.style.display="inline-flex"; }
-    else { s2link.removeAttribute("href"); s2link.style.display="none"; }
-    s2tip.textContent=g.tip||""; s2tip.style.display=g.tip?"block":"none";
-    hostsWrap.style.display=(prov.value==="otro")?"block":"none";
-  };
-  prov.onchange=()=>{ d.provider=prov.value; syncGuide(); }; syncGuide();
-  card.appendChild(wz);
-
-  const err=el("div","err"); err.style.display="none";
-  const fail=(msg, field)=>{ err.textContent=msg; err.style.display="block";
-    if(field){ field.classList.add("errfield"); try{ field.focus(); }catch{ /* detached */ } } };
-  const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
-  btn.disabled=!!_busy[platform];
-  btn.onclick=()=>{
-    const email_address=(addr.value||"").trim(), email_password=(pw.value||"").replace(/\s+/g,"");
-    if(!/.+@.+\..+/.test(email_address)) return fail("Necesito tu dirección de correo completa.", addr);
-    if(!email_password) return fail("Falta la contraseña de aplicación del paso 2.", pw);
-    const payload={platform, email_address, email_password, provider:prov.value};
-    if(prov.value==="otro"){
-      if(!imap.value.trim()) return fail("Para «Otro» necesito el servidor IMAP.", imap);
-      if(!smtp.value.trim()) return fail("Para «Otro» necesito el servidor SMTP.", smtp);
-      payload.imap_host=imap.value.trim(); payload.smtp_host=smtp.value.trim();
-    }
-    _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
-    ctx.action("connect", payload);                            // -> store -> supervisor -> real connect (IMAP/SMTP)
-    // The draft is NOT cleared here (V2-559): a refused connection comes back to this same form, and wiping it
-    // meant retyping the address and the 16 letters from scratch — which is what made the retry button look
-    // like it did nothing. It is cleared once the channel reports CONNECTED.
-    card.textContent=""; card.append(ch, el("div","waiting","Conectando con tu correo… un momento."));
-  };
-  card.appendChild(err); card.appendChild(btn);
-  // Coming back from a failure: land ON the field to fix, not at the top of the card.
-  if(_focusField[platform]){
-    const target={pw, addr}[_focusField[platform]] || pw;
-    _focusField[platform]=null;
-    setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:"center"}); }catch{ /* detached */ } }, 0);
+  if(d.provider==="otro"){
+    const imapL=el("label","f","Servidor IMAP"); const imap=document.createElement("input");
+    imap.className="f"; imap.type="text"; imap.placeholder="imap.tudominio.com";
+    imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
+    const smtpL=el("label","f","Servidor SMTP"); const smtp=document.createElement("input");
+    smtp.className="f"; smtp.type="text"; smtp.placeholder="smtp.tudominio.com";
+    smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
+    wrap.append(imapL, imap, smtpL, smtp);
+    refs.imap=imap; refs.smtp=smtp;
   }
-  return card;
+  return wrap;
 }
 
-// Card: simple connect button (WhatsApp, no credentials needed).
-function connectCard(platform, ctx){
-  const p=PLAT[platform];
-  const card=el("div","linkcard");
-  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Conectar "+p.label)); card.appendChild(ch);
-  card.appendChild(el("div",null,"Pulsa para vincular tu "+p.label+" con un código QR (como WhatsApp Web)."));
-  const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
-  btn.disabled=!!_busy[platform];
-  btn.onclick=()=>{
-    _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…";
-    ctx.action("connect", {platform});
-    card.textContent=""; card.append(ch, el("div","waiting","Conectando con "+p.label+"… te muestro el QR en un momento."));
-  };
-  card.appendChild(btn);
-  return card;
+// ── Telegram wizard steps (same shape as email, three steps → one at a time) ────────────────────────────
+function telegramStep1Body(){
+  const wrap=el("div");
+  wrap.appendChild(el("div","wbody","Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram."));
+  const link=document.createElement("a"); link.className="wlink"; link.href=PLAT.telegram.credLink;
+  link.target="_blank"; link.rel="noopener"; link.textContent="Abrir my.telegram.org ↗";
+  wrap.appendChild(link);
+  return wrap;
 }
+
+function telegramStep2Body(){
+  const wrap=el("div");
+  const b=el("div","wbody");
+  b.append(document.createTextNode("Entra en "), el("b",null,"API development tools"),
+           document.createTextNode(" y rellena el formulario ("), el("b",null,"App title: Zaelar"),
+           document.createTextNode(", "), el("b",null,"Short name: Zaelar"),
+           document.createTextNode(", el resto en blanco). Pulsa "), el("b",null,"Create application"),
+           document.createTextNode("."));
+  wrap.appendChild(b);
+  return wrap;
+}
+
+function telegramStep3Body(refs){
+  const wrap=el("div");
+  wrap.appendChild(el("div","wtip","El api_id es un número corto y el api_hash una cadena larga de letras y números."));
+  const d=_draft.telegram;
+  const idL=el("label","f","api_id"); const idI=document.createElement("input");
+  idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder="p.ej. 12345678";
+  idI.value=d.api_id||""; idI.oninput=()=>{d.api_id=idI.value;};
+  const hL=el("label","f","api_hash"); const hI=document.createElement("input");
+  hI.className="f"; hI.type="text"; hI.placeholder="cadena larga de letras y números";
+  hI.value=d.api_hash||""; hI.oninput=()=>{d.api_hash=hI.value;};
+  wrap.append(idL, idI, hL, hI);
+  refs.id=idI; refs.hash=hI;
+  return wrap;
+}
+
+// WhatsApp needs no credentials — a single step; the QR that follows is a LIVE STATE layered on the wizard
+// screen (see renderWizardScreen's `status==="connecting"` branch), not something the user fills in.
+function whatsappStepBody(platform){
+  const wrap=el("div");
+  wrap.appendChild(el("div","wbody","Pulsa Conectar para vincular tu "+PLAT[platform].label+" con un código QR (como WhatsApp Web)."));
+  return wrap;
+}
+
+const WIZARD_STEPS = {
+  telegram: [{title:"Entra en my.telegram.org"}, {title:"Crea la aplicación"}, {title:"Pega aquí los dos datos"}],
+  email:    [{title:"Elige tu proveedor de correo"}, {title:"Crea la contraseña de aplicación"}, {title:"Pega aquí tus datos"}],
+};
+
+// Card: credentials form (Telegram), guided for a non-technical user. Kept as the settings/muted-channels
+// path does not need it; message list rows never render a connector form inline any more (V2-570 moved every
+// connect flow to the wizard screen).
 
 // Card: QR to scan, with device-linking guide.
 function qrCard(platform, pd){
@@ -886,89 +879,163 @@ function waitBox(label, detail){
 function errorCard(pl, detail, ctx, rerender){
   const c=el("div","errcard");
   const t=el("div","et"); t.append(el("b",null,"No se pudo conectar. "), document.createTextNode(detail||"Revisa los datos e inténtalo otra vez.")); c.appendChild(t);
-  const b=el("button","cbtn","Corregir y reintentar");
-  // V2-559: this used to be `_expandConnect.add(pl)` — and on the error path the form is ALREADY expanded
-  // below, so the click added a key that was there and repainted an identical card. From the outside that is
-  // a dead button, and it was reported as one. It now always moves something: it opens the form if it is
-  // closed, and lands the cursor on the field to fix.
-  b.onclick=()=>{ _expandConnect.add(pl); _busy[pl]=false; _focusField[pl]="pw"; rerender(); };
+  const b=el("button","bt bt-ghost","Corregir y reintentar");
+  // V2-559/V2-570: the wizard screen is already showing the LAST step (that is where a submit happens from),
+  // so there is nothing to "expand" any more — retry only needs to clear the busy flag and put the cursor
+  // back on the field to fix.
+  b.onclick=()=>{ _busy[pl]=false; _focusField[pl]="pw"; rerender(); };
   c.appendChild(b);
   return c;
 }
 
-function _connectForm(pl, ctx){
-  if(pl==="email") return emailCard(pl, ctx);
-  if((PLAT[pl]||{}).requiresCreds) return credsCard(pl, ctx);
-  return connectCard(pl, ctx);
-}
-function _expandWrap(node){ const d=el("div","expand"); d.appendChild(node); return d; }
-
-// CHANNELS / connectors panel (V2-051). Onboarding when nothing is connected ("Available channels" list), and
-// always accessible from the header connector button. Each channel: icon + name + status; connect by click or
-// voice; disconnect with confirmation because it deletes credentials.
-function channelsPanel(platforms, ctx, rerender, connectedCount){
+// ── LIST screen: every connector as an icon box (V2-570) ────────────────────────────────────────────────
+function renderListScreen(platforms, ctx, rerender, connectedCount){
   const wrap=el("div");
   const head=el("div","chanhead");
   head.appendChild(el("b",null, connectedCount ? "Conectores" : "Canales disponibles"));
   head.appendChild(el("span","hint", connectedCount ? "" : "Conecta un canal para empezar — por voz o con un toque."));
-  if(connectedCount){ const back=el("span","back","← Mensajes"); back.onclick=()=>{ _connectorsOpen=false; _expandConnect.clear(); _confirmDisconnect=null; rerender(); }; head.appendChild(back); }
+  if(connectedCount){
+    const back=el("span","back","← Mensajes");
+    back.onclick=()=>{ _screen=null; rerender(); };
+    head.appendChild(back);
+  }
   wrap.appendChild(head);
 
-  ORDER.forEach(pl=>{
-    const p=PLAT[pl]; if(!p) return;
+  wrap.appendChild(iconGrid(ORDER.filter(pl=>PLAT[pl]).map(pl=>{
+    const p=PLAT[pl];
     const pd=platforms[pl]||{status:"off"};
     const st=pd.status||"off";
-    if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[pl]=false;   // engine advanced -> clear local "connecting"
-    // The draft survives a REFUSAL on purpose (V2-559) and must not survive a success: a connected account has
-    // no reason to keep its app password sitting in a form field.
-    if(st==="connected"){ _focusField[pl]=null;
-      if(pl==="email") _draft.email={email_address:"", email_password:"", provider:_draft.email.provider, imap_host:"", smtp_host:""};
-      if(pl==="telegram") _draft.telegram={api_id:"", api_hash:""}; }
+    const connected = st==="connected";
+    return {
+      key:pl, icon:brandIcon(pl, connected), label:p.label, sub:statusLabel(pd), cls:(connected?"conn":""),
+      onClick:()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; rerender(); },
+    };
+  })));
+  return wrap;
+}
 
-    const card=el("div","chan");
-    const top=el("div","top");
-    top.appendChild(brandIcon(pl, st==="connected"));
-    top.appendChild(el("span","nm", p.label));
-    top.appendChild(el("span","st"+(st==="connected"?" okc":""), statusLabel(pd)));
-    const act=el("div","act");
-    if(st==="connected"){
-      const d=el("button","dbtn","Desconectar");
-      d.onclick=()=>{ _confirmDisconnect=pl; rerender(); };
-      act.appendChild(d);
-    } else if((st==="off"||st==="no_creds") && !_busy[pl] && !_expandConnect.has(pl)){
-      const cb=el("button","cbtn","Conectar");
-      cb.onclick=()=>{ _expandConnect.add(pl); rerender(); };
-      act.appendChild(cb);
-    }
-    top.appendChild(act);
-    card.appendChild(top);
+// ── WIZARD screen: a single connector, one step at a time (V2-570) ──────────────────────────────────────
+function renderWizardScreen(platform, platforms, ctx, rerender){
+  const wrap=el("div");
+  const p=PLAT[platform];
+  const pd=platforms[platform]||{status:"off"};
+  const st=pd.status||"off";
+  if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[platform]=false;   // engine advanced -> clear local "connecting"
 
-    // DISCONNECT confirmation, deletes credentials; inline dialog.
-    if(_confirmDisconnect===pl){
+  const crumb=el("div","crumb");
+  const back=el("span","back","‹ Conectores");
+  back.onclick=()=>{ _screen={view:"list"}; rerender(); };
+  crumb.append(back, el("span","sep","/"), el("span","cur", p.label));
+  wrap.appendChild(crumb);
+
+  // CONNECTED: a status screen, not a wizard. The draft is NOT cleared on entry into this screen — only once
+  // the platform actually reports connected, so a refused connection never loses what the user typed.
+  if(st==="connected"){
+    _focusField[platform]=null;
+    if(platform==="email") _draft.email={email_address:"", email_password:"", provider:_draft.email.provider, imap_host:"", smtp_host:""};
+    if(platform==="telegram") _draft.telegram={api_id:"", api_hash:""};
+    const card=el("div","linkcard");
+    const ch=el("div","ch"); ch.append(brandIcon(platform,true), el("b",null,p.label)); card.appendChild(ch);
+    card.appendChild(el("div","wbody","Conectado. Tus mensajes llegan aquí automáticamente."));
+    if(_confirmDisconnect===platform){
       const cfm=el("div","cfm");
       cfm.appendChild(document.createTextNode(`¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`));
       const row=el("div","row");
-      const y=el("button","y","Sí, desconectar");
-      y.onclick=()=>{ _confirmDisconnect=null; _busy[pl]=false; _expandConnect.delete(pl); ctx.action("disconnect",{platform:pl, forget:true}); };
-      const n=el("button","n","Cancelar"); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
+      const y=el("button","bt bt-danger","Sí, desconectar");
+      y.onclick=()=>{ _confirmDisconnect=null; _busy[platform]=false; ctx.action("disconnect",{platform, forget:true}); };
+      const n=el("button","bt bt-ghost","Cancelar"); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
       row.append(y,n); cfm.appendChild(row); card.appendChild(cfm);
-    }
-
-    // Live state / connection form.
-    if(_busy[pl] && (st==="off"||st==="no_creds")){
-      card.appendChild(_expandWrap(waitBox("Conectando…", "Un momento, contactando con el servicio…")));
-    } else if(st==="starting"){
-      card.appendChild(_expandWrap(waitBox("Conectando…", pd.detail||"")));
-    } else if(st==="connecting"){
-      card.appendChild(_expandWrap(qrCard(pl, pd)));           // WA/TG -> QR to scan
-    } else if(st==="error"){
-      card.appendChild(_expandWrap(errorCard(pl, pd.detail, ctx, rerender)));
-      if(_expandConnect.has(pl)) card.appendChild(_expandWrap(_connectForm(pl, ctx)));
-    } else if((st==="off"||st==="no_creds") && _expandConnect.has(pl)){
-      card.appendChild(_expandWrap(_connectForm(pl, ctx)));
+    } else {
+      const d=el("button","bt bt-ghost","Desconectar");
+      d.onclick=()=>{ _confirmDisconnect=platform; rerender(); };
+      card.appendChild(d);
     }
     wrap.appendChild(card);
-  });
+    return wrap;
+  }
+
+  // Live states pre-empt the step form entirely — there is nothing to fill in while these are showing.
+  if(_busy[platform] && (st==="off"||st==="no_creds")){
+    wrap.appendChild(waitBox("Conectando…", "Un momento, contactando con el servicio…"));
+    return wrap;
+  }
+  if(st==="starting"){ wrap.appendChild(waitBox("Conectando…", pd.detail||"")); return wrap; }
+  if(st==="connecting"){ wrap.appendChild(qrCard(platform, pd)); return wrap; }
+  if(st==="error"){ wrap.appendChild(errorCard(platform, pd.detail, ctx, rerender)); }
+
+  const steps = WIZARD_STEPS[platform] || [{title:"Conectar "+p.label}];
+  const total = steps.length;
+  let step = Math.min(Math.max(_wizStep[platform]||1, 1), total);
+  _wizStep[platform] = step;
+
+  const refs = {};
+  const box = stepBox(step, steps[step-1].title, false);
+  if(total>1) box.appendChild(el("div","wcount", `Paso ${step} de ${total}`));
+
+  let content;
+  if(platform==="email"){
+    const d=_draft.email;
+    content = step===1 ? emailStep1Body(d, rerender) : step===2 ? emailStep2Body(d) : emailStep3Body(d, refs);
+  } else if(platform==="telegram"){
+    content = step===1 ? telegramStep1Body() : step===2 ? telegramStep2Body() : telegramStep3Body(refs);
+  } else {
+    content = whatsappStepBody(platform);
+  }
+  box.appendChild(content);
+  wrap.appendChild(box);
+
+  const err = el("div","err"); err.style.display="none";
+  const fail=(msg, field)=>{ err.textContent=msg; err.style.display="block";
+    if(field){ field.classList.add("errfield"); try{ field.focus(); }catch{ /* detached */ } } };
+
+  // Coming back from a failure: land ON the field to fix (only ever set on the LAST step, where submission
+  // happens), not at the top of the screen.
+  if(_focusField[platform]){
+    const target = refs[_focusField[platform]];
+    _focusField[platform]=null;
+    if(target){ setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:"center"}); }catch{ /* detached */ } }, 0); }
+  }
+
+  const foot = el("div","wfoot");
+  const backBtn = el("button","bt bt-ghost", "Atrás");
+  backBtn.onclick=()=>{
+    if(step>1){ _wizStep[platform]=step-1; rerender(); }
+    else { _screen={view:"list"}; rerender(); }
+  };
+  foot.appendChild(backBtn);
+
+  const isLast = step===total;
+  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?"Conectando…":"Conectar "+p.label) : "Continuar");
+  nextBtn.disabled = isLast && !!_busy[platform];
+  nextBtn.onclick=()=>{
+    if(!isLast){ _wizStep[platform]=step+1; rerender(); return; }
+    if(platform==="email"){
+      const d=_draft.email;
+      const email_address=(refs.addr.value||"").trim();
+      const email_password=(refs.pw.value||"").replace(/\s+/g,"");
+      if(!/.+@.+\..+/.test(email_address)) return fail("Necesito tu dirección de correo completa.", refs.addr);
+      if(!email_password) return fail("Falta la contraseña de aplicación del paso 2.", refs.pw);
+      const payload={platform, email_address, email_password, provider:d.provider};
+      if(d.provider==="otro"){
+        if(!refs.imap.value.trim()) return fail("Para «Otro» necesito el servidor IMAP.", refs.imap);
+        if(!refs.smtp.value.trim()) return fail("Para «Otro» necesito el servidor SMTP.", refs.smtp);
+        payload.imap_host=refs.imap.value.trim(); payload.smtp_host=refs.smtp.value.trim();
+      }
+      _busy[platform]=true; ctx.action("connect", payload); rerender();
+      // The draft is NOT cleared here (V2-559/V2-570): a refused connection comes back to this same step, and
+      // wiping it meant retyping the address and the 16 letters from scratch. It is cleared once CONNECTED.
+    } else if(platform==="telegram"){
+      const api_id=(refs.id.value||"").trim(), api_hash=(refs.hash.value||"").trim();
+      if(!/^\d+$/.test(api_id) || !api_hash){ fail("Necesito el api_id (solo números) y el api_hash."); return; }
+      _busy[platform]=true; ctx.action("connect", {platform, api_id, api_hash}); rerender();
+    } else {
+      _busy[platform]=true; ctx.action("connect", {platform}); rerender();
+    }
+  };
+  foot.appendChild(nextBtn);
+
+  wrap.appendChild(err);
+  wrap.appendChild(foot);
   return wrap;
 }
 
@@ -982,13 +1049,18 @@ export function render(root, data, ctx){
   const rerender=()=>render(root, data, ctx);
   const connectedCount = ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").length;
 
-  // The brain was asked to connect a channel (V2-520): open this panel and expand that channel's form, so
-  // "connect my email" lands ON the form instead of on the message list. Honoured once per request.
+  // The brain was asked to connect a channel (V2-520, redesigned V2-570): jump straight into that
+  // connector's OWN screen — never the list — so "connect my email" lands on the Gmail/Outlook/… wizard
+  // directly instead of a panel the operator still has to click through. Honoured once per request.
   const focus = data.connect_focus || null;
   if(focus && Number(focus.ts||0) > _focusDone){
     _focusDone = Number(focus.ts||0);
-    _connectorsOpen = true;
-    if(focus.platform && PLAT[focus.platform]) _expandConnect.add(focus.platform);
+    if(focus.platform && PLAT[focus.platform]){
+      _screen = {view:"wizard", platform:focus.platform};
+      if(!_wizStep[focus.platform]) _wizStep[focus.platform]=1;
+    } else {
+      _screen = {view:"list"};
+    }
   }
 
   // A pushed VIEW (V2-543) applies only when its witness counter moves: «vuelve a la lista principal» /
@@ -1005,8 +1077,8 @@ export function render(root, data, ctx){
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
   const dots=el("div","dots");
   // V2-521: every channel is VISIBLE up here — connected bright, unconnected dimmed (the operator's ask:
-  // seeing the catalogue at a glance). A bright icon toggles that platform's lens; a dimmed one opens the
-  // connectors panel with its form ready — the same door the voice takes.
+  // seeing the catalogue at a glance). A bright icon toggles that platform's lens; a dimmed one opens that
+  // connector's own wizard screen — the same door the voice takes (V2-570).
   ORDER.forEach(pl=>{
     const on=(platforms[pl]||{}).status==="connected";
     const ic=brandIcon(pl, on);
@@ -1020,18 +1092,18 @@ export function render(root, data, ctx){
         ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
-      ic.onclick=()=>{ _connectorsOpen=true; _expandConnect.add(pl); rerender(); };
+      ic.onclick=()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; rerender(); };
     }
     dots.appendChild(ic);
   });
   hd.appendChild(dots);
-  const connBtn=el("button","connbtn"+(_connectorsOpen?" active":""),"🔌"); connBtn.title="Canales / conectores";
-  connBtn.onclick=()=>{ _connectorsOpen=!_connectorsOpen; if(!_connectorsOpen){ _expandConnect.clear(); _confirmDisconnect=null; } rerender(); };
+  const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title="Canales / conectores";
+  connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; rerender(); };
   hd.appendChild(connBtn);
   const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title="Ajustes";
   gear.onclick=()=>{ _settingsOpen=!_settingsOpen; rerender(); };
   hd.appendChild(gear);
-  if(items.length && !_connectorsOpen){
+  if(items.length && !_screen){
     const clr=el("button","clr","Limpiar"); clr.title="Marcar todo como leído";
     clr.onclick=()=>ctx.action("clear"); hd.appendChild(clr);
   }
@@ -1039,11 +1111,17 @@ export function render(root, data, ctx){
 
   if(_settingsOpen) root.appendChild(settingsPanel(platforms, data, ctx, rerender));
 
-  // CHANNELS panel: onboarding when nothing is connected, or when the user opens it from the header connector
-  // button. Messaging starts EMPTY; do not dump every connection form by default (V2-051 product decision).
-  const showChannels = _connectorsOpen || connectedCount===0;
+  // CHANNELS area: onboarding when nothing is connected, or when the user opens it from the header connector
+  // button, or when the brain pushed a `connect_focus`. Messaging starts EMPTY; do not dump every connection
+  // form by default (V2-051 product decision, unchanged).
+  const showChannels = !!_screen || connectedCount===0;
   if(showChannels){
-    root.appendChild(channelsPanel(platforms, ctx, rerender, connectedCount));
+    const scr = _screen || {view:"list"};
+    if(scr.view==="wizard" && scr.platform && PLAT[scr.platform]){
+      root.appendChild(renderWizardScreen(scr.platform, platforms, ctx, rerender));
+    } else {
+      root.appendChild(renderListScreen(platforms, ctx, rerender, connectedCount));
+    }
     return;
   }
 

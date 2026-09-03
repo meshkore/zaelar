@@ -130,7 +130,7 @@
    "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
   },
   "open_connectors": {
-   "desc": "Abre el panel de CANALES para conectar uno (email/gmail/outlook, whatsapp, telegram) y, si se nombra la plataforma, despliega su formulario ya listo. Úsala siempre que el operador pida conectar/vincular/añadir un canal — el formulario pide lo que haga falta (en email, el proveedor y la cuenta). No pidas tú credenciales por voz.",
+   "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
    "payload": {
     "platform": "string opcional (email|whatsapp|telegram) — la plataforma a desplegar"
    },
@@ -173,5 +173,5 @@
   "gmail",
   "outlook"
  ],
- "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «ábreme/muéstrame/enséñame el WhatsApp | el Telegram | el correo» (lleve o no «solo los mensajes de») → show_view con esa plataforma: WhatsApp, Telegram y el correo NO son tarjetas, son VISTAS de ésta, así que mostrar el widget otra vez NO cambia nada (contesta con los chats que casan en result.chats); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: el panel se abre con su formulario desplegado. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el formulario pregunta cuál, así que no lo preguntes tú."
+ "usage": "Para VER mensajes basta con mostrar la tarjeta. Para NAVEGARLA por voz: «vuelve a la lista principal / enséñame la lista general» → show_view {platform:'all'}; «ábreme/muéstrame/enséñame el WhatsApp | el Telegram | el correo» (lleve o no «solo los mensajes de») → show_view con esa plataforma: WhatsApp, Telegram y el correo NO son tarjetas, son VISTAS de ésta, así que mostrar el widget otra vez NO cambia nada (contesta con los chats que casan en result.chats); «abre el chat de X» → open {name:'X'}; «vuelve atrás» desde un chat → close. Marcar leído (read/readchat/clear) PROPAGA a la app real. Para CONECTAR un canal («conéctame el correo», «vincula mi Gmail», «añade WhatsApp») muestra la tarjeta Y llama a open_connectors con la plataforma: se entra directamente en la pantalla de ESE conector, con su asistente ya en marcha. Email cubre Gmail, Outlook/Hotmail y cualquier otro por IMAP — el asistente pregunta cuál, así que no lo preguntes tú."
 }

@@ -7831,6 +7831,41 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **A screen belongs to ONE connector, and a picker is a grid you can already see (V2-561, 2026-09-03)**:
+  the operator's follow-up on V2-559's redesign, with the two screenshots still fresh — the wizard's three
+  steps were stacked in one scrolling card, the email provider was a `<select>` you had to open to see the
+  options, and the connector list and the connect form shared one screen (his own worry: "if we ever have
+  20 connectors I'll be four scrolls away from the wizard"). None of it needed new mechanism — `connect_focus`,
+  the per-provider guide table and the numbered-box shell all already existed, this rewires how the client
+  navigates and paints them.
+  - **`_screen = {view:"list"|"wizard", platform}`** replaces the flat `_connectorsOpen`/`_expandConnect`
+    pair. The list is now an **icon grid** (`.igrid`/`.ibox`), and clicking ANY box — connected or not —
+    enters that connector's OWN screen: a step wizard if it needs one, a status/disconnect card if it's
+    already linked. One screen per connector, never two concepts for the same box.
+  - **Only ONE step renders at a time**, with a breadcrumb back to the list and a `Paso N de 3` caption —
+    the operator's literal ask ("show step 1, and only when he continues does step 2 appear"). The email
+    provider step is the icon grid he asked for by name ("put the mail providers in a box with the icon in
+    the middle so he sees all of them"); no per-provider brand icons exist, so it's an avatar with the
+    provider's initial, same honesty as the header's plain envelope for the email CHANNEL.
+  - **`connect_focus` now jumps straight into that connector's screen**, never the list — "connect Gmail"
+    lands on the Gmail wizard directly, matching the manifest's updated `open_connectors` description
+    ("entra DIRECTAMENTE en la pantalla de ESE conector").
+  - **Retry got simpler because the redesign removed the reason it looked broken**: a submit only ever
+    happens from the wizard's LAST step, so "Corregir y reintentar" has nothing left to "expand" — it just
+    clears busy and refocuses the field, already on the right step by construction.
+  - Consolidated the three drifted button classes (`.btn`/`.cbtn`/`.dbtn`) into one `.bt`/`.bt-primary`/
+    `.bt-ghost`/`.bt-danger` scale, and deleted the now-dead `.chan`-scoped CSS for the stacked rows rather
+    than leaving it unused.
+  - Node 4.106 rewritten end to end for the new DOM (23 render cases: grid-not-rows, click-enters-own-screen,
+    one-step-visible, provider-grid-not-a-select, header-button-toggles-vs-opens-list depending on state,
+    refusal keeps the draft, retry moves focus, phone width for all three wizards). Node 4.89's live harness
+    updated to the same assertions. Disarm verified: reverting the `connect_focus` jump makes the new render
+    test fail on a real pixel/DOM check, not a source grep.
+  - Global connector catalog (a 5th `ChatWall` tab, category→connector, wishlist "Lo quiero") is planned as
+    **Phase 2**, implementing the already-approved
+    `V2-526-the-connector-catalog-costs-nothing-until-it-is-connected.md` design — not started this pass.
+    Detail and both phases: `V2-561-messaging-wizard-redesign-and-connector-catalog-plan.md`.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

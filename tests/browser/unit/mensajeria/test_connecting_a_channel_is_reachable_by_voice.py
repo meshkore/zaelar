@@ -79,4 +79,4 @@ def test_the_widget_honours_a_request_ONCE():
     this test passed happily against `if(false && focus …)`, because the string was still there. What
     proves the behaviour is the render."""
     src = WIDGET_JS.read_text(encoding="utf-8")
-    assert "_focusDone" in src and "_connectorsOpen = true" in src
+    assert "_focusDone" in src and '_screen = {view:"wizard", platform:focus.platform}' in src

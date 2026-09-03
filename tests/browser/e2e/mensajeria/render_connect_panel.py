@@ -1,12 +1,14 @@
-"""RENDER check — asking to connect a channel lands ON the form (V2-520).
+"""RENDER check — asking to connect a channel lands DIRECTLY on that connector's own screen (V2-520,
+redesigned V2-570: two screens, list vs. a single connector's wizard).
 
-The source-level test in `tests/browser/unit/mensajeria/` proves the wiring was written; only this proves
-it RUNS. Measured while building the fix: neutering the render branch to `if(false && focus …)` left every
-source assertion green, because the string it greps for was still in the file.
+The source-level tests in `tests/browser/unit/mensajeria/` prove the wiring was written; only this proves
+it RUNS against the operator's real, live engine. Measured while building the fix: neutering the render
+branch to `if(false && focus …)` left every source assertion green, because the string it greps for was
+still in the file.
 
 Drives the operator's real engine: calls the `open_connectors` data-op the brain would call, then looks at
-the pixels — the channels panel present, and the EMAIL form (with its provider picker: Gmail / Outlook /
-other) expanded inside it.
+the pixels — the breadcrumb naming the connector (not the connector LIST), and the email wizard's first
+step showing the provider picker as an icon grid (Gmail / Outlook / …), never a `<select>`.
 """
 from __future__ import annotations
 
@@ -37,21 +39,25 @@ def main() -> int:
             body: JSON.stringify({action:'open_connectors', payload:{platform:'email'}})})""")
         pg.wait_for_timeout(2500)
 
-        panel = pg.query_selector(".hb-msg .chanhead")
-        if not panel:
-            problems.append("the channels panel did not open")
-        form = pg.query_selector(".hb-msg .linkcard")
-        if not form:
-            problems.append("the email form was not expanded")
+        crumb = pg.query_selector(".hb-msg .crumb .cur")
+        if not crumb or "email" not in (crumb.text_content() or "").lower():
+            problems.append("connect_focus did not land on the Email connector's OWN screen")
+        chanhead = pg.query_selector(".hb-msg .chanhead")
+        if chanhead:
+            problems.append("landed on the connector LIST instead of the Email wizard screen")
+
+        grid = pg.query_selector(".hb-msg .igrid")
+        if not grid:
+            problems.append("the provider picker (step 1) did not render as an icon grid")
         else:
-            box = form.bounding_box()
-            if not box or box["height"] < 80:
-                problems.append(f"the form is in the DOM but has no pixels: {box}")
-            options = [o.strip().lower() for o in pg.eval_on_selector_all(
-                ".hb-msg .linkcard select option", "els => els.map(e => e.textContent)")]
+            box = grid.bounding_box()
+            if not box or box["height"] < 40:
+                problems.append(f"the icon grid is in the DOM but has no pixels: {box}")
+            labels = [t.strip().lower() for t in pg.eval_on_selector_all(
+                ".hb-msg .igrid .ilabel", "els => els.map(e => e.textContent)")]
             for want in ("gmail", "outlook"):
-                if not any(want in o for o in options):
-                    problems.append(f"the provider picker does not offer {want}: {options}")
+                if not any(want in lab for lab in labels):
+                    problems.append(f"the provider picker does not offer {want}: {labels}")
         pg.screenshot(path=os.path.join(OUT, "connect_panel.png"))
         b.close()
 

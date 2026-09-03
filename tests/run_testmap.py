@@ -1886,10 +1886,11 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/mensajeria/test_a_dictated_reply_reaches_every_platform.py"]},
         # RENDERIZA a propósito, por lo mismo que el 4.34: el 4.35 prueba el dato y el cableado, y seguiría
         # verde con la rama del render desactivada — medido mientras se construía (`if(false && focus …)`
-        # dejó todas las aserciones de fuente en verde). Esto mira los píxeles: panel abierto, formulario
-        # con altura real y el selector ofreciendo Gmail y Outlook.
-        {"id": "4.89", "title": "El panel de conectores RENDERIZADO: el formulario de email desplegado y su "
-                                "selector con Gmail y Outlook",
+        # dejó todas las aserciones de fuente en verde). Esto mira los píxeles: se entra DIRECTO en la
+        # pantalla del conector nombrado (nunca la lista), con su paso 1 pintado como una rejilla de iconos
+        # (Gmail/Outlook/…) y no un <select> (rediseño V2-570).
+        {"id": "4.89", "title": "El conector nombrado se abre en SU PROPIA pantalla, RENDERIZADA: rejilla de "
+                                "iconos con Gmail y Outlook, nunca la lista",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_connect_panel.py"},
         # V2-521 — la fórmula visual del widget principal: una sola bandeja por defecto, lente por
@@ -1899,13 +1900,15 @@ DOMAINS: list[dict] = [
                                 "plataforma, y el icono apagado abre su conexión",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_visual_formula.py"},
-        # V2-559 — RENDERIZA, y es la única mitad que puede contestar lo que reportó el operador: los pasos
-        # numerados con píxeles reales, que «Corregir y reintentar» MUEVA algo (era `_expandConnect.add` sobre
+        # V2-559/V2-570 — RENDERIZA, y es la única mitad que puede contestar lo que reportó el operador: UN
+        # solo paso visible a la vez con Atrás/Continuar reales, el paso 1 de email como rejilla de iconos
+        # (nunca un <select>), la lista de conectores como rejilla y no filas apiladas, la miga de pan
+        # separando lista de asistente, que «Corregir y reintentar» MUEVA algo (era `_expandConnect.add` sobre
         # un set que ya lo tenía: un repintado idéntico, o sea un botón muerto visto desde fuera), y que el
         # formulario vuelva CON los datos tras un rechazo. Trae además el trinquete de móvil, y dice que NO
         # prueba que esta tanda arreglara el layout: medido antes, las seis pantallas ya cabían a 375px.
-        {"id": "4.106", "title": "El asistente de conexión RENDERIZADO: tres pasos con píxeles, un reintento "
-                                 "que mueve, el borrador que sobrevive, y los tres asistentes a 375px",
+        {"id": "4.106", "title": "El asistente de conexión RENDERIZADO: un paso a la vez, rejillas de iconos, "
+                                 "lista/asistente separados, un reintento que mueve, y los tres a 375px",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/mensajeria/test_connect_wizard_render.py"]},
         # 2026-09-03 (V2-558): el splash era un anillo girando y UNA frase fija hasta que main.js terminaba,
