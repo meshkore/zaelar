@@ -18,19 +18,38 @@ _task: asyncio.Task | None = None
 _POLL = 1.0
 
 
+def _report_failure(platform: str, detail: str) -> None:
+    """Put a rejected order back on the CARD (V2-559). Before this, `apply_connect` returned {ok:False,error}
+    and the supervisor dropped it on the floor: the widget had enqueued the order, painted "Conectando…", and
+    then waited forever for a status that was never going to be published. A refusal the user cannot see is
+    indistinguishable from a hang, and it is the half of the failure the operator can actually act on."""
+    try:
+        from connectors.messaging import ingest, store as _store
+        if ingest.v2_enabled():
+            ingest.publish_status(platform, "error", None, detail)
+        else:
+            _store.set_platform_status(platform, "error", None, detail)
+    except Exception as e:
+        logger.debug(f"supervisor: could not report {platform} failure: {e}")
+
+
 async def _drain_once() -> None:
     for cmd in store.take_control():
         platform = (cmd.get("platform") or "").lower()
         kind = cmd.get("cmd")
         try:
             if kind == "connect":
-                await control.apply_connect(platform, cmd)
+                res = await control.apply_connect(platform, cmd) or {}
+                if not res.get("ok"):
+                    _report_failure(platform, str(res.get("error") or "No pude conectar."))
             elif kind == "disconnect":
                 await control.apply_disconnect(platform, cmd)
             else:
                 logger.debug(f"supervisor: unknown order {cmd!r}")
         except Exception as e:
             logger.warning(f"supervisor: order {kind} {platform} failed: {e}")
+            if kind == "connect":
+                _report_failure(platform, f"No pude conectar: {e}")
 
 
 async def _loop() -> None:

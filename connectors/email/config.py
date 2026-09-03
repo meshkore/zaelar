@@ -25,7 +25,11 @@ def address() -> str:
 
 
 def password() -> str:
-    return str(_cfg().get("email_password") or os.getenv("EMAIL_PASSWORD") or "")
+    """Normalized (V2-559): whitespace is stripped everywhere, not only at the ends. Google displays the app
+    password as four groups of four — those spaces are presentation, and pasting them verbatim used to reach
+    IMAP AUTH untouched and fail as `Invalid credentials`."""
+    from connectors.email import credentials as _creds
+    return _creds.normalize(_cfg().get("email_password") or os.getenv("EMAIL_PASSWORD") or "")
 
 
 def provider() -> str:

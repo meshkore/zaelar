@@ -29,31 +29,48 @@ def validate_connect(platform: str, payload: dict) -> str | None:
         api_id = str((payload or {}).get("api_id") or "").strip()
         api_hash = str((payload or {}).get("api_hash") or "").strip()
         if not api_id.isdigit() or not api_hash:
-            return ("api_id (a number) and api_hash are required. "
-                    "Get them from my.telegram.org → API development tools.")
+            return ("Necesito el api_id (solo números) y el api_hash. Los sacas en my.telegram.org → "
+                    "API development tools.")
     if platform == "email":
         p = payload or {}
         addr = str(p.get("email_address") or "").strip()
-        pwd = str(p.get("email_password") or "").strip()
         if "@" not in addr:
-            return "An email address is required (e.g. youraccount@gmail.com)."
-        if not pwd:
-            return ("An app password is required. On Gmail/Outlook, enable it in your account security "
-                    "(with 2-step verification): 'app password'.")
+            return "Necesito tu dirección de correo (por ejemplo tucuenta@gmail.com)."
         prov = str(p.get("provider") or "").strip().lower()
         from connectors.email.mailbox import PRESETS
         if prov not in PRESETS and prov not in ("", "otro", "other"):
-            return f"unknown provider: {prov}"
+            return f"proveedor desconocido: {prov}"
+        # V2-559 — the SAME verdict the form shows before enqueuing, applied again here because this is the
+        # door the HTTP API and the supervisor share: a link, an address or a 15-letter Google password never
+        # reaches the store to come back later as an anonymous `Invalid credentials`.
+        from connectors.email import credentials as _creds
+        why = _creds.diagnose(prov or _domain_provider(addr), addr, p.get("email_password"))
+        if why:
+            return why
         # If there is no explicit preset and the payload has no hosts, require the address domain to be deducible.
         has_hosts = bool(str(p.get("imap_host") or "").strip() and str(p.get("smtp_host") or "").strip())
         if prov not in PRESETS and not has_hosts:
-            domain = addr.split("@")[-1].lower()
-            deducible = any(k in domain for k in ("gmail", "googlemail", "outlook", "hotmail", "live",
-                                                  "office365", "icloud", "me.com", "yahoo"))
-            if not deducible:
-                return ("For an unlisted provider I need the IMAP and SMTP servers (e.g. imap.yourdomain.com "
-                        "and smtp.yourdomain.com).")
+            if not _domain_provider(addr):
+                return ("Para un proveedor que no está en la lista necesito sus servidores IMAP y SMTP "
+                        "(por ejemplo imap.tudominio.com y smtp.tudominio.com).")
     return None
+
+
+def _domain_provider(address: str) -> str:
+    """Provider id guessable from the address domain, or '' when it is not one we know. Shared by the host
+    requirement and the password shape check — a custom domain on Google Workspace still needs Google's rules."""
+    domain = str(address or "").split("@")[-1].lower()
+    if not domain:
+        return ""
+    if "gmail" in domain or "googlemail" in domain:
+        return "gmail"
+    if any(x in domain for x in ("outlook", "hotmail", "live", "office365")):
+        return "outlook"
+    if "icloud" in domain or "me.com" in domain:
+        return "icloud"
+    if "yahoo" in domain:
+        return "yahoo"
+    return ""
 
 
 async def apply_connect(platform: str, payload: dict | None = None) -> dict:
@@ -68,8 +85,10 @@ async def apply_connect(platform: str, payload: dict | None = None) -> dict:
         patch.update({"api_id": str(payload.get("api_id")).strip(),
                       "api_hash": str(payload.get("api_hash")).strip()})
     if platform == "email":
+        from connectors.email import credentials as _creds
         patch.update({"email_address": str(payload.get("email_address") or "").strip(),
-                      "email_password": str(payload.get("email_password") or ""),
+                      # V2-559: stored WITHOUT whitespace, so what Google shows in four groups is what IMAP gets.
+                      "email_password": _creds.normalize(payload.get("email_password")),
                       "provider": str(payload.get("provider") or "").strip().lower()})
         for k in ("imap_host", "imap_port", "smtp_host", "smtp_port"):     # only if the user provided them (provider 'other')
             v = payload.get(k)

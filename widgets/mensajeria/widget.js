@@ -62,6 +62,9 @@ const _draft = {telegram: {api_id: "", api_hash: ""},
 const EMAIL_PROVIDERS = [["gmail","Gmail"], ["outlook","Outlook / Hotmail"], ["icloud","iCloud"],
                          ["yahoo","Yahoo"], ["otro","Otro (IMAP/SMTP)"]];
 const _busy = {};   // platform -> true while a connection is in progress, for button feedback
+// Which field of a connect form to land on after a refusal (V2-559). Module-lived like _busy: the card is
+// rebuilt on every render, so the intent has to outlive the DOM node it applies to.
+const _focusField = {};
 
 // LOCAL presentation state (cosmetic, does not touch the store): selected profile, settings panel open, expanded
 // messages. Survives re-renders because the module loads once.
@@ -190,18 +193,60 @@ function injectStyles(){
   .hb-msg .twhen{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin-left:auto;flex:0 0 auto}
 
   .hb-msg .empty{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px;padding:22px 0}
+
+  /* NARROW SCREENS (V2-559). The mobile shell gives a widget the whole card, so nothing may depend on a wide
+     line: the channel row, the header and the thread header all wrap instead of pushing their controls off the
+     edge, and every media element is capped by the CARD and not by a pixel width taken from the desktop. */
+  @media (max-width: 430px){
+    .hb-msg{width:auto;max-width:100%}
+    .hb-msg .hd{flex-wrap:wrap}
+    .hb-msg .hd .dots{margin-left:auto}
+    .hb-msg .chan .top{flex-wrap:wrap}
+    .hb-msg .chan .st{width:100%;order:3;margin:2px 0 0 0}
+    .hb-msg .chan .act{order:4;width:100%;margin-left:0;margin-top:8px}
+    .hb-msg .chan .act button{flex:1}
+    .hb-msg .chanhead{flex-wrap:wrap}
+    .hb-msg .chanhead .hint{width:100%}
+    .hb-msg .thd{flex-wrap:wrap}
+    .hb-msg .cfm .row{flex-wrap:wrap}
+    .hb-msg .cfm .row button{flex:1}
+    .hb-msg .mediaw .matt,.hb-msg .mediaw video.mvid{max-width:100%}
+    .hb-msg .mediaw audio.maud{width:100%}
+    .hb-msg .qr-wrap img{width:min(220px,64vw)}
+    .hb-msg .seg{width:100%} .hb-msg .segbtn{flex:1}
+  }
   .hb-msg .linkcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:13px 14px;margin-bottom:10px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .linkcard .ch{display:flex;align-items:center;gap:8px;margin-bottom:9px}
   .hb-msg .linkcard .ch b{font-size:14px}
-  .hb-msg .steps{margin:0 0 10px;padding-left:20px;font-size:12.5px;color:var(--hb-muted,#4a5a70);line-height:1.6}
-  .hb-msg .steps li{margin:2px 0} .hb-msg .steps b{color:var(--hb-ink,#0d1622)}
-  .hb-msg .steps a{color:var(--hb-accent,#3D6FE0);text-decoration:none;font-weight:600}
   .hb-msg label.f{display:block;font-size:12px;color:var(--hb-muted,#5b6b82);margin:6px 0 3px}
   .hb-msg input.f,.hb-msg select.f{width:100%;box-sizing:border-box;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
   .hb-msg input.f:focus,.hb-msg select.f:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
   .hb-msg .btn{margin-top:11px;width:100%;border:0;border-radius:9px;padding:10px;font-size:13.5px;font-weight:600;cursor:pointer;color:#fff;background:var(--hb-accent,#3D6FE0)}
   .hb-msg .btn:hover{filter:brightness(1.06)} .hb-msg .btn:disabled{opacity:.6;cursor:default}
   .hb-msg .err{color:var(--hb-risk,#e5484d);font-size:12px;margin-top:8px}
+  .hb-msg .errfield{border-color:var(--hb-risk,#e5484d)!important}
+
+  /* Guided connect wizard (V2-559). The operator asked for an ASSISTANT: numbered boxes, real margins, and one
+     thing to do per step. The old form was a flat stack of labels where step 2 (going to the provider and
+     creating the app password) was a sentence buried between two inputs — so it read as optional. */
+  .hb-msg .wz{display:flex;flex-direction:column;gap:10px;margin:12px 0 0}
+  .hb-msg .wstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:11px;padding:11px 12px 12px;background:var(--hb-bg,#fff)}
+  .hb-msg .wstep.done{border-color:var(--hb-accent2,#16B8A6)}
+  .hb-msg .whead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
+  .hb-msg .wnum{width:22px;height:22px;flex:0 0 auto;border-radius:50%;display:inline-flex;align-items:center;
+    justify-content:center;font-size:11.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c)}
+  .hb-msg .wstep.done .wnum{background:var(--hb-accent2,#16B8A6)}
+  .hb-msg .wtitle{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622)}
+  .hb-msg .wbody{font-size:12.5px;color:var(--hb-muted,#4a5a70);line-height:1.55}
+  .hb-msg .wbody b{color:var(--hb-ink,#0d1622)}
+  .hb-msg .wlink{display:inline-flex;align-items:center;gap:6px;margin-top:9px;border:1px solid var(--hb-accent,#3D6FE0);
+    color:var(--hb-accent,#3D6FE0);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;
+    text-decoration:none;background:transparent}
+  .hb-msg .wlink:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
+  .hb-msg .wtip{margin-top:8px;font-size:12px;color:var(--hb-muted,#5b6b82);background:var(--hb-bg-soft,#fbfdff);
+    border:1px solid var(--hb-line,#eef1f6);border-radius:8px;padding:7px 9px;line-height:1.5}
+  .hb-msg .wtip b{color:var(--hb-ink,#0d1622)}
+  .hb-msg .wstep label.f:first-of-type{margin-top:0}
   .hb-msg .qr-wrap{text-align:center;padding:4px 0}
   .hb-msg .qr-wrap img{width:220px;max-width:78vw;border-radius:12px;border:1px solid var(--hb-line,#e3e8f0);background:#fff;padding:8px}
   .hb-msg .qr-wrap .cap{font-size:12.5px;color:var(--hb-muted,#3a4757);margin-top:9px;line-height:1.55}
@@ -399,18 +444,29 @@ function credsCard(platform, ctx){
   const card=el("div","linkcard");
   const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Conectar "+p.label)); card.appendChild(ch);
 
-  card.appendChild(el("div",null,"Solo la primera vez necesito dos datos de tu cuenta:"));
-  const ol=el("ol","steps");
-  const li=(...frag)=>{ const e=el("li"); frag.forEach(f=>e.append(f)); ol.appendChild(e); };
-  const link=document.createElement("a"); link.href=p.credLink; link.target="_blank"; link.rel="noopener";
-  link.textContent="my.telegram.org";
-  li("Abre ", link, " e inicia sesión con tu número (te llega un código dentro de Telegram).");
-  li("Entra en ", el("b",null,"API development tools"), ".");
-  li("Rellena el formulario (", el("b",null,"App title: Zaelar"), ", ", el("b",null,"Short name: Zaelar"),
-     ", el resto en blanco) y pulsa ", el("b",null,"Create application"), ".");
-  li("Copia el ", el("b",null,"api_id"), " (un número) y el ", el("b",null,"api_hash"),
-     " (una cadena larga) y pégalos aquí:");
-  card.appendChild(ol);
+  card.appendChild(el("div",null,"Solo la primera vez necesito dos datos de tu cuenta. Son tres pasos:"));
+  const wz=el("div","wz");
+
+  const t1=emailStep(1,"Entra en my.telegram.org");
+  t1.appendChild(el("div","wbody","Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram."));
+  const tlink=document.createElement("a"); tlink.className="wlink"; tlink.href=p.credLink;
+  tlink.target="_blank"; tlink.rel="noopener"; tlink.textContent="Abrir my.telegram.org ↗";
+  t1.appendChild(tlink);
+  wz.appendChild(t1);
+
+  const t2=emailStep(2,"Crea la aplicación");
+  const t2b=el("div","wbody");
+  t2b.append(document.createTextNode("Entra en "), el("b",null,"API development tools"),
+             document.createTextNode(" y rellena el formulario ("), el("b",null,"App title: Zaelar"),
+             document.createTextNode(", "), el("b",null,"Short name: Zaelar"),
+             document.createTextNode(", el resto en blanco). Pulsa "), el("b",null,"Create application"),
+             document.createTextNode("."));
+  t2.appendChild(t2b);
+  wz.appendChild(t2);
+
+  const t3=emailStep(3,"Pega aquí los dos datos");
+  t3.appendChild(el("div","wtip","El api_id es un número corto y el api_hash una cadena larga de letras y números."));
+  card.appendChild(wz);
 
   const idL=el("label","f","api_id"); const idI=document.createElement("input");
   idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder="p.ej. 12345678";
@@ -418,7 +474,8 @@ function credsCard(platform, ctx){
   const hL=el("label","f","api_hash"); const hI=document.createElement("input");
   hI.className="f"; hI.type="text"; hI.placeholder="cadena larga de letras y números";
   hI.value=_draft.telegram.api_hash||""; hI.oninput=()=>{_draft.telegram.api_hash=hI.value;};
-  card.append(idL, idI, hL, hI);
+  t3.append(idL, idI, hL, hI);
+  wz.appendChild(t3);
 
   const err=el("div","err"); err.style.display="none";
   const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
@@ -430,35 +487,86 @@ function credsCard(platform, ctx){
     }
     _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
     ctx.action("connect", {platform, api_id, api_hash});   // -> store -> supervisor -> real connect; QR arrives by SSE
-    _draft.telegram={api_id:"", api_hash:""};
+    // Kept until the channel reports CONNECTED (V2-559) — a refusal must not cost re-copying both values.
     card.textContent=""; card.append(ch, el("div","waiting","Conectando con "+p.label+"… te muestro el QR en un momento."));
   };
   card.appendChild(err); card.appendChild(btn);
   return card;
 }
 
-// Card: EMAIL form (V2-051), provider + address + app password (no QR).
+// Card: EMAIL wizard (V2-051; redesigned V2-559). THREE numbered steps, because the middle one — go to the
+// provider and CREATE an app password — used to be a sentence between two inputs and read as optional. The
+// operator followed it, came back with the LINK in the clipboard, pasted that as the password, and the card
+// answered with the generic "use an app password" over a password he had just created.
+//
+// What this card does NOT do: judge the shape of the password. That rule lives in ONE place
+// (`connectors/email/credentials.py`) and reaches here as the connection's own error, so the wizard and the
+// connector can never drift apart on what a valid app password looks like. Here we only check what is
+// unambiguous locally (empty fields, an address that is not one) and strip the spaces the provider prints.
+function emailStep(n, title, done){
+  const box=el("div","wstep"+(done?" done":""));
+  const head=el("div","whead"); head.append(el("span","wnum",String(n)), el("span","wtitle",title));
+  box.appendChild(head);
+  return box;
+}
+
+// Per-provider guidance (V2-521): the generic app-password sentence never said WHERE to get one. One line + the
+// exact page, switching with the dropdown — the operator asked to be told the process, the token, whatever the
+// provider needs, right here.
+const EMAIL_GUIDE={
+  gmail:   {steps:"Activa la verificación en 2 pasos y entra en la página de contraseñas de aplicación.",
+            url:"https://myaccount.google.com/apppasswords", lbl:"Abrir contraseñas de aplicación de Google",
+            tip:"Google te la enseña en 4 bloques de 4 letras. Cópiala entera — da igual si trae espacios, "
+               +"los quito yo. Lo que NO va aquí es el enlace de la página."},
+  outlook: {steps:"Con la verificación en 2 pasos activada, crea una contraseña de aplicación.",
+            url:"https://account.live.com/proofs/AppPassword", lbl:"Abrir contraseñas de aplicación de Microsoft",
+            tip:"Cópiala tal cual te la muestre. Es una contraseña, no el enlace de la página."},
+  icloud:  {steps:"Genera una contraseña específica de app desde tu cuenta de Apple.",
+            url:"https://appleid.apple.com/account/manage", lbl:"Abrir appleid.apple.com",
+            tip:"Apple la muestra como xxxx-xxxx-xxxx-xxxx. Cópiala con los guiones."},
+  yahoo:   {steps:"Genera una contraseña de app en la seguridad de tu cuenta.",
+            url:"https://login.yahoo.com/account/security", lbl:"Abrir seguridad de Yahoo", tip:""},
+  otro:    {steps:"Usa la contraseña (o contraseña de app) que te dé tu proveedor de correo.",
+            url:"", lbl:"", tip:"Necesitaré además sus servidores IMAP y SMTP, abajo."},
+};
+
 function emailCard(platform, ctx){
   const p=PLAT[platform];
   const d=_draft.email;
   const card=el("div","linkcard");
   const ch=el("div","ch"); ch.append(badge(platform), el("b",null,"Conectar "+p.label)); card.appendChild(ch);
-  card.appendChild(el("div",null,"Leo tu correo y puedes responder por voz. En Gmail/Outlook necesitas una "
-    +"«contraseña de aplicación» (con la verificación en 2 pasos activada) — no tu contraseña normal."));
+  card.appendChild(el("div",null,"Leo tu correo y puedes responder por voz. Son tres pasos y solo se hacen una vez."));
 
-  // Provider.
-  const provL=el("label","f","Proveedor"); const prov=document.createElement("select"); prov.className="f";
+  const wz=el("div","wz");
+
+  // ── Step 1: provider ────────────────────────────────────────────────────────────────────────────────────
+  const s1=emailStep(1,"Elige tu proveedor de correo", true);
+  const prov=document.createElement("select"); prov.className="f";
   EMAIL_PROVIDERS.forEach(([v,lab])=>{ const o=document.createElement("option"); o.value=v; o.textContent=lab;
     if(v===d.provider) o.selected=true; prov.appendChild(o); });
-  // Address.
+  s1.appendChild(prov);
+  wz.appendChild(s1);
+
+  // ── Step 2: create the app password AT the provider ─────────────────────────────────────────────────────
+  const s2=emailStep(2,"Crea la contraseña de aplicación");
+  const s2body=el("div","wbody"); s2.appendChild(s2body);
+  const s2link=document.createElement("a"); s2link.className="wlink"; s2link.target="_blank"; s2link.rel="noopener";
+  const s2tip=el("div","wtip");
+  s2.append(s2link, s2tip);
+  wz.appendChild(s2);
+
+  // ── Step 3: paste it here ───────────────────────────────────────────────────────────────────────────────
+  const s3=emailStep(3,"Pega aquí tus datos");
   const addrL=el("label","f","Correo"); const addr=document.createElement("input");
   addr.className="f"; addr.type="email"; addr.placeholder="tucuenta@gmail.com"; addr.autocomplete="off";
-  addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value;};
-  // Password.
+  addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value; addr.classList.remove("errfield");};
   const pwL=el("label","f","Contraseña de aplicación"); const pw=document.createElement("input");
-  pw.className="f"; pw.type="password"; pw.placeholder="pega aquí la contraseña de aplicación"; pw.autocomplete="off";
-  pw.value=d.email_password||""; pw.oninput=()=>{d.email_password=pw.value;};
-  // Hosts ("otro" only).
+  pw.className="f"; pw.type="password"; pw.placeholder="pega aquí la contraseña, no el enlace"; pw.autocomplete="off";
+  // The provider PRINTS the password in groups; those spaces are presentation and IMAP AUTH does not want them.
+  // Stripping them here is the same normalization `connectors/email/credentials.normalize` applies server-side.
+  pw.value=d.email_password||"";
+  pw.oninput=()=>{ const clean=pw.value.replace(/\s+/g,""); if(clean!==pw.value) pw.value=clean;
+                   d.email_password=clean; pw.classList.remove("errfield"); };
   const imapL=el("label","f","Servidor IMAP"); const imap=document.createElement("input");
   imap.className="f"; imap.type="text"; imap.placeholder="imap.tudominio.com";
   imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
@@ -466,55 +574,49 @@ function emailCard(platform, ctx){
   smtp.className="f"; smtp.type="text"; smtp.placeholder="smtp.tudominio.com";
   smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
   const hostsWrap=el("div"); hostsWrap.append(imapL, imap, smtpL, smtp);
-  // Per-provider guidance (V2-521): the generic app-password sentence never said WHERE to get one. One
-  // line + the exact page, switching with the dropdown — the operator asked to be told the process, the
-  // token, whatever the provider needs, right here.
-  const GUIDE={
-    gmail:   {txt:"Gmail: activa la verificación en 2 pasos y crea una contraseña de aplicación en ",
-              url:"https://myaccount.google.com/apppasswords", lbl:"myaccount.google.com/apppasswords"},
-    outlook: {txt:"Outlook/Hotmail: con la verificación en 2 pasos activada, crea una contraseña de aplicación en ",
-              url:"https://account.live.com/proofs/AppPassword", lbl:"account.live.com/proofs/AppPassword"},
-    icloud:  {txt:"iCloud: genera una contraseña de app en ",
-              url:"https://appleid.apple.com/account/manage", lbl:"appleid.apple.com"},
-    yahoo:   {txt:"Yahoo: genera una contraseña de app en ",
-              url:"https://login.yahoo.com/account/security", lbl:"login.yahoo.com/account/security"},
-    otro:    {txt:"Cualquier buzón IMAP/SMTP: usa la contraseña (o contraseña de app) de tu proveedor y "
-                   +"rellena sus servidores abajo.", url:"", lbl:""},
-  };
-  const guide=el("div","cap");
-  const syncGuide=()=>{
-    guide.textContent="";
-    const g=GUIDE[prov.value]||GUIDE.otro;
-    guide.appendChild(document.createTextNode(g.txt));
-    if(g.url){ const a=document.createElement("a"); a.href=g.url; a.target="_blank"; a.rel="noopener";
-      a.textContent=g.lbl; guide.appendChild(a); }
-  };
-  const syncHosts=()=>{ hostsWrap.style.display = (prov.value==="otro") ? "block" : "none"; };
-  prov.onchange=()=>{ d.provider=prov.value; syncHosts(); syncGuide(); }; syncHosts(); syncGuide();
+  s3.append(addrL, addr, pwL, pw, hostsWrap);
+  wz.appendChild(s3);
 
-  card.append(provL, prov, guide, addrL, addr, pwL, pw, hostsWrap);
+  const syncGuide=()=>{
+    const g=EMAIL_GUIDE[prov.value]||EMAIL_GUIDE.otro;
+    s2body.textContent=g.steps;
+    if(g.url){ s2link.href=g.url; s2link.textContent=g.lbl+" ↗"; s2link.style.display="inline-flex"; }
+    else { s2link.removeAttribute("href"); s2link.style.display="none"; }
+    s2tip.textContent=g.tip||""; s2tip.style.display=g.tip?"block":"none";
+    hostsWrap.style.display=(prov.value==="otro")?"block":"none";
+  };
+  prov.onchange=()=>{ d.provider=prov.value; syncGuide(); }; syncGuide();
+  card.appendChild(wz);
 
   const err=el("div","err"); err.style.display="none";
+  const fail=(msg, field)=>{ err.textContent=msg; err.style.display="block";
+    if(field){ field.classList.add("errfield"); try{ field.focus(); }catch{ /* detached */ } } };
   const btn=el("button","btn", _busy[platform] ? "Conectando…" : "Conectar "+p.label);
   btn.disabled=!!_busy[platform];
   btn.onclick=()=>{
-    const email_address=(addr.value||"").trim(), email_password=(pw.value||"").trim();
-    if(!/.+@.+\..+/.test(email_address) || !email_password){
-      err.textContent="Necesito tu dirección de correo y la contraseña de aplicación."; err.style.display="block"; return;
-    }
+    const email_address=(addr.value||"").trim(), email_password=(pw.value||"").replace(/\s+/g,"");
+    if(!/.+@.+\..+/.test(email_address)) return fail("Necesito tu dirección de correo completa.", addr);
+    if(!email_password) return fail("Falta la contraseña de aplicación del paso 2.", pw);
     const payload={platform, email_address, email_password, provider:prov.value};
     if(prov.value==="otro"){
-      if(!imap.value.trim() || !smtp.value.trim()){
-        err.textContent="Para «Otro» necesito el servidor IMAP y el SMTP."; err.style.display="block"; return;
-      }
+      if(!imap.value.trim()) return fail("Para «Otro» necesito el servidor IMAP.", imap);
+      if(!smtp.value.trim()) return fail("Para «Otro» necesito el servidor SMTP.", smtp);
       payload.imap_host=imap.value.trim(); payload.smtp_host=smtp.value.trim();
     }
     _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
     ctx.action("connect", payload);                            // -> store -> supervisor -> real connect (IMAP/SMTP)
-    _draft.email={email_address:"", email_password:"", provider:prov.value, imap_host:"", smtp_host:""};
+    // The draft is NOT cleared here (V2-559): a refused connection comes back to this same form, and wiping it
+    // meant retyping the address and the 16 letters from scratch — which is what made the retry button look
+    // like it did nothing. It is cleared once the channel reports CONNECTED.
     card.textContent=""; card.append(ch, el("div","waiting","Conectando con tu correo… un momento."));
   };
   card.appendChild(err); card.appendChild(btn);
+  // Coming back from a failure: land ON the field to fix, not at the top of the card.
+  if(_focusField[platform]){
+    const target={pw, addr}[_focusField[platform]] || pw;
+    _focusField[platform]=null;
+    setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:"center"}); }catch{ /* detached */ } }, 0);
+  }
   return card;
 }
 
@@ -793,7 +895,11 @@ function errorCard(pl, detail, ctx, rerender){
   const c=el("div","errcard");
   const t=el("div","et"); t.append(el("b",null,"No se pudo conectar. "), document.createTextNode(detail||"Revisa los datos e inténtalo otra vez.")); c.appendChild(t);
   const b=el("button","cbtn","Corregir y reintentar");
-  b.onclick=()=>{ _expandConnect.add(pl); rerender(); };
+  // V2-559: this used to be `_expandConnect.add(pl)` — and on the error path the form is ALREADY expanded
+  // below, so the click added a key that was there and repainted an identical card. From the outside that is
+  // a dead button, and it was reported as one. It now always moves something: it opens the form if it is
+  // closed, and lands the cursor on the field to fix.
+  b.onclick=()=>{ _expandConnect.add(pl); _busy[pl]=false; _focusField[pl]="pw"; rerender(); };
   c.appendChild(b);
   return c;
 }
@@ -821,6 +927,11 @@ function channelsPanel(platforms, ctx, rerender, connectedCount){
     const pd=platforms[pl]||{status:"off"};
     const st=pd.status||"off";
     if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[pl]=false;   // engine advanced -> clear local "connecting"
+    // The draft survives a REFUSAL on purpose (V2-559) and must not survive a success: a connected account has
+    // no reason to keep its app password sitting in a form field.
+    if(st==="connected"){ _focusField[pl]=null;
+      if(pl==="email") _draft.email={email_address:"", email_password:"", provider:_draft.email.provider, imap_host:"", smtp_host:""};
+      if(pl==="telegram") _draft.telegram={api_id:"", api_hash:""}; }
 
     const card=el("div","chan");
     const top=el("div","top");
