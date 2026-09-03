@@ -1,9 +1,10 @@
-"""RENDER check — the messaging widget's visual formula (V2-521).
+"""RENDER check — the messaging widget's visual formula (V2-521, redesigned V2-570).
 
-The header shows EVERY channel (connected bright, unconnected dimmed); a dimmed icon opens the
-connectors panel with its form ready — the same door the voice takes; a bright icon applies the
-platform lens (underline = visible state, not memory) and a second click clears it. Tolerant of the
-live engine's connection state: the dimmed/bright halves each run only when such an icon exists.
+The header shows EVERY channel (connected bright, unconnected dimmed); a dimmed icon opens THAT
+connector's own screen directly (breadcrumb + its wizard/status), the same door the voice takes and the
+same door `connect_focus` takes — never the connector LIST. A bright icon applies the platform lens
+(underline = visible state, not memory) and a second click clears it. Tolerant of the live engine's
+connection state: the dimmed/bright halves each run only when such an icon exists.
 """
 import os, sys
 from playwright.sync_api import sync_playwright
@@ -29,17 +30,23 @@ with sync_playwright() as pw:
     dimmed = [i for i in icons if not i["on"]]
     pg.screenshot(path=f"{OUT}/vf_1_header.png")
 
-    # 2) clicking a DIMMED icon opens the connectors panel with its form — the same door the voice takes
+    # 2) clicking a DIMMED icon enters THAT connector's own screen directly — never the list
     if dimmed:
         pg.click(".hb-msg .dots .picon:not(.on)")
         pg.wait_for_timeout(500)
-        if not pg.query_selector(".hb-msg .chanhead"):
-            problems.append("clicking a dimmed icon did not open the connectors panel")
-        if not pg.query_selector(".hb-msg .expand"):
-            problems.append("the dimmed icon's form was not expanded")
+        if not pg.query_selector(".hb-msg .crumb"):
+            problems.append("clicking a dimmed icon did not enter the connector's own screen")
+        if pg.query_selector(".hb-msg .chanhead"):
+            problems.append("clicking a dimmed icon landed on the connector LIST instead of its own screen")
+        if not (pg.query_selector(".hb-msg .wstep") or pg.query_selector(".hb-msg .linkcard")):
+            problems.append("the dimmed icon's screen has no wizard step or status card")
         pg.screenshot(path=f"{OUT}/vf_2_connect_from_header.png")
-        pg.click(".hb-msg .back")           # ← Messages
-        pg.wait_for_timeout(400)
+        pg.click(".hb-msg .crumb .back")    # ‹ Conectores -> the list
+        pg.wait_for_timeout(300)
+        back_to_msgs = pg.query_selector(".hb-msg .chanhead .back")
+        if back_to_msgs:
+            back_to_msgs.click()            # ← Mensajes, only shown once something is connected
+            pg.wait_for_timeout(300)
 
     # 3) clicking a BRIGHT icon applies the lens (underline marks it), clicking again removes it
     if any(i["on"] for i in icons):
