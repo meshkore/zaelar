@@ -8193,7 +8193,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     guards went red in whatever file ran later. New face of the V2-562 lesson (there, a reload reinstated the
     real path; here, a lazy first import froze a patched env): **a module the suite isolates must be imported
     BEFORE any env monkeypatch that its defaults read** — the actionmap test file now imports it at collection
-    time, with the suite's clean env.
+    time, with the suite's clean env. And a SECOND door, same symptom (V2-562's own `test_workspace_tree`):
+    `settings.update()` writes `os.environ["ZAELAR_LANGUAGE"]` ITSELF, a mutation monkeypatch never saw and
+    nothing reverted — the key is registered in monkeypatch's ledger FIRST now, so teardown restores the
+    pre-test state whatever the code under test writes into it. Full sweep after both: 4423 passed, 0 failed.
 
 ## Testing y rueda de mejora (INI-013)
 
