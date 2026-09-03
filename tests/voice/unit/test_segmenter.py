@@ -371,3 +371,25 @@ def test_ninguna_frase_terminada_en_punto_con_verbo_se_retiene_por_error():
     for t in _SESION:
         if re.search(r"[.!?]\s*$", t) and not sg.looks_incomplete(t)[0]:
             assert sg.should_hold(t)[0] is False
+
+
+# ── V2-570 — trailing colloquial connectors («en plan», «o sea», «es decir») ─────────────────────────────
+
+def test_a_trailing_connector_is_a_fragment_even_with_a_period():
+    """The live case (session 9dcff6f5): «…catamaranes en plan» was judged complete, ran a full turn and
+    launched a real search with half the operator's sentence — the query lost the size and the zone he was
+    about to say. HARD: the STT places periods freely, «en plan.» is a fragment all the same."""
+    for t in ("Búscame si hay empresas de alquiler de catamaranes en plan",
+              "Búscame si hay empresas de alquiler de catamaranes en plan.",
+              "quiero que lo dejes limpio, o sea",
+              "hazlo como te dije, es decir"):
+        inc, why = sg.looks_incomplete(t)
+        assert inc, t
+        assert "muletilla" in why
+
+
+def test_the_connectors_last_word_alone_never_retains():
+    """«plan», «sea» and «decir» are ordinary words, and their sentences are ORDERS or answers — the whole
+    reason this class is a bigram and not three entries in the single-word sets."""
+    for t in ("Cancela el plan.", "No me gusta ese plan.", "Espero que sea rápido.", "No sé qué decir."):
+        assert sg.looks_incomplete(t)[0] is False, t

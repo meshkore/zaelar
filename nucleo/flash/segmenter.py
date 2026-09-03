@@ -88,6 +88,16 @@ _SOFT = {
 
 _DANGLING = _HARD | _SOFT
 
+# V2-570 — trailing colloquial CONNECTORS: the single-word sets above cannot see them, because their last word
+# is an ordinary noun or verb («plan», «sea», «decir») that must never retain on its own — «cancela el plan» is
+# an order. As a trailing BIGRAM they announce a continuation: measured live (session 9dcff6f5, the catamaran
+# errand) «…empresas de alquiler de catamaranes en plan» was judged complete, ran a full turn and launched a
+# real search with half the operator's sentence. Measured against the whole registry before shipping (the
+# V2-095 protocol): of 617 raw user transcripts, ZERO complete-labelled ones end in any of these, and the one
+# raw trailing hit is that session's own fragment — so the class costs nothing measured and is HARD (the STT
+# places periods freely; «en plan.» is a fragment all the same).
+_TRAILING_CONNECTORS = {("en", "plan"), ("o", "sea"), ("es", "decir")}
+
 # El **acento diacrítico** distingue pares que al normalizar se vuelven la MISMA palabra, y en cada par uno de los
 # dos es función y el otro no. Ya costó un fallo con «sí»/«si» (la frase que autorizó al worker en la sesión real
 # era «Sí, te autorizo a borrar toda la agenda»), y el corpus grande sacó el mismo patrón con «estás»/«estas»:
@@ -181,6 +191,11 @@ def looks_incomplete(text: str) -> tuple[bool, str]:
             return True, f"acaba en «{ws[-1]}», que gobierna algo que aún no ha dicho"
         if ws[-1] in _SOFT and not closed:
             return True, f"acaba en «{ws[-1]}» y la frase no está cerrada"
+
+    # 2d) Acaba en una MULETILLA de continuación de dos palabras («en plan», «o sea», «es decir»): el operador
+    #     está a mitad de dar el ejemplo o la reformulación que anuncia. HARD — ver `_TRAILING_CONNECTORS`.
+    if len(ws) >= 2 and (ws[-2], ws[-1]) in _TRAILING_CONNECTORS:
+        return True, f"acaba en «{ws[-2]} {ws[-1]}», muletilla de continuación"
 
     # 3) Una sola palabra FUNCIÓN («del», «a», «que»): no puede ser un turno. Cualquier otra palabra suelta SÍ
     #    puede serlo —«Cancélalo», «Sigue», «Gracias»— y se deja pasar a propósito: el coste es asimétrico. Colar un
