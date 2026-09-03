@@ -349,3 +349,80 @@ body {
 /* 16px minimum, or iOS Safari zooms the page the moment this input takes focus — the same rule as .zm-compose. */
 .lang-onb-input { font-size: 16px; }
 .boot-caption { top: 64%; font-size: 14px; }
+
+/* ============================================================================================================
+   TOUCH FLOOR FOR EVERY WIDGET (V2-574) — the host makes the catalog usable, one rule instead of fourteen.
+
+   Measured 2026-09-04 by rendering all 14 system widgets at 390px (tests/browser/e2e/mobile/
+   render_widgets_on_a_phone.py): widths were fine everywhere — nothing overflowed, nothing escaped the screen —
+   and what failed was TOUCH. Six widgets carried controls 20-34px tall (agenda's tabs 26px, contactos' star
+   25px, mensajería's gear 26px, música's transport 26px, youtube's row 29px) and three had inputs at 11.5-13px,
+   below the size at which iOS Safari ZOOMS the page on focus and never recovers the fixed layout.
+
+   It lives HERE, in the phone's own stylesheet and scoped to the card's scroller, for three reasons:
+     · the desktop is untouched — 26px icons are correct for a mouse, and this shell is the only one with thumbs;
+     · it covers widgets that do not exist yet, including the ones the agent GENERATES for the operator, which
+       is the half a per-widget edit could never reach;
+     · a widget that wants more can still set its own larger size — this is a floor, not a size.
+
+   `min-height` and not `height`: a control that is already tall keeps its own. Icon-only buttons also get a
+   `min-width`, because a 27px star is unhittable however tall it is.
+
+   ⚠️ AND THE FLOOR ITSELF BROKE SOMETHING, which is why the rule below it exists. `archivos`' toolbar is six
+   icon buttons in a non-wrapping flex row: at 26px they fitted, at the floor's 44px they measure 414px inside a
+   366px card and the card scrolled sideways — a floor that pushes content off the screen trades one break for
+   another. It was invisible until the measurement rendered that widget with a FILLED fixture; against the
+   operator's own (empty) folder listing there was no toolbar to overflow, and an earlier version of this very
+   comment claimed «no widget gained horizontal overflow» on exactly that evidence. So: any box that directly
+   holds a control WRAPS rather than pushes. The first attempt keyed on ADJACENT controls (`> button + button`)
+   and did not fire: `archivos` puts a search box between its buttons, so they are not siblings of each other —
+   `:has(> button)` is the shape that actually describes «a row with controls in it». `flex-wrap` is inert on
+   anything that is not a flex container, so the rule cannot disturb a widget that merely contains a button.
+   `max-width:100%` rides with it because wrapping ALONE changed nothing: `archivos`' toolbar is `flex:0 0 auto`
+   inside a wrapping bar, so its width IS its content's width and it never had a reason to wrap — measured, with
+   `flex-wrap:wrap` computed and the box still 414px. A row may not be wider than the card that holds it.
+
+   THE DOUBLED `.zm-scroll.zm-scroll` IS DELIBERATE, and it is why there is no `!important` here. A widget
+   styles its own controls with two classes (`.hb-ct .ctq{font-size:11.5px}` = specificity 0,2,0), which beats a
+   plain `.zm-scroll input` (0,1,1) — measured: contactos' search box stayed at 11.5px through the first version
+   of this block, the only one of the nine failures that survived it. Repeating the class lifts the floor to
+   (0,2,1) without `!important`, so a widget that genuinely needs a bigger control can still win by being more
+   specific, which is exactly the relationship a FLOOR should have with the thing it holds up. Every rule in the
+   block doubles it, exceptions included — an exception at lower specificity than the rule it excepts is not an
+   exception.
+   ============================================================================================================ */
+.zm-scroll.zm-scroll button,
+.zm-scroll.zm-scroll [role="button"],
+.zm-scroll.zm-scroll a[href],
+.zm-scroll.zm-scroll input,
+.zm-scroll.zm-scroll select,
+.zm-scroll.zm-scroll textarea,
+.zm-scroll.zm-scroll label.zm-tap {
+  min-height: 44px;
+  min-width: 44px;
+}
+/* Text inputs are the iOS-zoom rule, and it is not cosmetic: below 16px the page scales on focus and a fixed
+   dock layout never comes back. Widgets set 11.5-13px because that reads well next to a mouse. */
+.zm-scroll.zm-scroll input,
+.zm-scroll.zm-scroll select,
+.zm-scroll.zm-scroll textarea {
+  font-size: 16px;
+}
+/* A checkbox/radio is a control whose SIZE is its meaning; blowing it up to 44px turns a tick into a slab. The
+   row around it is the tap target on a phone, so these keep their intrinsic box. */
+.zm-scroll.zm-scroll input[type="checkbox"],
+.zm-scroll.zm-scroll input[type="radio"] {
+  min-height: 0;
+  min-width: 0;
+}
+/* Same for a control that is deliberately a thin track (a seek bar, a volume slider): a 44px floor would make
+   it a block. Its hit area is handled by the browser's own slider affordance. */
+.zm-scroll.zm-scroll input[type="range"] {
+  min-height: 0;
+}
+/* A ROW OF CONTROLS WRAPS instead of pushing the card sideways (see the ⚠️ above — measured on `archivos`). */
+.zm-scroll.zm-scroll :has(> button),
+.zm-scroll.zm-scroll :has(> a[href]) {
+  flex-wrap: wrap;
+  max-width: 100%;
+}

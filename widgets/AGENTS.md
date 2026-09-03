@@ -24,7 +24,28 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
 - **Type**: system sans (`-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial`). Title ~15px/600, body ~12.5–14px.
 - **Cards**: `background:var(--hb-bg,#fff)`, `border-radius:12–16px`, 1px `var(--hb-line,#eef1f6)` border, subtle
   shadow, ~11–14px padding. Optional 3–4px left accent bar in `var(--hb-accent,...)` / `var(--hb-accent2,...)`.
-- **Layout**: COMPACT. Prefer horizontal / grid layouts where they fit. NEVER a tall single broken column of stacked tiny rows. Respect `width:min(620px,90vw)`-ish.
+- **Layout: TWO SCREENS, ONE WIDGET.** The same `widget.js` renders on a desk (a free-floating card the operator
+  sizes) and on a PHONE (`frontend/mobile/`: the widget IS the screen, ~390px wide, 366px of usable content).
+  Write it FLUID and it works on both; write it for one and it breaks on the other. In practice:
+  - **Never a fixed `min-width` above 360px** — it is the one declaration no container can absorb, so the card
+    ends up scrolling sideways and the operator has to drag the widget around to read it. *The validation gate
+    rejects this* (`widgets/validator.py`). Sizes come from `%`, `minmax()`, `flex-wrap`, `grid-template-columns:
+    repeat(auto-fit,minmax(140px,1fr))` — that one line is a row on a desk and a column on a phone, for free.
+  - **COMPACT still, and horizontal WHERE IT FITS** — but a single column is not a failure mode on a phone, it is
+    the right answer. What is still wrong is a column of tiny stacked rows that wastes the width it *does* have.
+    (This bullet used to say "NEVER a tall single column" and "respect `width:min(620px,90vw)`". That was desktop
+    advice written before the phone shell existed, and following it literally is what made widgets read badly
+    there.)
+  - **Genuinely wide content scrolls in its OWN box**: put a wide table/timeline inside a wrapper with
+    `overflow-x:auto`. Wide is fine; wide that pushes the CARD sideways is not.
+  - **Tap targets**: the phone shell already applies a 44px floor to every `button`/`input`/`select`/`a[href]`
+    inside a card, and forces inputs to 16px (below that iOS Safari zooms the page on focus and never recovers).
+    So you do not have to size for thumbs — but do not FIGHT the floor either: a control that must stay small
+    (a checkbox, a slider track) is already excepted, and anything else you pin with a hard `height` will look
+    cramped exactly where it matters most. Prefer `padding` over `height` on your own buttons.
+  - Measured, not assumed: `tests/browser/e2e/mobile/render_widgets_on_a_phone.py` renders EVERY widget in the
+    catalog — including this one, once it exists — at 390px with its real data and fails on horizontal overflow,
+    anything escaping the screen, controls under 40px and inputs under 16px.
 - **Language**: Spanish labels when the user speaks Spanish (numbers/dates in es too).
 - **Widget kit (optional, `app/styles.css` §WIDGET KIT)**: global `hbk-`-prefixed helper classes for the patterns
   that repeat in almost every widget — `hbk-card` (surface), `hbk-hd` (header row: `<b>` title + `.hbk-sub` +

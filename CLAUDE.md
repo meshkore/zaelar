@@ -7831,6 +7831,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **Two screens, ONE widget (V2-574, 2026-09-04)**: nobody had ever rendered a widget at phone width — 4.18
+  checks the shell's contract, 4.19 the dock's pixels, 4.87 the deck's navigation, and the CONTENTS of the cards
+  were never looked at. Worse, the house style every widget is built against (`widgets/AGENTS.md`, quoted into
+  every generation by `generator.py::_CONTRACT`) was pushing the wrong way: «prefer horizontal / grid layouts»,
+  «NEVER a tall single broken column», `width:min(620px,90vw)` — desktop advice written before the phone shell
+  existed, so an agent following it built for a desk. Measured across all 14 at 390px with real data: **widths
+  were fine** (no overflow, nothing off-screen) and the break was TOUCH — six widgets with 20-34px controls,
+  three with inputs at 11.5-13px (**below 16px iOS Safari zooms the page on focus and never recovers**). Fixed
+  in THREE layers: the guide + contract now say fluid sizing and that a single column is the right answer on a
+  phone; `validator.py` REJECTS a `min-width` over 360px (the one declaration no scroll container can absorb —
+  a wide `width` inside `overflow-x:auto` stays legal on purpose); and a HOST touch floor in
+  `frontend/mobile/app/styles.css` (44px controls, 16px inputs, scoped to `.zm-scroll` so the desktop is
+  untouched and widgets that do not exist yet are covered — checkbox/radio/range excepted, and
+  `.zm-scroll.zm-scroll` doubled instead of `!important` so a widget can still out-specify the floor).
+  ⚠️ **Two lessons paid**: the floor itself broke `archivos` (six icon buttons at 44px = 414px in a 366px card),
+  fixed with a wrap + `max-width:100%` on any box holding controls — after `:has(> button + button)` failed to
+  fire (a search box sits between them) and wrapping alone changed nothing (`flex:0 0 auto` means its width IS
+  its content). And **an empty widget cannot overflow**: nine of fourteen rendered their empty state, so the
+  first green run measured almost nothing — filled fixtures were added and `archivos` failed the moment it had
+  content. Node 4.111 prints which widgets were measured thin, so the claim never covers more than it measured.
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
   in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
   refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design

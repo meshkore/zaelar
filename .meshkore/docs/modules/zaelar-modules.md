@@ -704,6 +704,29 @@ one paid call for the final judgment) with a Chromium context per task; UI toggl
 **House style & the build contract for the coding agent** live in `widgets/AGENTS.md` (palette, layout, keywords,
 persistence, isolation, comms) — the generator prompt points every headless agent at it.
 
+**TWO SCREENS, ONE WIDGET (V2-574, 2026-09-04).** The same `widget.js` renders on the desk host and on the phone
+(`frontend/mobile/`), where the widget IS the screen at ~390px. Until this was measured, nothing in the repo had
+ever rendered a widget at phone width, and the house style was actively pushing the wrong way — it said «prefer
+horizontal / grid layouts», «NEVER a tall single broken column» and `width:min(620px,90vw)`, all written before
+the phone shell existed. Three things hold the rule up now, in order of how early they catch a mistake:
+
+1. **The guide** (`widgets/AGENTS.md` §Layout) and the generation contract (`generator.py::_CONTRACT`) say to be
+   FLUID — `%`, `minmax()`, `flex-wrap`, `repeat(auto-fit,minmax(140px,1fr))` — and that a single column is the
+   right answer on a phone, not a failure.
+2. **The validation gate** (`widgets/validator.py`) REJECTS a `min-width` above 360px: the one declaration no
+   scroll container can absorb. A plain wide `width` is allowed on purpose — a wide table inside an
+   `overflow-x:auto` wrapper is correct, and banning it would push authors to truncate data instead.
+3. **The measurement** (`tests/browser/e2e/mobile/render_widgets_on_a_phone.py`, node 4.111) renders EVERY widget
+   in the catalog at 390px with its real `view_data()` and fails on horizontal overflow, anything escaping the
+   screen, controls under 40px and inputs under 16px. It walks the folder, so a widget the agent generates
+   tomorrow is measured the same day.
+
+What the measurement found on 2026-09-04: **widths were already fine everywhere** — nothing overflowed — and the
+break was TOUCH: six widgets carried 20-34px controls and three had inputs at 11.5-13px, below the size at which
+iOS Safari zooms the page on focus. That is fixed at the HOST, not per widget: `frontend/mobile/app/styles.css`
+applies a 44px floor and 16px inputs to everything inside a card, so it also covers widgets that do not exist
+yet. Checkboxes, radios and range tracks are excepted — a control whose size IS its meaning.
+
 ## Files — folded into memory's episodic layer (§Memory)
 
 `files/` is **no longer a standalone module**: the central memory absorbed it as an **episodic layer**. There is no

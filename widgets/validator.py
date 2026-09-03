@@ -132,7 +132,26 @@ def _scan_widget_js(js: str) -> str | None:
             return (f"widget.js styles a class name also defined GLOBALLY in frontend/app/styles.css ({names}) — "
                     f"rename it to something widget-specific; the global rule's properties (position/display/etc.) "
                     f"silently apply to your element too, regardless of your own CSS")
+    # A WIDTH NO PHONE CAN HONOUR (V2-574). The mobile shell gives every widget a 390px card, and a `min-width`
+    # larger than that is the one CSS declaration a scroll container CANNOT absorb: the box refuses to shrink, so
+    # the card scrolls sideways and the operator gets a widget he has to drag around to read. A plain `width` is
+    # not flagged — a wide element inside an `overflow-x:auto` wrapper is the CORRECT way to show a wide table,
+    # and rejecting it would push authors toward truncating data instead of letting it scroll in its own box.
+    # Measured before choosing the threshold: all 14 system widgets pass at 390px, and none declares a min-width
+    # over 360 (tests/browser/e2e/mobile/render_widgets_on_a_phone.py is the behavioural half of this rule).
+    style_text = "\n".join(re.findall(r"`([^`]*)`", js, re.S))
+    for m in re.finditer(r"min-width\s*:\s*(\d+(?:\.\d+)?)px", style_text, re.I):
+        if float(m.group(1)) > _PHONE_SAFE_MIN_WIDTH_PX:
+            return (f"widget.js declares min-width:{m.group(1)}px — wider than a phone card can hold "
+                    f"({_PHONE_SAFE_MIN_WIDTH_PX}px is the limit). Let the layout be FLUID (%, minmax, flex-wrap); "
+                    f"if the content is genuinely wide (a table), keep it in its own overflow-x:auto wrapper so "
+                    f"it scrolls INSIDE the card instead of pushing the card sideways")
     return None
+
+
+# The widest a widget may REFUSE to shrink below. The mobile card is 390px minus 12px of padding on each side
+# (366px of content), so 360 leaves a hair of tolerance and still fails anything designed for a desk.
+_PHONE_SAFE_MIN_WIDTH_PX = 360
 
 
 # data.py: stdlib-only. Allow the standard library, relative imports, and the widgets package (store/planner).

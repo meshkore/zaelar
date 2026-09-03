@@ -1616,6 +1616,17 @@ DOMAINS: list[dict] = [
                                  "no hereda silencio",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mobile/test_the_phone_can_be_heard.py"]},
+        # 2026-09-04 — NADIE había renderizado nunca un widget a ancho de teléfono: 4.18 mira el contrato del
+        # shell, 4.19 los píxeles de la barra, 4.87 la navegación del deck; el CONTENIDO de las tarjetas no lo
+        # miraba nadie. Y la guía de estilo empujaba al revés («prefiere horizontal/grid», «NUNCA una columna
+        # alta», `width:min(620px,90vw)`), escrita antes de que el móvil existiera. Medido: los ANCHOS estaban
+        # bien —nada desbordaba— y lo que fallaba era el TACTO (6 widgets con controles de 20-34px y 3 con
+        # inputs a 11,5-13px, por debajo de donde iOS hace zoom al enfocar). Arreglado en el HOST, así que
+        # alcanza también a los widgets que el agente genere mañana. Este nodo recorre el catálogo entero.
+        {"id": "4.111", "title": "Todos los widgets caben en un teléfono: sin desbordamiento, sin nada fuera de "
+                                 "pantalla, controles de 44px e inputs de 16px",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_widgets_on_a_phone.py"},
         # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
         # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,
