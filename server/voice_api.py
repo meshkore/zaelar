@@ -9,7 +9,7 @@ import json
 import os
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from loguru import logger
 from fastapi.responses import JSONResponse, StreamingResponse
 from voice.observer import (
@@ -657,6 +657,30 @@ async def desktop_epoch():
     return JSONResponse({"epoch": epoch})
 
 
+def _who_asked(request: "Request | None") -> dict:
+    """WHO asked for this reset — an attribution fact, kept with the event that destroys work.
+
+    A hard reset kills live workers, cancels escalations and blanks the canvas, and the RESET event recorded
+    everything about that EXCEPT who ordered it. Measured 2026-09-03 on the operator's own engine: a reset
+    fired mid-errand with no `topbar:reset`, no `orb:power` and no `run/stop` in front of it — so it did not
+    come from the button — and there was no way to say what did. The engine then apologised to the operator
+    for closing widgets it had not chosen to close, because nothing in the prompt or the log could name the
+    author. An event that records what was destroyed and not who ordered it cannot answer the only question
+    asked afterwards.
+
+    Deliberately coarse: client host and a bounded User-Agent. Enough to tell the desktop frontend from an
+    automated caller (a harness sends a fixed short UA; a real browser's carries its version), and nothing
+    that would turn an event log into a tracking record.
+    """
+    if request is None:
+        return {"host": "", "ua": ""}
+    try:
+        return {"host": str(getattr(getattr(request, "client", None), "host", "") or ""),
+                "ua": str(request.headers.get("user-agent") or "")[:120]}
+    except Exception:  # noqa: BLE001 — attribution must never be the reason a reset fails
+        return {"host": "", "ua": ""}
+
+
 @router.post("/reset")
 async def reset():
     # LIGHT reset (also used by reconnect): clears session + log. Does NOT kill background work or write memory.
@@ -666,7 +690,7 @@ async def reset():
 
 
 @router.post("/reset/hard")
-async def reset_hard():
+async def reset_hard(request: Request = None):
     """Deliberate HARD RESET (frontend «Reset» button, after confirmation). Careful sequence: FREEZE in-flight work
     in STATE memory, leave the order RECORD in short-term memory, KILL background processes, then clear the canvas
     (close all widgets) + session + log. See `nucleo/reset.py`."""
@@ -678,12 +702,12 @@ async def reset_hard():
     S.reset_session_state()
     ses = rotate_session("reset")          # NEW SESSION (new id + observability reset), not just a clean log
     emit("widget", "close", extra={})      # close ALL canvas cards (frontend: desktop.closeAll())
-    return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary,
+    return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "by": _who_asked(request),
                                                         "session": ses.get("session_id", "")}))
 
 
 @router.post("/api/reset/full")
-async def reset_full(payload: dict | None = None):
+async def reset_full(payload: dict | None = None, request: Request = None):
     """Reset dialog with CHECKBOXES (V2-063, operator request 2026-07-23): besides the ALWAYS base (observability +
     blank desktop, same as /reset/hard), it can optionally delete `wipe_memory` (state/short/long term — one
     "Memory" button) and/or `wipe_credentials` (WhatsApp/Telegram/browser/search). Deleting memory/credentials
@@ -707,6 +731,7 @@ async def reset_full(payload: dict | None = None):
 
     if not wipe_memory and not wipe_credentials:
         return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False,
+                                                            "by": _who_asked(request),
                                                             "session": ses.get("session_id", "")}))
 
     # Memory and/or credentials: AUTOMATIC restart in a DETACHED process (survives this process dying).

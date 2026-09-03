@@ -1030,6 +1030,9 @@ DOMAINS: list[dict] = [
         {"id": "2.47", "title": "A follow-up of a just-ended errand inherits its sheet — not a second box",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_followup_inherits_the_sheet.py"]},
+        {"id": "2.48", "title": "A hard RESET records WHO ordered it, not only what it destroyed",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_reset_says_who_asked_for_it.py"]},
         {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},
