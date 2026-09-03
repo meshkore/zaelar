@@ -1,92 +1,375 @@
 {
   "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
-  "version": 2,
+  "version": 3,
   "grids": [
-   {
+    {
       "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
       "verbs": [
-         "open",
-         "show",
-         "show me",
-         "show me now",
-         "bring up",
-         "let me see",
-         "display"
+        "open",
+        "show",
+        "show me",
+        "show me now",
+        "bring up",
+        "let me see",
+        "display"
       ],
       "objects": {
-         "whatsapp": "whatsapp",
-         "the whatsapp": "whatsapp",
-         "my whatsapps": "whatsapp",
-         "only whatsapp": "whatsapp",
-         "the whatsapp messages": "whatsapp",
-         "telegram": "telegram",
-         "the telegram": "telegram",
-         "only telegram": "telegram",
-         "the telegram messages": "telegram",
-         "the email": "email",
-         "my email": "email",
-         "the mail": "email",
-         "my emails": "email",
-         "the inbox": "email",
-         "gmail": "email",
-         "outlook": "email",
-         "the email messages": "email",
-         "the main list": "all",
-         "all the messages": "all",
-         "the unified list": "all",
-         "the messages": "all",
-         "my messages": "all",
-         "all chats": "all",
-         "messages": "all",
-         "messaging": "all"
+        "whatsapp": "whatsapp",
+        "the whatsapp": "whatsapp",
+        "my whatsapps": "whatsapp",
+        "only whatsapp": "whatsapp",
+        "the whatsapp messages": "whatsapp",
+        "telegram": "telegram",
+        "the telegram": "telegram",
+        "only telegram": "telegram",
+        "the telegram messages": "telegram",
+        "the email": "email",
+        "my email": "email",
+        "the mail": "email",
+        "my emails": "email",
+        "the inbox": "email",
+        "gmail": "email",
+        "outlook": "email",
+        "the email messages": "email",
+        "the main list": "all",
+        "all the messages": "all",
+        "the unified list": "all",
+        "the messages": "all",
+        "my messages": "all",
+        "all chats": "all",
+        "messages": "all",
+        "messaging": "all"
       },
       "action": {
-         "do": "widget_data",
-         "widget": "mensajeria",
-         "action": "show_view",
-         "payload": {
-            "platform": "$"
-         }
+        "do": "widget_data",
+        "widget": "mensajeria",
+        "action": "show_view",
+        "payload": {
+          "platform": "$"
+        }
       }
-   }
+    },
+    {
+      "_comment": "VERB x OBJECT grid for OPENING every card (V2-567) — mirror of es.json's; see that pack for the measured incident.",
+      "verbs": [
+        "open",
+        "show",
+        "show me",
+        "bring up",
+        "display"
+      ],
+      "objects": {
+        "the contacts": "contactos",
+        "my contacts": "contactos",
+        "the contacts widget": "contactos",
+        "the directory": "contactos",
+        "my favorite restaurants": "contactos",
+        "my favourites": "contactos",
+        "my favorites": "contactos",
+        "the agenda": "agenda",
+        "the calendar": "agenda",
+        "the clock": "clock",
+        "the timer": "timer",
+        "the images": "imagenes",
+        "the image viewer": "imagenes",
+        "the gallery": "fotos",
+        "the photo gallery": "fotos",
+        "my photos": "fotos",
+        "the player": "musica",
+        "the music player": "musica",
+        "youtube": "youtube",
+        "the browser": "navegador",
+        "the results": "results",
+        "the results sheet": "results",
+        "the files": "archivos",
+        "the file explorer": "archivos",
+        "my files": "archivos",
+        "the document": "documento",
+        "the search": "search"
+      },
+      "action": {
+        "do": "show_widget",
+        "widget": "$"
+      }
+    },
+    {
+      "_comment": "VERB x OBJECT grid for CLOSING every card (V2-567) — mirror of es.json's. navegador/results are gated by the executor's live-work check.",
+      "verbs": [
+        "close",
+        "hide",
+        "dismiss"
+      ],
+      "objects": {
+        "the contacts": "contactos",
+        "my contacts": "contactos",
+        "the contacts widget": "contactos",
+        "the directory": "contactos",
+        "the agenda": "agenda",
+        "the calendar": "agenda",
+        "the clock": "clock",
+        "the timer": "timer",
+        "the images": "imagenes",
+        "the image viewer": "imagenes",
+        "the gallery": "fotos",
+        "the photo gallery": "fotos",
+        "the player": "musica",
+        "the music player": "musica",
+        "youtube": "youtube",
+        "the browser": "navegador",
+        "the results": "results",
+        "the results sheet": "results",
+        "the files": "archivos",
+        "the file explorer": "archivos",
+        "my files": "archivos",
+        "the document": "documento",
+        "the search": "search",
+        "the messages": "mensajeria",
+        "whatsapp": "mensajeria",
+        "telegram": "mensajeria",
+        "the email": "mensajeria",
+        "the messaging": "mensajeria"
+      },
+      "action": {
+        "do": "close_widget",
+        "widget": "$"
+      }
+    }
   ],
   "entries": [
-    { "phrase": "clear the screen", "action": { "do": "close_all" } },
-    { "phrase": "clear screen", "action": { "do": "close_all" } },
-    { "phrase": "clear the screen please", "action": { "do": "close_all" } },
-    { "phrase": "please clear the screen", "action": { "do": "close_all" } },
-    { "phrase": "empty the screen", "action": { "do": "close_all" } },
-    { "phrase": "clean the screen", "action": { "do": "close_all" } },
-    { "phrase": "clear the desktop", "action": { "do": "close_all" } },
-    { "phrase": "close all widgets", "action": { "do": "close_all" } },
-    { "phrase": "close all the widgets", "action": { "do": "close_all" } },
-    { "phrase": "remove all widgets", "action": { "do": "close_all" } },
-    { "phrase": "close everything", "action": { "do": "close_all" } },
-    { "phrase": "close whatsapp", "action": { "do": "close_widget", "widget": "mensajeria" } },
-    { "phrase": "close telegram", "action": { "do": "close_widget", "widget": "mensajeria" } },
-    { "phrase": "close the messages", "action": { "do": "close_widget", "widget": "mensajeria" } },
-
-    { "phrase": "open the agenda", "action": { "do": "show_widget", "widget": "agenda" } },
-    { "phrase": "show me the agenda", "action": { "do": "show_widget", "widget": "agenda" } },
-    { "phrase": "open the calendar", "action": { "do": "show_widget", "widget": "agenda" } },
-    { "phrase": "open my day", "action": { "do": "show_widget", "widget": "agenda" } },
-    { "phrase": "close the agenda", "action": { "do": "close_widget", "widget": "agenda" } },
-
-    { "phrase": "open the music player", "action": { "do": "show_widget", "widget": "musica" } },
-    { "phrase": "open youtube", "action": { "do": "show_widget", "widget": "youtube" } },
-    { "phrase": "open the images", "action": { "do": "show_widget", "widget": "imagenes" } },
-    { "phrase": "open the photos", "action": { "do": "show_widget", "widget": "imagenes" } },
-    { "phrase": "open the clock", "action": { "do": "show_widget", "widget": "clock" } },
-    { "phrase": "open the timer", "action": { "do": "show_widget", "widget": "timer" } },
-    { "phrase": "open the contacts", "action": { "do": "show_widget", "widget": "contactos" } },
-
-    { "phrase": "open the chat", "action": { "do": "show_panel", "tab": "chat", "action": "open" } },
-    { "phrase": "close the chat", "action": { "do": "show_panel", "tab": "chat", "action": "close" } },
-    { "phrase": "open the processes", "action": { "do": "show_panel", "tab": "procesos", "action": "open" } },
-    { "phrase": "show me the processes", "action": { "do": "show_panel", "tab": "procesos", "action": "open" } },
-    { "phrase": "open the alarms", "action": { "do": "show_panel", "tab": "crons", "action": "open" } },
-    { "phrase": "open the reminders", "action": { "do": "show_panel", "tab": "crons", "action": "open" } },
-    { "phrase": "open the crons", "action": { "do": "show_panel", "tab": "crons", "action": "open" } },
-    { "phrase": "open the clusters", "action": { "do": "show_panel", "tab": "clusters", "action": "open" } }
+    {
+      "phrase": "clear the screen",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "clear screen",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "clear the screen please",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "please clear the screen",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "empty the screen",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "clean the screen",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "clear the desktop",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "close all widgets",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "close all the widgets",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "remove all widgets",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "close everything",
+      "action": {
+        "do": "close_all"
+      }
+    },
+    {
+      "phrase": "close whatsapp",
+      "action": {
+        "do": "close_widget",
+        "widget": "mensajeria"
+      }
+    },
+    {
+      "phrase": "close telegram",
+      "action": {
+        "do": "close_widget",
+        "widget": "mensajeria"
+      }
+    },
+    {
+      "phrase": "close the messages",
+      "action": {
+        "do": "close_widget",
+        "widget": "mensajeria"
+      }
+    },
+    {
+      "phrase": "open the agenda",
+      "action": {
+        "do": "show_widget",
+        "widget": "agenda"
+      }
+    },
+    {
+      "phrase": "show me the agenda",
+      "action": {
+        "do": "show_widget",
+        "widget": "agenda"
+      }
+    },
+    {
+      "phrase": "open the calendar",
+      "action": {
+        "do": "show_widget",
+        "widget": "agenda"
+      }
+    },
+    {
+      "phrase": "open my day",
+      "action": {
+        "do": "show_widget",
+        "widget": "agenda"
+      }
+    },
+    {
+      "phrase": "close the agenda",
+      "action": {
+        "do": "close_widget",
+        "widget": "agenda"
+      }
+    },
+    {
+      "phrase": "open the music player",
+      "action": {
+        "do": "show_widget",
+        "widget": "musica"
+      }
+    },
+    {
+      "phrase": "open youtube",
+      "action": {
+        "do": "show_widget",
+        "widget": "youtube"
+      }
+    },
+    {
+      "phrase": "open the images",
+      "action": {
+        "do": "show_widget",
+        "widget": "imagenes"
+      }
+    },
+    {
+      "phrase": "open the photos",
+      "action": {
+        "do": "show_widget",
+        "widget": "imagenes"
+      }
+    },
+    {
+      "phrase": "open the clock",
+      "action": {
+        "do": "show_widget",
+        "widget": "clock"
+      }
+    },
+    {
+      "phrase": "open the timer",
+      "action": {
+        "do": "show_widget",
+        "widget": "timer"
+      }
+    },
+    {
+      "phrase": "open the contacts",
+      "action": {
+        "do": "show_widget",
+        "widget": "contactos"
+      }
+    },
+    {
+      "phrase": "open the chat",
+      "action": {
+        "do": "show_panel",
+        "tab": "chat",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "close the chat",
+      "action": {
+        "do": "show_panel",
+        "tab": "chat",
+        "action": "close"
+      }
+    },
+    {
+      "phrase": "open the processes",
+      "action": {
+        "do": "show_panel",
+        "tab": "procesos",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "show me the processes",
+      "action": {
+        "do": "show_panel",
+        "tab": "procesos",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "open the alarms",
+      "action": {
+        "do": "show_panel",
+        "tab": "crons",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "open the reminders",
+      "action": {
+        "do": "show_panel",
+        "tab": "crons",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "open the crons",
+      "action": {
+        "do": "show_panel",
+        "tab": "crons",
+        "action": "open"
+      }
+    },
+    {
+      "phrase": "open the clusters",
+      "action": {
+        "do": "show_panel",
+        "tab": "clusters",
+        "action": "open"
+      }
+    }
   ]
 }

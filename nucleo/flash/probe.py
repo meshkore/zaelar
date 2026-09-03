@@ -58,7 +58,9 @@ def _session(sid: str) -> ProbeSession:
 
 # The show-target resolver (mirror of providers/nucleo.py) lives in show_target.py — extracted
 # 2026-08-29 (architecture ratchet).
-from .show_target import _ctx_ids, _identify_ctx, _running_goals, _show_target  # noqa: F401
+from .show_target import (  # noqa: F401
+    _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
+)
 
 
 
@@ -396,25 +398,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         _sp = next(t for t in tool_calls if t["name"] == "show_panel")
         action = "panel:" + _router._canon_panel(_sp["args"].get("panel"))
     elif "manage_widget_alias" in names:
-        # V2-082: añadir/quitar un alias de un widget — espejo del provider (que SÍ escribe el manifest). El probe
-        # solo CLASIFICA el routing (no muta manifests en pruebas): resuelve el widget y reporta alias:add|remove:id,
-        # o 'clarify' si no se localiza el widget.
-        _ma = next(t for t in tool_calls if t["name"] == "manage_widget_alias")
-        _op = "remove" if str(_ma["args"].get("op") or "add").lower().startswith(("rem", "quit", "borr")) else "add"
-        try:
-            from widgets import runtime as _rta
-            _awid = (_ma["args"].get("widget_id") or "").strip()
-            _rid = _awid if (_awid and _rta.get(_awid) is not None) else (_identify_ctx(_rta, _awid or text) or "")
-        except Exception:
-            _rid = ""
-        action = f"alias:{_op}:{_rid}" if _rid else "clarify"
+        # V2-082 — classification only (the provider writes manifests); body lives with its siblings in
+        # `show_target.py` since the 2026-09-03 ratchet pass.
+        action = classify_alias_call(tool_calls, text)
     elif "show_widget" in names:
         # MOSTRAR una pieza por NOMBRE/ALIAS con CERTEZA (V2-082) — espejo del provider: CREATE→escala; si hay match
         # de widget → [[show:id]]; si nombró el CHAT (superficie) → panel; sin match → PREGUNTA (clarify), NUNCA
         # fabrica un widget ("no se abre el más parecido").
         _sw = next(t for t in tool_calls if t["name"] == "show_widget")
         _swid = (_sw["args"].get("widget_id") or "").strip()
-        if _router.looks_like_create_widget(text):
+        if _router.show_contradicts_the_order(text):
+            # V2-567 — this file already carried the rule in prose (see the close backstop below: «un canvas:show
+            # ESPURIO en un turno de cerrar SÍ debe corregirse»); now both channels apply it as code. The action
+            # string stays out of `_already`, so the close backstop below still closes the NAMED widget.
+            action = "guard:show-contradicts-close"
+        elif _router.looks_like_create_widget(text):
             action = "escalate"
         else:
             from widgets import runtime as _rt

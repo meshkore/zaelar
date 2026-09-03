@@ -66,6 +66,23 @@ def _resolve_widget(name: str) -> str:
         return ""
 
 
+def _widget_has_live_work(wid: str) -> bool:
+    """True when closing `wid` would touch a LIVE errand — browser tabs driving, or escalations delivering.
+    Scoped to the two widgets that host work; a clock has nothing to orphan. Fail-CLOSED on error: if the
+    liveness cannot be read, the fast lane declines and the model decides (the reverse default would make an
+    exception the way a deterministic close kills a five-minute errand)."""
+    try:
+        if wid == "navegador":
+            from widgets.navegador import tasks as nt
+            return bool(nt.active_ids())
+        if wid == "results" or wid.startswith("results-"):
+            from nucleo import dispatch
+            return dispatch.has_active()
+        return False
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def describe(action: dict) -> str:
     """Short probe/report string, mirroring `nucleo/flash/probe.py` action naming."""
     do = action.get("do")
@@ -108,6 +125,13 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         emit("widget", "show", text=said, extra={"id": wid, **src})
         return True
     if do == "close_widget":
+        # A deterministic close must never be the thing that kills LIVE work (V2-567). Closing the browser
+        # card cancels its tab, and closing the results card orphans the errand delivering into it — richer
+        # than «hide a card», which is all this table is allowed to mean. With live work behind the widget the
+        # turn falls through WHOLE to the model, which can warn «hay una tarea en curso» or ask; without any,
+        # the fast lane stays fast. Same posture as everything here: False is a routing decision, not an error.
+        if _widget_has_live_work(wid):
+            return False
         emit("widget", "close", text=said, extra={"id": wid, **src})
         return True
     if do == "move":

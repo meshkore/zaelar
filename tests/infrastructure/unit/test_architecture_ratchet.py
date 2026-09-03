@@ -119,7 +119,10 @@ _CEILINGS: dict[str, tuple[int, int]] = {
 # And three copies of V2-556's own shape collapsed into `listing_turn.py`: the tool DEFINITION (the router only
 # places it now), `request_from` (the router and both channels built the same dict), and `voice_turn` (fast pass
 # → face → stream, which was written twice — the wording had already drifted apart by one paragraph).
-    "voice/engine/llm/providers/nucleo.py": (3327, 129),
+    # 2026-09-03 — V2-567's show-vs-close guard crossed the ceiling by 8; paid by extracting the
+    # accumulator NOTICES (plan + spoken drop + nudge, a mouth-only concern) to providers/acc_notices.py,
+    # 3335→3244. Aliases keep the historical names; `_spawn` stays with the provider.
+    "voice/engine/llm/providers/nucleo.py": (3245, 129),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
@@ -152,7 +155,10 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # keep them without importing the other back). Everything moved byte for byte and is re-exported, so no
     # call site changed. The two new files are deliberately NOT listed: a ceiling is earned by a file that
     # has already grown too big, not handed to every module at birth.
-    "nucleo/flash/router_guards.py": (789, 7),
+    # 2026-09-03, same pass (V2-567): router_guards paid by extracting the V2-210 answer-source family to
+    # answer_guards.py (811→762); probe paid by moving alias classification to show_target.py beside its
+    # siblings (1152→1144). Both files sat EXACTLY at their ceilings — the ratchet working as designed.
+    "nucleo/flash/router_guards.py": (763, 7),
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).
@@ -164,7 +170,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
     # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
-    "nucleo/flash/probe.py": (1147, 74),
+    "nucleo/flash/probe.py": (1145, 74),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT

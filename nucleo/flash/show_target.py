@@ -79,3 +79,18 @@ def _running_goals() -> list[str]:
         return [str(r.get("request") or "") for r in _disp_g.pending_summaries()]
     except Exception:
         return []
+
+
+def classify_alias_call(tool_calls: list, text: str) -> str:
+    """V2-082, moved here from `probe.py`'s branch (ratchet, 2026-09-03, V2-567): the probe only CLASSIFIES
+    alias management (the provider is the one that writes manifests) — resolve the widget and report
+    `alias:add|remove:id`, or `clarify` when no widget can be located with certainty."""
+    _ma = next(t for t in tool_calls if t["name"] == "manage_widget_alias")
+    op = "remove" if str(_ma["args"].get("op") or "add").lower().startswith(("rem", "quit", "borr")) else "add"
+    try:
+        from widgets import runtime as _rta
+        awid = (_ma["args"].get("widget_id") or "").strip()
+        rid = awid if (awid and _rta.get(awid) is not None) else (_identify_ctx(_rta, awid or text) or "")
+    except Exception:
+        rid = ""
+    return f"alias:{op}:{rid}" if rid else "clarify"

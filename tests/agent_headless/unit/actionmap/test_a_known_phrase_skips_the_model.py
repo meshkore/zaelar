@@ -386,8 +386,11 @@ def test_a_better_pack_reaches_an_already_seeded_install(fresh_map, monkeypatch)
 
     from memory import api as _mapi
     _lang(monkeypatch, "es")
-    assert actionmap.match("abre la agenda") is not None            # v2 imported by the fixture
-    assert _mapi.action_map_seed_version("es") == 2
+    assert actionmap.match("abre la agenda") is not None            # current pack imported by the fixture
+    # The SHIPPED version, read from the pack rather than pinned: this test is about the upgrade PATH, and a
+    # pinned literal turned every legitimate pack bump (v3: the V2-567 open/close grids) into a red herring.
+    _shipped = int(json.loads((store.SEEDS_DIR / "es.json").read_text(encoding="utf-8"))["version"])
+    assert _mapi.action_map_seed_version("es") == _shipped
 
     old = json.dumps({"do": "show_widget", "widget": "mensajeria"}, ensure_ascii=False)
     assert _mapi.action_map_retarget_seed("es", "abre el whatsapp", old) is True   # pretend it is a v1 row
@@ -399,7 +402,7 @@ def test_a_better_pack_reaches_an_already_seeded_install(fresh_map, monkeypatch)
     store.ensure_seeded("es")                                        # the upgrade
     actionmap.invalidate()
     assert actionmap.match("abre el whatsapp")["action"]["do"] == "widget_data"
-    assert _mapi.action_map_seed_version("es") == 2
+    assert _mapi.action_map_seed_version("es") == _shipped
 
 
 def test_an_upgrade_never_moves_what_the_operator_touched(fresh_map, monkeypatch):
