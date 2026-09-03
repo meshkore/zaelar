@@ -124,7 +124,11 @@ def parse_yandex_rows(rows: list, k: int = 12) -> list:
     readable, and that is why the engine that answered always travels with the result.
 
     `site` is DERIVED from the image host, the same convention the Bing leg already uses: Yandex does
-    not hand the publisher over, and attributing a photo to whoever serves it beats no attribution."""
+    not hand the publisher over, and attributing a photo to whoever serves it beats no attribution.
+
+    Its OTHER known cost is that `img_url` is a hotlink to somebody else's server and can simply be gone —
+    one of twelve was, measured 2026-09-03 — while the tile's own copy of the same photograph stays alive.
+    Both addresses therefore travel with every row, and the viewer falls back from the first to the second."""
     out, seen = [], set()
     for r in rows or []:
         if not isinstance(r, dict):
@@ -143,9 +147,13 @@ def parse_yandex_rows(rows: list, k: int = 12) -> list:
             host = (urlparse(full).netloc or "").lower()
         except Exception:  # noqa: BLE001
             host = ""
+        # NO `w`/`h`. What the DOM hands over is the size of the TILE, so those numbers describe the
+        # thumbnail and not the file `img_url` points at — and the viewer prints them beside the picture as if
+        # they described it. Measured 2026-09-03: a photo announced as «480×290» whose original was a 404, and
+        # a «213×320» whose original was a 2.2 MB PNG. Zero, like the Bing leg, for the reason this module
+        # already applies to attribution — an unknown is visibly unknown, a wrong number is not.
         out.append({"url": full, "thumb": thumb if thumb.startswith("http") else full,
-                    "title": titulo[:200], "site": host, "page": href,
-                    "w": int(r.get("w") or 0), "h": int(r.get("h") or 0)})
+                    "title": titulo[:200], "site": host, "page": href, "w": 0, "h": 0})
         if len(out) >= max(1, int(k or 12)):
             break
     return out

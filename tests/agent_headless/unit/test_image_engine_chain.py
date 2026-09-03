@@ -110,6 +110,21 @@ def test_la_misma_foto_dos_veces_es_una_y_se_respeta_el_tope():
     assert len(I.parse_yandex_rows(rows, k=2)) == 2
 
 
+def test_yandex_no_afirma_el_TAMANO_de_un_fichero_que_no_ha_medido():
+    """The DOM hands over the size of the TILE, so those numbers describe the thumbnail — not the file `img_url`
+    points at — and the viewer prints them beside the picture as if they described it.
+
+    Measured 2026-09-03 on the operator's own set: a photo announced as «480x290» whose original was a 404, and a
+    «213x320» whose original was a 2.2 MB PNG. Zero, like the Bing leg: an unknown size is visibly unknown, a
+    wrong one is not."""
+    rows = [{"href": "https://y/?img_url=https%3A%2F%2Fd.com%2Fa.jpg", "alt": "x",
+             "thumb": "https://t/x", "w": 480, "h": 290}]
+    it = I.parse_yandex_rows(rows)[0]
+    assert (it["w"], it["h"]) == (0, 0), "se está publicando el tamaño de la MINIATURA como si fuera el de la foto"
+    assert it["url"] == "https://d.com/a.jpg" and it["thumb"] == "https://t/x", (
+        "las dos direcciones de la MISMA foto tienen que seguir viajando: el visor cae de la primera a la segunda")
+
+
 def test_una_lista_ilegible_sale_vacia_y_no_revienta():
     """Same total contract as its Google sibling: a format change degrades to the next index; it does not
     bring down the turn."""

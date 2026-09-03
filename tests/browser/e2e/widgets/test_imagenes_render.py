@@ -56,6 +56,10 @@ _MEDIR = """() => {
     marcadas: el.querySelectorAll('.imgthumb.on').length,
     flechas: el.querySelectorAll('.imgnav').length,
     aviso: (el.querySelector('.imgstage .imgempty') || {}).textContent || '',
+    foto: !!el.querySelector('.imgstage img'),
+    foto_ancho: (el.querySelector('.imgstage img') || {}).naturalWidth || 0,
+    foto_src: (el.querySelector('.imgstage img') || {}).currentSrc || '',
+    aviso_preview: (el.querySelector('.imgsrc .imgfb') || {}).textContent || '',
   };
 }"""
 
@@ -134,3 +138,124 @@ def test_con_UNA_sola_foto_no_hay_ni_flechas_ni_tira():
 def test_sin_fotos_lo_dice_en_vez_de_dejar_una_caja_vacia():
     m = _pintar({"title": "", "query": "", "source": "", "n": 0, "i": 0, "items": [], "current": {}})
     assert m["montado"] and m["aviso"] and m["flechas"] == 0
+
+# ── the fallback, measured over a REAL network round-trip ─────────────────────────────────────────
+# The routes are intercepted instead of pointing at a dead domain: what is under test is a picture whose
+# ORIGINAL is gone while the index's copy of it is alive, and a nonexistent host cannot express that — both
+# halves would fail for the same reason and the test would pass without the fix.
+
+def _png(w: int, h: int, rgb=(200, 40, 40)) -> bytes:
+    """A real, decodable PNG. `naturalWidth > 0` is the only proof that the picture actually PAINTED."""
+    import struct
+    import zlib
+    raw = b"".join(b"\x00" + bytes(rgb) * w for _ in range(h))
+
+    def chunk(tag: bytes, data: bytes) -> bytes:
+        body = tag + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(raw))
+            + chunk(b"IEND", b""))
+
+
+_MUERTA = "https://publisher.test/dead-original.jpg"
+_VIVA = "https://index.test/thumb-of-the-same-photo.png"
+_OTRA = "https://index.test/another-thumb.png"
+
+
+def _pintar_con_red(datos, *, thumb_viva: bool):
+    """Render the viewer with the network under control, and count what the stage asked for."""
+    async def run():
+        from playwright.async_api import async_playwright
+        pedidos: list[str] = []
+        async with async_playwright() as pw:
+            b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
+            pg = await b.new_page(viewport={"width": 820, "height": 640})
+            errores = []
+            pg.on("pageerror", lambda e: errores.append(str(e)))
+
+            async def ruta(route):
+                url = route.request.url
+                pedidos.append(url)
+                if url == _MUERTA:
+                    await route.fulfill(status=404, content_type="text/html", body="<h1>Not Found</h1>")
+                elif url == _VIVA and not thumb_viva:
+                    await route.fulfill(status=403, content_type="text/html", body="<h1>Forbidden</h1>")
+                elif url in (_VIVA, _OTRA):
+                    await route.fulfill(status=200, content_type="image/png", body=_png(480, 290))
+                else:
+                    await route.abort()
+
+            await pg.route("**/*", ruta)
+            await pg.set_content(_HTML)
+            src = open(_WIDGET, encoding="utf-8").read()
+            await pg.add_script_tag(
+                content=src.replace("export function render", "window.render = function render"))
+            await pg.evaluate("d => window.render(document.getElementById('host'), d, {action: () => {}})", datos)
+            await pg.wait_for_timeout(900)      # let the original 404, the fallback resolve, and any loop show up
+            m = await pg.evaluate(_MEDIR)
+            m["errores"] = errores
+            m["pedidos"] = pedidos
+            await b.close()
+            return m
+    return asyncio.run(run())
+
+
+def _set_con_original_muerto():
+    """THE measured incident: photo 1 of 12 is a 404 at the publisher, its copy at the index is alive."""
+    items = [
+        {"url": _MUERTA, "thumb": _VIVA, "title": "Ducati Desmo 450 MX",
+         "site": "enduro21.com", "page": "https://enduro21.com/x"},
+        {"url": _OTRA, "thumb": _OTRA, "title": "Otra moto", "site": "wkx-racing.com", "page": "https://x/y"},
+    ]
+    return {"title": "moto de cross", "query": "moto de cross", "source": "yandex",
+            "n": len(items), "i": 0, "items": items, "current": items[0]}
+
+
+@pytest.fixture(scope="module")
+def caido(visto):                                  # `visto` only to reuse its playwright skip
+    return _pintar_con_red(_set_con_original_muerto(), thumb_viva=True)
+
+
+def test_la_foto_SE_VE_aunque_el_original_del_editor_haya_desaparecido(caido):
+    """THE defect this file gained on 2026-09-03.
+
+    Measured on the operator's own set: photo 1 of 12 was a 404 at enduro21.com while the index still served
+    that same photograph as a live 480x290 JPEG — which is why the thumbnail strip below looked FULL while the
+    stage said the picture no longer loads. The picture was never missing; only our copy of it was."""
+    assert caido["montado"], caido["errores"]
+    assert caido["aviso"] == "", (
+        "el visor dio la foto por perdida teniendo la MISMA foto del buscador viva a un palmo: " + caido["aviso"])
+    assert caido["foto"], "no quedó ninguna imagen en el escenario"
+    assert caido["foto_ancho"] > 0, (
+        f"la imagen está en el DOM pero no llegó a PINTAR (naturalWidth={caido['foto_ancho']})")
+    assert caido["foto_src"] == _VIVA, f"se está enseñando otra cosa: {caido['foto_src']}"
+
+
+def test_la_copia_mas_pequena_se_DICE_en_vez_de_colarse(caido):
+    """It is the same photograph at a smaller size, and the source line prints dimensions next to it: swapping
+    in silence would leave those numbers describing a file nobody is looking at."""
+    assert "vista previa" in caido["aviso_preview"], caido["aviso_preview"]
+
+
+def test_el_original_se_pide_PRIMERO_y_una_sola_vez(caido):
+    """The publisher's file is the good one when it is there; the index's copy is the fallback, not the default."""
+    assert caido["pedidos"], "no salió ni una petición: la interceptación no está midiendo nada"
+    assert caido["pedidos"][0] == _MUERTA, f"lo primero que se pidió no fue el original: {caido['pedidos'][:2]}"
+    assert caido["pedidos"].count(_MUERTA) == 1, "el original se reintentó, y un 404 no cambia al repetirlo"
+
+
+def test_con_las_DOS_copias_caidas_se_dice_y_no_se_entra_en_bucle():
+    """The counterweight. Without it, «fall back to the thumbnail» would be satisfied by never admitting defeat —
+    and a thumbnail that is ALSO dead would re-enter its own error handler forever."""
+    m = _pintar_con_red(_set_con_original_muerto(), thumb_viva=False)
+    assert m["montado"], m["errores"]
+    assert m["aviso"], "las dos copias caídas TIENEN que decirse, no dejar el hueco roto del navegador"
+    assert m["aviso_preview"] == "", (
+        "quedó anunciada una «vista previa» al lado de un aviso de que no carga nada: "
+        f"{m['aviso_preview']!r}")
+    assert m["flechas"] == 2, "el aviso volvió a llevarse por delante la navegación (V2-457)"
+    assert m["pedidos"].count(_VIVA) <= 3, (
+        f"la miniatura se pidió {m['pedidos'].count(_VIVA)} veces — el manejador de error se está reenganchando")

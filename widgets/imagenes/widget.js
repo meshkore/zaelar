@@ -38,6 +38,7 @@ function injectStyles(){
                      display:flex;align-items:center;justify-content:center}
   .hb-imgv .imgthumb img{width:100%;height:100%;object-fit:cover;display:block}
   .hb-imgv .imgthumb.on{border-color:var(--hb-accent,#2F6FEB)}
+  .hb-imgv .imgfb{color:var(--hb-muted,#5b6b82)}
   .hb-imgv .imgempty{color:var(--hb-muted,#5b6b82);font-size:13px;text-align:center;padding:22px 12px}
   .hb-imgv .imgdim{font-variant-numeric:tabular-nums}
   `; document.head.appendChild(s);
@@ -82,8 +83,15 @@ export function render(el, data, ctx){
   if(!items.length){
     stage.appendChild(txt("div","imgempty","Sin imágenes. Pide una foto y aparecerá aquí."));
   } else {
+    // A set from an image index carries TWO addresses for the SAME photograph: the file at the publisher
+    // (`url`) and the index's own copy of it (`thumb`). Only the first one can die, and it does — measured
+    // 2026-09-03 on «moto de cross», where photo 1 of 12 was a 404 at enduro21.com while the index still
+    // served that exact photo as a live 480×290 JPEG. That is why the strip underneath looked FULL while the
+    // stage was empty: the picture was never missing, only our copy of it. So the stage asks for the original,
+    // then for the same photo from the index, and only gives up when both are gone.
+    const full = String(cur.url||""), thumb = String(cur.thumb||"");
     const img=document.createElement("img");
-    img.src=String(cur.url||""); img.alt=String(cur.title||"");
+    img.alt=String(cur.title||"");
     img.loading="eager"; img.decoding="async"; img.referrerPolicy="no-referrer";
     // A hotlinked picture can 403 or vanish. Saying so beats a silent broken-image glyph, which reads as our
     // bug rather than the source's — the same "never lie about an empty box" rule the players learned (V2-383).
@@ -91,9 +99,24 @@ export function render(el, data, ctx){
     // It replaces THE PICTURE, never the stage: clearing the stage also removed the ‹ › arrows, and a set where
     // one photo is dead is exactly when the operator needs them most — the notice would have told them to try
     // the next one while taking away the way to get there. Found by RENDERING it, not by reading it (V2-124).
+    let aviso = null;
     img.onerror = () => {
+      if(!aviso && thumb && thumb !== full){
+        // The swap is NAMED. It is the same photograph at a smaller size, and a silent downgrade would leave
+        // the dimensions printed beside it describing a file nobody is looking at — the same reason the source
+        // line exists at all. Holding the node is what stops a thumb that is ALSO dead from looping here, and
+        // what lets the marker be taken back: claiming a preview beside "this no longer loads" is worse than
+        // either message alone.
+        aviso = txt("span","imgfb","· vista previa");
+        aviso.title = "El original ya no carga; esta es la copia del buscador, más pequeña.";
+        src.appendChild(aviso);
+        img.src = thumb;
+        return;
+      }
+      if(aviso) aviso.remove();
       img.replaceWith(txt("div","imgempty","Esta imagen ya no carga desde su origen. Prueba con la siguiente."));
     };
+    img.src = full || thumb;
     stage.appendChild(img);
     if(items.length>1){
       const prev=txt("button","imgnav imgprev","‹"); prev.title="Anterior";
