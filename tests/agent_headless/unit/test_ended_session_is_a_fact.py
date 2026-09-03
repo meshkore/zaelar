@@ -121,7 +121,9 @@ def test_and_the_snapshot_does_not_hold_the_worker_handles():
     _session("done", summary="algo")
     row = dispatch._ENDED_SESSIONS["w1"]
     assert isinstance(row, dict)
-    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told"}
+    # `sheet` joined in V2-566: the box the errand delivered into, so a follow-up can inherit it — a string,
+    # never a handle.
+    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told", "sheet"}
 
 
 # ── the enumeration, only once (same lesson as V2-197) ────────────────────────────────────────────────────

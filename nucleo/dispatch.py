@@ -308,6 +308,10 @@ def _remember_ended(rec, resuming: bool = False) -> None:
         _ENDED_SESSIONS[str(rec.task_id)] = {
             "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
             "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time(),
+            # V2-566 — the BOX the errand was delivering into, so a follow-up of this just-ended errand can
+            # inherit it instead of opening a second one beside it. Only when the sheet really was its surface:
+            # inheriting a box the errand never wrote to would re-open an empty card for no reason.
+            "sheet": (sheet_of(rec) if surfaces.opens_sheet(getattr(rec, "surface", "")) else ""),
             # V2-224 — cuantos turnos han LLEVADO already this final delante. Ver `mark_death_reported`.
             "told": 0}
         for k in [k for k, v in _ENDED_SESSIONS.items()
@@ -1769,6 +1773,33 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                        "encargo NUEVO: no casa con ninguna tarea viva")})
             except Exception:
                 pass
+            # V2-566 — A FOLLOW-UP IS NOT A NEW ERRAND. The live dedup missed because the errand it continues
+            # just ENDED (delivered its report, asked a question, died) — and the operator's next sentence
+            # («coge otro, no pares hasta que tengas una reserva», measured 2026-09-03, 3.5 min after task 1
+            # ended) relaunched the same goal into a SECOND results sheet beside the first. The relay already
+            # solved this exact shape («a relay is not a new errand», sheets.py): the successor inherits the
+            # box the operator is looking at. Same rule here, same strict matcher as the live dedup — a fresh
+            # unrelated errand keeps getting its own sheet. Fail-soft: continuity is worth nothing if it can
+            # drop an escalation.
+            if not str(ctx.get("sheet", "") or ""):
+                try:
+                    _sheet_prev, _pev = _dedup.continues_ended(
+                        request, kind if kind != "generic" else _classify_kind(request),
+                        list(_ENDED_SESSIONS.values()))
+                    if _sheet_prev:
+                        ctx = dict(ctx)
+                        ctx["sheet"] = _sheet_prev
+                        try:
+                            from voice.observer import emit
+                            emit("task", "sheet_inherited", role="system", text=request[:120],
+                                 extra={"id": key, "from": _pev.get("from", ""), "sheet": _sheet_prev,
+                                        "by": _pev.get("by") or "", "best": _pev.get("best", 0.0),
+                                        "reason": "continúa un encargo recién terminado: misma hoja, "
+                                                  "no una segunda caja"})
+                        except Exception:
+                            pass
+                except Exception:  # noqa: BLE001
+                    pass
             # V2-049 CONTINUIDAD: without session live that casar, ¿there is a operation web INCOMPLETA reciente that ESTA
             # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
             # same tab + razonamiento in vez of start of cero.

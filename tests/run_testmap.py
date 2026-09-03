@@ -81,7 +81,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_locomo_name_swaps.py",
             "tests/memory/integration/test_realistic_session.py",
             "tests/memory/unit/test_writer_dedup.py",
-            "tests/memory/unit/test_writer_paraphrase.py"]},
+            "tests/memory/unit/test_writer_paraphrase.py",
+            # V2-565: a spoken correction reaches the slotless pill it corrects (offer → whitelist → chokepoint).
+            "tests/memory/unit/test_a_correction_reaches_the_pill_it_corrects.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
@@ -1019,6 +1021,15 @@ DOMAINS: list[dict] = [
         {"id": "2.46", "title": "Todo escalon que la tabla de reparto sirve, el egress sabe NOMBRARLO",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_llm_egress_names_every_provider_it_ships_with.py"]},
+        # 2026-09-03 (V2-566): the Soria reservation. Task 1 delivered its report and died; the operator's
+        # «coge otro, no pares» three minutes later relaunched the SAME goal into a SECOND results sheet —
+        # two boxes for one errand, the first orphaned on screen. The live dedup was right to miss (nothing
+        # was live); the missing notch is the relay's own rule («a relay is not a new errand», sheets.py)
+        # applied one step out: a follow-up of a just-ended errand inherits its box. Same strict matcher as
+        # the live scan (2.26 is why there is no second bar to tune).
+        {"id": "2.47", "title": "A follow-up of a just-ended errand inherits its sheet — not a second box",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_followup_inherits_the_sheet.py"]},
         {"id": "2.44", "title": "La cara de anuncios NOMBRA lo que ya tiene (y una sola cara para los dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_listing_face_names_what_it_already_has.py"]},
