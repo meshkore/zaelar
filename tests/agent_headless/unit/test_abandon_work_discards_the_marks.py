@@ -157,3 +157,27 @@ def test_abandon_work_soon_runs_without_a_loop():
     _plant_the_digestologo_world()
     reset.abandon_work_soon(source="voz")
     assert mem.state().get("trabajo_interrumpido") == {}
+
+
+def test_the_stop_record_expires_instead_of_becoming_a_memory():
+    """V2-568 — a stop order is over in minutes; it must never climb into permanent memory.
+
+    Measured 2026-09-03 in the operator's live DB: 411 [PARADO]-lineage pills alive at level mid (132 written
+    on Aug 28 alone, by lab resets). The leak is structural: the record was written WITHOUT a ttl, and
+    `consolidator.promote` is age-based and never looks at ttl — so short→mid→long and a discarded afternoon
+    becomes biography. `expire_ttl` kills by created+ttl at ANY level, which makes one declared ttl the whole
+    fix: this walks the record through promotion AND expiry and asserts the grave wins."""
+    from memory import consolidator
+    _plant_the_digestologo_world()
+    reset.abandon_work(source="reset")
+    db = memdb.get_db()
+    row = db.query("SELECT id, ttl_days FROM memories WHERE text LIKE '[PARADO]%' AND valid=1 "
+                   "ORDER BY id DESC LIMIT 1")[0]
+    assert row["ttl_days"] is not None and 0 < float(row["ttl_days"]) <= 7, \
+        "the record must declare a short lifespan at the write — that is the entire mechanism"
+    # A week later: promotion has had every chance to climb it; expiry must still win.
+    later = int(consolidator._now()) + 8 * 86400
+    consolidator.promote(now=later)
+    consolidator.expire_ttl(now=later)
+    r = db.query("SELECT valid FROM memories WHERE id=?", (row["id"],))[0]
+    assert r["valid"] == 0, "promoted or not, the stop record has to be dead a week later"

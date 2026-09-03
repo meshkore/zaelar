@@ -117,6 +117,12 @@ def abandon_work(*, source: str = "reset") -> dict:
             f"{source}). No queda NADA pendiente de reanudar: no retomes, no continúes y no digas que sigues "
             f"con ninguna de esas tareas — solo existen de nuevo si el operador las vuelve a pedir.",
             level="short", kind="event", importance=0.6,
+            # V2-568: the record DECLARES its own lifespan. Without a ttl, age-based promotion (which never
+            # looks at ttl) climbs it short→mid→long and a stop order becomes a permanent memory: measured
+            # 2026-09-03 in the operator's DB, 411 live [RESET] pills in mid — 132 written on Aug 28 alone by
+            # lab resets. Its whole purpose ("the next greeting must not resume") is over in minutes;
+            # `expire_ttl` kills by created+ttl at ANY level, so two days is a generous ceiling, not a race.
+            ttl_days=2.0,
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"abandon_work: limpiar las marcas falló: {e}")

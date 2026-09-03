@@ -7831,6 +7831,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **The stop record declares its own lifespan (V2-568, 2026-09-03)**: `abandon_work`'s «[PARADO]» card
+  (short-term, «the next greeting must not resume») was written WITHOUT a ttl, and `consolidator.promote` is
+  age-based and never looks at ttl — so a stop order climbed short→mid→long and became permanent memory.
+  Measured live: **411 `[RESET]` pills alive in mid** (132 on Aug 28 alone — lab bursts), 55 `[PARADO]` behind
+  them, and 2 FALSE ones a test suite wrote to the live desk attributing the operator an order he never gave
+  (V2-567 incident). Unique texts (live counters inside) → immune to exact dedup. Fix: `ttl_days=2.0` declared
+  at the write — `expire_ttl` kills by `created+ttl` at ANY level, so promotion can climb all it wants, the
+  grave wins. Cure, reversible: 442 invalidated, 25 recent stamped with the ttl, zero eternal stop records
+  left. Lifecycle test walks promote+expire a week out (disarm = 1 red). ⚠️ The general lesson stays open: any
+  ephemeral system write without a ttl becomes biography by promotion — sweep pending.
 - **A spoken correction reaches the SLOTLESS pill it corrects (V2-565, 2026-09-03)**: measured on «reserva
   Soria» — STT heard «Elfo On» for «El Fogón», the heart stored two long prefs with the false name, the operator
   corrected himself in the SAME conversation, and nothing could reach the false pills: every supersede path keys
