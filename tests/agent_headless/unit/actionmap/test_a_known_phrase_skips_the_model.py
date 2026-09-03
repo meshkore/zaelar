@@ -18,6 +18,15 @@ from nucleo import actionmap
 from nucleo.actionmap import executor, store
 from nucleo.actionmap.normalize import normalize
 
+# `Settings.language` FREEZES `env("ZAELAR_LANGUAGE")` at the moment `voice.engine.core.config` is first
+# imported — and `store.active_lang()` reaches it lazily (langs → config). If that first import happens
+# inside a test that has monkeypatched the env to "es", the frozen default poisons the WHOLE process:
+# after the patch is reverted, `langs.current_code()` keeps answering "es" and the suite-isolation guards
+# (`test_the_language_is_the_products_own_default…`) go red in whatever file runs later — an
+# order-dependent failure pointing at nothing of its own (measured 2026-09-03, V2-571's full sweep).
+# Importing it HERE, at collection time with the suite's clean env, freezes the honest default.
+import voice.engine.core.config  # noqa: F401  — freeze SETTINGS before any env monkeypatch
+
 
 @pytest.fixture
 def fresh_map(tmp_path, monkeypatch):
