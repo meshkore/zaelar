@@ -7893,6 +7893,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
       `tests/browser/ tests/connectors/ tests/infrastructure/unit/core/`: 1752 passed, 1 xfailed.
     - Detail and both phases: `V2-561-messaging-wizard-redesign-and-connector-catalog-plan.md`.
 
+- **A fresh Volume has no directories, and a session born LAZILY told nobody (V2-562, 2026-09-03)**: two
+  defects measured on a real account Machine, same class — the code was right and the thing it wrote into did
+  not exist, and neither failed loudly.
+  - **`workspace.root()` only ever answered WHERE a path lives, never whether it EXISTS.** On a self-host
+    clone the answer was free: git ships `config/`, `credentials/` and `i18n/`, so no writer ever needed a
+    `mkdir`. A cloud Machine mounts an EMPTY Volume — measured, `/data` held only `memory/` and `widgets/`,
+    the two writers that happen to `makedirs`, and the other three were simply ABSENT. Every write into them
+    raised inside code that treats persistence as best-effort, so it was caught, logged at WARNING and stepped
+    over. **The visible symptom was the language onboarding running again on EVERY cold boot**, because
+    `settings.json` could never be written — one WARNING among two hundred INFO lines.
+  - `SUBDIRS` is the SINGLE declaration of that tree and `ensure()` runs at boot **before the app import**
+    (`server/__init__` loads `settings.json` at import time, so a FastAPI startup hook would be too late for
+    the very write this exists for). The three `config/` writers that lacked one create their own parent too:
+    a directory can be removed while the process lives. Corrected while measuring — only those three were
+    genuinely unguarded; the rest use `os.makedirs`, which a `grep` for `mkdir` had hidden.
+  - **The guard is what keeps it closed**: it READS the real call sites out of the source and fails if a
+    module resolves a workspace path whose root is not declared. A hand-copied list would keep passing while a
+    new persistent path silently reopened the hole — and it asserts the scan MATCHED something, or a pattern
+    that stopped matching would guard nothing while staying green.
+  - **The other half: `zaelar_user_sessions` held ZERO rows for every account, ever.** A work session has two
+    doors — the explicit `begin_session()` and the lazy self-open inside `session_id()`, which is how one is
+    usually born (the first event opens it) — and only the first announced itself. So the central registry only
+    ever received `event="end"`, and closing a row nothing opened is an UPDATE matching nothing, returning 200.
+    The registry that exists precisely to survive a Machine being destroyed was recording nobody. The
+    announcement moves into `_announce()` so a session **cannot be born without it**.
+  - ⚠️ **And the report was being dropped exactly where it mattered**: `_report_to_control_plane` needs a
+    running loop, and a lazily-born session comes from whatever thread emitted the first event — the voice
+    thread, a `to_thread` worker — none of which has one. Same cross-thread bridge `energy_meter` already uses
+    (V2-102). The heartbeat takes `call_soon_threadsafe` rather than `run_coroutine_threadsafe` so the task
+    HANDLE still lands in `_heartbeat` and `_stop_heartbeat` can cancel it.
+  - ⚠️ **A test of mine leaked its own workspace and broke an unrelated i18n test several files away.**
+    `importlib.reload(config.settings)` was the obvious way to re-resolve an import-time path and is a trap
+    twice over: the root `conftest.py` aims `SETTINGS_FILE` at a temp file for the WHOLE session, and a reload
+    silently reinstates the REAL repo path — so it both pointed at the operator's own file and left every later
+    test reading it. Patch the attribute; never reload a module the suite has isolated.
+  - Four disarms verified red, each mutation ASSERTED before measuring. **Verified live on the shipped v3.20
+    image**: an empty root goes from `[]` to `config · credentials · i18n · memory · widgets` and
+    `settings.json` writes — the exact operation that failed. ⚠️ **A release does NOT reach Machines that
+    already exist**: an account created before the tag keeps its old image, so the truest test of this work is
+    a NEW signup, the only one that exercises a freshly mounted Volume.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
