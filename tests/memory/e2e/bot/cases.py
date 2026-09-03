@@ -3466,6 +3466,22 @@ BATCH_169 = [  # dim Z — MEMORIA→ACCIÓN encadenada (MemoryArena 2026): un p
              "con el término concreto (el recall a escala no bridgea 'qué tener en cuenta'→vegetariano, T178)"},
 ]
 
+BATCH_170 = [  # dim AD — una CORRECCIÓN en la misma conversación alcanza a la píldora SIN slot que corrige
+               # (V2-565, caso real «reserva Soria» 2026-09-03: el STT oyó «Elfo On» por «El Fogón», el corazón
+               # guardó la pref con el nombre falso, el operador se corrigió en el turno siguiente y un worker
+               # quemó 15 min y $2.25 buscando un restaurante inexistente). Aquí se mide al CORAZÓN REAL: debe
+               # emitir change:"correction" + supersedes con el id que se le ofreció en «GUARDADO HACE POCO».
+    {"t": "save", "dim": "AD", "text": "Apunta que mi restaurante favorito de Soria es el Elfo On.",
+     "in": ["long"], "marker": "elfo", "note": "AD — el dato mal oído entra como pref durable (la avería real)"},
+    {"t": "save", "dim": "AD", "text": "Que no, que he dicho El Fogón del Salvador, corrígelo.",
+     "in": ["long"], "marker": "salvador",
+     "note": "AD — la corrección debe guardar el nombre bueno Y superseder la píldora del malo (supersedes)"},
+    {"t": "query", "dim": "AD", "q": "¿Cuál es mi restaurante favorito de Soria?", "via": "long",
+     "want": ["salvador"], "not_want": ["elfo"],
+     "note": "AD — tras la corrección manda el nombre corregido; «elfo» servido aquí = la píldora falsa sigue "
+             "valid=1 y la corrección no la alcanzó (el coste medido de esto fue una búsqueda de $2.25)"},
+]
+
 # Las tandas siguientes se AÑADEN aquí conforme el bot avanza (el agente las genera con criterio humano).
 CASES: list[dict] = [*BATCH_1, *BATCH_2, *BATCH_3, *BATCH_4, *BATCH_5, *BATCH_6, *BATCH_7, *BATCH_8, *BATCH_9,
                      *BATCH_10, *BATCH_11, *BATCH_12, *BATCH_13, *BATCH_14, *BATCH_15, *BATCH_16, *BATCH_17,
@@ -3489,7 +3505,7 @@ CASES: list[dict] = [*BATCH_1, *BATCH_2, *BATCH_3, *BATCH_4, *BATCH_5, *BATCH_6,
                      *BATCH_149, *BATCH_150, *BATCH_151, *BATCH_152, *BATCH_153, *BATCH_154, *BATCH_155,
                      *BATCH_156, *BATCH_157, *BATCH_158, *BATCH_159, *BATCH_160, *BATCH_161, *BATCH_162,
                      *BATCH_163, *BATCH_164, *BATCH_165,
-                     *BATCH_166, *BATCH_167, *BATCH_168, *BATCH_169]
+                     *BATCH_166, *BATCH_167, *BATCH_168, *BATCH_169, *BATCH_170]
 
 
 # ── Normalización de dimensión ────────────────────────────────────────────────────────────────────────────────

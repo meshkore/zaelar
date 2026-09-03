@@ -272,6 +272,18 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
             # have a `state_field` and are already covered by P0b, and interposing here could suppress the
             # profile→state backstop that exists precisely to force a legitimate move through.
             a = _slot_supersede_guard(a, is_correction=a_corr)
+            # V2-565 · a correction reaches the SLOTLESS pill it corrects. The model may name targets in
+            # `supersedes`, but only ids it was OFFERED (`api.correction_targets()`, the same function that
+            # built the offer in `_render`) survive — an invented or stale id dies here, so this path cannot
+            # be steered at rows the prompt never showed. Requires the atom to DECLARE change:"correction":
+            # a plain update naming ids is not a correction and gets no reach.
+            _sup = a.get("supersedes") or []
+            if _sup and a.get("change") == "correction":
+                _allowed = _correction_whitelist()
+                _sup = [i for i in _sup if i in _allowed][:4]
+            else:
+                _sup = []
+            a = dict(a, supersedes=_sup)
             await _write_atom(a, raw=t)
         # DETERMINISTIC PROFILE→STATE BACKSTOP (headless round V2-038 #2): the heuristic detected a state_patch
         # (nombre/ubicación/…) pero los átomos del LLM NO tocaron esos campos — el CORAZÓN tiende a escribir la
@@ -375,6 +387,18 @@ def _sanitize_state_patch(patch: dict | None) -> dict:
     return out
 
 
+def _correction_whitelist() -> set[int]:
+    """The ids the distiller was allowed to aim at (V2-565) — recomputed here rather than threaded through the
+    call chain: `correction_targets()` is deterministic over the DB, so offer-time and act-time agree except
+    for a benign race (a pill written in between enlarges the set; one superseded in between is re-checked by
+    the writer guard anyway). Fail-open to EMPTY: no whitelist, no reach."""
+    try:
+        from memory import api as _mem_api
+        return {int(c["id"]) for c in _mem_api.correction_targets()}
+    except Exception:  # noqa: BLE001
+        return set()
+
+
 async def _write_atom(atom: dict, *, raw: str = "") -> None:
     """Writes ONE pill from the LLM processor through the façade (async queue). Maps `dest` → layer:
     `state` = sets state + durable `long/pinned` trace with slot; `long`/`short` = memory with its ttl/slot."""
@@ -422,6 +446,8 @@ async def _write_atom(atom: dict, *, raw: str = "") -> None:
             "slot": atom.get("slot"),
             "meta": meta,
             "concepts": atom.get("concepts"),
+            # V2-565: whitelisted ids this corrected fact supersedes — applied by the writer, the single door.
+            "supersedes": atom.get("supersedes") or None,
             "auto": False,
         })
 

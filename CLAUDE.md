@@ -7831,6 +7831,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ A backtick inside a CSS comment CLOSES the widget's template literal — the trap this very file warns
     about, paid again by writing `width:min(...)` in prose.
 
+- **A spoken correction reaches the SLOTLESS pill it corrects (V2-565, 2026-09-03)**: measured on «reserva
+  Soria» — STT heard «Elfo On» for «El Fogón», the heart stored two long prefs with the false name, the operator
+  corrected himself in the SAME conversation, and nothing could reach the false pills: every supersede path keys
+  on `slot`, and additive facts are slotless BY DESIGN (V2-498 — a slot would make one favourite destroy
+  another). A worker later paid the bill: 15 min and $2.25 searching a restaurant that does not exist. And the
+  distiller alone can never fix this: it sees ONE turn, so it cannot correct what it never sees. Mechanism —
+  offer → answer → whitelist → chokepoint: `api.correction_targets()` (recent durable slotless pills, `created`
+  not `updated`, 45 min/6 cap) feeds a «GUARDADO HACE POCO» block in `_render`'s DYNAMIC tail (stable prefix
+  untouched, V2-536 cache safe; empty memory costs zero tokens); the contract gains `supersedes:[ids]` valid
+  ONLY with `change:"correction"` (few-shot 9); ingest intersects the answer with the SAME function — the model
+  can only aim at what it was shown; `writer._apply_correction_supersedes` applies it at EVERY `insert_memory`
+  exit (dedup collapses included: the SURVIVOR becomes the successor), slotless-and-valid targets only,
+  reversibly (`valid=0` + `superseded_by`). None of the deterministic correction regexes matches a re-statement
+  («he dicho X») — V1 deliberately relies on the model; the offer is what makes that possible. Two disarms in
+  two directions: writer stops applying → 2 red; render stops offering → 1 red; the other 4 cases assert
+  absence and stay green on purpose. Node 1.3 + bot dim AD (BATCH_170, the live proof of the real heart).
+  Operator data cured the same day, reversibly: #1149/#1150 → superseded by #1461, and three «prefs» that were
+  fragments of a spoken STOP order («Para todos los procesos…») invalidated.
 - **A screen belongs to ONE connector, and a picker is a grid you can already see (V2-561, 2026-09-03)**:
   the operator's follow-up on V2-559's redesign, with the two screenshots still fresh — the wizard's three
   steps were stacked in one scrolling card, the email provider was a `<select>` you had to open to see the

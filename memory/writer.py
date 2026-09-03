@@ -14,6 +14,8 @@ import os
 import re
 import struct
 
+from loguru import logger
+
 from . import db as _db
 from . import embeddings as _emb
 
@@ -147,6 +149,41 @@ def canon_slot(slot: str | None) -> str | None:
     return _slots.canonical(slot)
 
 
+def _apply_correction_supersedes(db, survivor_id: int, targets: list[int] | None, now: int) -> None:
+    """A spoken correction reaches the pill it corrects (V2-565).
+
+    The distiller can now name, in `supersedes`, the ids of recently written SLOTLESS pills that the current
+    turn corrects — ids it was OFFERED in its prompt, never invented ones: the ingest pipeline intersects the
+    model's list with `api.correction_targets()` before anything gets here. Measured origin (2026-09-03,
+    reserva Soria): STT heard «Elfo On» for «El Fogón», the heart stored two long prefs with the wrong name,
+    the operator corrected himself in the SAME conversation — and nothing could reach the false pills, because
+    every supersede path keys on `slot` and additive facts are slotless by design. A worker later spent 15 min
+    and $2.25 searching for a restaurant that does not exist.
+
+    Applied at the single write chokepoint so it holds for every caller and every dedup exit (the corrected
+    pill may itself collapse into an existing row — the survivor, whichever it is, becomes the successor).
+    Guards live HERE, not in the callers (same argument as the critical-health guard, V2-499):
+    slotless targets only (identity/state stay unreachable by construction), currently valid, never the
+    survivor itself, capped. Reversible on purpose: `valid=0` + `superseded_by`, history intact — this module
+    never deletes."""
+    for old in (targets or [])[:4]:
+        try:
+            old = int(old)
+        except (TypeError, ValueError):
+            continue
+        if old == int(survivor_id):
+            continue
+        row = db.query_one("SELECT id FROM memories WHERE id=? AND valid=1 AND slot IS NULL "
+                           "AND kind != 'conv'", (old,))
+        if row is None:
+            # Unknown, already invalid, slotted or conv → refused. Quiet on purpose: the ingest whitelist
+            # already filtered, so a miss here is a benign race (the target got superseded in between).
+            continue
+        db.execute("UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? WHERE id=?",
+                   (int(survivor_id), now, now, old))
+        logger.info(f"memoria: corrección aplicada — #{old} queda superseded por #{survivor_id} (V2-565)")
+
+
 def insert_memory(
     text: str,
     *,
@@ -160,6 +197,7 @@ def insert_memory(
     meta: dict | str | None = None,
     concepts: list[str] | None = None,
     embedding: list[float] | None = None,
+    supersedes: list[int] | None = None,
 ) -> int:
     """Inserta un recuerdo (PÍLDORA: dato canónico + `slot` + `meta`) + su vector + su fila FTS. Devuelve el id.
 
@@ -214,6 +252,7 @@ def insert_memory(
                     ph = ",".join("?" * len(stale))
                     db.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? "
                                f"WHERE id IN ({ph})", (keep, now, now, *stale))
+                _apply_correction_supersedes(db, keep, supersedes, now)
                 return keep
             prev_ids = [int(r["id"]) for r in rows]   # dato cambió → superseder TODOS los vigentes tras insertar
 
@@ -235,6 +274,7 @@ def insert_memory(
             dup_id = int(exact["id"])
             reinforce([dup_id])
             _link_concepts(db, dup_id, concepts, level, kind)
+            _apply_correction_supersedes(db, dup_id, supersedes, now)
             return dup_id
 
     # DEDUP SEMÁNTICO (T125): durable + SIN slot → si ya existe un recuerdo casi idéntico por SIGNIFICADO,
@@ -246,6 +286,7 @@ def insert_memory(
         if dup is not None:
             reinforce([dup])
             _link_concepts(db, dup, concepts, level, kind)   # el hecho repetido conserva/gana sus aristas de concepto
+            _apply_correction_supersedes(db, dup, supersedes, now)
             return dup
 
     with db.cursor() as cur:
@@ -264,6 +305,7 @@ def insert_memory(
             ph = ",".join("?" * len(prev_ids))
             cur.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? "
                         f"WHERE id IN ({ph})", (mid, now, now, *prev_ids))
+    _apply_correction_supersedes(db, mid, supersedes, now)
     # embedding fuera del lock de escritura del cursor (puede tardar) → luego insert corto en vec.
     # OPTIMIZACIÓN (2026-07-12): el BUFFER CONVERSACIONAL (`kind='conv'`, el par turno↔respuesta crudo que se
     # escribe CADA turno, efímero TTL 2d) NO se embebe: (a) se lee por RECENCIA (`recent_short`, SQL directo), nunca

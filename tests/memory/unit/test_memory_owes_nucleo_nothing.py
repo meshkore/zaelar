@@ -100,7 +100,7 @@ def test_the_debt_list_matches_reality_so_it_only_shrinks():
 #: (editing both the code and this snapshot in the same commit); it must never change as a side effect.
 DECLARED_SURFACE = {
     "start", "stop",
-    "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget",
     # 2026-08-31 (V2-528, stopping means discarding): the reset invalidates the conversational buffer ("the chat
     # is erased" includes the SEEDING of the window) and the `task.*` slots (the "we are doing X" pills). Soft

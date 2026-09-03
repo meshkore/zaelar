@@ -33,7 +33,7 @@ DEFAULT_BUDGET_TOKENS = 1200
 # import internals (memory.db/writer/queue/slots/…) outside tests.
 __all__ = [
     "start", "stop",
-    "write", "write_now", "ingest_message", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget", "clear_conversation", "clear_slot_prefix",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
@@ -77,7 +77,7 @@ async def stop(drain: bool = True):
 def write(text: str, *, level: str = "short", kind: str = "event", importance: float | None = None,
           weight: float = 0.5, ttl_days: float | None = None, pinned: bool = False,
           slot: str | None = None, meta: dict | str | None = None,
-          concepts: list[str] | None = None) -> None:
+          concepts: list[str] | None = None, supersedes: list[int] | None = None) -> None:
     """Queue a memory (fire-and-forget). The embedding is computed by the writer. Emits memory.updated.
 
     PILL (V2-013): `slot` = canonical key for the singular fact (`operator.name`…) → EXACT supersede/dedup in the
@@ -86,6 +86,7 @@ def write(text: str, *, level: str = "short", kind: str = "event", importance: f
     get_queue().submit(
         "write", text, level=level, kind=kind, importance=importance,
         weight=weight, ttl_days=ttl_days, pinned=pinned, slot=slot, meta=meta, concepts=concepts,
+        supersedes=supersedes,
     )
     _emit("memory.updated", {"op": "write", "kind": kind})
 
@@ -95,6 +96,28 @@ def write_now(text: str, **kwargs) -> int:
     mid = _writer.insert_memory(text, **kwargs)
     _emit("memory.updated", {"op": "write", "id": mid})
     return mid
+
+
+def correction_targets(window_s: float = 2700.0, limit: int = 6) -> list[dict]:
+    """The durable SLOTLESS pills a same-conversation correction may reach (V2-565): id + text, newest first.
+
+    Two consumers, deliberately the same function so they cannot drift: `nucleo/mem_processor._render` OFFERS
+    these to the distiller (so it can notice that the turn contradicts something just stored — it cannot correct
+    what it never sees), and `nucleo/memory_agent/ingest` uses the same list as the WHITELIST for the model's
+    `supersedes` answer, so the model can only ever name ids it was shown.
+
+    Slotless only: slotted facts already have exact supersede, and keeping identity/state out of this path is
+    what makes it safe to let the model aim. The window is the practical definition of "this conversation" —
+    a correction corrects what was just said, not last month's facts. `created`, not `updated`: decay and
+    reinforcement touch `updated`, and this asks when the pill was WRITTEN. Clock via `now()` (clock.travel)."""
+    db = _db.get_db()
+    since = now() - float(window_s)
+    rows = db.query(
+        "SELECT id, text FROM memories WHERE valid=1 AND slot IS NULL AND level IN ('mid','long') "
+        "AND kind NOT IN ('conv') AND created >= ? "
+        "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted') "
+        "ORDER BY created DESC, id DESC LIMIT ?", (since, int(limit)))
+    return [{"id": int(r["id"]), "text": r["text"]} for r in rows]
 
 
 def ingest_message(source: str, entity: str | None, text: str, *, group: str | None = None,

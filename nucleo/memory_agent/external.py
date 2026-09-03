@@ -47,6 +47,7 @@ async def remember(item: dict[str, Any]) -> None:
     meta = item.get("meta")
     ttl_days = item.get("ttl_days")
     concepts = item.get("concepts")   # V2-013 T126: lightweight concept labels → graph nodes/edges
+    supersedes = item.get("supersedes")  # V2-565: ids of recently written slotless pills this fact corrects
 
     # Auto-classify to DERIVE the level when the caller did not set it (even if kind/importance were provided):
     # `remember({text, kind:"result"})` MUST be written — previously the `not kind` guard left it with level=None
@@ -81,6 +82,7 @@ async def remember(item: dict[str, Any]) -> None:
                 slot=slot,
                 meta=meta,
                 concepts=concepts,
+                supersedes=supersedes,
             )
         except Exception as e:  # noqa: BLE001
             logger.warning(f"memory_agent.remember write falló: {e}")

@@ -26,6 +26,7 @@ Salida por átomo (`process()` devuelve `list[dict]`)::
       "slot":        str | None,                # clave canónica del hecho singular (operator.name, goal.current…)
       "concepts":    list[str],                 # 1-3 categorías LIGERAS (salud/finanzas/trabajo/familia…) → grafo
       "state_patch": dict,                      # merge en la tabla `state` (solo si dest=='state')
+      "supersedes":  list[int],                 # V2-565: ids recientes SIN slot que este hecho corrige (whitelisted)
     }
 """
 from __future__ import annotations
@@ -349,6 +350,10 @@ Por CADA píldora decides:
     coche/objetivo: "me acabo de mudar a X", "ya no trabajo en Y", "I've moved to X", "ara visc a X"…).
   · "correction" = CORRIGE un dato que quedó mal guardado ("no me llamo X, sino Y", "en realidad es Z").
   · "none"       = todo lo demás (primer dato, refuerzo, hecho suelto).
+- supersedes: SOLO con change:"correction" y SOLO ids de la lista «GUARDADO HACE POCO» que a veces acompaña al
+  turno — los registros recientes que ESTE hecho corrige (p. ej. un nombre que el STT transcribió mal y el
+  operador acaba de re-decir). El sistema invalida esos registros y conserva tu versión corregida. Nunca
+  inventes ids: si el turno no corrige nada de esa lista, omite el campo o pon [].
 - state_patch: SOLO si dest=="state". Objeto con las claves del estado a fijar. Claves: operator_name, location,
   treatment, objetivo, proyecto (o una clave libre en minúsculas para otros datos de identidad: hardware, car,
   empresa…). Ej: {"operator_name":"Marta"}.
@@ -430,6 +435,18 @@ Turno del operador: "Esta mañana tomé un café al volver del trabajo y ahora e
 _FEWSHOT_ASSISTANT_8 = """[{"text":"Esta mañana tomó un café al volver del trabajo.","dest":"short","kind":"event","importance":0.2,"ttl_days":7,"slot":null,"change":"none","concepts":[],"state_patch":{}},
 {"text":"Ahora está cansada.","dest":"short","kind":"fact","importance":0.3,"ttl_days":1,"slot":null,"change":"none","concepts":[],"state_patch":{}}]"""
 
+# Noveno shot (V2-565): una CORRECCIÓN alcanza al registro que corrige. El turno llega con la lista «GUARDADO
+# HACE POCO» y el operador re-dice un nombre que el STT destrozó — el modelo emite el hecho corregido con
+# change:"correction" y nombra en `supersedes` los ids corregidos (SOLO de la lista). Caso real: «Elfo On» por
+# «El Fogón» costó una búsqueda de 15 min de un restaurante inexistente.
+_FEWSHOT_USER_9 = """ESTADO actual: operator_name=Marta
+GUARDADO HACE POCO (esta conversación):
+  [841] Su bar favorito de Bilbao se llama Kafe Antxokia.
+  [842] Quiere reservar mesa para el sábado.
+Turno del operador: "Que no, que he dicho Kafe Antzokia, con zeta. Búscalo bien." """
+
+_FEWSHOT_ASSISTANT_9 = """[{"text":"Su bar favorito de Bilbao se llama Kafe Antzokia.","dest":"long","kind":"pref","importance":0.7,"ttl_days":null,"slot":null,"change":"correction","supersedes":[841],"concepts":["ocio"],"state_patch":{}}]"""
+
 
 _LANG_NAME = {"es": "castellano", "en": "English", "de": "Deutsch", "fr": "français", "it": "italiano",
               "pt": "português", "ca": "català"}
@@ -459,7 +476,26 @@ def _render(text: str, state: dict | None) -> str:
             f"FECHA Y HORA ACTUAL: {_now_stamp()}\n"
             f"IDIOMA DE LA MEMORIA: {lang}. Escribe SIEMPRE las píldoras en {lang}, aunque el operador hable en "
             f"otro idioma (tradúcelo). Un dato memorable dicho en otro idioma NO se descarta: se guarda en {lang}.\n"
+            f"{_recent_block()}"
             f"Turno del operador: \"{(text or '').strip()[:_MAX_INPUT]}\"")
+
+
+def _recent_block() -> str:
+    """The «GUARDADO HACE POCO» offer (V2-565): the recently written slotless pills, id + text, so the distiller
+    can SEE that the current turn contradicts something it just stored. It cannot correct what it never sees —
+    measured on the Soria case: the correction turn alone gives the model no way to know «Elfo On» exists.
+    Dynamic tail on purpose: the few-shot prefix stays byte-stable (V2-536, prompt cache 97%). Empty when there
+    is nothing recent — most turns pay zero tokens for this. Fail-open: a memory read error never blocks a write."""
+    try:
+        from memory import api as _api
+        cands = _api.correction_targets()
+    except Exception:  # noqa: BLE001
+        cands = []
+    if not cands:
+        return ""
+    lines = "\n".join(f"  [{c['id']}] {str(c['text'])[:120]}" for c in cands)
+    return ("GUARDADO HACE POCO (esta conversación) — si este turno CORRIGE alguno, emite el hecho corregido "
+            "con change:\"correction\" y sus ids en supersedes:\n" + lines + "\n")
 
 
 def _now_stamp() -> str:
@@ -535,6 +571,8 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             {"role": "assistant", "content": _FEWSHOT_ASSISTANT_7},
             {"role": "user", "content": _FEWSHOT_USER_8},
             {"role": "assistant", "content": _FEWSHOT_ASSISTANT_8},
+            {"role": "user", "content": _FEWSHOT_USER_9},
+            {"role": "assistant", "content": _FEWSHOT_ASSISTANT_9},
             {"role": "user", "content": _render(t, state)},
         ],
     }
@@ -738,6 +776,16 @@ def _parse(content: str) -> list[dict]:
         if change not in ("none", "update", "correction"):
             change = "none"
         value = (str(a.get("value")).strip()[:120] if a.get("value") is not None else "") or None
+        # V2-565: `supersedes` — ids the model says this fact corrects. Ints only, capped; the REAL guard is
+        # the whitelist in ingest (only offered ids survive) and the writer (slotless, valid, never itself).
+        raw_sup = a.get("supersedes")
+        supersedes = []
+        if isinstance(raw_sup, list):
+            for x in raw_sup[:4]:
+                try:
+                    supersedes.append(int(x))
+                except (TypeError, ValueError):
+                    continue
         out.append({
             "text": text[:400],
             "dest": dest,
@@ -749,5 +797,6 @@ def _parse(content: str) -> list[dict]:
             "change": change,
             "concepts": concepts,
             "state_patch": patch if dest == "state" else {},
+            "supersedes": supersedes,
         })
     return out
