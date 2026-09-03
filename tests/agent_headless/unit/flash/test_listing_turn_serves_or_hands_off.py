@@ -32,6 +32,12 @@ def rig(monkeypatch):
     monkeypatch.setattr(LS, "search", fake_search)
     monkeypatch.setattr(sheet, "begin_task", lambda title="", fresh=True, sheet="": calls["begin"].append(
         {"title": title, "fresh": fresh, "sheet": sheet}) or {"ok": True})
+    calls["rename"] = []
+    monkeypatch.setattr(sheet, "rename_task", lambda title="", sheet="": calls["rename"].append(
+        {"title": title, "sheet": sheet}) or {"ok": True})
+    # V2-570 — the delivery record is in-RAM state shared with dispatch's continuity gate: isolate it.
+    from nucleo.workers import ended as _ended
+    _ended._LISTING_DELIVERIES.clear()
     monkeypatch.setattr(sheet, "apply_action", lambda action, payload=None: calls["present"].append(
         {"action": action, "payload": payload or {}}) or {"ok": True, "shown": len((payload or {}).get("items", []))})
     monkeypatch.setattr(sheet, "prune_sheets", lambda *a, **k: 0)
@@ -105,3 +111,53 @@ def test_empty_query_is_refused_without_side_effects(rig):
     out = listing_turn.run("", operator_text="")
     assert out["delivered"] is False and out["n"] == 0
     assert calls["present"] == [] and calls["escalate"] == []
+
+
+# ── V2-570 — the linear doctrine's half that lives HERE: the inherited box, and the delivery as a fact ────
+
+def test_a_delivery_is_recorded_as_a_fact_the_engine_can_see(rig):
+    """Measured on session 9dcff6f5: a delivered fast pass left NO trace a later escalation could match
+    (`dedup_miss: live 0`), so the same hunt got a second sheet and a parallel worker."""
+    from nucleo.workers import ended
+    state, calls = rig
+    state["result"] = {"items": _items(6), "sources": [], "needs_browser": False, "reason": ""}
+    out = listing_turn.run("alquiler de catamaranes empresas",
+                           operator_text="Búscame si hay empresas de alquiler de catamaranes en plan")
+    rows = ended.recent_listing_deliveries()
+    assert len(rows) == 1
+    assert rows[0]["sheet"] == out["sheet"] and rows[0]["n"] == 6
+    assert rows[0]["goal"] == "Búscame si hay empresas de alquiler de catamaranes en plan", \
+        "the record keys on the OPERATOR's words — that is what the follow-up escalation will contain"
+
+
+def test_a_hand_off_records_no_delivery(rig):
+    """An insufficient pass escalates and a live session exists: the dedup already covers that side, and a
+    delivery record here would arm the linear gate against a hunt that is actively being worked."""
+    from nucleo.workers import ended
+    state, calls = rig
+    state["result"] = {"items": [], "sources": [], "needs_browser": True, "reason": "empty"}
+    listing_turn.run("moto 125", operator_text="Búscame una moto de 125")
+    assert ended.recent_listing_deliveries() == []
+
+
+def test_an_inherited_sheet_is_reused_never_reminted(rig):
+    state, calls = rig
+    state["result"] = {"items": _items(5), "sources": [], "needs_browser": False, "reason": ""}
+    out = listing_turn.run("catamaranes 45 pies Barcelona", operator_text="la caza afinada",
+                           sheet="results--heredada")
+    assert out["sheet"] == "results--heredada"
+    assert calls["begin"] and calls["begin"][0]["sheet"] == "results--heredada"
+    assert calls["present"][0]["payload"]["sheet"] == "results--heredada"
+
+
+def test_an_inherited_sheet_with_nothing_found_is_not_wiped(rig):
+    """`present` with an empty list REPLACES the items — on an inherited box that would erase the delivery
+    the operator is reading, in exchange for nothing (the «estrenar = borrar» failure V2-259 closed)."""
+    state, calls = rig
+    state["result"] = {"items": [], "sources": [], "needs_browser": True, "reason": "empty"}
+    out = listing_turn.run("catamaranes 45 pies", operator_text="la caza afinada", sheet="results--heredada")
+    assert calls["begin"] == [] and calls["present"] == [], "the previous delivery must stay on screen"
+    assert calls["rename"] and calls["rename"][0]["sheet"] == "results--heredada"
+    assert calls["escalate"] and calls["escalate"][0]["context"].get("sheet") == "results--heredada", \
+        "the deep pass continues in the SAME box"
+    assert out["delivered"] is False

@@ -138,6 +138,56 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
     return rows[:max(1, limit)]
 
 
+# ── V2-570 — A FAST-PASS DELIVERY IS A FACT TOO ────────────────────────────────────────────────────────────
+# Measured on the operator's own session (9dcff6f5, 2026-09-03): the listing fast pass (V2-556) delivered 20
+# rows into a sheet, and seven seconds later the model escalated the SAME hunt — `dedup_miss` said `live: 0`
+# («nothing live to compare against»), because a fast pass is not a session, and `continues_ended` only saw
+# worker sessions. Result: a second sheet beside the first and a Brain Worker re-searching what was already
+# answered — the exact «two parallel processes for one errand» the operator forbids. So a delivery gets its
+# own snapshot store, SIBLING of `_ENDED_SESSIONS` on purpose: that dict feeds the prompt's ended-errands
+# block and the death-notice machinery (V2-221/224), and a synthetic row there would announce «FALLÓ/TERMINÓ»
+# about something that never was a session.
+
+_LISTING_DELIVERIES: dict[str, dict] = {}
+
+
+def note_listing_delivery(goal: str, sheet: str, *, n: int = 0) -> None:
+    """A listing fast pass just DELIVERED into `sheet`. Recorded so a later escalation of the same hunt can
+    (a) inherit the box instead of opening a second one, and (b) be redirected to a refined fast re-run by
+    the linear gate (`dispatch._linear_rerun`). Same TTL as the ended-sessions window: the five minutes in
+    which the operator's next sentence is still about this."""
+    g = " ".join(str(goal or "").split())
+    s = str(sheet or "").strip()
+    if not g or not s:
+        return
+    _LISTING_DELIVERIES[f"listing:{s}"] = {"id": f"listing:{s}", "goal": g, "sheet": s,
+                                           "n": int(n or 0), "at": time.time(), "refined": False}
+    for k in [k for k, v in _LISTING_DELIVERIES.items()
+              if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
+        _LISTING_DELIVERIES.pop(k, None)
+
+
+def recent_listing_deliveries(now: float | None = None) -> list[dict]:
+    """Fresh delivery snapshots, `{id, goal, sheet, n, at, refined}` — the same shape `continues_ended`
+    consumes, so the V2-566 inheritance machinery covers them with zero new matching code. COPIES: the
+    matcher pool must not be able to mutate the store (mutation goes through `consume_listing_refinement`)."""
+    now = time.time() if now is None else now
+    return [dict(v) for v in _LISTING_DELIVERIES.values()
+            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S]
+
+
+def consume_listing_refinement(rec_id: str) -> bool:
+    """True exactly ONCE per delivery: the linear gate redirects the FIRST same-hunt escalation to a refined
+    fast re-run; a SECOND one within the TTL goes to the worker (still inheriting the sheet). One redirect,
+    bounded — the same shape as a provider's single relay retry. A delivered re-run re-records the delivery,
+    which resets the mark: each redirect needs a fresh operator push, so this cannot self-loop."""
+    row = _LISTING_DELIVERIES.get(str(rec_id or ""))
+    if not row or row.get("refined"):
+        return False
+    row["refined"] = True
+    return True
+
+
 def mark_death_reported(task_ids) -> None:
     """A turn has already carried the ending of these tasks forward (V2-224).
 

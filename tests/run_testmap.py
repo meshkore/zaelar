@@ -320,6 +320,11 @@ DOMAINS: list[dict] = [
             # (20260830-114302): dos hojas, UN worker, ningún task/dedup, y ni releyendo el log de eventos se
             # podía decidir cuál de las dos fue.
             "tests/agent_headless/unit/test_the_dedup_says_why_it_did_not_fire.py",
+            # V2-570 — a DELIVERED listing fast pass left no trace an escalation could match (dedup_miss
+            # live:0), so the same hunt got a second sheet and a parallel worker (session 9dcff6f5, the
+            # catamarans). The delivery is a recorded fact now: the same-hunt escalation inherits the box
+            # and the FIRST one is redirected to a refined fast re-run — the linear doctrine.
+            "tests/agent_headless/unit/test_a_delivered_hunt_is_not_rehunted_in_parallel.py",
             # V2-301: el brief se compone EN PARALELO con el spawn — el compositor razonador (15-30 s) corría
             # en serie antes del worker, que luego gastaba sus propios ~20 s de preámbulo; solapados, la
             # búsqueda entra en los 2-3 min del operador. El brief tardío llega por inyección (V2-038).

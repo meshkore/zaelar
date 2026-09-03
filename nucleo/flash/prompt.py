@@ -626,6 +626,26 @@ def live_state() -> str:
             _fc_drop.clear_drops()
     except Exception:
         pass
+    # V2-570 — una ENTREGA de la pasada rápida de anuncios también es un hecho, y viaja CON su instrucción
+    # (la lección de V2-453: el hecho sin la orden no cambia nada). Medido en la sesión 9dcff6f5 (catamaranes):
+    # el modelo tenía las filas entregadas delante y escaló la MISMA caza a un worker — la única instrucción
+    # junto a ellas cubría «si te pide el enlace». Esta línea nombra la regla lineal del operador; el cinturón
+    # determinista vive en `nucleo/errand_continuity.py` para cuando el modelo la desobedece igualmente.
+    try:
+        import time as _t_ls
+        from nucleo.workers import ended as _end_ls
+        _dels = _end_ls.recent_listing_deliveries()
+        if _dels:
+            _d0 = max(_dels, key=lambda r: float(r.get("at") or 0))
+            _ago = max(0, int(_t_ls.time() - float(_d0.get("at") or _t_ls.time())))
+            lines.append(
+                f"BÚSQUEDA DE ANUNCIOS YA HECHA (hace {_ago}s): «{(_d0.get('goal') or '')[:70]}» → "
+                f"{int(_d0.get('n') or 0)} resultados YA en su hoja, en pantalla. Si pide AFINAR o más "
+                "(otro tamaño, otra zona, precio), llama a search_listings OTRA VEZ con todos los filtros "
+                "acumulados — NUNCA escalate_to_slowbrain para la misma caza: si hace falta ir a fondo, el "
+                "sistema lo lanza solo.")
+    except Exception:
+        pass
     # V2-198 — una SESIÓN de worker que acabó también es un hecho. `pending_summaries()` solo trae las vivas,
     # así que al terminar desaparecía del estado sin dejar rastro y el turno se quedaba con su propia memoria de
     # haberla arrancado. Es lo que V2-150 cerró para las tareas de navegador… un nivel por encima, y peor: una

@@ -235,17 +235,24 @@ def compose_face(res: dict, operator_text: str) -> str:
 
 
 def run(query: str, *, price_max=None, price_min=None, condition: str = "",
-        operator_text: str = "", budget_s: float = _BUDGET_S) -> dict:
+        operator_text: str = "", budget_s: float = _BUDGET_S, sheet: str = "") -> dict:
     """The fast pass, start to verdict. Never raises; BLOCKING (call via `asyncio.to_thread` from the loop).
 
     Returns `{delivered, n, sheet, escalated, reason, ms, ctx}`:
       · `delivered` True  → the sheet holds ≥ min_needed real rows; the turn answers with them (`ctx`).
       · `delivered` False → the sheet holds whatever was found plus the doors tried, and `escalated` carries
         the Brain Worker's task id (0 if even escalating failed). The turn says a deeper search is underway.
+
+    `sheet` (V2-570): an INHERITED box — the linear gate re-runs a just-delivered hunt with the refined query
+    into the SAME sheet the operator is already looking at, instead of minting a second one. With rows found
+    the refined delivery REPLACES the earlier, less-specified one (same hunt, better query); with nothing
+    found the previous delivery is NOT wiped — a blank box in exchange for a refinement would be losing an
+    answer the operator already had.
     """
     t0 = time.time()
     query = str(query or "").strip()
     operator_text = str(operator_text or "").strip()
+    inherited = bool(str(sheet or "").strip())
     out = {"delivered": False, "n": 0, "sheet": "", "escalated": 0, "reason": "", "ms": 0, "ctx": ""}
     if not query:
         out["reason"] = "empty query"
@@ -267,28 +274,37 @@ def run(query: str, *, price_max=None, price_min=None, condition: str = "",
 
     # ONE sheet from first finding to final report. Its id must NOT derive from the errand (none exists yet):
     # the escalation inherits it precisely because it is not its own (`_sheet_open`'s relay rule).
-    try:
-        from nucleo.runtime_ids import next_seq
-        from nucleo.sheets import sheet_id_for
-        sid = sheet_id_for(f"ls{next_seq('listing.fast')}")
-    except Exception:  # noqa: BLE001
-        sid = ""
+    if inherited:
+        sid = str(sheet).strip()
+    else:
+        try:
+            from nucleo.runtime_ids import next_seq
+            from nucleo.sheets import sheet_id_for
+            sid = sheet_id_for(f"ls{next_seq('listing.fast')}")
+        except Exception:  # noqa: BLE001
+            sid = ""
     out["sheet"] = sid
 
     try:
-        from widgets.results import data as sheet
+        from widgets.results import data as sheet_mod
         title = " ".join((operator_text or query).split())[:80]
-        sheet.begin_task(title, fresh=True, sheet=sid)
-        payload: dict = {"sheet": sid, "items": [_to_row(i) for i in items],
-                         "sources": _source_rows(res.get("sources") or []),
-                         "criteria": {"objective": operator_text or query}}
-        if not items:
-            payload["note"] = "Buscando a fondo…" if not delivered else "Sin resultados."
-        sheet.apply_action("present", payload)
-        sheet.prune_sheets()
+        if inherited and not items:
+            # A refined re-run that found nothing keeps the previous delivery on screen: `present` with an
+            # empty list REPLACES the items, and wiping an answered box in exchange for nothing is the
+            # «estrenar = borrar» failure V2-259 closed. The deep pass this branch escalates to will write.
+            sheet_mod.rename_task(title, sheet=sid)
+        else:
+            sheet_mod.begin_task(title, fresh=True, sheet=sid)
+            payload: dict = {"sheet": sid, "items": [_to_row(i) for i in items],
+                             "sources": _source_rows(res.get("sources") or []),
+                             "criteria": {"objective": operator_text or query}}
+            if not items:
+                payload["note"] = "Buscando a fondo…" if not delivered else "Sin resultados."
+            sheet_mod.apply_action("present", payload)
+        sheet_mod.prune_sheets()
         try:
             from voice.observer import emit as _emit
-            _emit("widget", "show", extra={"id": sheet.instance_id(sid), "src": "listing_turn"})
+            _emit("widget", "show", extra={"id": sheet_mod.instance_id(sid), "src": "listing_turn"})
         except Exception:  # noqa: BLE001
             pass
     except Exception as e:  # noqa: BLE001 — rows that cannot reach the sheet must not kill the turn
@@ -296,6 +312,15 @@ def run(query: str, *, price_max=None, price_min=None, condition: str = "",
 
     if delivered:
         out["delivered"] = True
+        # V2-570 — a delivery is a FACT the engine can see: it is what lets a later escalation of the same
+        # hunt inherit this box and be redirected to a refined fast re-run instead of a parallel worker.
+        # Recorded even when the launching turn was discarded (a superseded fragment's late delivery is
+        # exactly the case where the NEXT turn needs to know this search already ran).
+        try:
+            from nucleo.workers import ended as _ended
+            _ended.note_listing_delivery(operator_text or query, sid, n=len(items))
+        except Exception:  # noqa: BLE001
+            pass
     else:
         # The handoff: same goal, same sheet, deeper machinery. The REQUEST is the operator's own words —
         # the model's query is its reformulation, and V2-135 already taught us what reformulations lose.

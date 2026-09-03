@@ -260,6 +260,7 @@ from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E4
 # `dispatch._ENDED_SESSIONS` in place keeps mutating the real dict, and the source guards measure the real
 # functions wherever they live.
 from nucleo.workers import ended as _ended
+from nucleo import errand_continuity as _continuity
 
 LIVE_SESSION_STATES = _ended.LIVE_SESSION_STATES
 ENDED_SESSION_STATES = _ended.ENDED_SESSION_STATES
@@ -1646,38 +1647,24 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 emit("task", "dedup_miss", role="system", text=request[:120],
                      extra={"id": key, "live": _ev.get("live", 0), "best": _ev.get("best", 0.0),
                             "against": _ev.get("against", ""), "bar": _ev.get("bar", 0.0), "model": _model,
+                            # V2-570 — a fresh fast-pass delivery is named HERE too: «nothing live» with a
+                            # just-delivered hunt on screen was how two boxes looked like a clean miss.
+                            "listing_recent": [r["id"] for r in _ended.recent_listing_deliveries()][:3],
                             "reason": ("encargo NUEVO: no había ninguna tarea viva contra la que comparar"
                                        if not _ev.get("live") else
                                        "encargo NUEVO: no casa con ninguna tarea viva")})
             except Exception:
                 pass
-            # V2-566 — A FOLLOW-UP IS NOT A NEW ERRAND. The live dedup missed because the errand it continues
-            # just ENDED (delivered its report, asked a question, died) — and the operator's next sentence
-            # («coge otro, no pares hasta que tengas una reserva», measured 2026-09-03, 3.5 min after task 1
-            # ended) relaunched the same goal into a SECOND results sheet beside the first. The relay already
-            # solved this exact shape («a relay is not a new errand», sheets.py): the successor inherits the
-            # box the operator is looking at. Same rule here, same strict matcher as the live dedup — a fresh
-            # unrelated errand keeps getting its own sheet. Fail-soft: continuity is worth nothing if it can
-            # drop an escalation.
-            if not str(ctx.get("sheet", "") or ""):
-                try:
-                    _sheet_prev, _pev = _dedup.continues_ended(
-                        request, kind if kind != "generic" else _classify_kind(request),
-                        list(_ENDED_SESSIONS.values()))
-                    if _sheet_prev:
-                        ctx = dict(ctx)
-                        ctx["sheet"] = _sheet_prev
-                        try:
-                            from voice.observer import emit
-                            emit("task", "sheet_inherited", role="system", text=request[:120],
-                                 extra={"id": key, "from": _pev.get("from", ""), "sheet": _sheet_prev,
-                                        "by": _pev.get("by") or "", "best": _pev.get("best", 0.0),
-                                        "reason": "continúa un encargo recién terminado: misma hoja, "
-                                                  "no una segunda caja"})
-                        except Exception:
-                            pass
-                except Exception:  # noqa: BLE001
-                    pass
+            # V2-566/V2-570 — A FOLLOW-UP IS NOT A NEW ERRAND, and a follow-up of a DELIVERED listing fast
+            # pass does not spawn a parallel worker. Both decisions live in `nucleo/errand_continuity.py`
+            # (extracted: dispatch sat one line under its ratchet ceiling): the escalation may come back with
+            # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
+            # case there is no session to open and the module already owns the errand's next step.
+            ctx, _redirected = _continuity.inherit_and_maybe_rerun(
+                request, kind if kind != "generic" else _classify_kind(request), ctx, key)
+            if _redirected:
+                _close_escalated_flow(ctx, ok=True, status="linear_rerun")
+                continue
             # V2-049 CONTINUIDAD: without session live that casar, ¿there is a operation web INCOMPLETA reciente that ESTA
             # request resumes? (nudge «continues with the ITV», or the operator aportando the dato that was missing). Reanuda esa
             # same tab + razonamiento in vez of start of cero.
