@@ -7846,7 +7846,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   reversibly (`valid=0` + `superseded_by`). None of the deterministic correction regexes matches a re-statement
   («he dicho X») — V1 deliberately relies on the model; the offer is what makes that possible. Two disarms in
   two directions: writer stops applying → 2 red; render stops offering → 1 red; the other 4 cases assert
-  absence and stay green on purpose. Node 1.3 + bot dim AD (BATCH_170, the live proof of the real heart).
+  absence and stay green on purpose. Node 1.3 + bot dim AD (BATCH_170) — **VERIFIED LIVE 3/3 with the real heart**: it stored the garble as TWO pills, exactly production's shape, and the correction named both (`#435→#437`, `#436→#437`); recall serves the corrected name in 23 ms.
   Operator data cured the same day, reversibly: #1149/#1150 → superseded by #1461, and three «prefs» that were
   fragments of a spoken STOP order («Para todos los procesos…») invalidated.
 - **A screen belongs to ONE connector, and a picker is a grid you can already see (V2-561, 2026-09-03)**:
