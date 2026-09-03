@@ -1,4 +1,31 @@
-"""Documentation translated to English."""
+"""memory/vault.py — BÓVEDA DE SECRETOS del operador (V2-060, cifrado end-to-end).
+
+Guarda los secretos del USUARIO (contraseña de Netflix, IBAN/tarjeta, nº de cuenta cripto, private key de un
+wallet) de forma que **NUNCA estén en claro** — ni en local ni en la nube. Es una pieza AUTO-CONTENIDA del
+substrato de memoria: depende solo de `pynacl`, `memory.db` y `memory.writer` (el escritor único). NO importa
+`nucleo` ni toca la ruta caliente de voz.
+
+## Modelo cripto (detalle en `zaelar-security.md` / iniciativa V2-060)
+
+- **Asimétrico (sealed box de libsodium).** Un par de claves: la **pública `PK`** vive EN CLARO en `vault_meta`
+  (sella secretos nuevos → **escribir NO pide desbloqueo**); la **privada `SK`** es secreta y solo hace falta para
+  **LEER**.
+- **`SK` se guarda ENVUELTA por N métodos de desbloqueo** (patrón sobre / key-wrapping): cada método cifra la MISMA
+  `SK` por su lado. Hoy: **passphrase** (`Argon2id(passphrase, salt)` → `SecretBox`). Mañana (F3): **passkey**
+  (WebAuthn PRF → misma envoltura). Añadir un método = un sobre nuevo, sin re-cifrar los secretos. Rotar la
+  passphrase = re-cifrar SOLO su sobre.
+- **Storage partido.** El VALOR va cifrado y opaco en `vault_secrets` (keyed por el id de una píldora-etiqueta); la
+  ETIQUETA ("contraseña de Netflix") vive en claro y BUSCABLE en `memories` (`meta.vault=1`) → el recall la
+  encuentra pero JAMÁS ve el valor.
+
+## Invariantes duros
+
+- La **passphrase** y la **clave privada `SK`** JAMÁS se persisten en claro, ni entran en un prompt de LLM, ni en
+  un worker, ni en logs, ni en `state`, ni en una píldora. `SK` solo vive **desenvuelta en RAM** mientras la sesión
+  está desbloqueada (modo cómodo) y se **borra** al bloquear / expirar / en modo estricto.
+- **Escribir un secreto no requiere desbloqueo** (usa `PK`); **leerlo sí** (requiere `SK`).
+- El `status()` para el frontend es **redactado**: expone presencia/estado, jamás material de clave.
+"""
 from __future__ import annotations
 
 import hashlib
@@ -15,14 +42,14 @@ from nacl.secret import SecretBox
 from . import db as _db
 from . import writer as _writer
 
-# translated implementation note
-# translated implementation note
+# Parámetros del KDF (Argon2id). MODERATE = buen equilibrio interactivo (≈0.7s en un portátil) sin castigar el
+# desbloqueo por voz. Se persisten por-sobre para poder subirlos en el futuro sin romper bóvedas viejas.
 _OPS = pwhash.argon2id.OPSLIMIT_MODERATE
 _MEM = pwhash.argon2id.MEMLIMIT_MODERATE
 _SALTBYTES = pwhash.argon2id.SALTBYTES
 _KEYBYTES = SecretBox.KEY_SIZE
 
-# translated implementation note
+# TTL de la clave desenvuelta en RAM (modo cómodo). En modo estricto el llamador usa hold=False (no se cachea).
 import os as _os
 
 _SESSION_TTL = float(_os.getenv("ZAELAR_VAULT_SESSION_TTL", "900"))   # s
@@ -31,27 +58,27 @@ _session_lock = threading.Lock()
 _session: dict = {"sk": None, "exp": 0.0}
 
 
-# translated implementation note
+# ── errores ───────────────────────────────────────────────────────────────────────────────────────────────
 class VaultError(Exception):
-    """Documentation translated to English."""
+    """Fallo genérico de la bóveda."""
 
 
 class VaultLocked(VaultError):
-    """Documentation translated to English."""
+    """Se pidió leer un secreto pero la bóveda no está desbloqueada (falta la passphrase/passkey)."""
 
 
 class WrongPassphrase(VaultError):
-    """Documentation translated to English."""
+    """La passphrase (o el material de desbloqueo) no abre la clave privada."""
 
 
-# translated implementation note
+# ── helpers de KDF / envoltura ──────────────────────────────────────────────────────────────────────────────
 def _derive_kek(passphrase: str, salt: bytes, ops: int, mem: int) -> bytes:
-    """Documentation translated to English."""
+    """Argon2id(passphrase, salt) → clave de 32 bytes que envuelve/desenvuelve la privada."""
     return pwhash.argon2id.kdf(_KEYBYTES, passphrase.encode("utf-8"), salt, opslimit=ops, memlimit=mem)
 
 
 def _passphrase_wrap(sk_bytes: bytes, passphrase: str) -> dict:
-    """Documentation translated to English."""
+    """Crea un sobre 'passphrase' que envuelve `sk_bytes`."""
     salt = utils.random(_SALTBYTES)
     kek = _derive_kek(passphrase, salt, _OPS, _MEM)
     wrapped = SecretBox(kek).encrypt(sk_bytes)          # incluye nonce
@@ -65,16 +92,16 @@ def _passphrase_wrap(sk_bytes: bytes, passphrase: str) -> dict:
 
 
 def _unwrap_passphrase(wrap: dict, passphrase: str) -> bytes:
-    """Documentation translated to English."""
+    """Desenvuelve `sk_bytes` de un sobre 'passphrase'. Lanza WrongPassphrase si no casa."""
     salt = b64decode(wrap["salt"])
     kek = _derive_kek(passphrase, salt, int(wrap.get("ops", _OPS)), int(wrap.get("mem", _MEM)))
     try:
         return SecretBox(kek).decrypt(b64decode(wrap["wrapped_sk"]))
-    except CryptoError as e:  # translated implementation note
+    except CryptoError as e:  # MAC inválido = clave equivocada
         raise WrongPassphrase("passphrase incorrecta") from e
 
 
-# translated implementation note
+# ── metadatos de la bóveda (fila única) ───────────────────────────────────────────────────────────────────
 def _load_meta() -> dict | None:
     row = _db.get_db().query_one("SELECT public_key, wraps FROM vault_meta WHERE id=1")
     if not row:
@@ -95,13 +122,14 @@ def _save_meta(public_key: bytes, wraps: list[dict], *, create: bool) -> None:
 
 
 def exists() -> bool:
-    """Documentation translated to English."""
+    """¿Hay una bóveda creada (con al menos un método de desbloqueo)?"""
     return _load_meta() is not None
 
 
-# translated implementation note
+# ── ciclo de vida: crear / desbloquear / bloquear ─────────────────────────────────────────────────────────
 def create(passphrase: str) -> None:
-    """Documentation translated to English."""
+    """Crea la bóveda: genera el par de claves, envuelve la privada con la passphrase, persiste. La privada NO se
+    guarda en claro en ningún momento. Idempotencia dura: si ya existe, error (usar change_passphrase para rotar)."""
     if not passphrase or len(passphrase) < 4:
         raise VaultError("la passphrase debe tener al menos 4 caracteres")
     if exists():
@@ -130,7 +158,10 @@ def _cached_sk() -> bytes | None:
 
 
 def unlock(passphrase: str, *, hold: bool = True) -> bool:
-    """Documentation translated to English."""
+    """Desbloquea la bóveda con la passphrase. Verifica desenvolviendo la privada y comprobando que su pública
+    coincide con la almacenada (defensa en profundidad además del MAC del SecretBox). Si `hold` (modo cómodo),
+    mantiene la privada en RAM `_SESSION_TTL` s; si no (modo estricto), la usa y descarta. Devuelve True/False;
+    lanza VaultError si no hay bóveda."""
     meta = _load_meta()
     if not meta:
         raise VaultError("no hay bóveda creada")
@@ -142,7 +173,7 @@ def unlock(passphrase: str, *, hold: bool = True) -> bool:
         except WrongPassphrase:
             continue
         if bytes(PrivateKey(sk_bytes).public_key) != meta["public_key"]:
-            continue  # translated implementation note
+            continue  # sobre corrupto / no corresponde a esta bóveda
         if hold:
             _cache_sk(sk_bytes)
         return True
@@ -150,7 +181,7 @@ def unlock(passphrase: str, *, hold: bool = True) -> bool:
 
 
 def lock() -> None:
-    """Documentation translated to English."""
+    """Borra la clave privada de la RAM (bloquea la bóveda)."""
     with _session_lock:
         _session["sk"] = None
         _session["exp"] = 0.0
@@ -160,9 +191,9 @@ def is_unlocked() -> bool:
     return _cached_sk() is not None
 
 
-# translated implementation note
+# ── sellar / almacenar / abrir secretos ───────────────────────────────────────────────────────────────────
 def seal(plaintext: str) -> bytes:
-    """Documentation translated to English."""
+    """Cifra un texto a la clave PÚBLICA de la bóveda (NO requiere desbloqueo). Devuelve el ciphertext opaco."""
     meta = _load_meta()
     if not meta:
         raise VaultError("no hay bóveda creada")
@@ -177,7 +208,11 @@ def _open_with_sk(ciphertext: bytes, sk_bytes: bytes) -> str:
 
 def store_secret(label: str, value: str, *, slot: str | None = None, sensitivity: str = "high",
                  kind: str = "fact") -> int:
-    """Documentation translated to English."""
+    """Guarda un secreto: SELLA el valor (con la pública, sin desbloqueo) y escribe la píldora-ETIQUETA buscable
+    por el escritor único. Devuelve el id de la píldora. La etiqueta va en claro (para el recall); el valor jamás.
+
+    `slot` (p.ej. `secret:netflix:password`) permite SUPERSEDE: re-guardar la misma etiqueta reutiliza la píldora
+    (mismo id) y REEMPLAZA el ciphertext → 'el más reciente manda', sin duplicar."""
     if not exists():
         raise VaultError("no hay bóveda creada — créala antes de guardar secretos")
     ciphertext = seal(value)
@@ -191,13 +226,15 @@ def store_secret(label: str, value: str, *, slot: str | None = None, sensitivity
 
 
 def is_sealed(memory_id: int) -> bool:
-    """Documentation translated to English."""
+    """¿Esta píldora tiene un valor sellado en la bóveda?"""
     return _db.get_db().query_one(
         "SELECT 1 FROM vault_secrets WHERE memory_id=?", (memory_id,)) is not None
 
 
 def open_secret(memory_id: int, *, passphrase: str | None = None) -> str:
-    """Documentation translated to English."""
+    """Descifra el valor de un secreto. Usa la clave en RAM (modo cómodo) o, si se pasa `passphrase`, desbloquea de
+    forma transitoria (modo estricto, sin cachear). Lanza VaultLocked si no hay forma de desbloquear, o VaultError
+    si el secreto no existe."""
     row = _db.get_db().query_one("SELECT ciphertext FROM vault_secrets WHERE memory_id=?", (memory_id,))
     if not row:
         raise VaultError(f"no hay secreto sellado para la píldora {memory_id}")
@@ -229,7 +266,8 @@ def open_secret(memory_id: int, *, passphrase: str | None = None) -> str:
 
 
 def list_secrets() -> list[dict]:
-    """Documentation translated to English."""
+    """Lista los secretos por su ETIQUETA (nunca el valor): [{memory_id, label, sensitivity, slot}]. Para el
+    frontend / '¿qué contraseñas tienes guardadas?'."""
     rows = _db.get_db().query(
         "SELECT m.id AS id, m.text AS label, m.slot AS slot, m.meta AS meta "
         "FROM vault_secrets v JOIN memories m ON m.id = v.memory_id WHERE m.valid=1 ORDER BY m.updated DESC")
@@ -244,9 +282,9 @@ def list_secrets() -> list[dict]:
     return out
 
 
-# translated implementation note
+# ── gestión de métodos de desbloqueo ──────────────────────────────────────────────────────────────────────
 def change_passphrase(old: str, new: str) -> None:
-    """Documentation translated to English."""
+    """Rota la passphrase: re-envuelve SOLO su sobre (los secretos y el par de claves NO se tocan)."""
     if not new or len(new) < 4:
         raise VaultError("la nueva passphrase debe tener al menos 4 caracteres")
     meta = _load_meta()
@@ -269,7 +307,7 @@ def change_passphrase(old: str, new: str) -> None:
 
 
 def status() -> dict:
-    """Documentation translated to English."""
+    """Vista REDACTADA para el frontend: presencia/estado, NUNCA material de clave."""
     meta = _load_meta()
     if not meta:
         return {"exists": False, "unlocked": False, "methods": [], "secret_count": 0}
@@ -282,11 +320,11 @@ def status() -> dict:
     }
 
 
-# translated implementation note
-# translated implementation note
-# translated implementation note
-# translated implementation note
-# translated implementation note
+# ── PASSKEYS (WebAuthn PRF) — segundo método de desbloqueo (V2-060 F3) ────────────────────────────────────
+# El navegador obtiene un secreto de 32 bytes del autenticador (Touch ID / Windows Hello) SOLO tras el gesto
+# biométrico (extensión `prf`), y lo manda al server, que lo usa como KEK para envolver/desenvolver la MISMA clave
+# privada (patrón sobre). El descifrado ocurre en el SERVER (modo cómodo, el default elegido). El salt del PRF se
+# DERIVA de la clave pública (no secreto, estable) → sin schema nuevo ni estado extra.
 def _prf_salt() -> bytes | None:
     meta = _load_meta()
     if not meta:
@@ -295,12 +333,12 @@ def _prf_salt() -> bytes | None:
 
 
 def _prf_kek(prf_secret: bytes) -> bytes:
-    """Documentation translated to English."""
+    """Normaliza el secreto PRF (ya ~32B uniformes) a una clave de SecretBox de 32 bytes."""
     return hashlib.blake2b(bytes(prf_secret), digest_size=_KEYBYTES).digest()
 
 
 def passkey_meta() -> dict:
-    """Documentation translated to English."""
+    """Para el reto de WebAuthn del navegador: salt del PRF + ids de credenciales registradas (todo NO secreto)."""
     meta = _load_meta()
     if not meta:
         return {"prf_salt": None, "cred_ids": []}
@@ -310,7 +348,8 @@ def passkey_meta() -> dict:
 
 
 def add_passkey(prf_secret: bytes, cred_id: str) -> None:
-    """Documentation translated to English."""
+    """Registra un aparato: envuelve la clave privada bajo el PRF de la passkey. Requiere la bóveda DESBLOQUEADA
+    (la privada en RAM) — así solo quien ya tiene acceso puede añadir un método. Dedup por `cred_id`."""
     meta = _load_meta()
     if not meta:
         raise VaultError("no hay bóveda creada")
@@ -325,7 +364,7 @@ def add_passkey(prf_secret: bytes, cred_id: str) -> None:
 
 
 def unlock_with_prf(prf_secret: bytes, *, hold: bool = True) -> bool:
-    """Documentation translated to English."""
+    """Desbloquea con el secreto PRF de una passkey. Igual que `unlock` pero con KEK del PRF."""
     meta = _load_meta()
     if not meta:
         raise VaultError("no hay bóveda creada")
@@ -346,7 +385,7 @@ def unlock_with_prf(prf_secret: bytes, *, hold: bool = True) -> bool:
 
 
 def remove_passkey(cred_id: str) -> None:
-    """Documentation translated to English."""
+    """Revoca un aparato (quita su sobre). No toca los secretos ni los demás métodos."""
     meta = _load_meta()
     if not meta:
         raise VaultError("no hay bóveda creada")
