@@ -18,3 +18,16 @@
   de CDN dice `cdn.ferrari.com` pero no quién lo publicó).
 - **Imágenes locales**: `local` lee `widgets/_data/imagenes/` y las sirve por `/widgets/imagenes/asset/<name>`
   (ruta ya existente, path-safe). `.svg` queda fuera a propósito: es un documento que puede llevar script.
+- **2026-09-03 · el escenario cae a la copia del BUSCADOR (V2-563).** Cada fila trae DOS direcciones de la
+  misma foto: el fichero del editor (`url`) y la copia del índice (`thumb`). Solo la primera puede morir, y
+  muere: medido en «moto de cross», la foto 1 de 12 era un **404** en enduro21.com mientras el índice servía
+  esa MISMA foto como un JPEG vivo de 480×290 — por eso la tira de abajo se veía llena y el escenario decía
+  que la imagen ya no carga. **La foto nunca faltó; faltaba nuestra copia.** Se pide el original, se cae a la
+  copia y solo entonces se da por perdida. El cambio se DICE («· vista previa») y el marcador se RETIRA si la
+  copia también está muerta: anunciar una vista previa al lado de «no carga nada» es peor que cualquiera de
+  los dos mensajes por separado.
+- **Las dimensiones que se pintan son del FICHERO, no de la miniatura.** El DOM de Yandex entrega el tamaño de
+  la baldosa, así que `parse_yandex_rows` ya no las publica (0, como la pata de Bing). Una foto anunciada como
+  «480×290» cuyo original era un 404, y una «213×320» cuyo original era un PNG de 2,2 MB. Un tamaño
+  desconocido se ve desconocido; uno equivocado no.
+
