@@ -75,6 +75,20 @@ def test_voice_typo_tolerance_on_alias():
     assert _m("abre el watsap")["match"] == "mensajeria"
 
 
+def test_fuzzy_never_matches_an_inner_token_of_a_multiword_alias():
+    # Measured 2026-09-03 (Soria reservation session): «…a través del restaurante o a través del tenedor…»
+    # fuzzy-matched 'restante' — an INNER token of the timer's alias 'tiempo restante' — at 0.842, cleared the
+    # certainty bar on that alone, and the close backstop then closed the timer and CANCELLED the reservation
+    # escalation. An alias fragment is not a name: voice tolerance may only land on a complete alias.
+    q = ("Yo solo quiero que hagas la reserva realmente. Termina, coge uno de esos restaurantes y ciérrame la "
+         "reserva. Y si no puedes en uno, pues coge otro, pero hazlo ya, maldita sea, a través del restaurante "
+         "o a través del tenedor o a través de donde quieras.")
+    r = _m(q, open_ids=["results", "navegador"])
+    assert r["match"] is None, f"an alias fragment resolved a widget: {r}"
+    # …while NAMING the alias, whole and word-aligned, still resolves (the phrase path, untouched).
+    assert _m("cuánto tiempo restante queda")["match"] == "timer"
+
+
 # ── context fallback: operate on the only open widget (the one in front) ─────────────────────────────────────
 def test_single_open_widget_is_context_fallback():
     r = _m("márcalo como hecho", open_ids=["agenda"])

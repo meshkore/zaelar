@@ -159,10 +159,16 @@ def _alias_score(q: str, q_padded: str, q_tokens: list, aliases: list, alias_tok
     for a in aliases:
         if f" {a} " in q_padded:                            # whole alias, word-aligned
             score += 3 if (" " in a or len(a) > 6) else 2
+    # Voice tolerance matches only tokens that are a COMPLETE alias by themselves ('watsap'≈'wasap'), never an
+    # inner token of a multi-word alias. An inner token is not a name for the piece — the alias finds the piece,
+    # its fragments name nothing. Measured 2026-09-03: «…a través del restaurante o…» fuzzy-matched 'restante'
+    # (from the timer's alias 'tiempo restante') at 0.842, reached the certainty bar on that alone, and the close
+    # backstop then closed the timer AND cancelled the reservation escalation the operator was shouting for.
+    whole = [a for a in aliases if " " not in a and len(a) > 4]
     fuzzy = 0.0
     for t in q_tokens:                                      # tolerance for voice typos: 'watsap'≈'wasap'
         if len(t) > 4 and t not in alias_tokens:
-            m = difflib.get_close_matches(t, [x for x in alias_tokens if len(x) > 4], n=1, cutoff=0.84)
+            m = difflib.get_close_matches(t, whole, n=1, cutoff=0.84)
             if m:
                 fuzzy += 2 if len(m[0]) > 4 else 1
     return score + min(fuzzy, 2.0)                          # fuzzy helps surface candidates but never beats a phrase
