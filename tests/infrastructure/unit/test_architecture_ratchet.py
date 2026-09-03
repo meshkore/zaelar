@@ -132,7 +132,12 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # (a cancelled errand keeps its resumable trace) and crossed the ceiling by 23, and the web-continuity
     # subsystem (V2-049 dict + persist/restore/goal_key/entry/leave/find) was a cohesive concern all along →
     # extracted to `nucleo/workers/resume.py`, dispatch 1983→1859. Aliases keep the historical names alive.
-    "nucleo/dispatch.py": (1865, 57),
+    # 2026-09-03 — the treadmill PAID a second instalment instead of raising again: V2-566 added the sheet to
+    # the ended-session snapshot and the follow-up that inherits it, crossing the ceiling by 27, and the
+    # ENDING as a fact (V2-198/199/222/224/238: the two state enums, `_ENDED_SESSIONS` and its four
+    # operations) was a cohesive concern all along → extracted to `nucleo/workers/ended.py`, dispatch
+    # 1892→1770. Aliases keep the historical names alive, as `resume.py` did.
+    "nucleo/dispatch.py": (1770, 57),
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).

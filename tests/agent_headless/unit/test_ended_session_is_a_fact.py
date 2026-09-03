@@ -156,8 +156,19 @@ def test_every_session_status_the_code_writes_is_classified():
 
 def test_and_nobody_enumerates_them_by_hand_anymore():
     """Four filters each wrote `("queued", "running")` independently. This is exactly how `cancelled` was
-    left out of the browser registry (V2-196)."""
-    src = (ROOT / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
-    code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
-    code = code.replace('LIVE_SESSION_STATES = frozenset({"queued", "running"})', "")
-    assert '"queued", "running"' not in code
+    left out of the browser registry (V2-196).
+
+    V2-566 moved the DECLARATION to `nucleo/workers/ended.py`, so both files are read: a guard that keeps
+    reading only the file the declaration LEFT would stay green over a hand-enumeration written in its new
+    home, which is where one would now be written."""
+    sources = [ROOT / "nucleo" / "dispatch.py", ROOT / "nucleo" / "workers" / "ended.py"]
+    declared = False
+    for path in sources:
+        src = path.read_text(encoding="utf-8")
+        code = "\n".join(l for l in src.splitlines() if not l.lstrip().startswith("#"))
+        if 'LIVE_SESSION_STATES = frozenset({"queued", "running"})' in code:
+            declared = True
+            code = code.replace('LIVE_SESSION_STATES = frozenset({"queued", "running"})', "")
+        assert '"queued", "running"' not in code, f"{path.name} enumerates the live states by hand"
+    assert declared, ("the single declaration of LIVE_SESSION_STATES was not found in either file: it moved "
+                      "again and this guard now reads nothing.")

@@ -255,142 +255,20 @@ def has_active() -> bool:
 from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 
 
-# V2-198 — the estados of a SESIÓN of worker, enumerados UNA vez. Habia CUATRO filtros escribiendo
-# `("queued", "running")` a mano and ninguno for the another lado: a session that finishes, is cancela or falla
-# desaparecia of the record without leave NINGÚN hecho in the state live. Es the same hueco that V2-150 cerro for
-# the tasks of browser and V2-196/197 for sus estados… a nivel by encima, and peor: a task of browser
-# only exists with `kind=web`, mientras that **toda** escalada opens a session of worker. Los casos that is
-# resuelven by search (`cheapest-monitor`) or by memory (`remember-and-remind-deadline`) no have task of
-# browser in absoluto, so that for ellos the arreglo of V2-150 never is aplico.
-LIVE_SESSION_STATES = frozenset({"queued", "running"})
-# V2-238 — «relevada» es a final own: the session is fue, but the ENCARGO no. Vivia como `error`, and with eso
-# the motor le anunciaba al operator a muerte that no habia ocurrido mientras the relevo trabajaba.
-ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled", "relevada"})
-JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que el operador todavía pregunta
+# ── An ENDING is a FACT (V2-198/199/222/224/238) — extracted to `nucleo/workers/ended.py` (ratchet,
+# 2026-09-03, V2-566). The historical names stay as ALIASES to the SAME objects/functions: whoever mutated
+# `dispatch._ENDED_SESSIONS` in place keeps mutating the real dict, and the source guards measure the real
+# functions wherever they live.
+from nucleo.workers import ended as _ended
 
-
-_ENDED_SESSIONS: dict[str, dict] = {}
-
-
-def _live_goals() -> set[str]:
-    """Goals of the sessions that are RUNNING right now, normalised for comparison (V2-222)."""
-    out = set()
-    for r in list(_SESSIONS.values()):
-        try:
-            if str(getattr(r, "status", "") or "") in LIVE_SESSION_STATES:
-                g = (getattr(r, "goal", "") or "").strip().lower()
-                if g:
-                    out.add(g)
-        except Exception:  # noqa: BLE001
-            continue
-    return out
-
-
-def _remember_ended(rec, resuming: bool = False) -> None:
-    """Snapshot of a session that just ENDED, kept for `JUST_ENDED_S`.
-
-    `resuming` means the caller is about to relaunch this very errand (V2-049 auto-resume), so it did NOT end —
-    and recording it as ended is what put two contradictory statements about the SAME errand in one prompt. See
-    V2-222 and the measurement in `recently_ended_sessions`.
-
-    V2-199 — V2-198 read `_SESSIONS` for the ended ones and **`_run_session` pops the record in its `finally`**,
-    so in a real dispatch there was never anything left to find. Its unit tests placed records by hand and
-    never popped, which is why they passed while the production path did nothing: **a test that never walks the
-    real path proves the code compiles, not that it works.** Caught by running one real escalation end to end —
-    the worker answered, the brain-note went out, and `recently_ended_sessions()` returned zero.
-
-    A light dict on purpose, not the record: `SessionRecord` holds the worker handles, and keeping it alive
-    five minutes past the end would keep those alive too.
-    """
-    if resuming:
-        return
-    try:
-        _ENDED_SESSIONS[str(rec.task_id)] = {
-            "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
-            "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time(),
-            # V2-566 — the BOX the errand was delivering into, so a follow-up of this just-ended errand can
-            # inherit it instead of opening a second one beside it. Only when the sheet really was its surface:
-            # inheriting a box the errand never wrote to would re-open an empty card for no reason.
-            "sheet": (sheet_of(rec) if surfaces.opens_sheet(getattr(rec, "surface", "")) else ""),
-            # V2-224 — cuantos turnos han LLEVADO already this final delante. Ver `mark_death_reported`.
-            "told": 0}
-        for k in [k for k, v in _ENDED_SESSIONS.items()
-                  if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
-            _ENDED_SESSIONS.pop(k, None)
-    except Exception:  # noqa: BLE001
-        pass
-    # V2-222 — and if of truth MURIÓ, is EMPUJA. Medido by the arnes sobre `hotel-under-15-days` with the contador
-    # of the two vias: it that is empuja como nota of sistema is says in the turn siguiente 3 of 3 veces (3 s the
-    # question of the worker, 7 s the muro); it that only is RENDERIZA como linea of state of the prompt, 0 of 13, and with
-    # the redaccion imperativa of V2-221 delante the trece veces. La linea of state is queda (es the contexto of
-    # the five minutos siguientes); the orden viaja by the camino that si arrives.
-    try:
-        if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
-                and not str(getattr(rec, "handoff", "") or "")):     # V2-238: un relevo no ha muerto
-            from voice import brain_notes
-            _g = (rec.goal or "la tarea de fondo").strip()[:70]
-            brain_notes.push(
-                f"[SISTEMA] La tarea de fondo «{_g}» ha MUERTO sin resultado y no se va a reintentar sola. El "
-                f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo EN ESTE TURNO con tus "
-                f"palabras y ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
-                f"«sigo con ello» ni «te aviso en cuanto lo tenga».")
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[dict]:
-    """Sesiones of worker that ACABARON does poco, and CÓMO acabaron.
-
-    Espejo of `widgets/browser/tasks.recently_finished()` (V2-150), cuya leccion era: a final es a HECHO, and
-    a task that desaparece of the state al finish leaves al turn with su own memory of haberla arrancado.
-    Aqui was missing entero.
-
-    V2-222 — and a operation that esta CORRIENDO no es a operation that acabo, diga it that diga the record. Medido
-    by the arnes sobre `hotel-under-15-days` (sandbox `20260820-194231`), leyendo the system prompt of the ocho
-    turnos: siete llevaban the MISMA cadena of objetivo two veces, in the same prompt —
-
-        TAREAS DE FONDO EN CURSO (… NO reinicies ni digas that already esta): «Busca hoteles of 4 estrellas…»
-            — abriendo a pagina… [step 2/5, 40%] (llevas 64s)
-        TAREAS DE FONDO — YA ACABADAS: «Busca hoteles of 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO
-
-    — because the first intento failed, `_remember_ended` it archivo, and V2-049 relanzo the MISMO errand with another id.
-    Los two bloques decian the truth sobre sessions distintas; the operator only tenia UN errand. El turn
-    contesto «sigo waiting results», that es the mitad CIERTA: no estaba desobedeciendo the imperativo, estaba
-    resolviendo a contradiccion, and ninguna redaccion of ninguna of the two mitades could arreglar eso.
-
-    `_remember_ended(resuming=True)` it closes in the origen. Este filtro es the cinturon: the reanudacion
-    automatica no es the only form of that two sessions lleven a same objetivo (a escalada repetida also
-    it does), and the modo of failure es a prompt that is discute a si same — invisible salvo that is lea entero,
-    como is leyo this.
-    """
-    now = time.time() if now is None else now
-    _live = _live_goals()
-    rows = [{**v, "ago_s": int(now - float(v.get("at") or now))}
-            for v in _ENDED_SESSIONS.values()
-            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S
-            and (v.get("goal") or "").strip().lower() not in _live]
-    rows.sort(key=lambda r: r["ago_s"])
-    return rows[:max(1, limit)]
-
-
-def mark_death_reported(task_ids) -> None:
-    """Un turn already ha llevado delante the final of these tasks (V2-224).
-
-    El arnes midio the clausula anti-repeticion of V2-221 in two rondas of the MISMO commit and failed in the two
-    direcciones opuestas: in a it said in the turn 2 and it repitio in the 5, 6, 7, 8 and 9 —the disco rayado of
-    V2-189—, and in the another it said in the turn 2 and then it NEGÓ siete turnos («sigo with ello», «dame a
-    momento»). Misma clausula, same commit, results opuestos: eso no es a umbral mal puesto, es that
-    «¿already is it dije?» no era a HECHO that the prompt tuviera, sino something that the model deducia of the ventana.
-
-    Nosotros SÍ it sabemos: contamos the turnos that is it llevaron delante. Y the leccion that dejo the arnes al
-    diagnosticarlo gobierna the redaccion of the cara new — **callar the repeticion no es callar the state**: the
-    aviso leaves of darse, the prohibicion of «sigo with ello» is queda.
-    """
-    for tid in (task_ids or []):
-        row = _ENDED_SESSIONS.get(str(tid))
-        if row is not None:
-            row["told"] = int(row.get("told") or 0) + 1
-
+LIVE_SESSION_STATES = _ended.LIVE_SESSION_STATES
+ENDED_SESSION_STATES = _ended.ENDED_SESSION_STATES
+JUST_ENDED_S = _ended.JUST_ENDED_S
+_ENDED_SESSIONS = _ended._ENDED_SESSIONS
+_live_goals = _ended._live_goals
+_remember_ended = _ended._remember_ended
+recently_ended_sessions = _ended.recently_ended_sessions
+mark_death_reported = _ended.mark_death_reported
 
 def pending_summaries() -> list[dict]:
     """Reemplaza `escalate.pending()` (§v3·G): tasks EN CURSO for the filler of the provider + the bloque of the prompt."""

@@ -9,6 +9,8 @@ notch the relay already has in `sheets.py`: «a relay is not a new errand» — 
 `dedup.continues_ended` is PURE over the ended snapshots it is handed, and uses the SAME matcher as the live
 scan — `test_one_yardstick_of_similarity` is the reason there is no second bar to tune here.
 """
+import pytest
+
 from nucleo import dedup
 
 # The REAL goals from the incident (memory/_data/zaelar.db): task 1's goal and the brain's re-escalation.
@@ -44,14 +46,31 @@ def test_empty_snapshots_are_a_quiet_no():
     assert dedup.continues_ended("", "web", [{"id": "1", "goal": ENDED_GOAL, "sheet": "s"}])[0] == ""
 
 
-def test_the_ended_snapshot_actually_carries_the_sheet(monkeypatch):
+@pytest.fixture()
+def _isolated_endings():
+    """Isolates the ended-session store IN PLACE, never by rebinding.
+
+    Since V2-566 the store lives in `nucleo/workers/ended.py` and `dispatch._ENDED_SESSIONS` is an ALIAS to
+    the same dict. Rebinding one name leaves the writer holding the other, and the test would then read an
+    empty dict it had isolated from nothing — green while proving zero.
+    """
+    from nucleo import dispatch
+    saved = dict(dispatch._ENDED_SESSIONS)
+    dispatch._ENDED_SESSIONS.clear()
+    try:
+        yield dispatch._ENDED_SESSIONS
+    finally:
+        dispatch._ENDED_SESSIONS.clear()
+        dispatch._ENDED_SESSIONS.update(saved)
+
+
+def test_the_ended_snapshot_actually_carries_the_sheet(_isolated_endings):
     # The V2-199 lesson, in this very function: a wiring test that places snapshots by hand proves nothing
     # about what production stores. `_remember_ended` is the ONLY writer of `_ENDED_SESSIONS`, so if it does
     # not record the sheet, `continues_ended` scans snapshots that can never match — quietly.
     from nucleo import dispatch
     from nucleo.workers.session import SessionRecord
 
-    monkeypatch.setattr(dispatch, "_ENDED_SESSIONS", {})
     rec = SessionRecord(task_id="9", goal=ENDED_GOAL, kind="web", sheet="bedf62-9", surface="lista")
     dispatch._remember_ended(rec)
     snap = dispatch._ENDED_SESSIONS.get("9") or {}
