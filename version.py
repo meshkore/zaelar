@@ -68,7 +68,23 @@ import time
 #   tier, so every directed search silently degraded to a blind one. V2-489 the round now says whether the
 #   worker asked the network at all. V2-490 a critical health limit is repeated LAST and phrased as a check on
 #   what is about to be said — measurement still pending, and its initiative says so.
-VERSION = "3.19"
+# INIT DATA. What a brand-new account Machine actually starts with, and what it silently did not.
+#
+# V2-562 — a cloud Volume mounts EMPTY, and `workspace.root()` only ever answered WHERE a path lives, never
+# whether it EXISTS. On a self-host clone git ships `config/`, `credentials/` and `i18n/`, so no writer ever
+# needed a mkdir; measured on a real account 2026-09-03, `/data` held only `memory/` and `widgets/` — the two
+# writers that happen to makedirs — and the other three were simply absent. Every write into them raised
+# inside code that treats persistence as best-effort, so it was caught, logged at WARNING and stepped over:
+# the visible symptom was the language onboarding running again on EVERY cold boot, because `settings.json`
+# could never be written. `SUBDIRS` is now the single declaration of that tree, `ensure()` runs before the
+# app import, and a guard reads the real call sites so a new persistent root cannot silently reopen the hole.
+#
+# And the other half of the same class: a work session is usually born LAZILY, from whatever thread emits the
+# first event, and only the EXPLICIT door announced itself. So the central activity registry only ever
+# received `event="end"` — and closing a row nothing opened updates nothing. `zaelar_user_sessions` held zero
+# rows for every account since the table was created, while every Machine's `POST /session` returned 200.
+#
+VERSION = "3.20"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
