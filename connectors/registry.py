@@ -85,6 +85,31 @@ def _files() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
+def _photos() -> list[dict]:
+    """Photo-library connectors (V2-564). Google's Picker never hands back a standing feed of "the whole
+    library" — see `connectors/photos/providers.py` — so `browsable` is always False here, unlike `_files()`,
+    where a connected provider CAN carry a browsable tier."""
+    try:
+        from connectors.photos import oauth, providers
+        catalog = {c["id"]: c for c in providers.public_list()}
+        out = []
+        for st in oauth.status():
+            cat = catalog.get(st["id"], {})
+            connected = bool(st.get("connected"))
+            out.append({"id": st["id"], "label": st["label"], "family": "fotos", "auth": "oauth",
+                        "connected": connected,
+                        "status": "connected" if connected else ("off" if st.get("app_configured")
+                                                                 else "unconfigured"),
+                        "detail": st.get("note") or "",
+                        "config": {"app_configured": bool(st.get("app_configured")),
+                                   "tiers": cat.get("tiers") or [],
+                                   "default_tier": cat.get("default_tier") or ""}})
+        return out
+    except Exception as e:
+        return [{"id": "photos", "label": "Fotos", "family": "fotos", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
 def _architect() -> list[dict]:
     try:
         from config import connectors as cfg
@@ -122,8 +147,8 @@ def _meshkore() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "clusters": [], "config": {}}]
 
 
-# Stable family order (messaging -> music -> infra) for the tab.
+# Stable family order (messaging -> music -> files -> photos -> infra) for the tab.
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return [*_messaging(), *_music(), *_files(), *_architect(), *_meshkore()]
+    return [*_messaging(), *_music(), *_files(), *_photos(), *_architect(), *_meshkore()]

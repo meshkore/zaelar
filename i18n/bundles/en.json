@@ -53,6 +53,7 @@
   "chat.connEmpty": "No connectors yet, connected or otherwise.",
   "chat.connFamily.agenda": "Calendar",
   "chat.connFamily.archivos": "Files",
+  "chat.connFamily.fotos": "Photos",
   "chat.connFamily.infra": "Infrastructure",
   "chat.connFamily.mensajeria": "Messaging",
   "chat.connFamily.musica": "Music",

@@ -1,0 +1,16 @@
+{
+  "view_data_shape": {
+    "active_filter": "dict",
+    "app_configured": "bool",
+    "connected": "bool",
+    "cursor": "int",
+    "error": "str",
+    "has_more": "bool",
+    "items": "list",
+    "reason": "str",
+    "session_pending": "bool",
+    "total": "int",
+    "updated": "int",
+    "years": "list"
+  }
+}

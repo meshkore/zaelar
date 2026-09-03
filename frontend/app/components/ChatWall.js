@@ -27,7 +27,7 @@ import { t } from "../core/i18n.js?v=1";
 // V2-561/V2-526 — stable family order (mensajeria -> musica -> archivos -> infra, matching
 // connectors/registry.py's descriptors() order), any other family (e.g. a catalog-only "agenda" wishlist
 // entry) sorted after, alphabetically, so a family nobody expects does not jump to the top.
-const CONN_FAMILY_ORDER = ["mensajeria", "musica", "archivos", "infra"];
+const CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "infra"];
 const connFamilyRank = (f) => { const i = CONN_FAMILY_ORDER.indexOf(f); return i < 0 ? 99 : i; };
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;

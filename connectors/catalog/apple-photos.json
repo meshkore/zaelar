@@ -1,0 +1,16 @@
+{
+  "id": "apple-photos",
+  "label": "Apple Photos (iCloud)",
+  "kind": "connector",
+  "family": "fotos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "apple photos",
+    "icloud photos",
+    "fotos de apple",
+    "galeria de apple"
+  ],
+  "why-not": "No existe una API pública de terceros para leer la biblioteca de Fotos de iCloud; el mismo límite que iCloud Drive (CloudKit solo expone el contenedor privado de cada app)."
+}

@@ -1,0 +1,16 @@
+{
+  "id": "google-photos",
+  "label": "Google Photos",
+  "kind": "connector",
+  "family": "fotos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "google photos",
+    "fotos",
+    "galeria",
+    "album",
+    "imagenes"
+  ]
+}

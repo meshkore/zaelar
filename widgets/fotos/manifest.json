@@ -1,0 +1,74 @@
+{
+  "id": "fotos",
+  "version": "0.1.0",
+  "title": "Fotos",
+  "description": "Galería de fotos importadas de Google Photos: navega por año, pide una tanda nueva desde el selector de Google y busca por fecha o por la etiqueta que le hayas puesto a un viaje.",
+  "whenToUse": "Cuando el usuario pide VER sus fotos, importar/elegir fotos de Google Photos, o buscar fotos por fecha o por un viaje/etiqueta que ya nombró. FRONTERA: buscar imágenes en internet → `imagenes`; un vídeo → `youtube`.",
+  "keywords": [
+    "fotos",
+    "mis fotos",
+    "galería",
+    "google photos",
+    "álbum",
+    "fotos del año pasado",
+    "fotos de mi viaje"
+  ],
+  "entry": "widget.js",
+  "size": {
+    "w": 720,
+    "h": 620
+  },
+  "background": {
+    "every": "20s"
+  },
+  "usage": "Galería de las fotos ya IMPORTADAS de Google Photos, buscable por fecha y por etiqueta de viaje — NO reconoce el contenido de una foto (no distingue una playa de una montaña). `connect` abre el selector de Google en una pestaña nueva para elegir fotos (requiere haber dado permiso una vez en Configuración → Conectores); `more` pide la siguiente página; `search` filtra por fecha («el año pasado», «en junio») y por la etiqueta puesta a la última tanda, y DEVUELVE lo que encaja en `result.matches`; `label_batch` pone un nombre a la tanda importada más reciente («esto es de Marruecos»).",
+  "actions": {
+    "refresh": {
+      "desc": "vuelve a leer la galería (o comprueba si el selector de Google ya ha terminado)",
+      "payload": {},
+      "view": true
+    },
+    "connect": {
+      "desc": "abre el selector de fotos de Google en una pestaña nueva para elegir una tanda",
+      "payload": {}
+    },
+    "more": {
+      "desc": "carga la siguiente página de la galería",
+      "payload": {},
+      "view": true
+    },
+    "search": {
+      "desc": "BUSCA por fecha («el año pasado», «en junio») y por la etiqueta del viaje, y CONTESTA con lo que encaja",
+      "payload": {
+        "query": "lo que se busca, p.ej. «fotos de Marruecos el año pasado»"
+      },
+      "view": true
+    },
+    "clear_search": {
+      "desc": "quita el filtro y vuelve a la galería completa",
+      "payload": {},
+      "view": true
+    },
+    "label_batch": {
+      "desc": "pone una etiqueta a la última tanda de fotos importada",
+      "payload": {
+        "label": "el nombre del viaje o la ocasión"
+      }
+    },
+    "disconnect": {
+      "desc": "olvida la conexión con Google Photos",
+      "payload": {},
+      "confirm": true,
+      "confirm_q": "¿Desconecto Google Photos? Las fotos ya importadas se quedan, pero tendrás que volver a dar permiso para elegir más."
+    }
+  },
+  "name": "Fotos",
+  "aliases": [
+    "Fotos",
+    "mis fotos",
+    "galería",
+    "google photos"
+  ],
+  "origin": "builtin",
+  "confirm_ui": true
+}

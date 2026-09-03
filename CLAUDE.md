@@ -7961,6 +7961,52 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     alive, zero page errors. ⚠️ Sets already stored keep the `w`/`h` they were saved with — the parser fix only
     reaches new searches.
 
+- **Google Photos via the PICKER, and a real gallery has to VIRTUALIZE its grid (V2-564, 2026-09-03)**:
+  operator's ask — a Google-Photos-style gallery, mixing whichever photo service is connected, browsable by
+  year and searchable by voice ("last year's Morocco trip photos"). Checked before designing anything: the
+  premise "Google Photos is the easy one" is false since March 2025 — third-party apps can no longer read a
+  user's *existing* library at all (`photoslibrary.readonly` → 403 for everyone); the only surface left is
+  the **Picker API** (the user hand-selects items in Google's own UI, per session). Apple Photos has NO
+  public third-party API (same CloudKit wall as iCloud Drive) and Amazon Photos has no official API at all
+  (only an unofficial, ToS-violating scraper). Decided with the operator: v1 ships **Google Photos only**;
+  Apple/Amazon go into the catalog as `not-possible`, same shape as `icloud-drive.json`.
+  - `connectors/photos/` follows `connectors/files/`'s shape (providers/oauth/client/service), with one
+    structural difference: **`store.py` is the source of truth for browsing, not Google** — once a picker
+    session's items are imported, they live in a durable LOCAL index
+    (`widgets/store.data_dir("fotos")`, same "reach a widget's storage from inside a connector" pattern
+    `connectors/telegram/`/`connectors/email/`/`connectors/whatsapp/` already use) forever, because there is
+    no way to re-derive them from Google later. A thumbnail is downloaded and cached AT IMPORT TIME, while
+    the session's signed `baseUrl` is still valid (~an hour) — the widget's `<img>` tags point at our own
+    `/api/photos/thumb/{id}`, never Google's ephemeral URL.
+  - **A separate, PAST-oriented date parser** (`service._parse_date_hint`) — deliberately NOT
+    `nucleo/scheduler.py::parse_when`, which is future-only (reminders: "tomorrow", "next Thursday") and
+    returns a single point, the wrong shape for "last year" or "in June". ⚠️ Caught while writing its own
+    tests, not before: the phrase is matched against an ACCENT-STRIPPED copy of the text ("año"→"ano"), and
+    removing the matched string from the ORIGINAL accented text by substitution silently fails — "año" never
+    matches "ano". Fixed by capturing match SPANS on the stripped copy and blanking those index ranges
+    directly in the original (accent-folding a single Spanish letter is always one-codepoint-in,
+    one-codepoint-out, so the indices stay aligned).
+  - ⚠️ **Second bug caught by its own test, not by reading**: `store.all_items()`'s sort put undated items
+    FIRST instead of last — `sort(key=..., reverse=True)` on a `(has_date, date)` tuple reverses BOTH fields
+    at once. Fixed by splitting into two lists (dated sorted descending, undated appended after) instead of
+    one clever sort key.
+  - **The gallery grid is genuinely virtualized** (`widgets/fotos/widget.js`): a pure layout function
+    (`buildRows`) computes year-header and item rows from the sorted list, and only rows within one
+    viewport-height of buffer get mounted DOM nodes — scrolling recycles rather than accumulates. This is the
+    direct answer to the operator's own worry ("if I scroll through a thousand photos, that shouldn't eat
+    memory"), and it is the one claim no source-level test could check: `tests/browser/e2e/widgets/
+    test_fotos_render.py` renders a 300-item fixture and measures the mounted `.fts-tile` count stays under
+    100, both before and after scrolling to the bottom.
+  - Trip labels are OUR OWN concept: the Picker never hands back an album name for a mixed selection, so a
+    batch gets labeled by the operator (voice or UI) after import, and `search` matches that label plus
+    `taken_at` — never photo CONTENT. Stated in the manifest's `usage` so the FlashBrain never narrates a
+    capability ("finds the Morocco photos by what's in them") that does not exist (V2-547's lesson, applied
+    in the opposite direction here).
+  - Nodes 4.107 (contract + render) and 5.10 (connector: session lifecycle, date parser, store). Full sweep
+    `tests/browser/ tests/connectors/` green (1535 passed, 1 xfailed). **Not verified live**: needs a real
+    Google Cloud OAuth client with the Photos Picker API enabled and a connected account — nothing here was
+    run against the real API.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

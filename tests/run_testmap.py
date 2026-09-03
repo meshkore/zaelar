@@ -1337,6 +1337,13 @@ DOMAINS: list[dict] = [
         # lo que fija es la UI y su contrato de datos; la lógica de red vive en 6.9.
         {"id": "4.8", "title": "Pestaña nativa «Clusters» (contrato UI ↔ ruteo ↔ backend, V2-086)", "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_clusters_tab.py"]},
+        # V2-561 (2026-09-03) — la 5ª pestaña nativa «Conectores» del ChatWall: el catálogo global agrupado por
+        # familia, mezclando lo CONECTADO (registry.py) con lo meramente LISTADO (state:planned/not-possible,
+        # V2-526). Mismo patrón de contrato que Clusters (4.8): CSS de la pestaña + wiring del refresh + el
+        # orden de familias + el traspaso a ConfigPanel al pedir «Conectar» + el mensaje EXACTO de «Lo quiero»
+        # (reutiliza feedback-api.js, nunca un fetch inline) + que un `not-possible` no ofrezca botón.
+        {"id": "4.108", "title": "Pestaña nativa «Conectores» del ChatWall (catálogo global, V2-526/V2-561)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_connectors_tab.py"]},
         # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",
@@ -1918,6 +1925,16 @@ DOMAINS: list[dict] = [
                                  "lista/asistente separados, un reintento que mueve, y los tres a 375px",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/mensajeria/test_connect_wizard_render.py"]},
+        # V2-564 — la galería FOTOS: contrato (acciones de vista == quien pinta la respuesta, `search` DEVUELVE
+        # sus coincidencias V2-541, ningún payload lleva credencial V2-520, `view_data`/tick solo llaman al
+        # conector cuando hace falta) + RENDERIZADO. La mitad renderizada es la que contesta la preocupación
+        # literal del operador — «si empiezo a hacer scroll y hay mil fotos en pantalla, eso va a consumir
+        # mucha memoria» — midiendo el NÚMERO de nodos `.fts-tile` montados con 300 elementos en el fixture
+        # (queda por debajo de 100, antes y después de bajar el scroll al fondo), no solo que la tarjeta pinte.
+        {"id": "4.107", "title": "FOTOS: contrato del widget + la rejilla RENDERIZADA no monta miles de nodos",
+            "ch": UNIT, "paths": [
+                "tests/browser/unit/fotos/test_the_gallery_answers_and_never_touches_the_network_to_read.py",
+                "tests/browser/e2e/widgets/test_fotos_render.py"]},
         # 2026-09-03 (V2-558): el splash era un anillo girando y UNA frase fija hasta que main.js terminaba,
         # que en una Machine fría son decenas de segundos. El operador se comió más de un minuto de eso en su
         # primer arranque. Lo que se mide aquí solo lo puede contestar un navegador: que la narración AVANCE, y
@@ -1991,6 +2008,24 @@ DOMAINS: list[dict] = [
                                "(PENDIENTE hasta que haya una conectada)",
             "ch": UNIT, "live": True, "paths": [
                 "tests/connectors/unit/files/live_cloud_drive_roundtrip.py"]},
+        # V2-564 — Google Photos vía PICKER (no un browse de la biblioteca: Google cerró ese acceso a apps de
+        # terceros en marzo de 2025). Lo que se guarda aquí: T1 — una sesión sin nada elegido todavía NO es un
+        # error; la fecha se ordena newest-first con lo NO fechado al final (un `sort(reverse=True)` sobre una
+        # tupla (has_date, date) invierte los DOS campos a la vez y deja lo no fechado PRIMERO — cazado
+        # escribiendo este mismo test, no antes); y el parser de fechas PASADO (deliberadamente NO
+        # `nucleo/scheduler.py::parse_when`, que es solo futuro) quita la frase de fecha por ÍNDICE, nunca por
+        # sustitución de cadena — "año" pierde su tilde al normalizar y una sustitución por el texto sin
+        # acentos nunca encuentra el original acentuado.
+        {"id": "5.10", "title": "Fotos: la sesión del picker, el índice local, y el parser de fechas PASADO",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/photos/test_service_and_store.py"]},
+        # V2-526/V2-561 — la ESTANTERÍA: `connectors/catalog.py` (índice léxico stdlib, sin modelo, sin red)
+        # sobre `connectors/catalog/*.json`. Un manifest meramente LISTADO no importa nada al arrancar y no
+        # entra en el prompt salvo que una búsqueda lo seleccione para ESTA tarea — el ratchet real es que el
+        # prompt con el catálogo real y uno con N manifiestos `planned` sintéticos sean BYTE-IDÉNTICOS.
+        {"id": "5.11", "title": "El catálogo de conectores: listar cuesta CERO hasta que algo se conecta",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/catalog/test_the_shelf_costs_nothing_until_connected.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [
@@ -2162,6 +2197,8 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "El botón de sugerencias llega a alguien (y en self-host no habla con la nube)",
          "ch": HTTP, "paths": ["tests/infrastructure/unit/core/test_feedback_api.py"]},
+        {"id": "7.31", "title": "GET /api/connectors/catalog sirve solo lo NO-live y falla abierto",
+         "ch": HTTP, "paths": ["tests/infrastructure/unit/core/test_connector_catalog_route.py"]},
         {"id": "7.16", "title": "La imagen de la nube trae TODO lo que el motor importa al arrancar", "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_docker_boot_copy.py"]},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,

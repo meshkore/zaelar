@@ -1,0 +1,15 @@
+{
+  "id": "amazon-photos",
+  "label": "Amazon Photos",
+  "kind": "connector",
+  "family": "fotos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "amazon photos",
+    "fotos de amazon",
+    "galeria de amazon"
+  ],
+  "why-not": "Amazon no publica una API oficial para leer la biblioteca de Amazon Photos; lo único que existe es una librería no oficial basada en cookies que incumple sus términos de servicio."
+}
