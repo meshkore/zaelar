@@ -260,7 +260,8 @@ def test_only_ONE_step_is_visible_at_a_time(wizard):
 def test_step_one_is_an_ICON_GRID_of_providers(wizard):
     """«pon los proveedores de correo en una caja con el icono en medio, para que vea todos los que hay»."""
     labels = {b["label"].lower() for b in wizard["iboxes"]}
-    assert {"gmail", "outlook / hotmail", "icloud", "yahoo"} <= labels, labels
+    assert {"gmail", "outlook / hotmail", "icloud", "otro (imap/smtp)"} <= labels, labels
+    assert "yahoo" not in labels, labels
     gmail = next(b for b in wizard["iboxes"] if b["label"].lower() == "gmail")
     assert gmail["sel"], "gmail is the default provider and must show as selected"
 

@@ -60,7 +60,7 @@ const _draft = {telegram: {api_id: "", api_hash: ""},
                 email: {email_address: "", email_password: "", provider: "gmail", imap_host: "", smtp_host: ""}};
 // Email providers with server-side host presets; "otro" asks for IMAP/SMTP manually.
 const EMAIL_PROVIDERS = [["gmail","Gmail"], ["outlook","Outlook / Hotmail"], ["icloud","iCloud"],
-                         ["yahoo","Yahoo"], ["otro","Otro (IMAP/SMTP)"]];
+                         ["otro","Otro (IMAP/SMTP)"]];
 const _busy = {};   // platform -> true while a connection is in progress, for button feedback
 // Which field of a connect form to land on after a refusal (V2-559). Module-lived like _busy: the card is
 // rebuilt on every render, so the intent has to outlive the DOM node it applies to.
@@ -504,8 +504,6 @@ const EMAIL_GUIDE={
   icloud:  {steps:"Genera una contraseña específica de app desde tu cuenta de Apple.",
             url:"https://appleid.apple.com/account/manage", lbl:"Abrir appleid.apple.com",
             tip:"Apple la muestra como xxxx-xxxx-xxxx-xxxx. Cópiala con los guiones."},
-  yahoo:   {steps:"Genera una contraseña de app en la seguridad de tu cuenta.",
-            url:"https://login.yahoo.com/account/security", lbl:"Abrir seguridad de Yahoo", tip:""},
   otro:    {steps:"Usa la contraseña (o contraseña de app) que te dé tu proveedor de correo.",
             url:"", lbl:"", tip:"Necesitaré además sus servidores IMAP y SMTP, abajo."},
 };
