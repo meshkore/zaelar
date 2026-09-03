@@ -597,6 +597,17 @@ export function ConfigPanel() {
   );
 
   let wasOpen = false;
-  createEffect(() => { const o = store.configOpen(); if (o && !wasOpen) load(); wasOpen = o; });
+  createEffect(() => {
+    const o = store.configOpen();
+    if (o && !wasOpen) {
+      // V2-561 — a caller (the ChatWall connector catalog) can ask to land on a specific tab, e.g.
+      // "conectores", instead of always reopening on whatever `activeTab` was left at. Consumed once so a
+      // later plain ⚙ click is not forced onto the same tab forever.
+      const want = store.configInitialTab();
+      if (want && TABS.some(t => t.id === want)) { activeTab = want; store.setConfigInitialTab(null); }
+      load();
+    }
+    wasOpen = o;
+  });
   return ovl;
 }

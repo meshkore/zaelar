@@ -1,0 +1,15 @@
+{
+  "id": "spotify",
+  "label": "Spotify",
+  "kind": "connector",
+  "family": "musica",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "spotify",
+    "musica",
+    "canciones",
+    "playlist"
+  ]
+}

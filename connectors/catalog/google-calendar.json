@@ -1,0 +1,16 @@
+{
+  "id": "google-calendar",
+  "label": "Google Calendar",
+  "kind": "connector",
+  "family": "agenda",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "google calendar",
+    "calendario",
+    "citas",
+    "agenda",
+    "eventos"
+  ]
+}

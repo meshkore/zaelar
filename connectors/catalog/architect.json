@@ -1,0 +1,15 @@
+{
+  "id": "architect",
+  "label": "Architect (code daemon)",
+  "kind": "connector",
+  "family": "infra",
+  "transport": "native",
+  "auth": "token",
+  "state": "built",
+  "capabilities": [
+    "architect",
+    "codigo",
+    "proyectos",
+    "agentes de codigo"
+  ]
+}

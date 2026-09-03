@@ -1,0 +1,17 @@
+{
+  "id": "email",
+  "label": "Email",
+  "kind": "connector",
+  "family": "mensajeria",
+  "transport": "native",
+  "auth": "app-password",
+  "state": "built",
+  "capabilities": [
+    "email",
+    "correo",
+    "mail",
+    "gmail",
+    "outlook",
+    "imap"
+  ]
+}

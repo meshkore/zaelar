@@ -1,0 +1,15 @@
+{
+  "id": "meshkore",
+  "label": "MeshKore (cluster / team)",
+  "kind": "connector",
+  "family": "infra",
+  "transport": "native",
+  "auth": "cluster",
+  "state": "built",
+  "capabilities": [
+    "meshkore",
+    "cluster",
+    "equipo",
+    "red de agentes"
+  ]
+}

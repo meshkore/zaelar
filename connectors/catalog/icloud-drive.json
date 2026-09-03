@@ -1,0 +1,16 @@
+{
+  "id": "icloud-drive",
+  "label": "iCloud Drive",
+  "kind": "connector",
+  "family": "archivos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "not-possible",
+  "capabilities": [
+    "icloud drive",
+    "icloud",
+    "apple",
+    "archivos de apple"
+  ],
+  "why-not": "CloudKit solo expone el contenedor privado de cada app; no existe una API pública para leer el iCloud Drive completo del usuario."
+}

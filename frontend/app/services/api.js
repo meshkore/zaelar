@@ -149,6 +149,9 @@ export const getBenchmarks = () => fetch("/api/config/benchmarks", { cache: "no-
 
 // ---- conectores + widgets para las pestañas de Config (V2-083) ----
 export const getConnectors = () => fetch("/api/connectors", { cache: "no-store" }).then(json).catch(() => ({ connectors: [] }));
+// V2-561 — the NOT-live half of the directory (planned/not-possible), for the ChatWall "Conectores" tab's
+// wishlist. Static/cheap; merged client-side with getConnectors()'s live results by `family`.
+export const getConnectorCatalog = () => fetch("/api/connectors/catalog", { cache: "no-store" }).then(json).catch(() => ({ catalog: [] }));
 export const getWidgetsRegistry = () => fetch("/widgets/registry", { cache: "no-store" }).then(json).catch(() => ({ registry: [] }));
 export const connectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/connect`, payload || {}).then(json);
 export const disconnectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/disconnect`, payload || {}).then(json);

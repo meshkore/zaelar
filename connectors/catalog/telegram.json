@@ -1,0 +1,14 @@
+{
+  "id": "telegram",
+  "label": "Telegram",
+  "kind": "connector",
+  "family": "mensajeria",
+  "transport": "native",
+  "auth": "app-password",
+  "state": "built",
+  "capabilities": [
+    "telegram",
+    "mensajes de telegram",
+    "chats"
+  ]
+}

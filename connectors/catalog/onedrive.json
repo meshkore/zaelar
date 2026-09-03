@@ -1,0 +1,16 @@
+{
+  "id": "onedrive",
+  "label": "OneDrive",
+  "kind": "connector",
+  "family": "archivos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "onedrive",
+    "microsoft",
+    "archivos",
+    "ficheros",
+    "documentos"
+  ]
+}

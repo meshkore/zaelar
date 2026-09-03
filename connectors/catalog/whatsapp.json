@@ -1,0 +1,15 @@
+{
+  "id": "whatsapp",
+  "label": "WhatsApp",
+  "kind": "connector",
+  "family": "mensajeria",
+  "transport": "bridge",
+  "auth": "qr",
+  "state": "built",
+  "capabilities": [
+    "whatsapp",
+    "wasap",
+    "mensajes de whatsapp",
+    "chats"
+  ]
+}

@@ -7861,10 +7861,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     refusal keeps the draft, retry moves focus, phone width for all three wizards). Node 4.89's live harness
     updated to the same assertions. Disarm verified: reverting the `connect_focus` jump makes the new render
     test fail on a real pixel/DOM check, not a source grep.
-  - Global connector catalog (a 5th `ChatWall` tab, category→connector, wishlist "Lo quiero") is planned as
-    **Phase 2**, implementing the already-approved
-    `V2-526-the-connector-catalog-costs-nothing-until-it-is-connected.md` design — not started this pass.
-    Detail and both phases: `V2-561-messaging-wizard-redesign-and-connector-catalog-plan.md`.
+  - **Phase 2, same pass: the global connector catalog (a 5th `ChatWall` tab, "Conectores"), implementing
+    the already-approved `V2-526-the-connector-catalog-costs-nothing-until-it-is-connected.md` design.**
+    `connectors/catalog.py` + `connectors/catalog/*.json` (declaration is DATA — a stdlib-only lexical
+    index over label/family/capabilities, no model call, no network) split the directory into what is
+    LIVE (`connectors/registry.py`, unchanged) and what is merely LISTED (`state:"planned"`/
+    `"not-possible"`, new `GET /api/connectors/catalog`). The tab groups both by family, offers "Conectar"
+    for a built-disconnected row (hands off to `ConfigPanel`'s own "conectores" tab via a new
+    `store.configInitialTab` signal — this surface browses and asks, it never holds a credential form,
+    same boundary V2-520 already pins) and "Lo quiero" for a planned row.
+    - **Family scoping needed zero code**: `registry.py` already tags every descriptor with `family`, and
+      each widget only ever queries its own — the operator's "a video widget should only show video
+      connectors" ask was already true by construction.
+    - **A real scoped compromise, not silently dropped**: the design asked for a request to carry
+      "a structured subject — the manifest id, never prose". The feedback pipeline's schema
+      (`server/feedback_api.py` → the `cloud/control-plane` deployment, a **separate repo** outside this
+      pass) has no such field, and guessing at extending its wire format blind risked breaking every
+      feedback submission for an uncertain payoff. The id travels instead as a fixed, CODE-WRITTEN prefix
+      in `message` (`"[conector:<id>] Lo quiero: <label>"`) — never anything the operator typed. Extending
+      that schema for a real field is noted as follow-up, not silently forgotten.
+    - **Deliberately NOT built**: voice-reachability of the tab (`show_panel` opening "conectores" the way
+      it already opens "clusters") — that touches five files in the FlashBrain's tool-routing core
+      (`router.py`, `router_catalog.py`, `nucleo.py` AND `probe.py` — the "wire both channels" lesson this
+      file has paid for repeatedly — plus `nucleo/actionmap/executor.py`), each with existing tests. A
+      self-contained UI feature earned its own pass instead of also touching a sensitive, well-tested
+      part of the system in the same commit.
+    - Tests: `tests/connectors/unit/catalog/` (13), `tests/infrastructure/unit/core/
+      test_connector_catalog_route.py` (3), `tests/browser/unit/widgets/test_connectors_tab.py` (14,
+      contract-level like `test_clusters_tab.py` — this repo's established pattern for native ChatWall
+      surfaces, no full Playwright mount of the whole app shell). Three disarms verified red. Full sweep
+      `tests/browser/ tests/connectors/ tests/infrastructure/unit/core/`: 1752 passed, 1 xfailed.
+    - Detail and both phases: `V2-561-messaging-wizard-redesign-and-connector-catalog-plan.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

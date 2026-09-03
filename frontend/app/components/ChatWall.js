@@ -1,9 +1,11 @@
-// ChatWall — vertical agent panel with THREE tabs (V2-079): “Chat” (write to the agent), “Processes”
-// (live Brain Workers + history of what ran today/yesterday/a few days ago), and “Crons” (scheduled tasks). Toggled by
-// store.chatOpen; the active tab lives in store.chatTab (so the orb’s ⏰ button can open it directly on “Crons”).
-// Chat goes through session.sendText → data channel → ClientTextInjector (normal user turn; the agent responds
-// by voice). Previously this was only the chat wall; “Processes” and “Crons” give the operator PERSPECTIVE on what the
-// system is doing and has done (the hexagons are the "now"; this tab is "now + history").
+// ChatWall — vertical agent panel with FIVE tabs (grown from three at V2-079): “Chat” (write to the agent),
+// “Processes” (live Brain Workers + history of what ran today/yesterday/a few days ago), “Crons” (scheduled
+// tasks), “Clusters” (V2-086, the native MeshKore network), and “Conectores” (V2-561/V2-526, every connector
+// by category — built + wishlist). Toggled by store.chatOpen; the active tab lives in store.chatTab (so the
+// orb’s ⏰ button can open it directly on “Crons”). Chat goes through session.sendText → data channel →
+// ClientTextInjector (normal user turn; the agent responds by voice). “Processes”/“Crons”/“Clusters”/
+// “Conectores” give the operator PERSPECTIVE and REACH beyond conversation (the hexagons are the "now";
+// this panel is "now + history + the rest of the system").
 //
 // WINDOW BEHAVIOUR (V2-062): MOVABLE (drag by the header) + RESIZABLE from ANAnd edge/corner (8 handles, lib/
 // resizable.js) + DOCKABLE: drag it to the far left/right edge and it snaps to a FULL-HEIGHT side column. Floating
@@ -12,14 +14,21 @@
 // A Ctrl+V anywhere on the page (see main.js) ALSO feeds the chat channel — pasted text reaches the agent even
 // while this panel is hidden; it shows up here the next time you open it.
 import { h, raw } from "../core/dom.js?v=2";
-import { createEffect } from "../core/reactive.js?v=2";
+import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
+import * as feedbackApi from "../services/feedback-api.js?v=1";
 import { makeResizable } from "../lib/resizable.js?v=1";
 import { CLOSE_ICON, TRASH_ICON } from "../lib/icons.js?v=1";
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
+
+// V2-561/V2-526 — stable family order (mensajeria -> musica -> archivos -> infra, matching
+// connectors/registry.py's descriptors() order), any other family (e.g. a catalog-only "agenda" wishlist
+// entry) sorted after, alphabetically, so a family nobody expects does not jump to the top.
+const CONN_FAMILY_ORDER = ["mensajeria", "musica", "archivos", "infra"];
+const connFamilyRank = (f) => { const i = CONN_FAMILY_ORDER.indexOf(f); return i < 0 ? 99 : i; };
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
 const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock", OPEN_KEY = "hb_chat_open";
@@ -196,6 +205,89 @@ export function ChatWall() {
     ),
   );
 
+  // ── CONNECTORS tab (V2-561, implementing V2-526): every connector by category, built + wishlist ────────
+  // `live` = connectors/registry.py's descriptors() (real state); `wish` = the NOT-live half
+  // (connectors/catalog.py's planned/not-possible manifests). Two independent, cheap fetches merged here by
+  // `family` — never a new widget, never a model call, never more than what a GET already returns.
+  const [connCatalog, setConnCatalog] = createSignal({ live: [], wish: [] });
+  const [connRequested, setConnRequested] = createSignal(new Set());
+  const refreshConnectors = async () => {
+    const [live, wish] = await Promise.all([api.getConnectors(), api.getConnectorCatalog()]);
+    setConnCatalog({ live: (live && live.connectors) || [], wish: (wish && wish.catalog) || [] });
+  };
+  // "Conectar" on a built-but-disconnected row hands off to the CREDENTIAL surface (V2-083's ConfigPanel
+  // "conectores" tab) rather than connecting from here — the same voice/hands boundary V2-520 already pins:
+  // this tab is for browsing and asking, never for holding a form.
+  const openConnectorConfig = () => { store.setConfigInitialTab("conectores"); store.setConfigOpen(true); };
+  // "Lo quiero" on a PLANNED entry: a request the receiving side can COUNT, so it carries the manifest `id`
+  // as a fixed, machine-written prefix rather than anything the operator typed — free text cannot be
+  // grouped. Once per session per id (the row itself shows it was sent instead of inviting a second click).
+  const requestConnector = async (m) => {
+    if (connRequested().has(m.id)) return;
+    setConnRequested(new Set([...connRequested(), m.id]));
+    try { await feedbackApi.sendFeedback({ message: `[conector:${m.id}] Lo quiero: ${m.label}` }); }
+    catch (_) { /* best-effort; the row already reflects the attempt and nothing here blocks the tab */ }
+  };
+
+  const connLiveRow = (c) => h("div", { class: "cl-row" },
+    h("div", { class: "cl-main" },
+      h("div", { class: "cl-name" },
+        h("span", { class: () => "cl-dot" + (c.connected ? " on" : "") }),
+        c.label || c.id,
+      ),
+      h("div", { class: "cl-meta" }, c.connected ? t("chat.connected") : t("chat.disconnected")),
+    ),
+    h("div", { class: "cl-btns" },
+      c.connected ? null : h("button", { class: "cl-b on", onClick: openConnectorConfig }, () => t("chat.connectBtn")),
+    ),
+  );
+
+  const connWishRow = (m) => {
+    const impossible = m.state === "not-possible";
+    const requested = connRequested().has(m.id);
+    return h("div", { class: "cl-row" + (impossible ? " cn-imposs" : ""), title: impossible ? (m["why-not"] || "") : "" },
+      h("div", { class: "cl-main" },
+        h("div", { class: "cl-name" }, h("span", { class: "cl-dot" }), m.label || m.id),
+        h("div", { class: "cl-meta" },
+          impossible ? t("chat.connWishlistImpossible") : t("chat.connWishlistPlanned")),
+      ),
+      h("div", { class: "cl-btns" },
+        impossible ? null
+          : h("button", { class: "cl-b" + (requested ? "" : " on"), disabled: requested,
+                          onClick: () => requestConnector(m) },
+              () => t(requested ? "chat.connWantedBtn" : "chat.connWantBtn")),
+      ),
+    );
+  };
+
+  const connFamilySections = () => {
+    const { live, wish } = connCatalog();
+    const families = new Map();
+    for (const c of live) {
+      const f = c.family || "infra";
+      if (!families.has(f)) families.set(f, { live: [], wish: [] });
+      families.get(f).live.push(c);
+    }
+    for (const m of wish) {
+      const f = m.family || "infra";
+      if (!families.has(f)) families.set(f, { live: [], wish: [] });
+      families.get(f).wish.push(m);
+    }
+    const order = [...families.keys()].sort((a, b) => connFamilyRank(a) - connFamilyRank(b) || a.localeCompare(b));
+    if (!order.length) return [h("div", { class: "cw-empty" }, () => t("chat.connEmpty"))];
+    const out = [];
+    for (const fam of order) {
+      // t() returns the KEY itself when a string is missing (truthy) — never `|| fam` here (V2-538 already
+      // paid for that exact trap). Every family that can appear (mensajeria/musica/archivos/infra/agenda)
+      // has a real bundle entry below instead.
+      out.push(h("div", { class: "cn-fam" }, () => t("chat.connFamily." + fam)));
+      const { live: famLive, wish: famWish } = families.get(fam);
+      famLive.forEach(c => out.push(connLiveRow(c)));
+      famWish.forEach(m => out.push(connWishRow(m)));
+    }
+    return out;
+  };
+
   const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
       h("div", { class: "cw-tabs" },
@@ -203,6 +295,7 @@ export function ChatWall() {
         h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), onClick: () => store.setChatTab("procesos") }, () => t("chat.tabProcesses")),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), onClick: () => store.setChatTab("crons") }, () => t("chat.tabCrons")),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, () => t("chat.tabClusters")),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "conectores" ? " on" : ""), onClick: () => store.setChatTab("conectores") }, () => t("chat.tabConnectors")),
       ),
       h("button", { class: "cw-x hb-icbtn", title: () => t("chat.close"), onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
     ),
@@ -255,6 +348,12 @@ export function ChatWall() {
           : h("div", { class: "cw-empty" }, () => t("chat.clustersEmpty"))),
       ),
     ),
+    // CONECTORES (V2-561, implementing V2-526) — every connector by category: built (live, from the
+    // registry) grouped with the wishlist (planned/not-possible, from the catalog). No new widget, no new
+    // orb entry — this tab IS the "browse and ask" surface the design doc calls for.
+    h("div", { class: "cw-conn" },
+      h("div", { class: "cl-list" }, () => connFamilySections()),
+    ),
     // INPUT (Chat only — CSS hides it in the other tabs)
     h("div", { class: "cw-input" },
       h("textarea", {
@@ -272,6 +371,7 @@ export function ChatWall() {
     if (t === "procesos") { store.fetchTasks(); store.fetchWorkerHistory(); }
     else if (t === "crons") refreshCrons();
     else if (t === "clusters") store.fetchClusters();
+    else if (t === "conectores") refreshConnectors();
   });
   // When live processes change (a task finishes) while we are viewing “Processes”, refresh the history so
   // the task that just finished moves from the "running" block to "history".

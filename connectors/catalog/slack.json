@@ -1,0 +1,15 @@
+{
+  "id": "slack",
+  "label": "Slack",
+  "kind": "connector",
+  "family": "mensajeria",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "planned",
+  "capabilities": [
+    "slack",
+    "mensajes de equipo",
+    "canales",
+    "workspace"
+  ]
+}

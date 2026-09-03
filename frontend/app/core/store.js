@@ -269,6 +269,11 @@ export const clusterDisconnect = async (name) => {
 // `memory.updated` SSE push (bridged from the bus in server/__init__.py) so the map refetches LIVE, no polling.
 // Full-screen configuration (V2-043): choose API/model per component + API balance summary. Opened by ⚙.
 export const [configOpen, setConfigOpen] = createSignal(false); // config area overlay visible?
+// V2-561 — which of ConfigPanel's OWN tabs to land on the next time it opens (its tab state is a private
+// closure variable, not store-backed: there was no way from outside to say "open on Conectores"). Consumed
+// ONCE by ConfigPanel's own open-effect and cleared right after, so it never sticks past the request that
+// asked for it — a stale value here would keep re-forcing the tab on every later ⚙ click.
+export const [configInitialTab, setConfigInitialTab] = createSignal(null);
 export const [benchmarksOpen, setBenchmarksOpen] = createSignal(false); // benchmarks screen (opened FROM config)
 export const [apiSummary, setApiSummary] = createSignal([]);     // [{key,enables,set,state,detail,balance?}] — saldos
 export const [apiAlerts, setApiAlerts]   = createSignal([]);     // warn/error subset for the status dialog
@@ -367,7 +372,7 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
-export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086: "chat"|"procesos"|"crons"|"clusters"
+export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086/561: "chat"|"procesos"|"crons"|"clusters"|"conectores"
 export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|"agent", text }]
 // CAP (2026-07-23, operator request): without a limit, a long thread (e.g. hours talking with a
 // cluster over WebSocket) grows without end — and ChatWall rebuilds the ENTIRE DOM from `chatMsgs()` on every push

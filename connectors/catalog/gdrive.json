@@ -1,0 +1,16 @@
+{
+  "id": "gdrive",
+  "label": "Google Drive",
+  "kind": "connector",
+  "family": "archivos",
+  "transport": "native",
+  "auth": "oauth",
+  "state": "built",
+  "capabilities": [
+    "google drive",
+    "drive",
+    "archivos",
+    "ficheros",
+    "documentos"
+  ]
+}

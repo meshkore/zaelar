@@ -472,6 +472,18 @@ async def get_connectors():
         return JSONResponse({"connectors": [], "error": str(e)[:160]})
 
 
+@router.get("/api/connectors/catalog")
+async def get_connector_catalog():
+    """The NOT-live half of the connector directory (V2-561/V2-526): `planned`/`not-possible` entries for
+    the ChatWall "Conectores" tab's wishlist. Cheap and static — reads a handful of JSON manifests, no
+    network, no model. `/api/connectors` above stays the live half; the frontend merges the two by family."""
+    try:
+        from connectors import catalog
+        return JSONResponse({"catalog": catalog.wishlist()})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"catalog": [], "error": str(e)[:160]})
+
+
 @router.post("/api/connectors/architect/connect")
 async def architect_connect(payload: dict):
     """Set the Architect daemon TOKEN (and optional URL) in the DYNAMIC store (config/connectors.json), NOT in .env —
