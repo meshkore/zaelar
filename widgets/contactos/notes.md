@@ -14,3 +14,8 @@ Read before editing; append after.
   a nameless add is an ERROR that teaches the retry shape (V2-473: the write does not invent).
 - 2026-09-01 · Group matching is containment over accent-stripped forms, both directions
   («fontanero» ↔ «fontaneros») — never a synonym table (no-hardcoded-understanding rule).
+
+## 2026-09-04 — prompt_digest (V2-576)
+The card publishes its contents to the turn prompt while open (refs.prompt_digest seam): counts,
+view filter, rows. Born from the favourites session where the voice answered from stale memory
+against the visible list and confabulated a view explanation. See CLAUDE.md decision V2-576.
