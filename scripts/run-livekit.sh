@@ -125,7 +125,7 @@ echo "  ws://127.0.0.1:7880 (devkey/secret)"
 # LOCAL DAEMON (V2-575): the user's files and the real browser that passes CAPTCHAs. Standard library only, so it
 # runs on the venv without installing anything. ADDITIVE — the engine keeps its own in-process browser, so if this
 # never comes up the product is exactly what it is today; that is why nothing below waits on it or checks it.
-echo "▶ zaelar-daemon (ficheros + navegador local)…"
+echo "▶ zaelar-daemon (files + local browser)…"
 ( cd "$HERE" && exec "$PY" -m daemon ) >"$HERE/.meshkore/logs/daemon.log" 2>&1 & DAEMON_PID=$!
 
 echo "▶ servidor web zaelar (worker LiveKit EMBEBIDO, BRAIN=$BRAIN)…"

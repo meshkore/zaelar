@@ -222,11 +222,24 @@ class _Server(ThreadingHTTPServer):
     allow_reuse_address = True
 
 
+def _resolve_port(port: int | None) -> int:
+    """An explicitly passed port WINS, including 0.
+
+    `port or cfg["port"]` is the obvious spelling and it is wrong, because **0 is falsy**: `build(port=0)` —
+    the "let the OS pick a free one" idiom every test uses — silently fell through to the configured 45817
+    instead. That made the guard tests bind the REAL daemon's port, so they passed only while the operator's
+    daemon happened to be down, and turned red the day it started automatically. `is not None` is the whole
+    fix, and it is why this is a named function rather than three copies of the same expression.
+    """
+    if port is not None:
+        return int(port)
+    return int(config.load().get("port") or PORT)
+
+
 def build(port: int | None = None) -> _Server:
     """Bind and return the server WITHOUT serving, so tests can drive it on an arbitrary port and callers can
     report a bind failure themselves instead of the process dying inside `serve_forever`."""
-    cfg = config.load()
-    return _Server((HOST, int(port or cfg.get("port") or PORT)), Handler)
+    return _Server((HOST, _resolve_port(port)), Handler)
 
 
 def is_running(port: int | None = None) -> bool:
@@ -234,12 +247,11 @@ def is_running(port: int | None = None) -> bool:
     process-name match, which has silently matched nothing on this very machine before."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.4)
-        return s.connect_ex((HOST, int(port or config.load().get("port") or PORT))) == 0
+        return s.connect_ex((HOST, _resolve_port(port))) == 0
 
 
 def serve(port: int | None = None) -> int:
-    cfg = config.load()
-    p = int(port or cfg.get("port") or PORT)
+    p = _resolve_port(port)
     if is_running(p):
         print(f"zaelar-daemon is already listening on {HOST}:{p}", flush=True)
         return 0
