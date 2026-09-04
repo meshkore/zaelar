@@ -563,10 +563,6 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
     # which already used `.replace` for its slot catalogue.
     # Covered by tests/memory/unit/test_rem_prompt.py so it cannot recur.
     system = _REM_SYSTEM.replace("{lang}", _canonical_lang_native())
-    # GENEROUS TIMEOUT (2026-08-09): REM sleep runs ONCE per day, overnight, in `to_thread` — nobody is waiting.
-    # The 60s default was too short: the titular model emits ~2,200 output tokens for the 8 groups, and a slow
-    # broker batch exceeds 60s → the entire night without consolidation due to haste nobody needed.
-    # Writing may be SLOW (V2-013 invariant); reading may not be.
     # `max_tokens` GENEROUS and timeout GENEROUS (2026-08-09). REM sleep runs ONCE per day, overnight, in
     # `to_thread`: nobody is waiting, and writing may be SLOW (V2-013 invariant) — reading may not.
     #   · max_tokens 1200 → 4000: with 8 groups, a verbose or REASONING model (deepseek-v4-flash thinks even when

@@ -72,3 +72,18 @@ def test_reinforce_bumps_weight_and_access(fresh_db):
     db = memdb.get_db()
     row = db.query_one("SELECT weight, access_count FROM memories WHERE id=?", (a,))
     assert row["weight"] > 0.5 and row["access_count"] >= 1
+
+
+def test_exact_dedup_never_crosses_the_trust_boundary(fresh_db):
+    """2026-09-05 (integrity review): matching by text alone let an untrusted write reinforce a trusted pill
+    verbatim — and fold a trusted write INTO a standing quarantined row, where synthesis and by_concepts never
+    see it again. The trust class is part of the fact's identity: same text, different class → two rows."""
+    a = writer.insert_memory("el lunes cierran la piscina", level="long", kind="fact")
+    b = writer.insert_memory("el lunes cierran la piscina", level="long", kind="fact",
+                             meta={"trust": "untrusted"})
+    assert a != b, "an untrusted verbatim echo must not reinforce the trusted row"
+    c = writer.insert_memory("el lunes cierran la piscina", level="long", kind="fact")
+    assert c == a, "within the SAME class, exact dedup still reinforces"
+    d = writer.insert_memory("el lunes cierran la piscina", level="long", kind="fact",
+                             meta={"trust": "untrusted"})
+    assert d == b

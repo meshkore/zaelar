@@ -323,3 +323,34 @@ def test_concept_graph_separates_short_and_long(fresh_db):
     assert "deporte" in short_labels        # the padel message derives 'deporte' in the SHORT map
     # each node carries its data count
     assert all("count" in n for n in cg["long"]["nodes"] + cg["short"]["nodes"])
+
+
+def test_unforget_after_prune_reindexes_the_revived_row(fresh_db):
+    """2026-09-05 (integrity review): «flip the flag back — no reindexing needed» stopped being true the day
+    `consolidator.prune_invalid` was built. A shell forgotten MORE than 2 days ago is pruned OUT of the indexes
+    (vector + FTS deleted, `meta.pruned=1`), so unforget revived a row no search could ever surface again.
+    Unforget now re-adds the FTS row itself (recall works immediately through the keyword half), drops the
+    `pruned` stamp, and marks `embed_pending` so the nightly repair restores the vector."""
+    import json as _json
+    import time as _time
+    from memory import consolidator as memcons
+    from memory import rem as memrem
+    mid = memapi.write_now("su vino preferido es el Ribera Nocturno", kind="fact", level="long")
+    assert memapi.forget("vino preferido") == 1
+    db = memdb.get_db()
+    db.execute("UPDATE memories SET updated=? WHERE id=?", (int(_time.time()) - 3 * 86400, mid))
+    assert memcons.prune_invalid() == 1
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is None
+    assert memapi.unforget("vino preferido") == 1
+    # Ask the FTS INDEX itself (MATCH walks the index, not the external content): the retriever also has a
+    # LIKE rescue channel, so a surface-level "it shows up in query()" would pass with the index still empty.
+    assert any(r["rowid"] == mid for r in
+               db.query("SELECT rowid FROM fts_memories WHERE fts_memories MATCH ?", ("nocturno",))), \
+        "the revived row must be back in the FTS index"
+    assert any("Nocturno" in m["text"] for m in memapi.query("vino preferido")["memories"])
+    meta = _json.loads(db.query_one("SELECT meta FROM memories WHERE id=?", (mid,))["meta"] or "{}")
+    assert "pruned" not in meta, "the pruned stamp must come off, or a future invalidation never prunes it"
+    assert meta.get("embed_pending") == "revived"
+    memrem.repair_embeddings()
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is not None, \
+        "the nightly repair restores the vector of a revived row"

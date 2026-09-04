@@ -126,12 +126,17 @@ def evict(limit: int = DEFAULT_LIMIT) -> int:
 
 # ── dedup ──────────────────────────────────────────────────────────────────────────────────────────────
 def dedup() -> int:
-    """Fusiona recuerdos de texto idéntico (normalizado). Conserva el de mayor peso; transfiere aristas. Devuelve nº borrados."""
+    """Fusiona recuerdos de texto idéntico (normalizado). Conserva el de mayor peso; transfiere aristas. Devuelve
+    nº borrados. La clase de confianza PARTE el grupo (2026-09-05): un texto idéntico dicho por el operador y por
+    material externo en cuarentena (`trust: untrusted` — `remember_external`, mensajes de peers) son DOS hechos, y
+    fusionarlos deja que la fila no confiable sobreviva heredando las aristas y el refuerzo del linaje confiable —
+    el mismo cruce que `rem.semantic_dedup` y `rem._concept_groups` ya vetan."""
     db = _db.get_db()
-    rows = db.query("SELECT id, text, weight, access_count, pinned FROM memories WHERE valid=1")
-    groups: dict[str, list] = {}
+    rows = db.query("SELECT id, text, weight, access_count, pinned, "
+                    "COALESCE(json_extract(meta, '$.trust'), '') trust FROM memories WHERE valid=1")
+    groups: dict[tuple, list] = {}
     for r in rows:
-        groups.setdefault(_norm(r["text"]), []).append(r)
+        groups.setdefault((_norm(r["text"]), r["trust"]), []).append(r)
     removed = 0
     for _key, members in groups.items():
         if len(members) < 2:
@@ -220,8 +225,12 @@ def prune_invalid(now: int | None = None, after_days: float = PRUNE_INVALID_AFTE
     db = _db.get_db()
     now = now or _now()
     cutoff = now - int(after_days * 86400)
+    # `pinned` does NOT exempt a shell here (2026-09-05, integrity review: a superseded pinned profile row kept
+    # its vector and FTS entry forever, burning KNN candidate slots for a row every reader discards). The golden
+    # "never touch pinned" rule protects pinned rows from DELETION (`evict`) — this pass only de-indexes, the
+    # `memories` row stays, and a revival (`unforget(include_pinned=True)`) re-indexes what it needs.
     rows = db.query(
-        "SELECT id, text, meta FROM memories WHERE valid=0 AND pinned=0 AND updated < ? "
+        "SELECT id, text, meta FROM memories WHERE valid=0 AND updated < ? "
         "AND (meta IS NULL OR meta NOT LIKE '%\"pruned\": 1%')",
         (cutoff,),
     )

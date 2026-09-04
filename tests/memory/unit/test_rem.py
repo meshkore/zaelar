@@ -584,3 +584,45 @@ def test_la_reparacion_no_escribe_vectores_ajenos_si_el_backend_cae_A_MITAD(fres
     con_vector = memdb.get_db().query_one(
         "SELECT COUNT(*) c FROM vec_memories WHERE memory_id IN (%s)" % ",".join("?" * len(ids)), tuple(ids))
     assert con_vector["c"] == 2      # the two before the failure, and none afterward
+
+
+def test_a_stale_pending_marker_on_a_vectored_row_is_cleared(fresh_db):
+    """Found live 2026-09-05: a row with a healthy native vector still carried `embed_pending` from an old
+    outage. The repair pass only selects vector-LESS rows, so the marker was unclearable by construction and
+    `hygiene()` counted it as pending forever — a health number nobody can trust. The repair entrance now
+    clears markers whose vectors already exist."""
+    import json as _json
+    mid = memwriter.insert_memory("dato con vector sano", level="mid", kind="fact")
+    db = memdb.get_db()
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is not None
+    meta = _json.loads(db.query_one("SELECT meta FROM memories WHERE id=?", (mid,))["meta"] or "{}")
+    meta["embed_pending"] = "degraded"
+    db.execute("UPDATE memories SET meta=?", (_json.dumps(meta),))
+    assert memrem.hygiene()["embed_pending"] == 1
+    memrem.repair_embeddings()
+    assert memrem.hygiene()["embed_pending"] == 0, "the stale marker must be cleared by the repair entrance"
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is not None  # vector untouched
+
+
+def test_semantic_dedup_never_crosses_the_trust_boundary(fresh_db):
+    """2026-09-05: quarantined external material (`trust: untrusted` — remember_external, cluster peers) must
+    not join a trusted lineage in EITHER direction: an untrusted echo must never invalidate a trusted pill, and
+    its shell must never inherit trusted edges. Same fence `_concept_groups` already applies to synthesis."""
+    a = memwriter.insert_memory("le encanta el restaurante Casa Pepe", level="mid", kind="fact", weight=0.9)
+    b = memwriter.insert_memory("el restaurante Casa Pepe le encanta", level="mid", kind="fact", weight=0.2,
+                                meta={"trust": "untrusted"})
+    assert memrem.semantic_dedup(threshold=0.95) == 0
+    db = memdb.get_db()
+    assert db.query_one("SELECT valid FROM memories WHERE id=?", (a,))["valid"] == 1
+    assert db.query_one("SELECT valid FROM memories WHERE id=?", (b,))["valid"] == 1
+
+
+def test_sim_table_fallback_agrees_without_numpy(fresh_db, monkeypatch):
+    """The numpy matmul is an accelerator, never a dependency: with numpy unimportable, `_sim_table` falls back
+    to the pure-Python dot product and returns the same similarities."""
+    import sys
+    vecs = {1: [1.0, 0.0], 2: [0.6, 0.8]}
+    with_np = memrem._sim_table([1, 2], vecs)
+    monkeypatch.setitem(sys.modules, "numpy", None)   # `import numpy` now raises → fallback path
+    without_np = memrem._sim_table([1, 2], vecs)
+    assert with_np(1, 2) == pytest.approx(without_np(1, 2)) == pytest.approx(0.6)

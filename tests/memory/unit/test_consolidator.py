@@ -204,3 +204,29 @@ def test_y_un_hook_que_revienta_NO_tumba_el_ciclo(fresh_db):
     rep = memcons.consolidate(limit=1000, prune_workers_fn=_boom)
     assert rep["workers_pruned"] is None
     assert "count" in rep, "el informe tiene que seguir completo"
+
+
+def test_dedup_never_merges_across_the_trust_boundary(fresh_db):
+    """2026-09-05: identical text said by the operator and by quarantined external material (`trust: untrusted`)
+    are TWO facts. Merging them can let the untrusted row survive and inherit the trusted lineage's edges and
+    reinforcement — the trust class now splits the dedup group."""
+    a = memwriter.insert_memory("la clave del garaje es 4321", level="long", kind="fact", weight=0.3)
+    b = memwriter.insert_memory("la clave del garaje es 4321", level="long", kind="fact", weight=0.9,
+                                meta={"trust": "untrusted"})
+    assert memcons.dedup() == 0
+    db = memdb.get_db()
+    assert db.query_one("SELECT COUNT(*) c FROM memories WHERE id IN (?,?)", (a, b))["c"] == 2
+
+
+def test_prune_deindexes_a_pinned_invalid_shell(fresh_db):
+    """2026-09-05 (measured live: a superseded pinned profile row kept its vector forever): `pinned` protects a
+    row from DELETION, not from de-indexing. An invalid pinned shell leaves the indexes like any other; its
+    `memories` row stays, so history is intact and `unforget(include_pinned=True)` can still revive it."""
+    mid = memwriter.insert_memory("me llamo Ricard", level="long", kind="profile", pinned=True)
+    db = memdb.get_db()
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is not None
+    old = int(time.time()) - 3 * 86400
+    db.execute("UPDATE memories SET valid=0, updated=? WHERE id=?", (old, mid))
+    assert memcons.prune_invalid() == 1
+    assert db.query_one("SELECT 1 x FROM vec_memories WHERE memory_id=?", (mid,)) is None
+    assert db.query_one("SELECT 1 x FROM memories WHERE id=?", (mid,)) is not None  # the row itself survives

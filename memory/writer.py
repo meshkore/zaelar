@@ -225,6 +225,15 @@ def insert_memory(
         importance = max(float(importance), 0.95)
         meta = _stamp_critical(meta)
     meta_json = meta if isinstance(meta, (str, type(None))) else json.dumps(meta, ensure_ascii=False)
+    # The TRUST CLASS is part of a fact's identity for both dedup doors below (2026-09-05, integrity review):
+    # matching by text alone let an untrusted write (`remember_external`, cluster peers) REINFORCE a trusted
+    # pill verbatim — and, worse, fold a trusted write INTO a standing quarantined row, where synthesis and
+    # by_concepts would never see it again. Slots are not gated here: `remember_external` already vets which
+    # slots an untrusted writer may touch, and that door owns that rule.
+    try:
+        _trust = (json.loads(meta_json).get("trust") or "") if meta_json else ""
+    except Exception:  # noqa: BLE001
+        _trust = ""
     prev_ids: list[int] = []
     if slot:
         # TODOS los vigentes del slot (no LIMIT 1): si por cualquier vía (alias sin normalizar de antes, unforget,
@@ -267,8 +276,8 @@ def insert_memory(
     if not slot and kind != "conv":
         exact = db.query_one(
             "SELECT id FROM memories WHERE valid=1 AND kind != 'conv' AND LOWER(text)=LOWER(?) "
-            "ORDER BY id DESC LIMIT 1",
-            (text,),
+            "AND COALESCE(json_extract(meta, '$.trust'), '') = ? ORDER BY id DESC LIMIT 1",
+            (text, _trust),
         )
         if exact is not None:
             dup_id = int(exact["id"])
@@ -282,7 +291,7 @@ def insert_memory(
     if not slot and level in ("mid", "long") and db.vec_available and _semantic_dedup_on():
         if embedding is None:
             embedding = _emb.embed(text)
-        dup = _find_semantic_dup(db, embedding)
+        dup = _find_semantic_dup(db, embedding, trust=_trust)
         if dup is not None:
             reinforce([dup])
             _link_concepts(db, dup, concepts, level, kind)   # el hecho repetido conserva/gana sus aristas de concepto
@@ -481,9 +490,10 @@ def _get_or_create_concept(db, name: str) -> int | None:
         return None
 
 
-def _find_semantic_dup(db, vec: list[float]) -> int | None:
+def _find_semantic_dup(db, vec: list[float], trust: str = "") -> int | None:
     """Vecino más cercano DURABLE y válido por SIGNIFICADO. Devuelve su id si la distancia ≤ umbral, si no None.
-    Best-effort: cualquier fallo del backend vectorial → None (se inserta normal)."""
+    Best-effort: cualquier fallo del backend vectorial → None (se inserta normal). Solo dentro de la MISMA clase
+    de confianza (2026-09-05): un casi-duplicado no confiable jamás refuerza un linaje confiable, ni al revés."""
     try:
         rows = db.query(
             "SELECT memory_id, distance FROM vec_memories WHERE embedding MATCH ? ORDER BY distance LIMIT 5",
@@ -495,8 +505,9 @@ def _find_semantic_dup(db, vec: list[float]) -> int | None:
         if r["distance"] is None or r["distance"] > SEMANTIC_DEDUP_MAX_DIST:
             break                               # ordenado por distancia: si el mejor ya no cuela, ninguno
         m = db.query_one(
-            "SELECT id FROM memories WHERE id=? AND valid=1 AND level IN ('mid','long')",
-            (r["memory_id"],),
+            "SELECT id FROM memories WHERE id=? AND valid=1 AND level IN ('mid','long') "
+            "AND COALESCE(json_extract(meta, '$.trust'), '') = ?",
+            (r["memory_id"], trust),
         )
         if m is not None:
             return int(m["id"])

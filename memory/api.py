@@ -317,6 +317,28 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
     # una fecha pasada — un `as_of()` posterior al unforget debe verla vigente desde ahora, no seguir leyéndola
     # como invalidada en la fecha del forget.
     db.execute(f"UPDATE memories SET valid=1, updated=?, invalidated_at=NULL WHERE id IN ({ph})", (now, *ids))
+    # "Basta revertir el flag — sin reindexar" stopped being fully true the day `consolidator.prune_invalid`
+    # was built (2026-07-19): a shell invalidated MORE than 2 days ago was pruned OUT of the indexes (vector
+    # and FTS deleted, paraphrases dropped, `meta.pruned=1` stamped), so flipping `valid` back revived a row no
+    # search could ever surface again — and nothing anywhere re-indexed it (found in the 2026-09-05 integrity
+    # review). Re-add the FTS row here (cheap, deterministic, and recall works immediately through the keyword
+    # half of the RRF); the VECTOR is the nightly repair's job — `embed_pending` makes the wait COUNTABLE in
+    # `hygiene()` — and the paraphrase backfill re-covers it on its own. The `pruned` stamp comes off so a
+    # future invalidation can prune it again. Only rows the pruner actually touched: re-inserting FTS for a
+    # still-indexed row would duplicate its index entries (FTS5 external-content has no upsert).
+    import json as _json
+    for r in db.query(f"SELECT id, text, meta FROM memories WHERE id IN ({ph})", tuple(ids)):
+        try:
+            meta = _json.loads(r["meta"] or "{}")
+            if meta.pop("pruned", None) is None:
+                continue
+            meta["embed_pending"] = "revived"
+            with db.cursor() as cur:
+                cur.execute("INSERT INTO fts_memories (rowid, text) VALUES (?, ?)", (r["id"], r["text"]))
+                cur.execute("UPDATE memories SET meta=? WHERE id=?",
+                            (_json.dumps(meta, ensure_ascii=False), r["id"]))
+        except Exception:  # noqa: BLE001
+            continue
     _emit("memory.updated", {"op": "unforget", "ids": ids})
     return len(ids)
 

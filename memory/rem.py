@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re as _re
 import struct
 import time
 
@@ -214,6 +215,33 @@ def _drop_foreign_vectors(db, limit: int) -> int:
     return gone
 
 
+def _clear_stale_pending(db) -> int:
+    """Drop `meta.embed_pending` from rows that already CARRY a vector (found live 2026-09-05: one row with a
+    healthy native vector and a `degraded` marker from an old outage — `reembed()` and direct inserts restore
+    vectors without popping the marker).
+
+    `repair_embeddings` below only selects vector-LESS rows, so it can never reach these: the marker is
+    unclearable by construction and `hygiene()` counts it as pending forever — a permanently inflated number is
+    a health signal nobody trusts. Runs AFTER `_drop_foreign_vectors` and behind the same signature gate as the
+    repair pass, so any vector still standing here is native; its marker is stale by definition."""
+    rows = db.query(
+        "SELECT m.id, m.meta FROM memories m JOIN vec_memories v ON v.memory_id = m.id "
+        "WHERE m.valid=1 AND json_extract(m.meta, '$.embed_pending') IS NOT NULL")
+    cleared = 0
+    for r in rows:
+        try:
+            meta = json.loads(r["meta"] or "{}")
+            if meta.pop("embed_pending", None) is None:
+                continue
+            db.execute("UPDATE memories SET meta=? WHERE id=?", (json.dumps(meta, ensure_ascii=False), r["id"]))
+            cleared += 1
+        except Exception:  # noqa: BLE001
+            continue
+    if cleared:
+        logger.info(f"memory: {cleared} stale embed_pending markers cleared (their vectors already exist)")
+    return cleared
+
+
 def repair_embeddings(limit: int | None = None) -> int:
     """Re-embebe píldoras válidas sin vector (o `meta.embed_pending`). Solo si la firma del backend activo casa
     con el índice (jamás repara metiendo vectores de otro espacio). Devuelve nº reparadas."""
@@ -230,6 +258,7 @@ def repair_embeddings(limit: int | None = None) -> int:
         return 0
     # BEFORE the SELECT, never after: a foreign vector is exactly what hides its own row from it (V2-482).
     _drop_foreign_vectors(db, limit)
+    _clear_stale_pending(db)
     from . import embeddings as _emb
     rows = db.query(
         "SELECT m.id, m.text, m.meta FROM memories m LEFT JOIN vec_memories v ON v.memory_id = m.id "
@@ -436,8 +465,6 @@ def _cos(a: list[float], b: list[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
 
-import re as _re
-
 _NUM_RE = _re.compile(r"\d+(?:[.,:]\d+)*")
 
 
@@ -481,11 +508,32 @@ def _grounded(insight: str, pills: list[str]) -> bool:
     return True
 
 
+def _sim_table(ids: list[int], vecs: dict[int, list[float]]):
+    """One similarity lookup for the O(n²) scan in `semantic_dedup`. With numpy (already in the venv — fastembed
+    rides on it) the whole table is a single float32 matmul that RELEASES the GIL; the old per-pair pure-Python
+    dot product held the GIL for the entire scan (measured 2026-09-05: ~24 µs/pair, so `cap` 1500 ≈ 1.1M pairs
+    ≈ 28 s of stutter inside the live process, not the "ms" the old comment claimed; the matmul builds the
+    whole table in ~70 ms). The pure-Python fallback keeps the
+    module working when numpy is absent; any shape surprise (mixed dimensions in the table) falls back too."""
+    try:
+        import numpy as np
+        m = np.array([vecs[i] for i in ids], dtype=np.float32)
+        s = m @ m.T
+        pos = {mid: k for k, mid in enumerate(ids)}
+        return lambda a, b: float(s[pos[a], pos[b]])
+    except Exception:  # noqa: BLE001
+        return lambda a, b: _cos(vecs[a], vecs[b])
+
+
 def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> int:
     """Fusiona durables casi-idénticos por SIGNIFICADO: los ecos de una misma tarea/hecho dichos de N formas
     ("Reserva la cita ITV…" × 8) colapsan en el de mayor peso; el resto queda `valid=0, superseded_by` (histórico
     intacto, el sueño ligero los podará de los índices). SOLO sin `slot` (los con slot ya supersedan exacto) y
-    nunca pinned-vs-pinned distintos ni kinds críticos. O(n²) acotado por `cap` (a nuestra escala, ms)."""
+    nunca pinned-vs-pinned distintos ni kinds críticos. Las filas `trust: untrusted` (material externo en
+    cuarentena — `remember_external`, mensajes de peers) NO entran, en ninguna dirección (2026-09-05): un eco no
+    confiable jamás invalida una píldora confiable, y su cáscara jamás hereda aristas de un linaje confiable —
+    el mismo filtro que `_concept_groups` ya aplica a la síntesis; entre ellas tampoco se fusionan (las gobierna
+    el decay). O(n²) acotado por `cap`; las similitudes salen de UNA matmul (`_sim_table`)."""
     db = _db.get_db()
     if not db.vec_available:
         return 0
@@ -493,12 +541,14 @@ def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> i
         "SELECT m.id, m.text, m.weight, m.access_count, m.pinned, m.kind, v.embedding FROM memories m "
         "JOIN vec_memories v ON v.memory_id = m.id "
         "WHERE m.valid=1 AND m.slot IS NULL AND m.level IN ('mid','long') "
-        "AND m.kind NOT IN ('conv','concept','insight') ORDER BY m.id DESC LIMIT ?",
+        "AND m.kind NOT IN ('conv','concept','insight') "
+        "AND (m.meta IS NULL OR m.meta NOT LIKE '%\"trust\": \"untrusted\"%') ORDER BY m.id DESC LIMIT ?",
         (cap,),
     )
     vecs = {r["id"]: _unpack(r["embedding"]) for r in rows}
     by_id = {r["id"]: r for r in rows}
     ids = sorted(vecs.keys())
+    sim = _sim_table(ids, vecs)
     merged = 0
     gone: set[int] = set()
     for i, a in enumerate(ids):
@@ -507,7 +557,7 @@ def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> i
         for b in ids[i + 1:]:
             if b in gone:
                 continue
-            if _cos(vecs[a], vecs[b]) < threshold:
+            if sim(a, b) < threshold:
                 continue
             ra, rb = by_id[a], by_id[b]
             if _conflicting_numbers(ra["text"], rb["text"]):
@@ -605,6 +655,8 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP, verify_fn=None) -> int
         return 0
     written = 0
     for it in results:
+        if not isinstance(it, dict):
+            continue    # a malformed item from an injected hook must not kill the whole phase
         concept = (it.get("concept") or "").strip().lower()
         insight = (it.get("insight") or "").strip() if it.get("insight") else ""
         if not concept or not insight or len(insight) < 12:
