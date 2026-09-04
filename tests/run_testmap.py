@@ -1173,6 +1173,14 @@ DOMAINS: list[dict] = [
         {"id": "3.14", "title": "«páralo» lleva objeto: no es un barge-in · y «párate» lo sigue siendo",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_paralo_lleva_objeto.py"]},
+        # 2026-09-04 — el bucle de voz ENTERO contra una Machine REAL de la nube (no localhost): arranca su propia
+        # sesión en `my.zaelar.com`, entra en su sala LiveKit como tester, oye el saludo, dice una frase y
+        # transcribe la respuesta. Existía desde INI-013 y NO estaba en el mapa, así que `tests run all` no lo
+        # nombraba nunca — el nodo 7.17 ya dejó escrito que un test fuera del mapa AFIRMA que corrió. LIVE y con
+        # coste: gasta Energy de una cuenta de verdad y provisiona sesión, así que se lanza a mano, jamás en CI.
+        {"id": "3.21", "title": "Nube: el bucle de voz completo contra una Machine real (my.zaelar.com)",
+            "ch": VOICE, "live": True,
+            "cmd": "./.venv/bin/python -m tests.voice.e2e.agent.cloud_smoke"},
         {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
             "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py",
                                     # V2-122 (2026-08-17): el pool de rellenos ya no es solo un literal hardcodeado
@@ -2346,6 +2354,36 @@ DOMAINS: list[dict] = [
         {"id": "7.36", "title": "Daemon local: arranca y para con el motor, en los DOS lanzadores",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/daemon/test_the_boot_knows_about_the_daemon.py"]},
+        # Los tres nodos de arriba sostienen cada uno MEDIA pieza: el circuito se llama en-proceso, los guardas
+        # HTTP corren contra un servidor construido dentro del test, y el arranque es una lectura de fuente.
+        # Los tres pueden estar verdes mientras lo que un usuario INSTALA no levanta — `python -m daemon`
+        # resuelve su directorio de estado, lee su config, bindea su puerto y sirve sus rutas, y ninguno de esos
+        # pasos lo ejerce llamar a una función. Este arranca el proceso de verdad, en un workspace de usar y
+        # tirar con su propio puerto (así no choca con el daemon del operador ni toca sus ficheros), y recorre
+        # TODO lo que sabe hacer hoy por la misma puerta que usará el motor. Incluye la mitad que se juzga de
+        # verdad a un circuito de permisos: REVOCAR — si «quitar carpeta» solo edita un fichero que el daemon
+        # vivo ya tiene cacheado, el botón del wizard miente.
+        {"id": "7.37", "title": "Daemon local: el proceso instalado hace su trabajo ENTERO (arranque · permisos "
+                                "· ficheros · revocación · auditoría · CLI)",
+            "ch": HTTP,
+            "paths": ["tests/infrastructure/e2e/daemon/test_the_installed_daemon_does_its_whole_job.py"]},
+        # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:
+        # `my.zaelar.com` es un BORDE de ruteo, y sin cookie de sesión cae a la «entrada inteligente» que manda al
+        # visitante al motor de su propio ordenador. Eso es lo que ve cualquiera que escriba la dirección, y falla
+        # de una forma que desde dentro no se nota: un cambio de ruteo lo convierte en un 404 o en algo que sirve
+        # contenido real a quien no tiene cuenta, y la suite del motor no tiene opinión porque no es el motor quien
+        # contesta. Fija además la trampa medida ese día: sin sesión, el borde devuelve ESA MISMA página para
+        # `/manifest.webmanifest` y `/sw.js`, así que desde un navegador sin cuenta la PWA no puede instalarse — es
+        # correcto, y es justo la forma que se lee como «el móvil está roto». LIVE (sale a internet de verdad) y
+        # SOLO LECTURA: ni una escritura, ni una cuenta, ni una sesión.
+        # NO es un nodo `live` a propósito, aunque salga a internet: un nodo live queda FUERA de la corrida
+        # determinista, que es la tercera forma de desaparecer del trinquete 7.17. El fichero se construye entero
+        # y SALTA solo (`ZAELAR_CLOUD_LIVE=1` lo enciende), igual que la ida y vuelta viva de conectores — saltado
+        # se ve en el informe, ausente no.
+        {"id": "7.38", "title": "Nube: el borde rutea a un visitante SIN cuenta (entrada inteligente · sin fugas)",
+            "ch": HTTP,
+            "paths": ["tests/infrastructure/e2e/cloud/"
+                      "test_the_cloud_entry_point_routes_a_visitor_without_an_account.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
