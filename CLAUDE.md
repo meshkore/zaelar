@@ -7881,6 +7881,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   via the V2-565 offer) is proposed in the initiative, unbuilt. Node 1.3, three disarms (1/2/4 red). ⚠️ Three
   `_mem_write` test doubles needed the new signature — and the first disarm round restored the UNCOMMITTED fix
   with `git checkout`, wiping it: re-apply the edit, never checkout (V2-531's lesson, paid again).
+- **The sleep circuit review — five silent integrity holes in the REM process (V2-578, 2026-09-05)**: full
+  review of deep sleep (`rem.py`), light sleep (`consolidator.py`) and their writer/api seams, measured
+  against a copy of the live DB first. The healthy half stated (daily cadence holding, 8 valid insights,
+  0% heuristic writes); the five holes, none of which failed loudly: (1) a stale `embed_pending` marker on a
+  row that already CARRIES a vector was unclearable by construction (repair only selects vector-less rows) —
+  `hygiene()` counted it forever; the repair entrance clears them now. (2) **«unforget = flip the flag, no
+  reindexing» stopped being true the day `prune_invalid` was built**: a shell pruned >2d ago lost FTS +
+  vector + paraphrases, so revival produced a row no search could surface, with `meta.pruned=1` lying —
+  unforget re-adds the FTS row itself (recall works at once through the keyword half), drops the stamp, and
+  marks `embed_pending` so the nightly repair restores the vector. Only rows the pruner touched: FTS5
+  external-content has no upsert, re-inserting a still-indexed row would duplicate its entries. (3) pinned
+  invalid shells were never de-indexed (`pinned=0` filter) — pinned protects from DELETION, not de-indexing;
+  measured live, a superseded pinned profile shell held its vector 4 days and counting. (4) **the trust
+  boundary did not reach any dedup door**: exact dedup (writer + consolidator) and semantic dedup (writer
+  neighbor + rem cosine merge) all matched across trust classes — an untrusted verbatim echo could reinforce
+  a trusted pill, and worse, a trusted write could fold INTO a quarantined row where synthesis never sees it
+  again. Trust class is part of a fact's identity in all four doors now; slots stay `remember_external`'s
+  job. (5) `semantic_dedup`'s pair scan was pure Python holding the GIL — measured 24 µs/pair, **~28 s at
+  cap 1500** against a comment claiming "ms"; one numpy float32 matmul now (~70 ms, releases the GIL), with a
+  tested pure-Python fallback. Six disarms, mutations asserted, backups BEFORE the first mutation — and one
+  came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
+  test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
+  the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
   in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
   refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design
