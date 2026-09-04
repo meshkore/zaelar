@@ -7904,6 +7904,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+- **A mesh agent can gate its skills behind a bearer of its own issue (V2-579, 2026-09-05)**: the mesh caller
+  (`nucleo/mesh_agents.py`) only ever spoke to FREE, anonymous agents — right for `roomrover`/`aerocast`, wrong
+  for the coming `zaelar-connectors` service agent, whose skills (Places/Yelp/Ticketmaster/eBay) are gated NOT
+  by licence but by COST CONTROL: those providers bill per call, so open-to-the-mesh is an open invoice, and
+  meshkore-master issues a per-zaelar-agent bearer it can revoke. `_bearer_for(agent, endpoint)` reads it from
+  the credential store under `MESH_BEARER_<AGENT_ID>` (id uppercased, non-alphanumerics collapsed to `_`), the
+  endpoint HOST as fallback key; `_post` grows an optional `bearer=` that sets the `Authorization` header only
+  when one exists. **The keyword is passed only when the store holds a token**, so every existing caller and
+  test double keeps its `(url, body)` shape unchanged — one test hands `ask()` a legacy `_post` with no `bearer`
+  parameter as the regression fence. No entry, no header, no behaviour change: a public free agent is called
+  exactly as before, and the token never appears in code, a prompt or a log. Node 2.6 (+4), disarm 2 red. This
+  is the motor half of INI-030's `zaelar-connectors` contract (the business/cloud half lives in the workspace
+  root's private repo); the agent and the provider keys are meshkore-master's to build and hold.
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
   in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
   refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design

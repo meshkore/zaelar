@@ -192,3 +192,99 @@ def test_an_unclassified_errand_never_teaches_a_route(monkeypatch):
     m.remember_route("general", FREE)
     assert store == {}
     assert m.route_for("general") is None
+
+
+# ── auth: a gated agent's bearer comes from the store, and only then ──────────────────────────────────────
+# Some mesh agents gate their skills behind a bearer of their own issue (e.g. to cap the provider bill their
+# calls run up). The credential lives in the credentials store under MESH_BEARER_<AGENT_ID>, endpoint host as
+# fallback key. No entry, no header — public agents keep being called exactly as before, which is why one of
+# these tests hands `ask()` a legacy `_post` double WITHOUT a `bearer` parameter and expects it to still work.
+
+GATED = {"agent_id": "zaelar-connectors", "endpoint": "https://zc.example.com", "online": True,
+         "status": "available", "pricing": {"amount": 0, "currency": "free"}}
+
+# Captured at import time, BEFORE the autouse fixture swaps `_post` for the network trap — the header test
+# below exercises the real assembly with urlopen faked, which is not "touching the network".
+_REAL_POST = m._post
+
+
+def test_a_gated_agent_gets_its_stored_bearer_attached(monkeypatch):
+    from config import credentials
+    seen = {}
+
+    def fake_post(url, body, timeout=None, bearer=None):
+        seen["bearer"] = bearer
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(m, "_post", fake_post)
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    monkeypatch.setattr(credentials, "get",
+                        lambda k: "tok-123" if k == "MESH_BEARER_ZAELAR_CONNECTORS" else "")
+    r = m.ask(GATED, "search plumbers in Soria")
+    assert r["ok"] is True
+    assert seen["bearer"] == "tok-123"
+
+
+def test_an_agent_without_a_stored_bearer_is_called_exactly_as_before(monkeypatch):
+    """The double deliberately has the LEGACY signature (no `bearer` kwarg): if `ask()` ever passes the
+    keyword unconditionally, every existing caller and test double breaks — this is the regression fence."""
+    from config import credentials
+
+    def legacy_post(url, body, timeout=None):
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(m, "_post", legacy_post)
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    monkeypatch.setattr(credentials, "get", lambda k: "")
+    r = m.ask(GATED, "search plumbers in Soria")
+    assert r["ok"] is True
+
+
+def test_the_bearer_key_falls_back_to_the_endpoint_host(monkeypatch):
+    from config import credentials
+    seen = {}
+
+    def fake_post(url, body, timeout=None, bearer=None):
+        seen["bearer"] = bearer
+        return 200, {"ok": True}
+
+    monkeypatch.setattr(m, "_post", fake_post)
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    monkeypatch.setattr(credentials, "get",
+                        lambda k: "tok-host" if k == "MESH_BEARER_ZC_EXAMPLE_COM" else "")
+    anon = dict(GATED)
+    anon.pop("agent_id")
+    r = m.ask(anon, "search plumbers in Soria")
+    assert r["ok"] is True
+    assert seen["bearer"] == "tok-host"
+
+
+def test_the_authorization_header_only_exists_when_a_bearer_does(monkeypatch):
+    """Exercises the real `_post` header assembly (urlopen faked): with a bearer the header is set, without
+    one the request carries no authorization at all — an empty `Bearer ` header is a different bug."""
+    import urllib.request as ur
+    captured = {}
+
+    class _Resp:
+        status = 200
+
+        def read(self):
+            return b"{}"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake_urlopen(req, timeout=None):
+        captured["headers"] = dict(req.headers)
+        return _Resp()
+
+    monkeypatch.setattr(ur, "urlopen", fake_urlopen)
+    status, _ = _REAL_POST("https://zc.example.com/v1/x", {}, bearer="tok-9")
+    assert status == 200
+    assert captured["headers"].get("Authorization") == "Bearer tok-9"
+    status, _ = _REAL_POST("https://zc.example.com/v1/x", {})
+    assert status == 200
+    assert not any(k.lower() == "authorization" for k in captured["headers"])

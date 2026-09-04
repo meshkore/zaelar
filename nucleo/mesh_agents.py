@@ -46,8 +46,10 @@ become a product decision, this is the single place that changes.
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from loguru import logger
@@ -61,11 +63,14 @@ _ROUTE_TTL_S = 7 * 24 * 3600   # a learned route is a shortcut, not a truth: it 
 _KV_ROUTES = "mesh:routes"
 
 
-def _post(url: str, body: dict, timeout: float = _TIMEOUT_S) -> tuple[int, dict | None]:
+def _post(url: str, body: dict, timeout: float = _TIMEOUT_S,
+          bearer: str | None = None) -> tuple[int, dict | None]:
     """POST JSON, return (status, parsed). Never raises: a mesh that is down must degrade to the browser."""
+    headers = {"content-type": "application/json", "user-agent": USER_AGENT}
+    if bearer:
+        headers["authorization"] = f"Bearer {bearer}"
     req = urllib.request.Request(
-        url, data=json.dumps(body).encode("utf-8"), method="POST",
-        headers={"content-type": "application/json", "user-agent": USER_AGENT})
+        url, data=json.dumps(body).encode("utf-8"), method="POST", headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, json.loads(r.read().decode("utf-8") or "null")
@@ -121,6 +126,29 @@ def _endpoint_of(agent: dict) -> str:
     """The Oracle puts `endpoint` top-level for some agents and under the card for others — check both."""
     card = agent.get("agent_card") or {}
     return str(agent.get("endpoint") or (card.get("contact") or {}).get("http") or card.get("endpoint") or "")
+
+
+def _bearer_for(agent: dict, endpoint: str) -> str | None:
+    """A mesh agent may gate its skills behind a bearer of its own issue (e.g. to cap the provider bill its
+    calls run up). The credential, when this deployment holds one, lives in the credentials store under
+    `MESH_BEARER_<AGENT_ID>` — agent id uppercased, runs of non-alphanumerics collapsed to `_` — with the
+    endpoint HOST tried under the same scheme as fallback. No entry, no header: agents that never asked for
+    auth keep being called exactly as before, and the token itself never appears in code, prompts or logs."""
+    try:
+        from config import credentials
+    except Exception:                                        # noqa: BLE001 — no store, no bearer
+        return None
+    for raw in (agent.get("agent_id"), urllib.parse.urlparse(endpoint).hostname):
+        if not raw:
+            continue
+        key = "MESH_BEARER_" + re.sub(r"[^A-Za-z0-9]+", "_", str(raw)).strip("_").upper()
+        try:
+            val = credentials.get(key)
+        except Exception:                                    # noqa: BLE001
+            val = ""
+        if val:
+            return val
+    return None
 
 
 # ── discovery ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -233,7 +261,10 @@ def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
     # hotels without `prompt` returns `parse_failed` with it included. "Explicit data wins over free text" was
     # my assumption about the agent's precedence, and it was false; this is what was measured.
     body = {str(k): v for k, v in (fields or {}).items()} or {"prompt": prompt, "query": prompt}
-    status, data = _post(url, body)
+    # Bearer only when the store holds one for THIS agent — passed as keyword and only then, so callers (and
+    # test doubles) that know nothing about auth keep their `(url, body)` shape working unchanged.
+    bearer = _bearer_for(agent, endpoint)
+    status, data = _post(url, body, bearer=bearer) if bearer else _post(url, body)
     if status == 402:
         # A charge is a decision for the operator, and this build only uses free agents anyway. Reported as a
         # fact so the caller can say so, never held and never paid.
