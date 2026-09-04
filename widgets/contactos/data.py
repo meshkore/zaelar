@@ -177,6 +177,49 @@ def view_data(q: str = "") -> dict:
     }
 
 
+def prompt_digest() -> str:
+    """What the directory ACTUALLY holds, compact enough to ride every turn prompt while the card is open
+    (`refs.prompt_digest` contract; capped there, so this stays bounded on its own too).
+
+    Why (V2-576, session 0a93de06 of 2026-09-04): asked «¿cuántos restaurantes favoritos tenemos?», the
+    brain answered from stale memory pills («one») while the open card showed four — and when the operator
+    pointed at the screen, it CONFABULATED a view explanation («la vista actual no lo muestra») for a
+    mismatch it could not check. `ref_index` publishes labels without meaning: nothing said «these ARE all
+    the favourites, four in total». The digest states the authoritative counts and rows, and says out loud
+    that it outranks memory, so speech about this card starts from what the operator is looking at."""
+    db = load_db()
+    contacts = db.get("contacts", [])
+    favs = sum(1 for c in contacts if c.get("favorite"))
+    if not contacts:
+        return ("Directorio VACÍO: 0 contactos, 0 favoritos. Si tu memoria dice otra cosa, MANDA este "
+                "bloque: no afirmes que hay entradas guardadas.")
+    lines = [f"Directorio COMPLETO y real: {len(contacts)} entradas, {favs} favoritas (⭐). Para contar o "
+             "listar lo guardado, MANDA este bloque sobre tu memoria y sobre la conversación: lo que no "
+             "esté aquí NO está guardado."]
+    sel = ((_fresh_view(db) or {}).get("sel")) or {}
+    if sel:
+        bits = []
+        if "favorites" in sel:
+            bits.append("solo favoritos" if sel["favorites"] else "solo no-favoritos")
+        bits += [f"{k}: {sel[k]}" for k in ("group", "city", "query") if sel.get(k)]
+        if bits:
+            lines.append("Vista filtrada en pantalla ahora: " + " · ".join(bits) + ".")
+    for c in contacts[:15]:
+        row = ("⭐ " if c.get("favorite") else "· ") + str(c.get("name") or c.get("id"))
+        extra = [str(c.get("kind") or "")] if c.get("kind") not in (None, "", "person") else []
+        extra += [str(c.get("city") or "")] if c.get("city") else []
+        extra += [", ".join(c.get("groups") or [])] if c.get("groups") else []
+        extra += [f"tel {c['phone']}"] if c.get("phone") else []
+        if c.get("notes"):
+            extra.append(str(c["notes"])[:80])
+        if extra:
+            row += " (" + "; ".join(x for x in extra if x) + ")"
+        lines.append(row)
+    if len(contacts) > 15:
+        lines.append(f"… y {len(contacts) - 15} entradas más (la tarjeta las enseña todas).")
+    return "\n".join(lines)
+
+
 def ref_index() -> list[dict]:
     """Items the brain can reference by voice (V2-026): every contact, by name (+city to disambiguate two
     «Juan»s). `field` is the payload key every action uses, so refs resolve without the model guessing ids."""

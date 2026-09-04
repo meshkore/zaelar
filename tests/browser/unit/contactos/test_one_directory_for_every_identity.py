@@ -205,3 +205,51 @@ def test_ref_index_exposes_every_contact_by_name_with_the_action_field(ct):
     assert all(r["field"] == "contactId" for r in idx)
     labels = {r["id"]: r["label"] for r in idx}
     assert labels[ids["Elfo On"]] == "Elfo On (Soria)", "the city disambiguates two same-named entries"
+
+
+# ── The brain can SEE the directory, not just point at it (V2-576) ───────────────────────────────────────────
+#
+# Session 0a93de06 (2026-09-04): asked «¿cuántos restaurantes favoritos tenemos?», the brain answered from
+# stale memory pills («one») while the open card showed four — then, confronted with the mismatch, invented
+# «la vista actual no lo muestra». `ref_index` gives labels without meaning: nothing in the prompt said
+# «these ARE all the favourites, four in total». The digest is the widget stating its own truth.
+
+def test_prompt_digest_states_the_authoritative_counts_and_every_row(ct):
+    _seed_three(ct)
+    d = ct.prompt_digest()
+    assert "3 entradas" in d and "2 favoritas" in d
+    for name in ("Elfo On", "Bar Sol", "Juan"):
+        assert name in d
+    # The claim that beats the stale pill: the block declares itself the source of truth.
+    assert "MANDA" in d and "memoria" in d
+
+
+def test_prompt_digest_of_an_empty_directory_says_empty_not_nothing(ct):
+    d = ct.prompt_digest()
+    assert "VACÍO" in d and "0 contactos" in d
+
+
+def test_prompt_digest_names_the_filter_the_operator_is_looking_through(ct):
+    _seed_three(ct)
+    ct.apply_action("show_view", {"favorites": True, "city": "Soria"})
+    d = ct.prompt_digest()
+    assert "solo favoritos" in d and "city: Soria" in d
+
+
+def test_prompt_digest_caps_rows_but_never_lies_about_the_total(ct):
+    for i in range(18):
+        ct.apply_action("add_contact", {"name": f"Persona {i:02d}", "kind": "person"})
+    d = ct.prompt_digest()
+    assert "18 entradas" in d
+    assert "y 3 entradas más" in d
+
+
+def test_the_open_card_digest_reaches_the_flash_prompt(ct):
+    """End to end through `brief.for_prompt`: with the card OPEN the digest travels (labelled as on-screen
+    content and taking precedence over the bare items line); with it CLOSED the prompt pays nothing."""
+    _seed_three(ct)
+    from widgets import brief
+    abierto = brief.for_prompt(open_ids={"contactos"}, query="mis restaurantes favoritos")
+    assert "contenido en pantalla" in abierto and "3 entradas" in abierto and "2 favoritas" in abierto
+    cerrado = brief.for_prompt(open_ids=set(), query="mis restaurantes favoritos")
+    assert "2 favoritas" not in cerrado
