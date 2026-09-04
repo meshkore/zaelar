@@ -7904,6 +7904,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+- **The answer says what the agent claims to be (V2-580, 2026-09-05)**: sweeping the 16 verticals of the
+  action-connector backlog against the Oracle, the mesh serves 3 (events, hotels, flights) — but five of the
+  gaps do not come back empty, they come back **wrong and confident**. Measured: asked for a TRAIN
+  Madrid→Barcelona the Oracle ranked `aerocast` (FLIGHTS) first, and `aerocast` answered `ok: true` with ten
+  flight offers (`IB3179`, an aviasales link). Also `rent a car` → `roomrover` (hotels), `parcel shipping` →
+  `foodlens` (food *vision*). **The failure arrives GREEN** — not a 404, not an empty list, a 200 with ten
+  plausible, well-formed, wrong results — and it does not fail once: `compute` is not in `_UNCACHEABLE`, so
+  that single probe LEARNED `compute → aerocast` into the real route store, where it would skip discovery for
+  seven days (found because a unit test read the live store and got answered by the real route instead of its
+  fixture; the entry was cleaned by hand). The module docstring and the worker's PASO 0 both order the caller
+  to check the domain of what came back — but `serve` returned an opaque `agent` id and the payload, and **a
+  wrong-domain payload looks exactly like a right one**, so the check was ordered against nothing. `serve` now
+  returns `serves` (the agent's declared capabilities) and `describes_itself_as` beside the data: no taxonomy,
+  no domain table, no verb list — it just stops discarding a claim the agent already publishes, and judging
+  stays the caller's job. Trimmed (12 caps / 240 chars) so a chatty card cannot eat a worker's context;
+  absence stays absent (an agent that declares nothing adds no keys — `serves: []` would assert something
+  false); and it **never buys a network round-trip**, using the card only when already memoised. The first
+  version fetched unconditionally and the autouse network trap reddened two unrelated tests, which is what
+  caught it. Node 2.5 (+4, 23 green). The other half is not ours: the Oracle must carry the agent's domain or
+  stop ranking a category-mismatched agent first — **zero agents is better than a wrong one**, because zero
+  falls back to the browser and a false positive hands the user a lie. Requested from meshkore-master, with
+  the two Oracle gaps now 17 days open (no `pricing` in the row; `general` for events/shopping/wellness).
 - **A mesh agent can gate its skills behind a bearer of its own issue (V2-579, 2026-09-05)**: the mesh caller
   (`nucleo/mesh_agents.py`) only ever spoke to FREE, anonymous agents — right for `roomrover`/`aerocast`, wrong
   for the coming `zaelar-connectors` service agent, whose skills (Places/Yelp/Ticketmaster/eBay) are gated NOT
@@ -7914,7 +7936,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   when one exists. **The keyword is passed only when the store holds a token**, so every existing caller and
   test double keeps its `(url, body)` shape unchanged — one test hands `ask()` a legacy `_post` with no `bearer`
   parameter as the regression fence. No entry, no header, no behaviour change: a public free agent is called
-  exactly as before, and the token never appears in code, a prompt or a log. Node 2.6 (+4), disarm 2 red. This
+  exactly as before, and the token never appears in code, a prompt or a log. Node 2.5 (+4), disarm 2 red. This
   is the motor half of INI-030's `zaelar-connectors` contract (the business/cloud half lives in the workspace
   root's private repo); the agent and the provider keys are meshkore-master's to build and hold.
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice

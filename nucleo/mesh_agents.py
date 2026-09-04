@@ -331,6 +331,39 @@ def remember_route(intent: str, agent: dict) -> None:
         logger.debug(f"mesh: no pude recordar la ruta de {intent}: {e}")
 
 
+# V2-580 · The Oracle ranks a category-mismatched agent first and the agent answers it CONFIDENTLY. Measured
+# 2026-09-05: asked for a TRAIN Madrid→Barcelona, the Oracle offered `aerocast` (flights) and `aerocast`
+# returned `ok: true` with ten FLIGHT offers. The failure arrives green — not a 404, not an empty list, a 200
+# with ten plausible, well-formed, wrong results.
+#
+# The module docstring already says checking the domain of what comes back is part of the contract, and the
+# worker prompt says it too. But `serve` handed the caller an opaque `agent` id and the payload, so the check
+# it was being ordered to perform had NOTHING to perform it against: the payload of a wrong-domain answer
+# looks exactly like the payload of a right one.
+#
+# So this does not add a taxonomy, a domain table, or a verb list — the house rule is to teach the caller, not
+# to hardcode. It just stops throwing away what the agent ALREADY declares about itself, and hands it over
+# next to the data. Deciding is still the caller's job; now it has the two facts it needs to decide.
+_MAX_CAPS = 12
+_MAX_DESC = 240
+
+
+def _declares(agent: dict, card: dict | None = None) -> dict:
+    """What the agent SAYS it does, trimmed for a worker's context. Never a judgement, only the claim."""
+    src = agent or {}
+    caps = src.get("capabilities") or (card or {}).get("capabilities") or []
+    caps = [str(c) for c in caps if isinstance(c, (str, int))][:_MAX_CAPS] if isinstance(caps, list) else []
+    desc = str(src.get("description") or (card or {}).get("description") or "").strip()
+    if len(desc) > _MAX_DESC:
+        desc = desc[:_MAX_DESC].rstrip() + "…"
+    out = {}
+    if caps:
+        out["serves"] = caps
+    if desc:
+        out["describes_itself_as"] = desc
+    return out
+
+
 def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     """Discovery + contact in one call, using the learned route first. The whole module in one verb.
 
@@ -355,7 +388,17 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         res = ask(agent, prompt, fields)
         if res.get("ok"):
             remember_route(intent, agent)                    # a no-op for an intent that cannot key a route
-            return {"ok": True, "intent": intent, "agent": agent.get("agent_id"), "data": res.get("data")}
+            # What the agent declares travels WITH the answer: the caller is told to check the domain of what
+            # came back, and this is what it checks against (see the note above `_declares`).
+            # The card is used only if it is ALREADY memoised — never fetched for this. The declaration is a
+            # nice-to-have on the success path and must not buy itself a network round-trip with a 5 s
+            # timeout, per the rule this module already states about the card: an optimisation must never
+            # dominate the budget of what it optimises. (The autouse network trap caught exactly this: an
+            # unconditional fetch here reddened two unrelated tests, and a learned route stored before
+            # capabilities were kept would have paid it on every single cached hit.)
+            declared = _declares(agent) or _declares(agent, _cards.get(_endpoint_of(agent)))
+            return {"ok": True, "intent": intent, "agent": agent.get("agent_id"),
+                    **declared, "data": res.get("data")}
         if res.get("payment_required"):
             return {"ok": False, "reason": f"«{agent.get('agent_id')}» cobra por esto", "intent": intent}
         if not dijo and res.get("asks"):

@@ -288,3 +288,64 @@ def test_the_authorization_header_only_exists_when_a_bearer_does(monkeypatch):
     status, _ = _REAL_POST("https://zc.example.com/v1/x", {})
     assert status == 200
     assert not any(k.lower() == "authorization" for k in captured["headers"])
+
+
+# ── V2-580 · the answer carries what the agent claims to be ───────────────────────────────────────────────
+def test_a_successful_answer_says_what_the_agent_claims_to_serve(monkeypatch):
+    """Measured 2026-09-05: asked for a TRAIN, the Oracle ranked `aerocast` (flights) first and it answered
+    `ok: true` with ten FLIGHT offers. The caller is under orders to check the domain of what came back, and
+    a wrong-domain payload looks exactly like a right one — so the claim has to travel with the data."""
+    flights = {"agent_id": "aerocast", "endpoint": "https://aerocast.example", "online": True,
+               "capabilities": ["flights", "airfare"], "description": "Flight search across 300+ airlines.",
+               "pricing": {"amount": 0, "currency": "free"}}
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "compute", "agents": [flights]})
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {"count": 10}})
+    # `_routes` reads the REAL learned-route store: without this the live route this bug already taught the
+    # operator's engine («compute» → aerocast) walks in and answers the test instead of the fixture.
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    monkeypatch.setattr(m, "remember_route", lambda *a: None)
+    res = m.serve("train ticket from Madrid to Barcelona on 2026-10-20")
+    assert res["ok"] is True
+    assert res["serves"] == ["flights", "airfare"]
+    assert res["describes_itself_as"] == "Flight search across 300+ airlines."
+
+
+def test_the_claim_is_trimmed_so_it_cannot_eat_the_context(monkeypatch):
+    fat = {"agent_id": "chatty", "endpoint": "https://chatty.example", "online": True,
+           "capabilities": [f"cap{i}" for i in range(40)], "description": "x" * 900,
+           "pricing": {"amount": 0, "currency": "free"}}
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [fat]})
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {}})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    res = m.serve("anything")
+    assert len(res["serves"]) == m._MAX_CAPS
+    assert len(res["describes_itself_as"]) == m._MAX_DESC + 1        # the ellipsis says it was cut
+
+
+def test_an_agent_that_declares_nothing_adds_no_empty_keys(monkeypatch):
+    """Absence must stay absent: an empty `serves: []` would read as «it claims to serve nothing», which is a
+    different statement from «it did not say»."""
+    mute = {"agent_id": "mute", "endpoint": "https://mute.example", "online": True,
+            "pricing": {"amount": 0, "currency": "free"}}
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [mute]})
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {}})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    res = m.serve("anything")
+    assert "serves" not in res and "describes_itself_as" not in res
+    # Both halves, or this passes trivially the day the mechanism is removed: a silent agent adds no keys
+    # ONLY because a speaking one adds them.
+    loud = {**mute, "capabilities": ["hotels"]}
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [loud]})
+    assert m.serve("anything")["serves"] == ["hotels"]
+
+
+def test_the_claim_falls_back_to_the_card_when_the_oracle_row_is_bare(monkeypatch):
+    """The Oracle row is often thin — the same reason `_is_free` has to read the card at all."""
+    bare = {"agent_id": "ticketlumen", "endpoint": "https://tl.example", "online": True,
+            "pricing": {"amount": 0, "currency": "free"}}
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "general", "agents": [bare]})
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {}})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    m._cards["https://tl.example"] = {"capabilities": ["events"], "description": "Events."}
+    res = m.serve("tickets")
+    assert res["serves"] == ["events"] and res["describes_itself_as"] == "Events."
