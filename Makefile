@@ -1,7 +1,7 @@
 # zaelar — personal voice assistant, cerebro propio «Colmena» (nucleo/). Docs: README.md (install) + .meshkore/docs/.
 PY=./.venv/bin/python
 
-.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
+.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker daemon stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
 
 help:
 	@echo "zaelar — run it locally:"
@@ -136,6 +136,12 @@ install-livekit:
 # Solo el agent worker (asume un servidor LiveKit ya arriba en ws://127.0.0.1:7880).
 agent-worker:
 	$(PY) -m voice.engine.pipeline.agent dev
+
+# Solo el DAEMON LOCAL (V2-575) en primer plano, para depurarlo. `make run`/`make start` ya lo levantan.
+# Es stdlib pura: corre con CUALQUIER python 3.11+, no necesita el venv — `python3 -m daemon` vale igual.
+# Verbos sueltos:  python -m daemon status | token | allow <carpeta> | deny <carpeta>
+daemon:
+	$(PY) -m daemon
 
 sim:
 	$(PY) -m tests.agent_headless.harness.run

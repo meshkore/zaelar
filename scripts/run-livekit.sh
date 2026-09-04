@@ -13,11 +13,12 @@ LK_CONTAINER="zaelar-livekit"
 : "${BRAIN:=nucleo}"
 export BRAIN
 
-AGENT_PID=""; WEB_PID=""; LK_PID=""; LK_MODE=""
+AGENT_PID=""; WEB_PID=""; LK_PID=""; LK_MODE=""; DAEMON_PID=""
 cleanup() {
   echo; echo "shutting down…"
   [[ -n "$AGENT_PID" ]] && kill "$AGENT_PID" 2>/dev/null || true
   [[ -n "$WEB_PID" ]] && kill "$WEB_PID" 2>/dev/null || true
+  [[ -n "$DAEMON_PID" ]] && kill "$DAEMON_PID" 2>/dev/null || true
   [[ -n "$LK_PID" ]] && kill "$LK_PID" 2>/dev/null || true
   [[ "$LK_MODE" == "docker" ]] && docker rm -f "$LK_CONTAINER" >/dev/null 2>&1 || true
   true
@@ -59,6 +60,10 @@ _web_pids="$(lsof -ti tcp:43917 -sTCP:LISTEN 2>/dev/null || true)"      # previo
 for pid in $(pgrep -f "[Pp]ython -m server" 2>/dev/null || true); do kill "$pid" 2>/dev/null || true; done
 sleep 0.5
 for pid in $(pgrep -f "[Pp]ython -m server" 2>/dev/null || true); do kill -9 "$pid" 2>/dev/null || true; done
+# Same sweep for the LOCAL DAEMON (V2-575). It holds the user's folder allowlist and a persistent browser profile,
+# so an orphan from a previous launch keeps 45817 and the new one dies on a silent EADDRINUSE — the exact failure
+# mode this whole reaping section exists for, one process further along.
+for pid in $(pgrep -f "[Pp]ython -m daemon" 2>/dev/null || true); do kill "$pid" 2>/dev/null || true; done
 # wait for 7880 to become FREE (up to ~6s) — otherwise the probe below re-detects the zombie and we return to the bug
 for _ in $(seq 1 12); do nc -z 127.0.0.1 7880 2>/dev/null || break; sleep 0.5; done
 
@@ -116,6 +121,12 @@ fi
 for _ in $(seq 1 60); do curl -sf -m1 -o /dev/null "http://127.0.0.1:7880/" 2>/dev/null && break; nc -z 127.0.0.1 7880 2>/dev/null && break; sleep 0.5; done
 sleep 2   # settle: let the agent service finish coming up so worker registration lands (avoids the startup race)
 echo "  ws://127.0.0.1:7880 (devkey/secret)"
+
+# LOCAL DAEMON (V2-575): the user's files and the real browser that passes CAPTCHAs. Standard library only, so it
+# runs on the venv without installing anything. ADDITIVE — the engine keeps its own in-process browser, so if this
+# never comes up the product is exactly what it is today; that is why nothing below waits on it or checks it.
+echo "▶ zaelar-daemon (ficheros + navegador local)…"
+( cd "$HERE" && exec "$PY" -m daemon ) >"$HERE/.meshkore/logs/daemon.log" 2>&1 & DAEMON_PID=$!
 
 echo "▶ servidor web zaelar (worker LiveKit EMBEBIDO, BRAIN=$BRAIN)…"
 # The worker runs inside this process (ZAELAR_ENGINE=livekit → server lifespan mounts the AgentServer THREAD).

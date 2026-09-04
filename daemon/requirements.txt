@@ -1,0 +1,14 @@
+# zaelar-daemon — its OWN dependency set, deliberately separate from the engine's requirements.txt.
+#
+# The engine's venv is ~1.7 GB across ~394 packages (torch ~490 MB, mlx ~182 MB). A single-file installer built
+# from that does not exist, so the daemon never imports the engine and never shares its environment. Everything
+# added below is weight in the macOS and Windows installers (P4) and one more import that can fail on somebody
+# else's machine, so the bar for adding a line here is high.
+#
+# P0: EMPTY. The permission circuit, the file operations and the HTTP surface are standard library only
+# (`http.server`, `pathlib`, `os`, `json`, `secrets`, `hmac`). `python -m daemon` runs on a bare Python 3.11+
+# with nothing installed at all.
+#
+# P2 will add exactly one: `playwright`, for the real browser that passes CAPTCHAs. Its Chromium (~1.6 GB) is
+# NOT bundled — it is downloaded on first run, which is a step in the install wizard.
+# P3 will add a WebSocket client for the relay, unless it can be written against the standard library instead.

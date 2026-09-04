@@ -15,6 +15,10 @@ config/v2.json
 # Identidad de ESTA instalación (UUID4 aleatorio + fecha). Runtime por-instalación, jamás al repo:
 # commitearlo haría que todo el que clone comparta user_id y la observabilidad mezclaría instalaciones.
 config/identity.json
+# Estado del DAEMON LOCAL (V2-575). `daemon.json` es un fichero de CREDENCIALES aunque no viva en credentials/:
+# lleva el token de la API, y quien pueda leerlo puede leer todas las carpetas que el operador haya permitido.
+# `audit.jsonl` es el registro de qué ficheros SUYOS se han abierto. Ninguno de los dos sale de su máquina.
+config/daemon/
 # `engine/.meshkore/` es una CARPETA REAL (2026-07-28, revierte la decisión 2026-07-24 de excluirla entera).
 # engine es el repo PÚBLICO OSS y DEBE llevar su contexto MeshKore Standard — arquitectura, convenciones,
 # módulos, seguridad, roadmap del MOTOR, roles de agente (team/), public/cluster.yaml y STANDARD_VERSION —

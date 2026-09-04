@@ -55,9 +55,14 @@ PORTS = [
     (43917, "app (HTTP — internal bridges talk to this one)"),
     (44317, "app (HTTPS — https://local.zaelar.com:44317)"),
     (7880, "livekit-server (voice signalling)"),
+    (45817, "zaelar-daemon (files + the browser that passes CAPTCHAs)"),
 ]
 APP_PORT = 43917
 HTTPS_PORT = 44317
+# Kept a literal on purpose: this file is standard-library-only and imports nothing from the engine, which is what
+# lets a Windows user with no venv still start and stop their instance. `daemon/__init__.py` owns the number;
+# `tests/infrastructure/unit/daemon/test_the_boot_knows_about_the_daemon.py` fails if the two ever disagree.
+DAEMON_PORT = 45817
 
 
 # ── tiny helpers ──────────────────────────────────────────────────────────────────────────────────────────────────
@@ -348,6 +353,17 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
             return 1
     else:
         _say("livekit-server already up, reusing it.")
+
+    # The local daemon (V2-575): the user's files and the real browser that passes CAPTCHAs. ADDITIVE — the engine
+    # keeps its own in-process browser, so a daemon that fails to start costs today's product exactly nothing, and
+    # that is why this never returns non-zero.
+    if not port_busy(DAEMON_PORT):
+        _say("starting zaelar-daemon…")
+        pid = _spawn([py, "-m", "daemon"], "daemon.log", env)
+        if pid:
+            rec["daemon"] = pid
+    else:
+        _say("zaelar-daemon already up, reusing it.")
 
     _say("starting zaelar…")
     pid = _spawn([py, "-m", "server"], "server.log", env)

@@ -2327,6 +2327,25 @@ DOMAINS: list[dict] = [
         {"id": "7.30", "title": "Ningún módulo usa un nombre que no tiene al importarse (NameError al import)",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_a_module_cannot_use_a_name_it_never_imported.py"]},
+        # V2-575 P0 — EL DAEMON LOCAL. Su circuito de permisos es lo que más preocupa al operador, y se prueba en
+        # las DOS direcciones a propósito: un daemon que lo niega todo pasa cualquier batería de fugas y, para el
+        # usuario, es un producto roto con una buena excusa. El caso que lo demuestra es el de macOS: `~/Documents`
+        # suele ser un symlink a iCloud, así que un circuito que resuelve la petición y NO la raíz le niega al
+        # operador sus propios documentos mientras todas las pruebas de escape siguen en verde.
+        {"id": "7.34", "title": "Daemon local: el circuito de permisos aguanta en las DOS direcciones",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/test_the_permission_circuit_holds_in_both_directions.py"]},
+        # Loopback NO es una frontera: 127.0.0.1 lo alcanza cualquier proceso de la máquina Y cualquier página web
+        # que el operador tenga abierta (`fetch` desde cualquier sitio del mundo). Un daemon que sirve los
+        # documentos del usuario a quien pregunte primero sería un agujero mayor que el que vino a cerrar.
+        {"id": "7.35", "title": "Daemon local: no se le puede hablar desde un navegador (token · Origin · sin CORS)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_is_not_reachable_from_a_browser.py"]},
+        # Hay DOS gestores de procesos con teardown distinto, y cablear solo uno no falla con ruido: deja un
+        # huérfano con el puerto cogido y el arranque siguiente muere con un EADDRINUSE silencioso.
+        {"id": "7.36", "title": "Daemon local: arranca y para con el motor, en los DOS lanzadores",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/test_the_boot_knows_about_the_daemon.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [

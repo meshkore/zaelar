@@ -26,6 +26,12 @@ _FUERA_DE_LA_IMAGEN: dict[str, str] = {
         "código muerto a producción.",
     "tests":
         "el arnés de pruebas no viaja en la imagen de producción.",
+    "daemon":
+        "V2-575 — el DAEMON LOCAL corre en el ORDENADOR DEL USUARIO, nunca dentro de la Machine. Existe "
+        "justamente porque un contenedor no tiene ventana que abrir ni ficheros del usuario que leer, así que "
+        "embarcarlo sería enviar a producción la pieza que existe porque allí no sirve. El motor de nube le "
+        "habla por el relay hacia FUERA (el daemon abre la conexión; un contenedor jamás alcanza el 127.0.0.1 "
+        "del usuario), y nada de `server/` lo importa — se comprueba en el nodo 7.36.",
 }
 
 
