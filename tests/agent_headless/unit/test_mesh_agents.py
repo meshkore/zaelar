@@ -349,3 +349,42 @@ def test_the_claim_falls_back_to_the_card_when_the_oracle_row_is_bare(monkeypatc
     m._cards["https://tl.example"] = {"capabilities": ["events"], "description": "Events."}
     res = m.serve("tickets")
     assert res["serves"] == ["events"] and res["describes_itself_as"] == "Events."
+
+
+# ── V2-581 · the Oracle can refuse a wrong-domain agent, and is asked to ───────────────────────────────────
+def test_the_oracle_is_asked_to_refuse_a_wrong_domain_agent(monkeypatch):
+    """`strict` is the request this module made after a TRAIN errand came back with ten FLIGHT offers. Zero
+    is better than wrong: zero falls back to the browser, a false positive hands the user a lie."""
+    seen: dict = {}
+    def _spy(url, body, timeout=None):
+        seen.update(body)
+        return 200, {"intent": "transport.train", "coverage": "none", "agents": []}
+    monkeypatch.setattr(m, "_post", _spy)
+    m.find("train ticket from Madrid to Barcelona on 2026-10-20")
+    assert seen["strict"] is True
+
+
+def test_an_agent_the_oracle_marks_as_the_wrong_domain_is_dropped(monkeypatch):
+    right = {**FREE, "domain_match": True}
+    wrong = {"agent_id": "aerocast", "endpoint": "https://aerocast.example", "online": True,
+             "status": "available", "domain_match": False, "pricing": {"amount": 0, "currency": "free"}}
+    monkeypatch.setattr(m, "_post", _oracle([wrong, right]))
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    assert [a["agent_id"] for a in m.find("hotel in Madrid")["agents"]] == ["roomrover"]
+
+
+def test_silence_about_the_domain_is_not_a_mismatch(monkeypatch):
+    """An older Oracle sends no `domain_match` at all. Treating the missing key as `false` would empty the
+    mesh the day the field is rolled back — only an explicit `false` is a statement."""
+    monkeypatch.setattr(m, "_post", _oracle([FREE]))
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    assert [a["agent_id"] for a in m.find("hotel in Madrid")["agents"]] == ["roomrover"]
+
+
+def test_nobody_covers_this_yet_is_said_differently_from_nobody_answered(monkeypatch):
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none", "agents": []})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    assert "todavía no hay" in m.serve("un masaje en Madrid")["reason"]
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "coverage": "full",
+                                                  "agents": []})
+    assert "todavía no hay" not in m.serve("hotel in Madrid")["reason"]

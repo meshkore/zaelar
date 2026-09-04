@@ -7904,6 +7904,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+- **Zero agents beats a wrong one (V2-581, 2026-09-05)**: V2-580's measurements were sent to the mesh side,
+  who deployed — and the fixes were **re-measured with the original queries instead of taken on trust**. The
+  Oracle now puts `category`/`pricing`/`free`/`domain_match` in each row and `coverage` (`full|partial|none`)
+  on the envelope, honours **`strict: true`** server-side, and returns real intents (`transport.train`,
+  `events`, `wellness`, `health`…). The killer case is dead: the train errand returns `count: 0`,
+  `coverage: none`, and **`aerocast` no longer appears**; `ebay-finder` is discoverable with the query that
+  found nothing before; `events` is finally cacheable. Across the 16 verticals, wrong-domain matches went
+  **from 5 to 1**. Here: `find` sends `strict: true`, drops a row whose `domain_match` is explicitly `false`
+  — belt and braces, and **a MISSING key is not a mismatch**, since reading silence as `false` would empty
+  the mesh the day the field is rolled back (there is a fence test for that) — and returns `coverage`, so
+  `serve` can say the two emptinesses differently: «todavía no hay ningún agente en la red para esto»
+  (genuinely uncovered vertical) versus «no hay ningún agente libre». **The survivor proves the caller's own
+  check stays mandatory**: with strict ON, «find a flat to rent in Madrid under 1200 EUR» comes back
+  `coverage: full`, `domain_match: true`, agent `ebay-finder` — which answers `ok: true` with nine listings
+  topped by a ***«PISO EN ALQUILER» banner sign* for €81**. Ask for a flat, get a for-rent SIGN, and this
+  time the row asserts the match, which makes the lie more credible. That is what V2-580's `serves` is for.
+  Two other loose matches (`dinner delivery`, `track a parcel` → `ebay-finder`) were left alone on purpose:
+  they answer `count: 0` with an honest hint, and a failure that is visible is not worth spending on. Node
+  2.5 (+4, 27 green; agent-headless 2645). Also measured and smaller than feared: Spanish errands are not
+  systematically classified worse — of six ES/EN pairs only the events one differs.
 - **The answer says what the agent claims to be (V2-580, 2026-09-05)**: sweeping the 16 verticals of the
   action-connector backlog against the Oracle, the mesh serves 3 (events, hotels, flights) — but five of the
   gaps do not come back empty, they come back **wrong and confident**. Measured: asked for a TRAIN

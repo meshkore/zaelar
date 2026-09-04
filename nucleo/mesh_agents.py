@@ -174,19 +174,41 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     And check what comes back: the mapping is loose at the edges (an English restaurant query returns
     `roomrover`, a hotel agent). An agent that answers the wrong domain is a fallback to the browser, not a
     result.
+
+    V2-581 · Since 2026-09-05 the Oracle can do that check on its side, and is asked to:
+
+    - **`strict: true`** makes it return NOTHING rather than a category-mismatched agent. This is the
+      request this module made after measuring a TRAIN errand answered with ten FLIGHT offers: zero is
+      better than wrong, because zero falls back to the browser and a false positive hands the user a lie.
+    - **`domain_match`** on each row and **`coverage`** on the envelope. `domain_match: false` is dropped
+      here too — belt and braces, because `strict` is the server's promise and this is ours.
+    - **`free` / `pricing` now travel in the row**, so pricing an agent no longer costs a card fetch per
+      candidate on the critical path. `_is_free` already reads the row; the card lookup below is now the
+      rare fallback it was always meant to be.
+
+    None of this makes the caller's own check optional. Measured the same day, WITH strict on: «find a flat
+    to rent in Madrid under 1200 EUR» comes back `coverage: full`, `domain_match: true` — and the agent is
+    `ebay-finder`, which answers `ok: true` with nine eBay listings whose top hit is a *«PISO EN ALQUILER»
+    banner sign* for €81. The label makes that lie more credible, not less. `serve` returning `serves`
+    (V2-580) is what lets the caller catch it.
     """
     query = (query or "").strip()
     if not query:
         return {"intent": "", "agents": []}
     status, data = _post(f"{ORACLE_URL}/v1/search",
                          {"prompt": query, "query": query, "source": "mesh", "audience": "personal",
+                          "strict": True,
                           "filters": {"limit": max(1, int(limit)), "online_only": True}})
     if status != 200 or not isinstance(data, dict):
         return {"intent": "", "agents": []}
     agents = [a for a in (data.get("agents") or []) if isinstance(a, dict) and _is_live(a) and _endpoint_of(a)]
+    # An explicit `false` is a statement; a missing key is an older Oracle that never made one. Only the
+    # statement is acted on — treating silence as a mismatch would empty the mesh the day it is rolled back.
+    agents = [a for a in agents if a.get("domain_match") is not False]
     if free_only:
         agents = [a for a in agents if _is_free(a) or _is_free(a, _card_of(_endpoint_of(a)))]
-    return {"intent": str(data.get("intent") or ""), "query_id": data.get("query_id"), "agents": agents}
+    return {"intent": str(data.get("intent") or ""), "query_id": data.get("query_id"),
+            "coverage": str(data.get("coverage") or ""), "agents": agents}
 
 
 _cards: dict[str, dict | None] = {}
@@ -377,11 +399,17 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         return {"ok": False, "reason": "sin encargo"}
     found = find(errand)
     intent, agents = found.get("intent") or "", found.get("agents") or []
+    coverage = found.get("coverage") or ""
     cached = route_for(intent) if intent else None
     if cached:
         agents = [cached] + [a for a in agents if a.get("agent_id") != cached.get("agent_id")]
     if not agents:
-        return {"ok": False, "reason": "no hay ningún agente libre en la red para esto", "intent": intent}
+        # V2-581: «nadie cubre todavía este vertical» and «nadie contestó» are different facts, and the
+        # Oracle now distinguishes them (`coverage: none` under `strict`). Saying the first one out loud is
+        # honest emptiness; it also tells the operator the browser is the plan for a REASON, not by failure.
+        reason = ("todavía no hay ningún agente en la red para esto" if coverage == "none"
+                  else "no hay ningún agente libre en la red para esto")
+        return {"ok": False, "reason": reason, "intent": intent, "coverage": coverage}
     dijo: dict = {}
     quien = ""
     for agent in agents[:2]:            # one retry with the next candidate; beyond that the browser is faster
