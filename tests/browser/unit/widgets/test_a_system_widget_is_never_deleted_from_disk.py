@@ -26,7 +26,7 @@ def lab(tmp_path, monkeypatch):
     operator's real data. The BUILTIN root stays the real one on purpose: repo-source protection is
     exactly what is under test."""
     monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
-    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance: None)
+    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance, wid="": None)
     monkeypatch.setattr(lifecycle, "_emit_widget", lambda action, w, src="system": None)
     monkeypatch.setattr(lifecycle.store, "delete", lambda wid: None)
     runtime.invalidate()

@@ -6,10 +6,12 @@ the canvas), but so zaelar has human memory of what it did: if tomorrow the oper
 zaelar can answer that it was deleted on a specific date.
 
 Rules (see `zaelar-memory.md` actions <-> memory section):
-  - **History is never deleted.** Deleting a widget removes its CODE and DATA from disk, but writes a memory event
-    saying it was deleted on the date at the operator's request. The creation memory is preserved; having both
-    created-at and deleted-at is the history. The retriever serves them; the live catalog no longer lists it, so
-    zaelar does not hallucinate that it is still present.
+  - **History is never deleted — but only the newest chapter is VALID** (V2-577). Deleting a widget removes its
+    CODE and DATA from disk and writes a tombstone event; the tombstone supersedes the widget's prior
+    `[widget:<id>]` pills (creation, restore) instead of coexisting with them. Measured 2026-09-04 (V2-576
+    cause B): recall served a still-valid «was CREATED» next to its own tombstone and the fix worker went to
+    the deleted widget first. The superseded chain keeps created-at and deleted-at for auditing; recall serves
+    ONE coherent answer, so zaelar does not hallucinate that the widget is still present.
   - **Widgets write memory through the facade** (`memory.write`, loop-agnostic async queue); durable widgets are
     sanctioned memory writers (see CLAUDE.md).
 
@@ -45,12 +47,19 @@ def _emit_widget(action: str, wid: str, src: str = "system") -> None:
         pass
 
 
-def _mem_write(text: str, importance: float) -> None:
+def _mem_write(text: str, importance: float, wid: str = "") -> None:
     """Write a lifecycle event to central memory. `memory.write` enqueues loop-agnostically
-    (call_soon_threadsafe), so it is safe from the voice job-thread or the server loop."""
+    (call_soon_threadsafe), so it is safe from the voice job-thread or the server loop.
+
+    V2-577: when `wid` is given, the new pill supersedes the widget's PRIOR `[widget:<wid>]` pills (the
+    V2-565 plumbing, targets from the deterministic `widget_trace_ids` door). Measured 2026-09-04: the
+    tombstone landed NEXT TO a still-valid birth announcement, recall served both, and the fix worker
+    spent its opening move on a deleted widget. Only the newest chapter of a widget's story stays valid;
+    the superseded chain keeps the history — nothing is ever deleted."""
     try:
         from memory import api as memory
-        memory.write(text, kind="event", level="mid", importance=importance)
+        supersedes = memory.widget_trace_ids(wid) if wid else None
+        memory.write(text, kind="event", level="mid", importance=importance, supersedes=supersedes)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget lifecycle: memory write skipped: {e}")
 
@@ -66,7 +75,7 @@ def record_created(widget_id: str, spec: str = "") -> None:
     what = (meta.get("whenToUse") or "").strip() or (spec or "").strip()[:100]
     when = time.strftime("%Y-%m-%d")
     tail = f" for: {what}." if what else "."
-    _mem_write(f"[widget:{wid}] Widget '{title}' was CREATED on {when}{tail}", importance=0.5)
+    _mem_write(f"[widget:{wid}] Widget '{title}' was CREATED on {when}{tail}", importance=0.5, wid=wid)
 
 
 async def delete_widget(widget_id: str, src: str = "system") -> dict:
@@ -115,7 +124,7 @@ async def delete_widget(widget_id: str, src: str = "system") -> dict:
     _mem_write(
         f"[widget:{wid}] Widget '{title}'{desc} was DELETED on {when} at the operator's request. It no longer "
         f"exists on the canvas; if the operator asks about it, remind them they ordered its deletion.",
-        importance=0.55,
+        importance=0.55, wid=wid,
     )
     logger.info(f"widget lifecycle: DELETED '{wid}' (folder+store+memory tombstone)")
     return {"ok": True, "id": wid, "title": title}
@@ -189,6 +198,6 @@ async def restore_widget(widget_id: str, src: str = "system") -> dict:
     when = time.strftime("%Y-%m-%d")
     tail = " The customized fork was discarded at the operator's request." if had_fork else ""
     _mem_write(f"[widget:{wid}] Widget '{title}' was RESTORED to the shipped version on {when}.{tail}",
-               importance=0.5)
+               importance=0.5, wid=wid)
     logger.info(f"widget lifecycle: RESTORED '{wid}' to shipped (fork discarded: {had_fork})")
     return {"ok": True, "id": wid, "title": title, "discarded_fork": had_fork}

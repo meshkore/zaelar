@@ -143,7 +143,7 @@ def test_delete_widget_removes_folder_and_tombstones(tmp_path, monkeypatch):
 
     written = {}
     emitted = []
-    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance: written.update(text=text, imp=importance))
+    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance, wid="": written.update(text=text, imp=importance))
     monkeypatch.setattr(lifecycle, "_emit_widget",
                         lambda action, w, src="system": emitted.append((action, w)))   # V2-039: provenance
 

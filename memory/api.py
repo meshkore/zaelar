@@ -33,7 +33,7 @@ DEFAULT_BUDGET_TOKENS = 1200
 # import internals (memory.db/writer/queue/slots/…) outside tests.
 __all__ = [
     "start", "stop",
-    "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    "write", "write_now", "ingest_message", "correction_targets", "widget_trace_ids", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     "forget", "unforget", "clear_conversation", "clear_slot_prefix",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "kv_get", "kv_set",
@@ -118,6 +118,29 @@ def correction_targets(window_s: float = 2700.0, limit: int = 6) -> list[dict]:
         "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted') "
         "ORDER BY created DESC, id DESC LIMIT ?", (since, int(limit)))
     return [{"id": int(r["id"]), "text": r["text"]} for r in rows]
+
+
+def widget_trace_ids(widget_id: str, limit: int = 4) -> list[int]:
+    """The valid pills anchored to a widget — ids of `[widget:<id>]`-prefixed rows, newest first (V2-577).
+
+    One consumer: `widgets/lifecycle.py`. Every lifecycle transition (created/deleted/restored) writes its own
+    `[widget:<id>]` pill and passes THIS list as `supersedes`, so only the newest chapter of a widget's story
+    stays valid and recall stops serving a birth announcement next to its own tombstone (measured 2026-09-04,
+    V2-576 cause B: pill 1165 said the deleted widget existed, and the fix worker believed it first).
+
+    The anchor is the TEXT PREFIX — the only deterministic handle those pills carry. Pills that never declared
+    it are out of reach on purpose: matching by content invents targets. `_` is escaped (a LIKE wildcard, a
+    legal slug character). Capped to the writer's own supersede cap; the chain keeps the valid set at ~1, so
+    the cap never truncates in practice."""
+    wid = (widget_id or "").strip().lower()
+    if not wid:
+        return []
+    db = _db.get_db()
+    pat = "[widget:" + wid.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "]%"
+    rows = db.query(
+        "SELECT id FROM memories WHERE valid=1 AND slot IS NULL AND kind != 'conv' "
+        "AND text LIKE ? ESCAPE '\\' ORDER BY created DESC, id DESC LIMIT ?", (pat, int(limit)))
+    return [int(r["id"]) for r in rows]
 
 
 def ingest_message(source: str, entity: str | None, text: str, *, group: str | None = None,

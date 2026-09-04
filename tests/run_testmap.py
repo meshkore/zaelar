@@ -83,7 +83,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_writer_dedup.py",
             "tests/memory/unit/test_writer_paraphrase.py",
             # V2-565: a spoken correction reaches the slotless pill it corrects (offer → whitelist → chokepoint).
-            "tests/memory/unit/test_a_correction_reaches_the_pill_it_corrects.py"]},
+            "tests/memory/unit/test_a_correction_reaches_the_pill_it_corrects.py",
+            # V2-577: a widget event (delete/restore) supersedes the widget's prior anchored pills.
+            "tests/memory/unit/test_a_widget_event_reaches_the_pills_it_outdates.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},

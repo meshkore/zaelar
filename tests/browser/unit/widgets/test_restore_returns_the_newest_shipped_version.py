@@ -23,7 +23,7 @@ from widgets import confirm, hidden, lifecycle, paths, runtime
 @pytest.fixture
 def lab(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
-    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance: None)
+    monkeypatch.setattr(lifecycle, "_mem_write", lambda text, importance, wid="": None)
     monkeypatch.setattr(lifecycle, "_emit_widget", lambda action, w, src="system": None)
     confirm.reset()
     runtime.invalidate()

@@ -7867,6 +7867,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   worker into trying the deleted widget first. That half is memory-domain work; the four measured pills were
   manually superseded. Also open: the fast lane firing `show_view`+«Hecho.» on complaints/questions (x3), and
   repair whispers hardcoding counts that anchor later turns.
+- **A widget event reaches the pills it outdates — the lifecycle chain (V2-577, 2026-09-04)**: closes V2-576
+  cause B for the class with a deterministic anchor. Lifecycle pills carry `[widget:<id>]` in their text (only
+  `widgets/lifecycle.py` writes them), and each new lifecycle write (created/deleted/restored) now passes the
+  widget's PRIOR anchored pills as `supersedes` — V2-565's plumbing applied at the writer chokepoint, so only
+  the newest chapter of a widget's story stays valid and recall stops serving a birth announcement next to its
+  own tombstone (measured: pill 1165's «was CREATED» sent the fix worker to a DELETED widget first). Targets
+  come from the new read-only door `memory.api.widget_trace_ids(wid)` (valid, slotless, `LIKE` with `_`
+  escaped — a legal slug char and a LIKE wildcard); the hook lives in `_mem_write(wid=...)`. The superseded
+  chain keeps created-at/deleted-at for auditing — history is never deleted, it is just no longer VALID. Pills
+  without the anchor (worker notes, distiller prose) are out of reach ON PURPOSE: matching by content invents
+  targets; the write-side rule (workers prefix their widget notes; a completion note supersedes its order pill
+  via the V2-565 offer) is proposed in the initiative, unbuilt. Node 1.3, three disarms (1/2/4 red). ⚠️ Three
+  `_mem_write` test doubles needed the new signature — and the first disarm round restored the UNCOMMITTED fix
+  with `git checkout`, wiping it: re-apply the edit, never checkout (V2-531's lesson, paid again).
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
   in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
   refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design

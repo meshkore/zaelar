@@ -101,6 +101,9 @@ def test_the_debt_list_matches_reality_so_it_only_shrinks():
 DECLARED_SURFACE = {
     "start", "stop",
     "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
+    # 2026-09-04 (V2-577, a widget event reaches the pills it outdates): the deterministic door that resolves
+    # the `[widget:<id>]` text anchor, so widget lifecycle writes can supersede the widget's prior story.
+    "widget_trace_ids",
     "forget", "unforget",
     # 2026-08-31 (V2-528, stopping means discarding): the reset invalidates the conversational buffer ("the chat
     # is erased" includes the SEEDING of the window) and the `task.*` slots (the "we are doing X" pills). Soft
