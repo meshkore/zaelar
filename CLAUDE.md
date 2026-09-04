@@ -7851,6 +7851,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   its content). And **an empty widget cannot overflow**: nine of fourteen rendered their empty state, so the
   first green run measured almost nothing — filled fixtures were added and `archivos` failed the moment it had
   content. Node 4.111 prints which widgets were measured thin, so the claim never covers more than it measured.
+- **The voice SEES the open directory — a widget the operator is looking at publishes its truth (V2-576,
+  2026-09-04)**: session 0a93de06, favourites. Asked «¿cuántos restaurantes favoritos tenemos?» the brain
+  answered from stale memory pills («one») while the open contactos card showed FOUR — then, confronted,
+  CONFABULATED «la vista actual no lo muestra», and 18 s after a worker fixed the store to five it still said
+  «de los cuatro». The model had labels (`ref_index` → items line) but no meaning: nothing said «these ARE all
+  the favourites, four in total», and no tool reads the directory. Fixed with `contactos/data.py::
+  prompt_digest()` through the EXISTING `refs.prompt_digest` seam (open cards only): authoritative counts, the
+  current view filter, every row compact — and the block declares it outranks memory for counting/listing what
+  is stored, which is what kills the confabulation branch. Empty says EMPTY. Node 4.96 (+5, incl. end-to-end
+  through `brief.for_prompt`), disarm 5 red. **The chain behind it, measured and still partly open**: the
+  memory pills asserting widget-owned state (a favourite «in your list», an errand «still pending», a DELETED
+  widget's description) are never invalidated by widget events — yesterday that same stale pill made the add
+  flow SKIP El Fogón («que ya tenías») right after its real entry was deleted, and today it misled the fix
+  worker into trying the deleted widget first. That half is memory-domain work; the four measured pills were
+  manually superseded. Also open: the fast lane firing `show_view`+«Hecho.» on complaints/questions (x3), and
+  repair whispers hardcoding counts that anchor later turns.
 - **The phone is HEARD, and the dock is the operator's (V2-573, 2026-09-04)**: «i couldnt listen to the voice
   in mobile» had TWO independent causes, both silent. (1) **Playback was never unlocked**: every mobile browser
   refuses a remote audio track until the page has had a user gesture, this shell connects at LOAD by design
