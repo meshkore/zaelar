@@ -94,25 +94,49 @@ def _get(url: str, timeout: float = _CARD_TIMEOUT_S) -> dict | None:
 
 
 # ── pricing ──────────────────────────────────────────────────────────────────────────────────────────────
+def _tier_is_free(tier: dict) -> bool | None:
+    """One pricing entry: True free, False priced, None it did not say."""
+    if not isinstance(tier, dict):
+        return None
+    amount, currency = tier.get("amount"), str(tier.get("currency") or "").lower()
+    if amount is not None:
+        try:
+            return float(amount) == 0.0
+        except (TypeError, ValueError):
+            return False
+    return True if currency in ("free", "none") else None
+
+
 def _is_free(agent: dict, card: dict | None = None) -> bool:
     """True only when the price is unambiguously zero.
 
     Unknown counts as NOT free, on purpose. The operator's instruction is "I am fine with using free
     agents», and the failure modes are not symmetric: skipping a free agent we could not price costs one
     fallback to the browser, while calling a paid one costs money nobody authorised.
+
+    V2-582 · `pricing` may be a LIST of tiers, and an agent is free when ANY tier is unambiguously zero.
+    That is not a loosening of the rule, it is the shape the rule now arrives in: after the operator ruled
+    that every agent Zaelar can use must have a free tier, the agents that had one published it as
+    «free tier + paid tiers», and a single-dict reader is blind to exactly the thing it is looking for —
+    measured 2026-09-05, `lucid` and `ybana` published `amount: 0` as their first tier and this returned
+    False for both.
+
+    What keeps it safe is unchanged and is not this function: **the motor never pays**. Exhausting a free
+    quota returns `402`, and `ask()` reports a 402 as a fact and never pays it, never retries it. So the
+    worst case of calling a tiered agent is an errand that falls back to the browser — never a charge.
     """
     for src in (agent, card or {}):
-        pricing = (src or {}).get("pricing") or ((src or {}).get("agent_card") or {}).get("pricing") or {}
-        if not isinstance(pricing, dict):
-            continue
-        amount, currency = pricing.get("amount"), str(pricing.get("currency") or "").lower()
-        if amount is not None:
-            try:
-                return float(amount) == 0.0
-            except (TypeError, ValueError):
-                return False
-        if currency in ("free", "none"):
-            return True
+        pricing = (src or {}).get("pricing") or ((src or {}).get("agent_card") or {}).get("pricing")
+        if isinstance(pricing, dict):
+            verdict = _tier_is_free(pricing)
+            if verdict is not None:
+                return verdict
+        elif isinstance(pricing, list) and pricing:
+            verdicts = [_tier_is_free(t) for t in pricing]
+            if any(v is True for v in verdicts):
+                return True
+            if any(v is False for v in verdicts):
+                return False               # priced tiers and not one free: that is a NO, not a «did not say»
     return False
 
 

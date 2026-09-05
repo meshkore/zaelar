@@ -7932,6 +7932,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
+- **A free tier arrives as one entry in a LIST (V2-582, 2026-09-05)**: the operator ruled that every agent
+  Zaelar can use must have a free tier, the mesh side complied — and **the three agents it unblocked were
+  still invisible here**. `_is_free` read `pricing` as a single dict and did `if not isinstance(pricing,
+  dict): continue`, so a **list of tiers** — the natural way to publish «free tier + paid tiers» — was
+  skipped entirely and returned False. Measured: `foodlens` republished a plain dict and passed, while
+  `lucid` and `ybana` published `amount: 0` as the FIRST entry of a list and both still counted as paid.
+  The reader was blind to exactly the thing it was looking for. `_tier_is_free` now judges one entry
+  (True / False / «did not say») and `_is_free` accepts a list when ANY tier is unambiguously zero. **This
+  is not a loosening**: a list of priced tiers with no free one is still a NO, and an empty or unreadable
+  list is still paid — unknown counts as paid, as before. What keeps it safe was never this function:
+  **the motor never pays**; a 402 is reported as a fact and never paid or retried, so the worst case of
+  calling a tiered agent past its quota is a fallback to the browser, never a charge. Verified live: `lucid`
+  and `foodlens` now come back from `find`. Node 2.5 (+4, 31 green; agent-headless 2649). Disarm 2 red.
 - **Zero agents beats a wrong one (V2-581, 2026-09-05)**: V2-580's measurements were sent to the mesh side,
   who deployed — and the fixes were **re-measured with the original queries instead of taken on trust**. The
   Oracle now puts `category`/`pricing`/`free`/`domain_match` in each row and `coverage` (`full|partial|none`)

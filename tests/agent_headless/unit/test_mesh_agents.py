@@ -388,3 +388,42 @@ def test_nobody_covers_this_yet_is_said_differently_from_nobody_answered(monkeyp
     monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "coverage": "full",
                                                   "agents": []})
     assert "todavía no hay" not in m.serve("hotel in Madrid")["reason"]
+
+
+# ── V2-582 · a free tier arrives as one entry in a LIST of tiers ───────────────────────────────────────────
+TIERED_FREE = {"agent_id": "lucid", "endpoint": "https://lucid.example", "online": True, "status": "available",
+               "pricing": [{"unit": "request", "amount": 0, "currency": "free", "use": "free daily tier"},
+                           {"unit": "request", "amount": 430000, "currency": "lamports", "model": "flux-dev"}]}
+
+
+def test_an_agent_is_free_when_any_of_its_tiers_is(monkeypatch):
+    """Measured 2026-09-05: after the operator ruled that every usable agent must have a free tier, `lucid`
+    and `ybana` published one as the first entry of a LIST — and the single-dict reader was blind to exactly
+    the thing it was looking for, calling both paid."""
+    monkeypatch.setattr(m, "_post", _oracle([TIERED_FREE]))
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    assert [a["agent_id"] for a in m.find("draw me a picture")["agents"]] == ["lucid"]
+
+
+def test_a_list_of_priced_tiers_with_no_free_one_is_still_paid(monkeypatch):
+    """The rule did not loosen: a tier list buys no benefit of the doubt."""
+    all_paid = {**TIERED_FREE, "agent_id": "pricey",
+                "pricing": [{"unit": "request", "amount": 430000, "currency": "lamports"},
+                            {"unit": "request", "amount": 850000, "currency": "lamports"}]}
+    monkeypatch.setattr(m, "_post", _oracle([all_paid]))
+    monkeypatch.setattr(m, "_get", lambda url, timeout=None: None)
+    assert m.find("draw me a picture")["agents"] == []
+
+
+def test_an_empty_or_unreadable_tier_list_is_not_free(monkeypatch):
+    """Unknown still counts as paid — including a list that says nothing at all."""
+    for pricing in ([], [{"unit": "request"}], ["free"]):
+        mystery = {**TIERED_FREE, "agent_id": "mystery", "pricing": pricing}
+        assert m._is_free(mystery) is False, pricing
+
+
+def test_a_tiered_card_can_prove_a_bare_oracle_row_free(monkeypatch):
+    """The row is often thin; the card is where the tiers live."""
+    bare = {"agent_id": "lucid", "endpoint": "https://lucid.example", "online": True, "status": "available"}
+    assert m._is_free(bare) is False
+    assert m._is_free(bare, {"pricing": TIERED_FREE["pricing"]}) is True
