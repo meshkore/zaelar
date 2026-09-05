@@ -84,7 +84,7 @@ import time
 # received `event="end"` — and closing a row nothing opened updates nothing. `zaelar_user_sessions` held zero
 # rows for every account since the table was created, while every Machine's `POST /session` returned 200.
 #
-VERSION = "3.25"
+VERSION = "3.26"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
