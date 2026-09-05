@@ -103,3 +103,12 @@
   copia superficial y la lista del seed se mutaba (→ `_seed()`), y varios `add` en el mismo segundo empataban
   en `added_at` perdiendo el orden de inserción (→ `added_seq`). Nodos 4.52 (modelo) y 4.53 (RENDERIZA, con
   desarme verificado en las dos caras).
+
+- 2026-09-05 (V2-597): the ACCOUNT layer. Platform icons in the nav row (messaging .dots pattern), 3-step
+  connect wizard (one step visible; credentials only in the settings panel — V2-520), `suggest` fills the
+  HOME band from the connected account's subscriptions (blocked channels dropped at that door, count
+  reported; NO background refresh by decision). `view_data` stays connector-free: platform rows cached +
+  `platforms_stale` computed (archivos' needs_refresh pattern). `.hb-yt` is width:100% + border-box now —
+  the CARD decides the width (operator: «anclado al contenedor parent»); the 680 default moved to
+  manifest.size. Connector lives in `connectors/video/` (family; doc:
+  .meshkore/docs/modules/zaelar-video-widget-and-account-connector.md).

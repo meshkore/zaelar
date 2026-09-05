@@ -7917,6 +7917,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   any gesture. Both refusal signals are simulated explicitly now (node 4.92, +3 checks; disarm 3 red, incl.
   the unhandled rejection finally surfacing as a page error). Mobile Deck immune (its fullscreen just
   navigates). Frontend-only: a page reload picks it up.
+- **The video widget gets an ACCOUNT — the video connector family, and the interior anchors to the parent
+  (V2-597, 2026-09-05)**: the operator's direction — replicate the MESSAGING pattern in the video widget
+  (platform icons in the header, a guided wizard when someone asks to connect, per-platform results never
+  mixed) and the HOME fed by his subscriptions under HIS filters. `connectors/video/` is the V2-557 family
+  shape (typed registry · PKCE oauth forked from photos · Data API v3 client · fail-safe facade ·
+  `/api/video/*`), one provider (YouTube, tier `readonly` ONLY — the write tier is deliberately not declared
+  until subscription management ships) but a FAMILY by design: adding a provider touches the registry + one
+  client, zero widget lines.
+  - **Quota facts that shaped the client**: `subscriptions.list` and `playlistItems.list` cost 1 unit/page;
+    a channel's uploads playlist is DERIVED (`UC…` → `UU…`), saving one `channels.list` per channel — a full
+    suggestions pull is ~26 of 10,000 free daily units.
+  - **The widget follows archivos, not mensajeria, for state**: youtube is PASSIVE, so every `apply_action`
+    branch must be declared — which is why credentials go through the ⚙ panel (`video-connect` card) and the
+    declared actions carry INTENT only (`open_connectors` the voice door with a timestamped `connect_focus`;
+    `connect_account` returns the consent URL, window opened synchronously on the click; `suggest` fills the
+    home band). `view_data` stays connector-free: platform rows are CACHED (`platforms_stale` computed from
+    age, the `needs_refresh` pattern) and the card asks for one `sync_platforms` when stale.
+  - **No background refresh, decided in writing** (V2-034 forces the decision): the operator's standing rule
+    is absolute control — the suggestions band fills when ASKED, never on a timer. `block_channel` sweeps
+    the band too, and a disconnect empties it.
+  - ⚠️ **Trap T3 found LIVED while wiring the ⚙ card**: the `fotos` family (V2-564) had registry rows and
+    NOBODY rendered them — no fams entry, no api.js helper, so there was nowhere to paste the Photos
+    client_id. Closed in the same seam (generic OAuth card for `fotos` + `video`).
+  - **The interior anchors to the parent card** (operator, live, with his screenshot: a maximized card kept
+    the widget at a fixed 680px hugging the left edge): `.hb-yt` is `width:100%` + `border-box` — the CARD
+    decides in every state — and the default footprint moved to `manifest.size` (680). And `maximize()` now
+    resolves a MISSING catalog meta lazily: a card restored on reload and maximized before the catalog fetch
+    answered never got its cinema class, so full-bleed silently depended on WHICH road opened the card.
+  - Nodes 5.13/5.14 (connector unit + LIVE roundtrip, skips with enable steps) and 4.4/4.53 additions; five
+    disarms, mutations asserted, all red; mural 4.92 green after the desktop.js change. **NOT verified live
+    against a real Google account** — the LIVE node is built whole and waits for the operator's OAuth client.
+    Doc: `.meshkore/docs/modules/zaelar-video-widget-and-account-connector.md`.
+
 - **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
   2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
   conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was
@@ -7945,7 +7978,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
-- **A broken upstream is not a request for fields (V2-596, 2026-09-05)**: measured live, `aerocast` fails on
+- **A broken upstream is not a request for fields (V2-598, 2026-09-05)**: measured live, `aerocast` fails on
   roughly half of the free-text flight errands — it forwards a relative date to Duffel, which answers `422
   validation_error`. That is the agent's bug. Ours was what `serve` did with it: `_HINT_KEYS` held `need` /
   `missing` / `required` (*«give me these fields»*, actionable) in the same tuple as `error` / `detail` /

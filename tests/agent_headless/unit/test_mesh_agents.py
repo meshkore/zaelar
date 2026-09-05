@@ -479,7 +479,7 @@ def test_an_unreachable_oracle_is_NOT_remembered(monkeypatch):
         wf.forget("wellness")
 
 
-# ── V2-596 · «give me a field» and «I broke» are different answers ────────────────────────────────────────
+# ── V2-598 · «give me a field» and «I broke» are different answers ────────────────────────────────────────
 def _agent(**kw):
     base = {"agent_id": "aerocast", "endpoint": "https://aerocast.example", "online": True,
             "pricing": {"amount": 0, "currency": "free"}}
