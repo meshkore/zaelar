@@ -2457,6 +2457,8 @@ DOMAINS: list[dict] = [
             "ch": HTTP,
             "paths": ["tests/infrastructure/e2e/cloud/"
                       "test_the_cloud_entry_point_routes_a_visitor_without_an_account.py"]},
+        {"id": "7.39", "title": "CLAUDE.md cabe en contexto: techo de tamaño + archivo sin perder citas (V2-601 T-18)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_claude_md_ratchet.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
