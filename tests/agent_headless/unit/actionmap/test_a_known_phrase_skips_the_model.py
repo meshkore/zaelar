@@ -340,9 +340,13 @@ def test_both_channels_are_wired():
     provider = (root / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
     lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
     probe = (root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    mirror = (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
     assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"
     assert "from nucleo import actionmap" in lane, "voice: the fast lane lost the action map"
-    assert "from nucleo import actionmap" in probe, "probe: action map not wired"
+    # The probe's mirror moved to probe_actionmap.py (2026-09-05 ratchet pass) — the guard follows the CHANNEL,
+    # both files, not one (V2-555: a guard pointed at a single file goes green the day the lane falls out).
+    assert "from .probe_actionmap import try_map" in probe, "probe: the mirror is no longer called"
+    assert "from nucleo import actionmap" in mirror, "probe: action map not wired in the mirror"
 
 
 # ── (5) the lens grid, and a pack that can be UPGRADED (V2-545) ──────────────────────────────────────────
@@ -436,13 +440,18 @@ def test_the_probe_channel_runs_the_action_when_asked_to_execute():
     (a show is meaningless headless), wrong the day it could drive a widget's DATA: a lens change reported but
     not made is a decision the product does not take. A dry run still only reports."""
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    root = Path(__file__).resolve().parents[4]
+    # The mirror's body lives in probe_actionmap.py since the 2026-09-05 ratchet pass; probe.py keeps the call.
+    src = (root / "nucleo" / "flash" / "probe_actionmap.py").read_text(encoding="utf-8")
     i = src.index("from nucleo import actionmap as _amap")
     window = src[i:i + 900]
     assert "_amap.execute(" in window, "the probe must RUN the mapped action, not only describe it"
     assert "and execute" in window, "and only when the caller asked for execution — a dry run stays dry"
     assert "_amap_hit = None" in window, \
         "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"
+    probe = (root / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    assert "execute=execute" in probe[probe.index("from .probe_actionmap import try_map"):][:400], \
+        "probe.py must pass the caller's execute flag through to the mirror"
 
 
 def test_the_measured_media_orders_are_deterministic_now():

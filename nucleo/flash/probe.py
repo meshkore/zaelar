@@ -133,46 +133,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             except Exception:
                 pass
 
-    # ACTION MAP (V2-539) — MIRROR of the provider (nucleo.py, parallel impl: wire BOTH channels): a known
-    # whole-utterance command resolves WITHOUT the model.
-    # V2-545 — with `execute`, the map RUNS its action here too, and the hit is only reported if it ran (the
-    # voice rail's contract: `if hit is not None and execute(...)`). It used to report and never run, which
-    # was right while the map only spoke canvas verbs — a show is meaningless headless. It stopped being
-    # right the day the map could drive a widget's DATA: «ábreme el Telegram» changes a lens, and a channel
-    # that reports the change without making it reports a decision the product does not take. A dry run
-    # (`execute=False`) still only reports, which is what a dry run means.
-    # Same fail-open contract: any problem here and the turn proceeds to the model as always.
-    try:
-        from nucleo import actionmap as _amap
-        if _amap.enabled():
-            _amap_hit = _amap.match(text)
-            if _amap_hit is not None and execute:
-                from voice.observer import emit as _emit_amap
-                if not _amap.execute(_amap_hit, _emit_amap, phrase=text):
-                    _amap_hit = None      # could not run it (no live loop, undeclared op) → on to the model
-            if _amap_hit is not None:
-                _desc = _amap.describe(_amap_hit)
-                _amap.record_hit(int(_amap_hit.get("id") or 0))
-                try:
-                    from voice import observer as _obs_am
-                    _obs_am.turn_detail(system="", window=dialog.prune_window(sess.window)[-6:], tools=[],
-                                        user=text,
-                                        decision={"action": _desc, "actionmap": _amap_hit.get("id")})
-                except Exception:
-                    pass
-                try:  # V2-572 parity with the voice lane's spoken ack: the reply says the action landed
-                    from voice.engine.core import langs as _lg_am
-                    _ack = _lg_am.pick_ack()
-                except Exception:
-                    _ack = ""
-                return {"ok": True, "reply": [_ack] if _ack else [], "action": _desc, "tool_calls": [],
-                        "tags": [], "actionmap": _amap_hit.get("id"), "trace": _trace_id}
-    except Exception as _e_am:  # noqa: BLE001
-        try:
-            from loguru import logger as _log_am
-            _log_am.warning(f"actionmap (probe) skipped, fail-open: {_e_am!r}")
-        except Exception:
-            pass
+    # ACTION MAP (V2-539) — MIRROR of the provider (parallel impl: wire BOTH channels). The mirror's body
+    # lives in `probe_actionmap.py` (ratchet pass, 2026-09-05); the wiring guards read both files.
+    from voice.engine.core import langs as _lg_am
+    from .probe_actionmap import try_map as _amap_try
+    _amap_resp = _amap_try(text, sess, execute=execute, trace_id=_trace_id, pick_ack=_lg_am.pick_ack)
+    if _amap_resp is not None:
+        return _amap_resp
 
     t0 = time.time()
     timings: dict = {}
