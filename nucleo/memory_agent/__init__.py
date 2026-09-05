@@ -35,7 +35,7 @@ from nucleo.memory_agent.gates import (  # noqa: F401
     _plausibility_demote, _precision_reject_atom, _report_self_declared_change_ignored, _report_slot_guard,
     _same_entity_refinement, _slot_for_patch, _slot_supersede_guard, _writer_canon)
 from nucleo.memory_agent.ingest import (  # noqa: F401
-    _INGEST_LOCK, _sanitize_state_patch, _write_atom, ingest_utterance, maintain_state)
+    _INGEST_LOCK, _sanitize_state_patch, _write_atom, ingest_utterance, maintain_state, set_loop)
 from nucleo.memory_agent.lang_marks import (  # noqa: F401 — the WHOLE bank: tests read it name by name
     _ASSISTANT_QUERY_RE,
     _COMMAND_RE,

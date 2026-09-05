@@ -35,8 +35,36 @@ from nucleo.memory_agent.lang_marks import (  # noqa: F401
 
 _INGEST_LOCK = asyncio.Lock()
 
+# The HOME loop for ingestion (V2-601 T-06, audit 2026-09-05). `ingest_utterance` is fired from BOTH event
+# loops — the voice job-thread's (nucleo.py, create_task) and uvicorn's (probe, widgets ctx.ingest,
+# messaging) — and an `asyncio.Lock` cannot span loops: reproduced by the audit, an UNCONTENDED cross-loop
+# acquire never breaks (why this never blew up loudly), but a CONTENDED one hangs the waiter forever and
+# poisons the lock, after which every contended ingest raises RuntimeError inside a fire-and-forget task —
+# memory writes silently lost until restart. The engine's own rule since INI-012 is that cross-loop delivery
+# marshals (`call_soon_threadsafe` / `run_coroutine_threadsafe`, the browser_search/energy_meter/identity
+# pattern): every ingest now RUNS on the one home loop the lifespan registers, so the lock only ever lives on
+# one loop. `set_loop` never called (unit tests, standalone) → single-loop process → behavior unchanged.
+_HOME_LOOP: "asyncio.AbstractEventLoop | None" = None
+
+
+def set_loop(loop) -> None:
+    global _HOME_LOOP
+    _HOME_LOOP = loop
+
 
 async def ingest_utterance(text: str, *, role: str = "operator") -> dict:
+    home = _HOME_LOOP
+    try:
+        here = asyncio.get_running_loop()
+    except RuntimeError:
+        here = None
+    if home is not None and here is not None and home is not here and not home.is_closed():
+        fut = asyncio.run_coroutine_threadsafe(_ingest_home(text, role=role), home)
+        return await asyncio.wrap_future(fut)
+    return await _ingest_home(text, role=role)
+
+
+async def _ingest_home(text: str, *, role: str = "operator") -> dict:
     async with _INGEST_LOCK:
         result = await _ingest_utterance_locked(text, role=role)
         # Ingestion itself already runs off the voice/chat hot path. Publish the completed state into the

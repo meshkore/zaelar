@@ -85,7 +85,10 @@ DOMAINS: list[dict] = [
             # V2-565: a spoken correction reaches the slotless pill it corrects (offer → whitelist → chokepoint).
             "tests/memory/unit/test_a_correction_reaches_the_pill_it_corrects.py",
             # V2-577: a widget event (delete/restore) supersedes the widget's prior anchored pills.
-            "tests/memory/unit/test_a_widget_event_reaches_the_pills_it_outdates.py"]},
+            "tests/memory/unit/test_a_widget_event_reaches_the_pills_it_outdates.py",
+            # V2-601 T-06 (2026-09-05): la ingesta corre en UN solo loop — su asyncio.Lock no puede cruzar los
+            # dos event loops del motor; contendido cross-loop se envenenaba y perdía escrituras EN SILENCIO.
+            "tests/memory/unit/test_ingest_runs_on_one_loop.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},

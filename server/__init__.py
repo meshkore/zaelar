@@ -350,6 +350,11 @@ async def _lifespan(app: FastAPI):
             # activity registry was dropped exactly where it mattered and the registry recorded nobody.
             from observability import identity as _identity
             _identity.set_loop(_running_loop)
+            # V2-601 T-06: memory ingestion gets a HOME loop — `ingest_utterance` fires from both event loops
+            # and its serializing asyncio.Lock cannot span them (a contended cross-loop acquire poisons it and
+            # silently loses writes). Every ingest marshals here; see nucleo/memory_agent/ingest.py.
+            from nucleo import memory_agent as _mem_agent
+            _mem_agent.set_loop(_running_loop)
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")
