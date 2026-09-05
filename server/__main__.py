@@ -11,6 +11,12 @@ Run:  ./.venv/bin/python -m server      → http://localhost:43917
 import os
 import sys
 
+# The engine is developed and shipped on 3.12; an older interpreter fails later, deep inside a dependency,
+# with an error that never names the real cause. Refuse at the door instead (V2-601 T-11).
+if sys.version_info < (3, 11):
+    sys.exit(f"zaelar needs Python >= 3.11 (you are on {sys.version.split()[0]}). "
+             "Create the venv with a newer interpreter: python3.12 -m venv .venv")
+
 from loguru import logger
 
 logger.remove()
