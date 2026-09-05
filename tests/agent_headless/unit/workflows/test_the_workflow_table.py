@@ -127,3 +127,43 @@ def test_the_worker_prompt_stays_SILENT_when_nothing_is_known():
     assert dp._known_route_line("quiero un masaje en Sevilla") == ""
     assert dp._known_route_line("qué hora es") == ""
     assert dp._known_route_line("") == ""
+
+
+# ── V2-599 · a catch-all category must not swallow the specific ones ──────────────────────────────────────
+def test_a_catch_all_category_does_not_outrank_a_specific_match():
+    """Measured 2026-09-05: the site catalog calls «pedir cita con el médico» `local_business`, and because
+    the catalog was asked FIRST and answered, the `health` pattern never got a turn. Six unrelated Spanish
+    errands — doctor, dentist, physio, hairdresser, vet, gym — collapsed into the single key `local`."""
+    from nucleo.workflows import domains
+    assert domains.domain_of("pedir cita con el medico") == "health"
+    assert domains.domain_of("reservar hora con el dentista") == "health"
+    assert domains.domain_of("pedir cita con el fisioterapeuta") == "health"
+
+
+def test_the_same_errand_keys_the_same_in_both_languages():
+    """The whole reason `_EXTRA` is bilingual: «a domain that only fires in one language is a cache that
+    misses half the time». The catch-all broke exactly that — `pedir cita con el médico` keyed `local` while
+    `book a doctor appointment` keyed `health`, so the two halves of one errand wrote to two different rows,
+    and neither ever helped the other."""
+    from nucleo.workflows import domains
+    pairs = [("pedir cita con el medico", "book a doctor appointment"),
+             ("reservar hora con el dentista", "book a dentist appointment"),
+             ("billete de tren a Sevilla", "train ticket to Chicago"),
+             ("alquilar un coche en Malaga", "rent a car in Denver"),
+             ("donde esta mi paquete", "track my parcel")]
+    for es, en in pairs:
+        assert domains.domain_of(es) == domains.domain_of(en), f"asimetría ES/EN: {es!r} vs {en!r}"
+
+
+def test_the_catch_all_still_answers_when_nothing_specific_matches():
+    """Holding the weak category back must not throw it away: «cita en la peluquería» has no specific
+    pattern, and `local` is a better key than none — a domain of "" writes no cache row at all."""
+    from nucleo.workflows import domains
+    assert domains.domain_of("cita en la peluqueria") == "local"
+
+
+def test_a_specific_catalog_category_still_wins_immediately():
+    """Only the catch-all is held back. `event_tickets` names a real vertical and keeps its priority."""
+    from nucleo.workflows import domains
+    assert domains.domain_of("entradas para un concierto") == "events"
+    assert domains.domain_of("buscar un hotel en Madrid") == "hotel"

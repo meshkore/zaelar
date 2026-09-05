@@ -7978,6 +7978,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
+- **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)**: `domain_of` asked the
+  site catalog first and returned whatever it said. Right for the categories that name a vertical, wrong for
+  `local_business`, which is «some business near you» — measured, it swallowed **six of ten** Spanish errands
+  (doctor, dentist, physio, hairdresser, vet, gym) into the single key `local`, so the specific patterns
+  never got a turn. Two costs: `pedir cita con el médico` keyed `local` while `book a doctor appointment`
+  keyed `health`, defeating the exact thing `_EXTRA` is bilingual to prevent — the two halves of one errand
+  writing to two rows that never help each other; and six unrelated needs sharing one cache row, where a
+  negative learned from the vet silences the doctor for the three days the row lives, answering «no hay
+  agente» for verticals it never asked about. Now `_WEAK_FROM_CATALOG` holds the catch-all back as a
+  FALLBACK, not an answer: specifics get their turn first, and `local` still serves what nothing else
+  matches (a better key than `""`, which writes no row). Ten of ten ES/EN pairs now key identically. **The
+  shape:** neither classifier was wrong about what it saw — the ORDER was, and it was written when every
+  catalog category happened to be specific. A generic bucket added later inherits a priority nobody meant to
+  give it.
+
 - **A broken upstream is not a request for fields (V2-598, 2026-09-05)**: measured live, `aerocast` fails on
   roughly half of the free-text flight errands — it forwards a relative date to Duffel, which answers `422
   validation_error`. That is the agent's bug. Ours was what `serve` did with it: `_HINT_KEYS` held `need` /

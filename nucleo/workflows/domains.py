@@ -28,9 +28,20 @@ _FROM_CATALOG = {
     "hotel_booking": "hotel",
     "flight_search": "flight",
     "event_tickets": "events",
-    "local_business": "local",
+    "local_business": "local",          # CATCH-ALL — see `_WEAK_FROM_CATALOG` below
     "general_classifieds": "shopping",
 }
+
+# `local_business` is not a vertical, it is «some business near you»: measured, it swallows doctor, dentist,
+# physio, hairdresser, vet and gym into ONE key. Asking the catalog first is right for the categories that
+# name a real vertical, and wrong for this one, because a catch-all that answers first means the SPECIFIC
+# patterns below never get a turn. Two things broke because of it, both measured 2026-09-05:
+#   · «pedir cita con el médico» keyed `local` while «book a doctor appointment» keyed `health` — the same
+#     errand under two keys, which is exactly what `_EXTRA` was made bilingual to prevent.
+#   · six unrelated needs shared one cache row, so a negative learned from the vet silenced the doctor, the
+#     hairdresser and the gym for the three days the negative row lives.
+# So a weak category is held back: it is used only when nothing specific matches.
+_WEAK_FROM_CATALOG = {"local_business"}
 
 # Only what the catalog cannot name. Bilingual on purpose: the operator speaks Spanish and the Oracle
 # classifies better in English, and a domain that only fires in one language is a cache that misses half the
@@ -92,15 +103,18 @@ def domain_of(request: str, locale: str | None = None) -> str:
     text = (request or "").strip()
     if not text:
         return ""
+    weak = ""
     try:
         from nucleo.flash import site_catalog as _sc
         cat = _sc.category_of(text, locale)
         if cat and cat in _FROM_CATALOG:
-            return _FROM_CATALOG[cat]
+            if cat not in _WEAK_FROM_CATALOG:
+                return _FROM_CATALOG[cat]
+            weak = _FROM_CATALOG[cat]            # kept as the fallback, not as the answer
     except Exception:
         pass                                     # the catalog is an optimisation here, never a dependency
     plain = _norm(text)
     for domain, pattern in _EXTRA:
         if pattern.search(plain) or pattern.search(text):
             return domain
-    return ""
+    return weak
