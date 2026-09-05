@@ -24,6 +24,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "show_panel": ("tab",),      # optional "action": open|close (default open)
     "move": ("widget", "where"),
     "fullscreen": ("widget",),
+    "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
 }
 
@@ -114,6 +115,10 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     src = {"src": "actionmap", "origin": "actionmap"}
     if do == "close_all":
         emit("widget", "close", text=said, extra=dict(src))
+        return True
+    if do == "arrange":
+        # V2-588: same emit as POST /api/canvas/arrange and the arrange_canvas tool — one rail, three doors.
+        emit("widget", "arrange", text=said, extra=dict(src))
         return True
     if do == "show_panel":
         emit("panel", action.get("action", "open"), text=said, extra={"tab": action["tab"], **src})

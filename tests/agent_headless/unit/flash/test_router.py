@@ -6,7 +6,7 @@ from nucleo.flash.router import ANSWER, CHAT, ESCALATE, INJECT, MUSIC, STOP, STY
 def test_tools_are_openai_functions():
     names = {t["function"]["name"] for t in router.tools()}
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget", "restore_widget",
-                     "manage_widget_alias", "widget_data", "delete_widget",
+                     "manage_widget_alias", "widget_data", "delete_widget", "arrange_canvas",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "search_listings",
                      "recall",
                      "reveal_secret", "play_music", "play_video", "show_images", "reply_message", "connect_cluster",

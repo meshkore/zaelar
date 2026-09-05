@@ -721,6 +721,13 @@ DOMAINS: list[dict] = [
                       # count matches the names it gives.
                       "tests/browser/unit/youtube/test_a_short_without_a_title_is_not_a_candidate.py",
                       "tests/agent_headless/unit/flash/test_the_count_matches_the_names_it_gives.py"]},
+        # V2-588 — «ordena los widgets» era una capacidad CONSTRUIDA (⤢, Desktop.arrange, POST
+        # /api/canvas/arrange, SSE) sin ninguna cara hacia el modelo: en vivo llegó a negar que existiera el
+        # botón. Tres puertas comparten un rail: tool `arrange_canvas`, action map `arrange`, endpoint REST.
+        {"id": "4.112", "title": "Ordenar el canvas es alcanzable por voz: tool sin argumentos que sobrevive "
+                                 "al recorte · action map con semillas es/en (pack v4) · cableado en AMBOS canales",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_arrange_is_voice_reachable.py"]},
         # 2026-08-28 (V2-457): enseñar una foto era un ENCARGO de worker — 355 s y $1,96 medidos en la sesión
         # manual del operador — y pasa a ser un turno de 3 s por `show_images`, con su propio visor. Tres piezas
         # que se prueban por separado: el PARSER del payload del buscador de imágenes (la parte frágil, y por eso

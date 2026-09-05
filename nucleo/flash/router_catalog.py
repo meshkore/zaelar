@@ -170,9 +170,8 @@ TOOLS: list[dict] = [
         "function": {
             "name": "fullscreen_widget",
             "description": (
-                "Pone en PANTALLA COMPLETA un widget ya abierto, o se la quita — es un interruptor. Es una acción "
-                "del CANVAS (como show/close/move), NO de los datos: play/pause/volumen son widget_data; esto es el "
-                "TAMAÑO en pantalla. Si el widget no está abierto, ábrelo antes."
+                "PANTALLA COMPLETA de un widget — interruptor: si ya está, la quita. Acción del CANVAS "
+                "(tamaño en pantalla), NO de datos: play/pausa/volumen son widget_data."
             ),
             "parameters": {
                 "type": "object",
@@ -182,6 +181,20 @@ TOOLS: list[dict] = [
                 },
                 "required": ["widget_id"],
             },
+        },
+    },
+    {
+        # V2-588: «ordena/recoloca los widgets» had no model-facing path — the ⤢ button, Desktop.arrange()
+        # and POST /api/canvas/arrange existed since V2-464, and the model could only deny the capability
+        # (it claimed «no hay un botón en el front-end», false) or improvise re-opening cards.
+        "type": "function",
+        "function": {
+            "name": "arrange_canvas",
+            "description": (
+                "ORDENA los widgets en una rejilla («ordena/recoloca los widgets»). "
+                "Sin argumentos; no abre ni cierra nada."
+            ),
+            "parameters": {"type": "object", "properties": {}},
         },
     },
     {

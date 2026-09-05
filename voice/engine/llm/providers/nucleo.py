@@ -1763,6 +1763,16 @@ class NucleoLLMStream(llm.LLMStream):
                         _tag_emit("show", {"id": _rid})     # por si no estaba abierto todavía
                         _tag_emit("fullscreen", {"id": _rid})
                         emit("brain", "⛶ fullscreen_widget → canvas", text=_rid, role="system")
+            elif name == "arrange_canvas":
+                # V2-588: «ordena los widgets» tenía TODO el tramo de abajo construido (botón ⤢, Desktop.arrange,
+                # POST /api/canvas/arrange, handler SSE) y NINGUNA cara hacia el modelo — que llegó a afirmar en
+                # vivo «no hay un botón en el front-end para eso» (falso) y a improvisar re-abriendo tarjetas.
+                # Acción del CANVAS entero: sin id que resolver, el mismo emit que el endpoint REST.
+                if "arrange_canvas" not in _tool_fired:
+                    _tool_fired.add("arrange_canvas")
+                    emit("widget", "arrange", extra={"src": "flash"})
+                    emit("brain", "▦ arrange_canvas → canvas", role="system")
+                    acted["widget"] = True
             elif name == "reply_message":
                 # V2-051: responder un mensaje del buzón. Converge en la data-op `reply` de `mensajeria`
                 # (confirm:true) → el gate CONFIRM lee el borrador y pide OK antes de ENVIAR. Una por turno.

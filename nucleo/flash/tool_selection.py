@@ -56,7 +56,10 @@ ALWAYS: frozenset[str] = frozenset({"core", "web", "memory"})
 _HINTS: dict[str, tuple[str, ...]] = {
     "widgets": ("widget", "tarjeta", "panel", "pantalla", "ventana", "abre", "abre", "cierra", "muestra",
                 "muestrame", "ensename", "borra", "alias", "llama", "lista", "agenda", "card", "screen",
-                "show", "close", "open", "delete"),
+                "show", "close", "open", "delete",
+                # V2-588: arrange_canvas — the tool-name words the family ratchet demands, plus the verbs
+                # the operator actually says («ordena los widgets», «recoloca la pantalla»).
+                "arrange", "canvas", "ordena", "recoloca", "organiza", "tidy"),
     # PHOTOS live in `media` too (`show_images`, V2-457 — music and video's third sibling), and this line had
     # only music and video words. Measured live on the operator's engine (2026-09-01, three turns): «Enséñame la
     # foto de un Ferrari F cuarenta» and «show me a ferrari f40 picture» retrieved `widgets` (from «enséñame» /

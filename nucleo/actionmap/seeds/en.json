@@ -1,6 +1,6 @@
 {
   "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model.",
-  "version": 3,
+  "version": 4,
   "grids": [
     {
       "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -369,6 +369,42 @@
         "do": "show_panel",
         "tab": "clusters",
         "action": "open"
+      }
+    },
+    {
+      "phrase": "arrange the widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "arrange the screen",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "tidy up the widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "tidy the screen",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "organize the widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "organize the screen",
+      "action": {
+        "do": "arrange"
       }
     }
   ]

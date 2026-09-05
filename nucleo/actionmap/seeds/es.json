@@ -1,6 +1,6 @@
 {
   "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it.",
-  "version": 3,
+  "version": 4,
   "grids": [
     {
       "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -416,6 +416,60 @@
         "do": "show_panel",
         "tab": "clusters",
         "action": "open"
+      }
+    },
+    {
+      "phrase": "ordena los widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "ordena los widgets de la pantalla",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "ordena la pantalla",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "recoloca los widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "organiza los widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "organiza la pantalla",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "coloca bien los widgets",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "ajusta los widgets a la pantalla",
+      "action": {
+        "do": "arrange"
+      }
+    },
+    {
+      "phrase": "ordename los widgets",
+      "action": {
+        "do": "arrange"
       }
     }
   ]

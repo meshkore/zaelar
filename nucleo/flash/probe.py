@@ -470,6 +470,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             _frid = ""
         action = f"canvas:fullscreen:{_frid}" if _frid else "clarify"
+    elif "arrange_canvas" in names:
+        # V2-588 — espejo del provider (cablear en AMBOS): ordenar el canvas es una acción global, sin id.
+        action = "canvas:arrange"
     elif "widget_data" in names:
         # ESPEJO de la voz (`_handle_widget_data_tool`, impl PARALELA — cablear en AMBOS): la voz NO ejecuta a
         # ciegas el nombre de la tool — resuelve el widget, consulta `action_mode` y (diag sesiones-largas
@@ -958,6 +961,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     return_extra_exec = {"executed": "login_done", "resumed": _resumed}
                 except Exception as e:  # noqa: BLE001
                     return_extra_exec = {"execute_error": str(e)[:200]}
+            elif action == "canvas:arrange":
+                # V2-588 — el mismo emit que POST /api/canvas/arrange: el canvas de quien mire reacciona por SSE.
+                from voice.observer import emit as _emit_arr
+                _emit_arr("widget", "arrange", extra={"src": "flash"})
+                return_extra_exec = {"executed": "arrange"}
             elif action == "canvas:show:imagenes" and images_req:
                 # V2-457/463 — mismo rail que la voz (`image_turn`), que además abre la TARJETA: aquí no.
                 return_extra_exec = await _image_turn.execute(images_req["query"], images_req.get("n") or 12)

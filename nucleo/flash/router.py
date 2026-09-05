@@ -76,7 +76,7 @@ from nucleo.flash.router_catalog import TOOLS   # V2-556: el catálogo (dato pur
 FAMILIES: dict[str, tuple[str, ...]] = {
     "core":      ("escalate_to_slowbrain", "set_style_directive"),
     "widgets":   ("show_widget", "widget_data", "delete_widget", "restore_widget", "confirm_widget_delete",
-                  "fullscreen_widget", "manage_widget_alias", "show_panel"),
+                  "fullscreen_widget", "manage_widget_alias", "show_panel", "arrange_canvas"),
     "workers":   ("send_to_worker", "stop_worker", "answer_worker"),
     "cluster":   ("connect_cluster", "set_cluster_objective", "cluster_send"),
     "messaging": ("reply_message",),
