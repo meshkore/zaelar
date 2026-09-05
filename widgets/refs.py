@@ -44,7 +44,10 @@ def _ref_index(widget_id: str) -> list[dict]:
         mod = importlib.import_module(f"widgets.{widget_id}.data")
         if hasattr(mod, "ref_index"):
             idx = mod.ref_index()
-            return [i for i in idx if isinstance(i, dict) and i.get("id") and i.get("field")]
+            # `label` is required too: a row without one cannot be referenced by voice, cannot be listed, and
+            # would make `resolve()` break its own «NEVER raises» promise (KeyError in the exact-title pass and
+            # in every candidates list).
+            return [i for i in idx if isinstance(i, dict) and i.get("id") and i.get("field") and i.get("label")]
     except Exception:
         pass
     return []
@@ -102,8 +105,11 @@ def id_field_for_action(widget_id: str, action: str) -> str | None:
 # POSITION words: a CLOSED class, so resolving them is a lookup and not a judgement — the same shape as the
 # four scroll directions of V2-591, never a verb table. `-1` is the last row. English pulls its weight here: the
 # two labs speak different languages and «play the second one» is the same order.
+# «una» is NOT here and must not come back: it is the indefinite article («pon una canción» asks for A song,
+# not for song one) — `_STOP` already drops it, so an entry for it would be dead today and a wrong resolution
+# the day someone "fixes" the filter.
 _ORDINALS = {
-    "primero": 0, "primera": 0, "primer": 0, "uno": 0, "una": 0, "first": 0,
+    "primero": 0, "primera": 0, "primer": 0, "uno": 0, "first": 0,
     "segundo": 1, "segunda": 1, "dos": 1, "second": 1,
     "tercero": 2, "tercera": 2, "tercer": 2, "tres": 2, "third": 2,
     "cuarto": 3, "cuarta": 3, "cuatro": 3, "fourth": 3,
@@ -121,10 +127,15 @@ _ORDINALS = {
 # says nothing more than «the first one». Same idea as the generic nouns already in `_STOP` («tarea», «cita»,
 # «proyecto»), kept separate because it must not weaken title matching — a title containing «vídeo» has to keep
 # scoring on it. Measured live: with the card open, the model calls `play_item` with exactly this shape.
+# «numero/number» is here too: «el número 3» is the position word's own label and says nothing beyond «the
+# 3rd» — while a title that carries a number next to a content token («sinfonía número 9») keeps that token
+# and still goes to the fuzzy matcher. «episodio/capítulo» are deliberately OUT: those nouns often carry
+# numbering that is item IDENTITY, not list position («el episodio 12» may sit at row 3), and resolving it by
+# position would play the wrong item — the exact failure V2-026 exists to prevent.
 _POS_FILLER = set("video videos clip clips cancion canciones tema temas pista pistas track tracks song songs "
                   "lista listas playlist cola elemento elementos entrada entradas fila filas resultado "
                   "resultados foto fotos imagen imagenes mensaje mensajes list queue row rows result results "
-                  "one ones thing things".split())
+                  "numero numeros number one ones thing things".split())
 
 
 def _position_ref(query: str, n: int) -> "int | None":
@@ -147,8 +158,13 @@ def _position_ref(query: str, n: int) -> "int | None":
     if len(toks) != 1:
         return None
     t = toks[0]
-    if t.isdigit():                                        # 1-based, as every manifest declares it
-        i = int(t) - 1
+    # 1-based, as every manifest declares it. The digit may carry an ordinal suffix: «3º»/«1ª» reach us as
+    # «3o»/«1a» (NFKD decomposes the indicator into a letter before `_norm` strips anything), and typed
+    # «2nd»/«3ro» count the same. The suffix set is closed and only ever follows digits, so it collides with
+    # no word.
+    m = re.match(r"(\d+)(?:o|a|er|ro|do|to|mo|vo|no|st|nd|rd|th)?$", t)
+    if m:
+        i = int(m.group(1)) - 1
         return i if 0 <= i < n else None
     pos = _ORDINALS.get(t)
     if pos is None:

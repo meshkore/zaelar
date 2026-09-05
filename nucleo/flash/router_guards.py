@@ -104,7 +104,10 @@ _CHANGE_VERB_RE = _re.compile(r"\b(anad|apunt|agreg|marca|quita|borr|elimin|camb
 # and it should not: nothing here mutates a record. Kept SHORT and stem-based on purpose (`inici` is out: it also
 # matches the noun «el inicio», and a false positive here disarms a guard that exists to catch a hallucinated
 # `add_meeting`). `pon`/`ponlo` already belong to the change list, with its «en pantalla» carve-out.
-_ACTIVATE_VERB_RE = _re.compile(r"\b(arranc|reproduc|empiez|empez|play|start)")
+# `reanud` IS in: resuming playback is the same order as starting it, and its noun collision («la reanudación»,
+# sportscast vocabulary) is far rarer than `inici`'s «el inicio». `resum` is OUT for the same reason `inici` is:
+# «el resumen» and «la versión resumida» ride along with genuine show orders all the time.
+_ACTIVATE_VERB_RE = _re.compile(r"\b(arranc|reproduc|empiez|empez|reanud|play|start)")
 
 
 def is_pure_show_request(text: str) -> bool:

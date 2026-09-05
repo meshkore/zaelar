@@ -73,6 +73,19 @@ def test_el_INICIO_no_es_iniciar():
     assert is_pure_show_request("Muéstrame el inicio de la lista") is True
 
 
+def test_REANUDAR_tambien_es_arrancar():
+    """Resuming playback is the same order as starting it — without `reanud` this sentence read as a pure show
+    and the correct `play_item` was discarded, fault A with a different verb."""
+    assert is_pure_show_request("Muéstrame el vídeo y reanúdalo") is False
+
+
+def test_pero_el_RESUMEN_sigue_siendo_un_show():
+    """`resum` is deliberately NOT in the activation list, same reasoning as `inici`: «el resumen» and «la
+    versión resumida» are nouns that ride along with genuine show orders."""
+    assert is_pure_show_request("Muéstrame el resumen") is True
+    assert is_pure_show_request("Enséñame la versión resumida") is True
+
+
 # ── FAULT B · the widget publishes its index and the resolver reads it ──────────────────────────────────────
 
 @pytest.mark.parametrize("action", ["play_item", "remove", "move"])
@@ -142,6 +155,9 @@ def _idx(n: int) -> list[dict]:
     ("la tercera", "3"), ("el segundo", "2"),
     ("1", "1"), ("3", "3"), ("5", "5"),
     ("el último", "5"), ("last", "5"),
+    ("el número 3", "3"), ("número uno", "1"),   # «número» is the position word's own label
+    ("el 3º", "3"), ("la 1ª", "1"),              # NFKD turns the ordinal indicator into a letter
+    ("the 2nd", "2"), ("el 4to", "4"),           # typed ordinal suffixes count the same
 ])
 def test_una_referencia_de_POSICION_resuelve(monkeypatch, ref, esperado):
     monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
@@ -171,6 +187,40 @@ def test_un_CONTENEDOR_sin_ordinal_no_resuelve_nada(monkeypatch):
     """The other direction: dropping filler must not turn «vídeo de la lista» into a video."""
     monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
     assert refs.resolve("youtube", "play_item", "vídeo de la lista", {}).ok is False
+
+
+def test_UNA_cancion_es_un_articulo_no_una_posicion(monkeypatch):
+    """«pon una canción» asks for A song, not for song one: `_STOP` drops the indefinite article and the
+    ordinal table must not resurrect it — resolving it to row 1 would play a video the operator never chose."""
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    r = refs.resolve("youtube", "play_item", "una canción", {})
+    assert r.ok is False, (r.payload,)
+
+
+def test_EPISODIO_no_es_relleno_de_posicion(monkeypatch):
+    """«el episodio 12» carries item IDENTITY, not list position — it may sit at row 3. It has to go to the
+    matcher (and here, with no matching title, to a question), never to row 12 or row 1."""
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    r = refs.resolve("youtube", "play_item", "el episodio 3", {})
+    assert r.ok is False, (r.payload,)
+
+
+def test_una_fila_sin_label_no_rompe_la_promesa_de_no_lanzar(monkeypatch):
+    """`resolve` promises it NEVER raises. A widget publishing a row without `label` used to be able to break
+    that (KeyError in the exact-title pass and in every candidates list) — such a row is unusable by every
+    consumer, so the index filters it out."""
+    import sys
+    import types
+    mod = types.ModuleType("widgets.fakew.data")
+    mod.ref_index = lambda: [{"id": "1", "field": "item"},                       # no label → filtered
+                             {"id": "2", "field": "item", "label": "Bueno"}]
+    monkeypatch.setitem(sys.modules, "widgets.fakew", types.ModuleType("widgets.fakew"))
+    monkeypatch.setitem(sys.modules, "widgets.fakew.data", mod)
+    assert refs._ref_index("fakew") == [{"id": "2", "field": "item", "label": "Bueno"}]
+    monkeypatch.setattr(refs.runtime, "get",
+                        lambda wid: {"actions": {"x": {"payload": {"item": "..."}, "ref": "item"}}})
+    r = refs.resolve("fakew", "x", "el primero", {})
+    assert r.ok and r.payload == {"item": "2"}   # the only referable row IS row one of the published list
 
 
 def test_un_TITULO_EXACTO_gana_a_cualquier_lectura_de_posicion(monkeypatch):
