@@ -67,8 +67,14 @@ _HINTS: dict[str, tuple[str, ...]] = {
     # the model can tell it is missing something, and here it kept `show_widget` and `widget_data` over the
     # `imagenes` card — tools that LOOK like they do the job. It used them, opened the viewer empty, and said
     # «Aquí lo tienes». A retrieval miss is invisible exactly when a plausible neighbour survives the trim.
-    "media": ("musica", "cancion", "suena", "spotify", "video", "youtube", "pon", "reproduce", "volumen",
-              "podcast", "play", "music", "song", "sube", "baja",
+    # V2-586: the PLURALS were missing — a LIST search is plural by definition («búscame vídeos de recetas de
+    # paella», V2-402's own example, retrieved NO family and `play_video` was trimmed away), so every media
+    # search escalated to a Brain Worker that took 9+ minutes to rediscover the widget's own `search` data-op.
+    # Photos already carried both numbers because V2-548 paid this exact incident for them; music and video
+    # had only the singular. Same rule as always: the SAME seeds in the other number, never a longer verb list.
+    "media": ("musica", "cancion", "canciones", "suena", "spotify", "video", "videos", "youtube", "pon",
+              "reproduce", "volumen", "podcast", "podcasts", "documental", "documentales",
+              "play", "music", "song", "songs", "sube", "baja",
               "foto", "fotos", "fotografia", "fotografias", "imagen", "imagenes",
               "photo", "photos", "picture", "pictures", "pic", "image", "images"),
     "workers": ("para", "paralo", "cancela", "cancelalo", "detente", "worker", "tarea", "proceso", "busqueda",

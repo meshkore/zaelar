@@ -132,6 +132,25 @@ def test_pedir_una_FOTO_conserva_la_tool_que_ensena_fotos():
             f"«{phrase}» pierde la única tool que enseña fotos — el visor se abre vacío: {report}"
 
 
+def test_buscar_VIDEOS_en_plural_conserva_la_tool_del_reproductor():
+    """V2-586 — la mitad de V2-402 que nunca llegó a la voz, medida en la sesión 0e3a42d6 (2026-09-05).
+
+    «Enséñame una lista de vídeos» enseñó el reproductor VACÍO y luego escaló a un Brain Worker que tardó
+    9+ minutos en redescubrir la data-op `search` del propio widget. La causa no era el carril de V2-402
+    (intacto): era ESTA capa — una búsqueda de LISTA es plural por definición, y las semillas de `media`
+    tenían `video` y `podcast` solo en singular, así que las frases del propio caso de uso recuperaban
+    `[]` o `[widgets]` y `play_video` se podaba. Las fotos ya llevaban los dos números porque V2-548 pagó
+    este incidente exacto para ellas; música y vídeo no. El canal probe no recorta tools, así que ningún
+    caso de uso podía verlo — solo la voz en vivo."""
+    for phrase in ("Enséñame una lista de vídeos de Artemis",
+                   "búscame vídeos de recetas de paella",           # el ejemplo del propio doc de V2-402
+                   "qué documentales hay sobre la luna",            # citado verbatim en la descripción de la tool
+                   "búscame podcasts de historia"):
+        kept, report = ts.select(FULL, turn_text=phrase)
+        assert "play_video" in _names(kept), \
+            f"«{phrase}» pierde play_video — la búsqueda de vídeos vuelve a escalar a un worker: {report}"
+
+
 def test_y_la_charla_sigue_sin_arrastrar_la_familia_de_fotos():
     """Arreglar una recuperación no es dejar de recuperar. Las palabras nuevas son SEMILLAS, no un clasificador
     de intención: un turno que no habla de imágenes sigue sin cargar `media`."""
