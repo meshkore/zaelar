@@ -1259,15 +1259,9 @@ async def _run_session(task: "Task") -> None:
             try:
                 dev_worker_guard.write_settings_file(_dev_settings_path)
             except Exception as _e_jail:
-                # FAIL-CLOSED (V2-601 T-09, audit 2026-09-05). This used to WARN and start the dev worker
-                # WITHOUT its jail — a peer-driven worker with full file tools was exactly the finding. A jail
-                # that degrades to a warning is a convention, not a control: with no settings file the worker
-                # still starts (so every lifecycle seam — ledger, flow close, delivery — stays intact) but with
-                # ZERO tools, confined to nothing instead of to everything.
-                logger.error(f"dispatch: could not write the confinement jail for {key} — the dev worker starts "
-                             f"with NO tools instead of unjailed: {_e_jail!r}")
-                _dev_settings_path = ""
-                _dev_jail_ok = False
+                logger.error(   # FAIL-CLOSED, V2-601 T-09 — see test_dev_worker_jail_fails_closed
+f"dispatch: could not write the confinement jail for {key} — dev worker starts with NO tools instead of unjailed: {_e_jail!r}")
+                _dev_settings_path, _dev_jail_ok = "", False
             spec = WorkerSpec(kind="dev", model=_model_for("code"),
                               tools=(_dev["tools"] if _dev_jail_ok else []),
                               deny_tools=(not _dev_jail_ok), trusted=False, task_id=key,

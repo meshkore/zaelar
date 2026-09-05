@@ -1650,7 +1650,7 @@ DOMAINS: list[dict] = [
         # V2-600 → V2-601 T-07 (2026-09-05): «cierra la pantalla completa» (y el «…completamente» del STT) es una
         # orden de ESTADO de pantalla; el veto vivía en los dos backstops del servidor y la TERCERA copia de la
         # regla —la del cliente, voiceCommands.js— seguía cerrando el canvas entero. Conduce el módulo REAL.
-        {"id": "4.112", "title": "El fast-path del cliente veta el close-all ante una mención de pantalla completa",
+        {"id": "4.115", "title": "El fast-path del cliente veta el close-all ante una mención de pantalla completa",
             "ch": UNIT, "paths": ["tests/browser/unit/voicecmd/test_close_all_fullscreen_veto.py"]},
         # V2-124: el shell MÓVIL (PWA) es un SEGUNDO host de los dos contratos que ya hablaban `services/sse.js` y
         # cada widget. El riesgo no es que hoy funcione —funciona— sino que alguien añada un método al protocolo de
