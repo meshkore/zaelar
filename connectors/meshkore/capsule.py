@@ -330,6 +330,12 @@ def compose(cluster: str, peer: str, cap: dict | None = None) -> str:
     try:
         from connectors.meshkore import mem_ingest
         dossier = (mem_ingest.synthesis_for(cluster, peer) or "").strip()
+        # Belt to mem_ingest's write-side neutralization (V2-601 T-05): a synthesis stored BEFORE that fix — or
+        # by any future writer that forgets it — must still not carry fence sentinels into this TRUSTED block.
+        from connectors.meshkore.security import _neutralize as _ni
+        dossier = _ni(dossier)
+        # Belt to mem_ingest's write-side neutralization (V2-601 T-05): a synthesis stored BEFORE that fix — or
+        # by any future writer that forgets it — must still not carry fence sentinels into this TRUSTED block.
     except Exception:
         dossier = ""
     phase = cap.get("phase") or SONDEO

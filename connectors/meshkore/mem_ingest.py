@@ -188,8 +188,13 @@ async def _run(cluster: str, peer: str, inbound: str, outbound: str) -> None:
     try:
         # REDACT before touching memory: peer content (or the echo of one of our secrets) must not persist in clear
         # text. Same policy as the channel journal/timeline.
-        inbound = store.redact((inbound or "").strip())
-        outbound = store.redact((outbound or "").strip())
+        # …and NEUTRALIZE the fence sentinels first (audit 2026-09-05, V2-601 T-05): the synthesis this writes is
+        # later injected into the TRUSTED [RELACIÓN…] prompt block by `capsule.compose`, and `_merge_fallback`
+        # copies up to 160 chars of this text VERBATIM — so a peer message carrying forged ⟦UNTRUSTED⟧ markers
+        # used to walk them past the fence, into the zone the fence exists to protect. Reproduced offline.
+        from connectors.meshkore.security import _neutralize as _ni
+        inbound = store.redact(_ni((inbound or "").strip()))
+        outbound = store.redact(_ni((outbound or "").strip()))
         if not inbound and not outbound:
             return
         prev = _current_synthesis(cluster, peer)

@@ -2155,7 +2155,9 @@ DOMAINS: list[dict] = [
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [
             "tests/cluster/unit/test_capsule.py", "tests/cluster/unit/test_capsule_flow.py"]},
-        {"id": "6.2", "title": "Seguridad del canal", "ch": PEER, "paths": ["tests/cluster/unit/test_security.py"]},
+        {"id": "6.2", "title": "Seguridad del canal", "ch": PEER, "paths": [
+            "tests/cluster/unit/test_security.py",
+            "tests/cluster/unit/test_synthesis_cannot_launder_the_fence.py"]},
         {"id": "6.3", "title": "Ingesta cluster→memoria", "ch": PEER, "paths": [
             "tests/cluster/unit/test_mem_ingest.py"]},
         {"id": "6.5", "title": "Protección de recursos (balance/anti-offload, V2-071)", "ch": PEER, "paths": [
