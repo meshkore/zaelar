@@ -377,6 +377,12 @@ DOMAINS: list[dict] = [
             # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
             # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
             "tests/agent_headless/unit/test_mesh_agents.py",
+            # V2-583: la tabla de WORKFLOWS — qué canal sirve cada clase de encargo y si eso sigue siendo
+            # cierto. La fila que más ahorra es la NEGATIVA («la red no tiene nada para bienestar»): antes se
+            # tiraba siempre, así que cada encargo de un vertical sin cubrir volvía a pagar el viaje al
+            # oráculo y luego un modelo para narrar el vacío. Caduca a propósito: aparece un agente nuevo y
+            # la respuesta tiene que poder cambiar.
+            "tests/agent_headless/unit/workflows/test_the_workflow_table.py",
             # V2-486/487 (2026-08-29): la red estaba construida y verificada en vivo, y NO se consultó ni
             # una vez en 399 informes de worker. Dos causas apiladas, ninguna en la red. (1) el bloque
             # «PASO 0 — pregunta a la red» vivía solo en `_web_prompt`, y un hotel BUSCADO (no reservado)

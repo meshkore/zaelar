@@ -130,6 +130,10 @@ UNDECLARED_PUBLIC = {
     # call with its callers checked, not a side effect of adding two more.
     "action_map_active", "action_map_add", "action_map_has_seed", "action_map_hit",
     "action_map_seed_version", "action_map_set_seed_version", "action_map_retarget_seed",
+    # V2-583 · the workflow table's four (`nucleo/workflows/` is the only caller, through the facade like
+    # everything else). Inventoried and not declared, for the same reason as the action-map set above: joining
+    # the frozen surface is a decision with its callers checked, not a side effect of adding a table.
+    "workflows_for", "workflow_upsert", "workflow_hit", "workflow_forget",
 }
 
 

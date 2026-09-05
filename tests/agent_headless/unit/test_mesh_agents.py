@@ -134,7 +134,10 @@ def test_a_mesh_that_is_down_is_not_an_error(monkeypatch):
     """The whole point of the fallback: if this raised, a mesh outage would break every web errand — the
     browser has to stay the plan."""
     monkeypatch.setattr(m, "_post", lambda url, body, timeout=None: (0, None))
-    assert m.find("hotel in Madrid") == {"intent": "", "agents": []}
+    out = m.find("hotel in Madrid")
+    assert out["intent"] == "" and out["agents"] == []
+    # …and it must say it never REACHED the Oracle, or V2-583 would cache an outage as «nobody does hotels».
+    assert out["reached"] is False
     assert m.serve("hotel in Madrid")["ok"] is False
 
 
@@ -382,7 +385,8 @@ def test_silence_about_the_domain_is_not_a_mismatch(monkeypatch):
 
 
 def test_nobody_covers_this_yet_is_said_differently_from_nobody_answered(monkeypatch):
-    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none", "agents": []})
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none",
+                                                   "agents": [], "reached": True})
     monkeypatch.setattr(m, "_routes", lambda: {})
     assert "todavía no hay" in m.serve("un masaje en Madrid")["reason"]
     monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.hotels", "coverage": "full",
@@ -427,3 +431,49 @@ def test_a_tiered_card_can_prove_a_bare_oracle_row_free(monkeypatch):
     bare = {"agent_id": "lucid", "endpoint": "https://lucid.example", "online": True, "status": "available"}
     assert m._is_free(bare) is False
     assert m._is_free(bare, {"pricing": TIERED_FREE["pricing"]}) is True
+
+
+# ── V2-583 · the workflow table answers before the network does ───────────────────────────────────────────
+def test_a_known_empty_domain_never_reaches_the_oracle(monkeypatch):
+    """The whole point of the negative row: no round trip, and no empty result sent through a model to have
+    the emptiness narrated back. `_post` is the network trap, so reaching it fails the test by itself."""
+    from nucleo import workflows as wf
+    wf.forget("wellness")
+    wf.note_empty("wellness", evidence="oracle coverage=none")
+    try:
+        res = m.serve("quiero un masaje en Sevilla")
+        assert res["ok"] is False
+        assert res["from_cache"] is True and res["coverage"] == "none"
+        assert "todavía no hay" in res["reason"]
+    finally:
+        wf.forget("wellness")
+
+
+def test_an_oracle_that_says_nobody_covers_this_is_remembered(monkeypatch):
+    """`coverage: none` is the Oracle stating the vertical is uncovered — worth caching. «Nobody answered» is
+    a transient failure, and caching that would turn one bad minute into three bad days."""
+    from nucleo import workflows as wf
+    wf.forget("wellness")
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "wellness", "coverage": "none",
+                                                   "agents": [], "reached": True})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    try:
+        m.serve("quiero un masaje en Sevilla")
+        assert wf.plan("quiero un masaje en Sevilla").known_empty is True
+    finally:
+        wf.forget("wellness")
+
+
+def test_an_unreachable_oracle_is_NOT_remembered(monkeypatch):
+    """The distinction that makes the negative row safe: a network outage must never become three days of
+    «nobody does this». Measured need — an uncovered vertical really returns an empty `coverage`, so the word
+    cannot be the key; whether the Oracle ANSWERED is."""
+    from nucleo import workflows as wf
+    wf.forget("wellness")
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "", "agents": [], "reached": False})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    try:
+        m.serve("quiero un masaje en Sevilla")
+        assert wf.plan("quiero un masaje en Sevilla").known_empty is False
+    finally:
+        wf.forget("wellness")

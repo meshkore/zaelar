@@ -236,6 +236,39 @@ ACTION_MAP_INDEXES = [
 ]
 
 
+# V2-583 · WORKFLOWS — «for this kind of errand, which channel actually works, and is that still true?»
+#
+# One row per (domain, channel). It is NOT a second action_map: `action_map` maps a PHRASE to a LOCAL action
+# on a widget and never leaves the machine, while this maps a DOMAIN of errand to the ORDER of external
+# channels to try. They meet only in that both are looked up by a function and cost ZERO prompt tokens.
+#
+# The row that matters most is the NEGATIVE one (`status='none'`): «the mesh has nothing for wellness». Until
+# now that answer was thrown away every time, so every errand of an uncovered kind paid the Oracle round trip
+# again — and then paid a language model to narrate the emptiness. A negative row with a TTL is what stops
+# both. It EXPIRES on purpose: a new agent appears on the mesh and the answer has to be allowed to change.
+WORKFLOWS = """
+CREATE TABLE IF NOT EXISTS workflows (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  domain      TEXT NOT NULL,
+  channel     TEXT NOT NULL,
+  rank        INTEGER NOT NULL DEFAULT 100,
+  status      TEXT NOT NULL DEFAULT 'active',
+  source      TEXT NOT NULL DEFAULT 'seed',
+  target      TEXT,
+  evidence    TEXT,
+  hits        INTEGER NOT NULL DEFAULT 0,
+  ttl_s       INTEGER NOT NULL DEFAULT 604800,
+  checked_at  INTEGER,
+  created_at  INTEGER NOT NULL,
+  last_hit_at INTEGER,
+  UNIQUE(domain, channel)
+);
+"""
+WORKFLOWS_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_workflows_domain ON workflows(domain, status, rank)",
+]
+
+
 # ── Tablas virtuales (condicionales) ────────────────────────────────────────────────────────────────────────
 
 # Vector (sqlite-vec). Solo si la extensión está cargada.
@@ -263,4 +296,4 @@ FTS_MEMORIES = (
 
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
             VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,
-            ACTION_MAP, *ACTION_MAP_INDEXES]
+            ACTION_MAP, *ACTION_MAP_INDEXES, WORKFLOWS, *WORKFLOWS_INDEXES]

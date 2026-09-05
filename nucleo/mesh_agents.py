@@ -218,13 +218,17 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     """
     query = (query or "").strip()
     if not query:
-        return {"intent": "", "agents": []}
+        return {"intent": "", "agents": [], "reached": False}
     status, data = _post(f"{ORACLE_URL}/v1/search",
                          {"prompt": query, "query": query, "source": "mesh", "audience": "personal",
                           "strict": True,
                           "filters": {"limit": max(1, int(limit)), "online_only": True}})
     if status != 200 or not isinstance(data, dict):
-        return {"intent": "", "agents": []}
+        # V2-583 · `reached` separates «the Oracle answered and has nobody» from «the Oracle did not answer».
+        # Flattening those two is the same mistake V2-487 fixed one layer down: both look like an empty list,
+        # and only one of them is worth remembering. Caching a network outage would turn one bad minute into
+        # three bad days.
+        return {"intent": "", "agents": [], "reached": False}
     agents = [a for a in (data.get("agents") or []) if isinstance(a, dict) and _is_live(a) and _endpoint_of(a)]
     # An explicit `false` is a statement; a missing key is an older Oracle that never made one. Only the
     # statement is acted on — treating silence as a mismatch would empty the mesh the day it is rolled back.
@@ -232,7 +236,7 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     if free_only:
         agents = [a for a in agents if _is_free(a) or _is_free(a, _card_of(_endpoint_of(a)))]
     return {"intent": str(data.get("intent") or ""), "query_id": data.get("query_id"),
-            "coverage": str(data.get("coverage") or ""), "agents": agents}
+            "coverage": str(data.get("coverage") or ""), "agents": agents, "reached": True}
 
 
 _cards: dict[str, dict | None] = {}
@@ -421,6 +425,19 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     prompt = (prompt or errand).strip()
     if not errand:
         return {"ok": False, "reason": "sin encargo"}
+    # V2-583 · the workflow table answers BEFORE the network does. A domain the mesh is known to have nothing
+    # for does not pay the Oracle round trip again, and the caller gets a FACT instead of an empty result to
+    # send through a model to have the emptiness narrated back. The negative row expires, so a new agent on
+    # the mesh is still discovered — it is a shortcut, not a verdict.
+    try:
+        from nucleo import workflows as _wf
+        wplan = _wf.plan(errand)
+    except Exception:
+        wplan = None
+    if wplan and wplan.known_empty:
+        return {"ok": False, "reason": "todavía no hay ningún agente en la red para esto",
+                "intent": "", "coverage": "none", "domain": wplan.domain, "from_cache": True}
+
     found = find(errand)
     intent, agents = found.get("intent") or "", found.get("agents") or []
     coverage = found.get("coverage") or ""
@@ -433,6 +450,21 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         # honest emptiness; it also tells the operator the browser is the plan for a REASON, not by failure.
         reason = ("todavía no hay ningún agente en la red para esto" if coverage == "none"
                   else "no hay ningún agente libre en la red para esto")
+        # V2-583: and remember it, so the NEXT errand of this kind does not pay for the same round trip.
+        # Only `coverage: none` is cached — the Oracle stating that nothing serves this vertical. «Nobody
+        # answered» is a transient failure and caching it would turn one bad minute into three bad days.
+        # Cached only when the Oracle was actually REACHED. `coverage: none` is its explicit statement that
+        # the vertical is uncovered; a plain zero with no coverage field is the same fact told less clearly —
+        # measured, that is what an uncovered vertical really returns, and keying on the word alone meant the
+        # saving never fired where it was needed most. An unreachable Oracle is cached NEVER.
+        if wplan and wplan.domain and found.get("reached"):
+            try:
+                from nucleo import workflows as _wf
+                _wf.note_empty(wplan.domain,
+                               evidence=f"oracle reached, 0 agents (coverage={coverage or '-'}, "
+                                        f"intent={intent or '-'})")
+            except Exception:
+                pass
         return {"ok": False, "reason": reason, "intent": intent, "coverage": coverage}
     dijo: dict = {}
     quien = ""
@@ -449,6 +481,16 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
             # unconditional fetch here reddened two unrelated tests, and a learned route stored before
             # capabilities were kept would have paid it on every single cached hit.)
             declared = _declares(agent) or _declares(agent, _cards.get(_endpoint_of(agent)))
+            # V2-583: a success teaches the workflow table too, keyed by the LEXICAL domain rather than the
+            # Oracle intent. That matters: the intent is `general` for events, shopping and wellness, which is
+            # exactly where `remember_route` cannot help — the domain key has no such hole.
+            if wplan and wplan.domain:
+                try:
+                    from nucleo import workflows as _wf
+                    _wf.learn(wplan.domain, _wf.store.CH_MESH, target=str(agent.get("agent_id") or ""),
+                              evidence=f"served «{errand[:60]}»", rank=10)
+                except Exception:
+                    pass
             return {"ok": True, "intent": intent, "agent": agent.get("agent_id"),
                     **declared, "data": res.get("data")}
         if res.get("payment_required"):

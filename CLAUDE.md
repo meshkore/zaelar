@@ -7945,6 +7945,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
+- **The workflow table: what serves this kind of errand (V2-583, 2026-09-05)**: operator directive — *«if
+  today I look for a restaurant and there is no agent, what cannot happen is that tomorrow I ask the Oracle
+  again»*, and *«if the Oracle says zero, we do not need a language model to tell us that»*. Both were real:
+  `mesh_agents` remembered only SUCCESS, and only under an intent it would key on, so the two most expensive
+  cases were the un-cacheable ones — «nobody does wellness» thrown away every time, and everything the Oracle
+  called `general` (events, shopping, wellness). New table `workflows` (`memory/schema.py`, facade in
+  `memory/api.py`, runtime in `nucleo/workflows/`): one row per `(domain, channel)` with `status`, `ttl_s`,
+  `source`, `evidence`. **It is not a second `action_map`** — that maps a PHRASE to a LOCAL widget action and
+  never leaves the machine; this maps a DOMAIN to the ORDER of EXTERNAL channels, and when a phrase is a local
+  action the action map wins and this is never consulted. **It is not a third opinion on what «reservar mesa»
+  means** either: `domain_of` asks `site_catalog.category_of` FIRST (the shared classifier behind `errand_kind`
+  and `router_guards`, whose comment warns that two components deciding the same thing end up disagreeing) and
+  only adds the verticals the catalogue cannot name, named after the ORACLE's own intents so both sides share
+  the key. **It is never carried in a prompt** — one regex sweep plus one indexed SELECT, zero tokens. Wired
+  into `serve`: a known-empty domain answers BEFORE the Oracle is called. **The live run caught the bug the
+  unit test could not**: the first version cached only `coverage == "none"`, which the test MOCKED, while a
+  real uncovered vertical returns an EMPTY coverage — so the saving never fired where it mattered. Fixing it
+  exposed that `find` flattened «answered with nobody» and «did not answer» into one empty list (the same
+  fault V2-487 fixed a layer down), so `find` now returns **`reached`** and **an outage is never cached** —
+  that would turn one bad minute into three bad days. TTL 7 days positive / 3 negative, shorter because a
+  negative is likeliest to stop being true (two agents arrived the same afternoon). Measured live: a plumber
+  errand went **1.02 s → 0.0002 s**, no network and no model. Node 2.5 (+3 and a new file, 49 green;
+  agent-headless 2667, memory 646). Disarm verified. Only the `mesh` channel is written today; `connector`,
+  `browser` and `worker` are declared and unwritten.
 - **A free tier arrives as one entry in a LIST (V2-582, 2026-09-05)**: the operator ruled that every agent
   Zaelar can use must have a free tier, the mesh side complied — and **the three agents it unblocked were
   still invisible here**. `_is_free` read `pricing` as a single dict and did `if not isinstance(pricing,
