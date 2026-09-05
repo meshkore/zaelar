@@ -515,19 +515,23 @@ def create_app() -> FastAPI:
         routers.append(livekit_router)
     # FlashBrain headless TEST channel (V2-032, 3rd testing mode): POST /api/flash/say injects text and returns the
     # response + action + latencies, without voice or a room. Only with the «Colmena» brain (BRAIN=nucleo).
-    try:
-        from config.v2 import active_brain
-        if active_brain() == "nucleo":
-            from nucleo.flash.probe_api import router as flash_probe_router
-            routers.append(flash_probe_router)
-            from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
-            routers.append(agent_report_router)
-            from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
-            routers.append(worker_router)
-            from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
-            routers.append(navegador_act_router)
-    except Exception as _e:
-        logger.warning(f"flash probe router not mounted: {_e!r}")
+    #
+    # ⚠️ NO broad except around the mounts (V2-554 → V2-601 T-08). This block used to be one try/except that
+    # turned a FATAL misconfig (e.g. `config/models.default.json` missing from the image — it happened) into ONE
+    # warning line: the app booted "green", /healthz answered 200, the release smoke passed — and the product had
+    # no probe, no worker plane and no browser bridge. The two cases V2-554 told apart get opposite treatment:
+    #   · brain deliberately NOT nucleo → skip quietly (a baseline profile is a choice, not a fault);
+    #   · brain IS nucleo and a mount fails → RAISE, so the boot dies where the smoke can see it.
+    from config.v2 import active_brain
+    if active_brain() == "nucleo":
+        from nucleo.flash.probe_api import router as flash_probe_router
+        routers.append(flash_probe_router)
+        from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
+        routers.append(agent_report_router)
+        from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
+        routers.append(worker_router)
+        from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
+        routers.append(navegador_act_router)
     for r in routers:
         app.include_router(r)
 

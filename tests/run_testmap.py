@@ -2340,6 +2340,10 @@ DOMAINS: list[dict] = [
          "ch": HTTP, "paths": ["tests/infrastructure/unit/core/test_connector_catalog_route.py"]},
         {"id": "7.16", "title": "La imagen de la nube trae TODO lo que el motor importa al arrancar", "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_docker_boot_copy.py"]},
+        # 2026-09-05 (V2-554 → V2-601 T-08): un cerebro CONFIGURADO que no monta MATA el arranque en vez de
+        # degradarlo a un warning — la otra mitad del incidente que el 7.16 cierra por el lado de la imagen.
+        {"id": "7.33", "title": "Un fallo de montaje con cerebro configurado es FATAL, no un warning", "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/core/test_create_app_mount_failures_are_fatal.py"]},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py"},
         # 2026-08-15 (V2-092 addenda): la sesión de trabajo se cierra por techo de INACTIVIDAD REAL (el ruido de
