@@ -5,6 +5,12 @@ poder parchearlo y para blindarlo ante `hermes update` (que hace `git pull` + au
 `~/.hermes/hermes-agent` y reescribiría cualquier edición in-place). Ver
 `.meshkore/docs/architecture/zaelar-hermes-federation.md`.
 
+## License
+
+Upstream is MIT (Copyright (c) 2025 Nous Research). This directory stays under that MIT license —
+see the `LICENSE` file here — and is NOT covered by the repository's Sustainable Use License
+(`LICENSE.md` at the repo root).
+
 ## Origen
 
 - **Repo upstream**: `~/.hermes/hermes-agent` (git)

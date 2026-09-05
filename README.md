@@ -74,7 +74,7 @@ fetches automatically into `.venv/` and `bin/` **inside this folder** — delete
 ## Your data is yours
 
 Everything Zaelar knows lives under this folder, on your machine — encrypted, portable, and open to
-inspect. No account, no cloud, no lock-in. Because the code is open source, you can verify exactly what
+inspect. No account, no cloud, no lock-in. Because the source is public, you can verify exactly what
 runs on your data.
 
 ## Zaelar Cloud
@@ -90,6 +90,18 @@ automatic updates, managed backups, multi-device sync, no maintenance. → [Get 
 
 ## License
 
-<!-- [[PENDING: license]] — recommended: AGPL-3.0 -->
+Zaelar is **[fair-code](https://faircode.io)**, distributed under the
+[**Sustainable Use License**](LICENSE.md) (the license n8n pioneered):
+
+- **Free to use for yourself** — self-host it for personal use or for your own internal business
+  purposes, modify it, read every line.
+- **Not free to commercialize** — you may not sell it, offer it as a hosted service, or build a
+  commercial product on top of it. Commercial hosting is what [Zaelar Cloud](https://zaelar.com) is.
+- Third-party components keep their own licenses — notably `connectors/whatsapp/bridge/` is
+  MIT-licensed code vendored from [Hermes Agent](https://github.com/NousResearch/hermes-agent)
+  (Nous Research); see the LICENSE file in that directory.
+
+This is a source-available license, not an OSI-approved open-source license: the source is public and
+yours to run, but the commercial rights stay with Zaelar.
 
 <div align="center"><sub>Zaelar — an Asimovia company.</sub></div>
