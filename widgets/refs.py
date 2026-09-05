@@ -117,6 +117,16 @@ _ORDINALS = {
 }
 
 
+# Nouns that name the CONTAINER or the KIND of thing, never a particular one: «el primer VÍDEO de la LISTA»
+# says nothing more than «the first one». Same idea as the generic nouns already in `_STOP` («tarea», «cita»,
+# «proyecto»), kept separate because it must not weaken title matching — a title containing «vídeo» has to keep
+# scoring on it. Measured live: with the card open, the model calls `play_item` with exactly this shape.
+_POS_FILLER = set("video videos clip clips cancion canciones tema temas pista pistas track tracks song songs "
+                  "lista listas playlist cola elemento elementos entrada entradas fila filas resultado "
+                  "resultados foto fotos imagen imagenes mensaje mensajes list queue row rows result results "
+                  "one ones thing things".split())
+
+
 def _position_ref(query: str, n: int) -> "int | None":
     """Index in the published list for a reference that is PURELY about position («the first one», «the last
     one», «3»), or None to let the fuzzy matcher decide (V2-595).
@@ -126,13 +136,14 @@ def _position_ref(query: str, n: int) -> "int | None":
     characters or fewer, so a digit scores 0 and comes back `no_match`; and an ORDINAL («el primero») matches no
     title, which is the exact phrase the operator used in the session that measured this.
 
-    NARROW on purpose: the position word has to be ALL the reference carries once the stop words are gone.
-    «el primer episodio de Artemis» keeps two content tokens, so it falls through to the fuzzy matcher and a
-    title containing «primeros» can still win it. A reference that is only a position cannot mean a title.
+    NARROW on purpose: once stop words and CONTAINER nouns are gone, the position word has to be all the
+    reference carries. «el primer vídeo de la lista» says nothing but «the first one» — measured live, it is
+    the exact shape the model produces — while «el primer episodio de Artemis» keeps a real content token, so
+    it falls through to the fuzzy matcher and the title that matches can still win it.
     """
     if n <= 0:
         return None
-    toks = [t for t in (query or "").split() if t not in _STOP]
+    toks = [t for t in (query or "").split() if t not in _STOP and t not in _POS_FILLER]
     if len(toks) != 1:
         return None
     t = toks[0]
@@ -198,6 +209,11 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
         return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
     if not idx:
         return RefResult(False, needs="no_match")
+
+    for i in idx:                                          # an EXACT title beats any reading of position
+        if query == _norm(i["label"]):
+            payload[field] = i["id"]
+            return RefResult(True, payload)
 
     _pos = _position_ref(query, len(idx))                  # «the first one» / «3» — see `_position_ref`
     if _pos is not None:

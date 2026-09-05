@@ -149,6 +149,39 @@ def test_una_referencia_de_POSICION_resuelve(monkeypatch, ref, esperado):
     assert r.ok and r.payload == {"item": esperado}, (ref, r.ok, r.payload, r.needs)
 
 
+@pytest.mark.parametrize("ref,esperado", [
+    ("primer vídeo de la lista", "1"),          # the LIVE shape: what the model actually sends
+    ("el primer vídeo", "1"),
+    ("la primera canción", "1"),
+    ("el último vídeo de la lista", "5"),
+    ("el tercer elemento", "3"),
+    ("primer resultado", "1"),
+])
+def test_el_CONTENEDOR_no_cuenta_como_contenido(monkeypatch, ref, esperado):
+    """Measured against the running engine: with the card open, the model calls
+    `play_item item="primer vídeo de la lista"`. «vídeo» and «lista» name the KIND and the CONTAINER, so the
+    reference says nothing but «the first one» — the first version of this rule rejected it and the operator's
+    own sentence went on failing after the fix."""
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    r = refs.resolve("youtube", "play_item", ref, {})
+    assert r.ok and r.payload == {"item": esperado}, (ref, r.ok, r.payload, r.needs)
+
+
+def test_un_CONTENEDOR_sin_ordinal_no_resuelve_nada(monkeypatch):
+    """The other direction: dropping filler must not turn «vídeo de la lista» into a video."""
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: _idx(5))
+    assert refs.resolve("youtube", "play_item", "vídeo de la lista", {}).ok is False
+
+
+def test_un_TITULO_EXACTO_gana_a_cualquier_lectura_de_posicion(monkeypatch):
+    """A list whose first row is literally «El primer vídeo» must be reachable by its name."""
+    idx = _idx(3)
+    idx[2]["label"] = "El primer vídeo"
+    monkeypatch.setattr(refs, "_ref_index", lambda wid: idx)
+    r = refs.resolve("youtube", "play_item", "El primer vídeo", {})
+    assert r.ok and r.payload == {"item": "3"}, (r.ok, r.payload, r.needs)
+
+
 def test_una_posicion_FUERA_DE_RANGO_no_se_inventa(monkeypatch):
     """Clamping to the last row would play a video the operator never named — the failure this module was
     written to prevent (V2-026: it must ASK instead of acting on the wrong item)."""
