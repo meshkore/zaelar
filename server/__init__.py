@@ -33,6 +33,7 @@ from connectors.meshkore.server_api import router as meshkore_router  # native c
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
 from connectors.files.server_api import router as cloudfiles_router  # V2-557: OAuth + state for Drive/OneDrive (/api/cloudfiles/*; NOT /api/files/*, taken by memory_routes)
 from connectors.photos.server_api import router as photos_router  # V2-564: Google Photos Picker (/api/photos/*)
+from connectors.video.server_api import router as videoacct_router  # V2-597: YouTube account OAuth (/api/video/*)
 from server.memory_routes import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
 from memory.vault_api import router as vault_router    # operator encrypted-secrets vault (V2-060)
 from update.api import router as update_router      # V2-553: the update channel (build number + «reload?»)
@@ -506,7 +507,8 @@ def create_app() -> FastAPI:
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router,
-               obs_router, feedback_router, update_router, cloudfiles_router, photos_router]
+               obs_router, feedback_router, update_router, cloudfiles_router, photos_router,
+               videoacct_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router

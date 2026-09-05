@@ -110,6 +110,32 @@ def _photos() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
+def _videoaccounts() -> list[dict]:
+    """Video-account connectors (V2-597). One row per provider (YouTube only in v1), isolated like the rest:
+    a broken import here must not empty the whole Connectors tab. Status trichotomy mirrors `_files()`:
+    connected → off (app registered, not connected) → unconfigured (no client_id yet)."""
+    try:
+        from connectors.video import oauth, providers
+        catalog = {c["id"]: c for c in providers.public_list()}
+        out = []
+        for st in oauth.status():
+            cat = catalog.get(st["id"], {})
+            connected = bool(st.get("connected"))
+            out.append({"id": st["id"], "label": st["label"], "family": "video", "auth": "oauth",
+                        "connected": connected,
+                        "status": "connected" if connected else ("off" if st.get("app_configured")
+                                                                 else "unconfigured"),
+                        "detail": st.get("note") or "",
+                        "config": {"app_configured": bool(st.get("app_configured")),
+                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
+                                   "tiers": cat.get("tiers") or [],
+                                   "default_tier": cat.get("default_tier") or ""}})
+        return out
+    except Exception as e:
+        return [{"id": "youtube", "label": "YouTube (cuenta)", "family": "video", "auth": "oauth",
+                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+
+
 def _architect() -> list[dict]:
     try:
         from config import connectors as cfg
@@ -147,8 +173,8 @@ def _meshkore() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "clusters": [], "config": {}}]
 
 
-# Stable family order (messaging -> music -> files -> photos -> infra) for the tab.
+# Stable family order (messaging -> music -> files -> photos -> video -> infra) for the tab.
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return [*_messaging(), *_music(), *_files(), *_photos(), *_architect(), *_meshkore()]
+    return [*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_architect(), *_meshkore()]
