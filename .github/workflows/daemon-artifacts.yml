@@ -1,0 +1,160 @@
+# Build the zaelar-daemon installers on the platforms people install them on (V2-575 · P4).
+#
+# WHY THIS IS ITS OWN WORKFLOW. `ci.yml` runs the controls on Linux, which is where the engine's tests live and
+# where nobody installs the daemon. The daemon's whole promise is "it runs on your Mac or your PC with the
+# minimum of installation problems", and the only way to know that is to build it on a Mac and a PC and start
+# it there. Everything below is the check that claim really passes on a machine that is not the author's.
+#
+# AND IT IS THE ONE THING THE AUTHOR COULD NOT DO. The macOS half was verified by hand — build, install,
+# launchd accepted the agent, ran it, and it deferred to an already-running instance. The Windows half was
+# written blind: there was no Windows and no PowerShell on the machine it was written on. This workflow is what
+# turns that from an untested claim into a measured one, and it is why the Windows job parse-checks the
+# installer scripts before it does anything else — a syntax error in a PowerShell file is a thing you find at
+# install time, on somebody else's computer, in the worst possible mood.
+#
+# IT PUBLISHES NOTHING BY ITSELF. On a tag the artifacts are attached to the release; otherwise they are build
+# artifacts you can download and look at. Signing and notarizing are release steps run by somebody who holds
+# the identity to sign with — see the ops playbook — never a side effect of a green build.
+
+name: daemon artifacts
+
+on:
+  push:
+    tags: ["v*", "daemon-v*"]
+  pull_request:
+    paths:
+      - "daemon/**"
+      - ".github/workflows/daemon-artifacts.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            artifact: zaelar-daemon
+          - os: windows-latest
+            artifact: zaelar-daemon.exe
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The daemon is standard library only and a test enforces it. Proving that here — on a runner with an
+      # empty environment — is stronger than proving it in a repo checkout where the engine's venv is next
+      # door and an accidental import would resolve.
+      - name: The daemon runs on a bare Python, with nothing installed
+        run: |
+          python -c "import daemon, daemon.fs, daemon.http, daemon.security; print(daemon.VERSION)"
+          python -m daemon version
+
+      - name: The PowerShell installers parse
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($file in Get-ChildItem daemon/packaging/windows/*.ps1) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$null, [ref]$errors) | Out-Null
+            if ($errors) { $failed = $true; Write-Host "PARSE ERRORS in $($file.Name)"; $errors | ForEach-Object { Write-Host "  $($_.Message)" } }
+            else { Write-Host "OK $($file.Name)" }
+          }
+          if ($failed) { exit 1 }
+
+      - name: The shell installers parse
+        if: runner.os == 'macOS'
+        run: bash -n daemon/packaging/macos/install.sh && bash -n daemon/packaging/macos/uninstall.sh
+
+      # The portable build first, because it needs nothing: if this one fails, the failure is ours and not a
+      # build tool's.
+      - name: Build the portable archive
+        run: python daemon/packaging/build.py --zipapp
+
+      - name: Install the build tooling
+        run: pip install -r daemon/packaging/requirements-build.txt
+
+      - name: Build the standalone binary
+        run: python daemon/packaging/build.py --onefile
+
+      # A binary that builds and does not run is worse than no binary: it fails on the user's machine instead
+      # of ours. This starts the real artifact, asks it what it is, and — the half that matters — checks it
+      # answers over HTTP and that a request naming somebody else's Host is refused. The guards are what the
+      # daemon is FOR; shipping a build where they were compiled out would be the worst possible regression.
+      - name: The binary actually runs and its guards hold (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          ./dist/daemon/zaelar-daemon version
+          export ZAELAR_WORKSPACE="$RUNNER_TEMP/ws"
+          mkdir -p "$ZAELAR_WORKSPACE/config/daemon"
+          printf '{"version":1,"port":45997,"token":"%s","roots":[],"configured":false}' \
+            "citoken0123456789012345678901234567890123456789" > "$ZAELAR_WORKSPACE/config/daemon/daemon.json"
+          ./dist/daemon/zaelar-daemon &
+          for _ in $(seq 1 40); do curl -sf -m1 http://127.0.0.1:45997/health >/dev/null && break; sleep 0.25; done
+          curl -sf -m5 http://127.0.0.1:45997/health | grep -q '"daemon": "zaelar"'
+          code=$(curl -s -o /dev/null -w '%{http_code}' -m5 -H 'Host: evil.example' \
+                 -H 'Authorization: Bearer citoken0123456789012345678901234567890123456789' \
+                 http://127.0.0.1:45997/permissions)
+          test "$code" = "401" || { echo "the rebind guard did not survive the build (got $code)"; exit 1; }
+          kill %1
+
+      - name: The binary actually runs and its guards hold (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./dist/daemon/zaelar-daemon.exe version
+          $ws = Join-Path $env:RUNNER_TEMP 'ws'
+          New-Item -ItemType Directory -Force -Path (Join-Path $ws 'config/daemon') | Out-Null
+          $token = 'citoken0123456789012345678901234567890123456789'
+          '{"version":1,"port":45997,"token":"' + $token + '","roots":[],"configured":false}' |
+            Set-Content -Path (Join-Path $ws 'config/daemon/daemon.json') -Encoding ASCII
+          $env:ZAELAR_WORKSPACE = $ws
+          $proc = Start-Process -FilePath ./dist/daemon/zaelar-daemon.exe -PassThru
+          try {
+            $up = $false
+            foreach ($i in 1..40) {
+              try { Invoke-RestMethod -Uri 'http://127.0.0.1:45997/health' -TimeoutSec 1 | Out-Null; $up = $true; break }
+              catch { Start-Sleep -Milliseconds 250 }
+            }
+            if (-not $up) { throw "the daemon never answered on 45997" }
+            $health = Invoke-RestMethod -Uri 'http://127.0.0.1:45997/health' -TimeoutSec 5
+            if ($health.daemon -ne 'zaelar') { throw "unexpected /health payload" }
+            $refused = $false
+            try {
+              Invoke-WebRequest -Uri 'http://127.0.0.1:45997/permissions' -TimeoutSec 5 `
+                -Headers @{ Host = 'evil.example'; Authorization = "Bearer $token" } | Out-Null
+            } catch { if ($_.Exception.Response.StatusCode.value__ -eq 401) { $refused = $true } }
+            if (-not $refused) { throw "the rebind guard did not survive the build" }
+          } finally { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zaelar-daemon-${{ runner.os }}
+          path: |
+            dist/daemon/*
+          if-no-files-found: error
+
+  release:
+    # Only on a tag, and only once both platforms built AND their guards held on the real binary.
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Attach the installers to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          fail_on_unmatched_files: true

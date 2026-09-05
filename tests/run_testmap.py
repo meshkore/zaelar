@@ -2457,6 +2457,20 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/daemon/"
                       "test_the_daemon_survives_a_hostile_local_process.py"]},
+        # Lo que instala un DESCONOCIDO. La promesa del daemon no es «corre desde un checkout» —ahí es donde se
+        # escribe, no donde vive— sino «corre en tu Mac o en tu PC con los mínimos problemas de instalación», y
+        # eso se rompe de formas que los otros nodos no pueden ver: el archivo se ensambla y le falta un módulo,
+        # el instalador busca un nombre que el build no produce, o la herramienta de construcción acaba DENTRO
+        # del artefacto que construyó. Construye el artefacto portable de verdad (50 KB, `zipapp` de la stdlib,
+        # cero dependencias de build) y lo EJECUTA — un paquete que importa bien desde un checkout puede fallar
+        # igualmente al correr desde un archivo. La mitad que este nodo NO puede dar está dicha en su docstring:
+        # el binario con intérprete embebido y los instaladores necesitan OTRO sistema operativo, y los mide
+        # `.github/workflows/daemon-artifacts.yml` en un runner de macOS y otro de Windows, arrancando el
+        # binario real y comprobando que sus guardas SOBREVIVIERON al empaquetado.
+        {"id": "7.41", "title": "Daemon local: se construye, se ejecuta desde el artefacto y se instala/desinstala "
+                                "sin permisos de administrador",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/test_the_daemon_can_be_built_and_installed.py"]},
         # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:
         # `my.zaelar.com` es un BORDE de ruteo, y sin cookie de sesión cae a la «entrada inteligente» que manda al
         # visitante al motor de su propio ordenador. Eso es lo que ve cualquiera que escriba la dirección, y falla

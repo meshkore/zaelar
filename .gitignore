@@ -139,3 +139,7 @@ tests/browser/e2e/*/_out/
 # Rendered from scripts/com.zaelar.uc-loop.plist.example at install time: it carries ABSOLUTE paths to
 # this machine, and this repo is PUBLIC. The template travels; the rendering does not (V2-555).
 scripts/com.zaelar.uc-loop.plist
+
+# Built installers (V2-575 P4). `daemon/packaging/build.py` writes here; the artifacts are reproducible from
+# source with one command, so shipping binaries in a git repo would only mean shipping a stale one.
+dist/

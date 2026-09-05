@@ -1,0 +1,9 @@
+# BUILD dependencies for zaelar-daemon — needed to PRODUCE the installer, never to RUN the daemon.
+#
+# Deliberately not `daemon/requirements.txt`, which is empty and is checked by a test: the daemon itself is
+# standard library only, and `python -m daemon` runs on a bare Python 3.11+ with nothing installed. What is
+# below is only ever installed on a build machine.
+#
+# Pinned, because a build tool that floats is a build that changes without anybody asking it to — and the
+# artifact it produces is the one a stranger runs on their own computer.
+pyinstaller==6.11.1
