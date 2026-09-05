@@ -40,6 +40,15 @@ MAX_BODY_BYTES = 1_000_000
 # engine, with no error anywhere.
 REQUEST_TIMEOUT_S = 20.0
 
+# An over-sized body is refused, and refusing it politely means READING it first. A server that answers and
+# closes while the client is still writing produces a TCP reset, and the client never gets to read the answer:
+# the caller sees "connection reset by peer" instead of "your request was too large", which is the difference
+# between a bug they can fix and a bug they report. Discarded in chunks, so the politeness costs one buffer and
+# not the body. Past this ceiling nothing is drained — a caller sending sixteen megabytes to a daemon that
+# declared a one-megabyte limit is not owed a graceful conversation.
+DRAIN_CEILING_BYTES = 16 * MAX_BODY_BYTES
+DRAIN_CHUNK = 64 * 1024
+
 _UNAUTHORIZED = {
     "ok": False,
     "error": "unauthorized",
@@ -94,6 +103,19 @@ class Handler(BaseHTTPRequestHandler):
             return -1
         return length
 
+    def _drain(self, length: int) -> None:
+        """Read and discard a body we are not going to use, so the answer can be delivered before the socket
+        closes. Bounded twice: by the ceiling, and by the socket timeout that is already on this connection."""
+        remaining = min(length, DRAIN_CEILING_BYTES)
+        try:
+            while remaining > 0:
+                chunk = self.rfile.read(min(DRAIN_CHUNK, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+        except Exception:       # noqa: BLE001 — the peer gave up mid-write, which is its right
+            pass
+
     def _read_body(self, length: int) -> dict:
         if length <= 0 or length > MAX_BODY_BYTES:
             return {}
@@ -140,6 +162,7 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         declared = self._declared_body_length()
         if declared > MAX_BODY_BYTES:
+            self._drain(declared)
             self._send(413, {"ok": False, "error": "too_large",
                              "message": f"That request is larger than the {MAX_BODY_BYTES} byte limit."})
             return
@@ -155,6 +178,10 @@ class Handler(BaseHTTPRequestHandler):
             has_body=declared > 0,
         )
         if not verdict.ok:
+            # Drain first, for the same reason the 413 does: answering while the peer is still writing resets
+            # the connection, and the caller sees a transport error instead of the refusal we took the trouble
+            # to phrase. Bounded by the size check just above.
+            self._drain(declared)
             self._refuse(verdict.reason, path)
             return
         throttle.SHARED.note_success()

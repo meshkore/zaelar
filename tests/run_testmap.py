@@ -2440,6 +2440,23 @@ DOMAINS: list[dict] = [
                                 "· ficheros · revocación · auditoría · CLI)",
             "ch": HTTP,
             "paths": ["tests/infrastructure/e2e/daemon/test_the_installed_daemon_does_its_whole_job.py"]},
+        # El nodo 7.35 pregunta «¿puede hablarle una página web?» y contesta con el token, el Origin y la
+        # ausencia de CORS. Éste hace la pregunta cara: ¿qué consigue alguien que ha LEÍDO el código, controla
+        # un proceso local y puede apuntar un registro DNS a 127.0.0.1? El agujero que destapa es el REBIND —
+        # una página en `evil.example` re-resuelta a loopback hace una petición MISMO-ORIGEN, y una petición
+        # mismo-origen no lleva cabecera `Origin` en absoluto, así que el guarda de 7.35 se apoyaba entero en
+        # `Sec-Fetch-Site`. Lo que delata el rebind es `Host`, y es exactamente la clase que el motor ya pagó
+        # una vez contra su propio plano de control de cluster. Cubre además lo que un local puede hacer sin
+        # navegador: cuerpos que no son JSON (la única forma que un navegador manda sin preflight), inundar la
+        # auditoría, sacarle a un 500 el texto de la excepción, colar una tubería con nombre donde debería
+        # haber un documento, y quedarse la carpeta de inicio entera al conceder permisos. Con su contrapeso al
+        # lado en cada caso: un daemon que lo niega todo pasa cualquier batería de fugas.
+        {"id": "7.40", "title": "Daemon local: aguanta a un proceso HOSTIL de la misma máquina (rebind DNS · "
+                                "solo JSON · refusales indistinguibles · auditoría de lo rechazado · sin fugas "
+                                "en el 500 · tuberías · carpetas demasiado amplias)",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/daemon/"
+                      "test_the_daemon_survives_a_hostile_local_process.py"]},
         # 2026-09-04 — LA NUBE, por lo único que se puede comprobar sin gastar dinero ni dejar una cuenta detrás:
         # `my.zaelar.com` es un BORDE de ruteo, y sin cookie de sesión cae a la «entrada inteligente» que manda al
         # visitante al motor de su propio ordenador. Eso es lo que ve cualquiera que escriba la dirección, y falla

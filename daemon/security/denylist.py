@@ -121,7 +121,12 @@ def windows_reason(raw: str) -> str | None:
         if ":" in without_drive:
             return "an alternate data stream"
 
-    stem = _norm(Path(text).name.split(".", 1)[0])
+    # The last component, split on BOTH separators rather than by `Path`. On POSIX a backslash is an ordinary
+    # character, so `Path("C:\\Docs\\NUL").name` is the whole string and the device check silently never fires —
+    # a rule that only works on the platform it was written for is a rule that fails on the shared allowlist a
+    # user carries between two machines.
+    last = text.replace("\\", "/").rstrip("/").rsplit("/", 1)[-1]
+    stem = _norm(last.split(".", 1)[0])
     if stem in {"con", "prn", "aux", "nul"} or (
         len(stem) == 4 and stem[:3] in {"com", "lpt"} and stem[3].isdigit()
     ):
