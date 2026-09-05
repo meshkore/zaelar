@@ -24,10 +24,10 @@ TOOLS: list[dict] = [
                 "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
                 "qué poner en lenguaje natural (artista/canción/género), vacío = reanudar; acepta pistas vagas, no "
                 "pidas el nombre exacto. `action`: play (def) | queue | pause | resume | next | previous | volume_up "
-                "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (el sistema "
-                "encadena solo, tú no vigilas). Si el operador SOLO comenta o se queja de lo que suena, no "
-                "reproduzcas otra vez; pero si quiere algo DISTINTO —aunque lo diga como deseo ('quería algo más "
-                "tranquilo') o dentro de una pregunta— SÍ es cambiar: llámala con la nueva preferencia. VER algo en "
+                "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (encadena "
+                "solo). Si el operador SOLO comenta o se queja de lo que suena, no "
+                "reproduzcas otra vez; pero si quiere algo DISTINTO —aunque lo diga como deseo o dentro de "
+                "una pregunta— SÍ es cambiar: llámala con la nueva preferencia. VER algo en "
                 "pantalla (vídeo, videoclip, tráiler, peli) es play_video, no esto. Abrir un juego o widget se "
                 "MUESTRA, no se reproduce. Sus LISTAS guardadas son del widget `musica` (widget_data play_playlist / "
                 "create_playlist / add_to_playlist); CURAR una lista con contenido es escalate."
@@ -84,11 +84,12 @@ TOOLS: list[dict] = [
         "function": {
             "name": "show_images",
             "description": (
-                "Enseña FOTOS: «una foto de X», «cómo es Y», «fotos del hotel». Salen en el visor. No es "
-                "web_search (texto) ni play_video (VÍDEO). Un MATIZ («ese y no otro», «de verdad», «que se "
-                "note que es X», «del interior») afina la `query` y la vuelves a llamar YA — nunca un worker. "
-                "Si ya hay fotos y quiere UNA: widget_data sobre `imagenes`. Escala SOLO si pide sacarlas de "
-                "UNA web concreta. Presente («te las busco»), nunca pasado."
+                "Enseña FOTOS: «una foto de X». Salen en el visor. No es web_search (texto) ni "
+                "play_video (VÍDEO). No CREA imágenes: a «genera/créame una imagen» di que no generas y "
+                "ofrece buscar una real. Un MATIZ («ese y no otro», «de verdad», «que se note que es X», "
+                "«del interior») afina la `query` y la vuelves a llamar YA — nunca un worker. Si ya hay "
+                "fotos y quiere UNA: widget_data sobre `imagenes`. Escala SOLO si pide sacarlas de UNA web "
+                "concreta. Presente («te las busco»), nunca pasado."
             ),
             "parameters": {
                 "type": "object",

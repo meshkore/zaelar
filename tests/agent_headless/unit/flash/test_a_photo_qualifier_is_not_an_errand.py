@@ -105,3 +105,13 @@ def test_el_catalogo_no_ha_crecido_por_explicarlo_mejor():
     times instead of raising it, as required by the ratchet in `test_router.py`."""
     from tests.agent_headless.unit.flash.test_router import MAX_CATALOG_CHARS
     assert len(json.dumps(router.TOOLS, ensure_ascii=False)) <= MAX_CATALOG_CHARS
+
+
+def test_buscar_una_foto_real_NO_es_generar_una(  ):
+    """V2-592 — «créame una imagen de un mono con casco» was silently substituted with a SEARCH (12 stock
+    photos) in session 0e3a42d6: no image-generation capability exists, and the reframe was implicit. The
+    tool now tells the model to SAY it does not generate and offer to find a real one, instead of searching
+    while hiding the difference."""
+    d = _desc("show_images")
+    assert "genera" in d.lower() or "CREA" in d, "the tool must name the generate-vs-find distinction"
+    assert "no generas" in d or "no CREA" in d.lower()

@@ -41,3 +41,13 @@
   navegador owner's mailbox via `widgets/supervisor.enqueue` — the sheet never writes the browser's state. A
   pending question renders with «Responde por voz»; a wall renders with its reason.
 - A task with NO sheet keeps its monitor card (manual browsing, sheetless errands): there it is the only surface.
+
+## 2026-09-05 — nota de DISEÑO del operador (sesión 0e3a42d6, rel 2282121-2304882): filas con VÍDEO
+
+Pedido explícito «para el desarrollador, no lo implementes en vivo»: cuando una fila de la hoja es un
+VÍDEO (resultados de búsqueda de vídeos que acaben aquí, o fichas con vídeo), el formato actual pinta la
+imagen «poco alta y demasiado ancha» (el `.hr-img` de 100%×128px con object-fit cover aplasta un 16:9).
+Su fórmula: **miniatura a la IZQUIERDA con la proporción del vídeo (16:9), textos a la DERECHA**
+(título/canal/duración), en fila horizontal — no la tarjeta vertical genérica. Tocaría `makeCard` +
+`.hr-img` con una variante por tipo de item (p. ej. `it.kind === "video"`), y el grid de `gridStyle`.
+Sin construir a propósito; cuando se haga, nodo de RENDERIZADO (el layout solo se mide pintándolo).
