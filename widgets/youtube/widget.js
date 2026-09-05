@@ -108,10 +108,20 @@ function halted(ctx){ return !!(ctx && ctx.running === false); }
 function applyState(iframe, data, ctx){
   if(data.muted){ post(iframe, "mute", []); }
   else { post(iframe, "unMute", []); post(iframe, "setVolume", [Number(data.volume != null ? data.volume : 70)]); }
+  // Captions re-asserted HERE, not only in applyCmd, or the choice silently drops on the next `load` (V2-590).
+  applyCaptions(iframe, data);
   // With the agent stopped, ALWAYS pause, whatever saved state says: this is the last line of defense in case the
   // store kept `paused:false` from before stop (or from an older engine version).
   if(data.paused || halted(ctx)) post(iframe, "pauseVideo", []);
   else post(iframe, "playVideo", []);
+}
+
+// Captions on/off (V2-590): both module names are sent — "captions" is the HTML5 player's, "cc" the
+// historical one — and the player ignores the one it does not know. No track is picked: the player's own
+// default/auto track is what a viewer gets clicking CC, and guessing a language here would override it.
+function applyCaptions(iframe, data){
+  if(data.captions){ post(iframe, "loadModule", ["captions"]); post(iframe, "loadModule", ["cc"]); }
+  else { post(iframe, "unloadModule", ["captions"]); post(iframe, "unloadModule", ["cc"]); }
 }
 
 // Apply the LAST command requested by voice/click (only when cmd_seq advances).
@@ -134,6 +144,7 @@ function applyCmd(iframe, data, ctx){
   else if(c === "volume_up" || c === "volume_down" || c === "set_volume"){
     post(iframe, "unMute", []); post(iframe, "setVolume", [vol]);
   }
+  else if(c === "captions_on" || c === "captions_off"){ applyCaptions(iframe, data); }
   else if(c === "restart"){ post(iframe, "seekTo", [0, true]); post(iframe, "playVideo", []); }
   // A queue jump normally lands as a NEW videoId (card rebuild); when the target is the SAME video (a list
   // with the current one repeated after a manual load) nothing rebuilds — treat it as a restart.
@@ -178,8 +189,11 @@ export function render(root, data, ctx){
       // with the agent stopped, the video started BEFORE any pause command arrived (the 700ms below) — the start was
       // audible. Removing it from the `src` itself is the only way to avoid playing EVEN FOR AN INSTANT.
       const auto = (!data.paused && !halted(ctx)) ? 1 : 0;
-      const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=" + auto + "&mute=1&origin="
-                     + encodeURIComponent(location.origin);
+      // cc_load_policy only when captions are wanted: the param covers the LOAD case robustly (a module
+      // loaded before the player is ready can be ignored); the live toggle goes through applyCaptions.
+      const cc = data.captions ? "&cc_load_policy=1" : "";
+      const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=" + auto + "&mute=1" + cc
+                     + "&origin=" + encodeURIComponent(location.origin);
       iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(id) + "?" + params;
       const d0 = data, c0 = ctx;
       iframe.addEventListener("load", function(){

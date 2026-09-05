@@ -24,6 +24,7 @@ _SEED = {
     "latest": False,
     "volume": 70,
     "muted": True,      # browser autoplay requires starting muted; "unmute" to hear it
+    "captions": False,  # V2-590: subtitles on/off — the player re-asserts it on every load
     "paused": True,
     "last_cmd": "",
     "cmd_seq": 0,
@@ -548,6 +549,15 @@ def apply_action(action: str, payload: dict = None) -> dict:
     if action == "unmute":
         db["muted"] = False
         return _bump(db, "unmute")
+    if action == "captions_on":
+        # V2-590 — «quita los subtítulos» was narrated as impossible («solo puedes quitarlos desde los
+        # controles», measured live): the capability had no declared action, and an undeclared capability
+        # is one the model narrates (V2-540). The widget toggles the IFrame API captions module.
+        db["captions"] = True
+        return _bump(db, "captions_on")
+    if action == "captions_off":
+        db["captions"] = False
+        return _bump(db, "captions_off")
     if action == "volume_up":
         db["volume"] = min(100, int(db.get("volume") or 70) + 15)
         db["muted"] = False

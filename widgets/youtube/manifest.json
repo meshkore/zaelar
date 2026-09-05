@@ -132,6 +132,14 @@
       "desc": "quita el silencio (vuelve a oírse)",
       "payload": {}
     },
+    "captions_on": {
+      "desc": "activa los subtítulos del vídeo (la pista por defecto del reproductor)",
+      "payload": {}
+    },
+    "captions_off": {
+      "desc": "quita los subtítulos del vídeo",
+      "payload": {}
+    },
     "volume_up": {
       "desc": "sube el volumen",
       "payload": {}

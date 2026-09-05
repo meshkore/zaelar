@@ -57,3 +57,40 @@ def test_load_stores_verifiable_metadata(monkeypatch, tmp_path):
     assert db["channel"] == "José Luis Cárpatos"
     assert db["published"] == "hace 2 días"
     assert db["latest"] is True
+
+
+# ── V2-590: captions are a DECLARED capability, not a narrated refusal ───────────────────────────────────
+# Measured live (session 0e3a42d6, 2026-09-05): «Quita los subtítulos» → «solo puedes quitarlos tú desde el
+# reproductor, botón CC». The widget had no captions action, and an undeclared capability is one the model
+# narrates (V2-540). The server stores the choice; the player applies it via the IFrame API modules.
+
+def test_captions_on_off_store_the_choice_and_bump_the_command(monkeypatch, tmp_path):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    r = yt.apply_action("captions_on", {})
+    assert r["ok"] and r["cmd"] == "captions_on"
+    assert yt._load()["captions"] is True
+    seq1 = yt._load()["cmd_seq"]
+    r = yt.apply_action("captions_off", {})
+    assert r["ok"] and yt._load()["captions"] is False
+    assert yt._load()["cmd_seq"] == seq1 + 1, "cmd_seq must advance or the player never applies the toggle"
+
+
+def test_captions_survive_a_new_load_and_never_make_it_play():
+    """Source-level, both halves of the V2-590 design: the choice is re-asserted in applyState (or it
+    silently drops on the next load), the live toggle goes through applyCmd, BOTH module names are sent,
+    and captions are NOT in runtime.produce — subtitles never count as producing."""
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[4]
+    src = (root / "widgets/youtube/widget.js").read_text(encoding="utf-8")
+    assert "applyCaptions" in src and '"loadModule", ["captions"]' in src and '"loadModule", ["cc"]' in src
+    body_state = src.split("function applyState", 1)[1][:700]
+    assert "applyCaptions" in body_state, "captions must be re-asserted on every load (applyState)"
+    body_cmd = src.split("function applyCmd", 1)[1][:1800]
+    assert 'c === "captions_on"' in body_cmd
+    assert "cc_load_policy" in src, "the load-time param covers a module sent before the player is ready"
+    man = json.loads((root / "widgets/youtube/manifest.json").read_text(encoding="utf-8"))
+    assert "captions_on" in man["actions"] and "captions_off" in man["actions"]
+    assert "captions_on" not in (man.get("runtime") or {}).get("produce", []), \
+        "subtitles do not produce: the global stop must not chase them"
