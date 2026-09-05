@@ -459,6 +459,10 @@ DOMAINS: list[dict] = [
             # FAIL-CLOSED — Codex no sabe acotar sus tools, así que rechaza justo las tareas que existen acotadas
             # (entrada no confiable, dev worker de cluster) en vez de correr con menos contención de la pedida
             "tests/agent_headless/unit/workers/test_codex_session.py",
+            # V2-601 T-09 (2026-09-05): el jail del dev worker falla CERRADO (sin settings → CERO tools, nunca
+            # sin cárcel) y su entorno es una ALLOWLIST — el env del proceso lleva todas las claves de .env y
+            # un worker conducido por un peer no tiene por qué leer ninguna.
+            "tests/agent_headless/unit/workers/test_dev_worker_jail_fails_closed.py",
             # y el TERCER backend (Grok Build): mismo wire format que Claude Code → hereda el traductor; se prueba
             # que la herencia aguante y las 3 diferencias reales (nombres de tools, sus argumentos, el envoltorio de
             # su evidencia) + que el prompt vaya por fichero (`-p -` no lee stdin: avería cara y MUDA)

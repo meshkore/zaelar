@@ -70,6 +70,19 @@ def bridge_python() -> str:
 _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 
 
+# What a DEV worker's environment may carry — allowlist, not scrub-list: what is not named does not travel
+# (V2-601 T-09). The process env holds every API key `.env` loads (DeepSeek, ElevenLabs, the cluster token…)
+# and a peer-driven worker has no business reading any of them. ZAELAR_* stays whole (task id/token, jail
+# root, vision flags), plus the process basics the CLI needs and the ONE credential its tier resolved.
+_DEV_ENV_KEEP = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "SHELL", "USER", "LOGNAME",
+                 "PYTHONPATH", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL",
+                 "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY")
+
+
+def _dev_env_allowlist(env: dict) -> dict:
+    return {k: v for k, v in env.items() if k in _DEV_ENV_KEEP or k.startswith("ZAELAR_")}
+
+
 def _find_claude() -> str:
     cand = os.getenv("CLAUDE_BIN")
     if cand and os.path.exists(os.path.expanduser(cand)):
@@ -219,6 +232,15 @@ class ClaudeCodeSession(WorkerBackend):
         if spec.token:
             env["ZAELAR_TASK_TOKEN"] = spec.token
         cwd = spec.cwd or _ZAELAR
+
+        # A DEV worker never inherits the operator's full environment (V2-601 T-09, audit 2026-09-05; the
+        # July gap: `sandbox._clean_env` existed and was never wired to THIS interactive subprocess). The
+        # process env carries every API key .env loads — DeepSeek, ElevenLabs, the cluster token — and a
+        # peer-driven worker has no business reading any of them. Allowlist, not scrub-list: what is not
+        # named does not travel. ZAELAR_* stays whole (task id/token/jail root/vision flags), plus the
+        # process basics the CLI needs and the ONE credential its tier resolved above.
+        if spec.kind == "dev":
+            env = _dev_env_allowlist(env)
 
         logger.info(f"worker[{self._task_id}]: ClaudeCodeSession start (model={spec.model or 'default'}, "
                     f"tools={len(tools)}, deny={spec.deny_tools}, cwd={cwd})")
