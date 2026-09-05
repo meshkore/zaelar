@@ -270,19 +270,33 @@ _STOP_HARD_RE = re.compile(
     r"|\b(?:para|pare|deten|detenga)(?:lo|la|los|las)\s+(?:todo|toda|todos|todas)\b")
 # Ambiguous STOP ("para"/"pare"/"espera" — also a preposition): only as a SHORT imperative (avoids "para la cena").
 _STOP_SOFT_RE = re.compile(r"\b(para|pare|espera)\b")
+# V2-584: a stop verb followed by DETERMINER + NOUN names a THING — «para el vídeo», «stop the video»,
+# «para la música». That is an order ABOUT something, not a silence order, and swallowing it here is how a
+# pause order stopped the SPEECH and left the video playing (measured live 2026-09-05, twice, with the
+# operator's explicit complaint in the transcript). Structural, never a phrase table: the determiner is what
+# separates «para el vídeo» (object) from «para ya» / «para por favor» (no object → still a barge-in stop).
+# The pronoun forms («para eso», «páralo») deliberately stay OUT: a bare pronoun after a stop verb is how
+# people silence an ongoing speech, and V2-038's worker-stop precedence already handles «para eso» over live
+# workers one level up.
+_STOP_OBJECT_RE = re.compile(
+    r"\b(?:para|pare|espera|stop)\s+"
+    r"(?:el|la|los|las|un|una|este|esta|ese|esa|mi|tu|su|the|this|that|my|your)\s+\w+")
 
 
 def hard_interrupt(text: str) -> str | None:
     """Detects a hard STOP that is ALWAYS executed immediately (bypasses the attention gate):
       - 'close'  → close ALL widgets ("close the widgets / close everything").
       - 'stop'   → silence/stop (LiveKit's barge-in already cut the TTS; no new response is generated).
-    Returns the type or None. The 'close' case was the real bug: it was buried in a huge turn and truncated."""
+    Returns the type or None. The 'close' case was the real bug: it was buried in a huge turn and truncated.
+    A stop verb that NAMES a thing («para el vídeo») is not a hard interrupt: the turn must run so the model
+    (or the action map) can act on that thing — the barge-in upstream already silenced the voice either way."""
     n = _norm(text)
     if _CLOSE_VERB_RE.search(n) and _ALL_RE.search(n) and not _FULLSCREEN_RE.search(n):
         return "close"
-    if _STOP_HARD_RE.search(n):
+    has_object = bool(_STOP_OBJECT_RE.search(n))
+    if _STOP_HARD_RE.search(n) and not has_object:
         return "stop"
-    if _STOP_SOFT_RE.search(n) and len(n.split()) <= 4:
+    if _STOP_SOFT_RE.search(n) and not has_object and len(n.split()) <= 4:
         return "stop"
     return None
 

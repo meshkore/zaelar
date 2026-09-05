@@ -70,16 +70,29 @@ def test_cerrar_TODO_no_se_toca():
     assert A.hard_interrupt("cierra todo") == "close"
 
 
-# ── what this fix does NOT close, stated rather than discovered ──────────────────────────────────────────────
+# ── V2-584: a stop verb that NAMES a thing lets the turn run ─────────────────────────────────────────────────
+# This closes the gap the PREEXISTENTE test below used to assert as harm. Measured live 2026-09-05
+# (session 0e3a42d6): «Para el vídeo», said twice, silenced the SPEECH and left the video playing — the
+# operator complained in the transcript, and only «Pausa el vídeo» worked. The rule is structural, never a
+# phrase table: DETERMINER + NOUN after the stop verb means the order is ABOUT that thing, so the model (or
+# the action map) must get the turn. The barge-in upstream already silenced the voice either way.
 
-def test_PREEXISTENTE_una_preposicion_en_turno_corto_sigue_callando_el_turno():
-    """`_STOP_SOFT_RE` + «≤4 words» triggers on «para la cena» (3 words) — and its own comment says it exists to
-    prevent this. Checked against the code BEFORE this change: it was already like this; this does not introduce it.
+@pytest.mark.parametrize("frase", [
+    "Para el vídeo",                 # the REAL phrase from session 0e3a42d6, twice
+    "para la música",
+    "para el widget",
+    "para la cena",                  # the sentence the old ≤4-word rule's own comment said it existed to avoid
+    "stop the video",                # same shape in English — `stop` bare stays a hard stop below
+])
+def test_un_verbo_de_parar_con_DETERMINANTE_y_nombre_deja_correr_el_turno(frase):
+    assert A.hard_interrupt(frase) is None, "nombra una COSA: la orden es sobre ella, no callarse"
 
-    It is not touched here because it is a DIFFERENT rule (the soft one, for the ambiguous preposition), and fixing it
-    means moving a threshold that genuinely protects the barge-in: it requires its own measurement, not a quick pass.
-    """
-    assert A.hard_interrupt("para la cena") == "stop"
+
+def test_la_contradireccion_un_stop_sin_objeto_sigue_callando():
+    """The counterweight that keeps this from loosening the barge-in: no determiner+noun → still a hard stop."""
+    assert A.hard_interrupt("para por favor") == "stop"   # «por» is not a determiner
+    assert A.hard_interrupt("stop") == "stop"
+    assert A.hard_interrupt("para eso") == "stop"         # bare pronoun: how people silence an ongoing speech
 
 
 def test_PREEXISTENTE_el_imperativo_plural_nunca_estuvo_en_la_lista():
