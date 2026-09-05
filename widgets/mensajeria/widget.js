@@ -65,6 +65,10 @@ const _busy = {};   // platform -> true while a connection is in progress, for b
 // Which field of a connect form to land on after a refusal (V2-559). Module-lived like _busy: the card is
 // rebuilt on every render, so the intent has to outlive the DOM node it applies to.
 const _focusField = {};
+// An error banner is TRANSIENT (operator's rule): it belongs to a connect attempt made in THIS page
+// session, never to a failure stored days ago. The store keeps status "error" durably (the brain reads it
+// as "not connected"), but a fresh open starts clean — only a platform in `_attempted` may show the banner.
+const _attempted = {};
 
 // LOCAL presentation state (cosmetic, does not touch the store): selected profile, settings panel open, expanded
 // messages. Survives re-renders because the module loads once.
@@ -217,31 +221,32 @@ function injectStyles(){
   .hb-msg .linkcard{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:13px 14px;margin-bottom:10px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .linkcard .ch{display:flex;align-items:center;gap:8px;margin-bottom:9px}
   .hb-msg .linkcard .ch b{font-size:14px}
-  .hb-msg label.f{display:block;font-size:12px;color:var(--hb-muted,#5b6b82);margin:6px 0 3px}
-  .hb-msg input.f,.hb-msg select.f{width:100%;box-sizing:border-box;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:8px 10px;font-size:13px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
+  .hb-msg label.f{display:block;font-size:12.5px;font-weight:600;color:var(--hb-muted,#5b6b82);margin:10px 0 4px}
+  .hb-msg input.f,.hb-msg select.f{width:100%;box-sizing:border-box;border:1px solid var(--hb-line,#e3e8f0);border-radius:9px;padding:10px 12px;font-size:14px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
   .hb-msg input.f:focus,.hb-msg select.f:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
-  .hb-msg .err{color:var(--hb-risk,#e5484d);font-size:12px;margin-top:8px}
+  .hb-msg .err{color:var(--hb-risk,#e5484d);font-size:12.5px;margin-top:8px}
   .hb-msg .errfield{border-color:var(--hb-risk,#e5484d)!important}
 
   /* Guided connect wizard (V2-559, redesigned V2-570). The operator asked for an ASSISTANT: one step
      visible at a time, real margins, and a breadcrumb back to the connector list — a stack of three boxes
      read as optional; one box with "Paso 2 de 3" reads as a path. */
-  .hb-msg .wstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:11px;padding:11px 12px 12px;background:var(--hb-bg,#fff);margin:2px 0 12px}
+  .hb-msg .wstep{border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;padding:15px 16px 16px;background:var(--hb-bg,#fff);margin:2px 0 14px}
   .hb-msg .wstep.done{border-color:var(--hb-accent2,#16B8A6)}
-  .hb-msg .whead{display:flex;align-items:center;gap:9px;margin-bottom:9px}
-  .hb-msg .wnum{width:22px;height:22px;flex:0 0 auto;border-radius:50%;display:inline-flex;align-items:center;
-    justify-content:center;font-size:11.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c)}
+  .hb-msg .whead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .hb-msg .wnum{width:25px;height:25px;flex:0 0 auto;border-radius:50%;display:inline-flex;align-items:center;
+    justify-content:center;font-size:12.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c)}
   .hb-msg .wstep.done .wnum{background:var(--hb-accent2,#16B8A6)}
-  .hb-msg .wtitle{font-size:14px;font-weight:700;color:var(--hb-ink,#0d1622)}
-  .hb-msg .wcount{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin:0 0 8px}
-  .hb-msg .wbody{font-size:12.5px;color:var(--hb-muted,#4a5a70);line-height:1.55}
+  .hb-msg .wtitle{font-size:15px;font-weight:700;color:var(--hb-ink,#0d1622)}
+  .hb-msg .whead .wcount{margin-left:auto;flex:0 0 auto}
+  .hb-msg .wcount{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .wbody{font-size:13.5px;color:var(--hb-muted,#4a5a70);line-height:1.6}
   .hb-msg .wbody b{color:var(--hb-ink,#0d1622)}
-  .hb-msg .wlink{display:inline-flex;align-items:center;gap:6px;margin-top:9px;border:1px solid var(--hb-accent,#3D6FE0);
-    color:var(--hb-accent,#3D6FE0);border-radius:9px;padding:7px 12px;font-size:12.5px;font-weight:600;
+  .hb-msg .wlink{display:inline-flex;align-items:center;gap:6px;margin-top:11px;border:1px solid var(--hb-accent,#3D6FE0);
+    color:var(--hb-accent,#3D6FE0);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;
     text-decoration:none;background:transparent}
   .hb-msg .wlink:hover{background:var(--hb-accent,#3D6FE0);color:#fff}
-  .hb-msg .wtip{margin-top:8px;font-size:12px;color:var(--hb-muted,#5b6b82);background:var(--hb-bg-soft,#fbfdff);
-    border:1px solid var(--hb-line,#eef1f6);border-radius:8px;padding:7px 9px;line-height:1.5}
+  .hb-msg .wtip{margin-top:10px;font-size:12.5px;color:var(--hb-muted,#5b6b82);background:var(--hb-bg-soft,#fbfdff);
+    border:1px solid var(--hb-line,#eef1f6);border-radius:9px;padding:9px 11px;line-height:1.55}
   .hb-msg .wtip b{color:var(--hb-ink,#0d1622)}
   .hb-msg .wstep label.f:first-of-type{margin-top:0}
   .hb-msg .qr-wrap{text-align:center;padding:4px 0}
@@ -257,18 +262,18 @@ function injectStyles(){
   .hb-msg .waitbox .lbl{font-size:13px;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-msg .waitbox .det{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.5;max-width:320px}
   /* Connection error card. */
-  .hb-msg .errcard{border:1px solid var(--hb-risk,#e5484d);border-radius:10px;padding:11px 12px;margin-bottom:12px;background:color-mix(in srgb,var(--hb-risk,#e5484d) 8%,transparent)}
-  .hb-msg .errcard .et{font-size:12.5px;color:var(--hb-ink,#0d1622);line-height:1.5;margin-bottom:9px}
+  .hb-msg .errcard{border:1px solid var(--hb-risk,#e5484d);border-radius:11px;padding:12px 14px;margin-bottom:14px;background:color-mix(in srgb,var(--hb-risk,#e5484d) 8%,transparent)}
+  .hb-msg .errcard .et{font-size:13px;color:var(--hb-ink,#0d1622);line-height:1.55;margin-bottom:10px}
   .hb-msg .errcard .et b{color:var(--hb-risk,#e5484d)}
   /* Breadcrumb (V2-570): back to the connector list + which connector we are on. */
-  .hb-msg .crumb{display:flex;align-items:center;gap:6px;margin:2px 0 14px;font-size:12.5px}
+  .hb-msg .crumb{display:flex;align-items:center;gap:7px;margin:2px 0 16px;font-size:13px}
   .hb-msg .crumb .back{cursor:pointer;color:var(--hb-accent,#3D6FE0);font-weight:600}
   .hb-msg .crumb .back:hover{text-decoration:underline}
   .hb-msg .crumb .sep{color:var(--hb-muted-2,#9aa7b8)}
   .hb-msg .crumb .cur{color:var(--hb-ink,#0d1622);font-weight:700}
   /* Homogeneous buttons (V2-570): one scale for every wizard/list/status action, instead of the
      .btn/.cbtn/.dbtn set that had grown three different heights and paddings. */
-  .hb-msg .bt{height:36px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;
+  .hb-msg .bt{height:38px;padding:0 18px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
   .hb-msg .bt:disabled{opacity:.6;cursor:default}
   .hb-msg .bt-primary{border:0;color:#fff;background:var(--hb-accent,#3D6FE0)}
@@ -276,29 +281,29 @@ function injectStyles(){
   .hb-msg .bt-ghost{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#5b6b82)}
   .hb-msg .bt-ghost:hover:not(:disabled){border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .bt-danger{border:0;color:#fff;background:var(--hb-risk,#e5484d)}
-  .hb-msg .wfoot{display:flex;gap:8px;margin-top:4px}
+  .hb-msg .wfoot{display:flex;gap:9px;margin-top:10px}
   .hb-msg .wfoot .bt-primary{flex:1 1 auto}
   /* Connector LIST screen (V2-570): a grid of icon boxes replaces the stacked rows, so the list stays
      compact and scannable with 3 connectors today or 20 tomorrow — the operator's own worry about having
      to scroll past a long vertical list to reach the wizard. */
-  .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 14px}
-  .hb-msg .chanhead b{font-size:14px} .hb-msg .chanhead .back{margin-left:auto;font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
-  .hb-msg .chanhead .hint{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
-  .hb-msg .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
-  .hb-msg .ibox{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;
-    border:1px solid var(--hb-line,#e3e8f0);border-radius:12px;background:var(--hb-bg,#fff);cursor:pointer;
+  .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 16px}
+  .hb-msg .chanhead b{font-size:14.5px} .hb-msg .chanhead .back{margin-left:auto;font-size:12.5px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
+  .hb-msg .chanhead .hint{font-size:12.5px;color:var(--hb-muted-2,#7d8a9c)}
+  .hb-msg .igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
+  .hb-msg .ibox{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 10px;
+    border:1px solid var(--hb-line,#e3e8f0);border-radius:13px;background:var(--hb-bg,#fff);cursor:pointer;
     font:inherit;color:inherit}
   .hb-msg .ibox:hover{border-color:var(--hb-accent,#3D6FE0)}
   .hb-msg .ibox.sel{border-color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 6%,transparent)}
   .hb-msg .ibox.conn{border-color:var(--hb-accent2,#16B8A6)}
   .hb-msg .ibox.conn .isub{color:var(--hb-accent2,#16B8A6);font-weight:600}
-  .hb-msg .ibox .iicon{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--hb-bg-soft,#fbfdff)}
+  .hb-msg .ibox .iicon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .ibox .iicon .picon{opacity:1}
-  .hb-msg .ibox .iicon svg{width:22px;height:22px}
-  .hb-msg .ibox .ilabel{font-size:12.5px;font-weight:600;color:var(--hb-ink,#0d1622);text-align:center}
-  .hb-msg .ibox .isub{font-size:10.5px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-msg .ibox .iavatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-    font-size:15px;font-weight:700;color:#fff;background:var(--hb-accent,#3D6FE0)}
+  .hb-msg .ibox .iicon svg{width:24px;height:24px}
+  .hb-msg .ibox .ilabel{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);text-align:center}
+  .hb-msg .ibox .isub{font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .ibox .iavatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:16px;font-weight:700;color:#fff;background:var(--hb-accent,#3D6FE0)}
   /* Connected-status screen + disconnect confirmation (unscoped, no longer nested under a removed .chan row). */
   .hb-msg .cfm{margin-top:10px;font-size:12.5px;color:var(--hb-ink,#0d1622)}
   .hb-msg .cfm .row{display:flex;gap:8px;margin-top:8px}
@@ -612,8 +617,11 @@ function whatsappStepBody(platform){
 }
 
 const WIZARD_STEPS = {
-  telegram: [{title:"Entra en my.telegram.org"}, {title:"Crea la aplicación"}, {title:"Pega aquí los dos datos"}],
-  email:    [{title:"Elige tu proveedor de correo"}, {title:"Crea la contraseña de aplicación"}, {title:"Pega aquí tus datos"}],
+  telegram: [{title:"Entra en my.telegram.org"}, {title:"Crea la aplicación", next:"Ya la he creado — continuar"},
+             {title:"Pega aquí los dos datos"}],
+  email:    [{title:"Elige tu proveedor de correo"},
+             {title:"Crea la contraseña de aplicación", next:"Ya la tengo — continuar"},
+             {title:"Pega aquí tus datos"}],
 };
 
 // Card: credentials form (Telegram), guided for a non-technical user. Kept as the settings/muted-channels
@@ -904,8 +912,11 @@ function renderListScreen(platforms, ctx, rerender, connectedCount){
     const pd=platforms[pl]||{status:"off"};
     const st=pd.status||"off";
     const connected = st==="connected";
+    // A stale failure from a past session is not this list's news: without an attempt in this page
+    // session, an errored platform simply reads as not connected (the wizard opens clean too).
+    const sub = (st==="error" && !_attempted[pl]) ? _ST_LABEL.off : statusLabel(pd);
     return {
-      key:pl, icon:brandIcon(pl, connected), label:p.label, sub:statusLabel(pd), cls:(connected?"conn":""),
+      key:pl, icon:brandIcon(pl, connected), label:p.label, sub, cls:(connected?"conn":""),
       onClick:()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; rerender(); },
     };
   })));
@@ -918,7 +929,10 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   const p=PLAT[platform];
   const pd=platforms[platform]||{status:"off"};
   const st=pd.status||"off";
-  if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[platform]=false;   // engine advanced -> clear local "connecting"
+  // The engine answered: any state past the local "connecting" clears busy — INCLUDING "error" (a refusal
+  // ENDS the attempt; leaving busy up kept the primary button disabled on «Conectando…» while the banner
+  // asked the operator to retry, seen rendering V2-582's screens).
+  if(st!=="off"&&st!=="no_creds") _busy[platform]=false;
 
   const crumb=el("div","crumb");
   const back=el("span","back","‹ Conectores");
@@ -930,6 +944,7 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   // the platform actually reports connected, so a refused connection never loses what the user typed.
   if(st==="connected"){
     _focusField[platform]=null;
+    _attempted[platform]=false;
     if(platform==="email") _draft.email={email_address:"", email_password:"", provider:_draft.email.provider, imap_host:"", smtp_host:""};
     if(platform==="telegram") _draft.telegram={api_id:"", api_hash:""};
     const card=el("div","linkcard");
@@ -940,7 +955,8 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
       cfm.appendChild(document.createTextNode(`¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`));
       const row=el("div","row");
       const y=el("button","bt bt-danger","Sí, desconectar");
-      y.onclick=()=>{ _confirmDisconnect=null; _busy[platform]=false; ctx.action("disconnect",{platform, forget:true}); };
+      y.onclick=()=>{ _confirmDisconnect=null; _busy[platform]=false; _attempted[platform]=false;
+                      ctx.action("disconnect",{platform, forget:true}); };
       const n=el("button","bt bt-ghost","Cancelar"); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
       row.append(y,n); cfm.appendChild(row); card.appendChild(cfm);
     } else {
@@ -959,7 +975,9 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   }
   if(st==="starting"){ wrap.appendChild(waitBox("Conectando…", pd.detail||"")); return wrap; }
   if(st==="connecting"){ wrap.appendChild(qrCard(platform, pd)); return wrap; }
-  if(st==="error"){ wrap.appendChild(errorCard(platform, pd.detail, ctx, rerender)); }
+  // The banner only accompanies an attempt made in THIS page session (operator's rule): a stored "error"
+  // from another day opens as a clean wizard — the failure already expired with its attempt.
+  if(st==="error" && _attempted[platform]){ wrap.appendChild(errorCard(platform, pd.detail, ctx, rerender)); }
 
   const steps = WIZARD_STEPS[platform] || [{title:"Conectar "+p.label}];
   const total = steps.length;
@@ -968,7 +986,9 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
 
   const refs = {};
   const box = stepBox(step, steps[step-1].title, false);
-  if(total>1) box.appendChild(el("div","wcount", `Paso ${step} de ${total}`));
+  // «Paso N de 3» lives IN the header row, right-aligned: under the title it read as body text and pushed
+  // the real content down; next to it, it is the wayfinding it was meant to be.
+  if(total>1) box.querySelector(".whead").appendChild(el("span","wcount", `Paso ${step} de ${total}`));
 
   let content;
   if(platform==="email"){
@@ -1003,7 +1023,10 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
   foot.appendChild(backBtn);
 
   const isLast = step===total;
-  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?"Conectando…":"Conectar "+p.label) : "Continuar");
+  // A step whose work happens OUTSIDE (create the password at the provider) labels its own advance
+  // («Ya la tengo — continuar»): a bare "Continuar" reads as skippable, and skipping it is the incident.
+  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?"Conectando…":"Conectar "+p.label)
+                                                      : (steps[step-1].next || "Continuar"));
   nextBtn.disabled = isLast && !!_busy[platform];
   nextBtn.onclick=()=>{
     if(!isLast){ _wizStep[platform]=step+1; rerender(); return; }
@@ -1019,15 +1042,15 @@ function renderWizardScreen(platform, platforms, ctx, rerender){
         if(!refs.smtp.value.trim()) return fail("Para «Otro» necesito el servidor SMTP.", refs.smtp);
         payload.imap_host=refs.imap.value.trim(); payload.smtp_host=refs.smtp.value.trim();
       }
-      _busy[platform]=true; ctx.action("connect", payload); rerender();
+      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", payload); rerender();
       // The draft is NOT cleared here (V2-559/V2-570): a refused connection comes back to this same step, and
       // wiping it meant retyping the address and the 16 letters from scratch. It is cleared once CONNECTED.
     } else if(platform==="telegram"){
       const api_id=(refs.id.value||"").trim(), api_hash=(refs.hash.value||"").trim();
       if(!/^\d+$/.test(api_id) || !api_hash){ fail("Necesito el api_id (solo números) y el api_hash."); return; }
-      _busy[platform]=true; ctx.action("connect", {platform, api_id, api_hash}); rerender();
+      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform, api_id, api_hash}); rerender();
     } else {
-      _busy[platform]=true; ctx.action("connect", {platform}); rerender();
+      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform}); rerender();
     }
   };
   foot.appendChild(nextBtn);

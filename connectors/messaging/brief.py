@@ -47,8 +47,11 @@ def _platform_states() -> str:
     except Exception:
         plats = {}
     # Per-app state: `enabled` = activated by the user from the UI; live status is written by the engine.
+    # "error" gets words (V2-582): the raw status used to print as a bare "error", which reads as neither
+    # connected nor disconnected — and the model filled the ambiguity in both directions in one session.
     hint = {"off": "SIN conectar", "no_creds": "sin conectar (falta introducir credenciales)",
-            "starting": "arrancando", "connecting": "esperando que escanees el QR", "connected": "conectado"}
+            "starting": "arrancando", "connecting": "esperando que escanees el QR", "connected": "conectado",
+            "error": "NO conectado (el último intento de conexión falló; se reconecta desde el widget)"}
     lines = []
     for pl, label, on in (("whatsapp", "WhatsApp", wa_on), ("telegram", "Telegram", tg_on),
                           ("email", "Email", em_on)):
@@ -59,7 +62,15 @@ def _platform_states() -> str:
             "también de palabra ('te abro Mensajería, ahí tienes los pasos').")
     # Prefix with "CONNECTORS" (not just "Messaging"): the operator asks "which connectors are active?" and the
     # model must map THAT question to THIS data (which it already has) instead of going to web_search.
-    return "[CONECTORES activos (mensajería: WhatsApp/Telegram/Email) — respóndelo de aquí, no lo busques] " \
+    # And it OUTRANKS the conversation (V2-582, measured live): the operator connected email mid-dialogue and
+    # the model kept answering from its own earlier "it is not connected" — this line refreshes every turn, so
+    # the window is the stale side, never this one. Naming what NOT to repeat is what makes the rule land
+    # (V2-221: without the phrase inside, the model has nothing to check itself against).
+    return "[CONECTORES activos (mensajería: WhatsApp/Telegram/Email) — respóndelo de aquí, no lo busques. " \
+        "Esta línea es el estado EN VIVO de este preciso turno y MANDA sobre la conversación anterior, " \
+        "incluidas TUS propias frases: el operador puede haberlo conectado o desconectado hace un momento " \
+        "desde el widget. Si aquí pone «conectado», ESTÁ conectado aunque acabes de decir lo contrario — " \
+        "no vuelvas a negar la conexión; y si pone NO conectado, jamás afirmes que sí.] " \
         + " ".join(lines) + tail
 
 

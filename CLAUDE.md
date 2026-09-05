@@ -7904,6 +7904,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+- **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
+  2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
+  conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was
+  connected against `Email: error.` in its OWN prompt, and after the operator connected it live
+  (`Email: conectado.` from the next turn on) kept answering «no me ha quedado conectado», anchored on its
+  earlier sentences — the window beating the state line, both directions in five minutes (session
+  `e32b00f1`, read turn by turn before touching anything).
+  - **The banner belongs to the ATTEMPT, the status to the store.** `widgets/mensajeria/widget.js` keeps
+    module-lived `_attempted[platform]`: the error card renders only for a failure of THIS page session's
+    own connect attempt, and the connector list shows a stale-errored platform as plain «Sin conectar». The
+    store keeps `status:"error"` durably on purpose — the brain must keep knowing it is NOT connected.
+  - **A refusal ENDS the attempt** — found by RENDERING: `_busy` was only cleared on non-error advances, so
+    after a refusal the primary button sat disabled on «Conectando…» forever, with the banner's retry as the
+    only way out.
+  - **The state line speaks and RULES** (`connectors/messaging/brief.py`): `error` gets words («NO conectado
+    — el último intento falló») instead of the raw status the model filled in both directions, and the block
+    declares itself this turn's LIVE state that wins over the whole prior conversation, the model's own
+    claims named explicitly (V2-221: without the phrase inside, nothing to check itself against).
+  - **The worker knows the door** (`nucleo/dispatch_prompts.py`): the escalated worker invented
+    `nucleo.gmail_cli`, was denied a «gmail» tool, concluded — falsely — «no hay conector directo» and drove
+    the browser to webmail. The generic prompt now says messaging/email is read with
+    `widget_cli read mensajeria`, no gmail CLI or tool exists, and webmail-by-browser is the last resort.
+  - Design pass on the wizard (operator's ask): «Paso N de 3» into the step header, roomier boxes/inputs/
+    buttons, and outside-work steps label their own advance («Ya la tengo — continuar»). Nodes 4.106 (+3
+    cases incl. the exact incident and the counterweight: a THIS-session refusal stays visible) and 5.12;
+    five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
+    swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
+    widget holds triaged items, not a mailbox count.
 - **Zero agents beats a wrong one (V2-581, 2026-09-05)**: V2-580's measurements were sent to the mesh side,
   who deployed — and the fixes were **re-measured with the original queries instead of taken on trust**. The
   Oracle now puts `category`/`pricing`/`free`/`domain_match` in each row and `coverage` (`full|partial|none`)

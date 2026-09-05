@@ -2048,6 +2048,13 @@ DOMAINS: list[dict] = [
         {"id": "5.2", "title": "Mensajería (ingest/reply)", "ch": UNIT, "paths": [
             "tests/connectors/unit/messaging/test_ingest.py", "tests/connectors/unit/messaging/test_reply.py",
             "tests/connectors/unit/messaging/test_memory_dump.py"]},
+        # V2-582 — medido en la sesión e32b00f1: con «Email: error.» en el prompt el modelo contestó «lo tengo
+        # conectado», y tras conectarlo el operador en vivo («Email: conectado.») siguió con «no me ha quedado
+        # conectado», anclado a sus propias frases. La mitad de MECANISMO: "error" se dice con palabras (NO
+        # conectado) y el bloque declara que es el estado EN VIVO de este turno y manda sobre la ventana —
+        # también sobre lo que el propio modelo afirmó antes.
+        {"id": "5.12", "title": "Mensajería: la línea de conectores dice la verdad en palabras y MANDA sobre la ventana",
+            "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_brief_connector_state.py"]},
         # 2026-08-31: el triaje llevaba horas fallando contra DeepSeek con `triaje falló: 'choices'`, y el
         # operador se fue a mirar su SALDO. No era saldo: `triage_key()` tenía su propia copia del mapa
         # endpoint→clave (la QUINTA; el docstring de `nucleo/provider_keys.py` nombra las cuatro que ya habían

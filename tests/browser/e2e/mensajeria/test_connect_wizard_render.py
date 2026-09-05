@@ -80,6 +80,7 @@ _MEASURE = """() => {
   const nextBtn = foot ? foot.querySelector('.bt-primary') : null;
   const iboxes = [...el.querySelectorAll('.igrid .ibox')].map(b => ({
     label: (b.querySelector('.ilabel') || {}).textContent,
+    sub: (b.querySelector('.isub') || {}).textContent || '',
     sel: b.classList.contains('sel'),
     conn: b.classList.contains('conn'),
     ...box(b),
@@ -387,11 +388,44 @@ def test_the_telegram_wizard_is_stepped_too(playwright_available):
 def test_the_wizard_screen_fits_a_phone_even_with_an_error_banner_showing(playwright_available):
     """The connector-scoped screen is icon + name (in the breadcrumb) + status (the error banner) + action
     (Continuar/Conectar). «No se pudo conectar» is a long status, and on a narrow screen the action is the
-    part that falls off — the one thing the operator needs to press."""
-    m = _run([_OFF, _REFUSED], width=375)[1]
+    part that falls off — the one thing the operator needs to press. The banner only exists after an
+    attempt in this page session (V2-582), so the attempt is part of the setup here."""
+    m = _run([_OFF, _REFUSED], actions=[(0, _fill_and_submit)], width=375)[1]
     assert m["doc_w"] <= m["view_w"] + 1, f"sideways scroll: {m['doc_w']}"
     assert m["errcard"], "the reason has to be on screen"
     assert m["nextBtn"] and m["nextBtn"]["x"] + m["nextBtn"]["w"] <= 376, m["nextBtn"]
+
+
+# ── a STALE failure never greets a fresh open (V2-582) ────────────────────────────────────────────────────
+# The measured incident: the operator opened the connect screen DAYS after a refused attempt and the first
+# thing on screen was «No se pudo conectar. Eso es un ENLACE…» — an error about a password he had not typed
+# yet. The store keeps status "error" durably (the brain must know it is NOT connected), but the banner
+# belongs to the attempt, and the attempt expired with its page session.
+_STALE = {**_REFUSED, "connect_focus": {"platform": "email", "ts": 1}}
+
+
+def test_a_stale_error_from_a_past_session_opens_a_CLEAN_wizard(playwright_available):
+    """Fresh mount, stored error, no attempt in this session: step 1, no banner, no red anywhere."""
+    m = _run([_STALE])[0]
+    assert not m["errcard"], "a failure from a past session must not greet a fresh open"
+    assert len(m["steps"]) == 1 and m["steps"][0]["num"] == "1", m["steps"]
+    assert m["err_text"] == "", m["err_text"]
+
+
+def test_a_stale_error_reads_as_plain_sin_conectar_on_the_list(playwright_available):
+    """Same rule on the LIST screen: an errored platform without an attempt this session is simply not
+    connected — «No se pudo conectar» there is stale news presented as current."""
+    stale_list = {**_LIST, "platforms": {**_LIST["platforms"],
+                                         "email": {"status": "error", "detail": "Eso es un ENLACE…"}}}
+    m = _run([stale_list])[0]
+    email = next(b for b in m["iboxes"] if b["label"].lower() == "email")
+    assert email["sub"] == "Sin conectar", email["sub"]
+
+
+def test_the_banner_DOES_show_for_a_failure_of_this_sessions_own_attempt(playwright_available):
+    """The counterweight: without it, «never show stale errors» is satisfied by never showing errors."""
+    m = _run([_OFF, _REFUSED], actions=[(0, _fill_and_submit)])[1]
+    assert m["errcard"], "a refusal of an attempt made in this session must stay visible"
 
 
 def test_the_QR_card_fits_a_phone(playwright_available):
