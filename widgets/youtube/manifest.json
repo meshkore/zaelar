@@ -67,7 +67,8 @@
       "desc": "reproduce un vídeo de la lista (por número 1-N o por su título)",
       "payload": {
         "item": "número 1-N o texto del título"
-      }
+      },
+      "ref": "item"
     },
     "next": {
       "desc": "salta al siguiente vídeo de la lista",
@@ -85,14 +86,16 @@
       "desc": "quita un vídeo de la lista (por número o título)",
       "payload": {
         "item": "número 1-N o texto del título"
-      }
+      },
+      "ref": "item"
     },
     "move": {
       "desc": "mueve un vídeo de la lista a otra posición",
       "payload": {
         "item": "número 1-N o texto del título",
         "to": "posición destino 1-N"
-      }
+      },
+      "ref": "item"
     },
     "sort_list": {
       "desc": "ordena la lista (por título o por orden de añadido)",

@@ -12,8 +12,9 @@ Widget contract (OPTIONAL, in its `data.py`):
         that item in manifest actions (e.g. "taskId" for a task, "projectId" for a project). `label` = human text for
         matching the reference (task title, project name...). Optional `hint` = extra brief context (status, time...).'''
 
-The field to fill is inferred from the OWN manifest: the action's declared `payload` already names its id field
-(agenda `done`→{"taskId":...}, `drop_project`→{"projectId":...}). The reference is resolved ONLY against items whose
+The field to fill is read from the OWN manifest: an action says which of its payload keys names an existing item
+with `"ref": "<key>"`, and failing that the V2-026 convention applies (a key whose name ends in `id`: agenda
+`done`→{"taskId":...}, `drop_project`→{"projectId":...}). The reference is resolved ONLY against items whose
 `field` matches that field → "discard the Atlas project" (`drop_project`→`projectId`) points to the PROJECT,
 not to the "Atlas review" task. Stdlib fuzzy matching (token overlap + difflib), accent-insensitive. Returns an
 AMBIGUITY/NO-MATCH signal instead of guessing (better to ask than act on the wrong item).
@@ -59,20 +60,91 @@ def _exposes_ref_index(widget_id: str) -> bool:
 
 
 def id_field_for_action(widget_id: str, action: str) -> str | None:
-    """Payload key for this action that identifies an existing item (ends in 'Id', e.g. `taskId`, `projectId`,
-    `chatId`), read from the manifest. None if the action does not operate on a preexisting item (e.g. `add_meeting`,
-    which CREATES one) → there is nothing to resolve."""
+    """Payload key for this action that identifies an existing item, read from the manifest. None if the action
+    does not operate on a preexisting item (e.g. `add_meeting`, which CREATES one) → there is nothing to resolve.
+
+    TWO ways to say it, and the second one is the fix (V2-595, measured 2026-09-05):
+
+    1. `"ref": "<payload key>"` DECLARED in the action spec. Explicit, and the only one that works on a widget
+       whose list happens to be empty right now.
+    2. Failing that, the convention V2-026 wrote this module around: a payload key whose name ends in 'id'
+       (`taskId`, `projectId`, `chatId`).
+
+    The suffix alone was a NAMING assumption the widget contract never made: the docstring at the top of this
+    module says `field` is «the payload key that identifies that item», not «a key whose name ends in id».
+    `youtube` declares `play_item`/`remove`/`move` with the key `item` and publishes `field: "item"` (V2-465,
+    built so «play the third one» could resolve) — so this function answered None, `resolve()` replied «nothing
+    to resolve» and handed over an EMPTY payload no matter what the operator had said, and the widget answered
+    `item_not_found`. Measured live in session `abe9942b`: «show me the first one, start it» → `play_item {}` →
+    «I can't find that video in the list», over a list of five with the right rows in it.
+
+    ⚠️ The first version of this fix read the answer out of the widget's OWN `ref_index()`, which is where the
+    field name genuinely lives — and it was WRONG, caught by its own test: that index is DATA, so an empty list
+    publishes no rows and the action would quietly go back to being unresolvable exactly when the widget is
+    empty. What identifies an item is a property of the ACTION, so it belongs in the manifest, which is static.
+    """
     try:
         spec = ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
         payload = spec.get("payload")
-        if not isinstance(payload, dict):
+        if not isinstance(payload, dict) or not payload:
             return None
+        declared = str(spec.get("ref") or "").strip()
+        if declared and declared in payload:               # a `ref` naming a key the action does not take is noise
+            return declared
         for k in payload:
             if str(k).lower().endswith("id"):
                 return k
     except Exception:
         pass
     return None
+
+
+# POSITION words: a CLOSED class, so resolving them is a lookup and not a judgement — the same shape as the
+# four scroll directions of V2-591, never a verb table. `-1` is the last row. English pulls its weight here: the
+# two labs speak different languages and «play the second one» is the same order.
+_ORDINALS = {
+    "primero": 0, "primera": 0, "primer": 0, "uno": 0, "una": 0, "first": 0,
+    "segundo": 1, "segunda": 1, "dos": 1, "second": 1,
+    "tercero": 2, "tercera": 2, "tercer": 2, "tres": 2, "third": 2,
+    "cuarto": 3, "cuarta": 3, "cuatro": 3, "fourth": 3,
+    "quinto": 4, "quinta": 4, "cinco": 4, "fifth": 4,
+    "sexto": 5, "sexta": 5, "seis": 5, "sixth": 5,
+    "septimo": 6, "septima": 6, "siete": 6, "seventh": 6,
+    "octavo": 7, "octava": 7, "ocho": 7, "eighth": 7,
+    "noveno": 8, "novena": 8, "nueve": 8, "ninth": 8,
+    "decimo": 9, "decima": 9, "diez": 9, "tenth": 9,
+    "ultimo": -1, "ultima": -1, "last": -1,
+}
+
+
+def _position_ref(query: str, n: int) -> "int | None":
+    """Index in the published list for a reference that is PURELY about position («the first one», «the last
+    one», «3»), or None to let the fuzzy matcher decide (V2-595).
+
+    Two shapes, and both were unreachable before: a BARE INDEX («1») is the primary interface every manifest
+    documents («número 1-N o texto del título») and `_score` drops it on the floor — it discards tokens of three
+    characters or fewer, so a digit scores 0 and comes back `no_match`; and an ORDINAL («el primero») matches no
+    title, which is the exact phrase the operator used in the session that measured this.
+
+    NARROW on purpose: the position word has to be ALL the reference carries once the stop words are gone.
+    «el primer episodio de Artemis» keeps two content tokens, so it falls through to the fuzzy matcher and a
+    title containing «primeros» can still win it. A reference that is only a position cannot mean a title.
+    """
+    if n <= 0:
+        return None
+    toks = [t for t in (query or "").split() if t not in _STOP]
+    if len(toks) != 1:
+        return None
+    t = toks[0]
+    if t.isdigit():                                        # 1-based, as every manifest declares it
+        i = int(t) - 1
+        return i if 0 <= i < n else None
+    pos = _ORDINALS.get(t)
+    if pos is None:
+        return None
+    if pos < 0:
+        return n - 1
+    return pos if pos < n else None
 
 
 def _score(ref_n: str, label_n: str) -> float:
@@ -126,6 +198,11 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
         return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
     if not idx:
         return RefResult(False, needs="no_match")
+
+    _pos = _position_ref(query, len(idx))                  # «the first one» / «3» — see `_position_ref`
+    if _pos is not None:
+        payload[field] = idx[_pos]["id"]
+        return RefResult(True, payload)
 
     scored = sorted(((_score(query, _norm(i["label"])), i) for i in idx), key=lambda s: -s[0])
     best_score, best = scored[0]

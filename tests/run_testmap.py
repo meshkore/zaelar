@@ -377,7 +377,7 @@ DOMAINS: list[dict] = [
             # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
             # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
             "tests/agent_headless/unit/test_mesh_agents.py",
-            # V2-583: la tabla de WORKFLOWS — qué canal sirve cada clase de encargo y si eso sigue siendo
+            # V2-594: la tabla de WORKFLOWS — qué canal sirve cada clase de encargo y si eso sigue siendo
             # cierto. La fila que más ahorra es la NEGATIVA («la red no tiene nada para bienestar»): antes se
             # tiraba siempre, así que cada encargo de un vertical sin cubrir volvía a pagar el viaje al
             # oráculo y luego un modelo para narrar el vacío. Caduca a propósito: aparece un agente nuevo y
@@ -1278,7 +1278,8 @@ DOMAINS: list[dict] = [
             # incident this guards: a delete rmtree'd widgets/clock and widgets/musica out of the git tree.
             "tests/browser/unit/widgets/test_a_system_widget_is_never_deleted_from_disk.py",
             "tests/browser/unit/widgets/test_a_shipped_widget_is_forked_never_edited_in_place.py",
-            "tests/browser/unit/widgets/test_restore_returns_the_newest_shipped_version.py"]},
+            "tests/browser/unit/widgets/test_restore_returns_the_newest_shipped_version.py",
+            "tests/browser/unit/widgets/test_a_list_item_can_be_named_by_its_position.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
             # V2-247: traer el elemento a la vista es una CORTESÍA, no el clic. Iba SIN proteger, así que un
             # elemento tapado o despegado tumbaba la acción entera — tres `scroll_into_view_if_needed` con Exit

@@ -100,14 +100,29 @@ _SHOW_VERB_RE = _re.compile(r"\b(muestra|muestrame|ensena|ensename|abre|abreme|a
 # accent-stripping by _norm_txt).
 _CHANGE_VERB_RE = _re.compile(r"\b(anad|apunt|agreg|marca|quita|borr|elimin|cambi|aplaz|silenci|crea|edit|modific|"
                               r"met[ae]|programa|reserv|pon(?!(?:me|nos|te)?\s*en\s*pantalla)|añad)")
+# Verbs that set something RUNNING. Neither showing nor changing data, so `_CHANGE_VERB_RE` never covered them —
+# and it should not: nothing here mutates a record. Kept SHORT and stem-based on purpose (`inici` is out: it also
+# matches the noun «el inicio», and a false positive here disarms a guard that exists to catch a hallucinated
+# `add_meeting`). `pon`/`ponlo` already belong to the change list, with its «en pantalla» carve-out.
+_ACTIVATE_VERB_RE = _re.compile(r"\b(arranc|reproduc|empiez|empez|play|start)")
 
 
 def is_pure_show_request(text: str) -> bool:
-    """True if the turn is purely about OPENING/SHOWING a widget (with no intent to CHANGE data). Execution GUARD
-    for widget_data: "abre/muéstrame el widget X" must NEVER execute a data-op (the model sometimes slips in an
-    invented 'unhide' action or HALLUCINATES an add_meeting) → redirect it to showing the card. Deterministic, Spanish."""
+    """True if the turn is purely about OPENING/SHOWING a widget (with no intent to CHANGE data or to SET
+    something RUNNING). Execution GUARD for widget_data: "abre/muéstrame el widget X" must NEVER execute a
+    data-op (the model sometimes slips in an invented 'unhide' action or HALLUCINATES an add_meeting) →
+    redirect it to showing the card. Deterministic, Spanish.
+
+    The third class is the fix (V2-595): «muéstrame el primero, ARRÁNCALO» carries a show verb and no *change*
+    verb — nothing in this list is about changing data, correctly — so it read as a pure show and the guard
+    discarded the `play_item` the model had chosen right. Measured live in session `abe9942b`: the card stayed
+    on «No hay ningún vídeo cargado» while the turn said «Aquí lo tienes». Starting playback is neither showing
+    a card nor mutating a record: it is ACTIVATION, and an order that names it is not a pure show.
+    """
     n = _norm_txt(text)
-    return bool(_SHOW_VERB_RE.search(n)) and not _CHANGE_VERB_RE.search(n)
+    if not _SHOW_VERB_RE.search(n):
+        return False
+    return not (_CHANGE_VERB_RE.search(n) or _ACTIVATE_VERB_RE.search(n))
 
 
 # Words that ride along with EVERY «abre la mensajería» and name no object of their own: articles,
