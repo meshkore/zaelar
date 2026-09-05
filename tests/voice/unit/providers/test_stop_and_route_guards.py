@@ -33,6 +33,7 @@ def _says_stop(t: str) -> bool:
     n = "".join(c for c in unicodedata.normalize("NFKD", t or "") if not unicodedata.combining(c)).lower()
     return bool(re.search(
         r"\b(par[ae]r(?:me|te|lo|la|los|las)?|par[ae]l[oa]s?|paralo|parala|"
+        r"par[ae]n?\s+(?:el|la|los|las|es[aeo]s?|est[aeo]s?|tod[ao]s?|ambos|ambas)\b|"
         r"det[ei]n(?:er|lo|la|los|las|ga|gan)?|cancel(?:a|ar|alo|ala|o|en)|"
         r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
         r"stop|cancel|abort|kill|halt|call it off)\b", n))
@@ -59,6 +60,11 @@ def _says_stop(t: str) -> bool:
     ("deja de buscar", True),
     ("anula el proceso", True),
     ("stop the browser task", True),
+    # V2-585 — the two LITERAL orders from session 0e3a42d6 that the guard blocked while a ghost task ran
+    # 4 more minutes to its timeout: «para» + determiner/quantifier IS the verb, unambiguously.
+    ("Para todas las tareas en curso.", True),
+    ("No, para esa tarea.", True),
+    ("para el proceso de fondo", True),
     # And what must NEVER authorize a hack.
     ("enséñame la agenda", False),
     ("vacía la agenda por completo, hoy y siempre", False),
@@ -73,8 +79,9 @@ def test_el_detector_del_fuente_es_este():
     the one here: if someone loosens it there but not here, the cases above would cease to mean anything."""
     body = NUCLEO.read_text(encoding="utf-8")
     i = body.index("def _says_stop(")
-    block = body[i:i + 1200]
+    block = body[i:i + 2600]      # the V2-585 docstring grew; the window must still reach the whole regex
     assert "par[ae]r(?:me|te|lo|la|los|las)?" in block, "cambió el regex del fuente: revisa los casos de este test"
+    assert "par[ae]n?" in block, "V2-585: falta la forma «para + determinante» que la sesión 0e3a42d6 midió"
     assert r"\bpara\b" not in block, "«para» suelto NO puede autorizar un hachazo (es preposición: «para nada»)"
 
 

@@ -1477,11 +1477,20 @@ class NucleoLLMStream(llm.LLMStream):
             Cuidado con «para»: en castellano es preposición mucho más veces que verbo («para nada», «para ti»,
             «no era para ti»), así que NO entra suelta — y de hecho «para» a secas solo calla la voz, nunca detiene
             tareas de fondo (regla del operador). Se piden formas inequívocas: el infinitivo/imperativo de parar con
-            o sin pronombre, detener, cancelar, anular, abortar, «deja de», y los equivalentes en inglés."""
+            o sin pronombre, detener, cancelar, anular, abortar, «deja de», y los equivalentes en inglés.
+
+            V2-585: «para» + DETERMINANTE/cuantificador SÍ es verbo — medido en vivo (sesión 0e3a42d6): «Para
+            todas las tareas en curso» y «No, para esa tarea» eran órdenes inequívocas, el modelo llamó a
+            stop_worker CORRECTAMENTE y este guarda lo bloqueó como context-bleed; la respuesta fue «Sigo con
+            ello» (lo contrario de la orden) y la tarea fantasma corrió 4 min más hasta el timeout. El coste del
+            falso positivo es pequeño a propósito: este guarda solo gatea un stop_worker que el modelo YA
+            eligió, así que «lo quiero para esta tarde» solo abre la puerta si además el modelo decidió matar —
+            y el falso negativo, medido, cuesta minutos de trabajo fantasma y una mentira hablada."""
             n = _norm_nfkd(t or "")
             import re as _re_ss
             return bool(_re_ss.search(
                 r"\b(par[ae]r(?:me|te|lo|la|los|las)?|par[ae]l[oa]s?|paralo|parala|"
+                r"par[ae]n?\s+(?:el|la|los|las|es[aeo]s?|est[aeo]s?|tod[ao]s?|ambos|ambas)\b|"
                 r"det[ei]n(?:er|lo|la|los|las|ga|gan)?|cancel(?:a|ar|alo|ala|o|en)|"
                 r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
                 r"stop|cancel|abort|kill|halt|call it off)\b", n))
