@@ -2527,10 +2527,18 @@ class NucleoLLMStream(llm.LLMStream):
         # abierto) disparaba ESTE backstop y CERRABA el widget entero — el operador solo quería salir de
         # fullscreen. `fullscreen_widget` YA resolvió la intención real este turno; no lo pisa un cierre espurio
         # (mismo criterio que música/data-op de arriba: una acción real explícita gana sobre el backstop genérico).
+        # V2-600 (2026-09-05): the fullscreen guard used to depend on the MODEL having called fullscreen_widget
+        # this turn (`_tool_fired`). Measured live (session 3050e623): the operator's complaint «te he dicho que
+        # cerraras la pantalla completa, no que cerraras el widget del vídeo» — a turn where the model called
+        # nothing — matched the close verb + named widget and this backstop closed `youtube` AGAIN, twice, while
+        # he was describing the first wrongful close. A turn that MENTIONS fullscreen is about a screen state
+        # (leaving it, or narrating it), never a whole-widget close order for a backstop to guess at; if the
+        # operator really wants it closed the model can still emit [[close]] itself.
         if (not acted.get("closed")) and _router.looks_like_close(text) \
                 and not _router.looks_like_create_widget(text) \
                 and not music_req["v"] and not data_done["v"] \
-                and "fullscreen_widget" not in _tool_fired:
+                and "fullscreen_widget" not in _tool_fired \
+                and not attention.mentions_fullscreen(text):
             try:
                 from memory import api as _memapi
                 _openw = list((_memapi.state() or {}).get("open_widgets") or [])

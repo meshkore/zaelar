@@ -71,8 +71,17 @@ function injectStyles(){
      button. Without this, a voice «maximiza el vídeo» (which lands on maximize — no gesture, V2-583) grew the
      CARD while the video kept its card-shaped layout: a big black area with a small player inside, which is what
      the operator reported. True :fullscreen gets the same treatment (there Escape also exits). A maximized
-     NON-native widget keeps its chrome: a maximized results sheet still needs its tabs and title. */
-  .hb-win.hb-cinema{padding:0;background:#000;border:0;border-radius:0}
+     NON-native widget keeps its chrome: a maximized results sheet still needs its tabs and title.
+     ABOVE EVERYTHING (V2-600, operator 2026-09-05: «si pongo pantalla completa, se pone por encima de todo»):
+     a voice fullscreen order has no browser gesture, so it lands here instead of true :fullscreen (V2-583) —
+     and whether it looked "above everything" depended on a gesture RACE the operator cannot see. Cinema now
+     covers the whole viewport (rail, chat, top bar included), so both roads look the same; the floating ⤡
+     and the voice toggle exit. position:fixed + !important beat the inline geometry maximize() sets; the
+     STAGE itself must lift, because its own z-index (12) is a stacking context that would otherwise keep a
+     raised card under the rail (9002) and the chat (9001). */
+  .hb-win.hb-cinema{position:fixed;top:0!important;left:0!important;width:100vw!important;height:100vh!important;
+    max-width:none!important;max-height:none!important;padding:0;background:#000;border:0;border-radius:0}
+  .hb-stage:has(.hb-win.hb-cinema){z-index:99900}
   .hb-win:fullscreen{padding:0}
   .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-grip,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,
   .hb-win.hb-cinema .hb-rz,.hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-grip,.hb-win:fullscreen .hb-max,
@@ -236,10 +245,14 @@ export class Desktop {
     // The sheet data itself persists on disk (view_data(q) reloads it), so restoring the card is honest.
     const items=[];
     this.wins.forEach((w,id)=>{
-      const c=w.card;
-      items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||"",
+      const c=w.card, r=c._restore;
+      // A MAXIMIZED card is remembered at its REAL geometry (V2-600): maximize() persists on entry, so the
+      // full-canvas footprint used to get saved as if it were the card's normal size — closing (or reloading)
+      // while maximized brought the widget back filling the desk, which is what the operator's screenshot
+      // showed. Maximized is a transient VIEW of the card, not its size; only `_restore` holds its size.
+      items.push({id, q:w.q||"", left:(r?r.left:c.style.left), top:(r?r.top:c.style.top), z:c.style.zIndex||"",
                   min:c.classList.contains("hb-minned")?1:0,
-                  w:c.style.width||"", h:c.style.height||""}); });
+                  w:(r?r.w:c.style.width)||"", h:(r?r.h:c.style.height)||""}); });
     return items;
   }
   _persist(){

@@ -254,7 +254,21 @@ _ALL_RE = re.compile(
 # REAL BUG 2026-07-23 (new fullscreen feature): "exit fullscreen" (exit fullscreen for ONE
 # widget) matched "close/remove the SCREEN" (closing verb + 'pantalla' from _ALL_RE) and triggered closing
 # ALL widgets — "fullscreen"/"full screen" is a mode of ONE widget, not a synonym for "everything".
-_FULLSCREEN_RE = re.compile(r"\bpantalla\s+completa\b|\bfull\s*screen\b", re.I)
+# «completamente» is how the STT renders «pantalla completa» often enough to matter (measured live 2026-09-05,
+# session 3050e623: «Cierra la pantalla completamente.» → the guard missed, close-ALL fired, and re-fired on
+# every glued fragment of the chain — the operator's own next words were «te he dicho que cerraras la pantalla
+# completa, no que cerraras el widget»). A false veto here just hands the turn to the model, which can still
+# close; a miss destroys the whole canvas instantly, so the guard errs wide.
+_FULLSCREEN_RE = re.compile(r"\bpantalla\s+completa(?:mente)?\b|\bfull\s*screen\b|\bfullscreen\b", re.I)
+
+
+def mentions_fullscreen(text: str) -> bool:
+    """True when the turn talks about «pantalla completa»/fullscreen — a SCREEN-STATE subject, not a close
+    order. Consumed by the generic close BACKSTOPS (voice provider + probe mirror): a turn that mentions
+    fullscreen next to a close verb is asking to leave that mode (or narrating it), and the backstop closing
+    the whole widget there is the measured failure of 2026-09-05 — it closed `youtube` twice more while the
+    operator was DESCRIBING the first close. One copy of the decision, read by both channels (V2-252)."""
+    return bool(_FULLSCREEN_RE.search(_norm(text)))
 # Unambiguous STOP (triggers even if the turn is long).
 _STOP_HARD_RE = re.compile(
     r"\b(silencio|calla(?:te|os|d)?|basta|stop|shh+|quiet[oa]|detente|para\s+ya|para\s+de|parate|shut\s*up)\b"

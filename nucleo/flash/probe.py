@@ -659,7 +659,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # AMPLIADO (sesión absurda 2026-07-19, espejo del provider): cerrar un widget NOMBRADO que está ABIERTO
             # cierra AQUÍ aunque el turno sea largo (una queja acompañaba «cierra el widget de música» → escaló a
             # modificar código y giró en bucle). Cerrar ≠ tarea de código.
-            if _router0.looks_like_close(text) and not _router0.looks_like_create_widget(text):
+            # V2-600 (espejo del provider — cablear en AMBOS): un turno que MENCIONA «pantalla completa» habla
+            # del estado de pantalla (salir de él, o narrarlo), nunca es una orden de cierre para un backstop —
+            # medido 2026-09-05: la queja del operador sobre un cierre indebido volvió a cerrar el widget.
+            from voice import attention as _att_fs
+            if _router0.looks_like_close(text) and not _router0.looks_like_create_widget(text) \
+                    and not _att_fs.mentions_fullscreen(text):
                 try:
                     from memory import api as _memapi
                     _ow = list((_memapi.state() or {}).get("open_widgets") or [])

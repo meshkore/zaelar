@@ -263,6 +263,31 @@ def test_the_enclitic_forms_do_not_swallow_normal_speech():
     assert attention.hard_interrupt("quita la pantalla completa") is None               # mode for ONE widget
 
 
+def test_the_stt_rendering_of_pantalla_completa_is_not_a_close_all():
+    """V2-600, measured live 2026-09-05 (session 3050e623): the operator said «cierra la pantalla completa»
+    and the STT delivered «Cierra la pantalla completamente.» — the fullscreen guard required the exact
+    bigram, missed, and «cierra» + «pantalla» closed EVERY widget, re-firing on each glued fragment. The
+    adverb form is the same order about the same screen mode. The counterweight below keeps the real
+    close-all alive: a wrongly vetoed close-all just reaches the model, a missed veto destroys the canvas."""
+    assert attention.hard_interrupt("Cierra la pantalla completamente.") is None
+    assert attention.hard_interrupt("quita la pantalla completamente") is None
+    assert attention.hard_interrupt("cierra la pantalla") == "close"        # bare screen = everything, still
+    assert attention.hard_interrupt("cierra todos los widgets") == "close"  # the guard never eats close-all
+
+
+def test_mentions_fullscreen_is_the_one_copy_both_backstops_read():
+    """The generic close backstops (voice provider + probe mirror) veto on this helper: a turn that mentions
+    fullscreen is about a screen STATE — leaving it, or narrating it — never a whole-widget close order for a
+    backstop to guess. Measured 2026-09-05: the operator's complaint «te he dicho que cerraras la pantalla
+    completa, no que cerraras el widget del vídeo» made the backstop close `youtube` AGAIN, twice."""
+    assert attention.mentions_fullscreen("te he dicho que cerraras la pantalla completa, no el widget")
+    assert attention.mentions_fullscreen("Cierra la pantalla completamente.")
+    assert attention.mentions_fullscreen("exit full screen please")
+    assert attention.mentions_fullscreen("quita el fullscreen")
+    assert not attention.mentions_fullscreen("cierra el widget de vídeo")
+    assert not attention.mentions_fullscreen("limpia la pantalla")   # screen ≠ fullscreen: close-all stays
+
+
 def test_hard_interrupt_soft_para_short():
     assert attention.hard_interrupt("para por favor") == "stop"
 
@@ -352,3 +377,28 @@ def test_session_701fcc1b_the_agent_never_goes_deaf_mid_conversation():
         v = _run(attention.evaluate_content(phrase, now=t0 + dt))
         assert v.directed, f"REAL turn from the session dropped again: «{phrase[:60]}»"
         attention.note_directed(now=t0 + dt)    # the caller's side of the contract when it handles the turn
+
+
+def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
+    """WIRING guard (V2-600): the veto lives once (`mentions_fullscreen`) and BOTH generic close backstops —
+    the voice provider's and the probe mirror's — must consult it, or the next «cierra la pantalla completa»
+    complaint closes the widget again in whichever channel lost the line (the V2-252 drift, measured here on
+    2026-09-05). Anchored on the backstop's own conditional (`looks_like_close` + `looks_like_create_widget`
+    in one statement), never on the whole file; comments are stripped first so a comment naming the helper
+    cannot stand in for the call (the V2-573 trap)."""
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[3]
+    files = [root / "voice" / "engine" / "llm" / "providers" / "nucleo.py",
+             root / "nucleo" / "flash" / "probe.py"]
+    for path in files:
+        src = "\n".join(line.split("#", 1)[0] for line in path.read_text().splitlines())
+        spans = [m.start() for m in re.finditer(r"looks_like_close\(text\)", src)
+                 if "looks_like_create_widget" in src[m.start():m.start() + 400]]
+        assert spans, f"the close backstop's conditional was not found in {path.name} — re-anchor this guard"
+        for s in spans:
+            window = src[s:s + 500]
+            assert "mentions_fullscreen" in window, (
+                f"{path.name}: the close backstop lost its fullscreen veto — a turn mentioning «pantalla "
+                f"completa» would close the whole widget again (measured 2026-09-05, session 3050e623)")

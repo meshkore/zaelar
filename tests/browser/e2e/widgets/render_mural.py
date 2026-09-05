@@ -503,6 +503,31 @@ def run(url):
         check("cinema: chrome and playlist are gone, the floating exit button is the one control left",
               cine["head"] == "none" and cine["list"] == "none" and cine["ctrls"] == "none"
               and cine["exit"] == "flex", json.dumps(cine))
+        # ── V2-600: cinema sits ABOVE EVERYTHING — the operator's rule («si pongo pantalla completa, se pone
+        # por encima de todo», 2026-09-05). A voice order always lands on this in-app road (no gesture), and
+        # whether it LOOKED above-everything used to depend on a gesture race he cannot see. The stage's own
+        # z-index is a stacking context, so raising the card alone could never beat the rail/chat — the stage
+        # must lift, and only pixels can check that it did.
+        vcover = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          const railPt = document.elementFromPoint(6, Math.floor(innerHeight/2));
+          const topPt  = document.elementFromPoint(Math.floor(innerWidth/2), 8);
+          return {x:Math.round(r.x), y:Math.round(r.y), w:Math.round(r.width), h:Math.round(r.height),
+                  railCovered: !!(railPt && c.contains(railPt)),
+                  topCovered:  !!(topPt  && c.contains(topPt))}; }""")
+        check("cinema covers the WHOLE viewport — rail edge and top strip included (above everything)",
+              vcover["x"] == 0 and vcover["y"] == 0 and vcover["w"] == W and vcover["h"] == H
+              and vcover["railCovered"] and vcover["topCovered"],
+              json.dumps(vcover))
+        # ── V2-600: a maximized card is REMEMBERED at its real size. maximize() persists on entry, so the
+        # full-canvas footprint used to be saved as the card's NORMAL geometry — closing (or reloading) while
+        # maximized brought the widget back filling the desk, which is the operator's screenshot of 2026-09-05.
+        # The discriminator is the bound: the maximized inline width is ~the canvas, the real card is not.
+        vsaved = pg.evaluate("""() => { const it=(JSON.parse(localStorage.getItem('hb_desktop')||'[]'))
+            .find(i=>i.id==='video')||{}; return {w:parseInt(it.w)||0, h:parseInt(it.h)||0}; }""")
+        check("the persisted layout keeps the PRE-maximize footprint, never the full-screen one",
+              vsaved["w"] < W * 0.8 and vsaved["h"] < H * 0.8,
+              json.dumps({"saved": vsaved, "viewport": [W, H]}))
         # The manual way back: clicking the exit button restores geometry AND chrome.
         # Guarded click: with the button missing (a disarm), the RESTORE check below must fail on its own —
         # a null .click() would kill the whole run instead of counting the failure (V2-552's lesson).
