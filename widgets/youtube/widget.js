@@ -6,8 +6,13 @@
 function injectStyles(){
   if(document.getElementById("hb-yt-css")) return;
   const s = document.createElement("style"); s.id = "hb-yt-css"; s.textContent = `
+  /* Fluid width, ANCHORED to the parent card (operator, 2026-09-05: «el contenido interior debe ir anclado
+     al borde del widget, al contenedor parent»). The old width:min(680px,92vw) was content-sized: a
+     maximized or hand-grown card kept the widget at 680px hugging the left edge with a dead area beside it.
+     The CARD decides the width now (the default footprint moved to manifest.size); border-box or the
+     padding+border would overflow the card by 30px. */
   .hb-yt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-         width:min(680px,92vw);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
+         width:100%;box-sizing:border-box;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
          border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
   .hb-yt-title{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622);line-height:1.3;
                white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -232,6 +237,7 @@ function stepBox(n, total, title){
 function renderConn(E, root, data, ctx){
   const box = E.conn;
   if(!box) return;
+  
   root.classList.toggle("hb-yt-connmode", !!_screen);
   box.textContent = "";
   if(!_screen) return;

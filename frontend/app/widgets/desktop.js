@@ -873,8 +873,19 @@ export class Desktop {
       // CINEMA (V2-596): the widget DECLARED that full screen means "the content IS the screen"
       // (manifest fullscreen:"native" — the same declaration fullscreen() reads), so a voice order that
       // lands here gets the full-bleed layout instead of a big card with a small player inside.
-      const meta = this._meta && this._meta[(id||"").split("::")[0]];
+      const baseId = (id||"").split("::")[0];
+      const meta = this._meta && this._meta[baseId];
       if(meta && meta.fullscreen === "native") card.classList.add("hb-cinema");
+      else if(!this._meta){
+        // The catalog loads lazily (_resolve): a card restored on reload and maximized before that fetch
+        // answers has no meta yet, and cinema silently depended on WHICH road opened the card (operator's
+        // screenshot, 2026-09-05: a maximized video with all its chrome and a dead area beside it). Resolve
+        // and re-apply — only if the card is STILL maximized when the answer lands.
+        this._resolve(baseId).then(()=>{
+          const m2 = this._meta && this._meta[baseId];
+          if(m2 && m2.fullscreen === "native" && card._restore) card.classList.add("hb-cinema");
+        }).catch(()=>{});
+      }
     }
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
     return true;

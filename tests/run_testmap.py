@@ -1382,7 +1382,10 @@ DOMAINS: list[dict] = [
          "paths": ["tests/browser/unit/youtube/test_youtube.py",
                    # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search
                    # door honors it, an explicit link never does.
-                   "tests/browser/unit/youtube/test_a_blocked_channel_never_comes_back.py"]},
+                   "tests/browser/unit/youtube/test_a_blocked_channel_never_comes_back.py",
+                   # V2-597: the ACCOUNT layer — intent travels, credentials never do; suggest honors the
+                   # blocked-channels filter and passes a legitimate emptiness through as ok+reason.
+                   "tests/browser/unit/youtube/test_the_account_connects_by_intent_never_by_credential.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
@@ -1858,7 +1861,10 @@ DOMAINS: list[dict] = [
         {"id": "4.52", "title": "El widget de YouTube tiene LISTA: los vídeos suenan uno detrás de otro (add nunca autoreproduce, ended avanza solo, next/previous/play_item, close conserva la lista)",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
         {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
-         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py"]},
+         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py",
+                               # V2-597: the account screens RENDER — icons row, one wizard step at a time,
+                               # the consent window opened synchronously, the voice door, the home band.
+                               "tests/browser/unit/youtube/test_the_account_screens_render.py"]},
         # V2-457: cámara DESACTIVADA a petición del operador (mic-only) — el código queda comentado, no borrado.
         # La trampa que fija: la URL de session.js sirve session-lk.js bajo LiveKit, hay que vigilar LOS DOS.
         {"id": "4.81", "title": "La sesión NUNCA pide la cámara (mic-only, V2-457): ningún getUserMedia de vídeo activo en app/ ni mobile/, y el micro sobrevive al apagado",
@@ -2134,6 +2140,17 @@ DOMAINS: list[dict] = [
         {"id": "5.11", "title": "El catálogo de conectores: listar cuesta CERO hasta que algo se conecta",
             "ch": UNIT, "paths": [
                 "tests/connectors/unit/catalog/test_the_shelf_costs_nothing_until_connected.py"]},
+        # V2-597 — la cuenta de YouTube (familia video): el registro es DATO (solo lectura; el tramo de
+        # escritura queda aparcado a propósito), el pending del OAuth lleva verifier+tramo bajo el state, un
+        # refresh sin refresh_token CONSERVA el anterior, y la fachada separa la vacuidad legítima (cuenta
+        # sin suscripciones → ok+reason) del fallo (cuota/sesión caducada → palabras).
+        {"id": "5.13", "title": "Cuenta de vídeo (YouTube): feed normalizado, OAuth PKCE, y los fallos hablan",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/video/test_the_feed_is_normalized_and_failures_speak.py"]},
+        {"id": "5.14", "title": "Cuenta de vídeo — ida y vuelta REAL contra la cuenta del operador "
+                                "(PENDIENTE hasta que haya una conectada)",
+            "ch": UNIT, "live": True, "paths": [
+                "tests/connectors/unit/video/live_video_account_roundtrip.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [
