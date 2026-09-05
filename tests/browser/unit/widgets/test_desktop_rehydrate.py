@@ -254,7 +254,7 @@ def test_the_scroller_is_a_wrapper_the_widget_cannot_clobber():
     src = _desktop()
     assert ".hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")
     assert "scroll.appendChild(body)" in src, "el widget monta DENTRO del scroller, no ES el scroller"
-    assert "card.append(grip,mx,x,head,load,scroll)" in src
+    assert "card.append(grip,mx,cx,x,head,load,scroll)" in src   # cx = the cinema exit button (V2-596)
 
 
 def test_navigating_returns_to_the_top_but_live_data_does_not_move_the_page():
