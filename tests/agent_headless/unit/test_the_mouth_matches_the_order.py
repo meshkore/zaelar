@@ -108,6 +108,49 @@ def test_both_channels_wire_the_repair():
         assert "bare_ack_repair" in src, f"the {name} channel detects but never repairs"
 
 
+# ── 2b · V2-587: a question is not answered with an EMPTY WAIT ───────────────────────────────────────────
+# Session 0e3a42d6 (2026-09-05): «¿Cuántos correos hay en mi bandeja?» → «Sigo con ello; te aviso en cuanto
+# lo tenga.» with ZERO tools and ZERO tasks. Two reminders later a whisper repair finally spawned a worker;
+# the session ended before any answer. «Sigo con ello» is honest WHEN something runs — which is why the
+# guard takes the two liveness facts and stays out whenever either is true.
+
+def test_the_measured_empty_wait_fires_the_guard():
+    assert answer_guards.an_empty_wait_answers_a_question(
+        "¿Cuántos correos hay en mi bandeja?", "Sigo con ello; te aviso en cuanto lo tenga.",
+        acted=False, anything_running=False)
+
+
+@pytest.mark.parametrize("acted,running", [(True, False), (False, True), (True, True)])
+def test_an_honest_wait_over_real_work_stays_out(acted, running):
+    """The counterweight: with a task alive (or this very turn having acted), the wait may be TRUE and
+    repairing over it would contradict the state — the direction V2-531 paid for."""
+    assert not answer_guards.an_empty_wait_answers_a_question(
+        "¿Cuántos correos hay en mi bandeja?", "Sigo con ello; te aviso en cuanto lo tenga.",
+        acted=acted, anything_running=running)
+
+
+@pytest.mark.parametrize("q,a", [
+    ("¿Cuántos correos hay?", "¿Los de hoy o todos los de la bandeja?"),   # a clarifying question ANSWERS
+    ("¿Puedes cerrar los mensajes?", "Un momento."),                       # action verb → polite order
+    ("¿Cuántos correos hay?", "Tienes 12 correos, 3 sin leer."),           # a real answer
+    ("Ponme música tranquila", "Dame un momento."),                        # not an information question
+    ("", "Sigo con ello."),
+])
+def test_and_the_empty_wait_guard_stays_out_of_fine_turns(q, a):
+    assert not answer_guards.an_empty_wait_answers_a_question(q, a, acted=False, anything_running=False)
+
+
+def test_both_channels_wire_the_empty_wait_repair():
+    """Same wiring rule as its sibling above — and the liveness read must fail SAFE (unreadable counts as
+    running), which both call sites write as `_running = True` in their except branch."""
+    voice = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    for name, src in (("voice", voice), ("probe", probe)):
+        assert "an_empty_wait_answers_a_question" in src, f"the {name} channel dropped the empty-wait guard"
+        assert "empty_wait_repair" in src, f"the {name} channel detects but never repairs"
+        assert "_running = True" in src, f"the {name} channel's liveness read no longer fails safe"
+
+
 # ── 3 · the fast lane confirms out loud ──────────────────────────────────────────────────────────────────
 
 def test_the_fast_lane_speaks_after_executing_and_the_probe_reply_carries_it():

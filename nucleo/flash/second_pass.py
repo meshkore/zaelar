@@ -73,3 +73,26 @@ async def bare_ack_repair(operator_text: str, window: list, spec) -> str:
         return dialog.sanitize_reply(raw).strip()
     except Exception:
         return ""
+
+
+async def empty_wait_repair(operator_text: str, window: list, spec) -> str:
+    """The sibling of `bare_ack_repair` for the EMPTY WAIT (V2-587): «sigo con ello» over a question with no
+    work running behind it. The instruction names the lie precisely — nothing is in progress — so the model
+    answers with what it has or says honestly what it would need to do, instead of promising ghost work.
+    Returns "" on any failure — the caller keeps what it had."""
+    try:
+        from nucleo.flash import dialog, prompt as _prompt
+        ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
+                        for m in (window or [])[-8:] if isinstance(m, dict))
+        sys2 = (_prompt._lang_lock()
+                + "\nEl operador ha hecho una PREGUNTA y la respuesta que salió fue «sigo con ello», pero NO "
+                  "hay ninguna tarea en marcha: era una promesa sobre trabajo que no existe. Responde AHORA su "
+                  "pregunta en 1-2 frases habladas y naturales con el CONTEXTO RECIENTE de abajo; si el dato "
+                  "no está ahí ni lo sabes, dilo con naturalidad y di qué harías para averiguarlo — nunca "
+                  "prometas que ya estás en ello.\n\n"
+                + f"PREGUNTA DEL OPERADOR: {operator_text}"
+                + ("\n\nCONTEXTO RECIENTE:\n" + ctx if ctx else ""))
+        raw = await collect(sys2, operator_text, spec, max_tokens=200)
+        return dialog.sanitize_reply(raw).strip()
+    except Exception:
+        return ""

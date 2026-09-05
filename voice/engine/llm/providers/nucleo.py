@@ -3074,6 +3074,11 @@ class NucleoLLMStream(llm.LLMStream):
             "busy_at_start": _busy_at_start or None, "contended": bool(_busy_at_start),
             "engine": spec.provider, "model": spec.model,
         }
+        # V2-587 — this turn's «did anything actually run» fact, computed ONCE and read by the empty-wait
+        # guard here and by the promise backstop below (two copies of a nine-flag expression is how they drift).
+        _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
+                        or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
+                        or clarify.get("msg"))
         # V2-572 — a QUESTION answered with a bare «Hecho.» gets its real answer SPOKEN as a follow-up (mirror
         # of the probe's re-compose — wire in BOTH). This channel speaking again is NOT the double-speech
         # V2-210's doctrine forbids above: «Hecho.» carried zero information, so the follow-up is the answer
@@ -3087,6 +3092,24 @@ class NucleoLLMStream(llm.LLMStream):
                 if _rep:
                     send(speech.sanitize(_rep, drop_metadata=False))
                     spoken_text = (spoken_text + " " + _rep).strip()
+            else:
+                # V2-587 — the blind sibling: «Sigo con ello; te aviso» over a question with NOTHING running
+                # (session 0e3a42d6: the mail count got three empty promises and the session ended unanswered).
+                # Liveness is read fail-safe: unreadable counts as running, so a broken import never repairs
+                # over a task that exists.
+                try:
+                    from nucleo import dispatch as _d_ew
+                    _running = bool(_d_ew.has_active())
+                except Exception:
+                    _running = True
+                if _rg_ack.an_empty_wait_answers_a_question(text, spoken_text,
+                                                            acted=_did_act, anything_running=_running):
+                    emit("brain", "🚧 pregunta contestada con una espera VACÍA (nada en marcha) — compongo la "
+                         "respuesta que falta", text=text[:160], role="system", extra={"cat": "flash"})
+                    _rep = await _second.empty_wait_repair(text, list(brain._window), spec)
+                    if _rep:
+                        send(speech.sanitize(_rep, drop_metadata=False))
+                        spoken_text = (spoken_text + " " + _rep).strip()
         except Exception:
             pass
         emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
@@ -3207,11 +3230,8 @@ class NucleoLLMStream(llm.LLMStream):
                     logger.warning(f"escalada adicional falló (las demás siguen): {_e_more}")
 
         # Promise-without-action, and the forced escalation behind it (V2-049 + V2-534). The DECISION moved to
-        # `promise_backstop.py` (architecture ratchet, same pattern as `vault_intercept.py`); `_did_act` stays
-        # here because it reads nine dicts of THIS turn's closure.
-        _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
-                        or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
-                        or clarify.get("msg"))
+        # `promise_backstop.py` (architecture ratchet, same pattern as `vault_intercept.py`); `_did_act` is
+        # computed ONCE above the answer guards (V2-587) — it reads nine dicts of THIS turn's closure.
         from voice.engine.llm.providers import promise_backstop as _promise_backstop
         _promise_backstop.run(spoken_text, did_act=_did_act, op_text=_op_text, prev_pending=_prev_pending,
                               emit=emit, escalate=_escalate_mod.escalate_to_slowbrain,

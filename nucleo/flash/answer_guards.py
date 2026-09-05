@@ -108,3 +108,41 @@ def a_bare_ack_answers_a_question(operator_text: str, reply: str) -> bool:
     if not _INFO_QUESTION_RE.search(q) or _ACTION_VERB_ANYWHERE_RE.search(q):
         return False
     return bool(_BARE_ACK_RE.match(a))
+
+
+# ── A QUESTION IS NOT ANSWERED WITH AN EMPTY WAIT (V2-587) ───────────────────────────────────────────────────
+# The bare-ack guard's blind sibling, measured in session 0e3a42d6 (2026-09-05):
+#
+#     OPERATOR  ¿Cuántos correos hay en mi bandeja?
+#     ZAELAR    Sigo con ello; te aviso en cuanto lo tenga.     (ZERO tools, ZERO tasks — nothing was running)
+#     …three minutes and two reminders later, a whisper repair finally spawned a worker; the session ended
+#     before any answer arrived.
+#
+# «Sigo con ello» is HONEST when something is actually running for it — which is why this guard takes the two
+# facts only the caller has: did THIS turn act, and is ANYTHING alive. Both false + an information question +
+# a wait-shaped reply with no content = a promise about work that does not exist. NARROW like its siblings:
+# a reply carrying a «?» is a clarifying question (legitimate), and anything past one short breath of text is
+# assumed to carry content.
+_EMPTY_WAIT_RE = _re.compile(
+    r"^\s*(?:vale|ok|okay|claro)?[,.\s]*"
+    r"(?:sigo\s+(?:con\s+ello|en\s+ello|con\s+eso)|estoy\s+en\s+ello|me\s+pongo\s+con\s+ello|"
+    r"dame\s+un\s+momento|un\s+momento|te\s+aviso|te\s+lo\s+digo\s+en\s+cuanto|en\s+cuanto\s+lo\s+tenga|"
+    r"working\s+on\s+it|i'?ll\s+let\s+you\s+know|give\s+me\s+a\s+(?:moment|sec))\b", _re.I)
+
+
+def an_empty_wait_answers_a_question(operator_text: str, reply: str, *,
+                                     acted: bool, anything_running: bool) -> bool:
+    """Did an information-seeking question get a «sigo con ello» with NO work behind it? The caller passes the
+    two liveness facts; when either is true the wait may be honest and this stays out. Fail-safe direction:
+    a caller that cannot read liveness must pass anything_running=True (skipping a repair costs nothing new;
+    repairing over a genuinely running task contradicts the state)."""
+    if acted or anything_running:
+        return False
+    q, a = _fold(operator_text), _fold(reply).strip()
+    if not q or not a:
+        return False
+    if not _INFO_QUESTION_RE.search(q) or _ACTION_VERB_ANYWHERE_RE.search(q):
+        return False
+    if "?" in a or len(a) > 140:
+        return False
+    return bool(_EMPTY_WAIT_RE.match(a))

@@ -735,6 +735,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             elif _rg_src.a_bare_ack_answers_a_question(operator_text, spoken):
                 spoken = (await _second.bare_ack_repair(
                     operator_text, dialog.prune_window(sess.window), spec)) or spoken
+            else:
+                # V2-587 — the blind sibling (mirror of the voice channel — wire in BOTH): «sigo con ello»
+                # over a question with NOTHING running. `action == "chat"` already says this turn acted on
+                # nothing; liveness is read fail-safe (unreadable counts as running).
+                try:
+                    from nucleo import dispatch as _d_ew
+                    _running = bool(_d_ew.has_active())
+                except Exception:
+                    _running = True
+                if _rg_src.an_empty_wait_answers_a_question(operator_text, spoken,
+                                                            acted=False, anything_running=_running):
+                    spoken = (await _second.empty_wait_repair(
+                        operator_text, dialog.prune_window(sess.window), spec)) or spoken
         except Exception:
             pass
     if action == "search":
