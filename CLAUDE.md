@@ -7904,6 +7904,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   came back green because the retriever's LIKE rescue channel masked the missing FTS re-index: the sharpened
   test asks the FTS INDEX itself (`MATCH` walks the index; a plain SELECT on external-content FTS5 returns
   the content table's rows regardless, a measurement trap worth remembering). Suite: 646 passed.
+- **A voice fullscreen order must change the screen — requestFullscreen is gesture-gated and rejects in
+  SILENCE (V2-583, 2026-09-05)**: «Maximiza el video» routed perfectly twice (tool → `fullscreen` tag → SSE →
+  `desktop.fullscreen`) and nothing moved. `youtube` declares `fullscreen:"native"`, and the browser gates
+  `requestFullscreen()` on transient user activation — a voice order over SSE has none, so the call rejects
+  as a Promise AFTER the method returned true: the try/catch never saw it, no error anywhere, and the model
+  confabulated on top. Voice-driven native fullscreen never worked since its birth (2026-07-23). Fix in
+  `nativeFullscreen`: no activation → in-app `maximize()` (canvas filled, voice reachable, toggle restores);
+  no API or rejected promise → same fallback. Native stays for gesture-driven callers; exit needs no gesture.
+  ⚠️ **Why no test ever saw it**: Playwright's evaluate runs with CDP `userGesture:true` — the harness GRANTS
+  the activation a voice order never has, so the first version of the test passed `requestFullscreen` without
+  any gesture. Both refusal signals are simulated explicitly now (node 4.92, +3 checks; disarm 3 red, incl.
+  the unhandled rejection finally surfacing as a page error). Mobile Deck immune (its fullscreen just
+  navigates). Frontend-only: a page reload picks it up.
 - **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
   2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
   conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was

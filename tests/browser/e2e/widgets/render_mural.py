@@ -48,7 +48,11 @@ WIDGET_JS = ('export function render(el, data){ el.style.minHeight = "300px";'
              ' el.textContent = "W:" + ((data && data.title) || "?"); }')
 
 DATA = {"alpha": {"title": "Alpha"}, "beta": {"title": "Beta"}, "gamma": {"title": "Gamma"},
-        "huge": {"title": "Huge", "huge": True}}
+        "huge": {"title": "Huge", "huge": True},
+        # V2-583: a widget that declares NATIVE fullscreen (the youtube player's shape). A voice order has no
+        # user gesture, so requestFullscreen() rejects asynchronously — the card must maximize in-app instead
+        # of failing into silence, which is what happened live («Maximiza el video», session 0e3a42d6).
+        "video": {"title": "Video"}}
 ROUTE_RE = re.compile(  # anchored to the ORIGIN: /static/app/widgets/desktop.js also contains "/widgets/"
     r"^https?://[^/]+/(widgets(/.*)?|api/(canvas/.*|desktop/epoch|client-log|run|status|ui-event))(\?.*)?$")
 
@@ -80,7 +84,8 @@ def route(r):
         # vacuously, on a widget that never grew. It has to be the widgets that declare nothing (most of them)
         # whose card is free to become whatever its content renders.
         return j({"widgets": [dict({"id": w, "live_title": True},
-                                   **({} if w == "huge" else {"size": {"w": 360, "h": 300}}))
+                                   **({} if w == "huge" else {"size": {"w": 360, "h": 300}}),
+                                   **({"fullscreen": "native"} if w == "video" else {}))
                               for w in DATA]})
     if path == "/widgets/registry":
         return j({"registry": []})
@@ -439,6 +444,62 @@ def run(url):
         check("⤢ fit-on-screen IS the one that resizes",
               fitted["w"] != after["w"] or fitted["h"] != after["h"],
               json.dumps({"repacked": after, "fitted": fitted}))
+
+        # ── V2-583: a VOICE fullscreen order actually changes the screen ────────────────────────────────────
+        # The youtube card declares `fullscreen:"native"`, and a voice order arrives over SSE with NO user
+        # activation — the browser rejects requestFullscreen() ASYNCHRONOUSLY, so the old code returned true,
+        # nothing moved, and no error surfaced anywhere (measured live: «Maximiza el video», twice, session
+        # 0e3a42d6). page.evaluate carries no user activation either, which is exactly the context to test.
+        # ⚠️ MEASUREMENT TRAP, found by this very test's first run: Playwright's evaluate goes over CDP with
+        # userGesture:true, so the automation channel GRANTS the activation a real voice order never has —
+        # requestFullscreen() succeeded here while failing in the operator's browser, which is also why no
+        # Playwright test ever saw the live bug. The real no-gesture context is unreachable from this harness,
+        # so BOTH refusal signals are simulated explicitly instead.
+        pg.evaluate("() => window.zaelar.close()")
+        pg.wait_for_timeout(400)
+        pg.evaluate("() => window.zaelar.show('video')")
+        pg.wait_for_timeout(500)
+        vbefore = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          return {x:Math.round(r.x), y:Math.round(r.y), w:Math.round(r.width), h:Math.round(r.height)}; }""")
+        # (a) the modern signal: navigator.userActivation says there is no gesture → straight to maximize.
+        pg.evaluate("""() => { Object.defineProperty(navigator, 'userActivation',
+            {value: {isActive: false}, configurable: true});
+          window.zaelar.fullscreen('video'); }""")
+        pg.wait_for_timeout(400)
+        vfull = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          return {w:Math.round(r.width), h:Math.round(r.height),
+                  nativeEngaged: document.fullscreenElement === c}; }""")
+        check("a gesture-less fullscreen order MAXIMIZES the native-fullscreen card on screen",
+              vfull["w"] > W * 0.7 and vfull["h"] > H * 0.6 and not vfull["nativeEngaged"],
+              json.dumps({"before": vbefore, "after": vfull}))
+        # And it stays a TOGGLE: the same order again puts the card back where and how it was.
+        pg.evaluate("() => window.zaelar.fullscreen('video')")
+        pg.wait_for_timeout(400)
+        vback = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          return {x:Math.round(r.x), y:Math.round(r.y), w:Math.round(r.width), h:Math.round(r.height)}; }""")
+        check("the second order RESTORES the card's previous geometry (toggle, V2-551 restore intact)",
+              abs(vback["w"] - vbefore["w"]) <= 2 and abs(vback["h"] - vbefore["h"]) <= 2
+              and abs(vback["x"] - vbefore["x"]) <= 2 and abs(vback["y"] - vbefore["y"]) <= 2,
+              json.dumps({"before": vbefore, "back": vback}))
+        # (b) an older engine: no userActivation API at all, and the browser's gate shows up ONLY as an
+        # asynchronously rejected promise — the exact shape the old code swallowed. The fallback must still
+        # land on maximize, and the rejection must not surface as a page error.
+        pg.evaluate("""() => { Object.defineProperty(navigator, 'userActivation',
+            {value: undefined, configurable: true});
+          const c=[...document.querySelectorAll('.hb-win')].find(x=>x.dataset.wid==='video');
+          c.requestFullscreen = () => Promise.reject(new TypeError('API can only be initiated by a user gesture'));
+          window.zaelar.fullscreen('video'); }""")
+        pg.wait_for_timeout(500)
+        vrej = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          return {w:Math.round(r.width), h:Math.round(r.height),
+                  nativeEngaged: document.fullscreenElement === c}; }""")
+        check("when the browser's gate only shows up as a REJECTED promise, the card still maximizes",
+              vrej["w"] > W * 0.7 and vrej["h"] > H * 0.6 and not vrej["nativeEngaged"],
+              json.dumps(vrej))
 
         check("no page errors", not errors, " | ".join(errors[:4]))
         b.close()

@@ -801,9 +801,20 @@ export class Desktop {
     const w = this.wins.get(id); if(!w || !w.card) return false;
     const card = w.card;
     if(document.fullscreenElement === card){ document.exitFullscreen?.(); return true; }
+    // A VOICE order arrives over SSE with NO user activation, and the browser gates requestFullscreen() on a
+    // real gesture — the call rejects ASYNCHRONOUSLY, so a try/catch here never sees it. Measured live
+    // 2026-09-05 (session 0e3a42d6): «Maximiza el video» fired the event twice, this method returned true
+    // twice, and nothing moved on screen with no error anywhere. Without a gesture the honest capability is
+    // the in-app maximize (fills the canvas, voice keeps working); native stays for gesture-driven callers.
+    if(navigator.userActivation && !navigator.userActivation.isActive) return this.maximize(id);
     const req = card.requestFullscreen || card.webkitRequestFullscreen;
-    if(!req) return false;
-    try{ req.call(card); } catch(_){ return false; }
+    if(!req) return this.maximize(id);
+    try{
+      const p = req.call(card);
+      // Older engines without navigator.userActivation still gate on the gesture: the rejection only shows
+      // up on the promise, after we already returned — fall back to maximize there too.
+      if(p && p.catch) p.catch(() => this.maximize(id));
+    } catch(_){ return this.maximize(id); }
     return true;
   }
 

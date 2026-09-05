@@ -233,6 +233,7 @@ try {
 window.zaelar = {
   show: (id, q = "") => desktop && desktop.show(id, { q }),
   close: (id) => desktop && (id ? desktop.close(id) : desktop.closeAll()),
+  fullscreen: (id) => desktop && desktop.fullscreen(id),   // V2-583: same entry the SSE handler uses (no gesture)
   gate: (on) => session.setGate(on),
   retrain: () => session.retrain(),
   orb: (s) => session.setOrb(s),
