@@ -7950,6 +7950,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     against a real Google account** — the LIVE node is built whole and waits for the operator's OAuth client.
     Doc: `.meshkore/docs/modules/zaelar-video-widget-and-account-connector.md`.
 
+- **A fullscreen order is about a SCREEN STATE, never a close — and cinema goes above everything (V2-600,
+  2026-09-05)**: the operator asked the video OUT of fullscreen and the widget CLOSED; reopening came back
+  «a pantalla completa pero dentro del escritorio». Read from his own observability (session `3050e623`),
+  three defects: (1) the STT rendered «cierra la pantalla completa» as «…completamente» — the hard-interrupt's
+  fullscreen guard demanded the exact bigram, missed, and «cierra»+«pantalla» fired close-ALL, once per glued
+  fragment; (2) the generic close backstop's only fullscreen guard was `fullscreen_widget in _tool_fired`, so
+  his complaint ABOUT the close («no que cerraras el widget del vídeo» — close verb + widget name, model called
+  nothing) closed `youtube` twice more; (3) the reopen looked «inside the desktop» because a voice order has no
+  user activation → V2-583's fallback gives in-app maximize+cinema, while his FIRST attempt rode a recent
+  click's activation window into true fullscreen — same order, two looks, a gesture RACE he cannot see.
+  - Fixes: `_FULLSCREEN_RE` tolerates «completamente» (a false veto hands the turn to the model; a miss
+    destroys the canvas); **`attention.mentions_fullscreen()` is the ONE copy** both close backstops (voice +
+    probe mirror) veto on — a turn mentioning fullscreen is never a whole-widget close for a backstop to
+    guess; **cinema covers the WHOLE viewport** (`position:fixed`+`!important` over maximize's inline
+    geometry, and `.hb-stage:has(.hb-cinema)` lifts the stage — its own z-index is a stacking context, so the
+    card alone could never beat the rail/chat); and **`_layout()` persists a maximized card at its `_restore`
+    geometry** — the full-canvas footprint was being saved as the card's normal size, so a close-while-maximized
+    reopened filling the desk.
+  - NOT seeded into the actionmap on purpose: `fullscreen` is a toggle and the map cannot see state; the exit
+    phrases name no widget. Nodes 3.x (+ wiring guard, comment-stripped, anchored on the backstop conditional)
+    and 4.92 (2 RENDERED checks). Five disarms, mutations asserted, all red. **Not verified live** — needs a
+    reload (frontend halves) and an engine restart (guard + vetoes).
+
 - **A stale connector error never greets a fresh open — and the state line OUTRANKS the window (V2-582,
   2026-09-05)**: the operator opened the email connect screen days after a refused attempt and «No se pudo
   conectar. Eso es un ENLACE…» was already on it; in the same session the agent claimed the email was
