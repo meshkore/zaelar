@@ -206,18 +206,48 @@ def kill_all() -> int:
     return sum(1 for t in tokens if kill(t))
 
 
-def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
+def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]:
     """Spawn ONE atomic headless Claude Code agent. Prompt via STDIN (claude 2.1.x truncates large positional
-    prompts; MeshKore hit this). File tools only, cwd = zaelar, hard timeout. Killable by `token` (V2-038):
-    Popen + communicate registered in _PROCS, so `kill(token)` can terminate it from another thread. Returns
-    (ran, error)."""
+    prompts; MeshKore hit this). File tools only, hard timeout. Killable by `token` (V2-038): Popen + communicate
+    registered in _PROCS, so `kill(token)` can terminate it from another thread. Returns (ran, error).
+
+    `target` (V2-601 T-04, 2026-09-05) is the ONE folder the agent works in, and two things hang off it:
+
+    · The cwd is a private SCRATCH directory, never the repo root. With cwd=repo, the headless CLI auto-loaded
+      `engine/CLAUDE.md` AND the parent workspace `CLAUDE.md` — the PRIVATE one — into EVERY request and shipped
+      both to whichever external endpoint serves the generation (V2-117 measured the same fault on workers:
+      167,242 tokens of spawn cost vs 25,352 from a scratch dir). The target folder itself is no better a cwd:
+      on self-host it sits INSIDE the repo, so the CLI would walk up to the same two files.
+    · Writes are CONFINED to `target` mechanically, not by prompt: the dev worker's PreToolUse jail
+      (`nucleo/dev_worker_guard`, V2-076) is reused with `ZAELAR_DEV_WORKER_ROOT=target`. Probed against the
+      real CLI before wiring (2026-09-05): with plain `--allowedTools "Write Edit Read"` + acceptEdits an
+      ABSOLUTE write outside the cwd succeeds, so cwd confinement alone never stopped a contaminated spec —
+      and path-scoped rules (`Write(<dir>/**)`) deny even matching paths in this CLI, so the hook is the
+      mechanism that actually works. Fail-CLOSED: if the jail cannot be written, the agent does not start
+      (T-09's doctrine — a jail that degrades to a warning is a convention, not a control)."""
     claude = _find_claude()
     if not claude:
         return False, "Claude Code CLI not found (set CLAUDE_BIN)"
+    import tempfile
+    from nucleo import dev_worker_guard as _guard
+    target = os.path.realpath(target)
+    workdir = tempfile.mkdtemp(prefix="zaelar-gen-")
+    settings_path = os.path.join(tempfile.gettempdir(),
+                                 f"zaelar-gen-guard-{os.getpid()}-{safe_id(token) or 'x'}.json")
+    try:
+        _guard.write_settings_file(settings_path)
+    except Exception as e:  # noqa: BLE001
+        shutil.rmtree(workdir, ignore_errors=True)
+        return False, f"could not write the write-jail settings — refusing to run unjailed: {e}"
     cmd = [claude, "-p", "--allowedTools", "Write Edit Read",
-           "--permission-mode", "acceptEdits", "--output-format", "json"]
+           "--permission-mode", "acceptEdits", "--output-format", "json",
+           "--settings", settings_path, "--add-dir", target]
     env = dict(os.environ)
     env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
+    env["ZAELAR_DEV_WORKER_ROOT"] = target
+        # the jail hook runs `python -m nucleo.dev_worker_guard` from the scratch cwd — the engine root on
+    # PYTHONPATH is what resolves it (the same seam workdir.env_for_task uses).
+    env["PYTHONPATH"] = ZAELAR + os.pathsep + env.get("PYTHONPATH", "")
     # Route widget generation through the external §code_agent endpoint (Z.AI GLM) when configured, so this
     # headless agent also avoids consuming Claude Teams license tokens (operator, 2026-07-31). Shared helper with
     # brain workers. If routed and there is no explicit override, use the §code_agent model.
@@ -237,9 +267,10 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
     if model:
         cmd += ["--model", model]
     try:
-        p = subprocess.Popen(cmd, cwd=ZAELAR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        p = subprocess.Popen(cmd, cwd=workdir, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, text=True, env=env)
     except Exception as e:
+        shutil.rmtree(workdir, ignore_errors=True)
         return False, f"agent failed to start: {e}"
     if token:
         with _PROCS_LOCK:
@@ -258,6 +289,11 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
         if token:
             with _PROCS_LOCK:
                 _PROCS.pop(str(token), None)
+        shutil.rmtree(workdir, ignore_errors=True)
+        try:
+            os.unlink(settings_path)
+        except OSError:
+            pass
     if p.returncode not in (0, None):
         logger.warning(f"widget-agent: claude exited {p.returncode}: {(stderr or '')[:300]}")
         # A killed process (terminate/kill) returns rc!=0, so treat it as incomplete and let _discard clean up.
@@ -302,9 +338,11 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
     _job_start("create", wid, {"spec": spec.strip(), "title": title})
     try:
         with _lock:                                    # one agent at a time
+            dst = paths.new_dir(wid)
+            os.makedirs(dst, exist_ok=True)            # the jail root must exist before the agent starts
             ran, err = _run_agent(
-                _CREATE_PROMPT.format(wid=wid, spec=spec.strip(), folder=_folder_ref(paths.new_dir(wid))),
-                token=token)
+                _CREATE_PROMPT.format(wid=wid, spec=spec.strip(), folder=_folder_ref(dst)),
+                token=token, target=dst)
         if not ran:
             _discard(wid)                              # a killed/timed-out agent may leave a half-written folder
             return {"ok": False, "id": wid, "error": err}
@@ -319,13 +357,12 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
 
 
 def _folder_ref(d: str) -> str:
-    """The target folder as the headless agent must address it: relative to its cwd (the repo root) when it
-    lives inside it, absolute otherwise (a workspace mounted elsewhere — the cloud Volume). Before V2-515 the
-    prompts hardcoded `widgets/<id>/`, which silently pointed the agent at ENGINE SOURCE whenever the real
-    target was the generated root — in the cloud that meant every generated widget landed in the ephemeral
-    checkout instead of the Volume."""
-    rel = os.path.relpath(d, ZAELAR)
-    return d if rel.startswith("..") else rel
+    """The target folder as the headless agent must address it: ABSOLUTE, always. The agent's cwd is a private
+    scratch directory since V2-601 T-04 (it used to be the repo root — see `_run_agent`), so a relative path
+    would resolve against a folder that holds nothing. Before V2-515 the prompts hardcoded `widgets/<id>/`,
+    which silently pointed the agent at ENGINE SOURCE whenever the real target was the generated root — in the
+    cloud that meant every generated widget landed in the ephemeral checkout instead of the Volume."""
+    return os.path.realpath(d)
 
 
 def _fork_shipped(wid: str, src: str) -> str:
@@ -405,6 +442,7 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
     try:
         with _lock:
             ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip(), folder=_folder_ref(d)),
+                                  target=d,
                                   token=token)
         ok, verr = (_validate(wid, stamp_origin=True) if ran else (False, err))
         if not ok and forked:                           # failed FIRST edit → discard the fork, the shipped one resurfaces

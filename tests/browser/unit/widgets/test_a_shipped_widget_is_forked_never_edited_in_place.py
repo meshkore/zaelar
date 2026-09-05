@@ -35,7 +35,7 @@ def test_modifying_a_shipped_widget_edits_a_fork_not_the_source(lab, monkeypatch
     before = {f: _read(os.path.join(shipped, f)) for f in ("manifest.json", "widget.js")}
     seen = {}
 
-    def fake_agent(prompt: str, token: str = ""):
+    def fake_agent(prompt: str, token: str = "", *, target: str = ""):   # signature follows T-04
         seen["prompt"] = prompt
         target = paths.dir_for("clock")                     # what the resolver serves at edit time
         seen["target"] = target
@@ -64,7 +64,7 @@ def test_the_prompt_names_the_fork_folder_not_the_shipped_one(lab, monkeypatch):
     engine source."""
     seen = {}
     monkeypatch.setattr(generator, "_run_agent",
-                        lambda prompt, token="": (seen.update(prompt=prompt), (True, ""))[1])
+                        lambda prompt, token="", *, target="": (seen.update(prompt=prompt), (True, ""))[1])
     generator.modify_widget("clock", "anything")
     fork_ref = generator._folder_ref(os.path.join(paths.generated_root(), "clock"))
     assert fork_ref in seen["prompt"]
@@ -73,7 +73,7 @@ def test_the_prompt_names_the_fork_folder_not_the_shipped_one(lab, monkeypatch):
 
 def test_a_failed_first_edit_discards_the_fork(lab, monkeypatch):
     """The rollback of a fresh fork is DELETION: the shipped version resurfaces, nothing to restore."""
-    def breaking_agent(prompt: str, token: str = ""):
+    def breaking_agent(prompt: str, token: str = "", *, target: str = ""):   # signature follows T-04
         os.remove(os.path.join(paths.dir_for("clock"), "widget.js"))
         return True, ""
 
@@ -93,7 +93,7 @@ def test_modifying_a_user_widget_stays_in_its_own_folder(lab, monkeypatch):
     open(os.path.join(folder, "widget.js"), "w", encoding="utf-8").write("export function render(){}")
     runtime.invalidate()
 
-    def fake_agent(prompt: str, token: str = ""):
+    def fake_agent(prompt: str, token: str = "", *, target: str = ""):   # signature follows T-04
         with open(os.path.join(paths.dir_for(wid), "widget.js"), "a", encoding="utf-8") as f:
             f.write("\n// tweak\n")
         return True, ""

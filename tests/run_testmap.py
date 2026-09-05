@@ -1264,6 +1264,10 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_widget_js_parses.py",
             "tests/browser/unit/widgets/test_lifecycle_confirm.py", "tests/browser/unit/widgets/test_actions.py", "tests/browser/unit/widgets/test_refs.py",
             "tests/browser/unit/widgets/test_generator_sync.py", "tests/browser/unit/widgets/test_background.py",
+            # V2-601 T-04 (2026-09-05): el generador corre CONFINADO — cwd de scratch (sin CLAUDE.md encima: el
+            # de repo-raíz embarcaba el CLAUDE.md PRIVADO del workspace al proveedor externo en cada generación)
+            # + write-jail mecánico (el PreToolUse del dev worker, reutilizado) que rehúsa arrancar sin cárcel.
+            "tests/browser/unit/widgets/test_generator_runs_confined.py",
             # V2-242: una píldora escrita por un cron de widget no es un hecho sobre la persona. Los lectores
             # separan «hechos del operador» de «píldoras de fondo» POR LA FORMA DE LA CLAVE, y nada impedía que
             # un tick escribiera `operator.location` — ni que una nota sin slot cayera bajo «LO QUE SABES DEL
