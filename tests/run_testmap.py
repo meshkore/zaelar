@@ -728,6 +728,14 @@ DOMAINS: list[dict] = [
                                  "al recorte · action map con semillas es/en (pack v4) · cableado en AMBOS canales",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_arrange_is_voice_reachable.py"]},
+        # V2-591 — «haz scroll en la lista» recibió un cambio de pestaña, un re-present y un worker puesto a
+        # MODIFICAR el código del widget («No, no toques nada»). El scroller es CROMO de la tarjeta (la regla
+        # de ctx.top()): el servidor guarda una PETICIÓN con contador-testigo + caducidad (patrón V2-540) y el
+        # widget se la pide a su host por ctx.scroll — que existe en LOS DOS hosts o no-opea mudo en el móvil.
+        {"id": "4.113", "title": "La hoja se desplaza por voz: acción `scroll` con contador y caducidad · "
+                                 "ctx.scroll en los DOS hosts · el widget la aplica UNA vez por empuje",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_results_scroll.py"]},
         # 2026-08-28 (V2-457): enseñar una foto era un ENCARGO de worker — 355 s y $1,96 medidos en la sesión
         # manual del operador — y pasa a ser un turno de 3 s por `show_images`, con su propio visor. Tres piezas
         # que se prueban por separado: el PARSER del payload del buscador de imágenes (la parte frágil, y por eso

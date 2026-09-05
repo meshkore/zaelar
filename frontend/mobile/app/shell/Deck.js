@@ -545,6 +545,16 @@ export class Deck {
         },
         close: () => this.close(w.id),
         top: () => { try { w.scroll.scrollTop = 0; } catch (_) {} },
+        // V2-591 — same contract as the desktop host (a ctx member implemented in one host silently no-ops
+        // on the phone): page ≈ 80% of the card's scroller.
+        scroll: (where) => { try {
+          const sc = w.scroll; if (!sc) return;
+          const page = Math.max(120, Math.round(sc.clientHeight * 0.8));
+          if (where === "top") sc.scrollTop = 0;
+          else if (where === "bottom") sc.scrollTop = sc.scrollHeight;
+          else if (where === "up") sc.scrollTop = Math.max(0, sc.scrollTop - page);
+          else sc.scrollTop = sc.scrollTop + page;
+        } catch (_) {} },
         // GETTER, not a copied value: ctx is built once per mount and reused across re-renders, so a snapshot
         // would go stale and a widget that produces would start over a stopped agent (V2-092).
         get running() { return deck._running; },

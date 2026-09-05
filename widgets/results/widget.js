@@ -1238,4 +1238,13 @@ export function render(el, data, ctx){
   top.appendChild(bar);
   el.append(top, panel);
   paint(navigated(el, data, cur));
+
+  // V2-591 — a voice scroll request, applied ONCE per push (the token guards the re-render loop: every data
+  // refresh re-runs render, and without it one order would scroll on every refresh of a live sheet). The
+  // scroller is card chrome, so the widget only ASKS its host (ctx.scroll) — same ownership as ctx.top().
+  const scReq = data.scroll;
+  if(scReq && scReq.n && scReq.n !== el._hbScrollN && ctx && ctx.scroll){
+    el._hbScrollN = scReq.n;
+    try{ ctx.scroll(scReq.where || "down"); }catch(_){}
+  }
 }

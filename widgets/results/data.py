@@ -610,6 +610,13 @@ def view_data(q: str = "") -> dict:
     data["criteria"] = _clean_criteria(data.get("criteria"))
     if data.get("tab") not in _TABS:
         data.pop("tab", None)                    # without a valid tab, results wins (the widget decides)
+    # V2-591: a scroll request EXPIRES — re-applying a stale one on a reload would move what the operator is
+    # reading with no order behind it. 120 s covers the voice round-trip with margin.
+    _sc = data.get("scroll") or None
+    if _sc:
+        import time as _tm
+        if not (float(_sc.get("at") or 0) and (_tm.time() - float(_sc.get("at") or 0)) <= 120):
+            data.pop("scroll", None)
     if not data["items"]:
         data.setdefault("note", "Sin resultados todavía.")
         data.pop("view", None)                   # no items ⇒ there is nothing to be showing the detail OF
@@ -898,6 +905,31 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         data.pop("focus", None)
         _save(data, sheet)
         return {"ok": True, "view": "list"}
+
+    if action == "scroll":
+        # V2-591 — «haz scroll en la lista» used to get a tab switch, then a re-present, then a worker set to
+        # MODIFY this widget's CODE (the operator stopped it: «No, no toques nada»). Scrolling is CARD CHROME
+        # (the scroller belongs to the canvas, ctx.top()'s own rule), so the server only stores a witnessed
+        # REQUEST — push counter + expiry, the V2-540 pattern — and widget.js asks its host (ctx.scroll),
+        # the same road a wheel gesture takes. No accent table: the payload is normalized inline.
+        import unicodedata as _ud
+        _raw = "".join(c for c in _ud.normalize("NFKD",
+                       str(payload.get("where") or payload.get("to") or "").strip().lower())
+                       if not _ud.combining(c))
+        if "arrib" in _raw or "sube" in _raw or _raw == "up":
+            _wh = "up"
+        elif "princip" in _raw or "inicio" in _raw or _raw in ("top", "start"):
+            _wh = "top"
+        elif "fond" in _raw or "final" in _raw or _raw in ("bottom", "end"):
+            _wh = "bottom"
+        else:
+            _wh = "down"                         # «haz scroll» with nothing else = keep going down
+        import time as _tm
+        data = view_data(sheet)
+        prev = data.get("scroll") or {}
+        data["scroll"] = {"where": _wh, "n": int(prev.get("n", 0)) + 1, "at": _tm.time()}
+        _save(data, sheet)
+        return {"ok": True, "where": _wh}
 
     # ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────
     if action == "tab":

@@ -525,6 +525,14 @@ export class Desktop {
         // refresh: resetting scroll whenever new results arrive would take what the operator is reading out of
         // their hands, precisely while the sheet is filling live.
         top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; },
+        // V2-591 — voice-driven scroll: the widget REQUESTS, the canvas moves its own scroller (same ownership
+        // rule as top(): the scroller is card chrome). A page is ~80% of the viewport so context survives.
+        scroll:(where)=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(!sc) return;
+          const page=Math.max(120, Math.round(sc.clientHeight*0.8));
+          if(where==="top") sc.scrollTop=0;
+          else if(where==="bottom") sc.scrollTop=sc.scrollHeight;
+          else if(where==="up") sc.scrollTop=Math.max(0, sc.scrollTop-page);
+          else sc.scrollTop=sc.scrollTop+page; },
         // V2-092 — is the agent running? DELIBERATELY A GETTER: `ctx` is created once at mount and saved
         // (`w._ctx`) for re-renders, so a copied value would become stale. A widget that PLAYS something must check
         // it before starting on its own (see widgets/AGENTS.md, “produce”).
