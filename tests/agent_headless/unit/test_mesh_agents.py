@@ -136,7 +136,7 @@ def test_a_mesh_that_is_down_is_not_an_error(monkeypatch):
     monkeypatch.setattr(m, "_post", lambda url, body, timeout=None: (0, None))
     out = m.find("hotel in Madrid")
     assert out["intent"] == "" and out["agents"] == []
-    # …and it must say it never REACHED the Oracle, or V2-583 would cache an outage as «nobody does hotels».
+    # …and it must say it never REACHED the Oracle, or V2-594 would cache an outage as «nobody does hotels».
     assert out["reached"] is False
     assert m.serve("hotel in Madrid")["ok"] is False
 
@@ -394,7 +394,7 @@ def test_nobody_covers_this_yet_is_said_differently_from_nobody_answered(monkeyp
     assert "todavía no hay" not in m.serve("hotel in Madrid")["reason"]
 
 
-# ── V2-582 · a free tier arrives as one entry in a LIST of tiers ───────────────────────────────────────────
+# ── V2-593 · a free tier arrives as one entry in a LIST of tiers ───────────────────────────────────────────
 TIERED_FREE = {"agent_id": "lucid", "endpoint": "https://lucid.example", "online": True, "status": "available",
                "pricing": [{"unit": "request", "amount": 0, "currency": "free", "use": "free daily tier"},
                            {"unit": "request", "amount": 430000, "currency": "lamports", "model": "flux-dev"}]}
@@ -433,7 +433,7 @@ def test_a_tiered_card_can_prove_a_bare_oracle_row_free(monkeypatch):
     assert m._is_free(bare, {"pricing": TIERED_FREE["pricing"]}) is True
 
 
-# ── V2-583 · the workflow table answers before the network does ───────────────────────────────────────────
+# ── V2-594 · the workflow table answers before the network does ───────────────────────────────────────────
 def test_a_known_empty_domain_never_reaches_the_oracle(monkeypatch):
     """The whole point of the negative row: no round trip, and no empty result sent through a model to have
     the emptiness narrated back. `_post` is the network trap, so reaching it fails the test by itself."""
@@ -477,3 +477,62 @@ def test_an_unreachable_oracle_is_NOT_remembered(monkeypatch):
         assert wf.plan("quiero un masaje en Sevilla").known_empty is False
     finally:
         wf.forget("wellness")
+
+
+# ── V2-596 · «give me a field» and «I broke» are different answers ────────────────────────────────────────
+def _agent(**kw):
+    base = {"agent_id": "aerocast", "endpoint": "https://aerocast.example", "online": True,
+            "pricing": {"amount": 0, "currency": "free"}}
+    base.update(kw)
+    return base
+
+
+def _serve_against(monkeypatch, error_body):
+    """Drive `serve` down the failure path with one agent that answers a non-200 carrying `error_body`."""
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "bookings.flights", "agents": [_agent()]})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    # `ask` builds the URL through the card; without this the autouse network trap fires on the card fetch
+    # and the test reports «tocó la red» instead of the contract it is here to pin.
+    monkeypatch.setattr(m, "_skill_path", lambda endpoint: "/v1/search")
+    monkeypatch.setattr(m, "_post", lambda url, body, **kw: (400, error_body))
+    return m.serve("flight from Madrid to Barcelona next Friday")
+
+
+def test_an_agent_that_names_its_missing_fields_earns_the_retry_advice(monkeypatch):
+    """`roomrover` answers 400 with `{"error": "missing_fields", "need": [...]}`. That IS actionable: the
+    caller can fill the fields and ask again, and V2-487 exists so the errand does not go to the browser when
+    the answer is one field away."""
+    res = _serve_against(monkeypatch, {"error": "missing_fields", "need": ["checkin", "checkout"]})
+    assert res["ok"] is False
+    assert res["agent_asks"]["need"] == ["checkin", "checkout"]
+    assert "--field" in res["reason"]
+    assert not res.get("agent_failed")
+
+
+def test_an_upstream_failure_is_not_dressed_up_as_a_request_for_fields(monkeypatch):
+    """Measured live 2026-09-05: `aerocast` fails on roughly half of the relative-date errands, passing a
+    non-ISO date to Duffel and relaying a 422. Every one of those was reported as «the agent says what it
+    needs: ask again with --field key=value» — advice that cannot work, because the fields were never
+    missing. The caller loops instead of falling through to the browser."""
+    duffel_422 = {"error": "upstream_error",
+                  "detail": "offer_requests 422: " + '{"errors":[{"title":"Invalid type"}]}'}
+    res = _serve_against(monkeypatch, duffel_422)
+    assert res["ok"] is False
+    assert res["agent_failed"] is True
+    assert "--field" not in res["reason"], "an upstream 422 must not ask the caller for fields"
+    assert res["agent_asks"]["error"] == "upstream_error"      # the cause still travels, it just is not advice
+
+
+def test_a_diagnostic_cannot_eat_the_callers_context(monkeypatch):
+    """The measured Duffel body was 400+ characters of upstream JSON. It names the real cause, so it is kept
+    — but a diagnostic is not allowed to become the context the worker reasons in."""
+    res = _serve_against(monkeypatch, {"error": "upstream_error", "detail": "x" * 4000})
+    assert len(res["agent_asks"]["detail"]) <= m._DIAG_MAX + 1
+    assert res["agent_asks"]["detail"].endswith("…")
+
+
+def test_a_named_field_survives_alongside_a_diagnostic(monkeypatch):
+    """An agent may say both at once. The presence of a diagnostic must not hide an actionable field name."""
+    res = _serve_against(monkeypatch, {"error": "bad_request", "missing": ["departure_date"]})
+    assert "--field" in res["reason"]
+    assert res["agent_asks"]["missing"] == ["departure_date"]

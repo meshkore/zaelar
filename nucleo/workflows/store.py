@@ -1,4 +1,4 @@
-"""nucleo/workflows/store.py — the workflow table's runtime (V2-583).
+"""nucleo/workflows/store.py — the workflow table's runtime (V2-594).
 
 ## What it is for
 
@@ -80,6 +80,13 @@ def plan(request: str, locale: str | None = None) -> Plan:
     now = time.time()
     rows = _rows(domain)
     live = [r for r in rows if r.get("status") == "active" and _fresh(r, now)]
+    # The browser channel is DERIVED from the site catalogue, not stored: it has no TTL because it is not an
+    # observation about the outside world, it is what this engine already knows. Appended last on purpose —
+    # a live mesh agent beats opening a browser, always.
+    name, url = site_for(domain, locale)
+    if name:
+        live = live + [{"channel": CH_BROWSER, "target": name, "evidence": url, "rank": 500,
+                        "status": "active", "source": "catalog"}]
     # A negative row only silences the mesh while it is FRESH. Stale means «ask again», which is the entire
     # reason it carries a TTL rather than a flag.
     empty = any(r.get("status") == "none" and r.get("channel") == CH_MESH and _fresh(r, now) for r in rows)
@@ -141,3 +148,35 @@ def forget(domain: str, channel: str = "") -> None:
         memory.workflow_forget(domain, channel)
     except Exception:
         pass
+
+# V2-594 F2 · what we ALREADY know, without asking anything.
+#
+# The operator's rule: «there will be tools we know because we already have them in our memory, and others
+# that live on the MeshKore network». The mesh half learns itself from real errands. This is the other half:
+# the site catalogue has held a TRUSTED SITE per category for months, and that is a channel — a known site is
+# strictly better than a search, and the worker prompt already says so in its own words.
+#
+# It is derived, never duplicated: the catalogue stays the source and this reads it. A copy would be a second
+# inventory of trusted sites, and this house has already paid for that once (`_WEB_RE` and
+# `router_guards._KNOWN_SITES` drifted apart for weeks, and twelve sites lived in only one of them).
+_CATALOG_CATEGORY = {
+    "restaurant": "restaurant_booking", "hotel": "hotel_booking", "flight": "flight_search",
+    "events": "event_tickets", "local": "local_business", "shopping": "general_classifieds",
+}
+
+
+def site_for(domain: str, locale: str | None = None) -> tuple[str, str]:
+    """The trusted site for this domain as (name, url), or ("", "") when the catalogue has none."""
+    cat = _CATALOG_CATEGORY.get(domain or "")
+    if not cat:
+        return ("", "")
+    try:
+        from nucleo.flash import site_catalog as _sc
+        entry = _sc.entry_for(cat, locale)
+    except Exception:
+        return ("", "")
+    if not entry:
+        return ("", "")
+    name = getattr(entry, "name", "") or ""
+    url = getattr(entry, "url", "") or getattr(entry, "home", "") or ""
+    return (str(name), str(url))

@@ -967,7 +967,7 @@ def consolidate(**kwargs) -> dict:
     return rep
 
 
-# ── workflows (V2-583) ────────────────────────────────────────────────────────────────────────────────────
+# ── workflows (V2-594) ────────────────────────────────────────────────────────────────────────────────────
 # Facade access on purpose (memory-boundary contract): `nucleo/workflows/` never touches memory internals.
 def workflows_for(domain: str) -> list[dict]:
     """Every row for one errand domain, best rank first — INCLUDING the negative ones, because «the mesh has

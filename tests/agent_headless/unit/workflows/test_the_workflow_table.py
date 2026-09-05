@@ -1,4 +1,4 @@
-"""V2-583 · the workflow table: what serves this kind of errand, and is that still true?
+"""V2-594 · the workflow table: what serves this kind of errand, and is that still true?
 
 The rows that matter most are the NEGATIVE ones. Before this, «nobody on the mesh does wellness» was thrown
 away every time, so every massage errand paid the Oracle round trip again and then paid a language model to
@@ -67,9 +67,12 @@ def test_a_success_is_remembered_with_its_agent():
 
 
 def test_a_stale_success_is_not_offered_as_live():
+    """The MESH row expires; the browser one does not, because it is not an observation about the outside
+    world — it is what this engine already knows, and knowing it cannot go stale."""
     wf.learn("restaurant", store.CH_MESH, target="tablescout", ttl_s=1)
     time.sleep(1.1)
-    assert wf.plan("resérvame mesa para dos").channels == []
+    channels = wf.plan("resérvame mesa para dos").channels
+    assert [c for c in channels if c["channel"] == store.CH_MESH] == []
 
 
 def test_learning_never_overwrites_what_the_operator_pinned():
@@ -79,3 +82,48 @@ def test_learning_never_overwrites_what_the_operator_pinned():
     assert wf.plan("resérvame mesa").best["target"] == "thefork"
     wf.note_empty("restaurant", store.CH_MESH)                           # and a later emptiness
     assert wf.plan("resérvame mesa").known_empty is False
+
+
+# ── the browser channel is DERIVED from the site catalogue, never copied ──────────────────────────────────
+def test_a_domain_with_a_trusted_site_offers_the_browser():
+    """The catalogue has held a trusted site per category for months and that is a channel. Derived, not
+    duplicated: a second inventory of trusted sites is exactly what drifted apart once already."""
+    p = wf.plan("resérvame mesa para dos en Madrid")
+    browser = [c for c in p.channels if c["channel"] == store.CH_BROWSER]
+    assert browser and browser[0]["target"]
+
+
+def test_a_live_mesh_agent_outranks_the_browser():
+    wf.learn("restaurant", store.CH_MESH, target="tablescout", rank=10)
+    p = wf.plan("resérvame mesa para dos en Madrid")
+    assert p.best["channel"] == store.CH_MESH and p.best["target"] == "tablescout"
+    assert [c["channel"] for c in p.channels][-1] == store.CH_BROWSER
+
+
+def test_a_domain_the_catalogue_does_not_know_offers_no_browser():
+    """Absence stays absence: there is no trusted site for «un masaje», and inventing one is the guessing the
+    catalogue exists to stop."""
+    assert [c for c in wf.plan("quiero un masaje en Sevilla").channels
+            if c["channel"] == store.CH_BROWSER] == []
+
+
+# ── what the worker is TOLD, and only when we know it ─────────────────────────────────────────────────────
+def test_the_worker_prompt_names_the_agent_we_already_proved():
+    from nucleo import dispatch_prompts as dp
+    wf.learn("restaurant", store.CH_MESH, target="tablescout", rank=10)
+    line = dp._known_route_line("resérvame mesa para dos")
+    assert "tablescout" in line and "YA COMPROBADO" in line
+
+
+def test_the_worker_prompt_says_when_the_mesh_is_known_empty():
+    from nucleo import dispatch_prompts as dp
+    wf.note_empty("wellness")
+    assert "NO tiene agente" in dp._known_route_line("quiero un masaje en Sevilla")
+
+
+def test_the_worker_prompt_stays_SILENT_when_nothing_is_known():
+    """A prompt does not pay for an empty table. This is the line that keeps the feature free."""
+    from nucleo import dispatch_prompts as dp
+    assert dp._known_route_line("quiero un masaje en Sevilla") == ""
+    assert dp._known_route_line("qué hora es") == ""
+    assert dp._known_route_line("") == ""

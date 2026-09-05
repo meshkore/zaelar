@@ -127,7 +127,7 @@ _METHOD_BLOCK = (
 # investigación—. Dar el PASO 0 al genérico no cambia QUIÉN atiende el encargo, solo le dice que antes de
 # buscar pregunte. Es la MISMA asimetría que ya se corrigió con el catálogo de sitios de confianza (V2-118) y
 # con las reglas del cajón (V2-211): un bloque que solo viajaba en un prompt, y el otro worker sin él.
-def _mesh_first_block(py: str = "python", *, browser: bool) -> str:
+def _mesh_first_block(py: str = "python", *, browser: bool, goal: str = "") -> str:
     """El PASO 0 —preguntar a la red antes de buscar— en UN solo sitio, para los dos prompts de worker.
 
     `browser=True` es el worker WEB, cuyo siguiente recurso es abrir el Chromium; `browser=False` el genérico,
@@ -159,9 +159,40 @@ def _mesh_first_block(py: str = "python", *, browser: bool) -> str:
         "(sin `--prompt`): con texto libre delante, el agente lo interpreta a él y los ignora.\n"
         "   · Si `ok:true` y los datos SIRVEN, esa es tu respuesta: entrega eso y no sigas buscando. "
         + cola +
-        "hoy hay agentes vivos de hoteles, vuelos y entradas/eventos, y para lo demás el navegador sigue siendo "
-        "el camino.\n\n"
+        "para lo que la red no cubra, el navegador sigue siendo el camino.\n"
+        + _known_route_line(goal)
+        + "\n"
     )
+
+
+# V2-594 · what we ALREADY know about this errand, in ONE line and only when there is one.
+#
+# This last line used to read «hoy hay agentes vivos de hoteles, vuelos y entradas/eventos» — a HAND-WRITTEN
+# list that went stale the same day the mesh gained restaurants and wellness. A prompt claiming LESS coverage
+# than exists is the worst way to be out of date: the worker goes to the browser for something an agent
+# solves in two seconds.
+#
+# It now comes from the workflow table, which learns itself from every real errand, and it serves both
+# directions: if an agent is known to work, name it; if the mesh is known to be empty, say so and save the
+# trip. When nothing is known, write NOTHING — a prompt does not pay for an empty table.
+def _known_route_line(goal: str) -> str:
+    if not (goal or "").strip():
+        return ""
+    try:
+        from nucleo import workflows as _wf
+        plan = _wf.plan(goal)
+    except Exception:
+        return ""
+    if not plan:
+        return ""
+    if plan.known_empty:
+        return ("   · YA COMPROBADO para este tipo de encargo: la red NO tiene agente. No pierdas el viaje, "
+                "ve directo a tu método.\n")
+    best = plan.best
+    if best and best.get("target"):
+        return (f"   · YA COMPROBADO: para este tipo de encargo sirvió el agente «{best['target']}» de la red. "
+                "Empieza por ahí.\n")
+    return ""
 
 
 def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None = None) -> str:
@@ -212,7 +243,7 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
         parts.append(_METHOD_BLOCK)
         # V2-486: el PASO 0 de la red también aquí — el porqué, en `_mesh_first_block`. Se escribe
         # con `python` a secas porque `_with_interpreter` sustituye el intérprete en todo el prompt.
-        parts.append(_mesh_first_block(browser=False).rstrip())
+        parts.append(_mesh_first_block(browser=False, goal=request).rstrip())
         # SITIOS DE CONFIANZA también para el worker GENÉRICO (V2-118, 2026-08-18). Este catálogo solo viajaba en
         # `_web_prompt`, o sea únicamente cuando el operador NOMBRABA el sitio; el resto de las compras y
         # búsquedas de mercado —que caen aquí— salían sin él. Se midió: «búscame un monitor barato de SEGUNDA
@@ -464,7 +495,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
         "'down'/'up'. Usa la sintaxis exacta de arriba, no la que te parezca natural.\n\n"
-        + _mesh_first_block(py, browser=True) +
+        + _mesh_first_block(py, browser=True, goal=goal) +
         "MÉTODO — como lo haría una persona competente; entiende la página y AVANZA (no des vueltas):\n"
         + (
             "1) MIRA con `look` (VISIÓN) antes de actuar: abre el PNG con Read y ubica los campos/botones por su "

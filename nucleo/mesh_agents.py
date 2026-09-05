@@ -114,7 +114,7 @@ def _is_free(agent: dict, card: dict | None = None) -> bool:
     agents», and the failure modes are not symmetric: skipping a free agent we could not price costs one
     fallback to the browser, while calling a paid one costs money nobody authorised.
 
-    V2-582 · `pricing` may be a LIST of tiers, and an agent is free when ANY tier is unambiguously zero.
+    V2-593 · `pricing` may be a LIST of tiers, and an agent is free when ANY tier is unambiguously zero.
     That is not a loosening of the rule, it is the shape the rule now arrives in: after the operator ruled
     that every agent Zaelar can use must have a free tier, the agents that had one published it as
     «free tier + paid tiers», and a single-dict reader is blind to exactly the thing it is looking for —
@@ -224,7 +224,7 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
                           "strict": True,
                           "filters": {"limit": max(1, int(limit)), "online_only": True}})
     if status != 200 or not isinstance(data, dict):
-        # V2-583 · `reached` separates «the Oracle answered and has nobody» from «the Oracle did not answer».
+        # V2-594 · `reached` separates «the Oracle answered and has nobody» from «the Oracle did not answer».
         # Flattening those two is the same mistake V2-487 fixed one layer down: both look like an empty list,
         # and only one of them is worth remembering. Caching a network outage would turn one bad minute into
         # three bad days.
@@ -283,14 +283,39 @@ def _skill_path(endpoint: str) -> str:
 # The field is passed through, not guessed: there is NO hotel or flight schema here. The agent declares what it
 # needs, and the worker —which has the errand and does the reasoning— composes it. This is the same contract as
 # the rest of the module: no catalogue, no provider list, nothing to curate forever.
-_HINT_KEYS = ("error", "detail", "need", "needs", "missing", "required", "message", "hint")
+# Two DIFFERENT things arrive in an error body and they must not be confused. `_NEED_KEYS` are the agent
+# saying «give me these fields and I can serve you» — actionable, and the caller can retry. `_DIAG_KEYS` are
+# the agent saying «something broke» — worth repeating to the operator, worthless to retry on. V2-487 kept
+# them in one tuple, so an upstream 422 was reported to the caller as a request for fields and the honest
+# advice «ask again with --field key=value» was given for an errand that already HAD every field. Measured
+# against `aerocast` on 2026-09-05: it fails roughly half the time on a relative date, and every one of those
+# failures was dressed up as a missing-field prompt.
+_NEED_KEYS = ("need", "needs", "missing", "required")
+_DIAG_KEYS = ("error", "detail", "message", "hint")
+_HINT_KEYS = _NEED_KEYS + _DIAG_KEYS
+_DIAG_MAX = 300
 
 
 def _what_the_agent_asks_for(data) -> dict:
     """The actionable part of an error response, without dragging the entire body into the worker's context."""
     if not isinstance(data, dict):
         return {}
-    return {k: data[k] for k in _HINT_KEYS if data.get(k) not in (None, "", [], {})}
+    out = {}
+    for k in _HINT_KEYS:
+        v = data.get(k)
+        if v in (None, "", [], {}):
+            continue
+        # A diagnostic often carries the upstream's whole body (a Duffel 422 measured at 400+ chars). It is
+        # kept because it names the real cause, but it is NOT allowed to become the caller's context.
+        if k in _DIAG_KEYS and isinstance(v, str) and len(v) > _DIAG_MAX:
+            v = v[:_DIAG_MAX] + "…"
+        out[k] = v
+    return out
+
+
+def _names_missing_fields(asks: dict) -> bool:
+    """True only when the agent named the fields it lacks — the one case where retrying with `fields` helps."""
+    return any(asks.get(k) not in (None, "", [], {}) for k in _NEED_KEYS)
 
 
 def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
@@ -425,7 +450,7 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     prompt = (prompt or errand).strip()
     if not errand:
         return {"ok": False, "reason": "sin encargo"}
-    # V2-583 · the workflow table answers BEFORE the network does. A domain the mesh is known to have nothing
+    # V2-594 · the workflow table answers BEFORE the network does. A domain the mesh is known to have nothing
     # for does not pay the Oracle round trip again, and the caller gets a FACT instead of an empty result to
     # send through a model to have the emptiness narrated back. The negative row expires, so a new agent on
     # the mesh is still discovered — it is a shortcut, not a verdict.
@@ -450,7 +475,7 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         # honest emptiness; it also tells the operator the browser is the plan for a REASON, not by failure.
         reason = ("todavía no hay ningún agente en la red para esto" if coverage == "none"
                   else "no hay ningún agente libre en la red para esto")
-        # V2-583: and remember it, so the NEXT errand of this kind does not pay for the same round trip.
+        # V2-594: and remember it, so the NEXT errand of this kind does not pay for the same round trip.
         # Only `coverage: none` is cached — the Oracle stating that nothing serves this vertical. «Nobody
         # answered» is a transient failure and caching it would turn one bad minute into three bad days.
         # Cached only when the Oracle was actually REACHED. `coverage: none` is its explicit statement that
@@ -481,7 +506,7 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
             # unconditional fetch here reddened two unrelated tests, and a learned route stored before
             # capabilities were kept would have paid it on every single cached hit.)
             declared = _declares(agent) or _declares(agent, _cards.get(_endpoint_of(agent)))
-            # V2-583: a success teaches the workflow table too, keyed by the LEXICAL domain rather than the
+            # V2-594: a success teaches the workflow table too, keyed by the LEXICAL domain rather than the
             # Oracle intent. That matters: the intent is `general` for events, shopping and wellness, which is
             # exactly where `remember_route` cannot help — the domain key has no such hole.
             if wplan and wplan.domain:
@@ -500,7 +525,14 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     # V2-487: an agent that answers 400 by saying WHAT it lacks DID answer. Saying "they did not answer" here
     # is what sent the errand to the browser when the answer was one field away.
     if dijo:
-        return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo,
-                "reason": f"«{quien}» no acepta el encargo en texto libre y dice qué necesita "
-                          f"(ver `agent_asks`): vuelve a pedírselo con `--field clave=valor`"}
+        # Only a response that NAMES the missing fields earns the «ask again with --field» advice. Anything
+        # else is the agent's own breakage, and telling the caller to retry with fields sends it round a loop
+        # it cannot win — the fields were never the problem.
+        if _names_missing_fields(dijo):
+            return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo,
+                    "reason": f"«{quien}» no acepta el encargo en texto libre y dice qué necesita "
+                              f"(ver `agent_asks`): vuelve a pedírselo con `--field clave=valor`"}
+        return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo, "agent_failed": True,
+                "reason": f"«{quien}» falló al atender el encargo (ver `agent_asks`); no es cuestión de "
+                          f"darle más datos"}
     return {"ok": False, "reason": "los agentes de la red no contestaron", "intent": intent}

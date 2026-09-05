@@ -236,7 +236,7 @@ ACTION_MAP_INDEXES = [
 ]
 
 
-# V2-583 · WORKFLOWS — «for this kind of errand, which channel actually works, and is that still true?»
+# V2-594 · WORKFLOWS — «for this kind of errand, which channel actually works, and is that still true?»
 #
 # One row per (domain, channel). It is NOT a second action_map: `action_map` maps a PHRASE to a LOCAL action
 # on a widget and never leaves the machine, while this maps a DOMAIN of errand to the ORDER of external

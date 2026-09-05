@@ -7945,7 +7945,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
-- **The workflow table: what serves this kind of errand (V2-583, 2026-09-05)**: operator directive — *«if
+- **A broken upstream is not a request for fields (V2-596, 2026-09-05)**: measured live, `aerocast` fails on
+  roughly half of the free-text flight errands — it forwards a relative date to Duffel, which answers `422
+  validation_error`. That is the agent's bug. Ours was what `serve` did with it: `_HINT_KEYS` held `need` /
+  `missing` / `required` (*«give me these fields»*, actionable) in the same tuple as `error` / `detail` /
+  `message` / `hint` (*«something broke»*, not actionable), and the branch fired on the tuple as a whole. So
+  every upstream failure was reported as *«the agent says what it needs: ask again with `--field key=value`»*
+  — advice that cannot work, because the fields were never missing, and that loops the caller instead of
+  letting it fall through to the browser. Now `_names_missing_fields` gates that advice; anything else
+  returns `agent_failed: True` and says so. A diagnostic is truncated at 300 chars — the measured Duffel body
+  was 400+ characters of upstream JSON walking into the worker's context. **What let it live: nothing tested
+  `asks` at all.** V2-487 built the actionable half, verified it by hand against an agent that happened to
+  answer `missing_fields`, and left the other half unpinned.
+
+- **The workflow table: what serves this kind of errand (V2-594, 2026-09-05)**: operator directive — *«if
   today I look for a restaurant and there is no agent, what cannot happen is that tomorrow I ask the Oracle
   again»*, and *«if the Oracle says zero, we do not need a language model to tell us that»*. Both were real:
   `mesh_agents` remembered only SUCCESS, and only under an intent it would key on, so the two most expensive
@@ -7967,9 +7980,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   that would turn one bad minute into three bad days. TTL 7 days positive / 3 negative, shorter because a
   negative is likeliest to stop being true (two agents arrived the same afternoon). Measured live: a plumber
   errand went **1.02 s → 0.0002 s**, no network and no model. Node 2.5 (+3 and a new file, 49 green;
-  agent-headless 2667, memory 646). Disarm verified. Only the `mesh` channel is written today; `connector`,
-  `browser` and `worker` are declared and unwritten.
-- **A free tier arrives as one entry in a LIST (V2-582, 2026-09-05)**: the operator ruled that every agent
+  agent-headless 2667, memory 646). Disarm verified. **F2, same day**: the `browser` channel is now DERIVED from the site catalogue (never copied — a second
+  inventory of trusted sites is what drifted apart once), and the worker prompt is data-backed: its last line
+  used to hand-write «hoy hay agentes vivos de hoteles, vuelos y entradas/eventos», which went stale the same
+  day restaurants and wellness went live — a prompt claiming LESS coverage than exists sends the worker to the
+  browser for something an agent solves in two seconds. It now names the proven agent, or says the mesh is
+  known empty, and **writes nothing when nothing is known**, which is what keeps it free. `connector` and
+  `worker` stay declared and unwritten.
+- **A free tier arrives as one entry in a LIST (V2-593, 2026-09-05)**: the operator ruled that every agent
   Zaelar can use must have a free tier, the mesh side complied — and **the three agents it unblocked were
   still invisible here**. `_is_free` read `pricing` as a single dict and did `if not isinstance(pricing,
   dict): continue`, so a **list of tiers** — the natural way to publish «free tier + paid tiers» — was

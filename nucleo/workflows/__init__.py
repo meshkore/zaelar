@@ -1,4 +1,4 @@
-"""nucleo/workflows — «for this kind of errand, what is the fastest channel, and is that still true?» (V2-583).
+"""nucleo/workflows — «for this kind of errand, what is the fastest channel, and is that still true?» (V2-594).
 
 The public seam is this package: `domain_of`, `plan`, `learn`, `note_empty`, `forget`.
 """
