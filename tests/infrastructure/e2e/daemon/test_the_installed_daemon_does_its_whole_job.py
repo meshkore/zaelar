@@ -88,6 +88,11 @@ def daemon(tmp_path_factory):
 
     env = dict(os.environ)
     env["ZAELAR_WORKSPACE"] = str(ws)
+    # The daemon's HOME is the workspace, not the runner of the tests: `permissions.candidates()` scans
+    # `Path.home()` for the usual folders, and reading the REAL home made this test pass on the operator's Mac
+    # by accident (his ~/Documents exists) and fail on any machine without one — CI found it on its first run
+    # (2026-09-05). The workspace already carries the Documents this fixture creates.
+    env["HOME"] = str(ws)
     env["PYTHONPATH"] = str(ENGINE) + os.pathsep + env.get("PYTHONPATH", "")
     proc = subprocess.Popen([sys.executable, "-m", "daemon"], cwd=str(ENGINE), env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
