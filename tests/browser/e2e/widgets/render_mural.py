@@ -52,7 +52,12 @@ DATA = {"alpha": {"title": "Alpha"}, "beta": {"title": "Beta"}, "gamma": {"title
         # V2-583: a widget that declares NATIVE fullscreen (the youtube player's shape). A voice order has no
         # user gesture, so requestFullscreen() rejects asynchronously — the card must maximize in-app instead
         # of failing into silence, which is what happened live («Maximiza el video», session 0e3a42d6).
-        "video": {"title": "Video"}}
+        # V2-596: it is served the REAL youtube widget.js (below), because the cinema layout — the frame filling
+        # the maximized card instead of keeping its 56% card ratio inside a black void — is CSS that only exists
+        # rendered. paused+muted so the harness never tries to autoplay; the iframe's youtube.com load is routed.
+        "video": {"title": "Video", "videoId": "x", "paused": True, "muted": True,
+                  "list": [{"title": "One", "id": "a"}], "pos": 0}}
+YT_WIDGET_JS = open(os.path.join(ENGINE, "widgets", "youtube", "widget.js"), encoding="utf-8").read()
 ROUTE_RE = re.compile(  # anchored to the ORIGIN: /static/app/widgets/desktop.js also contains "/widgets/"
     r"^https?://[^/]+/(widgets(/.*)?|api/(canvas/.*|desktop/epoch|client-log|run|status|ui-event))(\?.*)?$")
 
@@ -101,7 +106,8 @@ def route(r):
     if m:
         wid, kind = m.group(1), m.group(2)
         if kind == "widget.js":
-            return r.fulfill(status=200, content_type="application/javascript", body=WIDGET_JS)
+            return r.fulfill(status=200, content_type="application/javascript",
+                             body=YT_WIDGET_JS if wid == "video" else WIDGET_JS)
         if kind == "manifest":
             return j({"id": wid})
         return j(DATA.get(wid, {"title": wid}))
@@ -134,6 +140,10 @@ def run(url):
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.route(ROUTE_RE, route)
+        # V2-596: the real youtube widget embeds an <iframe src="https://www.youtube.com/embed/…">. The harness
+        # never talks to the outside — the embed is answered with an empty document; only geometry is measured.
+        pg.route("**://www.youtube.com/**",
+                 lambda r: r.fulfill(status=200, content_type="text/html", body="<html></html>"))
         pg.goto(url, wait_until="domcontentloaded")   # the shell holds /events open — networkidle never comes
         pg.wait_for_timeout(2000)
         pg.evaluate(LIFT_VEIL)
@@ -474,6 +484,42 @@ def run(url):
         check("a gesture-less fullscreen order MAXIMIZES the native-fullscreen card on screen",
               vfull["w"] > W * 0.7 and vfull["h"] > H * 0.6 and not vfull["nativeEngaged"],
               json.dumps({"before": vbefore, "after": vfull}))
+        # ── V2-596: maximized, the VIDEO is the screen — the CINEMA state ───────────────────────────────────
+        # The live complaint: «maximiza el vídeo» grew the CARD while the player kept its card-shaped layout
+        # (56% frame + playlist + controls), leaving a huge black area. Only pixels can check the fix: the
+        # frame must fill the maximized card, the card chrome and playlist must be gone, and the one control
+        # left is the floating exit button the operator asked for.
+        cine = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const cr=c.getBoundingClientRect();
+          const f=c.querySelector('.hb-yt-frame'); const fr=f? f.getBoundingClientRect():{width:0,height:0};
+          const disp=sel=>{const e=c.querySelector(sel); return e? getComputedStyle(e).display:'absent';};
+          return {cinema:c.classList.contains('hb-cinema'), cardH:Math.round(cr.height),
+                  frameW:Math.round(fr.width), frameH:Math.round(fr.height),
+                  head:disp('.hb-head'), list:disp('.hb-yt-list'), ctrls:disp('.hb-yt-ctrls'),
+                  exit:disp('.hb-cinexit')}; }""")
+        check("cinema: the video frame FILLS the maximized card (no card-shaped void)",
+              cine["cinema"] and cine["frameH"] >= cine["cardH"] * 0.85 and cine["frameW"] >= W * 0.7,
+              json.dumps(cine))
+        check("cinema: chrome and playlist are gone, the floating exit button is the one control left",
+              cine["head"] == "none" and cine["list"] == "none" and cine["ctrls"] == "none"
+              and cine["exit"] == "flex", json.dumps(cine))
+        # The manual way back: clicking the exit button restores geometry AND chrome.
+        # Guarded click: with the button missing (a disarm), the RESTORE check below must fail on its own —
+        # a null .click() would kill the whole run instead of counting the failure (V2-552's lesson).
+        pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const b=c.querySelector('.hb-cinexit'); if(b) b.click(); }""")
+        pg.wait_for_timeout(400)
+        vexit = pg.evaluate("""() => { const c=[...document.querySelectorAll('.hb-win')]
+            .find(x=>x.dataset.wid==='video'); const r=c.getBoundingClientRect();
+          return {w:Math.round(r.width), h:Math.round(r.height), cinema:c.classList.contains('hb-cinema'),
+                  head:getComputedStyle(c.querySelector('.hb-head')).display}; }""")
+        check("the exit button RESTORES the card — geometry, chrome and playlist come back",
+              abs(vexit["w"] - vbefore["w"]) <= 2 and abs(vexit["h"] - vbefore["h"]) <= 2
+              and not vexit["cinema"] and vexit["head"] != "none",
+              json.dumps({"before": vbefore, "exited": vexit}))
+        # Back to maximized so the voice-toggle check below still measures the restore direction.
+        pg.evaluate("() => window.zaelar.fullscreen('video')")
+        pg.wait_for_timeout(400)
         # And it stays a TOGGLE: the same order again puts the card back where and how it was.
         pg.evaluate("() => window.zaelar.fullscreen('video')")
         pg.wait_for_timeout(400)

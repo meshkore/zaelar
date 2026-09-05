@@ -66,6 +66,24 @@ function injectStyles(){
   .hb-win:hover .hb-rz-se::after{opacity:.8}
   .hb-win:fullscreen{width:100vw!important;height:100vh!important;max-width:100vw;max-height:100vh;top:0!important;left:0!important;
     border-radius:0;background:#000}
+  /* CINEMA (V2-596): a widget that declared fullscreen:"native" (the video) maximized in-app goes FULL-BLEED —
+     the card drops its chrome and the widget fills it edge to edge; the one control left is the floating exit
+     button. Without this, a voice «maximiza el vídeo» (which lands on maximize — no gesture, V2-583) grew the
+     CARD while the video kept its card-shaped layout: a big black area with a small player inside, which is what
+     the operator reported. True :fullscreen gets the same treatment (there Escape also exits). A maximized
+     NON-native widget keeps its chrome: a maximized results sheet still needs its tabs and title. */
+  .hb-win.hb-cinema{padding:0;background:#000;border:0;border-radius:0}
+  .hb-win:fullscreen{padding:0}
+  .hb-win.hb-cinema .hb-head,.hb-win.hb-cinema .hb-grip,.hb-win.hb-cinema .hb-max,.hb-win.hb-cinema .hb-x,
+  .hb-win.hb-cinema .hb-rz,.hb-win:fullscreen .hb-head,.hb-win:fullscreen .hb-grip,.hb-win:fullscreen .hb-max,
+  .hb-win:fullscreen .hb-x,.hb-win:fullscreen .hb-rz{display:none}
+  .hb-win.hb-cinema .hb-scroll,.hb-win:fullscreen .hb-scroll{overflow:hidden}
+  .hb-win.hb-cinema .hb-body,.hb-win:fullscreen .hb-body{height:100%}
+  .hb-cinexit{display:none;position:absolute;top:10px;right:10px;z-index:6;width:36px;height:36px;border:0;
+    border-radius:10px;background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;cursor:pointer;
+    align-items:center;justify-content:center}
+  .hb-cinexit:hover{background:rgba(0,0,0,.8)}
+  .hb-win.hb-cinema .hb-cinexit,.hb-win:fullscreen .hb-cinexit{display:flex}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
   .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-grip,.hb-win.loading .hb-scroll,
   .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
@@ -465,6 +483,13 @@ export class Desktop {
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
       const mx=document.createElement("button"); mx.className="hb-max"; mx.textContent="⤢"; mx.title=tr("desktop.maximize_tooltip");
       mx.onclick=()=>this.maximize(id);
+      // CINEMA exit (V2-596): in cinema state the header chrome is hidden, so this floating button is the manual
+      // way back the operator asked for («as long as there is a button to minimize it»). It exits TRUE fullscreen
+      // when engaged; otherwise it restores the maximize toggle. Only visible in cinema/:fullscreen (CSS).
+      const cx=document.createElement("button"); cx.className="hb-cinexit"; cx.textContent="⤡";
+      cx.title=tr("desktop.exit_cinema_tooltip");
+      cx.onclick=()=>{ if(document.fullscreenElement===card){ document.exitFullscreen?.(); return; }
+                       this.maximize(id); };
       // HEADER (V2-082): NAME button + config to view/edit ALIASES. The name is populated from the registry.
       const head=document.createElement("div"); head.className="hb-head";
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
@@ -475,7 +500,7 @@ export class Desktop {
       const scroll=document.createElement("div"); scroll.className="hb-scroll";
       const body=document.createElement("div"); body.className="hb-body";
       scroll.appendChild(body);
-      card.append(grip,mx,x,head,load,scroll); this.stage.appendChild(card);
+      card.append(grip,mx,cx,x,head,load,scroll); this.stage.appendChild(card);
       this._addHandles(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
@@ -834,6 +859,7 @@ export class Desktop {
     const card = w.card, pad = this.tile.pad, top = this.tile.top;
     if(card._restore){
       const r = card._restore; card._restore = null;
+      card.classList.remove("hb-cinema");
       card.style.left=r.left; card.style.top=r.top; card.style.width=r.w; card.style.height=r.h;
       card.style.maxWidth=r.mw; card.style.maxHeight=r.mh;
     } else {
@@ -844,6 +870,11 @@ export class Desktop {
       card.style.left=x0+"px"; card.style.top=top+"px";
       card.style.width=(innerWidth - x0 - pad)+"px";
       card.style.height=(innerHeight - top - pad)+"px";
+      // CINEMA (V2-596): the widget DECLARED that full screen means "the content IS the screen"
+      // (manifest fullscreen:"native" — the same declaration fullscreen() reads), so a voice order that
+      // lands here gets the full-bleed layout instead of a big card with a small player inside.
+      const meta = this._meta && this._meta[(id||"").split("::")[0]];
+      if(meta && meta.fullscreen === "native") card.classList.add("hb-cinema");
     }
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
     return true;
@@ -907,6 +938,7 @@ export class Desktop {
       const r = card.getBoundingClientRect();
       sx=e.clientX; sy=e.clientY; sw=r.width; sh=r.height; sl=r.left; st=r.top; live=true;
       card._restore = null;                       // redimensionar a mano invalida el "volver" de maximizar
+      card.classList.remove("hb-cinema");         // V2-596: with the way back gone, cinema must not linger
       card.style.maxWidth="none"; card.style.maxHeight="none";
       card.classList.add("rz"); this._bringFront(card);
       h.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
@@ -925,6 +957,7 @@ export class Desktop {
     const w = this.wins.get(id); if(!w || !w.card) return false;
     const card = w.card;
     card._restore = null;
+    card.classList.remove("hb-cinema");           // V2-596: an explicit resize leaves the cinema state
     if(opts.width != null){
       const maxW = innerWidth - this.tile.pad * 2;
       card.style.width = Math.max(120, Math.min(opts.width, maxW)) + "px";
@@ -1074,6 +1107,7 @@ export class Desktop {
     cards.sort((a,b)=>(b.offsetWidth*b.offsetHeight)-(a.offsetWidth*a.offsetHeight));
     for(const c of cards){
       c._restore=null;                                   // a compacted card is no longer «maximized, restorable»
+      c.classList.remove("hb-cinema");                   // V2-596: nor in cinema, which rides on that state
       const W=c.offsetWidth, H=c.offsetHeight;
       let put=false;
       for(let x=xmin; !put && x+W<=innerWidth-pad; x+=step){

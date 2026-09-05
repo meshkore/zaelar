@@ -317,6 +317,7 @@
   "desktop.delete_btn": "Delete",
   "desktop.load_failed": "Couldn't load this widget.",
   "desktop.maximize_tooltip": "Maximize / restore",
+  "desktop.exit_cinema_tooltip": "Exit full screen",
   "desktop.move_tooltip": "Move",
   "desktop.name_tooltip": "Widget name — click to view/edit its aliases",
   "desktop.network_error": "Network error",

@@ -56,6 +56,49 @@ function injectStyles(){
   .hb-yt-addinp{flex:1;min-width:0;box-sizing:border-box;border:1px solid var(--hb-line,#eef1f6);border-radius:8px;
                 padding:6px 9px;font-size:12.5px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
   .hb-yt-note{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);padding:1px 2px}
+  /* HOME (V2-596): the catalog screen — a grid of the queue's videos with thumbnails, the closest thing to a
+     YouTube home built from data WE hold (the connector-fed suggestions are the V2-596 initiative). It shows
+     when nothing is loaded, and the nav button under the header switches home <-> player without unmounting
+     the iframe (a video keeps playing while the operator browses; V2-092's stop still governs). Thumbnails are
+     <img> ELEMENTS pointing at YouTube's public thumb host — the same class of resource as the player iframe,
+     not a fetch from our JS. */
+  .hb-yt-nav{display:flex;gap:6px}
+  .hb-yt-navbtn{border:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
+                color:var(--hb-ink,#0d1622);border-radius:9px;padding:5px 11px;font-size:12.5px;font-weight:600;
+                cursor:pointer;line-height:1}
+  .hb-yt-navbtn:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-yt-home{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .hb-yt-tile{position:relative;display:flex;flex-direction:column;gap:5px;cursor:pointer;border-radius:10px;padding:4px;min-width:0}
+  .hb-yt-tilex{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;border-radius:6px}
+  .hb-yt-tile:hover{background:var(--hb-bg-soft,#fbfdff)}
+  .hb-yt-tile img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--hb-bg-soft,#0d1622)}
+  .hb-yt-tilet{font-size:12.5px;font-weight:600;color:var(--hb-ink,#0d1622);line-height:1.25;
+               display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .hb-yt-tile.playing .hb-yt-tilet{color:var(--hb-accent,#3D6FE0)}
+  .hb-yt-tilec{font-size:11px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hb-yt-homemsg{grid-column:1/-1;color:var(--hb-muted-2,#9aa7b8);font-size:13px;text-align:center;padding:26px 12px}
+  .hb-yt-blocked{font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:2px 2px}
+  /* View switching is CLASS-driven, never inline display: an inline style would beat the cinema rules below,
+     and maximizing from the home view must still show the VIDEO (equal specificity, cinema declared later). */
+  .hb-yt.hb-yt-homemode .hb-yt-frame,.hb-yt.hb-yt-homemode .hb-yt-title,.hb-yt.hb-yt-homemode .hb-yt-meta,
+  .hb-yt.hb-yt-homemode .hb-yt-ctrls,.hb-yt.hb-yt-homemode .hb-yt-hint,.hb-yt.hb-yt-homemode .hb-yt-list{display:none}
+  .hb-yt:not(.hb-yt-homemode) .hb-yt-home,.hb-yt:not(.hb-yt-homemode) .hb-yt-blocked{display:none}
+  .hb-yt:not(.hb-yt-hasvid) .hb-yt-nav{display:none}
+  /* CINEMA (V2-596): inside a maximized/fullscreen card the video IS the screen — the frame fills the card and
+     the card-shaped furniture (title, controls, hint, playlist, add row) disappears. Without this, a voice
+     "maximize the video" grew the CARD while the player kept its 56% card ratio inside a black void. The host
+     sets .hb-cinema on the card (desktop.js) and its floating exit button restores everything; the unmute pill
+     stays, it is the one control the browser's autoplay policy makes necessary. */
+  .hb-win.hb-cinema .hb-yt,.hb-win:fullscreen .hb-yt{width:100%;height:100%;max-width:none;padding:0;gap:0;
+    border:0;border-radius:0;background:#000}
+  .hb-win.hb-cinema .hb-yt-frame,.hb-win:fullscreen .hb-yt-frame{display:block;padding-top:0;flex:1 1 auto;
+    min-height:0;border-radius:0}
+  .hb-win.hb-cinema .hb-yt-title,.hb-win.hb-cinema .hb-yt-meta,.hb-win.hb-cinema .hb-yt-ctrls,
+  .hb-win.hb-cinema .hb-yt-hint,.hb-win.hb-cinema .hb-yt-list,.hb-win.hb-cinema .hb-yt-addrow,
+  .hb-win.hb-cinema .hb-yt-nav,.hb-win.hb-cinema .hb-yt-home,.hb-win.hb-cinema .hb-yt-blocked,
+  .hb-win:fullscreen .hb-yt-title,.hb-win:fullscreen .hb-yt-meta,.hb-win:fullscreen .hb-yt-ctrls,
+  .hb-win:fullscreen .hb-yt-hint,.hb-win:fullscreen .hb-yt-list,.hb-win:fullscreen .hb-yt-addrow,
+  .hb-win:fullscreen .hb-yt-nav,.hb-win:fullscreen .hb-yt-home,.hb-win:fullscreen .hb-yt-blocked{display:none}
   `; document.head.appendChild(s);
 }
 
@@ -166,6 +209,20 @@ export function render(root, data, ctx){
   if(!st || st.id !== id || st.loading !== loading || !root._hbYtBuilt){
     root.className = "hb-yt";
     root.textContent = "";
+    // HOME vs PLAYER (V2-596): with no video loaded the card IS the home catalog; with one, the nav button
+    // under the card header switches views WITHOUT unmounting the iframe (audio keeps playing while browsing —
+    // remounting would cut it, the same reason the mobile Deck hides instead of unmounting).
+    if(id) root.classList.add("hb-yt-hasvid");
+    else root.classList.add("hb-yt-homemode");
+
+    const nav = el("div", "hb-yt-nav");
+    const navBtn = el("button", "hb-yt-navbtn", "");
+    const syncNav = () => { navBtn.textContent = root.classList.contains("hb-yt-homemode")
+                              ? "▶ Seguir viendo" : "⌂ Inicio"; };
+    navBtn.addEventListener("click", () => { root.classList.toggle("hb-yt-homemode"); syncNav(); });
+    syncNav();
+    nav.appendChild(navBtn);
+    root.appendChild(nav);
 
     const title = el("div", "hb-yt-title", data.title || "YouTube");
     root.appendChild(title);
@@ -208,10 +265,14 @@ export function render(root, data, ctx){
       unmuteHint.appendChild(el("span", "", "🔊"));
       unmuteHint.appendChild(el("span", "", "Toca para activar el sonido"));
       frame.appendChild(unmuteHint);
-    } else {
-      frame.appendChild(el("div", "hb-yt-empty", "No hay ningún vídeo cargado. Dime qué quieres ver."));
     }
+    // (no video: the frame stays empty and hidden — the HOME grid below is the face of the card)
     root.appendChild(frame);
+
+    const home = el("div", "hb-yt-home");             // populated on every render, like the list below
+    root.appendChild(home);
+    const blockedLine = el("div", "hb-yt-blocked", "");
+    root.appendChild(blockedLine);
 
     // Click controls (mirror of what can also be requested by voice).
     const ctrls = el("div", "hb-yt-ctrls");
@@ -254,7 +315,7 @@ export function render(root, data, ctx){
     root._hbYt = { id: id, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
     root._hbYtEls = { iframe: iframe, title: title, meta: meta, vol: vol, muteBtn: muteBtn, unmuteHint: unmuteHint,
-                      listBox: listBox };
+                      listBox: listBox, home: home, blockedLine: blockedLine };
   }
 
   // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
@@ -328,6 +389,63 @@ export function render(root, data, ctx){
     });
     if(lst.length && filt && !shown) E.listBox.appendChild(el("div", "hb-yt-note", "Nada en la lista casa con el filtro."));
     if(!lst.length) E.listBox.appendChild(el("div", "hb-yt-note", "La lista está vacía: pega un enlace o dime «añade a la lista…»."));
+  }
+
+  // HOME grid (V2-596): the same queue as a catalog — thumbnail, title, channel; a click plays. Rebuilt every
+  // render like the list rows (text + <img> elements only; the thumb host is YouTube's public CDN, the same
+  // class of embedded resource as the player iframe — never a fetch from our JS).
+  if(E.home){
+    E.home.textContent = "";
+    const lst = Array.isArray(data.list) ? data.list : [];
+    const pos = Number(data.pos != null ? data.pos : -1);
+    // The voice filter must stay VISIBLE on the home face too (same haystack as the linear list): a
+    // «busca en la lista» said with nothing playing lands here, and a filter that changes no pixels is
+    // indistinguishable from a broken one.
+    const filt = String(data.list_filter || "").trim().toLowerCase();
+    if(filt){
+      const chip = el("div", "hb-yt-homemsg", "");
+      chip.style.padding = "0";
+      const c = el("span", "hb-yt-chip", "filtro: «" + filt + "» ✕");
+      c.title = "Quitar el filtro";
+      c.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("filter_list", {q: ""}); });
+      chip.appendChild(c);
+      E.home.appendChild(chip);
+    }
+    if(!lst.length){
+      E.home.appendChild(el("div", "hb-yt-homemsg",
+        "No hay ningún vídeo cargado. Dime qué quieres ver, o «búscame vídeos de…» y elige de aquí."));
+    }
+    let shown = 0;
+    lst.forEach((it, i) => {
+      const hay = ((it.title || "") + " " + (it.channel || "")).toLowerCase();
+      if(filt && hay.indexOf(filt) < 0) return;
+      shown++;
+      const tile = el("div", "hb-yt-tile" + (i === pos ? " playing" : ""));
+      const img = document.createElement("img");
+      img.loading = "lazy"; img.alt = "";
+      if(it.videoId) img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(it.videoId) + "/mqdefault.jpg";
+      tile.appendChild(img);
+      const x = el("button", "hb-yt-rowx hb-yt-tilex", "✕");
+      x.title = "Quitar de la lista";
+      x.addEventListener("click", (e) => { e.stopPropagation(); if(ctx && ctx.action) ctx.action("remove", {item: String(i + 1)}); });
+      tile.appendChild(x);
+      tile.appendChild(el("div", "hb-yt-tilet", it.title || it.url || "—"));
+      if(it.channel) tile.appendChild(el("div", "hb-yt-tilec", it.channel));
+      tile.addEventListener("click", () => {
+        if(ctx && ctx.action) ctx.action("play_item", {item: String(i + 1)});
+        // Same-video click produces no data change (no rebuild), so leave home explicitly.
+        root.classList.remove("hb-yt-homemode");
+        const nb = root.querySelector(".hb-yt-navbtn"); if(nb) nb.textContent = "⌂ Inicio";
+      });
+      E.home.appendChild(tile);
+    });
+    if(lst.length && filt && !shown)
+      E.home.appendChild(el("div", "hb-yt-homemsg", "Nada en la lista casa con el filtro."));
+  }
+  if(E.blockedLine){
+    const blk = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
+    E.blockedLine.textContent = blk.length ? ("🚫 Canales bloqueados: " + blk.join(", ")) : "";
+    E.blockedLine.style.display = blk.length ? "" : "none";
   }
 
   // Apply the last command if the counter advanced (same video; video changes are covered by the new src).

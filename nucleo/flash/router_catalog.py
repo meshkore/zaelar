@@ -170,8 +170,10 @@ TOOLS: list[dict] = [
         "function": {
             "name": "fullscreen_widget",
             "description": (
-                "PANTALLA COMPLETA de un widget — interruptor: si ya está, la quita. Acción del CANVAS "
-                "(tamaño en pantalla), NO de datos: play/pausa/volumen son widget_data."
+                # V2-596: the OFF direction is named — «minimízalo» over a maximized video used to have no
+                # route the model could pick with confidence, and the toggle is exactly that route.
+                "PANTALLA COMPLETA de un widget — interruptor: «minimízalo»/«quítala» van aquí (la quita). "
+                "Acción del CANVAS, NO de datos: play/pausa/volumen son widget_data."
             ),
             "parameters": {
                 "type": "object",

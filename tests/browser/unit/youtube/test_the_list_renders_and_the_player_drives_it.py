@@ -92,14 +92,22 @@ def test_the_rows_render_as_text_with_the_playing_marker(_page):
 
 
 def test_click_plays_that_item_and_the_cross_removes_without_playing(_page):
+    # V2-596: with no video loaded the card's face is the HOME catalog (tiles), not the linear list —
+    # the protected behaviors are the same: a click plays that item, its ✕ removes without playing.
     _mount(_page, {"videoId": "", "list": _LIST, "pos": -1})
-    _page.locator(".hb-yt-row").nth(1).click()
+    tiles = _page.locator(".hb-yt-tile")
+    assert tiles.count() == 3
+    # ✕ first: removing never plays AND never leaves the catalog (stopPropagation covers both).
+    tiles.nth(2).locator(".hb-yt-tilex").click()
+    calls = _page.evaluate("window.__calls")
+    assert calls == [["remove", {"item": "3"}]]
+    _page.evaluate("window.__calls = []")
+    tiles.nth(1).click()
     calls = _page.evaluate("window.__calls")
     assert calls == [["play_item", {"item": "2"}]]
-    _page.evaluate("window.__calls = []")
-    _page.locator(".hb-yt-row").nth(2).locator(".hb-yt-rowx").click()
-    calls = _page.evaluate("window.__calls")
-    assert calls == [["remove", {"item": "3"}]]                  # stopPropagation: no play_item alongside
+    # Choosing a tile LEAVES the catalog for the player view (V2-596) — same-video clicks rebuild nothing,
+    # so the widget must switch on its own.
+    assert _page.evaluate("() => !document.querySelector('.hb-yt').classList.contains('hb-yt-homemode')")
 
 
 def test_the_players_ended_message_advances_only_from_our_player(_page):
@@ -134,9 +142,11 @@ def test_a_stopped_agent_never_advances_the_queue(_page):
 
 
 def test_the_filter_hides_rows_without_touching_the_list_and_the_chip_clears_it(_page):
+    # V2-596: same face change — the voice filter must stay VISIBLE on the home catalog (a filter that
+    # changes no pixels is indistinguishable from a broken one), and its chip still clears it.
     _mount(_page, {"videoId": "", "list": _LIST, "pos": -1, "list_filter": "canal"})
-    assert _page.locator(".hb-yt-row").count() == 2              # «Tercer clip» (channel «Otro») filtered out
-    chip = _page.locator(".hb-yt-chip")
+    assert _page.locator(".hb-yt-tile").count() == 2             # «Tercer clip» (channel «Otro») filtered out
+    chip = _page.locator(".hb-yt-home .hb-yt-chip")
     assert chip.count() == 1
     chip.click()
     assert ["filter_list", {"q": ""}] in _page.evaluate("window.__calls")

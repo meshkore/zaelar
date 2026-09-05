@@ -44,6 +44,11 @@ _SEED = {
     # the catalogue is NOT a reason to refuse» sent a two-link queue to a Brain Worker (measured, and the
     # scenario calls escalating this a FAILURE — it is a rail, V2-042). "" = the card shows its generic title.
     "list_name": "",
+    # V2-596 — channels the operator does not want to see («no me enseñes canales hechos con IA» — as he names
+    # them, they are blocked). The FILTER lives in the widget's data; the KNOWLEDGE of which channels those are
+    # lives with the brain/memory, which calls block_channel as it learns them. Applied to every NAME search
+    # (load/add/search); an EXPLICIT link or id is an order and is never filtered.
+    "blocked_channels": [],
 }
 
 _YT_RE = re.compile(
@@ -87,6 +92,31 @@ def _resolve_item(lst: list, item) -> "int | None":
         if n in hay:
             return i
     return None
+
+
+def _is_blocked(channel: str, blocked: list) -> bool:
+    """True when `channel` matches one of the operator's blocked entries.
+
+    Containment only for terms of 4+ normalized chars: a blocked «ia» must NOT wipe «Diario de un viaje» by
+    substring — short terms match by whole-name equality only. Containment goes ONE way (the stored term inside
+    the channel name): the operator blocks by the name he was told, which may be a fragment of the full one."""
+    ch = _norm(channel)
+    if not ch:
+        return False
+    for b in blocked or []:
+        t = _norm(b)
+        if not t:
+            continue
+        if t == ch or (len(t) >= 4 and t in ch):
+            return True
+    return False
+
+
+def _drop_blocked(hits: list, blocked: list) -> "tuple[list, int]":
+    """Split search hits into (kept, how_many_blocked). The count travels in the action's answer so the ack can
+    say honestly that results existed and were filtered — a silent drop reads as a worse search (V2-414)."""
+    kept = [h for h in hits if not _is_blocked(h.get("channel") or "", blocked)]
+    return kept, len(hits) - len(kept)
 
 
 def _oembed_title(vid: str) -> dict:
@@ -175,14 +205,20 @@ def _search_many(q: str, n: int = 5) -> list:
     return out
 
 
-def _search_id(q: str) -> dict:
+def _search_id(q: str, blocked: list = None) -> dict:
     """Best-effort: resolve a phrase ("Messi goal") to the first YouTube video. Stdlib, 6s, fail-open.
     If the phrase asks for someone's MOST RECENT video ("the latest from ..."), sort by upload date.
     Returns {videoId,title,channel,published,latest} — publication date lets the operator VERIFY it is the correct
-    video (V2-057: do not execute blindly; deliver a checkable result at a glance)."""
+    video (V2-057: do not execute blindly; deliver a checkable result at a glance).
+
+    V2-596: with blocked channels declared, the FIRST hit is the first hit from a channel the operator still
+    wants — a few candidates are fetched and the blocked ones skipped, so «pon el vídeo de X» never lands on a
+    channel he told us to filter out."""
     q = (q or "").strip()
     out = {"videoId": "", "title": "", "channel": "", "published": "", "latest": bool(_LATEST_RE.search(q))}
-    hits = _search_many(q, 1)
+    hits = _search_many(q, 6 if blocked else 1)
+    if blocked:
+        hits, _ = _drop_blocked(hits, blocked)
     if hits:
         h = hits[0]
         out.update({"videoId": h["videoId"], "title": h["title"] or q,
@@ -294,7 +330,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             # spinner immediately; the final load turns it off.
             db["loading"], db["loading_query"] = True, q
             store.save(WID, db)
-            r = _search_id(q)
+            r = _search_id(q, db.get("blocked_channels"))
             vid = r["videoId"]
             latest = r["latest"]
             if vid and not title:
@@ -354,7 +390,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 return {"ok": False, "error": "no_video", "message": "Dime qué vídeo añado (enlace o nombre)."}
             db["adding"] = q                            # visible state while the network search runs
             store.save(WID, db)
-            r = _search_id(q)
+            r = _search_id(q, db.get("blocked_channels"))
             db["adding"] = ""
             vid = r["videoId"]
             if vid and not title:
@@ -396,10 +432,19 @@ def apply_action(action: str, payload: dict = None) -> dict:
         n = max(1, min(n, 8))
         db["adding"] = q                                # visible state while the network search runs (as `add`)
         store.save(WID, db)
-        hits = _search_many(q, n)
+        blocked = db.get("blocked_channels") or []
+        # Fetch a few extra when a filter exists, so blocking a channel does not shrink every search.
+        hits = _search_many(q, n + (4 if blocked else 0))
+        hits, n_blocked = _drop_blocked(hits, blocked)
+        hits = hits[:n]
         db["adding"] = ""
         if not hits:
             store.save(WID, db)                          # turn the state off even when nothing was found
+            if n_blocked:
+                # Results existed and the operator's own filter removed them — saying «no videos» would read
+                # as a worse search and invite retries against a wall he built himself (V2-414's confound).
+                return {"ok": False, "error": "all_blocked", "blocked_out": n_blocked,
+                        "message": "Había resultados pero todos eran de canales que tienes bloqueados."}
             return {"ok": False, "error": "no_video", "message": "No encontré vídeos de eso."}
         lst = db.setdefault("list", [])
         added, positions = [], []
@@ -414,7 +459,47 @@ def apply_action(action: str, payload: dict = None) -> dict:
             added.append(lst[-1]["title"])
             positions.append(len(lst))
         store.save(WID, db)
-        return {"ok": True, "added": added, "positions": positions, "count": len(lst), "query": q}
+        out = {"ok": True, "added": added, "positions": positions, "count": len(lst), "query": q}
+        if n_blocked:
+            out["blocked_out"] = n_blocked               # the ack can say «and N more from blocked channels»
+        return out
+
+    if action == "block_channel":
+        # V2-596 — «no quiero ver este canal»: the filter the operator educates by voice. The brain names the
+        # channel as it learns which ones he means («canales hechos con IA» → block each one it identifies);
+        # the widget only stores and applies the filter. Blocking also SWEEPS the current list — a channel he
+        # just refused must not keep sitting in his queue — but never cuts what is already playing (V2-366's
+        # rule: only `close` stops playback).
+        ch = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()[:80]
+        if not ch:
+            return {"ok": False, "error": "no_channel",
+                    "message": "Dime qué canal bloqueo (su nombre, como sale en la lista)."}
+        blocked = db.setdefault("blocked_channels", [])
+        if any(_norm(b) == _norm(ch) for b in blocked):
+            store.save(WID, db)
+            return {"ok": True, "already_blocked": True, "channel": ch, "blocked": list(blocked)}
+        blocked.append(ch)
+        lst = db.get("list") or []
+        cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
+        kept = [it for it in lst if not _is_blocked(it.get("channel") or "", [ch])]
+        swept = len(lst) - len(kept)
+        db["list"] = kept
+        db["pos"] = kept.index(cur) if cur is not None and cur in kept else -1
+        store.save(WID, db)
+        return {"ok": True, "channel": ch, "removed_from_list": swept, "blocked": list(blocked)}
+
+    if action == "unblock_channel":
+        ch = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()
+        blocked = db.get("blocked_channels") or []
+        n = _norm(ch)
+        hit = next((b for b in blocked if _norm(b) == n or (n and n in _norm(b))), None)
+        if hit is None:
+            return {"ok": False, "error": "not_blocked", "channel": ch, "blocked": list(blocked),
+                    "message": "Ese canal no está bloqueado." if blocked
+                               else "No hay ningún canal bloqueado."}
+        blocked.remove(hit)
+        store.save(WID, db)
+        return {"ok": True, "channel": hit, "blocked": list(blocked)}
 
     if action == "remove":
         lst = db.get("list") or []

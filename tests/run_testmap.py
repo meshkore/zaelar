@@ -1378,7 +1378,11 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
                                                                  "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py"]},
-        {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
+        {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT,
+         "paths": ["tests/browser/unit/youtube/test_youtube.py",
+                   # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search
+                   # door honors it, an explicit link never does.
+                   "tests/browser/unit/youtube/test_a_blocked_channel_never_comes_back.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
