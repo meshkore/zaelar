@@ -125,7 +125,12 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-03, V2-572 — the bare-ack repair block paid by extracting the ACTION-MAP fast lane (a cohesive
     # concern since V2-539: lookup, execute, bookkeeping — and now the spoken ack) → providers/fast_lane.py,
     # 3244→3217. Probe paid the same bill by folding its stream-collect shape into flash/second_pass.py.
-    "voice/engine/llm/providers/nucleo.py": (3218, 129),
+    # 2026-09-05/06, V2-601 T-01 — the audit found the ratchet RED at HEAD (nobody ran it; that is T-02's CI).
+    # Paid by four AST-identical extractions: the V2-209 surface-ack pair → flash/surface_ack.py; sheet naming →
+    # results/sheet_names.py (+ stdlib lazies hoisted); the V2-539 probe mirror → flash/probe_actionmap.py; the
+    # whole flow lifecycle (V2-096/113/116/123) → providers/flow_lifecycle.py. Ceilings lowered to the measured
+    # sizes — the celebration edit this table's header describes.
+    "voice/engine/llm/providers/nucleo.py": (3043, 116),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
@@ -161,7 +166,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-03, same pass (V2-567): router_guards paid by extracting the V2-210 answer-source family to
     # answer_guards.py (811→762); probe paid by moving alias classification to show_target.py beside its
     # siblings (1152→1144). Both files sat EXACTLY at their ceilings — the ratchet working as designed.
-    "nucleo/flash/router_guards.py": (763, 7),
+    "nucleo/flash/router_guards.py": (742, 5),
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
     # files they measure). Still F2's split target (`run_turn` into named phases).
@@ -173,8 +178,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
     # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
-    "nucleo/flash/probe.py": (1145, 74),
-    "widgets/results/data.py": (1030, 5),
+    "nucleo/flash/probe.py": (1138, 73),
+    "widgets/results/data.py": (991, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (854, 30),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
