@@ -78,12 +78,48 @@ function injectStyles(){
   .hb-yt-tilec{font-size:11px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-yt-homemsg{grid-column:1/-1;color:var(--hb-muted-2,#9aa7b8);font-size:13px;text-align:center;padding:26px 12px}
   .hb-yt-blocked{font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:2px 2px}
+  /* ACCOUNT layer (V2-597): platform icons in the nav row — bright = connected (click: its status screen),
+     dimmed = not connected (click: its step wizard). The messaging .dots pattern: every channel always
+     visible, never hidden and never disabled. */
+  .hb-yt-dots{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .hb-yt-picon{width:20px;height:20px;cursor:pointer;opacity:.35;flex:0 0 auto}
+  .hb-yt-picon.on{opacity:1}
+  .hb-yt-picon svg{width:100%;height:100%;display:block}
+  /* Connect screens (V2-597): the step wizard / status card replaces the card faces while open. */
+  .hb-yt-conn{display:flex;flex-direction:column;gap:10px}
+  .hb-ytw-crumb{font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-weight:600;
+                align-self:flex-start}
+  .hb-ytw-step{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:12px;
+               display:flex;flex-direction:column;gap:8px;background:var(--hb-bg-soft,#fbfdff)}
+  .hb-ytw-head{display:flex;align-items:center;gap:8px}
+  .hb-ytw-num{width:22px;height:22px;border-radius:50%;background:var(--hb-accent,#3D6FE0);color:#fff;
+              display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+              flex:0 0 auto}
+  .hb-ytw-title{font-size:13.5px;font-weight:700;color:var(--hb-ink,#0d1622)}
+  .hb-ytw-count{margin-left:auto;font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-ytw-body{font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.45;
+               display:flex;flex-direction:column;gap:7px}
+  .hb-ytw-body a{color:var(--hb-accent,#3D6FE0)}
+  .hb-ytw-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .hb-ytw-err{font-size:12px;color:var(--hb-risk,#e5484d);line-height:1.4}
+  .hb-ytw-ok{font-size:12.5px;color:var(--hb-accent,#3D6FE0);font-weight:600}
+  /* HOME suggestions band (V2-597): section header spanning the grid; tiles reuse .hb-yt-tile. */
+  .hb-yt-sughead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
+                 color:var(--hb-ink,#0d1622);margin-top:2px}
+  .hb-yt-sugsub{font-weight:400;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-yt-catch{grid-column:1/-1;border-top:1px solid var(--hb-line,#eef1f6);margin-top:4px}
+  /* Connect mode hides every other face; the crumb is the way back. Same class-driven switching as home. */
+  .hb-yt.hb-yt-connmode .hb-yt-frame,.hb-yt.hb-yt-connmode .hb-yt-title,.hb-yt.hb-yt-connmode .hb-yt-meta,
+  .hb-yt.hb-yt-connmode .hb-yt-ctrls,.hb-yt.hb-yt-connmode .hb-yt-hint,.hb-yt.hb-yt-connmode .hb-yt-list,
+  .hb-yt.hb-yt-connmode .hb-yt-addrow,.hb-yt.hb-yt-connmode .hb-yt-home,
+  .hb-yt.hb-yt-connmode .hb-yt-blocked{display:none}
+  .hb-yt:not(.hb-yt-connmode) .hb-yt-conn{display:none}
   /* View switching is CLASS-driven, never inline display: an inline style would beat the cinema rules below,
      and maximizing from the home view must still show the VIDEO (equal specificity, cinema declared later). */
   .hb-yt.hb-yt-homemode .hb-yt-frame,.hb-yt.hb-yt-homemode .hb-yt-title,.hb-yt.hb-yt-homemode .hb-yt-meta,
   .hb-yt.hb-yt-homemode .hb-yt-ctrls,.hb-yt.hb-yt-homemode .hb-yt-hint,.hb-yt.hb-yt-homemode .hb-yt-list{display:none}
   .hb-yt:not(.hb-yt-homemode) .hb-yt-home,.hb-yt:not(.hb-yt-homemode) .hb-yt-blocked{display:none}
-  .hb-yt:not(.hb-yt-hasvid) .hb-yt-nav{display:none}
+  .hb-yt:not(.hb-yt-hasvid) .hb-yt-navbtn{display:none}
   /* CINEMA (V2-596): inside a maximized/fullscreen card the video IS the screen — the frame fills the card and
      the card-shaped furniture (title, controls, hint, playlist, add row) disappears. Without this, a voice
      "maximize the video" grew the CARD while the player kept its 56% card ratio inside a black void. The host
@@ -96,9 +132,11 @@ function injectStyles(){
   .hb-win.hb-cinema .hb-yt-title,.hb-win.hb-cinema .hb-yt-meta,.hb-win.hb-cinema .hb-yt-ctrls,
   .hb-win.hb-cinema .hb-yt-hint,.hb-win.hb-cinema .hb-yt-list,.hb-win.hb-cinema .hb-yt-addrow,
   .hb-win.hb-cinema .hb-yt-nav,.hb-win.hb-cinema .hb-yt-home,.hb-win.hb-cinema .hb-yt-blocked,
+  .hb-win.hb-cinema .hb-yt-conn,
   .hb-win:fullscreen .hb-yt-title,.hb-win:fullscreen .hb-yt-meta,.hb-win:fullscreen .hb-yt-ctrls,
   .hb-win:fullscreen .hb-yt-hint,.hb-win:fullscreen .hb-yt-list,.hb-win:fullscreen .hb-yt-addrow,
-  .hb-win:fullscreen .hb-yt-nav,.hb-win:fullscreen .hb-yt-home,.hb-win:fullscreen .hb-yt-blocked{display:none}
+  .hb-win:fullscreen .hb-yt-nav,.hb-win:fullscreen .hb-yt-home,.hb-win:fullscreen .hb-yt-blocked,
+  .hb-win:fullscreen .hb-yt-conn{display:none}
   `; document.head.appendChild(s);
 }
 
@@ -137,6 +175,203 @@ function post(iframe, func, args){
     if(!iframe || !iframe.contentWindow) return;
     iframe.contentWindow.postMessage(JSON.stringify({event:"command", func:func, args:args||[]}), "*");
   }catch(_){}
+}
+
+// ── ACCOUNT layer (V2-597) ────────────────────────────────────────────────────────────────────────────────
+// Module-lived screen state (the module loads once, so it survives re-renders — the messaging pattern):
+// null = normal faces · {view:"wizard"|"status", platform} = a platform's connect/status screen.
+let _screen = null;
+const _wizStep = {};        // platform -> current wizard step (1..3)
+let _focusDone = 0;         // last honoured connect_focus ts (consumed once per timestamp)
+let _syncAsked = 0;         // last time this card asked for a platform re-sync (guards against loops)
+let _connBusy = false;      // a connect/check round-trip is running (buttons disabled meanwhile)
+let _connErr = "";          // an error of THIS screen's own attempt — never a stale stored one (V2-582)
+
+// Brand mark, inline SVG (simple-icons outline path, CC0) — never a CDN: widget.js touches no network.
+const _BRAND = {
+  youtube: {color: "#FF0000", path: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 " +
+    "12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 " +
+    "3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 " +
+    "2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"},
+};
+
+function brandIcon(pid, on){
+  const wrap = el("span", "hb-yt-picon" + (on ? " on" : ""));
+  const b = _BRAND[pid] || null;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", b ? b.path : "M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20z");
+  path.setAttribute("fill", b ? b.color : "currentColor");
+  svg.appendChild(path);
+  wrap.appendChild(svg);
+  return wrap;
+}
+
+function fmtAge(ts){
+  if(!ts) return "";
+  const m = Math.max(0, Math.round((Date.now() / 1000 - Number(ts)) / 60));
+  if(m < 1) return "ahora mismo";
+  if(m < 60) return "hace " + m + " min";
+  return "hace " + Math.round(m / 60) + " h";
+}
+
+function stepBox(n, total, title){
+  const box = el("div", "hb-ytw-step");
+  const head = el("div", "hb-ytw-head");
+  head.appendChild(el("span", "hb-ytw-num", String(n)));
+  head.appendChild(el("span", "hb-ytw-title", title));
+  if(total > 1) head.appendChild(el("span", "hb-ytw-count", "Paso " + n + " de " + total));
+  box.appendChild(head);
+  return box;
+}
+
+// The connect screens (V2-597): a step WIZARD for a platform that is not connected — one step visible at a
+// time, the middle one being work done elsewhere (the ⚙ panel holds the credentials; V2-520: nothing here
+// carries one) — and a STATUS screen with disconnect for one that is. Rebuilt on every render, like the list.
+function renderConn(E, root, data, ctx){
+  const box = E.conn;
+  if(!box) return;
+  root.classList.toggle("hb-yt-connmode", !!_screen);
+  box.textContent = "";
+  if(!_screen) return;
+  const pid = _screen.platform || "youtube";
+  const rows = Array.isArray(data.platforms) ? data.platforms : [];
+  const row = rows.find((r) => r.id === pid)
+              || {id: pid, label: "YouTube", connected: false, app_configured: false};
+  const repaint = () => renderConn(E, root, data, ctx);
+
+  const crumb = el("div", "hb-ytw-crumb", "‹ Volver al reproductor");
+  crumb.addEventListener("click", () => { _screen = null; _connErr = ""; repaint(); });
+  box.appendChild(crumb);
+
+  const act = async (name, payload) => {
+    if(!ctx || !ctx.action) return null;
+    _connBusy = true; repaint();
+    let r = null;
+    try { r = await ctx.action(name, payload || {}); } catch(_e){ r = null; }
+    _connBusy = false;
+    return r;
+  };
+  const btn = (label, cls) => {
+    const b = el("button", "hb-yt-btn", label);
+    if(cls) b.classList.add(cls);
+    b.disabled = _connBusy;
+    return b;
+  };
+
+  if(row.connected && _screen.view !== "wizard"){
+    const st = stepBox("✓", 1, (row.label || "YouTube") + " conectado");
+    const body = el("div", "hb-ytw-body");
+    body.appendChild(el("div", "", "Cuenta conectada en modo solo lectura: las sugerencias del inicio "
+                                   + "salen de tus suscripciones. Tu cuenta no se toca."));
+    st.appendChild(body);
+    const foot = el("div", "hb-ytw-foot");
+    const sug = btn("↻ Traer sugerencias");
+    sug.addEventListener("click", async () => {
+      const r = await act("suggest", {platform: pid});
+      if(r && r.ok){
+        _screen = null; _connErr = "";
+        root.classList.add("hb-yt-homemode");            // the band lives on the home face — go look at it
+        const nb = root.querySelector(".hb-yt-navbtn"); if(nb) nb.textContent = "▶ Seguir viendo";
+        repaint();
+      } else { _connErr = (r && (r.message || r.error)) || "No pude traer sugerencias."; repaint(); }
+    });
+    foot.appendChild(sug);
+    const dis = btn("Desconectar");
+    dis.addEventListener("click", async () => { await act("disconnect_account", {platform: pid}); repaint(); });
+    foot.appendChild(dis);
+    st.appendChild(foot);
+    if(_connErr) st.appendChild(el("div", "hb-ytw-err", _connErr));
+    box.appendChild(st);
+    return;
+  }
+
+  // WIZARD — three numbered boxes, ONE visible at a time (V2-561's shape).
+  const total = 3;
+  let step = Math.min(Math.max(_wizStep[pid] || 1, 1), total);
+  _wizStep[pid] = step;
+  let sb;
+  if(step === 1){
+    sb = stepBox(1, total, "Crea tu app OAuth en Google Cloud");
+    const body = el("div", "hb-ytw-body");
+    const l1 = el("div", "");
+    l1.appendChild(document.createTextNode("Entra en "));
+    const a = document.createElement("a");
+    a.href = "https://console.cloud.google.com/apis/credentials";
+    a.target = "_blank"; a.rel = "noopener";
+    a.textContent = "console.cloud.google.com/apis/credentials";
+    l1.appendChild(a);
+    l1.appendChild(document.createTextNode(" y crea un «ID de cliente de OAuth» (tipo: aplicación de escritorio)."));
+    body.appendChild(l1);
+    body.appendChild(el("div", "", "En la biblioteca de APIs del mismo proyecto, habilita la «YouTube Data API v3»."));
+    body.appendChild(el("div", "", "Puede ser la misma app que ya uses para Google Drive o Fotos."));
+    sb.appendChild(body);
+    const foot = el("div", "hb-ytw-foot");
+    const next = btn("Ya la tengo — continuar");
+    next.addEventListener("click", () => { _wizStep[pid] = 2; _connErr = ""; repaint(); });
+    foot.appendChild(next);
+    sb.appendChild(foot);
+  } else if(step === 2){
+    sb = stepBox(2, total, "Registra el client_id en zaelar");
+    const body = el("div", "hb-ytw-body");
+    body.appendChild(el("div", "", "Pega el client_id (y el client_secret) en Configuración ⚙ → Conectores "
+                                   + "→ YouTube. Se guarda una sola vez; por esta tarjeta nunca viajan credenciales."));
+    body.appendChild(row.app_configured
+      ? el("div", "hb-ytw-ok", "✓ App registrada — puedes continuar.")
+      : el("div", "", "Aún no veo ninguna app registrada."));
+    sb.appendChild(body);
+    const foot = el("div", "hb-ytw-foot");
+    const back = btn("‹ Anterior");
+    back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; repaint(); });
+    foot.appendChild(back);
+    const next = btn("Comprobar y continuar");
+    next.addEventListener("click", async () => {
+      const r = await act("sync_platforms", {});
+      const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
+      if(fresh && fresh.app_configured){ _wizStep[pid] = 3; _connErr = ""; }
+      else { _connErr = "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a comprobar."; }
+      repaint();
+    });
+    foot.appendChild(next);
+    sb.appendChild(foot);
+  } else {
+    sb = stepBox(3, total, "Autoriza tu cuenta");
+    const body = el("div", "hb-ytw-body");
+    body.appendChild(el("div", "", "Se abrirá una ventana de Google para dar permiso de SOLO LECTURA "
+                                   + "(tus suscripciones). Cuando la cierres, toca «comprobar»."));
+    sb.appendChild(body);
+    const foot = el("div", "hb-ytw-foot");
+    const back = btn("‹ Anterior");
+    back.addEventListener("click", () => { _wizStep[pid] = 2; _connErr = ""; repaint(); });
+    foot.appendChild(back);
+    const go = btn(_connBusy ? "Conectando…" : "Conectar " + (row.label || "YouTube"));
+    go.addEventListener("click", async () => {
+      // The window opens SYNCHRONOUSLY on the click (or the browser blocks the pop-up); its location is
+      // filled after the action answers — the archivos consent pattern.
+      const w = window.open("", "_blank");
+      const r = await act("connect_account", {platform: pid});
+      if(r && r.ok && r.url){ if(w) w.location = r.url; _connErr = ""; }
+      else {
+        if(w){ try{ w.close(); }catch(_e){} }
+        _connErr = (r && r.error) || "No pude empezar la conexión.";
+      }
+      repaint();
+    });
+    foot.appendChild(go);
+    const chk = btn("Ya he autorizado — comprobar");
+    chk.addEventListener("click", async () => {
+      const r = await act("sync_platforms", {});
+      const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
+      if(fresh && fresh.connected){ _screen = {view: "status", platform: pid}; _connErr = ""; }
+      else { _connErr = "Aún no veo la cuenta conectada — completa la ventana de Google y vuelve a comprobar."; }
+      repaint();
+    });
+    foot.appendChild(chk);
+    sb.appendChild(foot);
+  }
+  if(_connErr) sb.appendChild(el("div", "hb-ytw-err", _connErr));
+  box.appendChild(sb);
 }
 
 // Is the agent STOPPED? (V2-092) — with ⏻ off, this widget must NOT play anything. The case that made this necessary
@@ -222,6 +457,9 @@ export function render(root, data, ctx){
     navBtn.addEventListener("click", () => { root.classList.toggle("hb-yt-homemode"); syncNav(); });
     syncNav();
     nav.appendChild(navBtn);
+    // Platform icons (V2-597), right side of the nav row — populated on every render like the list rows.
+    const dots = el("div", "hb-yt-dots");
+    nav.appendChild(dots);
     root.appendChild(nav);
 
     const title = el("div", "hb-yt-title", data.title || "YouTube");
@@ -273,6 +511,8 @@ export function render(root, data, ctx){
     root.appendChild(home);
     const blockedLine = el("div", "hb-yt-blocked", "");
     root.appendChild(blockedLine);
+    const conn = el("div", "hb-yt-conn");             // connect screens (V2-597), rebuilt per render
+    root.appendChild(conn);
 
     // Click controls (mirror of what can also be requested by voice).
     const ctrls = el("div", "hb-yt-ctrls");
@@ -315,11 +555,46 @@ export function render(root, data, ctx){
     root._hbYt = { id: id, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
     root._hbYtEls = { iframe: iframe, title: title, meta: meta, vol: vol, muteBtn: muteBtn, unmuteHint: unmuteHint,
-                      listBox: listBox, home: home, blockedLine: blockedLine };
+                      listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn };
   }
 
   // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
   const E = root._hbYtEls || {};
+
+  // ACCOUNT layer (V2-597) — the card asks for ONE platform re-sync when the cache is stale (the archivos
+  // needs_refresh pattern; local file reads server-side, no provider network), consumes the voice door's
+  // connect_focus once per timestamp, paints the platform icons and the connect screens.
+  if(data.platforms_stale && ctx && ctx.action && Date.now() - _syncAsked > 60000){
+    _syncAsked = Date.now();
+    try{ ctx.action("sync_platforms", {}); }catch(_e){}
+  }
+  const _focus = data.connect_focus || null;
+  if(_focus && Number(_focus.ts || 0) > _focusDone){
+    _focusDone = Number(_focus.ts || 0);
+    const pid = _focus.platform || "youtube";
+    const row = (Array.isArray(data.platforms) ? data.platforms : []).find((r) => r.id === pid);
+    _screen = {view: (row && row.connected) ? "status" : "wizard", platform: pid};
+    if(!_wizStep[pid]) _wizStep[pid] = 1;
+    _connErr = "";
+  }
+  if(E.dots){
+    E.dots.textContent = "";
+    const rows = Array.isArray(data.platforms) ? data.platforms : [];
+    const list = rows.length ? rows : [{id: "youtube", label: "YouTube", connected: false, app_configured: false}];
+    list.forEach((r) => {
+      const ic = brandIcon(r.id, !!r.connected);
+      ic.title = (r.label || r.id) + (r.connected ? ": cuenta conectada"
+                                                  : ": sin conectar — toca para conectarla");
+      ic.addEventListener("click", () => {
+        _screen = {view: r.connected ? "status" : "wizard", platform: r.id};
+        if(!_wizStep[r.id]) _wizStep[r.id] = 1;
+        _connErr = "";
+        renderConn(E, root, data, ctx);
+      });
+      E.dots.appendChild(ic);
+    });
+  }
+  renderConn(E, root, data, ctx);
   if(E.title) E.title.textContent = data.title || "YouTube";
   if(E.meta){
     const bits = [];
@@ -411,7 +686,44 @@ export function render(root, data, ctx){
       chip.appendChild(c);
       E.home.appendChild(chip);
     }
-    if(!lst.length){
+    // SUGGESTIONS band (V2-597): recent uploads from the connected account's subscriptions, above the queue
+    // catalog. Only when there is an account to back it (or a pull already ran) — unconnected, the dimmed
+    // platform icon in the header is the affordance, not an empty band.
+    const sug = Array.isArray(data.suggested) ? data.suggested : [];
+    const connectedAny = (Array.isArray(data.platforms) ? data.platforms : []).some((r) => r.connected);
+    if(sug.length || connectedAny || data.suggesting){
+      const sh = el("div", "hb-yt-sughead");
+      sh.appendChild(el("span", "", "Sugerencias de tus suscripciones"));
+      const bits = [];
+      if(data.suggested_at) bits.push(fmtAge(data.suggested_at));
+      if(data.suggested_channels) bits.push(data.suggested_channels + " canales");
+      if(bits.length) sh.appendChild(el("span", "hb-yt-sugsub", "· " + bits.join(" · ")));
+      const rf = el("span", "hb-yt-chip", data.suggesting ? "buscando…" : "↻ refrescar");
+      rf.title = "Traer los vídeos recientes de tus suscripciones";
+      rf.addEventListener("click", () => { if(ctx && ctx.action && !data.suggesting) ctx.action("suggest", {}); });
+      sh.appendChild(rf);
+      E.home.appendChild(sh);
+      if(!sug.length && !data.suggesting)
+        E.home.appendChild(el("div", "hb-yt-homemsg",
+          "Toca «refrescar» para traer los vídeos recientes de tus suscripciones."));
+      sug.forEach((it) => {
+        const tile = el("div", "hb-yt-tile");
+        const img = document.createElement("img");
+        img.loading = "lazy"; img.alt = "";
+        if(it.videoId) img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(it.videoId) + "/mqdefault.jpg";
+        tile.appendChild(img);
+        tile.appendChild(el("div", "hb-yt-tilet", it.title || "—"));
+        if(it.channel) tile.appendChild(el("div", "hb-yt-tilec", it.channel));
+        tile.addEventListener("click", () => {
+          if(ctx && ctx.action) ctx.action("load", {videoId: it.videoId, title: it.title || ""});
+          root.classList.remove("hb-yt-homemode");
+          const nb = root.querySelector(".hb-yt-navbtn"); if(nb) nb.textContent = "⌂ Inicio";
+        });
+        E.home.appendChild(tile);
+      });
+      if(lst.length) E.home.appendChild(el("div", "hb-yt-catch"));   // separator before the queue catalog
+    }
+    if(!lst.length && !sug.length && !connectedAny && !data.suggesting){
       E.home.appendChild(el("div", "hb-yt-homemsg",
         "No hay ningún vídeo cargado. Dime qué quieres ver, o «búscame vídeos de…» y elige de aquí."));
     }

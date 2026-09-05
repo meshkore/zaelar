@@ -33,10 +33,17 @@
     "quita de la lista",
     "vacía la lista",
     "ordena la lista",
-    "busca en la lista"
+    "busca en la lista",
+    "conectar youtube",
+    "conecta mi youtube",
+    "mi cuenta de youtube",
+    "vincular youtube",
+    "mis suscripciones",
+    "sugerencias de vídeos",
+    "sugiéreme vídeos"
   ],
   "entry": "widget.js",
-  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). Para BUSCAR varios candidatos («búscame vídeos de X») usa 'search' con query: llena la lista para elegir y no toca el player. El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista. Varios enlaces pegados = UNA sola llamada con todos dentro de 'url' (se añaden todos, en orden y sin duplicar). CANALES BLOQUEADOS: 'block_channel' filtra un canal de TODAS las búsquedas por nombre y barre sus vídeos de la lista ('unblock_channel' lo deshace); si el operador da un CRITERIO («no quiero canales de IA») en vez de un nombre, bloquea los canales concretos según los identifiques — un enlace pegado explícito nunca se filtra. PANTALLA DE INICIO: sin vídeo cargado la tarjeta enseña la lista como catálogo con miniaturas (se elige tocando); con vídeo, el botón «⌂ Inicio» de la tarjeta alterna catálogo/reproductor sin cortar la reproducción.",
+  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). Para BUSCAR varios candidatos («búscame vídeos de X») usa 'search' con query: llena la lista para elegir y no toca el player. El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista. Varios enlaces pegados = UNA sola llamada con todos dentro de 'url' (se añaden todos, en orden y sin duplicar). CANALES BLOQUEADOS: 'block_channel' filtra un canal de TODAS las búsquedas por nombre y barre sus vídeos de la lista ('unblock_channel' lo deshace); si el operador da un CRITERIO («no quiero canales de IA») en vez de un nombre, bloquea los canales concretos según los identifiques — un enlace pegado explícito nunca se filtra. PANTALLA DE INICIO: sin vídeo cargado la tarjeta enseña la lista como catálogo con miniaturas (se elige tocando); con vídeo, el botón «⌂ Inicio» de la tarjeta alterna catálogo/reproductor sin cortar la reproducción. CUENTA DE YOUTUBE: si pide conectar/vincular su cuenta usa 'open_connectors' (la tarjeta guía; las credenciales se registran una vez en Configuración → Conectores, nunca por voz). Con la cuenta conectada, 'suggest' llena el inicio con los vídeos recientes de SUS suscripciones (canales bloqueados ya filtrados) — úsala cuando pida sugerencias; sin cuenta conectada dilo y ofrece conectarla.",
   "actions": {
     "load": {
       "desc": "carga y reproduce un vídeo de YouTube (por URL, id o nombre)",
@@ -112,6 +119,38 @@
     "clear_list": {
       "desc": "vacía la lista de reproducción (lo que suena sigue sonando)",
       "payload": {}
+    },
+    "sync_platforms": {
+      "desc": "(interno, la dispara la propia tarjeta) refresca qué plataformas de vídeo hay y cuáles están conectadas",
+      "payload": {}
+    },
+    "open_connectors": {
+      "desc": "Abre la pantalla de conectar una plataforma de vídeo (hoy YouTube): su asistente paso a paso si no está conectada, o su estado si ya lo está. Úsala siempre que el operador pida conectar/vincular su cuenta de YouTube. No pidas tú credenciales por voz.",
+      "payload": {
+        "platform": "string opcional (youtube) — la plataforma a desplegar"
+      },
+      "view": true
+    },
+    "connect_account": {
+      "desc": "(la dispara el botón Conectar de la tarjeta) empieza el consentimiento OAuth de una plataforma ya registrada y devuelve la URL — nunca lleva credenciales",
+      "payload": {
+        "platform": "string opcional (youtube)"
+      }
+    },
+    "disconnect_account": {
+      "desc": "desconecta la cuenta de una plataforma de vídeo (olvida sus tokens; las sugerencias se vacían)",
+      "payload": {
+        "platform": "string opcional (youtube)"
+      },
+      "confirm": true,
+      "confirm_q": "¿Desconecto tu cuenta de YouTube? Tendrás que volver a autorizarla para recuperar las sugerencias."
+    },
+    "suggest": {
+      "desc": "llena/refresca la pantalla de INICIO con sugerencias: los vídeos recientes de las suscripciones de su cuenta conectada, con sus canales bloqueados ya filtrados. Úsala cuando pida sugerencias o que le llene el inicio",
+      "payload": {
+        "platform": "string opcional (youtube)"
+      },
+      "view": true
     },
     "block_channel": {
       "desc": "bloquea un CANAL: sus vídeos dejan de salir en búsquedas y se barren de la lista (lo que suena sigue). Úsalo cuando el operador diga que no quiere ver un canal — nómbralo tú si él da un criterio («canales de IA») y ya sabes cuál es",

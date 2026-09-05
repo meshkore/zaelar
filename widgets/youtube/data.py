@@ -49,7 +49,23 @@ _SEED = {
     # lives with the brain/memory, which calls block_channel as it learns them. Applied to every NAME search
     # (load/add/search); an EXPLICIT link or id is an order and is never filtered.
     "blocked_channels": [],
+    # V2-597 — the ACCOUNT layer. `platforms` caches the connector rows (connected/app_configured per video
+    # platform) so view_data stays CHEAP (no connector import on the hot path — the archivos pattern); the
+    # card asks for a `sync_platforms` once when the cache is stale. `suggested` is the HOME band: recent
+    # uploads from the connected account's subscriptions, pulled ONLY when asked (`suggest`) — the operator's
+    # standing rule is absolute control, so there is no background refresh (decision written in V2-597).
+    "platforms": [],
+    "platforms_at": 0,
+    "connect_focus": None,   # {platform, ts} — the voice door into a platform's connect screen (V2-520 shape)
+    "suggested": [],         # [{videoId, title, channel, published, url}] — normalized, newest first
+    "suggested_at": 0,
+    "suggested_channels": 0,
+    "suggesting": False,     # a suggestions pull is on the network right now (visible state, like `adding`)
 }
+
+# How long the cached platform rows are trusted before the card asks for a re-sync. Short and cheap: the
+# sync reads two local files (token store + credential store), no network.
+_PLATFORMS_FRESH_S = 300
 
 _YT_RE = re.compile(
     r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)([0-9A-Za-z_-]{11})"
@@ -227,12 +243,44 @@ def _search_id(q: str, blocked: list = None) -> dict:
 
 
 def _seed() -> dict:
-    """Fresh copy of the seed. `dict(_SEED)` is SHALLOW: since the seed carries a mutable `list`, handing out
+    """Fresh copy of the seed. `dict(_SEED)` is SHALLOW: since the seed carries mutable lists, handing out
     the same list object meant an `append` on a "fresh" db mutated the module seed itself — every later fresh
-    load inherited it (caught by the V2-366 tests before shipping)."""
+    load inherited it (caught by the V2-366 tests before shipping). Every list field gets its own copy."""
     d = dict(_SEED)
-    d["list"] = []
+    for k, v in _SEED.items():
+        if isinstance(v, list):
+            d[k] = []
     return d
+
+
+def _svc():
+    """The video-account connector, imported here and never at module top: module import is what the widget
+    CATALOG pays on every prompt, and it must not pull in httpx or the credential store (the archivos rule,
+    written in its own docstring). Returns None if the package cannot load — callers report that as words."""
+    try:
+        from connectors.video import service
+        return service
+    except Exception:
+        return None
+
+
+def _sync_platforms(db: dict) -> dict:
+    """Refresh the cached platform rows from the connector (local file reads, no network). The cache is what
+    view_data serves — the hot path never imports the connector."""
+    svc = _svc()
+    db["platforms_at"] = int(time.time())
+    if svc is None:
+        db["platforms"] = []
+        return {"ok": False, "error": "conector de vídeo no disponible", "platforms": []}
+    st = svc.status()
+    rows = []
+    for r in (st.get("providers") or []):
+        rows.append({"id": str(r.get("id") or ""), "label": str(r.get("label") or ""),
+                     "connected": bool(r.get("connected")),
+                     "app_configured": bool(r.get("app_configured")),
+                     "note": str(r.get("note") or "")})
+    db["platforms"] = rows
+    return {"ok": bool(st.get("ok")), "platforms": rows}
 
 
 def _load() -> dict:
@@ -244,9 +292,15 @@ def _load() -> dict:
 
 def view_data(q: str = "") -> dict:
     try:
-        return _load()
+        db = _load()
     except Exception as e:
         return {**_seed(), "error": str(e)[:120]}
+    # Computed, never stored (a cache written before a restart is still a cache with an age): the card reads
+    # this on mount to ask for ONE `sync_platforms` — the same `needs_refresh` shape archivos uses.
+    out = dict(db)
+    age = int(time.time()) - int(db.get("platforms_at") or 0)
+    out["platforms_stale"] = age > _PLATFORMS_FRESH_S or not db.get("platforms_at")
+    return out
 
 
 def ref_index() -> list:
@@ -464,6 +518,86 @@ def apply_action(action: str, payload: dict = None) -> dict:
             out["blocked_out"] = n_blocked               # the ack can say «and N more from blocked channels»
         return out
 
+    if action == "sync_platforms":
+        # V2-597 (internal, fired by the card on mount when the cache is stale): refresh which video
+        # platforms exist / are connected. Local file reads only — never the provider's network.
+        r = _sync_platforms(db)
+        store.save(WID, db)
+        return r
+
+    if action == "open_connectors":
+        # V2-597 — the VOICE door into a platform's connect screen (V2-520 shape: intent only, never a
+        # credential). The card consumes `connect_focus` once per timestamp and opens that platform's
+        # wizard — or its status screen if it is already connected.
+        platform = str(p.get("platform") or "").strip().lower()
+        _sync_platforms(db)
+        known = {r.get("id") for r in db.get("platforms") or []}
+        if platform not in known:
+            platform = "youtube" if "youtube" in known else ""
+        db["connect_focus"] = {"platform": platform, "ts": int(time.time() * 1000)}
+        store.save(WID, db)
+        row = next((r for r in db.get("platforms") or [] if r.get("id") == platform), {})
+        return {"ok": True, "platform": platform, "connected": bool(row.get("connected")),
+                "app_configured": bool(row.get("app_configured"))}
+
+    if action == "connect_account":
+        # Starts the OAuth consent for a platform whose app is ALREADY registered (client_id typed once in
+        # ⚙ → Conectores, never through a widget payload — V2-520). Returns the URL; the card opens the
+        # window synchronously on the click and fills its location after.
+        platform = str(p.get("platform") or "youtube").strip().lower()
+        svc = _svc()
+        if svc is None:
+            return {"ok": False, "error": "conector de vídeo no disponible"}
+        r = svc.connect_url(platform)
+        if not r.get("ok"):
+            return {"ok": False, "error": str(r.get("error") or "no pude empezar la conexión")[:200]}
+        return {"ok": True, "url": r.get("url"), "platform": platform}
+
+    if action == "disconnect_account":
+        platform = str(p.get("platform") or "youtube").strip().lower()
+        svc = _svc()
+        if svc is None:
+            return {"ok": False, "error": "conector de vídeo no disponible"}
+        r = svc.disconnect(platform)
+        _sync_platforms(db)
+        # A disconnected account's suggestions are stale by definition — keeping them would show a band the
+        # data no longer backs.
+        db["suggested"], db["suggested_at"], db["suggested_channels"] = [], 0, 0
+        store.save(WID, db)
+        return {"ok": bool(r.get("ok")), "platform": platform,
+                **({} if r.get("ok") else {"error": str(r.get("error") or "")[:200]})}
+
+    if action == "suggest":
+        # V2-597 — fill/refresh the HOME suggestions band from the connected account's subscriptions.
+        # Pulled ONLY when asked (no background, decision in V2-597); blocked channels are dropped at this
+        # door like at every other NAME door, and the count travels so the ack can say it (V2-414).
+        platform = str(p.get("platform") or "youtube").strip().lower()
+        svc = _svc()
+        if svc is None:
+            return {"ok": False, "error": "conector de vídeo no disponible"}
+        db["suggesting"] = True
+        store.save(WID, db)                              # visible state while the network pull runs
+        try:
+            r = svc.suggestions(platform)
+        finally:
+            db["suggesting"] = False
+        if not r.get("ok"):
+            store.save(WID, db)                          # turn the state off even on failure
+            return {"ok": False, "error": str(r.get("error") or "no pude traer sugerencias")[:200],
+                    "message": str(r.get("error") or "No pude traer sugerencias.")[:200]}
+        items, n_blocked = _drop_blocked(r.get("items") or [], db.get("blocked_channels"))
+        db["suggested"] = items
+        db["suggested_at"] = int(time.time())
+        db["suggested_channels"] = int(r.get("channels") or 0)
+        _sync_platforms(db)                              # a successful pull proves the connection is live
+        store.save(WID, db)
+        out = {"ok": True, "n": len(items), "channels": db["suggested_channels"], "platform": platform}
+        if n_blocked:
+            out["blocked_out"] = n_blocked
+        if r.get("reason"):
+            out["reason"] = str(r.get("reason"))[:200]
+        return out
+
     if action == "block_channel":
         # V2-596 — «no quiero ver este canal»: the filter the operator educates by voice. The brain names the
         # channel as it learns which ones he means («canales hechos con IA» → block each one it identifies);
@@ -485,6 +619,11 @@ def apply_action(action: str, payload: dict = None) -> dict:
         swept = len(lst) - len(kept)
         db["list"] = kept
         db["pos"] = kept.index(cur) if cur is not None and cur in kept else -1
+        # V2-597 — the SUGGESTIONS band is swept too: a channel he just refused must not keep sitting on
+        # his home screen either.
+        sug = db.get("suggested") or []
+        db["suggested"] = [it for it in sug if not _is_blocked(it.get("channel") or "", [ch])]
+        swept += len(sug) - len(db["suggested"])
         store.save(WID, db)
         return {"ok": True, "channel": ch, "removed_from_list": swept, "blocked": list(blocked)}
 

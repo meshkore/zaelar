@@ -160,6 +160,11 @@ export const architectConnect = (payload) => postJSON("/api/connectors/architect
 // episodic-memory uploads (server/memory_routes.py) and two routers on one prefix resolve by mount order.
 export const cloudFilesConnect = (payload) => postJSON("/api/cloudfiles/connect", payload || {}).then(json);
 export const cloudFilesDisconnect = (provider) => postJSON("/api/cloudfiles/disconnect", { provider }).then(json);
+// Photos (V2-564) and video accounts (V2-597) — same OAuth flow, each with its own control plane.
+export const photosConnect = (payload) => postJSON("/api/photos/connect", payload || {}).then(json);
+export const photosDisconnect = () => postJSON("/api/photos/disconnect", {}).then(json);
+export const videoConnect = (payload) => postJSON("/api/video/connect", payload || {}).then(json);
+export const videoDisconnect = (provider) => postJSON("/api/video/disconnect", { provider }).then(json);
 
 export const architectDisconnect = () => postJSON("/api/connectors/architect/disconnect", {}).then(json);
 // MeshKore: stage (credenciales fuera del LLM) + connect; y disconnect por nombre.

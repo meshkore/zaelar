@@ -473,6 +473,16 @@ export function ConfigPanel() {
         ${row("client_secret", `<input id="cx_cf_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
         ${tiers ? row(t("config.cx.permission"), `<select id="cx_cf_tier_${id}">${tiers}</select>`) : ""}
         <button class="cf-btn cf-cx-act" data-act="cloudfiles-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
+    } else if (fam === "fotos" || fam === "video") {
+      // Photos (V2-564) and video accounts (V2-597) share the cloud-files card shape: register your own
+      // OAuth app once, paste its client_id, connect. Photos had NO ⚙ card at all until V2-597 touched this
+      // seam (trap T3 lived: the registry rows existed and nobody rendered them, so there was nowhere to
+      // paste the client_id).
+      const cc = c.config || {};
+      const act2 = fam === "fotos" ? "photos-connect" : "video-connect";
+      box = `${row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
+        ${row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="${act2}" data-id="${id}">${t("config.cx.connect")}</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
       box = `${row(t("config.cx.daemon_token"), `<input id="cx_arch_token" type="password" placeholder="${set ? t("config.key.ph_saved") : t("config.cx.paste_token")}"/>`)}
@@ -496,7 +506,8 @@ export function ConfigPanel() {
     const cs = cfg.connectors || [];
     if (!cs.length) return `<p class="cf-loading">${t("config.cx.load_error")}</p>`;
     const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
-                  ["archivos", t("config.cx.fam_files")], ["infra", t("config.cx.fam_infra")]];
+                  ["archivos", t("config.cx.fam_files")], ["fotos", t("config.cx.fam_photos")],
+                  ["video", t("config.cx.fam_video")], ["infra", t("config.cx.fam_infra")]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);
       if (!items.length) return "";
@@ -518,6 +529,8 @@ export function ConfigPanel() {
     try {
       if (act === "disconnect") {
         if (id === "gdrive" || id === "onedrive") { await api.cloudFilesDisconnect(id); msg(t("config.msg.disconnected", { id })); }
+        else if (id === "google-photos") { await api.photosDisconnect(); msg(t("config.msg.disconnected", { id })); }
+        else if (id === "youtube") { await api.videoDisconnect(id); msg(t("config.msg.disconnected", { id })); }
         else if (id === "spotify") { await disconnectSpotify(btn); }
         else if (id === "architect") { await api.architectDisconnect(); msg(t("config.msg.architect_revoked")); }
         else { await api.disconnectMessaging(id, {}); msg(t("config.msg.disconnected", { id })); }
@@ -530,6 +543,12 @@ export function ConfigPanel() {
         const r = await api.connectMessaging(id, payload);
         msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
+      } else if (act === "photos-connect" || act === "video-connect") {
+        const payload = { client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) };
+        if (act === "video-connect") payload.provider = id;
+        const r = act === "photos-connect" ? await api.photosConnect(payload) : await api.videoConnect(payload);
+        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
+        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
       } else if (act === "cloudfiles-connect") {
         const r = await api.cloudFilesConnect({
           provider: id, client_id: val(`cx_cf_id_${id}`), client_secret: val(`cx_cf_sec_${id}`),

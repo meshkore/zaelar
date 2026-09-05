@@ -273,7 +273,7 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
 #                  store; there is no stdlib way to reach somebody's Drive. The import stays DEFERRED inside
 #                  the functions that need it, so module import — and therefore the catalog, and therefore
 #                  every prompt that lists widgets — never pays for `httpx` or the credential store.
-_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos"}
+_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:

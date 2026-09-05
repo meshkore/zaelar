@@ -5,7 +5,7 @@
   "family": "video",
   "transport": "native",
   "auth": "oauth",
-  "state": "planned",
+  "state": "built",
   "capabilities": [
     "youtube",
     "suscripciones",
@@ -14,5 +14,5 @@
     "videos sugeridos",
     "mi cuenta de youtube"
   ],
-  "notes": "YouTube Data API v3 con el cliente OAuth del propio operador (mismo patron que Drive, V2-557): leer suscripciones y sus videos nuevos para la pantalla de inicio del reproductor, y gestionarlas (alta/baja, con confirm-gate). Cuota gratuita 10k unidades/dia. Plan en V2-596."
+  "notes": "YouTube Data API v3 con el cliente OAuth del propio operador (mismo patron que Drive, V2-557): lee suscripciones y sus videos nuevos para la pantalla de inicio del reproductor (solo lectura; la gestion de suscripciones queda aparcada). Cuota gratuita 10k unidades/dia. Construido en V2-597."
 }
