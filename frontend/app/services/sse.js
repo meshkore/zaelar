@@ -5,7 +5,7 @@
 // the authority; this just reacts to what it emits.
 // ============================================================================
 import * as store from "../core/store.js?v=2";
-import { handleWidgetVoice } from "./voiceCommands.js?v=2";
+import { handleWidgetVoice } from "./voiceCommands.js?v=3";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
 import { t, applyLang } from "../core/i18n.js?v=1";

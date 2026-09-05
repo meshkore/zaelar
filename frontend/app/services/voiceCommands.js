@@ -19,6 +19,11 @@ const CLOSE_RE = /\b(quit|cierr|cerr|elimin|borra|escond|ocult|limpi|despej|vaci
 // "cards") — "close widgets" / "cierra los widgets" means the whole set. Kept PLURAL on purpose so a singular,
 // named "close the meteo widget" still targets just that one (falls through to identify()).
 const ALL_RE   = /\b(todo|todos|todas|all|everything|widgets|tarjetas|cards|la pantalla|el escritorio|el canvas|el mural|todo esto)/;
+// FULLSCREEN VETO (V2-600 → V2-601 T-07): «cierra la pantalla completa» is about a SCREEN STATE, never a
+// close-all — and the STT renders it as «…completamente» too. The veto landed in the server backstops
+// (voice/attention.py::mentions_fullscreen) and this third, client-side copy of the rule kept closing the whole
+// canvas: same vocabulary, mirrored here because CLOSE_RE("cierr") + ALL_RE("la pantalla") match that sentence.
+const FULLSCREEN_RE = /\bpantalla\s+completa(?:mente)?\b|\bfull\s*screen\b|\bfullscreen\b/;
 // MOVE: verb-ish move intent + a DIRECTION. "move it left", "put it right", "I want it up".
 // The direction gate keeps "pon el reloj" (no direction → SHOW) from being mistaken for a move.
 const MOVE_RE  = /\b(muev|mueve|mover|desplaz|coloc|reubic|reajust|arrastr|move)|ponl|\bpon\b|\bquiero\b/;
@@ -48,6 +53,7 @@ export async function handleWidgetVoice(desktop, text, isFinal) {
   }
   if (CLOSE_RE.test(n)) {                                     // dismiss — only on the FINAL transcript
     if (!isFinal) return;
+    if (FULLSCREEN_RE.test(n)) return;                        // a fullscreen mention is a screen-state order → the brain's
     if (ALL_RE.test(n)) { if (_act("closeAll")) desktop.closeAll(); return; }
     let target = await identifyWidget(text);
     if (!target) { const o = desktop.list(); target = o[o.length - 1]; }   // "remove it" → last opened
