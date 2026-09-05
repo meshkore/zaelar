@@ -443,3 +443,24 @@ def test_the_probe_channel_runs_the_action_when_asked_to_execute():
     assert "and execute" in window, "and only when the caller asked for execution — a dry run stays dry"
     assert "_amap_hit = None" in window, \
         "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"
+
+
+def test_the_measured_media_orders_are_deterministic_now():
+    """V2-584's completion: «Para el vídeo» (said twice live, swallowed by the hard interrupt) now reaches
+    the brain — and the pack makes it a 0.1 ms pause instead of a model turn. Every entry must validate
+    against the executor's closed allowlist, and the two MEASURED phrases must resolve to youtube.pause."""
+    import json
+    from pathlib import Path
+    from nucleo.actionmap import executor
+    from nucleo.actionmap.normalize import normalize
+    root = Path(__file__).resolve().parents[4]
+    for lang, phrase, widget, action in (
+            ("es", "Para el vídeo.", "youtube", "pause"),
+            ("es", "Pausa el vídeo", "youtube", "pause"),
+            ("es", "Quita los subtítulos", "youtube", "captions_off"),
+            ("en", "pause the video", "youtube", "pause")):
+        d = json.loads((root / f"nucleo/actionmap/seeds/{lang}.json").read_text(encoding="utf-8"))
+        by_phrase = {normalize(e["phrase"]): e["action"] for e in d["entries"]}
+        got = by_phrase.get(normalize(phrase))
+        assert got == {"do": "widget_data", "widget": widget, "action": action}, (phrase, got)
+        assert executor.validate(got) == "", (phrase, executor.validate(got))

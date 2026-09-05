@@ -471,6 +471,94 @@
       "action": {
         "do": "arrange"
       }
+    },
+    {
+      "phrase": "para el video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "pausa el video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "pon el video en pausa",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "deten el video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "reanuda el video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "play"
+      }
+    },
+    {
+      "phrase": "para la musica",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "pausa la musica",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "reanuda la musica",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "resume"
+      }
+    },
+    {
+      "phrase": "quita los subtitulos",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_off"
+      }
+    },
+    {
+      "phrase": "pon los subtitulos",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_on"
+      }
+    },
+    {
+      "phrase": "activa los subtitulos",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_on"
+      }
     }
   ]
 }

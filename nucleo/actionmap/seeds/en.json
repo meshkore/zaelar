@@ -406,6 +406,78 @@
       "action": {
         "do": "arrange"
       }
+    },
+    {
+      "phrase": "pause the video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "stop the video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "resume the video",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "play"
+      }
+    },
+    {
+      "phrase": "pause the music",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "stop the music",
+      "action": {
+        "do": "widget_data",
+        "widget": "musica",
+        "action": "pause"
+      }
+    },
+    {
+      "phrase": "turn off the subtitles",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_off"
+      }
+    },
+    {
+      "phrase": "turn off captions",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_off"
+      }
+    },
+    {
+      "phrase": "turn on the subtitles",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_on"
+      }
+    },
+    {
+      "phrase": "turn on captions",
+      "action": {
+        "do": "widget_data",
+        "widget": "youtube",
+        "action": "captions_on"
+      }
     }
   ]
 }
