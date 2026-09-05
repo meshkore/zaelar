@@ -48,6 +48,18 @@ def _guard(request: Request):
         host = (urlparse(origin).hostname or "").lower()
         if host not in ("localhost", "127.0.0.1", "::1"):
             raise HTTPException(status_code=403, detail="cross-origin blocked")
+    # The residual GET (V2-601 T-14, audit C-2): a SAME-origin fetch from a DNS-rebound page carries NO Origin
+    # header at all, so the check above never sees it — but the browser still names the site it thinks it is on
+    # in `Host`. A legitimate local caller says localhost/127.0.0.1/::1 (or local.zaelar.com, whose DNS pins to
+    # 127.0.0.1 by design); a rebound page says the attacker's domain. Exact hostname match, port stripped;
+    # missing Host fails closed like the rest of this guard.
+    raw_host = (request.headers.get("host") or "").strip().lower()
+    if raw_host.startswith("["):                                  # [::1]:44317
+        hostname = raw_host[1:raw_host.index("]")] if "]" in raw_host else raw_host
+    else:
+        hostname = raw_host.rsplit(":", 1)[0] if ":" in raw_host else raw_host
+    if hostname not in ("localhost", "127.0.0.1", "::1", "local.zaelar.com"):
+        raise HTTPException(status_code=403, detail="host not a loopback name (DNS rebind?)")
 
 
 class ConnectBody(BaseModel):

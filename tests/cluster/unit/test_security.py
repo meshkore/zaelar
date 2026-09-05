@@ -217,8 +217,9 @@ def test_rest_guard_blocks_non_loopback(monkeypatch):
             self.client = type("C", (), {"host": host})()
             self.headers = headers or {}
 
-    # loopback with same-origin browser call → allowed (no exception)
-    server_api._guard(Req("127.0.0.1", {"origin": "http://localhost:43917"}))
+    # loopback with same-origin browser call → allowed (no exception). Since T-14 (V2-601) the guard also
+    # reads the Host header a real HTTP request always carries — the fake request carries it too.
+    server_api._guard(Req("127.0.0.1", {"origin": "http://localhost:43917", "host": "localhost:43917"}))
     # remote caller → 403
     try:
         server_api._guard(Req("10.0.0.5"))
@@ -365,7 +366,7 @@ def _mk_req(host="127.0.0.1", headers=None):
 def test_guard_allows_plain_loopback(monkeypatch):
     from connectors.meshkore import server_api
     monkeypatch.delenv("MESHKORE_API_TOKEN", raising=False)
-    server_api._guard(_mk_req(host="127.0.0.1"))              # no raise
+    server_api._guard(_mk_req(host="127.0.0.1", headers={"host": "127.0.0.1:43917"}))   # no raise (T-14: Host too)
 
 
 def test_guard_blocks_dns_rebind_substring_origin(monkeypatch):
@@ -381,7 +382,7 @@ def test_guard_blocks_dns_rebind_substring_origin(monkeypatch):
 def test_guard_allows_real_localhost_origin(monkeypatch):
     from connectors.meshkore import server_api
     monkeypatch.delenv("MESHKORE_API_TOKEN", raising=False)
-    server_api._guard(_mk_req(host="127.0.0.1", headers={"origin": "http://localhost:43917"}))
+    server_api._guard(_mk_req(host="127.0.0.1", headers={"origin": "http://localhost:43917", "host": "localhost:43917"}))
 
 
 def test_status_endpoint_depends_on_guard():
