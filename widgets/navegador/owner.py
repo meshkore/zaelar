@@ -578,7 +578,7 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
             plan = plan[_m.end():].lstrip("\n ")
     if start_url:
         try:
-            tasks.milestone(task_id, f"➡️ voy directo a la rejilla de resultados filtrada")
+            tasks.milestone(task_id, "➡️ voy directo a la rejilla de resultados filtrada")
             await tb.agent_act("navigate", {"url": start_url})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"navegador: navigate inicial a resultados falló: {e}")

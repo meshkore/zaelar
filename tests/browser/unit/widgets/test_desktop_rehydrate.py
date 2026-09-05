@@ -192,7 +192,7 @@ def test_interrupted_work_is_not_painted_as_a_success():
 def test_every_card_can_be_grabbed_by_its_corners_and_edges():
     src = _desktop()
     for dir_ in ("nw", "ne", "sw", "se", "n", "s", "e", "w"):
-        assert f'"hb-rz hb-rz-"+dir' in src or f"hb-rz-{dir_}" in src
+        assert '"hb-rz hb-rz-"+dir' in src or f"hb-rz-{dir_}" in src
     assert "_wireResize(card" in src and "MIN_W" in src, "con un mínimo: una tarjeta de 0px no se recupera"
 
 

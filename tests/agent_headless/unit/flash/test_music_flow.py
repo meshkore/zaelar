@@ -34,7 +34,7 @@ def _track(title="Come Fly With Me", artist="Frank Sinatra"):
 
 
 def _ok(action="play", track=None, provider="spotify"):
-    return MusicResult(ok=True, provider=provider, action=action, track=track, message=f"Suena x.")
+    return MusicResult(ok=True, provider=provider, action=action, track=track, message="Suena x.")
 
 
 def _no_track(q=""):

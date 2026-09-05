@@ -158,7 +158,7 @@ async def _run(n_turns: int) -> int:
                 substantive += 1
             # check for PII leaks in every real output
             if any(pii in zaelar_out for pii in ("Ricart", "Soria")):
-                print(f"      ❌ FUGA DE PII en la salida al peer")
+                print("      ❌ FUGA DE PII en la salida al peer")
 
         # ── zalo responds to what zaelar said (another entity, 2nd LLM) ──
         if zaelar_out:

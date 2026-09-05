@@ -201,7 +201,7 @@ def seal(plaintext: str) -> bytes:
 
 
 def _open_with_sk(ciphertext: bytes, sk_bytes: bytes) -> str:
-    meta = _load_meta()
+    _load_meta()   # kept for its read (fails the same way it always did); the binding was dead (F841)
     sk = PrivateKey(sk_bytes)
     return SealedBox(sk).decrypt(bytes(ciphertext)).decode("utf-8")
 

@@ -47,7 +47,7 @@ def test_allowlist_covers_every_bridge_x_every_spelling():
 
 
 def test_git_bridge_gets_the_same_treatment():
-    assert f"Bash(python3 -m nucleo.git_cli:*)" in _DEV_TOOLS
+    assert "Bash(python3 -m nucleo.git_cli:*)" in _DEV_TOOLS
     assert {"Read", "Write", "Edit"} <= set(_DEV_TOOLS)
 
 

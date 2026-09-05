@@ -1,0 +1,25 @@
+# Ruff — F + E9 ONLY, no formatting (V2-601 T-12, 2026-09-05).
+#
+# F821/F841 catch this repo's most expensive bug class at commit time: a NameError or dead assignment swallowed
+# by a fail-open `except Exception` — paid at least twice (V2-348: a moved block's helper stayed behind and the
+# block came out EMPTY with zero errors; V2-555: a moved function's global import stayed behind and its own
+# fail-soft returned plausible values instead of raising). E9 is syntax/indentation errors.
+#
+# DELIBERATELY no formatter and no style rules: N concurrent agents share this tree, and a format pass turns
+# every open diff into a conflict. Style is the house guide's job, not a robot's.
+line-length = 200
+target-version = "py312"
+
+[lint]
+select = ["F", "E9"]
+# F401 unused-import is OFF: this codebase re-exports on purpose everywhere (the ratchet's extraction pattern)
+# and marks them `# noqa: F401`; the ones without the mark are almost all deliberate facade surface.
+ignore = ["F401"]
+
+[lint.per-file-ignores]
+# Tests monkeypatch and re-import aggressively; F811 (redefinition) is a normal pattern there.
+# tests: a dead variable is usually a call kept for its side effect — not the audited production class.
+"tests/**" = ["F811", "F841"]
+# tests/use_cases is arnes-use-cases' territory (see engine/.meshkore/team/): its files are not touched from
+# here, not even for a byte-level autofix — the lint gate simply does not look inside.
+"tests/use_cases/**" = ["F"]

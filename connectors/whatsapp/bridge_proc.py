@@ -26,14 +26,14 @@ class _Bridge:
         if not node_modules.exists():
             # Self-heal: install bridge deps on first run (so `make run` does not require a manual step).
             if shutil.which("npm") is None:
-                raise RuntimeError(f"Faltan deps del bridge y no hay npm. Corre: make install-whatsapp")
+                raise RuntimeError("Faltan deps del bridge y no hay npm. Corre: make install-whatsapp")
             logger.info("WhatsApp: instalando deps del bridge (una vez)… puede tardar ~1 min")
             proc = await asyncio.create_subprocess_exec(
                 "npm", "install", cwd=str(config.bridge_dir()),
                 stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
             await proc.wait()
             if not node_modules.exists():
-                raise RuntimeError(f"npm install del bridge falló. Corre a mano: make install-whatsapp")
+                raise RuntimeError("npm install del bridge falló. Corre a mano: make install-whatsapp")
 
         config.session_dir().mkdir(parents=True, exist_ok=True)
         env = dict(os.environ)

@@ -380,7 +380,7 @@ async def _do_forget(memory, memory_agent, get_queue, step: dict) -> tuple[bool,
     # HARD delete (privacidad): además de no aflorar, la fila NO debe existir NI con valid=0 (borrado real).
     if step.get("hard"):
         if not res.get("hard"):
-            return False, f"se pidió olvido DURO pero el hook lo trató como soft (marca 'del todo' no detectada)"
+            return False, "se pidió olvido DURO pero el hook lo trató como soft (marca 'del todo' no detectada)"
         from memory import db as _db
         n = _db.get_db().query_one(
             "SELECT count(*) c FROM memories WHERE lower(text) LIKE ?", (f"%{marker}%",))["c"]

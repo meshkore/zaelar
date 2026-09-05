@@ -300,7 +300,6 @@ async def status():
         clusters = []
     if clusters:
         conn = [c for c in clusters if c.get("connected")]
-        online = sum(len(c.get("online", []) or []) for c in conn)
         cl_detail = ", ".join(f"{c['name']}·{'/'.join(c.get('online') or []) or 'sin peers'}" for c in conn) or "sin conexión"
         items.append({"key": "cluster", "label": "Cluster MeshKore",
                       "state": "ok" if conn else "off", "detail": cl_detail})

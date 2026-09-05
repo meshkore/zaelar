@@ -30,7 +30,7 @@ class TesterBrain:
         bye = "adiós" if lang == "es" else "bye"
         path = os.path.join(HERE, "personas", f"{persona}.md")
         persona_txt = open(path, encoding="utf-8").read() if os.path.exists(path) else (
-            f"Eres una persona real hablando con tu asistente de voz personal, zaelar. Habla con naturalidad.")
+            "Eres una persona real hablando con tu asistente de voz personal, zaelar. Habla con naturalidad.")
         persona_name = "Ricart"   # the human user portrayed by the tester (real profile: Ricart, Soria, ES)
         # HARD role anchor (2026-07-07): the DRIVE model (qwen) was reversing the roles — since zaelar arrives with
         # the 'user' role and the tester's lines with the 'assistant' role, the model thought it was the ASSISTANT ("I

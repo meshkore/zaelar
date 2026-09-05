@@ -205,7 +205,6 @@ def scan_outbound(text: str) -> tuple[str, str | None]:
 # chat; it asks us to fabricate something. Text is NORMALIZED (accentless, casefolded) BEFORE matching, so accented
 # Spanish forms with attached pronouns still match their base verbs. Scoped to production verbs + artifact nouns to
 # avoid firing on normal chat (the verdict also requires volume+ratio).
-import unicodedata as _ud
 
 _OFFLOAD_RE = re.compile(
     r"\b("

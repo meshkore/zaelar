@@ -15,6 +15,10 @@ from __future__ import annotations
 
 import asyncio
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:                  # runtime import would be circular; the annotations are strings
+    from voice.engine.llm.providers.nucleo import NucleoLLM
 
 _ACC_NUDGE_S = float(os.getenv("ZAELAR_ACC_NUDGE_S", "8.0"))
 

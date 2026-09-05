@@ -30,7 +30,8 @@ ENGINE = Path(__file__).resolve().parents[3]
 # What the engine root is allowed to version: project entry points, packaging, and startup. No data.
 ALLOWED = {
     ".dockerignore", ".gitignore", "AGENTS.md", "CLAUDE.md", "Dockerfile", "Makefile", "README.md",
-    "conftest.py", "fly.accounts.toml", "fly.toml", "requirements.txt", "version.py", "zaelar", "zaelar.ps1",
+    "conftest.py", "constraints.txt", "fly.accounts.toml", "fly.toml", "requirements.txt", "ruff.toml",
+    "version.py", "zaelar", "zaelar.ps1",
 }
 
 

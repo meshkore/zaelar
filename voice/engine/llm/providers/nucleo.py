@@ -1720,6 +1720,10 @@ class NucleoLLMStream(llm.LLMStream):
                         # when the target is unambiguous (resolve_sessions picks exactly one): with several live
                         # sessions, forcing a merge would be guessing which one this belongs to.
                         try:
+                            # ⚠️ Found by ruff F821 (2026-09-05): `_trace` was never in scope here, so this
+                            # whole merge — documented as working since V2-090 — died as a NameError inside
+                            # this very except, every time. The audited fail-open class, live in the hot path.
+                            from voice import trace as _trace
                             _targets = _d.resolve_sessions(which or "todo")
                             if len(_targets) == 1:
                                 _target_trace = _d.trace_of(_targets[0])

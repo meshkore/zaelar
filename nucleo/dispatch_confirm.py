@@ -19,8 +19,12 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from nucleo.workers.session import SessionRecord
+
+if TYPE_CHECKING:                      # runtime import would be circular; the annotation is a string
+    from nucleo.dispatch import Task
 
 logger = logging.getLogger("zaelar.dispatch.confirm")
 

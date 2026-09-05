@@ -492,7 +492,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     # V2-243: lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que HAGA. Una
     # cuota le dice «espera»; un saldo le dice «recarga». Poner una hora donde no va a pasar nada es peor que no
     # poner ninguna.
-    estado = (f"SIN SALDO — no vuelve solo, hay que recargar" if dry
+    estado = ("SIN SALDO — no vuelve solo, hay que recargar" if dry
               else f"sin cuota hasta el {when}")
     detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
               + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))

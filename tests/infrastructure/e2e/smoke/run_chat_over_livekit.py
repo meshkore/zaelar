@@ -95,7 +95,7 @@ async def _run(base: str) -> int:
         payload = json.dumps({"t": "zaelar-text", "text": msg}).encode()
         # 3. publish to the EXACT data topic used by the frontend chat
         await room.local_participant.publish_data(payload, reliable=True, topic="zaelar-text")
-        print(f"✅ mensaje publicado en data-topic 'zaelar-text'")
+        print("✅ mensaje publicado en data-topic 'zaelar-text'")
 
         # 4. wait for zaelar's response (timeline) for up to ~25s
         reply = None

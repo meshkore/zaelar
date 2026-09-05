@@ -362,8 +362,8 @@ class WorkerSession:
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"worker[{rec.task_id}]: relevo de proveedor falló: {e}")
                     rec.ok = False
-                    rec.result_summary = (f"Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
-                                          f"he podido relevarlo. Míralo en el panel de estado.")
+                    rec.result_summary = ("Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
+                                          "he podido relevarlo. Míralo en el panel de estado.")
             else:
                 # V2-238 — THE THREE PATHS THAT ARE NOT A HANDOFF CLOSE `ok`. The three branches above write a
                 # `result_summary` that ANNOUNCES a failure, and none touched `ok`, which starts as True. If the

@@ -162,13 +162,13 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
     # DEALER's name as if it were a boat, and a candidate 4x over the budget. The worker was dumping search
     # snippets as items. The rule is stated here — where the funnel is taught — and in the sheet's own
     # worker_guide, because the sheet's list is what the operator reads as THE result.
-    L.append(f"\nQUÉ ES UN ITEM DE LA HOJA — regla dura:\n"
-             f"  · Un item es UN candidato CONCRETO y REAL: esta cosa, con su nombre propio, su precio si el "
-             f"dominio lo tiene, su ubicación y su foto real. La PORTADA de un portal, una página de categoría o "
-             f"de búsqueda, o la home de un vendedor NO son items — son FUENTES y se reportan en `sources`. Un "
-             f"candidato que incumple un criterio duro tampoco es un item: se descarta.\n"
-             f"  · Si aún no tienes candidatos concretos, deja la lista VACÍA y cuenta el avance en el subtítulo "
-             f"y el sumario: una lista vacía y honesta vale más que una llena de páginas.")
+    L.append("\nQUÉ ES UN ITEM DE LA HOJA — regla dura:\n"
+             "  · Un item es UN candidato CONCRETO y REAL: esta cosa, con su nombre propio, su precio si el "
+             "dominio lo tiene, su ubicación y su foto real. La PORTADA de un portal, una página de categoría o "
+             "de búsqueda, o la home de un vendedor NO son items — son FUENTES y se reportan en `sources`. Un "
+             "candidato que incumple un criterio duro tampoco es un item: se descarta.\n"
+             "  · Si aún no tienes candidatos concretos, deja la lista VACÍA y cuenta el avance en el subtítulo "
+             "y el sumario: una lista vacía y honesta vale más que una llena de páginas.")
     L.append(f"\nLA HOJA SE LLENA MIENTRAS TRABAJAS, no solo al final — el operador está MIRANDO:\n"
              f"  · En cuanto tengas los PRIMEROS candidatos reales (no esperes a filtrar), haz un `present` con el "
              f"título del encargo, un subtítulo que diga en qué punto vas («en curso · 12 candidatos, aún sin "
@@ -185,18 +185,18 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
     # CRITERIA. Sources are the missing piece that lets the operator AUDIT the work: until now, a website that
     # kept us out (login, limit of 50, block) and a website with no results looked exactly the same —«I found
     # nothing»—so they could not know whether it was worth entering manually, changing sites, or giving up.
-    L.append(f"\nDEJA RASTRO DE CÓMO TRABAJAS — la hoja tiene tres pestañas más y se llenan MIENTRAS buscas:\n"
-             f"  · FUENTES: cada sitio en el que entras (o al que no puedes entrar) se reporta con "
-             f"`python -m nucleo.widget_cli data results sources @fuentes.json` → "
-             f"`{{\"sources\":[{{\"name\":…,\"url\":…,\"status\":…,\"detail\":…,\"found\":N}}]}}`. `status`: `ok` · "
-             f"`partial` (entraste pero te limitó los resultados) · `auth` (pedía sesión) · `blocked` · `error` · "
-             f"`pending`. Es UPSERT por url, así que puedes anunciar la fuente y actualizarla al terminar con "
-             f"ella. ESTO NO ES OPCIONAL: si una web te deja fuera, decir solo «no encontré nada» le oculta al "
-             f"operador que ahí SÍ había algo y que él sí puede entrar.\n"
-             f"  · SUMARIO: `… data results progress` con `{{\"state\":\"…\",\"explored\":N,\"discarded\":N,"
-             f"\"steps\":[\"…\"]}}` cada vez que haya avance de verdad (no un mensaje por candidato).\n"
-             f"  · CRITERIOS: ya están sembrados con este brief; solo los tocas (`… data results criteria` con "
-             f"`{{\"changes\":[\"…\"]}}`) si el operador te corrige a mitad de camino.")
+    L.append("\nDEJA RASTRO DE CÓMO TRABAJAS — la hoja tiene tres pestañas más y se llenan MIENTRAS buscas:\n"
+             "  · FUENTES: cada sitio en el que entras (o al que no puedes entrar) se reporta con "
+             "`python -m nucleo.widget_cli data results sources @fuentes.json` → "
+             "`{\"sources\":[{\"name\":…,\"url\":…,\"status\":…,\"detail\":…,\"found\":N}]}`. `status`: `ok` · "
+             "`partial` (entraste pero te limitó los resultados) · `auth` (pedía sesión) · `blocked` · `error` · "
+             "`pending`. Es UPSERT por url, así que puedes anunciar la fuente y actualizarla al terminar con "
+             "ella. ESTO NO ES OPCIONAL: si una web te deja fuera, decir solo «no encontré nada» le oculta al "
+             "operador que ahí SÍ había algo y que él sí puede entrar.\n"
+             "  · SUMARIO: `… data results progress` con `{\"state\":\"…\",\"explored\":N,\"discarded\":N,"
+             "\"steps\":[\"…\"]}` cada vez que haya avance de verdad (no un mensaje por candidato).\n"
+             "  · CRITERIOS: ya están sembrados con este brief; solo los tocas (`… data results criteria` con "
+             "`{\"changes\":[\"…\"]}`) si el operador te corrige a mitad de camino.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
              f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
