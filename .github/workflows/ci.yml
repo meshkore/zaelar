@@ -1,0 +1,55 @@
+# CI on every push and PR — the robot that runs the controls (V2-601 T-02).
+#
+# The 2026-09-05 audit's headline finding was not a missing control but a missing OPERATOR for them: the
+# architecture ratchet had been RED on clean main for days and nobody saw, because the only workflow this repo
+# had (release.yml) fires on tags. This job is deliberately small and reliable: the deterministic
+# `tests/infrastructure` suite — which carries every ratchet (file-size ceilings, dependency directions,
+# testmap registration, Docker COPY coverage, repo-root hygiene, roadmap closure) — plus a syntax sweep of the
+# packages the image ships and the ruff F/E9 rules (the NameError-swallowed-by-fail-open class, paid twice:
+# V2-348, V2-555).
+#
+# EXTEND, don't replace: adding a suite is one line in the matrix below. The full model-free testmap
+# (`tests/run_testmap.py::deterministic_paths`) is the destination; infrastructure-first is the audit's own
+# staging so the first run is green and stays green.
+
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: test_version and the roadmap-closure ratchet read git metadata.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Syntax sweep (the Dockerfile's COPY list — same as the release gate)
+        run: python -m compileall -q nucleo memory voice server widgets bus config connectors observability i18n update
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -c constraints.txt
+
+      - name: Ruff — F + E9 only (no formatting; N agents share this tree)
+        run: |
+          pip install "ruff==0.14.0"
+          ruff check .
+
+      - name: Deterministic suite — tests/infrastructure (every ratchet lives here)
+        env:
+          # The suite is deterministic and network-free by contract; belt and braces for CI.
+          ZAELAR_ATTENTION: always
+        run: python -m pytest tests/infrastructure -q --maxfail=5
