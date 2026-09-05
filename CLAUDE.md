@@ -8001,6 +8001,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
+- **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)**:
+  the full-system audit's verdict on «this looks vibe-coded» was that the engineering controls were real and
+  UNOPERATED — the architecture ratchet sat RED on clean main and nobody saw, because nothing ran it. The
+  operator ordered the safe tier executed whole. What changed, one commit per task (`c95d8ee..217ac55`, each
+  with tests + verified disarms; full deterministic run 7473 green on the release tree, tagged v3.26/build 11):
+  · **CI on every push/PR** (`.github/workflows/ci.yml`): syntax sweep + ruff F/E9 + `tests/infrastructure`
+    (every ratchet). Its FIRST three runs caught a non-hermetic daemon e2e (it read the REAL `$HOME`) and then
+    caught the very session that created it (dispatch over its ceiling + a duplicate testmap id) — a robot
+    sees what a person running «their neighbourhood's suites» does not, which was the audit's whole point.
+  · **The red ratchet paid by extraction, never a ceiling**: `surface_ack.py`, `results/sheet_names.py`,
+    `probe_actionmap.py`, `providers/flow_lifecycle.py` — AST-identical moves with re-exports; the actionmap
+    wiring guards follow the CHANNEL (both files), per V2-555.
+  · **ruff F+E9 at the door** (no formatter — N agents share the tree; `tests/use_cases/` excluded whole,
+    arnés territory). Its first run found a REAL dead branch in the voice hot path: the V2-090
+    «a correction merges into the live task's flow» adopt call used `_trace` with the name never in scope —
+    it died as a NameError inside its own `except: pass` on EVERY firing since it shipped. The lint gate is
+    that class's regression guard now (the third paid instance after V2-348/V2-555).
+  · **A lockfile** (`constraints.txt` from the venv that runs the operator's engine — pinning to it is zero
+    behavior change by construction), the livekit-plugins stack pinned, a Python floor at the door.
+  · **Security seams closed, each with a reproduced test**: a peer's text can no longer ride the cluster
+    SYNTHESIS past the fence (neutralized at the write AND at the read, covering already-poisoned installs);
+    the originless same-origin GET from a DNS-rebound page is refused by the Host header (live-verified);
+    the widget generator runs from a SCRATCH cwd (the repo-root cwd shipped `engine/CLAUDE.md` AND the
+    private parent `CLAUDE.md` to the external provider on EVERY generation) with the dev-worker PreToolUse
+    jail reused as a MECHANICAL write-jail — probed first: acceptEdits happily writes an absolute path
+    outside the cwd, and path-scoped `Write(<dir>/**)` rules deny even matching paths, so cwd alone was
+    never confinement (la capacidad se MIDE, no se lee); the dev worker's jail fails CLOSED (no settings
+    file → ZERO tools, never unjailed) and its env is an ALLOWLIST (the process env carries every key
+    `.env` loads, and a peer-driven worker reads none of them now).
+  · **Correctness**: `create_app`'s broad except is gone — a configured brain whose routers fail to mount
+    RAISES where the release smoke can see it (V2-554's own prescription; the old shape booted «green» with
+    no probe, no worker plane, no browser bridge); `/api/cron` mounts only under the brain whose loop fires
+    the jobs (the V2-121 silent-alarm class); memory ingestion marshals to ONE home loop (its serializing
+    `asyncio.Lock` cannot span the engine's two loops — contended cross-loop it poisoned itself and lost
+    writes in silence); the client's close-all copy learned V2-600's fullscreen veto (the third handle);
+    `make test-widgets` is GREEN 14/14 (the results sheet's identity rides the payload instead of a fetch,
+    `results` sits in the curated `_STDLIB_EXEMPT` with its reason written, navegador's phantom golden
+    drift seeded away) — while it sat red, a NEW violation in any widget was invisible.
+  Still the operator's: the LICENSE (T-03 — the repo declares itself open source with no license file) and
+  this very file's compaction policy (T-18). The P2/P3 structural tier stays in V2-601.
+
 - **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)**: `domain_of` asked the
   site catalog first and returned whatever it said. Right for the categories that name a vertical, wrong for
   `local_business`, which is «some business near you» — measured, it swallowed **six of ten** Spanish errands

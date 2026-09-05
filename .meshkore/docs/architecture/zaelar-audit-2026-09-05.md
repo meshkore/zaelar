@@ -1,7 +1,7 @@
 ---
 title: Zaelar System Audit — 2026-09-05
 category: architecture
-updated: 2026-09-05
+updated: 2026-09-06
 owner: ricart
 status: current
 audit_of: e4b5336 (v3.25, BUILD 10, clean tree)
@@ -106,3 +106,13 @@ objective gate is applied; redaction suffixes unified; single model table (V2-50
 (server/ingress). Still open from then: the env-scrub half of sandbox.py; the create_app swallow (newly
 documented as V2-554); the license decision. New since then: the ratchet-red/CI gap — which is also the
 reason several of these were found by an audit instead of by a robot.
+
+## Addendum 2026-09-06 — the P0/P1 tier is EXECUTED
+
+The operator ordered the safe tier applied the same day. T-01, T-02, T-04..T-14 landed (commits
+`c95d8ee..217ac55`, one per task, each with tests and verified disarms), the full deterministic run passed
+7473 green on the release tree, and the result shipped as **v3.26 / build 11**. CI now runs the controls on
+every push and PR — and its first three runs each caught something real (a non-hermetic e2e, then the very
+session that created it going over a ceiling), which was the audit's thesis in miniature. Still open: T-03
+(license — operator decision), T-18 (context-file compaction — operator decision), and the P2/P3 structural
+tier, tracked in V2-601.
