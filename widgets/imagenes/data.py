@@ -90,6 +90,9 @@ def view_data(q: str = "") -> dict:
         "i": i,
         "current": cur,
         "items": items,
+        # V2-589 slideshow: widget.js re-arms its one-shot timer from these; producers reads `auto` too.
+        "auto": bool(db.get("auto")),
+        "every_s": int(db.get("every_s") or 6),
     }
 
 
@@ -165,7 +168,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
             # empty card with no way back, and the honest report is that nothing was found (V2-377's lesson,
             # applied to pictures).
             return {"ok": False, "error": "no llegó ninguna imagen", "n": len(items)}
-        db.update({"items": rows, "i": 0,
+        db.update({"items": rows, "i": 0, "auto": False,   # a fresh set starts STILL (V2-589)
                    "title": " ".join(str(p.get("title") or p.get("query") or "").split())[:120],
                    "query": " ".join(str(p.get("query") or "").split())[:120],
                    "source": str(p.get("source") or "")[:40]})
@@ -191,6 +194,10 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if not items:
             return {"ok": False, "error": "no hay ninguna imagen en pantalla", "n": 0}
         if a == "select":
+            # An explicit choice STOPS the slideshow: a viewer that keeps advancing after the operator picked
+            # a photo is fighting the operator (V2-551's rule). next/previous keep it — same gesture as the pase.
+            if db.get("auto"):
+                db["auto"] = False
             k = _resolve(items, p.get("item"))
             if k is None:
                 # The refusal NAMES what is on screen (V2-463). «no encuentro esa imagen (None)» was measured
@@ -211,6 +218,29 @@ def apply_action(action: str, payload: dict = None) -> dict:
         cur = items[k]
         return {"ok": True, "i": k + 1, "n": len(items),
                 "shown": cur.get("title") or cur.get("site") or "", "url": cur.get("url") or ""}
+
+    if a == "slideshow":
+        # V2-589 — the capability the model PROMISED four times in one live session («voy a ponerlas en modo
+        # presentación») with zero tools behind it: it did not exist, so narrating was the only move available.
+        # The index stays server-owned; widget.js only re-arms a timer that calls the ordinary `next`.
+        if not items:
+            return {"ok": False, "error": "no hay ninguna imagen en pantalla que pasar", "n": 0}
+        if len(items) < 2:
+            return {"ok": False, "error": "solo hay una imagen — no hay nada que pasar", "n": 1}
+        try:
+            every = int(p.get("every_s") or 0)
+        except Exception:  # noqa: BLE001
+            every = 0
+        db["auto"] = True
+        db["every_s"] = max(2, min(60, every)) if every else int(db.get("every_s") or 6)
+        store.save(WIDGET_ID, _clamp(db))
+        return {"ok": True, "auto": True, "every_s": db["every_s"], "n": len(items)}
+
+    if a == "slideshow_stop":
+        was = bool(db.get("auto"))
+        db["auto"] = False
+        store.save(WIDGET_ID, _clamp(db))
+        return {"ok": True, "auto": False, "was_running": was, "n": len(items)}
 
     if a == "clear":
         store.save(WIDGET_ID, _seed())

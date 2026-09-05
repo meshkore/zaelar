@@ -58,6 +58,17 @@ export function render(el, data, ctx){
   const i = Math.max(0, Math.min(Number(d.i)||0, Math.max(0, items.length-1)));
   const cur = items[i] || {};
 
+  // ── slideshow (V2-589): the SERVER owns `auto`/`every_s`/the index; this file only re-arms ONE
+  // one-shot timer per render that fires the ordinary `next` through ctx.action — the same path a click
+  // or the voice takes, so the pase cannot drift from the server (the file's own header rule). Each
+  // advance changes `i`, the canvas re-renders, and the next shot re-arms — no interval to leak. A
+  // stopped agent arms nothing (ctx.running, V2-092), and the server's producers gate is the real stop.
+  try{ if(el._hbImgAuto){ clearTimeout(el._hbImgAuto); el._hbImgAuto = null; } }catch(_){}
+  if(d.auto && items.length>1 && !(ctx && ctx.running===false)){
+    const ms = Math.max(2, Math.min(60, Number(d.every_s)||6)) * 1000;
+    el._hbImgAuto = setTimeout(()=>{ try{ctx.action("next");}catch(_){} }, ms);
+  }
+
   // ── header: what we are looking at, and how many ──────────────────────────────────────────────
   const hd = txt("div","imghd");
   hd.appendChild(txt("b", null, String(cur.title || d.title || d.query || "Imágenes")));

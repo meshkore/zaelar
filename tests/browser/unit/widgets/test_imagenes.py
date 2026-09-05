@@ -204,3 +204,82 @@ def test_las_flechas_pasan_fotos_y_no_roban_al_que_escribe():
     assert "ArrowRight" in js and "ArrowLeft" in js
     assert 'el.onkeydown' in js, "se escucha en la TARJETA, no en document: dos visores no se pelean"
     assert "INPUT" in js and "isContentEditable" in js, "no robar teclas a quien escribe"
+
+
+# ── V2-589: the slideshow the model promised four times with nothing behind it ───────────────────────────
+# Session 0e3a42d6 (2026-09-05): «voy a ponerlas en modo presentación» with ZERO tool calls, then «Hecho.»
+# twice, then `next` advancing ONE photo («Solo ha pasado una foto»). The capability did not exist, so
+# narrating was the only move available (V2-540's law). The server owns `auto`/`every_s`/the index;
+# widget.js only re-arms a one-shot timer that fires the ordinary `next`.
+
+def test_slideshow_enciende_el_pase_y_view_data_lo_publica(data):
+    data.apply_action("show", {"items": _items(3)})
+    r = data.apply_action("slideshow", {})
+    assert r["ok"] and r["auto"] is True and r["every_s"] == 6
+    v = data.view_data()
+    assert v["auto"] is True and v["every_s"] == 6
+
+
+def test_el_ritmo_se_acota_a_2_60_segundos(data):
+    data.apply_action("show", {"items": _items(3)})
+    assert data.apply_action("slideshow", {"every_s": 1})["every_s"] == 2
+    assert data.apply_action("slideshow", {"every_s": 300})["every_s"] == 60
+    assert data.apply_action("slideshow", {"every_s": "rápido"})["every_s"] == 60  # unreadable keeps the last
+
+
+def test_sin_fotos_o_con_una_sola_se_niega_y_lo_dice(data):
+    r = data.apply_action("slideshow", {})
+    assert not r["ok"] and "no hay" in r["error"]
+    data.apply_action("show", {"items": _items(1)})
+    r = data.apply_action("slideshow", {})
+    assert not r["ok"] and "una imagen" in r["error"]
+
+
+def test_elegir_una_foto_PARA_el_pase(data):
+    """A viewer that keeps advancing after the operator picked a photo fights the operator (V2-551)."""
+    data.apply_action("show", {"items": _items(3)})
+    data.apply_action("slideshow", {})
+    data.apply_action("select", {"item": "2"})
+    assert data.view_data()["auto"] is False
+
+
+def test_next_y_previous_NO_paran_el_pase(data):
+    data.apply_action("show", {"items": _items(3)})
+    data.apply_action("slideshow", {})
+    data.apply_action("next")
+    assert data.view_data()["auto"] is True
+
+
+def test_un_set_nuevo_arranca_QUIETO_y_stop_para(data):
+    data.apply_action("show", {"items": _items(3)})
+    data.apply_action("slideshow", {})
+    data.apply_action("show", {"items": _items(2)})
+    assert data.view_data()["auto"] is False
+    data.apply_action("slideshow", {})
+    r = data.apply_action("slideshow_stop", {})
+    assert r["ok"] and r["was_running"] is True and data.view_data()["auto"] is False
+
+
+def test_el_pase_es_PRODUCCION_y_el_manifest_lo_declara(data):
+    """The V2-465 judgement revisited: a STILL photo does not produce, an AUTO-ADVANCING viewer does — so the
+    ⏻ global stop must reach it. `producers` reads active_when against view_data, and suspend must be a
+    declared action or the global stop dispatches into the void."""
+    import json
+    from pathlib import Path
+    man = json.loads((Path(__file__).resolve().parents[4] / "widgets/imagenes/manifest.json")
+                     .read_text(encoding="utf-8"))
+    rt = man.get("runtime") or {}
+    assert "slideshow" in (rt.get("produce") or []), "the ⏻ gate no longer knows the pase produces"
+    assert rt.get("suspend") in man["actions"], "suspend must be a DECLARED action"
+    assert rt.get("active_when") == {"auto": True}
+
+
+def test_el_widget_arma_UN_timer_de_un_disparo_que_llama_a_next():
+    """Source-level: the timer must go through ctx.action('next') — the same path a click or the voice takes —
+    and must be a one-shot re-armed per render, never an interval that can leak."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[4] / "widgets/imagenes/widget.js").read_text(encoding="utf-8")
+    assert "_hbImgAuto" in src and "setTimeout" in src
+    assert "setInterval" not in src, "an interval leaks across renders; the one-shot re-arms from the data cycle"
+    assert 'ctx.action("next")' in src.split("_hbImgAuto", 1)[1][:400], "the pase must advance through the server"
+    assert "ctx.running===false" in src, "a stopped agent must arm nothing (V2-092)"

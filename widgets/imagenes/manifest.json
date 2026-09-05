@@ -25,7 +25,7 @@
     "image gallery"
   ],
   "entry": "widget.js",
-  "usage": "Para enseñar fotos usa 'show' con la lista de imágenes en 'items' (cada una {url, thumb, title, site, page, w, h}) y 'query'/'title' con qué se está viendo — reemplaza lo que hubiera. 'add' añade más sin perder las de antes. Para moverse: 'next', 'previous', o 'select' con el número (1-N) o parte del título/fuente ('la de Ferrari'). 'local' abre las imágenes guardadas en este equipo (widgets/_data/imagenes/), sin buscar nada en la web. 'clear' vacía el visor. Es SOLO un visor: no recorta, no edita, no descarga. Las imágenes las busca quien llama (show_images en el turno rápido, o un worker si hay que curar) — este widget no busca por su cuenta.",
+  "usage": "Para enseñar fotos usa 'show' con la lista de imágenes en 'items' (cada una {url, thumb, title, site, page, w, h}) y 'query'/'title' con qué se está viendo — reemplaza lo que hubiera. 'add' añade más sin perder las de antes. Para moverse: 'next', 'previous', o 'select' con el número (1-N) o parte del título/fuente ('la de Ferrari'). Para que pasen SOLAS («modo presentación», «que vayan pasando»): 'slideshow' (every_s opcional, def 6); se para con 'slideshow_stop' o eligiendo una con 'select'. 'local' abre las imágenes guardadas en este equipo (widgets/_data/imagenes/), sin buscar nada en la web. 'clear' vacía el visor. Es SOLO un visor: no recorta, no edita, no descarga. Las imágenes las busca quien llama (show_images en el turno rápido, o un worker si hay que curar) — este widget no busca por su cuenta.",
   "actions": {
     "show": {
       "desc": "enseña un conjunto de fotos (reemplaza lo que hubiera) y deja la primera en grande",
@@ -66,6 +66,17 @@
       "payload": {},
       "view": true
     },
+    "slideshow": {
+      "desc": "pasa las fotos SOLAS (modo presentación) cada pocos segundos, en bucle",
+      "payload": {
+        "every_s": "segundos por foto, 2-60 (opcional, def 6)"
+      },
+      "view": true
+    },
+    "slideshow_stop": {
+      "desc": "detiene el pase automático (las fotos se quedan donde están)",
+      "payload": {}
+    },
     "clear": {
       "desc": "vacía el visor",
       "payload": {}
@@ -79,5 +90,10 @@
     "la galería",
     "visor de imágenes"
   ],
-  "fullscreen": "native"
+  "fullscreen": "native",
+  "runtime": {
+    "produce": ["slideshow"],
+    "suspend": "slideshow_stop",
+    "active_when": {"auto": true}
+  }
 }

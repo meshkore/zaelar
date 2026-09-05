@@ -31,3 +31,15 @@
   «480×290» cuyo original era un 404, y una «213×320» cuyo original era un PNG de 2,2 MB. Un tamaño
   desconocido se ve desconocido; uno equivocado no.
 
+
+## 2026-09-05 — V2-589: el pase automático existe (y el ⏻ lo alcanza)
+
+- **`slideshow`/`slideshow_stop`**: el modelo lo prometió CUATRO veces en una sesión real («voy a ponerlas
+  en modo presentación») con cero tools detrás — no existía y narrar era su única salida (la ley de V2-540).
+- **El servidor manda**: `auto` + `every_s` (2-60 s, def 6) viven en el store; `widget.js` solo re-arma UN
+  `setTimeout` por render que dispara el `next` de siempre por `ctx.action` — el índice nunca es local.
+- **Elegir una foto PARA el pase** (`select` apaga `auto`): un visor que sigue avanzando tras una elección
+  pelea con el operador (V2-551). `next`/`previous` lo conservan; un `show` nuevo arranca QUIETO.
+- **Ahora hay bloque `runtime`** (`produce: [slideshow]`, `suspend: slideshow_stop`, `active_when: {auto}`):
+  revisa el juicio de V2-465 — la foto QUIETA no produce (sigue igual), el visor que AVANZA solo sí, así que
+  el ⏻ global lo para y el gate de agente parado no lo arranca.
