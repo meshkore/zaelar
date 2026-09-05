@@ -506,7 +506,7 @@ def create_app() -> FastAPI:
     # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/scheduler.py) — replaces
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
-               vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router,
+               vault_router, wizard_router, spotify_router, config_router, i18n_router,
                obs_router, feedback_router, update_router, cloudfiles_router, photos_router,
                videoacct_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
@@ -532,6 +532,10 @@ def create_app() -> FastAPI:
         routers.append(worker_router)
         from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
         routers.append(navegador_act_router)
+        # /api/cron mounts ONLY with the brain whose loop fires the jobs (V2-601 T-13). Ungated, a cron was
+        # accepted, persisted and never fired — the silent-alarm class V2-121 already paid for. A 404 on a
+        # baseline profile is honest; a 200 over a scheduler nobody runs is not.
+        routers.append(cron_router)
     for r in routers:
         app.include_router(r)
 

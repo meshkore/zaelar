@@ -53,3 +53,13 @@ def test_with_nucleo_the_four_routers_actually_mount(monkeypatch):
     for method, path in (("POST", "/api/flash/say"), ("POST", "/api/agent/report"),
                          ("POST", "/api/worker/act"), ("POST", "/api/navegador/act")):
         assert _status(app, method, path) != 404, f"router for {path} not mounted"
+    assert _status(app, "GET", "/api/cron") != 404, "/api/cron must live where its scheduler runs"
+
+
+def test_cron_only_mounts_where_its_scheduler_runs(monkeypatch):
+    """V2-601 T-13: with BRAIN≠nucleo the loop that fires cron jobs never runs, so accepting a cron there is
+    the silent-alarm class V2-121 paid for — a job persisted, confirmed, and never fired. A 404 is honest."""
+    import server
+    monkeypatch.setenv("BRAIN", "direct")
+    app = server.create_app()
+    assert _status(app, "GET", "/api/cron") == 404
