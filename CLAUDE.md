@@ -1023,6 +1023,54 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     five disarms, mutations asserted, all red. Open, named in the initiative: the bare «Hecho.» that
     swallowed half a compound order (V2-567 family), and «cuántos SIN LEER» having no exact answer while the
     widget holds triaged items, not a mailbox count.
+- **The daemon is the piece that reads somebody's disk, so it gets an attacker with a name (V2-575 P0 security
+  pass + P4, 2026-09-06)**: audited, split into `security/` (WHETHER: never-served names · a PURE admission
+  decision over headers · a refusal throttle) · `fs/` (WHAT: the one permission circuit · a TOCTOU-safe open ·
+  one module per capability, READ ONLY) · `http/` (the plumbing that joins them), with `permissions.py`,
+  `files.py` and `server.py` as re-export shims. Threat model and stated limits:
+  `.meshkore/docs/security/zaelar-daemon-security.md`; build/install/release:
+  `.meshkore/docs/ops/zaelar-daemon-build.md`.
+  - **The hole that mattered: the Origin check CANNOT SEE A REBIND.** A page on `evil.example` re-resolved to
+    127.0.0.1 makes a SAME-ORIGIN request, which carries no `Origin` header at all — so the guard rested
+    entirely on `Sec-Fetch-Site`, one header away from nothing. `Host` betrays it (the browser still names the
+    site it THINKS it is on), exact match against the loopback names AND this daemon's port — `startswith` is
+    satisfied by `127.0.0.1.evil.example`. Same class the engine already paid for in V2-601 T-14.
+  - **A body must be declared JSON**, which closes the browser vector ON ITS OWN: `text/plain`,
+    `x-www-form-urlencoded` and `multipart/form-data` are the only shapes a browser sends cross-origin with no
+    preflight, so requiring JSON forces a preflight that never succeeds.
+  - **Unauthorized attempts are AUDITED** — the old shape answered 401 before recording anything, so the single
+    most security-relevant signal there is left no trace in a log whose own docstring says refusals earn the
+    file — and COLLAPSED by a throttle, so a flood cannot push the interesting line off the end of a rotated
+    one. No lockout: every process here already runs as the user, so a ban is resettable by an attacker and
+    permanent for the person who mistyped their own token.
+  - **Every guard answers with the SAME 401 and sentence.** Naming which one fired turns «try things until
+    something works» into «read the error and adapt». The precise reason goes to the log.
+  - Also: a 500 no longer narrates its exception text (absolute paths, internal names) to the caller who most
+    wants it; `S_ISREG` + `O_NOFOLLOW` + the descriptor's OWN path re-checked against the boundary (`F_GETPATH`
+    / `/proc`, which catches a directory swapped MID-path — **Windows is a stated limit, not a solved
+    problem**); the never-served list grew what is actually on a disk (browser cookie stores, `.env.*`,
+    `.git/config`, shell history), normalized for case AND Unicode form because macOS stores names decomposed;
+    granting `$HOME` or a system folder is refused (a name list is not a boundary — home is the machine minus a
+    list); numbers off the wire are clamped instead of `int()`-ed into a 500; concurrency, body size and
+    connection lifetime are bounded.
+  - ⚠️ **The split cost a boot**: `fs/__init__.py` re-exported the FUNCTION `roots` over the SUBMODULE of the
+    same name, so `from ..fs import roots` handed a function to code that wanted the module — no import error,
+    a failure on the first attribute access, in whichever file wrote the shorter import. Guarded (7.40).
+  - **P4 — two artifacts, no administrator, and no self-updater.** A 50 KB stdlib `zipapp` (always buildable,
+    reproducible, zero build deps) beside a PyInstaller onefile; per-user LaunchAgent / scheduled task, so an
+    install never needs elevation — **a security property first**: a per-user daemon that needed it could then
+    reach every account. **Re-running the installer IS the upgrade path.** No auto-update on purpose: an update
+    channel that downloads and executes without a signed artifact is remote code execution by design, and this
+    is the worst possible daemon to put one on.
+  - **Verified where, because it is not everywhere.** macOS by hand end to end (built → installed into a temp
+    HOME → launchd ACCEPTED and ran the agent → it deferred to the already-running instance without
+    restart-looping → uninstalled, job gone). **The Windows half was written with no Windows and no PowerShell
+    on the machine**; `.github/workflows/daemon-artifacts.yml` is what turns that into a measurement, parse-
+    checking the scripts, building the .exe, and asserting a `Host: evil.example` request still gets a 401 —
+    the one regression that would ship a daemon which starts and defends nothing.
+  - Nodes **7.40** (hostile local process, seven disarms with each mutation ASSERTED before measuring) and
+    **7.41** (built, run from the artifact, installers name what the build produces, no elevation).
+
 - **The controls exist; a ROBOT runs them now — the audit remediation tier (V2-601 T-01..T-14, 2026-09-05/06)**:
   the full-system audit's verdict on «this looks vibe-coded» was that the engineering controls were real and
   UNOPERATED — the architecture ratchet sat RED on clean main and nobody saw, because nothing ran it. The
