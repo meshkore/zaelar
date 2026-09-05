@@ -73,8 +73,18 @@ def load() -> dict:
         if not isinstance(merged.get("roots"), list):
             merged["roots"] = []
         merged["roots"] = [str(r) for r in merged["roots"] if isinstance(r, str) and r.strip()]
+        # A SHORT token is worse than a missing one: it looks configured and is guessable. A file edited by
+        # hand, or truncated by a crash, is exactly how one appears — so the length is enforced on the way in
+        # rather than trusted from disk.
         if not isinstance(merged.get("token"), str) or len(merged["token"]) < 32:
             merged["token"] = secrets.token_hex(32)
+        # The port decides what `is_running` probes and what the Host guard compares against. A string, a float
+        # or something outside the legal range would make both of those quietly wrong.
+        try:
+            port = int(merged.get("port") or PORT)
+        except (TypeError, ValueError):
+            port = PORT
+        merged["port"] = port if 1 <= port <= 65535 else PORT
         _CACHE = merged
         if not path.exists():
             _write(merged)
@@ -113,6 +123,21 @@ def _write(data: dict) -> None:
 
 def token() -> str:
     return str(load().get("token") or "")
+
+
+def rotate_token() -> str:
+    """Mint a new API token and persist it. Returns the new one.
+
+    A credential with no way to replace it is a credential you cannot respond to. If this one is ever printed
+    into a shared terminal, pasted into a bug report or read by something that should not have it, the answer
+    has to be one command rather than "delete the config and reconfigure your folders" — which is the workaround
+    people find on their own, and it throws away the allowlist along with the secret.
+
+    The running daemon keeps the OLD token in memory until it restarts, deliberately: rotating out from under a
+    live process would break the engine mid-request with no way to tell it why."""
+    fresh = secrets.token_hex(32)
+    save({"token": fresh})
+    return fresh
 
 
 def reset_cache() -> None:

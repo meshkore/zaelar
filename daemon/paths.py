@@ -55,10 +55,15 @@ def _user_data_dir() -> Path:
 
 def state_dir() -> Path:
     """The single directory the daemon owns. Created on demand; never raises here, because a daemon that cannot
-    persist should still be able to answer `/health` and tell the user why."""
+    persist should still be able to answer `/health` and tell the user why.
+
+    0700 because of what is in it: the API token, and a log of every path the agent opened. The files inside are
+    0600 on their own, but a directory anyone can LIST still tells them the daemon is here, when it last ran and
+    how big its log has grown — and it is one careless `open(..., "w")` away from telling them more."""
     d = workspace_root() / "config" / "daemon"
     try:
         d.mkdir(parents=True, exist_ok=True)
+        os.chmod(d, 0o700)      # no-op on Windows, where the ACL inherited from LOCALAPPDATA is per-user
     except Exception:       # noqa: BLE001 — reported through /health, not by refusing to boot
         pass
     return d

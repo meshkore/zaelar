@@ -30,12 +30,29 @@ STANDALONE ON PURPOSE
     P0 is the empty set: standard library only. It resolves its own paths (see `paths.py`) with the same
     `ZAELAR_WORKSPACE` semantics as `nucleo/workspace.py` so that in-repo it lands in the same place, and falls
     back to an OS user-data directory when it is running as an installed binary with no repo around it.
+
+HOW IT IS LAID OUT
+    `security/`  WHETHER — the never-served name list, the HTTP admission decision (pure, over headers), and
+                 what happens to a caller that keeps being refused. Touches no disk and no socket, so every
+                 rule can be exercised in both directions.
+    `fs/`        WHAT — the permission circuit that every filesystem operation goes through, the TOCTOU-safe
+                 open, and one module per capability (list · read · search). READ ONLY.
+    `http/`      the plumbing that joins them: read a request, ask `security`, call `fs`, answer JSON.
+    `paths` · `config` · `audit`   where the daemon's own state lives, what is in it, and the record of every
+                 operation it performed — allowed and refused.
+
+    `permissions.py`, `files.py` and `server.py` are re-export shims at the addresses the engine and the tests
+    already say. The rules moved; the names did not.
 """
 from __future__ import annotations
 
 # Bumped by hand when the daemon's HTTP contract changes in a way the engine can observe. The engine compares it
 # against what it expects and can say "your daemon is out of date" instead of failing on a missing route.
-VERSION = "0.1.0"
+#
+# 0.2.0 — the security pass: Host-header check against DNS rebinding, JSON-only bodies, unauthorized attempts
+#         audited and throttled, a TOCTOU-safe open, a much longer never-served list, bounded concurrency, and
+#         internal error text kept out of responses.
+VERSION = "0.2.0"
 
 # THE PORT. Fixed, so the engine and the wizard can both name it without discovery, and chosen deliberately:
 #   · not in /etc/services (verified 2026-09-04) — no known service to collide with;
