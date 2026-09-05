@@ -421,18 +421,9 @@ function elem(tag, cls, text){
 }
 
 // ── installation and session identifiers ─────────────────────────────────────────────────────────────────────
-// Served by `GET /api/observability/identity` (open on loopback). Cached at module level: the header repaints on each
-// data refresh and there is no point asking who I am every time.
-let IDENT = null, IDENT_PROMISE = null;
-function fetchIdentity(){
-  if(IDENT) return Promise.resolve(IDENT);
-  if(IDENT_PROMISE) return IDENT_PROMISE;
-  IDENT_PROMISE = fetch("/api/observability/identity", {headers:{accept:"application/json"}})
-    .then(r => r.ok ? r.json() : null)
-    .then(j => { if(j){ IDENT = {user_id: String(j.user_id||""), session_id: String(j.session_id||"")}; } return IDENT; })
-    .catch(() => null);
-  return IDENT_PROMISE;
-}
+// They RIDE THE PAYLOAD now (`data.identity`, filled by data.py): the widget contract bans network in widget.js,
+// and this fetch was the violation that kept `make test-widgets` permanently red — under which a NEW violation in
+// any widget was invisible (V2-601 T-10). Same visible behavior: no identity → the strip removes itself.
 
 function shortId(id){
   id = String(id||"");
@@ -442,15 +433,15 @@ function shortId(id){
 // Identity strip: User · Session · Copy (bottom of the Summary tab since V2-538). The button copies BOTH FULL ids, in a format a code agent understands at a
 // glance. It is painted immediately (with "...") and filled when fetch returns; if there is no identity (endpoint
 // down), the strip removes itself instead of leaving an empty gap.
-function identityStrip(){
+function identityStrip(id){
+  id = (id && (id.user_id || id.session_id)) ? id : null;
+  if(!id) return document.createDocumentFragment();     // no identity in the payload → no strip (as before)
   const strip = elem("div","hr-ident");
   const uBit = elem("span","hr-idbit"); const uCode = elem("code","","…"); uBit.append(elem("b","","Usuario"), uCode);
   const sBit = elem("span","hr-idbit"); const sCode = elem("code","","…"); sBit.append(elem("b","","Sesión"), sCode);
   const btn = elem("button","hr-idcopy","⧉ Copiar"); btn.type = "button"; btn.disabled = true;
   strip.append(uBit, sBit, btn);
-
-  fetchIdentity().then(id => {
-    if(!id){ strip.remove(); return; }
+  {
     uCode.textContent = shortId(id.user_id);  uBit.title = "Usuario: " + (id.user_id || "—");
     sCode.textContent = shortId(id.session_id); sBit.title = "Sesión: " + (id.session_id || "—");
     btn.disabled = false;
@@ -472,7 +463,7 @@ function identityStrip(){
       if(reset) clearTimeout(reset);
       reset = setTimeout(() => { btn.textContent = "⧉ Copiar"; btn.classList.remove("ok"); }, 1800);
     });
-  });
+  }
   return strip;
 }
 
@@ -837,7 +828,7 @@ function paintSummary(panel, data){
     panel.appendChild(elem("div","hr-empty",
       "Todavía no hay nada que resumir. Esta pestaña se llena mientras se trabaja: estado, cuántos candidatos se "
       + "han explorado y qué se ha ido haciendo."));
-    panel.appendChild(identityStrip());   // the audit ids belong to this tab now — see render()'s note (V2-538)
+    panel.appendChild(identityStrip(data.identity));   // the audit ids belong to this tab now — see render()'s note (V2-538)
     return;
   }
   if(s.state){
@@ -874,7 +865,7 @@ function paintSummary(panel, data){
     s.steps.forEach(st=>ul.appendChild(elem("li","", st)));
     panel.appendChild(ul);
   }
-  panel.appendChild(identityStrip());   // audit ids, moved here from the sticky header (V2-538)
+  panel.appendChild(identityStrip(data.identity));   // audit ids, moved here from the sticky header (V2-538)
 }
 
 // ── TAB 3 · SOURCES ─────────────────────────────────────────────────────────────────────────────────────────

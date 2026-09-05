@@ -11,6 +11,10 @@ _SEED = {
     "mode": "blank", "url": "", "title": "Navegador",
     "rev": 0, "loading": False, "error": "",
     "can_back": False, "can_forward": False, "youtube_id": "", "youtube_title": "",
+    # `updated` is written by the OWNER on every state save (owner.py); seeding it keeps view_data's SHAPE
+    # identical whether the browser has run yet or not — the golden was captured from a live store and the
+    # harness reads a fresh one, which is how `make test-widgets` sat red on a phantom drift (V2-601 T-10).
+    "updated": "",
 }
 
 

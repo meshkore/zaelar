@@ -561,7 +561,22 @@ def view_data(q: str = "") -> dict:
     data["progress"] = _progress(data, _safe_sheet(q))
     data["harvest"] = _harvest(data, _safe_sheet(q))
     data["browser"] = _browser(data, _safe_sheet(q))     # V2-571: the process tab embeds the errand's browser
+    data["identity"] = _identity()                       # V2-601 T-10: rides the payload; widget.js may not fetch
     return data
+
+
+def _identity() -> dict:
+    """Install + session ids for the SUMMARY tab's audit strip (V2-538). Served IN the payload because the
+    widget contract bans network in widget.js — the strip's own fetch was the violation that kept
+    `make test-widgets` permanently red (V2-601 T-10). Fail-open to {}: no identity, no strip, as before.
+    (The engine import below is why `results` sits in the validator's curated `_STDLIB_EXEMPT`, with the
+    observer emit of `_audit` — this widget IS an engine surface, the errand sheet.)"""
+    try:
+        from observability import identity as _ident
+        info = _ident.session_info() or {}
+        return {"user_id": str(_ident.user_id() or ""), "session_id": str(info.get("id") or "")}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def _save(data: dict, sheet: str = "") -> None:
@@ -571,6 +586,7 @@ def _save(data: dict, sheet: str = "") -> None:
     d.pop("counts", None)
     d.pop("progress", None)                  # derived from the live record: storing it would freeze a «Trabajando…»
     d.pop("browser", None)                   # derived too (V2-571): a stored capture would outlive its browser
+    d.pop("identity", None)                  # derived every read (T-10): ids belong to the PROCESS, not the sheet
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
             d.pop(k, None)                       # remove empty sections: the blank sheet remains blank

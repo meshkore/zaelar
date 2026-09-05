@@ -21,6 +21,7 @@ ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", 
 _WIDGET = os.path.join(ENG, "widgets", "results", "widget.js")
 
 _SHEET = {
+    "identity": {"user_id": "4cd1b39d-aaaa-bbbb", "session_id": "0ceb114d-cccc"},
     "title": "Catamaranes de segunda mano de menos de 200.000 euros",
     "subtitle": "8 anuncios reales · ordenados por precio",
     "tab": "results",
@@ -43,8 +44,10 @@ body{margin:0;background:#0a1017;padding:0}
 #host{width:720px}
 </style></head><body><div id="host"></div></body></html>"""
 
-# The identity endpoint is stubbed so the strip actually FILLS: it removes itself when there is no identity,
-# and a strip that removed itself would make "it is not in the header" pass for the wrong reason.
+# The identity rides the PAYLOAD since V2-601 T-10 (the widget contract bans network in widget.js, and the
+# strip's own fetch was the violation that kept the harness red) — so the fixture puts it IN the data, the
+# way data.py serves it now. A strip with no identity removes itself, which would make "it is not in the
+# header" pass for the wrong reason.
 _MEASURE = """() => {
   const el = document.querySelector('.hb-results');
   if (!el) return {mounted: false};
@@ -77,17 +80,11 @@ def _paint(data):
             pg = await b.new_page(viewport={"width": 760, "height": 900})
             errors = []
             pg.on("pageerror", lambda e: errors.append(str(e)))
-            async def _identity(route):
-                await route.fulfill(status=200, content_type="application/json",
-                                    body=json.dumps({"user_id": "4cd1b39d-aaaa-bbbb",
-                                                     "session_id": "0ceb114d-cccc"}))
             async def _page(route):
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
-            await pg.route("**/api/observability/identity", _identity)
             await pg.route("http://zaelar.test/", _page)
-            # A REAL origin, not set_content: the strip fetches "/api/observability/identity" with a relative
-            # URL, and from about:blank that request never resolves — the strip then removes itself, which
-            # would make "it is not in the header" pass for the wrong reason.
+            # A REAL origin kept on purpose: the strip no longer fetches anything (T-10), but a real origin is
+            # what caught the original about:blank trap and costs nothing to keep.
             await pg.goto("http://zaelar.test/")
             src = open(_WIDGET, encoding="utf-8").read()
             await pg.add_script_tag(

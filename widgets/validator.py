@@ -273,7 +273,13 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
 #                  store; there is no stdlib way to reach somebody's Drive. The import stays DEFERRED inside
 #                  the functions that need it, so module import — and therefore the catalog, and therefore
 #                  every prompt that lists widgets — never pays for `httpx` or the credential store.
-_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube"}
+#   · `results`  — V2-601 T-10. The errand SHEET is an engine surface, not a generated widget: its audit
+#                  trail goes through `voice.observer.emit` (the single log funnel — a parallel one would be
+#                  the real violation) and the SUMMARY tab's audit ids come from `observability.identity`
+#                  IN the payload, because widget.js may not fetch. Both imports deferred + fail-open.
+#                  Until this entry existed the harness sat permanently red on `results`, under which a NEW
+#                  violation in any widget was invisible — the exemption is what makes the gate mean something.
+_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:
