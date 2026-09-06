@@ -379,3 +379,26 @@ def test_hiding_the_account_layer_does_NOT_disable_the_player(sandbox):
         # `play` on an empty player legitimately refuses with `no_video` — the claim is not «everything
         # succeeds», it is that NOTHING fails for the ACCOUNT reason.
         assert "todavía no está disponible" not in str(res.get("error") or ""), (act, res)
+
+
+def test_an_ABSENT_capability_is_declared_even_with_the_card_CLOSED(sandbox):
+    """Learned live, minutes after F2 shipped. The block was gated on the youtube card being OPEN — right for
+    connection STATE, wrong for «this does not exist»: with the card closed the model never saw it and
+    answered «Conéctame mi cuenta de YouTube» with «Te abro YouTube para que vincules tu cuenta, ahí te guía
+    paso a paso», offering a door that had just been sealed.
+
+    The OFFER is what opens the card, so the fact has to arrive before it. V2-540 again: a model cannot
+    decline what is not in its prompt."""
+    from nucleo.flash import prompt
+
+    assert "TODAVÍA NO ESTÁ DISPONIBLE" in (prompt._connector_briefs(set()) or "")
+
+
+def test_the_connected_STATE_block_stays_gated_on_the_open_card(sandbox, monkeypatch):
+    """The counterweight: the always-on branch exists only for the absent capability. Once a client exists,
+    the detailed state goes back to costing tokens only while the operator is looking at the card."""
+    from nucleo.flash import prompt
+
+    _with_builtin(monkeypatch)
+    assert "VÍDEO (cuentas)" not in (prompt._connector_briefs(set()) or "")
+    assert "VÍDEO (cuentas)" in (prompt._connector_briefs({"youtube"}) or "")

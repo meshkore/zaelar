@@ -253,19 +253,25 @@ def _connector_briefs(open_ids: set[str]) -> str:
             # does NOT HALLUCINATE "you have no messages" when disconnected or unchecked (the headless test found
             # that it invented "you have no important messages" while the widget was closed).
             out = _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
-        # V2-603 — VIDEO ACCOUNTS, gated on the card being OPEN (same cost rule as messaging above). Without it
-        # the brain carried `connect_account` in its action list and no idea whether the account was connected,
-        # and it answered «Hecho.» to a connector that had no OAuth app registered at all. Only while the card
-        # is in front of the operator: that is exactly when he is talking about connecting it, and `suggest` /
-        # `open_connectors` both open it, so the state is there by the following turn.
-        if "youtube" in open_ids:
-            try:
-                from connectors.video import service as _vs
+        # V2-603 — VIDEO ACCOUNTS. TWO different gates, because they answer two different questions:
+        #
+        #   · the capability does NOT EXIST yet (no OAuth client anywhere) → ALWAYS, card open or not.
+        #   · the account's connection STATE → only while the card is open (the messaging cost rule).
+        #
+        # The always-on half was learned the hard way, live, minutes after F2 shipped: with the block gated on
+        # the open card, «Conéctame mi cuenta de YouTube» still answered «Te abro YouTube para que vincules tu
+        # cuenta, ahí te guía paso a paso» — offering a door that had just been sealed. A model cannot decline
+        # what is not in its prompt (V2-540), and «is this capability available at all» is exactly the fact a
+        # turn needs BEFORE any card is open, since the offer is what opens it. It costs ~70 tokens and only
+        # while the connector is off; once a client exists this branch disappears entirely.
+        try:
+            from connectors.video import service as _vs
+            if not _vs.available() or "youtube" in open_ids:
                 vstate = _vs.brain_state()
                 if vstate:
                     out = (out + "\n\n" + vstate) if out else vstate
-            except Exception:
-                pass
+        except Exception:
+            pass
         return out
     except Exception:
         pass
