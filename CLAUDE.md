@@ -470,6 +470,60 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603,
+  2026-09-06)**: session `e1acdcca` — nine minutes trying to connect YouTube, three browser windows, and the
+  account never connected. `video_oauth.json` did not exist and `/api/video/status` said
+  `app_configured: false`, so **every path was closed before the first word** and nothing said so. Between
+  11:19:19 and 11:20:47 the agent made **four claims of success and emitted one widget action**.
+  - **The brain had the VERBS and never the STATE.** `widgets/brief.py` shipped `connect_account` /
+    `open_connectors` every turn and never the fact that no app was registered. `_connector_briefs` injects
+    live state for **messaging only** — and its own docstring records that it exists because the brain
+    «invented "you have no important messages" while the widget was closed». Video is the third connector
+    family and never got the equivalent. Given a verb and no fact, the model narrates.
+  - **A failed data-op was DISCARDED.** `dispatch_tag` did `await brain_action(...)` and threw the value
+    away, so `connect_account`'s exact reason («sin app OAuth registrada») existed in-process, reached
+    observability as `widget/action_failed`, and reached nobody. Structural, not a slip: data-ops are
+    fire-and-forget, so **the turn speaks first and the op resolves after** — when it fails the sentence is
+    already wrong and nothing revisits it. Now `dispatch_and_report` announces it on the rails a finished
+    worker already uses, deduped 90 s, with a note that FORBIDS the claim rather than merely reporting.
+  - **A true sentence about the WRONG mechanism is the worst failure shape.** A worker drove the browser to
+    `accounts.google.com/signin` in the Playwright profile and the agent reported «la sesión se guardó en el
+    perfil del navegador» — true about that profile, and it produces no OAuth token. `brain_state` names
+    that trap explicitly, because a model cannot be expected to know the difference.
+  - **The redirect could only work on one machine**: hardcoded to `127.0.0.1:43917`, which on a managed
+    deployment is the OPERATOR's own computer. It follows the request origin now (validated
+    `scheme://host[:port]` — it is a header, so untrusted input landing in a URL we hand to Google) and
+    **rides under the OAuth state**, because the exchange must return the redirect that was authorized.
+  - **The wizard's first two steps were a Google Cloud project**, and step 2 was a dead end that told the
+    operator to go find ⚙ → Conectores himself. A shipped `builtin_client_id` (EMPTY until the operator
+    registers one — the connector still works, just the long way) makes it a single consent step; the
+    operator's own client always wins, which is what keeps the fair-code self-host story honest. **No
+    client_id field in the card**, deliberately: `widget.js` never touches the network (V2-557) and a
+    data-op never carries a credential (V2-520) — the fix was never to move the field, it was to stop
+    making him navigate. The callback refreshes the card itself, so the mandatory «Comprobar» is gone.
+  - **No environment detection**, though the ask was framed that way: the consent tries a pop-up and
+    degrades to a tappable link. One path that works self-hosted, in the cloud and on the PWA beats three
+    that each need their own testing.
+  - **«Perdona, ¿me lo repites?» ×4** — two faults in one string: it repeats (the sibling branch got
+    anti-repetition in V2-189 after the identical measured symptom) and it **blames the operator's speech
+    for a turn the model returned empty**. `mute_backstop` owns both branches so the two channels share the
+    decision instead of mirroring it, rotates, and after every variant admits it is stuck.
+  - **Routing**: `conecta` seeded `cluster` (MeshKore peers) and nothing else, so the most natural Spanish
+    word for linking an account retrieved peer-to-peer tools. And the widget's routing line was rewritten
+    **to fit** V2-547's 300-char budget — the first draft mentioned connecting only in its last sentence and
+    the trim ate exactly the half that routes this errand.
+  - Node **5.15** (22 cases, six disarms) + the V2-597 render tests updated to the new wizard (+3, two more
+    disarms). ⚠️ **One disarm came back GREEN and accused the TEST**: it only hit `dispatch_tag`'s guard
+    clause and never the real path. ⚠️ **And the first version polluted `sys.modules`** — `from voice import
+    brain_notes` reads the PACKAGE attribute, so a fake under the module name is ignored once anything else
+    imported the real one; it passed alone and failed in the full run. The architecture ratchet went red and
+    was paid by **extracting**: `nucleo.py` 3068→**3038**, `probe.py` 1144→**1137**.
+  - **NOT verified live** (needs a restart) and **the shipped client does not exist yet** — registering a
+    Google OAuth app owned by Zaelar is a business action and belongs in the workspace root's private repo.
+  - Left open and named: widget i18n (no `t()` seam exists in the widget layer at all — every widget's
+    strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
+    V2-570's linear-gate family, not this one.
+
 - **La agenda no inventa, y el aviso por defecto es SUYO (V2-473, 2026-08-29)**: el caso
   `dentist-appointment-into-agenda` (ES PASS 4/5 en 6 rondas de defecto-por-ronda; US 5/5 a la primera)
   dejó estas reglas en `widgets/agenda/data.py` + `nucleo/flash/{router,prompt}.py`. (1) **La escritura no
