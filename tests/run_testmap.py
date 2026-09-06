@@ -2167,6 +2167,16 @@ DOMAINS: list[dict] = [
                                 "(PENDIENTE hasta que haya una conectada)",
             "ch": UNIT, "live": True, "paths": [
                 "tests/connectors/unit/video/live_video_account_roundtrip.py"]},
+        # V2-603 — CONECTAR la cuenta, que es donde se rompió en vivo (sesión e1acdcca, 2026-09-06): nueve
+        # minutos intentándolo y el agente diciendo «Hecho.» sobre un conector sin app OAuth. Cubre las tres
+        # causas: el estado de conexión LLEGA al prompt (antes tenía los verbos y ningún hecho), una data-op
+        # fallida CORRIGE lo ya dicho en vez de desaparecer, y el redirect sigue al origen del operador (antes
+        # clavado a loopback, así que el consentimiento no podía completarse fuera de un escritorio local).
+        {"id": "5.15", "title": "Conectar una cuenta de vídeo: un paso, redirect que sigue al operador, "
+                                "y un fallo que SE DICE",
+            "ch": UNIT, "paths": [
+                "tests/connectors/unit/video/"
+                "test_connecting_an_account_is_one_step_and_failures_reach_the_operator.py"]},
     ]},
     {"id": "6", "name": "CLUSTER (meshkore)", "nodes": [
         {"id": "6.1", "title": "Cápsula / framing (una sola mente)", "ch": PEER, "paths": [

@@ -31,7 +31,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from nucleo.errors import brief as _brief
-from nucleo.flash import music_turn as _music_turn
+from nucleo.flash import music_turn as _music_turn, reminder_guards as _rg_mute
 from nucleo.flash import image_turn as _image_turn, listing_turn as _lt
 from nucleo.flash import video_turn as _video_turn
 from nucleo.flash import widget_data_turn as _widget_data_turn
@@ -1040,7 +1040,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # silencio total — y el turno SIGUIENTE, viendo ese hueco en la ventana, acabó ECOANDO la propia
                 # pregunta del operador ("Dime algo, por favor. ¿Se relanzó la búsqueda...?", literalmente sus
                 # palabras). Espejo del backstop genérico de `nucleo.py` (impl PARALELA, cablear en AMBOS).
-                spoken = _lg.filler_still_working if _hw else "Perdona, ¿me lo repites?"
+                spoken = _rg_mute.mute_backstop(sess.window, _lg, _hw)   # V2-603: rotates, owns the fault
         except Exception:
             pass
 

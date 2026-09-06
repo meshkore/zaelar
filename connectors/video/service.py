@@ -100,3 +100,46 @@ def suggestions(provider_id: str = "youtube", limit: int = _MAX_ITEMS) -> dict:
         # Subscriptions exist and no uploads came back: a different fact than an empty account, said apart.
         out["reason"] = "tus suscripciones no devolvieron vídeos recientes"
     return out
+
+
+def brain_state() -> str:
+    """One compact line per platform with its REAL connection state, for the FlashBrain turn prompt (V2-603).
+
+    The gap this closes is the expensive one. The brain already received this connector's ACTION LIST on every
+    turn (`widgets/brief.py`) — `connect_account`, `open_connectors`, `suggest` — and never once received the
+    FACT that no OAuth app was registered and no account connected. Asked to connect an account, it had a verb
+    and no state, so it narrated the outcome it assumed: «Hecho.», «La autentificación quedó completada»,
+    «Te conecto YouTube ahora mismo» (measured 2026-09-06, session e1acdcca — four claims, zero connections).
+
+    `connectors/messaging/brief._platform_states()` is the same fix for the same failure, and its docstring
+    records the same symptom («it invented "you have no important messages" while the widget was closed»).
+    Video is the third connector family and the first that had to pay for it twice, so the wording here follows
+    V2-582's rule: a state gets WORDS, never a bare enum — «error» reads as neither connected nor disconnected
+    and the model fills that ambiguity in both directions.
+
+    Deliberately short (~3 lines): this rides the hot prompt, gated by the card being open (`prompt.py`)."""
+    try:
+        rows = oauth.status()
+    except Exception:
+        return ""
+    if not rows:
+        return ""
+    lines = []
+    for r in rows:
+        label = r.get("label") or r.get("id")
+        if r.get("connected"):
+            state = f"CONECTADO ({r.get('tier_label') or r.get('tier') or 'solo lectura'})"
+        elif r.get("app_configured"):
+            state = ("SIN conectar — la app OAuth ya está registrada, solo falta que el operador AUTORICE "
+                     "su cuenta desde la tarjeta")
+        else:
+            state = ("SIN conectar y SIN app OAuth registrada — no se puede conectar todavía; el operador "
+                     "tiene que completar el alta desde la tarjeta")
+        lines.append(f"{label}: {state}.")
+    lines.append(
+        "NUNCA digas que has conectado, vinculado o autorizado una cuenta: tú no puedes: el consentimiento lo "
+        "da el operador en la ventana del proveedor. Lo ÚNICO que haces es abrirle la tarjeta con "
+        "`widget_data(youtube, open_connectors)` y decirle qué paso le toca. Si arriba pone SIN conectar, "
+        "sigue SIN conectar por mucho que se haya abierto un navegador o iniciado sesión en Google: entrar en "
+        "Google NO conecta este conector.")
+    return "VÍDEO (cuentas):\n" + "\n".join(lines)

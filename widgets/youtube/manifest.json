@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "YouTube",
   "description": "Reproductor de YouTube REAL embebido en el canvas: reproduce el vídeo de verdad (no una captura) y se controla por voz — reproducir, pausar, subir/bajar volumen, silenciar y reiniciar.",
-  "whenToUse": "Cuando el usuario quiere VER o REPRODUCIR un vídeo de YouTube en pantalla, poner un vídeo concreto, controlar la reproducción (play/pausa/volumen/silencio), o BUSCAR vídeos sobre un tema para elegir. Una búsqueda de vídeos llena SU lista de candidatos — nunca la hoja de resultados.",
+  "whenToUse": "Cuando el usuario quiere VER o REPRODUCIR un vídeo de YouTube, controlar la reproducción (play/pausa/volumen), BUSCAR vídeos para elegir, o CONECTAR/VINCULAR su cuenta de YouTube y pedir sugerencias de sus suscripciones. Una búsqueda llena SU lista — nunca la hoja de resultados.",
   "keywords": [
     "youtube",
     "vídeo",

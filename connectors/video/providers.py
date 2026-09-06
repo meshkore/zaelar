@@ -37,6 +37,14 @@ class VideoProvider:
     needs_client_secret: bool = False
     extra_auth_params: dict = field(default_factory=dict)
     note: str = ""
+    #: OAuth client SHIPPED with the engine (V2-603). When set, connecting is ONE step — the operator gives
+    #: consent and nothing else — instead of «create a Google Cloud project, an OAuth client, enable the Data
+    #: API, then come back». That three-step ask is what a measured session (2026-09-06) never got past.
+    #:
+    #: A client_id is NOT a secret for an installed app: PKCE is what protects the exchange, which is why this
+    #: can ship in a public repo. The operator's OWN client_id, when the credential store holds one, always
+    #: WINS over this — a self-hoster who wants their own quota and their own consent screen keeps it.
+    builtin_client_id: str = ""
 
     def tier(self, tier_id: str = "") -> ScopeTier:
         wanted = (tier_id or "").strip() or self.default_tier
@@ -68,9 +76,12 @@ PROVIDERS: dict[str, VideoProvider] = {
         # Without access_type=offline + prompt=consent Google returns NO refresh_token at all (measured on
         # the Drive connector, V2-557) — the connection would silently die within the hour.
         extra_auth_params={"access_type": "offline", "prompt": "consent"},
-        note="Necesita una app OAuth propia en Google Cloud (una vez; puede ser la misma que ya uses para "
-             "Google Drive o Fotos) con la YouTube Data API v3 habilitada. Cuota gratuita de sobra: leer "
-             "las suscripciones cuesta 1 unidad de 10.000 diarias."),
+        # EMPTY until the operator registers Zaelar's own Google OAuth client and pastes its id here. While
+        # it is empty the connector falls back to «bring your own app», which still works — it is just the
+        # long road. This is the ONE line that turns connecting YouTube into a single click for everybody.
+        builtin_client_id="",
+        note="Conecta tu cuenta de YouTube para que las sugerencias del inicio salgan de tus suscripciones. "
+             "Permiso de SOLO LECTURA: tu cuenta no se toca."),
 }
 
 

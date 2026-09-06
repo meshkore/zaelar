@@ -16,7 +16,7 @@ interface, never by editing files):
 
 Loopback, like the rest of the local API.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from connectors.video import oauth, providers, service
@@ -32,7 +32,7 @@ async def status():
 
 
 @router.post("/api/video/connect")
-async def connect(payload: dict | None = None):
+async def connect(request: Request, payload: dict | None = None):
     """Save the OAuth app credentials (if sent) and start the PKCE consent. Returns {ok, url, tier}."""
     payload = payload or {}
     pid = str(payload.get("provider") or "").strip().lower()
@@ -50,8 +50,42 @@ async def connect(payload: dict | None = None):
                 credentials.set_key(f"VIDEO_{p.id.upper()}_CLIENT_SECRET", secret)
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"ok": False, "error": f"credential_store:{e}"[:120]}, status_code=500)
-    res = oauth.authorize_url(p.id, str(payload.get("tier") or ""))
+    res = oauth.authorize_url(p.id, str(payload.get("tier") or ""), origin=_origin(request))
     return JSONResponse(res, status_code=200 if res.get("ok") else 400)
+
+
+def _origin(request: Request) -> str:
+    """The origin the operator is actually on, for the OAuth redirect. `Origin` is the honest header on the
+    POST that starts the flow; `Host` + scheme is the fallback. Whatever comes out is re-validated by
+    `oauth.redirect_uri`, which falls back to loopback rather than trusting a header blindly."""
+    try:
+        o = (request.headers.get("origin") or "").strip()
+        if o:
+            return o
+        host = (request.headers.get("host") or "").strip()
+        if host:
+            return f"{request.url.scheme}://{host}"
+    except Exception:
+        pass
+    return ""
+
+
+def _refresh_card(provider_id: str) -> None:
+    """Push the new connection state into the youtube card so the operator does not have to press «comprobar».
+
+    V2-603 — the wizard used to end on a button the operator had to press to discover whether the thing he had
+    just done had worked, on BOTH of its last two steps. The callback lands on our OWN server and already
+    knows the answer; `widgets/store.save` is the single choke point that pushes `widget/data` over SSE, so
+    writing the refreshed platform rows repaints the open card by itself. Best-effort: a connection that
+    succeeded must never be reported as failed because a card could not be refreshed."""
+    try:
+        from widgets import store
+        from widgets.youtube import data as ydata
+        db = store.load(ydata.WID, ydata._seed())
+        ydata._sync_platforms(db)
+        store.save(ydata.WID, db)
+    except Exception:
+        pass
 
 
 @router.get("/api/video/callback")
@@ -60,6 +94,8 @@ async def callback(code: str = "", state: str = "", error: str = ""):
         return HTMLResponse(_page(False, f"el proveedor devolvió un error: {error}"))
     res = oauth.exchange_code(code, state)
     ok = bool(res.get("ok"))
+    if ok:
+        _refresh_card(str(res.get("provider") or ""))
     label = providers.get(res.get("provider") or "")
     return HTMLResponse(
         _page(ok, "" if ok else str(res.get("error") or "no se pudo completar la conexión"),

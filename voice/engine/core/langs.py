@@ -66,6 +66,20 @@ class LangSpec:
     # cases. None of these asserts a STEP — that is the line V2-133 established and does not cross.
     holding_lines: tuple = ("Vale, dame un momento que lo miro.", "Sigo con ello; te aviso en cuanto lo tenga.",
                             "Sigue en marcha; en cuanto tenga algo te lo digo.")
+    # V2-603: the SAME treatment for the OTHER half of the mute backstop — the one with no background task
+    # running, which had exactly one line, «Perdona, ¿me lo repites?», and said it every single time. Measured
+    # on the operator's engine (2026-09-06, session e1acdcca): four times in ninety seconds, ending in «Pero
+    # ¿por qué te lo tengo que repetir?». Two faults in one string. It repeats, which `holding_lines` exists to
+    # prevent on the sibling branch; and it blames the operator's SPEECH for a turn the model returned empty —
+    # he had been perfectly clear, four times. These say the honest thing instead: the fault was ours.
+    #: Said when every `mute_lines` variant is already in the last three turns — the operator has repeated
+    #: himself three times into an engine that keeps coming back empty. Cycling a fourth apology pretends this
+    #: is a hiccup; it is not, and saying so is the only useful thing left.
+    mute_stuck: str = ("Algo no está funcionando bien por mi parte: llevo tres intentos sin contestarte. "
+                       "Si quieres, párame y vuelve a arrancarme.")
+    mute_lines: tuple = ("Perdona, se me ha ido. ¿Me lo dices otra vez?",
+                         "Perdona, no te he seguido bien. ¿Qué querías que hiciera?",
+                         "Se me ha cruzado algo por dentro y no te he contestado. Dime otra vez qué necesitas.")
     # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
     # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("Lleva {min} min y todavía no me ha dado nada. ¿La dejo seguir o la paro y "
@@ -180,6 +194,11 @@ LANGUAGES: dict[str, LangSpec] = {
         holding_lines=("Alright, give me a moment to look into that.",
                        "Still on it; I'll let you know as soon as I have it.",
                        "It's still running; I'll tell you the moment I have something."),
+        mute_stuck=("Something is wrong on my end: that's three turns without answering you. "
+                    "Stop me and start me again if you like."),
+        mute_lines=("Sorry, I lost that. Could you say it again?",
+                    "Sorry, I didn't follow. What did you want me to do?",
+                    "Something went sideways on my end and I didn't answer. Tell me again what you need."),
         filler_waited=("It's been {min} min and it still hasn't given me anything. Shall I let it run, or "
                        "stop it and try another way?"),
         worker_ask_named="Hey, the «{goal}» process is asking: {question}",

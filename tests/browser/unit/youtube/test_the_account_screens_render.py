@@ -37,6 +37,9 @@ _SUGG = [
 _ROW_OFF = {"id": "youtube", "label": "YouTube", "connected": False, "app_configured": False}
 _ROW_APP = {"id": "youtube", "label": "YouTube", "connected": False, "app_configured": True}
 _ROW_ON = {"id": "youtube", "label": "YouTube", "connected": True, "app_configured": True}
+# V2-603: the engine ships its own OAuth client → connecting is ONE consent step, no Google Cloud project.
+_ROW_BUILTIN = {"id": "youtube", "label": "YouTube", "connected": False, "app_configured": True,
+                "builtin_app": True}
 
 
 @pytest.fixture(scope="module")
@@ -97,22 +100,36 @@ def test_the_platform_icon_renders_dimmed_and_opens_the_wizard(_page):
     icon.click()
     step = _page.locator(".hb-ytw-step")
     assert step.count() == 1                                             # ONE step visible at a time
-    assert "Paso 1 de 3" in step.inner_text()
-    assert "Google Cloud" in step.inner_text()
+    # V2-603: with no shipped client this is the bring-your-own-app road — now TWO steps, not three, and its
+    # first step OPENS the settings panel instead of telling the operator to go and find it.
+    assert "Paso 1 de 2" in step.inner_text()
+    assert "Configuración" in step.inner_text()
     # Connect mode hides the player faces — the wizard replaces the card, never stacks under it.
     assert _page.evaluate("() => document.querySelector('.hb-yt').classList.contains('hb-yt-connmode')")
     assert _page.locator(".hb-yt-home").evaluate("e => getComputedStyle(e).display") == "none"
+
+
+def test_a_shipped_oauth_client_makes_it_a_SINGLE_consent_step(_page):
+    """V2-603, the whole point of the decision. Measured on the operator's engine (session e1acdcca): he never
+    got past «create an OAuth client in Google Cloud», so the account was never connected. With a client
+    shipped there is nothing to create — one screen, one button."""
+    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN]})
+    _page.locator(".hb-yt-picon").click()
+    txt = _page.locator(".hb-ytw-step").inner_text()
+    assert "Autoriza tu cuenta" in txt
+    assert "Google Cloud" not in txt and "client_id" not in txt          # no project, no credentials, no road
+    assert "Paso" not in txt                                             # one step needs no counter
+    assert _page.get_by_text("Conectar YouTube").count() == 1
 
 
 def test_the_wizard_advances_step_by_step_and_check_reads_the_actions_answer(_page):
     _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]},
            replies={"sync_platforms": {"ok": True, "platforms": [_ROW_APP]}})
     _page.locator(".hb-yt-picon").click()
-    _page.get_by_text("Ya la tengo — continuar").click()
-    assert "Paso 2 de 3" in _page.locator(".hb-ytw-step").inner_text()
-    _page.get_by_text("Comprobar y continuar").click()
+    _page.get_by_text("Ya está — continuar").click()
     _page.wait_for_timeout(50)
-    assert "Paso 3 de 3" in _page.locator(".hb-ytw-step").inner_text()
+    assert "Paso 2 de 2" in _page.locator(".hb-ytw-step").inner_text()
+    assert "Autoriza tu cuenta" in _page.locator(".hb-ytw-step").inner_text()
     assert [c[0] for c in _page.evaluate("window.__calls") if c[0] == "sync_platforms"]
 
 
@@ -120,39 +137,50 @@ def test_a_failed_check_speaks_instead_of_advancing(_page):
     _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]},
            replies={"sync_platforms": {"ok": True, "platforms": [_ROW_OFF]}})
     _page.locator(".hb-yt-picon").click()
-    _page.get_by_text("Ya la tengo — continuar").click()
-    _page.get_by_text("Comprobar y continuar").click()
+    _page.get_by_text("Ya está — continuar").click()
     _page.wait_for_timeout(50)
-    assert "Paso 2 de 3" in _page.locator(".hb-ytw-step").inner_text()   # did not advance
+    assert "Paso 1 de 2" in _page.locator(".hb-ytw-step").inner_text()   # did not advance
     assert _page.locator(".hb-ytw-err").count() == 1                     # and said why
 
 
+def test_the_byo_step_opens_the_settings_panel_instead_of_describing_where_it_is(_page):
+    """The measured dead end: step 2 used to be a sentence — «pega el client_id en ⚙ → Conectores» — and the
+    operator had to go and find that screen himself. A widget cannot import the store, so it asks the host
+    through the `hb:` DOM event the rail and the desktop already use."""
+    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]})
+    _page.evaluate("""() => { window.__cfg = [];
+        document.addEventListener('hb:open-config', e => window.__cfg.push(e.detail)); }""")
+    _page.locator(".hb-yt-picon").click()
+    _page.get_by_text("Abrir Configuración → Conectores").click()
+    _page.wait_for_timeout(50)
+    assert _page.evaluate("window.__cfg") == [{"tab": "conectores"}]
+
+
 def test_connect_opens_the_window_synchronously_and_fills_it_from_the_action(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_APP],
+    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN],
                    "connect_focus": {"platform": "youtube", "ts": int(time.time() * 1000)}},
            replies={"connect_account": {"ok": True, "url": "https://accounts.google.com/consent?x=1"}})
     # The voice door: a fresh connect_focus opens the wizard with no click at all.
     assert _page.locator(".hb-ytw-step").count() == 1
-    _page.get_by_text("Ya la tengo — continuar").click()
-    # app already registered → step 2 says so and lets you continue
-    assert "App registrada" in _page.locator(".hb-ytw-step").inner_text()
-    _page.get_by_text("Comprobar y continuar").click()
-    _page.wait_for_timeout(50)
-    # replies has no sync_platforms → the check cannot confirm; jump straight via the recorded step state
-    _page.evaluate("() => null")
-    # Drive step 3 directly through a fresh mount (module state is per-document, the wizard step is not data)
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_APP]},
-           replies={"connect_account": {"ok": True, "url": "https://accounts.google.com/consent?x=1"},
-                    "sync_platforms": {"ok": True, "platforms": [_ROW_APP]}})
-    _page.locator(".hb-yt-picon").click()
-    _page.get_by_text("Ya la tengo — continuar").click()
-    _page.get_by_text("Comprobar y continuar").click()
-    _page.wait_for_timeout(50)
     _page.get_by_text("Conectar YouTube").click()
     _page.wait_for_timeout(80)
     assert ["connect_account", {"platform": "youtube"}] in _page.evaluate("window.__calls")
     opened = _page.evaluate("window.__opened")
     assert opened and opened[0]["location"].startswith("https://accounts.google.com/")
+
+
+def test_a_blocked_popup_offers_the_link_instead_of_looking_like_a_dead_button(_page):
+    """V2-603 — this is what makes the flow survive a phone and a strict desktop policy without any
+    environment detection: when `window.open` returns null the consent URL is rendered as a link."""
+    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN]},
+           replies={"connect_account": {"ok": True, "url": "https://accounts.google.com/consent?x=1"}})
+    _page.evaluate("() => { window.open = () => null; }")                # the browser refuses the pop-up
+    _page.locator(".hb-yt-picon").click()
+    _page.get_by_text("Conectar YouTube").click()
+    _page.wait_for_timeout(80)
+    link = _page.locator(".hb-ytw-step a[href^='https://accounts.google.com/']")
+    assert link.count() == 1, _page.locator(".hb-ytw-step").inner_text()
+    assert "bloqueó" in _page.locator(".hb-ytw-step").inner_text()
 
 
 def test_a_connected_platform_shows_bright_and_its_status_screen_disconnects(_page):

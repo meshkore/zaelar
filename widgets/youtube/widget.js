@@ -108,6 +108,13 @@ function injectStyles(){
   .hb-ytw-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .hb-ytw-err{font-size:12px;color:var(--hb-risk,#e5484d);line-height:1.4}
   .hb-ytw-ok{font-size:12.5px;color:var(--hb-accent,#3D6FE0);font-weight:600}
+  /* V2-603 — secondary actions under the primary button: the manual check (now a fallback, not the way the
+     flow completes) and the escape hatch to one's own OAuth app. Links, not buttons: a second button next to
+     «Conectar» reads as an equal choice, and neither of these is one. */
+  .hb-ytw-alt{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px}
+  .hb-ytw-link{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;text-decoration:underline;
+    text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
+  .hb-ytw-link:hover{color:var(--hb-accent,#3D6FE0)}
   /* HOME suggestions band (V2-597): section header spanning the grid; tiles reuse .hb-yt-tile. */
   .hb-yt-sughead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
                  color:var(--hb-ink,#0d1622);margin-top:2px}
@@ -186,7 +193,8 @@ function post(iframe, func, args){
 // Module-lived screen state (the module loads once, so it survives re-renders — the messaging pattern):
 // null = normal faces · {view:"wizard"|"status", platform} = a platform's connect/status screen.
 let _screen = null;
-const _wizStep = {};        // platform -> current wizard step (1..3)
+const _wizStep = {};        // platform -> current wizard step (1..2)
+let _connUrl = "";          // consent URL to offer as a link when the pop-up was blocked
 let _focusDone = 0;         // last honoured connect_focus ts (consumed once per timestamp)
 let _syncAsked = 0;         // last time this card asked for a platform re-sync (guards against loops)
 let _connBusy = false;      // a connect/check round-trip is running (buttons disabled meanwhile)
@@ -293,88 +301,120 @@ function renderConn(E, root, data, ctx){
     return;
   }
 
-  // WIZARD — three numbered boxes, ONE visible at a time (V2-561's shape).
-  const total = 3;
+  // WIZARD (V2-603). Its SHAPE depends on whose OAuth app this install uses, because that is the whole
+  // difference between one click and an afternoon:
+  //
+  //   builtin_app: true  → ONE step. The operator gives consent and nothing else.
+  //   builtin_app: false → the bring-your-own-app road, still two steps, but the first one now OPENS the
+  //                        settings panel on the right tab instead of telling him to go find it.
+  //
+  // What is deliberately NOT here: a client_id field. Two invariants forbid it — `widget.js` never touches
+  // the network (V2-557) and a widget data-op never carries a credential (V2-520) — so the credential is
+  // typed in ⚙ → Conectores, which is the one surface allowed to hold it. The fix for the old dead-end was
+  // never to move the field; it was to stop making the operator navigate there on his own.
+  //
+  // And there is no mandatory «comprobar» any more: the OAuth callback lands on our own server, refreshes
+  // this widget's store and the card repaints over SSE. The manual check survives only as a quiet fallback
+  // for the case where that push never arrives.
+  const builtin = !!row.builtin_app;
+  const total = builtin ? 1 : 2;
   let step = Math.min(Math.max(_wizStep[pid] || 1, 1), total);
+  if(builtin) step = 1;
   _wizStep[pid] = step;
+
+  // Opening the consent. The window is opened SYNCHRONOUSLY on the click or the browser blocks it (the
+  // archivos pattern) — and when it IS blocked (a phone, a strict desktop policy) the URL is shown as a
+  // link the operator can tap instead of the flow dying with no explanation. That degradation is why this
+  // needs no environment detection: one path that works on a self-hosted desktop, in the cloud and on the
+  // PWA beats three that each need their own testing.
+  const startConsent = async () => {
+    const w = window.open("", "_blank");
+    const r = await act("connect_account", {platform: pid});
+    if(r && r.ok && r.url){
+      _connErr = "";
+      if(w){ w.location = r.url; _connUrl = ""; }
+      else { _connUrl = r.url; }                  // pop-up blocked → offer the link
+    } else {
+      if(w){ try{ w.close(); }catch(_e){} }
+      _connUrl = "";
+      _connErr = (r && (r.message || r.error)) || "No pude empezar la conexión.";
+    }
+    repaint();
+  };
+
   let sb;
-  if(step === 1){
-    sb = stepBox(1, total, "Crea tu app OAuth en Google Cloud");
+  if(!builtin && step === 1){
+    sb = stepBox(1, total, "Registra una app OAuth de Google");
     const body = el("div", "hb-ytw-body");
-    const l1 = el("div", "");
-    l1.appendChild(document.createTextNode("Entra en "));
-    const a = document.createElement("a");
-    a.href = "https://console.cloud.google.com/apis/credentials";
-    a.target = "_blank"; a.rel = "noopener";
-    a.textContent = "console.cloud.google.com/apis/credentials";
-    l1.appendChild(a);
-    l1.appendChild(document.createTextNode(" y crea un «ID de cliente de OAuth» (tipo: aplicación de escritorio)."));
-    body.appendChild(l1);
-    body.appendChild(el("div", "", "En la biblioteca de APIs del mismo proyecto, habilita la «YouTube Data API v3»."));
-    body.appendChild(el("div", "", "Puede ser la misma app que ya uses para Google Drive o Fotos."));
-    sb.appendChild(body);
-    const foot = el("div", "hb-ytw-foot");
-    const next = btn("Ya la tengo — continuar");
-    next.addEventListener("click", () => { _wizStep[pid] = 2; _connErr = ""; repaint(); });
-    foot.appendChild(next);
-    sb.appendChild(foot);
-  } else if(step === 2){
-    sb = stepBox(2, total, "Registra el client_id en zaelar");
-    const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", "Pega el client_id (y el client_secret) en Configuración ⚙ → Conectores "
-                                   + "→ YouTube. Se guarda una sola vez; por esta tarjeta nunca viajan credenciales."));
+    body.appendChild(el("div", "", "Esta instalación todavía no trae una app de Google propia, así que hace "
+                                   + "falta la tuya: se registra UNA vez y sirve también para Drive y Fotos."));
     body.appendChild(row.app_configured
       ? el("div", "hb-ytw-ok", "✓ App registrada — puedes continuar.")
-      : el("div", "", "Aún no veo ninguna app registrada."));
+      : el("div", "", "Las credenciales se guardan en Configuración; por esta tarjeta nunca viajan."));
     sb.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
-    const back = btn("‹ Anterior");
-    back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; repaint(); });
-    foot.appendChild(back);
-    const next = btn("Comprobar y continuar");
+    const go = btn("Abrir Configuración → Conectores");
+    go.addEventListener("click", () => {
+      // The card cannot import the app's store, so it asks for the panel the way every widget talks to the
+      // host: a DOM event (the `hb:` convention desktop.js and the rail already use).
+      try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
+    });
+    foot.appendChild(go);
+    const next = btn("Ya está — continuar");
     next.addEventListener("click", async () => {
       const r = await act("sync_platforms", {});
       const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
-      if(fresh && fresh.app_configured){ _wizStep[pid] = 3; _connErr = ""; }
-      else { _connErr = "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a comprobar."; }
+      if(fresh && fresh.app_configured){ _wizStep[pid] = 2; _connErr = ""; }
+      else { _connErr = "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a intentarlo."; }
       repaint();
     });
     foot.appendChild(next);
     sb.appendChild(foot);
   } else {
-    sb = stepBox(3, total, "Autoriza tu cuenta");
+    sb = stepBox(builtin ? 1 : 2, total, "Autoriza tu cuenta de YouTube");
     const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", "Se abrirá una ventana de Google para dar permiso de SOLO LECTURA "
-                                   + "(tus suscripciones). Cuando la cierres, toca «comprobar»."));
+    body.appendChild(el("div", "", "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus "
+                                   + "suscripciones. Zaelar no puede tocar tu cuenta."));
+    body.appendChild(el("div", "", "En cuanto termines, esta tarjeta se actualiza sola."));
     sb.appendChild(body);
     const foot = el("div", "hb-ytw-foot");
-    const back = btn("‹ Anterior");
-    back.addEventListener("click", () => { _wizStep[pid] = 2; _connErr = ""; repaint(); });
-    foot.appendChild(back);
-    const go = btn(_connBusy ? "Conectando…" : "Conectar " + (row.label || "YouTube"));
-    go.addEventListener("click", async () => {
-      // The window opens SYNCHRONOUSLY on the click (or the browser blocks the pop-up); its location is
-      // filled after the action answers — the archivos consent pattern.
-      const w = window.open("", "_blank");
-      const r = await act("connect_account", {platform: pid});
-      if(r && r.ok && r.url){ if(w) w.location = r.url; _connErr = ""; }
-      else {
-        if(w){ try{ w.close(); }catch(_e){} }
-        _connErr = (r && r.error) || "No pude empezar la conexión.";
-      }
-      repaint();
-    });
+    if(!builtin){
+      const back = btn("‹ Anterior");
+      back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; _connUrl = ""; repaint(); });
+      foot.appendChild(back);
+    }
+    const go = btn(_connBusy ? "Conectando…" : "Conectar " + (row.label || "YouTube"), "bt-primary");
+    go.addEventListener("click", startConsent);
     foot.appendChild(go);
-    const chk = btn("Ya he autorizado — comprobar");
+    sb.appendChild(foot);
+    if(_connUrl){
+      // The pop-up never opened. Say so plainly and hand over the link — silence here reads as a dead button.
+      const blocked = el("div", "hb-ytw-body");
+      blocked.appendChild(el("div", "", "Tu navegador bloqueó la ventana. Abre este enlace para autorizar:"));
+      const a = document.createElement("a");
+      a.href = _connUrl; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = "Abrir la autorización de Google";
+      blocked.appendChild(a);
+      sb.appendChild(blocked);
+    }
+    const alt = el("div", "hb-ytw-alt");
+    const chk = el("span", "hb-ytw-link", "¿No se ha actualizado? Comprobar ahora");
     chk.addEventListener("click", async () => {
       const r = await act("sync_platforms", {});
       const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
-      if(fresh && fresh.connected){ _screen = {view: "status", platform: pid}; _connErr = ""; }
-      else { _connErr = "Aún no veo la cuenta conectada — completa la ventana de Google y vuelve a comprobar."; }
+      if(fresh && fresh.connected){ _screen = {view: "status", platform: pid}; _connErr = ""; _connUrl = ""; }
+      else { _connErr = "Todavía no veo la cuenta conectada — termina la ventana de Google."; }
       repaint();
     });
-    foot.appendChild(chk);
-    sb.appendChild(foot);
+    alt.appendChild(chk);
+    if(builtin){
+      const own = el("span", "hb-ytw-link", "Usar mi propia app OAuth");
+      own.addEventListener("click", () => {
+        try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
+      });
+      alt.appendChild(own);
+    }
+    sb.appendChild(alt);
   }
   if(_connErr) sb.appendChild(el("div", "hb-ytw-err", _connErr));
   box.appendChild(sb);

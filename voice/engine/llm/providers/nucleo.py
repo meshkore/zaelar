@@ -162,9 +162,8 @@ def _resolve_pending_confirm(ok: bool) -> bool:
                 pass
         elif p.get("action") == "data" and isinstance(p.get("op"), dict):
             try:
-                import widgets
-                _spawn(widgets.dispatch_tag("widget.data", {"id": p["widget_id"], "data": p["op"]}),
-                       "widget-data-confirmed")
+                _spawn(_data_ops.dispatch_and_report(p["widget_id"], str(p["op"].get("action") or ""),
+                                                     p["op"].get("payload") or {}), "widget-data-confirmed")
                 emit("brain", "✅ acción irreversible confirmada", role="system",
                      text=f"{p['widget_id']}:{p['op'].get('action')}")
             except Exception:
@@ -1118,10 +1117,7 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception:
                     pass
                 try:
-                    import widgets
-                    _spawn(widgets.dispatch_tag("widget.data",
-                                                {"id": wid, "data": {"action": action_name, "payload": payload or {}}}),
-                           "widget-data")
+                    _spawn(_data_ops.dispatch_and_report(wid, action_name, payload or {}), "widget-data")
                 except Exception:
                     pass
             elif mode == _wactions.CONFIRM:
@@ -2747,8 +2743,8 @@ class NucleoLLMStream(llm.LLMStream):
         if not spoken_text:
             try:
                 from voice.engine.core import langs
-                spoken_text = langs.current_language().filler_still_working if _prev_pending \
-                    else "Perdona, ¿me lo repites?"
+                from nucleo.flash import reminder_guards as _rg_mute      # V2-603: the shared decision
+                spoken_text = _rg_mute.mute_backstop(brain._window, langs.current_language(), _prev_pending)
             except Exception:
                 spoken_text = "Sigo con ello." if _prev_pending else "Perdona, ¿me lo repites?"
             send(speech.sanitize(spoken_text, drop_metadata=False))

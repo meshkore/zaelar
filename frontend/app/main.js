@@ -287,6 +287,19 @@ window.addEventListener("drop", (e) => {
   for (const file of files) uploadFile(file, "drop");
 });
 
+// ---- a widget asks for the settings panel (V2-603) ----
+// A widget's `widget.js` cannot import the store, so it asks the host the way the rail and the desktop
+// already do: a `hb:` DOM event. Born for the YouTube connect card, whose bring-your-own-app step used to
+// end in a sentence telling the operator to go and find ⚙ → Conectores on his own — the dead-end that a
+// measured session (2026-09-06) never got past. The tab name is NOT validated here on purpose: ConfigPanel
+// already checks it against its own TABS before honouring it, and a second copy of that list here is one
+// that drifts the day a tab is renamed.
+document.addEventListener("hb:open-config", (e) => {
+  const tab = String(((e && e.detail) || {}).tab || "").trim();
+  store.setConfigInitialTab(tab || null);
+  store.setConfigOpen(true);
+});
+
 // system-status poller: keeps the ◉ icon's color/blink live even with the panel closed
 startStatusPolling();
 

@@ -582,3 +582,45 @@ def safe_reminder_prompt(prompt: str) -> str:
     if not p or _AGENT_IMPERATIVE_RE.search(p) or not _FIRST_PERSON_DUTY_RE.search(p):
         return p
     return _reminder_prompt(p, p)
+
+
+def mute_line(window, lang=None) -> str:
+    """The never-mute filler for a turn that came back EMPTY with no background work to report — and one that
+    does NOT repeat itself, and does not blame the operator (V2-603).
+
+    Sibling of `holding_line`, built for the other branch of the same backstop. That one got anti-repetition in
+    V2-189 after «Vale, dame un momento que lo miro.» was measured four times word for word; this branch kept
+    a single hardcoded string and was measured doing exactly the same thing on the operator's own engine
+    (2026-09-06, session e1acdcca): «Perdona, ¿me lo repites?» four times in ninety seconds, answered with
+    «Pero ¿por qué te lo tengo que repetir?».
+
+    The wording change matters as much as the rotation. The old line asked the operator to repeat himself for a
+    turn HE had said perfectly well — the model returned nothing, which is our fault, not his — so from the
+    outside the agent looks like it cannot understand plain speech. These lines own it instead. Same rule as
+    the sibling: never claim a step, never claim work is happening when none is."""
+    try:
+        from voice.engine.core import langs as _langs
+        lang = lang or _langs.current_language()
+    except Exception:
+        return "Perdona, se me ha ido. ¿Me lo dices otra vez?"
+    lines = tuple(getattr(lang, "mute_lines", ()) or ("Perdona, ¿me lo repites?",))
+    said = [str((m or {}).get("content") or "").strip()
+            for m in (window or []) if (m or {}).get("role") == "assistant"]
+    recent = [t for t in said[-3:] if t]
+    for cand in lines:
+        if cand not in recent:
+            return cand
+    # Every variant is already in the last three turns: the operator has been talking into a hole. Say THAT,
+    # rather than cycling a fourth apology — the only honest thing left is that this is not working.
+    return str(getattr(lang, "mute_stuck", "") or lines[-1])
+
+
+def mute_backstop(window, lang, has_work: bool) -> str:
+    """The WHOLE decision for a turn that came back mute, so the two channels share it instead of mirroring it.
+
+    Background work running → say so. Nothing running → `mute_line`, which rotates and owns the fault. Both
+    halves used to be written out at each call site, which is how the pending branch got V2-189's
+    anti-repetition and the other one kept a single hardcoded «Perdona, ¿me lo repites?» for a year."""
+    if has_work:
+        return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
+    return mute_line(window, lang)

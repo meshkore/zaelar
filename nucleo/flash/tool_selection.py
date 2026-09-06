@@ -75,11 +75,17 @@ _HINTS: dict[str, tuple[str, ...]] = {
     # search escalated to a Brain Worker that took 9+ minutes to rediscover the widget's own `search` data-op.
     # Photos already carried both numbers because V2-548 paid this exact incident for them; music and video
     # had only the singular. Same rule as always: the SAME seeds in the other number, never a longer verb list.
+    # V2-603: the ACCOUNT verbs. «conecta» was a seed of `cluster` (MeshKore peers) and of nothing else, so the
+    # most natural Spanish word for linking an account retrieved peer-to-peer tools. Measured on «Vamos,
+    # conecta.» while the operator was connecting YouTube: `named: ["cluster"]`, `omitted: ["media"]`. Families
+    # are not exclusive, so `cluster` keeps its seed and this does not take anything from it.
     "media": ("musica", "cancion", "canciones", "suena", "spotify", "video", "videos", "youtube", "pon",
               "reproduce", "volumen", "podcast", "podcasts", "documental", "documentales",
               "play", "music", "song", "songs", "sube", "baja",
               "foto", "fotos", "fotografia", "fotografias", "imagen", "imagenes",
-              "photo", "photos", "picture", "pictures", "pic", "image", "images"),
+              "photo", "photos", "picture", "pictures", "pic", "image", "images",
+              "conecta", "conectar", "conectame", "vincula", "vincular", "cuenta", "suscripciones",
+              "connect", "link", "account", "subscriptions"),
     "workers": ("para", "paralo", "cancela", "cancelalo", "detente", "worker", "tarea", "proceso", "busqueda",
                 "informe", "responde", "contesta", "stop", "task"),
     "cluster": ("cluster", "meshkore", "peer", "agente", "invitacion", "commons", "conecta"),

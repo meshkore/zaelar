@@ -245,13 +245,28 @@ def _connector_briefs(open_ids: set[str]) -> str:
             _msg_on = _msg_on or _tg.enabled()
         except Exception:
             pass
+        out = ""
         if _msg_on:
             from connectors.messaging import brief as _mb
             # OPEN widget → full brief (protocol + live list, visible to the operator). CLOSED but messaging
             # CONFIGURED → connection STATE only (concise, ~2 lines): FlashBrain then knows whether it can read and
             # does NOT HALLUCINATE "you have no messages" when disconnected or unchecked (the headless test found
             # that it invented "you have no important messages" while the widget was closed).
-            return _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
+            out = _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
+        # V2-603 — VIDEO ACCOUNTS, gated on the card being OPEN (same cost rule as messaging above). Without it
+        # the brain carried `connect_account` in its action list and no idea whether the account was connected,
+        # and it answered «Hecho.» to a connector that had no OAuth app registered at all. Only while the card
+        # is in front of the operator: that is exactly when he is talking about connecting it, and `suggest` /
+        # `open_connectors` both open it, so the state is there by the following turn.
+        if "youtube" in open_ids:
+            try:
+                from connectors.video import service as _vs
+                vstate = _vs.brain_state()
+                if vstate:
+                    out = (out + "\n\n" + vstate) if out else vstate
+            except Exception:
+                pass
+        return out
     except Exception:
         pass
     return ""

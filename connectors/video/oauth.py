@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import time
 import urllib.parse
 from pathlib import Path
@@ -26,6 +27,8 @@ STORE = _ROOT / ".meshkore" / "credentials" / "video_oauth.json"
 _REFRESH_SKEW = 120
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/video/callback"
 _PENDING_TTL = 900
+#: scheme://host[:port] and nothing else — no path, no query, no control characters.
+_ORIGIN_RE = re.compile(r"^https?://[A-Za-z0-9.\-]+(?::\d{1,5})?$")
 
 
 def _cred(name: str) -> str:
@@ -40,7 +43,21 @@ def _cred(name: str) -> str:
 
 
 def client_id(provider_id: str) -> str:
-    return _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_ID")
+    """The OAuth client this install uses. The operator's OWN always wins; otherwise the one SHIPPED with the
+    engine (V2-603). Returns "" when neither exists — the connector then stays dormant and SAYS so."""
+    own = _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_ID")
+    if own:
+        return own
+    p = _pv.get(provider_id)
+    return (p.builtin_client_id or "").strip() if p else ""
+
+
+def uses_builtin_app(provider_id: str) -> bool:
+    """True when this install is riding Zaelar's shipped client rather than one the operator registered.
+    Drives the wizard's SHAPE: one consent step, or the whole bring-your-own-app road."""
+    own = _cred(f"VIDEO_{provider_id.upper().replace('-', '_')}_CLIENT_ID")
+    p = _pv.get(provider_id)
+    return not own and bool(p and (p.builtin_client_id or "").strip())
 
 
 def client_secret(provider_id: str) -> str:
@@ -51,8 +68,27 @@ def configured(provider_id: str) -> bool:
     return bool(_pv.get(provider_id) and client_id(provider_id))
 
 
-def redirect_uri() -> str:
-    return os.getenv("VIDEO_OAUTH_REDIRECT") or _DEFAULT_REDIRECT
+_CALLBACK_PATH = "/api/video/callback"
+
+
+def redirect_uri(origin: str = "") -> str:
+    """Where the provider sends the operator back. V2-603 — DERIVED from the origin they are actually on.
+
+    It used to be hardcoded to `127.0.0.1:43917`, which is only correct for a self-hosted engine opened on the
+    same machine. On a managed deployment that address is the OPERATOR's own computer, not the engine, so the
+    provider would redirect the consent into a machine that has never heard of the pending state — the flow
+    could not complete at all, and the failure looks like «the connector is broken».
+
+    An explicit `VIDEO_OAUTH_REDIRECT` still wins (a deployment that knows its public address). The origin is
+    accepted only if it LOOKS like one (scheme + host, no path, no CR/LF): it arrives from a request header,
+    so it is untrusted input that ends up in a URL handed to the provider."""
+    env = (os.getenv("VIDEO_OAUTH_REDIRECT") or "").strip()
+    if env:
+        return env
+    o = (origin or "").strip().rstrip("/")
+    if o and _ORIGIN_RE.match(o):
+        return o + _CALLBACK_PATH
+    return _DEFAULT_REDIRECT
 
 
 def _load() -> dict:
@@ -89,7 +125,7 @@ def forget(provider_id: str) -> dict:
     return {"ok": True, "provider": provider_id}
 
 
-def authorize_url(provider_id: str, tier_id: str = "") -> dict:
+def authorize_url(provider_id: str, tier_id: str = "", origin: str = "") -> dict:
     p = _pv.get(provider_id)
     if not p:
         return {"ok": False, "error": f"proveedor desconocido: {provider_id}"}
@@ -107,10 +143,14 @@ def authorize_url(provider_id: str, tier_id: str = "") -> dict:
             pend.pop(k, None)
     # The verifier AND the chosen tier ride under the random state: the callback only brings code+state,
     # so everything the exchange needs must be stashed here.
-    pend[state] = {"provider": p.id, "tier": tier.id, "verifier": verifier, "ts": now}
+    # The redirect is stashed with the verifier because OAuth requires the EXCHANGE to send back the exact
+    # same value: now that it is derived per request, recomputing it at callback time could differ and the
+    # provider would reject the exchange with a mismatch nobody could read.
+    ruri = redirect_uri(origin)
+    pend[state] = {"provider": p.id, "tier": tier.id, "verifier": verifier, "ts": now, "redirect": ruri}
     _save(data)
     params = {
-        "client_id": cid, "response_type": "code", "redirect_uri": redirect_uri(),
+        "client_id": cid, "response_type": "code", "redirect_uri": ruri,
         "scope": " ".join(tier.scopes), "state": state,
         "code_challenge": challenge, "code_challenge_method": "S256",
         **(p.extra_auth_params or {}),
@@ -129,7 +169,8 @@ def exchange_code(code: str, state: str) -> dict:
     if not p:
         return {"ok": False, "error": "proveedor inválido"}
     body = {
-        "grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri(),
+        "grant_type": "authorization_code", "code": code,
+        "redirect_uri": pend.get("redirect") or redirect_uri(),
         "client_id": client_id(p.id), "code_verifier": pend["verifier"],
     }
     sec = client_secret(p.id)
@@ -200,5 +241,8 @@ def status() -> list[dict]:
         out.append({
             "id": p.id, "label": p.label, "app_configured": configured(p.id), "connected": connected,
             "tier": tier.id, "tier_label": tier.label, "note": p.note,
+            # V2-603 — the card needs to know WHICH app it is offering, or it cannot choose between the
+            # one-click screen and the bring-your-own-app wizard.
+            "builtin_app": uses_builtin_app(p.id),
         })
     return out
