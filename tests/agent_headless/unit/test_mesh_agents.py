@@ -536,3 +536,68 @@ def test_a_named_field_survives_alongside_a_diagnostic(monkeypatch):
     res = _serve_against(monkeypatch, {"error": "bad_request", "missing": ["departure_date"]})
     assert "--field" in res["reason"]
     assert res["agent_asks"]["missing"] == ["departure_date"]
+
+
+# ── V2-602 · an empty answer is not a served errand ───────────────────────────────────────────────────────
+def test_a_missing_field_announced_in_prose_is_still_a_missing_field(monkeypatch):
+    """Measured against `ybana`: 400 with `{"error": "missing_product", "detail": "body.product is
+    required"}`. It says exactly what it lacks — under diagnostic KEYS. V2-596 split need-keys from
+    diagnostic-keys and started calling this «the agent broke, more data will not help», which is backwards:
+    supplying `product` makes it answer with twenty offers. The WORDING separates the two cases — a missing
+    field is announced as missing or required; a broken upstream calls what it received INVALID."""
+    res = _serve_against(monkeypatch, {"error": "missing_product", "detail": "body.product is required"})
+    assert "--field" in res["reason"]
+    assert not res.get("agent_failed")
+
+
+def test_an_invalid_value_is_still_not_a_missing_field(monkeypatch):
+    """The other half of the same line: Duffel's 422 names a field and calls it INVALID, never absent. It
+    must keep failing as breakage, or V2-596 is undone."""
+    duffel = {"error": "upstream_error",
+              "detail": "offer_requests 422: Field 'departure_date' is invalid. Expected ISO 8601"}
+    res = _serve_against(monkeypatch, duffel)
+    assert res["agent_failed"] is True
+    assert "--field" not in res["reason"]
+
+
+def test_an_ok_with_no_rows_does_not_end_the_search(monkeypatch):
+    """Measured 2026-09-06: asked in English for sneakers, `ebay-finder` answered 200 with `count: 0` and
+    `serve` took it, never reaching `ybana` — which had twenty real offers. The vertical looked alive and
+    returned nothing, and `ok: true` made it indistinguishable from a real answer."""
+    empty = _agent(agent_id="empty-one")
+    full = _agent(agent_id="full-one", endpoint="https://full.example")
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "shopping", "agents": [empty, full]})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    monkeypatch.setattr(m, "remember_route", lambda *a: None)
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: (
+        {"ok": True, "data": {"count": 0, "offers": []}} if agent["agent_id"] == "empty-one"
+        else {"ok": True, "data": {"count": 2, "offers": [{"x": 1}, {"x": 2}]}}))
+    res = m.serve("buy sneakers")
+    assert res["ok"] is True
+    assert res["agent"] == "full-one", "una respuesta vacía se quedó con el encargo"
+    assert res["data"]["count"] == 2
+
+
+def test_an_empty_answer_is_still_returned_when_nobody_does_better(monkeypatch):
+    """«Nobody has this» is a real result. Held back only so a better one can win — never discarded, and
+    never downgraded to «los agentes no contestaron», which would send the errand to the browser for a
+    question the mesh already answered."""
+    a, b = _agent(agent_id="e1"), _agent(agent_id="e2", endpoint="https://e2.example")
+    monkeypatch.setattr(m, "find", lambda q, **k: {"intent": "shopping", "agents": [a, b]})
+    monkeypatch.setattr(m, "_routes", lambda: {})
+    monkeypatch.setattr(m, "remember_route", lambda *a_: None)
+    monkeypatch.setattr(m, "ask", lambda agent, prompt, fields=None: {"ok": True, "data": {"count": 0}})
+    res = m.serve("buy a unicorn")
+    assert res["ok"] is True and res["empty"] is True
+    assert res["agent"] in ("e1", "e2")
+
+
+def test_an_unrecognised_payload_is_never_thrown_away():
+    """`_is_empty_payload` inspects only the shapes these agents use. Anything it does not understand counts
+    as NOT empty — a payload we cannot read must never be discarded as if it were nothing."""
+    assert m._is_empty_payload({"count": 0}) is True
+    assert m._is_empty_payload({"offers": []}) is True
+    assert m._is_empty_payload(None) is True
+    assert m._is_empty_payload({"count": 3}) is False
+    assert m._is_empty_payload({"weird": {"nested": "thing"}}) is False
+    assert m._is_empty_payload({"summary": "no rows but here is prose"}) is False

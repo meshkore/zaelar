@@ -1112,6 +1112,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Still the operator's: the LICENSE (T-03 — the repo declares itself open source with no license file) and
   this very file's compaction policy (T-18). The P2/P3 structural tier stays in V2-601.
 
+- **An empty answer is not a served errand (V2-602, 2026-09-06)**: asked in English for sneakers, the mesh
+  answered `ok: True` with **zero rows** — `ebay-finder` ranks first, its eBay lane is a sandbox, and `serve`
+  took its `count: 0` and never reached `ybana`, which had twenty real offers. The same shape made my own
+  sweep wrong the day before: `compras → ebay-finder · 183B ok=True` was recorded as a working vertical, and
+  183 bytes is `{"count": 0, "offers": []}`. Now an empty `ok` is held back as a FALLBACK — still returned
+  when nobody does better, because «nobody has this» is a real result, but it no longer ends the search while
+  a candidate stands. `_is_empty_payload` treats anything it cannot recognise as NOT empty, so an unreadable
+  payload is never discarded. **And it undoes a regression V2-596 introduced**: `ybana` answers `{"error":
+  "missing_product", "detail": "body.product is required"}` — actionable, but under diagnostic keys, so the
+  new split called it «the agent broke». The two are separable by WORDING, not key: a missing field says
+  *missing* or *required*; a broken upstream calls what it got *invalid*. English shopping went 0 → 10.
+
 - **A catch-all category must not outrank a specific match (V2-599, 2026-09-05)**: `domain_of` asked the
   site catalog first and returned whatever it said. Right for the categories that name a vertical, wrong for
   `local_business`, which is «some business near you» — measured, it swallowed **six of ten** Spanish errands

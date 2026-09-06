@@ -313,9 +313,21 @@ def _what_the_agent_asks_for(data) -> dict:
     return out
 
 
+# «I am missing a field» does not always arrive under a field-shaped key. Measured against `ybana`, which
+# answers 400 with `{"error": "missing_product", "detail": "body.product is required"}` — actionable, and
+# invisible to a check that only looks at `need`/`missing`/`required` AS KEYS. V2-596 split the keys and, in
+# doing so, started reporting this exact shape as «the agent broke, more data will not help», which is the
+# opposite of true. The wording is what separates the two cases: a MISSING field is announced as missing or
+# required, while a broken upstream describes what it received as invalid — Duffel's 422 says «Field
+# 'departure_date' is invalid», never that it is absent.
+_MISSING_WORDING = re.compile(r"\bmissing[_\s-]|\b(?:is|are)\s+required\b|\brequired\b.*\bfield\b", re.I)
+
+
 def _names_missing_fields(asks: dict) -> bool:
-    """True only when the agent named the fields it lacks — the one case where retrying with `fields` helps."""
-    return any(asks.get(k) not in (None, "", [], {}) for k in _NEED_KEYS)
+    """True when the agent said WHICH field it lacks — the one case where retrying with `fields` helps."""
+    if any(asks.get(k) not in (None, "", [], {}) for k in _NEED_KEYS):
+        return True
+    return any(isinstance(asks.get(k), str) and _MISSING_WORDING.search(asks[k]) for k in _DIAG_KEYS)
 
 
 def ask(agent: dict, prompt: str, fields: dict | None = None) -> dict:
@@ -439,6 +451,22 @@ def _declares(agent: dict, card: dict | None = None) -> dict:
     return out
 
 
+def _is_empty_payload(data) -> bool:
+    """True when the agent answered successfully and returned no rows.
+
+    Only the shapes these agents actually use are inspected; anything unrecognised counts as NOT empty, so a
+    payload this function does not understand is never discarded.
+    """
+    if data is None:
+        return True
+    if not isinstance(data, dict):
+        return not data if isinstance(data, (list, str)) else False
+    if isinstance(data.get("count"), int) and data["count"] == 0:
+        return True
+    lists = [v for k, v in data.items() if isinstance(v, list)]
+    return bool(lists) and all(len(v) == 0 for v in lists)
+
+
 def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
     """Discovery + contact in one call, using the learned route first. The whole module in one verb.
 
@@ -493,8 +521,19 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         return {"ok": False, "reason": reason, "intent": intent, "coverage": coverage}
     dijo: dict = {}
     quien = ""
+    vacio: tuple[dict, dict] | None = None      # an `ok` with no rows, held in case nobody does better
     for agent in agents[:2]:            # one retry with the next candidate; beyond that the browser is faster
         res = ask(agent, prompt, fields)
+        # An `ok` carrying NOTHING is not a served errand. Measured 2026-09-06: asked in English for
+        # sneakers, `ebay-finder` answered 200 with `count: 0` (its eBay lane is a sandbox with no
+        # inventory), `serve` accepted it and never reached `ybana`, which had 20 real offers. The empty
+        # answer is kept as a fallback — «nobody has this» is a real result — but it does not get to end the
+        # search while another candidate is still standing. This is the shape that made the whole vertical
+        # look alive while returning nothing.
+        if res.get("ok") and _is_empty_payload(res.get("data")) and agent is not agents[:2][-1]:
+            if not vacio:
+                vacio = (agent, res)
+            continue
         if res.get("ok"):
             remember_route(intent, agent)                    # a no-op for an intent that cannot key a route
             # What the agent declares travels WITH the answer: the caller is told to check the domain of what
@@ -516,8 +555,13 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
                               evidence=f"served «{errand[:60]}»", rank=10)
                 except Exception:
                     pass
-            return {"ok": True, "intent": intent, "agent": agent.get("agent_id"),
-                    **declared, "data": res.get("data")}
+            # `empty` is set on EVERY path that returns no rows, not only the held-back one: a flag that
+            # depends on which candidate happened to be last is a flag a caller cannot trust.
+            out = {"ok": True, "intent": intent, "agent": agent.get("agent_id"),
+                   **declared, "data": res.get("data")}
+            if _is_empty_payload(res.get("data")):
+                out["empty"] = True
+            return out
         if res.get("payment_required"):
             return {"ok": False, "reason": f"«{agent.get('agent_id')}» cobra por esto", "intent": intent}
         if not dijo and res.get("asks"):
@@ -535,4 +579,9 @@ def serve(errand: str, prompt: str = "", fields: dict | None = None) -> dict:
         return {"ok": False, "intent": intent, "agent": quien, "agent_asks": dijo, "agent_failed": True,
                 "reason": f"«{quien}» falló al atender el encargo (ver `agent_asks`); no es cuestión de "
                           f"darle más datos"}
+    if vacio:
+        agent, res = vacio
+        declared = _declares(agent) or _declares(agent, _cards.get(_endpoint_of(agent)))
+        return {"ok": True, "intent": intent, "agent": agent.get("agent_id"), "empty": True,
+                **declared, "data": res.get("data")}
     return {"ok": False, "reason": "los agentes de la red no contestaron", "intent": intent}
