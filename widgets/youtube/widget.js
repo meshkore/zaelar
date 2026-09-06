@@ -610,6 +610,18 @@ export function render(root, data, ctx){
   // ACCOUNT layer (V2-597) — the card asks for ONE platform re-sync when the cache is stale (the archivos
   // needs_refresh pattern; local file reads server-side, no provider network), consumes the voice door's
   // connect_focus once per timestamp, paints the platform icons and the connect screens.
+  // V2-603 F2 — the account layer is HIDDEN whole while no OAuth client exists anywhere (operator's
+  // directive, 2026-09-06: «until that is done I do not want the connector active, leave it deactivated and
+  // hidden»). Not a disabled button and not a wizard that dead-ends: no platform row, no connect screen, and
+  // no `sync_platforms` chatter either. The player itself is untouched — searching, playing and lists never
+  // depended on an account. `accounts_enabled` is DERIVED server-side, so this whole surface comes back on
+  // its own the day a client id exists.
+  if(!data.accounts_enabled){
+    if(E.dots){ E.dots.textContent = ""; E.dots.style.display = "none"; }
+    _screen = null;                                        // never leave a connect screen open across the flip
+    renderConn(E, root, data, ctx);                        // clears the box and drops hb-yt-connmode
+  } else {
+  if(E.dots) E.dots.style.display = "";
   if(data.platforms_stale && ctx && ctx.action && Date.now() - _syncAsked > 60000){
     _syncAsked = Date.now();
     try{ ctx.action("sync_platforms", {}); }catch(_e){}
@@ -641,6 +653,7 @@ export function render(root, data, ctx){
     });
   }
   renderConn(E, root, data, ctx);
+  }
   if(E.title) E.title.textContent = data.title || "YouTube";
   if(E.meta){
     const bits = [];

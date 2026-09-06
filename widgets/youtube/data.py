@@ -264,6 +264,22 @@ def _svc():
         return None
 
 
+def _accounts_enabled() -> bool:
+    """Cheap and fail-CLOSED: an unreadable connector means the account layer stays hidden, never half-offered."""
+    svc = _svc()
+    if svc is None:
+        return False
+    try:
+        return bool(svc.available())
+    except Exception:
+        return False
+
+
+#: The one sentence every account action declines with, so the three doors cannot drift apart.
+_NOT_YET = ("conectar cuentas de vídeo todavía no está disponible en esta versión — no es que esté "
+            "desconectada, es que la puerta aún no existe")
+
+
 def _sync_platforms(db: dict) -> dict:
     """Refresh the cached platform rows from the connector (local file reads, no network). The cache is what
     view_data serves — the hot path never imports the connector."""
@@ -300,6 +316,10 @@ def view_data(q: str = "") -> dict:
     out = dict(db)
     age = int(time.time()) - int(db.get("platforms_at") or 0)
     out["platforms_stale"] = age > _PLATFORMS_FRESH_S or not db.get("platforms_at")
+    # V2-603 F2 — is the ACCOUNT layer usable at all? While no OAuth client exists anywhere the card renders
+    # no platform row and no connect screen: a door that cannot open is worse than no door (measured, session
+    # e1acdcca). DERIVED from the connector, so it turns on by itself the day a client id lands.
+    out["accounts_enabled"] = _accounts_enabled()
     return out
 
 
@@ -526,6 +546,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         return r
 
     if action == "open_connectors":
+        if not _accounts_enabled():
+            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
         # V2-597 — the VOICE door into a platform's connect screen (V2-520 shape: intent only, never a
         # credential). The card consumes `connect_focus` once per timestamp and opens that platform's
         # wizard — or its status screen if it is already connected.
@@ -541,6 +563,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 "app_configured": bool(row.get("app_configured"))}
 
     if action == "connect_account":
+        if not _accounts_enabled():
+            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
         # Starts the OAuth consent for a platform whose app is ALREADY registered (client_id typed once in
         # ⚙ → Conectores, never through a widget payload — V2-520). Returns the URL; the card opens the
         # window synchronously on the click and fills its location after.
@@ -568,6 +592,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 **({} if r.get("ok") else {"error": str(r.get("error") or "")[:200]})}
 
     if action == "suggest":
+        if not _accounts_enabled():
+            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
         # V2-597 — fill/refresh the HOME suggestions band from the connected account's subscriptions.
         # Pulled ONLY when asked (no background, decision in V2-597); blocked channels are dropped at this
         # door like at every other NAME door, and the count travels so the ack can say it (V2-414).

@@ -98,19 +98,24 @@ def test_the_exchange_reuses_the_REDIRECT_THAT_WAS_AUTHORIZED(sandbox, monkeypat
 
 
 # ── the brain is told the STATE, not just the verbs ───────────────────────────────────────────────────────
-def test_the_brain_state_says_the_account_is_not_connected_and_why(sandbox):
+def test_the_brain_state_says_the_account_is_not_connected_and_why(sandbox, monkeypatch):
     """The measured hallucination: the brain had `connect_account` in its action list and no fact to check it
-    against, so «conéctame a YouTube» produced «Hecho.»."""
+    against, so «conéctame a YouTube» produced «Hecho.». Needs the layer ENABLED — while it is off the block
+    says something stronger (the capability does not exist yet), covered by its own case below."""
+    _with_builtin(monkeypatch)
     txt = service.brain_state()
     assert "YouTube" in txt
-    assert "SIN conectar" in txt and "SIN app OAuth" in txt
+    # app registered, account not authorised — the two halves are said APART, because «no app» and «app but
+    # no consent» are different facts with different next steps for the operator.
+    assert "SIN conectar" in txt and "AUTORICE" in txt
 
 
-def test_the_brain_state_forbids_claiming_a_connection_and_names_the_google_login_trap(sandbox):
+def test_the_brain_state_forbids_claiming_a_connection_and_names_the_google_login_trap(sandbox, monkeypatch):
     """During the session a worker drove the browser to `accounts.google.com/signin` and the agent reported it
     as success — «la sesión se guardó en el perfil del navegador», true about that browser profile and
     useless for the connector. A statement that is true about the wrong mechanism is the worst failure shape,
     so the block names it explicitly."""
+    _with_builtin(monkeypatch)
     txt = service.brain_state()
     assert "NUNCA digas que has conectado" in txt
     assert "entrar en" in txt.lower() and "google no conecta" in txt.lower()
@@ -182,13 +187,18 @@ def test_the_same_failure_is_not_announced_twice_in_a_row(rails):
     assert first is True and second is False
 
 
-def test_dispatch_tag_returns_the_REAL_widgets_answer_not_just_its_own_guard_clauses(sandbox):
+def test_dispatch_tag_returns_the_REAL_widgets_answer_not_just_its_own_guard_clauses(sandbox, monkeypatch):
     """The seam itself: without a return value there is nothing for `report_failure` to look at.
 
     Driven through the REAL path — a genuine widget and a genuine action that genuinely fails — because a
     first version of this test only ever hit the `bad dispatch envelope` guard, and stayed GREEN with the fix
-    reverted. `connect_account` with no client_id is read-only: it returns before anything is written."""
+    reverted. Enabled on purpose so the failure comes from the OAuth layer (the real path) and not from the
+    availability gate, which would short-circuit before `apply_action` ever calls the connector."""
     import widgets
+
+    _with_builtin(monkeypatch, client_id="")             # layer ON via a registered id…
+    monkeypatch.setattr(service, "available", lambda: True)
+    monkeypatch.setattr("widgets.youtube.data._accounts_enabled", lambda: True)
 
     out = asyncio.run(widgets.dispatch_tag(
         "widget.data", {"id": "youtube", "data": {"action": "connect_account", "payload": {}}}))
@@ -295,3 +305,77 @@ def test_the_show_ack_stays_legitimate_when_the_operator_ASKED_for_the_card():
     # and an ack that actually carries the answer is not bare
     assert answer_guards.a_bare_ack_answers_a_question(
         "¿ya está conectada mi cuenta?", "Aquí lo tienes: sigue sin conectar.") is False
+
+
+# ── the connector is HIDDEN until its door can actually open (V2-603 F2) ──────────────────────────────────
+def test_the_account_layer_is_unavailable_while_no_oauth_client_exists_anywhere(sandbox):
+    """Operator's directive, 2026-09-06: «until that is done I do not want the YouTube connector active —
+    leave it deactivated and hidden». A door that cannot open is worse than no door: offering it produced
+    nine minutes of a wizard that could not finish."""
+    assert service.available() is False
+
+
+def test_the_gate_is_DERIVED_so_it_reopens_by_itself_the_day_a_client_exists(sandbox, monkeypatch):
+    """Not a hand-set flag. A switch somebody has to remember to flip is a second thing to get wrong, and it
+    would be got wrong exactly once, silently, on release day."""
+    assert service.available() is False
+    _with_builtin(monkeypatch)                                   # the shipped client lands
+    assert service.available() is True                           # …and everything turns on, no code change
+    # and a self-hoster pasting their OWN id opens it just the same
+    monkeypatch.setitem(providers.PROVIDERS, "youtube",
+                        providers.VideoProvider(**{**providers.get("youtube").__dict__,
+                                                   "builtin_client_id": ""}))
+    monkeypatch.setattr(oauth, "_cred",
+                        lambda name: "mine.apps.googleusercontent.com" if name.endswith("CLIENT_ID") else "")
+    assert service.available() is True
+
+
+def test_the_brain_is_TOLD_the_capability_does_not_exist_yet_rather_than_left_silent(sandbox):
+    """V2-540's rule, and the exact mechanism of the original hallucination: the model cannot decline what is
+    not in its prompt. Silence is what let it answer «Hecho.» — it had the verbs and no fact."""
+    txt = service.brain_state()
+    assert "TODAVÍA NO ESTÁ DISPONIBLE" in txt
+    assert "NO lo ofrezcas" in txt
+    # …and it must protect the half that DOES work, or the model starts refusing to play videos too
+    assert "reproductor" in txt.lower() and "no depende" in txt.lower()
+
+
+@pytest.mark.parametrize("action", ["open_connectors", "connect_account", "suggest"])
+def test_every_account_door_declines_with_the_same_words(sandbox, action):
+    """Three doors, one sentence — they cannot drift apart into three different explanations of one fact."""
+    from widgets.youtube import data as ydata
+
+    res = ydata.apply_action(action, {})
+    assert res.get("ok") is False
+    assert "todavía no está disponible" in str(res.get("error") or "")
+    # the widget's own `message` is what a card or a voice ack reads
+    assert res.get("message") == res.get("error")
+
+
+def test_the_card_is_told_to_hide_the_whole_account_surface(sandbox):
+    """`accounts_enabled` is what removes the platform row and the connect screens — a disabled button still
+    says «this exists and is refusing you», which is not what the operator asked for."""
+    from widgets.youtube import data as ydata
+
+    assert ydata.view_data().get("accounts_enabled") is False
+
+
+def test_the_catalog_no_longer_advertises_it_as_built(sandbox):
+    """The third surface that claimed it worked. `built` puts a «Conectar» button on the Conectores tab."""
+    from connectors import catalog
+
+    row = next(m for m in catalog.load_manifests() if m.get("id") == "youtube")
+    assert row["state"] == "planned"
+    assert "V2-603" in row["notes"]                              # and says what unblocks it
+
+
+def test_hiding_the_account_layer_does_NOT_disable_the_player(sandbox):
+    """The counterweight that matters most: searching, playing and lists never depended on an account, and
+    turning the connector off must not quietly take them with it."""
+    from widgets.youtube import data as ydata
+
+    for act in ("play", "pause", "mute", "clear_list", "next", "restart"):
+        res = ydata.apply_action(act, {})
+        # `play` on an empty player legitimately refuses with `no_video` — the claim is not «everything
+        # succeeds», it is that NOTHING fails for the ACCOUNT reason.
+        assert "todavía no está disponible" not in str(res.get("error") or ""), (act, res)

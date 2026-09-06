@@ -35,6 +35,8 @@ _SUGG = [
      "published": "2026-09-02", "url": "https://youtu.be/BBBBBBBBBB2"},
 ]
 _ROW_OFF = {"id": "youtube", "label": "YouTube", "connected": False, "app_configured": False}
+# V2-603 F2: the card hides the whole account surface unless the server says the layer is usable.
+_ON = {"accounts_enabled": True}
 _ROW_APP = {"id": "youtube", "label": "YouTube", "connected": False, "app_configured": True}
 _ROW_ON = {"id": "youtube", "label": "YouTube", "connected": True, "app_configured": True}
 # V2-603: the engine ships its own OAuth client → connecting is ONE consent step, no Google Cloud project.
@@ -93,7 +95,7 @@ def _mount(page, data: dict, replies: dict | None = None):
 
 
 def test_the_platform_icon_renders_dimmed_and_opens_the_wizard(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_OFF]})
     icon = _page.locator(".hb-yt-picon")
     assert icon.count() == 1
     assert not icon.evaluate("e => e.classList.contains('on')")          # dimmed = not connected
@@ -113,7 +115,7 @@ def test_a_shipped_oauth_client_makes_it_a_SINGLE_consent_step(_page):
     """V2-603, the whole point of the decision. Measured on the operator's engine (session e1acdcca): he never
     got past «create an OAuth client in Google Cloud», so the account was never connected. With a client
     shipped there is nothing to create — one screen, one button."""
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN]})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_BUILTIN]})
     _page.locator(".hb-yt-picon").click()
     txt = _page.locator(".hb-ytw-step").inner_text()
     assert "Autoriza tu cuenta" in txt
@@ -123,7 +125,7 @@ def test_a_shipped_oauth_client_makes_it_a_SINGLE_consent_step(_page):
 
 
 def test_the_wizard_advances_step_by_step_and_check_reads_the_actions_answer(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]},
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_OFF]},
            replies={"sync_platforms": {"ok": True, "platforms": [_ROW_APP]}})
     _page.locator(".hb-yt-picon").click()
     _page.get_by_text("Ya está — continuar").click()
@@ -134,7 +136,7 @@ def test_the_wizard_advances_step_by_step_and_check_reads_the_actions_answer(_pa
 
 
 def test_a_failed_check_speaks_instead_of_advancing(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]},
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_OFF]},
            replies={"sync_platforms": {"ok": True, "platforms": [_ROW_OFF]}})
     _page.locator(".hb-yt-picon").click()
     _page.get_by_text("Ya está — continuar").click()
@@ -147,7 +149,7 @@ def test_the_byo_step_opens_the_settings_panel_instead_of_describing_where_it_is
     """The measured dead end: step 2 used to be a sentence — «pega el client_id en ⚙ → Conectores» — and the
     operator had to go and find that screen himself. A widget cannot import the store, so it asks the host
     through the `hb:` DOM event the rail and the desktop already use."""
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_OFF]})
     _page.evaluate("""() => { window.__cfg = [];
         document.addEventListener('hb:open-config', e => window.__cfg.push(e.detail)); }""")
     _page.locator(".hb-yt-picon").click()
@@ -157,7 +159,7 @@ def test_the_byo_step_opens_the_settings_panel_instead_of_describing_where_it_is
 
 
 def test_connect_opens_the_window_synchronously_and_fills_it_from_the_action(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN],
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_BUILTIN],
                    "connect_focus": {"platform": "youtube", "ts": int(time.time() * 1000)}},
            replies={"connect_account": {"ok": True, "url": "https://accounts.google.com/consent?x=1"}})
     # The voice door: a fresh connect_focus opens the wizard with no click at all.
@@ -172,7 +174,7 @@ def test_connect_opens_the_window_synchronously_and_fills_it_from_the_action(_pa
 def test_a_blocked_popup_offers_the_link_instead_of_looking_like_a_dead_button(_page):
     """V2-603 — this is what makes the flow survive a phone and a strict desktop policy without any
     environment detection: when `window.open` returns null the consent URL is rendered as a link."""
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_BUILTIN]},
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_BUILTIN]},
            replies={"connect_account": {"ok": True, "url": "https://accounts.google.com/consent?x=1"}})
     _page.evaluate("() => { window.open = () => null; }")                # the browser refuses the pop-up
     _page.locator(".hb-yt-picon").click()
@@ -184,7 +186,7 @@ def test_a_blocked_popup_offers_the_link_instead_of_looking_like_a_dead_button(_
 
 
 def test_a_connected_platform_shows_bright_and_its_status_screen_disconnects(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_ON]})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_ON]})
     icon = _page.locator(".hb-yt-picon")
     assert icon.evaluate("e => e.classList.contains('on')")              # bright = connected
     icon.click()
@@ -199,7 +201,7 @@ def test_a_connected_platform_shows_bright_and_its_status_screen_disconnects(_pa
 
 
 def test_the_home_suggestions_band_renders_plays_and_refreshes(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_ON],
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_ON],
                    "suggested": _SUGG, "suggested_at": int(time.time()) - 120, "suggested_channels": 3})
     band = _page.locator(".hb-yt-sughead")
     assert band.count() == 1
@@ -212,7 +214,7 @@ def test_the_home_suggestions_band_renders_plays_and_refreshes(_page):
     assert ["load", {"videoId": "BBBBBBBBBB2", "title": "Ferrari F40 real"}] in calls
     assert _page.evaluate("() => !document.querySelector('.hb-yt').classList.contains('hb-yt-homemode')")
     _page.evaluate("window.__calls = []")
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_ON], "suggested": []})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_ON], "suggested": []})
     _page.locator(".hb-yt-sughead .hb-yt-chip").click()
     assert ["suggest", {}] in _page.evaluate("window.__calls")
 
@@ -232,6 +234,26 @@ def test_the_widget_is_anchored_to_its_parent_container_at_any_width(_page):
 
 
 def test_without_an_account_the_band_is_absent_and_the_dimmed_icon_is_the_affordance(_page):
-    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]})
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_OFF]})
     assert _page.locator(".hb-yt-sughead").count() == 0
+    assert _page.locator(".hb-yt-picon").count() == 1
+
+
+# ── deactivated and HIDDEN, not disabled (V2-603 F2) ──────────────────────────────────────────────────────
+def test_with_the_account_layer_off_the_card_paints_NO_connect_surface(_page):
+    """Operator's directive (2026-09-06): while no OAuth client exists the connector is «deactivated and
+    hidden». Not a greyed button — a disabled control still says «this exists and is refusing you», and that
+    is exactly the promise that cost nine minutes in session e1acdcca."""
+    _mount(_page, {"videoId": "", "list": [], "platforms": [_ROW_OFF]})   # no accounts_enabled → off
+    assert _page.locator(".hb-yt-picon").count() == 0                     # no platform icon at all
+    assert _page.locator(".hb-ytw-step").count() == 0                     # no wizard
+    assert not _page.evaluate(
+        "() => document.querySelector('.hb-yt').classList.contains('hb-yt-connmode')")
+    # …and the PLAYER is untouched: hiding the account layer must not take the widget with it.
+    assert _page.locator(".hb-yt-home").count() == 1
+
+
+def test_the_surface_comes_back_the_moment_the_server_says_the_layer_is_usable(_page):
+    """The gate is derived, so this is the whole re-activation path: no code change, no flag to flip."""
+    _mount(_page, {**_ON, "videoId": "", "list": [], "platforms": [_ROW_BUILTIN]})
     assert _page.locator(".hb-yt-picon").count() == 1

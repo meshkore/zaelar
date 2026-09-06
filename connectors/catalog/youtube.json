@@ -5,7 +5,7 @@
   "family": "video",
   "transport": "native",
   "auth": "oauth",
-  "state": "built",
+  "state": "planned",
   "capabilities": [
     "youtube",
     "suscripciones",
@@ -14,5 +14,5 @@
     "videos sugeridos",
     "mi cuenta de youtube"
   ],
-  "notes": "YouTube Data API v3 con el cliente OAuth del propio operador (mismo patron que Drive, V2-557): lee suscripciones y sus videos nuevos para la pantalla de inicio del reproductor (solo lectura; la gestion de suscripciones queda aparcada). Cuota gratuita 10k unidades/dia. Construido en V2-597."
+  "notes": "DESACTIVADO a proposito (V2-603 F2, directriz del operador 2026-09-06): el mecanismo esta construido y probado (V2-597) pero NO hay cliente OAuth de Google registrado, asi que la puerta no puede abrirse y ofrecerla era una promesa que el producto no puede cumplir. Se reactiva SOLO cuando exista el cliente: poner `state` a built otra vez es el ultimo paso del alta descrita en la iniciativa V2-603. El reproductor de video (buscar, poner, listas) no depende de esto y sigue funcionando. Limite conocido de la API: NO da el historial de reproduccion."
 }

@@ -21,6 +21,27 @@ _PER_CHANNEL = 2
 _MAX_ITEMS = 24
 
 
+def available() -> bool:
+    """Is the video-ACCOUNT layer usable at all? (V2-603 F2 — operator's directive, 2026-09-06.)
+
+    False until an OAuth client exists for some provider — either the one shipped with the engine
+    (`providers.builtin_client_id`, empty until Zaelar registers its Google app) or one the operator pasted
+    in ⚙ → Conectores. While it is False the connector is **hidden, not shown-and-broken**: the card renders
+    no platform row, the voice declines instead of opening a dead wizard, and the brain is told the capability
+    does not exist yet so it cannot narrate it (V2-540's rule).
+
+    The gate is DERIVED, never a flag anybody has to remember to flip: the day the client id lands in the
+    registry — or a self-hoster pastes their own — every surface turns on by itself. A hand-set switch is a
+    second thing to get wrong, and this one would be got wrong exactly once, silently, on release day.
+
+    Measured 2026-09-06 (session e1acdcca): with no client registered, offering «conectar tu cuenta» led to
+    nine minutes of a wizard that could not finish, because nothing in the product said the door was shut."""
+    try:
+        return any(oauth.configured(p.id) for p in providers.PROVIDERS.values())
+    except Exception:
+        return False
+
+
 def providers_public() -> list[dict]:
     return providers.public_list()
 
@@ -118,6 +139,15 @@ def brain_state() -> str:
     and the model fills that ambiguity in both directions.
 
     Deliberately short (~3 lines): this rides the hot prompt, gated by the card being open (`prompt.py`)."""
+    if not available():
+        # DECLARED, not omitted. Silence is what let the model invent «Hecho.» in the first place: it had the
+        # verbs in its action list and no fact to check them against. Naming the absence is what makes
+        # declining possible.
+        return ("VÍDEO (cuentas): conectar una cuenta de YouTube TODAVÍA NO ESTÁ DISPONIBLE en esta versión "
+                "— la puerta no existe aún, no es que esté desconectada. NO lo ofrezcas, NO digas que puedes "
+                "conectarla ni vincularla, y NO abras ninguna tarjeta de conexión. Si te lo piden, dilo con "
+                "naturalidad: todavía no está listo. El reproductor de vídeo funciona con normalidad "
+                "(buscar, poner, listas): eso NO depende de ninguna cuenta.")
     try:
         rows = oauth.status()
     except Exception:

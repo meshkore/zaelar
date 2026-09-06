@@ -15,6 +15,19 @@ import pytest
 from widgets import store
 from widgets.youtube import data as yt
 
+
+@pytest.fixture(autouse=True)
+def _account_layer_enabled(monkeypatch):
+    """V2-603 F2 gated the three account doors behind «is there an OAuth client at all?», and today there is
+    none — so every case in this file would decline before reaching the mechanism it exists to test.
+
+    The MECHANISM is not what was deactivated: it is built, and it has to keep working for the day the client
+    id lands (that is the whole point of a DERIVED gate). So this file measures it with the layer forced on,
+    and the gate itself is measured in
+    `tests/connectors/unit/video/test_connecting_an_account_is_one_step_and_failures_reach_the_operator.py`
+    — one file per question, neither able to hide the other's regression."""
+    monkeypatch.setattr(yt, "_accounts_enabled", lambda: True)
+
 _MANIFEST = pathlib.Path(yt.__file__).parent / "manifest.json"
 
 
