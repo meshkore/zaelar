@@ -87,9 +87,15 @@ _ACTION_VERB_ANYWHERE_RE = _re.compile(
     r"ensenar\w*|pon\w*|poner\w*|apaga\w*|apagar\w*|enciende\w*|encender\w*|borra\w*|borrar\w*|"
     r"guarda\w*|guardar\w*|manda\w*|mandar\w*|envia\w*|enviar\w*|limpia\w*|limpiar\w*|"
     r"close|open|show|hide|dismiss|play|stop|send|save|delete|clear|turn)\b", _re.I)
+# V2-603: `show_ack` («Aquí lo tienes.») belongs here too. It is OUR canned line for a `show_widget` turn the
+# model left mute, and it is content-free in exactly the same way `data_ack` is — but it was never seeded, so
+# an information question answered with it sailed past this guard. Measured live on the operator's engine
+# (2026-09-06): «¿ya has cogido los datos de mi cuenta de YouTube?» → «Aquí lo tienes.», over a connector with
+# no OAuth app at all. Non-deterministic, which is why it survived: the same question answers correctly
+# whenever the model happens to speak, and falls back to this line whenever it does not.
 _BARE_ACK_RE = _re.compile(
     r"^\s*(?:vale|ok|okay|claro|hecho|listo|ya\s+esta|de\s+acuerdo|perfecto|entendido|"
-    r"done|all\s+set|sure|got\s+it)"
+    r"done|all\s+set|sure|got\s+it|aqui\s+lo\s+tienes|aqui\s+tienes|here\s+you\s+go|here\s+it\s+is)"
     r"(?:\s*[,.]?\s*(?:vale|ok|okay|hecho|listo|ya\s+esta|done))?\s*[.!]*\s*$", _re.I)
 
 
