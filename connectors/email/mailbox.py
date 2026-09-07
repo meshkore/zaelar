@@ -360,8 +360,49 @@ class Mailbox:
             return False, f"SMTP: {e}"
         return True, "ok"
 
+    def inbox_split(self) -> tuple[set[str], list[str]]:
+        """`(uids ALREADY READ, uids UNREAD oldest-first)` — what `seen` should be seeded with, and what should not.
+
+        V2-606. `all_uids` seeded `seen` with the WHOLE inbox, so the widget could only ever show mail arriving
+        AFTER the connector started. Measured on the operator's real mailbox: 1110 in INBOX, **1088 of them
+        UNSEEN** — every one of which was marked «already seen» on connect, and again on every restart, because
+        `_seen` lives in memory. The connector authenticated, reported «Conectado» and showed him nothing,
+        forever, which is exactly what he reported as «the Gmail thing doesn't work».
+
+        The line the seeding should draw is the one the operator already draws: mail he has READ is dealt with
+        and does not come back; mail he has NOT read is the thing he is asking to see. Two searches instead of
+        one, and IMAP does the work — no flag is written and no body is fetched here.
+
+        Fail-soft: on any failure returns `(everything, [])`, which is the OLD behaviour — a connector that
+        cannot tell read from unread must not suddenly dump a whole mailbox into the widget.
+        """
+        try:
+            im = self._imap()
+        except Exception:
+            return self.all_uids(), []
+        try:
+            im.select("INBOX")
+
+            def _search(query: str) -> list[str]:
+                st, data = im.uid("search", None, query)
+                if st != "OK" or not data or not data[0]:
+                    return []
+                return [u.decode() if isinstance(u, bytes) else str(u) for u in data[0].split()]
+
+            read, unread = set(_search("SEEN")), _search("UNSEEN")
+            if not read and not unread:          # nothing came back at all → do not treat it as an empty mailbox
+                return self.all_uids(), []
+            return read, unread
+        except Exception:
+            return self.all_uids(), []
+        finally:
+            try:
+                im.logout()
+            except Exception:
+                pass
+
     def all_uids(self) -> set[str]:
-        """All current INBOX UIDs (to seed `seen` on connect → only triage NEW mail)."""
+        """All current INBOX UIDs. Kept as the fail-soft floor for `inbox_split`."""
         out: set[str] = set()
         try:
             im = self._imap()

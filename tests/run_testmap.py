@@ -1970,6 +1970,14 @@ DOMAINS: list[dict] = [
                                  "colapsa las gemelas del asistente y conserva sus turnos intactos",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_repeated_reply_never_deletes_what_he_said.py"]},
+        # V2-606, medido contra el buzón REAL del operador: 1110 en INBOX y 1088 SIN LEER, y el conector sembraba
+        # `_seen` con el buzón ENTERO al conectar («solo triar lo que llegue DESPUÉS»). Autenticaba, decía
+        # «Conectado» y no enseñaba nada, nunca — y como `_seen` vive en memoria, cada reinicio movía la línea
+        # otra vez. La raya se traza donde ya la traza él: lo LEÍDO no vuelve, lo NO LEÍDO es lo que pide ver.
+        {"id": "5.16", "title": "El buzón sin leer NO se declara ya visto al conectar: se siembra lo LEÍDO, "
+                                "llegan los más recientes sin leer, y el total real viaja al cerebro",
+            "ch": UNIT,
+            "paths": ["tests/connectors/unit/email/test_the_inbox_backlog_is_not_declared_already_seen.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

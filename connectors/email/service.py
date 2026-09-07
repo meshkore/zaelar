@@ -22,6 +22,56 @@ PLATFORM = "email"
 _task: asyncio.Task | None = None
 _seen: set[str] = set()          # already-seen IMAP UIDs (seeded on connect → only triage NEW email)
 _published: set[str] = set()     # v2: UIDs already published to the bus (dedup before triage in the widget)
+
+#: How many of the UNREAD backlog are handed to the widget on connect. A triage surface is a list somebody
+#: READS; the rest of the mailbox stays in the mailbox, and the total travels as a fact instead (V2-606).
+BACKFILL = 30
+
+_unread_total: int = -1          # UNSEEN in INBOX at the last connect. -1 = not measured (never guessed as 0).
+
+
+def _set_unread_total(n: int) -> None:
+    global _unread_total
+    _unread_total = int(n)
+
+
+def seed_from_mailbox(mb) -> int:
+    """Decide what the widget may EVER see, and record how much mail is really waiting. Returns the unread total.
+
+    V2-606. This used to be `_seen.update(mb.all_uids())` inline in `_loop`, under the comment «only triage email
+    that arrives AFTER connecting» — so the widget could only ever show mail that arrived after the connector
+    started, and `_seen` lives in memory, so every restart moved that line forward again. Measured on the
+    operator's real mailbox: **1110 in INBOX, 1088 UNSEEN**, all 1110 declared already-seen on connect. The
+    connector authenticated, reported «Conectado» and showed him nothing, forever.
+
+    The line is drawn where the operator already draws it: mail he has READ is dealt with and does not come back;
+    mail he has NOT read is the thing he is asking to see.
+
+    A triage surface is not a mailbox, so only the most recent `BACKFILL` unread are handed over — and that is
+    exactly why the TOTAL is recorded. Silently hiding the other thousand is the failure being replaced; the
+    count is what lets the agent say «tienes 1088 sin leer» instead of «no tienes mensajes nuevos sin leer»,
+    which is what it said, over a full inbox (session `43b7bf79`).
+
+    A FUNCTION and not four lines inside `_loop` because `_loop` connects to a real server: with the decision in
+    there, a test can only re-implement it, and a re-implementation proves the test works, not the product. Three
+    disarms came back green before this was extracted.
+    """
+    read, unread = mb.inbox_split()
+    _seen.update(read)
+    if len(unread) > BACKFILL:
+        _seen.update(unread[:-BACKFILL])
+    _set_unread_total(len(unread))
+    logger.info(f"Email: {len(unread)} sin leer en INBOX; entran los {min(len(unread), BACKFILL)} más recientes")
+    return len(unread)
+
+
+def unread_total() -> int:
+    """UNSEEN messages in the operator's INBOX as of the last connect, or -1 if we have not measured it.
+
+    -1 and 0 are DIFFERENT and the difference is the whole point: «no lo sé» must never render as «no tienes
+    ninguno», which is the sentence the agent said over 1088 unread mails.
+    """
+    return _unread_total
 _shown: set[str] = set()         # direct path: messageIds already surfaced
 _mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
 _reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
@@ -286,7 +336,7 @@ async def _loop() -> None:
         logger.error(f"Email: no pude conectar: {why}")
         _set_status("error", None, _friendly_error(why))     # 'error' (not 'no_creds'): configured but failed → card with reason + retry
         return
-    _seen.update(await asyncio.to_thread(mb.all_uids))     # only triage email that arrives AFTER connecting
+    await asyncio.to_thread(seed_from_mailbox, mb)
     if ingest.v2_enabled():
         if _mark_inbox is None:
             _mark_inbox = ingest.MarkReadInbox(PLATFORM)
@@ -355,5 +405,6 @@ async def stop() -> None:
             pass
     _mark_inbox = _reply_inbox = _archive_inbox = _trash_inbox = None
     _seen.clear()
+    _set_unread_total(-1)
     _published.clear()
     _shown.clear()

@@ -24,6 +24,37 @@ PROTOCOL = """[MENSAJERÍA] Buzón personal UNIFICADO del operador (WhatsApp + T
 Si el operador se refiere a alguien por nombre ("lo de mi madre", "el chat de fulano"), busca su número en la lista de abajo — NO le pidas que diga el número él (también vale {"action":"open","payload":{"name":"..."}})."""
 
 
+def _email_backlog() -> str:
+    """What is in the MAILBOX versus what is in the WIDGET — the two numbers the model kept collapsing (V2-606).
+
+    Measured, session `43b7bf79`: the operator said «en mi bandeja de entrada de Gmail veo un montón de mensajes»
+    and got «Es que no tienes mensajes nuevos sin leer, por eso sale vacío» — over 1088 unread. The model was not
+    lying; it had a «connected» flag and an empty widget and invented the link between them, because nothing here
+    told it the mailbox has a backlog the widget deliberately does not hold.
+
+    Says nothing when it does not know: `-1` is «not measured» and must never render as zero, which is precisely
+    the sentence this exists to make impossible.
+    """
+    try:
+        from connectors.email import service as _em
+        n = _em.unread_total()
+        cap = _em.BACKFILL
+    except Exception:  # noqa: BLE001
+        return ""
+    if n < 0:
+        return ""
+    if n == 0:
+        return " Su buzón NO tiene correos sin leer (0), así que un widget de correo vacío es correcto."
+    shown = min(n, cap)
+    extra = ("" if n <= cap else
+             f" Los otros {n - shown} NO están en el widget y no se pueden listar desde aquí: si los quiere ver, "
+             f"es en su propio correo. NO digas que no los tiene.")
+    return (f" ⚠️ Su BUZÓN tiene {n} correo(s) SIN LEER — ese es el número que se le contesta si pregunta cuántos "
+            f"tiene. El widget es una lista TRIADA, no el buzón: lleva como mucho los {shown} más recientes, y "
+            f"puede enseñar menos si el triaje descartó alguno. JAMÁS digas «no tienes mensajes sin leer» ni "
+            f"expliques un widget vacío diciendo que no hay correo: di cuántos hay y qué parte estás enseñando.{extra}")
+
+
 def _platform_states() -> str:
     """One line per platform with its link state, so the brain knows whether a QR should be shown."""
     try:
@@ -56,7 +87,7 @@ def _platform_states() -> str:
     for pl, label, on in (("whatsapp", "WhatsApp", wa_on), ("telegram", "Telegram", tg_on),
                           ("email", "Email", em_on)):
         st = (plats.get(pl) or {}).get("status", "off") if on else "off"
-        lines.append(f"{label}: {hint.get(st, st) if on else 'SIN conectar'}.")
+        lines.append(f"{label}: {hint.get(st, st) if on else 'SIN conectar'}.{_email_backlog() if pl == 'email' and on and st == 'connected' else ''}")
     tail = (" NINGUNA app requiere que el operador toque ficheros: si quiere conectar/ver una app, emite "
             "[[show:mensajeria]] y el widget le GUÍA paso a paso (credenciales si hacen falta → QR). Guíale tú "
             "también de palabra ('te abro Mensajería, ahí tienes los pasos').")
