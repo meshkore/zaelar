@@ -57,3 +57,13 @@ export function makeDraggable(el, handle, key, mode) {
   handle.addEventListener("pointerup", end); handle.addEventListener("pointercancel", end);
   return () => moved;
 }
+
+// The UNDO of makeDraggable: forget the persisted position and drop every inline style a drag wrote
+// (left/right/top/bottom/transform), so the element's own CSS rule places it again — its birthplace.
+// Both halves matter: clearing only the styles leaves the old position in storage, and the next page
+// load would put the element right back where the reset just removed it from (apply() above reads it).
+export function resetDraggable(el, key) {
+  try { localStorage.removeItem(key); } catch (_) {}
+  if (!el) return;
+  for (const prop of ["left", "right", "top", "bottom", "transform"]) el.style[prop] = "";
+}

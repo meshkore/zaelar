@@ -1535,6 +1535,17 @@ DOMAINS: list[dict] = [
                                  "actividad debajo, y estado + progreso + tiempo en su línea",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_process_title_holds_still.py"]},
+        # V2-608, orden del operador 2026-09-07: «cuando se hace un reset, quiero que el orbe vuelva a su
+        # posición inicial». El Reset ya limpiaba lienzo/log/chat, pero un orbe arrastrado se quedaba donde
+        # el arrastre lo dejó — y `hb_pos_orb` lo devolvía ahí en CADA carga futura. `resetDraggable()`
+        # (lib/draggable.js) es el deshacer de makeDraggable: olvida la posición persistida Y quita los
+        # estilos inline, y el CSS de `.orbwrap` vuelve a centrarlo en el DESK (no en la ventana — con una
+        # columna acoplada el centro es el del desk encogido). Cableado: `_clearCanvasAndLog()` anuncia
+        # `hb:canvas-reset` y Orb.js lo atiende. RENDERIZADO con el draggable.js real y gestos de puntero.
+        {"id": "4.126", "title": "Un reset manda el orbe a casa: centrado en el desk, estilos inline fuera "
+                                 "y la posición persistida olvidada",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_a_reset_sends_the_orb_home.py"]},
         # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
         # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
         # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el

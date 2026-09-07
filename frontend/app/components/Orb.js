@@ -30,7 +30,7 @@ import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
-import { makeDraggable } from "../lib/draggable.js?v=2";
+import { makeDraggable, resetDraggable } from "../lib/draggable.js?v=2";
 import { startEcg } from "../lib/ecg.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
@@ -262,6 +262,15 @@ export function Orb() {
   document.addEventListener("hb:canvas-resized", onCanvas);
   document.addEventListener("hb:rail-resized", onCanvas);
   addEventListener("resize", onCanvas);
+  // RESET returns the orb to its birthplace (operator, 2026-09-07: «cuando se hace un reset, quiero que
+  // el orbe vuelva a su posición inicial»). resetDraggable drops the dragged position — inline styles AND
+  // `hb_pos_orb` — and `.orbwrap`'s own CSS centres it on the desk again. `lastW` re-reads the band so a
+  // later dock/undock remaps from the fresh centre, not from the pre-reset geometry. The event comes from
+  // `_clearCanvasAndLog()` (session-lk.js), the client-side deterministic reset path.
+  document.addEventListener("hb:canvas-reset", () => {
+    resetDraggable(wrapEl, "hb_pos_orb");
+    lastW = band();
+  });
   startEcg(ecgEl);                                    // start the heartbeat monitor (its own rAF; reads store.pulse)
 
   // ---- live-caption crawl, driven by LiveKit's AUDIO-SYNCED transcription (session-lk.js → store.captionSeg).

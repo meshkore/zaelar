@@ -571,6 +571,11 @@ function _clearCanvasAndLog() {
   // so it owns clearing everything the operator can still SEE, not just the debug ring.
   try { store.newSession(); } catch (_) {}
   try { store.setChatMsgs([]); } catch (_) {}
+  // A reset also puts the FURNITURE back where it was born (operator, 2026-09-07: «cuando se hace un reset,
+  // quiero que el orbe vuelva a su posición inicial»). The canvas is cleared right here, deterministically —
+  // the orb's dragged position is the same kind of client-side state, so it rides the same path. Announced as
+  // an event because the position (inline styles + `hb_pos_orb`) is owned by Orb.js, not by this module.
+  try { document.dispatchEvent(new CustomEvent("hb:canvas-reset")); } catch (_) {}
 }
 
 // Un reset deja el sistema LISTO PARA EMPEZAR — y eso incluye la voz (fix 2026-08-12).
