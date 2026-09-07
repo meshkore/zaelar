@@ -744,6 +744,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     precedence settled-name → held-name → brief — **the mounted test caught the goal clobbering a settled name
     before it shipped**. Row = name · activity (2-line clamp) · «en curso · 1/5 · 20% · lleva 4 min · desde las
     19:42». Node **4.122**, seven disarms.
+  - **F8 — a RESET sends the orb home** (operator, same day: «cuando se hace un reset, quiero que el orbe
+    vuelva a su posición inicial»). Reset cleared canvas/log/chat and left a dragged orb where the drag put
+    it — with `hb_pos_orb` restoring that spot on every future page load. `resetDraggable()`
+    (lib/draggable.js) is makeDraggable's undo: forget the persisted key AND drop the inline styles, so
+    `.orbwrap`'s own CSS centres it on the DESK again (with a docked column, the centre of the shrunk desk,
+    not the window). Wired through the client-side deterministic reset path: `_clearCanvasAndLog()`
+    announces `hb:canvas-reset`, Orb.js answers. Node **4.126**, four disarms, rendered with the real
+    draggable.js and pointer gestures.
   - Node **4.121**, twenty verified disarms, all caught. **RENDERED, not read**: a source test says the listener
     exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
     `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
