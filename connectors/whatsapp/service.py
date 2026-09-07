@@ -89,16 +89,22 @@ async def _ingest_new() -> None:
                 ingest.publish_msg(PLATFORM, m)
         return
     verdicts = await triage.classify(msgs, config.operator_name() or None)
-    surfaced = notify.surface(verdicts, _seen)
-    if not surfaced:
+    # V2-607 — the direct path splits the same two questions as the v2 owner: what is NEW goes into his
+    # inbox, and only then is a notice considered. Before, `notify.surface` decided BOTH, so flipping the
+    # notification default to silence would have left this path storing nothing at all — a connected
+    # channel showing an empty list, which is the exact failure V2-606 had just fixed.
+    fresh = store.new_among(store.load(), PLATFORM, verdicts)
+    if not fresh:
         return
-    for v in surfaced:
+    for v in fresh:
         _seen.add(v.get("messageId"))
         who, group = _origin(v)
         v["from"], v["group"] = who, group          # normalize to unified-store shape
-    store.upsert_items(PLATFORM, surfaced)
-    logger.info(f"WhatsApp: +{len(surfaced)} para ti")
-    await notify.announce("WhatsApp", surfaced)
+    store.upsert_items(PLATFORM, fresh)
+    notice = notify.deserving(fresh)
+    logger.info(f"WhatsApp: +{len(fresh)} ({len(notice)} avisan)")
+    if notice:
+        await notify.announce("WhatsApp", notice)
 
 
 async def _drain_reads() -> None:

@@ -58,7 +58,22 @@ def test_relevant_incoming_surfaces_to_store(iso, monkeypatch):
     assert v["items"][0]["platform"] == "telegram"
 
 
-def test_irrelevant_incoming_does_not_surface(iso, monkeypatch):
+def test_irrelevant_incoming_arrives_but_never_interrupts(iso, monkeypatch):
+    """V2-607 — STORING IS NOT NOTIFYING, and this test used to assert the opposite.
+
+    It was called `test_irrelevant_incoming_does_not_surface` and asserted `count == 0`: a message the
+    notification policy did not care about never entered the widget AT ALL. That was the one gate, and with the
+    policy now defaulting to silence (operator, 2026-09-07) it would have emptied the inbox completely — the
+    exact failure V2-606 had just fixed, arriving from the other side.
+
+    The contract now: it ARRIVES (it is in his WhatsApp section, unread, like in WhatsApp itself), it is NOT in
+    the summary (nothing addressed to him), and NOBODY is told about it."""
+    announced = []
+
+    async def spy_announce(label, items):
+        announced.append((label, [i.get("messageId") for i in items]))
+    monkeypatch.setattr(notify, "announce", spy_announce)
+
     async def fake_classify(msgs, name=None):
         return [{**m, "importante": False, "dirigido_a_mi": False, "urgencia": "baja", "motivo": "spam"}
                 for m in msgs]
@@ -71,7 +86,62 @@ def test_irrelevant_incoming_does_not_surface(iso, monkeypatch):
         await o._triage_batch()
 
     asyncio.run(run())
-    assert data.view_data()["count"] == 0
+    v = data.view_data()
+    assert v["count"] == 1, "it must reach his WhatsApp section — the mailbox is not the triage"
+    assert v["items"][0]["highlight"] is False, "…but not the summary: it is not addressed to him"
+    assert not announced, "and nothing may interrupt him for it"
+
+
+def test_a_message_addressed_to_him_reaches_the_summary_and_still_does_not_interrupt(iso, monkeypatch):
+    """The other half of the split. `highlight` (what the main tab shows) and `notify` (what interrupts) are
+    different questions with different defaults — a test that only checked one would let them re-merge."""
+    announced = []
+
+    async def spy_announce(label, items):
+        announced.append(label)
+    monkeypatch.setattr(notify, "announce", spy_announce)
+
+    async def fake_classify(msgs, name=None):
+        return [{**m, "importante": True, "dirigido_a_mi": True, "urgencia": "alta", "motivo": "para ti"}
+                for m in msgs]
+    monkeypatch.setattr(triage_agent, "classify", fake_classify)
+
+    async def run():
+        o = _mk_owner()
+        ingest.publish_msg("email", {"messageId": "e1", "chatId": "c1", "senderName": "Amazon",
+                                     "isGroup": False, "body": "Pago rechazado"})
+        await o._triage_batch()
+
+    asyncio.run(run())
+    v = data.view_data()
+    assert v["count"] == 1 and v["items"][0]["highlight"] is True
+    assert not announced, "urgent AND addressed still does not interrupt until he asks (default notify=never)"
+
+
+def test_he_asks_to_be_told_and_then_he_is_told(iso, monkeypatch):
+    """«Avísame cada vez que llegue un mensaje» has to actually work, or the default is not a default, it is a
+    wall. The door is the declared `set_notify` action — the same one the voice reaches."""
+    announced = []
+
+    async def spy_announce(label, items):
+        announced.append((label, [i.get("messageId") for i in items]))
+    monkeypatch.setattr(notify, "announce", spy_announce)
+
+    async def fake_classify(msgs, name=None):
+        return [{**m, "importante": False, "dirigido_a_mi": False, "urgencia": "baja", "motivo": "spam"}
+                for m in msgs]
+    monkeypatch.setattr(triage_agent, "classify", fake_classify)
+
+    assert data.apply_action("set_notify", {"platform": "whatsapp", "notify": "all"})["ok"]
+
+    async def run():
+        o = _mk_owner()
+        ingest.publish_msg("whatsapp", {"messageId": "x9", "chatId": "g1", "isGroup": True,
+                                        "chatName": "Ofertas", "senderName": "bot", "body": "hola"})
+        await o._triage_batch()
+
+    asyncio.run(run())
+    assert announced and announced[0][1] == ["x9"], announced
 
 
 def test_status_event_reflected_in_card(iso):

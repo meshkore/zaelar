@@ -139,8 +139,34 @@ def for_brain() -> str:
         plat = _LABEL.get(c.get("platform"), c.get("platform") or "?")
         urg = "URGENTE " if c.get("urgencia") == "alta" else ""
         para = " (para ti)" if c.get("dirigido_a_mi") else ""
+        # V2-607 — WHERE he can see it, because the brain's list and his screen are no longer the same list.
+        where = "" if c.get("highlight") else " [solo en su sección, NO en el resumen]"
         preview = (c.get("lastBody") or "").replace("\n", " ")[:100]
         pend = "1 mensaje" if c.get("count") == 1 else f"{c.get('count')} mensajes"
-        lines.append(f"  {c['n']}. [{plat}] {urg}{c.get('name', '?')}{para} — {pend} pendientes: \"{preview}\"")
-    return (body + "\n[Mensajería ahora — lista de CHATS, usa msg.open/msg.readchat/msg.clear]\n"
+        lines.append(f"  {c['n']}. [{plat}] {urg}{c.get('name', '?')}{para}{where} — {pend} pendientes: "
+                     f"\"{preview}\"")
+    return (body + _summary_split(chats)
+            + "\n[Mensajería ahora — lista de CHATS, usa msg.open/msg.readchat/msg.clear]\n"
             + "\n".join(lines))
+
+
+def _summary_split(chats: list) -> str:
+    """What HE sees versus what this list holds (V2-607).
+
+    The brain gets every chat; his first tab shows only the ones meeting his criterion (by default, addressed to
+    him). Two surfaces over one dataset that disagree is how the model ends up contradicting the screen — the
+    same shape as V2-606, where a «connected» flag plus an empty card produced «no tienes correos sin leer» over
+    1088 of them. So the split is stated, with the sentence it must not say.
+
+    Also states that NOTHING interrupts by default, so the model neither promises to warn him nor apologises for
+    not having warned him — and knows the door when he asks for it."""
+    rest = [c for c in chats if not c.get("highlight")]
+    if not rest:
+        return ("\n[Aviso: por defecto NINGÚN canal te interrumpe cuando llega un mensaje. Si te pide que le "
+                "avises («avísame cuando llegue algo»), es la acción set_notify del widget de mensajería.]")
+    n = sum(int(c.get("count") or 1) for c in rest)
+    return (f"\n[Lo que él VE ahora mismo: su resumen solo enseña lo que va DIRIGIDO A ÉL. Hay {len(rest)} "
+            f"conversación(es) más, {n} mensaje(s), que están en la sección de su canal y NO en ese resumen — "
+            f"marcadas abajo. Existen y las tienes aquí: si pregunta, dile cuántas hay y en qué canal, y ofrécele "
+            f"abrir ese canal (msg.show_view). JAMÁS digas que no tiene nada ni que no han llegado. Y por "
+            f"defecto NINGÚN canal le interrumpe al llegar un mensaje: si te pide que le avises, es set_notify.]")

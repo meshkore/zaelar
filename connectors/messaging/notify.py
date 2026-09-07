@@ -15,12 +15,16 @@ _last_note = 0.0                 # [SYSTEM] note throttle to the brain (V2-015 �
 _NOTE_GAP = 90.0                 # minimum seconds between brain notes — GROUPED, not one per batch/turn
 
 
-def surface(verdicts: list[dict], seen: set) -> list[dict]:
-    """Common 'deserves attention' filter, now CONFIGURED per connector (V2-532) instead of frozen: the historical
-    predicate (important AND (addressed to me OR high urgency)) is the DEFAULT policy level, so an untouched
-    install behaves exactly as before. `seen` is the set of messageIds already shown by the connector (to avoid
-    resurrecting what the operator removed). Policy read fails open to the default — a broken store must degrade
-    to today's behavior, never to silence."""
+def deserving(verdicts: list[dict]) -> list[dict]:
+    """Which of these messages may INTERRUPT him, per each channel's configured policy (V2-532).
+
+    Pure policy: no de-duplication, no knowledge of what is stored. Split out of `surface` in V2-607, when
+    storing stopped implying notifying — the widget owner takes EVERYTHING triaged into the operator's inbox and
+    then asks this, separately, who deserves a notice. Since that release the default answer is nobody, until he
+    says otherwise (`set_notify`).
+
+    A policy read that fails degrades to DEFAULT, which is silence — deliberately: the setting a broken store
+    must not resurrect is the one that talks."""
     from widgets.mensajeria import policy as _policy
     try:
         from connectors.messaging import store as msg_store
@@ -30,8 +34,6 @@ def surface(verdicts: list[dict], seen: set) -> list[dict]:
     pols: dict[str, dict] = {}
     out = []
     for v in verdicts:
-        if v.get("messageId") in seen:
-            continue
         plat = v.get("platform") or "?"
         pol = pols.get(plat)
         if pol is None:
@@ -39,6 +41,8 @@ def surface(verdicts: list[dict], seen: set) -> list[dict]:
         if _policy.wants_notice(pol, v):
             out.append(v)
     return out
+
+
 
 
 async def announce(platform_label: str, new_items: list[dict]) -> None:

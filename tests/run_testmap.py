@@ -1978,6 +1978,21 @@ DOMAINS: list[dict] = [
                                 "llegan los más recientes sin leer, y el total real viaja al cerebro",
             "ch": UNIT,
             "paths": ["tests/connectors/unit/email/test_the_inbox_backlog_is_not_declared_already_seen.py"]},
+        # V2-607, directriz del operador (2026-09-07) + lo medido justo después de V2-606: el MISMO correo (uid
+        # 219719, «Pago rechazado» de Amazon) avisado TRES veces en catorce minutos — uno por reinicio, porque
+        # sigue SIN LEER en Gmail y el conector lo reentrega en cada conexión, correctamente. Lo único que
+        # recordaba haberlo visto era un `set()` de `__init__`. Y la decisión de fondo: GUARDAR NO ES AVISAR —
+        # antes `notify.surface` decidía las dos cosas, así que poner el aviso en silencio por defecto (lo que él
+        # pide) habría vaciado el widget entero, el fallo que V2-606 acababa de arreglar, entrando por el otro lado.
+        {"id": "5.17", "title": "Guardar no es avisar: todo lo no leído entra en la sección de su canal, el "
+                                "resumen enseña lo dirigido a él, nadie interrumpe por defecto, y un reinicio "
+                                "no vuelve a avisar de lo mismo",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/mensajeria/test_a_restart_does_not_announce_the_same_message_again.py",
+                      "tests/browser/unit/mensajeria/test_notification_policy.py",
+                      "tests/browser/unit/mensajeria/test_owner_v2.py",
+                      "tests/connectors/unit/messaging/test_brief_connector_state.py",
+                      "tests/browser/e2e/mensajeria/test_mensajeria_render.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

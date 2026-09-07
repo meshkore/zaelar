@@ -164,16 +164,22 @@ async def _ingest_new(mb) -> None:
         return
     # Direct path (duo/hermes): triage + store + notification, like WhatsApp/Telegram.
     verdicts = await triage.classify(msgs, config.operator_name() or None)
-    surfaced = notify.surface(verdicts, _shown)
-    if not surfaced:
+    # V2-607 — the direct path splits the same two questions as the v2 owner: what is NEW goes into his
+    # inbox, and only then is a notice considered. Before, `notify.surface` decided BOTH, so flipping the
+    # notification default to silence would have left this path storing nothing at all — a connected
+    # channel showing an empty list, which is the exact failure V2-606 had just fixed.
+    fresh = store.new_among(store.load(), PLATFORM, verdicts)
+    if not fresh:
         return
-    for v in surfaced:
+    for v in fresh:
         _shown.add(v.get("messageId"))
         v["from"] = v.get("senderName") or v.get("chatId") or "?"
         v["group"] = None
-    store.upsert_items(PLATFORM, surfaced)
-    logger.info(f"Email: +{len(surfaced)} para ti")
-    await notify.announce("Email", surfaced)
+    store.upsert_items(PLATFORM, fresh)
+    notice = notify.deserving(fresh)
+    logger.info(f"Email: +{len(fresh)} ({len(notice)} avisan)")
+    if notice:
+        await notify.announce("Email", notice)
 
 
 async def _drain_reads(mb) -> None:

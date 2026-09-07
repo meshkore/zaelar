@@ -204,6 +204,7 @@ function injectStyles(){
   .hb-msg .twhen{font-size:11px;color:var(--hb-muted-2,#9aa7b8);margin-left:auto;flex:0 0 auto}
 
   .hb-msg .empty{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:13px;padding:22px 0}
+  .hb-msg .rest{text-align:center;color:var(--hb-muted-2,#9aa7b8);font-size:11px;opacity:.75;padding:8px 0 2px}
 
   /* NARROW SCREENS (V2-559). MEASURED FIRST, and the measurement removed most of what was written here:
      rendered at 375px in six states (connect panel with three failures, both wizards, the QR, the chat list
@@ -1148,10 +1149,14 @@ export function render(root, data, ctx){
 
   // MESSAGES view, reached whenever at least one channel is connected. The lens (V2-521) narrows every
   // shape below to one platform; an open thread wins over it (it already IS one conversation).
-  const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items;
+  // V2-607 — TWO SHAPES, on purpose. With a lens on, this is that channel's own section: EVERYTHING unread it
+  // has brought, nothing filtered. With no lens, this is the summary, and it shows only what meets the criterion
+  // he set (`highlight`, default = addressed to him) — the rest is not gone, it is one tap away in its channel.
+  const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items.filter(it=>it.highlight);
+  const hidden = _platFilter ? 0 : items.length - fItems.length;
   const emptyMsg = _platFilter
     ? "Nada de "+((PLAT[_platFilter]||{}).label||_platFilter)+" que atender ✓"
-    : "Nada que atender ahora ✓";
+    : (hidden ? "Nada dirigido a ti ✓" : "Nada que atender ahora ✓");
   // AN OPEN THREAD WINS OVER EVERY LIST SHAPE (V2-544). It used to win over the lens but NOT over the
   // «completo» profile, which returned first: with that profile selected, `open` set `active_chat` in the
   // store and the card kept painting the same flat list — the operator asks to open a message, everything
@@ -1165,6 +1170,7 @@ export function render(root, data, ctx){
   if(_profile==="completo"){
     if(fItems.length) root.appendChild(richList(fItems, ctx));
     else root.appendChild(el("div","empty",emptyMsg));
+    if(hidden) root.appendChild(restNote(hidden));
     return;
   }
   if(_platFilter==="email"){
@@ -1175,7 +1181,17 @@ export function render(root, data, ctx){
     root.appendChild(fItems.length ? list : el("div","empty",emptyMsg));
     return;
   }
-  const chats = (data.chats || []).filter(c=>!_platFilter || c.platform===_platFilter);
+
+  const chats = (data.chats || []).filter(c=> _platFilter ? c.platform===_platFilter : c.highlight);
   if(chats.length) root.appendChild(chatList(chats, ctx));
   else root.appendChild(el("div","empty",emptyMsg));
+  if(hidden) root.appendChild(restNote(hidden));
+}
+
+// What the summary is NOT showing, said out loud. A filtered list that looks identical to an empty one is how
+// the operator ends up believing a connector is broken — the failure V2-606 came from (V2-607).
+function restNote(n){
+  const d = el("div","rest");
+  d.textContent = n===1 ? "1 mensaje más en sus canales" : n+" mensajes más en sus canales";
+  return d;
 }

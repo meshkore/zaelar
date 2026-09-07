@@ -51,3 +51,31 @@ def test_the_block_declares_it_outranks_the_conversation():
     assert "EN VIVO" in line, line
     assert "MANDA sobre la conversación anterior" in line, line
     assert "TUS propias frases" in line, line
+
+
+# ── What HE sees vs what the brain holds (V2-607) ───────────────────────────
+def test_the_brief_says_which_chats_are_not_in_his_summary(monkeypatch, tmp_path):
+    """The brain's list and his first tab stopped being the same list, and two surfaces over one dataset that
+    disagree is exactly how V2-606 happened: a «connected» flag plus an empty card produced «no tienes correos
+    sin leer» over 1088 of them. So the split is stated, the count is stated, and the forbidden sentence is named.
+    """
+    from connectors.messaging import brief
+
+    chats = [{"n": 1, "platform": "whatsapp", "name": "Mercè", "highlight": True, "count": 1,
+              "dirigido_a_mi": True, "urgencia": "alta", "lastBody": "urgent"},
+             {"n": 2, "platform": "email", "name": "Lowi", "highlight": False, "count": 3,
+              "dirigido_a_mi": False, "urgencia": "media", "lastBody": "factura"}]
+    out = brief._summary_split(chats)
+    assert "1 conversación(es) más" in out and "3 mensaje(s)" in out, out
+    assert "JAMÁS digas que no tiene nada" in out, "the sentence it must not say has to be named"
+    assert "set_notify" in out, "and the door for «avísame» has to be in reach"
+
+
+def test_with_everything_addressed_to_him_it_still_says_nobody_interrupts(monkeypatch):
+    """The other branch. Silence by default is only safe if the model KNOWS it is the default — otherwise it
+    promises to warn him, or apologises for not having warned him, and both are inventions."""
+    from connectors.messaging import brief
+
+    out = brief._summary_split([{"n": 1, "platform": "email", "name": "Ana", "highlight": True, "count": 1}])
+    assert "NINGÚN canal te interrumpe" in out and "set_notify" in out, out
+    assert "conversación(es) más" not in out, "there is no remainder to announce"

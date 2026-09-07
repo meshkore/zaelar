@@ -54,7 +54,10 @@ class _Owner:
         self._read_sub = None             # V2-546: what he read there
         self._history_sub = None          # V2-546: older messages a connector went and fetched
         self._task: asyncio.Task | None = None
-        self._seen: set[str] = set()      # already surfaced messageIds; do not resurrect what the operator removed
+        # NOTE (V2-607): the in-memory `_seen` set that used to live here is gone. It claimed to stop resurrecting
+        # what the operator removed and could not: it started empty on every boot, while the mail it was meant to
+        # suppress is still UNREAD at the provider and gets re-delivered on every connect. The ledger that
+        # actually holds that promise is durable, in the store — `msgstore.taken_ids`.
 
     # Lifecycle.
     async def start(self) -> None:
@@ -189,22 +192,30 @@ class _Owner:
             return
 
         verdicts = await triage_agent.classify(batch, msgcfg.operator_name() or None)
-        surfaced = notify.surface(verdicts, self._seen)
-        if not surfaced:
-            return
-        # Normalize to store shape and group by platform.
+        # V2-607 — STORING IS NOT NOTIFYING. This used to be one decision: `notify.surface` filtered by the
+        # notification policy and whatever survived was BOTH saved and announced, so anything the policy did not
+        # care about never reached his inbox at all. With the policy now defaulting to silence (his direction,
+        # 2026-09-07) that single gate would have emptied the widget completely — the exact failure V2-606 had
+        # just fixed. So the two questions are asked separately, in this order:
+        #   1. what is NEW  → everything of it goes into its channel's section, unread, whatever the policy says
+        #   2. of that, what may INTERRUPT → almost always nothing, until he asks to be told
+        db = msgstore.load()
         by_platform: dict[str, list[dict]] = {}
-        for v in surfaced:
-            self._seen.add(v.get("messageId"))
+        for v in verdicts:
             who, group = _origin(v)
             v["from"], v["group"] = who, group
             by_platform.setdefault(v.get("platform") or "?", []).append(v)
-        for platform, items in by_platform.items():
+        for platform, batch_items in by_platform.items():
             if platform == "?":
                 continue
+            items = msgstore.new_among(db, platform, batch_items)
+            if not items:
+                continue
             msgstore.upsert_items(platform, items)   # UI store + memory dump (kind='msg')
-            logger.info(f"mensajeria: +{len(items)} from {platform} for you")
-            await notify.announce(_LABEL.get(platform, platform), items)
+            notice = notify.deserving(items)
+            logger.info(f"mensajeria: +{len(items)} from {platform} ({len(notice)} avisan)")
+            if notice:
+                await notify.announce(_LABEL.get(platform, platform), notice)
 
     # Operator / brain actions through the supervisor mailbox.
     async def handle(self, action: str, payload: dict) -> None:

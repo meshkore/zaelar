@@ -137,13 +137,29 @@ def _key(it: dict) -> dict:
 
 
 def _visible_items(db: dict) -> list:
-    """Non-muted, renumbered items: the same base list seen by the widget and the brain."""
+    """Non-muted, renumbered items: the same base list seen by the widget and the brain.
+
+    V2-607 — each item also carries `highlight`: does it meet the criterion for the SUMMARY tab (default: it is
+    addressed to him). Nothing is filtered out here. The per-platform lenses show every unread message, and the
+    unified list uses this flag to put only what he asked for in front of him. Computed at read time, not stored,
+    so changing the policy re-sorts the screen he is already looking at instead of only the mail that arrives next.
+    """
+    from . import policy as _policy
     muted_channels = db.get("muted_channels", [])
     muted_keys = {(m.get("platform"), str(m.get("chatId"))) for m in muted_channels}
-    return _renumber([
-        it for it in db.get("items", [])
-        if (it.get("platform"), str(it.get("chatId"))) not in muted_keys
-    ])
+    pols: dict = {}
+    out = []
+    for it in db.get("items", []):
+        if (it.get("platform"), str(it.get("chatId"))) in muted_keys:
+            continue
+        plat = it.get("platform") or "?"
+        pol = pols.get(plat)
+        if pol is None:
+            pol = pols[plat] = _policy.policy_for(db, plat)
+        it = dict(it)
+        it["highlight"] = _policy.wants_highlight(pol, it)
+        out.append(it)
+    return _renumber(out)
 
 
 def _group_chats(items: list) -> list:
@@ -158,12 +174,15 @@ def _group_chats(items: list) -> list:
         if g is None:
             g = {"platform": it.get("platform"), "chatId": it.get("chatId"),
                  "name": it.get("group") or it.get("from") or "?", "isGroup": bool(it.get("isGroup")),
-                 "count": 0, "rank": 3, "dirigido_a_mi": False, "last": it}
+                 "count": 0, "rank": 3, "dirigido_a_mi": False, "highlight": False, "last": it}
             by_key[key] = g
             order.append(key)
         g["count"] += 1
         g["rank"] = min(g["rank"], _URG_RANK.get(it.get("urgencia"), 3))
         g["dirigido_a_mi"] = g["dirigido_a_mi"] or bool(it.get("dirigido_a_mi"))
+        # A chat belongs in the summary as soon as ONE of its messages does — the alternative silently buries a
+        # message addressed to him under a chat whose other traffic is noise (V2-607).
+        g["highlight"] = g["highlight"] or bool(it.get("highlight"))
         g["last"] = it   # most recent by appearance order; the store has no timestamp
     rank_to_urg = {0: "alta", 1: "media", 2: "baja"}
     chats = []
@@ -173,6 +192,7 @@ def _group_chats(items: list) -> list:
         chats.append({
             "n": i, "platform": g["platform"], "chatId": g["chatId"], "name": g["name"],
             "isGroup": g["isGroup"], "count": g["count"], "dirigido_a_mi": g["dirigido_a_mi"],
+            "highlight": g["highlight"],
             "urgencia": rank_to_urg.get(g["rank"], "media"),
             "lastFrom": last.get("from"), "lastBody": last.get("body", ""), "lastMotivo": last.get("motivo", ""),
             # V2-543: real time + media class of the preview (0/"" for legacy rows without them).
@@ -543,7 +563,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         from .policy import set_policy
         db = load_db()
         try:
-            pol = set_policy(db, platform, notify=payload.get("notify"), speak=payload.get("speak"))
+            pol = set_policy(db, platform, notify=payload.get("notify"), speak=payload.get("speak"),
+                             highlight=payload.get("highlight"))
         except ValueError as e:
             return {"ok": False, "error": str(e)}
         store.save(WIDGET_ID, db)

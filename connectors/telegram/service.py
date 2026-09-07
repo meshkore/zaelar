@@ -176,14 +176,20 @@ async def _drain_inbox() -> None:
             ingest.publish_msg("telegram", m)
         return
     verdicts = await triage.classify(batch, config.operator_name())
-    surfaced = notify.surface(verdicts, _seen)
-    if not surfaced:
+    # V2-607 — the direct path splits the same two questions as the v2 owner: what is NEW goes into his
+    # inbox, and only then is a notice considered. Before, `notify.surface` decided BOTH, so flipping the
+    # notification default to silence would have left this path storing nothing at all — a connected
+    # channel showing an empty list, which is the exact failure V2-606 had just fixed.
+    fresh = store.new_among(store.load(), "telegram", verdicts)
+    if not fresh:
         return
-    for v in surfaced:
+    for v in fresh:
         _seen.add(v.get("messageId"))
-    store.upsert_items("telegram", surfaced)
-    logger.info(f"Telegram: +{len(surfaced)} para ti")
-    await notify.announce("Telegram", surfaced)
+    store.upsert_items("telegram", fresh)
+    notice = notify.deserving(fresh)
+    logger.info(f"Telegram: +{len(fresh)} ({len(notice)} avisan)")
+    if notice:
+        await notify.announce("Telegram", notice)
 
 
 async def _drain_outbox() -> None:

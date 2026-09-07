@@ -79,6 +79,7 @@ def _empty() -> dict:
         "muted_channels": [],
         "notify_policy": {},
         "threads": {},
+        "taken": [],
     }
 
 
@@ -110,6 +111,8 @@ def load() -> dict:
     db.setdefault("muted_channels", [])
     db.setdefault("notify_policy", {})
     db.setdefault("threads", {})
+    if not isinstance(db.get("taken"), list):
+        db["taken"] = []
     db.setdefault("updated", "")
     return db
 
@@ -127,6 +130,49 @@ def _renumber(items: list) -> list:
 def _key(it: dict) -> dict:
     return {"platform": it.get("platform"), "chatId": it.get("chatId"),
             "messageId": it.get("messageId"), "senderId": it.get("senderId")}
+
+
+# ── The durable ledger of what has ALREADY been taken in ────────────────────
+#: How many (platform, messageId) pairs the ledger remembers. Eviction is oldest-first, so the only message that
+#: can come back is one older than the last 4000 — by then it is not "the message he just dismissed".
+TAKEN_CAP = 4000
+
+
+def _taken_key(platform, message_id) -> str:
+    return f"{platform}:{message_id}"
+
+
+def taken_ids(db: dict) -> set:
+    """Every (platform, messageId) this widget has already taken in, ACROSS RESTARTS (V2-607).
+
+    The de-duplication used to be the in-memory `_seen` set of whoever was announcing, so every engine restart
+    started from zero. Measured on the operator's engine 2026-09-07: the same email (uid 219719, «Pago
+    rechazado» from Amazon) was announced THREE times in fourteen minutes — once per restart — because the mail
+    is still UNREAD on the server, so V2-606's backfill re-delivers it on every connect, correctly, forever.
+    An in-memory guard cannot dedupe against a durable source; only a durable ledger can.
+
+    It also restores what the old `_seen` comment CLAIMED to do — «do not resurrect what the operator removed» —
+    which it could not, for the same reason: he dismisses a message, the engine restarts, IMAP still calls it
+    unread, and it walks straight back into his list."""
+    return {str(k) for k in (db.get("taken") or [])}
+
+
+def new_among(db: dict, platform: str, candidates: list[dict]) -> list[dict]:
+    """The candidates this widget has NOT taken in yet — the query behind both the store guard and the notice.
+
+    Single-sourced on purpose: «already have it» decides whether it is STORED and, since V2-607, whether it may
+    INTERRUPT. Two copies of that predicate is how a message gets announced but not saved, or saved twice."""
+    taken = taken_ids(db)
+    have = {(it.get("platform"), it.get("messageId")) for it in db.get("items") or []}
+    out = []
+    for m in candidates:
+        mid = m.get("messageId")
+        if mid is None:
+            continue
+        if (platform, mid) in have or _taken_key(platform, mid) in taken:
+            continue
+        out.append(m)
+    return out
 
 
 # ── Writes by connectors ────────────────────────────────────────────────────
@@ -155,9 +201,11 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
     have = {(it.get("platform"), it.get("messageId")) for it in items}
     added = False
     fresh: list[dict] = []      # truly NEW items, to dump into memory (V2-003 · T57)
-    for m in new_items:
+    # V2-607 — the ledger too, not only the current list: a message the operator DISMISSED is gone from `items`
+    # but still unread at the provider, so without this it walks back in on the next connect.
+    for m in new_among(db, platform, new_items):
         key = (platform, m.get("messageId"))
-        if key[1] is None or key in have:
+        if key in have:         # duplicate WITHIN this batch (new_among only knows the stored state)
             continue
         # Skip muted channels (they do not enter the store)
         if (platform, str(m.get("chatId"))) in muted_keys:
@@ -211,6 +259,9 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
     # Urgency first, newest first within the same urgency (ts=0 for legacy rows keeps them at the tail).
     items.sort(key=lambda it: (_RANK.get(it.get("urgencia"), 3), -float(it.get("ts") or 0)))
     db["items"] = items
+    # Record what was taken in, so a restart (or a dismissal) does not let it back through — V2-607.
+    db["taken"] = ([str(k) for k in (db.get("taken") or [])]
+                   + [_taken_key(platform, e.get("messageId")) for e in fresh])[-TAKEN_CAP:]
     db["updated"] = _now()
     out = save(db)     # UI SSE intact: the per-widget store still sends the face
     _to_memory(fresh)  # ALSO, durable content goes to central memory (brain recall)

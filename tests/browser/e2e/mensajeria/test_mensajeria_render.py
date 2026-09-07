@@ -25,24 +25,27 @@ _ITEMS = [
     {"n": 1, "platform": "whatsapp", "from": "JOSE VICENTE", "group": None, "isGroup": False,
      "body": "[image received]", "urgencia": "media", "dirigido_a_mi": True, "motivo": "",
      "messageId": "w1", "chatId": "111", "senderId": "111", "ts": 1756742000, "mediaType": "image",
+     "highlight": True,
      "media": [{"url": "/widgets/mensajeria/asset/img_x.jpg", "type": "image", "name": "img_x.jpg"}]},
     {"n": 2, "platform": "whatsapp", "from": "JOSE VICENTE", "group": None, "isGroup": False,
      "body": "[ptt received]", "urgencia": "media", "dirigido_a_mi": True, "motivo": "",
      "messageId": "w2", "chatId": "111", "senderId": "111", "ts": 1756742100, "mediaType": "ptt",
+     "highlight": True,
      "media": [{"url": "/widgets/mensajeria/asset/aud_y.ogg", "type": "ptt", "name": "aud_y.ogg"}]},
     {"n": 3, "platform": "email", "from": "Ana", "group": None, "isGroup": False,
      "body": "[Asunto: factura]\n\nAdjunto la factura", "urgencia": "media", "dirigido_a_mi": False,
      "motivo": "", "messageId": "9", "chatId": "a@b.com", "senderId": "a@b.com", "ts": 1756741000,
+     "highlight": False,
      "mediaType": "document", "subject": "factura", "msgid": "<x>",
      "media": [{"url": "/widgets/mensajeria/asset/eml_9_0_factura.pdf", "type": "document",
                 "name": "factura.pdf"}]},
 ]
 _CHATS = [
     {"n": 1, "platform": "whatsapp", "chatId": "111", "name": "JOSE VICENTE", "isGroup": False,
-     "count": 2, "dirigido_a_mi": True, "urgencia": "media", "lastFrom": "JOSE VICENTE",
+     "count": 2, "dirigido_a_mi": True, "highlight": True, "urgencia": "media", "lastFrom": "JOSE VICENTE",
      "lastBody": "[image received]", "lastMotivo": "", "lastTs": 1756742000, "lastMediaType": "image"},
     {"n": 2, "platform": "email", "chatId": "a@b.com", "name": "Ana", "isGroup": False,
-     "count": 1, "dirigido_a_mi": False, "urgencia": "media", "lastFrom": "Ana",
+     "count": 1, "dirigido_a_mi": False, "highlight": False, "urgencia": "media", "lastFrom": "Ana",
      "lastBody": "[Asunto: factura]\n\nAdjunto la factura", "lastMotivo": "",
      "lastTs": 1756741000, "lastMediaType": "document"},
 ]
@@ -79,6 +82,7 @@ _MEASURE = """() => {
       [...r.querySelectorAll('.tacts button')].map(b => b.textContent).join('')),
     bodies: [...el.querySelectorAll('.tbody')].map(n => n.textContent),
     filt: el.querySelectorAll('.picon.filt').length,
+    rest: [...el.querySelectorAll('.rest')].map(n => n.textContent),
     acts: window.__acts || [],
   };
 }"""
@@ -139,30 +143,53 @@ def plain(playwright_available):
 
 def test_it_mounts_the_chat_list_with_spanish_media_labels_and_times(plain):
     assert plain["mounted"] and plain["errors"] == [], plain.get("errors")
-    assert plain["chats"] == ["JOSE VICENTE", "Ana"], plain["chats"]
+    # V2-607 — the SUMMARY is not the mailbox. Ana's mail is not addressed to him, so it is not here; JOSE
+    # VICENTE's is. This used to assert both, back when the main list was everything that had been let in.
+    assert plain["chats"] == ["JOSE VICENTE"], plain["chats"]
     assert any("📷 Foto" in p for p in plain["previews"]), \
         f"the bridge's placeholder must never reach the operator's eyes: {plain['previews']}"
     assert not any("received]" in p for p in plain["previews"]), plain["previews"]
-    assert plain["whens"] >= 2, "real timestamps must show"
+    assert plain["whens"] >= 1, "real timestamps must show"
+
+
+def test_the_summary_says_out_loud_what_it_is_not_showing(plain):
+    """A filtered list that looks exactly like an empty one is how the operator concludes a connector is broken —
+    which is the road to V2-606. So the summary states the remainder instead of just dropping it."""
+    assert plain["rest"] == ["1 mensaje más en sus canales"], plain["rest"]
+
+
+def test_a_lens_shows_EVERYTHING_that_channel_brought(playwright_available):
+    """The other half of the split, and the one that makes the filtering safe: Ana never reaches the summary, and
+    is right there the moment he looks at his email. Nothing was dropped, only ranked."""
+    lens = _run([{**_BASE, "view": {"platform": "email", "n": 1, "at": 0}}])[0]
+    assert lens["bodies"] and any("factura" in b for b in lens["bodies"]), lens["bodies"]
+    assert lens["rest"] == [], "inside a channel there is no remainder to announce"
 
 
 def test_a_pushed_view_MOVES_the_lens_and_a_repaint_does_not_yank_it(playwright_available):
     steps = _run([_BASE,
                   {**_BASE, "view": {"platform": "whatsapp", "n": 1, "at": 0}},
                   {**_BASE, "view": {"platform": "whatsapp", "n": 1, "at": 0}}])
-    assert steps[0]["chats"] == ["JOSE VICENTE", "Ana"]
+    assert steps[0]["chats"] == ["JOSE VICENTE"]
     assert steps[1]["chats"] == ["JOSE VICENTE"], "«solo el WhatsApp» has to move the screen"
     assert steps[1]["filt"] == 1, "the active lens must be visible on its header icon"
+    assert steps[1]["rest"] == [], "a lens shows the whole channel: nothing left over to announce"
     assert steps[2]["chats"] == ["JOSE VICENTE"], "same token again: keep, never re-apply nor undo"
 
 
 def test_asking_for_the_main_list_lands_even_after_a_manual_change(playwright_available):
-    """whatsapp lens pushed → (screen filtered) → «vuelve a la lista principal» pushes platform '' with a
-    MOVED counter: both chats come back. The counter is the token, not the value."""
-    steps = _run([{**_BASE, "view": {"platform": "whatsapp", "n": 1, "at": 0}},
+    """email lens pushed → (screen filtered to Ana) → «vuelve a la lista principal» pushes platform '' with a
+    MOVED counter: the summary comes back. The counter is the token, not the value.
+
+    Pushed through the EMAIL lens on purpose since V2-607: it is the channel whose chat does NOT make the
+    summary, so this measures the lens moving AND the summary re-filtering, instead of two identical lists."""
+    steps = _run([{**_BASE, "view": {"platform": "email", "n": 1, "at": 0}},
                   {**_BASE, "view": {"platform": "", "n": 2, "at": 0}}])
-    assert steps[0]["chats"] == ["JOSE VICENTE"]
-    assert steps[1]["chats"] == ["JOSE VICENTE", "Ana"], "the main list must come back"
+    # Email renders as a FLAT mail list, not chat rows (its natural shape) — so its presence is measured on the
+    # body, not on `.chatrow`.
+    assert steps[0]["chats"] == [] and any("factura" in b for b in steps[0]["bodies"]), steps[0]["bodies"]
+    assert steps[1]["chats"] == ["JOSE VICENTE"], "the main list must come back"
+    assert steps[1]["rest"] == ["1 mensaje más en sus canales"]
 
 
 def test_inside_a_thread_media_actually_paint(playwright_available):
