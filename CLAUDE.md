@@ -659,7 +659,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     verbatim: classes `chatwall tab-chat open`, `--chatdock-l: 420px`. Pre-existing (a tab change while docked
     did it too); restoring the saved dock made it reachable on every load. **Two writers on one className, one
     reactive and one imperative, is the shape** — the reactive one must reproduce what the imperative one set.
-  - Node **4.121**, thirteen verified disarms, all caught. **RENDERED, not read**: a source test says the listener
+  - ⚠️ **AND THE ROOT CAUSE WAS UNDERNEATH ALL OF IT** (F3, same day, four more reports): `#wstage` is a CHILD
+    of `#desk`, and `#desk` carries `transform: translate3d(0,0,0)` — which makes it the **containing block for
+    every `position:fixed` descendant**, `.hb-stage{inset:0}` included. So a card's `style.left` is measured from
+    the DESK, and the stage slides on its own when a column insets `#desk`. Deliberate and documented since
+    V2-062 (`main.js:33`): the orb and camera travel with the desk. **MEASURED**: a card at `style.left:100px`
+    renders at viewport 115 undocked and at **535** with a 420px column, `style.left` untouched. Every clamp
+    comparing `style.left` against a VIEWPORT number was wrong by exactly the column width — **and silently right
+    whenever nothing was docked**, which is how it survived. It is also the other half of his report: `_wireDrag`
+    took the grab offset from `getBoundingClientRect()` and wrote it into `style.left`, so the card jumped
+    sideways the instant he grabbed it («la manita aparece desplazada 100 o 200 píxeles»). One `_toDesk()`
+    conversion now feeds `canvas()`, `_obstacles()`, `_watchSize()`, the drag and the drag-resize.
+  - ⚠️ **My fixture built `#wstage` as a SIBLING of `#desk`**, so `position:fixed` resolved against the window
+    and the two coordinate systems coincided. Twelve green tests over a DOM the product does not have. **A
+    harness whose DOM differs from the product's measures a different product** — when a UI fixture hand-writes
+    the scaffold, copy the real rule verbatim, `transform` included.
+  - **The orb** was already centred on the desk (`left:50%` resolves against `#desk`) — the first attempt added
+    the dock offset and pushed it half a column off-centre, the same double-count again. What needed fixing is a
+    DRAGGED orb: its inline `left` is a desk pixel valid for the old desk WIDTH, so it is remapped by the
+    FRACTION of the band it sat at — «la misma posición relativa, en el nuevo tamaño de la zona visible».
+  - **A docked column must always offer a way out.** It can be opened by the AGENT (a proactive push showing the
+    cluster list), so it arrives docked without him docking it — and he had TWO independent reasons he could not
+    close it: `--banner-h` was honoured by `.me` and `.tr` and **nothing else**, so the update banner buried the
+    column's own header; and the column's east resize strip sat **on top of** the close button
+    (`elementFromPoint` over the × returned `DIV.hb-rz hb-rz-e`). Plus a visible undock button that returns the
+    floating chat panel — «se minimiza la barra y vuelve a aparecer el widget del chat».
+  - **The whole header drags**, like any OS title bar, for every widget. `Desktop.DRAG_HANDLES` is the single
+    declaration of what drags a card — read from the CARD, so a test can ask the product which parts are handles
+    instead of choosing for it. Clicks survive on a 4px threshold, and the move/up listeners live on the
+    **window**: on a 26px grip, handle-bound listeners stop firing the moment the pointer leaves it (measured:
+    0px for a 120px drag), and capturing instead would retarget the click and kill the title button.
+  - Node **4.121**, twenty verified disarms, all caught. **RENDERED, not read**: a source test says the listener
     exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
     `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
     the listeners never registered and the test measured nothing. Registering them in the test would have proved
