@@ -562,6 +562,53 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     «contesta con sus nombres», but `dispatch_and_report` is fire-and-forget, so V2-603 wired the FAILURE case
     and success-with-content still ends in the canned ack.
 
+- **Storing is not notifying — nothing interrupts by default, and the summary is not the mailbox (V2-607,
+  2026-09-07)**: the operator's direction, the same day, right on top of V2-606: the «notify me on a new
+  message» flag must be **OFF by default** and live in the widget's state; each channel's section holds what
+  arrived unread; and the **summary tab highlights only what meets his criterion — by default, what is
+  addressed to him**. «We can even be reading the messages that are arriving.»
+  - **The trap that made this more than a default change.** `notify.surface` decided BOTH what got STORED and
+    what INTERRUPTED — one gate, two questions. Flipping the notification default to silence through it would
+    have emptied the widget completely: the exact failure V2-606 had just fixed, arriving from the other side.
+    So the four ingest paths (the v2 owner + the three direct-path connectors) now ask them in order: **what is
+    NEW goes into its channel's section whatever the policy says**, and only then, **what may interrupt**.
+  - **Two knobs where there was one**: `notify` (default `never`) and `highlight` (default `direct`). `highlight`
+    has **no «never» level** — an empty main tab is a broken screen, not a policy. The historical predicate
+    stays exactly reachable (`notify: important`), and `_matches` single-sources the ladder both read, because
+    writing it twice is how the two would drift apart.
+  - **A durable ledger, because the in-memory one could not keep the promise it made.** MEASURED on the live
+    engine straight after V2-606: the same email (uid 219719, «Pago rechazado» from Amazon) announced **THREE
+    times in fourteen minutes** — 12:29:39, 12:38:21, 12:43:17, one per restart, each on a different build.
+    Nothing was malfunctioning: the mail is still UNREAD in Gmail, so every connect re-delivers it, correctly and
+    forever, while the only thing remembering it was a `set()` built in `__init__`. That set even carried the
+    comment «do not resurrect what the operator removed», which it could not keep for the same reason — he
+    dismisses a message, the engine restarts, IMAP still calls it unread, and it walks back in. `store.taken_ids`
+    / `new_among`, capped at 4000, oldest-first. **An in-memory guard cannot dedupe against a durable source.**
+  - **The brain is told the split.** It holds every chat; his first tab does not. Two surfaces over one dataset
+    that disagree is precisely how V2-606 produced «no tienes correos sin leer» over 1088 of them, so `brief`
+    marks each chat with where he can see it, states the remainder, and names the forbidden sentence.
+  - **`notify.surface` was DELETED**, not left with no callers: a dead function carrying the old coupling is how
+    the coupling comes back.
+  - **The fork that would have swallowed all of it.** `widgets/_user/mensajeria/` — a fork taken 2026-09-05 from
+    engine 3.25 — **shadows the built-in** (`paths.roots()`, generated root first), and every file in it was
+    **byte-identical to HEAD**; only `manifest.json` differed, by `origin` and `forked_from`. Zero user work, and
+    it froze his messaging widget at 3.25: every fix shipped to `widgets/mensajeria/` from that day on would have
+    reached nobody, silently. Removed (backup kept outside the repo). ⚠️ **A fork with no user content is not
+    free — it is a shadow**, and the widget lifecycle should not leave one behind.
+  - **VERIFIED LIVE** on his engine at `3.26+f04daa7`: all three channels effective at `notify: never,
+    highlight: direct`; two further emails (Plaid, Amazon) taken in **silently** after the restart, recorded in
+    the durable ledger, **zero notices emitted since the process came up**.
+  - Node **5.17**, six verified disarms, all caught. ⚠️ **Found on the way**:
+    `tests/browser/unit/mensajeria/test_notification_policy.py` isolated its store by patching
+    `wstore._DATA_DIR` — an attribute that does not exist — behind a `hasattr` guard that made the whole fixture
+    a **silent no-op**. What actually isolated the module was an accident of import order (`DATA_DIR` is computed
+    at import time, so the first test froze it), and the cases leaked policy into each other. The leak was
+    invisible because **the value that leaked equalled the default they asserted**; inverting the default is what
+    made it show.
+  - **Open and named**: whether the WhatsApp and Telegram bridges hand over UNREAD on connect the way email now
+    does is **not measured** — nothing in their code paths pulls a backlog (WhatsApp's `history` branch is
+    on-demand scrollback), and settling it needs a live re-link of both accounts, not a reading.
+
 - **A card question the operator cannot answer is asked forever — and the captcha handoff nobody offered
   (V2-605, 2026-09-07)**: session `43b7bf79`, read turn by turn before touching anything. «Tienes 2 abiertas:
   ¿cuál te enseño, "t1" o "navegador"?» was spoken FIVE times in 93 seconds while he answered it («uno está
