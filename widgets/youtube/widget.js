@@ -119,6 +119,10 @@ function injectStyles(){
   .hb-yt-sughead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
                  color:var(--hb-ink,#0d1622);margin-top:2px}
   .hb-yt-sugsub{font-weight:400;color:var(--hb-muted-2,#9aa7b8)}
+  /* V2-604 — the operator's OWN library, above everything that depends on a connector. */
+  .hb-yt-lib{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 0 6px}
+  .hb-yt-libh{font-size:12px;font-weight:700;color:var(--hb-fg,#0f1720);margin-right:2px}
+  .hb-yt-libp{grid-column:1/-1;font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:0 0 8px}
   .hb-yt-catch{grid-column:1/-1;border-top:1px solid var(--hb-line,#eef1f6);margin-top:4px}
   /* Connect mode hides every other face; the crumb is the way back. Same class-driven switching as home. */
   .hb-yt.hb-yt-connmode .hb-yt-frame,.hb-yt.hb-yt-connmode .hb-yt-title,.hb-yt.hb-yt-connmode .hb-yt-meta,
@@ -165,6 +169,8 @@ function el(tag, cls, text){
 // player's ending would advance the OTHER's queue.
 let _ytEnded = null;
 let _ytError = null;   // V2-401: the player refusing to play (onError) is reported back, never swallowed
+let _ytQuality = null; // V2-604: the quality levels the video really HAS, reported back once per video
+let _qSeen = "";       // last videoId whose levels were reported (infoDelivery repeats several times a second)
 if(typeof window !== "undefined" && !window.__hbYtWidgetBound){
   window.__hbYtWidgetBound = true;
   window.addEventListener("message", (ev) => {
@@ -176,6 +182,15 @@ if(typeof window !== "undefined" && !window.__hbYtWidgetBound){
     // Without this, "This video is unavailable" on screen coexisted with a declared state that said
     // playing — and /widgets/producing, the brain and the judge all believed the declared state (V2-401).
     if(d.event === "onError" && _ytError) _ytError(d.info);
+    // V2-604 — the definition of the video. The results page does not publish it (measured: only 4K carries
+    // a badge at all), so the player is the ONLY honest source, and this is the only moment it exists. Read
+    // from the `infoDelivery` the player already sends because we asked to listen; reported ONCE per video,
+    // because that stream repeats several times a second and each report is a store write.
+    if(d.event === "infoDelivery" && d.info && d.info.availableQualityLevels && _ytQuality){
+      const vid = String(d.info.videoData && d.info.videoData.video_id || "");
+      const key = vid || "current";
+      if(key !== _qSeen){ _qSeen = key; _ytQuality(d.info.availableQualityLevels, vid); }
+    }
   });
 }
 function startListening(iframe){
@@ -685,6 +700,9 @@ export function render(root, data, ctx){
   // always carries the CURRENT ctx. Gated on halted: a stopped agent starts no playback (V2-092).
   _ytEnded = () => { if(ctx && ctx.action && !halted(ctx)) ctx.action("ended"); };
   _ytError = (code) => { if(ctx && ctx.action) ctx.action("player_error", {code: String(code == null ? "unknown" : code)}); };
+  _ytQuality = (levels, vid) => {
+    if(ctx && ctx.action) ctx.action("player_quality", {levels: Array.isArray(levels) ? levels : [], videoId: vid || ""});
+  };
 
   // The list rows, re-rendered on every render (text only; the iframe is never touched by this).
   if(E.listBox){
@@ -745,6 +763,47 @@ export function render(root, data, ctx){
       chip.appendChild(c);
       E.home.appendChild(chip);
     }
+    // MY LIBRARY (V2-604): the channels he follows, his saved lists, his history and the preferences that
+    // are actually being enforced — all of it OURS, so this band renders identically with the account
+    // connector absent (which today it always is, V2-603 F2). Rendered before the suggestions band on
+    // purpose: what he owns comes above what a third party would lend us. Chips only appear for things
+    // that exist — an empty library shows nothing rather than a row of dead affordances.
+    const chans = Array.isArray(data.channels) ? data.channels : [];
+    const saved = Array.isArray(data.lists) ? data.lists : [];
+    const hist = Array.isArray(data.history) ? data.history : [];
+    if(chans.length || saved.length || hist.length){
+      const lib = el("div", "hb-yt-lib");
+      lib.appendChild(el("span", "hb-yt-libh", "Tu biblioteca"));
+      const chip = (label, title, act, payload) => {
+        const c = el("span", "hb-yt-chip", label);
+        c.title = title;
+        c.addEventListener("click", () => { if(ctx && ctx.action) ctx.action(act, payload); });
+        lib.appendChild(c);
+      };
+      if(hist.length) chip("⏱ Historial · " + hist.length, "Lo que has visto", "show_history", {});
+      chans.forEach((c) => {
+        const nom = String(c && c.name || "").trim();
+        if(nom) chip("★ " + nom, "Lo más reciente de " + nom, "channel_videos", {channel: nom});
+      });
+      saved.forEach((L) => {
+        const nom = String(L && L.name || "").trim();
+        if(nom) chip("≡ " + nom, (Array.isArray(L.items) ? L.items.length : 0) + " vídeos guardados",
+                     "open_list", {name: nom});
+      });
+      E.home.appendChild(lib);
+      // The preferences, spelled out. A filter the operator cannot SEE is one he cannot trust or correct,
+      // and the notes are labelled as notes so the card never implies we enforce what we only remember.
+      const prefs = data.prefs || {};
+      const notes = Array.isArray(data.prefs_notes) ? data.prefs_notes : [];
+      const bits = [];
+      if(prefs.min_definition) bits.push("mínimo " + prefs.min_definition + "p");
+      if(prefs.captions === true) bits.push("subtítulos siempre");
+      if(prefs.captions === false) bits.push("sin subtítulos");
+      if(prefs.volume != null) bits.push("volumen " + prefs.volume);
+      notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) bits.push("nota: " + t); });
+      if(bits.length) E.home.appendChild(el("div", "hb-yt-libp", bits.join(" · ")));
+    }
+
     // SUGGESTIONS band (V2-597): recent uploads from the connected account's subscriptions, above the queue
     // catalog. Only when there is an account to back it (or a pull already ran) — unconnected, the dimmed
     // platform icon in the header is the affordance, not an empty band.

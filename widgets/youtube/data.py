@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from . import library
 
 WID = "youtube"
 
@@ -62,6 +63,10 @@ _SEED = {
     "suggested_channels": 0,
     "suggesting": False,     # a suggestions pull is on the network right now (visible state, like `adding`)
 }
+# V2-604 — the widget's OWN library (followed channels, history, preferences, saved lists) lives in
+# `library.py` and merges its fields here, so there is one seed and `_seed()`/`_load()` keep normalizing
+# every field in one place. It owes nothing to the connector and does not degrade when it is absent.
+_SEED.update(library.seed_fields())
 
 # How long the cached platform rows are trusted before the card asks for a re-sync. Short and cheap: the
 # sync reads two local files (token store + credential store), no network.
@@ -243,13 +248,17 @@ def _search_id(q: str, blocked: list = None) -> dict:
 
 
 def _seed() -> dict:
-    """Fresh copy of the seed. `dict(_SEED)` is SHALLOW: since the seed carries mutable lists, handing out
-    the same list object meant an `append` on a "fresh" db mutated the module seed itself — every later fresh
-    load inherited it (caught by the V2-366 tests before shipping). Every list field gets its own copy."""
+    """Fresh copy of the seed. `dict(_SEED)` is SHALLOW: since the seed carries mutable containers, handing
+    out the same object meant an `append` on a "fresh" db mutated the module seed itself — every later fresh
+    load inherited it (caught by the V2-366 tests before shipping, and again by the V2-604 ones when `prefs`
+    arrived as the first DICT in the seed and the list-only guard let it straight through: a preference set
+    in one session was still there in the next widget's "empty" state). Every container gets its own copy."""
     d = dict(_SEED)
     for k, v in _SEED.items():
         if isinstance(v, list):
             d[k] = []
+        elif isinstance(v, dict):
+            d[k] = {}
     return d
 
 
@@ -302,7 +311,9 @@ def _sync_platforms(db: dict) -> dict:
 def _load() -> dict:
     db = store.load(WID, _seed())
     for k, v in _SEED.items():                          # normalize missing fields (old store)
-        db.setdefault(k, [] if isinstance(v, list) else v)
+        if k in db:
+            continue
+        db[k] = [] if isinstance(v, list) else ({} if isinstance(v, dict) else v)
     return db
 
 
@@ -382,6 +393,8 @@ def _play_pos(db: dict, i: int, cmd: str) -> dict:
     db["latest"] = False
     db["pos"] = i
     db["paused"] = False
+    library.record_play(db, it)                          # V2-604: we are the ones playing it, so the history is ours
+    library.apply_prefs(db, fresh=False)
     r = _bump(db, cmd)
     r["position"] = i + 1
     return r
@@ -392,6 +405,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
     db = _load()
 
     if action == "load":
+        had_video = bool(db.get("videoId"))
         raw = str(p.get("url") or p.get("videoId") or "").strip()
         vid = _extract_id(raw)
         title = str(p.get("title") or "").strip()
@@ -425,6 +439,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # queue that will start after this video ends (pos=-1 → ended plays list[0]).
         db["pos"] = next((i for i, it in enumerate(db.get("list") or []) if it.get("videoId") == vid), -1)
         db["paused"] = False
+        library.record_play(db, {"videoId": vid, "title": db["title"], "channel": channel, "url": db["url"]})
+        library.apply_prefs(db, fresh=not had_video)
         return _bump(db, "load")
 
     if action == "add":
@@ -839,5 +855,9 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["muted"] = True
         db["pos"] = -1                                  # V2-366: close closes the VIDEO; the list survives
         return _bump(db, "close")
+
+    r = library.apply(action, p, db)                     # V2-604 — channels, history, preferences, saved lists
+    if r is not None:
+        return r
 
     return {"ok": False, "error": "unknown_action", "action": action}

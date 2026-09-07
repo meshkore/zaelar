@@ -165,21 +165,11 @@ _SECRET_RX = [
 ]
 
 
-def _apply_action_names(src: str) -> set[str] | None:
-    """The action names an `apply_action(action, …)` actually HANDLES, by scanning the comparisons against its
-    first parameter (`if action == "x"`, `elif action in ("a","b")`, `action.strip() == "x"`). Returns the set
-    of handled literals, an EMPTY set if apply_action exists but uses a dispatch style we can't parse statically
-    (e.g. a dict table — caller then fail-opens), or None if there is no apply_action at all. Stdlib AST, no
-    execution. This is the enforcement half of "declared actions must match apply_action" (V2-025)."""
+def _literal_actions(fn, param: str) -> set[str]:
+    """Action literals a function body compares its `param` against — `if action == "x"`, `elif action in
+    ("a","b")`, `action.strip() == "x"`. The scanning half shared by the two functions below, so a delegate
+    module is read by exactly the same rules as apply_action itself."""
     import ast
-    try:
-        tree = ast.parse(src)
-    except Exception:
-        return None
-    fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "apply_action"), None)
-    if fn is None:
-        return None
-    param = fn.args.args[0].arg if fn.args.args else "action"
 
     def _is_action_ref(node) -> bool:
         # `action`, or a chained call/attr on it: `action.strip()`, `action.lower().strip()`.
@@ -199,6 +189,65 @@ def _apply_action_names(src: str) -> set[str] | None:
             elif isinstance(op, ast.In) and isinstance(comp, (ast.Tuple, ast.List, ast.Set)):
                 names.update(e.value for e in comp.elts
                              if isinstance(e, ast.Constant) and isinstance(e.value, str))
+    return names
+
+
+def _delegated_actions(fn, param: str, tree, wdir: str) -> set[str]:
+    """Actions `apply_action` hands to a SIBLING module of the same widget — `library.apply(action, …)`.
+
+    Without this the gate and the architecture ratchet pull in opposite directions: the ratchet pays a
+    growing file by EXTRACTING a module, and the gate would then call every extracted action a dead manifest
+    entry — so the only way to stay green would be to keep every widget's whole dispatch in one god file. The
+    delegate is read by the same rules as apply_action; anything that cannot be resolved statically is simply
+    not counted, so the gate keeps failing closed on real drift and never on a structure it does not know.
+    """
+    import ast
+    import os
+    if not wdir:
+        return set()
+    local = set()                                        # names bound by `from . import x` at module level
+    for node in getattr(tree, "body", []):
+        if isinstance(node, ast.ImportFrom) and node.level == 1 and not node.module:
+            local.update(a.asname or a.name for a in node.names)
+    out: set[str] = set()
+    for node in ast.walk(fn):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name) and node.func.value.id in local
+                and node.args and isinstance(node.args[0], ast.Name) and node.args[0].id == param):
+            continue
+        path = os.path.join(wdir, node.func.value.id + ".py")
+        if not os.path.isfile(path):
+            continue
+        try:
+            sub = ast.parse(open(path, encoding="utf-8").read())
+        except Exception:
+            continue
+        target = next((n for n in sub.body
+                       if isinstance(n, ast.FunctionDef) and n.name == node.func.attr), None)
+        if target is None or not target.args.args:
+            continue
+        out |= _literal_actions(target, target.args.args[0].arg)
+    return out
+
+
+def _apply_action_names(src: str, wdir: str = "") -> set[str] | None:
+    """The action names an `apply_action(action, …)` actually HANDLES: the literals it compares against its
+    own first parameter, plus those it delegates to a sibling module of the same widget. Returns the set of
+    handled literals, an EMPTY set if apply_action exists but uses a dispatch style we can't parse statically
+    (e.g. a dict table — caller then fail-opens), or None if there is no apply_action at all. Stdlib AST, no
+    execution. This is the enforcement half of "declared actions must match apply_action" (V2-025)."""
+    import ast
+    try:
+        tree = ast.parse(src)
+    except Exception:
+        return None
+    fn = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "apply_action"), None)
+    if fn is None:
+        return None
+    param = fn.args.args[0].arg if fn.args.args else "action"
+    names = _literal_actions(fn, param)
+    if names:                    # an unparsable dispatch stays empty (fail-open); a parsable one may delegate
+        names |= _delegated_actions(fn, param, tree, wdir)
     return names
 
 
@@ -230,7 +279,7 @@ def _validate_background(man: dict, src: str) -> str | None:
     return None
 
 
-def _validate_actions_sync(man: dict, src: str) -> str | None:
+def _validate_actions_sync(man: dict, src: str, wdir: str = "") -> str | None:
     """Declared `actions` (the widget's DATA API the brain drives) must MATCH what `apply_action` really handles.
     A declared action with no handler is a dead entry; a handled action not declared is invisible to the brain —
     both are rejected (V2-025). Only for PASSIVE widgets: a `backed` widget routes actions through its owner's
@@ -240,7 +289,7 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
     declared = {str(k).strip() for k in (man.get("actions") or {}) if str(k).strip()}
     if not declared:
         return None                                     # nothing declared → nothing to keep in sync
-    handled = _apply_action_names(src)
+    handled = _apply_action_names(src, wdir)
     if handled is None:
         return (f"manifest declares actions {sorted(declared)} but data.py has no apply_action() to handle them "
                 f"(declare them only if the widget can perform them)")
@@ -363,7 +412,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
         data_bad = _scan_data_py(data_src, wid)          # stdlib-only + no hardcoded secrets
         if data_bad:
             return False, data_bad
-        sync_bad = _validate_actions_sync(man, data_src)   # declared actions <-> apply_action must match (V2-025)
+        sync_bad = _validate_actions_sync(man, data_src, d)  # declared actions <-> apply_action must match (V2-025)
         if sync_bad:
             return False, sync_bad
         import py_compile

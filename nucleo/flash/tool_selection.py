@@ -85,7 +85,14 @@ _HINTS: dict[str, tuple[str, ...]] = {
               "foto", "fotos", "fotografia", "fotografias", "imagen", "imagenes",
               "photo", "photos", "picture", "pictures", "pic", "image", "images",
               "conecta", "conectar", "conectame", "vincula", "vincular", "cuenta", "suscripciones",
-              "connect", "link", "account", "subscriptions"),
+              "connect", "link", "account", "subscriptions",
+              # V2-604: the widget's OWN library. These verbs never reach a connector — they are about what
+              # HE owns — so they have to name `media` on their own or the turn goes looking for a tool that
+              # has nothing to do with it (the same shape of miss the account verbs above were added for).
+              "historial", "visto", "canal", "canales", "sigo", "sigue", "seguir", "listas", "guarda",
+              "guardada", "guardadas", "calidad", "subtitulos", "preferencia", "preferencias",
+              "history", "watched", "channel", "channels", "follow", "following", "lists", "save",
+              "saved", "quality", "subtitles", "captions", "preference", "preferences"),
     "workers": ("para", "paralo", "cancela", "cancelalo", "detente", "worker", "tarea", "proceso", "busqueda",
                 "informe", "responde", "contesta", "stop", "task"),
     "cluster": ("cluster", "meshkore", "peer", "agente", "invitacion", "commons", "conecta"),

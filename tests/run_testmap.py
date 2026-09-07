@@ -1876,6 +1876,8 @@ DOMAINS: list[dict] = [
             "paths": ["tests/browser/unit/navegador/test_a_dealer_link_does_not_close_the_card.py"]},
         {"id": "4.52", "title": "El widget de YouTube tiene LISTA: los vídeos suenan uno detrás de otro (add nunca autoreproduce, ended avanza solo, next/previous/play_item, close conserva la lista)",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_playlist_plays_one_after_another.py"]},
+        {"id": "4.116", "title": "El widget de vídeo es DUEÑO de su biblioteca: canales seguidos, historial (grabado al reproducir, que es el dato que la API de YouTube nunca da), preferencias que se aplican solas o se etiquetan como nota, listas guardadas — todo SIN conector, y la calidad mínima avisa pero nunca salta el vídeo que él pidió",
+         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_library_is_ours_and_owes_nothing_to_a_connector.py"]},
         {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py",
                                # V2-597: the account screens RENDER — icons row, one wizard step at a time,

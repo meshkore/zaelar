@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "YouTube",
   "description": "Reproductor de YouTube REAL embebido en el canvas: reproduce el vídeo de verdad (no una captura) y se controla por voz — reproducir, pausar, subir/bajar volumen, silenciar y reiniciar.",
-  "whenToUse": "Cuando el usuario quiere VER o REPRODUCIR un vídeo de YouTube, controlar la reproducción (play/pausa/volumen), BUSCAR vídeos para elegir, o CONECTAR/VINCULAR su cuenta de YouTube y pedir sugerencias de sus suscripciones. Una búsqueda llena SU lista — nunca la hoja de resultados.",
+  "whenToUse": "Ver o REPRODUCIR vídeos de YouTube, controlar la reproducción, BUSCAR vídeos para elegir, su HISTORIAL de lo visto, los CANALES que sigue, sus LISTAS guardadas, sus PREFERENCIAS de vídeo (calidad mínima, subtítulos), o CONECTAR su cuenta. Una búsqueda llena SU lista, nunca la hoja.",
   "keywords": [
     "youtube",
     "vídeo",
@@ -40,10 +40,23 @@
     "vincular youtube",
     "mis suscripciones",
     "sugerencias de vídeos",
-    "sugiéreme vídeos"
+    "sugiéreme vídeos",
+    "mi historial",
+    "qué he visto",
+    "historial de vídeos",
+    "canales que sigo",
+    "sigue este canal",
+    "deja de seguir",
+    "mis listas",
+    "guarda la lista",
+    "abre la lista",
+    "calidad mínima",
+    "nunca en 360",
+    "pon siempre los subtítulos",
+    "mis preferencias de vídeo"
   ],
   "entry": "widget.js",
-  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). Para BUSCAR varios candidatos («búscame vídeos de X») usa 'search' con query: llena la lista para elegir y no toca el player. El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista. Varios enlaces pegados = UNA sola llamada con todos dentro de 'url' (se añaden todos, en orden y sin duplicar). CANALES BLOQUEADOS: 'block_channel' filtra un canal de TODAS las búsquedas por nombre y barre sus vídeos de la lista ('unblock_channel' lo deshace); si el operador da un CRITERIO («no quiero canales de IA») en vez de un nombre, bloquea los canales concretos según los identifiques — un enlace pegado explícito nunca se filtra. PANTALLA DE INICIO: sin vídeo cargado la tarjeta enseña la lista como catálogo con miniaturas (se elige tocando); con vídeo, el botón «⌂ Inicio» de la tarjeta alterna catálogo/reproductor sin cortar la reproducción. CUENTA DE YOUTUBE: si pide conectar/vincular su cuenta usa 'open_connectors' (la tarjeta guía; las credenciales se registran una vez en Configuración → Conectores, nunca por voz). Con la cuenta conectada, 'suggest' llena el inicio con los vídeos recientes de SUS suscripciones (canales bloqueados ya filtrados) — úsala cuando pida sugerencias; sin cuenta conectada dilo y ofrece conectarla.",
+  "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). Para BUSCAR varios candidatos («búscame vídeos de X») usa 'search' con query: llena la lista para elegir y no toca el player. El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'. LISTA de reproducción (estilo YouTube, en limpio): 'add' mete un vídeo en la lista (link pegado de youtube.com/youtu.be, id o nombre) y NUNCA arranca la reproducción — como el «Añadir a la cola» de YouTube; con el reproductor vacío, 'play' arranca la lista. Los vídeos se reproducen uno detrás de otro solos (el widget avisa 'ended' y el servidor pasa al siguiente). 'next'/'previous' saltan por la lista, 'play_item' reproduce uno concreto (número o título). 'close' cierra el VÍDEO pero conserva la lista. Varios enlaces pegados = UNA sola llamada con todos dentro de 'url' (se añaden todos, en orden y sin duplicar). CANALES BLOQUEADOS: 'block_channel' filtra un canal de TODAS las búsquedas por nombre y barre sus vídeos de la lista ('unblock_channel' lo deshace); si el operador da un CRITERIO («no quiero canales de IA») en vez de un nombre, bloquea los canales concretos según los identifiques — un enlace pegado explícito nunca se filtra. PANTALLA DE INICIO: sin vídeo cargado la tarjeta enseña la lista como catálogo con miniaturas (se elige tocando); con vídeo, el botón «⌂ Inicio» de la tarjeta alterna catálogo/reproductor sin cortar la reproducción. CUENTA DE YOUTUBE: si pide conectar/vincular su cuenta usa 'open_connectors' (la tarjeta guía; las credenciales se registran una vez en Configuración → Conectores, nunca por voz). Con la cuenta conectada, 'suggest' llena el inicio con los vídeos recientes de SUS suscripciones (canales bloqueados ya filtrados) — úsala cuando pida sugerencias; sin cuenta conectada dilo y ofrece conectarla. SU BIBLIOTECA (V2-604 — es NUESTRA, no depende de ninguna cuenta conectada): 'show_history' llena la lista con lo que ha visto de verdad (opcional 'query' para buscar dentro: «el de cocina que vi el martes») y 'clear_history' lo borra — el historial se graba solo al reproducir, así que existe siempre. CANALES QUE SIGUE: 'follow_channel'/'unfollow_channel' (es la lista de suscripciones NUESTRA, no la de YouTube) y 'channel_videos' llena la lista con lo más reciente de uno. LISTAS GUARDADAS: 'save_list' guarda la lista actual con un nombre, 'open_list' la recupera (no arranca la reproducción) y 'delete_list' la borra. PREFERENCIAS: 'set_preference' con key+value — 'min_definition' (144-2160), 'captions' (sí/no) y 'volume' (0-100) se APLICAN solas; cualquier otra cosa se guarda como nota y la respuesta lo dice, así que no prometas que se cumple sola. La calidad mínima AVISA, nunca salta un vídeo que él ha pedido, y solo se sabe cuando el reproductor ya tiene el vídeo.",
   "actions": {
     "load": {
       "desc": "carga y reproduce un vídeo de YouTube (por URL, id o nombre)",
@@ -216,10 +229,81 @@
       "desc": "cierra el vídeo: lo detiene de verdad y lo quita del reproductor (vuelve al estado sin vídeo)",
       "payload": {}
     },
+    "show_history": {
+      "desc": "llena la lista con el HISTORIAL de vídeos que ha reproducido de verdad (lo más reciente primero); con 'query' busca dentro del historial en vez de en la red",
+      "payload": {
+        "query": "texto a buscar en el historial (opcional)",
+        "n": "cuántos, 1-25 (opcional, por defecto 10)"
+      },
+      "view": true
+    },
+    "clear_history": {
+      "desc": "borra el historial de vídeos reproducidos",
+      "payload": {},
+      "confirm": true
+    },
+    "follow_channel": {
+      "desc": "sigue un CANAL: pasa a su lista de canales seguidos (la nuestra, no la de YouTube). Si lo tenía bloqueado, lo desbloquea",
+      "payload": {
+        "channel": "nombre del canal"
+      }
+    },
+    "unfollow_channel": {
+      "desc": "deja de seguir un canal",
+      "payload": {
+        "channel": "nombre del canal (o parte)"
+      }
+    },
+    "channel_videos": {
+      "desc": "llena la lista con los vídeos más recientes de un canal (si sigue solo uno, no hace falta nombrarlo)",
+      "payload": {
+        "channel": "nombre del canal (opcional si sigue uno solo)",
+        "n": "cuántos, 1-10 (opcional)"
+      }
+    },
+    "save_list": {
+      "desc": "guarda la lista actual con un nombre para poder recuperarla después",
+      "payload": {
+        "name": "cómo llamarla, p. ej. «la de la tarde»"
+      }
+    },
+    "open_list": {
+      "desc": "recupera una lista guardada (sustituye la lista actual; no arranca la reproducción)",
+      "payload": {
+        "name": "nombre de la lista guardada"
+      }
+    },
+    "delete_list": {
+      "desc": "borra una lista guardada",
+      "payload": {
+        "name": "nombre de la lista guardada"
+      },
+      "confirm": true
+    },
+    "set_preference": {
+      "desc": "guarda una PREFERENCIA de vídeo. Se aplican solas: 'min_definition' (calidad mínima en píxeles: 144-2160), 'captions' (subtítulos sí/no), 'volume' (0-100). Cualquier otra se guarda como nota y la respuesta lo dice",
+      "payload": {
+        "key": "min_definition | captions | volume (o como lo diga él)",
+        "value": "el valor, p. ej. 720, «sí», 40"
+      }
+    },
+    "clear_preference": {
+      "desc": "quita una preferencia guardada (o una nota)",
+      "payload": {
+        "key": "cuál"
+      }
+    },
     "player_error": {
       "desc": "Internal: the embedded player reports it cannot play the current video (onError). Fired by the widget itself, not by voice.",
       "payload": {
         "code": "error code from the IFrame API (e.g. 150 = embedding disabled)"
+      }
+    },
+    "player_quality": {
+      "desc": "Internal: the embedded player reports which quality levels the current video actually has (IFrame API). Fired by the widget itself, not by voice — it is the only moment a video's definition is knowable.",
+      "payload": {
+        "levels": "list of YouTube quality level names, e.g. [\"medium\",\"hd720\"]",
+        "videoId": "id the levels belong to (optional)"
       }
     }
   },
