@@ -2781,7 +2781,7 @@ class NucleoLLMStream(llm.LLMStream):
         # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
         # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
         if not _tool_handled:
-            if _widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m)):
+            if _widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m), last_spoken=brain._last_spoken or ""):
                 acted["widget"] = True
 
         # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó

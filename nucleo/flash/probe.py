@@ -61,7 +61,8 @@ def _session(sid: str) -> ProbeSession:
 # 2026-08-29 (architecture ratchet).
 from .show_target import (  # noqa: F401
     _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
-    last_assistant_line as _last_assistant_line, show_instance as _show_instance,
+    last_assistant_line as _last_assistant_line, show_card as _show_card,
+    show_instance as _show_instance,
 )
 
 
@@ -537,7 +538,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if action in ("escalate", "search"):
         wid = _show_target(text, sess.window, sess.last_action)
         if wid:
-            action = f"canvas:show:{wid}"
+            # V2-605 F2 — mirror of the voice fallback: resolve the CARD, not just the piece. This backstop has
+            # no channel to ask through, so it only ever narrows (`instances.show_id`).
+            action = f"canvas:show:{_show_card(wid, text)}"
     _window_goal = ""    # V2-132: objetivo recuperado de la ventana cuando la promesa no lo lleva en su turno
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO (espejo del provider): el modelo charló una promesa sin tool → re-deriva
     # la intención. Gated por la promesa en la RESPUESTA. Generaliza sobre conjugaciones/cortesías.

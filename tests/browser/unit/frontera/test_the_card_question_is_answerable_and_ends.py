@@ -196,3 +196,35 @@ def test_an_empty_sheet_is_not_shown_while_a_full_one_is_open():
     _sheet("c2", "")
     out = instances.resolve_show("results", ["results::c1", "results::c2"], "enséñame los resultados")
     assert out["ask"] == "" and out["id"] == "results::c1"
+
+
+# ── 6) THE THIRD DOOR — the deterministic fallback (V2-605 F2) ────────────────────────────────────────────────
+# Found by driving the LIVE engine, not the bench. «Enséñame el navegador» called NO tool and emitted NO tag —
+# the model answered «Listo.» and a deterministic backstop produced the show — so it never touched the
+# `show_widget` path this pass had already fixed, and opened the BARE card with four on the canvas. The close
+# side of that same fallback has consulted the instance since V2-259; the show side never did.
+
+def test_the_fallback_narrows_a_base_to_its_live_card():
+    _thefork()
+    assert instances.show_id("navegador", CANVAS, "enséñame el navegador") == "navegador::t1"
+
+
+def test_the_fallback_never_asks_and_falls_back_to_the_base():
+    """It has no channel to hold a conversation, so ambiguity keeps the old behaviour rather than going silent."""
+    _tab("t1", "https://a.example/", "A")
+    _tab("t2", "https://b.example/", "B")
+    assert instances.show_id("navegador", ["navegador::t1", "navegador::t2"], "el navegador") == "navegador"
+
+
+def test_an_unknown_canvas_changes_nothing():
+    assert instances.show_id("navegador", [], "el navegador") == "navegador"
+
+
+def test_the_voice_fallback_show_branch_consults_the_instance():
+    """The asymmetry that caused it: close consulted `_close_target`, show emitted the bare id."""
+    from pathlib import Path
+    src = Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/widget_intent.py"
+    body = src.read_text(encoding="utf-8").split("def _widget_fallback(", 1)[1].split("\ndef ", 1)[0]
+    code = "\n".join(ln for ln in body.splitlines() if not ln.strip().startswith("#"))
+    assert "_close_target(" in code, "el fallback dejó de consultar la instancia al CERRAR"
+    assert "_show_target_instance(" in code, "el fallback no consulta la instancia al MOSTRAR"

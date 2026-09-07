@@ -82,7 +82,7 @@ def _close_target(wid: str, text: str = "") -> dict:
         return {"id": wid, "ids": [wid], "ask": "", "options": []}
 
 
-def _widget_fallback(text: str, emit, ask=None) -> bool:
+def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "") -> bool:
     """Si la frase es una orden clara de mostrar/cerrar un widget conocido y el modelo no emitió la tag, la
     emitimos nosotros (idempotente). Reutiliza el identificador de `widgets/runtime`. Devuelve True si ACTUÓ
     (para que el llamante marque acted["widget"] y el login-fallback no robe el turno — V2-023).
@@ -118,7 +118,22 @@ def _widget_fallback(text: str, emit, ask=None) -> bool:
         elif _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi", n):
             wid = _identify(text)
             if wid:
-                emit("widget", "show", extra={"id": wid, "src": "flash"})
+                # V2-605 F2 — SYMMETRIC with the close branch above, which has consulted the instance since
+                # V2-259 while this one emitted the BARE id. Measured on the LIVE engine: «Enséñame el
+                # navegador» calls no tool and emits no tag, so it never reached the `show_widget` path this
+                # pass had already fixed — it arrived HERE and opened the base with four cards on the canvas.
+                _t = _show_target_instance(wid, text, last_spoken)
+                if _t["ask"]:
+                    if ask:
+                        ask(_t["ask"])
+                        emit("brain", "❓ mostrar: varias tarjetas abiertas", text=wid, role="system",
+                             extra={"options": _t["options"]})
+                        return True
+                    # No channel to ask through: SHOW the base, exactly as before. Staying silent here would
+                    # turn a slightly-wrong card into a turn where nothing happens at all.
+                    emit("widget", "show", extra={"id": wid, "src": "flash"})
+                    return True
+                emit("widget", "show", extra={"id": _t.get("id") or wid, "src": "flash"})
                 return True
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget fallback skipped: {e}")

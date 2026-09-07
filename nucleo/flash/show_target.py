@@ -123,3 +123,17 @@ def last_assistant_line(window) -> str:
     """The last thing THIS channel said — the probe's equivalent of the voice provider's `_last_spoken`."""
     return next((str(m.get("content") or "") for m in reversed(list(window or []))
                  if (m or {}).get("role") == "assistant"), "")
+
+
+def show_card(rid: str, text: str = "") -> str:
+    """The CARD id a backstop should show — narrows a base to its live instance, never asks (V2-605 F2).
+
+    The asking door is `show_instance`; this is for the deterministic backstops, which have no conversation to
+    hold. Fail-soft to the base: an unreadable canvas must not change what a backstop shows.
+    """
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        return _inst.show_id(rid, open_instances(), text)
+    except Exception:  # noqa: BLE001
+        return rid

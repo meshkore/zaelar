@@ -186,6 +186,24 @@ def _letters(text: str) -> str:
     return "".join(c for c in _strip_accents(str(text or "")).lower() if c.isalnum())
 
 
+def show_id(target, open_ids, text: str = "") -> str:
+    """The card id to SHOW, resolved to a live instance when that is unambiguous — and never a question.
+
+    V2-605 F2, found by driving the LIVE engine instead of trusting the bench. `resolve_show` was wired into the
+    `show_widget` TOOL path in both channels, and «Enséñame el navegador» does not go through it: the model
+    called no tool and emitted no tag, and the deterministic fallback resolved the WIDGET and emitted a show for
+    the BARE id. Measured on the running engine at 11:45, with four cards reported by the canvas.
+
+    Those backstop doors have no channel to ask through, so this one only ever NARROWS: base → the single live
+    (or single non-blank) instance, else the base exactly as before. The asking version stays `resolve_show`,
+    for the doors that can hold a conversation. Both share one body, which is the point — the close side has had
+    «one decision for the THREE places that close» written at the top of this file since V2-259, and the show
+    side had it in one place out of eight.
+    """
+    out = resolve_show(target, open_ids, text)
+    return str(out.get("id") or target or "")
+
+
 def resolve_close(target, open_ids, text: str = "") -> dict:
     """WHICH card a «ciérralo» refers to.
 
