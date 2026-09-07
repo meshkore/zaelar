@@ -103,9 +103,19 @@ def _inside(card, desk, slack=2):
 
 
 def _module_source() -> str:
-    """desktop.js with its single import stubbed — the geometry under test does not use i18n."""
+    """desktop.js with its top-of-file imports stubbed — the geometry under test does not use i18n, and this
+    page (a single `route`-mocked HTML string, no static file server behind it) cannot resolve a REAL import of
+    ../core/*.js. A regex anchored to ONE specific import line (V2-613 added a second, `store.js`, for
+    `ctx.lang`) silently stops matching new ones and leaves an unresolved module specifier that fails the whole
+    script tag — every `window.__Desktop` wait then times out with no error a human would connect to i18n."""
     src = DESKTOP.read_text(encoding="utf-8")
     src = re.sub(r'^import \{ t as tr \}.*$', 'const tr = (k) => k;', src, count=1, flags=re.M)
+    src = re.sub(r'^import \* as store from .*$', 'const store = { lang: () => "en" };', src, count=1, flags=re.M)
+    # A leftover `^import ` line is an UNRESOLVED module specifier on this route-mocked page (no static file
+    # server behind it) — the exact class of failure a NEW import silently reintroduces if this function is not
+    # updated alongside it. Fail loud here instead of a 30s `wait_for_function` timeout with no clue why.
+    leftover = re.findall(r'^import .*$', src, flags=re.M)
+    assert not leftover, f"_module_source() does not stub: {leftover} — every import needs a stub line above"
     return src + "\nwindow.__Desktop = Desktop;\n"
 
 

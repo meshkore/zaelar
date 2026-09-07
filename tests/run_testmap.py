@@ -1678,7 +1678,16 @@ DOMAINS: list[dict] = [
                                   # V2-481: el arranque en frío de una Machine no tiene bundle todavía, así
                                   # que el primer pantallazo de una PWA recién instalada salía como
                                   # `boot.encendiendo`. Suelo estrecho + la leyenda resuelta en cada pintado.
-                                  "tests/browser/unit/i18n/test_cold_start_floor.py"]},
+                                  "tests/browser/unit/i18n/test_cold_start_floor.py",
+                                  # V2-613: el ratchet de claves del CATÁLOGO DE WIDGETS — cada `ctx.t("widgets.…")`
+                                  # tiene que existir en AMBOS bundles, hermano del que ya vigilaba solo el shell móvil.
+                                  "tests/browser/unit/i18n/test_widget_keys.py"]},
+        # V2-613 — los DOS widgets piloto del seam ctx.t/ctx.lang: timer (strings propias, `add_to_playlist`-style
+        # "TEMPORIZADOR"/"Pausar"/"Cancelar" ahora vía bundle) y clock (día/mes vía Intl.DateTimeFormat(ctx.lang),
+        # nunca una plantilla de palabras traducidas — el orden ES/EN de una fecha difiere, no solo las palabras).
+        {"id": "4.127", "title": "Widgets piloto de i18n: timer (ctx.t) y clock (ctx.lang + Intl)",
+            "ch": UNIT, "paths": ["tests/browser/unit/timer/test_the_timer_follows_the_operators_language.py",
+                                  "tests/browser/unit/clock/test_the_clock_reads_the_operators_locale.py"]},
         # LA PILA de Energy (2026-08-13). El operador se quedó sin energía a mitad de trabajo y se enteró por un
         # cartel, sin haber visto nunca cuánta le quedaba. Aquí se guarda la ESCALA —huecos fijos y valor por
         # rayita variable, con el color atado a la CAPACIDAD y no al saldo para que no cambie mientras gastas—

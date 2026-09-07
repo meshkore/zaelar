@@ -21,7 +21,7 @@ import { openSSE } from "../../app/services/sse.js?v=4";
 import * as api from "../../app/services/api.js?v=2";
 import { startStatusPolling } from "../../app/services/status.js?v=2";
 import { initTheme } from "../../app/services/theme.js?v=2";
-import { initI18n } from "../../app/core/i18n.js?v=1";
+import { initI18n, t } from "../../app/core/i18n.js?v=1";
 import { submitChat } from "../../app/components/ChatWall.js?v=5";
 
 import { Deck } from "./shell/Deck.js?v=1";
@@ -113,6 +113,8 @@ window.__zaelarDesktop = deck;      // the name the SSE/session bridge looks for
                                     // teach it about a second shell, which is exactly the coupling this avoids.
 window.__zaelarDeck = deck;         // …plus an honest alias, for anything mobile-only that comes later.
 createEffect(() => deck.setRunning(!store.powerOff()));
+// V2-613: same hook as the desktop host — a language switch re-renders every open card's own chrome, live.
+createEffect(() => { t(""); deck.relanguage(); });
 openSSE(deck);
 deck.restore();
 

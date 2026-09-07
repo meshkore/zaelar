@@ -118,6 +118,12 @@ window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the deskto
 // tab, via SSE) sees it instantly and a widget playing something does not start on a stopped agent.
 createEffect(() => desktop.setRunning(!store.powerOff()));
 
+// V2-613: every OPEN system widget's own chrome follows the operator's language, live — first-run onboarding
+// locking a language for the first time, or a later ⚙ switch. `t()` reads BOTH store.lang() and the active
+// bundle's own content signal unconditionally before doing anything else (see core/i18n.js), so calling it here
+// is a real (if throwaway) subscription to both — no second copy of that dependency list to keep in sync.
+createEffect(() => { t(""); desktop.relanguage(); });
+
 // ---- server events → desktop, FROM STARTUP and without depending on voice (2026-08-09) ----
 // `openSSE` was called ONLY inside `session.start()` (services/session.js), that is, after obtaining the
 // microphone and setting up WebRTC. Consequence: without voice NO widget event arrived, and "without voice" includes

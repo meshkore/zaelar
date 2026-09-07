@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { t as tr } from "../core/i18n.js?v=1";
+import * as store from "../core/store.js?v=2";
 
 const NINE_DOTS = `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
   <circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7" cy="2.5" r="1.3"/><circle cx="11.5" cy="2.5" r="1.3"/>
@@ -660,6 +661,17 @@ export class Desktop {
       const l=w.card.querySelector(".hb-load"); if(l)l.remove();
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${baseId}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
+        // V2-613 — a SYSTEM widget's own UI chrome (button labels, headers, empty states) can be translated the
+        // same way the rest of the app is: `i18n/bundles/en.json`+`es.json` under a `widgets.<id>.*` key, read
+        // through this ONE synchronous, in-memory lookup — never a network call, never an import of frontend
+        // internals from inside widget.js (that boundary stays `ctx`-only, like `action`/`close`/`running`).
+        // Falls back to English, then to the literal key, so an untranslated string is visible rather than blank.
+        t:tr,
+        // The raw active code (e.g. "es"), for the rarer widget whose need is a native `Intl`/`Date`/`Number`
+        // FORMAT (day/month names, date order, currency) rather than a custom string — `t()` alone cannot
+        // reorder "January 5, 2026" into "5 de enero de 2026", but `new Intl.DateTimeFormat(ctx.lang, …)` can.
+        // GETTER, same reason as `running` below: a copied value would go stale across a language switch.
+        get lang(){ return store.lang(); },
         close:()=>this.close(id),
         // “Back to top”: the widget requests it; the canvas decides how (the scroller is card chrome, not the widget’s).
         // Called ONLY when NAVIGATING — opening a record, changing tabs, returning to the list — never on a data
@@ -688,8 +700,9 @@ export class Desktop {
       // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
       if(fresh) this._applyPreferred(w.card, baseId, !!(pos && pos.w), !!(pos && pos.h));
       if(fresh){ w.card.classList.add("boop"); setTimeout(()=>w.card.classList.remove("boop"),460); }
-      // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change.
-      w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx;
+      // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change, and
+      // the DATA itself (V2-613) so a language switch can re-render with the identical content, just re-translated.
+      w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx; w._lastData = data;
       this._persist();                                  // widget is up → remember it for next refresh
     }catch(e){ console.error("widget mount failed", id, e); this._mountError(w, baseId, String(e&&e.message||e)); }
   }
@@ -733,6 +746,7 @@ export class Desktop {
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${id}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
         close:()=>{ clearTimeout(this._actTimer); rail.innerHTML=""; this._actId=null; },
+        t:tr, get lang(){ return store.lang(); },             // V2-613: same contract as on a normal card
         get running(){ return desk._running; } };            // V2-092: same contract as on a normal card
       mod.render(mount, data, ctx);
       this._actTimer=setTimeout(()=>{                     // transient: let it linger, then fade and clear the rail
@@ -857,7 +871,7 @@ export class Desktop {
       const sig = JSON.stringify(data);
       const ww = this.wins.get(id);        // re-check: it may have been closed while the fetch was in flight
       if(ww && sig !== ww._dataSig){
-        ww._dataSig = sig;
+        ww._dataSig = sig; ww._lastData = data;
         ww._mod.render(ww.body, data, ww._ctx);
         // Y la cabecera sigue a los datos: una búsqueda nueva cambia el título, y dejarlo con el de la anterior
         // sería un rótulo que MIENTE sobre lo que hay debajo.
@@ -865,6 +879,18 @@ export class Desktop {
       }
     }catch(_){}
     finally{ w._refreshing = false; }
+  }
+
+  // V2-613 — the operator picks a language (first-run onboarding, or a later ⚙ switch) and every OPEN system
+  // widget's own chrome must follow, live, without waiting for its next unrelated data change. `ctx.t` is a
+  // synchronous lookup into whatever bundle is active NOW, so re-invoking a widget's own `render()` with the
+  // SAME cached data is enough — a widget's `render()` is already required to be safe to call repeatedly
+  // (widgets/AGENTS.md's "no polling" contract). main.js calls this from an effect over the language signal.
+  relanguage(){
+    for(const w of this.wins.values()){
+      if(!w._mod || w._lastData == null) continue;
+      try{ w._mod.render(w.body, w._lastData, w._ctx); }catch(_){}
+    }
   }
 
   _unwatchSize(card){ try{ if(card && card._ro){ card._ro.disconnect(); card._ro=null; } }catch(_){} }

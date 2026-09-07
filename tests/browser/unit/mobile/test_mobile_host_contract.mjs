@@ -345,5 +345,14 @@ check("the mobile shell imports each module at ONE version", split.length === 0,
   split.map(([k, v]) => `${k} imported as ${[...v].join(" and ")}`).join("; "));
 
 
+// ── the widget ctx carries `t` on BOTH hosts (V2-613) ─────────────────────────────────────────────────────────
+// A ctx member implemented on one host and forgotten on the other silently no-ops there — the exact class of bug
+// the V2-591 comment above already names for `scroll`. `t` is the newest member, so it is the one most likely to
+// drift the next time either host's ctx literal gets refactored.
+check("the desktop host's ctx exposes t (translation lookup)", /\bt\s*:\s*tr\b/.test(DESKTOP));
+check("the mobile host's ctx exposes t (translation lookup)", /\bt\s*:\s*tr\b/.test(DECK));
+check("both hosts source t from the shared i18n runtime, not a local reimplementation",
+  /from\s+["'][^"']*core\/i18n\.js/.test(DESKTOP) && /from\s+["'][^"']*core\/i18n\.js/.test(DECK));
+
 console.log(failures === 0 ? "\nALL OK" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

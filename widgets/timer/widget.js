@@ -158,9 +158,13 @@ export function render(el, data, ctx) {
   el.className = "hb-timer";
   el.textContent = "";
 
+  // V2-613: this is a SYSTEM widget (shipped to every operator), so its own chrome — never the label the
+  // operator dictated, which is product data and stays exactly as spoken — follows the active UI language.
+  const tr = (ctx && ctx.t) || ((k) => k);
+
   // Label row
   const labelEl = document.createElement("div"); labelEl.className = "ht-label";
-  labelEl.textContent = label || "TEMPORIZADOR";
+  labelEl.textContent = label || tr("widgets.timer.label_default");
   el.appendChild(labelEl);
 
   // Digits
@@ -191,8 +195,9 @@ export function render(el, data, ctx) {
     digits.className = `ht-digits ${sc}`;
     if (state.finished || (state.target > 0 && s <= 0)) {
       digits.classList.add("finished");
-      digits.innerHTML = "¡LISTO!";
-      sub.textContent = label ? `⏰ ${label} cumplido` : "⏰ ¡Tiempo cumplido!";
+      digits.textContent = tr("widgets.timer.finished");
+      sub.textContent = label ? tr("widgets.timer.finished_with_label", { label })
+                               : tr("widgets.timer.finished_generic");
       state.running = false;
       state.finished = true;
       renderActions();
@@ -202,7 +207,7 @@ export function render(el, data, ctx) {
     digits.classList.remove("finished");
     digits.innerHTML = fmtDigitsHTML(parts, showS);
 
-    if (!state.running && state.remaining > 0) sub.textContent = "⏸ Pausado";
+    if (!state.running && state.remaining > 0) sub.textContent = tr("widgets.timer.paused");
     else if (state.remaining > 0) sub.textContent = "";
     else sub.textContent = "· · ·";
 
@@ -213,20 +218,20 @@ export function render(el, data, ctx) {
     acts.textContent = "";
     if (state.remaining <= 0 && !state.finished) {
       const empty = document.createElement("div"); empty.className = "ht-empty";
-      empty.textContent = "Pídele a zaelar que ponga un tiempo";
+      empty.textContent = tr("widgets.timer.empty");
       acts.appendChild(empty);
       return;
     }
     if (state.finished) {
       const btn = document.createElement("button"); btn.className = "ht-btn danger";
-      btn.textContent = "✕ Cerrar";
+      btn.textContent = tr("widgets.timer.close");
       btn.addEventListener("click", () => { ctx.close(); });
       acts.appendChild(btn);
       return;
     }
     if (state.running) {
       const pause = document.createElement("button"); pause.className = "ht-btn";
-      pause.textContent = "⏸ Pausar";
+      pause.textContent = tr("widgets.timer.pause");
       pause.addEventListener("click", () => {
         ctx.action("pause", {});
         state.running = false;
@@ -235,7 +240,7 @@ export function render(el, data, ctx) {
       acts.appendChild(pause);
     } else {
       const start = document.createElement("button"); start.className = "ht-btn primary";
-      start.textContent = "▶ Reanudar";
+      start.textContent = tr("widgets.timer.resume");
       start.addEventListener("click", () => {
         ctx.action("start", {});
         state.running = true;
@@ -245,7 +250,7 @@ export function render(el, data, ctx) {
       acts.appendChild(start);
     }
     const reset = document.createElement("button"); reset.className = "ht-btn danger";
-    reset.textContent = "✕ Cancelar";
+    reset.textContent = tr("widgets.timer.cancel");
     reset.addEventListener("click", () => {
       ctx.action("reset", {});
       state.remaining = 0;

@@ -17,13 +17,19 @@ function injectStyles(){
   `; document.head.appendChild(s);
 }
 
-const DAYS = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
-
 function pad(n){ return String(n).padStart(2,"0"); }
 
-function fmtDate(d){
-  return `${DAYS[d.getDay()]}, ${d.getDate()} de ${MONTHS[d.getMonth()]} de ${d.getFullYear()}`;
+// V2-613: this is a SYSTEM widget, so day/month names follow the operator's language — but a hand-built
+// template of translated WORDS cannot also reorder "January 5, 2026" into "5 de enero de 2026" (English and
+// Spanish put the day and month in different places, and other languages differ further still). `Intl` already
+// solves the whole shape — order, connectors, capitalization — for any locale, from `ctx.lang` alone; no bundle
+// keys needed for this widget at all.
+function fmtDow(d, lang){
+  const s = new Intl.DateTimeFormat(lang || "en", {weekday:"long"}).format(d);
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function fmtDate(d, lang){
+  return new Intl.DateTimeFormat(lang || "en", {day:"numeric", month:"long", year:"numeric"}).format(d);
 }
 
 export function render(el, data, ctx){
@@ -43,11 +49,11 @@ export function render(el, data, ctx){
 
   function tick(){
     const d = new Date();
+    const lang = ctx && ctx.lang;
     hm.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
     sec.textContent = `:${pad(d.getSeconds())}`;
-    const dn = DAYS[d.getDay()];
-    dow.textContent = dn.charAt(0).toUpperCase() + dn.slice(1);
-    date.textContent = fmtDate(d);
+    dow.textContent = fmtDow(d, lang);
+    date.textContent = fmtDate(d, lang);
   }
   try {
     const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || "";

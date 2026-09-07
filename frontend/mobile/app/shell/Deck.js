@@ -20,9 +20,12 @@
 //      here or added in sse.js, that test fails instead of the phone silently ignoring the brain.
 //
 //   2. THE WIDGET ctx (host -> /widgets/<id>/widget.js). Every widget is mounted with mod.render(el, data, ctx)
-//      where ctx = { action(name, payload), close(), top(), get running() }. Four members, none of them about
-//      cards or dragging — which is why the ENTIRE widget catalog works here without touching a single widget,
-//      including widgets the agent generates tomorrow.
+//      where ctx = { action(name, payload), close(), top(), t(key, params), get lang(), get running() }. Six
+//      members, none of them about cards or dragging — which is why the ENTIRE widget catalog works here without
+//      touching a single widget, including widgets the agent generates tomorrow. `t`/`lang` (V2-613) are a
+//      SYSTEM widget's door into the SAME translation runtime the shell's own components read: `t(key)` for a
+//      custom string, `lang` (the raw active code) for handing a locale-SHAPED need (date order, month names)
+//      to `Intl`/`Date`/`Number` instead.
 //
 // PAGING IS TWO- OR THREE-FINGER, ON PURPOSE (operator: «the two-finger effect», widened 2026-09-04 to «2 or 3
 // fingers, right and left»). ONE finger belongs to the WIDGET: scrolling a list, panning a map, dragging a
@@ -34,6 +37,7 @@
 // ============================================================================
 
 import { t as tr } from "../../../app/core/i18n.js?v=1";
+import * as store from "../../../app/core/store.js?v=2";
 import { createEffect } from "../../../app/core/reactive.js?v=2";
 
 const CARD_ANIM_MS = 260;
@@ -250,6 +254,15 @@ export class Deck {
       this._applyTitle(w, data);
       this._paint();                                  // fresh data can flip the producing badge (V2-092)
     } catch (_) { /* a failed refresh leaves the last good render on screen, which is the honest fallback */ }
+  }
+
+  // V2-613 — mirrors desktop.js's relanguage(): a language switch re-renders every open card's cached data
+  // through `ctx.t`, without a re-fetch. `w._data` is already cached by every load path on this host.
+  relanguage() {
+    for (const w of this.cards.values()) {
+      if (!w._mod || w._data == null) continue;
+      try { w._mod.render(w.body, w._data, w._ctx); } catch (_) {}
+    }
   }
 
   // A name or alias changed (SSE `widget/alias`, V2-082) → drop both caches and repaint every card header.
@@ -544,6 +557,10 @@ export class Deck {
           } catch (_) { return null; }
         },
         close: () => this.close(w.id),
+        // V2-613 — same contract as the desktop host: a synchronous, in-memory translation lookup, never a
+        // network call from inside widget.js. Already imported at the top of this file for the shell's own chrome.
+        t: tr,
+        get lang() { return store.lang(); },
         top: () => { try { w.scroll.scrollTop = 0; } catch (_) {} },
         // V2-591 — same contract as the desktop host (a ctx member implemented in one host silently no-ops
         // on the phone): page ≈ 80% of the card's scroller.

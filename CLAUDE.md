@@ -470,6 +470,52 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The widget layer gets its i18n seam — `ctx.t`/`ctx.lang`, and two pilots prove it (V2-613,
+  2026-09-07)**: closes the gap V2-603 named ("no `t()` seam exists in the widget layer at all") with the
+  operator's own scope split — *"a user-customized widget is fine, it's made after the account already has a
+  language; a SYSTEM widget has to adapt during the agent's initialization."*
+  - **Two new `ctx` members, not a new import**: a widget cannot import `frontend/app/core/i18n.js` directly
+    (it would break every bare-`http.server` render-test harness and couple every widget to an internal
+    frontend path) — so `ctx.t(key, params?)` (a synchronous, in-memory lookup, passed straight through from
+    the host's own `t()`) and `ctx.lang` (a GETTER, the raw active code) join `action`/`close`/`top`/`running`
+    on BOTH hosts (`desktop.js` and the mobile `Deck.js`), with a new check in
+    `test_mobile_host_contract.mjs` pinning that they stay declared on both — the exact "works on one host,
+    silently no-ops on the phone" class that file already names for `scroll`.
+  - **`t` for a custom string, `lang` for a locale SHAPE.** `clock` is the case `t()` cannot solve: English and
+    Spanish don't just use different day/month WORDS, they put them in a different ORDER ("January 5, 2026" vs
+    "5 de enero de 2026") — no template of translated words expresses that, so the two hardcoded Spanish
+    `DAYS`/`MONTHS` arrays were deleted outright in favor of `Intl.DateTimeFormat(ctx.lang, {...})`. Verified
+    live against a THIRD language this repo has never shipped a preset for (French: "Lundi | 7 septembre
+    2026", correct order, zero bundle keys) — confirming the delegation genuinely generalizes past en/es.
+    `timer` is the `ctx.t` pilot: ten literal Spanish strings moved to `widgets.timer.*` keys in both bundles —
+    and its own dictated label ("pasta al dente") stays UNTRANSLATED on purpose, because product data typed by
+    a person is not UI chrome.
+  - **The re-render gap, closed.** A widget's `render()` only re-ran on ITS OWN data changing (SSE
+    `widget/data`) — nothing re-invoked it on a LANGUAGE change, so a card left open across a switch showed
+    stale chrome indefinitely. Both hosts now cache the widget's last-rendered data and gained `relanguage()`,
+    fired from `createEffect(() => { t(""); host.relanguage(); })` in both `main.js` files — calling `t()`
+    with a throwaway key is the whole mechanism: it unconditionally reads BOTH the language signal and the
+    bundle-content signal before doing anything else, so this one line subscribes to exactly what should
+    trigger a repaint, with no second dependency list to drift from `i18n.js`'s own internals. Safe by the
+    EXISTING contract, not a new one: `widgets/AGENTS.md`'s "no polling" section already requires `render()`
+    to be safe to call repeatedly with fresh data — this calls it repeatedly with the SAME data.
+  - **The keys are added, never a bundle system**: widget strings live in the SAME `i18n/bundles/en.json`+
+    `es.json` as everything else, under `widgets.<id>.*` — reuses the entire generate/parity/cache-version
+    machinery for free. `MANIFEST_VERSION` 4→5.
+  - **Taught forward**: `widgets/generator.py::_CONTRACT` (injected into every generation/modification prompt)
+    and `widgets/AGENTS.md` now document both members as OPTIONAL and scoped to a SHIPPED widget — a one-off
+    widget generated for this operator, after their language is known, needs neither.
+  - Nodes 4.11 (+1 file: `test_widget_keys.py`, the widget-catalog sibling of the mobile shell's own
+    "every `t()` key exists in both bundles" ratchet, plus its `t(...) || fallback` dead-code guard) and
+    **4.127** (the two pilots, 11 RENDERED cases). Disarms verified red: the default-label fallback, the
+    fallback-pattern guard, and the clock's `ctx.lang` wiring.
+  - **Deliberately not done**: migrating the other twelve system widgets (bounded, mechanical, per-widget
+    follow-up — the mechanism and the ratchet are what make each one small); translating PRODUCT DATA inside a
+    widget (message content, a dictated label) stays exactly as untouched as the language rules already
+    require. **Not verified live**: an actual end-to-end language switch on the running engine with a system
+    widget card left open — needs a frontend reload and driving the real onboarding flow, not just a
+    fixture-fed render.
+
 - **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
   (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
   literally "Madonna Papa Don't Preach" — the artist baked into `title` with no separator, `artist` empty on
