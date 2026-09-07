@@ -249,17 +249,21 @@ export class Desktop {
   // them, and the card on the right was cut off by the window edge with no way to reach it.
   canvas(){
     const pad=this.tile.pad;
-    let x0=Math.max(pad, this.minX()+pad), x1=innerWidth-pad;
-    const cw=document.querySelector("#chatwall");
-    if(cw && cw.classList.contains("open")){
-      const r=cw.getBoundingClientRect();
-      if(r.width){
-        // Which SIDE it is on, by where its own box sits — the same test `arrange()` has used since V2-464, and
-        // it reads the element rather than the dock state so a FLOATING wall parked against an edge counts too.
-        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);
-        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);
-      }
-    }
+    // ONLY A DOCKED COLUMN SHRINKS THE DESK. `--chatdock-l/r` are published by ChatWall.setReserve() exactly
+    // when the wall is open AND docked, and `#desk` is inset by those same two values in CSS — so reading them
+    // here makes this rectangle the desk BY CONSTRUCTION, with no second opinion to drift from it.
+    //
+    // The first version of this read the wall's own bounding rect instead, inherited from `arrange()`, whose
+    // comment said «docked/floating on the LEFT». For a deliberate tiling gesture, treating a floating panel as
+    // a wall is a nicety. For a refit that now runs on every canvas change it is a bug, and the operator caught
+    // it the same day (2026-09-07): «simplemente le he dicho que abra el chat… no lo hemos pegado a la barra de
+    // la izquierda para que se haga una columna, y ha movido el resto de objetos a la derecha. Eso no había
+    // pasado nunca.» A FLOATING wall changes nothing at all — it is already an obstacle in `_obstacles()`
+    // (`#chatwall.open`), which is how placement has avoided sitting on top of it since long before this.
+    const cs=getComputedStyle(document.documentElement);
+    const dockL=parseInt(cs.getPropertyValue("--chatdock-l"))||0;
+    const dockR=parseInt(cs.getPropertyValue("--chatdock-r"))||0;
+    let x0=Math.max(pad, this.minX()+pad, dockL+pad), x1=innerWidth-dockR-pad;
     // A canvas narrower than one minimum-size card is not a canvas; keep it non-degenerate so the clamps below
     // stay monotonic (x1 < x0 would flip every Math.min/Math.max into nonsense).
     if(x1 - x0 < MIN_W) x1 = x0 + MIN_W;
@@ -1244,10 +1248,21 @@ export class Desktop {
     this.revealAll();          // "ordénalo todo" is a show-all gesture: a grid with invisible holes is not a grid
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
-    // V2-608 — this block used to compute the dock-aware bounds INLINE, and it was the only gesture on the
-    // canvas that knew about the chat column. It is `canvas()` now, shared by every one of them.
+    // V2-608 — the DOCK-aware bounds are `canvas()` now, shared by every gesture on the canvas. What stays
+    // local is avoiding a FLOATING wall: tiling into cells would lay cards straight under it, and unlike the
+    // automatic refit this one is an explicit «ordénalo todo», where working around the panel he is looking at
+    // is the point. Nothing else may treat a floating panel as an edge (see canvas()).
     const pad=this.tile.pad, cv=this.canvas();
-    const x0=cv.x0, x1=cv.x1, y0=cv.y0, y1=innerHeight-150;   // 150 = orb/status strip, this gesture's own
+    let x0=cv.x0, x1=cv.x1;
+    const y0=cv.y0, y1=innerHeight-150;                      // 150 = orb/status strip, this gesture's own
+    const cw=document.querySelector("#chatwall");
+    if(cw && cw.classList.contains("open") && !cw.classList.contains("docked")){
+      const r=cw.getBoundingClientRect();
+      if(r.width){
+        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);
+        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);
+      }
+    }
     const n=cards.length;
     const cols=n===1?1:(n<=4?2:Math.ceil(Math.sqrt(n)));
     const rows=Math.ceil(n/cols);

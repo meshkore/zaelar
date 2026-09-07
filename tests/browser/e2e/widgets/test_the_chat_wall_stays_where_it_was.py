@@ -199,6 +199,16 @@ def docked(run):
           const r = w.getBoundingClientRect();
           return {left: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width)};
         }""")
+        # V2-608 — the dock classes are set imperatively; the wall's `class` is a REACTIVE binding that rebuilds
+        # the whole className on any tab/open change. Switching tabs is the cheapest way to make it re-run.
+        pg.evaluate("""async () => { const s = await import('/static/app/core/store.js?v=2'); s.setChatTab('procesos'); }""")
+        pg.wait_for_timeout(400)
+        out["after_tab"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall, .chatwall');
+          const r = w.getBoundingClientRect();
+          return {cls: [...w.classList].join(' '), h: Math.round(r.height), w: Math.round(r.width),
+                  dockL: getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim()};
+        }""")
         out["errors"] = errors
         b.close()
     return out
@@ -230,3 +240,17 @@ def test_docking_ANNOUNCES_the_new_canvas(docked):
     assert docked["events"], "docking the chat wall fired no hb:canvas-resized at all"
     assert "left" in docked["events"], docked["events"]
     assert docked["errors"] == [], docked["errors"]
+
+
+def test_a_TAB_CHANGE_does_not_secretly_undock_the_wall(docked):
+    """The defect behind the operator's second screenshot (V2-608). `class` is a reactive binding —
+    `"chatwall tab-" + tab + (open ? " open" : "")` — that rewrites the WHOLE className, while `docked`/
+    `dock-left` are set imperatively by `applyDock`. So any tab or open change wiped them, leaving `dockSide`
+    still set: the wall rendered as a floating panel at left:0 (top:232 h:480) AND still reserved a full 420px
+    column, so the entire desk was pushed right by a column that was no longer there.
+
+    Reproduced headless before the fix, verbatim: classes `chatwall tab-chat open`, `--chatdock-l: 420px`."""
+    a = docked["after_tab"]
+    assert "docked" in a["cls"] and "dock-left" in a["cls"], f"the tab change undocked it: {a['cls']}"
+    assert a["h"] >= 700, f"a docked wall is a FULL-HEIGHT column, not a floating panel: {a}"
+    assert a["dockL"] == f"{a['w']}px", f"strip and column disagree after the rebuild: {a}"

@@ -289,7 +289,14 @@ export function ChatWall() {
     return out;
   };
 
-  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") },
+  // The dock classes are set IMPERATIVELY by applyDock/applyFloat, and this binding rewrites the whole
+  // className whenever the tab or the open flag changes — so it silently wiped `docked`/`dock-left` while the
+  // `dockSide` variable stayed set. The wall then rendered as a floating panel at left:0 and still reserved a
+  // full column: the operator's screenshot of 2026-09-07, a floating chat with the entire desk pushed right.
+  // Reproduced headless: classes `chatwall tab-chat open`, geometry top:232 h:480, `--chatdock-l: 420px`.
+  // Reproducing the dock state here is what makes the two writers agree instead of racing (V2-608).
+  const dockClass = () => (dockSide ? " docked dock-" + dockSide : "");
+  const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") + dockClass() },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
       h("div", { class: "cw-tabs" },
         h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), onClick: () => store.setChatTab("chat") }, () => t("chat.tabChat")),

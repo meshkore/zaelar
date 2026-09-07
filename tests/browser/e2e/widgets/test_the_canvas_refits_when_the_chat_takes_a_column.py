@@ -227,3 +227,64 @@ def test_nothing_is_persisted_when_nothing_had_to_move(playwright_available):
             await b.close()
             return n
     assert asyncio.run(go()) == 0
+
+
+# ── A FLOATING wall is not a column (V2-608, operator the same day) ─────────────────────────────────────────
+async def _float_left(pg):
+    """Open the chat WITHOUT docking it — the default: a small panel parked near the left edge. No
+    `--chatdock-l` is published, because `setReserve()` only publishes one for a wall that is open AND docked."""
+    await pg.evaluate("""() => {
+      const cw = document.getElementById("chatwall");
+      cw.style.cssText = "position:fixed;left:18px;top:230px;width:320px;height:480px;background:#111";
+      cw.classList.add("open");
+      document.dispatchEvent(new CustomEvent("hb:canvas-resized", {detail:{side:null}}));
+    }""")
+    await pg.wait_for_timeout(80)
+
+
+def test_a_FLOATING_chat_does_not_shrink_the_canvas(playwright_available):
+    """His report, 2026-09-07: «simplemente le he dicho que abra el chat… no lo hemos pegado a la barra de la
+    izquierda para que se haga una columna, y ha movido el resto de objetos a la derecha. Eso no había pasado
+    nunca.»
+
+    The first version of `canvas()` read the WALL's bounding rect — inherited from `arrange()`, whose comment
+    said «docked/floating on the LEFT». For a deliberate tiling gesture that is a nicety; for a refit that runs
+    on every canvas change it means merely OPENING the chat rebuilds the desktop. The canvas is the DESK, and
+    the desk is inset by `--chatdock-l/r`, which only a docked wall publishes."""
+    steps = _run([_two_cards, _float_left])
+    before, after = steps[0], steps[1]
+    assert after["__canvas"]["x0"] == before["__canvas"]["x0"], \
+        f"a floating panel moved the canvas edge: {before['__canvas']} → {after['__canvas']}"
+    for wid in ("results", "navegador"):
+        assert after[wid]["left"] == before[wid]["left"] and after[wid]["top"] == before[wid]["top"], \
+            f"{wid} was moved by a chat that took no column: {before[wid]} → {after[wid]}"
+        assert after[wid]["w"] == before[wid]["w"], f"{wid} was resized for nothing: {after[wid]}"
+
+
+def test_the_canvas_IS_the_desk(playwright_available):
+    """Stated as the property, not as a consequence. `#desk` is `left:var(--chatdock-l); right:var(--chatdock-r)`
+    in CSS; this rectangle reads the same two values, so the two cannot drift apart. Sniffing the wall's own box
+    was the second opinion that did drift."""
+    async def dock(pg):
+        await _dock_left(pg, 600)
+    after = _run([_two_cards, dock])[1]
+    desk = None
+
+    async def go():
+        from playwright.async_api import async_playwright
+        async with async_playwright() as pw:
+            b, pg, _ = await _boot(pw)
+            await _two_cards(pg)
+            await _dock_left(pg, 600)
+            out = await pg.evaluate("""() => {
+              const d = document.getElementById("desk").getBoundingClientRect();
+              const c = window.__d.canvas();
+              return {deskLeft: Math.round(d.left), deskRight: Math.round(d.right), c};
+            }""")
+            await b.close()
+            return out
+    m = asyncio.run(go())
+    pad = 14
+    assert m["c"]["x0"] == m["deskLeft"] + pad, m
+    assert m["c"]["x1"] == m["deskRight"] - pad, m
+    assert after["__canvas"]["x0"] >= 600
