@@ -1399,6 +1399,12 @@ DOMAINS: list[dict] = [
                    "tests/browser/unit/youtube/test_the_account_connects_by_intent_never_by_credential.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
+        {"id": "4.122", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "
+                                  "pegado), el título vuelve al dashboard unificado desde cualquier pantalla, y "
+                                  "el email por defecto es vista clásica (remitente+asunto+hora, sin cuerpo) con "
+                                  "una segunda pantalla de detalle — clave por messageId, nunca por el `n` "
+                                  "posicional que se recicla al desaparecer un mensaje",
+         "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_default_screen_answers_and_the_title_goes_home.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
             # sin mapear hasta el 2026-08-21: vaciar la agenda en UNA acción, y que un «sí» a una data-op
             # irreversible la EJECUTE (por voz y por botón) — el «no funciona el borrado» del operador

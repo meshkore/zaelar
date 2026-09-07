@@ -98,6 +98,7 @@ let _focusDone = 0;
 let _platFilter = null;
 let _viewN = 0;                      // last applied view token (module-lived, like _focusDone)
 let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
+let _openMail = null;   // mailKey() of the single EMAIL item shown in the detail screen (V2-610), or null = list
 const _expanded = new Set();   // message keys with the body expanded
 
 function injectStyles(){
@@ -106,6 +107,8 @@ function injectStyles(){
   .hb-msg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(480px,92vw)}
   .hb-msg .hd{display:flex;align-items:center;gap:8px;margin:0 0 10px}
   .hb-msg .hd b{font-size:17px} .hb-msg .hd .sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
+  .hb-msg .hdtitle{cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px}
+  .hb-msg .hdtitle:hover{background:var(--hb-hover,#eef3f9)}
   .hb-msg .dots{display:flex;gap:6px;margin-left:auto}
   .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto}
   .hb-msg .picon.on{opacity:1}
@@ -168,6 +171,26 @@ function injectStyles(){
   .hb-msg .tacts{display:flex;gap:2px;flex:0 0 auto;opacity:.3;transition:opacity .12s}
   .hb-msg .tacts button{border:0;background:transparent;border-radius:7px;width:26px;height:24px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#5b6b82);line-height:1}
   .hb-msg .tacts button:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-ink,#0d1622)}
+
+  /* EMAIL default view (V2-610): a Gmail-style compact row — sender + subject in two lines, no body — and
+     its detail screen. Reuses .tlead/.thd/.tacts from the shapes above so urgency, the back-crumb and the
+     action buttons stay visually consistent across every screen of this widget. */
+  .hb-msg .mrow{display:flex;gap:10px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--hb-line,#eef1f6);cursor:pointer}
+  .hb-msg .mrow:last-child{border-bottom:0}
+  .hb-msg .mrow:hover{background:var(--hb-hover,#eef3f9)}
+  .hb-msg .mrow:hover .tacts{opacity:1}
+  .hb-msg .mmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .hb-msg .mline1{display:flex;align-items:baseline;gap:8px}
+  .hb-msg .mfrom{font-size:14.5px;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%}
+  .hb-msg .mwhen{margin-left:auto;font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);flex:0 0 auto}
+  .hb-msg .msubj{font-size:13.5px;color:var(--hb-muted,#5f6b7c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hb-msg .mdet{padding:2px 2px 10px}
+  .hb-msg .mdsubj{font-size:17px;font-weight:700;color:var(--hb-ink,#0d1622);margin-bottom:6px;word-break:break-word}
+  .hb-msg .mdmeta{display:flex;align-items:baseline;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--hb-line,#eef1f6)}
+  .hb-msg .mdfrom{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622)}
+  .hb-msg .mdwhen{font-size:12px;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-msg .mdbody{font-size:14px;line-height:1.6;color:var(--hb-ink,#0d1622);white-space:pre-wrap;word-break:break-word}
+  .hb-msg .mdbody a.lnk{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
 
   /* Grouped CHAT list + open thread. */
   .hb-msg .chatrow{cursor:pointer;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:9px}
@@ -726,6 +749,31 @@ function richList(items, ctx){
 }
 
 // Single message row: borderless vertical timeline, used inside an open thread in simple profile.
+// V2-610 — the row of ✓/✕/🗄/🗑/🔇 buttons, extracted so the flat list AND the new email detail screen
+// wire the SAME five actions instead of two copies that drift (the row's copy predates this; the detail
+// screen is what forced the split). `actionable` stays the caller's call: a row of buttons on a message
+// that cannot be acted on (an outgoing message, or history with no `n`) would be a lie about what pressing
+// them does (V2-546's own reasoning, unchanged).
+function messageActions(it, ctx){
+  const acts = el("div","tacts");
+  const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
+  const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
+  acts.append(read,dis);
+  if(it.platform==="email"){
+    // Email-only affordances (V2-543): they act on the REAL mailbox, which is the whole point of the widget
+    // being a substitute — other platforms have no archive/delete API and get no fake buttons.
+    const arc=el("button",null,"🗄"); arc.title="Archivar en tu buzón real";
+    arc.onclick=()=>{ arc.textContent="…"; ctx.action("archive",{n:it.n}); };
+    const del=el("button",null,"🗑"); del.title="Borrar en tu buzón real (pide confirmación)";
+    del.onclick=()=>ctx.action("trash",{n:it.n});
+    acts.append(arc,del);
+  }
+  const mute=el("button",null,"🔇"); mute.title="Silenciar este canal";
+  mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
+  acts.append(mute);
+  return acts;
+}
+
 function messageRow(it, ctx, rerender){
   const mine = !!it.dirigido_a_mi;
   const urgente = it.urgencia === "alta";
@@ -767,24 +815,89 @@ function messageRow(it, ctx, rerender){
   row.appendChild(main);
 
   if(!actionable) return row;       // history (or our own message): nothing left to do to it
-  const acts = el("div","tacts");
-  const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
-  const dis=el("button",null,"✕"); dis.title="Descartar (no marcar leído)"; dis.onclick=()=>ctx.action("dismiss",{n:it.n});
-  acts.append(read,dis);
-  if(it.platform==="email"){
-    // Email-only affordances (V2-543): they act on the REAL mailbox, which is the whole point of the widget
-    // being a substitute — other platforms have no archive/delete API and get no fake buttons.
-    const arc=el("button",null,"🗄"); arc.title="Archivar en tu buzón real";
-    arc.onclick=()=>{ arc.textContent="…"; ctx.action("archive",{n:it.n}); };
-    const del=el("button",null,"🗑"); del.title="Borrar en tu buzón real (pide confirmación)";
-    del.onclick=()=>ctx.action("trash",{n:it.n});
-    acts.append(arc,del);
-  }
-  const mute=el("button",null,"🔇"); mute.title="Silenciar este canal";
-  mute.onclick=()=>{ mute.textContent="…"; ctx.action("hide",{n:it.n}); };
-  acts.append(mute);
-  row.appendChild(acts);
+  row.appendChild(messageActions(it, ctx));
   return row;
+}
+
+// ── EMAIL default view (V2-610) ─────────────────────────────────────────────────────────────────────────
+// Operator's spec, verbatim in spirit: «un formato que se vea parecido a Gmail — la fecha y hora y el
+// asunto, y si cabe quién lo envía, en dos líneas; si pido abrir el asunto pasa a una segunda pantalla con
+// el detalle». A classic mail client's list shows subject/sender/time and NOTHING of the body; the body is
+// what the second screen is for. `messageRow`'s inline clamp+«mostrar más» is the wrong shape for that —
+// it is what threads (WhatsApp/Telegram) already use and stays theirs.
+//
+// This is the hardcoded DEFAULT, not a setting: the operator asked for it four times by voice in one
+// session and the widget kept re-rendering the SAME expanded shape because no action existed to change it
+// (`show_view` only ever moved the LENS, never the density) — the fix is to make the classic shape the one
+// that ships, not to add a toggle nobody would find. His own words close the door on a toggle: «si un día
+// el usuario decide hacer un fork del widget y cambiarlo, que lo haga».
+function emailRow(it, ctx, openMail){
+  const urgente = it.urgencia === "alta";
+  const row = el("div","mrow");
+  row.title = "Abrir";
+  const lead = el("span","tlead");
+  lead.style.background = urgente ? "var(--hb-risk,#e5484d)" : "var(--hb-accent,#3D6FE0)";
+  row.appendChild(lead);
+
+  const main = el("div","mmain");
+  const line1 = el("div","mline1");
+  line1.appendChild(el("span","mfrom", it.from!=null ? it.from : "?"));
+  const when = fmtWhen(it.ts);
+  if(when) line1.appendChild(el("span","mwhen", when));
+  main.appendChild(line1);
+  // `subject` is a first-class field on the item (mailbox.py/service.py) — reading it directly is more
+  // reliable than parsing it back out of `body`, which only carries "[Asunto: X]\n…" on a LIVE arrival and
+  // nothing at all on history (V2-546's `load_more` already folds subject into body there for that reason).
+  const subj = (it.subject || "").trim() || displayBody(it.body, it.mediaType).split("\n")[0] || "(sin asunto)";
+  main.appendChild(el("div","msubj", subj));
+  row.appendChild(main);
+
+  row.onclick=()=>openMail(mailKey(it));
+  return row;
+}
+
+// `n` is POSITIONAL and gets REUSED the moment an earlier item leaves the list (`_renumber` in data.py
+// reassigns 1..len by order on every save) — `_openMail` holding a bare `n` across a repaint would resolve
+// to whatever mail inherited that number next, and silently show the WRONG one instead of falling back to
+// the list. `messageId` is the STABLE identity every item already carries for exactly this reason (`_key()`
+// in data.py, and the same fallback `_expanded`'s own key already uses a few lines above).
+function mailKey(it){ return it.messageId != null ? it.messageId : it.n; }
+
+function emailList(items, ctx, openMail){
+  const wrap = el("div","tl");
+  items.forEach(it=> wrap.appendChild(emailRow(it, ctx, openMail)));
+  return wrap;
+}
+
+// The SECOND screen (V2-610): full subject, sender, timestamp and body — everything the compact row leaves
+// out. Reuses `messageActions` so read/dismiss/archive/trash/mute stay the SAME five buttons the row itself
+// used to carry, wired to the same `n` (unambiguous: read/dismiss/archive/trash/hide all resolve by the
+// item's own `n` against the flat renumbered list, never against a chat grouping — see data.py).
+function mailDetail(it, ctx, closeMail){
+  const wrap = el("div","thread");
+  const hd = el("div","thd");
+  const back = el("button","back","← Bandeja"); back.onclick=()=>closeMail();
+  hd.appendChild(back);
+  wrap.appendChild(hd);
+
+  const card = el("div","mdet");
+  card.appendChild(el("div","mdsubj", (it.subject || "").trim() || "(sin asunto)"));
+  const meta = el("div","mdmeta");
+  meta.appendChild(el("span","mdfrom", it.from!=null ? it.from : "?"));
+  const when = fmtWhen(it.ts);
+  if(when) meta.appendChild(el("span","mdwhen", when));
+  card.appendChild(meta);
+
+  const {title, rest} = splitBody(displayBody(it.body, it.mediaType));
+  const bodyEl = el("div","mdbody");
+  linkify(bodyEl, title ? (rest || title) : rest);
+  card.appendChild(bodyEl);
+  const media = mediaBlock(it);
+  if(media) card.appendChild(media);
+  wrap.appendChild(card);
+
+  if(!(it.dir === "out") && it.n != null) wrap.appendChild(messageActions(it, ctx));
+  return wrap;
 }
 
 // CHAT list (simple profile, default): one item per conversation instead of per message. Shows name, pending
@@ -1095,7 +1208,13 @@ export function render(root, data, ctx){
 
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
-  hd.append(el("b",null,"Mensajería"),
+  // V2-610 — the title is the way BACK to the dashboard, always. The operator's own words: the unified
+  // inbox is «la única que voy a querer mirar en principio» — one click on the name that names it, from
+  // any screen (a platform lens, a wizard, the connectors list, an open thread or mail).
+  const title=el("b","hdtitle","Mensajería"); title.title="Ver la bandeja unificada de todos tus canales";
+  title.onclick=()=>{ _platFilter=null; _screen=null; _openMail=null; _confirmDisconnect=null;
+    ctx.action("show_view",{platform:"all"}); rerender(); };
+  hd.append(title,
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
   const dots=el("div","dots");
   // V2-521: every channel is VISIBLE up here — connected bright, unconnected dimmed (the operator's ask:
@@ -1110,7 +1229,13 @@ export function render(root, data, ctx){
       if(_platFilter===pl) ic.classList.add("filt");
       // Same door as the voice (V2-543): apply locally for an instant repaint AND stamp the server view, so
       // the next voice order and the next SSE repaint agree with what the click just did.
+      // V2-610 — a click here is a NAVIGATION order («llévame a WhatsApp»), and a navigation order must
+      // leave wherever it was, not just change what the list underneath would show. Before this, clicking
+      // a platform icon while the Conectores screen was open changed `_platFilter` and called `show_view`
+      // but never cleared `_screen`, so `showChannels` stayed true and the click was invisible — the
+      // operator kept seeing Conectores no matter which platform he tapped (reported live 2026-09-07).
       ic.onclick=()=>{ const next=(_platFilter===pl ? "all" : pl); _platFilter=(_platFilter===pl ? null : pl);
+        _screen=null; _openMail=null; _confirmDisconnect=null;
         ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+": sin conectar — toca para conectarlo";
@@ -1167,6 +1292,21 @@ export function render(root, data, ctx){
     root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender, data.thread_meta||null));
     return;
   }
+  // AN OPEN MAIL WINS OVER EVERY LIST SHAPE (V2-610), same precedence and same reasoning as an open thread
+  // just above: a navigation the operator (or a click) just performed has to stay visible no matter which
+  // density/profile is selected underneath it. `_openMail` holds `mailKey(it)` — the item's own STABLE
+  // `messageId`, never its positional `n` — because `n` gets REUSED the moment an earlier item leaves the
+  // list (`_renumber` reassigns 1..len by order on every save, data.py:128): a bare `n` here would resolve
+  // to whatever mail inherited that number next and silently show the WRONG one. A `messageId` never gets
+  // reused, so once the mail is gone (read, dismissed, archived, trashed — from here or from voice) the
+  // lookup fails FOR GOOD and the fallthrough below returns to the list, permanently — no reset needed.
+  if(_platFilter==="email" && _openMail!=null){
+    const it = fItems.find(x=>mailKey(x)===_openMail) || items.find(x=>mailKey(x)===_openMail);
+    if(it){
+      root.appendChild(mailDetail(it, ctx, ()=>{ _openMail=null; rerender(); }));
+      return;
+    }
+  }
   if(_profile==="completo"){
     if(fItems.length) root.appendChild(richList(fItems, ctx));
     else root.appendChild(el("div","empty",emptyMsg));
@@ -1174,11 +1314,12 @@ export function render(root, data, ctx){
     return;
   }
   if(_platFilter==="email"){
-    // Email's NATURAL shape (the operator's spec): a flat list of mails, each expandable in place to read
-    // its content — not conversations. messageRow already carries the clamp/«mostrar más» machinery.
-    const list = el("div","tl");
-    fItems.forEach(it=> list.appendChild(messageRow(it, ctx, rerender)));
-    root.appendChild(fItems.length ? list : el("div","empty",emptyMsg));
+    // Email's NATURAL shape (the operator's spec, V2-610): a Gmail-style list — sender, subject, time, NO
+    // body — and opening one moves to `mailDetail`, a second screen, never an inline expand. This is the
+    // shape that SHIPS; a settings toggle for it was deliberately not built (the operator's own words: if
+    // someone wants the old inline-expand shape, fork the widget).
+    root.appendChild(fItems.length ? emailList(fItems, ctx, n=>{ _openMail=n; rerender(); })
+                                    : el("div","empty",emptyMsg));
     return;
   }
 

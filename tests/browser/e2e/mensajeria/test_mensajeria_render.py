@@ -81,6 +81,8 @@ _MEASURE = """() => {
     row_acts: [...el.querySelectorAll('.trow:not(.chatrow)')].map(r =>
       [...r.querySelectorAll('.tacts button')].map(b => b.textContent).join('')),
     bodies: [...el.querySelectorAll('.tbody')].map(n => n.textContent),
+    // V2-610 — the email lens's OWN shape: sender+subject+time, no body (`.msubj`/`.mfrom`, not `.tbody`).
+    subjects: [...el.querySelectorAll('.msubj')].map(n => n.textContent),
     filt: el.querySelectorAll('.picon.filt').length,
     rest: [...el.querySelectorAll('.rest')].map(n => n.textContent),
     acts: window.__acts || [],
@@ -160,9 +162,14 @@ def test_the_summary_says_out_loud_what_it_is_not_showing(plain):
 
 def test_a_lens_shows_EVERYTHING_that_channel_brought(playwright_available):
     """The other half of the split, and the one that makes the filtering safe: Ana never reaches the summary, and
-    is right there the moment he looks at his email. Nothing was dropped, only ranked."""
+    is right there the moment he looks at his email. Nothing was dropped, only ranked.
+
+    V2-610 — email's OWN shape is the classic client (sender+subject+time), NOT the body: the assertion moved
+    from `.tbody` to `.msubj`, and a `.tbody` still showing here would mean the compact default regressed
+    back to the old inline-expand list the operator asked, by voice, four times in one session to leave."""
     lens = _run([{**_BASE, "view": {"platform": "email", "n": 1, "at": 0}}])[0]
-    assert lens["bodies"] and any("factura" in b for b in lens["bodies"]), lens["bodies"]
+    assert lens["subjects"] and any("factura" in s for s in lens["subjects"]), lens["subjects"]
+    assert lens["bodies"] == [], "la vista de email por defecto no enseña el cuerpo, solo asunto/remitente/hora"
     assert lens["rest"] == [], "inside a channel there is no remainder to announce"
 
 
@@ -186,8 +193,8 @@ def test_asking_for_the_main_list_lands_even_after_a_manual_change(playwright_av
     steps = _run([{**_BASE, "view": {"platform": "email", "n": 1, "at": 0}},
                   {**_BASE, "view": {"platform": "", "n": 2, "at": 0}}])
     # Email renders as a FLAT mail list, not chat rows (its natural shape) — so its presence is measured on the
-    # body, not on `.chatrow`.
-    assert steps[0]["chats"] == [] and any("factura" in b for b in steps[0]["bodies"]), steps[0]["bodies"]
+    # subject line (V2-610's compact default), not on `.chatrow` and not on a body it no longer shows.
+    assert steps[0]["chats"] == [] and any("factura" in s for s in steps[0]["subjects"]), steps[0]["subjects"]
     assert steps[1]["chats"] == ["JOSE VICENTE"], "the main list must come back"
     assert steps[1]["rest"] == ["1 mensaje más en sus canales"]
 
