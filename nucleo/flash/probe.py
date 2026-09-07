@@ -423,7 +423,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
-        # V2-605 — the SAME decision as the voice channel, not a second copy of it
+        # V2-609 — the SAME decision as the voice channel, not a second copy of it
         # (`show_target.fullscreen_target`): with `widget_id` empty it falls through to the card the canvas
         # says IS at full screen, which is what makes «sal de pantalla completa» answerable at all.
         _fw = next(t for t in tool_calls if t["name"] == "fullscreen_widget")

@@ -24,7 +24,7 @@ from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
 from nucleo.flash import (data_ops as _data_ops, image_turn as _image_turn,  # V2-391 / V2-402
-                          listing_turn as _lt, show_target as _show_target,    # V2-605: one target decision
+                          listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle
@@ -1522,7 +1522,7 @@ class NucleoLLMStream(llm.LLMStream):
                 # emite la tag de CANVAS `fullscreen` (nunca una data-op — esto es tamaño en pantalla, no datos).
                 if "fullscreen_widget" not in _tool_fired:
                     _tool_fired.add("fullscreen_widget")
-                    # V2-605 — WHICH card, decided once for both channels (`show_target.fullscreen_target`):
+                    # V2-609 — WHICH card, decided once for both channels (`show_target.fullscreen_target`):
                     # the id given, then identify, then the card the canvas says IS at full screen. Before
                     # that last step `widget_id` was required and «sal de pantalla completa» had nothing to
                     # put in it, so the model called nothing and said «Hecho.» (measured live 2026-09-07).

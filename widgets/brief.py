@@ -166,7 +166,7 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     cat = [p["w"] for p in picked]
     hidden = int(sel_stats.get("hidden") or 0)
 
-    # V2-605 — WHICH card is at full screen right now, reported by the canvas (`state.maximized_widget`).
+    # V2-609 — WHICH card is at full screen right now, reported by the canvas (`state.maximized_widget`).
     # The model had the verb (`fullscreen_widget`, a toggle whose description names the OFF direction) and
     # never this FACT, so «sal de pantalla completa» — an order whose object is obvious to anyone LOOKING at
     # the screen — reached a model that could see no object at all, and it answered «Hecho.» having called

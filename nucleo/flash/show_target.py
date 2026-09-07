@@ -145,7 +145,7 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
     Order of resolution: the id the model gave (exact, then `identify` over it or the turn text), and finally
     **the card that IS at full screen right now**, reported by the canvas in `state.maximized_widget`.
 
-    That last step is the whole point (V2-605). `widget_id` used to be REQUIRED and «sal de pantalla
+    That last step is the whole point (V2-609). `widget_id` used to be REQUIRED and «sal de pantalla
     completa» names no widget, so the model had nothing legal to pass — and instead of asking, it answered
     «Hecho.» having emitted no tool at all (measured live 2026-09-07 18:54:27; the engine's own friction
     detector logged «data-op fantasma» and was in cooldown). The operator's point is exactly right: with one

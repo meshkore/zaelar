@@ -433,7 +433,7 @@ async def canvas_state(payload: dict):
             emit("widget", "show", extra={"id": wid, "src": "user"})
         for wid in (prev - now):
             emit("widget", "close", extra={"id": wid, "src": "user"})
-        # V2-605 — WHICH card is at full screen, if any. It is not geometry (the brain does not care about
+        # V2-609 — WHICH card is at full screen, if any. It is not geometry (the brain does not care about
         # coordinates, which is why `layout` goes to sys_kv): it is «what the operator has in front of them»,
         # the same class of fact `open_widgets` exists for. Without it «sal de pantalla completa» named no
         # target, `fullscreen_widget` required one, and the turn answered «Hecho.» having done nothing

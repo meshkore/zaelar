@@ -1,4 +1,4 @@
-"""«Sal de pantalla completa» has an obvious object, and the model could not see it (V2-605).
+"""«Sal de pantalla completa» has an obvious object, and the model could not see it (V2-609).
 
 Measured live, session `4a492268`, 2026-09-07:
 
