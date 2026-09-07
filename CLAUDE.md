@@ -737,6 +737,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     other faces, 18 identical «Dentist» notices in one kickoff prompt, and a browser block that said «la web
     BLOQUEÓ» twelve lines above «YA HA ENCONTRADO ALGO».
 
+- **Messaging navigation gets unstuck, and email defaults to a classic list (V2-610, 2026-09-07)**:
+  diagnosed from the operator's own local session. Clicking a platform icon while Conectores was open never
+  cleared `_screen`, so the click's own effect stayed hidden underneath it — «no se va la vista de
+  conectores». The «Mensajería» title now returns to the unified dashboard from anywhere (his own words: it
+  is «la única que voy a querer mirar en principio»). Email's default view stops being the same
+  inline-clamp shape as a WhatsApp thread — asked, by voice, four times in one session, to compact it to
+  «el asunto y la hora, como en cualquier cliente de correo electrónico», and no action existed to do it
+  (`show_view` only ever moved the LENS, never the density). It ships as the hardcoded default now, never a
+  toggle — his own words close that door: a fork can change it.
+  - `_openMail` keys by the item's `messageId`, never its positional `n`: `n` is REASSIGNED on every save
+    (`_renumber`), so a bare `n` pointer would resolve to whatever mail inherits that number next and
+    silently show the WRONG one — caught by a test built around exactly that reuse before it shipped.
+  - `messageActions()` extracted so the compact row and the new detail screen share one set of five buttons
+    instead of drifting into two.
+  - Node 4.122, 10 new + 8 updated cases, 8 verified disarms. **Found live, at closure**: the working tree
+    also carried substantial UNRELATED uncommitted work (`desktop.js`, `ChatWall.js`, `Orb.js`, `styles.css`,
+    i18n bundles, two chat-wall/canvas-refit e2e tests) that predates this change and was left untouched —
+    it has its own currently-failing test. `git stash`/`pop` preserved it faithfully; committed only the
+    four files this change actually touched, by explicit path.
+
 - **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
   2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
   nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
