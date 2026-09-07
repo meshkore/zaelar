@@ -737,6 +737,43 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     other faces, 18 identical «Dentist» notices in one kickoff prompt, and a browser block that said «la web
     BLOQUEÓ» twelve lines above «YA HA ENCONTRADO ALGO».
 
+- **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
+  2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
+  nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
+  only the third is a defect: `maximize()` IS a real toggle (so the second phrasing worked),
+  `attention.mentions_fullscreen` correctly stopped the close-backstop from closing the whole widget
+  (V2-600), and **`fullscreen_widget` REQUIRED `widget_id`** — described as «el widget a AMPLIAR», which is
+  one-directional prose on a two-directional toggle — while the sentence names no widget. Inventing an id
+  is forbidden (V2-026), so the model's only remaining moves were to call nothing or to confabulate, and it
+  did both.
+  - **The operator's reading was the correct one**: one card at full screen, almost nothing else open — the
+    target was not ambiguous, it was *obvious*. And the canvas KNEW it: `card._restore` is the maximize
+    marker, and the report that already travels on every `_persist()` carried `min` and not `max`. Same
+    shape as V2-603's connector: **given a verb and no state, the model narrates.** A verb whose object the
+    system can see and the model cannot is a verb the model declines to use.
+  - **The fix went in the ARGUMENT, not the prose.** The verb mapped fine — the very next turn proves it —
+    and the tool catalogue is paid on EVERY voice turn (INI-027) and had **three characters of headroom**.
+    `widget_id` stops being required, its description says VACÍO = the one at full screen, and the catalogue
+    came out **9 chars smaller** than before. Four seams: `desktop.js` reports `max`, `/api/canvas/state`
+    keeps `state.maximized_widget`, `widgets/brief` marks that row, and `show_target.fullscreen_target`
+    decides the target ONCE for both channels (the probe is a parallel impl by design — V2-252).
+  - **The dangerous half, found by a disarm.** With NOTHING at full screen and ONE widget open — the
+    operator's own most common canvas — `identify` happily resolved «sal de pantalla completa» to that
+    widget, and `fullscreen_widget` is a TOGGLE: acting on it would have put the card INTO full screen, the
+    exact opposite of the order. An empty argument now means «the one at full screen» and NOTHING else;
+    with none, the honest result is nothing and the caller asks. ⚠️ My first version of that test opened
+    TWO widgets, so the single-widget fallback walked straight through it — **the test has to stand in the
+    operator's canvas, not in a convenient one**.
+  - **Also true and NOT fixed here**: the «Hecho.» itself. `susurro/friction.py` detected it in the same
+    second — «data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)» — and was
+    **in cooldown, so nobody was told**. That detector is diagnostic, not corrective; a general "claimed
+    done, called nothing" repair is its own batch and is named, not built.
+  - **The number was already taken.** V2-605 belongs to the card-question initiative; `probe.py` carried its
+    references before this work started. Renumbered to 609 at closure — and the rename then clobbered seven
+    of those pre-existing references, which is the second half of the same trap: *reserve the number when
+    you TAKE it, and rename by hand.*
+  - Node **4.117** (16 cases, 12 verified disarms). **Verified live** on `3.26+3223c6a` in both directions.
+
 - **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
   direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
   storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
