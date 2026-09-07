@@ -67,6 +67,25 @@ def _resolve_widget(name: str) -> str:
         return ""
 
 
+def _show_card(wid: str) -> str:
+    """The CARD to raise for `wid` — its live instance when that is unambiguous, else the base (V2-605 F3).
+
+    This lane emits the base id, and for the two pieces that HAVE cards (`navegador`, `results`) that opens the
+    bare, empty box next to the one holding the work. Measured on the live engine, and this is the lane that
+    matters most: «Enséñame el navegador» is a seeded phrase (V2-567 grids), so it never reaches the model at
+    all — the two doors fixed earlier in V2-605 are the SLOW ones, and this fast one was still wrong.
+
+    Narrow-only by construction, which is what this lane needs: it is silent and has no way to ask, so
+    ambiguity keeps the old behaviour rather than turning a 0.08 ms answer into a question it cannot pose.
+    """
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        return _inst.show_id(wid, open_instances())
+    except Exception:  # noqa: BLE001
+        return wid
+
+
 def _widget_has_live_work(wid: str) -> bool:
     """True when closing `wid` would touch a LIVE errand — browser tabs driving, or escalations delivering.
     Scoped to the two widgets that host work; a clock has nothing to orphan. Fail-CLOSED on error: if the
@@ -127,7 +146,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     if not wid:
         return False
     if do == "show_widget":
-        emit("widget", "show", text=said, extra={"id": wid, **src})
+        emit("widget", "show", text=said, extra={"id": _show_card(wid), **src})
         return True
     if do == "close_widget":
         # A deterministic close must never be the thing that kills LIVE work (V2-567). Closing the browser
@@ -163,7 +182,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             # lens to a card nobody can see would be the mirror of the bug this replaces (a card shown with
             # the lens ignored).
             if action_is_view(wid, action["action"]):
-                emit("widget", "show", text=said, extra={"id": wid, **src})
+                emit("widget", "show", text=said, extra={"id": _show_card(wid), **src})
             loop.create_task(_sapi.brain_action(wid, action["action"], dict(action.get("payload") or {})))
             return True
         except Exception as e:  # noqa: BLE001

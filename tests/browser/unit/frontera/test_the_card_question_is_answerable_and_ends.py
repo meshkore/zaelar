@@ -228,3 +228,47 @@ def test_the_voice_fallback_show_branch_consults_the_instance():
     code = "\n".join(ln for ln in body.splitlines() if not ln.strip().startswith("#"))
     assert "_close_target(" in code, "el fallback dejó de consultar la instancia al CERRAR"
     assert "_show_target_instance(" in code, "el fallback no consulta la instancia al MOSTRAR"
+
+
+# ── 7) THE FOURTH DOOR — the ACTION MAP fast lane (V2-605 F3) ─────────────────────────────────────────────────
+# «Enséñame el navegador» is a SEEDED phrase (V2-567's open/close grids), so it never reaches the model: the
+# action map executes it in ~0.08 ms. Measured on the live engine after F2 — the turn came back «Hecho.» with no
+# model call at all, still opening the BARE card. The two doors fixed before this one are the SLOW ones; this is
+# the lane a real operator actually hits, and it was the last one emitting a base id.
+
+def test_the_action_map_raises_the_card_not_the_bare_piece():
+    from nucleo.actionmap import executor
+    _thefork()
+    import server.voice_api as va
+    va.canvas_state._last_inst = list(CANVAS)
+    try:
+        assert executor._show_card("navegador") == "navegador::t1"
+    finally:
+        va.canvas_state._last_inst = None
+
+
+def test_the_action_map_never_turns_a_fast_answer_into_a_question():
+    """It is silent by design and cannot ask, so ambiguity must keep the old behaviour."""
+    from nucleo.actionmap import executor
+    _tab("t1", "https://a.example/", "A")
+    _tab("t2", "https://b.example/", "B")
+    import server.voice_api as va
+    va.canvas_state._last_inst = ["navegador::t1", "navegador::t2"]
+    try:
+        assert executor._show_card("navegador") == "navegador"
+    finally:
+        va.canvas_state._last_inst = None
+
+
+def test_every_show_door_goes_through_the_shared_resolution():
+    """FOUR doors emit a show for a piece that can have cards, and this pass found them one at a time — the tool
+    path, the deterministic fallback, and the action map — each discovered only after the previous one was
+    fixed. A count is the cheap way to notice a FIFTH."""
+    from pathlib import Path
+    eng = Path(__file__).resolve().parents[4]
+    for rel, fn in (("nucleo/actionmap/executor.py", "_show_card"),
+                    ("nucleo/flash/show_target.py", "show_card"),
+                    ("voice/engine/llm/providers/widget_intent.py", "_show_target_instance")):
+        src = (eng / rel).read_text(encoding="utf-8")
+        code = "\n".join(ln for ln in src.splitlines() if not ln.strip().startswith("#"))
+        assert fn in code, f"{rel} ya no resuelve la tarjeta antes de mostrarla"
