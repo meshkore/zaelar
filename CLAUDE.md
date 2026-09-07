@@ -797,6 +797,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     it has its own currently-failing test. `git stash`/`pop` preserved it faithfully; committed only the
     four files this change actually touched, by explicit path.
 
+- **Reply from the widget with review-first draft/send, and a real email signature (V2-611, 2026-09-07)**:
+  three pieces the operator asked for together. **Redesign**: bigger, real-button header icons (26px→34px
+  hit targets, hover backgrounds) and a border separating the header band from the content below —
+  regression caught before shipping: the wider icons overflowed a 375px card, fixed with `flex-wrap` on the
+  header row rather than shrinking the icons back down. **Compose bar**: `draft` writes the visible text
+  without sending, `send_draft` sends exactly what the box shows — never a value cached from an earlier
+  keystroke — reusing the EXISTING `pending_reply` drain untouched, so all three platforms send through the
+  same path `reply` already used.
+  - `_resolve_target`/`_enqueue_reply` are NEW, used only by draft/send_draft — `reply` keeps its ORIGINAL,
+    separately-tested resolution (chat-list numbering when no thread is open) byte-for-byte, because the new
+    actions' contract is deliberately different: the widget always hands over a concrete `n`+`messageId` for
+    a single email, sidestepping the ambiguity `reply`'s legacy fallback has rather than trying to fix it
+    for a caller it was never written for.
+  - **Two real bugs, both found by tests before shipping.** `_resolve_target`'s n-lookup skipped
+    `_renumber()` — `n` only exists once that runs (data.py:128), a raw stored item never carries one — so
+    it would never have matched anything against REAL storage; only my own test fixtures, which pre-set `n`
+    for readability, hid it. And `_enqueue_reply`'s "is this a live item to remove" check used
+    `target.get("n")`, which is ALSO absent on `reply`'s own chat-grouping-resolved targets (they never go
+    through `_renumber` either) — fixed by checking `messageId` instead, the one field every real item
+    actually carries, ingested by every connector without exception.
+  - **Signature, after checking rather than assuming.** No real Gmail signature to import — it lives behind
+    the `gmail.settings.basic` OAuth scope, which this IMAP/SMTP connector doesn't request and structurally
+    cannot use. No double-signature risk either — a raw SMTP send never goes through Gmail's own compose UI,
+    so its auto-append never fires on anything sent this way. Appended exactly once, in `_drain_replies` —
+    the one place a real send happens — read fresh from `config/connectors.py`, the SAME store the connect
+    wizard already writes account credentials to; voice sets it line by line (`set_signature_line`).
+  - `widgets/validator.py`: `mensajeria` added to `_STDLIB_EXEMPT` — reading the signature needs
+    `connectors.email.config`, lazily, exactly like `youtube`'s own `_svc()` reaches its connector.
+  - Nodes 4.124/4.125 + 5.18, 30 cases, 17 verified disarms. **Found at closure, not caused here**: another
+    session's V2-608 F3–F7 work landed on `main` mid-build (its own commits, `3d74cd6`..`171d8b2`) — it
+    correctly avoided this work's files, and its own initiative doc names this one back for the same reason.
+
 - **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609,
   2026-09-07)**: session `4a492268`. «Sal de pantalla completa.» → «Hecho.» with **no tool call at all**;
   nine seconds later «Quita la pantalla completa del vídeo» exited correctly. Three things were true and
