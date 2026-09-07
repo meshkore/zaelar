@@ -1511,6 +1511,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_canvas_refits_when_the_chat_takes_a_column.py",
                       "tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
+        # V2-608 F7, pestaña «Procesos» (operador, 2026-09-07): la fila de un encargo vivo nacía titulada
+        # «leyendo brickset.com…» y MUTABA con cada fase y cada parte de progreso hasta que las actualizaciones
+        # paraban. Dos causas: el store tenía UN solo `text` que cuatro escritores pisaban por turnos, y NO
+        # existe evento «start» en todo el backend — cada chip nace de su primera FASE, así que la actividad
+        # mutable ERA el título. El nombre asentado (V2-530, «🏷️ encargo nombrado») ni se escuchaba en SSE.
+        {"id": "4.122", "title": "El título de un proceso se queda quieto: el nombre del encargo arriba, la "
+                                 "actividad debajo, y estado + progreso + tiempo en su línea",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_process_title_holds_still.py"]},
         # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
         # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
         # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el

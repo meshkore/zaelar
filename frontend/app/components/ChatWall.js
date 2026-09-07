@@ -119,14 +119,42 @@ export function ChatWall() {
   const send = () => { if (!inputEl) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
 
   // ── PROCESSES tab: live items (store.tasks, SSE) above + history (store.workerHistory, ledger) below ──────
+  // V2-608 F7 — the row is STRUCTURED, and its first line holds still (operator, 2026-09-07): «el proceso que
+  // hemos iniciado es buscar una tienda que venda este producto — una vez tienes el título que define la tarea,
+  // mostramos solo el título». The name IS the errand's name (V2-530, shared with the flow board and the
+  // worker); what the worker is doing right now lives underneath it, and the state/progress/elapsed on a third
+  // line. Before this, phases and progress reports overwrote the one text the row had, so its title visibly
+  // mutated for minutes and only «settled» when the updates stopped.
+  const [nowS, setNowS] = createSignal(Date.now());
+  setInterval(() => setNowS(Date.now()), 15000);        // elapsed ticks by the quarter minute; the wall is app-lived
+  const dur = (ms) => {
+    const s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return s + " s";
+    const m = Math.floor(s / 60);
+    return m < 60 ? m + " min" : Math.floor(m / 60) + " h " + (m % 60) + " min";
+  };
   const liveRow = (task) => {
     const icon = task.waiting ? "waiting" : task.paused ? "paused" : "run";
     const gl = task.waiting ? "⏳" : task.paused ? "⏸" : "●";
+    const title = (task.title || "").trim() || (task.note || "").trim() || t("chat.working");
+    const note = (task.note || "").trim();
+    const state = task.waiting ? t("chat.waitingYou") : task.paused ? t("chat.paused") : t("chat.running");
+    const meta = [
+      state,
+      task.stepTag || "",
+      (typeof task.pct === "number" && task.pct >= 0 ? task.pct + "%" : ""),
+      task.startedAt ? t("chat.procElapsed", { t: dur(nowS() - task.startedAt) }) : "",
+      task.startedAt ? t("chat.procSince", {
+        t: new Date(task.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }) : "",
+    ].filter(Boolean).join(" · ");
     return h("div", { class: "cw-proc-row live " + icon },
       h("span", { class: "cw-proc-dot" }, gl),
       h("div", { class: "cw-proc-main" },
-        h("div", { class: "cw-proc-goal" }, task.text || t("chat.working")),
-        h("div", { class: "cw-proc-meta" }, (typeof task.pct === "number" && task.pct >= 0 ? task.pct + "% · " : "") + t("chat.running")),
+        h("div", { class: "cw-proc-goal" }, title),
+        // The activity is shown only while it says something the title does not — a note that merely repeats
+        // the name would be the same text twice, a few pixels apart.
+        (note && note !== title) ? h("div", { class: "cw-proc-note" }, note) : null,
+        h("div", { class: "cw-proc-meta" }, meta),
       ),
     );
   };

@@ -149,11 +149,16 @@ export function openSSE(desktop) {
     } else if (d.kind === "task") {                                               // SlowBrain background task lifecycle
       // A deep-brain task started/finished — surface it as a liquid chip flanking the orb so the operator SEES
       // zaelar is working (widget build/modify, web task, …) and how many at once. Removed when it ends.
+      // V2-608 F7 — the TITLE and the ACTIVITY are different fields now. `phase` and `plan` used to route
+      // through startTask and overwrite the row's one text, so the operator watched the process TITLE mutate
+      // through every phase and progress report. What names the row is `start` (the brief) and the one-time
+      // naming event below (V2-530); everything else is the note underneath it.
       if (d.label === "start") store.startTask(d.id, d.text);
       else if (d.label === "end" || d.label === "cancel") store.endTask(d.id);   // V2-038: killing also clears the chip
-      else if (d.label === "phase" && d.id) store.startTask(d.id, d.text);        // phase → refreshes the label (idempotent)
+      else if (d.label === "phase" && d.id) store.noteTask(d.id, d.text);
       else if (d.label === "progress" && d.id) store.setTaskProgress(d.id, d.text, d.pct, d.done, d.total);  // V2-059: real step/%
-      else if (d.label === "plan" && d.id) store.startTask(d.id, d.text);          // V2-059: declared plan → refreshes the label
+      else if (d.label === "plan" && d.id) store.noteTask(d.id, d.text);
+      else if (d.label === "🏷️ encargo nombrado" && d.id) store.retitleTask(d.id, d.text);  // the settled NAME (V2-530)
     } else if (d.kind === "memory") {                                             // memory.updated / .query (bridged from the bus)
       // The central memory mutated (write/reinforce/pin/link/state/episode/consolidate) or was READ (query). A
       // mutation → bump so the 🧠 map refetches ONLY if open (gated on store.memOpen), real-time, zero polling.

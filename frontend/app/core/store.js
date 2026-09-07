@@ -147,28 +147,49 @@ export const [cronJobs, setCronJobs]   = createSignal([]);     // [{id,name,sche
 // their zone. Fed by SSE "task" events (kind "task", label start/end) from nucleo/dispatch.py. Side + breathing
 // phase are frozen at start so the blob doesn't jump on re-render. On end it flashes "done", then clears.
 // NOT a floating toast — it's ambient background-activity, no message content, tied to the canvas.
-export const [tasks, setTasks] = createSignal([]);   // [{ id, text, done, side:'l'|'r', delay, hue }]
-export const startTask = (id, text) => setTasks(xs => {
-  if (xs.some(t => t.id === id)) return xs.map(t => t.id === id ? { ...t, text: text || t.text, done: false } : t);
+// V2-608 F7 — a task carries TWO texts, because they answer two different questions and only one of them may
+// move. `title` is the errand's NAME (V2-530: a fragment of the dialogue, the same name the flow board and the
+// worker share) — it is what the «Procesos» row is ABOUT, and it must hold still. `note` is what the worker is
+// doing right now (phase / progress / plan) and changes every few seconds. They used to be ONE `text` field that
+// every writer overwrote in turn, so the operator watched the row's TITLE mutate through «leyendo brickset.com…»
+// and progress reports until the updates happened to stop — «no entiendo por qué el título ha ido cambiando».
+export const [tasks, setTasks] = createSignal([]);   // [{ id, title, note, pct, startedAt, done, waiting, paused, side, delay, hue }]
+export const startTask = (id, title) => setTasks(xs => {
+  // A settled name never downgrades back to the brief: the 🏷️ naming event can land before `start` does on a
+  // reconnect, so an existing title wins over the one this event carries.
+  if (xs.some(t => t.id === id)) return xs.map(t => t.id === id ? { ...t, title: t.title || title || "", done: false } : t);
   const live = xs.filter(t => !t.done);                   // balance across the two zones by ACTIVE count
   const onLeft = live.filter(t => t.side === "l").length;
   const onRight = live.filter(t => t.side === "r").length;
   const side = onLeft <= onRight ? "l" : "r";             // fill the emptier side first (ties → left)
   const delay = -(Math.random() * 3).toFixed(2);          // desync the slow breathing so they don't pulse in unison
   const hue = Math.round((Math.random() * 2 - 1) * 38);   // ±38° hue-rotate → each blob a slightly different tint
-  return [...xs, { id, text: text || "Working…", done: false, side, delay, hue }];  // …same cool blue-teal range
+  return [...xs, { id, title: title || "", note: "", startedAt: Date.now(), done: false, side, delay, hue }];
+});
+// The errand got its NAME (dispatch names it once, in the background — «🏷️ encargo nombrado»). This is the only
+// writer allowed to REPLACE a non-empty title.
+export const retitleTask = (id, title) => setTasks(xs => {
+  if (!title) return xs;
+  if (!xs.some(t => t.id === id)) return [...xs, { id, title, note: "", startedAt: Date.now(), done: false, side: "l", delay: 0, hue: 0 }];
+  return xs.map(t => t.id === id ? { ...t, title } : t);
+});
+// Live activity (phase / declared plan). Touches `note`, NEVER `title`. Creates the row if the lifecycle events
+// arrived out of order (a phase can beat `start` across a reconnect) — that was the old `startTask(phase)` call's
+// one legitimate job, and the reason the title kept changing was that it did the rest of it too.
+export const noteTask = (id, note) => setTasks(xs => {
+  if (!xs.some(t => t.id === id)) return [...xs, { id, title: "", note: note || "", startedAt: Date.now(), done: false, side: "l", delay: 0, hue: 0 }];
+  return xs.map(t => t.id === id ? { ...t, note: note || t.note, done: false } : t);
 });
 export const endTask = (id) => {
   setTasks(xs => xs.map(t => t.id === id ? { ...t, done: true } : t));   // settle to a solid teal dot…
   setTimeout(() => setTasks(xs => xs.filter(t => t.id !== id)), 1100);   // …then it clears
 };
-// V2-059: STRUCTURED progress from the brain worker → the chip shows the note + step/% (the hexagon ring comes
-// later; the data is what matters). pct −1 = unknown. Creates the chip if it does not yet exist (idempotent).
+// V2-059: STRUCTURED progress from the brain worker → note + step/% (pct −1 = unknown). Idempotent create.
 export const setTaskProgress = (id, note, pct, done, total) => setTasks(xs => {
-  const tag = (total ? ` ${Math.min(done || 0, total)}/${total}` : "") + (pct >= 0 ? ` · ${pct}%` : "");
-  const text = ((note || "").trim() || "Working…") + tag;
-  if (!xs.some(t => t.id === id)) return [...xs, { id, text, done: false, side: "l", delay: 0, hue: 0, pct }];
-  return xs.map(t => t.id === id ? { ...t, text, pct } : t);
+  const tag = (total ? `${Math.min(done || 0, total)}/${total}` : "");
+  const clean = (note || "").trim();
+  if (!xs.some(t => t.id === id)) return [...xs, { id, title: "", note: clean, startedAt: Date.now(), done: false, side: "l", delay: 0, hue: 0, pct, stepTag: tag }];
+  return xs.map(t => t.id === id ? { ...t, note: clean || t.note, pct, stepTag: tag } : t);
 });
 // V2-038: RECONCILE the chips against the TRUTH (GET /api/tasks reads the server's RAM record). Upon (re)connecting,
 // a server restart/crash may have left orphaned chips (a killed task that never emitted `end`) → here we
@@ -184,7 +205,13 @@ export const reconcileTasks = (sessions) => {
     // preserve/update the live ones; mark done (→ clear) those no longer in the truth
     const kept = xs.filter(t => t.done || live.has(String(t.id))).map(t => {
       const s = live.get(String(t.id));
-      return s ? { ...t, text: (s.phase || t.text) + (s.paused ? " (paused)" : ""),
+      // The server is the one that knows the settled NAME (`title`, V2-530) and the real start (`age_s`) —
+      // a chip created from an SSE event mid-flight only knows when IT first heard of the task.
+      // Precedence: the server's settled NAME → the name this side already holds → the brief as last resort.
+      // `s.goal` before `t.title` would let a server row that has not named the errand yet CLOBBER the name the
+      // 🏷️ event already delivered — caught by the mounted test before it shipped.
+      return s ? { ...t, title: s.title || t.title || s.goal, note: s.phase || t.note,
+                   startedAt: s.age_s >= 0 ? Date.now() - s.age_s * 1000 : t.startedAt,
                    waiting: (s.waiting_on === "user"), paused: !!s.paused } : t;
     });
     const known = new Set(kept.map(t => String(t.id)));
@@ -192,7 +219,8 @@ export const reconcileTasks = (sessions) => {
     let i = kept.filter(t => !t.done).length;
     for (const [id, s] of live) {
       if (known.has(id)) continue;
-      added.push({ id, text: (s.phase || s.goal || "Working…") + (s.paused ? " (paused)" : ""), done: false,
+      added.push({ id, title: s.title || s.goal || "", note: s.phase || "", done: false,
+                   startedAt: s.age_s >= 0 ? Date.now() - s.age_s * 1000 : Date.now(),
                    side: (i++ % 2 === 0) ? "l" : "r", delay: 0, hue: 0,
                    waiting: (s.waiting_on === "user"), paused: !!s.paused });
     }
