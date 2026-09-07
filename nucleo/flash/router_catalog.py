@@ -444,14 +444,17 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "authenticate_web",
-            # Condensed (V2-035): preserve the HARD login-only vs task RULE (bug: typed credentials / confused login with a task).
-            # Situational → the contextual set includes it only when applicable.
+            # V2-035 condensed, V2-605 extended to the CAPTCHA case (the half that was missing: the tool was
+            # described as login-only, so a walled task plus «te confirmo el captcha» reached nothing). Every
+            # word here is paid on EVERY voice turn against a shared catalogue ceiling — measured, three drafts
+            # of this sentence went 500 over it, so the DECLARATION was compressed rather than the ceiling
+            # raised. The hard login-vs-task rule survives (bug: typed credentials / login confused with a task).
             "description": (
-                "Abre el navegador para INICIAR SESIÓN en un sitio web, y solo eso ('conéctame a Wallapop', 'inicia "
-                "sesión en mi Gmail'). Si hay además un verbo de TAREA ('entra en mi Gmail y bórrame los correos') "
-                "no es login → escalate (el navegador resuelve el login dentro de la tarea). EXCLUSIÓN DURA: la "
-                "MÚSICA (Spotify) y la MENSAJERÍA (WhatsApp/Telegram/email) se conectan desde la TARJETA de su "
-                "widget, JAMÁS por el navegador. Tú nunca tecleas contraseñas."
+                "Abre la VENTANA REAL del navegador en SU ordenador para que haga lo que tú no puedes: "
+                "INICIAR SESIÓN, o PASAR UN CAPTCHA que BLOQUEÓ una tarea. Si se ofrece a pasar un muro "
+                "('ábreme el navegador y te confirmo el captcha') es esto, NO show_widget. `site` = el sitio que "
+                "bloqueó, según el aviso. Con verbo de TAREA no es login → escalate. EXCLUSIÓN DURA: MÚSICA y "
+                "MENSAJERÍA se conectan desde su TARJETA, JAMÁS por el navegador. Nunca tecleas claves."
             ),
             "parameters": {
                 "type": "object",

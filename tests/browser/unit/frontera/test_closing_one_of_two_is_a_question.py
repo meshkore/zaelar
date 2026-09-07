@@ -34,6 +34,9 @@ ENGINE = Path(__file__).resolve().parents[4]
 #: pinned to one path stops guarding the moment the code is extracted, and does it by going GREEN, not red.
 _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py")
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
+#: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
+#: show-instance body in `show_target.py`.
+_PROBE_SRC = ("nucleo/flash/probe.py", "nucleo/flash/show_target.py")
 
 
 class _Voice:
@@ -195,8 +198,13 @@ def test_the_show_decision_is_wired_in_BOTH_channels():
     voz = "\n".join(_code(rel) for rel in _VOICE_SRC)   # el canal son DOS ficheros desde la pasada del trinquete
     assert voz.count("def _show_target_instance(") == 1
     assert "_show_target_instance(_rid" in voz, "la voz no consulta la instancia al mostrar"
-    probe = _code("nucleo/flash/probe.py")
-    assert "resolve_show(_rid" in probe, "el probe no consulta la instancia al mostrar"
+    # El canal de TEXTO también son DOS ficheros desde el trinquete de V2-605: `probe.py` decide y
+    # `show_target.show_instance` es el cuerpo compartido. Se lee EL CANAL, no un fichero — un guarda clavado a
+    # una ruta deja de guardar en cuanto el código se extrae, y esa es la lección que V2-555 ya pagó (aquí se
+    # puso ROJO, que es la forma buena de enterarse).
+    probe = "\n".join(_code(rel) for rel in _PROBE_SRC)
+    assert "_show_instance(" in probe, "el probe no consulta la instancia al mostrar"
+    assert "resolve_show(" in probe, "el probe no llega a la decisión compartida"
 
 
 # ── 5) «los dos» ANSWERS the question instead of restarting it (V2-530) ───────────────────────────────────────

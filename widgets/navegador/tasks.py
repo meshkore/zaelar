@@ -656,11 +656,25 @@ def _announce_wall(task_id: str, reason: str) -> None:
     # on has to arrive by itself.
     try:
         from voice import brain_notes
-        _g = (get(task_id) or {}).get("goal") or "la tarea del navegador"
+        _rec = get(task_id) or {}
+        _g = _rec.get("goal") or "la tarea del navegador"
+        # V2-605 — the note NAMES the site and the mechanism. It already said «que entre él», and that is the
+        # right offer; what it never said is HOW, so it read as a suggestion the operator should act on rather
+        # than a tool the agent can fire. Measured on session `43b7bf79`: the operator offered the help himself
+        # («o me abres el navegador para que yo lo vea y te confirme el captcha») and got a question about which
+        # card to show, four times — `authenticate_web` was in the turn's tool list the whole time, described as
+        # a LOGIN tool only. An undeclared capability is one the model narrates instead of using (V2-540).
+        # The SITE matters as much as the tool: `login_site()` cannot find «thefork» in a sentence that never
+        # names it, and `web_auth.start("")` deliberately opens nothing rather than guess.
+        _host = str(_rec.get("url") or "").split("://", 1)[-1].split("/", 1)[0]
+        _offer = (f" Si te ofrece pasarlo él («ábreme el navegador», «déjame verlo»), o si crees que su ayuda "
+                  f"desatasca esto, llama a authenticate_web con site='{_host}': abre la ventana REAL en su "
+                  f"ordenador para que resuelva el captcha o el login con sus manos, y la tarea sigue."
+                  if _host else "")
         brain_notes.push(
             f"[SISTEMA] Navegador (tarea {task_id}): la web BLOQUEÓ «{str(_g)[:70]}» — {reason}. No va a "
             f"terminar sola. Díselo al operador EN ESTE TURNO, con una salida concreta (probar otro sitio, "
-            f"que entre él, o dejarlo); no le digas que sigues con ello.")
+            f"que entre él, o dejarlo); no le digas que sigues con ello.{_offer}")
     except Exception:
         pass
 

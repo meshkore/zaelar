@@ -1947,6 +1947,20 @@ DOMAINS: list[dict] = [
                                 "no los ids— y con una sigue cerrando",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_closing_one_of_two_is_a_question.py"]},
+        # V2-605, sesión `43b7bf79` (2026-09-07): «Tienes 2 abiertas: ¿cuál te enseño, "t1" o "navegador"?» dicho
+        # CINCO veces mientras el operador la contestaba («uno está vacío y el otro tiene la web»), la reformulaba
+        # y acababa insultando. Tres fallos: la pregunta nombraba IDS (solo `results` sabía titularse), una
+        # tarjeta EN BLANCO competía con una que tenía la web abierta, y `clarify` PISA la respuesta del modelo,
+        # así que nada podía romper el bucle. Y su ofrecimiento —«te confirmo el captcha»— no llegaba a
+        # `authenticate_web`, que estaba en la lista de tools descrito solo como login.
+        {"id": "4.118", "title": "La pregunta de tarjeta se puede CONTESTAR (se nombran por lo que enseñan, no "
+                                 "por su id), una tarjeta en blanco no compite, y no se pregunta dos veces",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_the_card_question_is_answerable_and_ends.py"]},
+        {"id": "4.119", "title": "Un muro/CAPTCHA OFRECE las manos del operador: el aviso nombra el mecanismo y "
+                                 "el sitio, y la tool declara el caso además del login",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

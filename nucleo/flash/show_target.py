@@ -94,3 +94,32 @@ def classify_alias_call(tool_calls: list, text: str) -> str:
     except Exception:
         rid = ""
     return f"alias:{op}:{rid}" if rid else "clarify"
+
+
+def show_instance(rid: str, text: str = "", last_spoken: str = "") -> tuple[str, str, str]:
+    """WHICH CARD of `rid` a «enséñamelo» means → `(id_to_show, question, chosen_label)`.
+
+    The SAME decision the voice channel takes in `providers/widget_intent._show_target_instance`, single-sourced
+    in `widgets/instances.resolve_show`; what lived here was the plumbing around it, written twice. V2-605 gave
+    that decision a third input (`last_spoken`, so the same question is never asked twice) and a third output
+    (which card we had to choose when the operator had already been asked and still did not pick) — a shape
+    change is exactly when two hand-copied call sites drift, and this channel is the one that historically gets
+    left behind (V2-176, V2-252, V2-539).
+
+    Fail-soft to «show the base, as always»: an unreadable canvas must not invent an ambiguity mid-turn.
+    """
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        out = _inst.resolve_show(rid, open_instances(), text, last_spoken)
+    except Exception:  # noqa: BLE001
+        return rid, "", ""
+    if out.get("ask"):
+        return "", str(out["ask"]), ""
+    return str(out.get("id") or rid), "", str(out.get("chose") or "")
+
+
+def last_assistant_line(window) -> str:
+    """The last thing THIS channel said — the probe's equivalent of the voice provider's `_last_spoken`."""
+    return next((str(m.get("content") or "") for m in reversed(list(window or []))
+                 if (m or {}).get("role") == "assistant"), "")

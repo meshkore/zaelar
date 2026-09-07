@@ -50,16 +50,19 @@ def _is_meta_widget_question(n: str) -> bool:
         r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
 
 
-def _show_target_instance(wid: str, text: str = "") -> dict:
+def _show_target_instance(wid: str, text: str = "", last_spoken: str = "") -> dict:
     """A QUÉ tarjeta va este «enséñamelo» (V2-300) — hermana de `_close_target`, mismo fail-soft: si no se
     puede saber qué hay abierto, se muestra la base como siempre.
 
     `text` es el turno del operador: con varias tarjetas abiertas, «las dos» resuelve a todas en vez de
-    preguntar (V2-530)."""
+    preguntar (V2-530).
+
+    `last_spoken` es lo ÚLTIMO que dijimos (V2-605): si ya era esta misma pregunta, no se vuelve a hacer — se
+    elige y se dice cuál. La pregunta se midió repetida CINCO veces en la sesión `43b7bf79`."""
     try:
         from server.voice_api import open_instances
         from widgets import instances as _inst
-        return _inst.resolve_show(wid, open_instances(), text)
+        return _inst.resolve_show(wid, open_instances(), text, last_spoken)
     except Exception:  # noqa: BLE001
         return {"id": wid, "ids": [wid], "ask": "", "options": []}
 

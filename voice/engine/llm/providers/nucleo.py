@@ -1443,13 +1443,16 @@ class NucleoLLMStream(llm.LLMStream):
                             # ronda 24 el modelo mostró `results` con la hoja del encargo abierta al lado y el
                             # canvas abrió la caja PELADA, vacía. Misma decisión y mismo dueño que el cierre
                             # (`_close_target` → `instances.resolve_close`); con varias abiertas se pregunta.
-                            _r2 = _show_target_instance(_rid, text)
+                            _r2 = _show_target_instance(_rid, text, brain._last_spoken or "")
                             if _r2.get("ask"):
                                 clarify["msg"] = _r2["ask"]
                                 emit("brain", "🤔 show_widget con varias hojas → pregunto", text=_rid,
                                      role="system")
                             else:
                                 _rid = _r2.get("id") or _rid
+                                # V2-605: the choice was FORCED (we had already asked and he did not pick) → the
+                                # ack has to name it, or an undisclosed decision costs the next three turns.
+                                acted["show_chose"] = str(_r2.get("chose") or "")
                                 _tag_emit("show", {"id": _rid})
                                 # V2-209: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no
                                 # puede distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la
@@ -2710,7 +2713,8 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 from voice.engine.core import langs as _langs
                 from nucleo.flash import router_guards as _rg_show2
-                spoken_text = _rg_show2.show_ack(_langs.current_language(), str(acted.get("widget_id") or ""))
+                spoken_text = _rg_show2.show_ack(_langs.current_language(), str(acted.get("widget_id") or ""),
+                                                 chose=str(acted.get("show_chose") or ""))
             except Exception:
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))

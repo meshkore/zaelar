@@ -82,3 +82,26 @@ def instance_id(sheet: str = "") -> str:
     """CARD ID on the canvas (`results::<corr>`), which uses «::» —the canvas separator, not the disk separator."""
     s = _safe_sheet(sheet)
     return WIDGET_ID if not s else f"{WIDGET_ID}::{s}"
+
+
+def card_face(instance: str = "") -> dict:
+    """`{"label": what THIS sheet shows, "blank": has it nothing to show}` — read by `widgets/instances.py`.
+
+    V2-605. `instances._label` used to reach in here and read the title itself, hardcoded for `results` and for
+    no other piece — so the browser, which has had cards for far longer, could only dump ids («¿"t1" o
+    "navegador"?», said five times in session `43b7bf79`). The knowledge moved to the widget that owns it, which
+    is what lets EVERY instantiating piece answer the same question. This file, whose whole subject is naming
+    sheets, is where it belongs.
+
+    «Resultados» is the filler `view_data` supplies when nothing named the sheet (`setdefault`), not a name:
+    returning it would give two untitled sheets the same label and leave the question distinguishing nothing.
+    """
+    try:
+        from . import data as _data
+        view = _data.view_data(str(instance or "").strip()) or {}
+    except Exception:  # noqa: BLE001
+        return {}
+    title = str(view.get("title") or "").strip()
+    if title.lower() == "resultados":
+        title = ""
+    return {"label": title, "blank": not view.get("items")}

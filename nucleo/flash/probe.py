@@ -61,6 +61,7 @@ def _session(sid: str) -> ProbeSession:
 # 2026-08-29 (architecture ratchet).
 from .show_target import (  # noqa: F401
     _ctx_ids, _identify_ctx, _running_goals, _show_target, classify_alias_call,
+    last_assistant_line as _last_assistant_line, show_instance as _show_instance,
 )
 
 
@@ -88,6 +89,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     text = (text or "").strip()
     if not text:
         return {"ok": False, "error": "texto vacío"}
+    # V2-605 — TURN-SCOPED, declared here and not inside the `show_widget` branch that sets it: the ack site far
+    # below runs for EVERY `canvas:show:`, and several other paths reach it, so a branch-local name would raise
+    # `UnboundLocalError` on exactly the routes that never disambiguate anything. Named the card we had to CHOOSE
+    # when the operator had already been asked once and still did not pick; empty is the normal case.
+    _show_chose = ""
 
     # VAULT: security config + spoken secret, decided by the SHARED gate (F1, 2026-08-23).
     # There were three mirror implementations and they had already drifted: this copy returned the note
@@ -406,19 +412,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _sys = _res.get("system")
             _show_ask = ""
             if _rid:
-                # V2-300 — espejo del provider (`_show_target_instance`): la BASE con una instancia viva
-                # delante resuelve a la INSTANCIA; con varias se pregunta. Sin esto el canvas abre la caja
-                # PELADA, vacía, con la hoja del encargo llena al lado (medido en la ronda 24 de la guitarra).
-                try:
-                    from server.voice_api import open_instances as _oi
-                    from widgets import instances as _inst2
-                    _r2 = _inst2.resolve_show(_rid, _oi(), text)
-                    if _r2.get("ask"):
-                        _show_ask, _rid = _r2["ask"], ""
-                    else:
-                        _rid = _r2.get("id") or _rid
-                except Exception:  # noqa: BLE001
-                    pass
+                # V2-300/V2-605 — WHICH card, decided once for both channels (`show_target.show_instance`).
+                _rid, _show_ask, _show_chose = _show_instance(
+                    _rid, text, _last_assistant_line(sess.window))
             action = (f"canvas:show:{_rid}" if _rid else
                       "clarify" if _show_ask else
                       "panel:chat" if _sys == "chat" else "clarify")
@@ -1020,7 +1016,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # `split(":")[-1]` NO sirve: una tarjeta de INSTANCIA lleva dos puntos dentro
                 #                 (`canvas:show:navegador::t1` → «t1», que no es ningún widget).
                 _parts = action.split(":", 2)
-                spoken = _rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "")
+                spoken = _rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "",
+                                           chose=_show_chose)
             elif action in ("escalate", "send_to_worker", "stop_worker", "answer_worker", "authenticate_web",
                             "connect_cluster"):
                 # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).

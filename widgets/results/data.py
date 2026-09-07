@@ -53,7 +53,7 @@ import unicodedata as _ud
 
 from .. import store
 from .sheet_names import (  # noqa: F401 — re-export: this module IS the sheet contract
-    WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, instance_id, prune_sheets, sheet_key, sheets)
+    WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, card_face, instance_id, prune_sheets, sheet_key, sheets)
 
 
 

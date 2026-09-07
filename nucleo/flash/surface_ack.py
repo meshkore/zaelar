@@ -44,9 +44,16 @@ def nothing_to_show(widget_id: str) -> bool:
     return not any(isinstance(v, (list, tuple, dict)) and len(v) > 0 for v in data.values())
 
 
-def show_ack(lang, widget_id: str = "", window=None) -> str:
+def show_ack(lang, widget_id: str = "", window=None, chose: str = "") -> str:
     """The ack for a turn whose only act was opening a surface. Shared so the two channels cannot drift apart:
-    this exact phrase failing is what V2-176 measured, and it failed in the channel nobody was looking at."""
+    this exact phrase failing is what V2-176 measured, and it failed in the channel nobody was looking at.
+
+    `chose` (V2-605): the piece had several cards, we had already asked WHICH ONE and the operator's next turn
+    still did not pick, so the choice was made FOR him. Then a bare «aquí lo tienes» hides the one thing he needs
+    to know — a decision he can correct in one word costs nothing, an undisclosed one costs the next three turns.
+    """
+    if chose:
+        return f"Te enseño {chose}."
     if widget_id and nothing_to_show(widget_id):
         return getattr(lang, "show_ack_empty", None) or lang.show_ack
     return lang.show_ack
