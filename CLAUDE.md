@@ -509,12 +509,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     "every `t()` key exists in both bundles" ratchet, plus its `t(...) || fallback` dead-code guard) and
     **4.127** (the two pilots, 11 RENDERED cases). Disarms verified red: the default-label fallback, the
     fallback-pattern guard, and the clock's `ctx.lang` wiring.
+  - ⚠️ **The full regression sweep found a REAL breakage this caused, before it shipped**: the new `store.js`
+    import 404'd inside `test_the_canvas_refits_when_the_chat_takes_a_column.py`'s route-mocked page (no static
+    server behind it), whose hand-rolled import-stubber only knew about `desktop.js`'s FIRST import — 13 tests
+    timed out at 30s each with nothing pointing at i18n. Isolated by stashing just the `desktop.js` edit and
+    re-running (7s, all green) to confirm the cause before touching anything. Fixed by generalizing the stub
+    and adding a self-check that fails in under a second, by name, if any import is ever left unstubbed again.
+  - **VERIFIED LIVE end-to-end on the real engine (`3.26+00c62ee`)**: opened `timer` on the live canvas
+    (Spanish, "TEMPORIZADOR"), called the SAME `POST /api/i18n/choose/{code}` the ⚙ panel uses to switch to
+    English — the SAME open card, no reload, read "TIMER" — then switched back and it read "TEMPORIZADOR"
+    again, restoring the operator's actual setting. Zero page errors.
   - **Deliberately not done**: migrating the other twelve system widgets (bounded, mechanical, per-widget
     follow-up — the mechanism and the ratchet are what make each one small); translating PRODUCT DATA inside a
     widget (message content, a dictated label) stays exactly as untouched as the language rules already
-    require. **Not verified live**: an actual end-to-end language switch on the running engine with a system
-    widget card left open — needs a frontend reload and driving the real onboarding flow, not just a
-    fixture-fed render.
+    require.
 
 - **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
   (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
