@@ -137,6 +137,19 @@ def _track_query(t: dict) -> str:
     return " ".join(p for p in parts if p).strip() or (t.get("title") or "")
 
 
+_ARTIST_TITLE_SEP = re.compile(r"\s+[-–—:]\s+")   # "Artist - Title" / "Artist – Title" / "Artist: Title"
+
+
+def _split_artist_title(text: str) -> "tuple[str, str]":
+    """Best-effort split of a combined search string into (artist, title), on an EXPLICIT delimiter only.
+    Plain concatenation ('Madonna Papa Don't Preach', no separator) is left untouched — there is no music
+    metadata source here to guess the boundary from, and a wrong guess would be worse than none."""
+    parts = _ARTIST_TITLE_SEP.split(text, maxsplit=1)
+    if len(parts) == 2 and parts[0].strip() and parts[1].strip():
+        return parts[0].strip(), parts[1].strip()
+    return "", text.strip()
+
+
 def _track_from_payload(p: dict) -> "dict | None":
     """Build a track from flexible payload: {track:{...}} or {query|title[,artist,album]}."""
     src = p.get("track")
@@ -150,7 +163,12 @@ def _track_from_payload(p: dict) -> "dict | None":
     if not q:
         return None
     title = (p.get("title") or q).strip()
-    return {"title": title, "artist": (p.get("artist") or "").strip(),
+    artist = (p.get("artist") or "").strip()
+    if not artist and not p.get("title"):          # a bare `query` — try the explicit-delimiter split
+        guessed_artist, guessed_title = _split_artist_title(q)
+        if guessed_artist:
+            artist, title = guessed_artist, guessed_title
+    return {"title": title, "artist": artist,
             "album": (p.get("album") or "").strip(), "art": "", "query": q, "uri": "", "videoId": ""}
 
 

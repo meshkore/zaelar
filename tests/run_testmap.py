@@ -1388,7 +1388,13 @@ DOMAINS: list[dict] = [
             # solo del revés. Los xfail son la deuda DECLARADA: cuando el arreglo entre, saldrán XPASS.
             "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py",
-                                                                 "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py"]},
+                                                                 "tests/browser/unit/musica/test_anothers_player_never_advances_the_music_queue.py",
+                                                                 # V2-XXX PRO redesign: shared-artist header derivation,
+                                                                 # the play button living ON the cover art, the
+                                                                 # per-row "now playing" indicator (playlist/top/recent/
+                                                                 # bottom bar) and click=select/dblclick=play — all
+                                                                 # RENDERED, none of it reachable from source alone.
+                                                                 "tests/browser/unit/musica/test_the_playlist_reads_like_spotify_now.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT,
          "paths": ["tests/browser/unit/youtube/test_youtube.py",
                    # V2-596: blocked channels — the filter the operator educates by voice; every NAME-search

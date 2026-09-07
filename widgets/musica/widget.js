@@ -1,4 +1,8 @@
-// musica: face of the music connector (V2-041) with Spotify-style aesthetics (V2-058, Phase 1). Contract:
+// musica: face of the music connector (V2-041) with Spotify-style aesthetics (V2-058, Phase 1) + a PRO redesign
+// (V2-XXX): clearer header/content separation, a floating play button ON the cover art, a per-row "now playing"
+// indicator (animated bars, everywhere a track can appear — playlist, top, recent AND the bottom bar), a
+// playlist header that shows a shared artist ONCE instead of repeating it in every row, and click=select /
+// double-click=play on every track row. Contract:
 // render(el, data, ctx).
 // data = GET /widgets/musica/data -> {mode:"spotify"|"youtube"|"idle", connected, can_connect, own_client_id_set,
 //   default_available, redirect_uri, now_playing (spotify)|null, yt:{videoId,title,paused,muted,volume,cmd_seq},
@@ -22,7 +26,7 @@ function injectStyles(){
            width:min(468px,93vw);background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);
            border-radius:16px;overflow:hidden;color:var(--hb-ink,#0d1622);display:flex;flex-direction:column}
   .hb-mus2-scroll{padding:15px 15px 8px;display:flex;flex-direction:column;gap:17px;max-height:60vh;overflow:auto}
-  .hb-mus2-top{display:flex;align-items:center;gap:9px}
+  .hb-mus2-top{display:flex;align-items:center;gap:9px;padding-bottom:13px;border-bottom:1px solid var(--hb-line,#eef1f6)}
   .hb-mus2-top b{font-size:17px;font-weight:800;letter-spacing:-.015em}
   .hb-mus2-prov{margin-left:auto;font-size:11px;color:var(--hb-muted,#5b6b82);border:1px solid var(--hb-line,#eef1f6);
                 border-radius:999px;padding:3px 9px;display:flex;align-items:center;gap:5px}
@@ -34,18 +38,25 @@ function injectStyles(){
   .hb-mus2-pl{flex:0 0 auto;width:114px;cursor:pointer;display:flex;flex-direction:column;gap:7px}
   .hb-mus2-art{border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;
                background:linear-gradient(135deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6));
-               box-shadow:0 6px 16px rgba(0,0,0,.16)}
+               box-shadow:0 6px 16px rgba(0,0,0,.16);transition:transform .15s,box-shadow .15s}
   .hb-mus2-art img{width:100%;height:100%;object-fit:cover}
   .hb-mus2-pl .hb-mus2-art{width:114px;height:114px;font-size:34px}
+  .hb-mus2-pl:hover .hb-mus2-art{transform:translateY(-2px);box-shadow:0 12px 24px rgba(0,0,0,.24)}
   .hb-mus2-plname{font-size:12.5px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-plsub{font-size:11px;color:var(--hb-muted,#5b6b82)}
   .hb-mus2-new .hb-mus2-art{background:var(--hb-bg-soft,#fbfdff);border:1.5px dashed var(--hb-line,#eef1f6);
                             color:var(--hb-muted,#5b6b82);box-shadow:none;font-size:30px}
   .hb-mus2-grid{display:flex;flex-direction:column;gap:1px}
-  .hb-mus2-tr{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:9px;cursor:pointer}
+  .hb-mus2-tr{display:flex;align-items:center;gap:11px;padding:7px 8px;border-radius:9px;cursor:pointer;
+              user-select:none}
   .hb-mus2-tr:hover{background:var(--hb-bg-soft,#fbfdff)}
+  .hb-mus2-tr.selected{background:var(--hb-bg-soft,#fbfdff);box-shadow:inset 0 0 0 1px var(--hb-line,#eef1f6)}
+  .hb-mus2-tr.playing{background:rgba(29,185,84,.10)}
+  .hb-mus2-tr.playing.selected{background:rgba(29,185,84,.16)}
+  .hb-mus2-tr.playing .hb-mus2-trt{color:var(--sp-green)}
   .hb-mus2-tr .hb-mus2-art{width:40px;height:40px;font-size:17px;box-shadow:none;flex:0 0 auto}
-  .hb-mus2-trn{font-size:12px;color:var(--hb-muted-2,#9aa7b8);font-family:ui-monospace,Menlo,monospace;min-width:16px;text-align:right}
+  .hb-mus2-trn{font-size:12px;color:var(--hb-muted-2,#9aa7b8);font-family:ui-monospace,Menlo,monospace;
+               min-width:16px;text-align:center;display:flex;align-items:center;justify-content:center}
   .hb-mus2-trmeta{min-width:0;flex:1}
   .hb-mus2-trt{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-tra{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -57,18 +68,27 @@ function injectStyles(){
                 display:flex;align-items:center;gap:5px;padding:0;align-self:flex-start}
   .hb-mus2-back:hover{color:var(--hb-accent,#3D6FE0)}
   .hb-mus2-head{display:flex;gap:15px;align-items:flex-end}
+  .hb-mus2-artwrap{position:relative;flex:0 0 auto}
   .hb-mus2-head .hb-mus2-art{width:96px;height:96px;font-size:40px;box-shadow:0 8px 20px rgba(0,0,0,.2);flex:0 0 auto}
   .hb-mus2-headmeta{display:flex;flex-direction:column;gap:7px;min-width:0}
   .hb-mus2-headk{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--hb-muted-2,#9aa7b8);
                  font-family:ui-monospace,Menlo,monospace}
   .hb-mus2-headn{font-size:22px;font-weight:800;line-height:1.08;letter-spacing:-.02em;word-break:break-word}
-  .hb-mus2-playbig{align-self:flex-start;border:0;background:var(--sp-green);color:#fff;border-radius:999px;
-                   padding:9px 18px 9px 15px;font-size:13.5px;font-weight:800;cursor:pointer;
-                   display:inline-flex;align-items:center;gap:8px}
-  .hb-mus2-playbig:disabled{opacity:.45;cursor:default}
+  .hb-mus2-playfab{position:absolute;right:8px;bottom:8px;width:46px;height:46px;border-radius:50%;
+                   background:var(--sp-green);color:#fff;border:0;font-size:17px;cursor:pointer;
+                   display:flex;align-items:center;justify-content:center;box-shadow:0 6px 14px rgba(0,0,0,.35);
+                   transition:transform .15s}
+  .hb-mus2-playfab:hover{transform:scale(1.07)}
+  .hb-mus2-playfab:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none}
   .hb-mus2-bar{border-top:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
                padding:10px 13px;display:flex;align-items:center;gap:11px}
+  .hb-mus2-barartwrap{position:relative;flex:0 0 auto}
   .hb-mus2-bar .hb-mus2-art{width:44px;height:44px;font-size:20px;box-shadow:none;flex:0 0 auto}
+  .hb-mus2-areq{position:absolute;right:-3px;bottom:-3px;width:19px;height:19px;border-radius:50%;
+                background:var(--hb-ink,#0d1622);display:flex;align-items:center;justify-content:center;
+                box-shadow:0 0 0 2px var(--hb-bg-soft,#fbfdff)}
+  .hb-mus2-areq .hb-mus2-eq{width:10px;height:9px}
+  .hb-mus2-areq .hb-mus2-eq span{width:2px}
   .hb-mus2-barmeta{min-width:0;flex:1}
   .hb-mus2-bart{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-mus2-bara{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -98,6 +118,12 @@ function injectStyles(){
   .hb-mus2-newinp{width:126px}
   .hb-mus2-audio{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;left:-9999px;top:0}
   .hb-mus2-frame{width:1px;height:1px;border:0}
+  .hb-mus2-eq{display:flex;align-items:flex-end;gap:2px;width:14px;height:14px}
+  .hb-mus2-eq span{width:3px;background:var(--sp-green);border-radius:1px;animation:hbMusEq .9s ease-in-out infinite}
+  .hb-mus2-eq span:nth-child(1){height:40%;animation-delay:-.6s}
+  .hb-mus2-eq span:nth-child(2){height:100%;animation-delay:-.3s}
+  .hb-mus2-eq span:nth-child(3){height:65%;animation-delay:0s}
+  @keyframes hbMusEq{0%,100%{transform:scaleY(.4)}50%{transform:scaleY(1)}}
   `; document.head.appendChild(s);
 }
 
@@ -108,12 +134,73 @@ function h(tag, cls, text){
   return e;
 }
 
+// Animated "now playing" bars — the visible signal that THIS row/mini-player is the one making sound.
+function eqIcon(){
+  const wrap = h("div", "hb-mus2-eq");
+  wrap.appendChild(h("span")); wrap.appendChild(h("span")); wrap.appendChild(h("span"));
+  return wrap;
+}
+
 // Cover art: image (Spotify URL) or fallback emoji. URL goes into img.src, never innerHTML.
 function artNode(art, fallback){
   const a = h("div", "hb-mus2-art");
   if(art){ const img = document.createElement("img"); img.src = art; img.alt = ""; a.appendChild(img); }
   else a.textContent = fallback || "🎵";
   return a;
+}
+
+// Text compare for "is this the track that's playing" — accent/case-insensitive, same spirit as the server's
+// own `_norm` (data.py), kept separately here because widget.js never imports server code (V2-557).
+function _norm(s){
+  return String(s || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function nowPlayingMatches(t, np){
+  if(!np) return false;
+  const a = _norm(t.title || t.query), b = _norm(np.title);
+  if(!a || !b || a !== b) return false;
+  const aa = _norm(t.artist), ba = _norm(np.artist);
+  return (aa && ba) ? aa === ba : true;   // missing artist on either side: the title match is enough
+}
+
+// A playlist where every track shares the SAME artist should say that artist ONCE (the header), not on every
+// row — the operator's complaint on a playlist that happened to be one Madonna album, titles like "Madonna
+// Papa Don't Preach" repeated verbatim in each row. Two cases: (1) tracks already carry a proper `artist`
+// field, uniformly — show it, strip nothing (`title`/`artist` were already separate). (2) legacy/free-text
+// data where the artist got baked INTO `title` with no separator (a bare `query` used as the title, V2-384's
+// "one call is all the model gets" combined with a search string that already had the artist inside it): if
+// EVERY track's title starts with the same leading word(s) and something real is left over after them, treat
+// that shared prefix as the artist for DISPLAY ONLY — the stored data is never touched, so this is always
+// reversible and never invents a fact that is not already, verbatim, in every row.
+function deriveArtistInfo(tracks){
+  const list = tracks || [];
+  const noStrip = {commonArtist: "", strip: (title) => title};
+  if(list.length < 2) return noStrip;
+
+  const artists = list.map(t => String(t.artist || "").trim());
+  if(artists.every(a => a)){
+    return (new Set(artists.map(_norm)).size === 1) ? {commonArtist: artists[0], strip: (t) => t} : noStrip;
+  }
+  if(artists.some(a => a)) return noStrip;   // mixed metadata quality (some tagged, some not) — don't guess
+
+  const wordLists = list.map(t => String(t.title || "").trim().split(/\s+/).filter(Boolean));
+  const minWords = Math.min(...wordLists.map(w => w.length));
+  if(minWords < 2) return noStrip;
+  let k = 0;
+  for(let i = 0; i < minWords - 1; i++){       // leave at least one real word behind as the title
+    const w0 = _norm(wordLists[0][i]);
+    if(!w0 || !wordLists.every(w => _norm(w[i]) === w0)) break;
+    k = i + 1;
+  }
+  if(k === 0) return noStrip;
+  const commonArtist = wordLists[0].slice(0, k).join(" ");
+  return {
+    commonArtist,
+    strip: (title) => {
+      const words = String(title || "").trim().split(/\s+/);
+      return words.length > k ? words.slice(k).join(" ") : title;
+    },
+  };
 }
 
 function ytPost(iframe, func, args){
@@ -243,7 +330,11 @@ function nowPlaying(data){
 function playbackBar(data, ctx){
   const bar = h("div", "hb-mus2-bar");
   const np = nowPlaying(data);
-  bar.appendChild(artNode(np && np.art, "🎵"));
+  const playing = !!(np && np.playing);
+  const artWrap = h("div", "hb-mus2-barartwrap");
+  artWrap.appendChild(artNode(np && np.art, "🎵"));
+  if(playing){ const badge = h("div", "hb-mus2-areq"); badge.appendChild(eqIcon()); artWrap.appendChild(badge); }
+  bar.appendChild(artWrap);
   const meta = h("div", "hb-mus2-barmeta");
   meta.appendChild(h("div", "hb-mus2-bart", np ? (np.title || "Música") : "Nada sonando"));
   meta.appendChild(h("div", "hb-mus2-bara", np ? (np.artist || (np.device ? np.device : "")) : "Dime «pon música» o abre una lista."));
@@ -252,7 +343,6 @@ function playbackBar(data, ctx){
   const mk = (label, action, cls) => { const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""), label);
     b.onclick = () => ctx.action(action); return b; };     // control = fire-and-forget; SSE re-renders
   ctrls.appendChild(mk("⏮", "previous"));
-  const playing = !!(np && np.playing);
   ctrls.appendChild(mk(playing ? "⏸" : "▶", playing ? "pause" : "resume", "main"));
   ctrls.appendChild(mk("⏭", "next"));
   ctrls.appendChild(mk("🔉", "volume_down"));
@@ -262,21 +352,38 @@ function playbackBar(data, ctx){
   return bar;
 }
 
-// Track rows (recent / top tracks / playlist tracklist).
+// Track rows (recent / top tracks / playlist tracklist). Click SELECTS (a purely visual, ephemeral highlight —
+// nothing persisted, nothing sent to the server); double-click PLAYS, like a desktop Spotify tracklist. The
+// "now playing" state, by contrast, IS driven by data (`opts.playing`) and survives a re-render.
 function trackRow(t, ctx, opts){
   opts = opts || {};
-  const row = h("div", "hb-mus2-tr");
-  if(opts.index != null) row.appendChild(h("div", "hb-mus2-trn", opts.index));
+  const row = h("div", "hb-mus2-tr" + (opts.playing ? " playing" : ""));
+  if(opts.index != null || opts.playing){
+    const cell = h("div", "hb-mus2-trn");
+    if(opts.playing) cell.appendChild(eqIcon());
+    else cell.textContent = opts.index;
+    row.appendChild(cell);
+  }
   row.appendChild(artNode(t.art, "🎵"));
   const meta = h("div", "hb-mus2-trmeta");
-  meta.appendChild(h("div", "hb-mus2-trt", t.title || t.query || "—"));
-  const sub = [t.artist, (t.count ? `· ${t.count} veces` : "")].filter(Boolean).join(" ");
-  if(sub) meta.appendChild(h("div", "hb-mus2-tra", sub));
+  meta.appendChild(h("div", "hb-mus2-trt", opts.title || t.title || t.query || "—"));
+  if(!opts.hideArtist){
+    const sub = [t.artist, (t.count ? `· ${t.count} veces` : "")].filter(Boolean).join(" ");
+    if(sub) meta.appendChild(h("div", "hb-mus2-tra", sub));
+  } else if(t.count){
+    meta.appendChild(h("div", "hb-mus2-tra", `${t.count} veces`));
+  }
   row.appendChild(meta);
-  row.onclick = () => ctx.action("play", {query: t.query || [t.title, t.artist].filter(Boolean).join(" ") || t.title});
+  row.onclick = () => {
+    const list = row.parentElement;
+    if(list) list.querySelectorAll(".hb-mus2-tr.selected").forEach(r => r.classList.remove("selected"));
+    row.classList.add("selected");
+  };
+  row.ondblclick = () => ctx.action("play", {query: t.query || [t.title, t.artist].filter(Boolean).join(" ") || t.title});
   if(opts.remove){
     const x = h("button", "hb-mus2-x", "✕"); x.title = "Quitar de la lista";
     x.onclick = (e) => { e.stopPropagation(); ctx.action("remove_from_playlist", {playlist: opts.remove, item: t.title}); };
+    x.ondblclick = (e) => e.stopPropagation();
     row.appendChild(x);
   }
   return row;
@@ -286,6 +393,7 @@ function trackRow(t, ctx, opts){
 function homeView(host, data, ctx){
   const wrap = h("div", "hb-mus2");
   const scroll = h("div", "hb-mus2-scroll");
+  const np = nowPlaying(data);
 
   const top = h("div", "hb-mus2-top");
   top.appendChild(h("b", null, "Tu música"));
@@ -313,7 +421,7 @@ function homeView(host, data, ctx){
     c.appendChild(artNode(pl.art, "🎶"));
     c.appendChild(h("div", "hb-mus2-plname", pl.name || "Lista"));
     const n = (pl.tracks || []).length;
-    c.appendChild(h("div", "hb-mus2-plsub", `${n} canción${n !== 1 ? "es" : ""}`));
+    c.appendChild(h("div", "hb-mus2-plsub", `${n} ${n === 1 ? "canción" : "canciones"}`));
     c.onclick = () => ctx.action("open_view", {kind: "playlist", id: pl.id});
     lists.appendChild(c);
   });
@@ -326,7 +434,7 @@ function homeView(host, data, ctx){
     const s = h("div", "hb-mus2-sec");
     s.appendChild(h("div", "hb-mus2-sech", "Más escuchadas"));
     const g = h("div", "hb-mus2-grid");
-    data.top.forEach((t, i) => g.appendChild(trackRow(t, ctx, {index: String(i + 1)})));
+    data.top.forEach((t, i) => g.appendChild(trackRow(t, ctx, {index: String(i + 1), playing: nowPlayingMatches(t, np)})));
     s.appendChild(g); scroll.appendChild(s);
   }
 
@@ -335,7 +443,7 @@ function homeView(host, data, ctx){
     const s = h("div", "hb-mus2-sec");
     s.appendChild(h("div", "hb-mus2-sech", "Recientes"));
     const g = h("div", "hb-mus2-grid");
-    data.recent.slice(0, 8).forEach(t => g.appendChild(trackRow(t, ctx, {})));
+    data.recent.slice(0, 8).forEach(t => g.appendChild(trackRow(t, ctx, {playing: nowPlayingMatches(t, np)})));
     s.appendChild(g); scroll.appendChild(s);
   }
 
@@ -364,7 +472,7 @@ function newListCard(lists, ctx){
   return card;
 }
 
-// PLAYLIST: cover + tracklist.
+// PLAYLIST: cover (with the play button INSIDE it) + tracklist.
 function playlistView(host, data, ctx, pl){
   const wrap = h("div", "hb-mus2");
   const scroll = h("div", "hb-mus2-scroll");
@@ -373,25 +481,43 @@ function playlistView(host, data, ctx, pl){
   back.onclick = () => ctx.action("back");
   scroll.appendChild(back);
 
+  const tracks = pl.tracks || [];
+  const n = tracks.length;
+  const derived = deriveArtistInfo(tracks);
+
   const head = h("div", "hb-mus2-head");
-  head.appendChild(artNode(pl.art, "🎶"));
+  const artwrap = h("div", "hb-mus2-artwrap");
+  artwrap.appendChild(artNode(pl.art, "🎶"));
+  const play = h("button", "hb-mus2-playfab", "▶");
+  play.title = "Reproducir esta lista";
+  if(!n) play.disabled = true;
+  play.onclick = () => ctx.action("play_playlist", {playlist: pl.id});
+  artwrap.appendChild(play);
+  head.appendChild(artwrap);
+
   const hm = h("div", "hb-mus2-headmeta");
   hm.appendChild(h("div", "hb-mus2-headk", "Lista"));
   hm.appendChild(h("div", "hb-mus2-headn", pl.name || "Lista"));
-  const n = (pl.tracks || []).length;
-  hm.appendChild(h("div", "hb-mus2-plsub", `${n} canción${n !== 1 ? "es" : ""}`));
+  const subParts = [];
+  if(derived.commonArtist) subParts.push(derived.commonArtist);
+  subParts.push(`${n} ${n === 1 ? "canción" : "canciones"}`);
+  hm.appendChild(h("div", "hb-mus2-plsub", subParts.join(" · ")));
   head.appendChild(hm);
   scroll.appendChild(head);
 
-  const play = h("button", "hb-mus2-playbig", "▶  Reproducir");
-  if(!n) play.disabled = true;
-  play.onclick = () => ctx.action("play_playlist", {playlist: pl.id});
-  scroll.appendChild(play);
-
   const g = h("div", "hb-mus2-grid");
-  if(n){ (pl.tracks || []).forEach((t, i) =>
-    g.appendChild(trackRow(t, ctx, {index: String(i + 1), remove: pl.id}))); }
-  else { g.appendChild(h("div", "hb-mus2-empty", "Lista vacía. Dime «añade una canción a esta lista».")); }
+  const np = nowPlaying(data);
+  if(n){
+    tracks.forEach((t, i) => g.appendChild(trackRow(t, ctx, {
+      index: String(i + 1),
+      remove: pl.id,
+      title: derived.commonArtist ? derived.strip(t.title) : null,
+      hideArtist: !!derived.commonArtist,
+      playing: nowPlayingMatches(t, np),
+    })));
+  } else {
+    g.appendChild(h("div", "hb-mus2-empty", "Lista vacía. Dime «añade una canción a esta lista»."));
+  }
   scroll.appendChild(g);
 
   wrap.appendChild(scroll);

@@ -470,6 +470,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The music widget goes pro — a shared artist is said ONCE, and the play button lives on the art
+  (V2-612, 2026-09-07)**: operator's screenshot, a real playlist ("True Blue") where every row read
+  literally "Madonna Papa Don't Preach" — the artist baked into `title` with no separator, `artist` empty on
+  every row. Root cause: `add_to_playlist{query}` (V2-384's "one call is all the model gets") falls back to
+  `title = query` when neither field is given explicitly, and a free-text search string has no reliable
+  machine boundary between artist and song — nothing here has music metadata to resolve it from.
+  - **`deriveArtistInfo(tracks)`** (`widgets/musica/widget.js`, RENDER-side only, data never touched): when
+    every track in a playlist shares the same artist — either a proper `artist` field, uniformly, or (the
+    legacy shape) the same leading word(s) in every `title` with something real left over after them — the
+    artist is said ONCE in the header ("Madonna · 3 canciones") and dropped from every row. Mixed metadata
+    quality or a genuinely mixed-artist playlist never triggers a guess: showing the data exactly as given
+    beats inventing a wrong split with false confidence.
+  - **The play button moved INSIDE the cover-art square** (`.hb-mus2-artwrap` + a circular fab anchored to
+    its corner), per the operator's literal words — not below the header as a separate pill. Every track row
+    (playlist, "Más escuchadas", "Recientes") now carries a `playing` state: a tint, an accent-colored
+    title, and an animated three-bar equalizer replacing the track number — the visible "is this the one
+    making sound" signal the operator asked for, everywhere a track can appear, not only the bottom bar
+    (which grew the same badge). **Click SELECTS a row (visual only, no `ctx.action`); double-click PLAYS
+    it** — a deliberate behavior change from single-click-plays, matching a desktop Spotify tracklist.
+  - **Forward fix, not a repair of what's already stored**: `_track_from_payload` (`data.py`) now splits an
+    EXPLICIT delimiter ("Artist - Title") into separate fields; plain concatenation with no delimiter is
+    left untouched on purpose. `manifest.json` now tells the model explicitly to pass `artist` in its own
+    field, never concatenated — teaching, not a hardcoded table.
+  - ⚠️ **A real, pre-existing grammar bug surfaced by the new tests, unrelated to the ask**: `canción` +
+    `"es"` produced "canciónes" (should drop the accent — "canciones") in both the list-card subtitle and
+    the playlist header; fixed because the tests asserted the literal rendered string.
+  - **i18n was raised mid-build by the operator** (this widget's UI is hardcoded Spanish, like every other
+    widget) and deliberately NOT touched here: confirmed via grep and this file's own V2-603 entry below
+    that the widget layer has zero `t()` seam anywhere, offered the operator a scoped choice, and the
+    operator chose to keep música consistent with the rest of the catalog for now — the seam itself is a
+    separate, real initiative (wiring `t()` into a bare-URL `import()`-ed module, its own render-test
+    harness support, bundle keys), not a drop-in fix inside a visual redesign.
+  - Node 4.3 (+1 file, 15 RENDERED cases) + 3 data.py cases, five disarms verified red (artist derivation,
+    the click/dblclick split, the playing-row marker in both the playlist and the home lists).
+    `make test-widgets` stays green 14/14.
+
 - **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603,
   2026-09-06)**: session `e1acdcca` — nine minutes trying to connect YouTube, three browser windows, and the
   account never connected. `video_oauth.json` did not exist and `/api/video/status` said

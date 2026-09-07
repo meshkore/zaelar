@@ -157,6 +157,36 @@ def test_la_evidencia_del_plato_guardar_lo_que_suena_por_el_bloque_yt_nunca_deja
     assert [t["title"] for t in curro2["tracks"]] == ["La que suena"]
 
 
+# --- V2-XXX (pro redesign): an explicit delimiter splits a combined "Artist - Title" search string ---
+
+def test_add_to_playlist_splits_an_explicit_artist_title_delimiter(monkeypatch):
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro", "query": "Madonna - Papa Don't Preach"})
+    assert r["ok"] is True
+    tr = md._load_db()["playlists"][0]["tracks"][0]
+    assert tr["artist"] == "Madonna" and tr["title"] == "Papa Don't Preach"
+
+
+def test_add_to_playlist_never_guesses_a_split_without_a_delimiter(monkeypatch):
+    """A plain concatenation ('Madonna Papa Don't Preach', the real legacy shape) has no reliable boundary —
+    there is no music-metadata source here to guess it from, so it must be left exactly as given rather than
+    producing a wrong split with false confidence."""
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    r = md.apply_action("add_to_playlist", {"playlist": "Curro", "query": "Madonna Papa Don't Preach"})
+    assert r["ok"] is True
+    tr = md._load_db()["playlists"][0]["tracks"][0]
+    assert tr["artist"] == "" and tr["title"] == "Madonna Papa Don't Preach"
+
+
+def test_add_to_playlist_never_overrides_an_explicit_title_or_artist(monkeypatch):
+    monkeypatch.setattr(md, "_current_track", lambda db: None)
+    r = md.apply_action("add_to_playlist",
+                         {"playlist": "Curro", "query": "x", "title": "A - B", "artist": "Someone"})
+    assert r["ok"] is True
+    tr = md._load_db()["playlists"][0]["tracks"][0]
+    assert tr["artist"] == "Someone" and tr["title"] == "A - B"     # the literal title, never re-split
+
+
 def test_create_playlist_con_algo_sonando_ENSEÑA_el_siguiente_paso(monkeypatch):
     """Measured: «save what is playing in a Curro list» ends at create_playlist alone → EMPTY list.
     The model reads the tool result and the channel chains data-ops (V2-391): the response includes the

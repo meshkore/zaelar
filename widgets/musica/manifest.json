@@ -32,7 +32,7 @@
     "lista que se llame"
   ],
   "entry": "widget.js",
-  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (botón Conectar → login de Spotify en una ventana; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query} (playlist = nombre de la lista en lenguaje natural, query = canción/artista); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos de Manolo' si no existe). Navegar la tarjeta: open_view{kind,id} (kind=home|playlist, id=nombre/id de lista) y back (volver a home). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
+  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (botón Conectar → login de Spotify en una ventana; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query,title,artist} (playlist = nombre de la lista en lenguaje natural; si conoces el artista, pásalo en `artist` SEPARADO de `title` — nunca los dos juntos en un solo campo, la tarjeta los enseña por separado); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos de Manolo' si no existe). Navegar la tarjeta: open_view{kind,id} (kind=home|playlist, id=nombre/id de lista) y back (volver a home). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
   "actions": {
     "create_playlist": {
       "desc": "crea una lista de reproducción vacía y la abre",
@@ -45,8 +45,8 @@
       "payload": {
         "playlist": "nombre de la lista (se crea si no existe)",
         "query": "canción a añadir (opcional; sin ella, la que suena ahora)",
-        "title": "título (opcional)",
-        "artist": "artista (opcional)"
+        "title": "SOLO el título de la canción, sin el artista",
+        "artist": "el artista, en su propio campo — nunca concatenado dentro de title/query"
       }
     },
     "favorite_current": {
