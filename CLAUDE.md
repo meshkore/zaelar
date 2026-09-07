@@ -689,6 +689,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     instead of choosing for it. Clicks survive on a 4px threshold, and the move/up listeners live on the
     **window**: on a 26px grip, handle-bound listeners stop firing the moment the pointer leaves it (measured:
     0px for a 120px drag), and capturing instead would retarget the click and kill the title button.
+  - **F7 — the «Procesos» row's title mutated with every phase** (operator, same day): it began as «leyendo
+    brickset.com…» and cycled through progress paragraphs until updates stopped. Two causes, one per layer: the
+    store kept ONE `text` that four writers overwrote in turn, and **there is no `start` lifecycle event
+    anywhere in the backend** — chips are BORN from their first `phase`, so the mutable activity text WAS the
+    title; the one-time naming event («🏷️ encargo nombrado», V2-530), which carries exactly the settled name,
+    was not even listened to in SSE. Now `title` (start seeds it, 🏷️ settles it, nothing else touches it) and
+    `note` (phase/plan/progress) are separate fields; reconcile takes the server's `title` and real `age_s`,
+    precedence settled-name → held-name → brief — **the mounted test caught the goal clobbering a settled name
+    before it shipped**. Row = name · activity (2-line clamp) · «en curso · 1/5 · 20% · lleva 4 min · desde las
+    19:42». Node **4.122**, seven disarms.
   - Node **4.121**, twenty verified disarms, all caught. **RENDERED, not read**: a source test says the listener
     exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
     `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
