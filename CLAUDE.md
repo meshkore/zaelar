@@ -524,6 +524,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
     V2-570's linear-gate family, not this one.
 
+- **A card question the operator cannot answer is asked forever — and the captcha handoff nobody offered
+  (V2-605, 2026-09-07)**: session `43b7bf79`, read turn by turn before touching anything. «Tienes 2 abiertas:
+  ¿cuál te enseño, "t1" o "navegador"?» was spoken FIVE times in 93 seconds while he answered it («uno está
+  vacío y el otro tiene la web del…»), rephrased it, protested and gave up — and his actual request, «ábreme el
+  navegador para que te confirme el captcha», reached nothing.
+  - **The sentence is not the model's.** It comes from `instances.resolve_show` and enters through
+    `clarify["msg"]`, which **REPLACES** `spoken_text`. So when the model finally said the right thing at
+    11:06:33 («The Fork nos ha bloqueado… confirmes tú el captcha»), the canned question was glued onto it
+    instead of losing to it, and the `ROMPE EL BUCLE` nudge — which fired in four of those turns — was
+    reprimanding the model for a sentence the model does not write.
+  - **The question named IDS.** `_label` could only title a `results` sheet; every other piece fell through to
+    the instance suffix and the base id — the dump the module's OWN docstring already forbade. A card is now
+    named by WHAT IT SHOWS (`data.card_face`, implemented by the only two instantiating pieces), and a browser
+    card **by its HOST**: found by a test of mine, «Reserva en los mejores restaurantes de España | TheFork»
+    capped to a speakable length drops «TheFork» — a page title is marketing prose with the brand LAST.
+  - **A BLANK card was a candidate**, and his reply is the specification. Showing only: `resolve_close` keeps
+    asking, because there the blank one is the cheap mistake and the full one is somebody's work. Same input,
+    opposite risk, opposite default.
+  - **Asked ONCE.** With `last_spoken`, a repeat CHOOSES and says which — the V2-530 lesson one axis over: he
+    had answered, with a description (`la que tiene la web`) the resolver had no way to express.
+  - **`authenticate_web` was declared LOGIN-only** while being exactly the mechanism he asked for (it opens the
+    REAL browser window on his machine). It was in the tool list of every one of those turns. *An undeclared
+    capability is one the model NARRATES* (V2-540) — declared for half its job is the same failure. The wall
+    note said «que entre él», which names an outcome, not a mechanism, and never named the SITE, so
+    `web_auth.start("")` would have opened nothing by design. Both now carried.
+  - ⚠️ **The thing it was NOT, and I nearly reported it.** The state block WAS in every prompt:
+    `observer._prompt_excerpt` keeps head 6000 + tail 7000, the prompt grew 27k→38k at 11:02:43, and the block
+    fell into the elided middle — **the exact trap that function's own docstring documents**. Measured instead
+    of deduced, three steps from blaming healthy plumbing.
+  - Ratchet paid by EXTRACTING: sheet naming → `results/sheet_names.py`, show-instance resolution →
+    `flash/show_target.py` (which also single-sources what the two channels did twice). The tool-catalogue
+    ceiling is SHARED and paid on every voice turn (V2-526): three drafts went up to 500 chars over and the
+    DECLARATION was compressed, never the ceiling.
+  - Nodes **4.118**/**4.119**, ten disarms, every mutation ASSERTED. ⚠️ **Three came back GREEN first time**:
+    two were no-op mutations of mine (`"" or X` is `X`; and «captcha» survived in the example sentence), and one
+    was a REAL gap — I claimed to have MOVED the sheet's naming into the widget and no test opened a sheet, so
+    deleting it whole stayed green. *A move is only safe if the destination is measured.* And the extraction
+    turned the older show-decision wiring guard RED because it was pinned to `probe.py`: repointed at the
+    CHANNEL, per V2-555.
+  - **NOT verified live** (needs a restart). **Open and named**: the GHOST CARD — the canvas began reporting a
+    bare `navegador` with **no `widget/show` behind it**, the stray box the browser task registry's own
+    comment already calls the «ghost card»; this makes it harmless to show, it does not remove it. Also open: `clarify` overriding a good reply in its 13
+    other faces, 18 identical «Dentist» notices in one kickoff prompt, and a browser block that said «la web
+    BLOQUEÓ» twelve lines above «YA HA ENCONTRADO ALGO».
+
 - **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
   direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
   storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
