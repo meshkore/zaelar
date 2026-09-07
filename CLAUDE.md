@@ -641,7 +641,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     reserved strip did not match the column it reserves** — `setReserve` measured `offsetWidth`, which is 0
     while the wall is unlaid-out (the restore path exactly), so it reserved the 340px default for a 420px column
     and left an 80px band of desk hidden under the chat.
-  - Node **4.121**, ten verified disarms, all caught. **RENDERED, not read**: a source test says the listener
+  - ⚠️ **The first cut of this was a REGRESSION and he caught it the same day**: «simplemente le he dicho que
+    abra el chat. No lo hemos pegado a la barra de la izquierda para que se haga una columna, y ha movido el
+    resto de objetos a la derecha. Eso no había pasado nunca.» `canvas()` had inherited `arrange()`'s test —
+    the wall's own bounding rect, comment and all («docked/floating on the LEFT»). For a deliberate «ordénalo
+    todo» that is a nicety; for a refit that runs on EVERY canvas change it means merely OPENING the chat
+    rebuilds the desktop. **The rule is his**: only a docked column shrinks the desk. It reads `--chatdock-l/r`
+    now — published only for a wall that is open AND docked, and the exact values `#desk` is inset by — so the
+    rectangle IS the desk and there is no second opinion to drift from it. A floating wall stays what it always
+    was: an obstacle in `_obstacles()`. **Generalisable**: a calculation written for a DELIBERATE gesture is not
+    automatically right for a CONTINUOUS one, and copying it is how a nicety becomes a defect.
+  - ⚠️ **And the defect underneath his screenshot**, reproduced headless: the wall's `class` is a REACTIVE
+    binding (`"chatwall tab-" + tab + (open ? " open" : "")`) that rewrites the WHOLE className, while
+    `docked`/`dock-left` are set IMPERATIVELY by `applyDock`. Any tab or open change wiped them and left
+    `dockSide` still set — so the wall rendered as a floating panel at `left:0` (`top:232 h:480`) **and still
+    reserved a 420px column**, pushing the whole desk right for a column that was no longer there. Measured
+    verbatim: classes `chatwall tab-chat open`, `--chatdock-l: 420px`. Pre-existing (a tab change while docked
+    did it too); restoring the saved dock made it reachable on every load. **Two writers on one className, one
+    reactive and one imperative, is the shape** — the reactive one must reproduce what the imperative one set.
+  - Node **4.121**, thirteen verified disarms, all caught. **RENDERED, not read**: a source test says the listener
     exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
     `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
     the listeners never registered and the test measured nothing. Registering them in the test would have proved
