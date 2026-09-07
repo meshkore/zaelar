@@ -20,10 +20,15 @@ A REAL embedded YouTube player (`<iframe>`, IFrame API over postMessage — no l
   exits. `maximize()` resolves a missing catalog meta LAZILY (a card restored on reload and maximized before
   the catalog fetch answered used to keep its chrome — measured live 2026-09-05).
 - **CONNECT** (`hb-yt-connmode`, V2-597): platform icons in the nav row (messaging `.dots` pattern — bright
-  = connected → status screen; dimmed = not connected → step wizard). The 3-step wizard shows ONE step at a
-  time (V2-561 shape): create the OAuth app → register the client_id in the settings panel → authorize
-  (consent window opened synchronously on the click, location filled from the action's answer). The voice
-  door is the declared `open_connectors` action writing a timestamped `connect_focus` the card consumes once.
+  = connected → status screen; dimmed = not connected → step wizard). The wizard shows ONE step at a time
+  (V2-561 shape) and is ONE step when the build ships its own OAuth client, two when the operator brings his
+  own (V2-603); the consent window is opened synchronously on the click and its location filled from the
+  action's answer. The voice door is the declared `open_connectors` action writing a timestamped
+  `connect_focus` the card consumes once.
+  **Today this whole layer is HIDDEN** (V2-603 F2): with no OAuth client anywhere, `service.available()` is
+  false and the card renders no platform row, no wizard and no suggestions band, while the three account
+  actions decline with one shared sentence. The gate is DERIVED, so it re-appears by itself the day a
+  client_id lands — a door that cannot open is worse than no door.
 
 **Anchored to the parent** (operator's rule, 2026-09-05): `.hb-yt` is `width:100%` + `border-box` — the CARD
 decides the width in every state (maximize, manual resize, arrange); the default footprint is declared in
@@ -62,8 +67,48 @@ Recent uploads from the connected account's subscriptions, newest first, normali
 standing rule is absolute control — the band fills when asked (voice `suggest`, or the band's ↻), never on
 a timer. A disconnect empties the band (data that nothing backs must not keep showing).
 
+## The widget's own LIBRARY (`library.py`, V2-604)
+
+Operator's rule: *the widget stores the data, not the connector*. Followed channels, watch history,
+preferences and saved lists live in the widget's own store and owe the connector nothing — every test in
+node 4.116 runs with it ABSENT, which is also its real state today.
+
+```
+channels      [{name, added_at}]                    OUR subscription list, the mirror of blocked_channels
+history       [{videoId,title,channel,url,          what was really PLAYED, newest first, capped at 300
+               played_at, plays, quality}]
+prefs         {min_definition, captions, volume}    the ENFORCEABLE keys, and only those
+prefs_notes   [{text, added_at}]                    everything else he asked for, labelled as a note
+lists         [{name, items, saved_at}]             saved queues
+```
+
+Four things that are easy to get wrong when touching it:
+
+- **The history is ours because we PLAY the video.** It is recorded in the two places playback really
+  starts (`_play_pos` and `load`) and nowhere else, so `add`/`search` — which never autoplay (V2-366) —
+  never enter it. A replay MOVES the row and bumps `plays` instead of adding a second one. This is the one
+  video fact no connector could ever hand us: the YouTube API's watch history has returned empty for every
+  account since 2016.
+- **Definition is only knowable at the PLAYER.** The results page does not publish it (measured 2026-09-07:
+  of ~20 hits only 4K carries a badge at all), so `widget.js` reports `availableQualityLevels` from the
+  `infoDelivery` the player already sends, once per video, and `player_quality` checks it against
+  `min_definition`. It **warns and never skips**: he asked for THIS video, and an explicit order outranks a
+  standing filter — the same line `block_channel` draws for a pasted link. Levels that carry no information
+  (`auto`, `default`) produce no verdict at all.
+- **An unenforceable preference is a NOTE and says so.** Only `min_definition`, `captions` and `volume` are
+  applied; anything else lands in `prefs_notes` and the answer states plainly that it will be honoured by
+  judgement, not forced. Storing an unenforceable rule as if it were enforced is the "true sentence about
+  the wrong mechanism" failure V2-603 already paid for. `captions` is re-asserted on every video; `volume`
+  only when playback starts from nothing, so a standing preference never undoes his last explicit order.
+- **The manifest gate follows the delegate.** `widgets/validator.py` reads `apply_action` statically and
+  rejects declared actions it cannot find a branch for. It read `data.py` ONLY, so the architecture ratchet
+  (pay a growing file by EXTRACTING) and the gate (the branch must be HERE) pulled in opposite directions —
+  leaving "one god file per widget" as the only green option. It now follows one level of delegation
+  (`library.apply(action, …)` in a sibling module) and still fails closed in both directions.
+
 ## Tests
 
-Nodes 5.13 (connector unit) · 5.14 (LIVE roundtrip — skips with enable steps; shape-only assertions, this
+Nodes 4.116 (the library: no connector anywhere, history recorded only by real playback, the quality rule
+warns without skipping, an unenforceable preference stays a note) · 5.13 (connector unit) · 5.14 (LIVE roundtrip — skips with enable steps; shape-only assertions, this
 repo is public) · 4.4 (contract: intent-not-credentials, filter, ok+reason) · 4.53 (RENDER: one wizard step
 at a time, synchronous consent window, the voice door, the band, parent-anchored width).

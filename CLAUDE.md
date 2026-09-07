@@ -524,6 +524,53 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
     V2-570's linear-gate family, not this one.
 
+- **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)**: operator's
+  direction, verbatim in spirit — «it is more important to me that the video widget is responsible for
+  storing the data. We don't want external dependencies. Our core, our engine, our memory, our widget are
+  the ones who have control.» Followed channels, watch history, preferences/filters and saved lists moved
+  into `widgets/youtube/library.py` and the widget's own store. **Every test in node 4.116 runs with the
+  account connector ABSENT**, which is also its real state (V2-603 F2 hid it): nothing here may ask it
+  anything or degrade without it.
+  - **The history is ours BECAUSE WE PLAY THE VIDEO.** Recorded in the two places playback really starts
+    and nowhere else, so `add`/`search` — which never autoplay (V2-366) — never enter it; a replay MOVES
+    the row and bumps `plays`. It is not a copy of anything: the YouTube API's watch history has returned
+    empty for every account since 2016, so this is the one video fact a connector could never hand us. The
+    ownership argument and the capability argument point the same way, which is why the operator's instinct
+    here was the stronger architecture and not merely the more independent one.
+  - **A "minimum 720p" rule is only checkable at the PLAYER.** Measured, not assumed: the results page does
+    not publish definition — of ~20 hits only 4K carries a badge at all — so `_search_many` can never
+    enforce it. `widget.js` reports `availableQualityLevels` from the `infoDelivery` the player already
+    sends (once per video; that stream fires several times a second and each report is a store write), and
+    `player_quality` checks it. It **WARNS and never skips**: he asked for THIS video, and an explicit order
+    outranks a standing filter — the same line `block_channel` draws for a pasted link. Levels that carry
+    no information (`auto`/`default`) produce no verdict, because guessing from them would invent a
+    complaint about a video that may be fine.
+  - **A preference we cannot enforce is stored as a NOTE and says so.** Only `min_definition`, `captions`
+    and `volume` are applied; anything else lands in `prefs_notes` with an answer that states plainly it
+    will be honoured by judgement, not forced. Storing an unenforceable rule as though it were enforced is
+    exactly the "true sentence about the wrong mechanism" V2-603 already paid for. `captions` re-asserts on
+    every video; `volume` only when playback starts from nothing — a preference that undoes his last
+    explicit order is not a preference, it is a bug with a settings screen.
+  - **Two defects the tests caught, both mine.** (1) `_seed()` guarded only against sharing its LISTS, and
+    its own docstring records the V2-366 bug that put that guard there; `prefs` arrived as the first DICT
+    in the seed and went straight through, so a preference set in one session was still in the next
+    widget's "empty" state. **A guard written against one container type is not a guard against aliasing.**
+    (2) The preference VALUE was matched more strictly than the key — the table held `si`, the operator
+    says `sí` — so the first sentence anyone would speak in Spanish was refused. Both were found by writing
+    the test in his words rather than in the API's.
+  - **The action gate now follows one level of delegation** (`widgets/validator.py`). It read `data.py`
+    only, so V2-025's rule (a declared action needs a branch HERE) and the architecture ratchet (pay a
+    growing file by EXTRACTING a module) pulled in opposite directions — leaving "keep the whole dispatch
+    in one god file" as the only green option for every widget, forever. It still fails closed in both
+    directions, and anything it cannot resolve statically is simply not counted.
+  - Node **4.116** (29 cases, **13 verified disarms**). ⚠️ **One disarm came back GREEN**: removing the
+    delegate-following from the gate changed nothing, because the test read the manifest directly instead
+    of exercising the gate — a test that asserts the RESULT of a mechanism does not test the mechanism.
+  - **Verified live** on `3.26+7b80c5b`: the library fields serve, the four preference paths answer, and
+    the probe data was cleaned back out of the operator's real widget. ⚠️ **NOT verified live: the quality
+    readback itself** — that the IFrame API emits `availableQualityLevels` inside `infoDelivery` needs a
+    real browser with the agent running. The server side is covered; the wire is not.
+
 - **La agenda no inventa, y el aviso por defecto es SUYO (V2-473, 2026-08-29)**: el caso
   `dentist-appointment-into-agenda` (ES PASS 4/5 en 6 rondas de defecto-por-ronda; US 5/5 a la primera)
   dejó estas reglas en `widgets/agenda/data.py` + `nucleo/flash/{router,prompt}.py`. (1) **La escritura no
