@@ -328,7 +328,12 @@ def _validate_actions_sync(man: dict, src: str, wdir: str = "") -> str | None:
 #                  IN the payload, because widget.js may not fetch. Both imports deferred + fail-open.
 #                  Until this entry existed the harness sat permanently red on `results`, under which a NEW
 #                  violation in any widget was invisible — the exemption is what makes the gate mean something.
-_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results"}
+_STDLIB_EXEMPT = {"musica", "agenda", "archivos", "fotos", "youtube", "results",
+                   # V2-611: the email signature lives in `config/connectors.py` — the SAME store the
+                   # connect wizard already writes account credentials to — and reading the effective
+                   # signature for view_data needs `connectors.email.config`, lazily, exactly like
+                   # `youtube`'s own `_svc()` reaches its connector.
+                   "mensajeria"}
 
 
 def _scan_data_py(src: str, wid: str = "") -> str | None:

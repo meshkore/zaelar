@@ -1399,12 +1399,21 @@ DOMAINS: list[dict] = [
                    "tests/browser/unit/youtube/test_the_account_connects_by_intent_never_by_credential.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py",
                   "tests/browser/unit/mensajeria/test_notification_policy.py"]},
-        {"id": "4.122", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "
+        {"id": "4.123", "title": "Mensajería RENDERIZA: un clic en un canal SALE de Conectores (no se queda "
                                   "pegado), el título vuelve al dashboard unificado desde cualquier pantalla, y "
                                   "el email por defecto es vista clásica (remitente+asunto+hora, sin cuerpo) con "
                                   "una segunda pantalla de detalle — clave por messageId, nunca por el `n` "
                                   "posicional que se recicla al desaparecer un mensaje",
          "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_default_screen_answers_and_the_title_goes_home.py"]},
+        {"id": "4.124", "title": "Responder es DRAFT + SEND_DRAFT: el texto (dictado o escrito) se ve en el "
+                                  "cuadro antes de enviarse, `_resolve_target` direcciona por `n`/`messageId` "
+                                  "de la lista PLANA (nunca por la numeración de `_group_chats`, que es un "
+                                  "espacio distinto), `reply` conserva su resolución original sin tocar",
+         "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_dictated_reply_lives_in_the_box_until_sent.py"]},
+        {"id": "4.125", "title": "La barra de responder RENDERIZA: el cuadro se rellena con el borrador que "
+                                  "corresponde a ESTA pantalla y no a otra, el botón Enviar se activa solo con "
+                                  "texto, y el clic manda exactamente lo que hay escrito en el cuadro",
+         "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_compose_bar_shows_what_it_will_send.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
             # sin mapear hasta el 2026-08-21: vaciar la agenda en UNA acción, y que un «sí» a una data-op
             # irreversible la EJECUTE (por voz y por botón) — el «no funciona el borrado» del operador
@@ -2023,6 +2032,10 @@ DOMAINS: list[dict] = [
                       "tests/browser/unit/mensajeria/test_owner_v2.py",
                       "tests/connectors/unit/messaging/test_brief_connector_state.py",
                       "tests/browser/e2e/mensajeria/test_mensajeria_render.py"]},
+        {"id": "5.18", "title": "La firma de email se añade UNA sola vez, solo al enviar de verdad — nunca "
+                                "por el widget, nunca por Gmail (que no interviene en un envío SMTP directo), "
+                                "y se lee fresca en cada envío, no cacheada desde el arranque",
+            "ch": UNIT, "paths": ["tests/connectors/unit/email/test_the_signature_is_appended_once.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

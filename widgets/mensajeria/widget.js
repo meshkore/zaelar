@@ -105,21 +105,29 @@ function injectStyles(){
   if(document.getElementById("hb-msg-css"))return;
   const s=document.createElement("style"); s.id="hb-msg-css"; s.textContent=`
   .hb-msg{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:min(480px,92vw)}
-  .hb-msg .hd{display:flex;align-items:center;gap:8px;margin:0 0 10px}
+  /* V2-611 redesign — the header is its OWN band, visually separated from the content below it (the
+     operator's ask: "que se delimiten mejor las secciones"), and every icon in it is a real, bigger button
+     with its own hover/click target — not a bare glyph floating in the row. */
+  .hb-msg .hd{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px;padding:2px 2px 14px;
+    border-bottom:1px solid var(--hb-line,#eef1f6)}
   .hb-msg .hd b{font-size:17px} .hb-msg .hd .sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
-  .hb-msg .hdtitle{cursor:pointer;border-radius:6px;padding:2px 4px;margin:-2px -4px}
+  .hb-msg .hdtitle{cursor:pointer;border-radius:8px;padding:4px 7px;margin:-4px -7px}
   .hb-msg .hdtitle:hover{background:var(--hb-hover,#eef3f9)}
-  .hb-msg .dots{display:flex;gap:6px;margin-left:auto}
-  .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto}
+  .hb-msg .dots{display:flex;gap:4px;margin-left:auto}
+  .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto;
+    width:34px;height:34px;border-radius:10px;cursor:pointer}
+  .hb-msg .picon svg{width:20px;height:20px}
+  .hb-msg .picon:hover{background:var(--hb-hover,#eef3f9);opacity:.7}
   .hb-msg .picon.on{opacity:1}
-  .hb-msg .picon.filt{box-shadow:0 2px 0 currentColor;border-radius:2px}
+  .hb-msg .picon.on:hover{opacity:1;background:var(--hb-hover,#eef3f9)}
+  .hb-msg .picon.filt{background:var(--hb-hover,#eef3f9);box-shadow:inset 0 0 0 1.5px currentColor}
   .hb-msg .pdot{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
     font-size:9.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c);opacity:.5;flex:0 0 auto}
   .hb-msg .pdot.on{opacity:1;background:var(--hb-accent2,#16B8A6)}
-  .hb-msg .gear{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:15px;
-    width:26px;height:26px;border-radius:8px;line-height:1}
+  .hb-msg .gear{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:17px;
+    width:34px;height:34px;border-radius:10px;line-height:1}
   .hb-msg .gear:hover,.hb-msg .gear.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
-  .hb-msg .clr{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
+  .hb-msg .clr{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);border-radius:8px;padding:6px 11px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-msg .clr:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
 
   /* Settings. */
@@ -202,6 +210,14 @@ function injectStyles(){
   .hb-msg .thd .back{border:0;background:transparent;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-size:13px;padding:3px 2px}
   .hb-msg .thd .back:hover{text-decoration:underline}
   .hb-msg .thdname{font-size:15px}
+  /* COMPOSE BAR (V2-611): dictate or type, see it, then send — by button or by a later voice order.
+     .bt/.bt-primary etc. are already declared below (the wizard's own buttons) — reused as-is. */
+  .hb-msg .compose{margin-top:12px;padding-top:10px;border-top:1px solid var(--hb-line,#eef1f6)}
+  .hb-msg .composebox{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;max-height:160px;
+    font:inherit;font-size:14px;line-height:1.4;color:var(--hb-ink,#0d1622);background:var(--hb-hover,#eef3f9);
+    border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:8px 10px}
+  .hb-msg .composebox:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .composerow{display:flex;justify-content:flex-end;margin-top:6px}
   /* V2-546 — the operator's OWN messages in the thread, and the boundary of what we hold. An outgoing row is
      indented and quieter: it is context he already knows, and giving it the same weight as an incoming
      message would make a conversation unreadable at a glance.
@@ -331,7 +347,7 @@ function injectStyles(){
   /* Connected-status screen + disconnect confirmation (unscoped, no longer nested under a removed .chan row). */
   .hb-msg .cfm{margin-top:10px;font-size:12.5px;color:var(--hb-ink,#0d1622)}
   .hb-msg .cfm .row{display:flex;gap:8px;margin-top:8px}
-  .hb-msg .connbtn{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:15px;width:26px;height:26px;border-radius:8px;line-height:1}
+  .hb-msg .connbtn{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:17px;width:34px;height:34px;border-radius:10px;line-height:1}
   .hb-msg .connbtn:hover,.hb-msg .connbtn.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .conns{display:flex;flex-wrap:wrap;gap:6px}
   .hb-msg .conns .ok{font-size:11px;color:var(--hb-muted,#5b6b82);display:flex;align-items:center;gap:5px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:3px 9px}
@@ -754,6 +770,72 @@ function richList(items, ctx){
 // screen is what forced the split). `actionable` stays the caller's call: a row of buttons on a message
 // that cannot be acted on (an outgoing message, or history with no `n`) would be a lie about what pressing
 // them does (V2-546's own reasoning, unchanged).
+// ── COMPOSE BAR (V2-611) ─────────────────────────────────────────────────────────────────────────────────
+// Operator's spec, verbatim in spirit: dictate or type a reply, see it in a real box before it goes
+// anywhere, then send it — by the button or by a later voice order. `draft` is the round-trip that keeps
+// voice dictation and the visible box in sync (whichever wrote it last is what the box shows); `send_draft`
+// is the one deliberate act that actually queues a real send, on the SAME text the box displays — never a
+// value cached from an earlier keystroke, so an edit made after dictation is what actually goes out.
+const _draftLocal = {};   // key -> text not yet round-tripped to the server (keystroke buffer, per screen)
+let _draftTimer = null;
+
+function _composeKey(targetPayload, activeChat){
+  if(targetPayload && (targetPayload.messageId != null || targetPayload.n != null))
+    return "m:" + (targetPayload.messageId != null ? targetPayload.messageId : targetPayload.n);
+  if(activeChat) return "c:" + activeChat.platform + ":" + activeChat.chatId;
+  return "?";
+}
+
+function _draftMatches(draft, targetPayload, activeChat){
+  if(!draft || !draft.target) return false;
+  const t = draft.target;
+  if(targetPayload && (targetPayload.messageId != null || targetPayload.n != null))
+    return (targetPayload.messageId != null && t.messageId === targetPayload.messageId) ||
+           (targetPayload.n != null && t.n === targetPayload.n);
+  if(activeChat) return t.platform === activeChat.platform && String(t.chatId) === String(activeChat.chatId);
+  return false;
+}
+
+// `targetPayload` addresses WHAT the reply goes to: `{}` for an open THREAD (the server resolves it from
+// `active_chat` itself, V2-611's `_resolve_target`), or `{n, messageId}` for a single EMAIL. `activeChat` is
+// `data.active_chat`, used only to match an incoming draft against the right screen.
+function composeBar(ctx, data, targetPayload, activeChat, rerender){
+  const key = _composeKey(targetPayload, activeChat);
+  const wrap = el("div","compose");
+  const box = document.createElement("textarea");
+  box.className = "composebox";
+  box.placeholder = "Escribe tu respuesta… (o dila por voz y aparecerá aquí)";
+  box.rows = 2;
+  const matches = _draftMatches(data.draft, targetPayload, activeChat);
+  box.value = (key in _draftLocal) ? _draftLocal[key] : (matches ? String(data.draft.text || "") : "");
+
+  const row = el("div","composerow");
+  const send = el("button","bt bt-primary","Enviar ➤");
+  const syncBtn = () => { send.disabled = !box.value.trim(); };
+  syncBtn();
+  box.addEventListener("input", () => {
+    _draftLocal[key] = box.value;
+    syncBtn();
+    clearTimeout(_draftTimer);
+    _draftTimer = setTimeout(() => { ctx.action("draft", {...targetPayload, text: box.value}); }, 500);
+  });
+  send.onclick = async () => {
+    const text = box.value;
+    if(!text.trim()) return;
+    clearTimeout(_draftTimer);
+    send.disabled = true;
+    delete _draftLocal[key];
+    // The box's CURRENT value is what gets sent — never a value cached from an earlier keystroke or from
+    // voice dictation alone: an edit made by hand after dictating is the operator's real final word.
+    await ctx.action("draft", {...targetPayload, text});
+    await ctx.action("send_draft", {});
+    rerender();
+  };
+  row.appendChild(send);
+  wrap.append(box, row);
+  return wrap;
+}
+
 function messageActions(it, ctx){
   const acts = el("div","tacts");
   const read=el("button",null,"✓"); read.title="Marcar como leído"; read.onclick=()=>ctx.action("read",{n:it.n});
@@ -873,7 +955,7 @@ function emailList(items, ctx, openMail){
 // out. Reuses `messageActions` so read/dismiss/archive/trash/mute stay the SAME five buttons the row itself
 // used to carry, wired to the same `n` (unambiguous: read/dismiss/archive/trash/hide all resolve by the
 // item's own `n` against the flat renumbered list, never against a chat grouping — see data.py).
-function mailDetail(it, ctx, closeMail){
+function mailDetail(it, data, ctx, closeMail, rerender){
   const wrap = el("div","thread");
   const hd = el("div","thd");
   const back = el("button","back","← Bandeja"); back.onclick=()=>closeMail();
@@ -897,6 +979,10 @@ function mailDetail(it, ctx, closeMail){
   wrap.appendChild(card);
 
   if(!(it.dir === "out") && it.n != null) wrap.appendChild(messageActions(it, ctx));
+  // V2-611 — reply to THIS mail specifically: `n`+`messageId` address it unambiguously, the same identity
+  // read/dismiss/archive/trash already use (never the chat-grouping numbering, which the flat email list
+  // does not have). Outgoing mail (his own, echoed into the thread) has nothing to reply TO.
+  if(it.dir !== "out") wrap.appendChild(composeBar(ctx, data, {n: it.n, messageId: it.messageId}, null, rerender));
   return wrap;
 }
 
@@ -960,7 +1046,7 @@ function threadStart(meta, ctx){
   return box;
 }
 
-function threadView(active, items, ctx, rerender, meta){
+function threadView(active, items, data, ctx, rerender, meta){
   const wrap = el("div","thread");
   const hd = el("div","thd");
   const back = el("button","back","← volver"); back.onclick=()=>ctx.action("close");
@@ -978,6 +1064,9 @@ function threadView(active, items, ctx, rerender, meta){
   const list = el("div","tl");
   items.forEach(it=> list.appendChild(messageRow(it, ctx, rerender)));
   wrap.appendChild(list);
+  // V2-611 — reply to the CONVERSATION, not a specific past message: `{}` lets the server resolve the
+  // target from `active_chat` itself (`_resolve_target`), which is what «responderle» means for a thread.
+  wrap.appendChild(composeBar(ctx, data, {}, active, rerender));
   return wrap;
 }
 
@@ -1289,7 +1378,7 @@ export function render(root, data, ctx){
   // chat is a navigation the agent (or a click) just performed, and it must be visible in both.
   const activeChat = data.active_chat || null;
   if(activeChat){
-    root.appendChild(threadView(activeChat, data.active_items||[], ctx, rerender, data.thread_meta||null));
+    root.appendChild(threadView(activeChat, data.active_items||[], data, ctx, rerender, data.thread_meta||null));
     return;
   }
   // AN OPEN MAIL WINS OVER EVERY LIST SHAPE (V2-610), same precedence and same reasoning as an open thread
@@ -1303,7 +1392,7 @@ export function render(root, data, ctx){
   if(_platFilter==="email" && _openMail!=null){
     const it = fItems.find(x=>mailKey(x)===_openMail) || items.find(x=>mailKey(x)===_openMail);
     if(it){
-      root.appendChild(mailDetail(it, ctx, ()=>{ _openMail=null; rerender(); }));
+      root.appendChild(mailDetail(it, data, ctx, ()=>{ _openMail=null; rerender(); }, rerender));
       return;
     }
   }

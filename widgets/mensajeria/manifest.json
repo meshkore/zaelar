@@ -7,8 +7,8 @@
   "gate": "nucleo"
  },
  "title": "Mensajería",
- "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes responder un email por voz (con confirmación antes de enviar).",
- "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, responder/contestar un email, o vincular/conectar WhatsApp, Telegram o el email.",
+ "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes dictar una respuesta, revisarla en el cuadro de texto y mandarla por voz o con el botón, a las tres plataformas — el email lleva firma propia si la tienes puesta.",
+ "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, RESPONDER/contestar/mandar un mensaje o email (dictado o escrito), poner o cambiar su FIRMA de email, o vincular/conectar WhatsApp, Telegram o el email.",
  "keywords": [
   "mensajes",
   "mensajeria",
@@ -38,7 +38,17 @@
   "qr",
   "silenciar",
   "ocultar",
-  "muted"
+  "muted",
+  "responde",
+  "contesta",
+  "envía",
+  "manda",
+  "mándale",
+  "escríbele",
+  "dile",
+  "firma",
+  "mi firma",
+  "firma de correo"
  ],
  "actions": {
   "show_view": {
@@ -129,6 +139,20 @@
    "confirm": true,
    "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."
   },
+  "draft": {
+   "desc": "Escribe (o actualiza) el texto de respuesta en el CUADRO visible del widget, SIN enviarlo — dile al operador que se lo lees para que lo revise antes de que lo mande él (con 'send_draft' o el botón)",
+   "payload": {
+    "text": "string (el texto dictado)",
+    "n": "opcional: número de un email concreto (si no hay conversación abierta)",
+    "messageId": "opcional, alternativa a n"
+   }
+  },
+  "send_draft": {
+   "desc": "Envía el borrador que ya está en el cuadro (escrito por voz o a mano) — el mismo texto que se ve en pantalla. No lleva texto propio: si aún no hay nada dictado, dile que dicte primero.",
+   "payload": {},
+   "confirm": true,
+   "usage": "El botón «Enviar» de la propia tarjeta hace exactamente esto. Por voz: primero 'draft' con el texto, luego (con su confirmación) 'send_draft'."
+  },
   "open_connectors": {
    "desc": "Si se nombra la plataforma (email/gmail/outlook, whatsapp, telegram), entra DIRECTAMENTE en la pantalla de ESE conector — su asistente paso a paso si no está conectado, o su estado si ya lo está. Sin plataforma, abre la lista de todos los conectores. Úsala siempre que el operador pida conectar/vincular/añadir un canal. No pidas tú credenciales por voz.",
    "payload": {
@@ -154,6 +178,24 @@
     "limit": "int opcional (cuántos, por defecto 30)"
    },
    "safe": true
+  },
+  "set_signature": {
+   "desc": "Fija la firma de EMAIL entera, una línea por elemento (ej. nombre / cargo / contacto). Se añade sola a cada correo que se envíe, nunca por el operador ni por Gmail — no lo prometas dos veces",
+   "payload": {
+    "lines": "array de strings, una por línea (máx. 10)"
+   }
+  },
+  "set_signature_line": {
+   "desc": "Pone o cambia UNA línea de la firma de email (1ª, 2ª, 3ª…) sin tocar las demás — para cuando la dicta línea a línea: «en la primera pon mi nombre, en la segunda mi cargo»",
+   "payload": {
+    "line": "int (1, 2, 3…)",
+    "text": "string (el texto de esa línea)"
+   }
+  },
+  "clear_signature": {
+   "desc": "Borra la firma de email entera",
+   "payload": {},
+   "confirm": true
   }
  },
  "entry": "widget.js",

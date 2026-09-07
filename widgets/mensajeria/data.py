@@ -122,6 +122,7 @@ def load_db() -> dict:
     db.setdefault("threads", {})
     db.setdefault("updated", "")
     db.setdefault("active_chat", None)
+    db.setdefault("draft", None)
     return db
 
 
@@ -297,6 +298,55 @@ def _find_chat_by_name(db: dict, name: str):
     return None
 
 
+def _resolve_target(db: dict, n=None, mid: str | None = None) -> dict | None:
+    """The identity `draft`/`send_draft` reply to (V2-611) — NOT `reply`, which keeps its own original,
+    separately-tested resolution (chat-list numbering when no thread is open) unchanged.
+
+    `n`/`messageId` resolve against the flat renumbered list — the same space read/dismiss/archive/trash/hide
+    already use, and the same meaning `n` has there (an ITEM, never a `_group_chats` row). The compose bar
+    always has the concrete item in hand for a single email (both `n` and `messageId`), so this never needs
+    to guess between the two numbering spaces the way `reply`'s legacy fallback does. With NEITHER given and
+    a thread open, it resolves to the conversation itself: the operator answering «the person I'm talking
+    to», not a specific past message."""
+    if n is not None or mid:
+        # `n` only exists on an item once `_renumber` assigns it — a raw stored item never carries one, so
+        # this must renumber first, exactly like every other n-addressed action in this file (read/dismiss/
+        # archive/trash/hide). Skipping it would make a bare `n` never resolve to anything at all outside a
+        # test fixture that happened to pre-set the field (the mistake this comment exists to prevent again).
+        items = _renumber(db.get("items", []))
+        return next((it for it in items
+                     if (n is not None and it.get("n") == n) or (mid and it.get("messageId") == mid)), None)
+    active = db.get("active_chat")
+    if active is None:
+        return None
+    key = (active.get("platform"), str(active.get("chatId")))
+    msgs = [it for it in db.get("items", []) if (it.get("platform"), str(it.get("chatId"))) == key]
+    if msgs:
+        return msgs[-1]
+    # Every pending item in this thread is already read/answered — nothing left in `items` to mark-read or
+    # remove, but the conversation still has an identity to reply to (V2-546: answering must not require an
+    # unread message to exist first). `_enqueue_reply` reads only platform/chatId/senderId from this shape.
+    return {"platform": key[0], "chatId": key[1]}
+
+
+def _enqueue_reply(db: dict, target: dict, text: str) -> None:
+    """The one place a reply/draft actually gets queued for the connector to send for real. A real item
+    ALWAYS carries `messageId` (set on ingestion, by every connector) — including one resolved via `reply`'s
+    own chat-grouping fallback, which never goes through `_renumber` and so never has `n` set either, which
+    is why `n` cannot be the "is this real" signal here. Only the true synthetic thread-identity target (see
+    `_resolve_target`, `{"platform", "chatId"}` alone) has neither, and nothing pending to remove — correct,
+    since there was no pending item to begin with."""
+    db.setdefault("pending_reply", []).append({
+        "platform": target.get("platform"), "chatId": target.get("chatId"),
+        "to": target.get("senderId") or target.get("chatId"),
+        "messageId": target.get("messageId"), "subject": target.get("subject", ""),
+        "msgid": target.get("msgid", ""), "text": text,
+    })
+    if target.get("messageId") is not None:
+        db.setdefault("pending_read", []).append(_key(target))
+        db["items"] = [it for it in db.get("items", []) if it is not target]
+
+
 def _notify_policy_view(db: dict) -> dict:
     """Effective (normalized) notification policy per platform, for the card and for read_widget. Always the
     full platform set, so a reader never has to guess what an absent entry means."""
@@ -355,7 +405,22 @@ def view_data(q: str = "") -> dict:
         # V2-546 — where our copy of the open conversation begins, and whether there is any point asking for
         # more. The widget draws a boundary from this instead of letting the thread look like the whole story.
         "thread_meta": thread_meta,
+        # V2-611 — the review-first reply: text the operator (by voice or by typing) put in the compose box
+        # but has not sent yet. `target` names WHAT it would go to, so a stale draft from a conversation that
+        # is no longer open never gets rendered against the wrong screen.
+        "draft": db.get("draft") or None,
+        # V2-611 — the operator's OWN signature, read fresh (a local config file, not a secret) so an edit in
+        # the settings screen is visible immediately. [] = none set; the connector appends nothing at all.
+        "email_signature": _email_signature(),
     }
+
+
+def _email_signature() -> list:
+    try:
+        from connectors.email import config as _email_cfg
+        return _email_cfg.signature_lines()
+    except Exception:
+        return []
 
 
 def answer_action(action: str, payload: dict | None = None) -> dict | None:
@@ -492,6 +557,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # a chat `n` pointing to its last message. The connector performs the real send; the CONFIRM gate (V2-025)
     # already asked for OK before reaching this branch.
     if action == "reply":
+        # UNCHANGED contract (V2-521, tested): `n` means an item in the open thread, or a CHAT in the chat
+        # list otherwise — the same duality `hide` documents. `draft`/`send_draft` below are the new,
+        # unambiguous path (`n`/`messageId` address one ITEM directly, matching archive/trash's own meaning
+        # of `n` for the flat email list); `reply` keeps its original resolution so nothing that already
+        # depends on it — voice included — changes behavior.
         n = payload.get("n")
         text = (payload.get("text") or "").strip()
         if n is not None and text:
@@ -507,20 +577,87 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                             if (it.get("platform"), str(it.get("chatId"))) == key]
                     target = msgs[-1] if msgs else None
             if target is not None:
-                db.setdefault("pending_reply", []).append({
-                    "platform": target.get("platform"),
-                    "chatId": target.get("chatId"),
-                    "to": target.get("senderId") or target.get("chatId"),
-                    "messageId": target.get("messageId"),
-                    "subject": target.get("subject", ""),
-                    "msgid": target.get("msgid", ""),
-                    "text": text,
-                })
-                # Reply implies READ: also enqueue mark-read for that message and remove it from the list.
-                db.setdefault("pending_read", []).append(_key(target))
-                db["items"] = [it for it in db.get("items", []) if it is not target]
+                _enqueue_reply(db, target, text)
                 store.save(WIDGET_ID, db)
         return view_data()
+
+    # V2-611 — DRAFT then SEND, as a pair: dictating a reply (or typing it) fills a visible box the operator
+    # can read before anything goes out; `send_draft` is the separate, deliberate act that actually sends —
+    # by the widget's own button or by a later voice order («envíalo»). `reply` above still exists for a
+    # one-shot model-dictated reply (CONFIRM-gated, unchanged) — this is the review-first path instead.
+    if action == "draft":
+        text = str(payload.get("text") or "")
+        db = load_db()
+        target = _resolve_target(db, payload.get("n"), payload.get("messageId"))
+        if target is None:
+            return {"ok": False, "error": "no_target",
+                     "message": "No sé a qué conversación o mensaje se refiere el borrador."}
+        if not text.strip():
+            db["draft"] = None
+            store.save(WIDGET_ID, db)
+            return {"ok": True, "cleared": True}
+        db["draft"] = {"text": text[:4000],
+                        "target": {k: target.get(k) for k in
+                                   ("platform", "chatId", "senderId", "messageId", "subject", "msgid", "n")},
+                        "at": int(time.time())}
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "text": db["draft"]["text"]}
+
+    if action == "send_draft":
+        db = load_db()
+        draft = db.get("draft") or {}
+        text = str(draft.get("text") or "").strip()
+        if not text:
+            return {"ok": False, "error": "no_draft", "message": "No hay ningún borrador que enviar."}
+        stored = draft.get("target") or {}
+        # Re-resolve against the LIVE item, so a target that changed since the draft was written (answered
+        # elsewhere, read from the real app) is not blindly replied to under a stale identity — same
+        # resolution `reply` itself uses. Falls back to the stored identity when nothing live matches: the
+        # conversation's own platform/chatId are still enough to send to, even with no pending item left.
+        target = _resolve_target(db, stored.get("n"), stored.get("messageId")) or stored
+        _enqueue_reply(db, target, text)
+        db["draft"] = None
+        store.save(WIDGET_ID, db)
+        return {"ok": True, "to": target.get("senderId") or target.get("chatId"), "text": text}
+
+    # V2-611 — the EMAIL SIGNATURE, appended once by the connector at real send time (service.py's
+    # `_drain_replies`), never here: this only writes the config the connector reads. `config/connectors.py`
+    # is the SAME store the connect wizard already writes to for email — signature_lines is one more field
+    # on the same "email" entry, not a new mechanism.
+    if action == "set_signature":
+        lines = payload.get("lines")
+        if not isinstance(lines, list):
+            return {"ok": False, "error": "bad_lines", "message": "Dame las líneas de la firma."}
+        lines = [str(x).strip()[:200] for x in lines[:10]]
+        while lines and not lines[-1]:
+            lines.pop()
+        from config import connectors as _conn_store
+        _conn_store.set("email", {"signature_lines": lines})
+        return {"ok": True, "lines": lines}
+
+    if action == "set_signature_line":
+        try:
+            i = int(payload.get("line"))
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bad_line", "message": "Dime qué número de línea (1, 2, 3…)."}
+        if not 1 <= i <= 10:
+            return {"ok": False, "error": "bad_line", "message": "La firma admite hasta 10 líneas."}
+        text = str(payload.get("text") or "").strip()[:200]
+        from connectors.email import config as _email_cfg
+        from config import connectors as _conn_store
+        lines = _email_cfg.signature_lines()
+        while len(lines) < i:
+            lines.append("")
+        lines[i - 1] = text
+        while lines and not lines[-1]:
+            lines.pop()
+        _conn_store.set("email", {"signature_lines": lines})
+        return {"ok": True, "line": i, "lines": lines}
+
+    if action == "clear_signature":
+        from config import connectors as _conn_store
+        _conn_store.set("email", {"signature_lines": []})
+        return {"ok": True, "lines": []}
 
     # Mute channel: N addresses the same way as read/dismiss depending on context. With an open chat it is a
     # message `n` from `items`; with the chat list it is a chat `n` from `_group_chats`. Same duality already

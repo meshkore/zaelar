@@ -115,6 +115,19 @@ def operator_name() -> str:
     return (os.getenv("EMAIL_MY_NAME") or os.getenv("MSG_MY_NAME") or "").strip()
 
 
+def signature_lines() -> list[str]:
+    """The operator's email signature, one line per list entry — set by voice or from the widget's own
+    settings screen (`widgets/mensajeria/data.py`, which writes here through the SAME store this whole
+    module already reads, `config/connectors.py`). `[]` = no signature, appended by nobody.
+
+    NOT importable from the real account: Gmail's own signature lives in Gmail account settings, reachable
+    only through the Gmail API's `gmail.settings.basic` OAuth scope — a scope this connector does not
+    request and IMAP/SMTP never expose (measured 2026-09-07, INI-032's own finding about this account
+    applies here too: some Google-side facts are simply not on the wire this connector speaks)."""
+    v = _cfg().get("signature_lines")
+    return [str(x) for x in v if str(x).strip()] if isinstance(v, list) else []
+
+
 def mailbox():
     """Mailbox instance with effective config (or None if credentials are missing). Chooses auth mode: OAuth
     (XOAUTH2 with live access token) or app-password, according to `auth_method()`."""

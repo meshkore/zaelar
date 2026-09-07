@@ -29,7 +29,9 @@ _DEFAULTS = {
     "whatsapp": {"enabled": False},                                  # WhatsApp needs no credentials (QR only)
     "telegram": {"enabled": False, "api_id": "", "api_hash": ""},    # Telegram: api_id/api_hash from my.telegram.org
     "email": {"enabled": False, "email_address": "", "email_password": "", "provider": "",   # V2-051: IMAP/SMTP
-              "imap_host": "", "imap_port": 0, "smtp_host": "", "smtp_port": 0, "autoreply": False},
+              "imap_host": "", "imap_port": 0, "smtp_host": "", "smtp_port": 0, "autoreply": False,
+              "signature_lines": []},  # V2-611: appended once by the connector at actual SMTP send time —
+                                        # never by the widget, which sends over the network to nobody (V2-557)
     # V2-083: the Architect daemon token lives HERE (dynamic store), NOT in .env — configurable/revocable from the
     # Connectors tab. Optional `url` (default loopback). `token` is SECRET (redacted to the frontend).
     "architect": {"enabled": False, "token": "", "url": ""},

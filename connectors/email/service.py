@@ -206,6 +206,16 @@ async def _drain_replies(mb) -> None:
     for r in _reply_inbox.drain():
         to = (r.get("to") or r.get("chatId") or "").strip()
         text = r.get("text") or ""
+        # V2-611 — the signature is appended EXACTLY ONCE, HERE, at the one place a real SMTP send happens.
+        # It can never double up with Gmail's own: that auto-append is a client-side feature of Gmail's web
+        # compose UI, and we never touch it — this is a raw SMTP send, the same mechanism a mail client uses
+        # to talk to the SERVER, not to Gmail's own interface. The widget that queued `r` never saw the
+        # signature and never will (V2-557: widget.js touches no network, and a data-op is not where account
+        # content belongs) — it is connector state, read fresh so an edit applies to the very next send.
+        lines = config.signature_lines()
+        if lines:
+            text = text.rstrip("\n") + "\n\n-- \n" + "\n".join(lines)   # RFC 3676 delimiter: clients that
+                                                                          # trim signatures on reply look for it
         subject = r.get("subject") or ""
         in_reply_to = r.get("msgid") or ""
         ok, info = await asyncio.to_thread(mb.send_reply, to, subject, text, in_reply_to)

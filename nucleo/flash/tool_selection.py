@@ -102,7 +102,10 @@ _HINTS: dict[str, tuple[str, ...]] = {
     # These are the SAME seeds in the other language, not a longer verb list: the list the operator rejected is
     # what this module deliberately does not build.
     "messaging": ("mensaje", "mensajes", "whatsapp", "telegram", "correo", "email", "responde", "contesta",
-                  "mail", "message", "messages", "reply", "chat"),
+                  "mail", "message", "messages", "reply", "chat",
+                  # V2-611: sending/signature verbs, which name no platform on their own («envíaselo»,
+                  # «pon mi firma») — without a seed here they have nothing to route to.
+                  "envia", "manda", "mandale", "escribele", "firma", "send", "signature"),
 }
 
 
