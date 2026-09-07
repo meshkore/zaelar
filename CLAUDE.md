@@ -524,6 +524,44 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     strings are hardcoded, mensajería's wizard included), and the double browser for one intent, which is
     V2-570's linear-gate family, not this one.
 
+- **A connected mailbox that shows nothing, forever — the inbox was declared already-seen (V2-606,
+  2026-09-07)**: the operator, with the widget open on «Email — Conectado. Tus mensajes llegan aquí
+  automáticamente.» and an empty list: «the Gmail thing doesn't work, the messages are not shown». Measured
+  against his real mailbox before touching anything: **1110 in INBOX, 1088 UNSEEN, 22 read**.
+  - **`service._loop` seeded `_seen` with `mailbox.all_uids()`** — every UID in INBOX — under the comment «only
+    triage email that arrives AFTER connecting». So all 1110 were declared already-seen on connect and the
+    widget could never surface one of his 1088 unread. The connector was not broken: it authenticated, polled
+    every 20 s and did exactly what it was told. And `_seen` lives in MEMORY and is cleared on stop, so every
+    restart moved that line forward again — anything arriving while the engine was down went invisible too.
+  - **The line is drawn where HE already draws it**: mail he has READ is dealt with and does not come back;
+    mail he has NOT read is the thing he is asking to see. `mailbox.inbox_split()` (two IMAP searches, no flag
+    written, no body fetched) + `seed_from_mailbox`.
+  - **A triage surface is not a mailbox** — 1088 is not a list anybody reads, so only the most recent
+    `BACKFILL` unread are handed over. **Which is exactly why the TOTAL is recorded and travels to the brain**:
+    silently hiding the other 1058 is the failure being replaced. Before, `brief` said «Email: conectado.» and
+    nothing else, so with a connected flag and an empty card the model had only one explanation available and
+    invented it — «Es que no tienes mensajes nuevos sin leer, por eso sale vacío», over 1088. It was not lying;
+    it was missing the fact. The line now carries the count and NAMES the forbidden sentence (V2-221).
+  - **`-1` is not `0`**: «not measured» must never render as «you have none», which is the sentence this exists
+    to make impossible. And the split fails soft in the SAFE direction — a connector that cannot tell read from
+    unread keeps the old whole-inbox seeding rather than dumping a mailbox into a triage widget.
+  - **VERIFIED LIVE**: the first email in the widget's history landed, and «¿cuántos correos sin leer tengo?» →
+    «Tienes 1.088 correos sin leer en Gmail» naming the urgent one, while «demuéstrame que el conector funciona»
+    → «El correo está conectado y funcionando: tienes 1.088 sin leer. El widget filtra y muestra los más
+    recientes» (was: «Hecho.»).
+  - Node **5.16**, six disarms. ⚠️ **Three came back GREEN**: the test RE-IMPLEMENTED the seeding instead of
+    calling it — *a mirror proves the mirror works, not the product* — so `seed_from_mailbox` was extracted out
+    of `_loop` (which connects to a real server, and is therefore untestable in place) and the IMAP half got its
+    own fake. ⚠️ **And a stale `.pyc` survived a restore**: disarm 5's mutation (`n < 0`→`False`,
+    `n == 0`→`n <= 0`) was byte-length IDENTICAL, and Python invalidates on (mtime, size), so a restore inside
+    the same second reused the mutated bytecode and the clean tree stayed red. The disarm harness clears
+    `__pycache__` every run now.
+  - **Open and named**: the triage keeps **1 of 30** (measured three times — the rest are judged not «for you»),
+    which is right for a notification surface and arguable for «show me my unread», and is a product decision;
+    and **a VIEW data-op's RESULT is still discarded** — `show_view` returns its matches and the prompt orders
+    «contesta con sus nombres», but `dispatch_and_report` is fire-and-forget, so V2-603 wired the FAILURE case
+    and success-with-content still ends in the canned ack.
+
 - **A card question the operator cannot answer is asked forever — and the captcha handoff nobody offered
   (V2-605, 2026-09-07)**: session `43b7bf79`, read turn by turn before touching anything. «Tienes 2 abiertas:
   ¿cuál te enseño, "t1" o "navegador"?» was spoken FIVE times in 93 seconds while he answered it («uno está
