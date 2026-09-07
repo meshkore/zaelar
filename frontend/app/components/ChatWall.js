@@ -108,6 +108,7 @@ export function ChatWall() {
   let listEl, inputEl, headEl, wallEl, previewEl = null;
   let schedEl, cnameEl, cpromptEl;             // refs for the create-cron form (Crons tab)
   let dockSide = null;                         // null | "left" | "right"
+  let dockW = DOCK_DEF_W;                      // the docked column's INTENDED width (see setReserve)
   let floatGeo = loadFloat();                  // {left,top,w,h} of the FLOATING window (last known)
   // Reopen exactly as it was left. Done HERE, at construction, so the first paint already has it: flipping the
   // signal later would show the desktop for a frame and then drop a panel on top of it.
@@ -403,7 +404,7 @@ export function ChatWall() {
 
   function applyFloat(geo) {
     floatGeo = geo || floatGeo || defaultFloat();
-    dockSide = null;
+    dockSide = null; dockW = DOCK_DEF_W;
     wallEl.classList.remove("docked", "dock-left", "dock-right");
     wallEl.style.right = "auto"; wallEl.style.bottom = "auto";
     wallEl.style.left = _num(floatGeo.left, 18) + "px"; wallEl.style.top = _num(floatGeo.top, 232) + "px";
@@ -423,6 +424,7 @@ export function ChatWall() {
   function applyDock(side, w) {
     dockSide = side;
     const width = Math.max(DOCK_MIN_W, _num(w, DOCK_DEF_W));
+    dockW = width;
     wallEl.classList.add("docked");
     wallEl.classList.toggle("dock-left", side === "left");
     wallEl.classList.toggle("dock-right", side === "right");
@@ -451,7 +453,11 @@ export function ChatWall() {
     const root = document.documentElement, body = document.body;
     body.classList.remove("chatdock-l", "chatdock-r");
     if (store.chatOpen() && dockSide) {
-      const w = Math.round(wallEl.offsetWidth || DOCK_DEF_W);
+      // The INTENDED width, not the measured one. `offsetWidth` is 0 while the wall is still unlaid-out — which
+      // is exactly the case on the restore path — so this used to reserve the 340px default for a 420px column
+      // and leave an 80px band of desk hidden underneath it (measured 2026-09-07, V2-608). Measure only as a
+      // fallback, for the resize drag, where the element is on screen and the pointer is the authority.
+      const w = Math.round(dockW || wallEl.offsetWidth || DOCK_DEF_W);
       root.style.setProperty("--chatdock-l", dockSide === "left" ? w + "px" : "0px");
       root.style.setProperty("--chatdock-r", dockSide === "right" ? w + "px" : "0px");
       body.classList.add(dockSide === "left" ? "chatdock-l" : "chatdock-r");
@@ -459,6 +465,11 @@ export function ChatWall() {
       root.style.setProperty("--chatdock-l", "0px");
       root.style.setProperty("--chatdock-r", "0px");
     }
+    // V2-608 — SAY SO. `#desk` follows these vars in CSS, but the widget cards live on `.hb-stage` (inset:0) in
+    // viewport coordinates, so nothing moved them: the operator docked the chat left, the desk shrank underneath
+    // his cards, and the one on the right was cut off by the window edge with no way to reach it. The desktop
+    // listens and refits everything into the canvas that is left. Same shape as the rail's `hb:rail-resized`.
+    try { document.dispatchEvent(new CustomEvent("hb:canvas-resized", { detail: { side: dockSide } })); } catch (_) {}
   }
 
   // ── MOVABLE by the header, with dock/undock ───────────────────────────────────────────────────────────────
@@ -511,6 +522,7 @@ export function ChatWall() {
     onChange: (rect) => {
       if (dockSide) {
         const width = Math.max(DOCK_MIN_W, Math.round(rect.width));
+        dockW = width;
         wallEl.style.width = width + "px"; wallEl.style.top = ""; wallEl.style.bottom = ""; wallEl.style.height = "";
         if (dockSide === "left") { wallEl.style.left = "0px"; wallEl.style.right = "auto"; }
         else { wallEl.style.left = "auto"; wallEl.style.right = "0px"; }
@@ -528,11 +540,19 @@ export function ChatWall() {
   // recording shows the conversation without anyone touching anything. Before the saved float: in the studio,
   // persisted geometry belongs to another session and a half-positioned floating chat covers the cards.
   const _showcase = new URLSearchParams(location.search).has("showcase");
+  // V2-608 — THE SAVED DOCK IS RESTORED FIRST. It was written on every dock (DOCK_KEY, as this file's header
+  // has said since V2-062) and then never read back except to seed the preview width, so `floatGeo` — which
+  // `applyDock` does NOT clear — always won and the wall came back FLOATING. Measured on the real page: dock
+  // left, reload, and it returns at left:18 w:320 with `hb_chat_dock` still holding {side:"left",w:420} and
+  // `--chatdock-l` back to 0px. V2-550 fixed «it does not come back where it was» for the floating wall; this is
+  // the same report for the docked one, and it is the shape the operator actually uses.
+  const savedDock = loadDock();
   if (_showcase) {
-    applyDock("left", (loadDock() || {}).w || DOCK_DEF_W);
+    applyDock("left", (savedDock || {}).w || DOCK_DEF_W);
     placed = true;
     store.setChatOpen(true);
-  } else if (floatGeo) { applyFloat(floatGeo); placed = true; }
+  } else if (savedDock) { applyDock(savedDock.side, savedDock.w); placed = true; }
+  else if (floatGeo) { applyFloat(floatGeo); placed = true; }
 
   window.addEventListener("resize", () => { if (dockSide) applyDock(dockSide, wallEl.offsetWidth); });
   setReserve();

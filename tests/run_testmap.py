@@ -1492,6 +1492,19 @@ DOMAINS: list[dict] = [
         {"id": "4.102", "title": "El muro de chat vuelve ABIERTO, en su pestaña y en su sitio tras recargar",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
+        # V2-608, captura del operador (2026-09-07): arrastra el chat al borde izquierdo, acopla bien en su
+        # columna… y NINGÚN widget se mueve. `#desk` sigue `--chatdock-l/r` por CSS, pero las tarjetas viven en
+        # `.hb-stage` (`inset:0`) en coordenadas de VIEWPORT, así que el escritorio encogió por debajo de ellas:
+        # una quedó tapada por la columna del chat y la de la derecha, cortada por el borde de la ventana y sin
+        # forma de alcanzarla. El rectángulo útil ya existía —EN LÍNEA dentro de `arrange()`, el único gesto de
+        # todo el lienzo que sabía que podía haber una columna de chat. Y por el camino, dos más medidos: el chat
+        # acoplado NO volvía acoplado tras recargar (se guardaba `hb_chat_dock` y no se leía nunca), y la franja
+        # reservada medía `offsetWidth` sin maquetar → 340 px reservados para una columna de 420.
+        {"id": "4.121", "title": "El lienzo se reajusta cuando el chat se lleva una columna: autofit + autoresize "
+                                 "con el mínimo de cada widget, y el acople sobrevive a la recarga",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_canvas_refits_when_the_chat_takes_a_column.py",
+                      "tests/browser/e2e/widgets/test_the_chat_wall_stays_where_it_was.py"]},
         # V2-553 — la BARRA DE ACTUALIZACIÓN y el número de versión. La regla que solo se puede comprobar
         # renderizando no es que la barra salga: es que NO salga cuando lo único que cambió está en el
         # backend. El motor manda DOS campos (`build`, que sube en toda release, y `ui_rev`, que es el

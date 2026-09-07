@@ -157,3 +157,76 @@ def test_it_comes_back_ON_THE_SAME_TAB(measured):
     """Finding «Chat» after leaving it on «Procesos» is the same loss one level down."""
     saved = measured["after"]["saved"] or {}
     assert saved.get("tab") == "procesos", saved
+
+
+# ── V2-608: docking the wall must ANNOUNCE that the canvas changed shape ────────────────────────────────────
+@pytest.fixture(scope="module")
+def docked(run):
+    """The operator's gesture: the chat wall takes a full-height column on the left.
+
+    Measured on the REAL page, with the real ChatWall, because the half under test is one line inside a closure
+    (`setReserve`) that nothing exports. The companion test
+    (`test_the_canvas_refits_when_the_chat_takes_a_column.py`) drives the desktop by dispatching that event; if
+    only that one existed, deleting the dispatch would leave both suites green and the operator's screen broken.
+    """
+    from playwright.sync_api import sync_playwright
+    out = {}
+    with sync_playwright() as pw:
+        b = pw.chromium.launch(headless=True, args=["--no-sandbox"])
+        ctx = b.new_context(viewport={"width": 1280, "height": 800})
+        # Installed BEFORE any script on the page, so the wall's construction-time dock is not missed.
+        ctx.add_init_script("""
+          window.__canvasEvents = [];
+          document.addEventListener("hb:canvas-resized", e => {
+            window.__canvasEvents.push((e.detail && e.detail.side) || null);
+          });
+          try {
+            localStorage.setItem("hb_chat_dock", JSON.stringify({side:"left", w:420}));
+            localStorage.setItem("hb_chat_open", JSON.stringify({open:true, tab:"chat"}));
+          } catch (_) {}
+        """)
+        pg = ctx.new_page()
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        _boot(pg, run)
+        pg.wait_for_timeout(800)
+        out["events"] = pg.evaluate("() => window.__canvasEvents")
+        out["dock_l"] = pg.evaluate(
+            "() => getComputedStyle(document.documentElement).getPropertyValue('--chatdock-l').trim()")
+        out["wall"] = pg.evaluate("""() => {
+          const w = document.querySelector('#chatwall, .chatwall');
+          if (!w) return null;
+          const r = w.getBoundingClientRect();
+          return {left: Math.round(r.left), right: Math.round(r.right), w: Math.round(r.width)};
+        }""")
+        out["errors"] = errors
+        b.close()
+    return out
+
+
+def test_a_docked_wall_COMES_BACK_docked(docked):
+    """V2-608. `hb_chat_dock` was written on every dock and never read back on restore, so `floatGeo` — which
+    `applyDock` does not clear — always won and the wall returned FLOATING. Measured on the real page before the
+    fix: left:18 w:320 `docked:false`, with `hb_chat_dock` still holding `{side:"left",w:420}`. V2-550 fixed «it
+    does not come back where it was» for the floating wall; this is the same report for the docked one, and
+    docked is the shape the operator actually uses."""
+    assert docked["wall"], "the chat wall never mounted"
+    assert docked["wall"]["left"] == 0 and docked["wall"]["w"] == 420, docked["wall"]
+
+
+def test_the_reserved_strip_MATCHES_the_column_it_reserves(docked):
+    """They are two numbers for one edge, and they disagreed. `setReserve` measured `offsetWidth`, which is 0
+    while the wall is still unlaid-out — the restore path exactly — so it reserved the 340px default for a 420px
+    column and left an 80px band of desk hidden underneath the chat."""
+    assert docked["dock_l"] == f"{docked['wall']['w']}px", \
+        f"strip {docked['dock_l']} vs column {docked['wall']['w']}px"
+
+
+def test_docking_ANNOUNCES_the_new_canvas(docked):
+    """THE missing link. `#desk` follows `--chatdock-l` in CSS, but the widget cards live on `.hb-stage`
+    (`inset:0`) in viewport coordinates — so unless somebody says the canvas moved, they simply stay put and the
+    desk shrinks underneath them. That is the operator's screenshot: chat docked left, cards untouched, the one
+    on the right cut off by the window edge with no way to reach it."""
+    assert docked["events"], "docking the chat wall fired no hb:canvas-resized at all"
+    assert "left" in docked["events"], docked["events"]
+    assert docked["errors"] == [], docked["errors"]

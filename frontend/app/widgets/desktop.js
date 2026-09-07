@@ -172,6 +172,9 @@ function injectStyles(){
 }
 
 // Two rects overlap? (with a padding gap so widgets don't kiss edges)
+// The floor of every automatic resize (V2-608). A widget may raise it through `manifest.min`; nothing lowers it.
+const MIN_W = 240, MIN_H = 150;
+
 function _overlap(a, b, pad=12){
   return !(a.right+pad<=b.left || a.left>=b.right+pad || a.bottom+pad<=b.top || a.top>=b.bottom+pad);
 }
@@ -203,7 +206,7 @@ export class Desktop {
     // V2-538 — the DOCKED widget rail owns the left edge: when it folds/unfolds (or appears with the first
     // card) it announces the new footprint and any card left under it gets shoved out. Widgets never overlap
     // the bar; they simply have less horizontal room while it is open (operator, 2026-09-01).
-    document.addEventListener("hb:rail-resized", ()=>this._railClamp());
+    this._watchCanvas();
     this.restore();                                        // bring back the user's desktop (open widgets + positions)
   }
 
@@ -215,14 +218,81 @@ export class Desktop {
     const rr=r.getBoundingClientRect();
     return rr.width ? Math.round(rr.right) : 0;
   }
-  _railClamp(){
-    const x0=this.minX(); if(!x0) return;
-    let moved=false;
-    this.wins.forEach(w=>{
-      const c=w.card; if(!c) return;
-      if((parseInt(c.style.left)||0) < x0){ c.style.left=(x0+this.tile.pad)+"px"; moved=true; }
+
+  // THE CANVAS CAN CHANGE SHAPE UNDER THE CARDS, and until V2-608 only one of the three ways said so.
+  //   · the widget rail folds/unfolds (V2-538) — announced, but the listener only shoved cards rightwards: it
+  //     never resized an oversized card and never pulled one back from the right edge
+  //   · the chat wall docks / undocks / is dragged wider — announced nothing at all
+  //   · the browser window is resized — not listened to anywhere
+  // All three run the same autofit pass now. Coalesced on a frame because a dock drag fires continuously, and
+  // re-laying out the desktop once per pointer event is how a smooth drag turns into a stutter.
+  //
+  // A METHOD and not four lines in the constructor, for the reason V2-606 already paid for: the constructor
+  // ends in `restore()`, which talks to the server, so a test cannot run it — and a test that registers the
+  // listeners itself proves the test works, not the product. This is the seam it calls.
+  _watchCanvas(){
+    const refit = ()=>{ if(this._refitQ) return; this._refitQ = requestAnimationFrame(()=>{ this._refitQ=0; this.fitAll(); }); };
+    document.addEventListener("hb:rail-resized", refit);
+    document.addEventListener("hb:canvas-resized", refit);
+    addEventListener("resize", refit);
+  }
+
+  // ── THE USABLE CANVAS (V2-608) ────────────────────────────────────────────────────────────────────────────
+  // The rectangle a card may actually occupy. `.hb-stage` is `inset:0`, so cards live in VIEWPORT coordinates,
+  // but the desk they read as theirs is inset by whatever is docked: the widget rail on the left (V2-538) and
+  // the chat wall, which since it became dockable owns a full-height column on either side (`#desk` obeys
+  // `--chatdock-l/r`; the stage does not).
+  //
+  // This calculation already existed — inline, inside `arrange()` and NOWHERE ELSE — so exactly one gesture out
+  // of a dozen knew about the chat column. Measured (operator, 2026-09-07): he dragged the chat to the left edge,
+  // it docked correctly into its column, and every card stayed exactly where it was. The desk shrank underneath
+  // them, and the card on the right was cut off by the window edge with no way to reach it.
+  canvas(){
+    const pad=this.tile.pad;
+    let x0=Math.max(pad, this.minX()+pad), x1=innerWidth-pad;
+    const cw=document.querySelector("#chatwall");
+    if(cw && cw.classList.contains("open")){
+      const r=cw.getBoundingClientRect();
+      if(r.width){
+        // Which SIDE it is on, by where its own box sits — the same test `arrange()` has used since V2-464, and
+        // it reads the element rather than the dock state so a FLOATING wall parked against an edge counts too.
+        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);
+        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);
+      }
+    }
+    // A canvas narrower than one minimum-size card is not a canvas; keep it non-degenerate so the clamps below
+    // stay monotonic (x1 < x0 would flip every Math.min/Math.max into nonsense).
+    if(x1 - x0 < MIN_W) x1 = x0 + MIN_W;
+    return {x0, x1, y0:this.tile.top, y1:Math.max(this.tile.top+MIN_H, innerHeight-pad)};
+  }
+
+  // The smallest this widget may be squeezed to. Its manifest may declare `min` ({w,h}); otherwise the canvas
+  // floor, which is the same pair the drag handles have always enforced. Honoured by every automatic resize, so
+  // a narrow canvas makes a card scroll — never collapse into an unusable sliver.
+  _minSize(id){
+    const meta=this._meta && this._meta[(id||"").split("::")[0]];
+    const m=meta && meta.min;
+    return {w:Math.max(MIN_W, Number(m&&m.w)||0), h:Math.max(MIN_H, Number(m&&m.h)||0)};
+  }
+
+  // AUTOFIT + AUTORESIZE over the whole desktop. The standing guarantee `_fit` already gave one card at a time,
+  // applied to all of them whenever the canvas CHANGES SHAPE — which until now nothing did: the rail had a clamp
+  // that only ever shoved cards rightwards (never resized them, never pulled one back from the right edge), the
+  // chat dock announced nothing at all, and a window resize was not listened to anywhere.
+  fitAll(){
+    let n=0;
+    this.wins.forEach((w,id)=>{
+      const c=w.card; if(!c || !c.isConnected) return;
+      if(c.classList.contains("hb-cinema")) return;      // cinema IS the viewport, by declaration
+      const before=c.style.left+"|"+c.style.top+"|"+c.style.width+"|"+c.style.height;
+      // A maximized card is deliberately canvas-sized: re-maximize it to the NEW canvas instead of clamping the
+      // old footprint, or shrinking the desk would leave it hanging over the chat column it was told to avoid.
+      if(c._restore) this._maximizeTo(c);
+      else this._fit(c, id);
+      if(before !== c.style.left+"|"+c.style.top+"|"+c.style.width+"|"+c.style.height) n++;
     });
-    if(moved) this._persist();
+    if(n) this._persist();
+    return n;
   }
 
   // Agent state → widgets. main.js calls this reactively from `store.powerOff()`.
@@ -817,13 +887,17 @@ export class Desktop {
     const card = w.card, s = String(where||"").toLowerCase();
     const W = card.offsetWidth || this.tile.w, H = card.offsetHeight || this.tile.h;
     const pad = this.tile.pad, top = this.tile.top;
-    const maxX = Math.max(pad, innerWidth - W - pad), maxY = Math.max(top, innerHeight - H - pad);
-    let x = parseInt(card.style.left) || pad, y = parseInt(card.style.top) || top;
+    // V2-608 — «a la izquierda» means the left of the CANVAS. With the chat docked left, the old reading put
+    // the card underneath the chat column, which is the one place he cannot see it.
+    const cv = this.canvas();
+    const maxX = Math.max(cv.x0, cv.x1 - W), maxY = Math.max(cv.y0, cv.y1 - H);
+    let x = parseInt(card.style.left) || cv.x0, y = parseInt(card.style.top) || cv.y0;
     const L=/left|izquierd/.test(s), R=/right|derech/.test(s), C=/cent|middle|medio/.test(s);
     const T=/top|arrib|encim/.test(s), B=/bottom|abaj|debaj/.test(s);
-    if(L) x=pad; else if(R) x=maxX; else if(C && !T && !B) x=Math.round((innerWidth-W)/2);
-    if(T) y=top; else if(B) y=maxY; else if(C && !L && !R) y=Math.round((innerHeight-H)/2);
+    if(L) x=cv.x0; else if(R) x=maxX; else if(C && !T && !B) x=Math.round(cv.x0+(cv.x1-cv.x0-W)/2);
+    if(T) y=cv.y0; else if(B) y=maxY; else if(C && !L && !R) y=Math.round(cv.y0+(cv.y1-cv.y0-H)/2);
     card.style.left = x+"px"; card.style.top = y+"px";
+    this._fit(card, id);
     this._bringFront(card); this._persist();
     return true;
   }
@@ -878,11 +952,7 @@ export class Desktop {
     } else {
       card._restore = {left:card.style.left, top:card.style.top, w:card.style.width, h:card.style.height,
                        mw:card.style.maxWidth, mh:card.style.maxHeight};
-      const x0 = this.minX() + pad;                      // V2-538: maximized still respects the docked rail
-      card.style.maxWidth="none"; card.style.maxHeight="none";
-      card.style.left=x0+"px"; card.style.top=top+"px";
-      card.style.width=(innerWidth - x0 - pad)+"px";
-      card.style.height=(innerHeight - top - pad)+"px";
+      this._maximizeTo(card);                            // V2-538 rail + V2-608 chat column: see canvas()
       // CINEMA (V2-596): the widget DECLARED that full screen means "the content IS the screen"
       // (manifest fullscreen:"native" — the same declaration fullscreen() reads), so a voice order that
       // lands here gets the full-bleed layout instead of a big card with a small player inside.
@@ -902,6 +972,17 @@ export class Desktop {
     }
     this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
     return true;
+  }
+
+  // The maximized footprint, against the CURRENT canvas. Its own method since V2-608 because `fitAll` has to
+  // re-apply it: a maximized card is deliberately canvas-sized, so when the canvas shrinks the honest answer is
+  // to re-maximize it, not to clamp the footprint it had when the desk was wider.
+  _maximizeTo(card){
+    const c=this.canvas();
+    card.style.maxWidth="none"; card.style.maxHeight="none";
+    card.style.left=c.x0+"px"; card.style.top=c.y0+"px";
+    card.style.width=(c.x1 - c.x0)+"px";
+    card.style.height=(c.y1 - c.y0)+"px";
   }
 
   // ---- MANUAL resizing: eight handles (four corners + four edges) ----
@@ -924,17 +1005,16 @@ export class Desktop {
   _applyPreferred(card, baseId, haveW, haveH){
     const size = this._meta && this._meta[baseId] && this._meta[baseId].size;
     if(!size) return;
-    const maxW = innerWidth - this.minX() - this.tile.pad*2, maxH = innerHeight - this.tile.top - this.tile.pad;
+    const c=this.canvas(), maxW = c.x1 - c.x0, maxH = c.y1 - c.y0;
     if(size.w && !haveW) card.style.width  = Math.min(Number(size.w), maxW) + "px";
     if(size.h && !haveH) card.style.height = Math.min(Number(size.h), maxH) + "px";
     if((size.w && !haveW) || (size.h && !haveH)){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
     // Reposition: the card was placed at the default size (400×340) and may have grown beyond the canvas.
-    const L=parseInt(card.style.left)||this.tile.pad, T=parseInt(card.style.top)||this.tile.top;
-    card.style.left = Math.max(this.minX()+this.tile.pad, Math.min(L, innerWidth - card.offsetWidth - this.tile.pad)) + "px";
-    card.style.top  = Math.max(this.tile.top, Math.min(T, innerHeight - card.offsetHeight - this.tile.pad)) + "px";
+    this._fit(card, baseId);
   }
   _wireResize(card, id){
-    const MIN_W = 240, MIN_H = 150;
+    // (MIN_W/MIN_H are module-scope since V2-608 — the drag handles, `_fit` and `_minSize` must agree, and
+    // three copies of a floor is how they stop agreeing.)
     let dir="", sx=0, sy=0, sw=0, sh=0, sl=0, st=0, live=false;
     const onMove = e => {
       if(!live) return;
@@ -946,10 +1026,11 @@ export class Desktop {
       if(dir.includes("n")){ h = sh - dy; t = st + dy; }
       // Los mínimos se aplican ANTES de mover el origen: si no, arrastrar el borde izquierdo más allá del ancho
       // mínimo seguía desplazando la tarjeta a la derecha y parecía que se estaba moviendo, no redimensionando.
-      if(w < MIN_W){ if(dir.includes("w")) l = sl + (sw - MIN_W); w = MIN_W; }
-      if(h < MIN_H){ if(dir.includes("n")) t = st + (sh - MIN_H); h = MIN_H; }
-      l = Math.max(this.minX(), l); t = Math.max(0, t);
-      w = Math.min(w, innerWidth - l); h = Math.min(h, innerHeight - t);
+      const _min = this._minSize(id), _c = this.canvas();
+      if(w < _min.w){ if(dir.includes("w")) l = sl + (sw - _min.w); w = _min.w; }
+      if(h < _min.h){ if(dir.includes("n")) t = st + (sh - _min.h); h = _min.h; }
+      l = Math.max(_c.x0, l); t = Math.max(0, t);
+      w = Math.min(w, _c.x1 - l); h = Math.min(h, _c.y1 - t);
       // Snapped like placement and drag (V2-551). Snapping only SOME of the three produces edges that almost
       // line up, which reads worse than no grid: a card dragged to x=200 next to one resized to x=203.
       card.style.left=this._snap(l)+"px"; card.style.top=this._snap(t)+"px";
@@ -982,19 +1063,21 @@ export class Desktop {
     const card = w.card;
     card._restore = null;
     card.classList.remove("hb-cinema");           // V2-596: an explicit resize leaves the cinema state
+    const _c = this.canvas(), _min = this._minSize(id);
     if(opts.width != null){
-      const maxW = innerWidth - this.tile.pad * 2;
-      card.style.width = Math.max(120, Math.min(opts.width, maxW)) + "px";
+      const maxW = _c.x1 - _c.x0;
+      card.style.width = Math.max(_min.w, Math.min(opts.width, maxW)) + "px";
       card.style.maxWidth = "none";
     }
     if(opts.height != null){
-      const maxH = innerHeight - this.tile.top - this.tile.pad;
+      const maxH = _c.y1 - _c.y0;
       // ALTO REAL, no `max-height`. Con max-height la tarjeta seguía encogiéndose al contenido, así que "hazla
       // más alta" no hacía nada visible salvo que el contenido ya desbordara — y el tamaño tampoco se podía
       // guardar (no había ninguno). Ahora es el mismo eje que mueve el tirador de la esquina.
-      card.style.height = Math.max(120, Math.min(opts.height, maxH)) + "px";
+      card.style.height = Math.max(_min.h, Math.min(opts.height, maxH)) + "px";
       card.style.maxHeight = "none";
     }
+    this._fit(card, id);            // a voice-sized card obeys the canvas like every other one (V2-608)
     this._persist();
     return true;
   }
@@ -1009,13 +1092,14 @@ export class Desktop {
     // The scan ORIGIN is snapped up to the grid, not just the step: starting at an unaligned x (the rail's
     // right edge + pad) and stepping by 5 keeps that offset forever, so every card lands 4px off the grid and
     // the grid buys nothing.
-    const xmin=this._snapUp(Math.max(pad, this.minX()+pad)), ytop=this._snapUp(top);
+    const cv=this.canvas();
+    const xmin=this._snapUp(cv.x0), ytop=this._snapUp(cv.y0), xmax=cv.x1, ymax=cv.y1;
     // COLUMN-MAJOR, and that order IS the feature (V2-551): the operator asked for cards «colocados
     // verticalmente pegados unos a otros». Row-major fills left-to-right first and scatters a session across
     // the top of the screen; sweeping y INSIDE x stacks each new card under the previous one and only starts a
     // new column when this one is full — which is also how a person tidies a desk.
-    for(let x=xmin; x+W<=innerWidth-pad; x+=step){
-      for(let y=ytop; y+H<=innerHeight-pad; y+=step){
+    for(let x=xmin; x+W<=xmax; x+=step){
+      for(let y=ytop; y+H<=ymax; y+=step){
         const r={left:x, top:y, right:x+W, bottom:y+H};
         if(!obs.some(o=>_overlap(r,o))){ card.style.left=x+"px"; card.style.top=y+"px"; return; }
       }
@@ -1039,7 +1123,8 @@ export class Desktop {
   // answer only has to be the one a person would point at.
   _largestGap(obs, W, H, xmin, top, pad){
     const step = Math.max(this.grid, 20);          // coarser here: this only runs when nothing fits at all
-    const maxX = Math.max(xmin, innerWidth - W - pad), maxY = Math.max(top, innerHeight - H - pad);
+    const cv = this.canvas();
+    const maxX = Math.max(xmin, cv.x1 - W), maxY = Math.max(top, cv.y1 - H);
     let best = {x: xmin, y: top, cover: Infinity};
     for(let x=xmin; x<=maxX; x+=step){
       for(let y=top; y<=maxY; y+=step){
@@ -1062,15 +1147,18 @@ export class Desktop {
   // it back. There was a re-clamp, but only inside `_applyPreferred`, i.e. only for widgets that DECLARE a size.
   // A card too large for the viewport is shrunk rather than cropped: half a card is not a smaller card, it is a
   // card with its content missing.
-  _fit(card){
+  // AUTOFIT one card: shrink it until it fits the usable canvas (never past its own minimum), then pull it
+  // wholly inside. V2-608 changed WHAT it measures against — `innerWidth`/`innerHeight` was the viewport, which
+  // stopped being the canvas the day the chat wall could take a column of it.
+  _fit(card, id){
     if(!card || card.classList.contains("hb-minned")) return;
-    const pad=this.tile.pad, top=this.tile.top, xmin=Math.max(pad, this.minX()+pad);
-    const availW = Math.max(240, innerWidth - xmin - pad), availH = Math.max(150, innerHeight - top - pad);
+    const c=this.canvas(), min=this._minSize(id || card.dataset.wid);
+    const availW = Math.max(min.w, c.x1 - c.x0), availH = Math.max(min.h, c.y1 - c.y0);
     if(card.offsetWidth  > availW){ card.style.maxWidth ="none"; card.style.width  = this._snap(availW)+"px"; }
     if(card.offsetHeight > availH){ card.style.maxHeight="none"; card.style.height = this._snap(availH)+"px"; }
-    const L = parseInt(card.style.left)||xmin, T = parseInt(card.style.top)||top;
-    card.style.left = this._snap(Math.max(xmin, Math.min(L, innerWidth  - card.offsetWidth  - pad))) + "px";
-    card.style.top  = this._snap(Math.max(top,  Math.min(T, innerHeight - card.offsetHeight - pad))) + "px";
+    const L = parseInt(card.style.left)||c.x0, T = parseInt(card.style.top)||c.y0;
+    card.style.left = this._snap(Math.max(c.x0, Math.min(L, c.x1 - card.offsetWidth ))) + "px";
+    card.style.top  = this._snap(Math.max(c.y0, Math.min(T, c.y1 - card.offsetHeight))) + "px";
   }
 
   _snap(n){ const g=this.grid||1; return Math.round(Number(n||0)/g)*g; }
@@ -1091,10 +1179,10 @@ export class Desktop {
       clearTimeout(t);                        // a render can fire this many times in one frame
       t = setTimeout(() => {
         if(card._restore) return;             // maximized on purpose
-        const pad=this.tile.pad, top=this.tile.top, xmin=Math.max(pad, this.minX()+pad);
+        const c = this.canvas();
         const r = card.getBoundingClientRect();
-        const out = r.right > innerWidth - pad || r.bottom > innerHeight - pad
-                 || r.left < xmin - 1 || r.top < top - 1;
+        const out = r.right > c.x1 + 1 || r.bottom > c.y1 + 1
+                 || r.left < c.x0 - 1 || r.top < c.y0 - 1;
         if(out){ this._fit(card); this._persist(); }
       }, 80);
     });
@@ -1119,7 +1207,7 @@ export class Desktop {
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
     const pad=this.tile.pad, top=this._snapUp(this.tile.top);
-    const xmin=this._snapUp(Math.max(pad, this.minX()+pad)), step=this.grid;
+    const cv=this.canvas(), xmin=this._snapUp(cv.x0), step=this.grid;
     const placed=[];
     const fixed=this._obstacles(null).filter(r=>!cards.some(c=>{
       const cr=c.getBoundingClientRect(); return Math.abs(cr.left-r.left)<1 && Math.abs(cr.top-r.top)<1; }));
@@ -1134,8 +1222,8 @@ export class Desktop {
       c.classList.remove("hb-cinema");                   // V2-596: nor in cinema, which rides on that state
       const W=c.offsetWidth, H=c.offsetHeight;
       let put=false;
-      for(let x=xmin; !put && x+W<=innerWidth-pad; x+=step){
-        for(let y=top; y+H<=innerHeight-pad; y+=step){
+      for(let x=xmin; !put && x+W<=cv.x1; x+=step){
+        for(let y=top; y+H<=cv.y1; y+=step){
           const r={left:x, top:y, right:x+W, bottom:y+H};
           if(![...placed,...fixed].some(o=>_overlap(r,o))){
             c.style.left=x+"px"; c.style.top=y+"px"; placed.push(r); put=true; break;
@@ -1156,16 +1244,10 @@ export class Desktop {
     this.revealAll();          // "ordénalo todo" is a show-all gesture: a grid with invisible holes is not a grid
     const cards=[...this.wins.values()].map(w=>w.card).filter(c=>c && c.isConnected);
     if(!cards.length) return {ok:true, n:0};
-    const pad=this.tile.pad, y0=this.tile.top, y1=innerHeight-150;   // 150 = orb/status strip
-    let x0=Math.max(pad, this.minX()+pad), x1=innerWidth-pad;       // V2-537/538: the rail owns the left edge
-    const cw=document.querySelector("#chatwall");
-    if(cw && cw.classList.contains("open")){
-      const r=cw.getBoundingClientRect();
-      if(r.width){
-        if(r.left <= innerWidth*0.3) x0=Math.max(x0, r.right+pad);       // docked/floating on the LEFT
-        else if(r.right >= innerWidth*0.7) x1=Math.min(x1, r.left-pad);  // …or on the RIGHT
-      }
-    }
+    // V2-608 — this block used to compute the dock-aware bounds INLINE, and it was the only gesture on the
+    // canvas that knew about the chat column. It is `canvas()` now, shared by every one of them.
+    const pad=this.tile.pad, cv=this.canvas();
+    const x0=cv.x0, x1=cv.x1, y0=cv.y0, y1=innerHeight-150;   // 150 = orb/status strip, this gesture's own
     const n=cards.length;
     const cols=n===1?1:(n<=4?2:Math.ceil(Math.sqrt(n)));
     const rows=Math.ceil(n/cols);
