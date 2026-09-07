@@ -609,6 +609,45 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     does is **not measured** — nothing in their code paths pulls a backlog (WhatsApp's `history` branch is
     on-demand scrollback), and settling it needs a live re-link of both accounts, not a reading.
 
+- **The desk shrank underneath the cards and nobody told them (V2-608, 2026-09-07)**: operator's screenshot —
+  he dragged the chat wall to the left edge, it docked correctly into a full-height column, and **not one widget
+  moved**. One card ended up behind the chat, the one on the right was cut off by the window edge and
+  unreachable. «Todos tienen que estar dentro de ese espacio visible. Autofit + autoresize, respetando el
+  mínimo de alto y ancho por widget.»
+  - **Two coordinate systems that stopped agreeing.** `#desk` follows `--chatdock-l/r` in CSS, but the cards
+    live on `.hb-stage`, which is `inset:0` — so they are placed in VIEWPORT coordinates and clamped against
+    `innerWidth`/`innerHeight`, which stopped being the canvas the day the chat wall could take a column of it.
+  - **The rectangle already existed, in exactly one place.** `arrange()` computed the dock-aware bounds INLINE,
+    and was therefore the only gesture on the whole canvas that knew a chat column could be there. It is
+    `canvas()` now and every clamp reads it: placement, drag, drag-resize, voice `resize`, `move`, `maximize`,
+    `_applyPreferred`, the ResizeObserver guard, `compact` and `arrange`. (Same shape as
+    *[[La propiedad de la puerta]]*: the good calculation was already being made, one caller away.)
+  - **Three ways the canvas changes shape; only one said anything.** The rail announces `hb:rail-resized`, but
+    its listener only ever shoved cards RIGHTWARDS — it never resized an oversized card and never pulled one
+    back from the right edge. The chat dock announced **nothing**. A window resize was **not listened to
+    anywhere**. All three run one autofit pass now, coalesced on a frame because a dock drag fires continuously.
+  - **Autofit AND autoresize**: a card too wide for what is left is SHRUNK, never merely moved — down to that
+    widget's own minimum (`manifest.min`, falling back to the 240×150 floor the drag handles already enforced),
+    so a narrow canvas makes a card scroll instead of collapsing into a sliver. A maximized card is
+    **re-maximized to the new canvas**, not clamped: it is deliberately canvas-sized, so clamping the old
+    footprint would leave it hanging over the column it was told to avoid. **A card that is already legal is
+    left exactly alone** — refitting is a repair, not a layout engine; a «tidy» that also undoes where he put
+    things is a second bug.
+  - **Two more defects, measured on the real page while testing this one**: (1) a **DOCKED wall did not come
+    back docked** — `hb_chat_dock` was written on every dock and never read back on restore, so `floatGeo`
+    (which `applyDock` does not clear) always won; measured: dock left, reload, returns at `left:18 w:320` with
+    the key still holding `{side:"left",w:420}`. V2-550 fixed «it does not come back where it was» for the
+    FLOATING wall; this was the same report for the docked one, which is the shape he actually uses. (2) **the
+    reserved strip did not match the column it reserves** — `setReserve` measured `offsetWidth`, which is 0
+    while the wall is unlaid-out (the restore path exactly), so it reserved the 340px default for a 420px column
+    and left an 80px band of desk hidden under the chat.
+  - Node **4.121**, ten verified disarms, all caught. **RENDERED, not read**: a source test says the listener
+    exists; only layout says the card ended up inside. ⚠️ The first version of the test built the Desktop with
+    `Object.create(prototype)` to skip a constructor that ends in `restore()` (which talks to the server) — so
+    the listeners never registered and the test measured nothing. Registering them in the test would have proved
+    the test works, not the product, so the wiring came out as `_watchCanvas()`, the seam the constructor calls.
+    Same move, same reason, as `seed_from_mailbox` in V2-606.
+
 - **A card question the operator cannot answer is asked forever — and the captcha handoff nobody offered
   (V2-605, 2026-09-07)**: session `43b7bf79`, read turn by turn before touching anything. «Tienes 2 abiertas:
   ¿cuál te enseño, "t1" o "navegador"?» was spoken FIVE times in 93 seconds while he answered it («uno está
