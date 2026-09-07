@@ -187,6 +187,24 @@ def test_set_signature_line_builds_up_without_wiping_the_others(sandbox, monkeyp
     assert r["ok"] and r["lines"] == ["Ricardo", "", "ricardo@x.com"]
 
 
+def test_setting_a_sparse_line_then_filling_the_gap_does_not_clobber_the_line_after_it(sandbox, monkeypatch):
+    """Caught live, verifying this exact feature (2026-09-07): dictate line 1, then line 3 — the middle line
+    stays an empty PLACEHOLDER, `['Ricardo', '', 'ricardo@x.com']`. Filling line 2 afterward must land in
+    that middle slot, not overwrite line 3 — which is exactly what happened when the read-modify-write used
+    `connectors.email.config.signature_lines()`, whose OWN reader filters blank lines for the sender (right
+    there, wrong here): it silently collapsed the sparse array to two elements before the next line index
+    was computed against it."""
+    from config import connectors as conn_store
+    store_data = {}
+    monkeypatch.setattr(conn_store, "_read", lambda: store_data)
+    monkeypatch.setattr(conn_store, "_write", lambda d: store_data.update(d))
+    msg.apply_action("set_signature_line", {"line": 1, "text": "Ricardo"})
+    msg.apply_action("set_signature_line", {"line": 3, "text": "ricardo@x.com"})
+    assert store_data["email"]["signature_lines"] == ["Ricardo", "", "ricardo@x.com"]
+    r = msg.apply_action("set_signature_line", {"line": 2, "text": "Director"})
+    assert r["ok"] and r["lines"] == ["Ricardo", "Director", "ricardo@x.com"]
+
+
 def test_set_signature_replaces_the_whole_thing(sandbox, monkeypatch):
     from config import connectors as conn_store
     monkeypatch.setattr(conn_store, "_read", lambda: {})

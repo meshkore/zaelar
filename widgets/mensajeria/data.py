@@ -643,9 +643,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not 1 <= i <= 10:
             return {"ok": False, "error": "bad_line", "message": "La firma admite hasta 10 líneas."}
         text = str(payload.get("text") or "").strip()[:200]
-        from connectors.email import config as _email_cfg
         from config import connectors as _conn_store
-        lines = _email_cfg.signature_lines()
+        # RAW positional read, never `connectors.email.config.signature_lines()` — that reader FILTERS
+        # blank lines for the sender (a trailing/leading blank in the actual email is cosmetic noise there),
+        # which is exactly wrong for addressing "line N" by index here: filtering first would silently
+        # collapse an already-set blank middle line and the NEXT dictated line would overwrite the wrong
+        # one (found live, verifying this feature — line 1 + line 3 read back as two lines, not three).
+        raw = _conn_store.get("email").get("signature_lines")
+        lines = [str(x) for x in raw] if isinstance(raw, list) else []
         while len(lines) < i:
             lines.append("")
         lines[i - 1] = text
