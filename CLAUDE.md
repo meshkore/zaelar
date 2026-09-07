@@ -502,9 +502,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     operator chose to keep música consistent with the rest of the catalog for now — the seam itself is a
     separate, real initiative (wiring `t()` into a bare-URL `import()`-ed module, its own render-test
     harness support, bundle keys), not a drop-in fix inside a visual redesign.
-  - Node 4.3 (+1 file, 15 RENDERED cases) + 3 data.py cases, five disarms verified red (artist derivation,
-    the click/dblclick split, the playing-row marker in both the playlist and the home lists).
-    `make test-widgets` stays green 14/14.
+  - ⚠️ **Caught on the live visual check, not by reading**: a legacy merged-title row playing through a
+    CONNECTED provider never lit up — the provider reports its own clean, real title ("Papa Don't Preach"),
+    which never equals the stored merged one ("Madonna Papa Don't Preach"), so the ONE scenario the redesign
+    exists to fix was exactly the one the naive equality missed. `nowPlayingMatches` now also accepts a
+    SUFFIX match when the stored track has no separate artist field, requiring the leftover prefix to agree
+    with the now-playing artist (when known) so two unrelated songs sharing an ending cannot false-positive.
+  - Node 4.3 (+1 file, 17 RENDERED cases) + 3 data.py cases, six disarms verified red (artist derivation,
+    the click/dblclick split, the playing-row marker in both the playlist and the home lists, the suffix
+    match). `make test-widgets` stays green 14/14. **Verified live** on `3.26+60ce513`: rendered the exact
+    reported shape (a "True Blue" playlist with merged Madonna titles) against the real widget.js — header
+    says "Madonna · 5 canciones" once, rows read clean, the play button sits inside the cover art, and the
+    playing row lights up green with the equalizer, matching the bottom bar.
 
 - **Connecting an account is ONE step, and a failed data-op corrects the claim it already made (V2-603,
   2026-09-06)**: session `e1acdcca` — nine minutes trying to connect YouTube, three browser windows, and the

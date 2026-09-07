@@ -158,9 +158,20 @@ function _norm(s){
 function nowPlayingMatches(t, np){
   if(!np) return false;
   const a = _norm(t.title || t.query), b = _norm(np.title);
-  if(!a || !b || a !== b) return false;
+  if(!a || !b) return false;
   const aa = _norm(t.artist), ba = _norm(np.artist);
-  return (aa && ba) ? aa === ba : true;   // missing artist on either side: the title match is enough
+  if(a === b) return (aa && ba) ? aa === ba : true;   // missing artist on either side: the title match is enough
+  // A legacy merged title ("madonna papa don't preach", no separate artist field) played through a CONNECTED
+  // provider reports its own clean, real title ("papa don't preach") — a plain equality never matches, so this
+  // row would never light up for the exact case the redesign exists to fix. If the stored title ENDS with the
+  // now-playing title, treat the leftover prefix as the artist and require it to agree with `np.artist` when
+  // that is known — a bare suffix match with no artist to cross-check would risk lighting up an unrelated song
+  // that merely ends the same way.
+  if(!aa && b.length > 3 && a.endsWith(b)){
+    const prefix = a.slice(0, a.length - b.length).trim();
+    return !ba || prefix === ba || prefix.endsWith(ba);
+  }
+  return false;
 }
 
 // A playlist where every track shares the SAME artist should say that artist ONCE (the header), not on every

@@ -187,6 +187,31 @@ def test_the_playing_row_is_marked_with_an_equalizer_in_the_playlist(mounted):
     assert rows[0].query_selector(".hb-mus2-eq") is None
 
 
+def test_a_legacy_merged_title_still_matches_a_clean_now_playing_title(mounted):
+    """The exact scenario from the operator's screenshot: the STORED title has the artist baked in with no
+    separate field, but a CONNECTED provider (Spotify) reports its own clean, real title — a bare equality
+    would never light this row up, which is the failure the redesign exists to fix."""
+    page, mount = mounted
+    pl = {"id": "true-blue", "name": "True Blue", "art": "", "tracks": [
+        _track("Madonna Papa Don't Preach"),
+        _track("Madonna Open Your Heart"),
+    ]}
+    mount(_data(playlists=[pl], view={"kind": "playlist", "id": "true-blue"},
+                now_playing={"title": "Papa Don't Preach", "artist": "Madonna", "playing": True}))
+    rows = page.query_selector_all(".hb-mus2-tr")
+    assert "playing" in rows[0].get_attribute("class")
+    assert "playing" not in rows[1].get_attribute("class")
+
+
+def test_a_suffix_match_still_requires_the_artist_to_agree(mounted):
+    """Two different songs can coincidentally share an ending — the suffix match must not fire blind."""
+    page, mount = mounted
+    pl = {"id": "p", "name": "P", "art": "", "tracks": [_track("Someone Else Preach")]}
+    mount(_data(playlists=[pl], view={"kind": "playlist", "id": "p"},
+                now_playing={"title": "Preach", "artist": "A Totally Different Act", "playing": True}))
+    assert "playing" not in page.query_selector(".hb-mus2-tr").get_attribute("class")
+
+
 def test_the_playing_track_is_also_marked_in_top_and_recent_on_the_home_screen(mounted):
     page, mount = mounted
     mount(_data(top=[_track("Hit One", artist="X"), _track("Hit Two", artist="Y")],
