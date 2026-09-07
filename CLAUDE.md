@@ -563,7 +563,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     deleting it whole stayed green. *A move is only safe if the destination is measured.* And the extraction
     turned the older show-decision wiring guard RED because it was pinned to `probe.py`: repointed at the
     CHANNEL, per V2-555.
-  - **NOT verified live** (needs a restart). **Open and named**: the GHOST CARD — the canvas began reporting a
+  - **FOUR doors show a card, and they only become visible ONE AT A TIME.** The tool path was fixed in both
+    channels first; then driving the LIVE engine showed «Enséñame el navegador» never touches it. F2: the model
+    called no tool and emitted no tag — a deterministic backstop produced the show with the base id, because in
+    `_widget_fallback` the CLOSE branch has consulted the instance since V2-259 and the SHOW branch never did.
+    F3, after F2 still did not narrow: the turn returned in under a second with no model call at all — it is
+    the **ACTION MAP** (V2-539), since «Enséñame el navegador» is a SEEDED phrase (V2-567's grids). *The two
+    doors fixed first are the SLOW ones; this is the lane a real operator actually hits.* One chokepoint
+    (`instances.show_id`, narrow-only — these lanes are silent and cannot ask), not four patches, which is the
+    doctrine written at the top of that same file for closing since V2-259. A test now COUNTS the doors.
+  - ⚠️ **A measurement trap, paid twice**: `/api/flash/say` without `execute: true` DESCRIBES the action without
+    running it, and `describe()` prints the STORED name — so the live check was reading the label, not the
+    event. What counts is `widget/show` in observability.
+  - **And the deepest one: our repeated sentence was DELETING his (F4).** Across the failing stretch the
+    conversation window collapsed **10 → 8 → 6 → 4 → 2 messages in four turns**, so by the time he said «te he
+    dicho que quiero un navegador en MI ordenador» the model was answering on two messages of history. His own
+    diagnosis — «le falta lo que estamos haciendo en este momento» — was right. `dialog.prune_window` collapses
+    near-identical ASSISTANT replies (correct, V2-032) and ALSO deleted the USER turn in front of the twin it
+    removed, against what its own docstring has promised since the day it was written. Because the repeated
+    sentence was OURS — a canned clarify he never provoked — **every repetition ate one of his**: four of his
+    sentences went in and ONE came out, «¿no has entendido lo que te he dicho?», the least informative of the
+    four. The mechanism that exists to stop degeneration was amplifying it, leaving the model less to escape
+    with on every turn. What repeats is the reply; what he says never repeats and is exactly what is needed.
+    Node **4.120**, two disarms.
+  - **VERIFIED LIVE** on `3.26+69efaf4`: «ábreme el navegador para que te confirme el captcha» → `authenticate_web`
+    (was `show_widget` + the question), and «enséñame el navegador» → `widget/show id=navegador::t1 src=actionmap`
+    (was the bare, empty box). **NOT verified live**: the blank-card filter with a REAL worker-created browser
+    task, which needs a live errand. **Open and named**: the GHOST CARD — the canvas began reporting a
     bare `navegador` with **no `widget/show` behind it**, the stray box the browser task registry's own
     comment already calls the «ghost card»; this makes it harmless to show, it does not remove it. Also open: `clarify` overriding a good reply in its 13
     other faces, 18 identical «Dentist» notices in one kickoff prompt, and a browser block that said «la web

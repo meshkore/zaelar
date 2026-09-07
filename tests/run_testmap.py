@@ -1961,6 +1961,15 @@ DOMAINS: list[dict] = [
                                  "el sitio, y la tool declara el caso además del login",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_a_wall_offers_the_operators_own_hands.py"]},
+        # V2-605 F4, misma sesión: la ventana cayó de 10 mensajes a 2 en cuatro turnos. `prune_window` colapsaba
+        # respuestas gemelas del ASISTENTE (correcto) y borraba de paso el turno de USUARIO de delante — contra
+        # lo que su propio docstring promete desde V2-032. Como la frase repetida era NUESTRA (una pregunta
+        # enlatada que él no provocó), cada repetición se comía una frase suya: entraron CUATRO y salió UNA, la
+        # menos informativa. El mecanismo anti-degeneración la estaba amplificando.
+        {"id": "4.120", "title": "Una respuesta repetida NUESTRA nunca borra lo que dijo el operador: la poda "
+                                 "colapsa las gemelas del asistente y conserva sus turnos intactos",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_repeated_reply_never_deletes_what_he_said.py"]},
         # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
         # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
         # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar

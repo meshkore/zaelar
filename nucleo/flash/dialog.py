@@ -132,20 +132,28 @@ def push_user(window: list[dict], text: str) -> None:
 
 # ── 2) PODA DE HISTORIAL ─────────────────────────────────────────────────────────────────────────────────
 def prune_window(window: list[dict]) -> list[dict]:
-    """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y los turnos
-    de usuario intactos; de una racha de respuestas gemelas deja solo la última (con su turno de usuario). No
-    muta la lista original."""
+    """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y **los
+    turnos de usuario INTACTOS**; de una racha de respuestas gemelas deja solo la última. No muta la original.
+
+    V2-605 F4 — esa promesa de «turnos de usuario intactos» lleva en este docstring desde V2-032 y el código
+    hacía lo contrario: al quitar la gemela vieja borraba TAMBIÉN el turno de usuario de delante. Medido en la
+    sesión `43b7bf79`: la ventana cayó de 10 mensajes a 2 en cuatro turnos, y de las CUATRO frases del operador
+    entró solo UNA — la menos informativa («¿no has entendido lo que te he dicho?»). Sus explicaciones, que eran
+    todas distintas y todas útiles («uno está vacío y el otro tiene la web», «te he dicho que quiero un navegador
+    en MI ordenador»), las borró la repetición de una frase NUESTRA, enlatada, que él no había provocado.
+
+    El mecanismo puesto para frenar la degeneración la estaba AMPLIFICANDO: cada repetición del guarda se comía
+    una frase suya, así que el modelo tenía cada vez menos con qué salir del bucle. Lo que se repite es la
+    respuesta; lo que él dijo no se repite nunca y es justo lo que hace falta para entenderle.
+    """
     out: list[dict] = []
     for m in window:
         if m.get("role") == "assistant":
-            # ¿ya hay una respuesta gemela reciente (dentro de los últimos 4 mensajes)? entonces esta racha ya
-            # está representada — deja la más nueva quitando la vieja gemela y su turno de usuario acompañante.
+            # ¿ya hay una respuesta gemela reciente (dentro de los últimos 4 mensajes)? entonces esa racha ya
+            # está representada — se quita la gemela VIEJA y solo ella.
             for j in range(len(out) - 1, max(-1, len(out) - 5), -1):
                 if out[j].get("role") == "assistant" and similar(out[j].get("content", ""), m.get("content", "")):
-                    # quita la respuesta gemela vieja y (si lo hay) el turno de usuario inmediatamente anterior
                     del out[j]
-                    if j - 1 >= 0 and j - 1 < len(out) and out[j - 1].get("role") == "user":
-                        del out[j - 1]
                     break
         out.append(m)
     return out
